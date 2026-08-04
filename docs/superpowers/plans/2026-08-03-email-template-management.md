@@ -1607,3 +1607,5 @@ git commit -m "test: add integration test for email template CRUD, preview, and 
   - `IEmailTemplateRepository` (Task 2) is consumed identically by `EmailTemplatesModule` (Tasks 2, 4, 5, 6) and by `DefaultOrganizationBootstrap` (Task 7) via the same `EMAIL_TEMPLATE_REPOSITORY` DI token — no duplicate token, no divergent interface.
   - `RenderEmailTemplateUseCase.render(template, data)` (Task 3) is called with the exact same `EmailTemplateRenderData` shape by `PreviewEmailTemplateUseCase` (Task 6); the future `EmailService.sendReminderEmail` (`2026-08-03-email-notification-service-design.md`, out of scope here) is expected to build the same 7-field object from a real `Receivable`/`Customer`/`Organization` at send time.
   - `SignupUseCase` uses the Authentication plan's single `IOrganizationBootstrap` dependency after `ISubscriptionRepository`; the adapter test owns template/reminder seeding assertions, while the signup test owns transaction rollback.
+
+

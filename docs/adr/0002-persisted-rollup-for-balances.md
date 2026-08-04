@@ -13,7 +13,7 @@ Accepted
 - **Tính runtime**: `SUM(PaymentAllocation.allocatedAmount)` mỗi lần cần đọc số dư — luôn nhất quán với source of truth vì không có bản sao dữ liệu nào khác, nhưng mọi read path (list receivable, aging dashboard, reporting) phải aggregate một bảng có thể rất lớn.
 - **Persisted rollup**: lưu `paidAmount`/`allocatedAmount` trực tiếp trên `Receivable`/`Payment`, cập nhật trong cùng transaction với mỗi allocation/undo.
 
-Domain Core spec ban đầu có mâu thuẫn giữa hai cách này ở các phiên bản plan khác nhau (ghi nhận trong `docs/superpowers/IMPLEMENTATION-ORDER.md` mục "Cập nhật 08/2026") — đây là lý do quyết định này cần chốt tường minh và tài liệu hóa, tránh các plan sau tiếp tục lệch nhau.
+Domain Core spec ban đầu có mâu thuẫn giữa hai cách này ở các phiên bản plan khác nhau — đây là lý do quyết định này cần chốt tường minh và tài liệu hóa, tránh các plan sau tiếp tục lệch nhau.
 
 ## Decision
 

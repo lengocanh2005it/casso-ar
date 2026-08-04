@@ -42,3 +42,5 @@
 - FE exceptions page consumes `/bank-transactions/unmatched`; its sidebar badge consumes `/bank-transactions/pending-review-count`.
 - FE settings reads `/bank-connections`, `/organizations/:id/members`, and `user.subscriptionPlan` from `/me`.
 - No frontend should retain a “BE gap” note for these endpoints after this plan is implemented.
+
+

@@ -1114,3 +1114,5 @@ git commit -m "feat(frontend): auth routes + sidebar logout footer"
 - **Type consistency:** `AuthenticatedUser` defined once in `auth-context.tsx` and used by `login()` and `Probe` test; `AuthTokenManager` methods match Task 1's test exactly (`getValidAccessToken`, `setAccessToken`, `markLogoutInitiated`, `clearStaleRefreshSession`).
 - **Resolved contracts:** refresh-token transport is an httpOnly cookie; signup/login return an access token and set the refresh cookie; FE hydrates the user via `/api/v1/me`, which includes `subscriptionPlan` from the Read APIs plan. All FE API calls use the `/api/v1` prefix exactly once. If verification policy changes later, only the signup auto-login flow needs revisiting.
 - **Owned by FE plan 3:** plan-gated nav badge (`/copilot`), billing 402 upgrade prompt.
+
+

@@ -645,3 +645,5 @@ git commit -m "feat(frontend): plan-locked nav item for copilot"
 - **RBAC decisions (grill Q4):** email template create/edit/delete/preview gated by the exact `REMINDER_POLICY_WRITE`; Users tab gated by OWNER/FINANCE_MANAGER role; Copilot action card only for `REMINDER_SEND_MANUAL` (documented in Task 3; actual check uses the same `hasPermission` with the enum value once shared-types ships it).
 - **Contract ownership:** bank connections, `subscriptionPlan` from `GET /api/v1/me`, and members list come from the Read APIs plan; policies, reports, and templates come from their owning BE plans. All FE request URLs retain the `/api/v1` prefix.
 - **Deferred:** real Cas redirect → auto-exchange after QR scan (Task 5 ponytail note); copilot conversation history (no BE endpoint by design).
+
+

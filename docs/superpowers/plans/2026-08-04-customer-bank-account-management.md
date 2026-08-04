@@ -58,8 +58,8 @@ apps/backend/src/
 packages/shared-types/src/permission.ts                  -- NEW: shared permission enum used by BE and FE
 packages/shared-types/src/index.ts                       -- MODIFY: export permission type
 
-OVERVIEW.md                                               -- MODIFY: permission/API/module ownership
-docs/superpowers/IMPLEMENTATION-ORDER.md                  -- MODIFY: dependency row and route ownership
+docs/overview.md                                               -- MODIFY: permission/API/module ownership
+(implementation order defined in feature-map.md)                  -- MODIFY: dependency row and route ownership
 docs/superpowers/specs/2026-08-03-multi-tenancy-rbac-design.md -- MODIFY: permission definition
 docs/superpowers/plans/2026-08-03-multi-tenancy-rbac.md   -- MODIFY: permission implementation
 docs/superpowers/specs/2026-08-03-webhook-matching-engine-design.md -- MODIFY: active mapping contract
@@ -630,8 +630,8 @@ git commit -m "test: verify bank account mappings feed active matching only"
 ### Task 6: Synchronize the spec/plan contracts and implementation order
 
 **Files:**
-- Modify: `OVERVIEW.md`
-- Modify: `docs/superpowers/IMPLEMENTATION-ORDER.md`
+- Modify: `docs/overview.md`
+- Modify: `(implementation order defined in feature-map.md)`
 - Modify: `docs/superpowers/specs/2026-08-03-multi-tenancy-rbac-design.md`
 - Modify: `docs/superpowers/plans/2026-08-03-multi-tenancy-rbac.md`
 - Modify: `docs/superpowers/specs/2026-08-03-webhook-matching-engine-design.md`
@@ -652,7 +652,7 @@ Change the Webhook spec/plan language from “management flow or seeded/admin se
 
 - [ ] **Step 3: Add API ownership and dependency order**
 
-In `IMPLEMENTATION-ORDER.md`, add the bank-account route contract and add this plan after Webhook + Exception/Audit dependencies and before FE Core consumes any future bank-account UI. Keep existing FE routes untouched. In `OVERVIEW.md`, add the module/API ownership and permission row.
+Add the bank-account route contract to `docs/wayfinder/feature-map.md` after Webhook + Exception/Audit dependencies and before FE Core consumes any future bank-account UI. Keep existing FE routes untouched. In `docs/overview.md`, add the module/API ownership and permission row.
 
 - [ ] **Step 4: Mark reconciliation coverage**
 
@@ -663,14 +663,14 @@ Add the new spec/plan pair and its cross-document updates to `2026-08-03-spec-pl
 Run:
 
 ```bash
-rg -n "CustomerBankAccount|customer-bank-account|CUSTOMER_BANK_ACCOUNT_MANAGE|/customers/:customerId/bank-accounts|isActive" docs/superpowers/specs docs/superpowers/plans OVERVIEW.md
-rg -n "seeded/admin setup|infer.*customer|BankAccountsModule.*read-only" docs/superpowers/specs docs/superpowers/plans OVERVIEW.md
+rg -n "CustomerBankAccount|customer-bank-account|CUSTOMER_BANK_ACCOUNT_MANAGE|/customers/:customerId/bank-accounts|isActive" docs/superpowers/specs docs/superpowers/plans docs/overview.md
+rg -n "seeded/admin setup|infer.*customer|BankAccountsModule.*read-only" docs/superpowers/specs docs/superpowers/plans docs/overview.md
 ```
 
 Expected: every occurrence points to the management plan or explicitly describes a test fixture; no current contract says Matching Engine may infer ownership or read inactive mappings. Commit:
 
 ```bash
-git add OVERVIEW.md docs/superpowers
+git add docs/overview.md docs/superpowers
 git commit -m "docs: reconcile customer bank account management contracts"
 ```
 
@@ -686,3 +686,5 @@ Execute Tasks 1–6 in order. Before declaring the feature complete, run the foc
 - Raw account numbers appear only in write input and internal domain/repository operations, never in response/audit/log output.
 - Cross-tenant access is handled by existing tenant-scoped repository contracts, not caller-supplied organization IDs.
 - FE is intentionally not modified; existing FE calls remain untouched.
+
+

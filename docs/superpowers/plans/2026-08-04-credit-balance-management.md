@@ -48,8 +48,8 @@ apps/backend/src/
     exception-queue.module.ts                               -- MODIFY: import CustomersModule if needed
   test/credit-balance-management.integration.spec.ts        -- NEW
 
-OVERVIEW.md                                                   -- MODIFY: credit API ownership
-docs/superpowers/IMPLEMENTATION-ORDER.md                      -- MODIFY: route/dependency row
+docs/overview.md                                                   -- MODIFY: credit API ownership
+(implementation order defined in feature-map.md)                      -- MODIFY: route/dependency row
 docs/superpowers/specs/2026-08-03-domain-core-design.md       -- MODIFY: link credit management contract
 docs/superpowers/specs/2026-08-03-exception-queue-audit-log-design.md -- MODIFY: mark-prepaid validation ownership
 docs/superpowers/plans/2026-08-03-exception-queue-audit-log.md -- MODIFY: credit read contract and validation
@@ -597,8 +597,8 @@ git commit -m "test: verify customer credit balance lifecycle"
 ### Task 6: Synchronize specs, plans, and route ownership
 
 **Files:**
-- Modify: `OVERVIEW.md`
-- Modify: `docs/superpowers/IMPLEMENTATION-ORDER.md`
+- Modify: `docs/overview.md`
+- Modify: `(implementation order defined in feature-map.md)`
 - Modify: `docs/superpowers/specs/2026-08-03-domain-core-design.md`
 - Modify: `docs/superpowers/specs/2026-08-03-exception-queue-audit-log-design.md`
 - Modify: `docs/superpowers/plans/2026-08-03-exception-queue-audit-log.md`
@@ -629,14 +629,14 @@ Add this plan after Domain Core, Multi-tenancy, and Exception Queue/Audit depend
 Run:
 
 ```bash
-rg -n "CreditBalance|CustomerCreditBalance|GET /customers/:customerId/credits|findUnallocatedByCustomerId|unallocatedAmount|mark-prepaid" OVERVIEW.md docs/superpowers/specs docs/superpowers/plans docs/superpowers/IMPLEMENTATION-ORDER.md
+rg -n "CreditBalance|CustomerCreditBalance|GET /customers/:customerId/credits|findUnallocatedByCustomerId|unallocatedAmount|mark-prepaid" docs/overview.md docs/superpowers/specs docs/superpowers/plans (implementation order defined in feature-map.md)
 rg -n "credit.*table|separate.*ledger|new.*allocation.*endpoint" docs/superpowers/specs/2026-08-04-credit-balance-management-design.md docs/superpowers/plans/2026-08-04-credit-balance-management.md
 ```
 
 Expected: all current references point to Payment rollups and the new read contract; no current spec/plan introduces a second balance source or credit-specific write API. Commit:
 
 ```bash
-git add OVERVIEW.md docs/superpowers
+git add docs/overview.md docs/superpowers
 git commit -m "docs: reconcile credit balance management contracts"
 ```
 
@@ -653,3 +653,5 @@ Execute Tasks 1–6 in order. Before claiming completion, run the focused unit t
 - `mark-prepaid` validates customer ownership before creating Payment.
 - Allocation and undo change the visible balance through existing persisted rollups.
 - FE remains untouched and existing payment allocation/undo calls remain canonical.
+
+

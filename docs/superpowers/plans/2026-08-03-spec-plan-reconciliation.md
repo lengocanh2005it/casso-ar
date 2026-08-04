@@ -89,11 +89,13 @@
 ### Task 4: Reconcile global order and verify references
 
 **Files:**
-- Modify: `docs/superpowers/IMPLEMENTATION-ORDER.md`
-- Modify: `OVERVIEW.md`
+- Modify: `(implementation order defined in feature-map.md)`
+- Modify: `docs/overview.md`
 - Modify: `README.md`
 
 - [x] Reorder or explicitly seam all cross-module dependencies.
 - [x] Remove stale claims and add links to the canonical contracts.
 - [x] Search all specs/plans for obsolete DTO names, permissions, statuses, and module-order claims.
 - [x] Confirm the final diff contains documentation changes only and no unresolved HIGH findings from the original audit.
+
+

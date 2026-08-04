@@ -1305,3 +1305,5 @@ git commit -m "test: add Vitest + RTL smoke test asserting all 10 Sidebar nav la
 - **Font loading remains an implementation detail:** keep the existing loading mechanism (Google Fonts `<link>` in `index.html`) when wiring `Be Vietnam Pro`; this plan does not prescribe a new font dependency.
 - **Not covered in this plan (by design, out of scope per spec mục 4):** per-page content for Receivable Detail, Matching Workspace, CASSO Admin, etc. — future wireframe-specific plans. Real `hasPlanAccess` gating logic (billing spec) — Task 4 only renders a static lock icon when `minPlan` is set. The pending-review-count backend contract is owned by the Exception Queue plan and is implemented there.
 - **Type/name consistency checked:** `navItems` (Task 4 Step 3) `to` values match `appRoutes` (Task 3 Step 2) `path` values exactly (with leading `/` stripped for React Router relative paths). `ReviewBadge`/`showReviewBadge` naming in `Sidebar` (Task 4 Step 4) matches the mock target path `@/features/exceptions/api/use-review-count` used in both Task 4 Step 4 import and Task 6 Step 2 `vi.mock`.
+
+

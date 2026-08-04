@@ -1572,3 +1572,5 @@ git commit -m "chore(frontend): final verification fixes"
 - **RBAC decisions (grill Q4):** mutating buttons hidden via `hasPermission` — create/import (`RECEIVABLE_WRITE`), write-off (`RECEIVABLE_WRITE_OFF`), dispute (`RECEIVABLE_DISPUTE`), match/exception actions (`PAYMENT_ALLOCATE`). Route-level guard for business routes is `ProtectedRoute` only (no per-route role checks except `/settings` handled in FE plan 3).
 - **Read ownership:** `GET /customers` and customer timeline come from Read APIs; Exception Queue owns `/bank-transactions/unmatched` and `/bank-transactions/pending-review-count`. Dispute-id lookup is part of the Read APIs receivable-detail contract.
 - **Owned by FE plan 3:** reminders, copilot, reports, settings (billing/users/email templates/bank connections), plan-gated nav.
+
+
