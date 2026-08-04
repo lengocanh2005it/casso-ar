@@ -72,7 +72,9 @@ describe('JwtAuthGuard (e2e)', () => {
   });
 
   it('rejects requests with no Authorization header', () => {
-    return request(app.getHttpServer()).get('/_test-protected').expect(401);
+    return request(app.getHttpServer())
+      .get('/api/v1/_test-protected')
+      .expect(401);
   });
 
   it('accepts requests with a valid signed JWT', async () => {
@@ -83,7 +85,7 @@ describe('JwtAuthGuard (e2e)', () => {
     });
 
     return request(app.getHttpServer())
-      .get('/_test-protected')
+      .get('/api/v1/_test-protected')
       .set('Authorization', `Bearer ${token}`)
       .expect(200, { ok: true });
   });

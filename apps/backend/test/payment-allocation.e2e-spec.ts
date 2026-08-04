@@ -1,7 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   PostgreSqlContainer,
   type StartedPostgreSqlContainer,
@@ -46,9 +45,9 @@ describe('Payment allocation (integration)', () => {
   });
 
   it('partially allocates a payment and updates receivable status to PARTIALLY_PAID', async () => {
-    const organizationId = '00000000-0000-0000-0000-000000000001';
-    const customerId = '00000000-0000-0000-0000-000000000002';
-    const userId = '00000000-0000-0000-0000-000000000003';
+    const organizationId = '00000000-0000-4000-8000-000000000001';
+    const customerId = '00000000-0000-4000-8000-000000000002';
+    const userId = '00000000-0000-4000-8000-000000000003';
 
     await dataSource.getRepository(MembershipOrmEntity).save({
       organizationId,
@@ -88,10 +87,11 @@ describe('Payment allocation (integration)', () => {
 
     const receivableId = createReceivableRes.body.id;
 
-    const paymentId = '00000000-0000-0000-0000-000000000004';
+    const paymentId = '00000000-0000-4000-8000-000000000004';
     await dataSource.getRepository(PaymentOrmEntity).save({
       id: paymentId,
       organizationId,
+      customerId,
       bankTransactionId: null,
       totalAmount: 30_000_000,
       allocatedAmount: 0,
