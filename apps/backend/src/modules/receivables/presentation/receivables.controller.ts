@@ -1,9 +1,11 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import type { CreateReceivableUseCase } from '../application/create-receivable.usecase';
 import type { CreateReceivableDto } from './dto/create-receivable.dto';
 import { toReceivableResponse } from './dto/receivable-response.dto';
 
 @Controller('receivables')
+@UseGuards(JwtAuthGuard)
 export class ReceivablesController {
   constructor(
     private readonly createReceivableUseCase: CreateReceivableUseCase,
