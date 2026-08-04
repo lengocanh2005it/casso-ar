@@ -1,12 +1,15 @@
 import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
+import { Permission } from '../../../common/rbac/permission.enum';
+import { PermissionGuard } from '../../../common/rbac/permission.guard';
+import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import type { CreateReceivableUseCase } from '../application/create-receivable.usecase';
 import type { WriteOffReceivableUseCase } from '../application/write-off-receivable.usecase';
 import type { CreateReceivableDto } from './dto/create-receivable.dto';
 import { toReceivableResponse } from './dto/receivable-response.dto';
 
 @Controller('receivables')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 export class ReceivablesController {
   constructor(
     private readonly createReceivableUseCase: CreateReceivableUseCase,
@@ -14,6 +17,7 @@ export class ReceivablesController {
   ) {}
 
   @Post()
+  @RequirePermission(Permission.RECEIVABLE_WRITE)
   async create(@Body() dto: CreateReceivableDto) {
     const receivable = await this.createReceivableUseCase.execute({
       customerId: dto.customerId,
@@ -26,6 +30,7 @@ export class ReceivablesController {
   }
 
   @Post(':id/write-off')
+  @RequirePermission(Permission.RECEIVABLE_WRITE_OFF)
   async writeOff(@Param('id') id: string) {
     const receivable = await this.writeOffReceivableUseCase.execute(id);
     return toReceivableResponse(receivable);
