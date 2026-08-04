@@ -11,22 +11,26 @@
 
 **Tools allowlist:** `Read, Write, Edit, Grep, Glob, Bash`
 
-**NOT allowed:** edits to `infrastructure/` or `presentation/` layers (other subagents own those), `docker-compose.yml`, `package.json` root.
+**NOT allowed:** edits to `infrastructure/` or `presentation/` layers, `docker-compose.yml`, `package.json` root.
 
-## Current state
+## Current status
 
-| Module | Status | Notes |
-|--------|--------|-------|
-| Customer | Interface only | No behavior, pure data |
-| Invoice | Interface only | No behavior, pure data |
-| Receivable | State machine complete | OPEN → PARTIALLY_PAID → PAID, writeOff, cancel |
-| Payment | Complete | unallocatedAmount, withAdditionalAllocation |
-| PaymentAllocation | Complete | undo() soft-delete |
+| Module | Type | Status |
+|--------|------|--------|
+| Customer | interface | ✅ |
+| Invoice | interface | ✅ |
+| Receivable | class + state machine | ✅ |
+| Payment | class | ✅ |
+| PaymentAllocation | class + undo() | ✅ |
 
 ## Business rules (enforce on every change)
 
-1. Money: integer đơn vị đồng, KHÔNG float
+1. Money: integer đơn vị đồng, KHÔNG float/decimal
 2. Transactions: mọi write thay đổi số tiền/status PHẢI trong 1 DB transaction
 3. Persisted rollup: `paidAmount` và `allocatedAmount` chỉ cập nhật trong transaction có lock
-4. Derived fields: `remainingAmount`, `unallocatedAmount`, `isOverdue` — tính tại query time
-5. Tenant isolation: mọi query/write phải scope theo `organizationId`
+4. Derived fields: `remainingAmount`, `unallocatedAmount`, `isOverdue` — tính tại query time, KHÔNG store
+5. Tenant isolation: mọi query/write scope theo `organizationId`
+6. Domain layer KHÔNG import NestJS/TypeORM
+7. Dùng `node:` protocol cho Node.js builtins (`import { randomUUID } from 'node:crypto'`)
+8. Interface cho data-only types, class cho types có behavior
+9. KHÔNG dùng `any` trong production code

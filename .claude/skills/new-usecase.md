@@ -6,6 +6,11 @@ Create a new use case with unit test.
 
 User says: "tạo use case", "new use case for X", "thêm chức năng Y"
 
+## File naming
+
+- Use case: `<action>.usecase.ts`
+- Test: `<action>.usecase.spec.ts`
+
 ## Steps
 
 1. Define input interface:
@@ -28,7 +33,7 @@ export class <Action>UseCase {
   async execute(input: <Action>Input): Promise<void> {
     const entity = await this.repo.findById(input.<entityId>);
     if (!entity) throw new Error('<Entity> not found');
-    // domain logic
+    // domain logic — wrap in transaction if money/status changes
     await this.repo.save(updated);
   }
 }

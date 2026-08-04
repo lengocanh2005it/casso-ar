@@ -15,7 +15,10 @@
 
 - All business APIs use `/api/v1` prefix
 - Error shape: `{ statusCode, errorCode, message, details? }`
-- POST endpoints accepting Idempotency-Key header
-- Response DTOs: never leak internal fields (organizationId, version)
-- Validation: class-validator decorators on DTOs
+- Error codes: `VALIDATION_ERROR`, `NOT_FOUND`, `UNAUTHORIZED`, `FORBIDDEN`, `CONFLICT`, `PLAN_LIMIT_EXCEEDED`, `ALLOCATION_EXCEEDS_REMAINING`, `OPTIMISTIC_LOCK_CONFLICT`
+- POST endpoints accept `Idempotency-Key` header
+- Response DTOs: never leak `organizationId`, `version`, internal fields
+- Validation: `class-validator` decorators on all DTOs
+- Controller ONLY calls use case — no business logic in controller
+- Every endpoint MUST have `@RequirePermission(Permission.<X>)` decorator
 - Timezone: `Asia/Ho_Chi_Minh` for reminder-related endpoints

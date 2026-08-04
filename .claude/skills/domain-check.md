@@ -8,7 +8,7 @@ User says: "kiểm tra domain rules", "check domain", "domain compliance"
 
 ## Rules to check
 
-1. **Money as integer**: Search for `float`, `number` used for money amounts
+1. **Money as integer**: Search for `float`, `decimal` used for money amounts
    - Should be `integer` or `bigint` in TypeORM
    - Never use `parseFloat` or decimal for money
 
@@ -24,6 +24,12 @@ User says: "kiểm tra domain rules", "check domain", "domain compliance"
 
 5. **Persisted rollup**: `paidAmount` and `allocatedAmount` only updated in transaction with lock
    - Check for direct updates outside transactions
+
+6. **No `any` in production code**: Search for `: any` or `as any` in non-test files
+
+7. **Derived fields not stored**: `remainingAmount`, `isOverdue`, `isDisputed` computed at query time
+
+8. **`@VersionColumn()`**: Present on entities with concurrent writes
 
 ## Output
 

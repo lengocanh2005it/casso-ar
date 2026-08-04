@@ -6,28 +6,32 @@ Scaffold a new NestJS module with Clean Architecture 4 layers.
 
 User says: "tạo module mới", "scaffold module", "new module for X"
 
+## File naming conventions
+
+- Domain entity: `<entity>.ts` (interface or class)
+- Domain test: `<entity>.spec.ts`
+- Repository port: `<entity>-repository.port.ts`
+- ORM entity: `<entity>.orm-entity.ts`
+- Repository impl: `typeorm-<entity>.repository.ts`
+- Use case: `<action>.usecase.ts`
+- DTO: `<entity>.dto.ts`
+- DI token: `export const <ENTITY>_REPOSITORY = Symbol('<ENTITY>_REPOSITORY')`
+
 ## Steps
 
 1. Create directory structure:
 ```
 apps/backend/src/modules/<name>/
-  domain/           -- entity, value objects, domain errors
+  domain/           -- entity, value objects
   application/      -- use cases, repository ports
   infrastructure/   -- TypeORM entities, repository implementations
   presentation/     -- controllers, DTOs
   <name>.module.ts
 ```
 
-2. Create domain entity as interface (no behavior) or class (has behavior like state machine)
+2. Create domain entity as interface (no behavior) or class (has behavior)
 
-3. Create repository port in application layer:
-```typescript
-export interface I<Entity>Repository {
-  findById(id: string): Promise<Entity | null>;
-  save(entity: Entity, manager?: EntityManager): Promise<void>;
-}
-export const <ENTITY>_REPOSITORY = Symbol('<ENTITY>_REPOSITORY');
-```
+3. Create repository port in application layer
 
 4. Create TypeORM entity in infrastructure:
 - Use `@Column('bigint')` for money fields

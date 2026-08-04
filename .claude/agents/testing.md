@@ -19,3 +19,17 @@
 - Mock repositories with `jest.fn()` for unit tests
 - Use `testcontainers` for integration tests with real Postgres
 - Biome ignores `noExplicitAny` in test files
+
+## Test commands
+
+```bash
+npx jest                          # Run all unit tests
+npx jest --testPathPattern <name> # Run specific test
+npx tsc --noEmit                  # Type check
+```
+
+## Test file patterns
+
+- `*.spec.ts` — unit tests (domain logic, use cases)
+- `*.e2e-spec.ts` — integration tests (full stack with DB)
+- `test/jest-e2e.json` — e2e test config
