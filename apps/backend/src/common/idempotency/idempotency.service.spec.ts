@@ -1,7 +1,6 @@
 import { Role } from '../../modules/organizations/domain/membership';
 import { TenantContextService } from '../tenancy/tenant-context';
 import { IdempotencyService } from './idempotency.service';
-import { IdempotencyKeyOrmEntity } from './idempotency-key.orm-entity';
 
 describe('IdempotencyService', () => {
   it('returns the stored response without running a repeated operation', async () => {
@@ -55,7 +54,5 @@ describe('IdempotencyService', () => {
 
     expect(operation).toHaveBeenCalledTimes(1);
     expect(dataSource.transaction).toHaveBeenCalledTimes(3);
-    expect(repo).toBeDefined();
-    expect(IdempotencyKeyOrmEntity).toBeDefined();
   });
 });

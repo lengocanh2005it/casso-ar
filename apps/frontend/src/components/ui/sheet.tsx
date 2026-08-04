@@ -1,12 +1,6 @@
-import * as React from 'react';
+import { Dialog } from 'radix-ui';
+import type * as React from 'react';
 import { cn } from '@/lib/utils';
-
-interface SheetContextValue {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-const SheetContext = React.createContext<SheetContextValue | null>(null);
 
 interface SheetProps {
   open?: boolean;
@@ -14,62 +8,30 @@ interface SheetProps {
   children: React.ReactNode;
 }
 
-function Sheet({ open: controlledOpen, onOpenChange, children }: SheetProps) {
-  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
-  const open = controlledOpen ?? uncontrolledOpen;
-  const change = onOpenChange ?? setUncontrolledOpen;
+function Sheet({ open, onOpenChange, children }: SheetProps) {
   return (
-    <SheetContext.Provider value={{ open, onOpenChange: change }}>
-      <div data-state={open ? 'open' : 'closed'}>{children}</div>
-    </SheetContext.Provider>
-  );
-}
-
-interface SheetTriggerProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  asChild?: boolean;
-}
-
-function SheetTrigger({ children, asChild, ...props }: SheetTriggerProps) {
-  const context = React.useContext(SheetContext);
-  if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children, {
-      ...props,
-      onClick: (event: React.MouseEvent) => {
-        props.onClick?.(event as React.MouseEvent<HTMLButtonElement>);
-        context?.onOpenChange(true);
-      },
-    } as React.HTMLAttributes<HTMLElement>);
-  }
-  return (
-    <button
-      {...props}
-      type={props.type ?? 'button'}
-      onClick={(event) => {
-        props.onClick?.(event);
-        context?.onOpenChange(true);
-      }}
-    >
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
       {children}
-    </button>
+    </Dialog.Root>
   );
+}
+
+type SheetTriggerProps = React.ComponentPropsWithoutRef<typeof Dialog.Trigger>;
+
+function SheetTrigger(props: SheetTriggerProps) {
+  return <Dialog.Trigger {...props} />;
 }
 
 function SheetClose(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  const context = React.useContext(SheetContext);
   return (
-    <button
-      {...props}
-      type={props.type ?? 'button'}
-      onClick={(event) => {
-        props.onClick?.(event);
-        context?.onOpenChange(false);
-      }}
-    />
+    <Dialog.Close asChild>
+      <button {...props} type={props.type ?? 'button'} />
+    </Dialog.Close>
   );
 }
 
-interface SheetContentProps extends React.HTMLAttributes<HTMLDivElement> {
+interface SheetContentProps
+  extends React.ComponentPropsWithoutRef<typeof Dialog.Content> {
   side?: 'top' | 'right' | 'bottom' | 'left';
 }
 
@@ -79,12 +41,10 @@ function SheetContent({
   side = 'left',
   ...props
 }: SheetContentProps) {
-  const context = React.useContext(SheetContext);
-  if (!context?.open) return null;
   return (
-    <>
-      <SheetOverlay onClick={() => context.onOpenChange(false)} />
-      <div
+    <Dialog.Portal>
+      <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+      <Dialog.Content
         className={cn(
           'fixed inset-y-0 left-0 z-50 flex flex-col gap-4 bg-sidebar text-sidebar-foreground shadow-lg transition-transform',
           side === 'left' && 'w-3/4 max-w-xs border-r',
@@ -92,22 +52,18 @@ function SheetContent({
         )}
         {...props}
       >
+        <Dialog.Title className="sr-only">Menu điều hướng</Dialog.Title>
+        <Dialog.Description className="sr-only">
+          Điều hướng ứng dụng
+        </Dialog.Description>
         {children}
-      </div>
-    </>
+      </Dialog.Content>
+    </Dialog.Portal>
   );
 }
 
-function SheetOverlay({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn('fixed inset-0 z-50 bg-black/50', className)}
-      {...props}
-    />
-  );
+function SheetOverlay(props: React.HTMLAttributes<HTMLDivElement>) {
+  return <Dialog.Overlay {...props} />;
 }
 
 export { Sheet, SheetClose, SheetContent, SheetOverlay, SheetTrigger };

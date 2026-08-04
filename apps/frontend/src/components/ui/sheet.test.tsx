@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Sheet, SheetContent, SheetTrigger } from './sheet';
 
 describe('Sheet', () => {
-  it('opens content from an asChild trigger and closes from the overlay', () => {
+  it('opens content from an asChild trigger and closes with Escape', () => {
     render(
       <Sheet>
         <SheetTrigger asChild>
@@ -16,7 +16,7 @@ describe('Sheet', () => {
     expect(screen.queryByText('Content')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Open' }));
     expect(screen.getByText('Content')).toBeInTheDocument();
-    fireEvent.click(document.querySelector('.fixed.inset-0') as Element);
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByText('Content')).not.toBeInTheDocument();
   });
 });
