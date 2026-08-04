@@ -12,7 +12,12 @@ export const tenantAsyncStorage = new AsyncLocalStorage<TenantStore>();
 export class TenantContextService {
   getOrganizationId(): string {
     const store = tenantAsyncStorage.getStore();
-    return store?.organizationId ?? 'default';
+    if (!store?.organizationId) {
+      throw new Error(
+        'Tenant context not initialized — ensure TenantMiddleware is applied',
+      );
+    }
+    return store.organizationId;
   }
 
   setOrganizationId(id: string): void {

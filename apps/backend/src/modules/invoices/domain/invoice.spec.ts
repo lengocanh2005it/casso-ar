@@ -1,4 +1,5 @@
-import { Invoice, InvoiceStatus } from './invoice';
+import { InvoiceStatus } from '@casso-ledger/shared-types';
+import { Invoice } from './invoice';
 
 describe('Invoice domain entity', () => {
   it('creates an invoice with DRAFT status by default fields provided', () => {

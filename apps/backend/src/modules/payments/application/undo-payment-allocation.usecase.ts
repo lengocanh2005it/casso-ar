@@ -1,5 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { DataSource, EntityManager } from 'typeorm';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../../../common/audit/audit.enums';
 import { AuditLog } from '../../../common/audit/audit-log';
 import {
   AUDIT_LOG_REPOSITORY,
@@ -78,8 +82,8 @@ export class UndoPaymentAllocationUseCase {
         new AuditLog({
           organizationId: allocation.organizationId,
           userId: input.deletedByUserId,
-          actionType: 'PAYMENT_ALLOCATE_UNDO',
-          entityType: 'PaymentAllocation',
+          actionType: AuditActionType.PAYMENT_ALLOCATE_UNDO,
+          entityType: AuditEntityType.PAYMENT_ALLOCATION,
           entityId: allocation.id,
           beforeState: { ...allocation },
           afterState: { ...undoneAllocation },

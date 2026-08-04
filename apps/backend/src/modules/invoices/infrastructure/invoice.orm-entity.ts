@@ -1,5 +1,8 @@
+import {
+  type InvoiceSourceType,
+  InvoiceStatus,
+} from '@casso-ledger/shared-types';
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
-import { type InvoiceSourceType, InvoiceStatus } from '../domain/invoice';
 
 @Entity({ name: 'invoices' })
 export class InvoiceOrmEntity {

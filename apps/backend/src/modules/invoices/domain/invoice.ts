@@ -1,10 +1,7 @@
-export enum InvoiceStatus {
-  DRAFT = 'DRAFT',
-  ISSUED = 'ISSUED',
-  CANCELLED = 'CANCELLED',
-}
-
-export type InvoiceSourceType = 'MANUAL' | 'IMPORT' | 'API' | 'ERP';
+import type {
+  InvoiceSourceType,
+  InvoiceStatus,
+} from '@casso-ledger/shared-types';
 
 export interface InvoiceProps {
   id: string;
