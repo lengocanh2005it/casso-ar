@@ -1,3 +1,4 @@
+import { Dialog } from 'radix-ui';
 import type * as React from 'react';
 import { cn } from '@/lib/utils';
 
@@ -7,24 +8,30 @@ interface SheetProps {
   children: React.ReactNode;
 }
 
-function Sheet({ open, children }: SheetProps) {
-  return <div data-state={open ? 'open' : 'closed'}>{children}</div>;
+function Sheet({ open, onOpenChange, children }: SheetProps) {
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      {children}
+    </Dialog.Root>
+  );
 }
 
-interface SheetTriggerProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  asChild?: boolean;
-}
+type SheetTriggerProps = React.ComponentPropsWithoutRef<typeof Dialog.Trigger>;
 
-function SheetTrigger({ children, ...props }: SheetTriggerProps) {
-  return <button {...props}>{children}</button>;
+function SheetTrigger(props: SheetTriggerProps) {
+  return <Dialog.Trigger {...props} />;
 }
 
 function SheetClose(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button {...props} />;
+  return (
+    <Dialog.Close asChild>
+      <button {...props} type={props.type ?? 'button'} />
+    </Dialog.Close>
+  );
 }
 
-interface SheetContentProps extends React.HTMLAttributes<HTMLDivElement> {
+interface SheetContentProps
+  extends React.ComponentPropsWithoutRef<typeof Dialog.Content> {
   side?: 'top' | 'right' | 'bottom' | 'left';
 }
 
@@ -35,29 +42,28 @@ function SheetContent({
   ...props
 }: SheetContentProps) {
   return (
-    <div
-      className={cn(
-        'fixed inset-y-0 left-0 z-50 flex flex-col gap-4 bg-sidebar text-sidebar-foreground shadow-lg transition-transform',
-        side === 'left' && 'w-3/4 max-w-xs border-r',
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </div>
+    <Dialog.Portal>
+      <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+      <Dialog.Content
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 flex flex-col gap-4 bg-sidebar text-sidebar-foreground shadow-lg transition-transform',
+          side === 'left' && 'w-3/4 max-w-xs border-r',
+          className,
+        )}
+        {...props}
+      >
+        <Dialog.Title className="sr-only">Menu điều hướng</Dialog.Title>
+        <Dialog.Description className="sr-only">
+          Điều hướng ứng dụng
+        </Dialog.Description>
+        {children}
+      </Dialog.Content>
+    </Dialog.Portal>
   );
 }
 
-function SheetOverlay({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn('fixed inset-0 z-50 bg-black/50', className)}
-      {...props}
-    />
-  );
+function SheetOverlay(props: React.HTMLAttributes<HTMLDivElement>) {
+  return <Dialog.Overlay {...props} />;
 }
 
 export { Sheet, SheetClose, SheetContent, SheetOverlay, SheetTrigger };

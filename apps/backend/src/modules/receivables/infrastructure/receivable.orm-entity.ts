@@ -1,5 +1,6 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import {
+  Check,
   Column,
   Entity,
   Index,
@@ -9,6 +10,7 @@ import {
 
 @Entity({ name: 'receivables' })
 @Index(['organizationId', 'status', 'dueDate'])
+@Check('"paidAmount" >= 0 AND "paidAmount" <= "originalAmount"')
 export class ReceivableOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;

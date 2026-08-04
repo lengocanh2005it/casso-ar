@@ -1,10 +1,10 @@
-type Plan = 'FREE' | 'STARTER' | 'GROWTH' | 'SCALE';
+export type Plan = 'FREE' | 'STARTER' | 'BUSINESS' | 'ENTERPRISE';
 
 const PLAN_HIERARCHY: Record<Plan, number> = {
   FREE: 0,
   STARTER: 1,
-  GROWTH: 2,
-  SCALE: 3,
+  BUSINESS: 2,
+  ENTERPRISE: 3,
 };
 
 export function hasPlanAccess(currentPlan: Plan, requiredPlan: Plan): boolean {

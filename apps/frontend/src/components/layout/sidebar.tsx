@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, Lock, LogOut } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useReviewCount } from '@/features/exceptions/api/use-review-count';
+import { hasPlanAccess, type Plan } from '@/lib/plan-access';
 import { cn } from '@/lib/utils';
 import { navItems } from './nav-items';
 
@@ -23,6 +24,7 @@ export function Sidebar({
   onToggleCollapsed,
 }: SidebarProps) {
   const { data: reviewCount = 0 } = useReviewCount();
+  const currentPlan: Plan = 'FREE';
 
   return (
     <aside
@@ -56,6 +58,9 @@ export function Sidebar({
           const Icon = item.icon;
           const badgeCount =
             item.to === '/exceptions' ? reviewCount : item.badgeCount;
+          const locked =
+            item.minPlan !== undefined &&
+            !hasPlanAccess(currentPlan, item.minPlan);
           return (
             <NavLink
               key={item.to}
@@ -74,7 +79,7 @@ export function Sidebar({
               {!collapsed && badgeCount !== undefined && (
                 <Badge count={badgeCount} />
               )}
-              {!collapsed && item.locked && (
+              {!collapsed && locked && (
                 <Lock className="ml-auto size-3.5 text-muted-foreground" />
               )}
             </NavLink>

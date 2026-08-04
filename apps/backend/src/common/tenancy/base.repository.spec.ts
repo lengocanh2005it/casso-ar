@@ -38,7 +38,7 @@ describe('BaseRepository', () => {
     });
   });
 
-  it('injects organizationId on save, overriding any value the caller set', async () => {
+  it('rejects an entity whose organizationId differs from the tenant context', async () => {
     const tenantContext = new TenantContextService();
     const ormRepo = { save: jest.fn() };
     const repo = new FakeRepo(ormRepo as any, tenantContext);
@@ -46,14 +46,12 @@ describe('BaseRepository', () => {
     await tenantContext.run(
       { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
       async () => {
-        await repo.save({ id: '1', organizationId: 'WRONG', name: 'x' });
+        await expect(
+          repo.save({ id: '1', organizationId: 'WRONG', name: 'x' }),
+        ).rejects.toThrow('TENANT_MISMATCH');
       },
     );
 
-    expect(ormRepo.save).toHaveBeenCalledWith({
-      id: '1',
-      organizationId: 'org-1',
-      name: 'x',
-    });
+    expect(ormRepo.save).not.toHaveBeenCalled();
   });
 });

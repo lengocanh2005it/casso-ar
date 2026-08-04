@@ -1,7 +1,8 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import { Check, Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity({ name: 'payment_allocations' })
 @Index(['organizationId'])
+@Check('"allocatedAmount" > 0')
 export class PaymentAllocationOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;

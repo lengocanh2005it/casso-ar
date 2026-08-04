@@ -59,7 +59,7 @@ describe('WriteOffReceivableUseCase', () => {
     );
 
     await expect(useCase.execute('missing')).rejects.toThrow(
-      'Receivable not found',
+      'Không tìm thấy khoản phải thu.',
     );
   });
 });

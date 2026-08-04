@@ -27,6 +27,9 @@ export abstract class BaseRepository<
     manager?: EntityManager,
   ): Promise<void> {
     const organizationId = this.tenantContext.getOrganizationId();
+    if (entity.organizationId && entity.organizationId !== organizationId) {
+      throw new Error('TENANT_MISMATCH');
+    }
     const scoped = { ...entity, organizationId } as TEntity;
     const repo = manager
       ? manager.getRepository<TEntity>(this.ormRepo.target)
