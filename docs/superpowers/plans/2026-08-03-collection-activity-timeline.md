@@ -2,21 +2,21 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement `CollectionActivity` as a denormalized display log (`apps/backend/src/modules/collection-activity/`), theo đúng Clean Architecture 4 lớp giống mọi module khác. `CollectionActivity` **không phải nguồn sự thật** — trạng thái nghiệp vụ thật vẫn nằm ở `ReminderExecution`/`PaymentAllocation`/`Dispute`/`Receivable`. Một `CollectionActivityListener` duy nhất (`@OnEvent(...)`) lắng nghe `payment.allocated`, `receivable.closed`, `dispute.opened`, `dispute.resolved`, `reminder.sent`, `reminder.failed` và ghi row — không có service nào tự viết `CollectionActivity` rải rác. `AllocatePaymentUseCase` (đã tồn tại từ project-scaffolding-and-domain-core plan, đã migrate sang `BaseRepository`/`TenantContextService` bởi multi-tenancy-rbac plan) được sửa để emit `payment.allocated` sau khi transaction thành công, và `receivable.closed` thêm nếu allocation đó khiến `Receivable.status` chuyển sang `PAID` — đây là nơi DUY NHẤT `status` đổi thành `PAID` hiện tại nên không cần hook thêm ở đâu khác. Chỉ INSERT, không có endpoint PATCH/DELETE cho `CollectionActivity`.
+**Goal:** Implement `CollectionActivity` as a denormalized display log (`apps/backend/src/modules/collection-activity/`), following the same 4-layer Clean Architecture as every other module. `CollectionActivity` **is not the source of truth** — the actual business state remains in `ReminderExecution`/`PaymentAllocation`/`Dispute`/`Receivable`. A single `CollectionActivityListener` (`@OnEvent(...)`) listens for `payment.allocated`, `receivable.closed`, `dispute.opened`, `dispute.resolved`, `reminder.sent`, `reminder.failed` and writes rows — no service writes `CollectionActivity` in scattered locations. `AllocatePaymentUseCase` (already existing from the project-scaffolding-and-domain-core plan and migrated to `BaseRepository`/`TenantContextService` by the multi-tenancy-rbac plan) is modified to emit `payment.allocated` after the transaction succeeds, and to additionally emit `receivable.closed` if that allocation causes `Receivable.status` to change to `PAID` — this is currently the ONLY place where `status` changes to `PAID`, so no additional hook is needed elsewhere. INSERT only; there are no PATCH/DELETE endpoints for `CollectionActivity`.
 
-**Architecture:** Module `collection-activity` độc lập (domain/application/infrastructure/presentation), tái sử dụng `BaseRepository`/`TenantContextService` (multi-tenancy-rbac plan) và `Permission.RECEIVABLE_READ`/`Permission.RECEIVABLE_WRITE` (đã có sẵn trong `Permission` enum — không thêm permission mới, vì spec không yêu cầu quyền riêng cho timeline). `CollectionActivityModule` phụ thuộc một chiều vào `ReceivablesModule` (cần `RECEIVABLE_REPOSITORY` để tra `customerId` từ `receivableId` cho các event không mang sẵn `customerId` như `dispute.opened`/`dispute.resolved`/`reminder.sent`/`reminder.failed`) — không có phụ thuộc ngược, nên không cần `forwardRef()`.
+**Architecture:** The `collection-activity` module is independent (domain/application/infrastructure/presentation), reuses `BaseRepository`/`TenantContextService` (multi-tenancy-rbac plan) and `Permission.RECEIVABLE_READ`/`Permission.RECEIVABLE_WRITE` (already present in the `Permission` enum — do not add a new permission because the spec does not require a separate timeline permission). `CollectionActivityModule` has a one-way dependency on `ReceivablesModule` (it needs `RECEIVABLE_REPOSITORY` to look up `customerId` from `receivableId` for events that do not already include `customerId`, such as `dispute.opened`/`dispute.resolved`/`reminder.sent`/`reminder.failed`) — there is no reverse dependency, so `forwardRef()` is not needed.
 
-**Tech Stack:** Kế thừa nguyên trạng tech stack từ project-scaffolding-and-domain-core.md và multi-tenancy-rbac.md (NestJS 10, TypeORM 0.3, Postgres 16, Jest + testcontainers + supertest). `@nestjs/event-emitter` và `EventEmitterModule.forRoot()` **đã được thêm bởi dispute-management plan** (Task 3) — plan này KHÔNG cài lại package, KHÔNG đăng ký lại `EventEmitterModule.forRoot()`, chỉ import `EventEmitter2`/`@OnEvent` như một dependency đã sẵn có.
+**Tech Stack:** Inherits the tech stack unchanged from project-scaffolding-and-domain-core.md and multi-tenancy-rbac.md (NestJS 10, TypeORM 0.3, Postgres 16, Jest + testcontainers + supertest). `@nestjs/event-emitter` and `EventEmitterModule.forRoot()` **were already added by the dispute-management plan** (Task 3) — this plan does NOT reinstall the package or register `EventEmitterModule.forRoot()` again; it only imports `EventEmitter2`/`@OnEvent` as an already-available dependency.
 
 ## Global Constraints
 
-- `domain/collection-activity.ts` không import gì từ NestJS/TypeORM (giữ nguyên tắc Clean Architecture toàn dự án).
-- `CollectionActivity` chỉ INSERT — không có `update()`/`delete()` trên domain class, không có route PATCH/DELETE trên controller (collection-activity-timeline spec mục 4, giống nguyên tắc bất biến của AuditLog).
-- Nguồn ghi duy nhất là `CollectionActivityListener` cho 6 event tự động (`payment.allocated`, `receivable.closed`, `dispute.opened`, `dispute.resolved`, `reminder.sent`, `reminder.failed`) cộng `RecordManualActivityUseCase` cho 3 loại thủ công (`MANUAL_CALL`/`MANUAL_NOTE`/`PAYMENT_COMMITMENT`) — không service nghiệp vụ nào khác được phép gọi `ICollectionActivityRepository.create` trực tiếp.
-- Event chỉ emit **sau khi** transaction/save thành công (khớp nguyên tắc đã thiết lập ở dispute-management plan Task 3 Step 5/9 và collection-activity-timeline spec mục 2.1).
-- Naming theo đúng dự án: `CollectionActivityOrmEntity`, `ICollectionActivityRepository`, DI token `COLLECTION_ACTIVITY_REPOSITORY`, `CollectionActivityListener`, `CollectionActivityController` (chỉ định sẵn, không đổi tên).
-- Mọi endpoint đọc/ghi đều qua `@UseGuards(JwtAuthGuard, PermissionGuard)` + `@RequirePermission(...)`, tái sử dụng `Permission.RECEIVABLE_READ` cho 2 endpoint đọc timeline (chỉ định sẵn trong đề bài) và `Permission.RECEIVABLE_WRITE` cho endpoint ghi thủ công (không có permission `COLLECTION_ACTIVITY_*` riêng trong enum hiện tại, và spec không yêu cầu thêm — xem Self-Review Notes).
-- Số tiền trong `metadata` giữ nguyên kiểu integer đơn vị đồng (domain-core mục 4), không format/làm tròn ở tầng application.
+- `domain/collection-activity.ts` imports nothing from NestJS/TypeORM (preserving the Clean Architecture principle across the project).
+- `CollectionActivity` is INSERT-only — there is no `update()`/`delete()` on the domain class and no PATCH/DELETE route on the controller (collection-activity-timeline spec section 4, consistent with the immutability principle of AuditLog).
+- The only write sources are `CollectionActivityListener` for 6 automatic events (`payment.allocated`, `receivable.closed`, `dispute.opened`, `dispute.resolved`, `reminder.sent`, `reminder.failed`) plus `RecordManualActivityUseCase` for 3 manual types (`MANUAL_CALL`/`MANUAL_NOTE`/`PAYMENT_COMMITMENT`) — no other business service may call `ICollectionActivityRepository.create` directly.
+- Events are emitted only **after** the transaction/save succeeds (matching the principle established in dispute-management plan Task 3 Steps 5/9 and collection-activity-timeline spec section 2.1).
+- Naming follows the project exactly: `CollectionActivityOrmEntity`, `ICollectionActivityRepository`, DI token `COLLECTION_ACTIVITY_REPOSITORY`, `CollectionActivityListener`, `CollectionActivityController` (predefined; do not rename).
+- Every read/write endpoint uses `@UseGuards(JwtAuthGuard, PermissionGuard)` + `@RequirePermission(...)`, reusing `Permission.RECEIVABLE_READ` for the 2 timeline read endpoints (specified in the task) and `Permission.RECEIVABLE_WRITE` for the manual-write endpoint (there is no separate `COLLECTION_ACTIVITY_*` permission in the current enum, and the spec does not require one — see Self-Review Notes).
+- Amounts in `metadata` retain the integer-in-dong type (domain-core section 4); do not format or round them in the application layer.
 
 ---
 
@@ -78,7 +78,7 @@ describe('CollectionActivity domain entity', () => {
       receivableId: 'rec-1',
       customerId: 'cust-1',
       activityType: CollectionActivityType.PAYMENT_RECEIVED,
-      description: 'Nhận thanh toán 30.000.000đ',
+      description: 'Received payment of 30,000,000 VND',
       metadata: { paymentId: 'pay-1', amount: 30_000_000 },
       createdByUserId: null,
       createdAt: new Date('2026-08-03'),
@@ -96,7 +96,7 @@ describe('CollectionActivity domain entity', () => {
       receivableId: 'rec-1',
       customerId: 'cust-1',
       activityType: CollectionActivityType.MANUAL_CALL,
-      description: 'Đã gọi điện nhắc khách hàng',
+      description: 'Called to remind the customer',
       metadata: {},
       createdByUserId: 'user-1',
       createdAt: new Date('2026-08-03'),
@@ -246,7 +246,7 @@ export class CollectionActivityOrmEntity {
 }
 ```
 
-`@Index(['receivableId', 'createdAt'])` và `@Index(['customerId', 'createdAt'])` tồn tại vì `GET /receivables/:id/timeline` và `GET /customers/:id/timeline` (Task 6) đều tra cứu + sắp `ORDER BY createdAt DESC` trên đúng 2 cột này, tránh full scan bảng `collection_activities` khi bảng lớn dần theo thời gian.
+`@Index(['receivableId', 'createdAt'])` and `@Index(['customerId', 'createdAt'])` exist because `GET /receivables/:id/timeline` and `GET /customers/:id/timeline` (Task 6) both query and sort with `ORDER BY createdAt DESC` on exactly these 2 columns, avoiding a full scan of the `collection_activities` table as it grows over time.
 
 - [ ] **Step 2: Create `apps/backend/src/modules/collection-activity/application/collection-activity-repository.port.ts`**
 
@@ -310,9 +310,9 @@ export class TypeOrmCollectionActivityRepository
 }
 ```
 
-`findByReceivableId`/`findByCustomerId` gọi trực tiếp `this.ormRepo.find` (không phải `scopedFindOne`, vốn chỉ trả về 1 row) — cùng pattern với `findByIdForUpdate`/`save` ở `TypeOrmReceivableRepository`/`TypeOrmPaymentRepository` (multi-tenancy-rbac plan Task 6-7): dùng `this.tenantContext.getOrganizationId()` trực tiếp khi `BaseRepository` không có sẵn helper cho truy vấn nhiều dòng.
+`findByReceivableId`/`findByCustomerId` call `this.ormRepo.find` directly (not `scopedFindOne`, which returns only 1 row) — the same pattern as `findByIdForUpdate`/`save` in `TypeOrmReceivableRepository`/`TypeOrmPaymentRepository` (multi-tenancy-rbac plan Task 6-7): use `this.tenantContext.getOrganizationId()` directly because `BaseRepository` does not provide a helper for multi-row queries.
 
-`create()` phải gọi `this.ormRepo.insert()` — không dùng `scopedSave()`/`.save()` — để một activity ID đã tồn tại không thể bị upsert hoặc sửa ngầm. Không thêm update/delete method hay endpoint.
+`create()` must call `this.ormRepo.insert()` — do not use `scopedSave()`/`.save()` — so an existing activity ID cannot be upserted or silently modified. Do not add update/delete methods or endpoints.
 
 - [ ] **Step 4: Create `apps/backend/src/modules/collection-activity/collection-activity.module.ts`**
 
@@ -334,7 +334,7 @@ import { ReceivablesModule } from '../receivables/receivables.module';
 export class CollectionActivityModule {}
 ```
 
-`imports: [ReceivablesModule]` là import thẳng, không cần `forwardRef()` — khác với `DisputesModule`/`ReceivablesModule` (phụ thuộc lẫn nhau), ở đây chỉ `CollectionActivityModule` cần `RECEIVABLE_REPOSITORY` từ `ReceivablesModule` (Task 4, tra `customerId` từ `receivableId`), `ReceivablesModule` không cần gì ngược lại từ module này.
+`imports: [ReceivablesModule]` is a direct import; `forwardRef()` is not needed — unlike `DisputesModule`/`ReceivablesModule` (which depend on each other), here only `CollectionActivityModule` needs `RECEIVABLE_REPOSITORY` from `ReceivablesModule` (Task 4, to look up `customerId` from `receivableId`), and `ReceivablesModule` needs nothing from this module in return.
 
 - [ ] **Step 5: Register `CollectionActivityModule` in `apps/backend/src/app.module.ts`**
 
@@ -402,7 +402,7 @@ describe('RecordManualActivityUseCase', () => {
     const activity = await useCase.execute({
       receivableId: 'rec-1',
       activityType: CollectionActivityType.MANUAL_CALL,
-      description: 'Đã gọi điện, khách hẹn thanh toán tuần sau',
+      description: 'Called; customer promised to pay next week',
       createdByUserId: 'user-2',
     });
 
@@ -794,7 +794,7 @@ export class CollectionActivityListener {
       receivableId: payload.receivableId,
       customerId: payload.customerId,
       activityType: CollectionActivityType.PAYMENT_RECEIVED,
-      description: `Nhận thanh toán ${payload.amount.toLocaleString('vi-VN')}đ cho công nợ`,
+      description: `Received payment of ${payload.amount.toLocaleString('vi-VN')} VND for receivable`,
       metadata: { paymentId: payload.paymentId, amount: payload.amount },
       createdByUserId: payload.allocatedByUserId,
     });
@@ -807,7 +807,7 @@ export class CollectionActivityListener {
       receivableId: payload.receivableId,
       customerId: payload.customerId,
       activityType: CollectionActivityType.RECEIVABLE_CLOSED,
-      description: 'Công nợ đã được tất toán (PAID)',
+      description: 'Receivable has been fully paid (PAID)',
       metadata: {},
       createdByUserId: null,
     });
@@ -821,7 +821,7 @@ export class CollectionActivityListener {
       receivableId: payload.receivableId,
       customerId,
       activityType: CollectionActivityType.DISPUTE_OPENED,
-      description: 'Đã mở khiếu nại cho công nợ',
+      description: 'Dispute opened for receivable',
       metadata: { disputeId: payload.disputeId },
       createdByUserId: null,
     });
@@ -835,7 +835,7 @@ export class CollectionActivityListener {
       receivableId: payload.receivableId,
       customerId,
       activityType: CollectionActivityType.DISPUTE_RESOLVED,
-      description: 'Khiếu nại đã được giải quyết',
+      description: 'Dispute resolved',
       metadata: { disputeId: payload.disputeId },
       createdByUserId: null,
     });
@@ -849,7 +849,7 @@ export class CollectionActivityListener {
       receivableId: payload.receivableId,
       customerId,
       activityType: CollectionActivityType.EMAIL_SENT,
-      description: 'Đã gửi email nhắc thanh toán',
+      description: 'Payment reminder email sent',
       metadata: { reminderExecutionId: payload.reminderExecutionId },
       createdByUserId: null,
     });
@@ -863,7 +863,7 @@ export class CollectionActivityListener {
       receivableId: payload.receivableId,
       customerId,
       activityType: CollectionActivityType.EMAIL_FAILED,
-      description: 'Gửi email nhắc thanh toán thất bại',
+      description: 'Payment reminder email failed to send',
       metadata: { reminderExecutionId: payload.reminderExecutionId },
       createdByUserId: null,
     });
@@ -915,7 +915,7 @@ export class CollectionActivityListener {
 }
 ```
 
-`resolveCustomerId` bọc lookup trong `tenantContext.run({ userId: 'system', organizationId: payload.organizationId, role: Role.OWNER }, ...)` thay vì gọi `receivableRepo.findById` trực tiếp — vì `payment.allocated`/`receivable.closed` đã mang sẵn `customerId` (Task 5, use case đọc `Receivable` trước khi emit), nhưng `dispute.*`/`reminder.*` thì không. `write()` cũng mở cùng tenant context trước khi gọi repository insert; như vậy cả lookup và activity write đều an toàn khi event đến từ BullMQ worker ngoài vòng đời HTTP request.
+`resolveCustomerId` wraps the lookup in `tenantContext.run({ userId: 'system', organizationId: payload.organizationId, role: Role.OWNER }, ...)` instead of calling `receivableRepo.findById` directly — because `payment.allocated`/`receivable.closed` already include `customerId` (Task 5, the use case reads `Receivable` before emitting), while `dispute.*`/`reminder.*` do not. `write()` also opens the same tenant context before calling the repository insert; this keeps both the lookup and activity write safe when the event comes from a BullMQ worker outside the HTTP request lifecycle.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -948,7 +948,7 @@ import { ReceivablesModule } from '../receivables/receivables.module';
 export class CollectionActivityModule {}
 ```
 
-`CollectionActivityListener` không cần vào `exports` — nó chỉ đăng ký `@OnEvent` handler với `EventEmitter2` toàn cục khi Nest khởi tạo provider, không module nào khác cần inject nó trực tiếp.
+`CollectionActivityListener` does not need to be in `exports` — it only registers an `@OnEvent` handler with the global `EventEmitter2` when Nest initializes the provider; no other module needs to inject it directly.
 
 - [ ] **Step 6: Run full test suite and verify app still boots**
 
@@ -1014,7 +1014,7 @@ describe('AllocatePaymentUseCase', () => {
       bankTransactionId: null,
       totalAmount,
       allocatedAmount: 0,
-      payerName: 'Công ty B',
+      payerName: 'Company B',
       receivedAt: new Date('2026-08-01'),
       createdAt: new Date('2026-08-01'),
     });
@@ -1237,7 +1237,7 @@ export class AllocatePaymentUseCase {
 }
 ```
 
-`emitAsync` (chờ tất cả listener xử lý xong) được dùng thay vì `emit` (fire-and-forget) cho riêng 2 event mà use case này emit trực tiếp — để `POST /payments/:id/allocate` chỉ trả response sau khi `CollectionActivity` đã được ghi, giúp Task 6's integration test đọc lại timeline ngay sau khi allocate mà không cần chờ/polling. (`dispute.opened`/`dispute.resolved` ở dispute-management plan vẫn dùng `emit` — xem Self-Review Notes.)
+`emitAsync` (waits for all listeners to finish) is used instead of `emit` (fire-and-forget) for the only 2 events this use case emits directly — so `POST /payments/:id/allocate` returns only after `CollectionActivity` has been written, allowing Task 6's integration test to read the timeline immediately after allocation without waiting or polling. (`dispute.opened`/`dispute.resolved` in the dispute-management plan still use `emit` — see Self-Review Notes.)
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -1486,7 +1486,7 @@ export class CollectionActivityController {
 }
 ```
 
-Không có route PATCH/DELETE nào trên controller này — khớp collection-activity-timeline spec mục 4 ("chỉ INSERT, không có endpoint PATCH/DELETE").
+There are no PATCH/DELETE routes on this controller — matching collection-activity-timeline spec section 4 ("INSERT only; no PATCH/DELETE endpoints").
 
 - [ ] **Step 7: Register everything in `collection-activity.module.ts`**
 
@@ -1589,7 +1589,7 @@ describe('Collection Activity Timeline (integration)', () => {
     await dataSource.getRepository(CustomerOrmEntity).save({
       id: customerId,
       organizationId,
-      name: 'Công ty B',
+      name: 'Company B',
       taxCode: '0312345678',
       email: 'ap@congtyb.vn',
       phone: '0900000000',
@@ -1619,7 +1619,7 @@ describe('Collection Activity Timeline (integration)', () => {
       bankTransactionId: null,
       totalAmount: 30_000_000,
       allocatedAmount: 0,
-      payerName: 'Công ty B',
+      payerName: 'Company B',
       receivedAt: new Date(),
       createdAt: new Date(),
     });
@@ -1679,7 +1679,7 @@ describe('Collection Activity Timeline (integration)', () => {
     const res = await request(app.getHttpServer())
       .post(`/api/v1/receivables/${receivableId}/activities`)
       .set('Authorization', authHeader())
-      .send({ activityType: 'MANUAL_CALL', description: 'Đã gọi điện xác nhận đã nhận đủ tiền' })
+       .send({ activityType: 'MANUAL_CALL', description: 'Called to confirm full payment was received' })
       .expect(201);
 
     expect(res.body.activityType).toBe('MANUAL_CALL');
@@ -1711,15 +1711,15 @@ git commit -m "test: add integration test proving payment allocation writes PAYM
 
 ## Self-Review Notes
 
-- **Spec coverage:** `CollectionActivity` entity (collection-activity-timeline spec mục 1) → Task 1-2. Automatic event-driven writes (mục 2.1) → Task 4 (`CollectionActivityListener`) + Task 5 (`AllocatePaymentUseCase` emits `payment.allocated`/`receivable.closed`, the only two events this plan controls end-to-end). Manual API (mục 2.2) → Task 3 + Task 6 (`POST /receivables/:id/activities`). INSERT-only, no PATCH/DELETE (mục 4) → Task 2 uses TypeORM `insert()` rather than `save()`, while `CollectionActivityController` exposes no PATCH/DELETE routes and the domain class has no mutating methods.
-- **Single write path enforced:** every automatic row is written by exactly one class, `CollectionActivityListener` (Task 4) — no other service calls `ICollectionActivityRepository.create` except `RecordManualActivityUseCase` (Task 3) for the 3 manual types. `AllocatePaymentUseCase`, `OpenDisputeUseCase`/`ResolveDisputeUseCase` (dispute-management plan) never touch `CollectionActivity` directly, only emit domain events — matches spec mục 2.1's explicit requirement.
+- **Spec coverage:** `CollectionActivity` entity (collection-activity-timeline spec section 1) → Task 1-2. Automatic event-driven writes (section 2.1) → Task 4 (`CollectionActivityListener`) + Task 5 (`AllocatePaymentUseCase` emits `payment.allocated`/`receivable.closed`, the only two events this plan controls end-to-end). Manual API (section 2.2) → Task 3 + Task 6 (`POST /receivables/:id/activities`). INSERT-only, no PATCH/DELETE (section 4) → Task 2 uses TypeORM `insert()` rather than `save()`, while `CollectionActivityController` exposes no PATCH/DELETE routes and the domain class has no mutating methods.
+- **Single write path enforced:** every automatic row is written by exactly one class, `CollectionActivityListener` (Task 4) — no other service calls `ICollectionActivityRepository.create` except `RecordManualActivityUseCase` (Task 3) for the 3 manual types. `AllocatePaymentUseCase`, `OpenDisputeUseCase`/`ResolveDisputeUseCase` (dispute-management plan) never touch `CollectionActivity` directly, only emit domain events — matching spec section 2.1's explicit requirement.
 - **`EventEmitterModule` ownership:** confirmed by reading `2026-08-03-dispute-management.md` Task 3 Step 2 — it already registers `EventEmitterModule.forRoot()` in `AppModule` and adds `@nestjs/event-emitter` to `package.json`. This plan does neither again; it only imports `EventEmitter2`/`@OnEvent`, which are already available. If this plan is executed before the dispute-management plan for some reason, `EventEmitterModule.forRoot()` must be added first — flagged here so whoever executes out of order doesn't skip it.
 - **`payment.allocated`/`receivable.closed` contract (this plan's own, end-to-end controlled):** emitted only from `AllocatePaymentUseCase.execute()`, only after `dataSource.transaction(...)` resolves, via `eventEmitter.emitAsync(...)` (awaited) rather than `.emit()` (fire-and-forget) — this makes `POST /payments/:id/allocate`'s response only return after the `CollectionActivity` row(s) are already persisted, which is what makes Task 7's integration test deterministic without polling/sleep. `receivable.closed` only fires when `updatedReceivable.status === ReceivableStatus.PAID` right after the allocation — since `applyPaymentAllocation` is the only place `Receivable.status` becomes `PAID` today (project-scaffolding-and-domain-core plan Task 9), no other hook point exists or is needed.
-- **`dispute.opened`/`dispute.resolved` contract (owned by dispute-management plan, consumed here as-is):** payload is `{ disputeId, receivableId, organizationId }` per that plan's Task 3 Steps 5/9 and its own Self-Review Notes, which explicitly names this plan as the intended listener and confirms the emitting use cases call plain `.emit()` (not `emitAsync`). That means a dispute's `CollectionActivity` row may be written a tick after the HTTP response to `POST /receivables/:id/disputes`/`POST /disputes/:id/resolve` returns — acceptable given the design spec's own open question mục 5 ("đồng bộ hay bất đồng bộ... có độ trễ nhỏ" is explicitly left open, not blocking). This plan's own integration test (Task 7) only exercises the `payment.allocated`/`receivable.closed` path it fully controls, to stay deterministic; it does not assert timing for dispute-triggered rows.
+- **`dispute.opened`/`dispute.resolved` contract (owned by dispute-management plan, consumed here as-is):** payload is `{ disputeId, receivableId, organizationId }` per that plan's Task 3 Steps 5/9 and its own Self-Review Notes, which explicitly names this plan as the intended listener and confirms the emitting use cases call plain `.emit()` (not `emitAsync`). That means a dispute's `CollectionActivity` row may be written a tick after the HTTP response to `POST /receivables/:id/disputes`/`POST /disputes/:id/resolve` returns — acceptable given the design spec's own open question section 5 ("synchronous or asynchronous... with a small delay" is explicitly left open, not blocking). This plan's own integration test (Task 7) only exercises the `payment.allocated`/`receivable.closed` path it fully controls, to stay deterministic; it does not assert timing for dispute-triggered rows.
 - **`reminder.sent`/`reminder.failed` contract:** owned by the Email Notification plan and consumed here as `{ reminderExecutionId, receivableId, organizationId }`. The contract is now implemented, not a speculative forward reference. The `tenantContext.run(...)` wrapper remains required because the email worker has no HTTP `AsyncLocalStorage` context.
 - **Permission reuse, no new permission added:** `Permission.RECEIVABLE_READ` gates both `GET /receivables/:id/timeline` and `GET /customers/:id/timeline` (per this plan's own instructions — reusing the existing read permission rather than adding e.g. `Permission.COLLECTION_ACTIVITY_READ`). `Permission.RECEIVABLE_WRITE` gates `POST /receivables/:id/activities` — this is a judgment call this plan makes (not explicitly dictated), reasoned as: recording a manual call/note/commitment is a write action tied to a receivable, and every role that can write a receivable (`FINANCE_MANAGER`, `ACCOUNTANT` per `ROLE_PERMISSIONS`) plausibly needs to log collection activity too, while `SALES_REP`/`VIEWER` (read-only) should not. If product wants a narrower permission later, add `Permission.COLLECTION_ACTIVITY_WRITE` to the enum and swap the one `@RequirePermission` call in `collection-activity.controller.ts` — no other change needed.
 - **No circular module dependency:** unlike `ReceivablesModule ↔ DisputesModule` (which need `forwardRef()`), `CollectionActivityModule` only depends one-way on `ReceivablesModule` (for `RECEIVABLE_REPOSITORY`, used to resolve `customerId` for dispute/reminder events and to validate the receivable exists in `RecordManualActivityUseCase`). `ReceivablesModule` has no dependency back on `CollectionActivityModule`, so a plain `imports: [ReceivablesModule]` suffices.
 - **Type consistency checked:** `ICollectionActivityRepository.create`/`findByReceivableId`/`findByCustomerId` signatures match their usage in `RecordManualActivityUseCase`, `CollectionActivityListener`, `GetReceivableTimelineUseCase`, `GetCustomerTimelineUseCase`, and their mocks across all `.spec.ts` files in this plan. `AllocatePaymentUseCase`'s constructor now takes 6 args (`receivableRepo, paymentRepo, allocationRepo, dataSource, tenantContext, eventEmitter`) — Task 5 Step 1 updates the existing spec file to match; any other test file constructing `AllocatePaymentUseCase` directly (none exist outside this plan and the two plans it builds on) would need the same update. `PaymentAllocatedEvent`/`ReceivableClosedEvent`/`DisputeEvent`/`ReminderEvent` payload field names are identical between the emitting code (`AllocatePaymentUseCase`, dispute-management plan's use cases) and the listener's handler signatures. Every listener call reaches `write()`, which reopens the event tenant context before the insert.
-- **Not covered in this plan (by design):** UI for the timeline display (design spec mục 4, out of scope — original doc mục 18, Receivable Detail). `INVOICE_CREATED` activity type exists in the enum (per spec mục 1) but no listener wires it up yet — no plan read so far emits an `invoice.created` event; adding that hook is a one-line `@OnEvent('invoice.created')` handler in `CollectionActivityListener` once such an event exists, following the exact same pattern as every other handler in Task 4. Rate-limiting/deduping repeated manual activity submissions — not requested by the spec, YAGNI until observed as a real problem.
+- **Not covered in this plan (by design):** UI for the timeline display (design spec section 4, out of scope — original doc section 18, Receivable Detail). `INVOICE_CREATED` activity type exists in the enum (per spec section 1) but no listener wires it up yet — no plan read so far emits an `invoice.created` event; adding that hook is a one-line `@OnEvent('invoice.created')` handler in `CollectionActivityListener` once such an event exists, following the exact same pattern as every other handler in Task 4. Rate-limiting/deduping repeated manual activity submissions — not requested by the spec, YAGNI until observed as a real problem.
 
 

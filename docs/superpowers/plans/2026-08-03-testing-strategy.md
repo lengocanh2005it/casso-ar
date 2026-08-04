@@ -13,7 +13,7 @@
 - Do not modify `apps/backend/test/payment-allocation.integration.spec.ts` (Domain Core plan) or `apps/backend/test/webhook-idempotency.integration.spec.ts` (Webhook Matching Engine plan) — cases 1 and 2 are already covered there; this plan only references them.
 - Do not modify `2026-08-03-exception-queue-audit-log.md` — case 4 (optimistic lock conflict on `BankTransaction.version`) is out of scope here.
 - New test files only add to `apps/backend/test/`; the only production code touched is the new `cancel-receivable.usecase.ts` file plus additive edits to `receivables.controller.ts`/`receivables.module.ts` (no DTO needed — the cancel route takes no request body, matching `write-off`).
-- Money fields stay integer (đồng), no `float` (still binding from scaffolding spec).
+- Money fields stay integer (VND), no `float` (still binding from scaffolding spec).
 - Every integration suite starts and stops a real PostgreSQL container and a real Redis container; DB/Redis mocks and shared service containers are not acceptable for these cases because BullMQ and transaction/constraint behavior are part of the contract.
 - CI must run `pnpm turbo run test:e2e` explicitly; `pnpm turbo run test` alone is not sufficient because it can omit the testcontainers suites.
 - Domain errors (`Receivable.cancel()`'s thrown `Error`) are translated to HTTP status codes in the use case layer (`BadRequestException`/`NotFoundException`), not left to bubble up as generic 500s — `domain/` still does not import NestJS.
@@ -50,11 +50,11 @@ apps/backend/
 
 - [ ] **Step 1: Confirm case 2 (partial payment allocation) coverage**
 
-Read `2026-08-03-project-scaffolding-and-domain-core.md` Task 14, file `apps/backend/test/payment-allocation.integration.spec.ts`. It spins up real Postgres + Redis via testcontainers, seeds a `Customer`, creates a `Receivable` via `POST /api/v1/receivables`, creates a `Payment` row directly, then calls `POST /api/v1/payments/:id/allocate` with `amount: 30_000_000` against a `50_000_000` receivable and asserts `status === 'PARTIALLY_PAID'` and `paidAmount === 30_000_000` by querying the `receivables` table directly. This is testing-strategy-design.md mục 1 case 2 verbatim (its own docstring says so: "matches testing-strategy-design.md mục 1, case 2"). No new test needed for case 2.
+Read `2026-08-03-project-scaffolding-and-domain-core.md` Task 14, file `apps/backend/test/payment-allocation.integration.spec.ts`. It spins up real Postgres + Redis via testcontainers, seeds a `Customer`, creates a `Receivable` via `POST /api/v1/receivables`, creates a `Payment` row directly, then calls `POST /api/v1/payments/:id/allocate` with `amount: 30_000_000` against a `50_000_000` receivable and asserts `status === 'PARTIALLY_PAID'` and `paidAmount === 30_000_000` by querying the `receivables` table directly. This is testing-strategy-design.md section 1 case 2 verbatim (its own docstring says so: "matches testing-strategy-design.md section 1, case 2"). No new test needed for case 2.
 
 - [ ] **Step 2: Confirm case 1 (duplicate webhook idempotency) coverage**
 
-Read `2026-08-03-webhook-matching-engine.md` Task 10, file `apps/backend/test/webhook-idempotency.integration.spec.ts`. It POSTs the same `transactionId` to `/webhooks/casso-balance-hook` twice with valid auth headers, asserts the first call enqueues a job and inserts a `WebhookInbox`/`BankTransaction` row, and the second call returns `200 { received: true, duplicate: true }` with no second row created (relying on the `providerTransactionId` unique constraint from Task 2). This is testing-strategy-design.md mục 1 case 1 verbatim. No new test needed for case 1.
+Read `2026-08-03-webhook-matching-engine.md` Task 10, file `apps/backend/test/webhook-idempotency.integration.spec.ts`. It POSTs the same `transactionId` to `/webhooks/casso-balance-hook` twice with valid auth headers, asserts the first call enqueues a job and inserts a `WebhookInbox`/`BankTransaction` row, and the second call returns `200 { received: true, duplicate: true }` with no second row created (relying on the `providerTransactionId` unique constraint from Task 2). This is testing-strategy-design.md section 1 case 1 verbatim. No new test needed for case 1.
 
 - [ ] **Step 3: Record the cross-reference**
 
@@ -289,7 +289,7 @@ git commit -m "feat: expose POST /api/v1/receivables/:id/cancel endpoint"
 
 **Interfaces:**
 - Consumes: full `AppModule`, real Postgres + Redis via testcontainers, `AllocatePaymentUseCase`/`Payment.withAdditionalAllocation` (Domain Core plan Task 11-12), `JwtService` for signing a test bearer token (Multi-tenancy/RBAC plan)
-- Produces: verified end-to-end proof that allocating less than a `Payment`'s `totalAmount` leaves `unallocatedAmount > 0` and that the leftover is never auto-applied to another `Receivable` of the same `Customer` — matches testing-strategy-design.md mục 1, case 3
+- Produces: verified end-to-end proof that allocating less than a `Payment`'s `totalAmount` leaves `unallocatedAmount > 0` and that the leftover is never auto-applied to another `Receivable` of the same `Customer` — matches testing-strategy-design.md section 1, case 3
 
 - [ ] **Step 1: Write the integration test**
 
@@ -351,7 +351,7 @@ describe('Overpayment allocation (integration)', () => {
     await dataSource.getRepository(CustomerOrmEntity).save({
       id: customerId,
       organizationId,
-      name: 'Công ty B',
+      name: 'Company B',
       taxCode: '0312345678',
       email: 'ap@congtyb.vn',
       phone: '0900000000',
@@ -395,7 +395,7 @@ describe('Overpayment allocation (integration)', () => {
       bankTransactionId: null,
       totalAmount: 80_000_000, // larger than receivableA.remainingAmount (50_000_000)
       allocatedAmount: 0,
-      payerName: 'Công ty B',
+      payerName: 'Company B',
       receivedAt: new Date(),
       createdAt: new Date(),
     });
@@ -486,7 +486,7 @@ git commit -m "test: add integration test for overpayment leftover not auto-appl
 
 **Interfaces:**
 - Consumes: full `AppModule`, real Postgres + Redis via testcontainers, `CancelReceivableUseCase` + `POST /api/v1/receivables/:id/cancel` (Task 2-3), `JwtService` for signing a test bearer token (Multi-tenancy/RBAC plan)
-- Produces: verified end-to-end proof that a `PARTIALLY_PAID` receivable's CANCEL call is rejected with 400, and that an untouched `OPEN` receivable can still be cancelled — matches testing-strategy-design.md mục 1, case 5
+- Produces: verified end-to-end proof that a `PARTIALLY_PAID` receivable's CANCEL call is rejected with 400, and that an untouched `OPEN` receivable can still be cancelled — matches testing-strategy-design.md section 1, case 5
 
 - [ ] **Step 1: Write the integration test**
 
@@ -545,7 +545,7 @@ describe('Cancel a PARTIALLY_PAID receivable (integration)', () => {
     await dataSource.getRepository(CustomerOrmEntity).save({
       id: customerId,
       organizationId,
-      name: 'Công ty C',
+      name: 'Company C',
       taxCode: '0398765432',
       email: 'ap@congtyc.vn',
       phone: '0911111111',
@@ -574,7 +574,7 @@ describe('Cancel a PARTIALLY_PAID receivable (integration)', () => {
       bankTransactionId: null,
       totalAmount: 20_000_000,
       allocatedAmount: 0,
-      payerName: 'Công ty C',
+      payerName: 'Company C',
       receivedAt: new Date(),
       createdAt: new Date(),
     });
@@ -618,7 +618,7 @@ describe('Cancel a PARTIALLY_PAID receivable (integration)', () => {
     await dataSource.getRepository(CustomerOrmEntity).save({
       id: customerId,
       organizationId,
-      name: 'Công ty D',
+      name: 'Company D',
       taxCode: '0387654321',
       email: 'ap@congtyd.vn',
       phone: '0922222222',
@@ -675,7 +675,7 @@ git commit -m "test: add integration test rejecting CANCEL on a PARTIALLY_PAID r
 
 **Interfaces:**
 - Consumes: `pnpm-workspace.yaml`/`turbo.json` (scaffolding plan Task 1), all `test:e2e` integration tests across every plan (this plan's Task 4-5, Domain Core Task 14, Webhook Matching Engine Task 10)
-- Produces: a CI pipeline that runs on every push/PR, answering testing-strategy-design.md mục 5's open question ("does GitHub Actions support Docker-in-Docker for testcontainers?") — it does, without any dind setup: `ubuntu-latest` GitHub-hosted runners come with a Docker Engine already running natively on the host (not itself inside a container), and `testcontainers-node` auto-detects `/var/run/docker.sock` and talks to it directly. Docker-in-Docker (`docker:dind` as a `services:` entry) is only needed when the *job itself* runs inside a container (`container: image: ...`); this workflow does not do that, so no dind is needed.
+- Produces: a CI pipeline that runs on every push/PR, answering testing-strategy-design.md section 5's open question ("does GitHub Actions support Docker-in-Docker for testcontainers?") — it does, without any dind setup: `ubuntu-latest` GitHub-hosted runners come with a Docker Engine already running natively on the host (not itself inside a container), and `testcontainers-node` auto-detects `/var/run/docker.sock` and talks to it directly. Docker-in-Docker (`docker:dind` as a `services:` entry) is only needed when the *job itself* runs inside a container (`container: image: ...`); this workflow does not do that, so no dind is needed.
 
 - [ ] **Step 1: Create `.github/workflows/ci.yml`**
 
@@ -734,12 +734,12 @@ git commit -m "ci: add GitHub Actions workflow running lint, type-check, and tes
 
 ## Self-Review Notes
 
-**Mapping of all 5 mandatory testing-strategy-design.md mục 1 cases:**
+**Mapping of all 5 mandatory testing-strategy-design.md section 1 cases:**
 
 1. **Duplicate webhook idempotency** — covered by `2026-08-03-webhook-matching-engine.md` Task 10, `apps/backend/test/webhook-idempotency.integration.spec.ts`. Confirmed in this plan's Task 1, Step 2. Not duplicated here.
 2. **Partial payment allocation** — covered by `2026-08-03-project-scaffolding-and-domain-core.md` Task 14, `apps/backend/test/payment-allocation.integration.spec.ts`. Confirmed in this plan's Task 1, Step 1. Not duplicated here.
 3. **Overpayment leftover stays unallocated, no auto-apply** — NOT previously covered. Added in this plan's Task 4, `apps/backend/test/overpayment.integration.spec.ts`.
-4. **Concurrent optimistic-lock conflict on `BankTransaction.version`** — owned by `2026-08-03-exception-queue-audit-log.md` mục 1 (that plan explicitly names `BankTransaction.version`, already scaffolded with `@VersionColumn()` in `2026-08-03-webhook-matching-engine.md` Task 3, as the field the conflict test exercises). Not duplicated here — this plan takes no action on case 4 beyond this note.
+4. **Concurrent optimistic-lock conflict on `BankTransaction.version`** — owned by `2026-08-03-exception-queue-audit-log.md` section 1 (that plan explicitly names `BankTransaction.version`, already scaffolded with `@VersionColumn()` in `2026-08-03-webhook-matching-engine.md` Task 3, as the field the conflict test exercises). Not duplicated here — this plan takes no action on case 4 beyond this note.
 5. **CANCEL rejected on PARTIALLY_PAID** — NOT previously covered (the domain method `Receivable.cancel()` already existed and already threw the right error per Domain Core plan Task 9, but no HTTP endpoint exposed it). Added in this plan's Task 2 (`CancelReceivableUseCase`), Task 3 (`POST /api/v1/receivables/:id/cancel` route), and Task 5 (`apps/backend/test/cancel-partially-paid-rejected.integration.spec.ts`).
 
 **Design decisions worth flagging:**
@@ -747,6 +747,6 @@ git commit -m "ci: add GitHub Actions workflow running lint, type-check, and tes
 - **Reconciled with the RBAC-migrated controller (2026-08-04 pass):** an earlier version of this plan built `POST /api/v1/receivables/:id/cancel` against the Domain Core plan's PRE-`2026-08-03-multi-tenancy-rbac.md` `ReceivablesController` shape (no guards, `organizationId` in the request body) on the theory that this kept the diff independent of that plan's parallel edits. In the actual implementation order, `multi-tenancy-rbac.md` runs before this plan and already replaces `ReceivablesController` with the guarded, `TenantContextService`-based version (`create` + `write-off`, `@RequirePermission` per route) — building against the older shape would have produced a controller state that never actually exists once both plans are applied in order. Fixed: `CancelReceivableUseCase.execute(receivableId)` now takes no `organizationId` parameter (matches `WriteOffReceivableUseCase` exactly), the controller diff in Task 3 is additive on top of the RBAC-migrated file, gated by `@RequirePermission(Permission.RECEIVABLE_WRITE)` (reusing the existing permission, no new one added), and Tasks 4-5's integration tests now sign a JWT (`JwtService.sign(...)`) and send it as a `Bearer` token instead of putting `organizationId` in request bodies the guarded controllers no longer read from there.
 - `CancelReceivableUseCase` translates the domain's plain `Error` into `BadRequestException`/`NotFoundException` at the use case layer (not in `domain/`, keeping the "domain never imports NestJS" constraint intact) — this is a new, small, deliberate design choice not present in `WriteOffReceivableUseCase` (which lets the plain `Error` bubble up), added specifically because case 5 needs a real HTTP status code to assert against in the integration test.
 - The overpayment test (Task 4) demonstrates "no auto-apply" by allocating the leftover to a second receivable in a **separate, explicit** API call and asserting it only happens because that call was made — proving the system has no background/automatic reallocation logic, not merely that a single call didn't reallocate by accident.
-- CI workflow (Task 6) needs no Docker-in-Docker service: GitHub's `ubuntu-latest` hosted runners ship a native Docker Engine already reachable at `/var/run/docker.sock`, which `testcontainers-node` uses automatically — dind is only relevant when the job itself runs inside a container (`jobs.<id>.container:`), which this workflow does not use. The workflow nevertheless runs `pnpm turbo run test:e2e` explicitly, so the real Postgres + Redis suites cannot be skipped by a generic `test` task. This resolves the open question in testing-strategy-design.md mục 5.
+- CI workflow (Task 6) needs no Docker-in-Docker service: GitHub's `ubuntu-latest` hosted runners ship a native Docker Engine already reachable at `/var/run/docker.sock`, which `testcontainers-node` uses automatically — dind is only relevant when the job itself runs inside a container (`jobs.<id>.container:`), which this workflow does not use. The workflow nevertheless runs `pnpm turbo run test:e2e` explicitly, so the real Postgres + Redis suites cannot be skipped by a generic `test` task. This resolves the open question in testing-strategy-design.md section 5.
 
 

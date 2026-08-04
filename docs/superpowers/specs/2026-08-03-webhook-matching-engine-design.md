@@ -1,31 +1,31 @@
 # Webhook Ingestion + Matching Engine Design
 
-> Spec con của [docs/overview.md](../../../docs/overview.md), phụ thuộc [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md). Định nghĩa cách hệ thống nhận giao dịch từ CASSO Balance Hook, chống trùng lặp, và đối soát với Receivable.
+> Sub-spec of [docs/overview.md](../../../docs/overview.md), dependent on [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md). Defines how the system receives transactions from CASSO Balance Hook, prevents duplicates, and reconciles them against Receivable.
 
-## 0. Nguồn tham khảo
+## 0. Reference source
 
-Thông tin về CASSO Balance Hook lấy từ [cas.so/product/balance-hook](https://cas.so/product/balance-hook) (truy cập 08/2026):
-- Webhook thông báo real-time khi có thay đổi số dư tài khoản/VA đã kết nối.
-- Payload gồm: Transaction ID + unique code, thời gian giao dịch, số tiền, số dư sau giao dịch, số tài khoản (thường + VA), thông tin ngân hàng, thông tin tài khoản đối ứng, đơn vị tiền tệ (VND).
-- Xác thực bằng header: API version, client ID, secret key (không phải HMAC signature trên payload).
-- Docs công khai không nói rõ retry mechanism — cần xác nhận lại với Developer Portal/tài liệu kỹ thuật nội bộ trước khi triển khai production.
+Information about CASSO Balance Hook comes from [cas.so/product/balance-hook](https://cas.so/product/balance-hook) (accessed 08/2026):
+- Real-time webhook notifications when the balance of a connected account/VA changes.
+- Payload includes: Transaction ID + unique code, transaction time, amount, balance after the transaction, account number (regular + VA), bank information, counterparty account information, and currency (VND).
+- Authentication uses headers: API version, client ID, secret key (not an HMAC signature on the payload).
+- The public docs do not clearly describe the retry mechanism — confirm it with the Developer Portal/internal technical documentation before production deployment.
 
-## 1. Phạm vi & luồng tổng quát
+## 1. Scope & overall flow
 
-Phạm vi: webhook ingestion (nhận, xác thực, chống trùng) + Matching Engine (tìm Receivable phù hợp, tính điểm, quyết định auto-match/exception/unmatched).
+Scope: webhook ingestion (receive, authenticate, deduplicate) + Matching Engine (find matching Receivables, calculate scores, and decide auto-match/exception/unmatched).
 
-Không thuộc phạm vi: UI Exception Queue, luồng Cas ID connection/consent (spec riêng), Payment Allocation transaction detail (đã có ở Domain Core spec).
+Out of scope: Exception Queue UI, the Cas ID connection/consent flow (separate spec), and Payment Allocation transaction details (covered in the Domain Core spec).
 
 ```
 CASSO Balance Hook (POST) → Webhook Controller
-    → Xác thực header (client ID + secret key, constant-time compare)
+    → Validate headers (client ID + secret key, constant-time compare)
     → WebhookInbox (insert, unique key = Balance Hook Transaction ID)
-        → nếu trùng key (duplicate) → return 200 ngay, không xử lý tiếp
+        → if the key is duplicated → return 200 immediately, with no further processing
     → Queue (BullMQ)
-    → Transaction Normalizer (map payload Balance Hook → BankTransaction nội bộ)
-    → Matching Engine (tính score, tìm candidate Receivable)
-    → score >= 90 → Payment Allocation tự động
-    → score 60-89 → Exception Queue (kế toán duyệt)
+    → Transaction Normalizer (map Balance Hook payload → internal BankTransaction)
+    → Matching Engine (calculate score, find Receivable candidates)
+    → score >= 90 → automatic Payment Allocation
+    → score 60-89 → Exception Queue (accountant review)
     → score < 60 → BankTransaction.status = UNMATCHED
 ```
 
@@ -33,7 +33,7 @@ CASSO Balance Hook (POST) → Webhook Controller
 
 ```
 WebhookInbox
-  id, organizationId, bankConnectionId, providerTransactionId (unique, từ Balance Hook Transaction ID),
+  id, organizationId, bankConnectionId, providerTransactionId (unique, from Balance Hook Transaction ID),
   rawPayload (jsonb), receivedAt, status (RECEIVED/PROCESSED/FAILED),
   processedAt, errorMessage, retryCount
 
@@ -51,53 +51,53 @@ MatchingCandidate
   createdAt
 ```
 
-`WebhookInbox` giữ raw payload để audit/replay, tách biệt khỏi `BankTransaction` (dữ liệu đã normalize) để Matching Engine không phụ thuộc cấu trúc riêng của Balance Hook — nếu payload đổi format, chỉ Transaction Normalizer cần sửa.
+`WebhookInbox` retains the raw payload for audit/replay and is separate from `BankTransaction` (normalized data), so the Matching Engine does not depend on the Balance Hook's specific structure — if the payload format changes, only Transaction Normalizer needs updating.
 
 ## 3. Candidate scope & scoring
 
 ### Candidate scope
 
-- Nếu resolve được `customerId` — qua khớp `counterpartyAccountNumber` với `CustomerBankAccount` đã lưu, hoặc qua mã hóa đơn/receivable tìm thấy trong `transferContent` — chỉ xét `Receivable` của customer đó, `status IN (OPEN, PARTIALLY_PAID)`.
-- Nếu không resolve được customer, quét toàn bộ `Receivable OPEN/PARTIALLY_PAID` trong organization, giới hạn top N gần nhất theo `dueDate`, và chỉ tính `referenceCodeScore` + `amountScore` (hai tiêu chí duy nhất không cần biết customer).
+- If `customerId` can be resolved — by matching `counterpartyAccountNumber` to a stored `CustomerBankAccount`, or by finding an invoice/receivable code in `transferContent` — consider only that customer's `Receivable` records with `status IN (OPEN, PARTIALLY_PAID)`.
+- If the customer cannot be resolved, scan all `Receivable OPEN/PARTIALLY_PAID` records in the organization, limit to the top N closest by `dueDate`, and calculate only `referenceCodeScore` + `amountScore` (the only two criteria that do not require knowing the customer).
 
-### Scoring (giữ công thức cộng dồn từ brainstorm gốc)
-
-```
-referenceCodeScore (0-60): transferContent chứa đúng invoiceNumber/mã receivable → 60,
-                            chứa mã dạng gần đúng (thiếu ký tự, sai định dạng) → 30, không có → 0
-amountScore        (0-20): amount == remainingAmount → 20, lệch trong ±1% → 10, khác → 0
-customerBankAccountScore (0-10): counterpartyAccountNumber khớp CustomerBankAccount đã lưu → 10, khác → 0
-payerNameScore     (0-5):  fuzzy match counterpartyName với Customer.name vượt ngưỡng similarity → 5, không → 0
-timingScore        (0-5):  transactionDateTime trong [dueDate-30 ngày, dueDate+30 ngày] → 5, ngoài → 0
-
-totalScore = tổng 5 thành phần, tối đa 100
-```
-
-Mỗi thành phần điểm là một hàm thuần (pure function), độc lập, dễ unit test riêng.
-
-### Threshold quyết định
+### Scoring (retain the additive formula from the original brainstorm)
 
 ```
-totalScore >= 90   → tự động Payment Allocation
-totalScore 60-89   → Exception Queue, đề xuất theo totalScore giảm dần
+referenceCodeScore (0-60): transferContent contains the exact invoiceNumber/receivable code → 60,
+                            contains a near-match code (missing characters, malformed) → 30, absent → 0
+amountScore        (0-20): amount == remainingAmount → 20, differs by no more than ±1% → 10, otherwise → 0
+customerBankAccountScore (0-10): counterpartyAccountNumber matches a stored CustomerBankAccount → 10, different → 0
+payerNameScore     (0-5):  fuzzy match of counterpartyName against Customer.name exceeds the similarity threshold → 5, otherwise → 0
+timingScore        (0-5):  transactionDateTime within [dueDate-30 days, dueDate+30 days] → 5, outside → 0
+
+totalScore = sum of 5 components, maximum 100
+```
+
+Each score component is an independent pure function and is easy to unit test separately.
+
+### Decision thresholds
+
+```
+totalScore >= 90   → automatic Payment Allocation
+totalScore 60-89   → Exception Queue, suggested in descending totalScore order
 totalScore < 60    → BankTransaction.status = UNMATCHED
 ```
 
 ## 4. Idempotency, auth & edge cases
 
-1. **Xác thực**: header client ID + secret key so khớp constant-time compare với giá trị lưu server-side. Sai hoặc thiếu header → 401.
-2. **Idempotency**: insert `WebhookInbox` với `unique(providerTransactionId)`. Insert thất bại do trùng key → return 200 ngay lập tức, không enqueue xử lý lại (giao dịch đã được xử lý ở lần nhận trước).
-3. **Retry**: nếu xử lý thất bại sau khi đã insert `WebhookInbox` thành công (lỗi ở Normalizer hoặc Matching Engine), processor phải persist `WebhookInbox.status = FAILED`, `retryCount++`, `errorMessage` (đã giới hạn độ dài và không chứa token/raw secret), rồi mới để BullMQ retry với backoff, tối đa N lần rồi chuyển Dead Letter Queue. Khi thành công persist `PROCESSED`.
-4. **Giao dịch hoàn tiền / số âm**: `amount < 0` không đưa vào Matching Engine — route riêng sang luồng xử lý refund (chi tiết luồng refund ngoài phạm vi doc này).
-5. **Giao dịch trùng thật** (khách chuyển 2 lần cùng số tiền nhưng khác `providerTransactionId`): đây là 2 `BankTransaction` hợp lệ, không phải lỗi idempotency — Matching Engine xử lý bình thường như 2 giao dịch riêng biệt (có thể dẫn tới overpayment nếu receivable đã trả đủ, xử lý theo rule overpayment ở Domain Core spec mục 4).
+1. **Authentication**: compare the client ID + secret key headers against server-side values using constant-time comparison. Invalid or missing headers → 401.
+2. **Idempotency**: insert `WebhookInbox` with `unique(providerTransactionId)`. If insertion fails because the key is duplicated → return 200 immediately and do not enqueue processing again (the transaction was handled on the previous receipt).
+3. **Retry**: if processing fails after `WebhookInbox` was inserted successfully (an error in Normalizer or Matching Engine), the processor must persist `WebhookInbox.status = FAILED`, `retryCount++`, and `errorMessage` (length-limited and containing no token/raw secret), then let BullMQ retry with backoff, up to N times before moving to the Dead Letter Queue. On success, persist `PROCESSED`.
+4. **Refund/negative transactions**: `amount < 0` does not enter the Matching Engine — route it to a separate refund flow (refund-flow details are out of scope for this doc).
+5. **Genuine duplicate transactions** (a customer transfers the same amount twice with different `providerTransactionId` values): these are 2 valid `BankTransaction` records, not an idempotency error — the Matching Engine processes them normally as two separate transactions (which may cause an overpayment if the receivable is already fully paid, handled according to the overpayment rule in section 4 of the Domain Core spec).
 
-## 5. Ngoài phạm vi
+## 5. Out of scope
 
-- Cas ID connection/consent flow — spec riêng.
-- UI Exception Queue (giao diện, thao tác kế toán) — đã mô tả ở tài liệu gốc mục 7.10 và 18.
-- Chi tiết retry mechanism thực tế của CASSO Balance Hook — cần xác nhận với Developer Portal/tài liệu kỹ thuật nội bộ trước khi triển khai production.
+- Cas ID connection/consent flow — separate spec.
+- Exception Queue UI (interface and accountant actions) — described in sections 7.10 and 18 of the source document.
+- The actual retry mechanism details of CASSO Balance Hook — confirm with the Developer Portal/internal technical documentation before production deployment.
 
-## 6. Câu hỏi mở (không chặn implementation)
+## 6. Open questions (do not block implementation)
 
-- Balance Hook có publish IP range cố định để cân nhắc thêm IP allowlist không? (MVP hiện tại chỉ dùng secret key compare, đã chốt.)
-- `transferContent` từ Balance Hook có field tách riêng "unique code" hay chỉ có full text nội dung chuyển khoản để tự parse referenceCodeScore?
+- Does Balance Hook publish a fixed IP range so that an IP allowlist can be considered? (The current MVP uses only secret-key comparison; this is agreed.)
+- Does `transferContent` from Balance Hook have a separate "unique code" field, or only the full transfer text from which to parse referenceCodeScore?

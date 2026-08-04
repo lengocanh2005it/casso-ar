@@ -10,12 +10,12 @@
 
 ## Global Constraints
 
-- Shared schema: every business table has `organizationId NOT NULL` with an index (spec mục 1).
-- `BaseRepository` auto-adds `WHERE organizationId = ctx.organizationId` — service/use-case code never writes this filter by hand (spec mục 1, "Thực thi cách ly ở tầng ứng dụng" bước 3).
-- 5 static roles, permission list hard-coded in code, no `Role`/`Permission` DB tables (spec mục 2).
-- `SALES_REP` data-scope restriction (own customers only) is Service-layer logic, not `PermissionGuard` logic (spec mục 2, "Trường hợp đặc biệt").
+- Shared schema: every business table has `organizationId NOT NULL` with an index (spec section 1).
+- `BaseRepository` auto-adds `WHERE organizationId = ctx.organizationId` — service/use-case code never writes this filter by hand (spec section 1, "Enforce isolation at the application layer" step 3).
+- 5 static roles, permission list hard-coded in code, no `Role`/`Permission` DB tables (spec section 2).
+- `SALES_REP` data-scope restriction (own customers only) is Service-layer logic, not `PermissionGuard` logic (spec section 2, "Special case").
 - A Membership is active exactly when `joinedAt != null`; JWT payload `role` is not an authorization source after validation.
-- No Postgres Row-Level Security at MVP (spec mục 3).
+- No Postgres Row-Level Security at MVP (spec section 3).
 - File/class naming and layer dependency rules from `2026-08-03-project-scaffolding-architecture-design.md` (domain has no framework imports; presentation → application → domain).
 
 ---
@@ -35,7 +35,7 @@ apps/backend/src/
       jwt-auth.guard.ts                 -- global AuthGuard('jwt') wrapper with @Public bypass
       public.decorator.ts               -- metadata key isPublic
     rbac/
-      permission.enum.ts                -- Permission enum (12 values from spec mục 2)
+      permission.enum.ts                -- Permission enum (12 values from spec section 2)
       role-permissions.map.ts           -- ROLE_PERMISSIONS: Record<Role, Permission[]>
       require-permission.decorator.ts   -- @RequirePermission(Permission.X) metadata setter
       permission.guard.ts               -- reads role from TenantContext, checks ROLE_PERMISSIONS
@@ -1866,8 +1866,8 @@ git commit -m "test: add integration test for tenant isolation and RBAC enforcem
 
 ## Self-Review Notes
 
-- **Spec coverage:** Shared-schema tenant isolation (spec mục 1) → Task 5-7 (`BaseRepository`). Application-layer enforcement steps 1-3 (spec mục 1) → Task 4 (`JwtAuthGuard` = step 1), Task 4 (`TenantContextInterceptor` = step 2), Task 5-7 (`BaseRepository` = step 3). RBAC static role → permission mapping (spec mục 2) → Task 8. `SALES_REP` data-scope exception (spec mục 2) is explicitly noted as Service-layer logic in Global Constraints — not implemented as a concrete endpoint in this plan since no `SALES_REP`-restricted read endpoint exists yet in Domain Core; the Read APIs Completion plan owns the `GET /receivables` list endpoint follow-up.
-- **Not covered in this plan (by design):** JWT *issuance* (`/auth/login`, `/auth/signup`) — belongs to the Authentication & Onboarding plan, which must sign tokens with the same `JWT_SECRET` env var and `{ userId, organizationId, role }` payload shape this plan's `JwtStrategy` (Task 4) expects. Postgres Row-Level Security, custom per-org roles — explicitly out of scope per spec mục 3.
+- **Spec coverage:** Shared-schema tenant isolation (spec section 1) → Task 5-7 (`BaseRepository`). Application-layer enforcement steps 1-3 (spec section 1) → Task 4 (`JwtAuthGuard` = step 1), Task 4 (`TenantContextInterceptor` = step 2), Task 5-7 (`BaseRepository` = step 3). RBAC static role → permission mapping (spec section 2) → Task 8. `SALES_REP` data-scope exception (spec section 2) is explicitly noted as Service-layer logic in Global Constraints — not implemented as a concrete endpoint in this plan since no `SALES_REP`-restricted read endpoint exists yet in Domain Core; the Read APIs Completion plan owns the `GET /receivables` list endpoint follow-up.
+- **Not covered in this plan (by design):** JWT *issuance* (`/auth/login`, `/auth/signup`) — belongs to the Authentication & Onboarding plan, which must sign tokens with the same `JWT_SECRET` env var and `{ userId, organizationId, role }` payload shape this plan's `JwtStrategy` (Task 4) expects. Postgres Row-Level Security, custom per-org roles — explicitly out of scope per section 3 of the spec.
 - **Type consistency checked:** `AuthenticatedUser` (Task 3) matches the `JwtStrategy.validate()` return type (Task 4) and the `user` shape read by `TenantContextInterceptor` (Task 4) and `PermissionGuard` (Task 8). `IReceivableRepository`/`IPaymentRepository`/`IInvoiceRepository`/`ICustomerRepository` all have `organizationId` removed consistently across port, implementation, and every caller (`CreateReceivableUseCase`, `AllocatePaymentUseCase`, both controllers, both DTOs) in Tasks 6-7.
 
 

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement the remaining 5 business pages of `apps/frontend` on top of FE plans 1–2: Lịch nhắc (reminder policies + executions), Copilot (chat + pending-action confirmation), Báo cáo (aging + dashboard summary with recharts), Kết nối ngân hàng (Cas ID QR flow), Cài đặt (Billing static + Users invite + Email templates CRUD/preview) — wired to the BE endpoints from the reminder-automation, collection-copilot, aging-dashboard-reporting, cas-id-bank-connection, email-template-management, authentication-onboarding, and billing-usage-metering plans.
+**Goal:** Implement the remaining 5 business pages of `apps/frontend` on top of FE plans 1–2: Reminders (reminder policies + executions), Copilot (chat + pending-action confirmation), Reports (aging + dashboard summary with recharts), Bank connections (Cas ID QR flow), Settings (Billing static + Users invite + Email templates CRUD/preview) — wired to the BE endpoints from the reminder-automation, collection-copilot, aging-dashboard-reporting, cas-id-bank-connection, email-template-management, authentication-onboarding, and billing-usage-metering plans.
 
 **Architecture:** Page pattern from FE plan 2 (`Page + Table + Dialog`, TanStack Query hooks). Copilot chat UI follows the standard chat layout (message list + input) but with Casso's **pending-action confirmation card** (grill decision Q3: component test for this flow): the model never executes — `POST /api/v1/copilot/actions/:actionId/confirm|cancel` is a pure-code endpoint. Reports use `recharts` (already in the design-system plan deps). Settings is a tabbed page; Billing renders static plan info + handles the 402 upgrade prompt (no read endpoint exists in the BE billing plan — it is write-time gating only).
 
@@ -11,11 +11,11 @@
 ## Global Constraints
 
 - Root scripts: `pnpm --filter @casso-ledger/frontend test`, `type-check`, `lint`.
-- Money: integer đồng via `formatVND` (FE plan 1). `hasPermission` gates all mutating buttons (FE plan 1). `ReceivableStatusBadge`/feature types from FE plan 2 Task 1 are reused — do not redefine.
+- Money: integer VND via `formatVND` (FE plan 1). `hasPermission` gates all mutating buttons (FE plan 1). `ReceivableStatusBadge`/feature types from FE plan 2 Task 1 are reused — do not redefine.
 - **Read contracts:** `GET /api/v1/bank-connections` and `subscriptionPlan` in `GET /api/v1/me` come from `2026-08-03-read-apis-completion.md`; reminder policies/executions, reports, and email-template list shapes come from their owning BE plans. Empty states represent empty data, not an expected missing endpoint.
 - Copilot: NO `GET /api/v1/copilot/conversations` exists (BE plan explicitly deferred it) — the chat starts a fresh conversation per session; `POST /api/v1/copilot/conversations/:id/messages` lazily creates the row (BE plan Task 2). The conversation id is generated client-side as `crypto.randomUUID()`.
 - Every backend URL in this plan uses the canonical `/api/v1` prefix exactly once; `/health` and `/metrics` are the only process probes outside that prefix.
-- 402 handling: any API error with status 402 → sonner toast "Đã hết hạn mức sử dụng gói hiện tại" + offer an upgrade prompt (static dialog, no payment flow — BE billing plan only gates, never charges).
+- 402 handling: any API error with status 402 → sonner toast "The current plan limit has been reached" + offer an upgrade prompt (static dialog, no payment flow — BE billing plan only gates, never charges).
 - No new UI libraries (ponytail).
 
 ---
@@ -78,7 +78,7 @@ apps/frontend/src/
 
 **Interfaces:**
 - Consumes: `useAuth().user.role` (FE plan 1 Task 3)
-- Produces: `hasPlanAccess(plan: string | null | undefined, minPlan: 'FREE' | 'STARTER' | 'BUSINESS' | 'ENTERPRISE'): boolean` + `PLAN_RANK: Record<string, number>` — used to lock the Copilot nav item and the Copilot page (grill: show lock icon, don't hide the nav item — FE design spec mục 2 `hasPlanAccess` pattern).
+- Produces: `hasPlanAccess(plan: string | null | undefined, minPlan: 'FREE' | 'STARTER' | 'BUSINESS' | 'ENTERPRISE'): boolean` + `PLAN_RANK: Record<string, number>` — used to lock the Copilot nav item and the Copilot page (grill: show lock icon, don't hide the nav item — FE design spec section 2 `hasPlanAccess` pattern).
 
 > **Read contract:** `GET /api/v1/me` returns `subscriptionPlan: 'FREE' | 'STARTER' | 'BUSINESS' | 'ENTERPRISE'`; the FE still defaults a missing/unknown value to `FREE`.
 
@@ -151,17 +151,17 @@ git commit -m "feat(frontend): plan gating helper"
   - `useReminderPolicies()` — `GET /api/v1/reminder-policies` → `ReminderPolicy[]` (reminder-automation plan)
   - `useCreateReminderPolicy()`, `useUpdateReminderPolicy()` — `POST /api/v1/reminder-policies`, `PATCH /api/v1/reminder-policies/:id`
   - `useReminderExecutions(filters)` — `GET /api/v1/reminder-executions?receivableId=&status=&page=&limit=` → `{ items: ReminderExecution[]; total: number }`
-  - `RemindersPage`: two sections — Policies (table + "Tạo policy" dialog, enable/disable toggle via PATCH) and Executions (table with status badge + date).
+  - `RemindersPage`: two sections — Policies (table + "Create policy" dialog, enable/disable toggle via PATCH) and Executions (table with status badge + date).
 
 - [ ] **Step 1: Create types + API + hooks files** — copy the shapes from the Interfaces block; follow the exact hook pattern from FE plan 2 Task 3 Step 4 (query keys `['reminder-policies']`, `['reminder-executions', filters]`; mutations toast + invalidate).
 
 - [ ] **Step 2: Create `apps/frontend/src/features/reminders/components/policy-dialog.tsx`** — create/edit form: customer group select (`VIP`/`REGULAR`), active switch (`isActive`), rules list (`offsetDays`, `emailTemplateId`, `minIntervalDays` + add/remove row). Save calls the matching mutation. RBAC: dialog button hidden without `RECEIVABLE_WRITE`.
 
-- [ ] **Step 3: Create `apps/frontend/src/features/reminders/components/policy-table.tsx`** — columns: Nhóm khách hàng, Bật/tắt (Switch calling `useUpdateReminderPolicy` PATCH `{ isActive }`), Số rule, Ngày tạo.
+- [ ] **Step 3: Create `apps/frontend/src/features/reminders/components/policy-table.tsx`** — columns: Customer group, Enable/disable (Switch calling `useUpdateReminderPolicy` PATCH `{ isActive }`), Rule count, Created date.
 
-- [ ] **Step 4: Create `apps/frontend/src/features/reminders/components/executions-table.tsx`** — columns: Receivable ID, Kênh, Trạng thái (SENT green / FAILED red badge), Thời điểm gửi.
+- [ ] **Step 4: Create `apps/frontend/src/features/reminders/components/executions-table.tsx`** — columns: Receivable ID, Channel, Status (SENT green / FAILED red badge), Sent at.
 
-- [ ] **Step 5: Replace `apps/frontend/src/features/reminders/reminders-page.tsx`** — header + policy section (table + "Tạo policy" button) + executions section (receivableId filter input + table).
+- [ ] **Step 5: Replace `apps/frontend/src/features/reminders/reminders-page.tsx`** — header + policy section (table + "Create policy" button) + executions section (receivableId filter input + table).
 
 - [ ] **Step 6: Verify build**
 
@@ -189,12 +189,12 @@ git commit -m "feat(frontend): reminders policies + executions page"
 - Test: `apps/frontend/test/copilot-flow.spec.tsx`
 
 **Interfaces:**
-- Consumes: `hasPlanAccess` (Task 1) — page shows a lock notice when plan < STARTER; `hasPermission(REMINDER_SEND_MANUAL)` — pending-action card is only rendered for users who can send manual reminders (copilot spec mục 4)
+- Consumes: `hasPlanAccess` (Task 1) — page shows a lock notice when plan < STARTER; `hasPermission(REMINDER_SEND_MANUAL)` — pending-action card is only rendered for users who can send manual reminders (copilot spec section 4)
 - Produces:
   - Types: `CopilotMessage { id; role: 'USER' | 'ASSISTANT'; content: string; createdAt: string }`, `CopilotPendingAction { id; actionType: 'SEND_REMINDER_EMAIL'; status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED'; payload: { draftId: string; receivableId: string }; createdAt: string; resolvedAt: string | null }`; these are copied from the canonical BE DTOs, not ad-hoc FE shapes.
   - `sendCopilotMessage(conversationId, content)` → `POST /api/v1/copilot/conversations/:id/messages` body `{ content }` → `{ message: CopilotMessage; pendingAction: CopilotPendingAction | null }` (the BE runs the tool loop synchronously, ≤15s timeout; when the model proposes `sendReminderEmail` the response carries a pending action instead of sending)
   - `confirmCopilotAction(actionId)` / `cancelCopilotAction(actionId)` → `POST /api/v1/copilot/actions/:actionId/confirm|cancel`; both return `CopilotActionResponse { action: CopilotPendingAction; reminderExecutionId?: string }`
-  - `CopilotActionResponse { action: CopilotPendingAction; reminderExecutionId?: string }`; `CopilotPage`: message list + input + "Gửi" (disabled while pending); when `pendingAction` arrives, render `PendingActionCard` (Xác nhận / Hủy) — confirm/cancel never re-enter the LLM loop.
+  - `CopilotActionResponse { action: CopilotPendingAction; reminderExecutionId?: string }`; `CopilotPage`: message list + input + "Send" (disabled while pending); when `pendingAction` arrives, render `PendingActionCard` (Confirm / Cancel) — confirm/cancel never re-enter the LLM loop.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -213,21 +213,21 @@ vi.mock('@/contexts/auth-context', () => ({ useAuth: () => ({ user: { role: 'FIN
 describe('CopilotPage', () => {
   it('shows a pending action card and confirms it via the pure-code endpoint', async () => {
     apiRequest.mockResolvedValueOnce({
-      message: { id: 'm1', role: 'ASSISTANT', content: 'Tôi có thể gửi email nhắc cho công nợ r1.', createdAt: '2026-08-03T00:00:00Z' },
+      message: { id: 'm1', role: 'ASSISTANT', content: 'I can send a reminder email for receivable r1.', createdAt: '2026-08-03T00:00:00Z' },
       pendingAction: { id: 'pa1', actionType: 'SEND_REMINDER_EMAIL', status: 'PENDING', payload: { draftId: 'd1', receivableId: 'r1' }, createdAt: '2026-08-03T00:00:00Z', resolvedAt: null },
     });
     apiRequest.mockResolvedValueOnce({ action: { id: 'pa1', actionType: 'SEND_REMINDER_EMAIL', status: 'CONFIRMED', payload: { draftId: 'd1', receivableId: 'r1' }, createdAt: '2026-08-03T00:00:00Z', resolvedAt: '2026-08-03T00:01:00Z' }, reminderExecutionId: 'ex1' });
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={qc}><CopilotPage /></QueryClientProvider>);
 
-    fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), { target: { value: 'Gửi email nhắc r1' } });
-    fireEvent.click(screen.getByRole('button', { name: /gửi/i }));
+    fireEvent.change(screen.getByLabelText(/enter question/i), { target: { value: 'Send reminder email for r1' } });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
 
-    await waitFor(() => expect(screen.getByText(/xác nhận gửi email nhắc/i)).toBeTruthy());
-    fireEvent.click(screen.getByRole('button', { name: /xác nhận/i }));
+    await waitFor(() => expect(screen.getByText(/confirm reminder email send/i)).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
     await waitFor(() => expect(apiRequest).toHaveBeenCalledWith(expect.objectContaining({ url: '/api/v1/copilot/actions/pa1/confirm', method: 'POST' })));
-    // Toast của sonner không render nếu test không mount <Toaster> — assert thẻ xác nhận đã biến mất
-    await waitFor(() => expect(screen.queryByText(/xác nhận gửi email nhắc/i)).toBeNull());
+    // Sonner's toast does not render when the test does not mount <Toaster> — assert the confirmation card disappeared
+    await waitFor(() => expect(screen.queryByText(/confirm reminder email send/i)).toBeNull());
   });
 });
 ```
@@ -258,7 +258,7 @@ export function cancelCopilotAction(actionId: string) {
 }
 ```
 
-- [ ] **Step 4: Create `apps/frontend/src/features/copilot/api/use-copilot.ts`** — `useCopilotChat()` returning `{ messages, pendingAction, send(content), isSending }`; internal state: `messages: CopilotMessage[]`, one conversation id per page mount (`crypto.randomUUID()`), `send` appends the user message optimistically, calls `sendCopilotMessage`, appends assistant message, sets `pendingAction`; confirm/cancel call the action endpoints and clear `pendingAction` (confirm → toast "Email nhắc đã được gửi").
+- [ ] **Step 4: Create `apps/frontend/src/features/copilot/api/use-copilot.ts`** — `useCopilotChat()` returning `{ messages, pendingAction, send(content), isSending }`; internal state: `messages: CopilotMessage[]`, one conversation id per page mount (`crypto.randomUUID()`), `send` appends the user message optimistically, calls `sendCopilotMessage`, appends assistant message, sets `pendingAction`; confirm/cancel call the action endpoints and clear `pendingAction` (confirm → toast "Reminder email sent").
 
 - [ ] **Step 5: Create `apps/frontend/src/features/copilot/components/pending-action-card.tsx`**
 
@@ -275,21 +275,21 @@ export function PendingActionCard({ action, onConfirm, onCancel, busy }: {
 }) {
   return (
     <Card className="border-amber-300">
-      <CardHeader><CardTitle className="text-sm">Xác nhận gửi email nhắc</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-sm">Confirm reminder email send</CardTitle></CardHeader>
       <CardContent className="space-y-3 text-sm">
-        <p>Công nợ: {action.payload.receivableId}</p>
+        <p>Receivable: {action.payload.receivableId}</p>
         <div className="flex gap-2">
-          <Button size="sm" disabled={busy} onClick={onConfirm}>Xác nhận</Button>
-          <Button size="sm" variant="outline" disabled={busy} onClick={onCancel}>Hủy</Button>
+          <Button size="sm" disabled={busy} onClick={onConfirm}>Confirm</Button>
+          <Button size="sm" variant="outline" disabled={busy} onClick={onCancel}>Cancel</Button>
         </div>
-        <p className="text-xs text-muted-foreground">Hành động sẽ hết hạn sau 10 phút nếu không xác nhận.</p>
+        <p className="text-xs text-muted-foreground">The action expires after 10 minutes if not confirmed.</p>
       </CardContent>
     </Card>
   );
 }
 ```
 
-- [ ] **Step 6: Create `apps/frontend/src/features/copilot/components/message-list.tsx`** — plain scrollable list; user messages right-aligned (`bg-primary text-primary-foreground` bubble), assistant messages left-aligned; empty state "Hỏi về công nợ, lịch sử thanh toán…".
+- [ ] **Step 6: Create `apps/frontend/src/features/copilot/components/message-list.tsx`** — plain scrollable list; user messages right-aligned (`bg-primary text-primary-foreground` bubble), assistant messages left-aligned; empty state "Ask about receivables and payment history…".
 
 - [ ] **Step 7: Replace `apps/frontend/src/features/copilot/copilot-page.tsx`**
 
@@ -313,7 +313,7 @@ export function CopilotPage() {
     return (
       <div className="flex h-[60vh] flex-col items-center justify-center gap-3 p-6">
         <Lock className="h-8 w-8 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Copilot yêu cầu gói Starter trở lên.</p>
+        <p className="text-sm text-muted-foreground">Copilot requires the Starter plan or higher.</p>
       </div>
     );
   }
@@ -336,8 +336,8 @@ export function CopilotPage() {
         )}
       </div>
       <form onSubmit={onSubmit} className="mt-3 flex gap-2">
-        <Input aria-label="Nhập câu hỏi" placeholder="Hỏi về công nợ…" value={draft} onChange={(e) => setDraft(e.target.value)} disabled={isSending} />
-        <Button type="submit" disabled={isSending || !draft.trim()}>{isSending ? 'Đang suy nghĩ…' : 'Gửi'}</Button>
+        <Input aria-label="Enter question" placeholder="Ask about receivables…" value={draft} onChange={(e) => setDraft(e.target.value)} disabled={isSending} />
+        <Button type="submit" disabled={isSending || !draft.trim()}>{isSending ? 'Thinking…' : 'Send'}</Button>
       </form>
     </div>
   );
@@ -399,7 +399,7 @@ describe('ReportsPage', () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={qc}><ReportsPage /></QueryClientProvider>);
     await waitFor(() => expect(screen.getByText('70.000.000 ₫')).toBeTruthy());
-    // 100M xuất hiện 2 nơi (card totalOutstanding + dòng tổng aging) → getAllByText
+    // 100M appears in 2 places (totalOutstanding card + aging total row) → getAllByText
     await waitFor(() => expect(screen.getAllByText(/100.000.000 ₫/).length).toBeGreaterThanOrEqual(2));
   });
 });
@@ -415,7 +415,7 @@ Expected: FAIL — module not found
 - [ ] **Step 4: Create the three components**
 
 - `dashboard-summary.tsx`: cards for `totalOutstanding`, `totalOverdue`, `overdueRate`, `cashForecast.forecast7d/14d/30d`, `autoMatchRate`, `manualHandlingRate`, and the top overdue customer list — `Card` + `formatVND`.
-- `aging-table.tsx`: `Table` with all five backend bucket values (bucket, count, totalRemaining, % of total outstanding) + footer row "Tổng".
+- `aging-table.tsx`: `Table` with all five backend bucket values (bucket, count, totalRemaining, % of total outstanding) + footer row "Total".
 - `aging-chart.tsx`: `ResponsiveContainer` + `BarChart` with `Bar dataKey="totalRemaining"` (fill `var(--chart-1)`), XAxis `bucket`, YAxis tick formatter `(v) => formatVND(v).replace(' ₫', '')`.
 
 - [ ] **Step 5: Replace `apps/frontend/src/features/reports/reports-page.tsx`** — layout: `<DashboardSummary />` on top, then a 2-col grid (aging table + aging chart).
@@ -451,7 +451,7 @@ git commit -m "feat(frontend): aging report + dashboard summary with recharts"
   - `connectCasId()` — `POST /api/v1/bank-connections/cas-id/initiate` → `{ sessionId: string; casLink: string }` (cas-id plan Task: initiate)
   - `exchangeCasId(sessionId)` — `POST /api/v1/bank-connections/cas-id/sessions/:id/exchange` (call after QR scan + Cas redirect; BE stores the token)
   - `disconnectConnection(id)` — `POST /api/v1/bank-connections/:id/disconnect`
-  - `ConnectDialog`: "Kết nối ngân hàng" → initiate → show `QRCode` from `casLink` → poll `GET /api/v1/bank-connections` every 5s until an `ACTIVE` row appears (or 5 min timeout) → close with success toast; "Ngắt kết nối" button per row with confirm dialog.
+  - `ConnectDialog`: "Connect bank" → initiate → show `QRCode` from `casLink` → poll `GET /api/v1/bank-connections` every 5s until an `ACTIVE` row appears (or 5 min timeout) → close with success toast; "Disconnect" button per row with confirm dialog.
 
 - [ ] **Step 1: Create types + API + hooks** — per Interfaces block; `usePollConnections()` hook: TanStack Query with `refetchInterval: 5000` while dialog is open, disabled otherwise.
 
@@ -472,35 +472,35 @@ export function ConnectDialog() {
 
   async function onConnect() {
     const res = await connectCasId();
-    if (!res) { toast.error('Không tạo được link kết nối'); return; }
+    if (!res) { toast.error('Could not create connection link'); return; }
     setSessionId(res.sessionId);
     setCasLink(res.casLink);
-    // QR hiện ra — người dùng quét; sau khi redirect, FE gọi exchange để hoàn tất
+    // QR appears — the user scans it; after redirect, FE calls exchange to complete the flow
   }
 
   async function onDone() {
     if (!sessionId) return;
     await exchangeCasId(sessionId);
-    toast.success('Đã kết nối ngân hàng');
+    toast.success('Bank connected');
     setOpen(false);
     setCasLink(null);
   }
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setCasLink(null); setSessionId(null); } }}>
-      <DialogTrigger asChild><Button>Kết nối ngân hàng</Button></DialogTrigger>
+      <DialogTrigger asChild><Button>Connect bank</Button></DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Kết nối qua Cas ID</DialogTitle></DialogHeader>
-        <DialogDescription>Quét mã QR để ủy quyền truy cập tài khoản.</DialogDescription>
+        <DialogHeader><DialogTitle>Connect via Cas ID</DialogTitle></DialogHeader>
+        <DialogDescription>Scan the QR code to authorize account access.</DialogDescription>
         {casLink ? (
           <div className="space-y-4">
             <div className="flex justify-center rounded-lg border p-4">
               <QRCodeSVG value={casLink} size={200} />
             </div>
-            <Button onClick={onDone}>Tôi đã quét xong</Button>
+            <Button onClick={onDone}>I finished scanning</Button>
           </div>
         ) : (
-          <Button onClick={onConnect}>Tạo link kết nối</Button>
+          <Button onClick={onConnect}>Create connection link</Button>
         )}
       </DialogContent>
     </Dialog>
@@ -510,9 +510,9 @@ export function ConnectDialog() {
 
 > Note: the real Cas redirect flow navigates the user to `casLink` after scanning; the QR → redirect → exchange sequence varies by device. `onDone` is the MVP manual step (ponytail: single confirm button; the auto-detect exchange after redirect can be added when the Cas portal flow is verified with a real account).
 
-- [ ] **Step 3: Create `connection-table.tsx`** — columns: Ngân hàng, Số tài khoản, Trạng thái (badge), Đồng bộ gần nhất (`lastSyncAt`), Hành động ("Ngắt kết nối" with `AlertDialog` confirm — `alert-dialog` already added in FE plan 2 Task 0, only for `ACTIVE`).
+- [ ] **Step 3: Create `connection-table.tsx`** — columns: Bank, Account number, Status (badge), Last synced (`lastSyncAt`), Actions ("Disconnect" with `AlertDialog` confirm — `alert-dialog` already added in FE plan 2 Task 0, only for `ACTIVE`).
 
-- [ ] **Step 4: Replace `apps/frontend/src/features/bank-connections/bank-connections-page.tsx`** — header + `ConnectDialog` + `usePollConnections()` table; empty `items` → "Chưa có kết nối nào"; API errors use the shared error state.
+- [ ] **Step 4: Replace `apps/frontend/src/features/bank-connections/bank-connections-page.tsx`** — header + `ConnectDialog` + `usePollConnections()` table; empty `items` → "No connections yet"; API errors use the shared error state.
 
 - [ ] **Step 5: Verify build**
 
@@ -546,9 +546,9 @@ git commit -m "feat(frontend): bank connections with Cas ID QR flow"
   - `SettingsPage` — `Tabs`: Billing, Users, Email templates
   - `EmailTemplate { id; name: string; subject: string; bodyHtml: string; isDefault: boolean; createdAt: string }` — `GET /api/v1/email-templates` (email-template-management plan)
   - `useEmailTemplates()` — `GET /api/v1/email-templates`; `useCreateTemplate()`/`useUpdateTemplate()`/`useDeleteTemplate()` — `POST /api/v1/email-templates`, `PATCH /api/v1/email-templates/:id`, `DELETE /api/v1/email-templates/:id`; `usePreviewTemplate(template)` — `POST /api/v1/email-templates/:id/preview` body `{ sampleData }` → `{ subject: string; bodyHtml: string }`
-  - `BillingTab` — static plan cards (FREE/STARTER/BUSINESS/ENTERPRISE with limits: receivables/month, bank connections — values from billing spec mục 1), highlights current plan from `user.subscriptionPlan ?? 'FREE'`; no payment flow.
+  - `BillingTab` — static plan cards (FREE/STARTER/BUSINESS/ENTERPRISE with limits: receivables/month, bank connections — values from billing spec section 1), highlights current plan from `user.subscriptionPlan ?? 'FREE'`; no payment flow.
   - `UsersTab` — invite form (`POST /api/v1/organizations/:id/invites` body `{ email, role }`, role select from the 5 roles) + members table from `GET /api/v1/organizations/:id/members` (Read APIs plan).
-  - `UpgradeDialog` — shared 402 handler: API error status 402 → dialog "Đã đạt giới hạn gói hiện tại" + static "Liên hệ bộ phận sales".
+  - `UpgradeDialog` — shared 402 handler: API error status 402 → dialog "The current plan limit has been reached" + static "Contact sales".
 
 - [ ] **Step 1: Write the failing test**
 
@@ -564,18 +564,18 @@ const apiRequest = vi.fn();
 vi.mock('@/lib/api-client', () => ({ apiRequest: (...a: unknown[]) => apiRequest(...a), authTokenManager: { getValidAccessToken: vi.fn().mockResolvedValue('t') } }));
 vi.mock('@/contexts/auth-context', () => ({ useAuth: () => ({ user: { role: 'OWNER' } }) }));
 
-const tpl = { id: 't1', name: 'Nhắc trước hạn', subject: 'Nhắc thanh toán {{invoiceNumber}}', bodyHtml: '<p>Kính gửi {{customerName}}…</p>', isDefault: true, createdAt: '2026-08-01' };
+const tpl = { id: 't1', name: 'Due date reminder', subject: 'Payment reminder {{invoiceNumber}}', bodyHtml: '<p>Dear {{customerName}}…</p>', isDefault: true, createdAt: '2026-08-01' };
 
 describe('EmailTemplatesTab', () => {
   it('lists templates and renders a preview', async () => {
     apiRequest
       .mockResolvedValueOnce([tpl])
-      .mockResolvedValueOnce({ subject: 'Nhắc thanh toán INV-1', bodyHtml: '<p>Kính gửi Công ty B…</p>' });
+      .mockResolvedValueOnce({ subject: 'Payment reminder INV-1', bodyHtml: '<p>Dear Company B…</p>' });
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={qc}><EmailTemplatesTab /></QueryClientProvider>);
-    await waitFor(() => expect(screen.getByText('Nhắc trước hạn')).toBeTruthy());
-    fireEvent.click(screen.getByRole('button', { name: /xem trước/i }));
-    await waitFor(() => expect(screen.getByText('Nhắc thanh toán INV-1')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Due date reminder')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /preview/i }));
+    await waitFor(() => expect(screen.getByText('Payment reminder INV-1')).toBeTruthy());
   });
 });
 ```
@@ -585,7 +585,7 @@ describe('EmailTemplatesTab', () => {
 Run: `pnpm --filter @casso-ledger/frontend test test/email-templates.spec.tsx`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Create `email-templates-tab.tsx` + `template-dialog.tsx` + `template-preview-dialog.tsx`** — list table (Tên, Tiêu đề, Mặc định badge, actions: Xem trước / Sửa / Xóa); create/edit dialog (name, subject, `bodyHtml` textarea; delete uses `AlertDialog` confirm); preview dialog opens `usePreviewTemplate` and renders `subject` + `bodyHtml`. RBAC: create/edit/delete/preview hidden unless `hasPermission(Permission.REMINDER_POLICY_WRITE)` (the exact email-template BE permission; do not substitute `RECEIVABLE_WRITE`).
+- [ ] **Step 3: Create `email-templates-tab.tsx` + `template-dialog.tsx` + `template-preview-dialog.tsx`** — list table (Name, Subject, Default badge, actions: Preview / Edit / Delete); create/edit dialog (name, subject, `bodyHtml` textarea; delete uses `AlertDialog` confirm); preview dialog opens `usePreviewTemplate` and renders `subject` + `bodyHtml`. RBAC: create/edit/delete/preview hidden unless `hasPermission(Permission.REMINDER_POLICY_WRITE)` (the exact email-template BE permission; do not substitute `RECEIVABLE_WRITE`).
 
 - [ ] **Step 4: Create `users-tab.tsx`** — invite form (email + role select: OWNER/FINANCE_MANAGER/ACCOUNTANT/SALES_REP/VIEWER) + tenant-scoped members table from `GET /api/v1/organizations/:id/members`. RBAC: whole tab hidden unless role is OWNER or FINANCE_MANAGER.
 
@@ -613,7 +613,7 @@ git commit -m "feat(frontend): settings tabs + 402 upgrade prompt"
 
 **Files:**
 - Modify: `apps/frontend/src/components/layout/nav-items.ts` (add `minPlan: 'STARTER'` to the Copilot item)
-- Modify: `apps/frontend/src/components/layout/sidebar.tsx` (render a lock icon on nav items whose `minPlan` the current user lacks — pattern `plan-gated lock icon` theo FE design spec mục 2; item stays visible, click navigates to a locked page state)
+- Modify: `apps/frontend/src/components/layout/sidebar.tsx` (render a lock icon on nav items whose `minPlan` the current user lacks — pattern `plan-gated lock icon` per FE design spec section 2; item stays visible, click navigates to a locked page state)
 
 **Interfaces:**
 - Consumes: `hasPlanAccess` (Task 1), `useAuth().user.subscriptionPlan`

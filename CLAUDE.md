@@ -2,12 +2,12 @@
 
 # Casso Ledger
 
-Nền tảng tự động hóa quản lý và thu hồi công nợ phải thu (Accounts Receivable) cho doanh nghiệp Việt Nam. Sản phẩm B2B SaaS kết nối trực tiếp dữ liệu giao dịch ngân hàng thời gian thực qua Cas ID/CASSO Balance Hook.
+A B2B SaaS platform for automating accounts receivable management and collection for Vietnamese businesses. The product directly connects to real-time bank transaction data through Cas ID/CASSO Balance Hook.
 
 ## Quick Reference
 
 - **Repo:** `lengocanh2005it/casso-ledger`
-- **Docs chi tiết:** `docs/overview.md` (tổng quan), `docs/superpowers/` (spec/plan), `docs/adr/` (quyết định kiến trúc)
+- **Detailed docs:** `docs/overview.md` (overview), `docs/superpowers/` (spec/plan), `docs/adr/` (architecture decisions)
 - **Feature map:** `docs/wayfinder/feature-map.md`
 
 ## Tech Stack
@@ -64,37 +64,37 @@ Dependency: `presentation → application → domain`, `infrastructure → appli
 
 | Concept | Description |
 |---------|------------|
-| **Receivable** | Khoản phải thu. Status: OPEN → PARTIALLY_PAID → PAID / WRITTEN_OFF / CANCELLED |
-| **Payment** | Thanh toán từ giao dịch ngân hàng. `allocatedAmount` là rollup |
-| **PaymentAllocation** | Phân bổ payment → receivable. Source of truth lịch sử. Soft-delete khi undo |
-| **Customer** | Khách hàng, thuộc organization |
-| **Invoice** | Hóa đơn, nguồn tạo receivable |
-| **Organization** | Tenant boundary cho multi-tenancy |
+| **Receivable** | Amount receivable. Status: OPEN → PARTIALLY_PAID → PAID / WRITTEN_OFF / CANCELLED |
+| **Payment** | Payment from a bank transaction. `allocatedAmount` is a rollup |
+| **PaymentAllocation** | Payment → receivable allocation. Historical source of truth. Soft-delete on undo |
+| **Customer** | Customer belonging to an organization |
+| **Invoice** | Invoice, the source that creates a receivable |
+| **Organization** | Tenant boundary for multi-tenancy |
 
 ## Business Rules (CRITICAL)
 
-- **Money:** integer đơn vị đồng, KHÔNG dùng float
-- **Transactions:** mọi write thay đổi số tiền/status PHẢI trong 1 DB transaction
-- **Persisted rollup:** `paidAmount` (Receivable) và `allocatedAmount` (Payment) chỉ cập nhật trong transaction có lock
-- **Derived fields:** `remainingAmount`, `unallocatedAmount`, `isOverdue`, `isDisputed` — tính tại query time
-- **Tenant isolation:** mọi query/write phải scope theo `organizationId`
-- **API prefix:** tất cả business API dùng `/api/v1` prefix
+- **Money:** integers in VND units, do NOT use float
+- **Transactions:** every write that changes an amount/status MUST be inside one DB transaction
+- **Persisted rollup:** `paidAmount` (Receivable) and `allocatedAmount` (Payment) are updated only inside a transaction with a lock
+- **Derived fields:** `remainingAmount`, `unallocatedAmount`, `isOverdue`, `isDisputed` — calculated at query time
+- **Tenant isolation:** every query/write must be scoped by `organizationId`
+- **API prefix:** all business APIs use the `/api/v1` prefix
 - **Error shape:** `{ statusCode, errorCode, message, details? }`
-- **Timezone:** `Asia/Ho_Chi_Minh` cho reminder cron/today
+- **Timezone:** `Asia/Ho_Chi_Minh` for reminder cron/today
 
 ## Key Decisions (from ADRs)
 
-1. **Shared-schema multi-tenancy** — `organizationId` trên mọi bảng, không RLS ở MVP (ADR-0001)
-2. **Persisted rollup** — không `SUM(PaymentAllocation)` runtime (ADR-0002)
-3. **isDisputed là computed field** — `EXISTS(SELECT 1 FROM disputes WHERE status='OPEN')` (ADR-0003)
-4. **Reminder scan/send split** — cron enqueue, worker re-check trước khi gửi (ADR-0004)
+1. **Shared-schema multi-tenancy** — `organizationId` on every table, no RLS in MVP (ADR-0001)
+2. **Persisted rollup** — no runtime `SUM(PaymentAllocation)` (ADR-0002)
+3. **isDisputed is a computed field** — `EXISTS(SELECT 1 FROM disputes WHERE status='OPEN')` (ADR-0003)
+4. **Reminder scan/send split** — cron enqueues, worker re-checks before sending (ADR-0004)
 
 ## RBAC (5 roles)
 
 `OWNER` > `FINANCE_MANAGER` > `ACCOUNTANT` > `SALES_REP` > `VIEWER`
 
 Permission check: backend `@RequirePermission()` decorator + `PermissionGuard`.  
-FE: `hasPermission(role, permission)` từ `shared-types`, **ẩn button khi thiếu quyền**.
+FE: `hasPermission(role, permission)` from `shared-types`, **hide the button when permission is missing**.
 
 ## Coding Conventions
 
@@ -102,9 +102,9 @@ FE: `hasPermission(role, permission)` từ `shared-types`, **ẩn button khi thi
 - **Class:** PascalCase
 - **Variable/function:** camelCase
 - **Enum:** UPPER_SNAKE_CASE (e.g., `PARTIALLY_PAID`)
-- **Imports:** `node:` protocol cho Node.js builtins (e.g., `node:crypto`)
+- **Imports:** `node:` protocol for Node.js builtins (e.g., `node:crypto`)
 - **Biome:** single quotes, semicolons always, 2-space indent
-- **Test:** `*.spec.ts` cho unit, `*.e2e-spec.ts` cho integration
+- **Test:** `*.spec.ts` for unit tests, `*.e2e-spec.ts` for integration tests
 
 ## Implementation Order
 

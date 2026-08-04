@@ -10,13 +10,13 @@
 
 ## Global Constraints
 
-- Amounts: `totalAmount` stays an integer (đồng), no `float` — matches Domain Core plan's amount convention.
+- Amounts: `totalAmount` stays an integer (VND), no `float` — matches Domain Core plan's amount convention.
 - Row numbering in error reports is 1-based counting the header row as row 1, so the first data row is row 2 (matches a user opening the file in Excel and looking at row numbers).
 - `InvoiceRowParser` lives in `application/` but is a **pure function**: no `@Injectable()`, no NestJS/TypeORM import, so it is testable with plain Jest and no DI container — mirrors the "domain has no framework import" rule from the scaffolding plan, applied here to the one piece of pure business logic in this module.
 - Partial import: one row's failure (validation error, duplicate invoice number, or any thrown error) is caught per-row and never aborts the remaining rows.
-- Fixed column names for MVP (no column-mapping UI): `customerName`, `customerTaxCode` (optional), `customerEmail` (optional), `invoiceNumber`, `issueDate`, `dueDate`, `totalAmount` — matches spec mục 1.
+- Fixed column names for MVP (no column-mapping UI): `customerName`, `customerTaxCode` (optional), `customerEmail` (optional), `invoiceNumber`, `issueDate`, `dueDate`, `totalAmount` — matches spec section 1.
 - Endpoint gated by `Permission.RECEIVABLE_WRITE` (reused from `2026-08-03-multi-tenancy-rbac.md`, not a new permission) since importing invoices is equivalent to writing receivables.
-- Naming: file kebab-case, class PascalCase (spec mục 4, same as reference plans).
+- Naming: file kebab-case, class PascalCase (spec section 4, same as reference plans).
 - Each valid row is one `DataSource.transaction()` using the same `EntityManager` for Customer, Invoice, and Receivable writes. A row failure rolls back that row and is recorded in the partial-import error list; the loop then continues with the next row. Do not use the default repository connection inside the transaction callback.
 
 ---
@@ -251,7 +251,7 @@ import { parseInvoiceRow, RowValidationError } from './invoice-row-parser';
 
 describe('parseInvoiceRow', () => {
   const validRow = {
-    customerName: 'Công ty B',
+    customerName: 'Company B',
     customerTaxCode: '0312345678',
     customerEmail: 'ap@congtyb.vn',
     invoiceNumber: 'INV-2026-0001',
@@ -263,7 +263,7 @@ describe('parseInvoiceRow', () => {
   it('parses a fully valid row', () => {
     const parsed = parseInvoiceRow(validRow);
 
-    expect(parsed.customerName).toBe('Công ty B');
+    expect(parsed.customerName).toBe('Company B');
     expect(parsed.customerTaxCode).toBe('0312345678');
     expect(parsed.customerEmail).toBe('ap@congtyb.vn');
     expect(parsed.invoiceNumber).toBe('INV-2026-0001');
@@ -474,25 +474,25 @@ function buildXlsxBuffer(rows: Record<string, unknown>[]): Buffer {
 describe('parseFileToRows', () => {
   it('parses rows from an .xlsx buffer', () => {
     const buffer = buildXlsxBuffer([
-      { customerName: 'Công ty B', invoiceNumber: 'INV-1', totalAmount: 1000 },
-      { customerName: 'Công ty C', invoiceNumber: 'INV-2', totalAmount: 2000 },
+      { customerName: 'Company B', invoiceNumber: 'INV-1', totalAmount: 1000 },
+      { customerName: 'Company C', invoiceNumber: 'INV-2', totalAmount: 2000 },
     ]);
 
     const rows = parseFileToRows(buffer, 'invoices.xlsx');
 
     expect(rows).toHaveLength(2);
-    expect(rows[0].customerName).toBe('Công ty B');
+    expect(rows[0].customerName).toBe('Company B');
     expect(rows[1].invoiceNumber).toBe('INV-2');
   });
 
   it('parses rows from a .csv buffer', () => {
-    const csv = 'customerName,invoiceNumber,totalAmount\nCông ty B,INV-1,1000\nCông ty C,INV-2,2000\n';
+    const csv = 'customerName,invoiceNumber,totalAmount\nCompany B,INV-1,1000\nCompany C,INV-2,2000\n';
     const buffer = Buffer.from(csv, 'utf-8');
 
     const rows = parseFileToRows(buffer, 'invoices.csv');
 
     expect(rows).toHaveLength(2);
-    expect(rows[0].customerName).toBe('Công ty B');
+    expect(rows[0].customerName).toBe('Company B');
     expect(rows[1].totalAmount).toBe('2000');
   });
 
@@ -621,7 +621,7 @@ describe('ImportInvoicesUseCase', () => {
     const { useCase, customerRepo, invoiceRepo, createReceivableUseCase, dataSource } = buildUseCase();
     const buffer = buildXlsxBuffer([
       {
-        customerName: 'Công ty B',
+        customerName: 'Company B',
         customerTaxCode: '0312345678',
         customerEmail: 'ap@congtyb.vn',
         invoiceNumber: 'INV-2026-0001',
@@ -648,7 +648,7 @@ describe('ImportInvoicesUseCase', () => {
     const existingCustomer = new Customer({
       id: 'cust-existing',
       organizationId: 'org-1',
-      name: 'Công ty B',
+      name: 'Company B',
       taxCode: '0312345678',
       email: 'ap@congtyb.vn',
       phone: '',
@@ -660,7 +660,7 @@ describe('ImportInvoicesUseCase', () => {
     const { useCase, customerRepo } = buildUseCase({ existingCustomer });
     const buffer = buildXlsxBuffer([
       {
-        customerName: 'Công ty B',
+        customerName: 'Company B',
         customerTaxCode: '0312345678',
         customerEmail: 'ap@congtyb.vn',
         invoiceNumber: 'INV-2026-0002',
@@ -680,14 +680,14 @@ describe('ImportInvoicesUseCase', () => {
     const { useCase } = buildUseCase();
     const buffer = buildXlsxBuffer([
       {
-        customerName: 'Công ty B',
+        customerName: 'Company B',
         invoiceNumber: 'INV-2026-0003',
         issueDate: '2026-07-01',
         dueDate: '2026-08-01',
         totalAmount: '', // missing amount -> invalid
       },
       {
-        customerName: 'Công ty C',
+        customerName: 'Company C',
         invoiceNumber: 'INV-2026-0004',
         issueDate: '2026-07-01',
         dueDate: '2026-08-01',
@@ -701,7 +701,7 @@ describe('ImportInvoicesUseCase', () => {
     expect(result.failedRows).toEqual([
       {
         rowNumber: 2,
-        data: expect.objectContaining({ customerName: 'Công ty B' }),
+        data: expect.objectContaining({ customerName: 'Company B' }),
         errors: ['totalAmount is required and must be a positive integer'],
       },
     ]);
@@ -711,7 +711,7 @@ describe('ImportInvoicesUseCase', () => {
     const { useCase } = buildUseCase({ existingInvoiceNumber: 'INV-DUP' });
     const buffer = buildXlsxBuffer([
       {
-        customerName: 'Công ty B',
+        customerName: 'Company B',
         invoiceNumber: 'INV-DUP',
         issueDate: '2026-07-01',
         dueDate: '2026-08-01',
@@ -1006,7 +1006,7 @@ import { SubscriptionOrmEntity } from '../src/modules/billing/infrastructure/sub
 function buildImportXlsxBuffer(): Buffer {
   const rows = [
     {
-      customerName: 'Công ty B',
+      customerName: 'Company B',
       customerTaxCode: '0312345678',
       customerEmail: 'ap@congtyb.vn',
       invoiceNumber: 'INV-2026-1001',
@@ -1015,7 +1015,7 @@ function buildImportXlsxBuffer(): Buffer {
       totalAmount: 50_000_000,
     },
     {
-      customerName: 'Công ty C',
+      customerName: 'Company C',
       customerTaxCode: '0398765432',
       customerEmail: 'ap@congtyc.vn',
       invoiceNumber: 'INV-2026-1002',
@@ -1103,7 +1103,7 @@ describe('Invoice import (integration)', () => {
     expect(response.body.failedRows).toEqual([
       {
         rowNumber: 3,
-        data: expect.objectContaining({ customerName: 'Công ty C' }),
+        data: expect.objectContaining({ customerName: 'Company C' }),
         errors: ['totalAmount is required and must be a positive integer'],
       },
     ]);
@@ -1153,7 +1153,7 @@ git commit -m "test: add integration test for partial invoice import via multipa
 ## Self-Review Notes
 
 - **Spec coverage:** File parsing dispatch by extension (`xlsx`/`csv`) → Task 3. Row-level validation independent per row → Task 2 + Task 4. Customer resolution by `taxCode` first then `customerEmail`, auto-create if not found → Task 4. Duplicate `invoiceNumber` within organization → `DUPLICATE_INVOICE_NUMBER` in Task 4. Invoice (`sourceType=IMPORT`) + 1:1 Receivable creation reusing `CreateReceivableUseCase` → Task 4. Canonical response `{ totalRows, successCount, failedRows: [{ rowNumber, data, errors }] }` → `ImportInvoicesResult` in Task 4, returned directly by the controller in Task 5. Multipart `POST /invoices/import` → Task 5.
-- **Not covered in this plan (by design, flagged as open questions in the spec mục 3):** Max file size / row count limits and whether import should move to an async queue — spec explicitly marks this as non-blocking for implementation; if adopted later, `ImportInvoicesUseCase.execute` would need to accept a size/row cap and the controller would add a `MaxFileSizeValidator`. Marking auto-created customers with `createdVia: IMPORT` — spec explicitly leaves this open; `Customer` domain class (Domain Core plan) has no such field today, so it is not added here to avoid inventing an undesigned column.
+- **Not covered in this plan (by design, flagged as open questions in section 3 of the spec):** Max file size / row count limits and whether import should move to an async queue — spec explicitly marks this as non-blocking for implementation; if adopted later, `ImportInvoicesUseCase.execute` would need to accept a size/row cap and the controller would add a `MaxFileSizeValidator`. Marking auto-created customers with `createdVia: IMPORT` — spec explicitly leaves this open; `Customer` domain class (Domain Core plan) has no such field today, so it is not added here to avoid inventing an undesigned column.
 - **Transaction boundary:** every valid row uses one `DataSource.transaction()` and passes its `EntityManager` through Customer, Invoice, and CreateReceivable writes. A failed row rolls back completely before the partial-import loop records its error and continues.
 - **Type consistency checked:** `ICustomerRepository`/`IInvoiceRepository` new methods (Task 1) match their usage in `ImportInvoicesUseCase` (Task 4) and the mocks in its unit test (same method names and return types: `Customer | null`, `Invoice | null`). `CreateReceivableUseCase.execute()`'s input shape (`customerId`, `invoiceId`, `originalAmount`, `dueDate`, `salesRepresentativeId` — no `organizationId`, per the multi-tenancy plan's Task 6 migration) matches exactly what `ImportInvoicesUseCase.importRow` passes, including the active row `EntityManager`. `ParsedInvoiceRow.totalAmount` is a positive integer and its fields are consumed 1:1 by `ImportInvoicesUseCase` (Task 4) with no renamed/missing fields. Row numbering convention (`HEADER_ROW_OFFSET = 2`) is asserted identically in the unit test (Task 4, `rowNumber: 2`) and the integration test (Task 6, `rowNumber: 3` for the 2nd data row), consistent with treating the header as row 1.
 

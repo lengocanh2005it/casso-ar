@@ -1,17 +1,17 @@
 # Domain Core Design — Customer, Invoice, Receivable, Payment, PaymentAllocation
 
-> Spec con của [docs/overview.md](../../../docs/overview.md). Định nghĩa entity, quan hệ, state machine và business rules cho phần domain lõi mà Matching Engine, Reminder, Reporting sẽ dựa vào.
+> Child spec of [docs/overview.md](../../../docs/overview.md). Defines the entities, relationships, state machine, and business rules for the core domain used by Matching Engine, Reminder, and Reporting.
 
-## 1. Phạm vi & mục tiêu
+## 1. Scope & objectives
 
-Spec này chỉ bao phủ 5 entity: `Customer`, `Invoice`, `Receivable`, `Payment`, `PaymentAllocation`. Mục tiêu là làm rõ đến mức implementation-ready: ERD chính xác, state machine của `Receivable`, và business rules của việc phân bổ thanh toán.
+This spec covers only five entities: `Customer`, `Invoice`, `Receivable`, `Payment`, and `PaymentAllocation`. The goal is implementation-ready clarity: an exact ERD, the `Receivable` state machine, and the business rules for payment allocation.
 
-Không thuộc phạm vi (xem mục 6):
-- Cách `BankTransaction` sinh ra `Payment` (Matching Engine spec riêng).
-- Reminder/notification logic dựa trên trạng thái quá hạn hay tranh chấp (Reminder spec riêng).
-- `Organization`, `Membership`, `Role`, RBAC (Multi-tenancy spec riêng).
+Out of scope (see section 6):
+- How `BankTransaction` creates `Payment` (separate Matching Engine spec).
+- Reminder/notification logic based on overdue or dispute status (separate Reminder spec).
+- `Organization`, `Membership`, `Role`, and RBAC (separate Multi-tenancy spec).
 
-Giả định nền: mọi entity dưới đây có `organizationId` (tenant isolation), không lặp lại ở từng entity.
+Baseline assumption: every entity below has `organizationId` (tenant isolation), which is not repeated for each entity.
 
 ## 2. Entities & ERD
 
@@ -31,7 +31,7 @@ Receivable
   paidAmount            -- persisted rollup, updated with every allocation/undo transaction
   remainingAmount        -- derived, = originalAmount - paidAmount
   isDisputed             -- computed, = EXISTS(Dispute WHERE receivableId=this.id AND status='OPEN')
-                          --   xem 2026-08-03-dispute-management-design.md
+                          --   see 2026-08-03-dispute-management-design.md
   dueDate, status,
   salesRepresentativeId (nullable), createdAt, closedAt
 
@@ -48,22 +48,22 @@ PaymentAllocation
   deletedAt (nullable), deletedByUserId (nullable), undoReason (nullable), createdAt
 ```
 
-Quan hệ:
+Relationships:
 
 ```
 Customer 1──N Invoice
 Customer 1──N Receivable
-Invoice   1──N Receivable      (một invoice có thể tách thành nhiều receivable, ví dụ chia kỳ hạn)
-Receivable 0..1──1 Invoice     (receivable có thể tồn tại trước khi có invoice)
+Invoice   1──N Receivable      (an invoice may be split into multiple receivables, for example by installment term)
+Receivable 0..1──1 Invoice     (a receivable may exist before an invoice)
 Payment   1──N PaymentAllocation
 Receivable 1──N PaymentAllocation
 ```
 
-`paidAmount` (trên `Receivable`) và `allocatedAmount` (trên `Payment`) là **persisted rollup** — lưu để truy vấn/reporting không phải aggregate toàn bộ allocation. `remainingAmount` và `unallocatedAmount` là derived field. `PaymentAllocation` vẫn là source of truth về lịch sử và phải được ghi cùng rollup trong một transaction có lock; không được sửa rollup bằng đường dẫn riêng.
+`paidAmount` (on `Receivable`) and `allocatedAmount` (on `Payment`) are **persisted rollups**, stored so queries/reporting do not aggregate every allocation. `remainingAmount` and `unallocatedAmount` are derived fields. `PaymentAllocation` remains the source of truth for history and must be written with the rollups in one locked transaction; rollups must not be updated through a separate path.
 
-Invariant bắt buộc ở DB và application: `0 <= paidAmount <= originalAmount`, `0 <= allocatedAmount <= totalAmount`, mọi amount là số nguyên dương ở input allocation (và số nguyên không âm ở rollup), và mọi allocation/undo đều cập nhật đúng hai rollup trong cùng transaction. Các FK nghiệp vụ phải cùng `organizationId` và các cột tenant đều `NOT NULL`/có index theo Multi-tenancy spec.
+Required DB and application invariants: `0 <= paidAmount <= originalAmount`, `0 <= allocatedAmount <= totalAmount`, all input allocation amounts are positive integers (and rollups are non-negative integers), and every allocation/undo updates both rollups in the same transaction. Business FKs must share `organizationId`, and tenant columns must be `NOT NULL`/indexed according to the Multi-tenancy spec.
 
-## 3. Receivable — status & transitions
+## 3. Receivable—status & transitions
 
 ### Status values
 
@@ -72,18 +72,18 @@ DRAFT
 OPEN
 PARTIALLY_PAID
 PAID
-DISPUTED (không phải status riêng — xem "isDisputed flag" bên dưới)
+DISPUTED (not a separate status—see the "isDisputed flag" below)
 WRITTEN_OFF
 CANCELLED
 ```
 
-`OVERDUE` **không phải status lưu trong DB**. Tính runtime:
+`OVERDUE` is **not a status stored in the database**. Compute it at runtime:
 ```
 isOverdue = status IN (OPEN, PARTIALLY_PAID) AND dueDate < today
 ```
-Lý do: tránh state machine hai chiều (OPEN → OVERDUE → OPEN khi gia hạn) và tránh cần cron riêng chỉ để cập nhật một cờ có thể tính tại thời điểm query.
+Reason: avoid a two-way state machine (OPEN → OVERDUE → OPEN when an extension is granted) and a dedicated cron job merely to update a flag that can be computed at query time.
 
-`isDisputed` là **flag tính toán độc lập** với status chính (xem entity `Dispute` ở [2026-08-03-dispute-management-design.md](2026-08-03-dispute-management-design.md)), không phải status riêng và không lưu trực tiếp trên `Receivable`. Khi có dispute: tạm dừng reminder, nhưng `status` giữ nguyên `OPEN`/`PARTIALLY_PAID`, luồng payment/matching vẫn hoạt động bình thường.
+`isDisputed` is a **computed flag independent** of the primary status (see the `Dispute` entity in [2026-08-03-dispute-management-design.md](2026-08-03-dispute-management-design.md)). It is not a separate status and is not stored directly on `Receivable`. When disputed, reminders pause, but `status` remains `OPEN`/`PARTIALLY_PAID` and payment/matching continue normally.
 
 ### Transition diagram
 
@@ -92,73 +92,73 @@ DRAFT ────────────► OPEN ─────────�
                       │                       │
                       │                       └──────► WRITTEN_OFF
                       ├──────► WRITTEN_OFF
-                      └──────► CANCELLED (chỉ khi paidAmount == 0)
+                      └──────► CANCELLED (only when paidAmount == 0)
 ```
 
 ### Transition rules
 
-| Từ | Đến | Điều kiện |
+| From | To | Condition |
 |---|---|---|
-| DRAFT | OPEN | Receivable được kích hoạt (ví dụ invoice issued) |
+| DRAFT | OPEN | Receivable is activated (for example, invoice issued) |
 | OPEN | PARTIALLY_PAID | `0 < paidAmount < originalAmount` |
 | PARTIALLY_PAID | PAID | `remainingAmount == 0` |
-| OPEN | PAID | `remainingAmount == 0` (thanh toán đủ ngay lần đầu, không nhất thiết qua PARTIALLY_PAID) |
-| OPEN | WRITTEN_OFF | Hành động thủ công. `remainingAmount > 0`, giữ nguyên `paidAmount` (chấp nhận mất phần còn lại) |
-| PARTIALLY_PAID | WRITTEN_OFF | Như trên |
-| OPEN | CANCELLED | Hành động thủ công. **Chỉ hợp lệ khi `paidAmount == 0`** |
-| PARTIALLY_PAID | CANCELLED | **Không hợp lệ** — đã có tiền vào thì không được "hủy như chưa từng tồn tại", phải đi qua `WRITTEN_OFF` |
+| OPEN | PAID | `remainingAmount == 0` (paid in full immediately; does not need to pass through PARTIALLY_PAID) |
+| OPEN | WRITTEN_OFF | Manual action. `remainingAmount > 0`; keep `paidAmount` unchanged (accept the remaining loss) |
+| PARTIALLY_PAID | WRITTEN_OFF | Same as above |
+| OPEN | CANCELLED | Manual action. **Valid only when `paidAmount == 0`** |
+| PARTIALLY_PAID | CANCELLED | **Invalid**—once money has been received, it cannot be "cancelled as if it never existed"; use `WRITTEN_OFF` |
 
-`PAID`, `WRITTEN_OFF`, `CANCELLED` là **terminal states**: không cho tạo `PaymentAllocation` mới, không còn `ReminderSchedule` nào chạy.
+`PAID`, `WRITTEN_OFF`, and `CANCELLED` are **terminal states**: no new `PaymentAllocation` may be created and no `ReminderSchedule` continues running.
 
-Ý nghĩa kế toán của hai terminal state dễ nhầm:
-- **WRITTEN_OFF** = chấp nhận mất tiền — chỉ áp dụng khi đang `OPEN`/`PARTIALLY_PAID` và còn `remainingAmount > 0`.
-- **CANCELLED** = hủy nghĩa vụ ngay từ đầu, coi như chưa từng phát sinh — chỉ hợp lệ khi chưa có bất kỳ payment nào.
+The accounting meanings of the two easily confused terminal states:
+- **WRITTEN_OFF** = accept the loss—only applies in `OPEN`/`PARTIALLY_PAID` with `remainingAmount > 0`.
+- **CANCELLED** = cancel the obligation from the start as if it never arose—valid only when no payment has ever been received.
 
-## 4. Payment & PaymentAllocation — business rules
+## 4. Payment & PaymentAllocation—business rules
 
-1. Một `Payment` có thể phân bổ vào N `Receivable`, nhưng **chỉ trong cùng một Customer**. `Payment.customerId` phải được xác định trước khi auto/manual allocation; nếu còn `null` hoặc khác customer thì không được allocate trực tiếp — phải xử lý qua Exception Queue.
-2. Một `Receivable` có thể nhận N `PaymentAllocation` từ N `Payment` khác nhau (khách trả nhiều lần cho cùng một hóa đơn).
-3. `allocatedAmount` không được vượt quá `remainingAmount` của receivable tại thời điểm allocate. Việc kiểm tra + ghi allocation phải nằm trong cùng transaction có lock (tránh hai kế toán allocate cùng lúc gây vượt số dư — xem Optimistic Locking ở tài liệu gốc mục 15).
-4. `unallocatedAmount = totalAmount - Payment.allocatedAmount` luôn `>= 0`. Nếu sau khi allocate hết các receivable liên quan mà vẫn còn dư (`unallocatedAmount > 0`): **không tự động áp vào receivable khác**. Giữ lại như "credit balance" của customer, hiển thị trong Exception Queue / customer detail để kế toán chủ động allocate tiếp vào receivable tiếp theo.
-5. `allocatedAmount` phải là số nguyên dương (`Number.isInteger(amount) && amount > 0`) ở application và `CHECK (allocatedAmount > 0)` ở DB; không nhận số thập phân, zero hoặc âm.
-6. Undo một `PaymentAllocation` không xóa cứng: lock allocation, payment và receivable; set `deletedAt`, `deletedByUserId`, `undoReason`; ghi một `AuditLog` INSERT-only với before/after state và actor. Chỉ allocation đang active (`deletedAt IS NULL`) mới được undo; các query rollup chỉ tính allocation active.
-7. Undo phải atomic: soft-delete + audit + cập nhật `Receivable.paidAmount`, `Payment.allocatedAmount` và `Receivable.status` nằm trong cùng DB transaction. Cho phép `PAID → PARTIALLY_PAID`/`OPEN` theo rollup mới; không khôi phục `CANCELLED`/`WRITTEN_OFF` thành trạng thái thanh toán.
-8. Tạo hoặc undo allocation phải atomic: `remainingAmount`/`unallocatedAmount` luôn được đọc từ các rollup sau transaction commit.
+1. A `Payment` may be allocated to N `Receivable` records, but **only for the same Customer**. `Payment.customerId` must be resolved before auto/manual allocation; if it is still `null` or belongs to another customer, direct allocation is forbidden and the payment must go through the Exception Queue.
+2. A `Receivable` may receive N `PaymentAllocation` records from N different `Payment` records (a customer may pay an invoice in multiple installments).
+3. `allocatedAmount` may not exceed the receivable's `remainingAmount` at allocation time. Checking and writing the allocation must be in the same locked transaction (preventing two accountants from exceeding the balance concurrently; see Optimistic Locking in section 15 of the original document).
+4. `unallocatedAmount = totalAmount - Payment.allocatedAmount` is always `>= 0`. If money remains after all relevant receivables are allocated (`unallocatedAmount > 0`), **do not automatically apply it to another receivable**. Keep it as the customer's "credit balance", shown in the Exception Queue/customer detail so accounting can allocate it to the next receivable intentionally.
+5. `allocatedAmount` must be a positive integer (`Number.isInteger(amount) && amount > 0`) in the application and `CHECK (allocatedAmount > 0)` in the database; decimals, zero, and negative values are rejected.
+6. Undoing a `PaymentAllocation` is not a hard delete: lock the allocation, payment, and receivable; set `deletedAt`, `deletedByUserId`, and `undoReason`; and write an INSERT-only `AuditLog` with before/after state and actor. Only active allocations (`deletedAt IS NULL`) can be undone; rollup queries count active allocations only.
+7. Undo must be atomic: soft-delete, audit, and updates to `Receivable.paidAmount`, `Payment.allocatedAmount`, and `Receivable.status` occur in the same DB transaction. Allow `PAID → PARTIALLY_PAID`/`OPEN` based on the new rollups; do not restore `CANCELLED`/`WRITTEN_OFF` to a payment state.
+8. Creating or undoing an allocation must be atomic: `remainingAmount`/`unallocatedAmount` are always read from rollups after the transaction commits.
 
-## 5. Ví dụ minh họa
+## 5. Example
 
 ```
-Invoice INV-2026-0012: 50.000.000 đồng, due 20/08/2026
+Invoice INV-2026-0012: 50.000.000 VND, due 20/08/2026
 → Receivable R1 (status OPEN, originalAmount 50.000.000)
 
-Payment P1: 30.000.000 (payerName "Công ty B")
+Payment P1: 30.000.000 (payerName "Company B")
   → PaymentAllocation: P1 → R1, 30.000.000
   → R1.paidAmount = 30.000.000, remainingAmount = 20.000.000
   → R1.status = PARTIALLY_PAID
 
 Payment P2: 25.000.000
-  → PaymentAllocation: P2 → R1, 20.000.000 (chỉ đủ phần còn thiếu)
-  → P2.unallocatedAmount = 5.000.000 → giữ làm credit balance của Công ty B
+  → PaymentAllocation: P2 → R1, 20.000.000 (only the remaining amount)
+  → P2.unallocatedAmount = 5.000.000 → kept as Company B's credit balance
   → R1.paidAmount = 50.000.000, remainingAmount = 0
-  → R1.status = PAID (terminal, hủy reminder còn lại, gửi email xác nhận)
+  → R1.status = PAID (terminal; cancel remaining reminders and send a confirmation email)
 ```
 
 Undo allocation P2:
 ```
-→ lock P2→R1 và allocation active
-→ set PaymentAllocation.deletedAt/deletedByUserId/undoReason, giữ nguyên row lịch sử
-→ giảm P2.allocatedAmount và R1.paidAmount cùng transaction
-→ ghi AuditLog(action=PAYMENT_ALLOCATE_UNDO, entity=PaymentAllocation)
-→ R1.status = PARTIALLY_PAID; P2.unallocatedAmount tăng lại 20.000.000
+→ lock P2→R1 and the active allocation
+→ set PaymentAllocation.deletedAt/deletedByUserId/undoReason, preserving the history row
+→ decrease P2.allocatedAmount and R1.paidAmount in the same transaction
+→ record AuditLog(action=PAYMENT_ALLOCATE_UNDO, entity=PaymentAllocation)
+→ R1.status = PARTIALLY_PAID; P2.unallocatedAmount increases by 20.000.000
 ```
 
-## 6. Ngoài phạm vi
+## 6. Out of scope
 
-- Cách `BankTransaction` sinh ra `Payment` và chọn `Receivable` candidate — xem Matching Engine spec (spec kế tiếp).
-- Reminder/notification logic dựa trên `isOverdue`/`isDisputed` — xem Reminder spec.
-- `Organization`, `Membership`, `Role`, RBAC — xem Multi-tenancy spec.
+- How `BankTransaction` creates `Payment` and selects a `Receivable` candidate—see the Matching Engine spec (the next spec).
+- Reminder/notification logic based on `isOverdue`/`isDisputed`—see the Reminder spec.
+- `Organization`, `Membership`, `Role`, and RBAC—see the Multi-tenancy spec.
 
-## 7. Câu hỏi mở (không chặn implementation)
+## 7. Open questions (do not block implementation)
 
-- Ai/luồng nào thực hiện transition `DRAFT → OPEN` khi ghi nhận công nợ trước khi có invoice chính thức?
-- `WRITTEN_OFF` có cần approval role (Finance Manager) hay Accountant có thể tự thực hiện?
+- Which actor/flow performs the `DRAFT → OPEN` transition when a receivable is recorded before the official invoice exists?
+- Does `WRITTEN_OFF` require an approval role (Finance Manager), or may an Accountant perform it directly?

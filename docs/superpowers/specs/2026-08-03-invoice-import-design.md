@@ -1,38 +1,38 @@
 # Invoice/Receivable Import (Excel/CSV) Design
 
-> Spec con của [docs/overview.md](../../../docs/overview.md), phụ thuộc [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md) (`Invoice`, `Receivable`, `Customer`).
+> Sub-spec of [docs/overview.md](../../../docs/overview.md), dependent on [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md) (`Invoice`, `Receivable`, `Customer`).
 
 ## 1. Import flow & row-level error handling
 
 ```
 POST /invoices/import
-  1. Parse file (xlsx/csv), validate cấu trúc cột bắt buộc:
+  1. Parse file (xlsx/csv), validate the required column structure:
      customerName, customerTaxCode (optional), customerEmail (optional),
      invoiceNumber, issueDate, dueDate, totalAmount
-  2. Với mỗi dòng (xử lý độc lập, lỗi 1 dòng không chặn dòng khác):
-     a. Validate field: invoiceNumber không rỗng, dueDate >= issueDate,
-        totalAmount là số dương, format ngày hợp lệ
-        → lỗi → thêm vào failedRows, bỏ qua dòng này
-     b. Resolve Customer: khớp theo customerTaxCode trước (unique hơn email),
-        nếu dòng không có taxCode thì khớp theo customerEmail;
-        không tìm thấy → tự động tạo Customer mới
-        (organizationId, name, taxCode, email lấy từ dòng import)
-     c. Kiểm tra trùng invoiceNumber trong cùng organization
-        → đã tồn tại → thêm vào failedRows với lý do DUPLICATE_INVOICE_NUMBER, bỏ qua
-     d. Tạo Invoice (sourceType=IMPORT) + Receivable tương ứng
-        (mặc định 1 Invoice = 1 Receivable theo Domain Core spec)
-  3. Trả kết quả canonical: { totalRows, successCount, failedRows: [{ rowNumber, data, errors }] }
+  2. For each row (process independently; an error in one row does not block other rows):
+     a. Validate fields: invoiceNumber is non-empty, dueDate >= issueDate,
+        totalAmount is a positive number, and the date format is valid
+        → error → add to failedRows and skip this row
+     b. Resolve Customer: match by customerTaxCode first (more unique than email);
+        if the row has no taxCode, match by customerEmail;
+        if not found → automatically create a new Customer
+        (organizationId, name, taxCode, and email come from the imported row)
+     c. Check for a duplicate invoiceNumber within the same organization
+        → if it exists → add to failedRows with reason DUPLICATE_INVOICE_NUMBER and skip
+     d. Create the Invoice (sourceType=IMPORT) + corresponding Receivable
+        (by default, 1 Invoice = 1 Receivable per the Domain Core spec)
+  3. Return the canonical result: { totalRows, successCount, failedRows: [{ rowNumber, data, errors }] }
 ```
 
-**Partial import**: dòng hợp lệ được tạo, dòng lỗi bị bỏ qua và báo cáo chi tiết — không rollback toàn bộ file vì 1-2 dòng sai. Mỗi dòng xử lý trong transaction riêng của nó (tạo Customer nếu cần + Invoice + Receivable cùng một transaction/dòng), lỗi ở một dòng không ảnh hưởng các dòng khác. Callback truyền `EntityManager` phải được chuyển qua mọi repository/use case ghi dữ liệu, đặc biệt `CreateReceivableUseCase.execute(input, manager)`, để quota check và insert dùng cùng transaction.
+**Partial import**: valid rows are created, invalid rows are skipped and reported in detail — do not roll back the entire file because of one or two bad rows. Each row is processed in its own transaction (create Customer if needed + Invoice + Receivable in one transaction per row), and an error in one row does not affect other rows. The `EntityManager` callback parameter must be passed through every repository/use case that writes data, especially `CreateReceivableUseCase.execute(input, manager)`, so the quota check and insert use the same transaction.
 
-## 2. Ngoài phạm vi
+## 2. Out of scope
 
-- Import từ API/ERP/CRM connector thực tế (tài liệu gốc mục 9.4 loại khỏi phạm vi thực tập).
-- Mapping configuration tùy chỉnh cột (cố định tên cột như trên cho MVP).
-- Import receivable tách nhiều từ 1 invoice ngay trong lúc import (chỉ hỗ trợ 1-1 lúc import; tách thủ công sau nếu cần, theo quan hệ 1-N đã thiết kế ở Domain Core).
+- Import from a real API/ERP/CRM connector (section 9.4 of the source document excludes this from the internship scope).
+- Custom column mapping configuration (column names above are fixed for the MVP).
+- Splitting one invoice into multiple receivables during import (only 1-to-1 is supported during import; split manually afterward if needed, according to the 1-to-N relationship designed in Domain Core).
 
-## 3. Câu hỏi mở (không chặn implementation)
+## 3. Open questions (do not block implementation)
 
-- Giới hạn kích thước file/số dòng tối đa cho một lần import là bao nhiêu (ảnh hưởng có cần xử lý bất đồng bộ qua queue thay vì đồng bộ trong 1 request)?
-- Khi tự động tạo Customer mới trong lúc import, có cần đánh dấu riêng (vd `createdVia: IMPORT`) để phân biệt với Customer tạo thủ công không?
+- What should the maximum file size/row count be for one import (does this determine whether processing must be asynchronous through a queue rather than synchronous in one request)?
+- When automatically creating a new Customer during import, should it receive a separate marker (e.g. `createdVia: IMPORT`) to distinguish it from a manually created Customer?

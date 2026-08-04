@@ -1,119 +1,119 @@
 # Authentication & Onboarding Design
 
-> Spec con của [docs/overview.md](../../../docs/overview.md). Bổ sung phần nền tảng mà [2026-08-03-multi-tenancy-rbac-design.md](2026-08-03-multi-tenancy-rbac-design.md) đã giả định sẵn có ("AuthGuard xác thực JWT") nhưng chưa định nghĩa: signup, login, invite thành viên, quên mật khẩu.
+> Child spec of [docs/overview.md](../../../docs/overview.md). Adds the foundation assumed by [2026-08-03-multi-tenancy-rbac-design.md](2026-08-03-multi-tenancy-rbac-design.md) ("AuthGuard validates JWT") but not defined there: signup, login, member invitations, and password reset.
 
-## 1. Entity bổ sung (mở rộng Multi-tenancy/RBAC spec)
+## 1. Additional entities (extending the Multi-tenancy/RBAC spec)
 
 ```
 User
   id, name, email, passwordHash, emailVerifiedAt (nullable), createdAt
 
 EmailVerificationToken
-  id, userId, token (hash lưu DB), expiresAt, createdAt
+  id, userId, token (hash stored in DB), expiresAt, createdAt
 
 PasswordResetToken
-  id, userId, token (hash lưu DB), expiresAt, usedAt (nullable), createdAt
+  id, userId, token (hash stored in DB), expiresAt, usedAt (nullable), createdAt
 
 MembershipInvite
-  id, organizationId, email, role, invitedByUserId, token (hash lưu DB),
+  id, organizationId, email, role, invitedByUserId, token (hash stored in DB),
   expiresAt, acceptedAt (nullable), createdAt
 
 RefreshToken
   id, userId, tokenHash, expiresAt, revokedAt (nullable), createdAt
 ```
 
-`MembershipInvite` tách riêng khỏi `Membership` (đã có ở multi-tenancy-rbac spec) — `Membership` chỉ tạo khi invite được accept, tránh có `Membership` "ma" chưa ai nhận. Mọi token (verification/reset/invite/refresh) lưu dạng hash, không lưu plaintext — nếu DB bị lộ, token không dùng lại được ngay.
+`MembershipInvite` is separate from `Membership` (defined in the multi-tenancy-rbac spec). `Membership` is created only when an invite is accepted, avoiding an unclaimed "ghost" membership. All tokens (verification/reset/invite/refresh) are stored as hashes, not plaintext; if the database is exposed, the tokens cannot be used directly.
 
 ## 2. Signup flow
 
 ```
 POST /auth/signup { organizationName, name, email, password }
   1 transaction:
-    - Tạo Organization
-    - Tạo User (emailVerifiedAt=null)
-    - Tạo Membership (role=OWNER, joinedAt=now)
-    - Tạo Subscription (status=ACTIVE, planId=FREE) cùng transaction
-    - Chạy `OrganizationBootstrap` trong cùng transaction để seed default `EmailTemplate`, `ReminderPolicy` và `ReminderRule` của organization; mọi repository nhận cùng `EntityManager`
-  → gửi EmailVerificationToken qua EmailService (2026-08-03-email-notification-service-design.md)
-  → trả `accessToken` + `userId` + `organizationId`; refresh token nằm trong httpOnly cookie
-    (cho phép login) nhưng mọi API khác
-    (trừ /auth/*, /me) bị chặn bởi EmailVerifiedGuard cho tới khi verify
+    - Create Organization
+    - Create User (emailVerifiedAt=null)
+    - Create Membership (role=OWNER, joinedAt=now)
+    - Create Subscription (status=ACTIVE, planId=FREE) in the same transaction
+    - Run `OrganizationBootstrap` in the same transaction to seed the organization's default `EmailTemplate`, `ReminderPolicy`, and `ReminderRule`; every repository receives the same `EntityManager`
+  → send EmailVerificationToken through EmailService (2026-08-03-email-notification-service-design.md)
+  → return `accessToken` + `userId` + `organizationId`; keep the refresh token in an httpOnly cookie
+    (allowing login), while all other APIs
+    (except /auth/* and /me) are blocked by EmailVerifiedGuard until verification
 
 GET /auth/verify-email?token=...
-  → tìm EmailVerificationToken còn hạn, set User.emailVerifiedAt=now, xoá token
+  → find the unexpired EmailVerificationToken, set User.emailVerifiedAt=now, delete the token
 ```
 
-Bắt buộc verify email trước khi dùng — quan trọng với sản phẩm fintech gửi email nhắc thanh toán thật tới khách hàng, tránh tạo account bằng email rác/giả.
+Email verification is required before use. This matters for a fintech product that sends real payment reminders to customers and prevents accounts created with disposable or fake email addresses.
 
 ## 3. Login & token refresh
 
 ```
 POST /auth/login { email, password }
-  → so khớp passwordHash (bcrypt/argon2)
-  → trả access token JWT (15 phút, payload chứa { userId, organizationId, role })
-    + set refresh token (7 ngày, httpOnly cookie, lưu hash trong RefreshToken để revoke được)
+  → compare with passwordHash (bcrypt/argon2)
+  → return an access token JWT (15 minutes, payload contains { userId, organizationId, role })
+    + set a refresh token (7 days, httpOnly cookie, hash stored in RefreshToken so it can be revoked)
 
-POST /auth/refresh (đọc refresh token từ cookie)
-  → validate còn hạn + chưa revoke → cấp access token mới, ĐỒNG THỜI rotate refresh token
-    (revoke refresh token cũ, phát refresh token mới) — chống replay nếu refresh token bị đánh cắp
+POST /auth/refresh (read the refresh token from the cookie)
+  → validate that it is unexpired and not revoked → issue a new access token and rotate the refresh token
+    (revoke the old refresh token and issue a new one)—prevents replay if the refresh token is stolen
 
-POST /auth/logout → revoke refresh token hiện tại
+POST /auth/logout → revoke the current refresh token
 ```
 
-JWT payload nhúng sẵn `role` để `PermissionGuard` không cần query `Membership` mỗi request. Đánh đổi: nếu role của user bị đổi giữa chừng (vd downgrade từ FINANCE_MANAGER xuống VIEWER), quyền cũ vẫn còn hiệu lực cho tới khi access token hết hạn (tối đa 15 phút) — chấp nhận độ trễ này ở MVP thay vì query DB mỗi request; đổi role có hiệu lực ngay lập tức ở lần `/auth/refresh` tiếp theo vì access token mới luôn đọc `role` hiện tại từ `Membership`.
+The JWT payload includes `role` so `PermissionGuard` does not query `Membership` on every request. Tradeoff: if a user's role changes (for example, downgraded from FINANCE_MANAGER to VIEWER), the old permission remains valid until the access token expires (up to 15 minutes). The MVP accepts this delay instead of querying the database per request; the role change takes effect on the next `/auth/refresh` because the new access token reads the current `role` from `Membership`.
 
-User thuộc nhiều Organization: access token mặc định gắn org đầu tiên/gần nhất dùng; `POST /auth/switch-organization` cấp access token mới với `organizationId`/`role` khác, chỉ cho phép org mà user có `Membership` đang active (`joinedAt != null`). JWT không được tự xem là bằng chứng membership; `JwtStrategy` phải re-validate `(userId, organizationId)` qua Membership và lấy role hiện tại.
+For a user belonging to multiple Organizations, the access token defaults to the first/most recently used organization. `POST /auth/switch-organization` issues a new access token with a different `organizationId`/`role`, only for an organization where the user has an active `Membership` (`joinedAt != null`). The JWT must not be treated as proof of membership; `JwtStrategy` must revalidate `(userId, organizationId)` through `Membership` and read the current role.
 
 ## 4. Invite member
 
 ```
 POST /organizations/:id/invites { email, role }
-  Quyền: USER_MANAGE permission (OWNER, FINANCE_MANAGER — theo RBAC spec)
-  → tạo MembershipInvite, gửi email chứa link + token (hết hạn 7 ngày)
+  Permission: USER_MANAGE (OWNER, FINANCE_MANAGER—per the RBAC spec)
+  → create MembershipInvite and send an email containing a link + token (expires in 7 days)
 
-POST /invites/accept { token, password (chỉ cần nếu email chưa có User) }
-  - Email đã có User (có thể thuộc org khác) → bắt buộc JWT của chính User đó,
-    accept chỉ tạo Membership mới, không tạo User trùng
-  - Email chưa có User → tạo User (password nhập ở form accept), emailVerifiedAt=now luôn
-    (invite-accept qua email coi như đã xác thực quyền sở hữu email)
+POST /invites/accept { token, password (only required if the email has no User) }
+  - Email already has a User (possibly in another organization) → that User's own JWT is required;
+    acceptance only creates a new Membership and never duplicates the User
+  - Email has no User → create a User (password entered in the acceptance form), always set emailVerifiedAt=now
+    (accepting an invite through email verifies ownership of the email)
   → set Membership.joinedAt=now, MembershipInvite.acceptedAt=now
 ```
 
 ## 5. Forgot / reset password
 
 ```
-POST /auth/forgot-password { email } → luôn trả 200 dù email tồn tại hay không
-  (tránh lộ thông tin email nào đã đăng ký); nếu tồn tại thì tạo PasswordResetToken + gửi email
+POST /auth/forgot-password { email } → always return 200 whether the email exists or not
+  (avoid revealing which emails are registered); if it exists, create PasswordResetToken + send email
 
 POST /auth/reset-password { token, newPassword }
-  → validate token còn hạn (30-60 phút) và chưa dùng (usedAt=null)
-  → set passwordHash mới, usedAt=now, REVOKE toàn bộ RefreshToken hiện có của user
-    (đăng xuất mọi thiết bị — lý do đổi password thường là nghi lộ)
+  → validate that the token is unexpired (30–60 minutes) and unused (usedAt=null)
+  → set a new passwordHash, usedAt=now, and REVOKE all existing RefreshToken records for the user
+    (log out every device; password changes commonly indicate suspected exposure)
 ```
 
-`POST /auth/forgot-password` trả HTTP 200 và body thành công chung cho cả email tồn tại và không tồn tại; không trả 201/404 và không tiết lộ trạng thái tài khoản.
+`POST /auth/forgot-password` returns HTTP 200 and the same success body whether the email exists or not; it does not return 201/404 or disclose account status.
 
 ## 6. Rate limiting `/auth/*`
 
-Dùng NestJS `ThrottlerModule` (đã là dependency phổ biến, không thêm thư viện mới):
+Use NestJS `ThrottlerModule` (already a common dependency; do not add a new library):
 
 ```
 /auth/login, /auth/forgot-password, /auth/signup:
-  giới hạn 5 request / phút, theo cặp (IP, normalized email trong body)
-  → vượt giới hạn trả 429, không tiết lộ thêm thông tin (thông báo chung "Quá nhiều yêu cầu, thử lại sau")
+  limit 5 requests / minute, by the pair (IP, normalized email in the body)
+  → over the limit returns 429 without disclosing additional information (generic message "Too many requests, try again later")
 
-Implementation note: không dùng `@Throttle` mặc định nếu tracker chỉ theo IP; phải có custom tracker/key gồm IP + email cho ba endpoint trên.
+Implementation note: do not use the default `@Throttle` if its tracker uses IP only; use a custom tracker/key containing IP + email for these three endpoints.
 ```
 
-Áp dụng riêng cho nhóm `/auth/*` vì đây là bề mặt tấn công brute-force/credential-stuffing rõ ràng nhất; không áp rate limit chung cho toàn bộ API ở spec này (nếu cần, thuộc phạm vi middleware/API-gateway chung, spec riêng sau).
+Apply this only to `/auth/*` because it is the clearest brute-force/credential-stuffing attack surface. This spec does not apply a global API rate limit (if needed, that belongs to shared middleware/API-gateway scope in a later spec).
 
-## 7. Ngoài phạm vi
+## 7. Out of scope
 
-- SSO/OAuth social login (Google/Microsoft) — đã loại khỏi phạm vi ở multi-tenancy-rbac spec (Enterprise sau).
-- 2FA/MFA — không có trong tài liệu gốc, thêm sau nếu yêu cầu compliance cao hơn.
-- Rate limiting cho toàn bộ API (ngoài `/auth/*`) — thuộc phạm vi middleware chung, chưa có spec riêng.
+- SSO/social OAuth login (Google/Microsoft)—excluded from the multi-tenancy-rbac scope (Enterprise later).
+- 2FA/MFA—not in the original document; add later if stricter compliance is required.
+- Rate limiting for the entire API (outside `/auth/*`)—shared middleware scope; no separate spec yet.
 
-## 8. Câu hỏi mở (không chặn implementation)
+## 8. Open questions (do not block implementation)
 
-- `RefreshToken` có cần giới hạn số lượng thiết bị đăng nhập đồng thời (vd tối đa 5 refresh token active/user) hay không giới hạn ở MVP?
-- Email invite hết hạn (7 ngày) — có cần API cho phép OWNER "gửi lại invite" (tạo token mới cùng `MembershipInvite` hay tạo bản ghi mới) không?
+- Should `RefreshToken` limit concurrent logged-in devices (for example, at most 5 active refresh tokens per user), or be unlimited in the MVP?
+- After an invite expires (7 days), should an API let the OWNER resend it (new token on the same `MembershipInvite` or a new record)?

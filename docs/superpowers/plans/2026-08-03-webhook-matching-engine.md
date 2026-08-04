@@ -10,13 +10,13 @@
 
 ## Global Constraints
 
-- `WebhookInbox.providerTransactionId` has a DB `unique` constraint — this IS the idempotency mechanism, not an application-level check (spec mục 4.2).
+- `WebhookInbox.providerTransactionId` has a DB `unique` constraint — this IS the idempotency mechanism, not an application-level check (spec section 4.2).
 - Processor failures are durable: persist `FAILED`, increment `retryCount`, and store only a redacted, max-500-character `errorMessage` before rethrowing so BullMQ can retry/DLQ the job.
-- Header auth uses constant-time comparison (`crypto.timingSafeEqual`), not `===` (spec mục 4.1).
-- Scoring components are pure functions, independently unit-testable (spec mục 3).
-- `amount < 0` transactions are never scored — routed out before the Matching Engine runs (spec mục 4.4).
-- Threshold: `>= 90` auto-allocate, `60-89` Exception Queue, `< 60` `UNMATCHED` (spec mục 3).
-- Money fields stay integer (đồng), no `float` (scaffolding spec Global Constraints, still binding here).
+- Header auth uses constant-time comparison (`crypto.timingSafeEqual`), not `===` (spec section 4.1).
+- Scoring components are pure functions, independently unit-testable (spec section 3).
+- `amount < 0` transactions are never scored — routed out before the Matching Engine runs (spec section 4.4).
+- Threshold: `>= 90` auto-allocate, `60-89` Exception Queue, `< 60` `UNMATCHED` (spec section 3).
+- Money fields stay integer (VND), no `float` (scaffolding spec Global Constraints, still binding here).
 - Naming/layering rules from `2026-08-03-project-scaffolding-architecture-design.md` still apply.
 
 ---
@@ -437,7 +437,7 @@ export class WebhookInboxOrmEntity {
 }
 ```
 
-`providerTransactionId` unique constraint IS the idempotency mechanism (spec mục 4.2) — Task 5's insert relies on the DB rejecting a duplicate, not an application-level pre-check (which would race under concurrent delivery).
+`providerTransactionId` unique constraint IS the idempotency mechanism (spec section 4.2) — Task 5's insert relies on the DB rejecting a duplicate, not an application-level pre-check (which would race under concurrent delivery).
 
 - [ ] **Step 6: Create `apps/backend/src/modules/webhooks/application/webhook-inbox-repository.port.ts`**
 
@@ -557,7 +557,7 @@ git commit -m "feat: add WebhookInbox entity with unique-constraint-based idempo
 
 **Interfaces:**
 - Consumes: nothing
-- Produces: `BankTransaction` domain class with `version` optimistic lock (spec depends on `2026-08-03-exception-queue-audit-log-design.md` mục 1's `version` field, defined here since `BankTransaction` is owned by this module), used by Task 8 (Matching Engine writes `status`)
+- Produces: `BankTransaction` domain class with `version` optimistic lock (spec depends on `2026-08-03-exception-queue-audit-log-design.md` section 1's `version` field, defined here since `BankTransaction` is owned by this module), used by Task 8 (Matching Engine writes `status`)
 
 - [ ] **Step 1: Write failing domain test**
 
@@ -1118,7 +1118,7 @@ git commit -m "feat: add webhook controller with header auth and idempotent inge
 - Consumes: raw `WebhookInbox.rawPayload`
 - Produces: `normalizeBalanceHookPayload(payload): NormalizedTransaction`, used by Task 9's `WebhookProcessor`
 
-Field names below follow the Balance Hook fields listed in the spec's mục 0 (Transaction ID + unique code, amount, transaction time, account numbers, counterparty info) — actual field names are an assumption pending confirmation with CASSO's Developer Portal (spec mục 0's own caveat); this function is the single place to fix if real field names differ.
+Field names below follow the Balance Hook fields listed in the spec's section 0 (Transaction ID + unique code, amount, transaction time, account numbers, counterparty info) — actual field names are an assumption pending confirmation with CASSO's Developer Portal (spec section 0's own caveat); this function is the single place to fix if real field names differ.
 
 - [ ] **Step 1: Write failing test**
 
@@ -1367,15 +1367,15 @@ import { payerNameScore } from './payer-name-score';
 
 describe('payerNameScore', () => {
   it('returns 5 for an exact match', () => {
-    expect(payerNameScore('CONG TY B', 'Công ty B')).toBe(5);
+    expect(payerNameScore('COMPANY B', 'Company B')).toBe(5);
   });
 
   it('returns 5 for a close fuzzy match (accents/case differences)', () => {
-    expect(payerNameScore('CTY TNHH B', 'Công ty B')).toBe(5);
+    expect(payerNameScore('B LLC', 'Company B')).toBe(5);
   });
 
   it('returns 0 for an unrelated name', () => {
-    expect(payerNameScore('NGUYEN VAN A', 'Công ty B')).toBe(0);
+    expect(payerNameScore('NGUYEN VAN A', 'Company B')).toBe(0);
   });
 });
 ```
@@ -1679,7 +1679,7 @@ describe('MatchingEngineService', () => {
       findInvoiceNumberByReceivableId: jest.fn().mockResolvedValue('INV-2026-0012'),
     };
     const customerQueryService = {
-      findNameByCustomerId: jest.fn().mockResolvedValue('Công ty B'),
+      findNameByCustomerId: jest.fn().mockResolvedValue('Company B'),
     };
 
     const service = new MatchingEngineService(
@@ -1951,7 +1951,7 @@ export class MatchingEngineService {
 }
 ```
 
-`customerId` resolution intentionally covers only the bank-account-match path in this plan (spec mục 3's second resolution path — parsing an invoice/receivable code out of `transferContent` when no bank account matches — is folded into the org-wide fallback scan's `referenceCodeScore`, which already checks each candidate's invoice number against `transferContent`; a transaction that matches by reference code alone in the fallback scan gets the same `referenceCodeScore` it would have gotten had `customerId` been resolved first, satisfying the spec's intent without a separate resolution step).
+`customerId` resolution intentionally covers only the bank-account-match path in this plan (spec section 3's second resolution path — parsing an invoice/receivable code out of `transferContent` when no bank account matches — is folded into the org-wide fallback scan's `referenceCodeScore`, which already checks each candidate's invoice number against `transferContent`; a transaction that matches by reference code alone in the fallback scan gets the same `referenceCodeScore` it would have gotten had `customerId` been resolved first, satisfying the spec's intent without a separate resolution step).
 
 - [ ] **Step 7: Run test to verify it passes**
 
@@ -2236,7 +2236,7 @@ export class ProcessWebhookUseCase {
 
         if (normalized.amount < 0) {
           await this.webhookInboxRepo.save(inbox.markProcessed());
-          return; // refund flow — out of scope (spec mục 4.4)
+          return; // refund flow — out of scope (spec section 4.4)
         }
 
         const bankTransaction = new BankTransaction({
@@ -2378,7 +2378,7 @@ git commit -m "feat: add ProcessWebhookUseCase and BullMQ WebhookProcessor with 
 
 **Interfaces:**
 - Consumes: full `AppModule` (Tasks 1-9), real Postgres + Redis via testcontainers
-- Produces: verified proof of `2026-08-03-testing-strategy-design.md` mục 1 case 1 (duplicate webhook) plus the score-based routing decision end-to-end
+- Produces: verified proof of `2026-08-03-testing-strategy-design.md` section 1 case 1 (duplicate webhook) plus the score-based routing decision end-to-end
 
 - [ ] **Step 1: Write the idempotency integration test**
 
@@ -2527,7 +2527,7 @@ describe('Webhook matching routing (integration)', () => {
     await dataSource.getRepository(CustomerOrmEntity).save({
       id: customerId,
       organizationId,
-      name: 'Công ty B',
+      name: 'Company B',
       taxCode: '111',
       email: 'b@b.vn',
       phone: '0900000000',
@@ -2627,8 +2627,8 @@ git commit -m "test: add integration tests for webhook idempotency and end-to-en
 
 ## Self-Review Notes
 
-- **Spec coverage:** Idempotency via unique constraint (mục 4.2) → Task 2, Task 10. Header auth constant-time compare (mục 4.1) → Task 5. Retry/backoff (mục 4.3) → Task 5 (enqueue config) + Task 9 (processor). Refund routing (mục 4.4) → Task 9 (`normalized.amount < 0` early return). Candidate scope resolution (mục 3) → Task 8. 5 scoring functions + threshold routing (mục 3) → Task 7, Task 9.
-- **Deliberate scope decision flagged inline:** `customerId` resolution via parsing an invoice code out of `transferContent` (spec mục 3's second bullet) is folded into the org-wide fallback scan rather than implemented as a separate resolution step — documented in Task 8 Step 6's comment. If a future review finds this insufficient (e.g., needs to narrow the fallback scan to ONE customer once a reference code uniquely identifies one), revisit `MatchingEngineService.scoreCandidates`.
+- **Spec coverage:** Idempotency via unique constraint (section 4.2) → Task 2, Task 10. Header auth constant-time compare (section 4.1) → Task 5. Retry/backoff (section 4.3) → Task 5 (enqueue config) + Task 9 (processor). Refund routing (section 4.4) → Task 9 (`normalized.amount < 0` early return). Candidate scope resolution (section 3) → Task 8. 5 scoring functions + threshold routing (section 3) → Task 7, Task 9.
+- **Deliberate scope decision flagged inline:** `customerId` resolution via parsing an invoice code out of `transferContent` (spec section 3's second bullet) is folded into the org-wide fallback scan rather than implemented as a separate resolution step — documented in Task 8 Step 6's comment. If a future review finds this insufficient (e.g., needs to narrow the fallback scan to ONE customer once a reference code uniquely identifies one), revisit `MatchingEngineService.scoreCandidates`.
 - **Not covered in this plan (by design):** The actual `POST /bank-transactions/:id/match` Exception Queue UI endpoint (manual accountant review/override) belongs to the Exception Queue & Audit Log plan, which owns `BankTransaction.version`-based optimistic locking for concurrent manual match attempts. Cas ID connection/consent flow that populates `CustomerBankAccount` for real — separate plan.
 - **Type consistency checked:** `NormalizedTransaction` (Task 6) fields match what `MatchingEngineService.scoreCandidates` (Task 8) and `ProcessWebhookUseCase` (Task 9) both consume. `AllocatePaymentInput.allocatedByUserId` widened to `string | null` (Task 9 Step 1) is backward-compatible with every existing caller from the Domain Core and Multi-tenancy plans.
 

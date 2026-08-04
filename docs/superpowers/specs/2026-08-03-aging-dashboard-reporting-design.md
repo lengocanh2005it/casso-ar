@@ -1,12 +1,12 @@
 # Aging Dashboard & Reporting Design
 
-> Spec con của [docs/overview.md](../../../docs/overview.md), phụ thuộc [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md) (`Receivable.status`, `dueDate`, `remainingAmount`) và [2026-08-03-webhook-matching-engine-design.md](2026-08-03-webhook-matching-engine-design.md) (auto-match rate). Định nghĩa cách tính các con số hiển thị trên Dashboard/Báo cáo (tài liệu gốc mục 7.11, 15, 19).
+> Child spec of [docs/overview.md](../../../docs/overview.md), dependent on [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md) (`Receivable.status`, `dueDate`, `remainingAmount`) and [2026-08-03-webhook-matching-engine-design.md](2026-08-03-webhook-matching-engine-design.md) (auto-match rate). Defines how the numbers displayed on the Dashboard/Reports are calculated (original document sections 7.11, 15, 19).
 
-## 1. Nguyên tắc: real-time, không precompute
+## 1. Principle: real-time, no precomputation
 
-Ở quy mô thực tập (vài nghìn `Receivable`/tổ chức), query trực tiếp với index đúng đã đủ nhanh — không cần materialized view hay cron job precompute riêng. Precompute chỉ cần thiết khi số lượng receivable lên tới hàng triệu dòng, ngoài phạm vi MVP.
+At the demo scale (a few thousand `Receivable` records per organization), direct queries with the right indexes are fast enough—no materialized view or separate precomputation cron job is needed. Precomputation is only necessary when the number of receivables reaches millions of rows, which is outside the MVP scope.
 
-Index bắt buộc: `Receivable(organizationId, status, dueDate)` (đã nêu ở tài liệu gốc mục 20 — spec này xác nhận lại vì Dashboard là nơi dùng nhiều nhất).
+Required index: `Receivable(organizationId, status, dueDate)` (already stated in section 20 of the original document—confirmed here because the Dashboard is its main consumer).
 
 ## 2. Aging buckets
 
@@ -21,7 +21,7 @@ GROUP BY CASE
 END
 ```
 
-Mỗi bucket trả về `COUNT(*)` và `SUM(originalAmount - paidAmount)`; `remainingAmount` là derived field, không phải cột SQL riêng.
+Each bucket returns `COUNT(*)` and `SUM(originalAmount - paidAmount)`; `remainingAmount` is a derived field, not a separate SQL column.
 
 HTTP contract:
 
@@ -43,7 +43,7 @@ interface DashboardSummaryResponse {
 }
 ```
 
-`GET /api/v1/reports/aging` trả `AgingReportResponse`; `GET /api/v1/reports/dashboard-summary` trả `DashboardSummaryResponse`. Không dùng nhãn `0-30`/`31-60`/`61-90`/`90+` hoặc các field `overdueAmount`, `pendingReviewCount`, `openDisputeCount`, `monthReceivedAmount` trong contract MVP này.
+`GET /api/v1/reports/aging` returns `AgingReportResponse`; `GET /api/v1/reports/dashboard-summary` returns `DashboardSummaryResponse`. This MVP contract does not use the labels `0-30`/`31-60`/`61-90`/`90+` or the fields `overdueAmount`, `pendingReviewCount`, `openDisputeCount`, `monthReceivedAmount`.
 
 ## 3. Cash collection forecast (naive)
 
@@ -54,9 +54,9 @@ forecast_Nd = SUM(originalAmount - paidAmount)
               (N = 7, 14, 30)
 ```
 
-Giả định lạc quan: khách hàng trả đúng hạn. Đơn giản, minh bạch, không cần dữ liệu lịch sử để train gì — đúng tinh thần "rule-based trước ML" của tài liệu gốc mục 8.3. Điều chỉnh theo xác suất trả đúng hạn lịch sử của từng khách hàng (`onTimePaymentRate`) là hướng nâng cấp sau, cần đủ dữ liệu lịch sử thanh toán mới đáng tin cậy — ngoài phạm vi MVP.
+Optimistic assumption: customers pay on time. This is simple and transparent, and requires no historical data for training—consistent with the original document's "rule-based before ML" principle in section 8.3. Adjusting by each customer's historical on-time payment probability (`onTimePaymentRate`) is a later upgrade; it requires enough reliable payment history and is outside the MVP scope.
 
-## 4. Các số liệu khác
+## 4. Other metrics
 
 ```
 Top overdue customers:
@@ -64,30 +64,30 @@ Top overdue customers:
   WHERE status IN (OPEN, PARTIALLY_PAID) AND dueDate < today
   ORDER BY SUM(originalAmount - paidAmount) DESC LIMIT 10
 
-Auto-match rate (theo kỳ báo cáo):
+Auto-match rate (for the reporting period):
   COUNT(BankTransaction WHERE status='MATCHED') /
-  COUNT(BankTransaction WHERE createdAt trong kỳ báo cáo)
+  COUNT(BankTransaction WHERE createdAt is within the reporting period)
 
-`BankTransaction` không lưu `totalScore`; Matching Engine chỉ đặt `status='MATCHED'` khi tổng score đạt `>= 90`, nên `status='MATCHED'` là điều kiện persisted dùng cho reporting.
+`BankTransaction` does not store `totalScore`; Matching Engine sets `status='MATCHED'` only when the total score reaches `>= 90`, so `status='MATCHED'` is the persisted condition used for reporting.
 
 Manual handling rate = 1 - Auto-match rate
-  (giao dịch cần Exception Queue xử lý thủ công / tổng giao dịch)
+  (transactions requiring manual Exception Queue handling / total transactions)
 
 Reminder effectiveness:
-  COUNT(Receivable đóng PAID trong vòng 7 ngày sau ReminderExecution gần nhất) /
-  COUNT(ReminderExecution status='SENT') trong kỳ
+  COUNT(Receivable closed as PAID within 7 days after the latest ReminderExecution) /
+  COUNT(ReminderExecution status='SENT') during the period
 ```
 
-`Reminder effectiveness` là metric follow-up, không thuộc response MVP của `GET /reports/dashboard-summary`; dữ liệu và pipeline gửi do Reminder Automation/Email Notification sở hữu. Công thức trên chỉ giữ làm hướng mở rộng sau khi chốt cửa sổ đo lường.
+`Reminder effectiveness` is a follow-up metric and is not part of the MVP response for `GET /reports/dashboard-summary`; Reminder Automation/Email Notification owns the data and sending pipeline. The formula is retained only as a future extension after the measurement window is finalized.
 
-## 5. Ngoài phạm vi
+## 5. Out of scope
 
-- Materialized view / precompute job — chỉ cần khi quy mô dữ liệu vượt xa phạm vi thực tập.
-- Forecast có điều chỉnh theo xác suất trả đúng hạn lịch sử từng khách hàng.
-- Data warehouse riêng (ClickHouse) cho reporting — tài liệu gốc mục 22 nêu là câu hỏi mở, PostgreSQL đã đủ ở MVP.
-- Reminder effectiveness trong dashboard MVP — giữ ở Reminder Automation/Email Notification follow-up, không nhân đôi logic trong Reporting.
+- Materialized view / precomputation job—only needed when the data scale far exceeds the demo scope.
+- Forecast adjusted by each customer's historical on-time payment probability.
+- A separate data warehouse (ClickHouse) for reporting—the original document lists this as an open question in section 22; PostgreSQL is sufficient for the MVP.
+- Reminder effectiveness in the MVP dashboard—keep it in Reminder Automation/Email Notification follow-up rather than duplicating the logic in Reporting.
 
-## 6. Câu hỏi mở (không chặn implementation)
+## 6. Open questions (do not block implementation)
 
-- "Reminder effectiveness" tính cửa sổ 7 ngày sau lần gửi gần nhất có phù hợp, hay nên tính theo khoảng thời gian khác (vd tới lần gửi tiếp theo)?
-- Dashboard có cần filter theo khoảng thời gian tùy chỉnh (date range picker) hay chỉ cần các mốc cố định (7/14/30 ngày, tháng hiện tại)?
+- Is a 7-day window after the latest send appropriate for "Reminder effectiveness", or should another period be used (for example, until the next send)?
+- Does the Dashboard need a custom date-range filter, or are fixed periods sufficient (7/14/30 days, current month)?

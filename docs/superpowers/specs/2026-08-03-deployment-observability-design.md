@@ -1,20 +1,20 @@
 # Deployment & Observability Design (MVP)
 
-> Spec con của [docs/overview.md](../../../docs/overview.md). Thu gọn stack quan sát đề xuất ở tài liệu gốc mục 14/20 (OpenTelemetry + Prometheus + Grafana + Loki + Tempo) xuống mức phù hợp quy mô thực tập.
+> Child spec of [docs/overview.md](../../../docs/overview.md). Reduces the observability stack proposed in sections 14/20 of the original document (OpenTelemetry + Prometheus + Grafana + Loki + Tempo) to a level appropriate for the demo scale.
 
 ## 1. Docker Compose
 
 ```
 docker-compose.yml
   services:
-    backend:   NestJS modular monolith (API + BullMQ worker cùng process,
-               tách container riêng sau nếu cần scale độc lập)
-    frontend:  Vite build tĩnh, serve qua nginx
+    backend:   NestJS modular monolith (API + BullMQ worker in the same process,
+               split into a separate container later if independent scaling is needed)
+    frontend:  Static Vite build, served through nginx
     postgres:  PostgreSQL
     redis:     Redis (BullMQ queue/scheduler)
 ```
 
-4 service là đủ để chạy toàn bộ vertical slice cho demo/thực tập — không thêm pgAdmin/RedisInsight hay service quan sát riêng ở bước này (dùng công cụ desktop cá nhân nếu cần debug local, không cần đưa vào compose chung).
+Four services are enough to run the full vertical slice for the demo; do not add pgAdmin/RedisInsight or a separate observability service at this stage (use personal desktop tools for local debugging instead of adding them to the shared compose file).
 
 ### Health check
 
@@ -23,47 +23,47 @@ backend healthcheck:
   GET /health → { status: 'ok' | 'degraded', checks: { postgres: bool, redis: bool, bullmq: bool } }
 ```
 
-Trả `503` nếu bất kỳ check nào fail — dùng cho Docker `HEALTHCHECK` directive và load balancer sau này.
+Return `503` if any check fails—used by the Docker `HEALTHCHECK` directive and a future load balancer.
 
 ## 2. Logging
 
-Structured JSON log ra stdout, không ghi file riêng — Docker log driver thu thập trực tiếp, không cần Loki ở MVP.
+Write structured JSON logs to stdout, with no separate log files; the Docker log driver collects them directly, so Loki is not needed in the MVP.
 
-Field bắt buộc trong mỗi log entry:
+Required fields in every log entry:
 ```
-timestamp, level, organizationId (nếu có), userId (nếu có), message, context (module/service name)
+timestamp, level, organizationId (if present), userId (if present), message, context (module/service name)
 ```
 
 ## 3. Metrics
 
-`/metrics` endpoint theo chuẩn Prometheus (dùng `prom-client`). Bắt buộc expose:
+`/metrics` endpoint following the Prometheus standard (using `prom-client`). Must expose:
 
 ```
-http_request_duration_seconds     (histogram, theo route)
+http_request_duration_seconds     (histogram, by route)
 webhook_processing_duration_seconds
-bullmq_job_failed_total           (theo queue name)
-bullmq_queue_backlog_size         (theo queue name)
+bullmq_job_failed_total           (by queue name)
+bullmq_queue_backlog_size         (by queue name)
 ```
 
-Chỉ cần chứng minh scrape được (curl `/metrics` trả đúng format) — chưa dựng Grafana dashboard thật ở MVP, đó là việc của giai đoạn vận hành thật sau này.
+It is enough to demonstrate that the endpoint can be scraped (`curl /metrics` returns the correct format); do not build a real Grafana dashboard in the MVP, as that belongs to a later operations phase.
 
-## 4. Distributed tracing — hoãn lại
+## 4. Distributed tracing—deferred
 
-OpenTelemetry/Tempo hoãn lại: modular monolith là một process duy nhất, chưa có nhiều service độc lập để trace xuyên qua. Log context (`organizationId` + `requestId` sinh mỗi request, gắn vào mọi log entry trong cùng request) đã đủ để lần theo một request trong phạm vi một process.
+Defer OpenTelemetry/Tempo: the modular monolith is a single process, with no independent services to trace across. Log context (`organizationId` + `requestId` generated per request and attached to every log entry in that request) is enough to follow a request within one process.
 
 ## 5. Backup & retention (MVP)
 
-- **Database backup:** cron `pg_dump` container/service riêng trong Docker Compose, chạy hàng ngày, nén, ghi ra volume `./backups` gắn ngoài container Postgres; giữ **7 bản gần nhất** (rotate, xóa bản cũ hơn), phục vụ demo/khôi phục thủ công — không cần WAL streaming/PITR thật ở quy mô MVP.
-- **Log retention:** log JSON ra stdout, Docker daemon giới hạn qua `max-size: 10m, max-file: 5` (log driver `json-file`) — không dùng aggregation service riêng ở MVP (Loki hoãn lại, xem mục ngoài phạm vi).
-- **Data retention/xóa theo yêu cầu:** chưa có tự động hoá; xử lý thủ công qua truy vấn trực tiếp khi có yêu cầu hợp lệ (out of scope tự động hoá compliance ở MVP, xem OVERVIEW mục 16).
+- **Database backup:** a separate `pg_dump` cron container/service in Docker Compose, running daily, compressed, and written to the `./backups` volume mounted outside the Postgres container; keep the **7 most recent copies** (rotate and delete older copies) for demo/manual recovery—real WAL streaming/PITR is not needed at MVP scale.
+- **Log retention:** JSON logs go to stdout; the Docker daemon limits them with `max-size: 10m, max-file: 5` (the `json-file` log driver). No separate aggregation service is used in the MVP (Loki is deferred; see Out of scope).
+- **Data retention/deletion requests:** no automation yet; handle valid requests manually through direct queries (automated compliance is out of scope for the MVP; see OVERVIEW section 16).
 
-## 6. Ngoài phạm vi
+## 6. Out of scope
 
-- Grafana dashboard, Loki log aggregation, Tempo distributed tracing — thêm khi tách microservices hoặc triển khai production thật.
-- Alerting (PagerDuty/Slack) cho webhook error rate, queue backlog — tài liệu gốc mục 20, cần khi có on-call thật.
-- Kubernetes — modular monolith + Docker Compose là đủ (tài liệu gốc mục 9.4 loại khỏi phạm vi).
-- Point-in-time recovery/WAL streaming thật, backup off-site/multi-region — thêm khi lên production thật ngoài phạm vi đề tài.
+- Grafana dashboards, Loki log aggregation, and Tempo distributed tracing—add when services are split or real production deployment begins.
+- Alerting (PagerDuty/Slack) for webhook error rate and queue backlog—needed when real on-call exists (section 20 of the original document).
+- Kubernetes—the modular monolith plus Docker Compose is sufficient (excluded by section 9.4 of the original document).
+- Real point-in-time recovery/WAL streaming and off-site/multi-region backups—add for real production, outside this project's scope.
 
-## 7. Câu hỏi mở (không chặn implementation)
+## 7. Open questions (do not block implementation)
 
-- `requestId` sinh ở tầng nào (middleware NestJS hay từ header `X-Request-Id` nếu có sẵn từ reverse proxy)?
+- At which layer should `requestId` be generated (NestJS middleware or the `X-Request-Id` header when provided by a reverse proxy)?

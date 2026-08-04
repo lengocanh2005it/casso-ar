@@ -2,43 +2,43 @@
 
 ## What is this?
 
-Nền tảng B2B SaaS tự động hóa quản lý và thu hồi công nợ phải thu (Accounts Receivable) cho doanh nghiệp Việt Nam. Kết nối trực tiếp dữ liệu giao dịch ngân hàng thời gian thực qua Cas ID/CASSO Balance Hook.
+A B2B SaaS platform for automating accounts receivable management and collection for Vietnamese businesses. It directly connects to real-time bank transaction data through Cas ID/CASSO Balance Hook.
 
-## Product定位
+## Product Positioning
 
-*Nền tảng tự động hóa toàn bộ vòng đời công nợ phải thu dựa trên dữ liệu giao dịch ngân hàng thời gian thực* — khác biệt chính là kết nối trực tiếp với dòng tiền thực tế, không chỉ quản lý danh sách hóa đơn.
+*A platform that automates the entire accounts receivable lifecycle based on real-time bank transaction data* — its key differentiator is direct connection to actual cash flow, not merely invoice-list management.
 
 ## Core Domain Entities
 
 | Entity | Description | Key Fields |
 |--------|-------------|------------|
-| **Organization** | Tenant boundary, đơn vị tổ chức | `id`, `name` |
-| **User** | Tài khoản đăng nhập, thuộc 1+ organization | `id`, `email`, `name` |
-| **Membership** | Liên kết User ↔ Organization với role | `userId`, `organizationId`, `role` |
-| **Customer** | Khách hàng nợ tiền | `id`, `organizationId`, `name`, `taxCode`, `creditLimit`, `defaultPaymentTermDays` |
-| **Invoice** | Hóa đơn | `id`, `organizationId`, `customerId`, `invoiceNumber`, `totalAmount`, `sourceType` |
-| **Receivable** | Khoản phải thu | `id`, `organizationId`, `customerId`, `originalAmount`, `paidAmount`, `dueDate`, `status` |
-| **Payment** | Thanh toán từ giao dịch ngân hàng | `id`, `organizationId`, `customerId`, `totalAmount`, `allocatedAmount`, `payerName` |
-| **PaymentAllocation** | Phân bổ payment → receivable | `id`, `paymentId`, `receivableId`, `allocatedAmount`, `deletedAt` |
-| **BankTransaction** | Giao dịch đã normalize | `id`, `organizationId`, `status`, `amount`, `referenceCode` |
+| **Organization** | Tenant boundary, organization unit | `id`, `name` |
+| **User** | Login account belonging to 1+ organization | `id`, `email`, `name` |
+| **Membership** | User ↔ Organization link with a role | `userId`, `organizationId`, `role` |
+| **Customer** | Customer who owes money | `id`, `organizationId`, `name`, `taxCode`, `creditLimit`, `defaultPaymentTermDays` |
+| **Invoice** | Invoice | `id`, `organizationId`, `customerId`, `invoiceNumber`, `totalAmount`, `sourceType` |
+| **Receivable** | Amount receivable | `id`, `organizationId`, `customerId`, `originalAmount`, `paidAmount`, `dueDate`, `status` |
+| **Payment** | Payment from a bank transaction | `id`, `organizationId`, `customerId`, `totalAmount`, `allocatedAmount`, `payerName` |
+| **PaymentAllocation** | Payment → receivable allocation | `id`, `paymentId`, `receivableId`, `allocatedAmount`, `deletedAt` |
+| **BankTransaction** | Normalized transaction | `id`, `organizationId`, `status`, `amount`, `referenceCode` |
 | **WebhookInbox** | Raw webhook payload | `id`, `providerTransactionId`, `status`, `payload` |
-| **Dispute** | Tranh chấp | `id`, `receivableId`, `status` |
-| **ReminderPolicy** | Chính sách nhắc theo nhóm khách | `id`, `customerGroup`, `offsetDays` |
-| **ReminderExecution** | Lịch sử gửi nhắc | `id`, `reminderRuleId`, `status`, `sentAt` |
-| **EmailTemplate** | Template email HTML + Handlebars | `id`, `bodyHtml`, `isDefault` |
-| **CollectionActivity** | Timeline denormalized, INSERT-only | `id`, `receivableId`, `eventType` |
-| **InternalTask** | Task nội bộ ESCALATION/MANUAL | `id`, `receivableId`, `status` |
-| **AuditLog** | Lịch sử thay đổi, INSERT-only | `id`, `entityType`, `entityId`, `beforeState`, `afterState` |
-| **BankConnection** | Kết nối ngân hàng qua Cas ID | `id`, `organizationId`, `status`, `accessToken` |
-| **Subscription** | Gói subscription | `id`, `organizationId`, `plan`, `status` |
-| **CopilotConversation** | Hội thoại chat với AI | `id`, `organizationId` |
-| **CopilotPendingAction** | Action chờ xác nhận từ user | `id`, `conversationId`, `status` |
+| **Dispute** | Dispute | `id`, `receivableId`, `status` |
+| **ReminderPolicy** | Reminder policy by customer group | `id`, `customerGroup`, `offsetDays` |
+| **ReminderExecution** | Reminder sending history | `id`, `reminderRuleId`, `status`, `sentAt` |
+| **EmailTemplate** | HTML + Handlebars email template | `id`, `bodyHtml`, `isDefault` |
+| **CollectionActivity** | Denormalized, INSERT-only timeline | `id`, `receivableId`, `eventType` |
+| **InternalTask** | Internal ESCALATION/MANUAL task | `id`, `receivableId`, `status` |
+| **AuditLog** | Change history, INSERT-only | `id`, `entityType`, `entityId`, `beforeState`, `afterState` |
+| **BankConnection** | Bank connection through Cas ID | `id`, `organizationId`, `status`, `accessToken` |
+| **Subscription** | Subscription plan | `id`, `organizationId`, `plan`, `status` |
+| **CopilotConversation** | Chat conversation with AI | `id`, `organizationId` |
+| **CopilotPendingAction** | Action awaiting user confirmation | `id`, `conversationId`, `status` |
 
 ## Receivable State Machine
 
 ```
                     ┌─────────────┐
-                    │   DRAFT     │ (optional, cho import)
+                    │   DRAFT     │ (optional, for import)
                     └──────┬──────┘
                            │ create
                            ▼
@@ -62,16 +62,16 @@ Nền tảng B2B SaaS tự động hóa quản lý và thu hồi công nợ ph�
     CANCELLED: only from OPEN/PARTIALLY_PAID when paidAmount = 0
 ```
 
-## Business Rules (CRITICAL —违反即 bug)
+## Business Rules (CRITICAL — violation is a bug)
 
-1. **Money:** integer đơn vị đồng, KHÔNG dùng float/decimal tự do
-2. **Transactions:** mọi write thay đổi số tiền/status PHẢI trong 1 DB transaction
-3. **Persisted rollup:** `paidAmount` và `allocatedAmount` chỉ cập nhật trong transaction có row lock
-4. **Derived fields:** `remainingAmount`, `unallocatedAmount`, `isOverdue`, `isDisputed` — tính tại query time
-5. **Tenant isolation:** mọi query/write phải scope theo `organizationId`
-6. **Allocation:** `Payment.customerId` PHẢI tồn tại và trùng `Receivable.customerId`
-7. **Undo:** soft-delete + audit, không xóa vật lý
-8. **Terminal statuses:** PAID, WRITTEN_OFF, CANCELLED — không thể chuyển tiếp
+1. **Money:** integers in VND units, do NOT freely use float/decimal
+2. **Transactions:** every write that changes an amount/status MUST be inside one DB transaction
+3. **Persisted rollup:** `paidAmount` and `allocatedAmount` are updated only inside a transaction with a row lock
+4. **Derived fields:** `remainingAmount`, `unallocatedAmount`, `isOverdue`, `isDisputed` — calculated at query time
+5. **Tenant isolation:** every query/write must be scoped by `organizationId`
+6. **Allocation:** `Payment.customerId` MUST exist and match `Receivable.customerId`
+7. **Undo:** soft-delete + audit; do not physically delete
+8. **Terminal statuses:** PAID, WRITTEN_OFF, CANCELLED — cannot transition further
 
 ## RBAC
 
@@ -88,15 +88,15 @@ Nền tảng B2B SaaS tự động hóa quản lý và thu hồi công nợ ph�
 | SUBSCRIPTION_MANAGE | ✓ | — | — | — | — |
 | USER_MANAGE | ✓ | ✓ | — | — | — |
 
-**SALES_REP:** chỉ xem receivable của khách mình phụ trách (`WHERE salesRepresentativeId = ctx.userId`)
+**SALES_REP:** can only view receivables for assigned customers (`WHERE salesRepresentativeId = ctx.userId`)
 
 ## API Conventions
 
-- **Prefix:** `/api/v1` cho tất cả business API
+- **Prefix:** `/api/v1` for all business APIs
 - **Error:** `{ statusCode, errorCode, message, details? }`
-- **Idempotency:** header `Idempotency-Key` cho POST tạo mới/đổi tiền-trạng thái
+- **Idempotency:** `Idempotency-Key` header for POST requests that create or change money/status
 - **Health:** `GET /health`, `GET /metrics` (Prometheus)
-- **Timezone:** `Asia/Ho_Chi_Minh` cho reminder cron/today
+- **Timezone:** `Asia/Ho_Chi_Minh` for reminder cron/today
 
 ## Matching Engine (Webhook → Payment)
 
@@ -114,16 +114,16 @@ Score components:
 
 | ADR | Decision | Rationale |
 |-----|----------|-----------|
-| 0001 | Shared-schema multi-tenancy | `organizationId` trên mọi bảng, không RLS ở MVP |
-| 0002 | Persisted rollup | Không `SUM(PaymentAllocation)` runtime |
+| 0001 | Shared-schema multi-tenancy | `organizationId` on every table, no RLS in MVP |
+| 0002 | Persisted rollup | No runtime `SUM(PaymentAllocation)` |
 | 0003 | isDisputed computed | `EXISTS(SELECT 1 FROM disputes WHERE status='OPEN')` |
-| 0004 | Reminder scan/send split | Cron enqueue, worker re-check trước khi gửi |
+| 0004 | Reminder scan/send split | Cron enqueues, worker re-checks before sending |
 
 ## Constraints
 
-- Số tiền: integer đơn vị đồng
-- `domain/` không import NestJS/TypeORM
-- `synchronize: true` ở MVP, migration-based khi cần
-- Frontend chưa scaffold (Plan #18-21)
-- Auth chưa implement (Plan #4)
-- Multi-tenancy chưa implement (Plan #2)
+- Amounts: integers in VND units
+- `domain/` does not import NestJS/TypeORM
+- `synchronize: true` in MVP, migration-based when needed
+- Frontend not yet scaffolded (Plan #18-21)
+- Auth not yet implemented (Plan #4)
+- Multi-tenancy not yet implemented (Plan #2)

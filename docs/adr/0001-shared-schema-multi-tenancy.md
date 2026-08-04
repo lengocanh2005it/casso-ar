@@ -1,4 +1,4 @@
-# 1. Shared-schema multi-tenancy thay vì schema-per-tenant
+# 1. Shared-schema multi-tenancy instead of schema-per-tenant
 
 Date: 2026-08-03
 
@@ -8,26 +8,26 @@ Accepted
 
 ## Context
 
-Mọi entity nghiệp vụ (`Customer`, `Invoice`, `Receivable`, `Payment`, `BankConnection`, `WebhookInbox`, ...) cần cách ly dữ liệu giữa các `Organization`. Có hai mô hình phổ biến để làm việc này ở tầng database:
+Every business entity (`Customer`, `Invoice`, `Receivable`, `Payment`, `BankConnection`, `WebhookInbox`, ...) needs data isolation between `Organization` records. There are two common database-level models for this:
 
-- **Schema-per-tenant** (hoặc database-per-tenant): mỗi organization có schema/DB riêng, cách ly vật lý mạnh, nhưng migration/backup/query cross-tenant (vd admin dashboard, billing) phức tạp hơn tuyến tính theo số tenant.
-- **Shared schema**: một database, mọi bảng nghiệp vụ có cột `organizationId`, cách ly thực thi ở tầng ứng dụng.
+- **Schema-per-tenant** (or database-per-tenant): each organization has its own schema/DB, providing strong physical isolation, but migration/backup/cross-tenant queries (e.g. admin dashboard, billing) become more complex as the number of tenants grows.
+- **Shared schema**: one database, with an `organizationId` column on every business table; isolation is enforced at the application layer.
 
-Ở quy mô hiện tại (dự án thực tập, giai đoạn đầu SaaS, chưa có khách hàng yêu cầu compliance cách ly vật lý), chi phí vận hành N schema là không tương xứng với lợi ích.
+At the current scale (internship project, early SaaS stage, and no customers requiring physical-isolation compliance), the operational cost of maintaining N schemas is not proportional to the benefit.
 
 ## Decision
 
-Dùng **shared schema**: một Postgres database, mọi bảng dữ liệu nghiệp vụ có cột `organizationId NOT NULL` kèm `FOREIGN KEY` + index. Các bảng identity dùng chung như `User` là ngoại lệ có chủ ý; quyền truy cập tenant của User đi qua `Membership`.
+Use **shared schema**: one Postgres database, with an `organizationId NOT NULL` column plus `FOREIGN KEY` and index on every business data table. Shared identity tables such as `User` are deliberate exceptions; a User's tenant access goes through `Membership`.
 
-Trong request đã có tenant context, mọi `Repository` nghiệp vụ phải extend `BaseRepository`, tự động thêm `WHERE organizationId = :ctx.organizationId` vào mọi query; service code không tự viết filter tay. Các đường ingestion/worker chạy trước khi có JWT (`BankConnection.findByIdUnscoped`, `WebhookInbox`, `BankTransaction`) là ngoại lệ có kiểm soát: chúng chỉ được dùng tenant đã resolve từ `BankConnection` hoặc job data đáng tin cậy, không dùng `organizationId` từ payload để quyết định tenant, và phải giữ filter `organizationId` tường minh ở repository.
+For requests with an existing tenant context, every business `Repository` must extend `BaseRepository`, which automatically adds `WHERE organizationId = :ctx.organizationId` to every query; service code must not write manual filters. Ingestion/worker paths that run before a JWT exists (`BankConnection.findByIdUnscoped`, `WebhookInbox`, `BankTransaction`) are controlled exceptions: they may use only the tenant resolved from `BankConnection` or trusted job data, must not use `organizationId` from the payload to choose the tenant, and must retain an explicit `organizationId` filter in the repository.
 
-Với webhook/worker không có JWT: **không** nhận `organizationId` từ request/payload để quyết định tenant. Phải resolve `BankConnection` bằng `bankConnectionId` rồi lấy `connection.organizationId` làm nguồn sự thật; nếu payload có kèm `organizationId` khác giá trị resolve được thì từ chối.
+For webhooks/workers without a JWT: **do not** accept `organizationId` from the request/payload to determine the tenant. Resolve `BankConnection` by `bankConnectionId`, then use `connection.organizationId` as the source of truth; reject the request if the payload includes a different `organizationId`.
 
-Không dùng Postgres Row-Level Security (RLS) ở MVP — coi enforcement tại tầng NestJS qua `BaseRepository` là đủ cho request-scoped queries; ingestion/worker paths dùng explicit `organizationId` filter theo các exception đã nêu.
+Do not use Postgres Row-Level Security (RLS) in the MVP — NestJS-layer enforcement through `BaseRepository` is considered sufficient for request-scoped queries; ingestion/worker paths use an explicit `organizationId` filter under the exceptions above.
 
 ## Consequences
 
-- Migration, backup, và query cross-tenant (admin, billing) đơn giản như một ứng dụng single-tenant bình thường.
-- Toàn bộ an toàn cách ly tenant phụ thuộc vào kỷ luật code: mọi Repository phục vụ request có tenant context phải extend `BaseRepository`; các repository ingestion/worker ngoại lệ phải nhận tenant đã resolve và không được dùng payload làm nguồn sự thật. Mọi query thủ công (raw SQL, query builder rời) vẫn là điểm rò rỉ dữ liệu chéo tổ chức tiềm ẩn. Không có lớp phòng thủ thứ hai ở tầng DB (RLS) cho tới khi chủ động thêm.
-- Nếu sau này có khách hàng lớn yêu cầu cách ly vật lý (compliance), việc migrate từ shared schema sang schema-per-tenant là một dự án lớn (di chuyển dữ liệu, đổi connection routing, đổi migration pipeline) — quyết định này chấp nhận đánh đổi đó để đổi lấy vận hành đơn giản ở giai đoạn hiện tại.
-- RLS có thể bổ sung sau như lớp bảo vệ thứ hai mà không cần đổi model hiện tại.
+- Migration, backup, and cross-tenant queries (admin, billing) are as simple as in a normal single-tenant application.
+- Tenant-isolation safety depends entirely on code discipline: every request-serving Repository with tenant context must extend `BaseRepository`; exceptional ingestion/worker repositories must receive the resolved tenant and must not use the payload as the source of truth. Every manual query (raw SQL, standalone query builder) remains a potential cross-organization data-leak point. There is no second defense layer at the DB level (RLS) until one is deliberately added.
+- If a large customer later requires physical isolation (compliance), migrating from shared schema to schema-per-tenant will be a major project (data migration, connection routing changes, migration pipeline changes) — this decision accepts that trade-off in exchange for simpler operations at the current stage.
+- RLS can later be added as a second protection layer without changing the current model.

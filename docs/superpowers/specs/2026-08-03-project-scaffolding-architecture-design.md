@@ -1,6 +1,6 @@
 # Project Scaffolding & Architecture Design
 
-> Spec con của [docs/overview.md](../../../docs/overview.md). Định nghĩa cách khởi tạo repo, tổ chức monorepo, kiến trúc mã nguồn BE/FE và nguyên tắc code chung — nền tảng để mọi spec khác (domain-core, webhook-matching-engine, reminder-automation...) có chỗ "sống" cụ thể trong codebase. Dùng cấu trúc tooling chuẩn cho monorepo pnpm/Turborepo (turbo.json, pnpm-workspace.yaml, package.json root).
+> Sub-spec of [docs/overview.md](../../../docs/overview.md). Defines repository initialization, monorepo organization, BE/FE source architecture, and shared coding principles — the foundation giving every other spec (domain-core, webhook-matching-engine, reminder-automation...) a concrete place to "live" in the codebase. Uses the standard tooling structure for a pnpm/Turborepo monorepo (turbo.json, pnpm-workspace.yaml, root package.json).
 
 ## 1. Monorepo structure (Turborepo + pnpm)
 
@@ -10,7 +10,7 @@ casso-ledger/
     backend/     -- NestJS modular monolith
     frontend/    -- React 19 + Vite
   packages/
-    shared-types/   -- type dùng chung BE/FE (enum status, DTO shape) — package nội bộ dùng chung BE/FE
+    shared-types/   -- shared BE/FE types (status enums, DTO shapes) — internal package shared by BE/FE
   turbo.json
   pnpm-workspace.yaml
   biome.json
@@ -18,39 +18,39 @@ casso-ledger/
 ```
 
 - `packageManager: "pnpm@10.x"`, `engines.node: ">=20"`.
-- `turbo.json`: tasks `build`, `dev`, `lint`, `format`, `test`, `type-check`, mỗi task `dependsOn: ["^build"]` khi cần build `packages/shared-types` trước.
-- Root scripts: `dev:backend`/`dev:frontend` filter theo `--filter=@casso-ledger/<name>`, `verify` = lint + type-check + test gộp (chạy trước khi mở PR, cũng là lệnh CI chạy).
-- Không tạo `packages/eslint-config` hay `packages/ui` riêng ở MVP — chỉ 2 app dùng chung 1 `biome.json` ở root là đủ, tránh package thừa khi chưa có app thứ 3 cần dùng lại (YAGNI).
+- `turbo.json`: tasks `build`, `dev`, `lint`, `format`, `test`, `type-check`; each task uses `dependsOn: ["^build"]` when `packages/shared-types` must be built first.
+- Root scripts: `dev:backend`/`dev:frontend` filter with `--filter=@casso-ledger/<name>`, while `verify` = combined lint + type-check + test (run before opening a PR and also used by CI).
+- Do not create separate `packages/eslint-config` or `packages/ui` in the MVP — the two apps sharing one root `biome.json` is enough, avoiding an unnecessary package before a third app needs reuse (YAGNI).
 
-## 2. Backend — Clean Architecture (4 lớp) + Design Pattern catalog
+## 2. Backend — Clean Architecture (4 layers) + Design Pattern catalog
 
-Mỗi module nghiệp vụ (`receivables`, `payments`, `webhooks`, `reminders`...) tổ chức theo 4 thư mục:
+Each business module (`receivables`, `payments`, `webhooks`, `reminders`...) is organized into 4 directories:
 
 ```
 apps/backend/src/modules/receivables/
-  domain/            -- entity thuần TS (Receivable, state machine), value object, domain error
-                        KHÔNG import gì từ NestJS/TypeORM/framework
-  application/        -- use-case (vd CreateReceivableUseCase, WriteOffReceivableUseCase),
-                        định nghĩa interface/port (IReceivableRepository) mà infrastructure implement
-  infrastructure/      -- implementation cụ thể: TypeOrmReceivableRepository, các Adapter
-                        (EmailProviderAdapter, CasIdIntegrationAdapter) đã thiết kế ở spec khác
-  presentation/         -- controller, DTO request/response, NestJS module wiring (DI binding
-                        interface ở application → implementation ở infrastructure)
+  domain/            -- pure TS entities (Receivable, state machine), value objects, domain errors
+                        MUST NOT import NestJS/TypeORM/framework code
+  application/        -- use cases (e.g. CreateReceivableUseCase, WriteOffReceivableUseCase),
+                        defines interfaces/ports (IReceivableRepository) implemented by infrastructure
+  infrastructure/      -- concrete implementations: TypeOrmReceivableRepository and Adapters
+                        (EmailProviderAdapter, CasIdIntegrationAdapter) designed in other specs
+  presentation/         -- controllers, request/response DTOs, NestJS module wiring (DI binding
+                        from the application interface → infrastructure implementation)
 ```
 
-Quy tắc dependency: `presentation → application → domain`, `infrastructure → application` (implement port), `domain` không phụ thuộc ngược lại lớp nào — đảm bảo test `application`/`domain` không cần khởi động NestJS/DB thật (unit test thuần theo đúng phân tầng ở [2026-08-03-testing-strategy-design.md](2026-08-03-testing-strategy-design.md)).
+Dependency rule: `presentation → application → domain`, `infrastructure → application` (implements ports), and `domain` depends on no outer layer — ensuring `application`/`domain` tests do not need to start NestJS or a real DB (pure unit tests following the layering in [2026-08-03-testing-strategy-design.md](2026-08-03-testing-strategy-design.md)).
 
-**Design pattern áp dụng** (map vào pattern đã dùng ở các spec trước, không thêm pattern chưa có nhu cầu):
+**Applied design patterns** (map to patterns already used in previous specs; do not add patterns without a need):
 
-| Pattern | Áp dụng ở đâu |
+| Pattern | Where it applies |
 |---|---|
-| Repository | Mọi `I<Entity>Repository` port trong `application/`, implementation TypeORM trong `infrastructure/` |
-| Adapter | `EmailProviderAdapter` (Resend), `CasIdIntegrationAdapter` (mock/thật) — cô lập external API |
-| Strategy | Matching Engine: mỗi scoring function (`referenceCodeScore`, `amountScore`...) là 1 strategy độc lập, tổng hợp theo formula chung |
-| Observer / Event-driven | Domain event (`Receivable.status` đổi, `PaymentAllocation` created) → listener ghi `CollectionActivity`, tạo `InternalTask` — dùng NestJS `EventEmitter2` |
-| Use Case (Application Service) | Mỗi hành động nghiệp vụ có 1 use-case class riêng trong `application/`, controller chỉ gọi use-case, không chứa business logic |
+| Repository | Every `I<Entity>Repository` port in `application/`, with TypeORM implementations in `infrastructure/` |
+| Adapter | `EmailProviderAdapter` (Resend), `CasIdIntegrationAdapter` (mock/real) — isolates external APIs |
+| Strategy | Matching Engine: each scoring function (`referenceCodeScore`, `amountScore`...) is an independent strategy, aggregated by a shared formula |
+| Observer / Event-driven | Domain event (`Receivable.status` changes, `PaymentAllocation` created) → listener records `CollectionActivity` and creates `InternalTask` — uses NestJS `EventEmitter2` |
+| Use Case (Application Service) | Each business action has its own use-case class in `application/`; the controller only calls the use case and contains no business logic |
 
-Không dùng Factory/Builder/Decorator ở MVP — chưa có entity nào cần khởi tạo phức tạp đủ để cần pattern riêng (YAGNI).
+Do not use Factory/Builder/Decorator in the MVP — no entity requires sufficiently complex initialization to justify a separate pattern (YAGNI).
 
 ## 3. Frontend — Feature-based structure
 
@@ -66,73 +66,73 @@ apps/frontend/src/
     copilot/
     reports/
     settings/           -- billing, user, RBAC
-  components/ui/        -- shadcn/ui primitives dùng chung (copy từ CLI, không sửa tay)
-  components/layout/     -- Sidebar, MobileSidebarWrapper... (đã thiết kế ở frontend-design-system spec)
-  lib/                   -- api client instance, domain-utils chung không thuộc feature nào
-  routes/                -- React Router 7 route definitions, map 1-1 với navItems đã chốt
+  components/ui/        -- shared shadcn/ui primitives (copy from CLI; do not edit manually)
+  components/layout/     -- Sidebar, MobileSidebarWrapper... (designed in the frontend-design-system spec)
+  lib/                   -- shared API client instance and domain-utils not owned by a feature
+  routes/                -- React Router 7 route definitions, mapping 1-to-1 to the agreed navItems
 ```
 
-Mỗi feature folder tự chứa API call + hook + component riêng của nó — component dùng chung 2+ feature mới đẩy lên `components/`, tránh tách sớm khi chỉ 1 nơi dùng.
+Each feature folder owns its API calls + hooks + components — promote a component to `components/` only when shared by 2+ features, avoiding early extraction when it has one consumer.
 
-### Quy tắc chống lặp code giữa các feature
+### Rules for preventing duplicated code between features
 
 ```
-1. Type/enum dùng chung (status, DTO shape của domain-core) → luôn định nghĩa 1 lần
-   trong packages/shared-types, import vào cả BE lẫn FE — không định nghĩa lại
-   riêng trong từng feature (nguồn lặp phổ biến nhất: enum OPEN/PARTIALLY_PAID/PAID...
-   dùng ở receivables, reminders, reports, copilot).
+1. Shared types/enums (status, domain-core DTO shapes) → define them exactly once
+   in packages/shared-types and import them into both BE and FE — do not redefine them
+   in each feature (the most common duplication source: enum OPEN/PARTIALLY_PAID/PAID...
+   used in receivables, reminders, reports, and copilot).
 
-2. API client (base URL, auth header, error interceptor) → 1 instance chung ở lib/api-client.ts,
-   mỗi feature/api/ chỉ export các hàm gọi endpoint cụ thể dùng chung instance đó,
-   không tự tạo client riêng.
+2. API client (base URL, auth header, error interceptor) → one shared instance in lib/api-client.ts;
+   each feature/api/ exports only the endpoint-specific functions using that shared instance,
+   and does not create its own client.
 
-3. Hook/component dùng bởi ĐÚNG 1 feature → để nguyên trong feature đó, không tách sớm.
-   "Rule of two": lặp lần 1 thì chấp nhận copy, khi feature THỨ 2 thật sự cần dùng lại
-   (không phải "có thể sẽ cần") mới chuyển lên components/ hoặc lib/.
+3. A hook/component used by EXACTLY 1 feature → keep it in that feature; do not extract early.
+   "Rule of two": accept a copy the first time; move it to components/ or lib/ only when a
+   SECOND feature actually needs reuse (not merely "might need it").
 
-4. Business rule tính toán (vd công thức isOverdue, format tiền tệ VNĐ) → 1 hàm thuần
-   trong lib/domain-utils.ts dùng chung, không viết lại logic tính toán rải rác trong
-   từng feature component.
+4. Computed business rules (e.g. the isOverdue formula, VND currency formatting) → one pure
+   shared function in lib/domain-utils.ts; do not rewrite calculation logic across
+   individual feature components.
 ```
 
 ## 4. Coding principles
 
-**Tooling (dùng chung root, không lặp package riêng cho từng app):**
+**Tooling (shared at the root; no separate package per app):**
 ```
-Biome (biome.json root)  -- format + lint 1 tool, thay ESLint/Prettier
-Husky + lint-staged       -- pre-commit: biome check + type-check trên file staged
-TypeScript strict mode    -- bật ở cả 2 app
+Biome (biome.json root)  -- format + lint in one tool, replacing ESLint/Prettier
+Husky + lint-staged       -- pre-commit: biome check + type-check on staged files
+TypeScript strict mode    -- enabled in both apps
 ```
 
-**Naming convention:** file kebab-case (`create-receivable.usecase.ts`), class PascalCase, biến/hàm camelCase, enum UPPER_SNAKE_CASE (khớp giá trị status đã dùng xuyên suốt các spec, vd `PARTIALLY_PAID`).
+**Naming convention:** files use kebab-case (`create-receivable.usecase.ts`), classes PascalCase, variables/functions camelCase, and enums UPPER_SNAKE_CASE (matching status values used throughout the specs, e.g. `PARTIALLY_PAID`).
 
-**Domain-specific rule (bắt buộc review khi code review, không phải gợi ý):**
-- Số tiền: kiểu integer đơn vị đồng (không dùng `float`/số thập phân tự do) — tránh sai số cộng dồn khi tính `paidAmount`/`remainingAmount`.
-- Mọi thao tác ghi làm thay đổi số tiền/status (allocation, write-off, undo) phải nằm trong 1 DB transaction — đã định nghĩa ở [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md) mục 4.6, spec này chỉ nhắc lại như checklist code review, không định nghĩa lại.
-- `paidAmount` trên `Receivable` và `allocatedAmount` trên `Payment` là persisted rollup để reporting không phải aggregate toàn bộ allocation. Chúng chỉ được cập nhật trong transaction allocation/undo có row lock và DB check constraint; không có service nào được sửa riêng.
-- `remainingAmount`, `unallocatedAmount`, `isDisputed`, `isOverdue` là derived field, tính từ persisted data tại thời điểm query/domain method.
+**Domain-specific rules (must be reviewed in code review, not suggestions):**
+- Money: integer amounts in VND (do not use `float`/arbitrary decimals) — avoid cumulative rounding errors when calculating `paidAmount`/`remainingAmount`.
+- Every write that changes money/status (allocation, write-off, undo) must be in one DB transaction — defined in section 4.6 of [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md); this spec repeats it only as a code-review checklist and does not redefine it.
+- `paidAmount` on `Receivable` and `allocatedAmount` on `Payment` are persisted rollups so reporting does not aggregate every allocation. They may be updated only in an allocation/undo transaction with a row lock and DB check constraint; no service may update them independently.
+- `remainingAmount`, `unallocatedAmount`, `isDisputed`, and `isOverdue` are derived fields calculated from persisted data at query/domain-method time.
 
-## 5. API conventions (áp dụng cho mọi module BE)
+## 5. API conventions (apply to every BE module)
 
-- **Versioning:** một prefix cố định `/api/v1` cho toàn bộ business API (đã chốt ở [IMPLEMENTATION-ORDER.md](../IMPLEMENTATION-ORDER.md) mục 13). MVP không hỗ trợ nhiều version song song; khi cần breaking change, thêm `/api/v2` cho riêng endpoint đó, không bump toàn bộ prefix.
-- **Idempotency-Key:** mọi endpoint `POST` tạo mới hoặc chuyển tiền/trạng thái do người dùng bấm từ FE (`POST /receivables`, `POST /payments/:id/allocate`, `POST /invoices/import`, `POST /bank-connections/cas-id/sessions/:id/exchange`...) chấp nhận header `Idempotency-Key` (client tự sinh UUID). BE lưu key theo `(organizationId, endpoint, key)` trong bảng dùng chung `idempotency_keys` (TTL 24h, unique constraint) — request trùng key trả lại response đã lưu, không chạy lại use-case. Không áp dụng cho webhook (đã có `WebhookInbox.providerTransactionId` riêng) hay các `GET`. FE tự sinh key mới mỗi lần user bấm submit (không tái dùng key khi user sửa form và bấm lại).
-- **Error envelope:** mọi lỗi (4xx/5xx) trả JSON `{ statusCode, errorCode, message, details? }`. `errorCode` là chuỗi `UPPER_SNAKE_CASE` ổn định để FE switch theo (vd `VALIDATION_ERROR`, `PERMISSION_DENIED`, `TENANT_MISMATCH`, `PLAN_LIMIT_EXCEEDED`, `ALLOCATION_EXCEEDS_REMAINING`, `OPTIMISTIC_LOCK_CONFLICT`); `message` là text hiển thị được (tiếng Việt), không phải để FE parse. Danh sách `errorCode` được định nghĩa dần trong từng spec nghiệp vụ khi phát sinh lỗi domain riêng — spec này chỉ chốt shape chung và naming convention, tránh mỗi module tự bịa format riêng.
+- **Versioning:** one fixed `/api/v1` prefix for the entire business API (agreed in section 13 of [IMPLEMENTATION-ORDER.md](../IMPLEMENTATION-ORDER.md)). The MVP does not support multiple parallel versions; for a breaking change, add `/api/v2` only for that endpoint rather than bumping the entire prefix.
+- **Idempotency-Key:** every `POST` endpoint that creates a resource or changes money/status from an FE user action (`POST /receivables`, `POST /payments/:id/allocate`, `POST /invoices/import`, `POST /bank-connections/cas-id/sessions/:id/exchange`...) accepts an `Idempotency-Key` header (the client generates the UUID). BE stores the key by `(organizationId, endpoint, key)` in the shared `idempotency_keys` table (TTL 24h, unique constraint) — a duplicate-key request returns the stored response without rerunning the use case. This does not apply to webhooks (which already have their own `WebhookInbox.providerTransactionId`) or `GET` requests. FE generates a new key each time the user submits (do not reuse a key after editing the form and submitting again).
+- **Error envelope:** every error (4xx/5xx) returns JSON `{ statusCode, errorCode, message, details? }`. `errorCode` is a stable `UPPER_SNAKE_CASE` string for FE switching (e.g. `VALIDATION_ERROR`, `PERMISSION_DENIED`, `TENANT_MISMATCH`, `PLAN_LIMIT_EXCEEDED`, `ALLOCATION_EXCEEDS_REMAINING`, `OPTIMISTIC_LOCK_CONFLICT`); `message` is displayable text, not for FE parsing. The `errorCode` list is defined incrementally in each business spec as domain-specific errors arise — this spec fixes only the shared shape and naming convention, preventing each module from inventing its own format.
 
 ## 6. GitHub repo setup
 
 ```
-Tạo repo mới trên GitHub (owner: user), branch mặc định `main`.
-Bảo vệ nhánh `main`: require PR review + passing CI (`turbo run verify`) trước khi merge.
+Create a new GitHub repository (owner: user), with `main` as the default branch.
+Protect `main`: require PR review + passing CI (`turbo run verify`) before merging.
 .gitignore: node_modules, dist, .env, .turbo
 ```
 
-## 7. Ngoài phạm vi
+## 7. Out of scope
 
-- CI/CD pipeline chi tiết (GitHub Actions workflow YAML cụ thể) — chỉ nêu yêu cầu `turbo run verify` phải pass, chưa viết workflow file ở spec này.
-- Component library nội bộ ngoài shadcn/ui, package `eslint-config`/`ui` riêng — thêm khi có app thứ 3 cần dùng lại (xem mục 1).
-- Chi tiết Docker Compose/deployment — đã có ở [2026-08-03-deployment-observability-design.md](2026-08-03-deployment-observability-design.md), spec này chỉ định nghĩa cấu trúc source code, không lặp lại phần deploy.
+- Detailed CI/CD pipeline (specific GitHub Actions workflow YAML) — only require `turbo run verify` to pass; this spec does not write the workflow file.
+- Internal component library beyond shadcn/ui, or separate `eslint-config`/`ui` packages — add when a third app needs reuse (see section 1).
+- Docker Compose/deployment details — covered in [2026-08-03-deployment-observability-design.md](2026-08-03-deployment-observability-design.md); this spec defines source-code structure and does not repeat deployment.
 
-## 8. Câu hỏi mở (không chặn implementation)
+## 8. Open questions (do not block implementation)
 
-- `packages/shared-types` build ra `.d.ts` qua `tsc` riêng hay dùng project reference (`tsconfig.json` `references`) để BE/FE luôn thấy type mới nhất khi dev mà không cần rebuild thủ công?
-- Có cần convention riêng cho tên PR/branch (vd `feat/`, `fix/` prefix) hay để tự do vì team quy mô nhỏ?
+- Should `packages/shared-types` build `.d.ts` through a separate `tsc` run, or use project references (`tsconfig.json` `references`) so BE/FE always see the latest types during development without a manual rebuild?
+- Do we need a convention for PR/branch names (e.g. `feat/`, `fix/` prefixes), or should naming remain flexible because the team is small?

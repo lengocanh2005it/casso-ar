@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement real-time aging + dashboard reporting queries on top of the `Receivable`/`Customer`/`BankTransaction` tables built by `2026-08-03-project-scaffolding-and-domain-core.md`, `2026-08-03-multi-tenancy-rbac.md`, and `2026-08-03-webhook-matching-engine.md`. No precompute, no materialized view — `GET /api/v1/reports/aging` and `GET /api/v1/reports/dashboard-summary` run parameterized raw SQL directly against Postgres on every request, per `2026-08-03-aging-dashboard-reporting-design.md` mục 1.
+**Goal:** Implement real-time aging + dashboard reporting queries on top of the `Receivable`/`Customer`/`BankTransaction` tables built by `2026-08-03-project-scaffolding-and-domain-core.md`, `2026-08-03-multi-tenancy-rbac.md`, and `2026-08-03-webhook-matching-engine.md`. No precompute, no materialized view — `GET /api/v1/reports/aging` and `GET /api/v1/reports/dashboard-summary` run parameterized raw SQL directly against Postgres on every request, per `2026-08-03-aging-dashboard-reporting-design.md` section 1.
 
 **Architecture:** New `apps/backend/src/modules/reporting/` module with two read-only query services (`AgingReportQueryService`, `DashboardSummaryQueryService`) that inject `DataSource` directly (via `@InjectDataSource()`) and `TenantContextService` (to read `organizationId` the same way `BaseRepository` does), bypassing the Repository/UseCase layering because these are cross-entity aggregate reads, not single-entity CRUD — this is the explicit exception called out in the multi-tenancy plan's architecture ("aggregate read queries ... a raw parameterized SQL query using `this.tenantContext.getOrganizationId()` directly, wrapped in a dedicated read-only query service, is acceptable"). `ReportsController` exposes both endpoints behind the existing `JwtAuthGuard` + `PermissionGuard` + `@RequirePermission(Permission.REPORT_READ)` (already defined in the multi-tenancy plan — reused, not redefined).
 
@@ -10,14 +10,14 @@
 
 ## Global Constraints
 
-- No precompute / materialized view / cron job — every report query runs live against `receivables` (and `bank_transactions` for auto-match rate) on each request (spec mục 1, mục 5).
-- Required composite index `Receivable(organizationId, status, dueDate)` (spec mục 1) must exist before this plan's queries are considered done.
-- Aging buckets and their boundary formula are copied verbatim from spec mục 2 (`NOT_DUE`, `OVERDUE_1_7`, `OVERDUE_8_30`, `OVERDUE_31_60`, `OVERDUE_60_PLUS`) — do not invent different bucket names or boundaries.
-- Money fields stay integer (đồng), never `float` — SQL aggregates return values that get `Number(...)`-converted the same way the existing `payment-allocation.integration.spec.ts` does for `bigint` columns (scaffolding plan mục 4).
-- Reads must go through `TenantContextService.getOrganizationId()`, never accept `organizationId` as a request parameter — same rule the multi-tenancy plan applied to every other repository (multi-tenancy plan mục 1).
+- No precompute / materialized view / cron job — every report query runs live against `receivables` (and `bank_transactions` for auto-match rate) on each request (spec sections 1 and 5).
+- Required composite index `Receivable(organizationId, status, dueDate)` (spec section 1) must exist before this plan's queries are considered done.
+- Aging buckets and their boundary formula are copied verbatim from spec section 2 (`NOT_DUE`, `OVERDUE_1_7`, `OVERDUE_8_30`, `OVERDUE_31_60`, `OVERDUE_60_PLUS`) — do not invent different bucket names or boundaries.
+- Money fields stay integer (VND), never `float` — SQL aggregates return values that get `Number(...)`-converted the same way the existing `payment-allocation.integration.spec.ts` does for `bigint` columns (scaffolding plan section 4).
+- Reads must go through `TenantContextService.getOrganizationId()`, never accept `organizationId` as a request parameter — same rule the multi-tenancy plan applied to every other repository (multi-tenancy plan section 1).
 - Reuse `Permission.REPORT_READ` and `PermissionGuard`/`@RequirePermission` from the multi-tenancy plan — do not add a new permission or guard.
-- Out of scope per spec mục 5, explicitly not built in this plan: materialized views/precompute, forecast adjusted by each customer's historical on-time-payment rate, and a separate reporting data warehouse (ClickHouse).
-- Also out of scope for this plan specifically: **Reminder effectiveness** (spec mục 4). The metric belongs to the Reminder Automation/Email Notification plans, which own `ReminderExecution`; `DashboardSummaryQueryService` does not duplicate that metric here.
+- Out of scope per spec section 5, explicitly not built in this plan: materialized views/precompute, forecast adjusted by each customer's historical on-time-payment rate, and a separate reporting data warehouse (ClickHouse).
+- Also out of scope for this plan specifically: **Reminder effectiveness** (spec section 4). The metric belongs to the Reminder Automation/Email Notification plans, which own `ReminderExecution`; `DashboardSummaryQueryService` does not duplicate that metric here.
 
 ---
 
@@ -234,7 +234,7 @@ git commit -m "feat: add AgingReportQueryService with zero-filled bucket aggrega
 - Consumes: `TenantContextService`, `DataSource`
 - Produces: `DashboardSummaryQueryService.getSummary(period?): Promise<DashboardSummary>` — used by Task 4 (`ReportsController`)
 
-MVP scope for this endpoint (spec mục 4, excluding reminder effectiveness per Global Constraints): total outstanding, total overdue, overdue rate (by amount), cash collection forecast at 7/14/30 days (spec mục 3, optimistic same-day assumption), top 10 overdue customers, auto-match rate and manual handling rate (spec mục 4, computed over `bank_transactions`, default period = current calendar month per spec mục 6's suggested fixed-window default).
+MVP scope for this endpoint (spec section 4, excluding reminder effectiveness per Global Constraints): total outstanding, total overdue, overdue rate (by amount), cash collection forecast at 7/14/30 days (spec section 3, optimistic same-day assumption), top 10 overdue customers, auto-match rate and manual handling rate (spec section 4, computed over `bank_transactions`, default period = current calendar month per spec section 6's suggested fixed-window default).
 
 - [ ] **Step 1: Write failing unit test**
 
@@ -257,7 +257,7 @@ describe('DashboardSummaryQueryService', () => {
     const { service } = buildService([
       [{ totalOutstanding: '150000000', totalOverdue: '140000000' }],
       [{ forecast7d: '20000000', forecast14d: '20000000', forecast30d: '20000000' }],
-      [{ customerId: 'cust-1', customerName: 'Công ty B', totalOverdue: '140000000' }],
+      [{ customerId: 'cust-1', customerName: 'Company B', totalOverdue: '140000000' }],
       [{ matchedCount: '8', totalCount: '10' }],
     ]);
 
@@ -597,7 +597,7 @@ describe('Aging & dashboard reporting (integration)', () => {
     await dataSource.getRepository(CustomerOrmEntity).save({
       id: customerId,
       organizationId,
-      name: 'Công ty Quá Hạn',
+      name: 'Overdue Company',
       taxCode: '0399999999',
       email: 'ap@quahan.vn',
       phone: '0911111111',
@@ -696,8 +696,8 @@ git commit -m "test: add integration test for aging buckets and dashboard summar
 
 ## Self-Review Notes
 
-- **Spec coverage:** Aging buckets (spec mục 2) → Task 2, bucket names/boundaries copied verbatim. Cash collection forecast (spec mục 3) → Task 3 `cashForecast`. Top overdue customers, auto-match rate, manual handling rate (spec mục 4) → Task 3. Required index (spec mục 1) → Task 1. Reminder effectiveness (spec mục 4) is intentionally excluded from the MVP response and owned by the Reminder Automation/Email Notification plans; this plan does not duplicate that metric.
-- **No precompute:** every query in Task 2-3 is a live `DataSource.query()` call against `receivables`/`bank_transactions`, run per-request — matches spec mục 1's explicit "no materialized view/cron job at this scale" decision.
+- **Spec coverage:** Aging buckets (spec section 2) → Task 2, bucket names/boundaries copied verbatim. Cash collection forecast (spec section 3) → Task 3 `cashForecast`. Top overdue customers, auto-match rate, manual handling rate (spec section 4) → Task 3. Required index (spec section 1) → Task 1. Reminder effectiveness (spec section 4) is intentionally excluded from the MVP response and owned by the Reminder Automation/Email Notification plans; this plan does not duplicate that metric.
+- **No precompute:** every query in Task 2-3 is a live `DataSource.query()` call against `receivables`/`bank_transactions`, run per-request — matches spec section 1's explicit "no materialized view/cron job at this scale" decision.
 - **Tenant isolation:** both services take `organizationId` only from `TenantContextService.getOrganizationId()` (never a request parameter), and both endpoints sit behind `JwtAuthGuard` + `PermissionGuard` + `@RequirePermission(Permission.REPORT_READ)`, reusing the exact `Permission` enum member and guard classes defined in the multi-tenancy plan — no new permission or guard was introduced.
 - **Type/table consistency checked:** SQL column names (`organizationId`, `customerId`, `originalAmount`, `paidAmount`, `dueDate`, `status`, `createdAt`) match `ReceivableOrmEntity`/`CustomerOrmEntity` (project-scaffolding plan) and `BankTransactionOrmEntity` (webhook-matching-engine plan) exactly, including `@Entity({ name: 'receivables' })`/`{ name: 'bank_transactions' })` table names. `status = 'MATCHED'` is the persisted reporting condition; the Webhook plan only sets it after a transient matching score reaches `>= 90`, so `totalScore` is not a persisted reporting field. This is documented inline in Task 3.
 - **bigint handling:** `dataSource.query()` returns Postgres `bigint`/`numeric` aggregates as strings — every service method explicitly wraps results in `Number(...)` before returning, same pattern the scaffolding plan's `payment-allocation.integration.spec.ts` already uses for `paidAmount`.

@@ -11,8 +11,8 @@
 ## Global Constraints
 
 - **This plan shares the Reminder Automation scan contract:** the reminder scheduler owns the daily candidate scan and emits `reminder.scan.completed` with `{ organizationId, scanDate }`; `ReminderScanCompletedListener` consumes it and runs only escalation-specific rules. Do not create a second daily scan/queue, import `RemindersModule`, or make the reminder scheduler know this module's use case.
-- `escalationThresholdDays` is hardcoded to `30` (spec mục 5's first open question is left unresolved at MVP; not configurable per `ReminderPolicy`/`customerGroup`).
-- Any authenticated user holding `Permission.INTERNAL_TASK_MANAGE` (granted to `FINANCE_MANAGER` and `ACCOUNTANT`, per spec mục 3's `Quyền: FINANCE_MANAGER, ACCOUNTANT`) may resolve or dismiss *any* task in their organization — spec mục 5's second open question (restrict to `assignedToUserId`/`OWNER` only) is resolved this way for MVP, simplest option, revisit if abuse becomes a problem.
+- `escalationThresholdDays` is hardcoded to `30` (spec section 5's first open question is left unresolved at MVP; not configurable per `ReminderPolicy`/`customerGroup`).
+- Any authenticated user holding `Permission.INTERNAL_TASK_MANAGE` (granted to `FINANCE_MANAGER` and `ACCOUNTANT`, per spec section 3's `Permissions: FINANCE_MANAGER, ACCOUNTANT`) may resolve or dismiss *any* task in their organization — spec section 5's second open question (restrict to `assignedToUserId`/`OWNER` only) is resolved this way for MVP, simplest option, revisit if abuse becomes a problem.
 - `receivable.status-closed` is the broad terminal-state event consumed here. `receivable.closed` is reserved for Collection Activity's PAID-only timeline event.
 - Background-job tenant scoping follows `ProcessWebhookUseCase`'s exact pattern (`2026-08-03-webhook-matching-engine.md` Task 9): `TenantContextService.run({ userId: 'system', organizationId, role: Role.OWNER }, async () => { ... })` opened once per organization being scanned.
 - Money fields, naming/layering rules from `2026-08-03-project-scaffolding-architecture-design.md` still apply (not directly relevant here — `InternalTask` has no money field — but the layering rule, domain has no framework imports, is followed).
@@ -94,7 +94,7 @@ function buildTask(overrides: Partial<ConstructorParameters<typeof InternalTask>
     assignedToUserId: 'user-1',
     createdByUserId: null,
     taskType: 'ESCALATION',
-    title: 'Công nợ quá hạn 30 ngày cần xử lý',
+    title: 'Overdue receivable by 30 days requires action',
     description: null,
     status: 'OPEN',
     createdAt: new Date('2026-08-01'),
@@ -452,7 +452,7 @@ async findFirstByRole(organizationId: string, role: Role): Promise<Membership | 
 }
 ```
 
-`order: { createdAt: 'ASC' }` makes "first match" deterministic (the earliest-created `FINANCE_MANAGER` membership), matching the spec's "first match" wording (mục 2) exactly rather than leaving it to unspecified row order.
+`order: { createdAt: 'ASC' }` makes "first match" deterministic (the earliest-created `FINANCE_MANAGER` membership), matching the spec's "first match" wording (section 2) exactly rather than leaving it to unspecified row order.
 
 - [ ] **Step 3: Run full test suite**
 
@@ -534,7 +534,7 @@ git commit -m "feat: add Receivable.findOverdueByThreshold for escalation scan"
 - Consumes: `Permission` enum, `ROLE_PERMISSIONS` map (`2026-08-03-multi-tenancy-rbac.md` Task 8)
 - Produces: `Permission.INTERNAL_TASK_MANAGE`, used by Task 9's `InternalTasksController`
 
-None of the 13 existing permissions cover "manage an internal follow-up task" — `RECEIVABLE_WRITE` is about the receivable's own fields (amount/dueDate/status), not a side-table of assignable tasks, and reusing it would mean any role that can edit a receivable could also silently resolve someone else's escalation task. A new, narrowly-scoped permission is justified and matches spec mục 3's explicit `Quyền: FINANCE_MANAGER, ACCOUNTANT` for task creation (this plan extends the same grant to resolve/dismiss, per the Global Constraints decision on spec mục 5's second open question).
+None of the 13 existing permissions cover "manage an internal follow-up task" — `RECEIVABLE_WRITE` is about the receivable's own fields (amount/dueDate/status), not a side-table of assignable tasks, and reusing it would mean any role that can edit a receivable could also silently resolve someone else's escalation task. A new, narrowly-scoped permission is justified and matches spec section 3's explicit `Permissions: FINANCE_MANAGER, ACCOUNTANT` for task creation (this plan extends the same grant to resolve/dismiss, per the Global Constraints decision on spec section 5's second open question).
 
 - [ ] **Step 1: Add `INTERNAL_TASK_MANAGE` to `Permission`**
 
@@ -816,7 +816,7 @@ export class RunEscalationScanUseCase {
               assignedToUserId: financeManager.userId,
               createdByUserId: null,
               taskType: 'ESCALATION',
-              title: `Công nợ quá hạn ${overdueDays} ngày cần xử lý`,
+              title: `Overdue receivable by ${overdueDays} days requires action`,
               description: null,
               status: 'OPEN',
               createdAt: new Date(),
@@ -927,8 +927,8 @@ describe('CreateManualTaskUseCase', () => {
     const task = await useCase.execute({
       receivableId: 'rec-1',
       assignedToUserId: 'user-2',
-      title: 'Gọi điện nhắc khách hàng',
-      description: 'Khách hàng hẹn thanh toán tuần sau',
+      title: 'Call customer to remind them',
+      description: 'Customer promised to pay next week',
       createdByUserId: 'user-3',
     });
 
@@ -1064,7 +1064,7 @@ function buildOpenTask(): InternalTask {
     assignedToUserId: 'user-1',
     createdByUserId: null,
     taskType: 'ESCALATION',
-    title: 'Công nợ quá hạn 30 ngày cần xử lý',
+    title: 'Overdue receivable by 30 days requires action',
     description: null,
     status: 'OPEN',
     createdAt: new Date('2026-08-01'),
@@ -1138,7 +1138,7 @@ function buildOpenTask(): InternalTask {
     assignedToUserId: 'user-1',
     createdByUserId: null,
     taskType: 'MANUAL',
-    title: 'Gọi điện nhắc khách hàng',
+    title: 'Call customer to remind them',
     description: null,
     status: 'OPEN',
     createdAt: new Date('2026-08-01'),
@@ -1224,7 +1224,7 @@ git commit -m "feat: add ResolveTaskUseCase and DismissTaskUseCase"
 
 **Interfaces:**
 - Consumes: `ListReceivableTasksUseCase`, `CreateManualTaskUseCase`, `ResolveTaskUseCase`, `DismissTaskUseCase` (Tasks 7-8), `JwtAuthGuard`/`PermissionGuard`/`Permission.RECEIVABLE_READ`/`Permission.INTERNAL_TASK_MANAGE`
-- Produces: the four HTTP endpoints in the spec's mục 3, used by the FE receivable detail and Task 10's integration test
+- Produces: the four HTTP endpoints in the spec's section 3, used by the FE receivable detail and Task 10's integration test
 
 - [ ] **Step 1: Create `ListReceivableTasksUseCase` and its focused test**
 
@@ -1763,11 +1763,11 @@ git commit -m "test: add integration coverage for the InternalTask escalation sc
 - **Escalation race closed:** the old read-then-save path was not safe when two event deliveries overlapped. `InternalTaskOrmEntity` now has a partial unique index for `(organizationId, receivableId)` where `taskType = ESCALATION AND status = OPEN`, and `createEscalationIfAbsent()` uses one insert and treats PostgreSQL `23505` as the expected losing scan.
 - **Background tenant setup is explicit:** the event listener passes only the organization payload; `RunEscalationScanUseCase` itself opens `TenantContextService.run({ userId: 'system', organizationId, role: Role.OWNER }, ...)` before any membership, receivable, or task repository call. Tests cover that constructor and callback contract.
 - **Reconciled with `2026-08-03-collection-activity-timeline.md` (2026-08-04 pass).** That plan now exists and owns `receivable.closed`, scoped narrowly to "became `PAID`" (matching its spec's "Receivable.status → PAID" rule exactly — it never fires on `WRITTEN_OFF`/`CANCELLED`). Since this plan's auto-dismiss needs ALL three terminal statuses, the event was renamed to `receivable.status-closed` (Task 10) — a distinct name, not competing for the same one. `WriteOffReceivableUseCase`/`CancelReceivableUseCase` still emit it directly (Steps 6-7, unchanged in substance, renamed). `AllocatePaymentUseCase` (Step 8) is NO LONGER modified by this plan at all — `2026-08-03-collection-activity-timeline.md` Task 5 already emits `receivable.status-closed` alongside its own `receivable.closed`/`payment.allocated` in the same code path, avoiding two plans independently rewriting the same use case.
-- **`escalationThresholdDays` is hardcoded to `30`** (`ESCALATION_THRESHOLD_DAYS` constant, Task 6 Step 1) per spec mục 5's first open question being explicitly non-blocking. Making it configurable per-organization or per-`ReminderPolicy` is a follow-up once the Reminder Automation plan's `ReminderPolicy`/`ReminderRule` entities exist to hang that configuration off of.
-- **Resolve/dismiss permission model.** Spec mục 5's second open question (restrict resolve/dismiss to `assignedToUserId`/`OWNER` only, or let anyone with visibility resolve) is resolved here as: any user holding `Permission.INTERNAL_TASK_MANAGE` (`FINANCE_MANAGER`, `ACCOUNTANT`) may resolve/dismiss any task in their organization. Simplest option that satisfies the spec's explicit creation-permission list; tighten to an assignee/owner check later if this proves too permissive in practice.
+- **`escalationThresholdDays` is hardcoded to `30`** (`ESCALATION_THRESHOLD_DAYS` constant, Task 6 Step 1) per spec section 5's first open question being explicitly non-blocking. Making it configurable per-organization or per-`ReminderPolicy` is a follow-up once the Reminder Automation plan's `ReminderPolicy`/`ReminderRule` entities exist to hang that configuration off of.
+- **Resolve/dismiss permission model.** Spec section 5's second open question (restrict resolve/dismiss to `assignedToUserId`/`OWNER` only, or let anyone with visibility resolve) is resolved here as: any user holding `Permission.INTERNAL_TASK_MANAGE` (`FINANCE_MANAGER`, `ACCOUNTANT`) may resolve/dismiss any task in their organization. Simplest option that satisfies the spec's explicit creation-permission list; tighten to an assignee/owner check later if this proves too permissive in practice.
 - **New permission, justified.** `Permission.INTERNAL_TASK_MANAGE` (Task 5) was added rather than reusing `RECEIVABLE_WRITE`, because editing a receivable's own fields and managing its side-table of assignable follow-up tasks are different capabilities — a role that can write receivables should not automatically be able to silently resolve another user's escalation task.
 - **`CancelReceivableUseCase` signature mismatch — fixed at the source (2026-08-04 pass).** `2026-08-03-testing-strategy.md` originally gave `CancelReceivableUseCase` an explicit `organizationId` parameter, targeting what it believed was a pre-RBAC-migration controller state. That plan has been corrected to match `WriteOffReceivableUseCase`'s shape exactly (`execute(receivableId)`, no `organizationId` argument, `TenantContextService`-scoped). Task 10 Step 7 here now emits `receivable.status-closed` from that corrected signature — no lingering mismatch, no follow-up needed.
 - **`AllocatePaymentInput.allocatedByUserId` is `string | null`** — this plan makes no changes to `AllocatePaymentUseCase` at all (see the note above), so it simply consumes whatever type `2026-08-03-collection-activity-timeline.md`/`2026-08-03-webhook-matching-engine.md` already established there.
-- **Spec coverage:** `InternalTask` entity (spec mục 1) → Task 1-2. Auto-escalation (mục 2) → Tasks 3, 4, 6. Manual create + resolve/dismiss (mục 3) → Tasks 7-9. Auto-dismiss on closed status (mục 3, last paragraph) → Task 10. Out-of-scope items (mục 4: no auto-block on new receivables for a flagged customer, no separate push/Slack channel) are not implemented, matching the spec.
+- **Spec coverage:** `InternalTask` entity (spec section 1) → Task 1-2. Auto-escalation (section 2) → Tasks 3, 4, 6. Manual create + resolve/dismiss (section 3) → Tasks 7-9. Auto-dismiss on closed status (section 3, last paragraph) → Task 10. Out-of-scope items (section 4: no auto-block on new receivables for a flagged customer, no separate push/Slack channel) are not implemented, matching the spec.
 
 

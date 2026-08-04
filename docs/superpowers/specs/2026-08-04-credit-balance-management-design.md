@@ -93,7 +93,7 @@ Response `200`:
       "totalAmount": 25000000,
       "allocatedAmount": 20000000,
       "unallocatedAmount": 5000000,
-      "payerName": "Công ty B",
+      "payerName": "Company B",
       "receivedAt": "2026-08-04T10:00:00.000Z",
       "createdAt": "2026-08-04T10:00:01.000Z"
     }
@@ -107,7 +107,7 @@ Rules:
 - Include partially allocated Payments and `mark-prepaid` Payments with zero allocations.
 - Exclude Payments whose `customerId` is null.
 - Sort items by `receivedAt ASC`, then `paymentId ASC` for deterministic oldest-credit-first display.
-- Return integer amounts in đồng; never use floating point.
+- Return integer amounts in VND; never use floating point.
 - No pagination in MVP; the endpoint is customer-scoped and the product has no credit-history pagination requirement yet.
 - The response contains IDs and payment metadata only; it does not expose bank credentials, webhook raw payloads, or any secret.
 

@@ -1,6 +1,6 @@
 # Collection Activity Timeline Design
 
-> Spec con của [docs/overview.md](../../../docs/overview.md) (mục 7.13), phụ thuộc [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md), [2026-08-03-reminder-automation-design.md](2026-08-03-reminder-automation-design.md), [2026-08-03-dispute-management-design.md](2026-08-03-dispute-management-design.md).
+> Child spec of [docs/overview.md](../../../docs/overview.md) (section 7.13), dependent on [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md), [2026-08-03-reminder-automation-design.md](2026-08-03-reminder-automation-design.md), and [2026-08-03-dispute-management-design.md](2026-08-03-dispute-management-design.md).
 
 ## 1. Entity
 
@@ -10,15 +10,15 @@ CollectionActivity
   activityType (INVOICE_CREATED/EMAIL_SENT/EMAIL_FAILED/PAYMENT_RECEIVED/
                 RECEIVABLE_CLOSED/DISPUTE_OPENED/DISPUTE_RESOLVED/MANUAL_CALL/
                 MANUAL_NOTE/PAYMENT_COMMITMENT),
-  description, metadata (jsonb), createdByUserId (nullable — null = hệ thống tự ghi),
+  description, metadata (jsonb), createdByUserId (nullable — null = recorded automatically by the system),
   createdAt
 ```
 
-`CollectionActivity` là bản ghi hiển thị (denormalized log cho timeline), **không phải nguồn sự thật** — trạng thái nghiệp vụ thật vẫn nằm ở `ReminderExecution`/`PaymentAllocation`/`Dispute`. Đây chỉ là nơi tổng hợp để hiển thị timeline mà không cần UNION nhiều bảng nguồn mỗi lần load trang.
+`CollectionActivity` is a display record (a denormalized log for the timeline), **not the source of truth**—the actual business state remains in `ReminderExecution`/`PaymentAllocation`/`Dispute`. It aggregates records for display without UNIONing multiple source tables on every page load.
 
-## 2. Nguồn ghi dữ liệu
+## 2. Data write sources
 
-### 2.1. Domain event listener (tự động)
+### 2.1. Domain event listener (automatic)
 
 ```
 ReminderExecution created (status=SENT/FAILED)  → activityType EMAIL_SENT / EMAIL_FAILED
@@ -27,31 +27,31 @@ Receivable.status → PAID                        → activityType RECEIVABLE_CL
 Dispute created / resolved                      → activityType DISPUTE_OPENED / DISPUTE_RESOLVED
 ```
 
-Dùng event emitter nội bộ (NestJS `EventEmitter2` hoặc tương đương): service gốc (`PaymentAllocationService`, `ReminderService`, `DisputeService`) chỉ **emit event sau khi transaction thành công**, không tự viết code ghi `CollectionActivity` rải rác trong từng service — một listener duy nhất lắng nghe và ghi vào `CollectionActivity`. Listener bất đồng bộ phải mở `TenantContext` từ `organizationId` trong payload trước cả lookup `customerId` lẫn activity insert.
+Use an internal event emitter (NestJS `EventEmitter2` or equivalent): source services (`PaymentAllocationService`, `ReminderService`, `DisputeService`) only **emit events after a successful transaction**; they do not scatter `CollectionActivity` writes across each service. A single listener listens and writes to `CollectionActivity`. An asynchronous listener must establish `TenantContext` from `organizationId` in the payload before looking up `customerId` or inserting the activity.
 
-### 2.2. API thủ công (kế toán/sales tự nhập)
+### 2.2. Manual API (entered by accounting/sales)
 
 ```
 POST /receivables/:id/activities
   body: { activityType: MANUAL_CALL | MANUAL_NOTE | PAYMENT_COMMITMENT, description }
-  createdByUserId = user hiện tại
+  createdByUserId = current user
 ```
 
-Dùng cho các sự kiện không có nguồn hệ thống nào khác — "nhân viên đã gọi điện", "khách hàng cam kết ngày thanh toán" (tài liệu gốc mục 7.13).
+Use this for events with no other system source—"an employee called" or "the customer committed to a payment date" (section 7.13 of the original document).
 
-## 3. API đọc
+## 3. Read API
 
 ```
-GET /customers/:id/timeline   → CollectionActivity của mọi Receivable thuộc customer, sắp theo createdAt DESC
-GET /receivables/:id/timeline → CollectionActivity của riêng receivable đó
+GET /customers/:id/timeline   → CollectionActivity for every Receivable belonging to the customer, ordered by createdAt DESC
+GET /receivables/:id/timeline → CollectionActivity for that receivable only
 ```
 
-## 4. Ngoài phạm vi
+## 4. Out of scope
 
-- UI hiển thị timeline chi tiết (đã mô tả ở tài liệu gốc mục 18, Receivable Detail).
-- Sửa/xóa `CollectionActivity` đã ghi — chỉ INSERT, không có endpoint PATCH/DELETE (tương tự nguyên tắc bất biến của AuditLog).
+- Detailed timeline UI (described in section 18 of the original document, Receivable Detail).
+- Editing/deleting recorded `CollectionActivity`—INSERT only, with no PATCH/DELETE endpoint (following the immutability principle of `AuditLog`).
 
-## 5. Câu hỏi mở (không chặn implementation)
+## 5. Open questions (do not block implementation)
 
-- `MANUAL_NOTE`/`MANUAL_CALL` có cần trường riêng cho "kết quả cuộc gọi" (đã liên lạc được/không) hay chỉ cần `description` tự do?
-- Event listener chạy đồng bộ trong cùng transaction hay bất đồng bộ qua queue riêng (ảnh hưởng tới việc `CollectionActivity` có đảm bảo nhất quán ngay lập tức với bảng nguồn hay có độ trễ nhỏ)?
+- Do `MANUAL_NOTE`/`MANUAL_CALL` need a separate "call outcome" field (contacted/not contacted), or is free-form `description` enough?
+- Should the event listener run synchronously in the same transaction or asynchronously through a separate queue (determining whether `CollectionActivity` is immediately consistent with the source table or has a small delay)?

@@ -1,65 +1,65 @@
 # Email Template Management Design
 
-> Spec con của [docs/overview.md](../../../docs/overview.md) (mục 7.6), phụ thuộc [2026-08-03-reminder-automation-design.md](2026-08-03-reminder-automation-design.md) (`ReminderRule.emailTemplateId`) và [2026-08-03-email-notification-service-design.md](2026-08-03-email-notification-service-design.md) (bước "Render EmailTemplate"). Cả hai spec đó dùng `EmailTemplate` nhưng chưa định nghĩa entity này — spec này lấp khoảng trống đó.
+> Child spec of [docs/overview.md](../../../docs/overview.md) (section 7.6), dependent on [2026-08-03-reminder-automation-design.md](2026-08-03-reminder-automation-design.md) (`ReminderRule.emailTemplateId`) and [2026-08-03-email-notification-service-design.md](2026-08-03-email-notification-service-design.md) (the "Render EmailTemplate" step). Both specs use `EmailTemplate` without defining the entity; this spec fills that gap.
 
 ## 1. Entity
 
 ```
 EmailTemplate
   id, organizationId, name, subject, bodyHtml (Handlebars template),
-  reminderStage (nullable — chỉ để hiển thị "template này đang gán cho rule nào" trên UI,
-                  chỉ là metadata hiển thị; nguồn thật của binding là ReminderRule.emailTemplateId),
-  isDefault (boolean — đánh dấu template hệ thống seed sẵn, không cho xóa, chỉ cho sửa nội dung),
+  reminderStage (nullable — only to display "which rule uses this template" in the UI,
+                  display metadata only; the binding source of truth is ReminderRule.emailTemplateId),
+  isDefault (boolean — marks a seeded system template; cannot be deleted, only edited),
   createdAt, updatedAt
 ```
 
-Không có bảng version riêng — sửa là `UPDATE` thẳng, không lưu lịch sử (đủ cho MVP, tránh over-engineer khi chưa có yêu cầu audit lịch sử template cụ thể; nếu sau này cần, `AuditLog` đã có ở [2026-08-03-exception-queue-audit-log-design.md](2026-08-03-exception-queue-audit-log-design.md) có thể ghi thêm `EmailTemplate` vào danh sách entity theo dõi mà không cần sửa lại spec này).
+There is no separate version table—edits use a direct `UPDATE` with no history (sufficient for the MVP and avoids over-engineering without a specific template-history audit requirement). If needed later, the `AuditLog` from [2026-08-03-exception-queue-audit-log-design.md](2026-08-03-exception-queue-audit-log-design.md) can add `EmailTemplate` to its tracked entities without changing this spec.
 
-## 2. Seed mặc định khi tạo Organization
-
-```
-Khi signup tạo Organization (2026-08-03-authentication-onboarding-design.md mục 2):
-  seed sẵn N EmailTemplate (isDefault=true), mỗi cái ứng với 1 mốc offsetDays chuẩn
-  (vd "Nhắc trước hạn 3 ngày", "Nhắc quá hạn 1 ngày", "Nhắc quá hạn 7 ngày", "Nhắc quá hạn 30 ngày")
-  → ReminderRule mặc định của org mới trỏ sẵn emailTemplateId vào các bản ghi này
-```
-
-Kế toán có thể sửa nội dung `isDefault=true` (đổi giọng văn) nhưng không xóa được — đảm bảo `ReminderRule` không bao giờ trỏ tới `emailTemplateId` đã bị xóa.
-
-## 3. Biến & render (Handlebars)
+## 2. Default seed when creating an Organization
 
 ```
-EmailTemplate.bodyHtml: HTML thô + cú pháp Handlebars {{variableName}}
-Biến hệ thống cung cấp cố định (danh sách đóng, không cho thêm biến tùy ý):
+When signup creates an Organization (section 2 of 2026-08-03-authentication-onboarding-design.md):
+  seed N EmailTemplate records (isDefault=true), each corresponding to one standard offsetDays milestone
+  (for example, "Reminder 3 days before due", "1 day overdue reminder", "7 days overdue reminder", "30 days overdue reminder")
+  → the new organization's default ReminderRules point emailTemplateId to these records
+```
+
+Accounting may edit the content of `isDefault=true` templates (change the tone) but cannot delete them—ensuring `ReminderRule` never points to a deleted `emailTemplateId`.
+
+## 3. Variables & rendering (Handlebars)
+
+```
+EmailTemplate.bodyHtml: raw HTML + Handlebars {{variableName}} syntax
+Fixed system variables (closed list; arbitrary variables are not allowed):
   {{customerName}}, {{invoiceNumber}}, {{originalAmount}}, {{remainingAmount}},
   {{dueDate}}, {{daysOverdue}}, {{organizationName}}
 
-Render: Handlebars.compile(template.bodyHtml)(data) → tự động HTML-escape mọi biến
-  (chống XSS nếu customerName/invoiceNumber chứa ký tự đặc biệt do import từ Excel)
+Render: Handlebars.compile(template.bodyHtml)(data) → automatically HTML-escape every variable
+  (prevents XSS if customerName/invoiceNumber contains special characters imported from Excel)
 ```
 
-`EmailService.sendReminderEmail` (đã thiết kế ở email-notification-service-design) gọi render này trước khi enqueue — không đổi lại flow đã có, chỉ định nghĩa rõ bước "Render EmailTemplate" ở đó dùng cơ chế nào.
+`EmailService.sendReminderEmail` (designed in email-notification-service-design) performs this rendering before enqueueing. The existing flow does not change; this only defines the mechanism used by its "Render EmailTemplate" step.
 
 ## 4. API
 
 ```
-GET    /api/v1/email-templates              → danh sách template của organization
-POST   /api/v1/email-templates              → tạo mới (isDefault=false), Quyền: REMINDER_POLICY_WRITE
-PATCH  /api/v1/email-templates/:id          → sửa subject/bodyHtml, Quyền: REMINDER_POLICY_WRITE
-DELETE /api/v1/email-templates/:id          → chỉ cho phép nếu isDefault=false VÀ không có
-                                        ReminderRule nào đang trỏ emailTemplateId này (409 nếu đang dùng)
-POST   /api/v1/email-templates/:id/preview  → render thử với dữ liệu mẫu giả định, trả
-                                              { subject, bodyHtml } để hiển thị preview trên UI trước khi lưu,
-                                              không gửi email thật; Quyền: REMINDER_POLICY_WRITE
+GET    /api/v1/email-templates              → list the organization's templates
+POST   /api/v1/email-templates              → create a new template (isDefault=false), Permission: REMINDER_POLICY_WRITE
+PATCH  /api/v1/email-templates/:id          → edit subject/bodyHtml, Permission: REMINDER_POLICY_WRITE
+DELETE /api/v1/email-templates/:id          → allowed only if isDefault=false AND no
+                                        ReminderRule points to this emailTemplateId (409 if in use)
+POST   /api/v1/email-templates/:id/preview  → render a preview with assumed sample data, returning
+                                              { subject, bodyHtml } for display in the UI before saving,
+                                              without sending a real email; Permission: REMINDER_POLICY_WRITE
 ```
 
-## 5. Ngoài phạm vi
+## 5. Out of scope
 
-- Kéo-thả visual editor (drag-drop email builder) — chỉ cần textarea/code editor nhập HTML thô ở MVP, không xây dựng WYSIWYG editor riêng.
-- Đa ngôn ngữ template (i18n theo locale khách hàng) — tài liệu gốc không đề cập, ngoài phạm vi.
-- Versioning/lịch sử sửa template (xem mục 1).
+- Drag-and-drop visual editor (drag-drop email builder)—a textarea/code editor for raw HTML is enough in the MVP; do not build a separate WYSIWYG editor.
+- Multilingual templates (i18n by customer locale)—not mentioned in the original document and out of scope.
+- Template versioning/edit history (see section 1).
 
-## 6. Câu hỏi mở (không chặn implementation)
+## 6. Open questions (do not block implementation)
 
-- Danh sách biến hệ thống cố định ở mục 3 có cần mở rộng thêm (vd `{{paymentLink}}` nếu sau này có cổng thanh toán online) hay giữ nguyên 7 biến này là đủ cho MVP?
-- `POST /email-templates/:id/preview` dùng dữ liệu mẫu hard-code trong code hay cho phép chọn 1 Receivable thật để preview với dữ liệu thực tế?
+- Should the fixed system-variable list in section 3 be expanded (for example, `{{paymentLink}}` if an online payment portal is added), or are these seven variables enough for the MVP?
+- Should `POST /email-templates/:id/preview` use hard-coded sample data or allow selecting a real Receivable for a preview with real data?

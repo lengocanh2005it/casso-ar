@@ -1,10 +1,10 @@
 # Billing + Usage Metering Design (MVP)
 
-> Spec con của [docs/overview.md](../../../docs/overview.md), phụ thuộc [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md) (đếm `Receivable`) và [2026-08-03-cas-id-bank-connection-design.md](2026-08-03-cas-id-bank-connection-design.md) (đếm `BankConnection`). Định nghĩa cách giới hạn sử dụng theo gói subscription cho MVP.
+> Child spec of [docs/overview.md](../../../docs/overview.md), dependent on [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md) (counting `Receivable`) and [2026-08-03-cas-id-bank-connection-design.md](2026-08-03-cas-id-bank-connection-design.md) (counting `BankConnection`). Defines subscription-plan usage limits for the MVP.
 
-## 1. Phạm vi
+## 1. Scope
 
-Chỉ 2 metric gate tính năng: **số Receivable tạo mới mỗi tháng** và **số BankConnection đang ACTIVE** — khớp với cách đóng gói Free/Starter/Business ở tài liệu gốc mục 10 (vd Free = 50 receivable/tháng + 1 tài khoản). Không track/gate email, AI request, hay user seat ở spec này — có thể track riêng sau nhưng không cần hạn mức cứng ở MVP.
+Only two feature-gating metrics are included: **new Receivable records created per month** and **ACTIVE BankConnection records**—matching the Free/Starter/Business packaging in section 10 of the original document (for example, Free = 50 receivables/month + 1 account). This spec does not track or gate email, AI requests, or user seats; they can be tracked separately later but do not need hard limits in the MVP.
 
 ## 2. Entities
 
@@ -16,11 +16,11 @@ Subscription
   currentPeriodStart, currentPeriodEnd, createdAt
 ```
 
-MVP không có bảng `Plan` catalog riêng. `planId` là enum/label và hai limit được snapshot trên `Subscription`; khi có pricing/catalog UI thật mới tách bảng `Plan`.
+The MVP has no separate `Plan` catalog table. `planId` is an enum/label and the two limits are snapshotted on `Subscription`; split out a `Plan` table when a real pricing/catalog UI exists.
 
-Signup phải tạo một `Subscription(ACTIVE, FREE)` với kỳ hiện tại trong cùng transaction tạo Organization. Không có organization hoạt động nào thiếu subscription.
+Signup must create a `Subscription(ACTIVE, FREE)` for the current period in the same transaction that creates the Organization. No active organization may lack a subscription.
 
-Không có `UsageRecord`/`UsageAggregate` riêng cho 2 metric này. Tạo `Receivable` không phải sự kiện bị retry tự động nhiều lần (khác webhook) nên không cần idempotency riêng cho việc đếm — tính trực tiếp từ bảng nguồn:
+There are no separate `UsageRecord`/`UsageAggregate` tables for these two metrics. Creating a `Receivable` is not an event that is automatically retried many times (unlike a webhook), so counting needs no separate idempotency mechanism—calculate it directly from the source tables:
 
 ```
 receivablesThisMonth  = COUNT(Receivable WHERE organizationId=? AND createdAt BETWEEN currentPeriodStart AND currentPeriodEnd)
@@ -29,28 +29,28 @@ activeBankConnections = COUNT(BankConnection WHERE organizationId=? AND status='
 
 ## 3. Limit enforcement
 
-Chặn cứng, kiểm tra trong cùng transaction với hành động tạo mới (tránh race condition hai request đồng thời cùng vượt giới hạn):
+Hard-block the operation, checking the limit in the same transaction as the creation action (to prevent two concurrent requests from both exceeding the limit):
 
 ```
 POST /receivables:
   1. BEGIN TRANSACTION
-  2. SELECT COUNT(*) Receivable tháng hiện tại FOR UPDATE (hoặc advisory lock theo organizationId)
-  3. Nếu count >= plan.maxReceivablesPerMonth → ROLLBACK,
-     trả 402 "Đã đạt giới hạn gói {planName}, nâng cấp để tiếp tục"
-  4. Ngược lại → INSERT Receivable, COMMIT
+  2. SELECT COUNT(*) Receivable for the current month FOR UPDATE (or advisory lock by organizationId)
+  3. If count >= plan.maxReceivablesPerMonth → ROLLBACK,
+     return 402 "Plan limit {planName} reached; upgrade to continue"
+  4. Otherwise → INSERT Receivable, COMMIT
 
-POST /bank-connections/cas-id/sessions/:id/exchange (kích hoạt BankConnection):
-  Tương tự — check COUNT(BankConnection ACTIVE) >= plan.maxBankConnections
-  trước khi set status=ACTIVE; nếu vượt, exchange thất bại với 402 tương tự.
+POST /bank-connections/cas-id/sessions/:id/exchange (activate BankConnection):
+  Similarly — check COUNT(BankConnection ACTIVE) >= plan.maxBankConnections
+  before setting status=ACTIVE; if exceeded, exchange fails with the same 402.
 ```
 
-## 4. Ngoài phạm vi
+## 4. Out of scope
 
-- Usage event log chi tiết (`UsageRecord`, `UsageAggregate`) cho email/AI/user seat — chỉ cần khi các metric này thực sự được gate.
-- Phí vượt hạn mức (overage billing), grace period khi subscription hết hạn — mô tả ở tài liệu gốc mục 11, spec riêng nếu cần trước khi demo.
-- Thanh toán subscription qua chính CASSO (billing invoice tự động) — tài liệu gốc mục 11.
+- Detailed usage event logs (`UsageRecord`, `UsageAggregate`) for email/AI/user seats—only needed when those metrics are actually gated.
+- Overage billing and a grace period after subscription expiry—described in section 11 of the original document; use a separate spec if needed before the demo.
+- Paying for the subscription through CASSO itself (automated billing invoices)—section 11 of the original document.
 
-## 5. Câu hỏi mở (không chặn implementation)
+## 5. Open questions (do not block implementation)
 
-- `currentPeriodStart`/`currentPeriodEnd` tính theo lịch dương (đầu tháng - cuối tháng) hay theo ngày đăng ký subscription (rolling 30 ngày)?
-- Khi hạ cấp gói (downgrade) mà usage tháng hiện tại đã vượt hạn mức gói mới, có chặn ngay hay chỉ áp dụng từ kỳ tiếp theo?
+- Should `currentPeriodStart`/`currentPeriodEnd` follow calendar months (start/end of month) or the subscription date (a rolling 30 days)?
+- When downgrading after current-month usage already exceeds the new plan's limit, should the block apply immediately or from the next period?
