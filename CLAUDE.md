@@ -7,8 +7,8 @@ Nền tảng tự động hóa quản lý và thu hồi công nợ phải thu (A
 ## Quick Reference
 
 - **Repo:** `lengocanh2005it/casso-ledger`
-- **Docs chi tiết:** `OVERVIEW.md` (tổng quan), `docs/superpowers/` (spec/plan), `docs/adr/` (quyết định kiến trúc)
-- **Implementation order:** `docs/superpowers/IMPLEMENTATION-ORDER.md`
+- **Docs chi tiết:** `docs/overview.md` (tổng quan), `docs/superpowers/` (spec/plan), `docs/adr/` (quyết định kiến trúc)
+- **Feature map:** `docs/wayfinder/feature-map.md`
 
 ## Tech Stack
 
