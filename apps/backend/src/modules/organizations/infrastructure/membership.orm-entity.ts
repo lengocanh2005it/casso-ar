@@ -19,7 +19,7 @@ export class MembershipOrmEntity {
   @Column()
   invitedAt: Date;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   joinedAt: Date | null;
 
   @Column()

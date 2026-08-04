@@ -12,7 +12,7 @@ export class ReceivableOrmEntity {
   @Column()
   customerId: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   invoiceId: string | null;
 
   @Column('bigint')
@@ -27,13 +27,13 @@ export class ReceivableOrmEntity {
   @Column({ type: 'enum', enum: ReceivableStatus })
   status: ReceivableStatus;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   salesRepresentativeId: string | null;
 
   @Column()
   createdAt: Date;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   closedAt: Date | null;
 
   @VersionColumn()

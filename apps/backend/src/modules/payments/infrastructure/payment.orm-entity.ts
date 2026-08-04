@@ -8,10 +8,10 @@ export class PaymentOrmEntity {
   @Column()
   organizationId: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   customerId: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   bankTransactionId: string | null;
 
   @Column('bigint')
