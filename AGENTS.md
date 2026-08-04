@@ -192,7 +192,11 @@ git branch -d feat/<ticket-name>
 - Mỗi ticket = 1 worktree riêng
 - Không bao giờ code trực tiếp trên `main`
 - PR phải có test pass + type check pass
-- Update feature-map.md status khi bắt đầu/kết thúc ticket
+- **BẮT BUỘC** cập nhật `docs/wayfinder/feature-map.md` khi:
+  - Bắt đầu ticket: đổi status → `in-progress`
+  - Hoàn thành ticket: đổi status → `done`, thêm `Shipped:` date + PR reference
+  - Blocker thay đổi: cập nhật `Blockers` field
+  - Frontier thay đổi: cập nhật section `Frontier`
 
 ---
 
