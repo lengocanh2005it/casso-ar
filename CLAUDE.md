@@ -12,13 +12,14 @@ Nền tảng tự động hóa quản lý và thu hồi công nợ phải thu (A
 
 | Layer | Technology |
 |-------|-----------|
-| Monorepo | pnpm 10 workspaces + Turborepo |
-| Backend | NestJS 10, TypeORM 0.3, PostgreSQL 16 |
-| Frontend | React 19 + Vite + Tailwind v4 + shadcn/ui |
+| Monorepo | pnpm 11 workspaces + Turborepo |
+| Backend | NestJS 11, TypeORM 1.1, PostgreSQL 16 |
+| Frontend | React 19 + Vite 8 + Tailwind v4 + shadcn/ui |
 | Queue | BullMQ + Redis |
 | Email | Resend |
-| Tooling | Biome (lint/format), Husky + lint-staged |
-| Testing | Jest + testcontainers + supertest |
+| Tooling | Biome 2 (lint/format), Husky + lint-staged |
+| Testing | Jest 30 + testcontainers + supertest |
+| TypeScript | 6.0 |
 | Deploy | Docker Compose (4 services) |
 
 ## Project Structure
