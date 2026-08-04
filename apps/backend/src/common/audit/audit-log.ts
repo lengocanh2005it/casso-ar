@@ -12,7 +12,7 @@ export interface AuditLogProps {
   createdAt: Date;
 }
 
-export class AuditLog {
+export class AuditLog implements AuditLogProps {
   readonly organizationId: string;
   readonly userId: string;
   readonly actionType: AuditActionType;
@@ -24,14 +24,6 @@ export class AuditLog {
   readonly createdAt: Date;
 
   constructor(props: AuditLogProps) {
-    this.organizationId = props.organizationId;
-    this.userId = props.userId;
-    this.actionType = props.actionType;
-    this.entityType = props.entityType;
-    this.entityId = props.entityId;
-    this.beforeState = props.beforeState;
-    this.afterState = props.afterState;
-    this.ipAddress = props.ipAddress;
-    this.createdAt = props.createdAt;
+    Object.assign(this, props);
   }
 }

@@ -6,7 +6,6 @@ export interface IPaymentAllocationRepository {
     id: string,
     manager: EntityManager,
   ): Promise<PaymentAllocation | null>;
-  create(allocation: PaymentAllocation, manager: EntityManager): Promise<void>;
   save(allocation: PaymentAllocation, manager: EntityManager): Promise<void>;
 }
 

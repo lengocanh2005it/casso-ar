@@ -22,13 +22,6 @@ export class TypeOrmPaymentAllocationRepository
     return row ? new PaymentAllocation(row) : null;
   }
 
-  async create(
-    allocation: PaymentAllocation,
-    manager: EntityManager,
-  ): Promise<void> {
-    await manager.getRepository(PaymentAllocationOrmEntity).save(allocation);
-  }
-
   async save(
     allocation: PaymentAllocation,
     manager: EntityManager,
