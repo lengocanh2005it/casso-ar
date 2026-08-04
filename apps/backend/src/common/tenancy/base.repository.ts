@@ -1,4 +1,4 @@
-import type { FindOptionsWhere, Repository } from 'typeorm';
+import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
 // biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
 import { TenantContextService } from './tenant-context';
 
@@ -19,8 +19,18 @@ export abstract class BaseRepository<
     });
   }
 
-  protected async scopedSave(entity: TEntity): Promise<void> {
+  // Writes through a transaction's EntityManager when one is given, falls
+  // back to the injected repository otherwise — collapses the manager-branch
+  // every write-side repository was hand-rolling.
+  protected async scopedSaveWithManager(
+    entity: TEntity,
+    manager?: EntityManager,
+  ): Promise<void> {
     const organizationId = this.tenantContext.getOrganizationId();
-    await this.ormRepo.save({ ...entity, organizationId });
+    const scoped = { ...entity, organizationId } as TEntity;
+    const repo = manager
+      ? manager.getRepository<TEntity>(this.ormRepo.target)
+      : this.ormRepo;
+    await repo.save(scoped);
   }
 }

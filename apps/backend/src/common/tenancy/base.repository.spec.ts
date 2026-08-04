@@ -12,7 +12,7 @@ class FakeRepo extends BaseRepository<{
   }
 
   save(entity: { id: string; organizationId: string; name: string }) {
-    return this.scopedSave(entity);
+    return this.scopedSaveWithManager(entity);
   }
 }
 

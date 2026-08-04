@@ -41,13 +41,9 @@ export class TypeOrmReceivableRepository
   }
 
   async save(receivable: Receivable, manager?: EntityManager): Promise<void> {
-    const organizationId = this.tenantContext.getOrganizationId();
-    const repo = manager
-      ? manager.getRepository(ReceivableOrmEntity)
-      : this.ormRepo;
-    await repo.save({
-      ...receivable,
-      organizationId,
-    } as ReceivableOrmEntity);
+    await this.scopedSaveWithManager(
+      receivable as unknown as ReceivableOrmEntity,
+      manager,
+    );
   }
 }

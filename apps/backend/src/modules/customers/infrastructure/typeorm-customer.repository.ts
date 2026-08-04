@@ -28,14 +28,6 @@ export class TypeOrmCustomerRepository
   }
 
   async save(customer: Customer, manager?: EntityManager): Promise<void> {
-    if (manager) {
-      const repo = manager.getRepository(CustomerOrmEntity);
-      await repo.save({
-        ...customer,
-        organizationId: this.tenantContext.getOrganizationId(),
-      } as CustomerOrmEntity);
-      return;
-    }
-    await this.scopedSave(customer as CustomerOrmEntity);
+    await this.scopedSaveWithManager(customer as CustomerOrmEntity, manager);
   }
 }

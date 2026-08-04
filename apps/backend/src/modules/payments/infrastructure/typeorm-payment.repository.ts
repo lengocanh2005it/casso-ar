@@ -34,10 +34,6 @@ export class TypeOrmPaymentRepository
   }
 
   async save(payment: Payment, manager?: EntityManager): Promise<void> {
-    const organizationId = this.tenantContext.getOrganizationId();
-    const repo = manager
-      ? manager.getRepository(PaymentOrmEntity)
-      : this.ormRepo;
-    await repo.save({ ...payment, organizationId } as PaymentOrmEntity);
+    await this.scopedSaveWithManager(payment as PaymentOrmEntity, manager);
   }
 }
