@@ -1,0 +1,38 @@
+import { Injectable } from '@nestjs/common';
+import type { EntityManager } from 'typeorm';
+import type { TenantContextService } from '../../../common/tenancy/tenant-context';
+import type { IPaymentAllocationRepository } from '../application/payment-allocation-repository.port';
+import { PaymentAllocation } from '../domain/payment-allocation';
+import { PaymentAllocationOrmEntity } from './payment-allocation.orm-entity';
+
+@Injectable()
+export class TypeOrmPaymentAllocationRepository
+  implements IPaymentAllocationRepository
+{
+  constructor(private readonly tenantContext: TenantContextService) {}
+
+  async findByIdForUpdate(
+    id: string,
+    manager: EntityManager,
+  ): Promise<PaymentAllocation | null> {
+    const row = await manager.findOne(PaymentAllocationOrmEntity, {
+      where: { id, organizationId: this.tenantContext.getOrganizationId() },
+      lock: { mode: 'pessimistic_write' },
+    });
+    return row ? new PaymentAllocation(row) : null;
+  }
+
+  async create(
+    allocation: PaymentAllocation,
+    manager: EntityManager,
+  ): Promise<void> {
+    await manager.getRepository(PaymentAllocationOrmEntity).save(allocation);
+  }
+
+  async save(
+    allocation: PaymentAllocation,
+    manager: EntityManager,
+  ): Promise<void> {
+    await manager.getRepository(PaymentAllocationOrmEntity).save(allocation);
+  }
+}

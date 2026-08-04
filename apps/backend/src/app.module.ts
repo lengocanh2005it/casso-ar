@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { typeOrmConfig } from './config/typeorm.config';
 import { CustomersModule } from './modules/customers/customers.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 import { ReceivablesModule } from './modules/receivables/receivables.module';
 
 @Module({
@@ -13,6 +14,7 @@ import { ReceivablesModule } from './modules/receivables/receivables.module';
     CustomersModule,
     InvoicesModule,
     ReceivablesModule,
+    PaymentsModule,
   ],
 })
 export class AppModule {}
