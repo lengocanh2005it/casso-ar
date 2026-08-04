@@ -27,6 +27,9 @@ export class TypeOrmPaymentAllocationRepository
     allocation: PaymentAllocation,
     manager: EntityManager,
   ): Promise<void> {
+    if (allocation.organizationId !== this.tenantContext.getOrganizationId()) {
+      throw new Error('TENANT_MISMATCH');
+    }
     await manager.getRepository(PaymentAllocationOrmEntity).save(allocation);
   }
 }

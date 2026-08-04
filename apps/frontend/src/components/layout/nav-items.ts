@@ -11,12 +11,13 @@ import {
   Settings,
   Users,
 } from 'lucide-react';
+import type { Plan } from '@/lib/plan-access';
 
 export interface NavItem {
   to: string;
   label: string;
   icon: LucideIcon;
-  locked?: boolean;
+  minPlan?: Plan;
   badgeCount?: number;
 }
 
@@ -28,7 +29,7 @@ export const navItems: NavItem[] = [
   { to: '/transactions', label: 'Giao dịch / Đối soát', icon: ArrowLeftRight },
   { to: '/exceptions', label: 'Exception Queue', icon: AlertTriangle },
   { to: '/reminders', label: 'Lịch nhắc', icon: BellRing },
-  { to: '/copilot', label: 'Copilot', icon: Bot, locked: true },
+  { to: '/copilot', label: 'Copilot', icon: Bot, minPlan: 'BUSINESS' },
   { to: '/reports', label: 'Báo cáo', icon: BarChart3 },
   { to: '/settings', label: 'Cài đặt', icon: Settings },
 ];

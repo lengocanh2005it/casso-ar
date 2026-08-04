@@ -1,5 +1,12 @@
-import type * as React from 'react';
+import * as React from 'react';
 import { cn } from '@/lib/utils';
+
+interface SheetContextValue {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+const SheetContext = React.createContext<SheetContextValue | null>(null);
 
 interface SheetProps {
   open?: boolean;
@@ -7,8 +14,15 @@ interface SheetProps {
   children: React.ReactNode;
 }
 
-function Sheet({ open, children }: SheetProps) {
-  return <div data-state={open ? 'open' : 'closed'}>{children}</div>;
+function Sheet({ open: controlledOpen, onOpenChange, children }: SheetProps) {
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const change = onOpenChange ?? setUncontrolledOpen;
+  return (
+    <SheetContext.Provider value={{ open, onOpenChange: change }}>
+      <div data-state={open ? 'open' : 'closed'}>{children}</div>
+    </SheetContext.Provider>
+  );
 }
 
 interface SheetTriggerProps
@@ -16,12 +30,43 @@ interface SheetTriggerProps
   asChild?: boolean;
 }
 
-function SheetTrigger({ children, ...props }: SheetTriggerProps) {
-  return <button {...props}>{children}</button>;
+function SheetTrigger({ children, asChild, ...props }: SheetTriggerProps) {
+  const context = React.useContext(SheetContext);
+  if (asChild && React.isValidElement(children)) {
+    return React.cloneElement(children, {
+      ...props,
+      onClick: (event: React.MouseEvent) => {
+        props.onClick?.(event as React.MouseEvent<HTMLButtonElement>);
+        context?.onOpenChange(true);
+      },
+    } as React.HTMLAttributes<HTMLElement>);
+  }
+  return (
+    <button
+      {...props}
+      type={props.type ?? 'button'}
+      onClick={(event) => {
+        props.onClick?.(event);
+        context?.onOpenChange(true);
+      }}
+    >
+      {children}
+    </button>
+  );
 }
 
 function SheetClose(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button {...props} />;
+  const context = React.useContext(SheetContext);
+  return (
+    <button
+      {...props}
+      type={props.type ?? 'button'}
+      onClick={(event) => {
+        props.onClick?.(event);
+        context?.onOpenChange(false);
+      }}
+    />
+  );
 }
 
 interface SheetContentProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -34,17 +79,22 @@ function SheetContent({
   side = 'left',
   ...props
 }: SheetContentProps) {
+  const context = React.useContext(SheetContext);
+  if (!context?.open) return null;
   return (
-    <div
-      className={cn(
-        'fixed inset-y-0 left-0 z-50 flex flex-col gap-4 bg-sidebar text-sidebar-foreground shadow-lg transition-transform',
-        side === 'left' && 'w-3/4 max-w-xs border-r',
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </div>
+    <>
+      <SheetOverlay onClick={() => context.onOpenChange(false)} />
+      <div
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 flex flex-col gap-4 bg-sidebar text-sidebar-foreground shadow-lg transition-transform',
+          side === 'left' && 'w-3/4 max-w-xs border-r',
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </div>
+    </>
   );
 }
 

@@ -35,7 +35,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (typeof body === 'object' && body !== null) {
       const data = body as Record<string, unknown>;
       if (
-        typeof data.errorCode === 'string' &&
+        this.isErrorCode(data.errorCode) &&
         typeof data.message === 'string'
       ) {
         return {
@@ -47,9 +47,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
       const message = Array.isArray(data.message)
         ? 'Dữ liệu đầu vào không hợp lệ.'
-        : typeof data.message === 'string'
-          ? this.messageForStatus(statusCode, data.message)
-          : 'Đã xảy ra lỗi yêu cầu.';
+        : this.defaultMessageForStatus(statusCode);
       return {
         statusCode,
         errorCode: this.codeForStatus(statusCode),
@@ -61,7 +59,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     return {
       statusCode,
       errorCode: this.codeForStatus(statusCode),
-      message: typeof body === 'string' ? body : 'Đã xảy ra lỗi yêu cầu.',
+      message: this.defaultMessageForStatus(statusCode),
     };
   }
 
@@ -74,13 +72,20 @@ export class HttpExceptionFilter implements ExceptionFilter {
     return ErrorCode.INTERNAL_SERVER_ERROR;
   }
 
-  private messageForStatus(statusCode: number, message: string): string {
-    if (statusCode === 401 && message === 'Unauthorized') {
+  private defaultMessageForStatus(statusCode: number): string {
+    if (statusCode === 400) return 'Dữ liệu đầu vào không hợp lệ.';
+    if (statusCode === 401)
       return 'Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.';
-    }
-    if (statusCode === 403 && message === 'Forbidden') {
-      return 'Bạn không có quyền thực hiện thao tác này.';
-    }
-    return message;
+    if (statusCode === 403) return 'Bạn không có quyền thực hiện thao tác này.';
+    if (statusCode === 404) return 'Không tìm thấy tài nguyên.';
+    if (statusCode === 409) return 'Dữ liệu đang xung đột.';
+    return 'Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.';
+  }
+
+  private isErrorCode(value: unknown): value is ErrorCode {
+    return (
+      typeof value === 'string' &&
+      (Object.values(ErrorCode) as string[]).includes(value)
+    );
   }
 }
