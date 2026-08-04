@@ -2,7 +2,6 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Charter session**: setup-matt-pocock-skills + project-scaffolding plan
 **Map mode**: chart — Plan #1 complete, Plan #2+ pending
 
 ---
@@ -17,40 +16,54 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **Source-of-truth synthesis:**
 - `docs/superpowers/IMPLEMENTATION-ORDER.md` — implementation order + dependencies
-- `docs/superpowers/plans/` — detailed implementation plans
-- `docs/superpowers/specs/` — design specs
+- `docs/superpowers/plans/` — 26 detailed implementation plans
+- `docs/superpowers/specs/` — 22 design specs
 - `docs/adr/` — Architecture Decision Records
 
 **Standing preferences:**
 - Read this map once per session before picking a ticket
-- Cite ADRs from `docs/adr/` for any architectural decision
-- Cite specs from `docs/superpowers/specs/` for any feature work
+- Cite ADRs from `docs/adr/` for architectural decisions
+- Cite specs from `docs/superpowers/specs/` for feature work
 - Owner: `BE` (backend NestJS) or `FE` (frontend React)
 - Type labels: `task`, `research`, `prototype`, `grilling`
 - Status: `open` | `in-progress` | `blocked` | `done` | `superseded`
 - Blockers list plans that must complete first
 
 **Business rules (enforce on every ticket):**
-1. Money: integer đồng, KHÔNG float
+1. Money: integer đồng, KHÔNG float/decimal
 2. Transactions: write money/status trong 1 DB transaction
-3. Tenant isolation: mọi query/write scope theo organizationId
+3. Tenant isolation: mọi query/write scope theo `organizationId`
 4. Derived fields: tính tại query time, KHÔNG store
+5. `paidAmount`/`allocatedAmount` là persisted rollup, chỉ update trong transaction có lock
+6. `domain/` không import NestJS/TypeORM
+
+**Key cross-plan contracts:**
+- `AllocatePaymentUseCase.allocateWithinTransaction(manager, input)` — Plan 1 → Plans 8, 13
+- `TenantContextService` (AsyncLocalStorage) — Plan 2 → All backend plans
+- `BaseRepository` (auto-scope) — Plan 2 → All repositories
+- `@Audited(actionType, entityType)` — Plan 13 → Plans 1, 8, 13
+- `EventEmitter2` events — Plans 9, 10 → Plans 10, 11, 12
+- `EmailService.sendReminderEmail` — Plan 7 → Plans 12, 16
+- `reminder.scan.completed` event — Plan 12 → Plan 11
+- `ReceivableStatus` enum — `packages/shared-types` → All plans
+- `Permission` enum + `ROLE_PERMISSIONS` — Plan 2 → All RBAC endpoints
+- Read API response shapes — Plan 17 → Plans 18-21 (FE)
 
 ## Decisions so far
 
-- **2026-08-04**: Plan #1 (Project Scaffolding + Domain Core) complete — merged PR #1
-- **2026-08-04**: Tech stack upgraded to NestJS 11, TypeORM 1.1, TypeScript 6.0, Biome 2.5
+- **2026-08-04**: Plan #1 complete — PR #1 merged, 21 commits
+- **2026-08-04**: Tech stack: NestJS 11, TypeORM 1.1, TypeScript 6.0, Biome 2.5, React 19, Vite 8
 - **2026-08-04**: TenantContextService uses AsyncLocalStorage (request-scoped)
 - **2026-08-04**: Domain entities: Customer/Invoice as interfaces, Receivable/Payment as classes with behavior
+- **2026-08-04**: PaymentAllocation uses `implements PaymentAllocationData` pattern
+- **2026-08-04**: AuditLog uses enums (AuditActionType, AuditEntityType) — only used values
 
 ## Not yet specified
 
-<!-- Fog of war — questions suspected but not sharp enough to ticket -->
-
-- Frontend tech stack final decision (React 19 + Vite + Tailwind v4 + shadcn/ui)
-- Cas ID integration details (OAuth flow, token exchange)
-- Email service provider selection (Resend confirmed in spec)
-- Copilot AI model selection
+- Cas ID OAuth flow details (grant → link → publicToken → accessToken)
+- Resend email provider configuration
+- Copilot AI model selection (Claude via @anthropic-ai/sdk per spec)
+- Frontend design tokens (oklch colors, "Be Vietnam Pro" font)
 
 ## Out of scope
 
@@ -58,184 +71,470 @@ Success = a single document a new developer can read and know exactly what to pi
 - Kubernetes production-grade deployment
 - Multi-currency support
 - SSO/OAuth social login
+- ML-based cash flow forecasting (rule-based naive forecast only)
 
 ---
 
 ## Ticket Index
 
-**23 plans** | status snapshot (2026-08-04):
+**26 plans** | status snapshot (2026-08-04):
 - 🟢 done (1): Plan #1
-- 🔴 open/not started (22): Plan #2–#23
+- 🔴 open/not started (25): Plan #2–#23 + 3 additional plans
 
-### Lane A — Foundation (Plans 1–6)
+---
+
+### LANE A — Foundation (Plans 1–6)
+
+---
 
 #### Plan #1 — Project Scaffolding + Domain Core
 - **Type**: task
 - **Status**: done ✅
 - **Owner**: BE
-- **Spec**: `docs/superpowers/specs/2026-08-03-project-scaffolding-architecture-design.md`
-- **Plan**: `docs/superpowers/plans/2026-08-03-project-scaffolding-and-domain-core.md`
+- **Spec**: `specs/2026-08-03-project-scaffolding-architecture-design.md`
+- **Plan**: `plans/2026-08-03-project-scaffolding-and-domain-core.md`
 - **Blockers**: none
 - **Shipped**: 2026-08-04 — PR #1 merged, 21 commits
+- **Created**: Monorepo (pnpm + Turborepo + Biome), NestJS backend, 5 domain modules (Customer, Invoice, Receivable, Payment, PaymentAllocation), state machines, use cases (AllocatePayment, UndoPaymentAllocation), controllers, TypeORM config, Docker Compose, integration test, agent docs
+
+---
 
 #### Plan #2 — Multi-tenancy + RBAC
 - **Type**: task
 - **Status**: open
 - **Owner**: BE
-- **Spec**: `docs/superpowers/specs/2026-08-03-multi-tenancy-rbac-design.md`
+- **Spec**: `specs/2026-08-03-multi-tenancy-rbac-design.md`
 - **Blockers**: Plan #1 ✅
-- **Note**: Organization, User, Membership, Role, Permission entities + guards
+- **Key entities**: `Organization`, `User`, `Membership`, `Role` (OWNER/FINANCE_MANAGER/ACCOUNTANT/SALES_REP/VIEWER), `Permission` (13 permissions)
+- **Key rules**:
+  - 5 static roles, 13 permissions
+  - `BaseRepository` auto-adds `WHERE organizationId`
+  - JWT strategy re-validates active Membership
+  - `EmailVerifiedGuard` global guard for business APIs
+  - SALES_REP only sees own customers (`WHERE salesRepresentativeId = ctx.userId`)
+- **Creates**: `common/tenancy/` (enhanced), `common/auth/` (JWT strategy, guards), `common/rbac/` (Permission enum, RequirePermission decorator, PermissionGuard), `organizations/` module, migrated repositories to use BaseRepository
+
+---
 
 #### Plan #3 — Billing + Usage Metering
 - **Type**: task
 - **Status**: open
 - **Owner**: BE
-- **Spec**: `docs/superpowers/specs/2026-08-03-billing-usage-metering-design.md`
+- **Spec**: `specs/2026-08-03-billing-usage-metering-design.md`
 - **Blockers**: Plan #1 ✅, Plan #2
+- **Key entities**: `Subscription` (FREE/STARTER/BUSINESS/ENTERPRISE, ACTIVE/PAST_DUE/CANCELLED)
+- **Key rules**:
+  - 2 metric gates: `receivablesThisMonth`, `activeBankConnections`
+  - Count directly from source tables (no usage tracking table)
+  - `pg_advisory_xact_lock` prevents race conditions
+  - Hard-block at 402: `POST /receivables` and bank connection exchange
+  - Signup creates FREE subscription in bootstrap transaction
+- **Creates**: `billing/` module, `PlanLimitService`, subscription entity, integration test for quota enforcement
+
+---
 
 #### Plan #4 — Authentication + Onboarding
 - **Type**: task
 - **Status**: open
 - **Owner**: BE
-- **Spec**: `docs/superpowers/specs/2026-08-03-authentication-onboarding-design.md`
+- **Spec**: `specs/2026-08-03-authentication-onboarding-design.md`
 - **Blockers**: Plan #1 ✅, Plan #2, Plan #3
-- **Note**: JWT, verify email, invite, reset password, bootstrap port
+- **Key entities**: `User`, `EmailVerificationToken`, `PasswordResetToken`, `MembershipInvite`, `RefreshToken`
+- **Key rules**:
+  - Bootstrap transaction: Organization + User + Membership(OWNER) + Subscription(FREE) + 4 default email templates + default reminder rules
+  - Tokens stored as SHA-256 hash (never plaintext)
+  - Access token 15min, refresh token 7day httpOnly cookie
+  - Rate limit 5/min per (IP, email) — not per-IP-only
+  - Forgot-password always returns 200 (prevent enumeration)
+  - Reset revokes all refresh tokens
+- **Creates**: `users/` module, `auth/` module (4 token entities + 8 use cases + controller), `EmailVerifiedGuard`
+
+---
 
 #### Plan #5 — Cas ID Bank Connection
 - **Type**: task
 - **Status**: open
 - **Owner**: BE
-- **Spec**: `docs/superpowers/specs/2026-08-03-cas-id-bank-connection-design.md`
+- **Spec**: `specs/2026-08-03-cas-id-bank-connection-design.md`
 - **Blockers**: Plan #2, Plan #3, Plan #4
+- **Key entities**: `CasIdConnectionSession`, `BankConnection` (ACTIVE/REQUIRES_REAUTHORIZATION/DISCONNECTED), `ConnectionAuditEvent`
+- **Key rules**:
+  - Redirect-based flow: grant token → Cas Link → publicToken → accessToken exchange
+  - AES-256-GCM encryption for stored access tokens
+  - Lazy revocation detection (401/403 → REQUIRES_REAUTHORIZATION)
+  - Re-auth reactivates existing row (not create new)
+  - `MockCasIdAdapter` for MVP
+- **Creates**: `bank-connections/` module, token encryption utility, initiate/exchange/disconnect use cases, controller
+
+---
 
 #### Plan #6 — Email Template Management
 - **Type**: task
 - **Status**: open
 - **Owner**: BE
-- **Spec**: `docs/superpowers/specs/2026-08-03-email-template-management-design.md`
+- **Spec**: `specs/2026-08-03-email-template-management-design.md`
 - **Blockers**: Plan #2, Plan #3, Plan #4
+- **Key entities**: `EmailTemplate` (isDefault, reminderStage, bodyHtml)
+- **Key rules**:
+  - 4 default templates seeded per organization in bootstrap
+  - `isDefault` templates editable but NOT deletable
+  - Delete blocked if referenced by reminder rule
+  - Handlebars auto-escapes XSS
+  - Fixed 7 render variables
+  - Preview endpoint returns `{ subject, bodyHtml }`
+- **Creates**: `email-templates/` module, render/create/list/update/delete/preview use cases, controller
 
-### Lane B — Features (Plans 7–16)
+---
+
+### LANE B — Features (Plans 7–16)
+
+---
 
 #### Plan #7 — Email Notification Service
 - **Type**: task
 - **Status**: open
 - **Owner**: BE
-- **Spec**: `docs/superpowers/specs/2026-08-03-email-notification-service-design.md`
+- **Spec**: `specs/2026-08-03-email-notification-service-design.md`
 - **Blockers**: Plan #4, Plan #6
+- **Key entities**: None (orchestration only)
+- **Key rules**:
+  - `IEmailProviderAdapter` port with `ResendEmailAdapter`
+  - Never call provider synchronously — always via BullMQ queue
+  - 3 retries with exponential backoff
+  - `SENT` status only after provider confirms (has `providerMessageId`)
+  - `FAILED` after final attempt
+  - Rebinds `AUTH_EMAIL_SENDER` to real Resend adapter
+- **Creates**: `notifications/` module, `ResendEmailAdapter`, `ResendAuthEmailSenderAdapter`, `EmailQueueProcessor`, integration test
+
+---
 
 #### Plan #8 — Webhook Ingestion + Matching Engine
 - **Type**: task
 - **Status**: open
 - **Owner**: BE
-- **Spec**: `docs/superpowers/specs/2026-08-03-webhook-matching-engine-design.md`
+- **Spec**: `specs/2026-08-03-webhook-matching-engine-design.md`
 - **Blockers**: Plan #1 ✅, Plan #2, Plan #5
+- **Key entities**: `WebhookInbox`, `BankTransaction`, `MatchingCandidate`, `CustomerBankAccount`
+- **Key rules**:
+  - `providerTransactionId` unique constraint = idempotency
+  - Constant-time header auth (client ID + secret key)
+  - `amount < 0` never scored (refunds)
+  - 5-component scoring: referenceCodeScore(0-60) + amountScore(0-20) + customerBankAccountScore(0-10) + payerNameScore(0-5) + timingScore(0-5)
+  - Thresholds: ≥90 auto-allocate, 60-89 Exception Queue, <60 UNMATCHED
+  - Money stays integer throughout
+- **Creates**: `webhooks/` module (3 entities + scoring functions + normalizer + processor), `bank-accounts/` module (stub), BullMQ setup, integration tests
+
+---
 
 #### Plan #9 — Dispute Management
 - **Type**: task
 - **Status**: open
 - **Owner**: BE
-- **Spec**: `docs/superpowers/specs/2026-08-03-dispute-management-design.md`
+- **Spec**: `specs/2026-08-03-dispute-management-design.md`
 - **Blockers**: Plan #1 ✅, Plan #2
+- **Key entities**: `Dispute` (OPEN/RESOLVED)
+- **Key rules**:
+  - Opening dispute does NOT change `Receivable.status`
+  - Max 1 OPEN dispute per receivable at a time
+  - `isDisputed` = `EXISTS(Dispute WHERE status='OPEN')` — computed, never stored
+  - Domain events: `dispute.opened`, `dispute.resolved` (emitted after save)
+- **Creates**: `disputes/` module, `GetReceivableUseCase` (attaches `isDisputed`), `EventEmitterModule.forRoot()`, integration test
+
+---
 
 #### Plan #10 — Collection Activity Timeline
 - **Type**: task
 - **Status**: open
 - **Owner**: BE
-- **Spec**: `docs/superpowers/specs/2026-08-03-collection-activity-timeline-design.md`
+- **Spec**: `specs/2026-08-03-collection-activity-timeline-design.md`
 - **Blockers**: Plan #1 ✅, Plan #7, Plan #9
+- **Key entities**: `CollectionActivity` (10 activity types, INSERT-only)
+- **Key rules**:
+  - Never the source of truth — status lives in `ReminderExecution`/`PaymentAllocation`/`Dispute`/`Receivable`
+  - Only INSERT, no update/delete
+  - Single `CollectionActivityListener` subscribing to 6 events
+  - Listener wraps tenant context for background events
+- **Creates**: `collection-activity/` module, listener (6 events), `RecordManualActivityUseCase`, modifies `AllocatePaymentUseCase` to emit events
+
+---
 
 #### Plan #11 — Internal Task + Escalation
 - **Type**: task
 - **Status**: open
 - **Owner**: BE
-- **Spec**: `docs/superpowers/specs/2026-08-03-internal-task-escalation-design.md`
+- **Spec**: `specs/2026-08-03-internal-task-escalation-design.md`
 - **Blockers**: Plan #1 ✅, Plan #2
+- **Key entities**: `InternalTask` (ESCALATION/MANUAL, OPEN/DONE/DISMISSED)
+- **Key rules**:
+  - Escalation threshold 30 days overdue (hardcoded MVP)
+  - `receivable.status-closed` = broad terminal event (auto-dismiss)
+  - `receivable.closed` = PAID-only
+  - Assigned to first FINANCE_MANAGER
+  - CRUD endpoints for manual tasks
+- **Creates**: `internal-tasks/` module, `RunEscalationScanUseCase`, listeners, controller (4 endpoints)
+
+---
 
 #### Plan #12 — Reminder Automation
 - **Type**: task
 - **Status**: open
 - **Owner**: BE
-- **Spec**: `docs/superpowers/specs/2026-08-03-reminder-automation-design.md`
+- **Spec**: `specs/2026-08-03-reminder-automation-design.md`
 - **Blockers**: Plan #1 ✅, Plan #2, Plan #6, Plan #7
+- **Key entities**: `ReminderPolicy`, `ReminderRule`, `ReminderExecution`, `CustomerGroup` (VIP/REGULAR)
+- **Key rules**:
+  - Policy unique by `(organizationId, customerGroup)`
+  - Rule uses `offsetDays` (negative=before, positive=after dueDate)
+  - Rate limiting via latest SENT execution (`minIntervalDays`)
+  - Daily BullMQ scan emits `reminder.scan.completed`
+  - Fresh-state worker re-checks before sending
+  - Timezone: `Asia/Ho_Chi_Minh` (not server time)
+  - `PENDING→SENT/FAILED` lifecycle, immutable `ReminderExecution`
+- **Creates**: `reminders/` module (3 entities + scheduler + sender + processors), CRUD endpoints, integration tests
+
+---
 
 #### Plan #13 — Exception Queue + Audit Log
 - **Type**: task
 - **Status**: open
 - **Owner**: BE
-- **Spec**: `docs/superpowers/specs/2026-08-03-exception-queue-audit-log-design.md`
+- **Spec**: `specs/2026-08-03-exception-queue-audit-log-design.md`
 - **Blockers**: Plan #1 ✅, Plan #2, Plan #8
+- **Key entities**: `AuditLog` (INSERT-only), `BankTransaction` extended with `IGNORED` status
+- **Key rules**:
+  - `match` uses `BankTransaction.version` optimistic lock + `AllocatePaymentUseCase`
+  - `skip`/`mark-prepaid` don't need version (idempotent)
+  - Audit payload sanitized (denylist for sensitive fields)
+  - `@Audited()` decorator = fire-and-forget (global interceptor)
+  - Response: `/bank-transactions/unmatched`, `/bank-transactions/pending-review-count`
+- **Creates**: `common/audit/` module (@Global), `exception-queue/` module (match/skip/mark-prepaid use cases + controller), integration tests
+
+---
 
 #### Plan #14 — Invoice Import
 - **Type**: task
 - **Status**: open
 - **Owner**: BE
-- **Spec**: `docs/superpowers/specs/2026-08-03-invoice-import-design.md`
+- **Spec**: `specs/2026-08-03-invoice-import-design.md`
 - **Blockers**: Plan #1 ✅, Plan #2, Plan #3
+- **Key entities**: Reuses existing `Customer`, `Invoice`, `Receivable`
+- **Key rules**:
+  - Multipart Excel/CSV upload
+  - Row numbering 1-based (header=row 1)
+  - Per-row transaction (valid rows succeed, invalid reported)
+  - Customer resolved by taxCode→email then auto-created
+  - `InvoiceRowParser` is pure function
+  - Response: `{ totalRows, successCount, failedRows: [{ rowNumber, data, errors }] }`
+- **Creates**: `invoice-import/` module, file parser, row validator, controller, integration test
+
+---
 
 #### Plan #15 — Aging Dashboard + Reporting
 - **Type**: task
 - **Status**: open
 - **Owner**: BE + FE
-- **Spec**: `docs/superpowers/specs/2026-08-03-aging-dashboard-reporting-design.md`
+- **Spec**: `specs/2026-08-03-aging-dashboard-reporting-design.md`
 - **Blockers**: Plan #1 ✅, Plan #2, Plan #8, Plan #13
+- **Key entities**: None (read-only queries)
+- **Key rules**:
+  - 5 canonical aging buckets: `NOT_DUE`, `OVERDUE_1_7`, `OVERDUE_8_30`, `OVERDUE_31_60`, `OVERDUE_60_PLUS`
+  - Real-time raw SQL, no precompute/materialized view
+  - Composite index: `receivables(organizationId, status, dueDate)`
+  - `Permission.REPORT_READ`
+- **Creates**: `reporting/` module (2 query services + controller), composite index
+
+---
 
 #### Plan #16 — Collection Copilot
 - **Type**: task
 - **Status**: open
 - **Owner**: BE + FE
-- **Spec**: `docs/superpowers/specs/2026-08-03-collection-copilot-design.md`
+- **Spec**: `specs/2026-08-03-collection-copilot-design.md`
 - **Blockers**: Plan #2, Plan #6, Plan #7, Plan #10, Plan #12
+- **Key entities**: `CopilotConversation`, `CopilotMessage`, `CopilotPendingAction`, `CopilotDraft`, `AIUsageLog`
+- **Key rules**:
+  - Chat-based AI (Claude via `@anthropic-ai/sdk`)
+  - 5 tools max (hardcoded whitelist): `getReceivableSummary`, `getCollectionActivityTimeline`, `getPaymentHistory`, `draftReminderEmail`, `sendReminderEmail`
+  - `sendReminderEmail` intercepted into pending action (never executes in model turn)
+  - Confirm/cancel endpoints: `POST /copilot/actions/:id/confirm|cancel`
+  - 15s timeout + 1 retry
+  - `CopilotPendingAction` expires 10min
+  - `Permission.REMINDER_SEND_MANUAL` gates write
+  - Never expose credentials in prompts
+- **Creates**: `copilot/` module (5 entities + tool registry + chat/confirm/cancel use cases + controller)
 
-### Lane C — Frontend (Plans 17–21)
+---
+
+### LANE C — Frontend (Plans 17–21)
+
+---
 
 #### Plan #17 — Read APIs Completion
 - **Type**: task
 - **Status**: open
 - **Owner**: BE
-- **Spec**: `docs/superpowers/plans/2026-08-03-read-apis-completion.md`
+- **Plan**: `plans/2026-08-03-read-apis-completion.md`
 - **Blockers**: Plan #1 ✅, Plan #2, Plan #3, Plan #5, Plan #8, Plan #9, Plan #10, Plan #13
+- **Key rules**:
+  - Pagination: `page≥1, limit default 20 max 100`
+  - Response: `{ items, total, page, limit }`
+  - Tenant isolation on every endpoint
+  - Response shape contract for FE (no fallback)
+  - Endpoints: `GET /customers`, `GET /customers/:id/timeline`, `GET /receivables`, `GET /receivables/:id`, `GET /bank-transactions/unmatched`, `GET /bank-transactions/pending-review-count`
+- **Creates**: Read endpoints across all modules, integration tests for response shapes
+
+---
 
 #### Plan #18 — Frontend Design System
 - **Type**: task
 - **Status**: open
 - **Owner**: FE
-- **Spec**: `docs/superpowers/specs/2026-08-03-frontend-design-system.md`
+- **Spec**: `specs/2026-08-03-frontend-design-system.md`
 - **Blockers**: Plan #1 ✅
+- **Key rules**:
+  - React 19 + Vite + TypeScript
+  - Tailwind v4 + shadcn/ui (new-york/neutral theme)
+  - Design tokens: primary `#16AB64` (oklch), font "Be Vietnam Pro"
+  - 10 nav items: Dashboard, Customers, Receivables, Bank Connections, Transactions, Exceptions, Reminders, Copilot, Reports, Settings
+  - Feature-based folder structure
+  - API client singleton, `/api/v1` prefix
+- **Creates**: `apps/frontend/` scaffold, design tokens, sidebar, route skeleton, placeholder pages
+
+---
 
 #### Plan #19 — FE Auth + App Shell
 - **Type**: task
 - **Status**: open
 - **Owner**: FE
+- **Plan**: `plans/2026-08-03-fe-auth-app-shell.md`
 - **Blockers**: Plan #3, Plan #18
+- **Key rules**:
+  - Auth UI: login, signup, verify-email, forgot/reset password, invite accept
+  - Axios + `AuthTokenManager` (auto-refresh, single-flight)
+  - httpOnly cookie refresh
+  - `GET /me` for session restore
+  - `hasPermission(role, permission)` for RBAC
+  - Route guards (hide button when no permission, never disable)
+  - No form library (controlled + HTML5)
+- **Creates**: Auth pages, AuthTokenManager, auth context, route guards
+
+---
 
 #### Plan #20 — FE Core AR Loop
 - **Type**: task
 - **Status**: open
 - **Owner**: FE
+- **Plan**: `plans/2026-08-03-fe-core-ar-loop.md`
 - **Blockers**: Plan #1 ✅, Plan #2, Plan #8, Plan #9, Plan #10, Plan #11, Plan #13, Plan #14, Plan #17, Plan #18, Plan #19
+- **Key rules**:
+  - 4 core pages: Customers (list + detail route), Receivables (list + detail route + import + write-off/cancel/dispute), Transactions (matching workspace), Exceptions (review + split match)
+  - Receivable/Customer detail = routes (`/receivables/:id`, `/customers/:id`)
+  - BankTransaction detail = sheet (not route)
+  - RBAC hides buttons (never disables)
+  - Money via `formatVND` utility
+  - `ReceivableStatusBadge` shared component
+- **Creates**: Customer pages, Receivable pages, Transaction matching workspace, Exception queue pages
+
+---
 
 #### Plan #21 — FE Reminders, Copilot, Reports, Settings
 - **Type**: task
 - **Status**: open
 - **Owner**: FE
+- **Plan**: `plans/2026-08-03-fe-reminders-copilot-reports-settings.md`
 - **Blockers**: Plan #4, Plan #5, Plan #6, Plan #7, Plan #12, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19
+- **Key rules**:
+  - Reminders: policy + executions list
+  - Copilot: chat message list + pending-action cards (confirm/cancel)
+  - Reports: aging chart (recharts) + summary cards
+  - Bank Connections: Cas ID QR flow (`qrcode.react`)
+  - Settings: tabbed (Billing + Users + Email Templates)
+  - 402 handling → upgrade prompt
+  - No conversation list (fresh per session for Copilot)
+- **Creates**: Reminder pages, Copilot chat, Reports dashboard, Bank Connection page, Settings tabs
 
-### Lane D — Infrastructure (Plans 22–23)
+---
+
+### LANE D — Infrastructure (Plans 22–23)
+
+---
 
 #### Plan #22 — Testing Strategy + CI
 - **Type**: task
 - **Status**: open
 - **Owner**: BE
-- **Spec**: `docs/superpowers/specs/2026-08-03-testing-strategy-design.md`
+- **Spec**: `specs/2026-08-03-testing-strategy-design.md`
 - **Blockers**: Plan #1 ✅, Plan #7, Plan #8, Plan #13
+- **Key rules**:
+  - Testcontainers for real Postgres + Redis
+  - `turbo run verify` in CI (lint + type-check + test)
+  - Missing integration tests: overpayment leftover, PARTIALLY_PAID reject cancel
+  - Domain errors translated to HTTP in use case layer
+- **Creates**: `CancelReceivableUseCase`, GitHub Actions CI workflow, missing integration tests
+
+---
 
 #### Plan #23 — Deployment + Observability
 - **Type**: task
 - **Status**: open
 - **Owner**: BE
-- **Spec**: `docs/superpowers/specs/2026-08-03-deployment-observability-design.md`
+- **Spec**: `specs/2026-08-03-deployment-observability-design.md`
 - **Blockers**: Plan #1 ✅, Plan #7, Plan #18
+- **Key rules**:
+  - `GET /health` (Postgres + Redis + BullMQ checks) — returns 200/503, never throws
+  - Structured JSON logs with `requestId` correlation (separate AsyncLocalStorage)
+  - `/metrics` Prometheus endpoint (no auth)
+  - Multi-stage Docker builds
+  - Extend compose to 4 services (backend, frontend/nginx, postgres, redis)
+  - No `@nestjs/terminus` / `nestjs-pino` (YAGNI)
+- **Creates**: Health endpoint, metrics endpoint, Dockerfiles, extended docker-compose
+
+---
+
+### ADDITIONAL PLANS (not in IMPLEMENTATION-ORDER lanes)
+
+---
+
+#### Plan: Credit Balance Management
+- **Type**: task
+- **Status**: open
+- **Owner**: BE
+- **Spec**: `specs/2026-08-04-credit-balance-management-design.md`
+- **Blockers**: Plan #2, Plan #8, Plan #13
+- **Key rules**:
+  - Customer credit read API: `GET /customers/:customerId/credits`
+  - `Payment` rollups are source of truth (no new credit entity)
+  - `mark-prepaid` validates customer tenant ownership
+  - Harden allocation paths for credit Payments
+- **Creates**: Credit read endpoint, validation logic
+
+---
+
+#### Plan: Customer Bank Account Management
+- **Type**: task
+- **Status**: open
+- **Owner**: BE
+- **Spec**: `specs/2026-08-04-customer-bank-account-management-design.md`
+- **Blockers**: Plan #8
+- **Key rules**:
+  - Full CRUD for `CustomerBankAccount` mappings
+  - Account number normalization (trim, remove separators, require 4-34 digits)
+  - Active/inactive soft-delete
+  - Masked responses in API/audit
+  - `CUSTOMER_BANK_ACCOUNT_MANAGE` permission
+  - Matching Engine consumes only active mappings
+- **Creates**: `bank-accounts/` module (full CRUD), normalization utility
+
+---
+
+#### Plan: Spec-Plan Reconciliation
+- **Type**: task
+- **Status**: open
+- **Owner**: BE
+- **Plan**: `plans/2026-08-03-spec-plan-reconciliation.md`
+- **Blockers**: All plans
+- **Key rules**: Documentation-only changes, ensures one implementable system across all specs/plans
+- **Creates**: Updated spec/plan files with reconciled contracts
 
 ---
 
@@ -246,4 +545,6 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Plan #18** (Frontend Design System) — blockers: Plan #1 ✅
 
 **Blocked tickets waiting:**
-- Plan #3–#17, #19–#23 — waiting on Plan #2 or other dependencies
+- Plan #3–#17, #19–#23, additional plans — waiting on Plan #2 or other dependencies
+
+**Recommended next step:** Start Plan #2 (Multi-tenancy + RBAC) — it unblocks Plans #3–#16.
