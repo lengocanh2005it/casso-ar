@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, Repository } from 'typeorm';
 import type { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { IInvoiceRepository } from '../application/invoice-repository.port';
-import { Invoice } from '../domain/invoice';
+import type { Invoice } from '../domain/invoice';
 import { InvoiceOrmEntity } from './invoice.orm-entity';
 
 @Injectable()
@@ -18,8 +18,7 @@ export class TypeOrmInvoiceRepository implements IInvoiceRepository {
     const row = await this.repo.findOne({
       where: { id, organizationId: this.tenantContext.getOrganizationId() },
     });
-    if (!row) return null;
-    return new Invoice(row);
+    return row ?? null;
   }
 
   async save(invoice: Invoice, manager?: EntityManager): Promise<void> {

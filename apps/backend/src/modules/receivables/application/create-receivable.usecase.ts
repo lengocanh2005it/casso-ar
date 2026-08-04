@@ -3,46 +3,39 @@ import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import type { TenantContextService } from '../../../common/tenancy/tenant-context';
-import { Receivable } from '../domain/receivable';
+import type { Receivable } from '../domain/receivable';
 import {
   type IReceivableRepository,
   RECEIVABLE_REPOSITORY,
 } from './receivable-repository.port';
 
-export interface CreateReceivableInput {
-  customerId: string;
-  invoiceId: string | null;
-  originalAmount: number;
-  dueDate: Date;
-  salesRepresentativeId: string | null;
-}
-
 @Injectable()
 export class CreateReceivableUseCase {
   constructor(
-    @Inject(RECEIVABLE_REPOSITORY)
-    private readonly receivableRepo: IReceivableRepository,
-    private readonly tenantContext: TenantContextService,
+    @Inject(RECEIVABLE_REPOSITORY) private readonly repo: IReceivableRepository,
+    private readonly tenant: TenantContextService,
   ) {}
 
   async execute(
-    input: CreateReceivableInput,
+    input: {
+      customerId: string;
+      invoiceId: string | null;
+      originalAmount: number;
+      dueDate: Date;
+      salesRepresentativeId: string | null;
+    },
     manager?: EntityManager,
   ): Promise<Receivable> {
-    const receivable = new Receivable({
+    const receivable = {
       id: randomUUID(),
-      organizationId: this.tenantContext.getOrganizationId(),
-      customerId: input.customerId,
-      invoiceId: input.invoiceId,
-      originalAmount: input.originalAmount,
+      organizationId: this.tenant.getOrganizationId(),
+      ...input,
       paidAmount: 0,
-      dueDate: input.dueDate,
       status: ReceivableStatus.OPEN,
-      salesRepresentativeId: input.salesRepresentativeId,
       createdAt: new Date(),
       closedAt: null,
-    });
-    await this.receivableRepo.save(receivable, manager);
+    } as Receivable;
+    await this.repo.save(receivable, manager);
     return receivable;
   }
 }

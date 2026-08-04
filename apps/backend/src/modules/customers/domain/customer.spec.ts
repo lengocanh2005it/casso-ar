@@ -1,8 +1,8 @@
-import { Customer } from './customer';
+import type { Customer } from './customer';
 
-describe('Customer domain entity', () => {
-  it('creates a customer with required fields', () => {
-    const customer = new Customer({
+describe('Customer domain', () => {
+  it('has required fields', () => {
+    const customer: Customer = {
       id: 'cust-1',
       organizationId: 'org-1',
       name: 'Công ty B',
@@ -13,7 +13,7 @@ describe('Customer domain entity', () => {
       creditLimit: 100_000_000,
       priority: 1,
       createdAt: new Date('2026-01-01'),
-    });
+    };
 
     expect(customer.id).toBe('cust-1');
     expect(customer.name).toBe('Công ty B');

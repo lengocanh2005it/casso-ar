@@ -1,9 +1,9 @@
 import { InvoiceStatus } from '@casso-ledger/shared-types';
-import { Invoice } from './invoice';
+import type { Invoice } from './invoice';
 
-describe('Invoice domain entity', () => {
-  it('creates an invoice with DRAFT status by default fields provided', () => {
-    const invoice = new Invoice({
+describe('Invoice domain', () => {
+  it('has required fields', () => {
+    const invoice: Invoice = {
       id: 'inv-1',
       organizationId: 'org-1',
       customerId: 'cust-1',
@@ -15,7 +15,7 @@ describe('Invoice domain entity', () => {
       fileUrl: null,
       status: InvoiceStatus.ISSUED,
       createdAt: new Date('2026-07-20'),
-    });
+    };
 
     expect(invoice.invoiceNumber).toBe('INV-2026-0012');
     expect(invoice.status).toBe(InvoiceStatus.ISSUED);

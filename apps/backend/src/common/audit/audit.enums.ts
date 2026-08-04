@@ -1,15 +1,7 @@
 export enum AuditActionType {
-  PAYMENT_ALLOCATE = 'PAYMENT_ALLOCATE',
   PAYMENT_ALLOCATE_UNDO = 'PAYMENT_ALLOCATE_UNDO',
-  RECEIVABLE_CREATE = 'RECEIVABLE_CREATE',
-  RECEIVABLE_WRITE_OFF = 'RECEIVABLE_WRITE_OFF',
-  RECEIVABLE_CANCEL = 'RECEIVABLE_CANCEL',
 }
 
 export enum AuditEntityType {
-  RECEIVABLE = 'Receivable',
-  PAYMENT = 'Payment',
   PAYMENT_ALLOCATION = 'PaymentAllocation',
-  CUSTOMER = 'Customer',
-  INVOICE = 'Invoice',
 }

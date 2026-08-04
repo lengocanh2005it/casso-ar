@@ -1,4 +1,4 @@
-export interface PaymentAllocationProps {
+export interface PaymentAllocationData {
   id: string;
   organizationId: string;
   paymentId: string;
@@ -12,7 +12,7 @@ export interface PaymentAllocationProps {
   createdAt: Date;
 }
 
-export class PaymentAllocation {
+export class PaymentAllocation implements PaymentAllocationData {
   readonly id: string;
   readonly organizationId: string;
   readonly paymentId: string;
@@ -25,18 +25,8 @@ export class PaymentAllocation {
   readonly undoReason: string | null;
   readonly createdAt: Date;
 
-  constructor(props: PaymentAllocationProps) {
-    this.id = props.id;
-    this.organizationId = props.organizationId;
-    this.paymentId = props.paymentId;
-    this.receivableId = props.receivableId;
-    this.allocatedAmount = props.allocatedAmount;
-    this.allocatedAt = props.allocatedAt;
-    this.allocatedByUserId = props.allocatedByUserId;
-    this.deletedAt = props.deletedAt;
-    this.deletedByUserId = props.deletedByUserId;
-    this.undoReason = props.undoReason;
-    this.createdAt = props.createdAt;
+  constructor(props: PaymentAllocationData) {
+    Object.assign(this, props);
   }
 
   isActive(): boolean {
@@ -44,9 +34,8 @@ export class PaymentAllocation {
   }
 
   undo(deletedByUserId: string, undoReason: string): PaymentAllocation {
-    if (!this.isActive()) {
+    if (!this.isActive())
       throw new Error('Payment allocation is already undone');
-    }
     return new PaymentAllocation({
       ...this,
       deletedAt: new Date(),

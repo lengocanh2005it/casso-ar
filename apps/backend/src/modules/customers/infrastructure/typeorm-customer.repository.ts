@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, Repository } from 'typeorm';
 import type { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { ICustomerRepository } from '../application/customer-repository.port';
-import { Customer } from '../domain/customer';
+import type { Customer } from '../domain/customer';
 import { CustomerOrmEntity } from './customer.orm-entity';
 
 @Injectable()
@@ -18,8 +18,7 @@ export class TypeOrmCustomerRepository implements ICustomerRepository {
     const row = await this.repo.findOne({
       where: { id, organizationId: this.tenantContext.getOrganizationId() },
     });
-    if (!row) return null;
-    return new Customer(row);
+    return row ?? null;
   }
 
   async save(customer: Customer, manager?: EntityManager): Promise<void> {
