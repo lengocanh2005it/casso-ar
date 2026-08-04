@@ -26,4 +26,5 @@
 - Use `EntityManager` parameter for transactional saves
 - `synchronize: true` acceptable for MVP, migration-based when needed
 - KHÔNG dùng `SELECT *` — always select specific columns
+- **BẮT BUỘC** cập nhật `docs/wayfinder/feature-map.md` khi hoàn thành task (đổi status → `done`, thêm `Shipped:` + PR ref)
 - KHÔNG N+1 queries — use `IN` or `JOIN`

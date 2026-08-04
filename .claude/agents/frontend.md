@@ -51,3 +51,4 @@ apps/frontend/src/
 - `hasPermission(role, permission)` for RBAC — hide button, never disable
 - Money formatting: `formatVND()` utility
 - Money as integer đồng, never float
+- **BẮT BUỘC** cập nhật `docs/wayfinder/feature-map.md` khi hoàn thành task (đổi status → `done`, thêm `Shipped:` + PR ref)

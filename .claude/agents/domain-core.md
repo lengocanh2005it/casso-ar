@@ -34,3 +34,4 @@
 7. Dùng `node:` protocol cho Node.js builtins (`import { randomUUID } from 'node:crypto'`)
 8. Interface cho data-only types, class cho types có behavior
 9. KHÔNG dùng `any` trong production code
+10. **BẮT BUỘC** cập nhật `docs/wayfinder/feature-map.md` khi hoàn thành task (đổi status → `done`, thêm `Shipped:` + PR ref)
