@@ -4,7 +4,7 @@ import {
   Injectable,
   type NestInterceptor,
 } from '@nestjs/common';
-import type { Observable } from 'rxjs';
+import { Observable } from 'rxjs';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 // biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
 import { TenantContextService } from './tenant-context';
@@ -21,10 +21,10 @@ export class TenantContextInterceptor implements NestInterceptor {
       return next.handle();
     }
 
-    let result$!: Observable<unknown>;
-    this.tenantContext.run(user, () => {
-      result$ = next.handle();
+    return new Observable((subscriber) => {
+      this.tenantContext.run(user, () => {
+        next.handle().subscribe(subscriber);
+      });
     });
-    return result$;
   }
 }
