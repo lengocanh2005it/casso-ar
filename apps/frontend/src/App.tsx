@@ -1,10 +1,12 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { AppLayout } from '@/components/layout/app-layout';
 import { appRoutes } from '@/routes';
 
 export function App() {
   return (
     <BrowserRouter>
+      <Toaster richColors position="top-right" />
       <Routes>
         <Route element={<AppLayout />}>
           {appRoutes.map((route) =>
