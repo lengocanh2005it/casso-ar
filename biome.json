@@ -11,6 +11,7 @@
     "indentWidth": 2
   },
   "javascript": {
-    "formatter": { "quoteStyle": "single", "semicolons": "always" }
+    "formatter": { "quoteStyle": "single", "semicolons": "always" },
+    "parser": { "unsafeParameterDecoratorsEnabled": true }
   }
 }
