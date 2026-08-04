@@ -6,6 +6,7 @@ import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
 } from '../../modules/organizations/application/membership-repository.port';
+import { ErrorCode } from '../errors/error-code';
 import type { AuthenticatedUser } from './authenticated-user';
 
 interface JwtPayload {
@@ -33,9 +34,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       payload.organizationId,
     );
     if (!membership || !membership.isActive()) {
-      throw new UnauthorizedException(
-        'Active organization membership required',
-      );
+      throw new UnauthorizedException({
+        errorCode: ErrorCode.UNAUTHORIZED,
+        message: 'Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.',
+      });
     }
     return {
       userId: payload.userId,
