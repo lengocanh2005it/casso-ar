@@ -1,3 +1,5 @@
+@AGENTS.md
+
 # Casso Ledger
 
 Nền tảng tự động hóa quản lý và thu hồi công nợ phải thu (Accounts Receivable) cho doanh nghiệp Việt Nam. Sản phẩm B2B SaaS kết nối trực tiếp dữ liệu giao dịch ngân hàng thời gian thực qua Cas ID/CASSO Balance Hook.
