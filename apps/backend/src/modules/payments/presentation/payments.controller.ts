@@ -8,8 +8,10 @@ import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { AllocatePaymentUseCase } from '../application/allocate-payment.usecase';
 // biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
 import { UndoPaymentAllocationUseCase } from '../application/undo-payment-allocation.usecase';
-import type { AllocatePaymentDto } from './dto/allocate-payment.dto';
-import type { UndoPaymentAllocationDto } from './dto/undo-payment-allocation.dto';
+// biome-ignore lint/style/useImportType: must be a value import — Nest's ValidationPipe resolves the @Body() DTO's metatype via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Object`, silently disabling validation/transform (confirmed live: request bodies bound to this DTO came through as `undefined`)
+import { AllocatePaymentDto } from './dto/allocate-payment.dto';
+// biome-ignore lint/style/useImportType: must be a value import — same reason as AllocatePaymentDto above
+import { UndoPaymentAllocationDto } from './dto/undo-payment-allocation.dto';
 
 @Controller('payments')
 export class PaymentsController {
