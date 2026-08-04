@@ -2,7 +2,8 @@ import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
 import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
-import type { TenantContextService } from '../../../common/tenancy/tenant-context';
+// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { AllocatePaymentUseCase } from '../application/allocate-payment.usecase';
 import type { UndoPaymentAllocationUseCase } from '../application/undo-payment-allocation.usecase';
 import type { AllocatePaymentDto } from './dto/allocate-payment.dto';
