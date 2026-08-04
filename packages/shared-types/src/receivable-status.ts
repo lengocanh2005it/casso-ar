@@ -1,0 +1,8 @@
+export enum ReceivableStatus {
+  DRAFT = 'DRAFT',
+  OPEN = 'OPEN',
+  PARTIALLY_PAID = 'PARTIALLY_PAID',
+  PAID = 'PAID',
+  WRITTEN_OFF = 'WRITTEN_OFF',
+  CANCELLED = 'CANCELLED',
+}
