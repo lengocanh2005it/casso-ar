@@ -15,7 +15,6 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Notes
 
 **Source-of-truth synthesis:**
-- `docs/superpowers/IMPLEMENTATION-ORDER.md` — implementation order + dependencies
 - `docs/superpowers/plans/` — 26 detailed implementation plans
 - `docs/superpowers/specs/` — 22 design specs
 - `docs/adr/` — Architecture Decision Records
@@ -491,7 +490,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ---
 
-### ADDITIONAL PLANS (not in IMPLEMENTATION-ORDER lanes)
+### ADDITIONAL PLANS
 
 ---
 
