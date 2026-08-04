@@ -11,6 +11,7 @@ import { PaymentAllocationOrmEntity } from './infrastructure/payment-allocation.
 import { PaymentOrmEntity } from './infrastructure/payment.orm-entity';
 import { TypeOrmPaymentAllocationRepository } from './infrastructure/typeorm-payment-allocation.repository';
 import { TypeOrmPaymentRepository } from './infrastructure/typeorm-payment.repository';
+import { PaymentsController } from './presentation/payments.controller';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { TypeOrmPaymentRepository } from './infrastructure/typeorm-payment.repos
     AllocatePaymentUseCase,
     UndoPaymentAllocationUseCase,
   ],
+  controllers: [PaymentsController],
   exports: [
     PAYMENT_REPOSITORY,
     PAYMENT_ALLOCATION_REPOSITORY,
