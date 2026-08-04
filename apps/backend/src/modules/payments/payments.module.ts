@@ -7,10 +7,10 @@ import { AllocatePaymentUseCase } from './application/allocate-payment.usecase';
 import { PAYMENT_ALLOCATION_REPOSITORY } from './application/payment-allocation-repository.port';
 import { PAYMENT_REPOSITORY } from './application/payment-repository.port';
 import { UndoPaymentAllocationUseCase } from './application/undo-payment-allocation.usecase';
-import { PaymentAllocationOrmEntity } from './infrastructure/payment-allocation.orm-entity';
 import { PaymentOrmEntity } from './infrastructure/payment.orm-entity';
-import { TypeOrmPaymentAllocationRepository } from './infrastructure/typeorm-payment-allocation.repository';
+import { PaymentAllocationOrmEntity } from './infrastructure/payment-allocation.orm-entity';
 import { TypeOrmPaymentRepository } from './infrastructure/typeorm-payment.repository';
+import { TypeOrmPaymentAllocationRepository } from './infrastructure/typeorm-payment-allocation.repository';
 import { PaymentsController } from './presentation/payments.controller';
 
 @Module({

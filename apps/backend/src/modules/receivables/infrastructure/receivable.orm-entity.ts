@@ -1,7 +1,14 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
-import { Column, Entity, PrimaryGeneratedColumn, VersionColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+  VersionColumn,
+} from 'typeorm';
 
 @Entity({ name: 'receivables' })
+@Index(['organizationId', 'status', 'dueDate'])
 export class ReceivableOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -12,7 +19,7 @@ export class ReceivableOrmEntity {
   @Column()
   customerId: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   invoiceId: string | null;
 
   @Column('bigint')
@@ -27,13 +34,13 @@ export class ReceivableOrmEntity {
   @Column({ type: 'enum', enum: ReceivableStatus })
   status: ReceivableStatus;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   salesRepresentativeId: string | null;
 
   @Column()
   createdAt: Date;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   closedAt: Date | null;
 
   @VersionColumn()

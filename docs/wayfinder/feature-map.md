@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1 complete, Plan #2+ pending
+**Map mode**: chart — Plan #1, #2, #18 complete, Plan #3+ pending
 
 ---
 
@@ -77,8 +77,8 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Ticket Index
 
 **26 plans** | status snapshot (2026-08-04):
-- 🟢 done (2): Plan #1, Plan #18
-- 🔴 open/not started (24): Plan #2–#17, #19–#23 + 3 additional plans
+- 🟢 done (3): Plan #1, Plan #2, Plan #18
+- 🔴 open/not started (23): Plan #3–#17, #19–#23 + 3 additional plans
 
 ---
 
@@ -100,18 +100,22 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #2 — Multi-tenancy + RBAC
 - **Type**: task
-- **Status**: open
+- **Status**: done ✅
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-multi-tenancy-rbac-design.md`
+- **Plan**: `plans/2026-08-03-multi-tenancy-rbac.md`
 - **Blockers**: Plan #1 ✅
-- **Key entities**: `Organization`, `User`, `Membership`, `Role` (OWNER/FINANCE_MANAGER/ACCOUNTANT/SALES_REP/VIEWER), `Permission` (13 permissions)
+- **Shipped**: 2026-08-04 — branch `feat/multi-tenancy-rbac`, 25 commits (9 tasks + final-review fix wave + real-e2e fix wave + code-review fix wave + ponytail-review fix wave)
+- **Key entities**: `Membership`, `Role` (OWNER/FINANCE_MANAGER/ACCOUNTANT/SALES_REP/VIEWER), `Permission` (14 permissions). No standalone `Organization` entity — nothing in this branch reads/writes one yet (deleted during the ponytail-review pass; `organizationId` lives as a plain column on every business table per the spec's shared-schema model)
 - **Key rules**:
-  - 5 static roles, 13 permissions
-  - `BaseRepository` auto-adds `WHERE organizationId`
-  - JWT strategy re-validates active Membership
-  - `EmailVerifiedGuard` global guard for business APIs
-  - SALES_REP only sees own customers (`WHERE salesRepresentativeId = ctx.userId`)
-- **Creates**: `common/tenancy/` (enhanced), `common/auth/` (JWT strategy, guards), `common/rbac/` (Permission enum, RequirePermission decorator, PermissionGuard), `organizations/` module, migrated repositories to use BaseRepository
+  - 5 static roles, 14 permissions, hardcoded `ROLE_PERMISSIONS` map (no DB tables)
+  - `BaseRepository` auto-adds `WHERE organizationId` from `TenantContextService` (AsyncLocalStorage); `scopedSaveWithManager` covers both transactional and non-transactional writes in one method
+  - `JwtAuthGuard` (global) + `JwtStrategy` re-validates active Membership from DB, JWT `role` claim is not trusted
+  - `TenantContextInterceptor` (global) propagates the authenticated user through AsyncLocalStorage for the whole request lifecycle, including deferred/async handler execution
+  - `CreateReceivableUseCase` rejects a `customerId` belonging to another organization (tenant-scoped `findById` returns null for cross-tenant references)
+  - Deleted pre-existing insecure `TenantMiddleware` (derived tenant context from unauthenticated request headers)
+- **Created**: `organizations/` module (Membership domain+infra only), `common/tenancy/` (TenantContextService, BaseRepository, TenantContextInterceptor, TenancyModule), `common/auth/` (JwtStrategy, JwtAuthGuard, Public decorator — reserved for Plans #4/#8/#23's health/webhook/auth routes, not yet consumed), `common/rbac/` (Permission enum, ROLE_PERMISSIONS map, RequirePermission decorator, PermissionGuard), migrated Customer/Receivable/Payment repositories to `BaseRepository`, `WriteOffReceivableUseCase` + endpoint, `tenant-isolation.integration.spec.ts`, `organizationId` indexes on Customer/Receivable/Payment/PaymentAllocation
+- **Note**: no `invoices/` module exists in the codebase yet, so the plan's Invoice-repository migration step was skipped as inapplicable. Final whole-branch review (Opus) caught 3 Critical defects invisible to static verification — an `AsyncLocalStorage` propagation bug that would have 500'd every business request, an incomplete `import type`/NestJS-DI sweep that would have failed app boot, and a money-mutating endpoint with no permission check — all fixed and re-reviewed clean. Docker was then made available and the real e2e/integration suite was run for the first time in this branch's history, surfacing 6 more real bugs invisible to any static check (every write endpoint was silently receiving `undefined` request bodies due to more `import type`-erased DTOs; a static-at-import-time TypeORM config that never saw testcontainers' dynamic DB host/port; 4 ORM entities with nullable columns TypeORM couldn't type-infer; plus e2e fixture bugs) — all fixed. A `/code-review` pass (Standards + Spec axes) then caught a real cross-tenant gap (Receivable creation didn't verify `customerId` belonged to the caller's org) and a missing `organizationId` index — both fixed; a hard FK to `organizations` and `Idempotency-Key` support were deliberately deferred (no test fixtures seed a real Organization row yet; no idempotency infra exists in the repo). A `ponytail-review` pass then deleted the unused `Organization` repository/entity/domain class, collapsed 3x duplicated manager-branch save logic into one `BaseRepository` method, and dropped a redundant guard. All 3 e2e/integration suites (6 tests) pass against a real Postgres container, alongside the 12-suite/29-test unit suite and clean `tsc --noEmit` — reverified after every fix wave.
 
 ---
 
@@ -541,10 +545,13 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **Next available tickets** (all blockers resolved):
-- **Plan #2** (Multi-tenancy + RBAC) — blockers: Plan #1 ✅
+- **Plan #3** (Billing + Usage Metering) — blockers: Plan #1 ✅, Plan #2 ✅
+- **Plan #4** (Authentication + Onboarding) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #3
+- **Plan #9** (Dispute Management) — blockers: Plan #1 ✅, Plan #2 ✅
+- **Plan #11** (Internal Task + Escalation) — blockers: Plan #1 ✅, Plan #2 ✅
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3, Plan #18 ✅
 
 **Blocked tickets waiting:**
-- Plan #3–#17, #20–#23, additional plans — waiting on Plan #2 or other dependencies
+- Plan #5–#8, #10, #12–#17, #20–#23, additional plans — waiting on Plan #3/#4/#5/#6 or other dependencies
 
-**Recommended next step:** Start Plan #2 (Multi-tenancy + RBAC) — it unblocks Plans #3–#16.
+**Recommended next step:** Start Plan #3 (Billing + Usage Metering) — it and Plan #4 unblock most of the remaining backend lane.

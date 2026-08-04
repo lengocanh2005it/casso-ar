@@ -1,5 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { DataSource, EntityManager } from 'typeorm';
+import type { EntityManager } from 'typeorm';
+// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
+import { DataSource } from 'typeorm';
 import {
   AuditActionType,
   AuditEntityType,
