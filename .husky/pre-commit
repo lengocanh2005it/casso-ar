@@ -1,1 +1,1 @@
-npx lint-staged && cd apps/backend && npx jest --passWithNoTests --silent
+npx lint-staged && cd packages/shared-types && npx tsc -p tsconfig.json && cd ../../apps/backend && npx tsc --noEmit && npx jest --passWithNoTests --silent

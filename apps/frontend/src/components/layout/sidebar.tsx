@@ -4,7 +4,7 @@ import { useReviewCount } from '@/features/exceptions/api/use-review-count';
 import { cn } from '@/lib/utils';
 import { navItems } from './nav-items';
 
-function ReviewBadge({ count }: { count: number }) {
+function Badge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
     <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-medium text-white">
@@ -54,7 +54,8 @@ export function Sidebar({
       <nav className="flex-1 space-y-1 px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const locked = Boolean(item.minPlan);
+          const badgeCount =
+            item.to === '/exceptions' ? reviewCount : item.badgeCount;
           return (
             <NavLink
               key={item.to}
@@ -70,10 +71,10 @@ export function Sidebar({
             >
               <Icon className="size-4 shrink-0" />
               {!collapsed && <span className="truncate">{item.label}</span>}
-              {!collapsed && item.showReviewBadge && (
-                <ReviewBadge count={reviewCount} />
+              {!collapsed && badgeCount !== undefined && (
+                <Badge count={badgeCount} />
               )}
-              {!collapsed && locked && (
+              {!collapsed && item.locked && (
                 <Lock className="ml-auto size-3.5 text-muted-foreground" />
               )}
             </NavLink>
