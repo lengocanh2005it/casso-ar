@@ -1,41 +1,31 @@
-import { XIcon } from 'lucide-react';
-import * as SheetPrimitive from 'radix-ui/dialog';
 import type * as React from 'react';
 import { cn } from '@/lib/utils';
 
-function Sheet(props: React.ComponentProps<typeof SheetPrimitive.Root>) {
-  return <SheetPrimitive.Root {...props} />;
+interface SheetProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  children: React.ReactNode;
 }
 
-function SheetTrigger(
-  props: React.ComponentProps<typeof SheetPrimitive.Trigger>,
-) {
-  return <SheetPrimitive.Trigger {...props} />;
+function Sheet({ open, children }: SheetProps) {
+  return <div data-state={open ? 'open' : 'closed'}>{children}</div>;
 }
 
-function SheetClose(props: React.ComponentProps<typeof SheetPrimitive.Close>) {
-  return <SheetPrimitive.Close {...props} />;
+interface SheetTriggerProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  asChild?: boolean;
 }
 
-function SheetPortal(
-  props: React.ComponentProps<typeof SheetPrimitive.Portal>,
-) {
-  return <SheetPrimitive.Portal {...props} />;
+function SheetTrigger({ children, ...props }: SheetTriggerProps) {
+  return <button {...props}>{children}</button>;
 }
 
-function SheetOverlay({
-  className,
-  ...props
-}: React.ComponentProps<typeof SheetPrimitive.Overlay>) {
-  return (
-    <SheetPrimitive.Overlay
-      className={cn(
-        'fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
-        className,
-      )}
-      {...props}
-    />
-  );
+function SheetClose(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return <button {...props} />;
+}
+
+interface SheetContentProps extends React.HTMLAttributes<HTMLDivElement> {
+  side?: 'top' | 'right' | 'bottom' | 'left';
 }
 
 function SheetContent({
@@ -43,29 +33,31 @@ function SheetContent({
   children,
   side = 'left',
   ...props
-}: React.ComponentProps<typeof SheetPrimitive.Content> & {
-  side?: 'top' | 'right' | 'bottom' | 'left';
-}) {
+}: SheetContentProps) {
   return (
-    <SheetPortal>
-      <SheetOverlay />
-      <SheetPrimitive.Content
-        className={cn(
-          'fixed z-50 flex flex-col gap-4 bg-sidebar text-sidebar-foreground shadow-lg transition ease-in-out data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:duration-300 data-[state=open]:duration-500',
-          side === 'left' &&
-            'inset-y-0 left-0 h-full w-3/4 max-w-xs border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left',
-          className,
-        )}
-        {...props}
-      >
-        {children}
-        <SheetPrimitive.Close className="absolute right-4 top-4 rounded-xs opacity-70 outline-none hover:opacity-100 focus:ring-2 focus:ring-ring">
-          <XIcon className="size-4" />
-          <span className="sr-only">Close</span>
-        </SheetPrimitive.Close>
-      </SheetPrimitive.Content>
-    </SheetPortal>
+    <div
+      className={cn(
+        'fixed inset-y-0 left-0 z-50 flex flex-col gap-4 bg-sidebar text-sidebar-foreground shadow-lg transition-transform',
+        side === 'left' && 'w-3/4 max-w-xs border-r',
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </div>
   );
 }
 
-export { Sheet, SheetClose, SheetContent, SheetTrigger };
+function SheetOverlay({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn('fixed inset-0 z-50 bg-black/50', className)}
+      {...props}
+    />
+  );
+}
+
+export { Sheet, SheetClose, SheetContent, SheetOverlay, SheetTrigger };
