@@ -1,5 +1,4 @@
 import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
@@ -12,7 +11,7 @@ import { CreateReceivableDto } from './dto/create-receivable.dto';
 import { toReceivableResponse } from './dto/receivable-response.dto';
 
 @Controller('receivables')
-@UseGuards(JwtAuthGuard, PermissionGuard)
+@UseGuards(PermissionGuard)
 export class ReceivablesController {
   constructor(
     private readonly createReceivableUseCase: CreateReceivableUseCase,
