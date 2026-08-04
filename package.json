@@ -2,7 +2,9 @@
   "name": "casso-ledger",
   "private": true,
   "packageManager": "pnpm@10.11.0",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "turbo run build",
     "dev:backend": "turbo run dev --filter=@casso-ledger/backend",
@@ -11,7 +13,8 @@
     "format": "biome format --write .",
     "test": "turbo run test",
     "type-check": "turbo run type-check",
-    "verify": "turbo run lint type-check test"
+    "verify": "turbo run lint type-check test",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
@@ -19,5 +22,8 @@
     "lint-staged": "15.2.10",
     "turbo": "2.3.3",
     "typescript": "5.7.2"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json}": ["biome check --write --no-errors-on-unmatched"]
   }
 }
