@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CustomersModule } from '../customers/customers.module';
 import { CreateReceivableUseCase } from './application/create-receivable.usecase';
 import { RECEIVABLE_REPOSITORY } from './application/receivable-repository.port';
 import { WriteOffReceivableUseCase } from './application/write-off-receivable.usecase';
@@ -8,7 +9,7 @@ import { TypeOrmReceivableRepository } from './infrastructure/typeorm-receivable
 import { ReceivablesController } from './presentation/receivables.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ReceivableOrmEntity])],
+  imports: [TypeOrmModule.forFeature([ReceivableOrmEntity]), CustomersModule],
   providers: [
     { provide: RECEIVABLE_REPOSITORY, useClass: TypeOrmReceivableRepository },
     CreateReceivableUseCase,

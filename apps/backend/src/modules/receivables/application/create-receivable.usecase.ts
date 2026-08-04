@@ -4,6 +4,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 // biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import {
+  CUSTOMER_REPOSITORY,
+  type ICustomerRepository,
+} from '../../customers/application/customer-repository.port';
 import type { Receivable } from '../domain/receivable';
 import {
   type IReceivableRepository,
@@ -14,6 +18,8 @@ import {
 export class CreateReceivableUseCase {
   constructor(
     @Inject(RECEIVABLE_REPOSITORY) private readonly repo: IReceivableRepository,
+    @Inject(CUSTOMER_REPOSITORY)
+    private readonly customerRepo: ICustomerRepository,
     private readonly tenant: TenantContextService,
   ) {}
 
@@ -27,6 +33,14 @@ export class CreateReceivableUseCase {
     },
     manager?: EntityManager,
   ): Promise<Receivable> {
+    // customerRepo.findById is tenant-scoped (BaseRepository), so a customer
+    // belonging to a different organization resolves to null here — this is
+    // what prevents a receivable from being created against another tenant's customer.
+    const customer = await this.customerRepo.findById(input.customerId);
+    if (!customer) {
+      throw new Error('Customer not found');
+    }
+
     const receivable = {
       id: randomUUID(),
       organizationId: this.tenant.getOrganizationId(),
