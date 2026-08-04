@@ -1,41 +1,26 @@
-import { AsyncLocalStorage } from 'node:async_hooks';
-import { Injectable, Scope } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { AsyncLocalStorage } from 'async_hooks';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
-interface TenantStore {
-  organizationId: string;
-  userId?: string;
-}
-
-export const tenantAsyncStorage = new AsyncLocalStorage<TenantStore>();
-
-@Injectable({ scope: Scope.REQUEST })
+@Injectable()
 export class TenantContextService {
+  private readonly storage = new AsyncLocalStorage<AuthenticatedUser>();
+
+  run<T>(user: AuthenticatedUser, callback: () => T): T {
+    return this.storage.run(user, callback);
+  }
+
+  getCurrentUser(): AuthenticatedUser | undefined {
+    return this.storage.getStore();
+  }
+
   getOrganizationId(): string {
-    const store = tenantAsyncStorage.getStore();
-    if (!store?.organizationId) {
+    const user = this.getCurrentUser();
+    if (!user) {
       throw new Error(
-        'Tenant context not initialized — ensure TenantMiddleware is applied',
+        'TenantContextService accessed outside of an authenticated request',
       );
     }
-    return store.organizationId;
-  }
-
-  setOrganizationId(id: string): void {
-    const store = tenantAsyncStorage.getStore();
-    if (store) {
-      store.organizationId = id;
-    }
-  }
-
-  getUserId(): string | undefined {
-    const store = tenantAsyncStorage.getStore();
-    return store?.userId;
-  }
-
-  setUserId(id: string): void {
-    const store = tenantAsyncStorage.getStore();
-    if (store) {
-      store.userId = id;
-    }
+    return user.organizationId;
   }
 }
