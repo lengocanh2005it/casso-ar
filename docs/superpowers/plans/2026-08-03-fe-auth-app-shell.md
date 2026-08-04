@@ -4,21 +4,21 @@
 
 **Goal:** Build the authentication UI and session layer for `apps/frontend` on top of the scaffold from `2026-08-03-frontend-design-system.md`: upgrade the API client to the `AuthTokenManager` pattern (auto-refresh JWT, single-flight), add `useAuth` + route guards, and implement all 6 auth pages (login, signup, verify-email, forgot/reset password, invite accept) wired to the backend endpoints from `2026-08-03-authentication-onboarding.md`.
 
-**Architecture:** Client pattern auth tự refresh JWT qua httpOnly cookie: axios instance + `AuthTokenManager` (single-flight), route guards `ProtectedRoute`/`GuestRoute`, auth context (`contexts/`). Casso's BE returns plain JSON (no `ApiResponse` wrapper), so the client unwraps with `response.data`. Session restore on page reload: `getValidAccessToken()` (triggers refresh via httpOnly cookie if needed) → `GET /api/v1/me` → set user.
+**Architecture:** Client auth pattern automatically refreshes the JWT through an httpOnly cookie: axios instance + `AuthTokenManager` (single-flight), route guards `ProtectedRoute`/`GuestRoute`, auth context (`contexts/`). Casso's BE returns plain JSON (no `ApiResponse` wrapper), so the client unwraps with `response.data`. Session restore on page reload: `getValidAccessToken()` (triggers refresh via httpOnly cookie if needed) → `GET /api/v1/me` → set user.
 
 **Tech Stack:** axios (new dependency — the design-system plan's `lib/api-client.ts` is a fetch wrapper; replace with axios to support interceptors/auto token refresh), TanStack Query (already installed), React Router 7 (already installed), vitest + testing-library (already installed, `src/test/setup.ts` exists).
 
 ## Global Constraints
 
 - Root scripts: `pnpm --filter @casso-ledger/frontend test` (vitest), `pnpm --filter @casso-ledger/frontend type-check` (tsc -b --noEmit), lint/format via Biome root.
-- TypeScript strict mode is on (scaffolding spec mục 4).
+- TypeScript strict mode is on (scaffolding spec section 4).
 - BE response shape: **plain JSON, no `ApiResponse` wrapper** (verified: no `ApiResponse` exists in any BE plan). Client uses `response.data` directly.
 - Refresh-token contract: `POST /api/v1/auth/refresh` exchanges the httpOnly cookie for a new `{ accessToken }` — FE always sends `withCredentials: true`; the BE authentication plan owns this cookie contract.
 - `GET /api/v1/me` returns `{ id, email, name, role, organizationId, organizationName, subscriptionPlan }` per the Read APIs completion plan — the FE's `AuthenticatedUser`.
 - `POST /api/v1/auth/signup` returns `{ accessToken, userId, organizationId }`; FE stores the token and hydrates the session with `GET /api/v1/me` (authentication plan Task 5: `SignupUseCase` calls `LoginUseCase` internally).
 - No form library (no react-hook-form/zod): controlled components + HTML5 validation only.
 - Copy pattern, not re-implementation; adapt shapes to Casso. All concrete values are in the steps below — do NOT re-scan external sources.
-- Naming: file kebab-case, component PascalCase (scaffolding spec mục 4).
+- Naming: file kebab-case, component PascalCase (scaffolding spec section 4).
 
 ---
 
@@ -142,7 +142,7 @@ export class AuthTokenManager {
     return this.accessToken;
   }
 
-  /** Lấy access token hợp lệ — tự refresh nếu thiếu hoặc gần hết hạn. Single-flight: nhiều caller chung 1 refresh. */
+  /** Get a valid access token — refresh automatically if missing or nearly expired. Single-flight: multiple callers share 1 refresh. */
   async getValidAccessToken(): Promise<string | null> {
     if (this.accessToken) {
       try {
@@ -150,7 +150,7 @@ export class AuthTokenManager {
         const expiresSec = payload.exp as number;
         if (expiresSec && expiresSec * 1000 > Date.now() + 30_000) return this.accessToken;
       } catch {
-        // Không parse được → refresh
+        // Failed to parse → refresh
       }
     }
     if (!this.refreshPromise) {
@@ -194,7 +194,7 @@ export class AuthTokenManager {
 
 export const authTokenManager = new AuthTokenManager();
 
-/** Gọi API: gắn token nếu có (route public như verify-email/reset/invite chạy không cần login), unwrap response.data, lỗi HTTP (401/402/403/5xx) throw lên caller. */
+/** Call the API: attach the token when available (public routes such as verify-email/reset/invite do not require login), unwrap response.data, throw HTTP errors (401/402/403/5xx) to the caller. */
 export async function apiRequest<T>(config: AxiosRequestConfig): Promise<T> {
   const token = await authTokenManager.getValidAccessToken();
   const response = await apiClient.request<T>({
@@ -232,7 +232,7 @@ git commit -m "feat(frontend): axios api client with AuthTokenManager auto-refre
 - Test: `apps/frontend/test/rbac.spec.ts`
 
 **Interfaces:**
-- Consumes: `Permission`, `Role` enums from `@casso-ledger/shared-types` (created in scaffolding plan Task 3; `ROLE_PERMISSIONS` map follows the multi-tenancy spec mục 2 — values copied from `2026-08-03-multi-tenancy-rbac-design.md`)
+- Consumes: `Permission`, `Role` enums from `@casso-ledger/shared-types` (created in scaffolding plan Task 3; `ROLE_PERMISSIONS` map follows the multi-tenancy spec section 2 — values copied from `2026-08-03-multi-tenancy-rbac-design.md`)
 - Produces: `hasPermission(role: Role | string | null, permission: Permission): boolean`, `formatVND(amount: number): string`, `formatDate(iso: string): string` — used by every business page in FE plans 2 and 3.
 
 - [ ] **Step 1: Write the failing test**
@@ -273,17 +273,17 @@ export function hasPermission(role: Role | string | null, permission: Permission
 }
 ```
 
-> If `ROLE_PERMISSIONS` is not yet exported from `packages/shared-types` (scaffolding plan Task 3 only ships `receivable-status.ts`), add it there in this same task: export the `Role`/`Permission` enums and the `Record<Role, Permission[]>` map with the exact values from `2026-08-03-multi-tenancy-rbac-design.md` mục 2. Single source of truth — BE guards and FE buttons share it.
+> If `ROLE_PERMISSIONS` is not yet exported from `packages/shared-types` (scaffolding plan Task 3 only ships `receivable-status.ts`), add it there in this same task: export the `Role`/`Permission` enums and the `Record<Role, Permission[]>` map with the exact values from section 2 of `2026-08-03-multi-tenancy-rbac-design.md`. Single source of truth — BE guards and FE buttons share it.
 
 - [ ] **Step 4: Create `apps/frontend/src/lib/format.ts`**
 
 ```typescript
-/** Định dạng VNĐ: Integer đồng → "50.000.000 ₫". */
+/** Format VND: integer dong → "50.000.000 ₫". */
 export function formatVND(amount: number): string {
   return `${amount.toLocaleString('vi-VN')} ₫`;
 }
 
-/** ISO string → "20/08/2026" (giờ địa phương). */
+/** ISO string → "20/08/2026" (local time). */
 export function formatDate(iso: string | Date): string {
   const d = typeof iso === 'string' ? new Date(iso) : iso;
   return d.toLocaleDateString('vi-VN');
@@ -406,7 +406,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsLoading(false);
         }
       } catch {
-        // Token hết hạn/hủy → coi như anonymous
+        // Token expired/revoked → treat as anonymous
         if (!cancelled) setIsLoading(false);
       }
     })();
@@ -422,7 +422,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    // apiRequest throw khi sai email/password (401) — lỗi lan lên LoginPage.onSubmit
+    // apiRequest throws for incorrect email/password (401) — the error propagates to LoginPage.onSubmit
     const res = await apiRequest<{ accessToken: string }>({
       url: '/api/v1/auth/login',
       method: 'POST',
@@ -516,8 +516,8 @@ describe('LoginPage', () => {
       </AuthProvider>,
     );
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'a@b.c' } });
-    fireEvent.change(screen.getByLabelText(/mật khẩu/i), { target: { value: 'secret123' } });
-    fireEvent.click(screen.getByRole('button', { name: /đăng nhập/i }));
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'secret123' } });
+    fireEvent.click(screen.getByRole('button', { name: /log in/i }));
     await waitFor(() => expect(screen.getByText('dashboard')).toBeTruthy());
   });
 });
@@ -546,7 +546,7 @@ function AuthLoading() {
   );
 }
 
-/** Đã đăng nhập — dùng chung cho mọi route nghiệp vụ. */
+/** Authenticated — shared by all business routes. */
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading, isAuthenticated } = useAuth();
   const location = useLocation();
@@ -557,7 +557,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return children;
 }
 
-/** Chưa đăng nhập — dùng cho /login và các trang auth; đã đăng nhập thì đẩy về /dashboard. */
+/** Unauthenticated — used for /login and auth pages; redirect authenticated users to /dashboard. */
 export function GuestRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   if (isLoading) return <AuthLoading />;
@@ -586,10 +586,10 @@ export function LoginPage() {
     setSubmitting(true);
     try {
       await login(email, password);
-      toast.success('Đăng nhập thành công');
+      toast.success('Logged in successfully');
       navigate('/dashboard');
     } catch {
-      toast.error('Email hoặc mật khẩu không đúng');
+      toast.error('Incorrect email or password');
     } finally {
       setSubmitting(false);
     }
@@ -598,7 +598,7 @@ export function LoginPage() {
   return (
     <div className="flex min-h-svh items-center justify-center p-6">
       <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4">
-        <h1 className="text-2xl font-semibold">Đăng nhập Casso Ledger</h1>
+        <h1 className="text-2xl font-semibold">Log in to Casso Ledger</h1>
         <label className="block space-y-1">
           <span className="text-sm font-medium">Email</span>
           <input
@@ -610,7 +610,7 @@ export function LoginPage() {
           />
         </label>
         <label className="block space-y-1">
-          <span className="text-sm font-medium">Mật khẩu</span>
+          <span className="text-sm font-medium">Password</span>
           <input
             type="password"
             required
@@ -620,11 +620,11 @@ export function LoginPage() {
           />
         </label>
         <button type="submit" disabled={submitting} className="w-full rounded-md bg-primary px-4 py-2 text-primary-foreground">
-          {submitting ? 'Đang xử lý…' : 'Đăng nhập'}
+          {submitting ? 'Processing…' : 'Log in'}
         </button>
         <div className="flex justify-between text-sm">
-          <Link to="/signup" className="text-primary">Tạo tài khoản</Link>
-          <Link to="/forgot-password" className="text-primary">Quên mật khẩu?</Link>
+          <Link to="/signup" className="text-primary">Create an account</Link>
+          <Link to="/forgot-password" className="text-primary">Forgot password?</Link>
         </div>
       </form>
     </div>
@@ -686,10 +686,10 @@ export function SignupPage() {
       });
       authTokenManager.setAccessToken(res.accessToken);
       await refreshUser();
-      toast.success('Tạo tài khoản thành công');
+      toast.success('Account created successfully');
       navigate('/dashboard');
     } catch {
-      toast.error('Đăng ký thất bại — kiểm tra lại thông tin');
+      toast.error('Sign-up failed — check your information');
     } finally {
       setSubmitting(false);
     }
@@ -698,13 +698,13 @@ export function SignupPage() {
   return (
     <div className="flex min-h-svh items-center justify-center p-6">
       <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4">
-        <h1 className="text-2xl font-semibold">Tạo tài khoản</h1>
+        <h1 className="text-2xl font-semibold">Create an account</h1>
         <label className="block space-y-1">
-          <span className="text-sm font-medium">Tên tổ chức</span>
+          <span className="text-sm font-medium">Organization name</span>
           <input required value={organizationName} onChange={(e) => setOrganizationName(e.target.value)} className="w-full rounded-md border px-3 py-2" />
         </label>
         <label className="block space-y-1">
-          <span className="text-sm font-medium">Tên của bạn</span>
+          <span className="text-sm font-medium">Your name</span>
           <input required value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-md border px-3 py-2" />
         </label>
         <label className="block space-y-1">
@@ -712,14 +712,14 @@ export function SignupPage() {
           <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-md border px-3 py-2" />
         </label>
         <label className="block space-y-1">
-          <span className="text-sm font-medium">Mật khẩu</span>
+          <span className="text-sm font-medium">Password</span>
           <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-md border px-3 py-2" />
         </label>
         <button type="submit" disabled={submitting} className="w-full rounded-md bg-primary px-4 py-2 text-primary-foreground">
-          {submitting ? 'Đang xử lý…' : 'Tạo tài khoản'}
+          {submitting ? 'Processing…' : 'Create account'}
         </button>
         <p className="text-sm">
-          Đã có tài khoản? <Link to="/login" className="text-primary">Đăng nhập</Link>
+          Already have an account? <Link to="/login" className="text-primary">Log in</Link>
         </p>
       </form>
     </div>
@@ -749,12 +749,12 @@ export function VerifyEmailPage() {
       .catch(() => setState('error'));
   }, [searchParams]);
 
-  if (state === 'verifying') return <div className="p-6 text-center">Đang xác thực email…</div>;
-  if (state === 'error') return <div className="p-6 text-center">Link xác thực không hợp lệ hoặc đã hết hạn.</div>;
+  if (state === 'verifying') return <div className="p-6 text-center">Verifying email…</div>;
+  if (state === 'error') return <div className="p-6 text-center">The verification link is invalid or expired.</div>;
   return (
     <div className="p-6 text-center">
-      <p className="mb-2">Email đã được xác thực.</p>
-      <Link to="/login" className="text-primary">Về trang đăng nhập</Link>
+      <p className="mb-2">Email has been verified.</p>
+      <Link to="/login" className="text-primary">Go to login</Link>
     </div>
   );
 }
@@ -781,7 +781,7 @@ git commit -m "feat(frontend): signup + verify-email pages"
 - Create: `apps/frontend/src/features/auth/reset-password-page.tsx`
 
 **Interfaces:**
-- Consumes: `apiRequest` — `POST /api/v1/auth/forgot-password` body `{ email }` **always returns 200** (spec mục 5, anti-enumeration — UI shows the same success message regardless); `POST /api/v1/auth/reset-password` body `{ token, newPassword }`.
+- Consumes: `apiRequest` — `POST /api/v1/auth/forgot-password` body `{ email }` **always returns 200** (spec section 5, anti-enumeration — UI shows the same success message regardless); `POST /api/v1/auth/reset-password` body `{ token, newPassword }`.
 
 - [ ] **Step 1: Create `apps/frontend/src/features/auth/forgot-password-page.tsx`**
 
@@ -798,11 +798,11 @@ export function ForgotPasswordPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     try {
-      // BE luôn trả 200 bất kể email tồn tại (anti-enumeration) — FE hiện thông báo chung
+      // BE always returns 200 regardless of whether the email exists (anti-enumeration) — FE shows a generic message
       await apiRequest({ url: '/api/v1/auth/forgot-password', method: 'POST', data: { email } });
       setSent(true);
     } catch {
-      toast.error('Có lỗi xảy ra — thử lại sau');
+      toast.error('Something went wrong — try again later');
     }
   }
 
@@ -810,8 +810,8 @@ export function ForgotPasswordPage() {
     return (
       <div className="flex min-h-svh items-center justify-center p-6 text-center">
         <div>
-          <p className="mb-2">Nếu email tồn tại, bạn sẽ nhận được link đặt lại mật khẩu.</p>
-          <Link to="/login" className="text-primary">Về trang đăng nhập</Link>
+          <p className="mb-2">If the email exists, you will receive a password reset link.</p>
+          <Link to="/login" className="text-primary">Go to login</Link>
         </div>
       </div>
     );
@@ -820,16 +820,16 @@ export function ForgotPasswordPage() {
   return (
     <div className="flex min-h-svh items-center justify-center p-6">
       <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4">
-        <h1 className="text-2xl font-semibold">Quên mật khẩu</h1>
+        <h1 className="text-2xl font-semibold">Forgot password</h1>
         <label className="block space-y-1">
           <span className="text-sm font-medium">Email</span>
           <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-md border px-3 py-2" />
         </label>
         <button type="submit" className="w-full rounded-md bg-primary px-4 py-2 text-primary-foreground">
-          Gửi link đặt lại
+          Send reset link
         </button>
         <p className="text-sm">
-          <Link to="/login" className="text-primary">← Quay lại đăng nhập</Link>
+          <Link to="/login" className="text-primary">← Back to login</Link>
         </p>
       </form>
     </div>
@@ -854,15 +854,15 @@ export function ResetPasswordPage() {
     e.preventDefault();
     const token = searchParams.get('token');
     if (!token) {
-      toast.error('Link đặt lại không hợp lệ');
+      toast.error('Reset link is invalid');
       return;
     }
     try {
       await apiRequest({ url: '/api/v1/auth/reset-password', method: 'POST', data: { token, newPassword: password } });
-      toast.success('Đặt lại mật khẩu thành công');
+      toast.success('Password reset successfully');
       setDone(true);
     } catch {
-      toast.error('Link hết hạn hoặc không hợp lệ');
+      toast.error('Link expired or invalid');
     }
   }
 
@@ -870,8 +870,8 @@ export function ResetPasswordPage() {
     return (
       <div className="flex min-h-svh items-center justify-center p-6 text-center">
         <div>
-          <p className="mb-2">Mật khẩu đã được đặt lại.</p>
-          <Link to="/login" className="text-primary">Về trang đăng nhập</Link>
+          <p className="mb-2">Password has been reset.</p>
+          <Link to="/login" className="text-primary">Go to login</Link>
         </div>
       </div>
     );
@@ -880,13 +880,13 @@ export function ResetPasswordPage() {
   return (
     <div className="flex min-h-svh items-center justify-center p-6">
       <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4">
-        <h1 className="text-2xl font-semibold">Đặt lại mật khẩu</h1>
+        <h1 className="text-2xl font-semibold">Reset password</h1>
         <label className="block space-y-1">
-          <span className="text-sm font-medium">Mật khẩu mới</span>
+          <span className="text-sm font-medium">New password</span>
           <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-md border px-3 py-2" />
         </label>
         <button type="submit" className="w-full rounded-md bg-primary px-4 py-2 text-primary-foreground">
-          Đặt lại mật khẩu
+          Reset password
         </button>
       </form>
     </div>
@@ -934,15 +934,15 @@ export function InviteAcceptPage() {
     e.preventDefault();
     const token = searchParams.get('token');
     if (!token) {
-      toast.error('Link mời không hợp lệ');
+      toast.error('Invite link is invalid');
       return;
     }
     try {
       await apiRequest({ url: '/api/v1/invites/accept', method: 'POST', data: { token, name, password } });
-      toast.success('Đã tham gia tổ chức');
+      toast.success('Joined the organization');
       setDone(true);
     } catch {
-      toast.error('Link mời không hợp lệ hoặc đã hết hạn');
+      toast.error('Invite link is invalid or expired');
     }
   }
 
@@ -950,8 +950,8 @@ export function InviteAcceptPage() {
     return (
       <div className="flex min-h-svh items-center justify-center p-6 text-center">
         <div>
-          <p className="mb-2">Bạn đã tham gia tổ chức thành công.</p>
-          <Link to="/login" className="text-primary">Về trang đăng nhập</Link>
+          <p className="mb-2">You joined the organization successfully.</p>
+          <Link to="/login" className="text-primary">Go to login</Link>
         </div>
       </div>
     );
@@ -960,13 +960,13 @@ export function InviteAcceptPage() {
   return (
     <div className="flex min-h-svh items-center justify-center p-6">
       <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4">
-        <h1 className="text-2xl font-semibold">Chấp nhận lời mời</h1>
+        <h1 className="text-2xl font-semibold">Accept invitation</h1>
         <label className="block space-y-1">
-          <span className="text-sm font-medium">Tên của bạn</span>
+          <span className="text-sm font-medium">Your name</span>
           <input required value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-md border px-3 py-2" />
         </label>
         <label className="block space-y-1">
-          <span className="text-sm font-medium">Mật khẩu</span>
+          <span className="text-sm font-medium">Password</span>
           <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-md border px-3 py-2" />
         </label>
         <button type="submit" className="w-full rounded-md bg-primary px-4 py-2 text-primary-foreground">
@@ -1066,7 +1066,7 @@ export function SidebarFooter() {
 
   async function onLogout() {
     await logout();
-    toast.success('Đã đăng xuất');
+    toast.success('Logged out');
     navigate('/login');
   }
 
@@ -1077,7 +1077,7 @@ export function SidebarFooter() {
         <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
       </div>
       <button onClick={onLogout} className="text-sm text-muted-foreground hover:text-foreground">
-        Đăng xuất
+        Log out
       </button>
     </div>
   );

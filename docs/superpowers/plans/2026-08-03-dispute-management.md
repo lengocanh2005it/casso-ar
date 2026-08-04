@@ -2,22 +2,22 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement `Dispute` như một entity/module riêng (`apps/backend/src/modules/disputes/`), theo Clean Architecture 4 lớp giống mọi module khác trong Domain Core. `Receivable.isDisputed` **không** là field lưu trong DB — nó luôn được tính tại query-time bằng open-dispute lookup, gắn cùng `disputeId` vào response ở tầng presentation của `ReceivablesController` (endpoint `GET /receivables/:id` — chưa tồn tại trước plan này, được thêm ở Task 5). Mở dispute không đổi `Receivable.status` — luồng khớp lệnh (`AllocatePaymentUseCase`) không bị ảnh hưởng. Mỗi lần open/resolve emit `EventEmitter2` event (`dispute.opened`/`dispute.resolved`) để Collection Activity Timeline plan (viết song song, không phụ thuộc plan này) tự lắng nghe.
+**Goal:** Implement `Dispute` as a separate entity/module (`apps/backend/src/modules/disputes/`), following the 4-layer Clean Architecture used by every other module in Domain Core. `Receivable.isDisputed` is **not** a field stored in the DB — it is always computed at query time using an open-dispute lookup, with `disputeId` added to the response at the presentation layer of `ReceivablesController` (endpoint `GET /receivables/:id` — did not exist before this plan, added in Task 5). Opening a dispute does not change `Receivable.status` — the matching flow (`AllocatePaymentUseCase`) is unaffected. Each open/resolve emits an `EventEmitter2` event (`dispute.opened`/`dispute.resolved`) for the Collection Activity Timeline plan (written in parallel and independent of this plan) to listen to.
 
-**Architecture:** Module `disputes` độc lập (domain/application/infrastructure/presentation), tái sử dụng `BaseRepository`/`TenantContextService` (từ multi-tenancy-rbac plan) và `Permission.RECEIVABLE_DISPUTE` (đã có sẵn trong `Permission` enum, không thêm permission mới). `ReceivablesModule` và `DisputesModule` phụ thuộc lẫn nhau (Receivables cần `DISPUTE_REPOSITORY` để tính `isDisputed`; Disputes cần `RECEIVABLE_REPOSITORY` để xác nhận receivable tồn tại trước khi mở dispute) — giải quyết bằng `forwardRef()` tiêu chuẩn của NestJS, không cần tách thêm module trung gian.
+**Architecture:** The `disputes` module is independent (domain/application/infrastructure/presentation), reusing `BaseRepository`/`TenantContextService` (from the multi-tenancy-rbac plan) and `Permission.RECEIVABLE_DISPUTE` (already present in the `Permission` enum; no new permission added). `ReceivablesModule` and `DisputesModule` depend on each other (Receivables needs `DISPUTE_REPOSITORY` to compute `isDisputed`; Disputes needs `RECEIVABLE_REPOSITORY` to confirm the receivable exists before opening a dispute) — resolved with NestJS's standard `forwardRef()`, with no need for another intermediary module.
 
-**Tech Stack:** Kế thừa nguyên trạng tech stack từ project-scaffolding-and-domain-core.md và multi-tenancy-rbac.md (NestJS 10, TypeORM 0.3, Postgres 16, Jest + testcontainers + supertest). Thêm mới: `@nestjs/event-emitter` cho domain event `dispute.opened`/`dispute.resolved`.
+**Tech Stack:** Inherits the unchanged tech stack from project-scaffolding-and-domain-core.md and multi-tenancy-rbac.md (NestJS 10, TypeORM 0.3, Postgres 16, Jest + testcontainers + supertest). New addition: `@nestjs/event-emitter` for the `dispute.opened`/`dispute.resolved` domain events.
 
 ## Global Constraints
 
-- `domain/dispute.ts` không import gì từ NestJS/TypeORM (giữ nguyên tắc Clean Architecture toàn dự án).
-- `isDisputed` **không bao giờ** là cột lưu trong bảng `receivables` hay `disputes` — luôn là kết quả `EXISTS(...)` tính tại query-time (dispute-management spec mục 1, 3).
-- Mở dispute (`OpenDisputeUseCase`) **không** gọi `Receivable.writeOff()`/`cancel()`/đổi `status` — chỉ tạo record `Dispute` mới (dispute-management spec mục 2).
-- Một `Receivable` có thể có nhiều `Dispute` theo thời gian (lịch sử đầy đủ) — không giới hạn 1 dispute/receivable, chỉ giới hạn tối đa 1 dispute ở trạng thái `OPEN` tại một thời điểm (được đảm bảo ở tầng use case, không phải DB constraint, vì MVP chưa cần unique index — nếu cần chặt hơn, thêm partial unique index `(receivableId) WHERE status='OPEN'` sau).
-- Naming theo đúng dự án: `DisputeOrmEntity`, `IDisputeRepository`, DI token `DISPUTE_REPOSITORY`, use case `OpenDisputeUseCase`/`ResolveDisputeUseCase` (chỉ định sẵn, không đổi tên).
-- Tái sử dụng `Permission.RECEIVABLE_DISPUTE` đã có ở `apps/backend/src/common/rbac/permission.enum.ts` (multi-tenancy-rbac plan Task 8) — không thêm permission mới cho open/resolve.
-- Mọi endpoint ghi/đọc đều qua `@UseGuards(JwtAuthGuard, PermissionGuard)` + `@RequirePermission(...)`, giống `ReceivablesController`/`PaymentsController` hiện tại.
-- Event `dispute.opened`/`dispute.resolved` chỉ emit **sau khi** save thành công (không emit nếu use case throw trước đó) — khớp nguyên tắc "emit event sau khi transaction thành công" ở collection-activity-timeline spec mục 2.1.
+- `domain/dispute.ts` imports nothing from NestJS/TypeORM (preserving the project's Clean Architecture principle).
+- `isDisputed` is **never** a stored column in the `receivables` or `disputes` tables — it is always the `EXISTS(...)` result computed at query time (dispute-management spec sections 1 and 3).
+- Opening a dispute (`OpenDisputeUseCase`) **does not** call `Receivable.writeOff()`/`cancel()` or change `status` — it only creates a new `Dispute` record (dispute-management spec section 2).
+- A `Receivable` may have multiple `Dispute` records over time (full history) — there is no limit of 1 dispute/receivable, only a limit of at most 1 dispute with `OPEN` status at a time (enforced at the use-case layer, not by a DB constraint, because the MVP does not need a unique index yet — if stricter enforcement is needed, add a partial unique index `(receivableId) WHERE status='OPEN'` later).
+- Naming follows the project: `DisputeOrmEntity`, `IDisputeRepository`, DI token `DISPUTE_REPOSITORY`, use cases `OpenDisputeUseCase`/`ResolveDisputeUseCase` (specified names; do not change them).
+- Reuse the existing `Permission.RECEIVABLE_DISPUTE` in `apps/backend/src/common/rbac/permission.enum.ts` (multi-tenancy-rbac plan Task 8) — do not add a new permission for open/resolve.
+- All read/write endpoints go through `@UseGuards(JwtAuthGuard, PermissionGuard)` + `@RequirePermission(...)`, like the existing `ReceivablesController`/`PaymentsController`.
+- The `dispute.opened`/`dispute.resolved` events are emitted **only after** a successful save (not if the use case throws beforehand) — matching the "emit event after the transaction succeeds" principle in collection-activity-timeline spec section 2.1.
 
 ---
 
@@ -77,7 +77,7 @@ function buildOpenDispute(): Dispute {
     id: 'dis-1',
     organizationId: 'org-1',
     receivableId: 'rec-1',
-    reason: 'Khách hàng cho rằng số tiền trên hóa đơn không đúng',
+    reason: 'The customer believes the invoice amount is incorrect',
     status: DisputeStatus.OPEN,
     openedByUserId: 'user-1',
     resolvedByUserId: null,
@@ -242,7 +242,7 @@ export class DisputeOrmEntity {
 }
 ```
 
-`@Index(['receivableId', 'status'])` tồn tại vì `hasOpenDispute` chạy trên mỗi lần `GET /receivables/:id` — cần tra cứu nhanh theo `(receivableId, status='OPEN')` thay vì full scan bảng `disputes`.
+`@Index(['receivableId', 'status'])` exists because `hasOpenDispute` runs on every `GET /receivables/:id` — it needs a fast lookup by `(receivableId, status='OPEN')` instead of a full scan of the `disputes` table.
 
 - [ ] **Step 2: Create `apps/backend/src/modules/disputes/application/dispute-repository.port.ts`**
 
@@ -259,7 +259,7 @@ export interface IDisputeRepository {
 export const DISPUTE_REPOSITORY = Symbol('DISPUTE_REPOSITORY');
 ```
 
-`hasOpenDispute(receivableId): Promise<boolean>` là cách hiện thực hóa `Receivable.isDisputed = EXISTS(Dispute WHERE receivableId=X AND status='OPEN')` từ dispute-management spec mục 1 — KHÔNG lưu field `isDisputed` ở đâu cả, mọi lần đọc đều query lại bảng `disputes`.
+`hasOpenDispute(receivableId): Promise<boolean>` implements `Receivable.isDisputed = EXISTS(Dispute WHERE receivableId=X AND status='OPEN')` from dispute-management spec section 1 — the `isDisputed` field is stored nowhere; every read queries the `disputes` table again.
 
 - [ ] **Step 3: Create `apps/backend/src/modules/disputes/infrastructure/typeorm-dispute.repository.ts`**
 
@@ -323,7 +323,7 @@ import { ReceivablesModule } from '../receivables/receivables.module';
 export class DisputesModule {}
 ```
 
-`forwardRef(() => ReceivablesModule)` là bắt buộc: `DisputesModule` cần `RECEIVABLE_REPOSITORY` (Task 3, `OpenDisputeUseCase` xác nhận receivable tồn tại trước khi mở dispute), còn `ReceivablesModule` cần `DISPUTE_REPOSITORY` (Task 5, `GetReceivableUseCase` tính `isDisputed`) — hai module phụ thuộc lẫn nhau, NestJS yêu cầu `forwardRef()` ở cả hai phía để phá vòng lặp khi resolve dependency graph.
+`forwardRef(() => ReceivablesModule)` is required: `DisputesModule` needs `RECEIVABLE_REPOSITORY` (Task 3, `OpenDisputeUseCase` confirms the receivable exists before opening a dispute), while `ReceivablesModule` needs `DISPUTE_REPOSITORY` (Task 5, `GetReceivableUseCase` computes `isDisputed`) — the two modules depend on each other, so NestJS requires `forwardRef()` on both sides to break the cycle while resolving the dependency graph.
 
 - [ ] **Step 5: Register `DisputesModule` in `apps/backend/src/app.module.ts`**
 
@@ -430,7 +430,7 @@ describe('OpenDisputeUseCase', () => {
 
     const dispute = await useCase.execute({
       receivableId: 'rec-1',
-      reason: 'Khách hàng không đồng ý số tiền trên hóa đơn',
+      reason: 'The customer disagrees with the invoice amount',
       openedByUserId: 'user-2',
     });
 
@@ -556,7 +556,7 @@ export class OpenDisputeUseCase {
 }
 ```
 
-Chú ý: use case này **không** gọi `receivable.writeOff()`/`.cancel()` hay `receivableRepo.save(...)` — `Receivable.status` giữ nguyên (dispute-management spec mục 2, "Giải quyết Dispute ... không cần thao tác thủ công nào khác" ngụ ý status của receivable độc lập hoàn toàn với vòng đời dispute).
+ Note: this use case **does not** call `receivable.writeOff()`/`.cancel()` or `receivableRepo.save(...)` — `Receivable.status` remains unchanged (dispute-management spec section 2, "Resolving a Dispute ... requires no other manual action," implies that the receivable status is completely independent of the dispute lifecycle).
 
 - [ ] **Step 6: Run test to verify it passes**
 
@@ -576,7 +576,7 @@ function buildOpenDispute(): Dispute {
     id: 'dis-1',
     organizationId: 'org-1',
     receivableId: 'rec-1',
-    reason: 'lý do',
+       reason: 'reason',
     status: DisputeStatus.OPEN,
     openedByUserId: 'user-2',
     resolvedByUserId: null,
@@ -781,7 +781,7 @@ export class DisputesController {
 }
 ```
 
-`openedByUserId`/`resolvedByUserId` lấy từ `TenantContextService.getCurrentUser()` (JWT đã xác thực qua `JwtAuthGuard`) thay vì nhận từ request body — tránh client tự khai user id tùy ý, nhất quán với việc `AllocatePaymentUseCase`/`CreateReceivableUseCase` sau khi migrate ở multi-tenancy-rbac plan cũng không còn nhận `organizationId` từ body nữa mà lấy từ context xác thực.
+`openedByUserId`/`resolvedByUserId` come from `TenantContextService.getCurrentUser()` (JWT authenticated through `JwtAuthGuard`) instead of the request body — preventing the client from claiming an arbitrary user ID, consistent with `AllocatePaymentUseCase`/`CreateReceivableUseCase` after migration in the multi-tenancy-rbac plan, which also no longer accept `organizationId` from the body and instead take it from the authenticated context.
 
 - [ ] **Step 3: Register `DisputesController` in `disputes.module.ts`**
 
@@ -837,7 +837,7 @@ git commit -m "feat: add DisputesController with open/resolve endpoints gated by
 - Consumes: `IReceivableRepository` (existing), `IDisputeRepository.hasOpenDispute` (Task 2) via `forwardRef(() => DisputesModule)` in `ReceivablesModule`
 - Produces: `GET /receivables/:id` returning `{ ...receivable, isDisputed: boolean, disputeId: string | null }` — the endpoint did not exist before this plan (flagged as a gap in multi-tenancy-rbac plan's Self-Review Notes); consumed by Task 6 integration test
 
-This is the concrete implementation of the retroactive change from `2026-08-03-domain-core-design.md` mục 3 → `2026-08-03-dispute-management-design.md` mục 3: `Receivable` never gains an `isDisputed` field on the domain class or ORM entity. Instead, the read path (`GetReceivableUseCase`) queries `IDisputeRepository` separately and merges the result at the presentation boundary.
+This is the concrete implementation of the retroactive change from `2026-08-03-domain-core-design.md` section 3 → `2026-08-03-dispute-management-design.md` section 3: `Receivable` never gains an `isDisputed` field on the domain class or ORM entity. Instead, the read path (`GetReceivableUseCase`) queries `IDisputeRepository` separately and merges the result at the presentation boundary.
 
 - [ ] **Step 1: Write failing test for `GetReceivableUseCase`**
 
@@ -999,7 +999,7 @@ export class ReceivablesController {
 }
 ```
 
-`{ ...receivable, isDisputed, disputeId }` spread một plain object chứa toàn bộ field của `Receivable` cộng thêm hai read-only dispute fields — response JSON có `isDisputed`/`disputeId` nhưng không có cột `isDisputed` trong `receivables`.
+`{ ...receivable, isDisputed, disputeId }` spreads a plain object containing all `Receivable` fields plus two read-only dispute fields — the response JSON has `isDisputed`/`disputeId` but there is no `isDisputed` column in `receivables`.
 
 - [ ] **Step 6: Register `GetReceivableUseCase` and `forwardRef(() => DisputesModule)` in `receivables.module.ts`**
 
@@ -1103,7 +1103,7 @@ describe('Dispute lifecycle (integration)', () => {
     await dataSource.getRepository(CustomerOrmEntity).save({
       id: customerId,
       organizationId,
-      name: 'Công ty B',
+      name: 'Company B',
       taxCode: '0312345678',
       email: 'ap@congtyb.vn',
       phone: '0900000000',
@@ -1143,7 +1143,7 @@ describe('Dispute lifecycle (integration)', () => {
     const openRes = await request(app.getHttpServer())
       .post(`/api/v1/receivables/${receivableId}/disputes`)
       .set('Authorization', authHeader())
-      .send({ reason: 'Khách hàng không đồng ý số tiền trên hóa đơn' })
+       .send({ reason: 'The customer disagrees with the invoice amount' })
       .expect(201);
 
     const disputeId = openRes.body.id;
@@ -1195,12 +1195,12 @@ git commit -m "test: add integration test for full dispute lifecycle (open -> is
 
 ## Self-Review Notes
 
-- **Spec coverage:** `Dispute` entity (dispute-management spec mục 1) → Task 1-2. Lifecycle open/resolve (mục 2) → Task 3-4. Computed `isDisputed` never stored, retroactive change to domain-core spec mục 3 → Task 5 (`GetReceivableUseCase` + `IDisputeRepository.hasOpenDispute`, no field added to `Receivable`/`ReceivableOrmEntity`). RBAC reuse (`Permission.RECEIVABLE_DISPUTE`, already defined by multi-tenancy-rbac plan Task 8) → Task 4, no new permission added.
+- **Spec coverage:** `Dispute` entity (dispute-management spec section 1) → Task 1-2. Lifecycle open/resolve (section 2) → Task 3-4. Computed `isDisputed` never stored, retroactive change to domain-core spec section 3 → Task 5 (`GetReceivableUseCase` + `IDisputeRepository.hasOpenDispute`, no field added to `Receivable`/`ReceivableOrmEntity`). RBAC reuse (`Permission.RECEIVABLE_DISPUTE`, already defined by multi-tenancy-rbac plan Task 8) → Task 4, no new permission added.
 - **MVP field set:** `assignedToUserId` and `resolutionNote` are intentionally deferred; the spec now records the same simplification. Add them only with a follow-up migration when the workflow is defined.
 - **Circular module dependency:** `ReceivablesModule` and `DisputesModule` depend on each other (Receivables needs `DISPUTE_REPOSITORY` for `isDisputed`; Disputes needs `RECEIVABLE_REPOSITORY` to validate the receivable exists before opening a dispute). Resolved with `forwardRef()` on both sides (Task 2 Step 4, Task 5 Step 6) — the standard NestJS pattern for this exact shape of dependency, not a new abstraction.
 - **Contract for Collection Activity Timeline plan (written in parallel, per the design spec's dependency note):** `OpenDisputeUseCase`/`ResolveDisputeUseCase` emit NestJS `EventEmitter2` events named exactly `dispute.opened` and `dispute.resolved`, with payload shape `{ disputeId: string, receivableId: string, organizationId: string }` (Task 3, Steps 5 and 9). Events fire only after `disputeRepo.save()` succeeds — never on the `Receivable not found`/`Dispute not found` error paths. The Timeline plan's listener should subscribe via `@OnEvent('dispute.opened')`/`@OnEvent('dispute.resolved')` and write `CollectionActivity` rows with `activityType: 'DISPUTE_OPENED'`/`'DISPUTE_RESOLVED'`, using `payload.receivableId` to look up `customerId` (not included in the event payload — the listener already has read access to `Receivable` via `RECEIVABLE_REPOSITORY`).
 - **Contract for Reminder Automation plan (referenced by the design spec but out of scope here):** `IDisputeRepository.hasOpenDispute(receivableId): Promise<boolean>` (Task 2) is the exact primitive that plan needs to skip sending reminders for disputed receivables — no new method should be needed on this repository for that purpose.
 - **Type consistency checked:** `IDisputeRepository.findOpenDispute` supplies the exact open row for `GetReceivableUseCase` (Task 5), while `hasOpenDispute` remains the boolean primitive used by reminder reads. `OpenDisputeInput`/`ResolveDisputeInput` field names (`receivableId`, `reason`, `openedByUserId` / `disputeId`, `resolvedByUserId`) match exactly between the use case, its unit test, and the controller's `execute()` calls in Task 4. `Dispute.resolve()` throw message (`'Cannot resolve a dispute that is not OPEN'`) is asserted identically in both `dispute.spec.ts` (Task 1) and left untouched by `ResolveDisputeUseCase` (Task 3), which does not catch or rewrap it.
-- **Not covered in this plan (by design):** UI for the dispute detail screen (design spec mục 4, out of scope — original doc mục 7.12/18). Deadline/escalation tracking for unresolved disputes (design spec mục 4, belongs to a future Internal Task/Escalation spec). Assignment/resolution-note fields and any tighter resolve permission model remain deferred; today any role with `Permission.RECEIVABLE_DISPUTE` (`OWNER`, `FINANCE_MANAGER`, `ACCOUNTANT` per `ROLE_PERMISSIONS`) can resolve any dispute in their organization.
+- **Not covered in this plan (by design):** UI for the dispute detail screen (design spec section 4, out of scope — original doc sections 7.12/18). Deadline/escalation tracking for unresolved disputes (design spec section 4, belongs to a future Internal Task/Escalation spec). Assignment/resolution-note fields and any tighter resolve permission model remain deferred; today any role with `Permission.RECEIVABLE_DISPUTE` (`OWNER`, `FINANCE_MANAGER`, `ACCOUNTANT` per `ROLE_PERMISSIONS`) can resolve any dispute in their organization.
 
 

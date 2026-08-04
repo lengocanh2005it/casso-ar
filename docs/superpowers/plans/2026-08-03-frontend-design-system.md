@@ -2,21 +2,21 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Khởi tạo `apps/frontend` (React 19 + Vite + TypeScript) như một workspace member MỚI trong monorepo Casso Ledger đã có sẵn (`pnpm-workspace.yaml`, root `package.json`, `turbo.json`, `biome.json` từ `2026-08-03-project-scaffolding-and-domain-core.md` Task 1), dựng design system (Tailwind v4 + shadcn/ui "new-york"/"neutral") và khung navigation/sidebar theo đúng token, nav item list, và component pattern đã chốt ở `2026-08-03-frontend-design-system.md` (spec — mọi giá trị cụ thể đã có sẵn trong các step dưới, KHÔNG cần agent thực thi plan này tự quét lại). KHÔNG bao gồm nội dung chi tiết từng trang nghiệp vụ (Receivable Detail, Matching Workspace...) — nằm ngoài phạm vi theo spec mục 4, chỉ dựng route skeleton + placeholder page cho 10 mục nav.
+**Goal:** Initialize `apps/frontend` (React 19 + Vite + TypeScript) as a NEW workspace member in the existing Casso Ledger monorepo (`pnpm-workspace.yaml`, root `package.json`, `turbo.json`, `biome.json` from `2026-08-03-project-scaffolding-and-domain-core.md` Task 1), build the design system (Tailwind v4 + shadcn/ui "new-york"/"neutral") and navigation/sidebar shell according to the tokens, nav item list, and component pattern finalized in `2026-08-03-frontend-design-system.md` (spec — all concrete values are already included in the steps below, the agent executing this plan does NOT need to rescan them). Does NOT include detailed content for individual business pages (Receivable Detail, Matching Workspace...) — out of scope per spec section 4; only build the route skeleton + placeholder page for the 10 nav items.
 
-**Architecture:** Feature-based folder structure theo `2026-08-03-project-scaffolding-architecture-design.md` mục 3 — `src/features/<name>/` (mỗi feature tự chứa component/hook/api riêng), `src/components/ui/` (shadcn primitives, copy nguyên từ CLI không sửa tay), `src/components/layout/` (Sidebar, MobileSidebarWrapper dùng chung), `src/lib/` (api-client, query-client, domain-utils không thuộc feature nào), `src/routes/` (React Router 7 route definitions, map 1-1 với `navItems`).
+**Architecture:** Feature-based folder structure according to section 3 of `2026-08-03-project-scaffolding-architecture-design.md` — `src/features/<name>/` (each feature contains its own components/hooks/API), `src/components/ui/` (shadcn primitives, copied directly from the CLI without manual edits), `src/components/layout/` (shared Sidebar, MobileSidebarWrapper), `src/lib/` (api-client, query-client, domain-utils not belonging to any feature), `src/routes/` (React Router 7 route definitions, mapped 1-to-1 with `navItems`).
 
-**Tech Stack:** React 19, Vite 6, TypeScript 5.7 (strict, khớp version root), Tailwind v4 (`@tailwindcss/vite` plugin, không cần `tailwind.config.js`), shadcn/ui (style `new-york`, base color `neutral`, icon `lucide`), Radix UI (`radix-ui` unified package + `@radix-ui/react-slot`), `lucide-react`, TanStack Query v5, React Router 7 (`react-router-dom`), `sonner`, `qrcode.react`, `recharts`, Vitest + React Testing Library (test runner mới cho app này — backend dùng Jest, frontend dùng Vitest vì chạy native trên Vite, không cần cấu hình transform riêng).
+**Tech Stack:** React 19, Vite 6, TypeScript 5.7 (strict, matching the root version), Tailwind v4 (`@tailwindcss/vite` plugin, no `tailwind.config.js` needed), shadcn/ui (style `new-york`, base color `neutral`, icon `lucide`), Radix UI (`radix-ui` unified package + `@radix-ui/react-slot`), `lucide-react`, TanStack Query v5, React Router 7 (`react-router-dom`), `sonner`, `qrcode.react`, `recharts`, Vitest + React Testing Library (the new test runner for this app — the backend uses Jest, while the frontend uses Vitest because it runs natively on Vite and needs no separate transform configuration).
 
 ## Global Constraints
 
-- Không sửa lại root `pnpm-workspace.yaml` / root `package.json` / `turbo.json` / `biome.json` đã tồn tại — chỉ ADD `apps/frontend` như một workspace member mới, script names phải khớp task names đã có sẵn trong `turbo.json` (`build`, `dev`, `lint`, `type-check`, `test`).
-- `packages/shared-types` (đã tồn tại, export `ReceivableStatus` enum) là workspace dependency (`workspace:*`) — không định nghĩa lại enum status trong frontend (spec kiến trúc mục 3, quy tắc chống lặp #1).
-- Mọi `components/ui/*` là bản copy nguyên từ shadcn CLI, không tự sửa tay (spec mục 4 "Ngoài phạm vi"); không cài thêm UI library ngoài shadcn/ui trừ khi shadcn không đáp ứng (YAGNI).
-- CSS variable trong `index.css` dùng nguyên bộ giá trị oklch theo design token đã chốt ở spec mục 1; không tự đổi palette khi implement.
-- Font `"Be Vietnam Pro"` phải tự host hoặc load qua `@font-face`/Google Fonts `<link>` — spec không chỉ định nguồn font cụ thể, plan này dùng Google Fonts `<link>` trong `index.html` làm lựa chọn đơn giản nhất (không cần build step tải font file).
-- Component dùng chung 2+ feature mới đẩy lên `components/` — "Rule of two" (spec kiến trúc mục 3).
-- API client: 1 instance chung `lib/api-client.ts`, mọi `feature/api/*` chỉ export hàm gọi endpoint cụ thể dùng chung instance đó.
+- Do not modify the existing root `pnpm-workspace.yaml` / root `package.json` / `turbo.json` / `biome.json` — only ADD `apps/frontend` as a new workspace member; script names must match the task names already present in `turbo.json` (`build`, `dev`, `lint`, `type-check`, `test`).
+- `packages/shared-types` (already exists and exports the `ReceivableStatus` enum) is a workspace dependency (`workspace:*`) — do not redefine the status enum in the frontend (architecture spec section 3, anti-duplication rule #1).
+- Every `components/ui/*` file is copied directly from the shadcn CLI without manual edits (spec section 4, "Out of scope"); do not install another UI library beyond shadcn/ui unless shadcn cannot meet the need (YAGNI).
+- CSS variables in `index.css` use the exact oklch values from the design tokens finalized in spec section 1; do not change the palette during implementation.
+- The `"Be Vietnam Pro"` font must be self-hosted or loaded via `@font-face`/Google Fonts `<link>` — the spec does not mandate a specific font source, so this plan uses a Google Fonts `<link>` in `index.html` as the simplest option (no build step needed to download font files).
+- Only promote components shared by 2+ features to `components/` — "Rule of two" (architecture spec section 3).
+- API client: 1 shared instance in `lib/api-client.ts`; every `feature/api/*` file only exports functions for calling specific endpoints through that shared instance.
 - API origin comes from `VITE_API_BASE_URL ?? 'http://localhost:3000'`; every backend URL passed to the client includes the canonical `/api/v1` prefix exactly once. `/health` and `/metrics` are process probes outside that prefix.
 
 ---
@@ -140,7 +140,7 @@ casso-ledger/
 }
 ```
 
-`workspace:*` cho `@casso-ledger/shared-types` — khớp đúng pattern đã dùng ở `apps/backend/package.json` (scaffolding plan Task 9 Step 1).
+`workspace:*` for `@casso-ledger/shared-types` — matches the exact pattern used in `apps/backend/package.json` (scaffolding plan Task 9 Step 1).
 
 - [ ] **Step 2: Create `apps/frontend/tsconfig.json`**
 
@@ -218,8 +218,8 @@ export default defineConfig({
 });
 ```
 
-Dùng `defineConfig` từ `vitest/config` (re-export của `vite`'s `defineConfig` kèm type cho field `test`) để gộp cấu hình Vite + Vitest trong 1 file — tránh thêm `vitest.config.ts` riêng khi không cần khác biệt (ponytail: 1 file build config đủ dùng, tách khi thật sự cần override riêng cho test).
-Plugin `@tailwindcss/vite` được thêm vào mảng `plugins` ở Task 2 Step 1 (sau khi cài Tailwind).
+Use `defineConfig` from `vitest/config` (a re-export of Vite's `defineConfig` with the type for the `test` field) to combine the Vite + Vitest configuration in 1 file — avoid adding a separate `vitest.config.ts` when no difference is needed (ponytail: 1 build config file is sufficient; split it only when a separate test override is truly needed).
+The `@tailwindcss/vite` plugin is added to the `plugins` array in Task 2 Step 1 (after installing Tailwind).
 
 - [ ] **Step 6: Create `apps/frontend/index.html`**
 
@@ -264,7 +264,7 @@ createRoot(document.getElementById('root')!).render(
 );
 ```
 
-`main.tsx` được viết lại đầy đủ ở Task 5 Step 4 (bọc thêm `QueryClientProvider`) — bản này chỉ đủ để `pnpm dev` chạy được ngay sau Task 1.
+`main.tsx` is fully rewritten in Task 5 Step 4 (adding `QueryClientProvider`) — this version only needs to be sufficient for `pnpm dev` to run immediately after Task 1.
 
 - [ ] **Step 9: Create placeholder `apps/frontend/src/App.tsx`**
 
@@ -274,7 +274,7 @@ export function App() {
 }
 ```
 
-`App.tsx` được viết lại đầy đủ ở Task 3 Step 8 (thêm `BrowserRouter` + routes) và Task 5 Step 5 (thêm `Toaster`).
+`App.tsx` is fully rewritten in Task 3 Step 8 (adding `BrowserRouter` + routes) and Task 5 Step 5 (adding `Toaster`).
 
 - [ ] **Step 10: Create `apps/frontend/.env.example`**
 
@@ -361,7 +361,7 @@ export default defineConfig({
 }
 ```
 
-Khớp nguyên `style: "new-york"`, `baseColor: "neutral"`, `iconLibrary: "lucide"` đã chốt ở spec mục 1.
+Matches the exact `style: "new-york"`, `baseColor: "neutral"`, `iconLibrary: "lucide"` finalized in spec section 1.
 
 - [ ] **Step 3: Create `apps/frontend/src/index.css`**
 
@@ -494,7 +494,7 @@ Khớp nguyên `style: "new-york"`, `baseColor: "neutral"`, `iconLibrary: "lucid
 }
 ```
 
-**Design tokens đã xác nhận:** toàn bộ `:root` và `.dark` ở trên là design token đã chốt ở spec mục 1, gồm radius, foreground/background, primary, sidebar, chart, border và ring; không tự thay bằng palette neutral mặc định.
+**Confirmed design tokens:** all `:root` and `.dark` values above are the design tokens finalized in spec section 1, including radius, foreground/background, primary, sidebar, chart, border, and ring; do not replace them with the default neutral palette.
 
 - [ ] **Step 4: Create `apps/frontend/src/lib/utils.ts`**
 
@@ -553,12 +553,12 @@ git commit -m "feat: add Tailwind v4 + shadcn/ui new-york design tokens"
 - Modify: `apps/frontend/src/App.tsx`
 
 **Interfaces:**
-- Consumes: nothing (page bodies are the one intentionally-out-of-scope placeholder per spec mục 4 — "Chi tiết từng trang cụ thể... brainstorm riêng khi cần wireframe/mockup chi tiết")
+- Consumes: nothing (page bodies are the one intentionally-out-of-scope placeholder per spec section 4 — "Detailed content for individual pages... brainstorm separately when a detailed wireframe/mockup is needed")
 - Produces: route tree consumed by `AppLayout` (Task 4, wraps `<Outlet />`) and by the smoke test (Task 6, renders `Sidebar` inside a router context)
 
 - [ ] **Step 1: Create the 10 placeholder feature page components**
 
-Each file follows the same one-line pattern — real, complete, minimal component (not a TODO stub), body content intentionally out of scope per spec mục 4:
+Each file follows the same one-line pattern — real, complete, minimal component (not a TODO stub), with body content intentionally out of scope per spec section 4:
 
 `apps/frontend/src/features/dashboard/dashboard-page.tsx`
 ```typescript
@@ -570,28 +570,28 @@ export function DashboardPage() {
 `apps/frontend/src/features/customers/customers-page.tsx`
 ```typescript
 export function CustomersPage() {
-  return <h1 className="text-2xl font-semibold">Khách hàng</h1>;
+  return <h1 className="text-2xl font-semibold">Customers</h1>;
 }
 ```
 
 `apps/frontend/src/features/receivables/receivables-page.tsx`
 ```typescript
 export function ReceivablesPage() {
-  return <h1 className="text-2xl font-semibold">Công nợ</h1>;
+  return <h1 className="text-2xl font-semibold">Receivables</h1>;
 }
 ```
 
 `apps/frontend/src/features/bank-connections/bank-connections-page.tsx`
 ```typescript
 export function BankConnectionsPage() {
-  return <h1 className="text-2xl font-semibold">Kết nối ngân hàng</h1>;
+  return <h1 className="text-2xl font-semibold">Bank Connections</h1>;
 }
 ```
 
 `apps/frontend/src/features/transactions/transactions-page.tsx`
 ```typescript
 export function TransactionsPage() {
-  return <h1 className="text-2xl font-semibold">Giao dịch / Đối soát</h1>;
+  return <h1 className="text-2xl font-semibold">Transactions / Reconciliation</h1>;
 }
 ```
 
@@ -605,7 +605,7 @@ export function ExceptionsPage() {
 `apps/frontend/src/features/reminders/reminders-page.tsx`
 ```typescript
 export function RemindersPage() {
-  return <h1 className="text-2xl font-semibold">Lịch nhắc</h1>;
+  return <h1 className="text-2xl font-semibold">Reminders</h1>;
 }
 ```
 
@@ -619,14 +619,14 @@ export function CopilotPage() {
 `apps/frontend/src/features/reports/reports-page.tsx`
 ```typescript
 export function ReportsPage() {
-  return <h1 className="text-2xl font-semibold">Báo cáo</h1>;
+  return <h1 className="text-2xl font-semibold">Reports</h1>;
 }
 ```
 
 `apps/frontend/src/features/settings/settings-page.tsx`
 ```typescript
 export function SettingsPage() {
-  return <h1 className="text-2xl font-semibold">Cài đặt</h1>;
+  return <h1 className="text-2xl font-semibold">Settings</h1>;
 }
 ```
 
@@ -661,7 +661,7 @@ export const appRoutes: RouteObject[] = [
 ];
 ```
 
-`path` của mỗi route khớp 1-1 với `to` của `navItems` đã chốt ở spec mục 2 (`/dashboard`, `/customers`, `/receivables`, `/bank-connections`, `/transactions`, `/exceptions`, `/reminders`, `/copilot`, `/reports`, `/settings`).
+The `path` of each route matches the `to` value of `navItems` finalized in spec section 2 (`/dashboard`, `/customers`, `/receivables`, `/bank-connections`, `/transactions`, `/exceptions`, `/reminders`, `/copilot`, `/reports`, `/settings`).
 
 - [ ] **Step 3: Rewrite `apps/frontend/src/App.tsx` to mount `BrowserRouter` + routes**
 
@@ -689,7 +689,7 @@ export function App() {
 }
 ```
 
-`AppLayout` (Sidebar + `<Outlet />`) được tạo ở Task 4 Step 6 — file này tham chiếu trước, hoàn thiện khi Task 4 xong.
+`AppLayout` (Sidebar + `<Outlet />`) is created in Task 4 Step 6 — this file references it ahead of time and is completed when Task 4 is finished.
 
 - [ ] **Step 4: Verify build compiles (AppLayout not yet created — expected to fail until Task 4)**
 
@@ -835,7 +835,7 @@ function SheetContent({
 export { Sheet, SheetTrigger, SheetClose, SheetContent };
 ```
 
-`radix-ui/dialog` là subpath export của package hợp nhất `radix-ui` (dependency đã khai báo ở Task 1) — thay cho `@radix-ui/react-dialog` riêng lẻ, đúng bộ dependency đã chốt ở spec mục 1.
+`radix-ui/dialog` is a subpath export of the unified `radix-ui` package (the dependency declared in Task 1) — use it instead of the separate `@radix-ui/react-dialog`, matching the dependency set finalized in spec section 1.
 
 - [ ] **Step 3: Create `apps/frontend/src/components/layout/nav-items.ts`**
 
@@ -858,27 +858,27 @@ export interface NavItem {
   to: string;
   label: string;
   icon: LucideIcon;
-  /** Gói subscription tối thiểu để truy cập — hiển thị icon khóa thay vì ẩn hẳn mục nav (spec mục 2). */
+  /** Minimum subscription plan required for access — show a lock icon instead of hiding the nav item (spec section 2). */
   minPlan?: 'STARTER' | 'GROWTH' | 'SCALE';
-  /** true nếu mục này hiển thị badge số lượng cần xử lý (Exception Queue). */
+  /** true if this item displays a badge for the number of items needing review (Exception Queue). */
   showReviewBadge?: boolean;
 }
 
 export const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/customers', label: 'Khách hàng', icon: Users },
-  { to: '/receivables', label: 'Công nợ', icon: FileText },
-  { to: '/bank-connections', label: 'Kết nối ngân hàng', icon: Landmark },
-  { to: '/transactions', label: 'Giao dịch / Đối soát', icon: ArrowLeftRight },
+  { to: '/customers', label: 'Customers', icon: Users },
+  { to: '/receivables', label: 'Receivables', icon: FileText },
+  { to: '/bank-connections', label: 'Bank Connections', icon: Landmark },
+  { to: '/transactions', label: 'Transactions / Reconciliation', icon: ArrowLeftRight },
   { to: '/exceptions', label: 'Exception Queue', icon: AlertTriangle, showReviewBadge: true },
-  { to: '/reminders', label: 'Lịch nhắc', icon: BellRing },
+  { to: '/reminders', label: 'Reminders', icon: BellRing },
   { to: '/copilot', label: 'Copilot', icon: Bot, minPlan: 'STARTER' },
-  { to: '/reports', label: 'Báo cáo', icon: BarChart3 },
-  { to: '/settings', label: 'Cài đặt', icon: Settings },
+  { to: '/reports', label: 'Reports', icon: BarChart3 },
+  { to: '/settings', label: 'Settings', icon: Settings },
 ];
 ```
 
-`minPlan: 'STARTER'` trên `/copilot` khớp ví dụ gate ở spec mục 2 ("`/copilot` có thể gate ở gói Starter trở lên"). `hasPlanAccess`/gate logic thật sự (đọc plan hiện tại của org) là phần của `2026-08-03-billing-usage-metering-design.md` — nằm ngoài phạm vi plan này, ở đây chỉ render icon khóa tĩnh khi `minPlan` được set (xem Step 4).
+`minPlan: 'STARTER'` on `/copilot` matches the gate example in spec section 2 ("`/copilot` can be gated at the Starter plan or above"). The actual `hasPlanAccess`/gate logic (reading the org's current plan) belongs to `2026-08-03-billing-usage-metering-design.md` — it is out of scope for this plan; here, only render a static lock icon when `minPlan` is set (see Step 4).
 
 - [ ] **Step 4: Create `apps/frontend/src/components/layout/sidebar.tsx`**
 
@@ -921,7 +921,7 @@ export function Sidebar({ collapsed = false, onToggleCollapsed }: SidebarProps) 
             type="button"
             onClick={onToggleCollapsed}
             className="rounded-md p-1.5 hover:bg-sidebar-accent"
-            aria-label={collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
           </button>
@@ -970,7 +970,7 @@ function SidebarFooter({ collapsed }: { collapsed: boolean }) {
           <p className="truncate text-xs text-muted-foreground">anh@casso.vn</p>
         </div>
       )}
-      <button type="button" aria-label="Đăng xuất" className="rounded-md p-1.5 hover:bg-sidebar-accent">
+      <button type="button" aria-label="Log out" className="rounded-md p-1.5 hover:bg-sidebar-accent">
         <LogOut className="size-4" />
       </button>
     </div>
@@ -978,7 +978,7 @@ function SidebarFooter({ collapsed }: { collapsed: boolean }) {
 }
 ```
 
-Avatar footer dùng 1 `div` chữ cái đầu thay vì cài `components/ui/avatar.tsx` riêng từ Radix — chưa có ảnh đại diện thật để cần fallback logic phức tạp hơn (ponytail: thêm `Avatar`/`AvatarFallback` primitive khi có API trả về ảnh thật). Nhãn thu gọn dùng `title` attribute (native tooltip của trình duyệt) thay vì cài `components/ui/tooltip.tsx` — bớt 1 Radix primitive khi thuộc tính HTML chuẩn đã đủ dùng.
+The avatar footer uses a single initial-letter `div` instead of installing a separate `components/ui/avatar.tsx` from Radix — there is no real avatar image yet that would require more complex fallback logic (ponytail: add the `Avatar`/`AvatarFallback` primitive when an API returns real images). The collapsed label uses the `title` attribute (the browser's native tooltip) instead of installing `components/ui/tooltip.tsx` — one fewer Radix primitive when the standard HTML attribute is sufficient.
 
 - [ ] **Step 5: Create `apps/frontend/src/components/layout/mobile-sidebar.tsx`**
 
@@ -997,7 +997,7 @@ export function MobileSidebarWrapper() {
         <button
           type="button"
           className="rounded-md p-2 hover:bg-accent md:hidden"
-          aria-label="Mở menu điều hướng"
+          aria-label="Open navigation menu"
         >
           <Menu className="size-5" />
         </button>
@@ -1042,7 +1042,7 @@ export function AppLayout() {
 }
 ```
 
-Desktop dùng nút thu gọn nội tuyến trong `Sidebar` (`SidebarCollapseFade` pattern được đơn giản hoá thành `ChevronLeft`/`ChevronRight` toggle — chưa cần animation riêng ở MVP, spec mục 3 chỉ yêu cầu "desktop có nút thu gọn", không yêu cầu hiệu ứng cụ thể). Mobile dùng `Sheet` (`MobileSidebarWrapper`) đúng tên component đã chốt ở spec mục 3.
+Desktop uses the inline collapse button in `Sidebar` (the `SidebarCollapseFade` pattern is simplified to a `ChevronLeft`/`ChevronRight` toggle — no separate animation is needed at MVP; spec section 3 only requires "desktop has a collapse button" and does not require a specific effect). Mobile uses `Sheet` (`MobileSidebarWrapper`), matching the component name finalized in spec section 3.
 
 - [ ] **Step 7: Verify build compiles (still missing `useReviewCount` — created in Task 5)**
 
@@ -1069,7 +1069,7 @@ git commit -m "feat: add collapsible Sidebar, mobile drawer, and AppLayout"
 
 **Interfaces:**
 - Consumes: `VITE_API_BASE_URL` env var (Task 1 `.env.example`)
-- Produces: `apiClient` used by every future `feature/api/*.ts` (spec kiến trúc mục 3, quy tắc chống lặp #2); `useReviewCount` consumed by `Sidebar` (Task 4 Step 4)
+- Produces: `apiClient` used by every future `feature/api/*.ts` (architecture spec section 3, anti-duplication rule #2); `useReviewCount` consumed by `Sidebar` (Task 4 Step 4)
 
 - [ ] **Step 1: Create `apps/frontend/src/lib/api-client.ts`**
 
@@ -1116,7 +1116,7 @@ export const apiClient = {
 };
 ```
 
-Instance duy nhất — mọi `feature/api/*.ts` gọi qua `apiClient`, không tự tạo `fetch` instance riêng (spec kiến trúc mục 3, quy tắc #2).
+Single instance — every `feature/api/*.ts` calls through `apiClient`; do not create a separate `fetch` instance (architecture spec section 3, rule #2).
 
 - [ ] **Step 2: Create `apps/frontend/src/lib/query-client.ts`**
 
@@ -1202,7 +1202,7 @@ export function App() {
 }
 ```
 
-`sonner` dùng cho mọi thông báo thành công/lỗi (login, logout, hành động xác nhận) — không tự dựng toast component riêng (spec mục 3).
+Use `sonner` for all success/error notifications (login, logout, confirmation actions) — do not build a separate toast component (spec section 3).
 
 - [ ] **Step 6: Verify build compiles end-to-end**
 
@@ -1275,14 +1275,14 @@ describe('Sidebar', () => {
     }
   });
 
-  it('renders exactly the 10 nav items chốt in the spec, no more no less', () => {
+  it('renders exactly the 10 nav items finalized in the spec, no more no less', () => {
     renderSidebar();
     expect(navItems).toHaveLength(10);
   });
 });
 ```
 
-`useReviewCount` được mock để test không phụ thuộc network thật (không có backend chạy trong CI) — chỉ assert phần UI/label, không assert giá trị badge (đã có unit test riêng cho hook khi feature Exception Queue được implement đầy đủ, ngoài phạm vi plan này).
+`useReviewCount` is mocked so the test does not depend on the real network (the backend does not run in CI) — assert only the UI/labels, not the badge value (a separate unit test for the hook will exist when the Exception Queue feature is fully implemented, outside this plan's scope).
 
 - [ ] **Step 3: Run the test**
 
@@ -1300,10 +1300,10 @@ git commit -m "test: add Vitest + RTL smoke test asserting all 10 Sidebar nav la
 
 ## Self-Review Notes
 
-- **Spec coverage:** Stack (spec mục 1) → Task 1 `package.json` dependencies. Design tokens (spec mục 1) → Task 2 `index.css`. Nav item list + route gate (spec mục 2) → Task 3 routes + Task 4 `nav-items.ts` (`minPlan`, `showReviewBadge`). Component pattern — NavLink active state, collapsible sidebar, mobile drawer, badge, footer, toast (spec mục 3) → Task 4 (`sidebar.tsx`, `mobile-sidebar.tsx`) + Task 5 Step 5 (`sonner`). Feature-based folder structure (scaffolding spec mục 3) → File Structure section + Task 3 `features/*`.
-- **Resolved design tokens:** Task 2 Step 3 now pins the light/dark oklch values defined in the spec mục 1, including radius, sidebar, chart, border, and dark-mode values.
+- **Spec coverage:** Stack (spec section 1) → Task 1 `package.json` dependencies. Design tokens (spec section 1) → Task 2 `index.css`. Nav item list + route gate (spec section 2) → Task 3 routes + Task 4 `nav-items.ts` (`minPlan`, `showReviewBadge`). Component pattern — NavLink active state, collapsible sidebar, mobile drawer, badge, footer, toast (spec section 3) → Task 4 (`sidebar.tsx`, `mobile-sidebar.tsx`) + Task 5 Step 5 (`sonner`). Feature-based folder structure (scaffolding spec section 3) → File Structure section + Task 3 `features/*`.
+- **Resolved design tokens:** Task 2 Step 3 now pins the light/dark oklch values defined in spec section 1, including radius, sidebar, chart, border, and dark-mode values.
 - **Font loading remains an implementation detail:** keep the existing loading mechanism (Google Fonts `<link>` in `index.html`) when wiring `Be Vietnam Pro`; this plan does not prescribe a new font dependency.
-- **Not covered in this plan (by design, out of scope per spec mục 4):** per-page content for Receivable Detail, Matching Workspace, CASSO Admin, etc. — future wireframe-specific plans. Real `hasPlanAccess` gating logic (billing spec) — Task 4 only renders a static lock icon when `minPlan` is set. The pending-review-count backend contract is owned by the Exception Queue plan and is implemented there.
+- **Not covered in this plan (by design, out of scope per spec section 4):** per-page content for Receivable Detail, Matching Workspace, CASSO Admin, etc. — future wireframe-specific plans. Real `hasPlanAccess` gating logic (billing spec) — Task 4 only renders a static lock icon when `minPlan` is set. The pending-review-count backend contract is owned by the Exception Queue plan and is implemented there.
 - **Type/name consistency checked:** `navItems` (Task 4 Step 3) `to` values match `appRoutes` (Task 3 Step 2) `path` values exactly (with leading `/` stripped for React Router relative paths). `ReviewBadge`/`showReviewBadge` naming in `Sidebar` (Task 4 Step 4) matches the mock target path `@/features/exceptions/api/use-review-count` used in both Task 4 Step 4 import and Task 6 Step 2 `vi.mock`.
 
 

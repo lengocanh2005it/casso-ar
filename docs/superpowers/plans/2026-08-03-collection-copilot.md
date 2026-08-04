@@ -10,15 +10,15 @@
 
 ## Global Constraints
 
-- **Hard action-whitelist boundary — quoted directly from the target spec (mục 2):** *"Các hành động nhạy cảm hơn — write-off, payment allocation, dispute — luôn bắt buộc thực hiện qua UI thông thường, không có tool nào cho phép Copilot gọi các hành động này, kể cả sau xác nhận. Đây là ranh giới cứng, không mở rộng thêm nếu không có quyết định riêng."* In code: `CopilotToolRegistry.SAFE_TOOL_NAMES` is a hardcoded, non-configurable array containing exactly `getReceivableSummary`, `getCollectionActivityTimeline`, `getPaymentHistory`, `draftReminderEmail`, `sendReminderEmail`. `register()` throws for any other name. There is no DI-based extensibility point, no config flag, and no code path — including confirm/cancel endpoints — that can invoke a write-off, payment-allocation, or dispute use case. This is proven by unit tests that must never be weakened or deleted.
-- **The model never executes a write directly.** `sendReminderEmail` is declared to Claude as a tool so it can *propose* sending, but `CopilotChatUseCase` intercepts any `tool_use` block named `sendReminderEmail` and creates a `CopilotPendingAction` instead of running anything — it never adds a `tool_result` for it and never lets the loop continue past it (spec mục 1, "Điểm mấu chốt"). The only code path that calls `EmailService.sendReminderEmail` is `ConfirmPendingActionUseCase`, reached by `POST /api/v1/copilot/actions/:id/confirm`, which never calls the Anthropic client; `CancelPendingActionUseCase` only marks the action `CANCELLED`.
-- **Structured data only, never raw rows.** Every read tool returns a small, pre-shaped JSON object (`totalOutstanding`, `maxOverdueDays`, `averageLateDays`, etc.) computed by application code from domain entities — never a serialized ORM row or raw SQL result (spec mục 1).
-- **Tenant scoping is automatic, not optional.** Every repository call a tool makes goes through `IReceivableRepository`/`ICustomerRepository`, which are `BaseRepository`-backed and read `organizationId` from `TenantContextService` — no tool ever accepts or forwards an `organizationId` parameter (spec mục 4, and `2026-08-03-multi-tenancy-rbac.md`).
-- **Hard per-turn timeout, one retry, no exceptions.** Each call to `client.messages.create` has a 15-second hard timeout; on timeout there is at most one automatic retry, then the turn fails and is reported to the caller (spec mục 4).
-- **`AIUsageLog` is written for every model call, success or failure.** No code path that calls the Anthropic client is allowed to skip logging (spec mục 4).
-- **`CopilotPendingAction` expires after 10 minutes.** `ConfirmPendingActionUseCase` rejects (and marks `EXPIRED`) any confirm attempt on a pending action older than `PENDING_ACTION_EXPIRY_MINUTES = 10`, even if the user clicks confirm late (spec mục 4).
-- **`Permission.REMINDER_SEND_MANUAL` gates the write action, not `RECEIVABLE_READ`.** Chatting (read-only Q&A) requires `Permission.RECEIVABLE_READ`; seeing/triggering `sendReminderEmail` in chat and calling the confirm/cancel endpoints requires `Permission.REMINDER_SEND_MANUAL` — both already exist in `2026-08-03-multi-tenancy-rbac.md`'s `Permission` enum, no new permission is added (spec mục 4).
-- **No credentials in prompts or tool responses.** No tool response, draft, or system prompt ever includes a `BankConnection` access token or any other credential (spec mục 4).
+- **Hard action-whitelist boundary — quoted directly from the target spec (section 2):** *"More sensitive actions — write-off, payment allocation, dispute — must always be performed through the regular UI; no tool allows Copilot to call these actions, even after confirmation. This is a hard boundary and must not be expanded without a separate decision."* In code: `CopilotToolRegistry.SAFE_TOOL_NAMES` is a hardcoded, non-configurable array containing exactly `getReceivableSummary`, `getCollectionActivityTimeline`, `getPaymentHistory`, `draftReminderEmail`, `sendReminderEmail`. `register()` throws for any other name. There is no DI-based extensibility point, no config flag, and no code path — including confirm/cancel endpoints — that can invoke a write-off, payment-allocation, or dispute use case. This is proven by unit tests that must never be weakened or deleted.
+- **The model never executes a write directly.** `sendReminderEmail` is declared to Claude as a tool so it can *propose* sending, but `CopilotChatUseCase` intercepts any `tool_use` block named `sendReminderEmail` and creates a `CopilotPendingAction` instead of running anything — it never adds a `tool_result` for it and never lets the loop continue past it (spec section 1, "Key point"). The only code path that calls `EmailService.sendReminderEmail` is `ConfirmPendingActionUseCase`, reached by `POST /api/v1/copilot/actions/:id/confirm`, which never calls the Anthropic client; `CancelPendingActionUseCase` only marks the action `CANCELLED`.
+- **Structured data only, never raw rows.** Every read tool returns a small, pre-shaped JSON object (`totalOutstanding`, `maxOverdueDays`, `averageLateDays`, etc.) computed by application code from domain entities — never a serialized ORM row or raw SQL result (spec section 1).
+- **Tenant scoping is automatic, not optional.** Every repository call a tool makes goes through `IReceivableRepository`/`ICustomerRepository`, which are `BaseRepository`-backed and read `organizationId` from `TenantContextService` — no tool ever accepts or forwards an `organizationId` parameter (spec section 4, and `2026-08-03-multi-tenancy-rbac.md`).
+- **Hard per-turn timeout, one retry, no exceptions.** Each call to `client.messages.create` has a 15-second hard timeout; on timeout there is at most one automatic retry, then the turn fails and is reported to the caller (spec section 4).
+- **`AIUsageLog` is written for every model call, success or failure.** No code path that calls the Anthropic client is allowed to skip logging (spec section 4).
+- **`CopilotPendingAction` expires after 10 minutes.** `ConfirmPendingActionUseCase` rejects (and marks `EXPIRED`) any confirm attempt on a pending action older than `PENDING_ACTION_EXPIRY_MINUTES = 10`, even if the user clicks confirm late (spec section 4).
+- **`Permission.REMINDER_SEND_MANUAL` gates the write action, not `RECEIVABLE_READ`.** Chatting (read-only Q&A) requires `Permission.RECEIVABLE_READ`; seeing/triggering `sendReminderEmail` in chat and calling the confirm/cancel endpoints requires `Permission.REMINDER_SEND_MANUAL` — both already exist in `2026-08-03-multi-tenancy-rbac.md`'s `Permission` enum, no new permission is added (spec section 4).
+- **No credentials in prompts or tool responses.** No tool response, draft, or system prompt ever includes a `BankConnection` access token or any other credential (spec section 4).
 - **No new tools beyond this plan's five**, and no dynamic/DB-driven tool registration — the whitelist is a compile-time constant, which is what makes the boundary auditable.
 - Naming/layering rules from `2026-08-03-project-scaffolding-architecture-design.md` apply (kebab-case files, PascalCase classes, `application` never imports `infrastructure` types except via ports).
 
@@ -1055,7 +1055,7 @@ describe('DraftReminderEmailTool', () => {
     const customer = new Customer({
       id: 'cust-1',
       organizationId: 'org-1',
-      name: 'Công ty ABC',
+      name: 'ABC Company',
       taxCode: '0101234567',
       email: 'ap@abc.vn',
       phone: '0900000000',
@@ -1072,7 +1072,7 @@ describe('DraftReminderEmailTool', () => {
     const result = await tool.execute({ receivableId: 'rec-1', tone: 'urgent' }, 'org-1');
 
     expect(result.recipientEmail).toBe('ap@abc.vn');
-    expect(result.subject).toContain('Công ty ABC');
+    expect(result.subject).toContain('ABC Company');
     expect(result.bodyHtml).toContain('30.000.000');
     expect(draftRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1170,13 +1170,13 @@ export class DraftReminderEmailTool {
 
     const subject =
       tone === 'urgent'
-        ? `[Nhắc thanh toán khẩn] ${customer.name} - còn nợ ${remaining}`
-        : `Nhắc thanh toán - ${customer.name}`;
+        ? `[Urgent payment reminder] ${customer.name} - ${remaining} remaining`
+        : `Payment reminder - ${customer.name}`;
 
     const bodyHtml =
       tone === 'urgent'
-        ? `<p>Kính gửi ${customer.name},</p><p>Công nợ của quý khách đã quá hạn thanh toán (hạn: ${dueDate}). Số tiền còn lại: <strong>${remaining}</strong>. Vui lòng thanh toán sớm nhất có thể.</p>`
-        : `<p>Kính gửi ${customer.name},</p><p>Đây là thư nhắc nhở về khoản công nợ đến hạn ${dueDate}, số tiền còn lại là <strong>${remaining}</strong>. Cảm ơn quý khách.</p>`;
+        ? `<p>Dear ${customer.name},</p><p>Your receivable is past due (due date: ${dueDate}). Remaining amount: <strong>${remaining}</strong>. Please pay as soon as possible.</p>`
+        : `<p>Dear ${customer.name},</p><p>This is a reminder about the receivable due on ${dueDate}; the remaining amount is <strong>${remaining}</strong>. Thank you.</p>`;
 
     const draftId = randomUUID();
     await this.draftRepo.save({
@@ -1356,7 +1356,7 @@ describe('CopilotChatUseCase', () => {
         usage: { input_tokens: 100, output_tokens: 20 },
       })
       .mockResolvedValueOnce({
-        content: [{ type: 'text', text: 'Khách hàng cust-1 hiện quá hạn 2 hóa đơn.' }],
+        content: [{ type: 'text', text: 'Customer cust-1 currently has 2 overdue invoices.' }],
         stop_reason: 'end_turn',
         usage: { input_tokens: 150, output_tokens: 40 },
       });
@@ -1386,10 +1386,10 @@ describe('CopilotChatUseCase', () => {
       tenantContext as unknown as TenantContextService,
     );
 
-    const result = await useCase.execute({ conversationId: 'conv-1', userMessage: 'Khách cust-1 quá hạn bao nhiêu?' });
+    const result = await useCase.execute({ conversationId: 'conv-1', userMessage: 'How overdue is customer cust-1?' });
 
     expect(result.pendingAction).toBeNull();
-    expect(result.message.content).toContain('quá hạn');
+    expect(result.message.content).toContain('overdue');
     expect(summaryTool.execute).toHaveBeenCalledWith({ customerId: 'cust-1' });
     expect(pendingActionRepo.create).not.toHaveBeenCalled();
     expect(usageLogRepo.log).toHaveBeenCalledTimes(2);
@@ -1398,7 +1398,7 @@ describe('CopilotChatUseCase', () => {
   it('halts on sendReminderEmail and creates a CopilotPendingAction instead of executing anything', async () => {
     messagesCreateMock.mockResolvedValueOnce({
       content: [
-        { type: 'text', text: 'Đây là bản nháp email nhắc.' },
+        { type: 'text', text: 'This is a reminder email draft.' },
         {
           type: 'tool_use',
           id: 'tu_2',
@@ -1448,7 +1448,7 @@ describe('CopilotChatUseCase', () => {
       tenantContext as unknown as TenantContextService,
     );
 
-    const result = await useCase.execute({ conversationId: 'conv-1', userMessage: 'Gửi email nhắc cho draft-1' });
+    const result = await useCase.execute({ conversationId: 'conv-1', userMessage: 'Send the reminder email for draft-1' });
 
     expect(result.pendingAction).toEqual({
       id: 'pa-1',
@@ -1507,10 +1507,10 @@ const MODEL_CALL_TIMEOUT_MS = 15_000;
 const MAX_TOOL_ITERATIONS = 5;
 
 const SYSTEM_PROMPT = [
-  'Bạn là trợ lý AI cho kế toán công nợ (Collection Copilot).',
-  'Bạn CHỈ được trả lời dựa trên dữ liệu structured JSON trả về từ các tool đọc — không tự bịa số liệu.',
-  'Nếu người dùng muốn gửi email nhắc, hãy gọi draftReminderEmail trước để tạo bản nháp, sau đó gọi sendReminderEmail để đề xuất gửi — việc gửi thật sẽ do người dùng xác nhận riêng, không phải bạn.',
-  'Bạn không có quyền và không có tool nào để ghi giảm nợ (write-off), phân bổ thanh toán, hay xử lý tranh chấp — nếu người dùng yêu cầu, hãy hướng dẫn họ dùng giao diện thông thường.',
+  'You are an AI assistant for collections accounting (Collection Copilot).',
+  'You may ONLY answer based on structured JSON data returned by read tools — do not invent figures.',
+  'If the user wants to send a reminder email, call draftReminderEmail first to create a draft, then call sendReminderEmail to propose sending it — the user must separately confirm the actual send; you do not send it yourself.',
+  'You have neither permission nor tools to write off receivables, allocate payments, or handle disputes — if the user asks, direct them to the standard interface.',
 ].join(' ');
 
 export interface CopilotChatInput {
@@ -1769,7 +1769,7 @@ function pendingAction(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 function buildDraft() {
-  return { id: 'draft-1', receivableId: 'rec-1', recipientEmail: 'ap@abc.vn', subject: 'Nhắc thanh toán - Công ty ABC', bodyHtml: '<p>Kính gửi Công ty ABC...</p>' };
+  return { id: 'draft-1', receivableId: 'rec-1', recipientEmail: 'ap@abc.vn', subject: 'Payment reminder - ABC Company', bodyHtml: '<p>Dear ABC Company...</p>' };
 }
 
 describe('ConfirmPendingActionUseCase', () => {
@@ -1792,7 +1792,7 @@ describe('ConfirmPendingActionUseCase', () => {
     await useCase.execute('pa-1', 'user-1');
 
     expect(emailTemplateRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ subject: 'Nhắc thanh toán - Công ty ABC', isDefault: false }),
+      expect.objectContaining({ subject: 'Payment reminder - ABC Company', isDefault: false }),
     );
     const savedTemplate = emailTemplateRepo.save.mock.calls[0][0];
 
@@ -2194,31 +2194,31 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
   const registry = new CopilotToolRegistry();
   registry.register({
     name: GetReceivableSummaryTool.NAME,
-    description: 'Tổng hợp công nợ của một khách hàng bằng structured data đã tính sẵn.',
+    description: 'Summarize a customer receivable using precomputed structured data.',
     inputSchema: GET_RECEIVABLE_SUMMARY_SCHEMA,
     requiresReminderPermission: false,
   });
   registry.register({
     name: GetCollectionActivityTimelineTool.NAME,
-    description: 'Lịch sử hoạt động thu hồi công nợ của một khách hàng.',
+    description: 'A customer\'s collection activity history.',
     inputSchema: GET_COLLECTION_ACTIVITY_TIMELINE_SCHEMA,
     requiresReminderPermission: false,
   });
   registry.register({
     name: GetPaymentHistoryTool.NAME,
-    description: 'Lịch sử thanh toán của một khách hàng.',
+    description: 'A customer\'s payment history.',
     inputSchema: GET_PAYMENT_HISTORY_SCHEMA,
     requiresReminderPermission: false,
   });
   registry.register({
     name: DraftReminderEmailTool.NAME,
-    description: 'Tạo bản nháp email nhắc thanh toán cho một receivable — KHÔNG gửi email.',
+    description: 'Create a payment reminder email draft for a receivable — do NOT send the email.',
     inputSchema: DRAFT_REMINDER_EMAIL_SCHEMA,
     requiresReminderPermission: true,
   });
   registry.register({
     name: SendReminderEmailTool.NAME,
-    description: 'Đề xuất gửi bản nháp email nhắc đã tạo trước đó — việc gửi thật cần người dùng xác nhận riêng.',
+    description: 'Propose sending a previously created reminder email draft — the user must separately confirm the actual send.',
     inputSchema: SEND_REMINDER_EMAIL_SCHEMA,
     requiresReminderPermission: true,
   });
@@ -2268,7 +2268,7 @@ Confirm the last `registry.register(...)` call in `copilotToolRegistryFactory` u
 ```typescript
   registry.register({
     name: SendReminderEmailTool.NAME,
-    description: 'Đề xuất gửi bản nháp email nhắc đã tạo trước đó — việc gửi thật cần người dùng xác nhận riêng.',
+    description: 'Propose sending a previously created reminder email draft — the user must separately confirm the actual send.',
     inputSchema: SEND_REMINDER_EMAIL_SCHEMA,
     requiresReminderPermission: true,
   });
@@ -2382,7 +2382,7 @@ describe('Collection Copilot (integration)', () => {
     await dataSource.getRepository(CustomerOrmEntity).save({
       id: customerId,
       organizationId,
-      name: 'Công ty QA',
+      name: 'QA Company',
       taxCode: '000',
       email: 'qa@example.com',
       phone: '0900000000',
@@ -2431,7 +2431,7 @@ describe('Collection Copilot (integration)', () => {
       usage: { input_tokens: 10, output_tokens: 5 },
     });
     messagesCreateMock.mockResolvedValueOnce({
-      content: [{ type: 'text', text: 'Khách hàng này hiện có công nợ quá hạn.' }],
+      content: [{ type: 'text', text: 'This customer currently has an overdue receivable.' }],
       stop_reason: 'end_turn',
       usage: { input_tokens: 20, output_tokens: 10 },
     });
@@ -2439,11 +2439,11 @@ describe('Collection Copilot (integration)', () => {
     const response = await request(app.getHttpServer())
       .post('/api/v1/copilot/conversations/00000000-0000-0000-0000-0000000000b1/messages')
       .set('Authorization', `Bearer ${token}`)
-      .send({ content: 'Khách này quá hạn bao nhiêu?' })
+      .send({ content: 'How overdue is this customer?' })
       .expect(201);
 
     expect(response.body.pendingAction).toBeNull();
-    expect(response.body.message.content).toContain('quá hạn');
+    expect(response.body.message.content).toContain('overdue');
 
     const executions = await dataSource.getRepository(ReminderExecutionOrmEntity).find({ where: { receivableId } });
     expect(executions).toHaveLength(0);
@@ -2459,7 +2459,7 @@ describe('Collection Copilot (integration)', () => {
     });
     messagesCreateMock.mockResolvedValueOnce({
       content: [
-        { type: 'text', text: 'Đây là bản nháp, bạn có muốn gửi không?' },
+        { type: 'text', text: 'This is a draft; would you like to send it?' },
       ],
       stop_reason: 'end_turn',
       usage: { input_tokens: 40, output_tokens: 15 },
@@ -2468,11 +2468,11 @@ describe('Collection Copilot (integration)', () => {
     const draftResponse = await request(app.getHttpServer())
       .post('/api/v1/copilot/conversations/00000000-0000-0000-0000-0000000000b2/messages')
       .set('Authorization', `Bearer ${token}`)
-      .send({ content: 'Soạn email nhắc cho công ty QA' })
+      .send({ content: 'Draft a reminder email for QA Company' })
       .expect(201);
 
     expect(draftResponse.body.pendingAction).toBeNull();
-    expect(draftResponse.body.message.content).toContain('bản nháp');
+    expect(draftResponse.body.message.content).toContain('draft');
 
     // Extract the draftId the tool call produced via a fresh model turn that asks to send it.
     const draftRow = await dataSource.query(
@@ -2483,7 +2483,7 @@ describe('Collection Copilot (integration)', () => {
 
     messagesCreateMock.mockResolvedValueOnce({
       content: [
-        { type: 'text', text: 'Đang đề xuất gửi email nhắc.' },
+        { type: 'text', text: 'Proposing to send the reminder email.' },
         {
           type: 'tool_use',
           id: 'tu_3',
@@ -2498,7 +2498,7 @@ describe('Collection Copilot (integration)', () => {
     const sendResponse = await request(app.getHttpServer())
       .post('/api/v1/copilot/conversations/00000000-0000-0000-0000-0000000000b2/messages')
       .set('Authorization', `Bearer ${token}`)
-      .send({ content: 'Đúng rồi, gửi email nhắc luôn' })
+      .send({ content: 'That is right, send the reminder email now' })
       .expect(201);
 
     expect(sendResponse.body.pendingAction).not.toBeNull();
@@ -2549,7 +2549,7 @@ describe('Collection Copilot (integration)', () => {
     const response = await request(app.getHttpServer())
       .post('/api/v1/copilot/conversations/00000000-0000-0000-0000-0000000000b3/messages')
       .set('Authorization', `Bearer ${token}`)
-      .send({ content: 'Không gửi email này' })
+      .send({ content: 'Do not send this email' })
       .expect(201);
     const pendingActionId = response.body.pendingAction.id;
 
@@ -2604,11 +2604,11 @@ interface CopilotTurnResponseDto {
 
 `getCollectionActivityTimeline` delegates to the Collection Activity read port and `getPaymentHistory` delegates to the Payment history read port; they are required public tools, not optional follow-up tools. Only the five names in `SAFE_TOOL_NAMES` may be registered or returned in the HTTP DTO.
 
-- **Spec coverage:** Hardcoded, test-proven tool whitelist (spec mục 2) → Task 3. Structured-data-only read tools (spec mục 1) → Task 4. Draft-then-confirm flow where the model never executes the write (spec mục 1 "Điểm mấu chốt") → Tasks 5-8, proven end-to-end in Task 10. `AIUsageLog` on every call including errors, 15s timeout + 1 retry (spec mục 4) → Task 7's `CopilotChatUseCase.callModel`/`callModelWithRetry`. `CopilotPendingAction` 10-minute expiry (spec mục 4) → Task 8. `Permission.REMINDER_SEND_MANUAL` gating both tool visibility and the confirm endpoint (spec mục 4) → Tasks 7 and 9. No credentials in prompts/tool responses (spec mục 4) → every tool in Tasks 4-6 only ever returns `Receivable`/`Customer`/draft fields, never a `BankConnection` field.
+- **Spec coverage:** Hardcoded, test-proven tool whitelist (spec section 2) → Task 3. Structured-data-only read tools (spec section 1) → Task 4. Draft-then-confirm flow where the model never executes the write (spec section 1 "Key point") → Tasks 5-8, proven end-to-end in Task 10. `AIUsageLog` on every call including errors, 15s timeout + 1 retry (spec section 4) → Task 7's `CopilotChatUseCase.callModel`/`callModelWithRetry`. `CopilotPendingAction` 10-minute expiry (spec section 4) → Task 8. `Permission.REMINDER_SEND_MANUAL` gating both tool visibility and the confirm endpoint (spec section 4) → Tasks 7 and 9. No credentials in prompts/tool responses (spec section 4) → every tool in Tasks 4-6 only ever returns `Receivable`/`Customer`/draft fields, never a `BankConnection` field.
 - **Read-tool ownership:** `getReceivableSummary` adapts the receivable/customer read port, `getCollectionActivityTimeline` adapts the Collection Activity read port, and `getPaymentHistory` adapts the payment-history read port. The Copilot module owns only tool registration and tenant/permission guards; it does not duplicate any domain query or introduce a second persistence contract.
 - **Reconciled with the real Email Template and Reminder Automation plans (2026-08-04 pass):** an earlier version of this plan bound its own `CopilotEmailTemplateRepository`/`TypeOrmCopilotReminderExecutionRepository` to `NotificationsModule`'s then-unbound `EMAIL_TEMPLATE_REPOSITORY`/`REMINDER_EXECUTION_REPOSITORY` tokens, on the theory that no real implementation existed yet. Both `2026-08-03-email-template-management.md` and `2026-08-03-reminder-automation.md` now exist and are already bound into `NotificationsModule` by `2026-08-03-email-notification-service.md`'s own reconciliation — a second `useClass` for the same token was never actually going to work (NestJS resolves one provider per token per module graph, not "whichever module registered it last"), so this was fixed at the design level, not patched around. `ConfirmPendingActionUseCase` (Task 8) now creates one throwaway real `EmailTemplate` row (the draft's already-composed subject/bodyHtml, no `{{}}` tokens, so `RenderEmailTemplateUseCase` is a harmless pass-through) and one real `ReminderExecution` row (`reminderRuleId: null` — reminder-automation.md's Task 2 made this field nullable specifically for this case), then calls `EmailService.sendReminderEmail` exactly as a rule-based reminder would. `CopilotModule` now imports `EmailTemplatesModule`/`RemindersModule` directly (no `forwardRef`, no cycle — neither module imports `CopilotModule` back).
 - **Lazy conversation creation:** the task brief specifies only `POST /api/v1/copilot/conversations/:id/messages`, no separate create-conversation endpoint. `ICopilotConversationRepository.findOrCreate` (Task 2) auto-creates the conversation row scoped to the caller's organization and user id the first time a client posts to a given conversation id, rather than requiring a prior `POST /api/v1/copilot/conversations`. If a future plan wants an explicit "list my conversations" UI, add a `GET /api/v1/copilot/conversations` endpoint and a `findByUserId` method — no changes needed to the auto-create behavior.
-- **Billing/usage-metering gating was left out on purpose:** the target spec's own "Câu hỏi mở" section (mục 6) leaves "giới hạn số lượt chat/ngày theo Usage Metering hay để free trong MVP?" explicitly open and unresolved by the spec author. Per this task's instruction to only add plan-gating "if the spec clearly calls for it," this plan treats Copilot chat as free/ungated in the MVP and does not touch `2026-08-03-billing-usage-metering.md`. Wiring a per-organization daily chat-turn cap is a natural follow-up once that open question is resolved — the natural seam is `CopilotChatUseCase.execute`, which already logs every call to `AIUsageLog` and could check a daily count there before calling the model.
+- **Billing/usage-metering gating was left out on purpose:** the target spec's own "Open questions" section (section 6) leaves "should the daily chat-turn limit follow Usage Metering or remain free in the MVP?" explicitly open and unresolved by the spec author. Per this task's instruction to only add plan-gating "if the spec clearly calls for it," this plan treats Copilot chat as free/ungated in the MVP and does not touch `2026-08-03-billing-usage-metering.md`. Wiring a per-organization daily chat-turn cap is a natural follow-up once that open question is resolved — the natural seam is `CopilotChatUseCase.execute`, which already logs every call to `AIUsageLog` and could check a daily count there before calling the model.
 - **Type/token consistency checked:** `EmailService.sendReminderEmail`'s exact signature `{ receivableId, templateId, reminderExecutionId }` (from `2026-08-03-email-notification-service.md` Task 4) is used verbatim in `ConfirmPendingActionUseCase` (Task 8) — no signature drift. `IReceivableRepository`/`ICustomerRepository`'s post-multi-tenancy-plan shape (`findById(id)`, no `organizationId` parameter) is used throughout Tasks 4-6, matching `2026-08-03-multi-tenancy-rbac.md` Task 6's migration exactly. `EmailTemplate`/`ReminderExecution` domain classes and their real `EMAIL_TEMPLATE_REPOSITORY`/`REMINDER_EXECUTION_REPOSITORY` tokens (Task 8) are imported from their owning modules, not redeclared — `ReminderExecution`'s `reminderRuleId: string | null` widening is consumed here exactly as `2026-08-03-reminder-automation.md`'s own Self-Review Notes describe it.
 
 

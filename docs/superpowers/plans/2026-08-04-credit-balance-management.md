@@ -17,7 +17,7 @@
 - `GET /customers/:customerId/credits` uses `RECEIVABLE_READ`; existing allocation/undo permissions remain `PAYMENT_ALLOCATE` and `PAYMENT_ALLOCATE_UNDO`.
 - Existing `POST /payments/:id/allocate` remains the only credit write path. Existing `POST /payments/allocations/:allocationId/undo` remains the only undo path.
 - Allocation and undo must use the existing transaction/row-lock core and update Payment/Receivable rollups atomically.
-- All money amounts are positive/non-negative integers in đồng; no floating point.
+- All money amounts are positive/non-negative integers in VND; no floating point.
 - `mark-prepaid` must validate `customerId` through the tenant-scoped Customer repository before creating Payment.
 - No FE screen, route removal, or change to existing FE API calls.
 - Domain code has no NestJS/TypeORM imports; application code uses existing repository tokens and module boundaries.

@@ -1,6 +1,6 @@
 # AGENTS.MD
 
-File này định nghĩa coding rules và conventions cho TẤT CẢ agent (Claude Code, GitHub Copilot, Cursor, etc.) làm việc trong repo này. Mọi agent PHẢI tuân thủ.
+This file defines coding rules and conventions for ALL agents (Claude Code, GitHub Copilot, Cursor, etc.) working in this repo. Every agent MUST comply.
 
 ---
 
@@ -8,11 +8,11 @@ File này định nghĩa coding rules và conventions cho TẤT CẢ agent (Clau
 
 ### Clean Architecture (Backend)
 
-Mỗi module NestJS tổ chức theo 4 layers:
+Each NestJS module is organized into 4 layers:
 
 ```
 domain/           Entity, state machine, domain error
-                  KHÔNG import NestJS/TypeORM
+                  MUST NOT import NestJS/TypeORM
 application/      Use case + port interface (I<Entity>Repository)
 infrastructure/   TypeORM repository, adapters
 presentation/     Controller, DTO, DI wiring
@@ -34,50 +34,50 @@ Dependency: `presentation → application → domain`, `infrastructure → appli
 
 ### Money
 
-- **LUÔN** dùng integer đơn vị đồng (VND)
-- **KHÔNG BAO GIỜ** dùng float hoặc decimal cho tiền
-- TypeORM: `@Column('bigint')` cho mọi field tiền
+- **ALWAYS** use integers in VND units
+- **NEVER** use float or decimal for money
+- TypeORM: `@Column('bigint')` for every money field
 
 ```typescript
-// ✅ Đúng
+// ✅ Correct
 @Column('bigint')
 amount: number;
 
-// ❌ Sai
+// ❌ Incorrect
 @Column('decimal', { precision: 10, scale: 2 })
 amount: number;
 ```
 
 ### Transactions
 
-- Mọi write thay đổi số tiền/status PHẢI trong 1 DB transaction
-- Dùng `DataSource.transaction()` hoặc `EntityManager` trong use case
-- Không bao giờ update rollup fields ngoài transaction
+- Every write that changes an amount/status MUST be inside one DB transaction
+- Use `DataSource.transaction()` or `EntityManager` in the use case
+- Never update rollup fields outside a transaction
 
 ### Persisted Rollup
 
-- `Receivable.paidAmount` và `Payment.allocatedAmount` là persisted rollup
-- Chỉ cập nhật trong transaction có lock (pessimistic_write)
-- Không dùng `SUM(PaymentAllocation)` runtime
+- `Receivable.paidAmount` and `Payment.allocatedAmount` are persisted rollups
+- Update only inside a transaction with a lock (pessimistic_write)
+- Do not use `SUM(PaymentAllocation)` at runtime
 
 ### Derived Fields
 
-- `remainingAmount`, `unallocatedAmount`, `isOverdue`, `isDisputed` — tính tại query time
-- KHÔNG store derived fields trong database
+- `remainingAmount`, `unallocatedAmount`, `isOverdue`, `isDisputed` — calculate at query time
+- Do NOT store derived fields in the database
 
 ### Tenant Isolation
 
-- Mọi query/write PHẢI scope theo `organizationId`
-- Dùng `TenantContextService.getOrganizationId()`
-- Không bao giờ hardcode organizationId
+- Every query/write MUST be scoped by `organizationId`
+- Use `TenantContextService.getOrganizationId()`
+- Never hardcode organizationId
 
 ```typescript
-// ✅ Đúng
+// ✅ Correct
 const orgId = this.tenantContext.getOrganizationId();
 await this.repo.findOne({ where: { id, organizationId: orgId } });
 
-// ❌ Sai
-await this.repo.findOne({ where: { id } }); // thiếu organizationId
+// ❌ Incorrect
+await this.repo.findOne({ where: { id } }); // missing organizationId
 ```
 
 ---
@@ -87,28 +87,28 @@ await this.repo.findOne({ where: { id } }); // thiếu organizationId
 ### TypeScript
 
 - Strict mode enabled
-- Không dùng `any` trong production code (test được phép)
-- Dùng `node:` protocol cho Node.js builtins (`import { randomUUID } from 'node:crypto'`)
-- Interface cho data-only types, class cho types có behavior
+- Do not use `any` in production code (allowed in tests)
+- Use the `node:` protocol for Node.js builtins (`import { randomUUID } from 'node:crypto'`)
+- Interface for data-only types, class for types with behavior
 
 ### NestJS
 
-- Use case trong `application/`, KHÔNG đặt trong controller
-- Controller chỉ gọi use case, không chứa business logic
-- Dùng Symbol cho DI tokens (`export const X_REPOSITORY = Symbol('X_REPOSITORY')`)
+- Use cases belong in `application/`, NOT in controllers
+- Controllers only call use cases; they do not contain business logic
+- Use Symbols for DI tokens (`export const X_REPOSITORY = Symbol('X_REPOSITORY')`)
 - Global prefix: `/api/v1`
 
 ### TypeORM
 
-- Entity class tên `XOrmEntity` (infrastructure layer)
-- Domain entity KHÔNG import TypeORM decorators
-- Dùng `@VersionColumn()` cho optimistic locking
-- Dùng `EntityManager` parameter cho transactional saves
+- Entity classes are named `XOrmEntity` (infrastructure layer)
+- Domain entities MUST NOT import TypeORM decorators
+- Use `@VersionColumn()` for optimistic locking
+- Use an `EntityManager` parameter for transactional saves
 
 ### Validation
 
-- Dùng class-validator decorators trên DTOs
-- Response DTOs: không leak `organizationId`, `version`, internal fields
+- Use class-validator decorators on DTOs
+- Response DTOs: do not leak `organizationId`, `version`, or internal fields
 - Error shape: `{ statusCode, errorCode, message, details? }`
 
 ---
@@ -117,15 +117,15 @@ await this.repo.findOne({ where: { id } }); // thiếu organizationId
 
 ### Unit tests
 
-- File: `*.spec.ts` đặt cùng thư mục với source
-- Mock repositories với `jest.fn()`
-- Test domain logic thuần, không cần NestJS container
+- File: `*.spec.ts` placed alongside the source
+- Mock repositories with `jest.fn()`
+- Test pure domain logic without the NestJS container
 
 ### Integration tests
 
-- File: `*.e2e-spec.ts` trong `test/` directory
-- Dùng `@nestjs/testing` cho module setup
-- Dùng testcontainers cho real Postgres
+- File: `*.e2e-spec.ts` in the `test/` directory
+- Use `@nestjs/testing` for module setup
+- Use testcontainers for real Postgres
 
 ### Test commands
 
@@ -160,43 +160,43 @@ Examples:
 - `fix/<name>` — bug fixes
 - `chore/<name>` — maintenance
 
-### Workflow: Bắt đầu ticket mới
+### Workflow: Starting a new ticket
 
-**BẮT BUỘC** khi bắt đầu implement một ticket từ `docs/wayfinder/feature-map.md`:
+**REQUIRED** when starting to implement a ticket from `docs/wayfinder/feature-map.md`:
 
-1. **Tạo worktree** trong `.worktrees/`:
+1. **Create a worktree** in `.worktrees/`:
 ```bash
 git worktree add .worktrees/feat/<ticket-name> -b feat/<ticket-name>
 ```
 
-2. **Làm việc trên worktree** đó, KHÔNG làm trên `main`
+2. **Work in that worktree**, NOT on `main`
 
-3. **Khi hoàn thành**:
+3. **When complete**:
 ```bash
 cd .worktrees/feat/<ticket-name>
 git add -A
-git commit -m "feat: <mô tả>"
+git commit -m "feat: <description>"
 git push -u origin feat/<ticket-name>
-gh pr create --title "feat: <mô tả>" --body "Closes #<issue>"
+gh pr create --title "feat: <description>" --body "Closes #<issue>"
 ```
 
-4. **Chờ user review** trước khi merge
+4. **Wait for user review** before merging
 
-5. **Dọn dẹp** sau khi merge:
+5. **Clean up** after merging:
 ```bash
 git worktree remove .worktrees/feat/<ticket-name>
 git branch -d feat/<ticket-name>
 ```
 
-**LƯU Ý:**
-- Mỗi ticket = 1 worktree riêng
-- Không bao giờ code trực tiếp trên `main`
-- PR phải có test pass + type check pass
-- **BẮT BUỘC** cập nhật `docs/wayfinder/feature-map.md` khi:
-  - Bắt đầu ticket: đổi status → `in-progress`
-  - Hoàn thành ticket: đổi status → `done`, thêm `Shipped:` date + PR reference
-  - Blocker thay đổi: cập nhật `Blockers` field
-  - Frontier thay đổi: cập nhật section `Frontier`
+**NOTE:**
+- Each ticket = 1 separate worktree
+- Never code directly on `main`
+- The PR must have passing tests + a passing type check
+- **REQUIRED** to update `docs/wayfinder/feature-map.md` when:
+  - Starting a ticket: change status → `in-progress`
+  - Completing a ticket: change status → `done`, add `Shipped:` date + PR reference
+  - A blocker changes: update the `Blockers` field
+  - The frontier changes: update the `Frontier` section
 
 ---
 
@@ -204,26 +204,26 @@ git branch -d feat/<ticket-name>
 
 ### Secrets & Credentials
 
-- **KHÔNG BAO GIỜ** commit secrets, API keys, passwords, tokens
-- Dùng environment variables cho mọi secrets
-- `.env` đã có trong `.gitignore` — KHÔNG force add
-- JWT secret: `process.env.JWT_SECRET` (required, không có default)
+- **NEVER** commit secrets, API keys, passwords, or tokens
+- Use environment variables for all secrets
+- `.env` is already in `.gitignore` — do NOT force-add it
+- JWT secret: `process.env.JWT_SECRET` (required, no default)
 - Cas ID credentials: `process.env.CAS_ID_CLIENT_ID`, `process.env.CAS_ID_CLIENT_SECRET`
-- Database: `process.env.DB_PASSWORD` (không default)
+- Database: `process.env.DB_PASSWORD` (no default)
 
 ### Authentication
 
-- Access token: 15 phút,httpOnly cookie
-- Refresh token: 7 ngày, httpOnly cookie, secure
-- Rate limit: 5 req/phút per (IP, email) cho auth endpoints
-- Token hash: SHA-256 khi lưu数据库, không plaintext
+- Access token: 15 minutes, httpOnly cookie
+- Refresh token: 7 days, httpOnly cookie, secure
+- Rate limit: 5 req/minute per (IP, email) for auth endpoints
+- Token hash: SHA-256 when stored in the database, not plaintext
 
 ### Authorization
 
-- Mọi endpoint business PHẢI có `@RequirePermission()` decorator
-- Check permission TRƯỚC khi execute use case
-- Response không leak `organizationId`, `version`, internal fields
-- Webhook auth: constant-time compare (không dùng `===`)
+- Every business endpoint MUST have the `@RequirePermission()` decorator
+- Check permission BEFORE executing the use case
+- Responses must not leak `organizationId`, `version`, or internal fields
+- Webhook auth: constant-time comparison (do not use `===`)
 
 ---
 
@@ -231,13 +231,13 @@ git branch -d feat/<ticket-name>
 
 ### Error Response Shape
 
-Mọi lỗi trả về dạng chuẩn:
+All errors return the standard shape:
 
 ```typescript
 {
   statusCode: number,      // HTTP status code
-  errorCode: string,       // UPPER_SNAKE_CASE, stable cho FE switch
-  message: string,         // Human-readable (tiếng Việt)
+  errorCode: string,       // UPPER_SNAKE_CASE, stable for FE switching
+  message: string,         // Human-readable (Vietnamese)
   details?: unknown        // Optional additional info
 }
 ```
@@ -272,17 +272,17 @@ enum ErrorCode {
 
 ### Domain Errors
 
-- Domain logic throw `Error` với message rõ ràng
-- Controller translate domain error → HTTP response + ErrorCode
-- Không return `{ success: false }` — luôn throw exception
+- Domain logic throws `Error` with a clear message
+- Controllers translate domain errors → HTTP response + ErrorCode
+- Do not return `{ success: false }` — always throw an exception
 
 ```typescript
-// ✅ Đúng
+// ✅ Correct
 if (amount > remaining) {
   throw new Error('Allocation amount exceeds remaining amount');
 }
 
-// ❌ Sai
+// ❌ Incorrect
 return { success: false, error: 'Invalid amount' };
 ```
 
@@ -292,12 +292,12 @@ return { success: false, error: 'Invalid amount' };
 
 ### Console Output
 
-- **KHÔNG** dùng `console.log()` trong production code
-- Dùng structured logging qua logger service
-- Logger PHẢI có context: `organizationId`, `userId`, `requestId`
+- **DO NOT** use `console.log()` in production code
+- Use structured logging through the logger service
+- The logger MUST include context: `organizationId`, `userId`, `requestId`
 
 ```typescript
-// ✅ Đúng
+// ✅ Correct
 this.logger.log({
   message: 'Payment allocated',
   paymentId: payment.id,
@@ -306,7 +306,7 @@ this.logger.log({
   organizationId: this.tenantContext.getOrganizationId(),
 });
 
-// ❌ Sai
+// ❌ Incorrect
 console.log('Payment allocated:', payment.id);
 ```
 
@@ -315,7 +315,7 @@ console.log('Payment allocated:', payment.id);
 - `error`: System errors, exceptions
 - `warn`: Business rule violations, degraded state
 - `info`: Business events (payment allocated, reminder sent)
-- `debug`: Development debugging (chỉ dùng khi debug, KHÔNG commit)
+- `debug`: Development debugging (use only while debugging, do NOT commit)
 
 ---
 
@@ -323,41 +323,41 @@ console.log('Payment allocated:', payment.id);
 
 ### Database Queries
 
-- **KHÔNG** dùng `SELECT *` — luôn select cụ thể columns
-- **KHÔNG** N+1 queries — dùng `IN` hoặc `JOIN` thay vì loop
-- Thêm index cho frequently queried columns:
+- **DO NOT** use `SELECT *` — always select specific columns
+- **DO NOT** use N+1 queries — use `IN` or `JOIN` instead of a loop
+- Add indexes for frequently queried columns:
   ```typescript
   @Index(['organizationId', 'status', 'dueDate'])
   ```
-- Dùng pagination cho mọi list endpoint (`page`, `limit`)
-- `limit` tối đa 100, default 20
+- Use pagination for every list endpoint (`page`, `limit`)
+- `limit` maximum 100, default 20
 
 ### Caching
 
-- Không cache riêng — để TypeORM query cache hoặc Redis handle
-- Invalidate cache khi có write operation
+- Do not implement a separate cache — let the TypeORM query cache or Redis handle it
+- Invalidate the cache on write operations
 
 ### Transaction Scope
 
-- Giữ transaction ngắn nhất có thể
-- KHÔNG gọi external API trong transaction
-- Lock chỉ giữ trong transaction, không lock ngoài
+- Keep transactions as short as possible
+- DO NOT call external APIs inside a transaction
+- Hold locks only inside transactions, never outside
 
 ---
 
 ## Dependency Management
 
-### Thêm Package Mới
+### Adding a New Package
 
-Trước khi thêm dependency mới:
+Before adding a new dependency:
 
-1. **Kiểm tra** package đã có trong workspace chưa
-2. **Kiểm tra** stdlib làm được không
-3. **Kiểm tra** package có actively maintained không
-4. **Kiểm tra** bundle size có acceptabe không
+1. **Check** whether the package is already in the workspace
+2. **Check** whether the standard library can do it
+3. **Check** whether the package is actively maintained
+4. **Check** whether the bundle size is acceptable
 
 ```bash
-# Kiểm tra package
+# Check package
 npm info <package> --json | jq '.time.modified, .dist-tags'
 ```
 
@@ -373,12 +373,12 @@ npm info <package> --json | jq '.time.modified, .dist-tags'
 | Testing | `jest`, `supertest`, `@testcontainers/*` | Test tools |
 | Utilities | `date-fns`, `zod` | Only if justified |
 
-### KHÔNG thêm
+### Do NOT add
 
-- Lodash (dùng native JS methods)
-- Moment.js (dùng date-fns hoặc Intl)
-- Axios (dùng native fetch)
-- uuid (dùng crypto.randomUUID)
+- Lodash (use native JS methods)
+- Moment.js (use date-fns or Intl)
+- Axios (use native fetch)
+- uuid (use crypto.randomUUID)
 
 ---
 
@@ -413,21 +413,21 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 ```
 
-### Quy tắc
+### Rules
 
-- **KHÔNG** commit `.env` file
-- Luôn có `.env.example` với placeholder values
-- Validate required vars khi app startup
-- Dùng `process.env.VARIABLE ?? 'default'` cho optional vars
-- KHÔNG dùng `process.env.VARIABLE!` (non-null assertion)
+- **DO NOT** commit the `.env` file
+- Always have `.env.example` with placeholder values
+- Validate required vars at app startup
+- Use `process.env.VARIABLE ?? 'default'` for optional vars
+- DO NOT use `process.env.VARIABLE!` (non-null assertion)
 
 ---
 
 ## API Error Codes
 
-### Danh sách errorCode chuẩn
+### Standard errorCode list
 
-| ErrorCode | HTTP Status | Mô tả |
+| ErrorCode | HTTP Status | Description |
 |-----------|-------------|-------|
 | `VALIDATION_ERROR` | 400 | Input validation failed |
 | `NOT_FOUND` | 404 | Resource not found |
@@ -451,11 +451,11 @@ REDIS_PORT=6379
 | `EMAIL_SEND_FAILED` | 500 | Email provider error |
 | `IDEMPOTENCY_KEY_REUSED` | 409 | Duplicate idempotency key |
 
-### Quy tắc dùng
+### Usage rules
 
-- `errorCode` là string ổn định, FE switch theo errorCode
-- `message` là text hiển thị cho user (tiếng Việt)
-- KHÔNG để FE parse message để quyết định logic
+- `errorCode` is a stable string; the FE switches on errorCode
+- `message` is text displayed to the user (Vietnamese)
+- Do NOT let the FE parse the message to determine logic
 
 ---
 
@@ -463,23 +463,23 @@ REDIS_PORT=6379
 
 ### NEVER
 
-1. Dùng `float` hoặc `decimal` cho tiền
-2. Import NestJS/TypeORM trong `domain/` layer
+1. Use `float` or `decimal` for money
+2. Import NestJS/TypeORM in the `domain/` layer
 3. Hardcode `organizationId`
-4. Update rollup fields ngoài transaction
-5. Leak internal fields trong response DTOs
-6. Bỏ qua tenant isolation
-7. Viết business logic trong controller
-8. Dùng `any` trong production code
+4. Update rollup fields outside a transaction
+5. Leak internal fields in response DTOs
+6. Ignore tenant isolation
+7. Put business logic in controllers
+8. Use `any` in production code
 
 ### ALWAYS
 
-1. Scope query theo `organizationId`
-2. Dùng transaction cho write operations
-3. Validate input với class-validator
-4. Viết test cho use cases mới
-5. Update module khi thêm providers/controllers
-6. Kiểm tra `organizationId` khi save
+1. Scope queries by `organizationId`
+2. Use transactions for write operations
+3. Validate input with class-validator
+4. Write tests for new use cases
+5. Update the module when adding providers/controllers
+6. Check `organizationId` when saving
 
 ---
 

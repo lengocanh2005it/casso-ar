@@ -1,24 +1,24 @@
 # Cas ID Integration + Bank Connection Design
 
-> Spec con của [docs/overview.md](../../../docs/overview.md), liên kết với [2026-08-03-webhook-matching-engine-design.md](2026-08-03-webhook-matching-engine-design.md) (mỗi `BankTransaction` thuộc về một `BankConnection`). Định nghĩa luồng kết nối tài khoản ngân hàng qua Cas ID, entity quản lý consent/token, và cách phát hiện mất quyền truy cập.
+> Child spec of [docs/overview.md](../../../docs/overview.md), linked to [2026-08-03-webhook-matching-engine-design.md](2026-08-03-webhook-matching-engine-design.md) (each `BankTransaction` belongs to a `BankConnection`). Defines the Cas ID bank-account connection flow, the entities managing consent/tokens, and access-loss detection.
 
-## 0. Nguồn tham khảo & giới hạn thông tin
+## 0. References & information limits
 
-Từ [cas.so/quickstart](https://cas.so/quickstart) (truy cập 08/2026), luồng kỹ thuật thật của Cas ID là **redirect-based flow kiểu OAuth**, không phải polling hay webhook như brainstorm ban đầu giả định:
+According to [cas.so/quickstart](https://cas.so/quickstart) (accessed 08/2026), Cas ID's actual technical flow is an **OAuth-style redirect-based flow**, not polling or webhooks as the initial brainstorm assumed:
 
 ```
-1. POST /grant/token  (scopes vd "identity,transaction", redirectUri) → grantToken (hết hạn 30 phút)
-2. Mở Cas Link với grantToken → user xác thực/quét QR trong Cas Link
-3. Cas Link redirect về redirectUri kèm publicToken trong query param
-4. POST /grant/exchange (publicToken) → accessToken (không hết hạn)
-5. accessToken có thể bị vô hiệu qua POST /grant/invalidate
+1. POST /grant/token  (scopes e.g. "identity,transaction", redirectUri) → grantToken (expires in 30 minutes)
+2. Open Cas Link with grantToken → user authenticates/scans a QR code in Cas Link
+3. Cas Link redirects to redirectUri with publicToken in the query parameter
+4. POST /grant/exchange (publicToken) → accessToken (does not expire)
+5. accessToken can be invalidated via POST /grant/invalidate
 ```
 
-Xác thực API dùng header `x-client-id` + `x-secret-key` + API version, có sandbox và production riêng biệt.
+API authentication uses the `x-client-id` + `x-secret-key` + API version headers, with separate sandbox and production environments.
 
-**Giới hạn**: docs công khai không có endpoint/response schema đầy đủ, không nói rõ webhook báo thu hồi quyền phía Cas ID. Chi tiết field, error code, và cơ chế thông báo revoke cần xác nhận lại với CASSO Developer Portal/Console trước khi triển khai production. Vì vậy spec này thiết kế qua một **adapter interface** để cô lập phần chưa chắc chắn.
+**Limitations**: the public docs do not provide complete endpoint/response schemas or clearly describe a Cas ID webhook for access revocation. Field details, error codes, and the revoke-notification mechanism must be confirmed with the CASSO Developer Portal/Console before production deployment. This spec therefore uses an **adapter interface** to isolate the uncertain parts.
 
-## 1. Adapter interface & luồng kết nối
+## 1. Adapter interface & connection flow
 
 ```
 CasIdIntegrationAdapter (interface)
@@ -26,30 +26,30 @@ CasIdIntegrationAdapter (interface)
   exchangeToken(publicToken): Promise<{ accessToken }>
   invalidateToken(accessToken): Promise<void>
   getAccountIdentity(accessToken): Promise<AccountIdentity>
-  getTransactions(accessToken, ...): Promise<Transaction[]>   // dự phòng nếu cần pull ngoài Balance Hook
+  getTransactions(accessToken, ...): Promise<Transaction[]>   // fallback if pulling outside Balance Hook is needed
 
-MockCasIdAdapter implements CasIdIntegrationAdapter   // giả lập toàn bộ flow, dùng cho demo/test
-CasIdAdapter implements CasIdIntegrationAdapter       // gọi API thật, hoàn thiện khi có Developer Portal access
+MockCasIdAdapter implements CasIdIntegrationAdapter   // mocks the entire flow, used for demo/test
+CasIdAdapter implements CasIdIntegrationAdapter       // calls the real API, complete once Developer Portal access is available
 ```
 
-`CasIdIntegrationAdapter` cô lập domain Accounts Receivable khỏi API cụ thể của Cas ID — nếu API/flow thật đổi khác giả định (ví dụ có webhook chính thức), chỉ cần đổi implementation của `CasIdAdapter`, không đổi domain logic.
+`CasIdIntegrationAdapter` isolates the Accounts Receivable domain from the specific Cas ID API—if the actual API/flow differs from the assumption (for example, if an official webhook exists), only the `CasIdAdapter` implementation changes; domain logic does not.
 
-### Luồng kết nối
+### Connection flow
 
 ```
-1. Owner bấm "Kết nối ngân hàng" → BankConnectionService.initiate()
-2. Gọi adapter.createGrantToken(scopes=["identity","transaction"], redirectUri=".../cas-id/callback")
-3. Lưu CasIdConnectionSession (status PENDING_AUTHORIZATION), mở Cas Link ở popup/tab mới với grantToken
-4. User quét QR / đăng nhập trong Cas Link
-5. Cas Link redirect popup về redirectUri kèm publicToken
-6. Trang callback (route riêng của AR Automation, vd /bank-connections/cas-id/callback) nhận publicToken,
-   gọi backend POST /bank-connections/cas-id/sessions/:id/exchange
+1. Owner clicks "Connect bank account" → BankConnectionService.initiate()
+2. Call adapter.createGrantToken(scopes=["identity","transaction"], redirectUri=".../cas-id/callback")
+3. Save CasIdConnectionSession (status PENDING_AUTHORIZATION), open Cas Link in a new popup/tab with grantToken
+4. User scans a QR code / logs in within Cas Link
+5. Cas Link redirects the popup to redirectUri with publicToken
+6. The callback page (a dedicated AR Automation route, e.g. /bank-connections/cas-id/callback) receives publicToken,
+   calls backend POST /bank-connections/cas-id/sessions/:id/exchange
 7. Backend: adapter.exchangeToken(publicToken) → accessToken
-8. Lưu BankConnection (status ACTIVE), accessToken được mã hóa at-rest,
-   đóng popup, cập nhật UI trang quản lý kết nối chính
+8. Save BankConnection (status ACTIVE), encrypt accessToken at rest,
+   close the popup, update the main connection-management page UI
 ```
 
-Chọn popup/new-tab (không phải iframe) vì không có xác nhận Cas Link hỗ trợ embed iframe — popup + redirect URI riêng là mô hình OAuth-style chuẩn, chắc chắn hoạt động.
+Use a popup/new tab (not an iframe) because Cas Link is not confirmed to support iframe embedding; a popup plus a dedicated redirect URI is the standard OAuth-style model and is reliable.
 
 ## 2. Entities
 
@@ -58,11 +58,11 @@ CasIdConnectionSession
   id, organizationId, initiatedByUserId, grantToken, scopes,
   bankConnectionId (nullable — set when re-authenticating an existing connection),
   redirectUri, status (PENDING_AUTHORIZATION/COMPLETED/EXPIRED),
-  expiresAt (createdAt + 30 phút), createdAt
+  expiresAt (createdAt + 30 minutes), createdAt
 
 BankConnection
   id, organizationId, casIdConnectionSessionId,
-  accessToken (mã hóa at-rest), accountIdentity (jsonb — số tài khoản, ngân hàng...),
+  accessToken (encrypted at rest), accountIdentity (jsonb — account number, bank...),
   status (PENDING_AUTHORIZATION/ACTIVE/REQUIRES_REAUTHORIZATION/REVOKED/DISCONNECTED/ERROR),
   scopes, connectedAt, lastSyncAt, revokedAt,
   createdAt
@@ -73,43 +73,43 @@ ConnectionAuditEvent
   metadata (jsonb), createdAt
 ```
 
-`accessToken` không hết hạn theo Cas ID nhưng vẫn là credential nhạy cảm nhất trong hệ thống (cho phép đọc giao dịch, dù không phải Internet Banking credential) — bắt buộc mã hóa at-rest, không log ra plaintext ở bất kỳ đâu (kể cả `ConnectionAuditEvent.metadata`).
+`accessToken` does not expire according to Cas ID, but remains the system's most sensitive credential (it can read transactions even though it is not an Internet Banking credential). It must be encrypted at rest and never logged in plaintext (including in `ConnectionAuditEvent.metadata`).
 
-Liên kết với Webhook/Matching spec: mỗi `BankTransaction` có `bankConnectionId` tham chiếu tới đây (xem [2026-08-03-webhook-matching-engine-design.md](2026-08-03-webhook-matching-engine-design.md) mục 2).
+Link to the Webhook/Matching spec: each `BankTransaction` has a `bankConnectionId` referencing this entity (see section 2 of [2026-08-03-webhook-matching-engine-design.md](2026-08-03-webhook-matching-engine-design.md)).
 
-## 3. Trạng thái kết nối & lazy revocation detection
+## 3. Connection states & lazy revocation detection
 
 ### Transitions
 
 ```
-PENDING_AUTHORIZATION → ACTIVE                    khi exchange token thành công
-ACTIVE → REQUIRES_REAUTHORIZATION                 khi bất kỳ API call nào dùng accessToken trả về 401/403
-ACTIVE → ERROR                                    khi lỗi khác (5xx, network) — không phải revoke, có thể retry
-REQUIRES_REAUTHORIZATION → ACTIVE                 khi user hoàn tất lại flow kết nối; cập nhật chính
-                                                   BankConnection cũ (không tạo connection song song)
-ACTIVE/REQUIRES_REAUTHORIZATION → DISCONNECTED    khi Owner chủ động ngắt kết nối (gọi invalidateToken)
+PENDING_AUTHORIZATION → ACTIVE                    when token exchange succeeds
+ACTIVE → REQUIRES_REAUTHORIZATION                 when any API call using accessToken returns 401/403
+ACTIVE → ERROR                                    on other errors (5xx, network) — not a revoke, can retry
+REQUIRES_REAUTHORIZATION → ACTIVE                 when the user completes the connection flow again; update the existing
+                                                   BankConnection (do not create a parallel connection)
+ACTIVE/REQUIRES_REAUTHORIZATION → DISCONNECTED    when the Owner actively disconnects (calls invalidateToken)
 ```
 
-Vì Cas ID không công bố webhook báo thu hồi quyền, việc phát hiện `REQUIRES_REAUTHORIZATION` dùng **lazy detection**: bất kỳ lệnh gọi API nào (nhận Balance Hook, gọi `getTransactions`...) dùng `accessToken` mà trả về 401/403 sẽ đánh dấu connection ngay lập tức — không cần scheduled job riêng kiểm tra định kỳ. Chấp nhận độ trễ phát hiện bằng khoảng cách tới lệnh gọi API tiếp theo.
+Because Cas ID does not publish a revocation webhook, detection of `REQUIRES_REAUTHORIZATION` uses **lazy detection**: any API call (receiving a Balance Hook, calling `getTransactions`, etc.) using `accessToken` that returns 401/403 immediately marks the connection—no separate scheduled polling job is needed. Detection may be delayed until the next API call.
 
-Mọi caller gọi adapter phải đi qua đường xử lý chung: bắt `CasIdUnauthorizedError` (401/403), gọi `MarkRequiresReauthorizationUseCase` cho đúng `bankConnectionId`, ghi `ConnectionAuditEvent`, rồi ném lỗi để caller/queue retry theo chính sách của nó. Không gọi trực tiếp adapter từ use case nghiệp vụ mà bỏ qua guard này.
+Every adapter caller must use the shared handling path: catch `CasIdUnauthorizedError` (401/403), call `MarkRequiresReauthorizationUseCase` for the correct `bankConnectionId`, record a `ConnectionAuditEvent`, then rethrow so the caller/queue can retry under its own policy. Business use cases must not call the adapter directly and bypass this guard.
 
-### Quy tắc khi mất ACTIVE
+### Rules after leaving ACTIVE
 
-- Không xóa `BankTransaction`/`PaymentAllocation` lịch sử đã có khi connection không còn ACTIVE.
-- Khi `REQUIRES_REAUTHORIZATION` hoặc `DISCONNECTED`: Webhook Controller kiểm tra status của `BankConnection` trước khi enqueue xử lý Balance Hook mới cho connection đó — nếu không ACTIVE, dừng nhận giao dịch mới.
-- Cảnh báo Organization Owner qua notification khi status đổi khỏi ACTIVE.
-- Không tự động dùng tài khoản khác thay thế khi một connection mất quyền.
-- Mọi thay đổi status ghi vào `ConnectionAuditEvent`.
+- Do not delete existing historical `BankTransaction`/`PaymentAllocation` records when a connection is no longer ACTIVE.
+- When `REQUIRES_REAUTHORIZATION` or `DISCONNECTED`, the Webhook Controller checks `BankConnection` status before enqueueing a new Balance Hook for that connection; if it is not ACTIVE, stop accepting new transactions.
+- Notify the Organization Owner when the status leaves ACTIVE.
+- Do not automatically substitute another account when a connection loses access.
+- Record every status change in `ConnectionAuditEvent`.
 
-## 4. Ngoài phạm vi
+## 4. Out of scope
 
-- Chi tiết endpoint/response schema thật của Cas ID API — cần xác nhận với Developer Portal trước khi thay `MockCasIdAdapter` bằng `CasIdAdapter` thật.
-- Trường hợp một tài khoản Cas ID cấp quyền cho nhiều tenant/app cùng lúc.
-- RBAC/UI của việc giám đốc ủy quyền cho kế toán trong chính app Cas ID (nằm ngoài AR Automation, chỉ nhận kết quả `accountIdentity` sau khi ủy quyền xong).
+- Actual Cas ID API endpoint/response schemas—confirm them with the Developer Portal before replacing `MockCasIdAdapter` with the real `CasIdAdapter`.
+- A Cas ID account granting access to multiple tenants/apps simultaneously.
+- RBAC/UI for a director authorizing an accountant inside the Cas ID app (outside AR Automation, which only receives `accountIdentity` after authorization completes).
 
-## 5. Câu hỏi mở (không chặn implementation)
+## 5. Open questions (do not block implementation)
 
-- API thật có cung cấp webhook/event báo revoke không, hay lazy detection là cách duy nhất production cũng phải dùng?
-- `scopes` thực tế của Cas ID gồm những giá trị nào ngoài "identity" và "transaction" được nhắc ở quickstart?
-- Có giới hạn số session `PENDING_AUTHORIZATION` đồng thời cho một organization không (chống spam tạo session)?
+- Does the real API provide a revoke webhook/event, or must production also rely on lazy detection?
+- Which actual Cas ID `scopes` exist besides the `"identity"` and `"transaction"` mentioned in the quickstart?
+- Should an organization have a limit on concurrent `PENDING_AUTHORIZATION` sessions to prevent session-creation spam?

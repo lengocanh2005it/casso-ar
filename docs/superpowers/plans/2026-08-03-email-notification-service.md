@@ -12,13 +12,13 @@
 
 ## Global Constraints
 
-- `EmailProviderAdapter` (`IEmailProviderAdapter` / `EMAIL_PROVIDER_ADAPTER`) is the ONLY seam to the Resend SDK — `EmailService` and `EmailQueueProcessor` never `import { Resend } from 'resend'` directly (spec mục 1).
-- One real implementation only: `ResendEmailAdapter`. No speculative SES/SendGrid adapter built ahead of need (spec mục 1, explicit YAGNI callout in the spec itself).
-- `EmailService.sendReminderEmail` enqueues into `email-queue`; it never calls `adapter.send()` synchronously inside the request/caller path (spec mục 1, step 2).
-- `email-queue` job options: `attempts: 3, backoff: { type: 'exponential', delay: 5000 }` (spec mục 2).
-- `ReminderExecution.status = SENT` is set ONLY after `adapter.send()` returns a `providerMessageId` — never at enqueue time (spec mục 2).
-- After the 3rd failed attempt, BullMQ moves the job to its `failed` state (the Dead Letter Queue equivalent here — no separate DLQ infrastructure is introduced) AND `ReminderExecution.status = FAILED` is written by the processor's failure handler (spec mục 2).
-- `FAILED` (technical send error) is a different status from `SKIPPED` (business decision — already paid/disputed, owned by the Reminder Automation plan) — this plan only ever writes `SENT` or `FAILED`, never `SKIPPED` (spec mục 2).
+- `EmailProviderAdapter` (`IEmailProviderAdapter` / `EMAIL_PROVIDER_ADAPTER`) is the ONLY seam to the Resend SDK — `EmailService` and `EmailQueueProcessor` never `import { Resend } from 'resend'` directly (spec section 1).
+- One real implementation only: `ResendEmailAdapter`. No speculative SES/SendGrid adapter built ahead of need (spec section 1, explicit YAGNI callout in the spec itself).
+- `EmailService.sendReminderEmail` enqueues into `email-queue`; it never calls `adapter.send()` synchronously inside the request/caller path (spec section 1, step 2).
+- `email-queue` job options: `attempts: 3, backoff: { type: 'exponential', delay: 5000 }` (spec section 2).
+- `ReminderExecution.status = SENT` is set ONLY after `adapter.send()` returns a `providerMessageId` — never at enqueue time (spec section 2).
+- After the 3rd failed attempt, BullMQ moves the job to its `failed` state (the Dead Letter Queue equivalent here — no separate DLQ infrastructure is introduced) AND `ReminderExecution.status = FAILED` is written by the processor's failure handler (spec section 2).
+- `FAILED` (technical send error) is a different status from `SKIPPED` (business decision — already paid/disputed, owned by the Reminder Automation plan) — this plan only ever writes `SENT` or `FAILED`, never `SKIPPED` (spec section 2).
 - Naming is fixed by the task brief and must not be renamed: module `apps/backend/src/modules/notifications/`, `EMAIL_PROVIDER_ADAPTER` / `IEmailProviderAdapter`, `ResendEmailAdapter`, `EmailService`, queue name constant `EMAIL_QUEUE = 'email-queue'`, worker class `EmailQueueProcessor`.
 - Naming/layering rules from `2026-08-03-project-scaffolding-architecture-design.md` still apply (kebab-case files, PascalCase classes, no float money — not applicable here since this module has no money fields).
 
@@ -164,8 +164,8 @@ describe('ResendEmailAdapter', () => {
     const adapter = new ResendEmailAdapter();
     const result = await adapter.send(
       'customer@example.com',
-      'Nhắc thanh toán',
-      '<p>Bạn có công nợ đến hạn</p>',
+      'Payment reminder',
+      '<p>You have an invoice due</p>',
       { reminderExecutionId: 'exec-1' },
     );
 
@@ -174,8 +174,8 @@ describe('ResendEmailAdapter', () => {
       expect.objectContaining({
         from: 'no-reply@casso-ledger.vn',
         to: 'customer@example.com',
-        subject: 'Nhắc thanh toán',
-        html: '<p>Bạn có công nợ đến hạn</p>',
+        subject: 'Payment reminder',
+        html: '<p>You have an invoice due</p>',
       }),
     );
   });
@@ -361,7 +361,7 @@ describe('EmailService', () => {
     const customer = new Customer({
       id: 'cust-1',
       organizationId: 'org-1',
-      name: 'Công ty B',
+      name: 'Company B',
       taxCode: '0312345678',
       email: 'ap@congtyb.vn',
       phone: '0900000000',
@@ -374,9 +374,9 @@ describe('EmailService', () => {
     const template = new EmailTemplate({
       id: 'tpl-1',
       organizationId: 'org-1',
-      name: 'Nhắc quá hạn',
-      subject: 'Hóa đơn {{invoiceNumber}} — {{organizationName}}',
-      bodyHtml: '<p>{{customerName}}, còn nợ {{remainingAmount}}, quá hạn {{daysOverdue}} ngày</p>',
+      name: 'Overdue reminder',
+      subject: 'Invoice {{invoiceNumber}} — {{organizationName}}',
+      bodyHtml: '<p>{{customerName}}, outstanding {{remainingAmount}}, {{daysOverdue}} days overdue</p>',
       reminderStage: null,
       isDefault: false,
       createdAt: new Date('2026-01-01'),
@@ -418,8 +418,8 @@ describe('EmailService', () => {
         reminderExecutionId: 'exec-1',
         organizationId: 'org-1',
         to: 'ap@congtyb.vn',
-        subject: 'Hóa đơn INV-2026-0012 — Casso Ledger',
-        html: expect.stringContaining('Công ty B, còn nợ 20000000'),
+        subject: 'Invoice INV-2026-0012 — Casso Ledger',
+        html: expect.stringContaining('Company B, outstanding 20000000'),
       }),
       { jobId: 'exec-1', attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
     );
@@ -573,7 +573,7 @@ function buildJob(overrides: Partial<{ attemptsMade: number; attempts: number }>
       receivableId: 'rec-1',
       organizationId: 'org-1',
       to: 'customer@example.com',
-      subject: 'Nhắc thanh toán',
+      subject: 'Payment reminder',
       html: '<p>html</p>',
     },
     attemptsMade: overrides.attemptsMade ?? 1,
@@ -599,7 +599,7 @@ describe('EmailQueueProcessor', () => {
 
     expect(emailProvider.send).toHaveBeenCalledWith(
       'customer@example.com',
-      'Nhắc thanh toán',
+      'Payment reminder',
       '<p>html</p>',
       { reminderExecutionId: 'exec-1' },
     );
@@ -862,11 +862,11 @@ describe('ResendAuthEmailSenderAdapter', () => {
     const emailProvider = { send: jest.fn().mockResolvedValue({ providerMessageId: 'msg-3' }) };
     const adapter = new ResendAuthEmailSenderAdapter(emailProvider as any);
 
-    await adapter.sendInviteEmail('user@example.com', 'https://app.casso.vn/accept?token=inv', 'Công ty B');
+    await adapter.sendInviteEmail('user@example.com', 'https://app.casso.vn/accept?token=inv', 'Company B');
 
     expect(emailProvider.send).toHaveBeenCalledWith(
       'user@example.com',
-      expect.stringContaining('Công ty B'),
+      expect.stringContaining('Company B'),
       expect.stringContaining('https://app.casso.vn/accept?token=inv'),
       { emailType: 'AUTH_INVITE' },
     );
@@ -898,8 +898,8 @@ export class ResendAuthEmailSenderAdapter implements IAuthEmailSender {
   async sendVerificationEmail(to: string, verifyUrl: string): Promise<void> {
     await this.emailProvider.send(
       to,
-      'Xác thực địa chỉ email của bạn',
-      `<p>Nhấn vào liên kết sau để xác thực email của bạn: <a href="${verifyUrl}">${verifyUrl}</a></p>`,
+      'Verify your email address',
+      `<p>Click the following link to verify your email: <a href="${verifyUrl}">${verifyUrl}</a></p>`,
       { emailType: 'AUTH_VERIFICATION' },
     );
   }
@@ -907,8 +907,8 @@ export class ResendAuthEmailSenderAdapter implements IAuthEmailSender {
   async sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
     await this.emailProvider.send(
       to,
-      'Đặt lại mật khẩu',
-      `<p>Nhấn vào liên kết sau để đặt lại mật khẩu: <a href="${resetUrl}">${resetUrl}</a></p>`,
+      'Reset your password',
+      `<p>Click the following link to reset your password: <a href="${resetUrl}">${resetUrl}</a></p>`,
       { emailType: 'AUTH_PASSWORD_RESET' },
     );
   }
@@ -916,8 +916,8 @@ export class ResendAuthEmailSenderAdapter implements IAuthEmailSender {
   async sendInviteEmail(to: string, acceptUrl: string, organizationName: string): Promise<void> {
     await this.emailProvider.send(
       to,
-      `Lời mời tham gia ${organizationName}`,
-      `<p>Bạn được mời tham gia tổ chức ${organizationName}. Nhấn vào liên kết sau để chấp nhận: <a href="${acceptUrl}">${acceptUrl}</a></p>`,
+      `Invitation to join ${organizationName}`,
+      `<p>You are invited to join the organization ${organizationName}. Click the following link to accept: <a href="${acceptUrl}">${acceptUrl}</a></p>`,
       { emailType: 'AUTH_INVITE' },
     );
   }
@@ -1089,7 +1089,7 @@ describe('email-queue (integration)', () => {
     await dataSource.getRepository(CustomerOrmEntity).save({
       id: customerId,
       organizationId,
-      name: 'Công ty B',
+      name: 'Company B',
       taxCode: '0312345678',
       email: 'ap@congtyb.vn',
       phone: '0900000000',
@@ -1114,9 +1114,9 @@ describe('email-queue (integration)', () => {
     await dataSource.getRepository(EmailTemplateOrmEntity).save({
       id: templateId,
       organizationId,
-      name: 'Nhắc quá hạn',
-      subject: 'Nhắc thanh toán — {{organizationName}}',
-      bodyHtml: '<p>{{customerName}}, còn nợ {{remainingAmount}}</p>',
+      name: 'Overdue reminder',
+      subject: 'Payment reminder — {{organizationName}}',
+      bodyHtml: '<p>{{customerName}}, outstanding {{remainingAmount}}</p>',
       reminderStage: null,
       isDefault: false,
       createdAt: new Date(),
@@ -1229,10 +1229,10 @@ git commit -m "test: add integration test for email-queue enqueue, processing, a
 
 ## Self-Review Notes
 
-- **Spec coverage:** `EmailProviderAdapter` isolation, single `ResendEmailAdapter` implementation (spec mục 1) → Task 2. Enqueue-not-synchronous-send (spec mục 1 step 2) → Task 4. `attempts: 3, backoff: exponential 5000ms` (spec mục 2) → Task 4 (`EmailService.sendReminderEmail`). `SENT` only after `providerMessageId` returns (spec mục 2) → Task 5 (`process()`). Failed-state = DLQ equivalent + `ReminderExecution.status = FAILED` (spec mục 2) → Task 5 (`onFailed()`), proven in Task 8's retry test. `AUTH_EMAIL_SENDER` rebind with zero use-case changes (Authentication & Onboarding plan's forward promise) → Task 7.
+- **Spec coverage:** `EmailProviderAdapter` isolation, single `ResendEmailAdapter` implementation (spec section 1) → Task 2. Enqueue-not-synchronous-send (spec section 1 step 2) → Task 4. `attempts: 3, backoff: exponential 5000ms` (spec section 2) → Task 4 (`EmailService.sendReminderEmail`). `SENT` only after `providerMessageId` returns (spec section 2) → Task 5 (`process()`). Failed-state = DLQ equivalent + `ReminderExecution.status = FAILED` (spec section 2) → Task 5 (`onFailed()`), proven in Task 8's retry test. `AUTH_EMAIL_SENDER` rebind with zero use-case changes (Authentication & Onboarding plan's forward promise) → Task 7.
 - **Reconciled with the real Email Template and Reminder Automation plans (2026-08-04 pass):** this plan originally shipped with two local placeholder ports — `IEmailTemplateRepository.renderForReceivable(templateId, receivableId)` and `IReminderExecutionRepository.updateSendResult(id, status, providerMessageId)` — written before `2026-08-03-email-template-management.md` and `2026-08-03-reminder-automation.md` existed. Both now exist. Task 3 was rewritten from "define placeholder ports" to "confirm the real ports match what Tasks 4-5 need" (they do, with zero changes to `updateSendResult`'s signature — a lucky match, verified rather than assumed). Task 4's `EmailService.sendReminderEmail` was rewritten to fetch the real `EmailTemplate`/`Receivable`/`Customer`/`Organization`/`Invoice` and call the real `RenderEmailTemplateUseCase`, rather than one opaque `renderForReceivable()` call. Task 6's `NotificationsModule` now imports `EmailTemplatesModule`, `ReceivablesModule`, `CustomersModule`, `InvoicesModule`, `OrganizationsModule`, and `forwardRef(() => RemindersModule)` — the last one because `2026-08-03-reminder-automation.md`'s `ReminderSenderService` needs `EmailService` back, a two-way module dependency resolved with NestJS `forwardRef()` on both sides (see that plan's own Task 6, Step 5). Task 8's integration test now boots the full `AppModule` against real Postgres + Redis and seeds real rows, instead of overriding two fakes in an isolated test module — this is a stronger proof (it exercises the actual `forwardRef` cycle at boot time) at the cost of a heavier test (now needs `PostgreSqlContainer` in addition to Redis).
-- **Deliberate scope decision:** No SES/SendGrid adapter was scaffolded alongside `ResendEmailAdapter` — the spec itself calls this out as YAGNI (spec mục 1's comment), and `IEmailProviderAdapter` is the seam that makes adding one later a pure addition, no changes to `EmailService`/`EmailQueueProcessor`.
-- **Not covered in this plan (by design, per spec mục 3):** Bounce/complaint webhook handling from Resend, per-organization custom sending domains, non-email notification channels (Zalo OA, SMS, Teams, Slack) — all explicitly out of scope for the MVP per the target spec.
+- **Deliberate scope decision:** No SES/SendGrid adapter was scaffolded alongside `ResendEmailAdapter` — the spec itself calls this out as YAGNI (spec section 1's comment), and `IEmailProviderAdapter` is the seam that makes adding one later a pure addition, with no changes to `EmailService`/`EmailQueueProcessor`.
+- **Not covered in this plan (by design, per spec section 3):** Bounce/complaint webhook handling from Resend, per-organization custom sending domains, non-email notification channels (Zalo OA, SMS, Teams, Slack) — all explicitly out of scope for the MVP per the target spec.
 - **Type/token consistency checked:** `EMAIL_QUEUE = 'email-queue'` (Task 1) is the single source of truth used by both `EmailService`'s `@InjectQueue(EMAIL_QUEUE)` (Task 4) and `EmailQueueProcessor`'s `@Processor(EMAIL_QUEUE)` (Task 5) — matches the pattern established by the Webhook plan's `WEBHOOK_PROCESSING_QUEUE` constant. `EmailJobData` shape produced by `EmailService.sendReminderEmail`'s `queue.add()` call (Task 4) exactly matches the shape `EmailQueueProcessor.process()` destructures (Task 5) and what Task 8's integration test asserts against. `REMINDER_EXECUTION_REPOSITORY`'s `Symbol` (owned by `2026-08-03-reminder-automation.md` Task 3) and `EMAIL_TEMPLATE_REPOSITORY`'s `Symbol` (owned by `2026-08-03-email-template-management.md` Task 2) are each declared in exactly one place and imported everywhere else — this plan does not redeclare either.
 
 

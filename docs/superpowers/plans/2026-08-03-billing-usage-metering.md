@@ -10,9 +10,9 @@
 
 ## Global Constraints
 
-- No `UsageRecord`/`UsageAggregate` table for these 2 metrics — counts come straight from `receivables`/`bank_connections` filtered by `organizationId` (and `createdAt` period / `status='ACTIVE'`), per spec mục 2.
-- Hard block only: exceeding the limit rejects the write with a clear message; no silent overage, no overage billing (spec mục 4, out of scope).
-- Race safety: the count-check and the insert/status-flip happen in the same DB transaction, serialized per-organization via `pg_advisory_xact_lock`, per spec mục 3.
+- No `UsageRecord`/`UsageAggregate` table for these 2 metrics — counts come straight from `receivables`/`bank_connections` filtered by `organizationId` (and `createdAt` period / `status='ACTIVE'`), per spec section 2.
+- Hard block only: exceeding the limit rejects the write with a clear message; no silent overage, no overage billing (spec section 4, out of scope).
+- Race safety: the count-check and the insert/status-flip happen in the same DB transaction, serialized per-organization via `pg_advisory_xact_lock`, per spec section 3.
 - Upgrade/downgrade flows are out of scope. Signup provisioning is owned by the Authentication & Onboarding plan and must create one `ACTIVE/FREE` row before the first quota-gated write. The integration test may seed a row only as fixture setup, not as the production provisioning path.
 - File/class naming and layer dependency rules from `2026-08-03-project-scaffolding-architecture-design.md` (domain has no framework imports; presentation → application → domain).
 - Reuse `Permission.SUBSCRIPTION_MANAGE` (already defined in `2026-08-03-multi-tenancy-rbac.md` Task 8) — no new Permission enum values needed since this plan adds no new write endpoint of its own.
@@ -212,7 +212,7 @@ export class SubscriptionOrmEntity {
 }
 ```
 
-One row per organization at MVP (`@Index` unique) — plan upgrade/downgrade updates this row in place rather than inserting a new one; history of past periods is out of scope (spec mục 4).
+One row per organization at MVP (`@Index` unique) — plan upgrade/downgrade updates this row in place rather than inserting a new one; history of past periods is out of scope (spec section 4).
 
 - [ ] **Step 2: Create `apps/backend/src/modules/billing/application/subscription-repository.port.ts`**
 
@@ -315,7 +315,7 @@ export class PlanLimitExceededException extends HttpException {
 }
 ```
 
-`HttpStatus.PAYMENT_REQUIRED` is 402, matching spec mục 3's `"402 'Đã đạt giới hạn gói {planName}, nâng cấp để tiếp tục'"`.
+`HttpStatus.PAYMENT_REQUIRED` is 402, matching spec section 3's `"402 'Plan limit for {planName} reached; upgrade to continue'"`.
 
 - [ ] **Step 2: Write failing unit test for `PlanLimitService`**
 
@@ -440,7 +440,7 @@ export class PlanLimitService {
     const subscription = await this.subscriptionRepo.findActiveByOrganizationId(organizationId, manager);
     if (!subscription) {
       throw new PlanLimitExceededException(
-        'Không tìm thấy gói subscription đang hoạt động cho tổ chức này, vui lòng nâng cấp để tiếp tục',
+        'No active subscription plan found for this organization; please upgrade to continue',
       );
     }
 
@@ -453,7 +453,7 @@ export class PlanLimitService {
 
     if (count >= subscription.receivableMonthlyLimit) {
       throw new PlanLimitExceededException(
-        `Đã đạt giới hạn ${subscription.receivableMonthlyLimit} receivable/tháng của gói ${subscription.planId}, nâng cấp để tiếp tục`,
+        `The ${subscription.receivableMonthlyLimit} receivable/month limit for plan ${subscription.planId} has been reached; upgrade to continue`,
       );
     }
   }
@@ -467,7 +467,7 @@ export class PlanLimitService {
     const subscription = await this.subscriptionRepo.findActiveByOrganizationId(organizationId, manager);
     if (!subscription) {
       throw new PlanLimitExceededException(
-        'Không tìm thấy gói subscription đang hoạt động cho tổ chức này, vui lòng nâng cấp để tiếp tục',
+        'No active subscription plan found for this organization; please upgrade to continue',
       );
     }
 
@@ -477,7 +477,7 @@ export class PlanLimitService {
 
     if (count >= subscription.bankConnectionLimit) {
       throw new PlanLimitExceededException(
-        `Đã đạt giới hạn ${subscription.bankConnectionLimit} tài khoản ngân hàng của gói ${subscription.planId}, nâng cấp để tiếp tục`,
+        `The ${subscription.bankConnectionLimit} bank account limit for plan ${subscription.planId} has been reached; upgrade to continue`,
       );
     }
   }
@@ -552,7 +552,7 @@ describe('CreateReceivableUseCase', () => {
   it('propagates PlanLimitExceededException without saving the receivable', async () => {
     const { receivableRepo, tenantContext, planLimitService, dataSource } = buildDeps();
     planLimitService.assertReceivableQuotaAvailable.mockRejectedValue(
-      new PlanLimitExceededException('Đã đạt giới hạn 1 receivable/tháng của gói FREE, nâng cấp để tiếp tục'),
+      new PlanLimitExceededException('The 1 receivable/month limit for plan FREE has been reached; upgrade to continue'),
     );
     const useCase = new CreateReceivableUseCase(receivableRepo as any, tenantContext as any, planLimitService as any, dataSource as any);
 
@@ -781,7 +781,7 @@ describe('ExchangeTokenUseCase', () => {
   it('propagates PlanLimitExceededException without saving the connection or completing the session', async () => {
     const { sessionRepo, adapter, bankConnectionRepo, auditEventRepo, planLimitService, dataSource } = buildDeps();
     planLimitService.assertBankConnectionQuotaAvailable.mockRejectedValue(
-      new PlanLimitExceededException('Đã đạt giới hạn 1 tài khoản ngân hàng của gói FREE, nâng cấp để tiếp tục'),
+      new PlanLimitExceededException('The 1 bank account limit for plan FREE has been reached; upgrade to continue'),
     );
     const useCase = new ExchangeTokenUseCase(
       sessionRepo as any,
@@ -1123,7 +1123,7 @@ describe('Receivable monthly quota enforcement (integration)', () => {
       })
       .expect(402);
 
-    expect(response.body.message).toContain('giới hạn');
+    expect(response.body.message).toContain('limit');
     expect(response.body.message).toContain('FREE');
 
     const rows = await dataSource.query('SELECT COUNT(*)::int AS count FROM receivables WHERE "organizationId" = $1', [
@@ -1150,7 +1150,7 @@ git commit -m "test: add integration test for receivable monthly quota enforceme
 
 ## Self-Review Notes
 
-- **Spec coverage:** No `UsageRecord`/`UsageAggregate` table (spec mục 2) → Task 3's `PlanLimitService` counts directly from `ReceivableOrmEntity`/`BankConnectionOrmEntity`. Transactional hard block avoiding race conditions (spec mục 3) → Task 4 (`CreateReceivableUseCase` wraps quota-check + insert in `dataSource.transaction` guarded by `pg_advisory_xact_lock`) and Task 5 (same pattern for `ExchangeTokenUseCase`'s `ACTIVE` `BankConnection` insert). 402 error prompting upgrade (spec mục 3) → `PlanLimitExceededException` (Task 3). Overage billing, usage event log for email/AI/user-seat, subscription payment via CASSO (spec mục 4) — explicitly out of scope, not implemented.
+- **Spec coverage:** No `UsageRecord`/`UsageAggregate` table (spec section 2) → Task 3's `PlanLimitService` counts directly from `ReceivableOrmEntity`/`BankConnectionOrmEntity`. Transactional hard block avoiding race conditions (spec section 3) → Task 4 (`CreateReceivableUseCase` wraps quota-check + insert in `dataSource.transaction` guarded by `pg_advisory_xact_lock`) and Task 5 (same pattern for `ExchangeTokenUseCase`'s `ACTIVE` `BankConnection` insert). 402 error prompting upgrade (spec section 3) → `PlanLimitExceededException` (Task 3). Overage billing, usage event log for email/AI/user-seat, subscription payment via CASSO (spec section 4) — explicitly out of scope, not implemented.
 - **Not covered in this plan (by design):** upgrade/downgrade endpoints and billing checkout. Signup provisioning is implemented by the Authentication & Onboarding plan, which creates the `ACTIVE/FREE` row required by this plan. No `Plan` catalog table — `planId`/limits are intentionally denormalized directly onto `Subscription` for MVP, matching the revised billing spec.
 - **Type consistency checked:** `ISubscriptionRepository.findActiveByOrganizationId(organizationId, manager)` and both quota methods require the active transaction manager; `CreateReceivableUseCase` and `ExchangeTokenUseCase` pass that same manager through quota read, count, and write. `CreateReceivableInput` uses `salesRepresentativeId`, not the retired `ownerUserId`. `Permission.SUBSCRIPTION_MANAGE` from `2026-08-03-multi-tenancy-rbac.md` Task 8 is reused as-is — no new Permission enum values added since this plan introduces no new write endpoint.
 

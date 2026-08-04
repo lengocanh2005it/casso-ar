@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement the 4 core business pages of `apps/frontend` on top of FE plan 1 (`2026-08-03-fe-auth-app-shell.md`): Khách hàng (list + detail route), Công nợ (list + detail route + import + write-off/cancel/dispute actions), Giao dịch/Đối soát (matching workspace), Exception Queue (review + split match) — wired to the BE endpoints from the domain-core, webhook-matching, exception-queue, dispute-management, internal-task-escalation, collection-activity-timeline, and invoice-import plans.
+**Goal:** Implement the 4 core business pages of `apps/frontend` on top of FE plan 1 (`2026-08-03-fe-auth-app-shell.md`): Customers (list + detail route), Receivables (list + detail route + import + write-off/cancel/dispute actions), Transactions/Matching (matching workspace), Exception Queue (review + split match) — wired to the BE endpoints from the domain-core, webhook-matching, exception-queue, dispute-management, internal-task-escalation, collection-activity-timeline, and invoice-import plans.
 
 **Architecture:** Page pattern: `Page + Table/CardList + Filters + DetailSheet + ActionDialog`, all data via TanStack Query hooks. Receivable/Customer detail are **routes** (`/receivables/:id`, `/customers/:id` — grill decision Q7); BankTransaction detail is a **sheet**. Money formatting via `lib/format.ts` from FE plan 1; RBAC via `hasPermission` (hide, never disable — grill decision Q4).
 
@@ -11,9 +11,9 @@
 ## Global Constraints
 
 - Root scripts: `pnpm --filter @casso-ledger/frontend test`, `type-check`, `lint` (Biome).
-- All page components live under `src/features/<name>/`; only components used by 2+ features move to `src/components/` (scaffolding spec mục 3 — rule of two).
-- Money: integer đồng; format via `formatVND` (FE plan 1). Never format with raw `toLocaleString` in pages.
-- Rollup/derived financial fields (`paidAmount`, `remainingAmount`, `isOverdue`, `isDisputed`) come from the BE response — FE never recomputes them (domain-core spec mục 3).
+- All page components live under `src/features/<name>/`; only components used by 2+ features move to `src/components/` (scaffolding spec section 3 — rule of two).
+- Money: integer dong; format via `formatVND` (FE plan 1). Never format with raw `toLocaleString` in pages.
+- Rollup/derived financial fields (`paidAmount`, `remainingAmount`, `isOverdue`, `isDisputed`) come from the BE response — FE never recomputes them (domain-core spec section 3).
 - `hasPermission(role, permission)` from `lib/rbac.ts` (FE plan 1) gates every mutating button; missing permission → button not rendered.
 - Read contracts are owned by `2026-08-03-read-apis-completion.md`: `GET /customers` and `GET /customers/:id/timeline`. Exception Queue uses `GET /bank-transactions/unmatched` and `GET /bank-transactions/pending-review-count`; do not add a query-string alias.
 - API types shared via `@casso-ledger/shared-types` where they exist (`ReceivableStatus`); feature-local DTO types live in `src/features/<name>/types.ts` until shared-types grows.
@@ -118,7 +118,7 @@ git commit -m "feat(frontend): add shadcn ui primitives (dialog, table, select, 
 - Produces (exact types consumed by all later tasks):
   - `ReceivableStatus = 'DRAFT' | 'OPEN' | 'PARTIALLY_PAID' | 'PAID' | 'WRITTEN_OFF' | 'CANCELLED'` (alias of `ReceivableStatus` from shared-types)
   - `PaymentAllocation { id; paymentId; allocatedAmount: number; allocatedAt: string; allocatedByUserId: string | null }`
-  - `Receivable { id; customerId; invoiceId: string | null; invoiceNumber?: string; originalAmount: number; paidAmount: number; remainingAmount: number; dueDate: string; status: ReceivableStatus; isDisputed: boolean; disputeId: string | null; isOverdue: boolean; salesRepresentativeId: string | null; createdAt: string; allocations?: PaymentAllocation[] }` (`allocations` chỉ có trong response `GET /receivables/:id`, không có ở list; `isDisputed`/`disputeId` do Read APIs trả về)
+  - `Receivable { id; customerId; invoiceId: string | null; invoiceNumber?: string; originalAmount: number; paidAmount: number; remainingAmount: number; dueDate: string; status: ReceivableStatus; isDisputed: boolean; disputeId: string | null; isOverdue: boolean; salesRepresentativeId: string | null; createdAt: string; allocations?: PaymentAllocation[] }` (`allocations` only appear in the `GET /receivables/:id` response, not in the list; `isDisputed`/`disputeId` are returned by Read APIs)
   - `Customer { id; name; taxCode: string | null; email: string | null; phone: string | null; defaultPaymentTermDays: number; creditLimit: number | null; priority: 'HIGH' | 'MEDIUM' | 'LOW' | null; createdAt: string }`
   - `BankTransaction { id; bankConnectionId: string; providerTransactionId: string; amount: number; transactionDateTime: string; counterpartyAccountNumber: string | null; counterpartyName: string | null; transferContent: string | null; status: 'UNMATCHED' | 'PENDING_REVIEW' | 'MATCHED' | 'IGNORED'; version: number }`
   - `MatchingCandidate { id; bankTransactionId; receivableId; customerId: string; referenceCodeScore: number; amountScore: number; customerBankAccountScore: number; payerNameScore: number; timingScore: number; totalScore: number }`
@@ -137,7 +137,7 @@ import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 describe('ReceivableStatusBadge', () => {
   it('labels each status in Vietnamese', () => {
     render(<ReceivableStatusBadge status="PARTIALLY_PAID" />);
-    expect(screen.getByText('Đã trả một phần')).toBeTruthy();
+    expect(screen.getByText('Partially paid')).toBeTruthy();
   });
 });
 ```
@@ -154,8 +154,8 @@ import { Badge } from '@/components/ui/badge';
 import type { ReceivableStatus } from '@/features/receivables/types';
 
 const LABELS: Record<ReceivableStatus, string> = {
-  DRAFT: 'Nháp', OPEN: 'Công nợ', PARTIALLY_PAID: 'Đã trả một phần', PAID: 'Đã trả đủ',
-  WRITTEN_OFF: 'Xóa nợ', CANCELLED: 'Hủy',
+  DRAFT: 'Draft', OPEN: 'Receivable', PARTIALLY_PAID: 'Partially paid', PAID: 'Paid in full',
+  WRITTEN_OFF: 'Written off', CANCELLED: 'Cancelled',
 };
 const STYLES: Record<ReceivableStatus, string> = {
   DRAFT: 'bg-muted text-muted-foreground', OPEN: 'bg-blue-100 text-blue-700',
@@ -220,15 +220,15 @@ const apiRequest = vi.fn();
 vi.mock('@/lib/api-client', () => ({ apiRequest: (...a: unknown[]) => apiRequest(...a), authTokenManager: { getValidAccessToken: vi.fn().mockResolvedValue('t') } }));
 vi.mock('@/contexts/auth-context', () => ({ useAuth: () => ({ user: { role: 'OWNER' }, isLoading: false, isAuthenticated: true }) }));
 
-const customers = [{ id: 'c1', name: 'Công ty B', taxCode: '0100', email: null, phone: null, defaultPaymentTermDays: 30, creditLimit: null, priority: 'HIGH', createdAt: '2026-08-01' }];
+const customers = [{ id: 'c1', name: 'Company B', taxCode: '0100', email: null, phone: null, defaultPaymentTermDays: 30, creditLimit: null, priority: 'HIGH', createdAt: '2026-08-01' }];
 
 describe('CustomersPage', () => {
   it('renders a customer row with outstanding-amount placeholder and link to detail', async () => {
     apiRequest.mockResolvedValue({ items: customers, total: 1, page: 1, limit: 20 });
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={qc}><MemoryRouter><CustomersPage /></MemoryRouter></QueryClientProvider>);
-    await waitFor(() => expect(screen.getByText('Công ty B')).toBeTruthy());
-    expect(screen.getByRole('link', { name: /công ty b/i })).toBeTruthy();
+    await waitFor(() => expect(screen.getByText('Company B')).toBeTruthy());
+    expect(screen.getByRole('link', { name: /company b/i })).toBeTruthy();
   });
 });
 ```
@@ -288,8 +288,8 @@ export function CustomerTable({ customers }: { customers: Customer[] }) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Tên khách hàng</TableHead><TableHead>MST</TableHead>
-          <TableHead>Hạn thanh toán (ngày)</TableHead><TableHead>Ngày tạo</TableHead>
+          <TableHead>Customer name</TableHead><TableHead>Tax ID</TableHead>
+          <TableHead>Payment term (days)</TableHead><TableHead>Created date</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -320,10 +320,10 @@ export function CustomersPage() {
   const { data, isPending, isError } = useCustomers(search);
   return (
     <div className="space-y-4 p-6">
-      <h1 className="text-2xl font-semibold">Khách hàng</h1>
-      <Input placeholder="Tìm theo tên, MST, số điện thoại…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
-      {isPending && <p>Đang tải…</p>}
-      {isError && <p className="text-destructive">Không tải được danh sách khách hàng.</p>}
+      <h1 className="text-2xl font-semibold">Customers</h1>
+      <Input placeholder="Search by name, tax ID, phone…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+      {isPending && <p>Loading…</p>}
+      {isError && <p className="text-destructive">Could not load the customer list.</p>}
       {data && <CustomerTable customers={data.items} />}
     </div>
   );
@@ -343,15 +343,15 @@ export function CustomerDetailPage() {
   const { data: timeline } = useCustomerTimeline(id ?? '');
   return (
     <div className="space-y-6 p-6">
-      <Link to="/customers" className="text-sm text-primary">← Khách hàng</Link>
-      <h1 className="text-2xl font-semibold">Chi tiết khách hàng</h1>
+      <Link to="/customers" className="text-sm text-primary">← Customers</Link>
+      <h1 className="text-2xl font-semibold">Customer details</h1>
       <div className="grid gap-4 md:grid-cols-2">
         <section className="rounded-lg border p-4">
-          <h2 className="mb-2 font-medium">Danh sách công nợ</h2>
-          <p className="text-sm text-muted-foreground">Chuyển hướng từ trang Công nợ với filter customerId (task 3).</p>
+          <h2 className="mb-2 font-medium">Receivables</h2>
+          <p className="text-sm text-muted-foreground">Redirect from the Receivables page with a customerId filter (task 3).</p>
         </section>
         <section className="rounded-lg border p-4">
-          <h2 className="mb-2 font-medium">Hoạt động</h2>
+          <h2 className="mb-2 font-medium">Activity</h2>
           {timeline && <CustomerTimeline items={timeline} />}
         </section>
       </div>
@@ -367,7 +367,7 @@ import { formatDate } from '@/lib/format';
 import type { CustomerTimelineItem } from '@/features/customers/types';
 
 export function CustomerTimeline({ items }: { items: CustomerTimelineItem[] }) {
-  if (items.length === 0) return <p className="text-sm text-muted-foreground">Chưa có hoạt động.</p>;
+  if (items.length === 0) return <p className="text-sm text-muted-foreground">No activity yet.</p>;
   return (
     <ul className="space-y-2">
       {items.map((i) => (
@@ -413,7 +413,7 @@ git commit -m "feat(frontend): customers list + detail route"
 - Produces:
   - `useReceivables(filters: ReceivableFilters, page: number)` → `{ items: Receivable[]; total: number }`; `ReceivableFilters { status?: ReceivableStatus | 'OVERDUE'; customerId?: string; search?: string }`
   - `useCreateReceivable()`, `useWriteOffReceivable()`, `useCancelReceivable()`, `useImportInvoices()` (mutations, used by dialogs in Tasks 4–6)
-  - `ReceivablesPage` (route `/receivables`) with: filters row, "Tạo công nợ" button (needs `RECEIVABLE_WRITE`), "Import hóa đơn" button (needs `RECEIVABLE_WRITE`), table, pagination.
+  - `ReceivablesPage` (route `/receivables`) with: filters row, "Create receivable" button (needs `RECEIVABLE_WRITE`), "Import invoices" button (needs `RECEIVABLE_WRITE`), table, pagination.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -438,8 +438,8 @@ describe('ReceivablesPage', () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={qc}><MemoryRouter><ReceivablesPage /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByText('20.000.000 ₫')).toBeTruthy());
-    expect(screen.queryByText(/tạo công nợ/i)).toBeNull();
-    expect(screen.queryByText(/import hóa đơn/i)).toBeNull();
+    expect(screen.queryByText(/create receivable/i)).toBeNull();
+    expect(screen.queryByText(/import invoices/i)).toBeNull();
   });
 });
 ```
@@ -498,8 +498,8 @@ export function useCreateReceivable() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createReceivable,
-    onSuccess: () => { toast.success('Đã tạo công nợ'); qc.invalidateQueries({ queryKey: ['receivables'] }); },
-    onError: (e: unknown) => toast.error((e as Error).message ?? 'Tạo công nợ thất bại'),
+    onSuccess: () => { toast.success('Receivable created'); qc.invalidateQueries({ queryKey: ['receivables'] }); },
+    onError: (e: unknown) => toast.error((e as Error).message ?? 'Failed to create receivable'),
   });
 }
 
@@ -507,7 +507,7 @@ export function useWriteOffReceivable() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: writeOffReceivable,
-    onSuccess: () => { toast.success('Đã xóa nợ'); qc.invalidateQueries({ queryKey: ['receivables'] }); },
+    onSuccess: () => { toast.success('Receivable written off'); qc.invalidateQueries({ queryKey: ['receivables'] }); },
   });
 }
 
@@ -515,7 +515,7 @@ export function useCancelReceivable() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: cancelReceivable,
-    onSuccess: () => { toast.success('Đã hủy công nợ'); qc.invalidateQueries({ queryKey: ['receivables'] }); },
+    onSuccess: () => { toast.success('Receivable cancelled'); qc.invalidateQueries({ queryKey: ['receivables'] }); },
   });
 }
 ```
@@ -535,8 +535,8 @@ export function ReceivableTable({ items }: { items: Receivable[] }) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Mã</TableHead><TableHead>Còn lại</TableHead><TableHead>Trạng thái</TableHead>
-          <TableHead>Đến hạn</TableHead><TableHead>Tranh chấp</TableHead><TableHead>Quá hạn</TableHead>
+          <TableHead>ID</TableHead><TableHead>Remaining</TableHead><TableHead>Status</TableHead>
+          <TableHead>Due date</TableHead><TableHead>Dispute</TableHead><TableHead>Overdue</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -546,8 +546,8 @@ export function ReceivableTable({ items }: { items: Receivable[] }) {
             <TableCell className="tabular-nums">{formatVND(r.remainingAmount)}</TableCell>
             <TableCell><ReceivableStatusBadge status={r.status} /></TableCell>
             <TableCell>{formatDate(r.dueDate)}</TableCell>
-            <TableCell>{r.isDisputed && <Badge variant="destructive">Tranh chấp</Badge>}</TableCell>
-            <TableCell>{r.isOverdue && <Badge className="bg-red-100 text-red-700">Quá hạn</Badge>}</TableCell>
+            <TableCell>{r.isDisputed && <Badge variant="destructive">Disputed</Badge>}</TableCell>
+            <TableCell>{r.isOverdue && <Badge className="bg-red-100 text-red-700">Overdue</Badge>}</TableCell>
           </TableRow>
         ))}
       </TableBody>
@@ -579,15 +579,15 @@ export function ReceivablesPage() {
   return (
     <div className="space-y-4 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Công nợ</h1>
+        <h1 className="text-2xl font-semibold">Receivables</h1>
         <div className="flex gap-2">
           {canWrite && <ImportInvoicesDialog />}
           {canWrite && <CreateReceivableDialog />}
         </div>
       </div>
       <ReceivableFilters value={filters} onChange={(f) => { setFilters(f); setPage(1); }} />
-      {isPending && <p>Đang tải…</p>}
-      {isError && <p className="text-destructive">Không tải được danh sách.</p>}
+      {isPending && <p>Loading…</p>}
+      {isError && <p className="text-destructive">Could not load the list.</p>}
       {data && <ReceivableTable items={data.items} />}
     </div>
   );
@@ -605,9 +605,9 @@ export function ReceivableFilters({ value, onChange }: { value: ReceivableFilter
   return (
     <div className="flex gap-2">
       <Select value={value.status ?? 'ALL'} onValueChange={(v) => onChange({ ...value, status: v === 'ALL' ? undefined : v })}>
-        <SelectTrigger className="w-48"><SelectValue placeholder="Trạng thái" /></SelectTrigger>
+        <SelectTrigger className="w-48"><SelectValue placeholder="Status" /></SelectTrigger>
         <SelectContent>
-          <SelectItem value="ALL">Tất cả trạng thái</SelectItem>
+          <SelectItem value="ALL">All statuses</SelectItem>
           <SelectItem value="OPEN">OPEN</SelectItem>
           <SelectItem value="PARTIALLY_PAID">PARTIALLY_PAID</SelectItem>
           <SelectItem value="PAID">PAID</SelectItem>
@@ -644,7 +644,7 @@ git commit -m "feat(frontend): receivables list page with filters and RBAC-gated
 
 **Interfaces:**
 - Consumes: `useCreateReceivable`/`useWriteOffReceivable`/`useCancelReceivable` (Task 3)
-- Produces: `<CreateReceivableDialog>` (renders the "Tạo công nợ" button + dialog; props: none, opens via internal state), `<WriteOffDialog receivableId>` (button "Xóa nợ" — only rendered when `hasPermission(RECEIVABLE_WRITE_OFF)`), `<CancelDialog receivableId>` (button "Hủy" — `RECEIVABLE_WRITE`; shows warning "chỉ hợp lệ khi chưa có thanh toán nào").
+- Produces: `<CreateReceivableDialog>` (renders the "Create receivable" button + dialog; props: none, opens via internal state), `<WriteOffDialog receivableId>` (button "Write off" — only rendered when `hasPermission(RECEIVABLE_WRITE_OFF)`), `<CancelDialog receivableId>` (button "Cancel" — `RECEIVABLE_WRITE`; shows warning "only valid when no payments exist").
 
 - [ ] **Step 1: Write the failing test**
 
@@ -665,9 +665,9 @@ describe('WriteOffDialog', () => {
     apiRequest.mockResolvedValue({ id: 'r1' });
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={qc}><WriteOffDialog receivableId="r1" /></QueryClientProvider>);
-    fireEvent.click(screen.getByText('Xóa nợ'));
-    await waitFor(() => expect(screen.getByText(/chấp nhận mất phần còn lại/i)).toBeTruthy());
-    fireEvent.click(screen.getByRole('button', { name: /xác nhận xóa nợ/i }));
+    fireEvent.click(screen.getByText('Write off'));
+    await waitFor(() => expect(screen.getByText(/accept loss of the remaining amount/i)).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /confirm write-off/i }));
     await waitFor(() => expect(apiRequest).toHaveBeenCalledWith(expect.objectContaining({ url: '/api/v1/receivables/r1/write-off', method: 'POST' })));
   });
 });
@@ -697,26 +697,26 @@ export function CreateReceivableDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button>Tạo công nợ</Button></DialogTrigger>
+      <DialogTrigger asChild><Button>Create receivable</Button></DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Tạo công nợ</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Create receivable</DialogTitle></DialogHeader>
         <form className="space-y-3" onSubmit={(e) => {
           e.preventDefault();
           mutation.mutate({ customerId, originalAmount: Number(originalAmount), dueDate }, { onSuccess: () => setOpen(false) });
         }}>
           <Label className="block space-y-1">
-            <span className="text-sm">ID khách hàng</span>
+            <span className="text-sm">Customer ID</span>
             <Input required value={customerId} onChange={(e) => setCustomerId(e.target.value)} placeholder="c-123" />
           </Label>
           <Label className="block space-y-1">
-            <span className="text-sm">Số tiền (đồng)</span>
+            <span className="text-sm">Amount (dong)</span>
             <Input required type="number" min={1} value={originalAmount} onChange={(e) => setOriginalAmount(e.target.value)} />
           </Label>
           <Label className="block space-y-1">
-            <span className="text-sm">Ngày đến hạn</span>
+            <span className="text-sm">Due date</span>
             <Input required type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </Label>
-          <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? 'Đang lưu…' : 'Tạo'}</Button>
+          <Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? 'Saving…' : 'Create'}</Button>
         </form>
       </DialogContent>
     </Dialog>
@@ -743,12 +743,12 @@ export function WriteOffDialog({ receivableId }: { receivableId: string }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button variant="destructive">Xóa nợ</Button></DialogTrigger>
+      <DialogTrigger asChild><Button variant="destructive">Write off</Button></DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Xóa nợ {receivableId}</DialogTitle></DialogHeader>
-        <DialogDescription>Chấp nhận mất phần còn lại của công nợ này. Hành động không thể hoàn tác.</DialogDescription>
+        <DialogHeader><DialogTitle>Write off {receivableId}</DialogTitle></DialogHeader>
+        <DialogDescription>Accept the loss of the remaining receivable amount. This action cannot be undone.</DialogDescription>
         <Button variant="destructive" disabled={mutation.isPending} onClick={() => mutation.mutate(receivableId, { onSuccess: () => setOpen(false) })}>
-          {mutation.isPending ? 'Đang xử lý…' : 'Xác nhận xóa nợ'}
+          {mutation.isPending ? 'Processing…' : 'Confirm write-off'}
         </Button>
       </DialogContent>
     </Dialog>
@@ -775,12 +775,12 @@ export function CancelDialog({ receivableId }: { receivableId: string }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button variant="outline">Hủy</Button></DialogTrigger>
+      <DialogTrigger asChild><Button variant="outline">Cancel</Button></DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Hủy công nợ {receivableId}</DialogTitle></DialogHeader>
-        <DialogDescription>Chỉ hợp lệ khi chưa có bất kỳ thanh toán nào (paidAmount = 0). Nếu đã có tiền, hãy dùng "Xóa nợ".</DialogDescription>
+        <DialogHeader><DialogTitle>Cancel receivable {receivableId}</DialogTitle></DialogHeader>
+        <DialogDescription>Only valid when there are no payments (paidAmount = 0). If there is money, use "Write off".</DialogDescription>
         <Button variant="destructive" disabled={mutation.isPending} onClick={() => mutation.mutate(receivableId, { onSuccess: () => setOpen(false) })}>
-          {mutation.isPending ? 'Đang xử lý…' : 'Xác nhận hủy'}
+          {mutation.isPending ? 'Processing…' : 'Confirm cancellation'}
         </Button>
       </DialogContent>
     </Dialog>
@@ -816,7 +816,7 @@ git commit -m "feat(frontend): create/write-off/cancel receivable dialogs"
 **Interfaces:**
 - Consumes: `useReceivable(id)` (Task 3), `WriteOffDialog`/`CancelDialog` (Task 4), `ReceivableStatusBadge`
 - Produces:
-  - `ReceivableDetailPage` at `/receivables/:id` — header (id, badge, isOverdue/isDisputed badges, write-off/cancel buttons), summary cards (`originalAmount`/`paidAmount`/`remainingAmount`), tabs: Thanh toán (`PaymentAllocation` rows), Hoạt động (timeline), Nhiệm vụ (InternalTask), plus `DisputeDialog` in the header.
+  - `ReceivableDetailPage` at `/receivables/:id` — header (id, badge, isOverdue/isDisputed badges, write-off/cancel buttons), summary cards (`originalAmount`/`paidAmount`/`remainingAmount`), tabs: Payments (`PaymentAllocation` rows), Activity (timeline), Tasks (InternalTask), plus `DisputeDialog` in the header.
   - `PaymentAllocation` — defined in Task 1; the tab reads it from `useReceivable(id).data.allocations` (detail response includes it, list response does not)
   - `ReceivableTimelineItem { id; receivableId; activityType; description; metadata; createdByUserId; createdAt }` (from `GET /receivables/:id/timeline`)
   - `InternalTask { id; title; description: string | null; status: 'OPEN' | 'DONE' | 'DISMISSED'; dueDate: string | null; assignedToUserId: string }` (from `GET /receivables/:id/tasks` — internal-task-escalation plan)
@@ -909,18 +909,18 @@ export function ReceivableDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const { data: r, isPending } = useReceivable(id);
 
-  if (isPending || !r) return <div className="p-6">Đang tải…</div>;
+  if (isPending || !r) return <div className="p-6">Loading…</div>;
   const terminal = r.status === 'PAID' || r.status === 'WRITTEN_OFF' || r.status === 'CANCELLED';
 
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link to="/receivables" className="text-sm text-primary">← Công nợ</Link>
+      <Link to="/receivables" className="text-sm text-primary">← Receivables</Link>
           <h1 className="text-2xl font-semibold">{r.id}</h1>
           <ReceivableStatusBadge status={r.status} />
-          {r.isDisputed && <Badge variant="destructive">Tranh chấp</Badge>}
-          {r.isOverdue && <Badge className="bg-red-100 text-red-700">Quá hạn</Badge>}
+          {r.isDisputed && <Badge variant="destructive">Disputed</Badge>}
+          {r.isOverdue && <Badge className="bg-red-100 text-red-700">Overdue</Badge>}
         </div>
         {!terminal && (
           <div className="flex gap-2">
@@ -931,16 +931,16 @@ export function ReceivableDetailPage() {
         )}
       </div>
       <div className="grid gap-4 md:grid-cols-3">
-        <Card><CardHeader><CardTitle className="text-sm">Gốc</CardTitle></CardHeader><CardContent className="tabular-nums">{formatVND(r.originalAmount)}</CardContent></Card>
-        <Card><CardHeader><CardTitle className="text-sm">Đã trả</CardTitle></CardHeader><CardContent className="tabular-nums">{formatVND(r.paidAmount)}</CardContent></Card>
-        <Card><CardHeader><CardTitle className="text-sm">Còn lại</CardTitle></CardHeader><CardContent className="tabular-nums">{formatVND(r.remainingAmount)}</CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-sm">Original</CardTitle></CardHeader><CardContent className="tabular-nums">{formatVND(r.originalAmount)}</CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-sm">Paid</CardTitle></CardHeader><CardContent className="tabular-nums">{formatVND(r.paidAmount)}</CardContent></Card>
+        <Card><CardHeader><CardTitle className="text-sm">Remaining</CardTitle></CardHeader><CardContent className="tabular-nums">{formatVND(r.remainingAmount)}</CardContent></Card>
       </div>
-      <p className="text-sm text-muted-foreground">Đến hạn: {formatDate(r.dueDate)}</p>
+      <p className="text-sm text-muted-foreground">Due: {formatDate(r.dueDate)}</p>
       <Tabs defaultValue="payments">
         <TabsList>
-          <TabsTrigger value="payments">Thanh toán</TabsTrigger>
-          <TabsTrigger value="activity">Hoạt động</TabsTrigger>
-          <TabsTrigger value="tasks">Nhiệm vụ</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
         </TabsList>
         <TabsContent value="payments"><ReceivablePayments receivableId={r.id} /></TabsContent>
         <TabsContent value="activity"><ReceivableTimeline receivableId={r.id} /></TabsContent>
@@ -951,7 +951,7 @@ export function ReceivableDetailPage() {
 }
 ```
 
-- [ ] **Step 5: Create the three tab components** (`receivable-payments.tsx`, `receivable-timeline.tsx`, `receivable-tasks.tsx`) — same pattern as `customer-timeline.tsx` in Task 2. `ReceivablePayments` reads `useReceivable(id).data.allocations ?? []` (NO separate endpoint — allocations come inside `GET /receivables/:id`); rows show `formatVND(allocatedAmount)` + `formatDate(allocatedAt)` + "Tự động khớp" when `allocatedByUserId === null`. `ReceivableTimeline` uses `useQuery(['receivable-timeline', id], () => fetchReceivableTimeline(id))`; `ReceivableTasks` uses `fetchTasks`/`createTask`/`resolveTask` (title + status + "Hoàn thành" button calling `resolveTask`); each list shows a "Chưa có dữ liệu." empty state.
+- [ ] **Step 5: Create the three tab components** (`receivable-payments.tsx`, `receivable-timeline.tsx`, `receivable-tasks.tsx`) — same pattern as `customer-timeline.tsx` in Task 2. `ReceivablePayments` reads `useReceivable(id).data.allocations ?? []` (NO separate endpoint — allocations come inside `GET /receivables/:id`); rows show `formatVND(allocatedAmount)` + `formatDate(allocatedAt)` + "Automatically matched" when `allocatedByUserId === null`. `ReceivableTimeline` uses `useQuery(['receivable-timeline', id], () => fetchReceivableTimeline(id))`; `ReceivableTasks` uses `fetchTasks`/`createTask`/`resolveTask` (title + status + "Complete" button calling `resolveTask`); each list shows a "No data." empty state.
 
 - [ ] **Step 6: Create `apps/frontend/src/features/receivables/components/dispute-dialog.tsx`**
 
@@ -977,26 +977,26 @@ export function DisputeDialog({ receivableId, isDisputed, disputeId }: { receiva
 
   const openM = useMutation({
     mutationFn: () => openDispute(receivableId, { reason }),
-    onSuccess: () => { toast.success('Đã mở tranh chấp — reminder tạm dừng'); setOpen(false); invalidate(); },
+    onSuccess: () => { toast.success('Dispute opened — reminder paused'); setOpen(false); invalidate(); },
   });
   const resolveM = useMutation({
     mutationFn: () => resolveDispute(disputeId!),
-    onSuccess: () => { toast.success('Đã đóng tranh chấp'); invalidate(); },
+    onSuccess: () => { toast.success('Dispute closed'); invalidate(); },
   });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">{isDisputed ? 'Đóng tranh chấp' : 'Mở tranh chấp'}</Button>
+        <Button variant="outline">{isDisputed ? 'Close dispute' : 'Open dispute'}</Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>{isDisputed ? 'Đóng tranh chấp' : 'Mở tranh chấp'}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{isDisputed ? 'Close dispute' : 'Open dispute'}</DialogTitle></DialogHeader>
         {isDisputed ? (
-          <Button variant="destructive" onClick={() => resolveM.mutate()}>Xác nhận đóng tranh chấp</Button>
+          <Button variant="destructive" onClick={() => resolveM.mutate()}>Confirm dispute closure</Button>
         ) : (
           <div className="space-y-3">
-            <Textarea required placeholder="Lý do tranh chấp…" value={reason} onChange={(e) => setReason(e.target.value)} />
-            <Button disabled={!reason || openM.isPending} onClick={() => openM.mutate()}>Xác nhận mở tranh chấp</Button>
+            <Textarea required placeholder="Dispute reason…" value={reason} onChange={(e) => setReason(e.target.value)} />
+            <Button disabled={!reason || openM.isPending} onClick={() => openM.mutate()}>Confirm dispute opening</Button>
           </div>
         )}
       </DialogContent>
@@ -1032,7 +1032,7 @@ git commit -m "feat(frontend): receivable detail route with payments/timeline/ta
 
 **Interfaces:**
 - Consumes: `apiRequest` (with `headers: { 'Content-Type': 'multipart/form-data' }`), `POST /api/v1/invoices/import` (invoice-import plan — accepts `FormData` with field `file`, returns `{ totalRows, successCount, failedRows: [{ rowNumber, data, errors }] }`)
-- Produces: `<ImportInvoicesDialog>` — file input (`.xlsx, .csv`), upload button, result view: "Nhập thành công N dòng" + table of failed rows (row number + reason). Only rendered when `hasPermission(RECEIVABLE_WRITE)` (wired in Task 3's page).
+- Produces: `<ImportInvoicesDialog>` — file input (`.xlsx, .csv`), upload button, result view: "Successfully imported N rows" + table of failed rows (row number + reason). Only rendered when `hasPermission(RECEIVABLE_WRITE)` (wired in Task 3's page).
 
 - [ ] **Step 1: Create `apps/frontend/src/features/receivables/api/import-api.ts`**
 
@@ -1072,9 +1072,9 @@ export function ImportInvoicesDialog() {
       const res = await importInvoices(file);
       if (!res) throw new Error('UPLOAD_FAILED');
       setResult(res);
-      toast.success(`Nhập ${res.successCount} dòng thành công`);
+      toast.success(`Successfully imported ${res.successCount} rows`);
     } catch {
-      toast.error('Nhập file thất bại');
+      toast.error('File import failed');
     } finally {
       setUploading(false);
     }
@@ -1082,20 +1082,20 @@ export function ImportInvoicesDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setResult(null); setFile(null); } }}>
-      <DialogTrigger asChild><Button variant="outline">Import hóa đơn</Button></DialogTrigger>
+      <DialogTrigger asChild><Button variant="outline">Import invoices</Button></DialogTrigger>
       <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Import hóa đơn</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Import invoices</DialogTitle></DialogHeader>
         {!result ? (
           <div className="space-y-3">
             <input type="file" accept=".xlsx,.csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-            <Button onClick={onUpload} disabled={!file || uploading}>{uploading ? 'Đang tải…' : 'Tải lên'}</Button>
+            <Button onClick={onUpload} disabled={!file || uploading}>{uploading ? 'Uploading…' : 'Upload'}</Button>
           </div>
         ) : (
           <div className="space-y-3">
-            <p>Đã nhập {result.successCount} dòng, {result.failedRows.length} dòng lỗi (bỏ qua, không ảnh hưởng số còn lại).</p>
+            <p>Imported {result.successCount} rows, {result.failedRows.length} failed rows (skipped; remaining amounts are unaffected).</p>
             {result.failedRows.length > 0 && (
               <Table>
-                <TableHeader><TableRow><TableHead>Dòng</TableHead><TableHead>Lý do</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Row</TableHead><TableHead>Reason</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {result.failedRows.map((f) => (
                     <TableRow key={f.rowNumber}><TableCell>{f.rowNumber}</TableCell><TableCell>{f.errors.join('; ')}</TableCell></TableRow>
@@ -1111,7 +1111,7 @@ export function ImportInvoicesDialog() {
 }
 ```
 
-- [ ] **Step 3: Write a small component test** (`test/import-invoices-dialog.spec.tsx`) — mock `importInvoices` returning `{ totalRows: 3, successCount: 2, failedRows: [{ rowNumber: 3, data: { customerName: 'Công ty C' }, errors: ['MST trùng'] }] }`, assert the failed-row table renders after clicking upload. Follow the mock pattern of Task 3's test.
+- [ ] **Step 3: Write a small component test** (`test/import-invoices-dialog.spec.tsx`) — mock `importInvoices` returning `{ totalRows: 3, successCount: 2, failedRows: [{ rowNumber: 3, data: { customerName: 'Company C' }, errors: ['Duplicate tax ID'] }] }`, assert the failed-row table renders after clicking upload. Follow the mock pattern of Task 3's test.
 
 - [ ] **Step 4: Run tests + type-check**
 
@@ -1145,7 +1145,7 @@ git commit -m "feat(frontend): invoice import dialog with row-level error report
   - `useCandidates(bankTransactionId)` → `MatchingCandidate[]`
   - `useMatchTransaction()` — `POST /bank-transactions/:id/match` body `{ allocations: [{ receivableId, amount }], version }` (single-receivable here; the split shape is shared with the Exception Queue split dialog in Task 8), gated by `PAYMENT_ALLOCATE`
   - `TransactionsPage`: table of unmatched transactions (amount, counterparty name, time, transfer content snippet) → click row opens `TransactionDetailSheet`
-  - `TransactionDetailSheet`: full transfer content, score breakdown (5 rows: referenceCode 0–60, amount 0–20, bank account 0–10, payer name 0–5, timing 0–5, total /100 from `GET /bank-transactions/:id/candidates`), primary candidate highlighted, "Khớp công nợ" button (opens `MatchDialog`).
+  - `TransactionDetailSheet`: full transfer content, score breakdown (5 rows: referenceCode 0–60, amount 0–20, bank account 0–10, payer name 0–5, timing 0–5, total /100 from `GET /bank-transactions/:id/candidates`), primary candidate highlighted, "Match receivable" button (opens `MatchDialog`).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1162,7 +1162,7 @@ const apiRequest = vi.fn();
 vi.mock('@/lib/api-client', () => ({ apiRequest: (...a: unknown[]) => apiRequest(...a), authTokenManager: { getValidAccessToken: vi.fn().mockResolvedValue('t') } }));
 vi.mock('@/contexts/auth-context', () => ({ useAuth: () => ({ user: { role: 'ACCOUNTANT' } }) }));
 
-const tx = { id: 'bt1', bankConnectionId: 'bc1', providerTransactionId: 'p1', amount: 30_000_000, transactionDateTime: '2026-08-01T09:00:00Z', counterpartyAccountNumber: '12345', counterpartyName: 'Công ty B', transferContent: 'TT thanh toán INV-2026-0012', status: 'UNMATCHED', version: 1 };
+const tx = { id: 'bt1', bankConnectionId: 'bc1', providerTransactionId: 'p1', amount: 30_000_000, transactionDateTime: '2026-08-01T09:00:00Z', counterpartyAccountNumber: '12345', counterpartyName: 'Company B', transferContent: 'Payment for INV-2026-0012', status: 'UNMATCHED', version: 1 };
 const candidates = [{ id: 'mc1', bankTransactionId: 'bt1', receivableId: 'r1', customerId: 'c1', referenceCodeScore: 60, amountScore: 20, customerBankAccountScore: 10, payerNameScore: 5, timingScore: 5, totalScore: 100 }];
 
 describe('TransactionDetailSheet', () => {
@@ -1171,7 +1171,7 @@ describe('TransactionDetailSheet', () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={qc}><MemoryRouter><TransactionDetailSheet tx={tx} open onOpenChange={vi.fn()} /></MemoryRouter></QueryClientProvider>);
     await waitFor(() => expect(screen.getByText('100/100')).toBeTruthy());
-    expect(screen.getByText(/đề xuất/i)).toBeTruthy();
+    expect(screen.getByText(/suggested/i)).toBeTruthy();
   });
 });
 ```
@@ -1204,7 +1204,7 @@ export function matchTransaction(bankTransactionId: string, allocations: { recei
 
 - [ ] **Step 4: Create `apps/frontend/src/features/transactions/api/use-transactions.ts`** — `useUnmatchedTransactions`, `useCandidates`, `useMatchTransaction` following the hook pattern from Task 3 Step 4 (invalidate `['bank-transactions']` after match).
 
-- [ ] **Step 5: Create `apps/frontend/src/features/transactions/components/transaction-table.tsx`** — plain `Table` with columns: Ngày giờ, Đối tác, Nội dung (truncated `transferContent`), Số tiền (right-aligned `formatVND`); row click opens the sheet via callback prop `onSelect(tx)`.
+- [ ] **Step 5: Create `apps/frontend/src/features/transactions/components/transaction-table.tsx`** — plain `Table` with columns: Date/time, Counterparty, Content (truncated `transferContent`), Amount (right-aligned `formatVND`); row click opens the sheet via callback prop `onSelect(tx)`.
 
 - [ ] **Step 6: Create `apps/frontend/src/features/transactions/components/transaction-detail-sheet.tsx`**
 
@@ -1218,11 +1218,11 @@ import { MatchDialog } from './match-dialog';
 import type { BankTransaction } from '@/features/transactions/types';
 
 const SCORE_ROWS = [
-  ['Mã tham chiếu', 'referenceCodeScore', '/60'],
-  ['Số tiền', 'amountScore', '/20'],
-  ['Tài khoản ngân hàng', 'customerBankAccountScore', '/10'],
-  ['Tên người trả', 'payerNameScore', '/5'],
-  ['Thời điểm', 'timingScore', '/5'],
+  ['Reference code', 'referenceCodeScore', '/60'],
+  ['Amount', 'amountScore', '/20'],
+  ['Bank account', 'customerBankAccountScore', '/10'],
+  ['Payer name', 'payerNameScore', '/5'],
+  ['Timing', 'timingScore', '/5'],
 ] as const;
 
 export function TransactionDetailSheet({ tx, open, onOpenChange }: { tx: BankTransaction; open: boolean; onOpenChange: (v: boolean) => void }) {
@@ -1232,16 +1232,16 @@ export function TransactionDetailSheet({ tx, open, onOpenChange }: { tx: BankTra
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-[480px] overflow-y-auto">
-        <SheetHeader><SheetTitle>Giao dịch {tx.providerTransactionId}</SheetTitle></SheetHeader>
+        <SheetHeader><SheetTitle>Transaction {tx.providerTransactionId}</SheetTitle></SheetHeader>
         <div className="space-y-4 py-4">
           <div className="rounded-lg border p-3">
             <p className="text-lg font-semibold tabular-nums">{formatVND(tx.amount)}</p>
             <p className="text-sm text-muted-foreground">{tx.counterpartyName ?? '—'} · {tx.counterpartyAccountNumber ?? '—'}</p>
           </div>
-          <p className="text-sm"><span className="text-muted-foreground">Nội dung:</span> {tx.transferContent ?? '—'}</p>
+          <p className="text-sm"><span className="text-muted-foreground">Content:</span> {tx.transferContent ?? '—'}</p>
           {best && (
             <div className="rounded-lg border p-3">
-              <p className="mb-2 text-sm font-medium">Điểm khớp</p>
+              <p className="mb-2 text-sm font-medium">Match score</p>
               {SCORE_ROWS.map(([label, key, max]) => (
                 <div key={key} className="flex justify-between text-sm">
                   <span>{label}</span>
@@ -1249,10 +1249,10 @@ export function TransactionDetailSheet({ tx, open, onOpenChange }: { tx: BankTra
                 </div>
               ))}
               <div className="mt-2 flex justify-between border-t pt-2 text-sm font-semibold">
-                <span>Tổng</span><span className="tabular-nums">{best.totalScore}/100</span>
+                <span>Total</span><span className="tabular-nums">{best.totalScore}/100</span>
               </div>
-              {best.totalScore >= 90 && <p className="mt-2 text-xs text-green-700">Tự động khớp (≥ 90)</p>}
-              {best.totalScore >= 60 && best.totalScore < 90 && <p className="mt-2 text-xs text-amber-700">Chờ duyệt (60–89)</p>}
+              {best.totalScore >= 90 && <p className="mt-2 text-xs text-green-700">Automatically matched (≥ 90)</p>}
+              {best.totalScore >= 60 && best.totalScore < 90 && <p className="mt-2 text-xs text-amber-700">Pending review (60–89)</p>}
             </div>
           )}
           <MatchDialog tx={tx} candidate={best ?? null} onMatched={() => onOpenChange(false)} />
@@ -1263,7 +1263,7 @@ export function TransactionDetailSheet({ tx, open, onOpenChange }: { tx: BankTra
 }
 ```
 
-- [ ] **Step 7: Create `apps/frontend/src/features/transactions/components/match-dialog.tsx`** — "Khớp công nợ" button (hidden unless `hasPermission(PAYMENT_ALLOCATE)`); dialog lists the selected receivable with a visible `DialogDescription` starting **"Đề xuất khớp với công nợ {receivableId}…"** (the Task 1 test asserts the text `đề xuất`), editable amount defaulting to `min(amount, remaining)`; confirm calls `useMatchTransaction().mutate({ id: tx.id, allocations: [{ receivableId, amount }], version: tx.version })`.
+- [ ] **Step 7: Create `apps/frontend/src/features/transactions/components/match-dialog.tsx`** — "Match receivable" button (hidden unless `hasPermission(PAYMENT_ALLOCATE)`); dialog lists the selected receivable with a visible `DialogDescription` starting **"Suggested match with receivable {receivableId}…"** (the Task 1 test asserts the text `suggested`), editable amount defaulting to `min(amount, remaining)`; confirm calls `useMatchTransaction().mutate({ id: tx.id, allocations: [{ receivableId, amount }], version: tx.version })`.
 
 - [ ] **Step 8: Replace `apps/frontend/src/features/transactions/transactions-page.tsx`**
 
@@ -1279,8 +1279,8 @@ export function TransactionsPage() {
   const [selected, setSelected] = useState<BankTransaction | null>(null);
   return (
     <div className="space-y-4 p-6">
-      <h1 className="text-2xl font-semibold">Giao dịch / Đối soát</h1>
-      {isPending && <p>Đang tải…</p>}
+      <h1 className="text-2xl font-semibold">Transactions / Matching</h1>
+      {isPending && <p>Loading…</p>}
       {data && <TransactionTable transactions={data.items.map((row) => row.transaction)} onSelect={setSelected} />}
       {selected && <TransactionDetailSheet tx={selected} open onOpenChange={(v) => !v && setSelected(null)} />}
     </div>
@@ -1318,8 +1318,8 @@ git commit -m "feat(frontend): transactions matching workspace with score sheet"
   - `useSplitMatch()` — `POST /bank-transactions/:id/match` with `{ allocations: [{ receivableId, amount }], version }` (multiple rows; `version` = `BankTransaction.version` for optimistic locking — exception-queue plan)
   - `useSkipTransaction()` — `POST /bank-transactions/:id/skip`
   - `useMarkPrepaid()` — `POST /bank-transactions/:id/mark-prepaid` body `{ customerId }` (unapplied customer prepayment / credit balance)
-  - `ExceptionsPage`: table (ngày giờ, đối tác, số tiền, top candidate totalScore, actions), row click opens `SplitMatchDialog`
-  - `SplitMatchDialog`: candidate list (desc by totalScore, top = 60–89 suggested), amount inputs per selected receivable with running total vs transaction amount, version conflict handling (409 → refresh + toast "Giao dịch đã bị xử lý bởi người khác"), "Bỏ qua" and "Tạm giữ (credit balance)" actions.
+  - `ExceptionsPage`: table (date/time, counterparty, amount, top candidate totalScore, actions), row click opens `SplitMatchDialog`
+  - `SplitMatchDialog`: candidate list (desc by totalScore, top = 60–89 suggested), amount inputs per selected receivable with running total vs transaction amount, version conflict handling (409 → refresh + toast "Transaction was processed by another user"), "Skip" and "Hold (credit balance)" actions.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1335,7 +1335,7 @@ const apiRequest = vi.fn();
 vi.mock('@/lib/api-client', () => ({ apiRequest: (...a: unknown[]) => apiRequest(...a), authTokenManager: { getValidAccessToken: vi.fn().mockResolvedValue('t') } }));
 vi.mock('@/contexts/auth-context', () => ({ useAuth: () => ({ user: { role: 'ACCOUNTANT' } }) }));
 
-const tx = { id: 'bt9', bankConnectionId: 'bc1', providerTransactionId: 'p9', amount: 50_000_000, transactionDateTime: '2026-08-02T10:00:00Z', counterpartyAccountNumber: '999', counterpartyName: 'Công ty C', transferContent: 'TT INV-001', status: 'PENDING_REVIEW', version: 1 };
+const tx = { id: 'bt9', bankConnectionId: 'bc1', providerTransactionId: 'p9', amount: 50_000_000, transactionDateTime: '2026-08-02T10:00:00Z', counterpartyAccountNumber: '999', counterpartyName: 'Company C', transferContent: 'Payment for INV-001', status: 'PENDING_REVIEW', version: 1 };
 const candidates = [
   { id: 'mc1', bankTransactionId: 'bt9', receivableId: 'r1', customerId: 'c1', referenceCodeScore: 60, amountScore: 10, customerBankAccountScore: 10, payerNameScore: 0, timingScore: 0, totalScore: 80 },
   { id: 'mc2', bankTransactionId: 'bt9', receivableId: 'r2', customerId: 'c1', referenceCodeScore: 30, amountScore: 10, customerBankAccountScore: 10, payerNameScore: 0, timingScore: 0, totalScore: 50 },
@@ -1347,10 +1347,10 @@ describe('SplitMatchDialog', () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={qc}><SplitMatchDialog tx={tx} open onOpenChange={vi.fn()} /></QueryClientProvider>);
     await waitFor(() => expect(screen.getByText('80/100')).toBeTruthy());
-    const inputs = screen.getAllByLabelText(/số tiền phân bổ/i);
+    const inputs = screen.getAllByLabelText(/allocation amount/i);
     fireEvent.change(inputs[0], { target: { value: '30000000' } });
     fireEvent.change(inputs[1], { target: { value: '20000000' } });
-    fireEvent.click(screen.getByRole('button', { name: /khớp giao dịch/i }));
+    fireEvent.click(screen.getByRole('button', { name: /match transaction/i }));
     await waitFor(() => expect(apiRequest).toHaveBeenCalledWith(expect.objectContaining({
       url: '/api/v1/bank-transactions/bt9/match',
       method: 'POST',
@@ -1368,9 +1368,9 @@ describe('SplitMatchDialog', () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={qc}><SplitMatchDialog tx={tx} open onOpenChange={vi.fn()} /></QueryClientProvider>);
     await waitFor(() => expect(screen.getByText('80/100')).toBeTruthy());
-    const inputs = screen.getAllByLabelText(/số tiền phân bổ/i);
+    const inputs = screen.getAllByLabelText(/allocation amount/i);
     fireEvent.change(inputs[0], { target: { value: '60000000' } });
-    fireEvent.click(screen.getByRole('button', { name: /khớp giao dịch/i }));
+    fireEvent.click(screen.getByRole('button', { name: /match transaction/i }));
     expect(apiRequest).not.toHaveBeenCalledWith(expect.objectContaining({ url: '/api/v1/bank-transactions/bt9/match' }));
   });
 });
@@ -1405,7 +1405,7 @@ export function markPrepaid(bankTransactionId: string, customerId: string) {
 ```
 
 - [ ] **Step 4: Create `apps/frontend/src/features/exceptions/api/use-exceptions.ts`** — exact mutation signatures (the dialog in Step 5 calls them with these shapes):
-  - `useSplitMatch()` — `mutationFn: ({ id, allocations, version }: { id: string; allocations: { receivableId: string; amount: number }[]; version: number }) => splitMatch(id, allocations, version)`; onError: if `(e as { status?: number }).status === 409` → toast "Giao dịch đã bị xử lý bởi người khác, tải lại danh sách"
+  - `useSplitMatch()` — `mutationFn: ({ id, allocations, version }: { id: string; allocations: { receivableId: string; amount: number }[]; version: number }) => splitMatch(id, allocations, version)`; onError: if `(e as { status?: number }).status === 409` → toast "Transaction was processed by another user; reload the list"
   - `useSkipTransaction()` — `mutationFn: (id: string) => skipTransaction(id)`
   - `useMarkPrepaid()` — `mutationFn: ({ id, customerId }: { id: string; customerId: string }) => markPrepaid(id, customerId)`
   - All invalidate `['bank-transactions']` + `['review-count']` on success (the review-count hook key is `['review-count']` from the design-system plan).
@@ -1446,13 +1446,13 @@ export function SplitMatchDialog({ tx, open, onOpenChange }: { tx: BankTransacti
 
   function onMatch() {
     if (!valid) {
-      toast.error(`Tổng phân bổ ${formatVND(total)} vượt số tiền giao dịch ${formatVND(tx.amount)}`);
+      toast.error(`Total allocation ${formatVND(total)} exceeds transaction amount ${formatVND(tx.amount)}`);
       return;
     }
-    // ponytail: version=0 mặc định; BE trả 409 nếu lệch → toast + tải lại (use-exceptions xử lý)
+    // ponytail: version=0 by default; BE returns 409 on mismatch → toast + reload (use-exceptions handles it)
     splitMatch.mutate(
       { id: tx.id, allocations, version: (tx as BankTransaction & { version?: number }).version ?? 0 },
-      { onSuccess: () => { toast.success('Đã khớp giao dịch'); onOpenChange(false); } },
+      { onSuccess: () => { toast.success('Transaction matched'); onOpenChange(false); } },
     );
   }
 
@@ -1460,7 +1460,7 @@ export function SplitMatchDialog({ tx, open, onOpenChange }: { tx: BankTransacti
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Xử lý giao dịch {tx.providerTransactionId} — {formatVND(tx.amount)}</DialogTitle>
+          <DialogTitle>Process transaction {tx.providerTransactionId} — {formatVND(tx.amount)}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground">{tx.transferContent}</p>
@@ -1469,17 +1469,17 @@ export function SplitMatchDialog({ tx, open, onOpenChange }: { tx: BankTransacti
               <span className="w-16 text-sm font-medium tabular-nums">{c.totalScore}/100</span>
               <span className="flex-1 text-sm">{c.receivableId}</span>
               <Label className="flex items-center gap-2 text-sm">
-                Số tiền phân bổ
+                Allocation amount
                 <Input type="number" min={0} className="w-40" value={amounts[c.receivableId] ?? ''} onChange={(e) => setAmounts((a) => ({ ...a, [c.receivableId]: e.target.value }))} />
               </Label>
             </div>
           ))}
-          <p className="text-sm">Đã phân bổ: <span className="tabular-nums">{formatVND(total)}</span> / {formatVND(tx.amount)}</p>
-          <Label className="block text-sm">Mã khách hàng nhận credit balance<Input value={prepaidCustomerId} onChange={(e) => setPrepaidCustomerId(e.target.value)} placeholder="customerId" /></Label>
+          <p className="text-sm">Allocated: <span className="tabular-nums">{formatVND(total)}</span> / {formatVND(tx.amount)}</p>
+          <Label className="block text-sm">Customer ID receiving credit balance<Input value={prepaidCustomerId} onChange={(e) => setPrepaidCustomerId(e.target.value)} placeholder="customerId" /></Label>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" disabled={!prepaidCustomerId} onClick={() => prepaid.mutate({ id: tx.id, customerId: prepaidCustomerId }, { onSuccess: () => { toast.success('Đã giữ làm credit balance'); onOpenChange(false); } })}>Tạm giữ (credit balance)</Button>
-            <Button variant="outline" onClick={() => skip.mutate(tx.id, { onSuccess: () => { toast.success('Đã bỏ qua'); onOpenChange(false); } })}>Bỏ qua</Button>
-            <Button onClick={onMatch} disabled={!valid || splitMatch.isPending}>Khớp giao dịch</Button>
+            <Button variant="outline" disabled={!prepaidCustomerId} onClick={() => prepaid.mutate({ id: tx.id, customerId: prepaidCustomerId }, { onSuccess: () => { toast.success('Held as credit balance'); onOpenChange(false); } })}>Hold (credit balance)</Button>
+            <Button variant="outline" onClick={() => skip.mutate(tx.id, { onSuccess: () => { toast.success('Skipped'); onOpenChange(false); } })}>Skip</Button>
+            <Button onClick={onMatch} disabled={!valid || splitMatch.isPending}>Match transaction</Button>
           </div>
         </div>
       </DialogContent>
@@ -1505,12 +1505,12 @@ export function ExceptionsPage() {
   return (
     <div className="space-y-4 p-6">
       <h1 className="text-2xl font-semibold">Exception Queue</h1>
-      {isPending && <p>Đang tải…</p>}
-      {isError && <p className="text-destructive">Không tải được danh sách giao dịch cần xử lý.</p>}
+      {isPending && <p>Loading…</p>}
+      {isError && <p className="text-destructive">Unable to load the transaction review list.</p>}
       {data && (
         <Table>
           <TableHeader>
-            <TableRow><TableHead>Ngày giờ</TableHead><TableHead>Đối tác</TableHead><TableHead>Số tiền</TableHead><TableHead>Điểm cao nhất</TableHead></TableRow>
+            <TableRow><TableHead>Date/time</TableHead><TableHead>Counterparty</TableHead><TableHead>Amount</TableHead><TableHead>Highest score</TableHead></TableRow>
           </TableHeader>
           <TableBody>
             {data.items.map((row) => (
@@ -1566,7 +1566,7 @@ git commit -m "chore(frontend): final verification fixes"
 
 ## Self-Review Notes
 
-- **Spec coverage:** customers list/detail → Task 2 (FE design spec nav item 2); receivables list/detail + write-off/cancel/dispute/import → Tasks 3–6 (domain-core spec mục 3 transitions: WRITTEN_OFF/CANCELLED gated by `RECEIVABLE_WRITE_OFF`/`RECEIVABLE_WRITE`, terminal-state guard in detail page; dispute → badge + dialog per grill Q5); matching workspace + exception queue → Tasks 7–8 (webhook-matching thresholds 90/60/89 displayed in sheet; exception-queue split + optimistic lock + skip + credit balance; sidebar badge `use-review-count` already exists from design-system plan).
+- **Spec coverage:** customers list/detail → Task 2 (FE design spec nav item 2); receivables list/detail + write-off/cancel/dispute/import → Tasks 3–6 (domain-core spec section 3 transitions: WRITTEN_OFF/CANCELLED gated by `RECEIVABLE_WRITE_OFF`/`RECEIVABLE_WRITE`, terminal-state guard in detail page; dispute → badge + dialog per grill Q5); matching workspace + exception queue → Tasks 7–8 (webhook-matching thresholds 90/60/89 displayed in sheet; exception-queue split + optimistic lock + skip + credit balance; sidebar badge `use-review-count` already exists from design-system plan).
 - **Placeholder scan:** all tasks contain concrete code; customer and exception read routes are backed by the Read APIs and Exception Queue plans.
 - **Type consistency:** `Receivable`/`BankTransaction`/`MatchingCandidate`/`PendingReviewItem` defined once in Task 1 and used verbatim by later tasks; `allocations: { receivableId, amount }[]` shape shared between `matchTransaction` (Task 7) and `splitMatch` (Task 8); `version` is required because the BE DTO uses optimistic locking.
 - **RBAC decisions (grill Q4):** mutating buttons hidden via `hasPermission` — create/import (`RECEIVABLE_WRITE`), write-off (`RECEIVABLE_WRITE_OFF`), dispute (`RECEIVABLE_DISPUTE`), match/exception actions (`PAYMENT_ALLOCATE`). Route-level guard for business routes is `ProtectedRoute` only (no per-route role checks except `/settings` handled in FE plan 3).

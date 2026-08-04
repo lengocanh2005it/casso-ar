@@ -2,25 +2,25 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Khởi tạo monorepo Casso Ledger (Turborepo + pnpm) với backend NestJS theo Clean Architecture, và implement đầy đủ Domain Core (Customer, Invoice, Receivable, Payment, PaymentAllocation) — entity, state machine, use case, repository, migration, test — chạy được và test pass, KHÔNG bao gồm frontend scaffold (tách plan riêng sau vì domain-core không phụ thuộc UI).
+**Goal:** Initialize the Casso Ledger monorepo (Turborepo + pnpm) with a NestJS backend following Clean Architecture, and fully implement the Domain Core (Customer, Invoice, Receivable, Payment, PaymentAllocation) — entities, state machine, use case, repository, migration, and tests — runnable and passing, NOT including the frontend scaffold (split into a separate plan later because the domain core does not depend on the UI).
 
-**Architecture:** NestJS modular monolith, mỗi module nghiệp vụ có 4 lớp `domain/application/infrastructure/presentation` (dependency: presentation → application → domain, infrastructure → application). TypeORM cho persistence, Postgres qua Docker Compose cho local dev, testcontainers cho integration test.
+**Architecture:** NestJS modular monolith, each business module has 4 layers `domain/application/infrastructure/presentation` (dependency: presentation → application → domain, infrastructure → application). TypeORM for persistence, Postgres via Docker Compose for local development, and testcontainers for integration tests.
 
 **Tech Stack:** pnpm workspaces + Turborepo, NestJS 10, TypeORM 0.3, PostgreSQL 16, Jest + testcontainers + supertest, Biome (lint/format), Husky + lint-staged, TypeScript strict.
 
 ## Global Constraints
 
-- `packageManager: "pnpm@10.x"`, `engines.node: ">=20"` (spec mục 1).
-- Số tiền: kiểu integer đơn vị đồng, không dùng `float` (spec mục 4).
-- Mọi thao tác ghi thay đổi số tiền/status phải nằm trong 1 DB transaction (spec mục 4, domain-core mục 4.6).
-- `paidAmount` trên Receivable và `allocatedAmount` trên Payment là persisted rollup; `remainingAmount`, `unallocatedAmount`, `isDisputed`, `isOverdue` là derived field (domain-core mục 3, spec scaffolding mục 4).
-- Naming: file kebab-case, class PascalCase, biến/hàm camelCase, enum UPPER_SNAKE_CASE (spec mục 4).
-- `domain/` không import bất kỳ gì từ NestJS/TypeORM (spec mục 2).
-- Một `Payment` chỉ được allocate khi `Payment.customerId` tồn tại và trùng `Receivable.customerId` (domain-core mục 4.1).
-- `allocatedAmount` là số nguyên dương và không được vượt `remainingAmount` tại thời điểm allocate — check + ghi phải cùng transaction có lock (domain-core mục 4.3).
-- `PaymentAllocation` chỉ được tính vào rollup khi `deletedAt IS NULL`; undo là soft-delete + audit trong cùng transaction (domain-core mục 4.5-4.7).
-- `Receivable.salesRepresentativeId` là ownership scope nullable; Service lọc theo `ctx.userId` khi role là `SALES_REP`.
-- `PaymentAllocation` undo phải lock allocation + payment + receivable, giảm cả hai persisted rollup, ghi `AuditLog` INSERT-only với before/after state, rồi mới commit.
+- `packageManager: "pnpm@10.x"`, `engines.node: ">=20"` (spec section 1).
+- Amounts: integer values in VND, do not use `float` (spec section 4).
+- All write operations that change amount/status must be within one DB transaction (spec section 4, domain-core section 4.6).
+- `paidAmount` on Receivable and `allocatedAmount` on Payment are persisted rollups; `remainingAmount`, `unallocatedAmount`, `isDisputed`, `isOverdue` are derived fields (domain-core section 3, scaffolding spec section 4).
+- Naming: file kebab-case, class PascalCase, variables/functions camelCase, enum UPPER_SNAKE_CASE (spec section 4).
+- `domain/` does not import anything from NestJS/TypeORM (spec section 2).
+- A `Payment` may only be allocated when `Payment.customerId` exists and matches `Receivable.customerId` (domain-core section 4.1).
+- `allocatedAmount` is a positive integer and must not exceed `remainingAmount` at allocation time — the check and write must use the same locked transaction (domain-core section 4.3).
+- `PaymentAllocation` is included in rollups only when `deletedAt IS NULL`; undo is a soft delete plus audit in the same transaction (domain-core sections 4.5-4.7).
+- `Receivable.salesRepresentativeId` is a nullable ownership scope; the Service filters by `ctx.userId` when the role is `SALES_REP`.
+- `PaymentAllocation` undo must lock allocation + payment + receivable, reduce both persisted rollups, write an INSERT-only `AuditLog` with before/after state, and only then commit.
 
 ---
 
@@ -34,7 +34,7 @@ casso-ledger/
   biome.json
   .gitignore
   .husky/pre-commit
-  docker-compose.yml                     -- postgres + redis cho local dev (mở rộng sau ở deployment spec)
+  docker-compose.yml                     -- postgres + redis for local development (expanded later in the deployment spec)
   packages/
     shared-types/
       package.json
@@ -604,7 +604,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
 };
 ```
 
-`synchronize: true` chấp nhận được ở giai đoạn scaffold/MVP thực tập (không có migration file riêng ở plan này) — nâng cấp lên migration-based khi có nhiều người cùng sửa schema hoặc chuẩn bị production thật.
+`synchronize: true` is acceptable during the scaffold/internship MVP phase (this plan has no separate migration file) — upgrade to migration-based when multiple people edit the schema or when preparing for real production.
 
 - [ ] **Step 4: Wire into `apps/backend/src/app.module.ts`**
 
@@ -664,7 +664,7 @@ describe('Customer domain entity', () => {
     const customer = new Customer({
       id: 'cust-1',
       organizationId: 'org-1',
-      name: 'Công ty B',
+      name: 'Company B',
       taxCode: '0312345678',
       email: 'ap@congtyb.vn',
       phone: '0900000000',
@@ -675,7 +675,7 @@ describe('Customer domain entity', () => {
     });
 
     expect(customer.id).toBe('cust-1');
-    expect(customer.name).toBe('Công ty B');
+    expect(customer.name).toBe('Company B');
     expect(customer.defaultPaymentTermDays).toBe(30);
   });
 });
@@ -1115,7 +1115,7 @@ git commit -m "feat: add Invoice domain entity, repository port, and TypeORM imp
 - Consumes: `ReceivableStatus` from `@casso-ledger/shared-types` (Task 3)
 - Produces: `Receivable` domain class with `applyPaymentAllocation`, `writeOff`, `cancel`, `isOverdue` — used by Task 10 (TypeORM entity), Task 12 (CreateReceivableUseCase), Task 13 (AllocatePaymentUseCase)
 
-This is the core state machine from domain-core-design.md mục 3 — every transition rule below maps directly to a test case.
+This is the core state machine from domain-core-design.md section 3 — every transition rule below maps directly to a test case.
 
 - [ ] **Step 1: Add workspace dependency**
 
@@ -1401,7 +1401,7 @@ export class ReceivableOrmEntity {
 }
 ```
 
-`@VersionColumn` implement optimistic locking bắt buộc theo domain-core mục 4.3 — TypeORM tự tăng `version` mỗi lần save và throw `OptimisticLockVersionMismatchError` nếu version đã đổi, dùng ở Task 13.
+`@VersionColumn` implements the required optimistic locking from domain-core section 4.3 — TypeORM automatically increments `version` on every save and throws `OptimisticLockVersionMismatchError` if the version has changed; used in Task 13.
 
 - [ ] **Step 2: Create `apps/backend/src/modules/receivables/application/receivable-repository.port.ts`**
 
@@ -1529,7 +1529,7 @@ describe('Payment domain entity', () => {
       bankTransactionId: null,
       totalAmount: 25_000_000,
       allocatedAmount: 20_000_000,
-      payerName: 'Công ty B',
+      payerName: 'Company B',
       receivedAt: new Date('2026-08-01'),
       createdAt: new Date('2026-08-01'),
     });
@@ -1786,7 +1786,7 @@ export interface IPaymentAllocationRepository {
 export const PAYMENT_ALLOCATION_REPOSITORY = Symbol('PAYMENT_ALLOCATION_REPOSITORY');
 ```
 
-Audit undo dùng chung `IAuditLogRepository`/`AUDIT_LOG_REPOSITORY` từ `common/audit` của plan Exception Queue. Repository này nhận `EntityManager` tùy chọn để ghi INSERT trong cùng transaction; Payments không tạo một AuditLog entity/repository riêng.
+Undo auditing reuses `IAuditLogRepository`/`AUDIT_LOG_REPOSITORY` from `common/audit` in the Exception Queue plan. This repository accepts an optional `EntityManager` to write the INSERT in the same transaction; Payments does not create a separate AuditLog entity/repository.
 
 - [ ] **Step 8: Create repository implementations**
 
@@ -1957,7 +1957,7 @@ describe('AllocatePaymentUseCase', () => {
       bankTransactionId: null,
       totalAmount: 30_000_000,
       allocatedAmount: 0,
-      payerName: 'Công ty B',
+      payerName: 'Company B',
       receivedAt: new Date('2026-08-01'),
       createdAt: new Date('2026-08-01'),
     });
@@ -2202,7 +2202,7 @@ describe('UndoPaymentAllocationUseCase', () => {
     });
     const payment = new Payment({
       id: 'pay-1', organizationId: 'org-1', customerId: 'cust-1', bankTransactionId: null,
-      totalAmount: 50_000_000, allocatedAmount: 30_000_000, payerName: 'Công ty B',
+      totalAmount: 50_000_000, allocatedAmount: 30_000_000, payerName: 'Company B',
       receivedAt: new Date(), createdAt: new Date(),
     });
     const receivable = new Receivable({
@@ -2557,7 +2557,7 @@ git commit -m "feat: add CreateReceivable and AllocatePayment HTTP endpoints"
 
 **Interfaces:**
 - Consumes: full `AppModule` (Task 6-13), real Postgres via testcontainers
-- Produces: verified end-to-end proof that Task 9 (Receivable state machine), Task 12 (transactional allocation), Task 13 (HTTP endpoints) work together — matches testing-strategy-design.md mục 1, case 2
+- Produces: verified end-to-end proof that Task 9 (Receivable state machine), Task 12 (transactional allocation), Task 13 (HTTP endpoints) work together — matches testing-strategy-design.md section 1, case 2
 
 - [ ] **Step 1: Write the integration test**
 
@@ -2607,7 +2607,7 @@ describe('Payment allocation (integration)', () => {
     await dataSource.getRepository(CustomerOrmEntity).save({
       id: customerId,
       organizationId,
-      name: 'Công ty B',
+      name: 'Company B',
       taxCode: '0312345678',
       email: 'ap@congtyb.vn',
       phone: '0900000000',
@@ -2637,7 +2637,7 @@ describe('Payment allocation (integration)', () => {
       bankTransactionId: null,
       totalAmount: 30_000_000,
       allocatedAmount: 0,
-      payerName: 'Công ty B',
+      payerName: 'Company B',
       receivedAt: new Date(),
       createdAt: new Date(),
     });
@@ -2679,7 +2679,7 @@ git commit -m "test: add integration test for partial payment allocation flow"
 
 ## Self-Review Notes
 
-- **Spec coverage:** Monorepo structure (scaffolding mục 1) → Task 1-3. Backend Clean Architecture layers (mục 2) → Task 7-13 (every module has domain/application/infrastructure/presentation). Domain Core entities and state machine (domain-core mục 2-4) → Task 7-12. Optimistic locking (domain-core mục 4.3) → Task 10 `@VersionColumn` + `pessimistic_write` lock in `findByIdForUpdate` (row lock during the transaction, version column as defense-in-depth). Frontend structure (scaffolding mục 3) is owned by the frontend design-system and feature plans.
+- **Spec coverage:** Monorepo structure (scaffolding section 1) → Task 1-3. Backend Clean Architecture layers (section 2) → Task 7-13 (every module has domain/application/infrastructure/presentation). Domain Core entities and state machine (domain-core sections 2-4) → Task 7-12. Optimistic locking (domain-core section 4.3) → Task 10 `@VersionColumn` + `pessimistic_write` lock in `findByIdForUpdate` (row lock during the transaction, version column as defense-in-depth). Frontend structure (scaffolding section 3) is owned by the frontend design-system and feature plans.
 - **Not covered in this plan (by design, out of scope for these 2 specs):** Webhook/Matching Engine, Reminder Automation, RBAC enforcement (this pre-auth scaffold intentionally omits guards; final tenant context comes from the Authentication and Multi-tenancy plans), Frontend app — covered by the separate frontend plans.
 - **Type consistency checked:** `IReceivableRepository.findByIdForUpdate(id, manager)` signature (Task 10) matches usage in `AllocatePaymentUseCase` (Task 12) and its mock in the unit test. `Receivable.applyPaymentAllocation`/`writeOff`/`cancel` names are used consistently in Task 9 domain and Task 12 use case.
 

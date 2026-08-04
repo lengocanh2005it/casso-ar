@@ -1,57 +1,57 @@
 # Internal Task & Escalation Design
 
-> Spec con của [docs/overview.md](../../../docs/overview.md) (mục 7.14), phụ thuộc [2026-08-03-reminder-automation-design.md](2026-08-03-reminder-automation-design.md) (tái dùng daily cron), [2026-08-03-multi-tenancy-rbac-design.md](2026-08-03-multi-tenancy-rbac-design.md) (quyền tạo task), [2026-08-03-collection-activity-timeline-design.md](2026-08-03-collection-activity-timeline-design.md) (event listener khi receivable đóng).
+> Sub-spec of [docs/overview.md](../../../docs/overview.md) (section 7.14), dependent on [2026-08-03-reminder-automation-design.md](2026-08-03-reminder-automation-design.md) (reuse the daily cron), [2026-08-03-multi-tenancy-rbac-design.md](2026-08-03-multi-tenancy-rbac-design.md) (task-creation permission), and [2026-08-03-collection-activity-timeline-design.md](2026-08-03-collection-activity-timeline-design.md) (event listener when a receivable closes).
 
 ## 1. Entity
 
 ```
 InternalTask
-  id, organizationId, receivableId, assignedToUserId, createdByUserId (nullable — null = hệ thống),
+  id, organizationId, receivableId, assignedToUserId, createdByUserId (nullable — null = system),
   taskType (ESCALATION/MANUAL), title, description, dueDate (nullable),
   status (OPEN/DONE/DISMISSED),
   createdAt, resolvedAt
 ```
 
-## 2. Escalation trigger (tự động)
+## 2. Escalation trigger (automatic)
 
-Tái dùng daily cron của Reminder Automation — không tạo scheduled job riêng, tránh trùng lặp logic quét receivable quá hạn đã có sẵn:
+Reuse the Reminder Automation daily cron — do not create a separate scheduled job, avoiding duplicate logic for scanning overdue receivables:
 
 ```
-Trong daily cron (xem 2026-08-03-reminder-automation-design.md mục 3, bước 2),
-sau khi xử lý reminder rule cho một receivable:
-  Nếu (today - dueDate) >= escalationThresholdDays (vd 30 ngày)
-     VÀ chưa có InternalTask(taskType=ESCALATION, status=OPEN) cho receivable này
-  → tạo InternalTask(taskType=ESCALATION, assignedToUserId=Finance Manager của organization,
-     title="Công nợ quá hạn {days} ngày cần xử lý", createdByUserId=null)
+In the daily cron (see step 2 of section 3 in 2026-08-03-reminder-automation-design.md),
+after processing the reminder rule for a receivable:
+  If (today - dueDate) >= escalationThresholdDays (e.g. 30 days)
+     AND no InternalTask(taskType=ESCALATION, status=OPEN) exists for this receivable
+  → create InternalTask(taskType=ESCALATION, assignedToUserId=the organization's Finance Manager,
+     title="Overdue receivable for {days} days requires action", createdByUserId=null)
 ```
 
-## 3. Đọc, tạo thủ công & resolve
+## 3. Read, manual creation & resolution
 
 ```
 GET /receivables/:id/tasks
-  → danh sách task của receivable trong tenant hiện tại, newest first
-  Quyền: RECEIVABLE_READ
+  → list of tasks for the receivable in the current tenant, newest first
+  Permission: RECEIVABLE_READ
 ```
 
 ```
 POST /receivables/:id/tasks
   body: { assignedToUserId?, title, description, dueDate? }
-  taskType=MANUAL, createdByUserId=user hiện tại; nếu bỏ qua assignedToUserId
-  thì mặc định giao cho user hiện tại
-  Quyền: FINANCE_MANAGER, ACCOUNTANT
+  taskType=MANUAL, createdByUserId=current user; if assignedToUserId is omitted,
+  assign it to the current user by default
+  Permission: FINANCE_MANAGER, ACCOUNTANT
 
 POST /tasks/:id/resolve   → status=DONE, resolvedAt=now
 POST /tasks/:id/dismiss   → status=DISMISSED, resolvedAt=now
 ```
 
-Khi `Receivable` chuyển sang trạng thái đóng (`PAID`/`WRITTEN_OFF`/`CANCELLED`), mọi `InternalTask` còn `OPEN` của receivable đó tự động chuyển `DISMISSED` — xử lý qua cùng domain event listener đã dùng ở [2026-08-03-collection-activity-timeline-design.md](2026-08-03-collection-activity-timeline-design.md) (lắng nghe sự kiện `Receivable.status` đổi sang trạng thái đóng).
+When `Receivable` transitions to a closed status (`PAID`/`WRITTEN_OFF`/`CANCELLED`), every remaining `OPEN` `InternalTask` for that receivable automatically transitions to `DISMISSED` — handled through the same domain event listener used in [2026-08-03-collection-activity-timeline-design.md](2026-08-03-collection-activity-timeline-design.md) (listen for `Receivable.status` changing to a closed status).
 
-## 4. Ngoài phạm vi
+## 4. Out of scope
 
-- "Đề xuất tạm dừng bán chịu cho khách hàng" (tài liệu gốc mục 7.14) — chỉ là gợi ý hiển thị trong `InternalTask.description`, không có cơ chế tự động chặn tạo receivable mới cho khách hàng đó ở MVP.
-- Notification real-time (push/Slack) khi có task mới — dùng notification nội bộ đã có (tài liệu gốc mục 7.5 MVP), không thêm kênh riêng.
+- "Suggest temporarily suspending credit sales to the customer" (section 7.14 of the source document) — only a suggestion displayed in `InternalTask.description`; the MVP has no mechanism to automatically block new receivables for that customer.
+- Real-time notifications (push/Slack) for new tasks — use the existing internal notification mechanism (section 7.5 of the MVP source document); do not add a separate channel.
 
-## 5. Câu hỏi mở (không chặn implementation)
+## 5. Open questions (do not block implementation)
 
-- `escalationThresholdDays` có cấu hình theo từng `ReminderPolicy`/`customerGroup` hay là một giá trị cố định chung cho toàn organization?
-- Một `InternalTask` có cần giới hạn chỉ `assignedToUserId` hoặc `OWNER` mới được resolve/dismiss không, hay bất kỳ ai xem được task cũng resolve được?
+- Is `escalationThresholdDays` configurable per `ReminderPolicy`/`customerGroup`, or is it one fixed value for the entire organization?
+- Should an `InternalTask` be resolvable/dismissible only by `assignedToUserId` or `OWNER`, or can anyone who can view the task resolve it?

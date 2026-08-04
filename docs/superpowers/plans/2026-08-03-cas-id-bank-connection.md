@@ -10,11 +10,11 @@
 
 ## Global Constraints
 
-- `accessToken` is encrypted at rest, never logged in plaintext anywhere, including `ConnectionAuditEvent.metadata` (spec mục 2).
-- Cas Link opens in a popup/new tab, never an iframe (spec mục 1).
-- Lazy revocation detection only — no scheduled polling job (spec mục 3).
-- Historical `BankTransaction`/`PaymentAllocation` are never deleted when a connection loses `ACTIVE` status (spec mục 3).
-- Every status change writes a `ConnectionAuditEvent` (spec mục 3).
+- `accessToken` is encrypted at rest, never logged in plaintext anywhere, including `ConnectionAuditEvent.metadata` (spec section 2).
+- Cas Link opens in a popup/new tab, never an iframe (spec section 1).
+- Lazy revocation detection only — no scheduled polling job (spec section 3).
+- Historical `BankTransaction`/`PaymentAllocation` are never deleted when a connection loses `ACTIVE` status (spec section 3).
+- Every status change writes a `ConnectionAuditEvent` (spec section 3).
 - `ACCESS_TOKEN_ENCRYPTION_KEY` samples and validation are exactly 64 hexadecimal characters (32 decoded bytes).
 - Re-authentication reactivates the existing `BankConnection` row and replaces its token/session; it never creates a second row.
 - `CustomerBankAccount` mapping is not inferred from `BankConnection.accountIdentity`: the customer-owned, tenant-scoped mapping is created by bank-account management and read by Webhook Matching. Cas re-authentication preserves that separate mapping.
@@ -880,7 +880,7 @@ const GRANT_TOKEN_TTL_MS = 30 * 60 * 1000;
 
 // ponytail: simulates the Cas ID quickstart flow deterministically for demo/test purposes.
 // Swap for a real CasIdAdapter (calling the actual Cas ID API) once Developer Portal access
-// confirms exact endpoint/response schemas (spec mục 0's own caveat).
+// confirms exact endpoint/response schemas (spec section 0's own caveat).
 @Injectable()
 export class MockCasIdAdapter implements ICasIdIntegrationAdapter {
   async createGrantToken(
@@ -1551,7 +1551,7 @@ export class MarkRequiresReauthorizationUseCase {
 }
 ```
 
-Uses `findByIdUnscoped` deliberately: this use case is designed to be callable from contexts with no tenant scope yet resolved (e.g., a future scheduled `getTransactions` pull-path running per-connection, not per-request) — the spec's "notification to Owner" (mục 3) is intentionally NOT implemented here; flagged in Self-Review as relying on the Reminder/Notification infrastructure from a different plan.
+Uses `findByIdUnscoped` deliberately: this use case is designed to be callable from contexts with no tenant scope yet resolved (e.g., a future scheduled `getTransactions` pull-path running per-connection, not per-request) — the spec's "notification to Owner" (section 3) is intentionally NOT implemented here; flagged in Self-Review as relying on the Reminder/Notification infrastructure from a different plan.
 
 - [ ] **Step 5: Run test to verify it passes**
 
@@ -1986,9 +1986,9 @@ git commit -m "test: add integration test for Cas ID connection flow and webhook
 
 ## Self-Review Notes
 
-- **Spec coverage:** Adapter interface + Mock implementation (mục 1) → Task 4. Connection flow steps 1-8 (mục 1) → Tasks 5-6, Task 9. 3 entities (mục 2) → Task 1, Task 3. Status transitions + lazy revocation detection (mục 3) → Task 1 (domain methods), Task 7/7b (audit-backed marking and concrete adapter callers), Task 8 (webhook pre-check). Encryption at rest (mục 2) → Task 2.
-- **Known gap, intentionally deferred:** Spec mục 3 says "Cảnh báo Organization Owner qua notification khi status đổi khỏi ACTIVE" — not implemented in this plan because no notification infrastructure plan exists yet; `MarkRequiresReauthorizationUseCase` (Task 7) only writes the `ConnectionAuditEvent` and flips status. Whichever plan builds the Email/Notification Service should add a call from this use case once that infrastructure exists.
-- **Not covered in this plan (by design):** Real `CasIdAdapter` calling the actual Cas ID API — spec's own mục 4 defers this until Developer Portal access confirms schemas; `getTransactions` is defined on the port but has no caller yet (Balance Hook webhook is the primary transaction source per the Webhook & Matching Engine plan — `getTransactions` exists for a possible future pull-based reconciliation, out of scope here).
+- **Spec coverage:** Adapter interface + Mock implementation (section 1) → Task 4. Connection flow steps 1-8 (section 1) → Tasks 5-6, Task 9. 3 entities (section 2) → Task 1, Task 3. Status transitions + lazy revocation detection (section 3) → Task 1 (domain methods), Task 7/7b (audit-backed marking and concrete adapter callers), Task 8 (webhook pre-check). Encryption at rest (section 2) → Task 2.
+- **Known gap, intentionally deferred:** Spec section 3 says "Notify the Organization Owner through a notification when status changes from ACTIVE" — not implemented in this plan because no notification infrastructure plan exists yet; `MarkRequiresReauthorizationUseCase` (Task 7) only writes the `ConnectionAuditEvent` and flips status. Whichever plan builds the Email/Notification Service should add a call from this use case once that infrastructure exists.
+- **Not covered in this plan (by design):** Real `CasIdAdapter` calling the actual Cas ID API — spec's own section 4 defers this until Developer Portal access confirms schemas; `getTransactions` is defined on the port but has no caller yet (Balance Hook webhook is the primary transaction source per the Webhook & Matching Engine plan — `getTransactions` exists for a possible future pull-based reconciliation, out of scope here).
 - **Type consistency checked:** `AccountIdentity` (Task 1) is the same type returned by `MockCasIdAdapter.getAccountIdentity` (Task 4) and stored on `BankConnection.accountIdentity`. `CasIdConnectionSession.bankConnectionId` is nullable for first connection and required for reauth. `IBankConnectionRepository.findByIdUnscoped` (Task 3) is used consistently by the Webhook Controller (Task 8), `MarkRequiresReauthorizationUseCase` (Task 7), and `SyncTransactionsUseCase` (Task 7b) — all are designed for contexts without a resolved request tenant.
 - **Audit and re-auth invariants:** initial connection writes `TOKEN_EXCHANGED`; re-auth writes `SESSION_CREATED` then `RECONNECTED` against the same connection id; lazy 401/403 writes `MARKED_REQUIRES_REAUTH` once and `API_CALL_FAILED_401` on repeated failures; disconnect writes `DISCONNECTED`. The audit repository is insert-only, and all token-related metadata remains redacted/non-secret.
 

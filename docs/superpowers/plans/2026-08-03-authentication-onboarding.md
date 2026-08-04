@@ -10,14 +10,14 @@
 
 ## Global Constraints
 
-- All tokens (verification/reset/invite/refresh) stored as SHA-256 hash, never plaintext (spec mục 1).
-- Self-serve signup creates `Organization` + `User` + active `Membership(role=OWNER)` + `Subscription(ACTIVE, FREE)` and runs `OrganizationBootstrap` in ONE DB transaction; every write receives the same `EntityManager` (spec mục 2 and Billing spec).
-- Email verification is mandatory — non-`/auth/*`, non-`/me` routes blocked until `emailVerifiedAt` is set (spec mục 2).
-- Access token JWT: 15 min expiry, payload `{ userId, organizationId, role }` (spec mục 3) — matches `JwtStrategy` from the RBAC plan exactly.
-- Refresh token: 7 days, httpOnly cookie, rotated on every `/auth/refresh` call (spec mục 3).
-- `/auth/login`, `/auth/forgot-password`, `/auth/signup`: rate limited to 5 requests/minute per (IP, normalized email) via a custom throttler tracker (spec mục 6).
-- `POST /auth/forgot-password` always returns 200 regardless of whether the email exists (spec mục 5).
-- Resetting a password revokes ALL of the user's refresh tokens (spec mục 5).
+- All tokens (verification/reset/invite/refresh) stored as SHA-256 hash, never plaintext (spec section 1).
+- Self-serve signup creates `Organization` + `User` + active `Membership(role=OWNER)` + `Subscription(ACTIVE, FREE)` and runs `OrganizationBootstrap` in ONE DB transaction; every write receives the same `EntityManager` (spec section 2 and Billing spec).
+- Email verification is mandatory — non-`/auth/*`, non-`/me` routes blocked until `emailVerifiedAt` is set (spec section 2).
+- Access token JWT: 15 min expiry, payload `{ userId, organizationId, role }` (spec section 3) — matches `JwtStrategy` from the RBAC plan exactly.
+- Refresh token: 7 days, httpOnly cookie, rotated on every `/auth/refresh` call (spec section 3).
+- `/auth/login`, `/auth/forgot-password`, `/auth/signup`: rate limited to 5 requests/minute per (IP, normalized email) via a custom throttler tracker (spec section 6).
+- `POST /auth/forgot-password` always returns 200 regardless of whether the email exists (spec section 5).
+- Resetting a password revokes ALL of the user's refresh tokens (spec section 5).
 - Naming/layering rules from `2026-08-03-project-scaffolding-architecture-design.md` still apply (domain has no framework imports).
 
 ---
@@ -226,7 +226,7 @@ export interface IUserRepository {
 export const USER_REPOSITORY = Symbol('USER_REPOSITORY');
 ```
 
-`User` is intentionally NOT behind `BaseRepository` tenant scoping — a `User` row has no `organizationId` column (one user can belong to several organizations via `Membership`, per `2026-08-03-multi-tenancy-rbac-design.md` mục 1).
+`User` is intentionally NOT behind `BaseRepository` tenant scoping — a `User` row has no `organizationId` column (one user can belong to several organizations via `Membership`, per `2026-08-03-multi-tenancy-rbac-design.md` section 1).
 
 - [ ] **Step 7: Create `apps/backend/src/modules/users/infrastructure/typeorm-user.repository.ts`**
 
@@ -1081,13 +1081,13 @@ describe('SignupUseCase', () => {
     );
 
     const result = await useCase.execute({
-      organizationName: 'Công ty B',
+      organizationName: 'Company B',
       name: 'An',
       email: 'ap@congtyb.vn',
       password: 'S3curePass!',
     });
 
-    expect(result.organization.name).toBe('Công ty B');
+    expect(result.organization.name).toBe('Company B');
     expect(result.membership.role).toBe('OWNER');
     expect(userRepo.save).toHaveBeenCalled();
     expect(organizationRepo.save).toHaveBeenCalled();
@@ -1636,7 +1636,7 @@ async findFirstActiveByUserId(userId: string): Promise<Membership | null> {
 }
 ```
 
-"First" = earliest `createdAt` among active memberships — used as the default organization when a user has more than one (spec mục 3).
+"First" = earliest `createdAt` among active memberships — used as the default organization when a user has more than one (spec section 3).
 
 - [ ] **Step 4: Create `apps/backend/src/modules/auth/application/login.usecase.ts`**
 
@@ -2067,7 +2067,7 @@ describe('Auth flow (integration)', () => {
   it('signup -> verify-email (via token read from DB, since email is a console stub) -> login succeeds', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/auth/signup')
-      .send({ organizationName: 'Công ty B', name: 'An', email: 'ap@congtyb.vn', password: 'S3curePass!' })
+      .send({ organizationName: 'Company B', name: 'An', email: 'ap@congtyb.vn', password: 'S3curePass!' })
       .expect(201);
 
     // ConsoleEmailSenderAdapter only logs the token — read the stored HASH is not reversible,
@@ -2771,7 +2771,7 @@ git commit -m "test: extend auth integration test with invite and forgot-passwor
 
 ## Self-Review Notes
 
-- **Spec coverage:** Signup returns access/refresh tokens and creates the default FREE subscription plus the default email-template/reminder bootstrap through one `EntityManager` transaction in Task 4-5. Login/refresh/logout/switch-org (mục 3) → Task 6-7. Invite (mục 4) → Task 8. Forgot/reset password (mục 5) → Task 9. Composite `(IP, normalized email)` rate limiting (mục 6) → Task 7. `EmailVerifiedGuard` is global with explicit public-route metadata.
+- **Spec coverage:** Signup returns access/refresh tokens and creates the default FREE subscription plus the default email-template/reminder bootstrap through one `EntityManager` transaction in Task 4-5. Login/refresh/logout/switch-org (section 3) → Task 6-7. Invite (section 4) → Task 8. Forgot/reset password (section 5) → Task 9. Composite `(IP, normalized email)` rate limiting (section 6) → Task 7. `EmailVerifiedGuard` is global with explicit public-route metadata.
 - **Required integration setup:** protected integration tests must use a verified user or explicitly mark the route public; they must not disable the global guard.
 - **Not covered in this plan (by design):** Real email delivery (`ConsoleEmailSenderAdapter` is a stub — superseded by the Email Notification Service plan rebinding `AUTH_EMAIL_SENDER`), resending an expired invite (spec's own open question), limiting concurrent refresh tokens per user (spec's own open question).
 - **Type consistency checked:** JWT payload shape `{ userId, organizationId, role }` produced by `LoginUseCase` (Task 6), `RefreshAccessTokenUseCase`/`SwitchOrganizationUseCase` (Task 7) is revalidated against active Membership by `JwtStrategy.validate()`. `IMembershipRepository.findFirstActiveByUserId` (added in Task 6 Step 3) is used consistently by `LoginUseCase` and `RefreshAccessTokenUseCase`; its repository query excludes `joinedAt IS NULL`. `SignupUseCase` has one final constructor contract: `IOrganizationBootstrap` is the single bootstrap seam after `ISubscriptionRepository`, and all bootstrap writes receive the signup `EntityManager`.

@@ -29,12 +29,12 @@ Success = a single document a new developer can read and know exactly what to pi
 - Blockers list plans that must complete first
 
 **Business rules (enforce on every ticket):**
-1. Money: integer đồng, KHÔNG float/decimal
+1. Money: integer VND, NEVER float/decimal
 2. Transactions: write money/status trong 1 DB transaction
-3. Tenant isolation: mọi query/write scope theo `organizationId`
-4. Derived fields: tính tại query time, KHÔNG store
-5. `paidAmount`/`allocatedAmount` là persisted rollup, chỉ update trong transaction có lock
-6. `domain/` không import NestJS/TypeORM
+3. Tenant isolation: scope every query/write to `organizationId`
+4. Derived fields: calculate at query time, NEVER store
+5. `paidAmount`/`allocatedAmount` are persisted rollups, updated only in a locked transaction
+6. `domain/` does not import NestJS/TypeORM
 
 **Key cross-plan contracts:**
 - `AllocatePaymentUseCase.allocateWithinTransaction(manager, input)` — Plan 1 → Plans 8, 13

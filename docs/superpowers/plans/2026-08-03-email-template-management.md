@@ -10,12 +10,12 @@
 
 ## Global Constraints
 
-- `EmailTemplate.bodyHtml` (and `subject`) are Handlebars templates — always rendered via `Handlebars.compile(...)`, never raw string interpolation, so variable output is HTML-escaped by default (spec mục 3).
-- Fixed closed set of 7 render variables: `customerName`, `invoiceNumber`, `originalAmount`, `remainingAmount`, `dueDate`, `daysOverdue`, `organizationName` — no arbitrary caller-supplied variables (spec mục 3).
-- No template version history / audit table in this plan — editing is a direct `UPDATE`, no history rows (spec mục 1).
-- `isDefault=true` templates can have their content edited but can never be deleted (spec mục 1, mục 2, mục 4).
-- `DELETE /api/v1/email-templates/:id` is blocked with `409` if `isDefault=true` OR any reminder rule still references the `templateId` (spec mục 4).
-- Exactly 4 default templates (`isDefault=true`) are seeded per new `Organization`, inside the `IOrganizationBootstrap` transaction owned by Auth (spec mục 2).
+- `EmailTemplate.bodyHtml` (and `subject`) are Handlebars templates — always rendered via `Handlebars.compile(...)`, never raw string interpolation, so variable output is HTML-escaped by default (spec section 3).
+- Fixed closed set of 7 render variables: `customerName`, `invoiceNumber`, `originalAmount`, `remainingAmount`, `dueDate`, `daysOverdue`, `organizationName` — no arbitrary caller-supplied variables (spec section 3).
+- No template version history / audit table in this plan — editing is a direct `UPDATE`, no history rows (spec section 1).
+- `isDefault=true` templates can have their content edited but can never be deleted (spec sections 1, 2, and 4).
+- `DELETE /api/v1/email-templates/:id` is blocked with `409` if `isDefault=true` OR any reminder rule still references the `templateId` (spec section 4).
+- Exactly 4 default templates (`isDefault=true`) are seeded per new `Organization`, inside the `IOrganizationBootstrap` transaction owned by Auth (spec section 2).
 - Write endpoints (`POST`, `PATCH`, `DELETE`, `POST /:id/preview`) are gated by `Permission.REMINDER_POLICY_WRITE`, reusing the existing permission (RBAC plan's `ROLE_PERMISSIONS` table already assigns it to `OWNER`/`FINANCE_MANAGER`).
 - Naming/layering rules from `2026-08-03-project-scaffolding-architecture-design.md` still apply: `domain/` has no NestJS/TypeORM imports; dependency direction is presentation → application → domain, infrastructure → application.
 
@@ -79,10 +79,10 @@ function buildTemplate(overrides: Partial<ConstructorParameters<typeof EmailTemp
   return new EmailTemplate({
     id: 'tpl-1',
     organizationId: 'org-1',
-    name: 'Nhắc quá hạn 1 ngày',
-    subject: 'Hóa đơn {{invoiceNumber}} đã quá hạn',
-    bodyHtml: '<p>Kính gửi {{customerName}}</p>',
-    reminderStage: 'Nhắc quá hạn 1 ngày',
+    name: '1 Day Overdue Reminder',
+    subject: 'Invoice {{invoiceNumber}} is overdue',
+    bodyHtml: '<p>Dear {{customerName}}</p>',
+    reminderStage: '1 Day Overdue Reminder',
     isDefault: true,
     createdAt: new Date('2026-08-01'),
     updatedAt: new Date('2026-08-01'),
@@ -94,27 +94,27 @@ describe('EmailTemplate domain entity', () => {
   it('creates a template with the provided fields', () => {
     const template = buildTemplate();
 
-    expect(template.name).toBe('Nhắc quá hạn 1 ngày');
+    expect(template.name).toBe('1 Day Overdue Reminder');
     expect(template.isDefault).toBe(true);
-    expect(template.reminderStage).toBe('Nhắc quá hạn 1 ngày');
+    expect(template.reminderStage).toBe('1 Day Overdue Reminder');
   });
 
   it('updateContent returns a new instance with subject/bodyHtml replaced and updatedAt refreshed', () => {
     const template = buildTemplate({ updatedAt: new Date('2026-08-01T00:00:00.000Z') });
 
-    const updated = template.updateContent('Chào {{customerName}}', '<p>Nội dung mới</p>');
+    const updated = template.updateContent('Hello {{customerName}}', '<p>New content</p>');
 
-    expect(updated.subject).toBe('Chào {{customerName}}');
-    expect(updated.bodyHtml).toBe('<p>Nội dung mới</p>');
+    expect(updated.subject).toBe('Hello {{customerName}}');
+    expect(updated.bodyHtml).toBe('<p>New content</p>');
     expect(updated.updatedAt.getTime()).toBeGreaterThan(template.updatedAt.getTime());
     // original instance is unchanged (immutable domain object)
-    expect(template.subject).toBe('Hóa đơn {{invoiceNumber}} đã quá hạn');
+    expect(template.subject).toBe('Invoice {{invoiceNumber}} is overdue');
   });
 
   it('allows updateContent even when isDefault is true (content editable, row not deletable)', () => {
     const template = buildTemplate({ isDefault: true });
 
-    const updated = template.updateContent('Chào mới', '<p>Mới</p>');
+    const updated = template.updateContent('New hello', '<p>New</p>');
 
     expect(updated.isDefault).toBe(true);
   });
@@ -391,12 +391,12 @@ describe('RenderEmailTemplateUseCase', () => {
 
   it('substitutes all 7 fixed variables into subject and bodyHtml', () => {
     const template = buildTemplate(
-      'Hóa đơn {{invoiceNumber}} — {{organizationName}}',
-      '<p>{{customerName}}, còn nợ {{remainingAmount}} / {{originalAmount}}, đến hạn {{dueDate}}, quá hạn {{daysOverdue}} ngày</p>',
+      'Invoice {{invoiceNumber}} — {{organizationName}}',
+      '<p>{{customerName}}, owes {{remainingAmount}} / {{originalAmount}}, due {{dueDate}}, {{daysOverdue}} days overdue</p>',
     );
 
     const result = useCase.render(template, {
-      customerName: 'Công ty B',
+      customerName: 'Company B',
       invoiceNumber: 'INV-001',
       originalAmount: 100,
       remainingAmount: 40,
@@ -405,14 +405,14 @@ describe('RenderEmailTemplateUseCase', () => {
       organizationName: 'Casso Ledger',
     });
 
-    expect(result.subject).toBe('Hóa đơn INV-001 — Casso Ledger');
+    expect(result.subject).toBe('Invoice INV-001 — Casso Ledger');
     expect(result.bodyHtml).toBe(
-      '<p>Công ty B, còn nợ 40 / 100, đến hạn 2026-08-10, quá hạn 5 ngày</p>',
+      '<p>Company B, owes 40 / 100, due 2026-08-10, 5 days overdue</p>',
     );
   });
 
   it('HTML-escapes variable values to prevent XSS (e.g. a customerName imported from Excel)', () => {
-    const template = buildTemplate('Xin chào {{customerName}}', '<p>{{customerName}}</p>');
+    const template = buildTemplate('Hello {{customerName}}', '<p>{{customerName}}</p>');
 
     const result = useCase.render(template, {
       customerName: '<script>alert(1)</script>',
@@ -424,7 +424,7 @@ describe('RenderEmailTemplateUseCase', () => {
       organizationName: 'Casso Ledger',
     });
 
-    expect(result.subject).toBe('Xin chào &lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(result.subject).toBe('Hello &lt;script&gt;alert(1)&lt;/script&gt;');
     expect(result.bodyHtml).toBe('<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>');
   });
 });
@@ -467,7 +467,7 @@ export class RenderEmailTemplateUseCase {
 }
 ```
 
-`Handlebars.compile` with the default `{{variable}}` syntax (not `{{{triple-stash}}}`) HTML-escapes every interpolated value automatically — this is the entire XSS defense described in spec mục 3, no extra sanitization needed.
+`Handlebars.compile` with the default `{{variable}}` syntax (not `{{{triple-stash}}}`) HTML-escapes every interpolated value automatically — this is the entire XSS defense described in spec section 3, no extra sanitization needed.
 
 - [ ] **Step 5: Run test to verify it passes**
 
@@ -513,8 +513,8 @@ describe('CreateEmailTemplateUseCase', () => {
     const useCase = new CreateEmailTemplateUseCase(templateRepo as any, tenantContext as any);
 
     const result = await useCase.execute({
-      name: 'Nhắc tùy chỉnh',
-      subject: 'Xin chào {{customerName}}',
+      name: 'Custom Reminder',
+      subject: 'Hello {{customerName}}',
       bodyHtml: '<p>{{customerName}}</p>',
       reminderStage: null,
     });
@@ -691,7 +691,7 @@ export class EmailTemplatesController {
 }
 ```
 
-`GET` has no `@RequirePermission` — `PermissionGuard` allows any authenticated role through when no metadata is set (same rule as every other read endpoint in this codebase), matching spec mục 4 which only requires `REMINDER_POLICY_WRITE` on the write endpoints.
+`GET` has no `@RequirePermission` — `PermissionGuard` allows any authenticated role through when no metadata is set (same rule as every other read endpoint in this codebase), matching spec section 4, which only requires `REMINDER_POLICY_WRITE` on the write endpoints.
 
 - [ ] **Step 11: Modify `apps/backend/src/modules/email-templates/email-templates.module.ts`**
 
@@ -760,10 +760,10 @@ describe('UpdateEmailTemplateUseCase', () => {
     const existing = new EmailTemplate({
       id: 'tpl-1',
       organizationId: 'org-1',
-      name: 'Nhắc quá hạn 1 ngày',
-      subject: 'Cũ',
-      bodyHtml: '<p>Cũ</p>',
-      reminderStage: 'Nhắc quá hạn 1 ngày',
+      name: '1 Day Overdue Reminder',
+      subject: 'Old',
+      bodyHtml: '<p>Old</p>',
+      reminderStage: '1 Day Overdue Reminder',
       isDefault: true,
       createdAt: new Date('2026-08-01'),
       updatedAt: new Date('2026-08-01'),
@@ -771,10 +771,10 @@ describe('UpdateEmailTemplateUseCase', () => {
     const templateRepo = { findById: jest.fn().mockResolvedValue(existing), save: jest.fn() };
 
     const useCase = new UpdateEmailTemplateUseCase(templateRepo as any);
-    const result = await useCase.execute({ id: 'tpl-1', subject: 'Mới', bodyHtml: '<p>Mới</p>' });
+    const result = await useCase.execute({ id: 'tpl-1', subject: 'New', bodyHtml: '<p>New</p>' });
 
-    expect(result.subject).toBe('Mới');
-    expect(result.bodyHtml).toBe('<p>Mới</p>');
+    expect(result.subject).toBe('New');
+    expect(result.bodyHtml).toBe('<p>New</p>');
     expect(result.isDefault).toBe(true);
     expect(templateRepo.save).toHaveBeenCalledWith(result);
   });
@@ -948,7 +948,7 @@ export class DeleteEmailTemplateUseCase {
   }
 
   // ASSUMPTION (see Self-Review Notes): assumes a `reminder_rules` table with an
-  // `emailTemplateId` column, per 2026-08-03-reminder-automation-design.md mục 2
+  // `emailTemplateId` column, per section 2 of 2026-08-03-reminder-automation-design.md
   // (ReminderRule.emailTemplateId). That plan has not been implemented yet, so the
   // table may not exist. If it doesn't (Postgres error 42P01 "undefined_table"),
   // there is nothing that could reference this template yet — allow the delete.
@@ -1105,7 +1105,7 @@ git commit -m "feat: add update/delete email template use cases with isDefault a
 
 **Interfaces:**
 - Consumes: `IEmailTemplateRepository` (Task 2), `RenderEmailTemplateUseCase` (Task 3)
-- Produces: `POST /api/v1/email-templates/:id/preview` returning rendered `{ subject, bodyHtml }` from hard-coded sample data — resolves spec mục 6's open question in favor of the simplest option (no real `Receivable` selection UI), used by Task 8's integration test
+- Produces: `POST /api/v1/email-templates/:id/preview` returning rendered `{ subject, bodyHtml }` from hard-coded sample data — resolves spec section 6's open question in favor of the simplest option (no real `Receivable` selection UI), used by Task 8's integration test
 
 - [ ] **Step 1: Write failing test for `PreviewEmailTemplateUseCase`**
 
@@ -1122,8 +1122,8 @@ describe('PreviewEmailTemplateUseCase', () => {
       id: 'tpl-1',
       organizationId: 'org-1',
       name: 'x',
-      subject: 'Xin chào {{customerName}}',
-      bodyHtml: '<p>{{customerName}} nợ {{remainingAmount}}</p>',
+      subject: 'Hello {{customerName}}',
+      bodyHtml: '<p>{{customerName}} owes {{remainingAmount}}</p>',
       reminderStage: null,
       isDefault: false,
       createdAt: new Date('2026-08-01'),
@@ -1135,8 +1135,8 @@ describe('PreviewEmailTemplateUseCase', () => {
     const useCase = new PreviewEmailTemplateUseCase(templateRepo as any, renderUseCase);
     const result = await useCase.execute('tpl-1');
 
-    expect(result.subject).toContain('Xin chào');
-    expect(result.bodyHtml).toContain('nợ');
+    expect(result.subject).toContain('Hello');
+    expect(result.bodyHtml).toContain('owes');
   });
 
   it('throws NotFoundException when the template does not exist', async () => {
@@ -1165,7 +1165,7 @@ import {
 } from './render-email-template.usecase';
 
 const SAMPLE_RENDER_DATA: EmailTemplateRenderData = {
-  customerName: 'Công ty TNHH ABC',
+  customerName: 'ABC Company Ltd.',
   invoiceNumber: 'INV-2026-0088',
   originalAmount: 50_000_000,
   remainingAmount: 20_000_000,
@@ -1337,44 +1337,44 @@ interface DefaultTemplateDefinition {
 
 const DEFAULT_TEMPLATE_DEFINITIONS: DefaultTemplateDefinition[] = [
   {
-    name: 'Nhắc trước hạn 3 ngày',
-    reminderStage: 'Nhắc trước hạn 3 ngày',
-    subject: 'Nhắc lịch thanh toán hóa đơn {{invoiceNumber}}',
+    name: '3 Day Pre-Due Reminder',
+    reminderStage: '3 Day Pre-Due Reminder',
+    subject: 'Payment reminder for invoice {{invoiceNumber}}',
     bodyHtml:
-      '<p>Kính gửi {{customerName}},</p>' +
-      '<p>Hóa đơn {{invoiceNumber}} với số tiền còn lại {{remainingAmount}} sẽ đến hạn vào ngày {{dueDate}}. ' +
-      'Kính đề nghị Quý khách sắp xếp thanh toán đúng hạn.</p>' +
-      '<p>Trân trọng,<br/>{{organizationName}}</p>',
+      '<p>Dear {{customerName}},</p>' +
+      '<p>Invoice {{invoiceNumber}} with remaining amount {{remainingAmount}} is due on {{dueDate}}. ' +
+      'Please arrange payment by the due date.</p>' +
+      '<p>Sincerely,<br/>{{organizationName}}</p>',
   },
   {
-    name: 'Nhắc quá hạn 1 ngày',
-    reminderStage: 'Nhắc quá hạn 1 ngày',
-    subject: 'Hóa đơn {{invoiceNumber}} đã quá hạn thanh toán',
+    name: '1 Day Overdue Reminder',
+    reminderStage: '1 Day Overdue Reminder',
+    subject: 'Invoice {{invoiceNumber}} is overdue for payment',
     bodyHtml:
-      '<p>Kính gửi {{customerName}},</p>' +
-      '<p>Hóa đơn {{invoiceNumber}} đã quá hạn thanh toán {{daysOverdue}} ngày, số tiền còn lại {{remainingAmount}}. ' +
-      'Kính đề nghị Quý khách thanh toán sớm nhất có thể.</p>' +
-      '<p>Trân trọng,<br/>{{organizationName}}</p>',
+      '<p>Dear {{customerName}},</p>' +
+      '<p>Invoice {{invoiceNumber}} is {{daysOverdue}} days overdue for payment, with remaining amount {{remainingAmount}}. ' +
+      'Please make payment as soon as possible.</p>' +
+      '<p>Sincerely,<br/>{{organizationName}}</p>',
   },
   {
-    name: 'Nhắc quá hạn 7 ngày',
-    reminderStage: 'Nhắc quá hạn 7 ngày',
-    subject: 'Nhắc lần 2: Hóa đơn {{invoiceNumber}} quá hạn {{daysOverdue}} ngày',
+    name: '7 Day Overdue Reminder',
+    reminderStage: '7 Day Overdue Reminder',
+    subject: 'Reminder 2: Invoice {{invoiceNumber}} is {{daysOverdue}} days overdue',
     bodyHtml:
-      '<p>Kính gửi {{customerName}},</p>' +
-      '<p>Hóa đơn {{invoiceNumber}} hiện đã quá hạn {{daysOverdue}} ngày, số tiền còn lại {{remainingAmount}}. ' +
-      'Đây là lần nhắc thứ hai, kính mong Quý khách sớm hoàn tất thanh toán.</p>' +
-      '<p>Trân trọng,<br/>{{organizationName}}</p>',
+      '<p>Dear {{customerName}},</p>' +
+      '<p>Invoice {{invoiceNumber}} is now {{daysOverdue}} days overdue, with remaining amount {{remainingAmount}}. ' +
+      'This is the second reminder; please complete payment soon.</p>' +
+      '<p>Sincerely,<br/>{{organizationName}}</p>',
   },
   {
-    name: 'Nhắc quá hạn 30 ngày',
-    reminderStage: 'Nhắc quá hạn 30 ngày',
-    subject: 'Khẩn: Hóa đơn {{invoiceNumber}} quá hạn {{daysOverdue}} ngày',
+    name: '30 Day Overdue Reminder',
+    reminderStage: '30 Day Overdue Reminder',
+    subject: 'Urgent: Invoice {{invoiceNumber}} is {{daysOverdue}} days overdue',
     bodyHtml:
-      '<p>Kính gửi {{customerName}},</p>' +
-      '<p>Hóa đơn {{invoiceNumber}} đã quá hạn thanh toán {{daysOverdue}} ngày, số tiền còn lại {{remainingAmount}}. ' +
-      'Kính đề nghị Quý khách liên hệ bộ phận công nợ của {{organizationName}} để xử lý trong thời gian sớm nhất.</p>' +
-      '<p>Trân trọng,<br/>{{organizationName}}</p>',
+      '<p>Dear {{customerName}},</p>' +
+      '<p>Invoice {{invoiceNumber}} is {{daysOverdue}} days overdue for payment, with remaining amount {{remainingAmount}}. ' +
+      'Please contact {{organizationName}} accounts receivable as soon as possible to resolve this.</p>' +
+      '<p>Sincerely,<br/>{{organizationName}}</p>',
   },
 ];
 
@@ -1396,7 +1396,7 @@ export function buildDefaultEmailTemplates(organizationId: string, now: Date): E
 }
 ```
 
-These 4 definitions match spec mục 2's example stages exactly ("Nhắc trước hạn 3 ngày", "Nhắc quá hạn 1 ngày", "Nhắc quá hạn 7 ngày", "Nhắc quá hạn 30 ngày") — the Reminder Automation plan's default `ReminderPolicy`/`ReminderRule` seed will point its `emailTemplateId` at these same 4 rows by matching on `reminderStage`.
+These 4 definitions match spec section 2's example stages exactly ("3 Day Pre-Due Reminder", "1 Day Overdue Reminder", "7 Day Overdue Reminder", "30 Day Overdue Reminder") — the Reminder Automation plan's default `ReminderPolicy`/`ReminderRule` seed will point its `emailTemplateId` at these same 4 rows by matching on `reminderStage`.
 
 > **Cross-plan reconciliation:** `SignupUseCase` and `AuthModule` are implemented only by `2026-08-03-authentication-onboarding.md`. The adapter below is the sole bridge: it seeds templates and delegates reminder policies/rules to `IDefaultReminderBootstrap` with the same `EntityManager`. Do not apply an older version of this section that injected `IEmailTemplateRepository` directly into `SignupUseCase`; that would create a second bootstrap path and a constructor mismatch.
 
@@ -1483,7 +1483,7 @@ describe('Email Template Management (integration)', () => {
   it('seeds 4 default templates when a new Organization signs up', async () => {
     const signupResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/signup')
-      .send({ organizationName: 'Công ty Test', email: 'owner@test-org.vn', password: 'S3curePass!' })
+      .send({ organizationName: 'Test Company', email: 'owner@test-org.vn', password: 'S3curePass!' })
       .expect(201);
 
     organizationId = signupResponse.body.organizationId;
@@ -1509,9 +1509,9 @@ describe('Email Template Management (integration)', () => {
       .post('/api/v1/email-templates')
       .set('Authorization', `Bearer ${token}`)
       .send({
-        name: 'Nhắc thanh toán tùy chỉnh',
-        subject: 'Xin chào {{customerName}}',
-        bodyHtml: '<p>{{customerName}} còn nợ {{remainingAmount}} cho hóa đơn {{invoiceNumber}}</p>',
+        name: 'Custom Payment Reminder',
+        subject: 'Hello {{customerName}}',
+        bodyHtml: '<p>{{customerName}} still owes {{remainingAmount}} for invoice {{invoiceNumber}}</p>',
       })
       .expect(201);
 
@@ -1523,19 +1523,19 @@ describe('Email Template Management (integration)', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(201);
 
-    expect(previewResponse.body.subject).toBe('Xin chào Công ty TNHH ABC');
-    expect(previewResponse.body.bodyHtml).toContain('Công ty TNHH ABC');
+    expect(previewResponse.body.subject).toBe('Hello ABC Company Ltd.');
+    expect(previewResponse.body.bodyHtml).toContain('ABC Company Ltd.');
 
     await request(app.getHttpServer())
       .patch(`/api/v1/email-templates/${templateId}`)
       .set('Authorization', `Bearer ${token}`)
-      .send({ subject: 'Đã cập nhật: {{invoiceNumber}}' })
+      .send({ subject: 'Updated: {{invoiceNumber}}' })
       .expect(200);
 
     const rowAfterUpdate = await dataSource.query('SELECT subject FROM email_templates WHERE id = $1', [
       templateId,
     ]);
-    expect(rowAfterUpdate[0].subject).toBe('Đã cập nhật: {{invoiceNumber}}');
+    expect(rowAfterUpdate[0].subject).toBe('Updated: {{invoiceNumber}}');
 
     await request(app.getHttpServer())
       .delete(`/api/v1/email-templates/${templateId}`)
@@ -1593,12 +1593,12 @@ git commit -m "test: add integration test for email template CRUD, preview, and 
 ## Self-Review Notes
 
 - **Spec coverage:**
-  - Entity shape (spec mục 1) → Task 1 (`EmailTemplate` domain) + Task 2 (`EmailTemplateOrmEntity`). No version/history table, per spec mục 1's explicit "đủ cho MVP" — not implemented, matches scope.
-  - Seed on Organization creation (spec mục 2) → Task 7 (`buildDefaultEmailTemplates` + `DefaultOrganizationBootstrap` adapter). `isDefault=true` content-editable-but-not-deletable rule (spec mục 2) → Task 1 (`updateContent` has no `isDefault` guard) + Task 5 (`DeleteEmailTemplateUseCase` blocks on `isDefault`).
-  - Handlebars render + fixed 7-variable closed set + auto-escaping (spec mục 3) → Task 3 (`RenderEmailTemplateUseCase`), verified against XSS in its unit test.
-  - Full CRUD + preview API (spec mục 4) → Task 4 (`GET`/`POST /api/v1/email-templates`), Task 5 (`PATCH`/`DELETE /api/v1/email-templates/:id` with the 409 guard), Task 6 (`POST /api/v1/email-templates/:id/preview` returning `{ subject, bodyHtml }`). Every write route uses `Permission.REMINDER_POLICY_WRITE`.
-  - Out of scope (spec mục 5): no drag-drop editor, no i18n, no versioning — none implemented, matches scope.
-  - Open questions (spec mục 6) resolved for this MVP: kept the 7 variables as-is (no `{{paymentLink}}` — no payment gateway exists yet); `POST /:id/preview` uses hard-coded sample data (Task 6), not a real `Receivable` selection, since no such UI/endpoint exists yet — flagged here as the explicit decision, revisit if a future plan wants "preview with a real receivable."
+  - Entity shape (spec section 1) → Task 1 (`EmailTemplate` domain) + Task 2 (`EmailTemplateOrmEntity`). No version/history table, per spec section 1's explicit "sufficient for MVP" — not implemented, matches scope.
+  - Seed on Organization creation (spec section 2) → Task 7 (`buildDefaultEmailTemplates` + `DefaultOrganizationBootstrap` adapter). `isDefault=true` content-editable-but-not-deletable rule (spec section 2) → Task 1 (`updateContent` has no `isDefault` guard) + Task 5 (`DeleteEmailTemplateUseCase` blocks on `isDefault`).
+  - Handlebars render + fixed 7-variable closed set + auto-escaping (spec section 3) → Task 3 (`RenderEmailTemplateUseCase`), verified against XSS in its unit test.
+  - Full CRUD + preview API (spec section 4) → Task 4 (`GET`/`POST /api/v1/email-templates`), Task 5 (`PATCH`/`DELETE /api/v1/email-templates/:id` with the 409 guard), Task 6 (`POST /api/v1/email-templates/:id/preview` returning `{ subject, bodyHtml }`). Every write route uses `Permission.REMINDER_POLICY_WRITE`.
+  - Out of scope (spec section 5): no drag-drop editor, no i18n, no versioning — none implemented, matches scope.
+  - Open questions (spec section 6) resolved for this MVP: kept the 7 variables as-is (no `{{paymentLink}}` — no payment gateway exists yet); `POST /:id/preview` uses hard-coded sample data (Task 6), not a real `Receivable` selection, since no such UI/endpoint exists yet — flagged here as the explicit decision, revisit if a future plan wants "preview with a real receivable."
 
 - **Cross-plan contract:** `DeleteEmailTemplateUseCase.isReferencedByReminderRule` queries `reminder_rules.emailTemplateId`, the binding defined by the Reminder Automation spec. A missing table is only a pre-implementation fixture condition; production migrations must create the table before this module is enabled.
 

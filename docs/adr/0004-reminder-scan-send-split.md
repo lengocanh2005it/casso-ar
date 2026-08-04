@@ -1,4 +1,4 @@
-# 4. Tách bước quét ứng viên (cron) khỏi bước gửi thật (worker), worker tự re-check trạng thái
+# 4. Split candidate scanning (cron) from actual sending (worker); the worker re-checks state
 
 Date: 2026-08-03
 
@@ -8,20 +8,20 @@ Accepted
 
 ## Context
 
-Reminder automation cần quét các `Receivable` quá hạn mỗi ngày và gửi email nhắc thanh toán. Cách đơn giản nhất là cron quét và gửi email luôn trong cùng một bước. Vấn đề: giữa lúc cron bắt đầu quét (có thể mất một khoảng thời gian nếu số lượng receivable lớn) và lúc email thực sự được gửi đi, một `Payment` có thể vừa được ghi nhận cho đúng receivable đó — nếu gửi dựa trên dữ liệu đọc lúc quét, khách hàng đã thanh toán vẫn nhận nhắc nợ, gây trải nghiệm xấu và mất uy tín (sản phẩm fintech gửi email thật tới khách hàng).
+Reminder automation must scan overdue `Receivable` records daily and send payment-reminder emails. The simplest approach is for the cron to scan and send the email in one step. The problem is that between the start of the scan (which may take time when there are many receivables) and the actual send, a `Payment` may be recorded for that receivable — if sending relies on data read during the scan, a customer who has already paid still receives a reminder, creating a poor experience and damaging trust (this fintech product sends real emails to customers).
 
 ## Decision
 
-Tách thành hai bước riêng:
+Split into two separate steps:
 
-1. **Cron quét** (bước scan trong `2026-08-03-reminder-automation.md`): chọn ứng viên đủ điều kiện nhắc, enqueue "send reminder job" — **chưa gửi email ở bước này**.
-2. **Send reminder job** (worker riêng, xử lý từng job độc lập): load lại receivable từ DB (fresh read, không dùng dữ liệu từ lúc cron quét). Nếu status đã đổi thành `PAID`/`WRITTEN_OFF`/`CANCELLED`, hoặc `isDisputed` đã thành `true` → ghi `ReminderExecution(status=SKIPPED, skipReason=...)`, dừng, không gửi email. Chỉ gửi khi trạng thái tại thời điểm gửi vẫn hợp lệ.
+1. **Cron scan** (scan step in `2026-08-03-reminder-automation.md`): select eligible reminder candidates and enqueue a "send reminder job" — **do not send email at this step**.
+2. **Send reminder job** (separate worker, processing each job independently): reload the receivable from the DB (fresh read; do not use data from the cron scan). If the status has changed to `PAID`/`WRITTEN_OFF`/`CANCELLED`, or `isDisputed` is now `true` → record `ReminderExecution(status=SKIPPED, skipReason=...)`, stop, and do not send the email. Send only if the state is still valid at send time.
 
-`ReminderExecution` luôn mang `organizationId` và `executionDate`; khóa idempotency theo receivable/rule/ngày được kiểm tra trước khi enqueue. Worker tạo execution `PENDING` rồi giao việc gửi cho `EmailService`/email queue; chính email worker mới cập nhật `SENT` hoặc `FAILED`.
+`ReminderExecution` always carries `organizationId` and `executionDate`; the receivable/rule/date idempotency key is checked before enqueueing. The worker creates a `PENDING` execution and delegates sending to `EmailService`/the email queue; the email worker itself updates `SENT` or `FAILED`.
 
 ## Consequences
 
-- Loại bỏ race condition giữa "quét" và "gửi thật" mà không cần lock receivable trong suốt quá trình cron chạy (vốn có thể kéo dài nếu số lượng lớn).
-- Đổi lại, hệ thống cần một hàng đợi job (queue) và một worker riêng thay vì một cron job đơn giản — thêm một thành phần vận hành (theo dõi job thất bại, retry, dead-letter) so với phương án gộp một bước.
-- Có độ trễ giữa lúc "được chọn làm ứng viên" và lúc "gửi thật" bằng thời gian job nằm trong queue — chấp nhận được vì mục tiêu là đúng nội dung tại thời điểm gửi, không phải gửi tức thời.
-- `ReminderExecution.status = SKIPPED` (quyết định nghiệp vụ, do đã thanh toán/dispute) được phân biệt rõ với `status = FAILED` (lỗi kỹ thuật của việc gửi) — cần giữ phân biệt này khi build UI báo cáo, không gộp chung làm một loại "không gửi được".
+- Eliminates the race condition between "scan" and "actual send" without locking the receivable for the entire cron run (which could be lengthy for large volumes).
+- In return, the system needs a job queue and a separate worker instead of a simple cron job — adding an operational component (monitoring failed jobs, retries, and dead letters) compared with the one-step approach.
+- There is a delay between being "selected as a candidate" and "actually sent" equal to the time the job spends in the queue — acceptable because the goal is correct content at send time, not immediate sending.
+- `ReminderExecution.status = SKIPPED` (a business decision caused by payment/dispute) is clearly distinguished from `status = FAILED` (a technical sending error) — preserve this distinction when building reporting UI; do not combine them into one "could not send" type.

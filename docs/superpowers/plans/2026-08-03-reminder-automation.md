@@ -93,7 +93,7 @@ export function buildReminderCandidate(
     organizationId: 'org-1',
     customerId: 'cust-1',
     customerGroup: CustomerGroup.VIP,
-    customerName: 'Công ty B',
+    customerName: 'Company B',
     customerEmail: 'ap@congtyb.vn',
     invoiceNumber: 'INV-001',
     originalAmount: 50_000_000,
@@ -132,7 +132,7 @@ it('stores the customer group used by reminder policy selection', () => {
   const customer = new Customer({
     id: 'cust-1',
     organizationId: 'org-1',
-    name: 'Công ty B',
+    name: 'Company B',
     taxCode: '0312345678',
     email: 'ap@congtyb.vn',
     phone: '0900000000',
@@ -1346,10 +1346,10 @@ git commit -m "test: verify reminder scheduling and fresh-state sending"
 
 | Template name | `offsetDays` |
 |---|---:|
-| Nhắc trước hạn 3 ngày | -3 |
-| Nhắc quá hạn 1 ngày | 1 |
-| Nhắc quá hạn 7 ngày | 7 |
-| Nhắc quá hạn 30 ngày | 30 |
+| Reminder 3 days before due date | -3 |
+| Reminder 1 day overdue | 1 |
+| Reminder 7 days overdue | 7 |
+| Reminder 30 days overdue | 30 |
 
 All policy/rule inserts use the signup `EntityManager`; if any insert fails, the organization, subscription, templates, policies, and rules roll back together. The implementation is the only provider for `DEFAULT_REMINDER_BOOTSTRAP`; `SignupUseCase` must not create a second direct reminder-rule path.
 

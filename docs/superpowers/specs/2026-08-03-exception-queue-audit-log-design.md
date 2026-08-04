@@ -1,36 +1,36 @@
 # Exception Queue + Audit Log Design
 
-> Spec con của [docs/overview.md](../../../docs/overview.md), phụ thuộc [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md) (PaymentAllocation, overpayment rule) và [2026-08-03-webhook-matching-engine-design.md](2026-08-03-webhook-matching-engine-design.md) (BankTransaction, MatchingCandidate, threshold 60-89).
+> Sub-spec of [docs/overview.md](../../../docs/overview.md), dependent on [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md) (PaymentAllocation, overpayment rule) and [2026-08-03-webhook-matching-engine-design.md](2026-08-03-webhook-matching-engine-design.md) (BankTransaction, MatchingCandidate, threshold 60-89).
 
 ## 1. Exception Queue — API & concurrency
 
 ```
 GET  /bank-transactions/unmatched
-  → BankTransaction status IN (PENDING_REVIEW), kèm top candidate + score
+  → BankTransaction status IN (PENDING_REVIEW), with the top candidate + score
 
 GET  /bank-transactions/:id/candidates
-  → danh sách MatchingCandidate của giao dịch, sắp theo totalScore giảm dần
+  → list of MatchingCandidate records for the transaction, sorted by descending totalScore
 
 POST /bank-transactions/:id/match
   body: { allocations: [{ receivableId, amount }], version }
-  1. Kiểm tra BankTransaction.version == payload.version VÀ status == PENDING_REVIEW
-     → nếu không khớp (đã bị người khác xử lý) → 409 "Giao dịch đã được xử lý"
+  1. Check BankTransaction.version == payload.version AND status == PENDING_REVIEW
+     → if they do not match (already processed by someone else) → 409 "Transaction has already been processed"
   2. Validate SUM(allocations.amount) <= BankTransaction.amount
-  3. Validate mỗi allocations[i].amount <= Receivable[i].remainingAmount tại thời điểm này
-  4. Trong 1 DB transaction: gọi `AllocatePaymentUseCase.allocateWithinTransaction` cho từng allocation,
+  3. Validate each allocations[i].amount <= Receivable[i].remainingAmount at this time
+  4. In one DB transaction: call `AllocatePaymentUseCase.allocateWithinTransaction` for each allocation,
      update BankTransaction (status=MATCHED, version++),
-     update trạng thái từng Receivable liên quan (theo rule ở Domain Core spec mục 3)
-  5. Phần dư (amount - SUM(allocations)) → xử lý như overpayment (Domain Core spec mục 4)
+      update the status of each related Receivable (per the rule in section 3 of the Domain Core spec)
+  5. The remainder (amount - SUM(allocations)) → handle as an overpayment (section 4 of the Domain Core spec)
 
-POST /bank-transactions/:id/skip         → status=IGNORED, ghi AuditLog, không tạo allocation
-POST /bank-transactions/:id/mark-prepaid → gán customerId, giữ làm credit balance (Payment chưa allocate)
+POST /bank-transactions/:id/skip         → status=IGNORED, write an AuditLog, create no allocation
+POST /bank-transactions/:id/mark-prepaid → assign customerId and retain it as a credit balance (Payment not allocated)
 ```
 
-`version` là optimistic lock field trên `BankTransaction`, tăng mỗi lần status thay đổi — chống hai kế toán cùng xử lý một giao dịch đồng thời (double allocation).
+`version` is the optimistic lock field on `BankTransaction`, incremented whenever the status changes — preventing two accountants from processing the same transaction concurrently (double allocation).
 
-Kế toán chọn nhiều `MatchingCandidate` cùng lúc và nhập số tiền phân bổ cho từng cái (split), submit một lần duy nhất qua `POST /bank-transactions/:id/match` với mảng `allocations` — backend xử lý atomic trong một transaction thay vì nhiều lần gọi API riêng lẻ.
+The accountant selects multiple `MatchingCandidate` records at once and enters the allocation amount for each one (split), then submits once through `POST /bank-transactions/:id/match` with the `allocations` array — the backend processes it atomically in one transaction instead of making multiple separate API calls.
 
-## 2. Audit Log — cơ chế & cấu trúc
+## 2. Audit Log — mechanism & structure
 
 ```
 AuditLog
@@ -39,33 +39,32 @@ AuditLog
   ipAddress, createdAt
 ```
 
-`AuditContext` request-scoped phải có cả `before` và `after` (đều nullable), với `setBefore/getBefore`
-và `setAfter/getAfter`; interceptor chỉ ghi INSERT sau khi handler thành công và lưu cả hai snapshot đã
-redact. Không có PATCH/DELETE cho `AuditLog`.
+The request-scoped `AuditContext` must contain both `before` and `after` (both nullable), with `setBefore/getBefore`
+and `setAfter/getAfter`; the interceptor only writes an INSERT after the handler succeeds and stores both redacted
+snapshots. There is no PATCH/DELETE for `AuditLog`.
 
-Cơ chế ghi log dùng decorator + interceptor chung, tránh quên gọi log thủ công ở từng nơi:
+Logging uses a shared decorator + interceptor to avoid forgetting to call logging manually in each location:
 
 ```
-@Audited(actionType: string) — decorator trên controller method
+@Audited(actionType: string) — decorator on the controller method
 AuditInterceptor:
-  1. Chạy handler như bình thường
-  2. Nếu thành công (không throw) → ghi AuditLog với:
-     - userId/organizationId từ request context
-     - entityType/entityId lấy từ response hoặc route param
-     - beforeState: service tự gọi ctx.setAuditBefore(entity) khi load record ra để update,
-       trước khi thay đổi
-     - afterState: `ctx.setAfter(response)` rồi đọc qua `getAfter()`
-  3. Nếu handler throw → không ghi log (hành động thất bại thì không audit)
+  1. Run the handler normally
+  2. If it succeeds (does not throw) → write an AuditLog with:
+     - userId/organizationId from the request context
+     - entityType/entityId from the response or route param
+     - beforeState: the service calls ctx.setAuditBefore(entity) when it loads the record for update,
+       before changing it
+     - afterState: call `ctx.setAfter(response)` and then read it through `getAfter()`
+  3. If the handler throws → do not write a log (failed actions are not audited)
 ```
 
-`PAYMENT_ALLOCATE_UNDO` là ngoại lệ có chủ đích: use case undo phải ghi
-`AuditLog` trong cùng transaction với soft-delete allocation và cập nhật các
-rollup, nên Domain Core ghi inline qua `IAuditLogRepository` thay vì để
-`AuditInterceptor` ghi lần hai sau khi HTTP handler đã hoàn tất. Các action còn
-lại dùng `@Audited` + interceptor như mô tả trên.
+`PAYMENT_ALLOCATE_UNDO` is an intentional exception: the undo use case must write
+`AuditLog` in the same transaction as the allocation soft-delete and rollup updates, so Domain Core writes it inline
+through `IAuditLogRepository` instead of letting `AuditInterceptor` write a second entry after the HTTP handler finishes.
+All other actions use `@Audited` + the interceptor as described above.
 
-Danh sách action bắt buộc phải có audit (từ tài liệu gốc mục 15); các action
-HTTP dùng `@Audited`, ngoại trừ `PAYMENT_ALLOCATE_UNDO` theo ngoại lệ đã nêu:
+The following actions must be audited (from section 15 of the source document); HTTP actions use `@Audited`, except
+for `PAYMENT_ALLOCATE_UNDO` as described above:
 
 ```
 RECEIVABLE_CREATE, RECEIVABLE_UPDATE, RECEIVABLE_WRITE_OFF, RECEIVABLE_CANCEL, RECEIVABLE_DISPUTE
@@ -75,15 +74,15 @@ BANK_CONNECTION_CREATE, BANK_CONNECTION_DISCONNECT
 SUBSCRIPTION_CHANGE_PLAN
 ```
 
-`AuditLog` không có endpoint PATCH/DELETE — chỉ INSERT, bảo toàn tính bất biến. Retention: giữ tối thiểu theo chính sách retention chung của tổ chức (tài liệu gốc mục 20), không tự động xóa trong MVP.
+`AuditLog` has no PATCH/DELETE endpoint — INSERT only, preserving immutability. Retention: retain it for at least the organization-wide retention policy (section 20 of the source document); do not automatically delete it in the MVP.
 
-## 3. Ngoài phạm vi
+## 3. Out of scope
 
-- UI chi tiết trang Exception Queue (đã mô tả ở tài liệu gốc mục 7.10, 18).
-- Audit log export/compliance report định dạng đặc biệt.
-- Cấu hình retention tùy chỉnh theo từng organization.
+- Detailed Exception Queue page UI (described in sections 7.10 and 18 of the source document).
+- Special-format audit log exports/compliance reports.
+- Custom retention configuration per organization.
 
-## 4. Câu hỏi mở (không chặn implementation)
+## 4. Open questions (do not block implementation)
 
-- `skip`/`mark-prepaid` có cần optimistic lock `version` tương tự `match` không, hay chấp nhận rủi ro thấp hơn vì không ghi allocation?
-- `beforeState`/`afterState` có cần lọc field nhạy cảm nào trước khi lưu (vd không log accessToken nếu entity là BankConnection)?
+- Should `skip`/`mark-prepaid` require the same optimistic lock `version` as `match`, or is the lower risk acceptable because they do not write an allocation?
+- Should any sensitive fields be filtered from `beforeState`/`afterState` before storage (for example, do not log accessToken when the entity is BankConnection)?

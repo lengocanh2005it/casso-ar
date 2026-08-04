@@ -1,12 +1,12 @@
 # Reminder Automation Design
 
-> Spec con của [docs/overview.md](../../../docs/overview.md), phụ thuộc [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md) (dùng `Receivable.status`, `Receivable.isDisputed`, `Receivable.dueDate`). Định nghĩa cách cấu hình chính sách nhắc thanh toán, lên lịch quét hàng ngày, và tránh gửi nhầm khi công nợ vừa được thanh toán.
+> Sub-spec of [docs/overview.md](../../../docs/overview.md), dependent on [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md) (uses `Receivable.status`, `Receivable.isDisputed`, `Receivable.dueDate`). Defines payment-reminder policy configuration, daily scanning, and how to avoid sending an incorrect reminder when a receivable has just been paid.
 
-## 1. Phạm vi
+## 1. Scope
 
-Reminder policy trong spec này chỉ dựa vào hai điều kiện: **nhóm khách hàng** (`customerGroup`: VIP | REGULAR) và **số ngày cách `dueDate`**. Không bao gồm risk scoring, dispute status nâng cao (chỉ dùng flag `isDisputed` đã có sẵn), hay custom groups tùy chỉnh.
+Reminder policy in this spec uses only two conditions: **customer group** (`customerGroup`: VIP | REGULAR) and **the number of days from `dueDate`**. It does not include risk scoring, advanced dispute status (only the existing `isDisputed` flag), or custom groups.
 
-Không thuộc phạm vi: Email Template Management chi tiết (nội dung/biến template — đã mô tả ở tài liệu gốc mục 7.6), kênh thông báo ngoài email (Zalo/SMS — mở rộng sau).
+Out of scope: detailed Email Template Management (template content/variables — described in section 7.6 of the source document), and non-email notification channels (Zalo/SMS — future extension).
 
 ## 2. Entities
 
@@ -15,8 +15,8 @@ ReminderPolicy
   id, organizationId, customerGroup (VIP/REGULAR), isActive, createdAt
 
 ReminderRule
-  id, reminderPolicyId, offsetDays (âm = trước dueDate, dương = sau dueDate),
-  emailTemplateId, minIntervalDays (rate limit tối thiểu giữa 2 lần gửi cho cùng receivable/customer),
+  id, reminderPolicyId, offsetDays (negative = before dueDate, positive = after dueDate),
+  emailTemplateId, minIntervalDays (minimum rate limit between 2 sends for the same receivable/customer),
   createdAt
 
 ReminderExecution
@@ -26,44 +26,44 @@ ReminderExecution
   providerMessageId, failureReason, createdAt
 ```
 
-`organizationId` là bắt buộc theo shared-schema tenancy. `executionDate` là ngày chạy dùng cho idempotency theo `(receivableId, reminderRuleId, executionDate)`. `PENDING` là trạng thái kỹ thuật từ lúc tạo execution và enqueue email đến khi email worker trả kết quả; chỉ `SENT` được tính vào rate limit. Binding template nằm ở `ReminderRule.emailTemplateId`, không nằm ở `ReminderPolicy`.
+`organizationId` is required under shared-schema tenancy. `executionDate` is the run date used for idempotency by `(receivableId, reminderRuleId, executionDate)`. `PENDING` is a technical state from execution creation and email enqueue until the email worker returns a result; only `SENT` counts toward the rate limit. Template binding is on `ReminderRule.emailTemplateId`, not on `ReminderPolicy`.
 
-`Customer.customerGroup` (VIP | REGULAR) được thêm vào Domain Core (`Customer` entity ở spec Domain Core) làm điều kiện chọn `ReminderPolicy`.
+`Customer.customerGroup` (VIP | REGULAR) is added to Domain Core (the `Customer` entity in the Domain Core spec) as the condition for selecting a `ReminderPolicy`.
 
 ## 3. Scheduling flow
 
-Không tạo trước toàn bộ lịch tương lai khi receivable được tạo — daily cron tính rule khớp tại thời điểm quét, đơn giản hơn và tự động thích ứng khi `dueDate` thay đổi (gia hạn) mà không cần logic hủy/tạo lại schedule.
+Do not pre-create the entire future schedule when a receivable is created — the daily cron computes matching rules at scan time, which is simpler and automatically adapts when `dueDate` changes (an extension) without cancellation/rescheduling logic.
 
 ```
-1. Daily cron (BullMQ repeatable job) quét Receivable WHERE status IN (OPEN, PARTIALLY_PAID)
-2. Với mỗi receivable:
-   a. Bỏ qua nếu isDisputed = true
-   b. Xác định customerGroup của Customer → ReminderPolicy tương ứng (theo organizationId + customerGroup)
-   c. Tính offsetDays = (dueDate - today), tìm ReminderRule của policy đó khớp offsetDays
-   d. Nếu có rule khớp: query ReminderExecution gần nhất của receivable trong vòng minIntervalDays —
-      nếu đã có lần gửi (status=SENT) trong khoảng đó → skip, ghi ReminderExecution(status=SKIPPED, skipReason=RATE_LIMITED)
-   e. Nếu qua rate limit check → enqueue "send reminder job" (chưa gửi email ở bước này)
-3. Send reminder job (worker riêng, xử lý từng job độc lập):
-   a. Load lại receivable từ DB (fresh read, không dùng dữ liệu từ lúc cron quét)
-   b. Nếu status đã đổi thành PAID/WRITTEN_OFF/CANCELLED, hoặc isDisputed đã thành true
-      → ghi ReminderExecution(status=SKIPPED, skipReason tương ứng ALREADY_PAID/DISPUTED), dừng, không gửi email
-   c. Ngược lại: kiểm tra idempotency key; nếu execution tương ứng đã tồn tại thì no-op. Nếu chưa có, tạo ReminderExecution(status=PENDING) rồi giao cho EmailService/email queue.
-      Email worker render/gửi email và cập nhật cùng row thành SENT (kèm sentAt/providerMessageId),
-      đồng thời emit `reminder.sent`, hoặc FAILED (kèm failureReason), đồng thời emit `reminder.failed`.
+1. Daily cron (BullMQ repeatable job) scans Receivable WHERE status IN (OPEN, PARTIALLY_PAID)
+2. For each receivable:
+   a. Skip if isDisputed = true
+   b. Determine the Customer's customerGroup → corresponding ReminderPolicy (by organizationId + customerGroup)
+   c. Calculate offsetDays = (dueDate - today), then find the policy's ReminderRule matching offsetDays
+   d. If a rule matches: query the receivable's latest ReminderExecution within minIntervalDays —
+      if a send (status=SENT) already exists in that period → skip and record ReminderExecution(status=SKIPPED, skipReason=RATE_LIMITED)
+   e. If it passes the rate-limit check → enqueue a "send reminder job" (do not send email at this step)
+3. Send reminder job (separate worker, process each job independently):
+   a. Reload the receivable from the DB (fresh read; do not use data from the cron scan)
+   b. If status has changed to PAID/WRITTEN_OFF/CANCELLED, or isDisputed has become true
+      → record ReminderExecution(status=SKIPPED, with the corresponding ALREADY_PAID/DISPUTED skipReason), stop, and do not send email
+   c. Otherwise: check the idempotency key; if the corresponding execution already exists, no-op. If not, create ReminderExecution(status=PENDING) and hand it to EmailService/email queue.
+      The email worker renders/sends the email and updates the same row to SENT (with sentAt/providerMessageId),
+      while emitting `reminder.sent`, or to FAILED (with failureReason), while emitting `reminder.failed`.
 ```
 
-Tách bước 2 (cron chọn ứng viên, enqueue) và bước 3 (worker gửi thật, tự re-check trạng thái) để xử lý race condition: payment có thể về giữa lúc cron quét và lúc email thực sự gửi đi — worker luôn xác nhận lại trạng thái mới nhất ngay trước khi gửi, tránh nhắc nhầm khách đã thanh toán.
+Separate step 2 (cron selects candidates and enqueues) from step 3 (worker actually sends and re-checks state) to handle the race condition: a payment may arrive between the cron scan and the actual email send — the worker always confirms the latest state immediately before sending, avoiding reminders to customers who have already paid.
 
-**Timezone:** "today" và `executionDate` luôn tính theo lịch (`YYYY-MM-DD`), không theo mốc UTC/millisecond. Cố định một timezone chung `REMINDER_TIMEZONE` (mặc định `Asia/Ho_Chi_Minh`) cho toàn bộ tổ chức ở MVP — chưa có field `Organization.timezone` riêng từng tổ chức (out of scope, mọi khách hàng MVP cùng múi giờ VN). Cron BullMQ repeatable job cũng đặt timezone này khi đăng ký (`0 1 * * *`, tz `Asia/Ho_Chi_Minh`), không dùng giờ server mặc định.
+**Timezone:** "today" and `executionDate` are always calculated by calendar date (`YYYY-MM-DD`), not by UTC/millisecond timestamps. Fix one shared `REMINDER_TIMEZONE` (default `Asia/Ho_Chi_Minh`) for all organizations in the MVP — there is no per-organization `Organization.timezone` field (out of scope; all MVP customers use Vietnam time). The BullMQ repeatable job also uses this timezone when registered (`0 1 * * *`, tz `Asia/Ho_Chi_Minh`) rather than the server's default time.
 
-## 4. Ngoài phạm vi
+## 4. Out of scope
 
-- Nội dung/biến Email Template — tài liệu gốc mục 7.6.
-- Kênh thông báo ngoài email (Zalo OA, SMS, Teams, Slack).
-- Escalation cho quản lý/trưởng phòng khi quá hạn lâu (Internal Task/Escalation — spec/plan riêng).
-  Reminder Automation không import, khởi tạo hoặc gọi escalation participant khi phần đó không nằm trong scope triển khai.
+- Email Template content/variables — section 7.6 of the source document.
+- Non-email notification channels (Zalo OA, SMS, Teams, Slack).
+- Escalation to managers/department heads for long-overdue receivables (Internal Task/Escalation — separate spec/plan).
+  Reminder Automation must not import, initialize, or call escalation participants when that area is outside the implementation scope.
 
-## 5. Câu hỏi mở (không chặn implementation)
+## 5. Open questions (do not block implementation)
 
-- `minIntervalDays` có cấu hình được theo từng `ReminderRule` hay cố định một giá trị chung cho toàn `ReminderPolicy`?
-- Khi Owner đổi `customerGroup` của một Customer giữa chừng (VIP → REGULAR), các `ReminderExecution` lịch sử có cần gắn nhãn lại theo policy cũ để báo cáo không, hay chỉ ảnh hưởng các lần quét tiếp theo?
+- Is `minIntervalDays` configurable per `ReminderRule`, or fixed at one shared value for the entire `ReminderPolicy`?
+- When the Owner changes a Customer's `customerGroup` midway (VIP → REGULAR), should historical `ReminderExecution` records be relabeled under the old policy for reporting, or should it affect only future scans?

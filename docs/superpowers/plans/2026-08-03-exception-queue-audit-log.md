@@ -11,12 +11,12 @@
 ## Global Constraints
 
 - `MatchBankTransactionUseCase` opens one transaction, creates the Payment, then calls `AllocatePaymentUseCase.allocateWithinTransaction(manager, input)` for every allocation. The shared method performs all customer, remaining/unallocated, rollup, allocation and status checks; this plan must not copy that money logic.
-- `BankTransaction.version` optimistic lock: `match` fetches the row with `pessimistic_write` inside its transaction, then explicitly compares `transaction.version !== input.version` — this is a manual check (not TypeORM's built-in `@VersionColumn` UPDATE-clause check), because the manual check is what the spec ("Kiểm tra ... → nếu không khớp → 409 'Giao dịch đã được xử lý'") describes and what the mandatory concurrency test (testing-strategy-design.md case 4) can assert a deterministic error message on. `@VersionColumn` still auto-increments the stored value on every `save()` as a second line of defense.
-- `skip` and `mark-prepaid` do NOT take a `version` payload field (answering spec mục 4's open question): neither creates a `PaymentAllocation`, so a double-skip or double-mark-prepaid is idempotent-safe (both races end in the same terminal state, no double-spend of money) — the extra optimistic-lock plumbing would guard against a scenario with no financial consequence. `match` is the only endpoint gated by `version` because it is the only one that moves money.
+- `BankTransaction.version` optimistic lock: `match` fetches the row with `pessimistic_write` inside its transaction, then explicitly compares `transaction.version !== input.version` — this is a manual check (not TypeORM's built-in `@VersionColumn` UPDATE-clause check), because the manual check is what the spec ("Check ... → if they do not match → 409 'The transaction has already been processed'") describes and what the mandatory concurrency test (testing-strategy-design.md case 4) can assert a deterministic error message on. `@VersionColumn` still auto-increments the stored value on every `save()` as a second line of defense.
+- `skip` and `mark-prepaid` do NOT take a `version` payload field (answering spec section 4's open question): neither creates a `PaymentAllocation`, so a double-skip or double-mark-prepaid is idempotent-safe (both races end in the same terminal state, no double-spend of money) — the extra optimistic-lock plumbing would guard against a scenario with no financial consequence. `match` is the only endpoint gated by `version` because it is the only one that moves money.
 - `AuditLog` is INSERT-only: `IAuditLogRepository` exposes exactly one method, `create()`, and the TypeORM implementation calls `.insert()` (never `.save()`, which can silently upsert) — there is no update/delete path to accidentally wire up later.
-- `beforeState`/`afterState` are passed through `sanitizeAuditPayload()` before insert, which redacts a denylist of sensitive key names (`accessToken`, `refreshToken`, `secretKey`, `password`, `token`) recursively (answering spec mục 4's second open question). `ponytail: denylist, not allowlist — upgrade to a per-entity allowlist if a new sensitive field slips through undetected.`
+- `beforeState`/`afterState` are passed through `sanitizeAuditPayload()` before insert, which redacts a denylist of sensitive key names (`accessToken`, `refreshToken`, `secretKey`, `password`, `token`) recursively (answering spec section 4's second open question). `ponytail: denylist, not allowlist — upgrade to a per-entity allowlist if a new sensitive field slips through undetected.`
 - `@Audited(actionType, entityType)` takes two parameters, not one as the spec's pseudocode (`@Audited(actionType: string)`) shows — `entityType` cannot always be derived from `actionType` alone (e.g. `PAYMENT_ALLOCATE` fires from both `PaymentsController.allocate` on a `Payment` id and `ExceptionQueueController.match` on a `BankTransaction` id), so making it explicit at the call site is the simplest correct option.
-- Money fields stay integer (đồng), no `float` — carried over from every prior plan's Global Constraints.
+- Money fields stay integer (dong), no `float` — carried over from every prior plan's Global Constraints.
 - Naming/layering rules from `2026-08-03-project-scaffolding-architecture-design.md` still apply.
 
 ---
@@ -114,7 +114,7 @@ export enum AuditActionType {
 }
 ```
 
-The first 11 values are the mandatory list from spec mục 2 ("tài liệu gốc mục 15"). `BANK_TRANSACTION_SKIP`/`BANK_TRANSACTION_MARK_PREPAID` are added here because spec mục 1 explicitly requires `skip` to write an `AuditLog` even though it isn't in the mandatory-list table; `mark-prepaid` gets the same treatment for consistency (both mutate a `BankTransaction`'s disposition without an allocation).
+The first 11 values are the mandatory list from spec section 2 ("source document section 15"). `BANK_TRANSACTION_SKIP`/`BANK_TRANSACTION_MARK_PREPAID` are added here because spec section 1 explicitly requires `skip` to write an `AuditLog` even though it isn't in the mandatory-list table; `mark-prepaid` gets the same treatment for consistency (both mutate a `BankTransaction`'s disposition without an allocation).
 
 - [ ] **Step 2: Create `apps/backend/src/common/audit/audit-log.ts`**
 
@@ -198,7 +198,7 @@ export class AuditLogOrmEntity {
 }
 ```
 
-No `updatedAt`/`deletedAt` columns and no soft-delete decorator — this table is never mutated after insert (spec mục 2: "không có endpoint PATCH/DELETE").
+No `updatedAt`/`deletedAt` columns and no soft-delete decorator — this table is never mutated after insert (spec section 2: "no PATCH/DELETE endpoint").
 
 - [ ] **Step 4: Create `apps/backend/src/common/audit/audit-log-repository.port.ts`**
 
@@ -557,7 +557,7 @@ export class AuditInterceptor implements NestInterceptor {
 }
 ```
 
-`tap()`'s success callback only runs when the source observable emits a value, not when it errors — this is the mechanism satisfying spec mục 2's "Nếu handler throw → không ghi log."
+`tap()`'s success callback only runs when the source observable emits a value, not when it errors — this is the mechanism satisfying spec section 2's "If the handler throws → do not write a log."
 
 - [ ] **Step 6: Run test to verify it passes**
 
@@ -1041,7 +1041,7 @@ git commit -m "refactor: migrate BankTransaction repository to BaseRepository, a
 - Consumes: nothing new
 - Produces: `Payment.customerId: string | null` — used by Task 7's `MarkPrepaidBankTransactionUseCase` to attribute an unallocated credit balance to a customer before any `Receivable` exists to allocate it against
 
-Spec mục 1's `mark-prepaid` route is described as "gán customerId, giữ làm credit balance (Payment chưa allocate)" — `Payment` (Domain Core plan) has no customer attribution today because every existing caller allocates immediately against a known `Receivable`. `mark-prepaid` is the one flow that creates a `Payment` with zero allocations, so it is the one flow that needs to record whose money it is.
+Spec section 1's `mark-prepaid` route is described as "assign customerId, keep as credit balance (Payment not allocated)" — `Payment` (Domain Core plan) has no customer attribution today because every existing caller allocates immediately against a known `Receivable`. `mark-prepaid` is the one flow that creates a `Payment` with zero allocations, so it is the one flow that needs to record whose money it is.
 
 - [ ] **Step 1: Add `customerId` to `Payment`**
 
@@ -1392,7 +1392,7 @@ export class MatchBankTransactionUseCase {
       this.auditContext.setBefore(transaction);
 
       if (transaction.version !== input.version || transaction.status !== 'PENDING_REVIEW') {
-        throw new ConflictException('Giao dịch đã được xử lý');
+        throw new ConflictException('The transaction has already been processed');
       }
 
       const sumAllocations = input.allocations.reduce((total, item) => total + item.amount, 0);
@@ -1442,7 +1442,7 @@ export class MatchBankTransactionUseCase {
 }
 ```
 
-`payment.unallocatedAmount` (`totalAmount - allocatedAmount`) is left non-zero whenever `sumAllocations < transaction.amount` — this IS the "leftover → credit balance, no auto-apply" behavior from spec mục 1, bước 5; no separate overpayment code path is needed because `Payment` already models it.
+`payment.unallocatedAmount` (`totalAmount - allocatedAmount`) is left non-zero whenever `sumAllocations < transaction.amount` — this IS the "leftover → credit balance, no auto-apply" behavior from spec section 1, step 5; no separate overpayment code path is needed because `Payment` already models it.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -1490,7 +1490,7 @@ function buildTransaction(): BankTransaction {
     transactionDateTime: new Date('2026-08-01'),
     counterpartyAccountNumber: '0011002233',
     counterpartyName: 'NGUYEN VAN A',
-    transferContent: 'chuyen tien khong ro noi dung',
+    transferContent: 'transfer with unclear content',
     status: 'PENDING_REVIEW',
     version: 1,
     createdAt: new Date('2026-08-01'),
@@ -1583,7 +1583,7 @@ function buildTransaction(status: string = 'PENDING_REVIEW'): BankTransaction {
     transactionDateTime: new Date('2026-08-01'),
     counterpartyAccountNumber: '0011002233',
     counterpartyName: 'CONG TY C',
-    transferContent: 'tam ung don hang thang 9',
+    transferContent: 'advance payment for September order',
     status: status as any,
     version: 1,
     createdAt: new Date('2026-08-01'),
@@ -2077,7 +2077,7 @@ describe('Exception Queue concurrent match (integration)', () => {
     await dataSource.getRepository(CustomerOrmEntity).save({
       id: customerId,
       organizationId,
-      name: 'Công ty Concurrent',
+      name: 'Company Concurrent',
       taxCode: '999',
       email: 'concurrent@b.vn',
       phone: '0900000099',
@@ -2110,8 +2110,8 @@ describe('Exception Queue concurrent match (integration)', () => {
       amount: 30_000_000,
       transactionDateTime: new Date('2026-08-01'),
       counterpartyAccountNumber: '0011002233',
-      counterpartyName: 'CONG TY CONCURRENT',
-      transferContent: 'chuyen tien khong ro',
+      counterpartyName: 'COMPANY CONCURRENT',
+      transferContent: 'transfer with unclear details',
       status: 'PENDING_REVIEW',
       createdAt: new Date(),
     });
@@ -2214,7 +2214,7 @@ describe('Exception Queue multi-allocation match (integration)', () => {
     await dataSource.getRepository(CustomerOrmEntity).save({
       id: customerId,
       organizationId,
-      name: 'Công ty Split',
+      name: 'Company Split',
       taxCode: '888',
       email: 'split@b.vn',
       phone: '0900000088',
@@ -2262,8 +2262,8 @@ describe('Exception Queue multi-allocation match (integration)', () => {
       amount: 30_000_000,
       transactionDateTime: new Date('2026-08-01'),
       counterpartyAccountNumber: '0011002244',
-      counterpartyName: 'CONG TY SPLIT',
-      transferContent: 'thanh toan 2 hoa don',
+      counterpartyName: 'COMPANY SPLIT',
+      transferContent: 'payment for 2 invoices',
       status: 'PENDING_REVIEW',
       createdAt: new Date(),
     });
@@ -2345,8 +2345,8 @@ git commit -m "test: add integration tests for concurrent match locking and mult
 
 ## Self-Review Notes
 
-- **Spec coverage:** `GET /bank-transactions/unmatched` (mục 1) → Task 8. `GET /bank-transactions/:id/candidates` (mục 1) → Task 8. `POST /bank-transactions/:id/match` optimistic lock + validation + atomic multi-allocation + leftover-as-credit-balance (mục 1, bước 1-5) → Task 6, verified by Task 9. `POST /bank-transactions/:id/skip` with `AuditLog` (mục 1) → Task 7 + Task 3's `@Audited` wiring on the controller. `POST /bank-transactions/:id/mark-prepaid` (mục 1) → Task 7. `AuditLog` structure, INSERT-only, decorator+interceptor mechanism, mandatory action list (mục 2) → Tasks 1-3.
-- **Open questions from spec mục 4, answered:** (1) `skip`/`mark-prepaid` don't need `version` — documented in Global Constraints and Task 7, reasoning: no `PaymentAllocation` is created by either, so no double-spend risk exists to guard against. (2) `beforeState`/`afterState` sensitive-field filtering — `sanitizeAuditPayload()` (Task 1) redacts a fixed denylist (`accessToken`, `refreshToken`, `secretKey`, `password`, `token`) recursively before every insert. `AuditContextService` now stores both snapshots through `setBefore/getBefore` and `setAfter/getAfter`; the interceptor sets `after` only on successful handler completion.
+- **Spec coverage:** `GET /bank-transactions/unmatched` (section 1) → Task 8. `GET /bank-transactions/:id/candidates` (section 1) → Task 8. `POST /bank-transactions/:id/match` optimistic lock + validation + atomic multi-allocation + leftover-as-credit-balance (section 1, steps 1-5) → Task 6, verified by Task 9. `POST /bank-transactions/:id/skip` with `AuditLog` (section 1) → Task 7 + Task 3's `@Audited` wiring on the controller. `POST /bank-transactions/:id/mark-prepaid` (section 1) → Task 7. `AuditLog` structure, INSERT-only, decorator+interceptor mechanism, mandatory action list (section 2) → Tasks 1-3.
+- **Open questions from spec section 4, answered:** (1) `skip`/`mark-prepaid` don't need `version` — documented in Global Constraints and Task 7, reasoning: no `PaymentAllocation` is created by either, so no double-spend risk exists to guard against. (2) `beforeState`/`afterState` sensitive-field filtering — `sanitizeAuditPayload()` (Task 1) redacts a fixed denylist (`accessToken`, `refreshToken`, `secretKey`, `password`, `token`) recursively before every insert. `AuditContextService` now stores both snapshots through `setBefore/getBefore` and `setAfter/getAfter`; the interceptor sets `after` only on successful handler completion.
 - **Shared allocation core:** `MatchBankTransactionUseCase` opens the single outer transaction and calls `AllocatePaymentUseCase.allocateWithinTransaction(manager, input)` for each item. The money/status/customer invariant exists only in Domain Core; this plan does not duplicate it.
 - **Not covered in this plan (by design):** The Cas ID bank connection plan and Reminder Automation / Billing plans own their own controllers (`BANK_CONNECTION_CREATE`, `REMINDER_POLICY_UPDATE`, `SUBSCRIPTION_CHANGE_PLAN` action types are defined here so those plans can attach `@Audited` immediately, but wiring those decorators is out of scope here). Domain Core owns the `PAYMENT_ALLOCATE_UNDO` audit inline inside its transaction; it must not also attach `@Audited` or the action would be logged twice. `RECEIVABLE_UPDATE`, `RECEIVABLE_CANCEL`, and `RECEIVABLE_DISPUTE` remain reserved until their owning plans add endpoints.
 - **Type consistency checked:** `IBankTransactionRepository`/`IMatchingCandidateRepository` signatures (Task 4) match every caller added in Tasks 6-8 and their unit test mocks. `Payment.customerId` is resolved from the first selected receivable for a manual match; the shared allocation core rejects any later receivable from another customer. `AuditedMetadata { actionType, entityType }` shape is identical between `audited.decorator.ts` and `audit.interceptor.ts`'s `getAllAndOverride<AuditedMetadata>()` call.
