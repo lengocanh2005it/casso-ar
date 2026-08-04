@@ -1,7 +1,14 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
-import { Column, Entity, PrimaryGeneratedColumn, VersionColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+  VersionColumn,
+} from 'typeorm';
 
 @Entity({ name: 'receivables' })
+@Index(['organizationId', 'status', 'dueDate'])
 export class ReceivableOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
