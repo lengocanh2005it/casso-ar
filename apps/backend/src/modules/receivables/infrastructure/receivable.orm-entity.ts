@@ -1,0 +1,41 @@
+import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { Column, Entity, PrimaryGeneratedColumn, VersionColumn } from 'typeorm';
+
+@Entity({ name: 'receivables' })
+export class ReceivableOrmEntity {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @Column()
+  organizationId: string;
+
+  @Column()
+  customerId: string;
+
+  @Column({ nullable: true })
+  invoiceId: string | null;
+
+  @Column('bigint')
+  originalAmount: number;
+
+  @Column('bigint', { default: 0 })
+  paidAmount: number;
+
+  @Column()
+  dueDate: Date;
+
+  @Column({ type: 'enum', enum: ReceivableStatus })
+  status: ReceivableStatus;
+
+  @Column({ nullable: true })
+  salesRepresentativeId: string | null;
+
+  @Column()
+  createdAt: Date;
+
+  @Column({ nullable: true })
+  closedAt: Date | null;
+
+  @VersionColumn()
+  version: number;
+}
