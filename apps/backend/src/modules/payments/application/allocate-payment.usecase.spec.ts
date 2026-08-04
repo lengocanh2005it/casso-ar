@@ -48,7 +48,7 @@ describe('AllocatePaymentUseCase', () => {
       findByIdForUpdate: jest.fn().mockResolvedValue(payment),
       save: jest.fn(),
     };
-    const allocationRepo = { create: jest.fn() };
+    const allocationRepo = { save: jest.fn() };
     const tenantContext = { getOrganizationId: () => 'org-1' };
     const dataSource = {
       transaction: jest.fn((cb: (m: EntityManager) => Promise<void>) =>
@@ -82,7 +82,7 @@ describe('AllocatePaymentUseCase', () => {
       expect.objectContaining({ allocatedAmount: 30_000_000 }),
       expect.anything(),
     );
-    expect(allocationRepo.create).toHaveBeenCalled();
+    expect(allocationRepo.save).toHaveBeenCalled();
   });
 
   it.each([0, -1, 1.5])(
@@ -90,7 +90,7 @@ describe('AllocatePaymentUseCase', () => {
     async (amount) => {
       const receivableRepo = { findByIdForUpdate: jest.fn(), save: jest.fn() };
       const paymentRepo = { findByIdForUpdate: jest.fn(), save: jest.fn() };
-      const allocationRepo = { create: jest.fn() };
+      const allocationRepo = { save: jest.fn() };
       const dataSource = {
         transaction: jest.fn((cb: (m: EntityManager) => Promise<void>) =>
           cb({} as EntityManager),
@@ -127,7 +127,7 @@ describe('AllocatePaymentUseCase', () => {
       findByIdForUpdate: jest.fn().mockResolvedValue(buildPayment()),
       save: jest.fn(),
     };
-    const allocationRepo = { create: jest.fn() };
+    const allocationRepo = { save: jest.fn() };
     const dataSource = {
       transaction: jest.fn((cb: (m: EntityManager) => Promise<void>) =>
         cb({} as EntityManager),

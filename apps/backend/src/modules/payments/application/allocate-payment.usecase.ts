@@ -80,7 +80,7 @@ export class AllocatePaymentUseCase {
 
     await this.receivableRepo.save(updatedReceivable, manager);
     await this.paymentRepo.save(updatedPayment, manager);
-    await this.allocationRepo.create(
+    await this.allocationRepo.save(
       new PaymentAllocation({
         id: randomUUID(),
         organizationId: this.tenantContext.getOrganizationId(),

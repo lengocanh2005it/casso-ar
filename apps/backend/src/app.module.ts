@@ -8,7 +8,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { TenantMiddleware } from './common/tenancy/tenant.middleware';
 import { typeOrmConfig } from './config/typeorm.config';
 import { CustomersModule } from './modules/customers/customers.module';
-import { InvoicesModule } from './modules/invoices/invoices.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { ReceivablesModule } from './modules/receivables/receivables.module';
 
@@ -17,7 +16,6 @@ import { ReceivablesModule } from './modules/receivables/receivables.module';
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot(typeOrmConfig),
     CustomersModule,
-    InvoicesModule,
     ReceivablesModule,
     PaymentsModule,
   ],
