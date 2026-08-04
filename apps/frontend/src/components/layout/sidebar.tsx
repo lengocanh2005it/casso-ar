@@ -1,0 +1,110 @@
+import { ChevronLeft, ChevronRight, Lock, LogOut } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
+import { useReviewCount } from '@/features/exceptions/api/use-review-count';
+import { cn } from '@/lib/utils';
+import { navItems } from './nav-items';
+
+function ReviewBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-medium text-white">
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
+
+interface SidebarProps {
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+}
+
+export function Sidebar({
+  collapsed = false,
+  onToggleCollapsed,
+}: SidebarProps) {
+  const { data: reviewCount = 0 } = useReviewCount();
+
+  return (
+    <aside
+      className={cn(
+        'flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200',
+        collapsed ? 'w-16' : 'w-64',
+      )}
+    >
+      <div className="flex items-center justify-between px-4 py-4">
+        {!collapsed && (
+          <span className="text-lg font-semibold">Casso Ledger</span>
+        )}
+        {onToggleCollapsed && (
+          <button
+            type="button"
+            onClick={onToggleCollapsed}
+            className="rounded-md p-1.5 hover:bg-sidebar-accent"
+            aria-label={collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}
+          >
+            {collapsed ? (
+              <ChevronRight className="size-4" />
+            ) : (
+              <ChevronLeft className="size-4" />
+            )}
+          </button>
+        )}
+      </div>
+
+      <nav className="flex-1 space-y-1 px-2">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const locked = Boolean(item.minPlan);
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              title={collapsed ? item.label : undefined}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-primary/5 hover:text-primary',
+                  isActive &&
+                    'bg-primary/10 font-medium text-primary ring-1 ring-primary/15',
+                )
+              }
+            >
+              <Icon className="size-4 shrink-0" />
+              {!collapsed && <span className="truncate">{item.label}</span>}
+              {!collapsed && item.showReviewBadge && (
+                <ReviewBadge count={reviewCount} />
+              )}
+              {!collapsed && locked && (
+                <Lock className="ml-auto size-3.5 text-muted-foreground" />
+              )}
+            </NavLink>
+          );
+        })}
+      </nav>
+
+      <SidebarFooter collapsed={collapsed} />
+    </aside>
+  );
+}
+
+function SidebarFooter({ collapsed }: { collapsed: boolean }) {
+  return (
+    <div className="flex items-center gap-3 border-t border-sidebar-border px-4 py-3">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
+        A
+      </div>
+      {!collapsed && (
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">Anh Le</p>
+          <p className="truncate text-xs text-muted-foreground">anh@casso.vn</p>
+        </div>
+      )}
+      <button
+        type="button"
+        aria-label="Đăng xuất"
+        className="rounded-md p-1.5 hover:bg-sidebar-accent"
+      >
+        <LogOut className="size-4" />
+      </button>
+    </div>
+  );
+}
