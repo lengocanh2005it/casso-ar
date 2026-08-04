@@ -3,8 +3,10 @@ import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
-import type { CreateReceivableUseCase } from '../application/create-receivable.usecase';
-import type { WriteOffReceivableUseCase } from '../application/write-off-receivable.usecase';
+// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
+import { CreateReceivableUseCase } from '../application/create-receivable.usecase';
+// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
+import { WriteOffReceivableUseCase } from '../application/write-off-receivable.usecase';
 import type { CreateReceivableDto } from './dto/create-receivable.dto';
 import { toReceivableResponse } from './dto/receivable-response.dto';
 

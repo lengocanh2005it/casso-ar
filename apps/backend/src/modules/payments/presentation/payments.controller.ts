@@ -4,8 +4,10 @@ import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 // biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import type { AllocatePaymentUseCase } from '../application/allocate-payment.usecase';
-import type { UndoPaymentAllocationUseCase } from '../application/undo-payment-allocation.usecase';
+// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
+import { AllocatePaymentUseCase } from '../application/allocate-payment.usecase';
+// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
+import { UndoPaymentAllocationUseCase } from '../application/undo-payment-allocation.usecase';
 import type { AllocatePaymentDto } from './dto/allocate-payment.dto';
 import type { UndoPaymentAllocationDto } from './dto/undo-payment-allocation.dto';
 
@@ -34,13 +36,15 @@ export class PaymentsController {
   }
 
   @Post('allocations/:allocationId/undo')
+  @UseGuards(PermissionGuard)
+  @RequirePermission(Permission.PAYMENT_ALLOCATE_UNDO)
   async undo(
     @Param('allocationId') allocationId: string,
     @Body() dto: UndoPaymentAllocationDto,
   ) {
     await this.undoPaymentAllocationUseCase.execute({
       allocationId,
-      deletedByUserId: 'system',
+      deletedByUserId: this.tenantContext.getCurrentUser()?.userId ?? 'system',
       undoReason: dto.undoReason,
     });
     return { success: true };

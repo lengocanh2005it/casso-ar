@@ -4,7 +4,8 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
-import type { Reflector } from '@nestjs/core';
+// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
+import { Reflector } from '@nestjs/core';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 import { REQUIRED_PERMISSION_KEY } from './require-permission.decorator';
 import { ROLE_PERMISSIONS } from './role-permissions.map';
@@ -26,7 +27,10 @@ export class PermissionGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user as AuthenticatedUser | undefined;
 
-    if (!user || !ROLE_PERMISSIONS[user.role].includes(requiredPermission)) {
+    if (
+      !user ||
+      !(ROLE_PERMISSIONS[user.role] ?? []).includes(requiredPermission)
+    ) {
       throw new ForbiddenException(
         `Missing required permission: ${requiredPermission}`,
       );

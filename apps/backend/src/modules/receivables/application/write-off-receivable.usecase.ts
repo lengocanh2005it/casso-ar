@@ -1,5 +1,7 @@
-import { Inject, Injectable } from '@nestjs/common';
-import type { DataSource, EntityManager } from 'typeorm';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import type { EntityManager } from 'typeorm';
+// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
+import { DataSource } from 'typeorm';
 import type { Receivable } from '../domain/receivable';
 import {
   type IReceivableRepository,
@@ -21,7 +23,11 @@ export class WriteOffReceivableUseCase {
         manager,
       );
       if (!receivable) {
-        throw new Error('Receivable not found');
+        throw new NotFoundException({
+          statusCode: 404,
+          errorCode: 'RECEIVABLE_NOT_FOUND',
+          message: 'Receivable not found',
+        });
       }
       const updated = receivable.writeOff();
       await this.receivableRepo.save(updated, manager);
