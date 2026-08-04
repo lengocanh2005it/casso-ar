@@ -77,8 +77,8 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Ticket Index
 
 **26 plans** | status snapshot (2026-08-04):
-- 🟢 done (1): Plan #1
-- 🔴 open/not started (25): Plan #2–#23 + 3 additional plans
+- 🟢 done (2): Plan #1, Plan #18
+- 🔴 open/not started (24): Plan #2–#17, #19–#23 + 3 additional plans
 
 ---
 
@@ -386,10 +386,11 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #18 — Frontend Design System
 - **Type**: task
-- **Status**: open
+- **Status**: done ✅
 - **Owner**: FE
 - **Spec**: `specs/2026-08-03-frontend-design-system.md`
 - **Blockers**: Plan #1 ✅
+- **Shipped**: 2026-08-04 — PR #2 merged, 6 commits
 - **Key rules**:
   - React 19 + Vite + TypeScript
   - Tailwind v4 + shadcn/ui (new-york/neutral theme)
@@ -397,7 +398,7 @@ Success = a single document a new developer can read and know exactly what to pi
   - 10 nav items: Dashboard, Customers, Receivables, Bank Connections, Transactions, Exceptions, Reminders, Copilot, Reports, Settings
   - Feature-based folder structure
   - API client singleton, `/api/v1` prefix
-- **Creates**: `apps/frontend/` scaffold, design tokens, sidebar, route skeleton, placeholder pages
+- **Created**: `apps/frontend/` scaffold, design tokens (oklch light/dark), collapsible Sidebar, mobile drawer, AppLayout, 10 placeholder pages, route skeleton, apiClient, queryClient, useReviewCount hook, Vitest + RTL smoke test
 
 ---
 
@@ -541,9 +542,9 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **Next available tickets** (all blockers resolved):
 - **Plan #2** (Multi-tenancy + RBAC) — blockers: Plan #1 ✅
-- **Plan #18** (Frontend Design System) — blockers: Plan #1 ✅
+- **Plan #19** (FE Auth + App Shell) — blockers: Plan #3, Plan #18 ✅
 
 **Blocked tickets waiting:**
-- Plan #3–#17, #19–#23, additional plans — waiting on Plan #2 or other dependencies
+- Plan #3–#17, #20–#23, additional plans — waiting on Plan #2 or other dependencies
 
 **Recommended next step:** Start Plan #2 (Multi-tenancy + RBAC) — it unblocks Plans #3–#16.
