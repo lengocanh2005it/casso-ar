@@ -196,6 +196,265 @@ git branch -d feat/<ticket-name>
 
 ---
 
+## Security
+
+### Secrets & Credentials
+
+- **KHÔNG BAO GIỜ** commit secrets, API keys, passwords, tokens
+- Dùng environment variables cho mọi secrets
+- `.env` đã có trong `.gitignore` — KHÔNG force add
+- JWT secret: `process.env.JWT_SECRET` (required, không có default)
+- Cas ID credentials: `process.env.CAS_ID_CLIENT_ID`, `process.env.CAS_ID_CLIENT_SECRET`
+- Database: `process.env.DB_PASSWORD` (không default)
+
+### Authentication
+
+- Access token: 15 phút,httpOnly cookie
+- Refresh token: 7 ngày, httpOnly cookie, secure
+- Rate limit: 5 req/phút per (IP, email) cho auth endpoints
+- Token hash: SHA-256 khi lưu数据库, không plaintext
+
+### Authorization
+
+- Mọi endpoint business PHẢI có `@RequirePermission()` decorator
+- Check permission TRƯỚC khi execute use case
+- Response không leak `organizationId`, `version`, internal fields
+- Webhook auth: constant-time compare (không dùng `===`)
+
+---
+
+## Error Handling
+
+### Error Response Shape
+
+Mọi lỗi trả về dạng chuẩn:
+
+```typescript
+{
+  statusCode: number,      // HTTP status code
+  errorCode: string,       // UPPER_SNAKE_CASE, stable cho FE switch
+  message: string,         // Human-readable (tiếng Việt)
+  details?: unknown        // Optional additional info
+}
+```
+
+### ErrorCode Constants
+
+```typescript
+enum ErrorCode {
+  VALIDATION_ERROR = 'VALIDATION_ERROR',
+  NOT_FOUND = 'NOT_FOUND',
+  UNAUTHORIZED = 'UNAUTHORIZED',
+  FORBIDDEN = 'FORBIDDEN',
+  CONFLICT = 'CONFLICT',
+  PLAN_LIMIT_EXCEEDED = 'PLAN_LIMIT_EXCEEDED',
+  ALLOCATION_EXCEEDS_REMAINING = 'ALLOCATION_EXCEEDS_REMAINING',
+  ALLOCATION_EXCEEDS_UNALLOCATED = 'ALLOCATION_EXCEEDS_UNALLOCATED',
+  OPTIMISTIC_LOCK_CONFLICT = 'OPTIMISTIC_LOCK_CONFLICT',
+  TENANT_MISMATCH = 'TENANT_MISMATCH',
+  PAYMENT_CUSTOMER_UNRESOLVED = 'PAYMENT_CUSTOMER_UNRESOLVED',
+  CUSTOMER_MISMATCH = 'CUSTOMER_MISMATCH',
+  RECEIVABLE_NOT_FOUND = 'RECEIVABLE_NOT_FOUND',
+  PAYMENT_NOT_FOUND = 'PAYMENT_NOT_FOUND',
+  ALLOCATION_NOT_FOUND = 'ALLOCATION_NOT_FOUND',
+  ALLOCATION_ALREADY_UNDONE = 'ALLOCATION_ALREADY_UNDONE',
+  DISPUTE_ALREADY_OPEN = 'DISPUTE_ALREADY_OPEN',
+  RECEIVABLE_HAS_PAYMENTS = 'RECEIVABLE_HAS_PAYMENTS',
+  TEMPLATE_IN_USE = 'TEMPLATE_IN_USE',
+  EMAIL_SEND_FAILED = 'EMAIL_SEND_FAILED',
+  IDEMPOTENCY_KEY_REUSED = 'IDEMPOTENCY_KEY_REUSED',
+}
+```
+
+### Domain Errors
+
+- Domain logic throw `Error` với message rõ ràng
+- Controller translate domain error → HTTP response + ErrorCode
+- Không return `{ success: false }` — luôn throw exception
+
+```typescript
+// ✅ Đúng
+if (amount > remaining) {
+  throw new Error('Allocation amount exceeds remaining amount');
+}
+
+// ❌ Sai
+return { success: false, error: 'Invalid amount' };
+```
+
+---
+
+## Logging
+
+### Console Output
+
+- **KHÔNG** dùng `console.log()` trong production code
+- Dùng structured logging qua logger service
+- Logger PHẢI có context: `organizationId`, `userId`, `requestId`
+
+```typescript
+// ✅ Đúng
+this.logger.log({
+  message: 'Payment allocated',
+  paymentId: payment.id,
+  receivableId: receivable.id,
+  amount,
+  organizationId: this.tenantContext.getOrganizationId(),
+});
+
+// ❌ Sai
+console.log('Payment allocated:', payment.id);
+```
+
+### Log Levels
+
+- `error`: System errors, exceptions
+- `warn`: Business rule violations, degraded state
+- `info`: Business events (payment allocated, reminder sent)
+- `debug`: Development debugging (chỉ dùng khi debug, KHÔNG commit)
+
+---
+
+## Performance
+
+### Database Queries
+
+- **KHÔNG** dùng `SELECT *` — luôn select cụ thể columns
+- **KHÔNG** N+1 queries — dùng `IN` hoặc `JOIN` thay vì loop
+- Thêm index cho frequently queried columns:
+  ```typescript
+  @Index(['organizationId', 'status', 'dueDate'])
+  ```
+- Dùng pagination cho mọi list endpoint (`page`, `limit`)
+- `limit` tối đa 100, default 20
+
+### Caching
+
+- Không cache riêng — để TypeORM query cache hoặc Redis handle
+- Invalidate cache khi có write operation
+
+### Transaction Scope
+
+- Giữ transaction ngắn nhất có thể
+- KHÔNG gọi external API trong transaction
+- Lock chỉ giữ trong transaction, không lock ngoài
+
+---
+
+## Dependency Management
+
+### Thêm Package Mới
+
+Trước khi thêm dependency mới:
+
+1. **Kiểm tra** package đã có trong workspace chưa
+2. **Kiểm tra** stdlib làm được không
+3. **Kiểm tra** package có actively maintained không
+4. **Kiểm tra** bundle size có acceptabe không
+
+```bash
+# Kiểm tra package
+npm info <package> --json | jq '.time.modified, .dist-tags'
+```
+
+### Package Categories
+
+| Category | Allowed | Notes |
+|----------|---------|-------|
+| NestJS modules | `@nestjs/*` | Official NestJS packages |
+| TypeORM | `typeorm`, `@nestjs/typeorm` | Database ORM |
+| Validation | `class-validator`, `class-transformer` | DTO validation |
+| Queue | `bullmq`, `@nestjs/bullmq` | Job queue |
+| Email | `resend` | Email provider |
+| Testing | `jest`, `supertest`, `@testcontainers/*` | Test tools |
+| Utilities | `date-fns`, `zod` | Only if justified |
+
+### KHÔNG thêm
+
+- Lodash (dùng native JS methods)
+- Moment.js (dùng date-fns hoặc Intl)
+- Axios (dùng native fetch)
+- uuid (dùng crypto.randomUUID)
+
+---
+
+## Environment Variables
+
+### Required Variables
+
+```bash
+# Database
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=casso
+DB_PASSWORD=casso
+DB_DATABASE=casso_ledger
+
+# JWT
+JWT_SECRET=your-secret-key-here
+JWT_EXPIRATION=15m
+REFRESH_EXPIRATION=7d
+
+# Cas ID
+CAS_ID_CLIENT_ID=
+CAS_ID_CLIENT_SECRET=
+CAS_ID_BASE_URL=https://api.cas.so
+
+# Email (Resend)
+RESEND_API_KEY=
+AUTH_EMAIL_SENDER=noreply@casso.vn
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+```
+
+### Quy tắc
+
+- **KHÔNG** commit `.env` file
+- Luôn có `.env.example` với placeholder values
+- Validate required vars khi app startup
+- Dùng `process.env.VARIABLE ?? 'default'` cho optional vars
+- KHÔNG dùng `process.env.VARIABLE!` (non-null assertion)
+
+---
+
+## API Error Codes
+
+### Danh sách errorCode chuẩn
+
+| ErrorCode | HTTP Status | Mô tả |
+|-----------|-------------|-------|
+| `VALIDATION_ERROR` | 400 | Input validation failed |
+| `NOT_FOUND` | 404 | Resource not found |
+| `UNAUTHORIZED` | 401 | Missing or invalid auth |
+| `FORBIDDEN` | 403 | Insufficient permissions |
+| `CONFLICT` | 409 | Resource conflict (duplicate, etc.) |
+| `PLAN_LIMIT_EXCEEDED` | 402 | Billing quota exceeded |
+| `ALLOCATION_EXCEEDS_REMAINING` | 400 | Allocation > remaining amount |
+| `ALLOCATION_EXCEEDS_UNALLOCATED` | 400 | Allocation > unallocated payment |
+| `OPTIMISTIC_LOCK_CONFLICT` | 409 | Version mismatch (retry) |
+| `TENANT_MISMATCH` | 403 | Cross-tenant access denied |
+| `PAYMENT_CUSTOMER_UNRESOLVED` | 400 | Payment has no customer |
+| `CUSTOMER_MISMATCH` | 400 | Payment ≠ Receivable customer |
+| `RECEIVABLE_NOT_FOUND` | 404 | Receivable not found |
+| `PAYMENT_NOT_FOUND` | 404 | Payment not found |
+| `ALLOCATION_NOT_FOUND` | 404 | Allocation not found |
+| `ALLOCATION_ALREADY_UNDONE` | 409 | Allocation already undone |
+| `DISPUTE_ALREADY_OPEN` | 409 | Duplicate open dispute |
+| `RECEIVABLE_HAS_PAYMENTS` | 400 | Cannot cancel paid receivable |
+| `TEMPLATE_IN_USE` | 409 | Template referenced by rule |
+| `EMAIL_SEND_FAILED` | 500 | Email provider error |
+| `IDEMPOTENCY_KEY_REUSED` | 409 | Duplicate idempotency key |
+
+### Quy tắc dùng
+
+- `errorCode` là string ổn định, FE switch theo errorCode
+- `message` là text hiển thị cho user (tiếng Việt)
+- KHÔNG để FE parse message để quyết định logic
+
+---
+
 ## Forbidden Patterns
 
 ### NEVER
