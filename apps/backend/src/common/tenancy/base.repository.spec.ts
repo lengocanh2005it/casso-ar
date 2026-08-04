@@ -1,0 +1,59 @@
+import { Role } from '../../modules/organizations/domain/membership';
+import { BaseRepository } from './base.repository';
+import { TenantContextService } from './tenant-context';
+
+class FakeRepo extends BaseRepository<{
+  id: string;
+  organizationId: string;
+  name: string;
+}> {
+  findOne(where: { id: string }) {
+    return this.scopedFindOne(where);
+  }
+
+  save(entity: { id: string; organizationId: string; name: string }) {
+    return this.scopedSave(entity);
+  }
+}
+
+describe('BaseRepository', () => {
+  it('injects organizationId from TenantContext into findOne where clause', async () => {
+    const tenantContext = new TenantContextService();
+    const ormRepo = {
+      findOne: jest
+        .fn()
+        .mockResolvedValue({ id: '1', organizationId: 'org-1', name: 'x' }),
+    };
+    const repo = new FakeRepo(ormRepo as any, tenantContext);
+
+    await tenantContext.run(
+      { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+      async () => {
+        await repo.findOne({ id: '1' });
+      },
+    );
+
+    expect(ormRepo.findOne).toHaveBeenCalledWith({
+      where: { id: '1', organizationId: 'org-1' },
+    });
+  });
+
+  it('injects organizationId on save, overriding any value the caller set', async () => {
+    const tenantContext = new TenantContextService();
+    const ormRepo = { save: jest.fn() };
+    const repo = new FakeRepo(ormRepo as any, tenantContext);
+
+    await tenantContext.run(
+      { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+      async () => {
+        await repo.save({ id: '1', organizationId: 'WRONG', name: 'x' });
+      },
+    );
+
+    expect(ormRepo.save).toHaveBeenCalledWith({
+      id: '1',
+      organizationId: 'org-1',
+      name: 'x',
+    });
+  });
+});

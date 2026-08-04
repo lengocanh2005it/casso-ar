@@ -1,31 +1,40 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { EntityManager, Repository } from 'typeorm';
+import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
+import { BaseRepository } from '../../../common/tenancy/base.repository';
 import type { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { ICustomerRepository } from '../application/customer-repository.port';
 import type { Customer } from '../domain/customer';
 import { CustomerOrmEntity } from './customer.orm-entity';
 
 @Injectable()
-export class TypeOrmCustomerRepository implements ICustomerRepository {
+export class TypeOrmCustomerRepository
+  extends BaseRepository<CustomerOrmEntity>
+  implements ICustomerRepository
+{
   constructor(
     @InjectRepository(CustomerOrmEntity)
-    private readonly repo: Repository<CustomerOrmEntity>,
-    private readonly tenantContext: TenantContextService,
-  ) {}
+    repo: Repository<CustomerOrmEntity>,
+    tenantContext: TenantContextService,
+  ) {
+    super(repo, tenantContext);
+  }
 
   async findById(id: string): Promise<Customer | null> {
-    const row = await this.repo.findOne({
-      where: { id, organizationId: this.tenantContext.getOrganizationId() },
-    });
-    return row ?? null;
+    return this.scopedFindOne({
+      id,
+    } as FindOptionsWhere<CustomerOrmEntity>);
   }
 
   async save(customer: Customer, manager?: EntityManager): Promise<void> {
-    const repo = manager ? manager.getRepository(CustomerOrmEntity) : this.repo;
-    await repo.save({
-      ...customer,
-      organizationId: this.tenantContext.getOrganizationId(),
-    } as CustomerOrmEntity);
+    if (manager) {
+      const repo = manager.getRepository(CustomerOrmEntity);
+      await repo.save({
+        ...customer,
+        organizationId: this.tenantContext.getOrganizationId(),
+      } as CustomerOrmEntity);
+      return;
+    }
+    await this.scopedSave(customer as CustomerOrmEntity);
   }
 }

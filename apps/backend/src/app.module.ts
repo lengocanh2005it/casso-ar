@@ -6,7 +6,7 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtStrategy } from './common/auth/jwt.strategy';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
-import { TenantContextService } from './common/tenancy/tenant-context';
+import { TenancyModule } from './common/tenancy/tenancy.module';
 import { TenantContextInterceptor } from './common/tenancy/tenant-context.interceptor';
 import { typeOrmConfig } from './config/typeorm.config';
 import { CustomersModule } from './modules/customers/customers.module';
@@ -23,6 +23,7 @@ import { ReceivablesModule } from './modules/receivables/receivables.module';
       secret: process.env.JWT_SECRET ?? 'dev-only-change-me',
       signOptions: { expiresIn: '15m' },
     }),
+    TenancyModule,
     OrganizationsModule,
     CustomersModule,
     ReceivablesModule,
@@ -31,9 +32,7 @@ import { ReceivablesModule } from './modules/receivables/receivables.module';
   providers: [
     JwtStrategy,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
-    TenantContextService,
     { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
   ],
-  exports: [TenantContextService],
 })
 export class AppModule {}
