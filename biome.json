@@ -5,6 +5,18 @@
     "enabled": true,
     "rules": { "recommended": true }
   },
+  "overrides": [
+    {
+      "include": ["**/*.spec.ts", "**/*.test.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    }
+  ],
   "formatter": {
     "enabled": true,
     "indentStyle": "space",

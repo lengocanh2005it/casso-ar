@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ReceivablesModule } from '../receivables/receivables.module';
+import { AllocatePaymentUseCase } from './application/allocate-payment.usecase';
 import { PAYMENT_ALLOCATION_REPOSITORY } from './application/payment-allocation-repository.port';
 import { PAYMENT_REPOSITORY } from './application/payment-repository.port';
 import { PaymentAllocationOrmEntity } from './infrastructure/payment-allocation.orm-entity';
@@ -10,6 +12,7 @@ import { TypeOrmPaymentRepository } from './infrastructure/typeorm-payment.repos
 @Module({
   imports: [
     TypeOrmModule.forFeature([PaymentOrmEntity, PaymentAllocationOrmEntity]),
+    ReceivablesModule,
   ],
   providers: [
     { provide: PAYMENT_REPOSITORY, useClass: TypeOrmPaymentRepository },
@@ -17,7 +20,12 @@ import { TypeOrmPaymentRepository } from './infrastructure/typeorm-payment.repos
       provide: PAYMENT_ALLOCATION_REPOSITORY,
       useClass: TypeOrmPaymentAllocationRepository,
     },
+    AllocatePaymentUseCase,
   ],
-  exports: [PAYMENT_REPOSITORY, PAYMENT_ALLOCATION_REPOSITORY],
+  exports: [
+    PAYMENT_REPOSITORY,
+    PAYMENT_ALLOCATION_REPOSITORY,
+    AllocatePaymentUseCase,
+  ],
 })
 export class PaymentsModule {}
