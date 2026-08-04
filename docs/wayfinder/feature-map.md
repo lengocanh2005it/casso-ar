@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1 complete, Plan #2+ pending
+**Map mode**: chart — Plan #1, #2, #18 complete, Plan #3+ pending
 
 ---
 
@@ -77,8 +77,8 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Ticket Index
 
 **26 plans** | status snapshot (2026-08-04):
-- 🟢 done (2): Plan #1, Plan #18
-- 🔴 open/not started (24): Plan #2–#17, #19–#23 + 3 additional plans
+- 🟢 done (3): Plan #1, Plan #2, Plan #18
+- 🔴 open/not started (23): Plan #3–#17, #19–#23 + 3 additional plans
 
 ---
 
@@ -100,18 +100,21 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #2 — Multi-tenancy + RBAC
 - **Type**: task
-- **Status**: open
+- **Status**: done ✅
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-multi-tenancy-rbac-design.md`
+- **Plan**: `plans/2026-08-03-multi-tenancy-rbac.md`
 - **Blockers**: Plan #1 ✅
-- **Key entities**: `Organization`, `User`, `Membership`, `Role` (OWNER/FINANCE_MANAGER/ACCOUNTANT/SALES_REP/VIEWER), `Permission` (13 permissions)
+- **Shipped**: 2026-08-04 — branch `feat/multi-tenancy-rbac`, 14 commits (9 tasks + 1 final-review fix wave)
+- **Key entities**: `Organization`, `Membership`, `Role` (OWNER/FINANCE_MANAGER/ACCOUNTANT/SALES_REP/VIEWER), `Permission` (14 permissions)
 - **Key rules**:
-  - 5 static roles, 13 permissions
-  - `BaseRepository` auto-adds `WHERE organizationId`
-  - JWT strategy re-validates active Membership
-  - `EmailVerifiedGuard` global guard for business APIs
-  - SALES_REP only sees own customers (`WHERE salesRepresentativeId = ctx.userId`)
-- **Creates**: `common/tenancy/` (enhanced), `common/auth/` (JWT strategy, guards), `common/rbac/` (Permission enum, RequirePermission decorator, PermissionGuard), `organizations/` module, migrated repositories to use BaseRepository
+  - 5 static roles, 14 permissions, hardcoded `ROLE_PERMISSIONS` map (no DB tables)
+  - `BaseRepository` auto-adds `WHERE organizationId` from `TenantContextService` (AsyncLocalStorage)
+  - `JwtAuthGuard` (global) + `JwtStrategy` re-validates active Membership from DB, JWT `role` claim is not trusted
+  - `TenantContextInterceptor` (global) propagates the authenticated user through AsyncLocalStorage for the whole request lifecycle, including deferred/async handler execution
+  - Deleted pre-existing insecure `TenantMiddleware` (derived tenant context from unauthenticated request headers)
+- **Created**: `organizations/` module (Organization/Membership domain+infra), `common/tenancy/` (TenantContextService, BaseRepository, TenantContextInterceptor, TenancyModule), `common/auth/` (JwtStrategy, JwtAuthGuard, Public decorator), `common/rbac/` (Permission enum, ROLE_PERMISSIONS map, RequirePermission decorator, PermissionGuard), migrated Customer/Receivable/Payment repositories to `BaseRepository`, `WriteOffReceivableUseCase` + endpoint, `tenant-isolation.integration.spec.ts`
+- **Note**: no `invoices/` module exists in the codebase yet, so the plan's Invoice-repository migration step was skipped as inapplicable. Final whole-branch review (Opus) caught 3 Critical defects invisible to static verification (no Docker available in this environment for any task) — an `AsyncLocalStorage` propagation bug that would have 500'd every business request, an incomplete `import type`/NestJS-DI sweep that would have failed app boot, and a money-mutating endpoint with no permission check — all fixed and re-reviewed clean. **Recommend running the real e2e/integration suite with Docker before merge** — no task in this branch ever got a live Postgres/app-boot confirmation.
 
 ---
 
@@ -541,10 +544,13 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **Next available tickets** (all blockers resolved):
-- **Plan #2** (Multi-tenancy + RBAC) — blockers: Plan #1 ✅
+- **Plan #3** (Billing + Usage Metering) — blockers: Plan #1 ✅, Plan #2 ✅
+- **Plan #4** (Authentication + Onboarding) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #3
+- **Plan #9** (Dispute Management) — blockers: Plan #1 ✅, Plan #2 ✅
+- **Plan #11** (Internal Task + Escalation) — blockers: Plan #1 ✅, Plan #2 ✅
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3, Plan #18 ✅
 
 **Blocked tickets waiting:**
-- Plan #3–#17, #20–#23, additional plans — waiting on Plan #2 or other dependencies
+- Plan #5–#8, #10, #12–#17, #20–#23, additional plans — waiting on Plan #3/#4/#5/#6 or other dependencies
 
-**Recommended next step:** Start Plan #2 (Multi-tenancy + RBAC) — it unblocks Plans #3–#16.
+**Recommended next step:** Start Plan #3 (Billing + Usage Metering) — it and Plan #4 unblock most of the remaining backend lane.
