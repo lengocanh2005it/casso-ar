@@ -1,4 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
@@ -9,12 +10,15 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
+import { Role } from '../src/modules/organizations/domain/membership';
+import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
 import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment.orm-entity';
 
 describe('Payment allocation (integration)', () => {
   let container: StartedPostgreSqlContainer;
   let app: INestApplication;
   let dataSource: DataSource;
+  let jwtService: JwtService;
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16').start();
@@ -31,6 +35,7 @@ describe('Payment allocation (integration)', () => {
     app = moduleRef.createNestApplication();
     await app.init();
     dataSource = moduleRef.get(DataSource);
+    jwtService = moduleRef.get(JwtService);
   }, 60_000);
 
   afterAll(async () => {
@@ -42,6 +47,17 @@ describe('Payment allocation (integration)', () => {
     const organizationId = '00000000-0000-0000-0000-000000000001';
     const customerId = '00000000-0000-0000-0000-000000000002';
     const userId = '00000000-0000-0000-0000-000000000003';
+
+    await dataSource.getRepository(MembershipOrmEntity).save({
+      organizationId,
+      userId,
+      role: Role.OWNER,
+      invitedAt: new Date(),
+      joinedAt: new Date(),
+      createdAt: new Date(),
+    });
+
+    const token = jwtService.sign({ userId, organizationId, role: Role.OWNER });
 
     await dataSource.getRepository(CustomerOrmEntity).save({
       id: customerId,
@@ -58,6 +74,7 @@ describe('Payment allocation (integration)', () => {
 
     const createReceivableRes = await request(app.getHttpServer())
       .post('/api/v1/receivables')
+      .set('Authorization', `Bearer ${token}`)
       .send({
         organizationId,
         customerId,
@@ -83,6 +100,7 @@ describe('Payment allocation (integration)', () => {
 
     await request(app.getHttpServer())
       .post(`/api/v1/payments/${paymentId}/allocate`)
+      .set('Authorization', `Bearer ${token}`)
       .send({
         receivableId,
         amount: 30_000_000,
