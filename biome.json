@@ -4,6 +4,9 @@
     "enabled": true,
     "rules": { "recommended": true }
   },
+  "files": {
+    "includes": ["**", "!**/*.css"]
+  },
   "overrides": [
     {
       "includes": ["**/*.spec.ts", "**/*.test.ts"],
