@@ -9,6 +9,7 @@ import {
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { configureApp } from '../src/configure-app';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
@@ -46,6 +47,7 @@ describe('Tenant isolation and RBAC (integration)', () => {
       imports: [AppModule],
     }).compile();
     app = moduleRef.createNestApplication();
+    configureApp(app);
     await app.init();
     dataSource = moduleRef.get(DataSource);
     jwtService = moduleRef.get(JwtService);
@@ -124,7 +126,7 @@ describe('Tenant isolation and RBAC (integration)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/receivables/${receivableId}/write-off`)
       .set('Authorization', `Bearer ${tokenOrgB}`)
-      .expect(500); // Receivable not found — thrown as a plain Error in this plan's use case
+      .expect(404); // Receivable not found (tenant-scoped) — NotFoundException, errorCode RECEIVABLE_NOT_FOUND
   });
 
   it('ACCOUNTANT role is rejected from RECEIVABLE_WRITE_OFF by PermissionGuard', async () => {

@@ -8,6 +8,7 @@ import { JwtStrategy } from './common/auth/jwt.strategy';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { TenancyModule } from './common/tenancy/tenancy.module';
 import { TenantContextInterceptor } from './common/tenancy/tenant-context.interceptor';
+import { getJwtSecret } from './config/jwt.config';
 import { typeOrmConfig } from './config/typeorm.config';
 import { CustomersModule } from './modules/customers/customers.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
@@ -20,7 +21,7 @@ import { ReceivablesModule } from './modules/receivables/receivables.module';
     TypeOrmModule.forRoot(typeOrmConfig),
     PassportModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET ?? 'dev-only-change-me',
+      secret: getJwtSecret(),
       signOptions: { expiresIn: '15m' },
     }),
     TenancyModule,

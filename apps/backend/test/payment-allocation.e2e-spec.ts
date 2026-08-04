@@ -9,6 +9,7 @@ import {
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { configureApp } from '../src/configure-app';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
@@ -33,6 +34,7 @@ describe('Payment allocation (integration)', () => {
       imports: [AppModule],
     }).compile();
     app = moduleRef.createNestApplication();
+    configureApp(app);
     await app.init();
     dataSource = moduleRef.get(DataSource);
     jwtService = moduleRef.get(JwtService);
