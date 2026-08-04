@@ -1,12 +1,19 @@
 # Casso Ledger
 
-Nền tảng B2B SaaS tự động hóa quản lý & thu hồi công nợ doanh nghiệp, dựa trên dữ liệu giao dịch ngân hàng thời gian thực (Cas ID + CASSO Balance Hook): tự đối soát giao dịch với hóa đơn, tự nhắc khách theo lịch, tự đóng công nợ khi nhận đủ tiền.
+Nền tảng B2B SaaS tự động hóa quản lý & thu hồi công nợ doanh nghiệp, dựa trên dữ liệu giao dịch ngân hàng thời gian thực (Cas ID + CASSO Balance Hook).
 
-## Trạng thái
+## Tech Stack
 
-✅ **Plan #1 hoàn thành** — Monorepo scaffold + Domain Core (Customer, Invoice, Receivable, Payment, PaymentAllocation)
-
-📦 Tech stack: NestJS 11 · TypeORM 1.1 · PostgreSQL 16 · React 19 · Vite 8 · TypeScript 6.0 · Biome 2.5
+| Layer | Technology |
+|-------|-----------|
+| Monorepo | pnpm 11 + Turborepo |
+| Backend | NestJS 11, TypeORM 1.1, PostgreSQL 16 |
+| Frontend | React 19, Vite 6, Tailwind v4, shadcn/ui |
+| Queue | BullMQ + Redis |
+| Email | Resend |
+| Tooling | Biome 2, Husky + lint-staged |
+| Testing | Jest 30 + Vitest 3.2 + testcontainers |
+| TypeScript | 6.0 |
 
 ## Quick Start
 
@@ -18,45 +25,48 @@ pnpm install
 docker compose up -d postgres redis
 pnpm dev:backend
 
+# Start frontend
+pnpm dev:frontend
+
 # Run tests
 pnpm test
 ```
 
-## Kiến trúc
+## Project Structure
 
 ```
 casso-ledger/
   apps/
-    backend/       NestJS 11, Clean Architecture 4 layers
-    frontend/      React 19 + Vite (planned)
+    backend/          NestJS 11, Clean Architecture 4 layers
+    frontend/         React 19 + Vite + Tailwind v4
   packages/
-    shared-types/  Enum/status dùng chung BE/FE
+    shared-types/     Enum/status dùng chung BE/FE
 ```
 
-Chi tiết: [docs/overview.md](docs/overview.md)
+## Documentation
 
-## Tài liệu
-
-| Nội dung | Đường dẫn |
-|---|---|
-| Tổng quan sản phẩm, module, business rules | [docs/overview.md](docs/overview.md) |
-| Feature map (implementation tracking) | [docs/wayfinder/feature-map.md](docs/wayfinder/feature-map.md) |
-| Spec chi tiết từng module | [docs/superpowers/specs/](docs/superpowers/specs/) |
-| Kế hoạch triển khai | [docs/superpowers/plans/](docs/superpowers/plans/) |
-| Architecture Decision Records | [docs/adr/](docs/adr/) |
+| Document | Path |
+|----------|------|
+| Product overview | [docs/overview.md](docs/overview.md) |
+| Feature map | [docs/wayfinder/feature-map.md](docs/wayfinder/feature-map.md) |
+| Module specs | [docs/superpowers/specs/](docs/superpowers/specs/) |
+| Implementation plans | [docs/superpowers/plans/](docs/superpowers/plans/) |
+| Architecture decisions | [docs/adr/](docs/adr/) |
 | Agent instructions | [CLAUDE.md](CLAUDE.md) |
-| Coding rules cho mọi agent | [AGENTS.md](AGENTS.md) |
+| Coding rules | [AGENTS.md](AGENTS.md) |
 
-## Available Commands
+## Commands
 
 ```bash
 pnpm install              # Install all deps
 pnpm dev:backend          # Start backend in watch mode
-pnpm test                 # Run all unit tests
+pnpm dev:frontend         # Start frontend in watch mode
+pnpm test                 # Run all tests
 pnpm lint                 # Lint all packages
 pnpm format               # Format with Biome
+pnpm verify               # lint + type-check + test
 ```
 
 ## License
 
-Private / nội bộ CASSO — chưa xác định license công khai.
+Private / nội bộ CASSO.
