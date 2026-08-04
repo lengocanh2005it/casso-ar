@@ -1,4 +1,5 @@
 import { Body, Controller, Param, Post } from '@nestjs/common';
+import type { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { AllocatePaymentUseCase } from '../application/allocate-payment.usecase';
 import type { UndoPaymentAllocationUseCase } from '../application/undo-payment-allocation.usecase';
 import type { AllocatePaymentDto } from './dto/allocate-payment.dto';
@@ -9,6 +10,7 @@ export class PaymentsController {
   constructor(
     private readonly allocatePaymentUseCase: AllocatePaymentUseCase,
     private readonly undoPaymentAllocationUseCase: UndoPaymentAllocationUseCase,
+    private readonly tenantContext: TenantContextService,
   ) {}
 
   @Post(':id/allocate')
@@ -20,7 +22,7 @@ export class PaymentsController {
       paymentId,
       receivableId: dto.receivableId,
       amount: dto.amount,
-      allocatedByUserId: null,
+      allocatedByUserId: this.tenantContext.getCurrentUser()?.userId ?? null,
     });
     return { success: true };
   }

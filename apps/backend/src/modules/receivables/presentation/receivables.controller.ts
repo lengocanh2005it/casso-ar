@@ -1,6 +1,7 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import type { CreateReceivableUseCase } from '../application/create-receivable.usecase';
+import type { WriteOffReceivableUseCase } from '../application/write-off-receivable.usecase';
 import type { CreateReceivableDto } from './dto/create-receivable.dto';
 import { toReceivableResponse } from './dto/receivable-response.dto';
 
@@ -9,6 +10,7 @@ import { toReceivableResponse } from './dto/receivable-response.dto';
 export class ReceivablesController {
   constructor(
     private readonly createReceivableUseCase: CreateReceivableUseCase,
+    private readonly writeOffReceivableUseCase: WriteOffReceivableUseCase,
   ) {}
 
   @Post()
@@ -20,6 +22,12 @@ export class ReceivablesController {
       dueDate: new Date(dto.dueDate),
       salesRepresentativeId: dto.salesRepresentativeId ?? null,
     });
+    return toReceivableResponse(receivable);
+  }
+
+  @Post(':id/write-off')
+  async writeOff(@Param('id') id: string) {
+    const receivable = await this.writeOffReceivableUseCase.execute(id);
     return toReceivableResponse(receivable);
   }
 }
