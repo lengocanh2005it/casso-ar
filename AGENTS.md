@@ -160,6 +160,40 @@ Examples:
 - `fix/<name>` — bug fixes
 - `chore/<name>` — maintenance
 
+### Workflow: Bắt đầu ticket mới
+
+**BẮT BUỘC** khi bắt đầu implement một ticket từ `docs/wayfinder/feature-map.md`:
+
+1. **Tạo worktree** trong `.worktrees/`:
+```bash
+git worktree add .worktrees/feat/<ticket-name> -b feat/<ticket-name>
+```
+
+2. **Làm việc trên worktree** đó, KHÔNG làm trên `main`
+
+3. **Khi hoàn thành**:
+```bash
+cd .worktrees/feat/<ticket-name>
+git add -A
+git commit -m "feat: <mô tả>"
+git push -u origin feat/<ticket-name>
+gh pr create --title "feat: <mô tả>" --body "Closes #<issue>"
+```
+
+4. **Chờ user review** trước khi merge
+
+5. **Dọn dẹp** sau khi merge:
+```bash
+git worktree remove .worktrees/feat/<ticket-name>
+git branch -d feat/<ticket-name>
+```
+
+**LƯU Ý:**
+- Mỗi ticket = 1 worktree riêng
+- Không bao giờ code trực tiếp trên `main`
+- PR phải có test pass + type check pass
+- Update feature-map.md status khi bắt đầu/kết thúc ticket
+
 ---
 
 ## Forbidden Patterns
