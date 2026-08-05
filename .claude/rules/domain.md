@@ -12,3 +12,4 @@ paths:
 - Use `node:` protocol for Node.js builtins (`import { randomUUID } from 'node:crypto'`)
 - Interface for data-only types, class for types with behavior
 - KHÔNG dùng `any` trong production code
+- KHÔNG import từ application/, infrastructure/, hay presentation/ — domain là lõi, chỉ được phụ thuộc chính nó

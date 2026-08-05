@@ -14,7 +14,12 @@ Each NestJS module is organized into 4 layers:
 domain/           Entity, state machine, domain error
                   MUST NOT import NestJS/TypeORM
 application/      Use case + port interface (I<Entity>Repository)
-infrastructure/   TypeORM repository, adapters
+                  MUST NOT import concrete SDK/integration libraries
+                  (@nestjs/jwt, resend, ...) or throw HttpException —
+                  throw AppError, port every external integration.
+                  Allowed: @Injectable/@Inject, DataSource/EntityManager
+                  for cross-repository transactions, bcryptjs.
+infrastructure/   TypeORM repository, adapters (Resend, Cas ID)
 presentation/     Controller, DTO, DI wiring
 ```
 
@@ -279,12 +284,20 @@ enum ErrorCode {
 ```typescript
 // ✅ Correct
 if (amount > remaining) {
-  throw new Error('Allocation amount exceeds remaining amount');
+  throw new AppError(
+    ErrorCode.ALLOCATION_EXCEEDS_REMAINING,
+    'Allocation amount exceeds remaining amount',
+  );
 }
+
+// ❌ Incorrect — application layer must not know about HTTP
+throw new HttpException({ statusCode: 400, ... }, 400);
 
 // ❌ Incorrect
 return { success: false, error: 'Invalid amount' };
 ```
+
+`AppError` (`apps/backend/src/common/errors/app-error.ts`) is the only exception type application/domain code throws; `HttpExceptionFilter` (presentation layer) is the single place that translates it to an HTTP response.
 
 ---
 
