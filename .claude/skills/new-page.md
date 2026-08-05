@@ -4,7 +4,7 @@ Create a new page with route, layout, and placeholder content.
 
 ## When to use
 
-User says: "tạo trang mới", "new page", "thêm route"
+User says: "create a new page", "new page", "add route"
 
 ## File Structure
 

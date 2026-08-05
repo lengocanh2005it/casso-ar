@@ -95,20 +95,20 @@ export class JwtTokenSigner implements ITokenSigner {
 
 **`domain.md`** — add:
 ```
-- KHÔNG import từ application/, infrastructure/, hay presentation/ — domain là lõi, chỉ được phụ thuộc chính nó
+- MUST NOT import from application/, infrastructure/, or presentation/ — domain is the core and may depend only on itself
 ```
 
 **`infrastructure.md`** — add:
 ```
-- KHÔNG import infrastructure/ của module khác trực tiếp — muốn dùng dữ liệu module khác, đi qua port ở application/
-- Query tra bằng token/hash bí mật (email-verification, refresh-token, password-reset) KHÔNG cần scope organizationId — token tự nó là khóa tra cứu trước khi biết tenant. Đây là exception có chủ đích, không phải bug.
+- MUST NOT import another module's infrastructure/ directly — access another module's data through a port in application/
+- Queries by secret token/hash (email-verification, refresh-token, password-reset) do not need organizationId scoping — the token itself is the lookup key before the tenant is known. This is an intentional exception, not a bug.
 ```
 
 **`api.md`** — replace the unconditional `@RequirePermission()` line, which is currently wrong as stated (it would tell a future agent to add permission checks to `login`/`signup`/`verify-email`/`refresh`, breaking pre-auth flows):
 ```
-- Mọi endpoint yêu cầu đã đăng nhập (có JwtAuthGuard) PHẢI có `@RequirePermission()`.
-- Endpoint tiền-xác thực (login, signup, verify-email, refresh, forgot-password) KHÔNG cần — chưa có identity để check quyền.
-- Controller KHÔNG import trực tiếp từ infrastructure/ hay repository port — chỉ gọi use case.
+- Every authenticated endpoint (with JwtAuthGuard) MUST have `@RequirePermission()`.
+- Pre-authentication endpoints (login, signup, verify-email, refresh, forgot-password) do not need it — there is no identity to check permissions against yet.
+- Controllers MUST NOT import infrastructure/ or repository ports directly — they only call use cases.
 ```
 
 **AGENTS.md**:

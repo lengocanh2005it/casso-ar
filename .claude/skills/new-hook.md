@@ -4,7 +4,7 @@ Create a new React hook for data fetching or business logic.
 
 ## When to use
 
-User says: "tạo hook", "new hook", "thêm hook"
+User says: "create hook", "new hook", "add hook"
 
 ## File Structure
 

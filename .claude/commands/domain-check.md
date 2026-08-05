@@ -1,7 +1,7 @@
 Check domain rules compliance in the codebase.
 
 Search for:
-1. `float` or `decimal` used for money amounts (should be integer đồng)
+1. `float` or `decimal` used for money amounts (should be integer VND units)
 2. Missing `organizationId` in queries (tenant isolation)
 3. Domain imports from NestJS/TypeORM (should be clean)
 4. Missing transaction wrappers for write operations

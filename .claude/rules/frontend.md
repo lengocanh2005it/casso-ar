@@ -30,7 +30,7 @@ apps/frontend/src/
 - Only move to `components/` when shared by 2+ features (Rule of Two)
 - All API calls use `/api/v1` prefix via `lib/api-client.ts`
 - RBAC: `hasPermission(role, permission)` — hide button, never disable
-- Money: `formatVND()` utility, integer đồng, never float
+- Money: `formatVND()` utility, integer VND units, never float
 - Types from `@casso-ledger/shared-types`
 - No `any` in production code
 - Use `node:` protocol for Node.js builtins

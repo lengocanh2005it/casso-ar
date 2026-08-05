@@ -13,8 +13,8 @@ paths:
 - Use `class-validator` decorators on all DTOs
 - POST endpoints accept `Idempotency-Key` header
 - Controller ONLY calls use case — no business logic
-- Endpoint yêu cầu đã đăng nhập (có `JwtAuthGuard`) PHẢI có `@RequirePermission()`
-- Endpoint tiền-xác thực (login, signup, verify-email, refresh, forgot-password) KHÔNG cần `@RequirePermission()` — chưa có identity để check quyền
-- Controller KHÔNG import trực tiếp từ infrastructure/ hay repository port — chỉ gọi use case
+- Authenticated endpoints (with `JwtAuthGuard`) MUST have `@RequirePermission()`
+- Pre-authentication endpoints (login, signup, verify-email, refresh, forgot-password) do NOT need `@RequirePermission()` — there is no identity to check permissions against yet
+- Controllers MUST NOT import directly from infrastructure/ or repository ports — they only call use cases
 - Error codes: `VALIDATION_ERROR`, `NOT_FOUND`, `UNAUTHORIZED`, `FORBIDDEN`, `CONFLICT`
-- Endpoint POST/PATCH/DELETE có tác dụng phụ (ghi dữ liệu) PHẢI wrap handler bằng `IdempotencyService.execute(key, dto, callback)` (`common/idempotency/idempotency.service.ts`) — xem `receivables.controller.ts`/`payments.controller.ts` làm ví dụ. KHÔNG tự chế cách xử lý `Idempotency-Key` khác.
+- POST/PATCH/DELETE endpoints with side effects (data writes) MUST wrap the handler with `IdempotencyService.execute(key, dto, callback)` (`common/idempotency/idempotency.service.ts`) — see `receivables.controller.ts`/`payments.controller.ts` for examples. Do NOT invent another way to handle `Idempotency-Key`.

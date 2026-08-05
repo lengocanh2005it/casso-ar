@@ -4,7 +4,7 @@ Create a new use case with unit test.
 
 ## When to use
 
-User says: "tạo use case", "new use case for X", "thêm chức năng Y"
+User says: "create a use case", "new use case for X", "add feature Y"
 
 ## File naming
 

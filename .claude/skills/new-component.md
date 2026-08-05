@@ -4,7 +4,7 @@ Create a new React component.
 
 ## When to use
 
-User says: "tạo component", "new component", "thêm component"
+User says: "create component", "new component", "add component"
 
 ## File Structure
 

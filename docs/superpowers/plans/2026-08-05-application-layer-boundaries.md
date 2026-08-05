@@ -41,36 +41,36 @@ import { AppError } from './app-error';
 ```ts
   it('maps AppError to the standard envelope using the error code', () => {
     expect(
-      captureResponse(new AppError(ErrorCode.UNAUTHORIZED, 'Sai mật khẩu.')),
+      captureResponse(new AppError(ErrorCode.UNAUTHORIZED, 'Incorrect password.')),
     ).toEqual({
       statusCode: 401,
       errorCode: ErrorCode.UNAUTHORIZED,
-      message: 'Sai mật khẩu.',
+      message: 'Incorrect password.',
     });
   });
 
   it('maps AppError with details to the standard envelope', () => {
     expect(
       captureResponse(
-        new AppError(ErrorCode.PLAN_LIMIT_EXCEEDED, 'Đã đạt giới hạn gói.', {
+        new AppError(ErrorCode.PLAN_LIMIT_EXCEEDED, 'Plan limit reached.', {
           planId: 'FREE',
         }),
       ),
     ).toEqual({
       statusCode: 402,
       errorCode: ErrorCode.PLAN_LIMIT_EXCEEDED,
-      message: 'Đã đạt giới hạn gói.',
+      message: 'Plan limit reached.',
       details: { planId: 'FREE' },
     });
   });
 
   it('maps AppError with an unmapped error code to 500', () => {
     expect(
-      captureResponse(new AppError(ErrorCode.EMAIL_SEND_FAILED, 'Gửi email thất bại.')),
+      captureResponse(new AppError(ErrorCode.EMAIL_SEND_FAILED, 'Failed to send email.')),
     ).toEqual({
       statusCode: 500,
       errorCode: ErrorCode.EMAIL_SEND_FAILED,
-      message: 'Gửi email thất bại.',
+      message: 'Failed to send email.',
     });
   });
 ```
@@ -291,7 +291,7 @@ Replace both throw sites — first:
         {
           statusCode: 401,
           errorCode: ErrorCode.UNAUTHORIZED,
-          message: 'Email hoặc mật khẩu không đúng.',
+          message: 'Incorrect email or password.',
         },
         401,
       );
@@ -300,7 +300,7 @@ Replace both throw sites — first:
 with:
 
 ```ts
-      throw new AppError(ErrorCode.UNAUTHORIZED, 'Email hoặc mật khẩu không đúng.');
+      throw new AppError(ErrorCode.UNAUTHORIZED, 'Incorrect email or password.');
 ```
 
 second:
@@ -310,7 +310,7 @@ second:
         {
           statusCode: 403,
           errorCode: ErrorCode.FORBIDDEN,
-          message: 'Tài khoản chưa thuộc tổ chức nào.',
+          message: 'The account does not belong to any organization.',
         },
         403,
       );
@@ -319,7 +319,7 @@ second:
 with:
 
 ```ts
-      throw new AppError(ErrorCode.FORBIDDEN, 'Tài khoản chưa thuộc tổ chức nào.');
+      throw new AppError(ErrorCode.FORBIDDEN, 'The account does not belong to any organization.');
 ```
 
 Replace the sign call:
@@ -441,7 +441,7 @@ Replace the three throw sites (all identical in this file, appearing twice with 
         {
           statusCode: 401,
           errorCode: ErrorCode.UNAUTHORIZED,
-          message: 'Refresh token không hợp lệ hoặc đã hết hạn.',
+          message: 'The refresh token is invalid or expired.',
         },
         401,
       );
@@ -452,7 +452,7 @@ with (both occurrences):
 ```ts
       throw new AppError(
         ErrorCode.UNAUTHORIZED,
-        'Refresh token không hợp lệ hoặc đã hết hạn.',
+        'The refresh token is invalid or expired.',
       );
 ```
 
@@ -463,7 +463,7 @@ and:
           {
             statusCode: 403,
             errorCode: ErrorCode.FORBIDDEN,
-            message: 'Tài khoản chưa thuộc tổ chức nào.',
+          message: 'The account does not belong to any organization.',
           },
           403,
         );
@@ -472,7 +472,7 @@ and:
 with:
 
 ```ts
-        throw new AppError(ErrorCode.FORBIDDEN, 'Tài khoản chưa thuộc tổ chức nào.');
+        throw new AppError(ErrorCode.FORBIDDEN, 'The account does not belong to any organization.');
 ```
 
 Replace the sign call:
@@ -529,7 +529,7 @@ export class SwitchOrganizationUseCase {
         {
           statusCode: 403,
           errorCode: ErrorCode.FORBIDDEN,
-          message: 'Người dùng không thuộc tổ chức này.',
+          message: 'The user does not belong to this organization.',
         },
         403,
       );
@@ -574,7 +574,7 @@ export class SwitchOrganizationUseCase {
       organizationId,
     );
     if (!membership?.isActive()) {
-      throw new AppError(ErrorCode.FORBIDDEN, 'Người dùng không thuộc tổ chức này.');
+      throw new AppError(ErrorCode.FORBIDDEN, 'The user does not belong to this organization.');
     }
     return {
       accessToken: this.tokenSigner.sign({
@@ -616,7 +616,7 @@ Replace all 4 throw sites:
         {
           statusCode: 400,
           errorCode: ErrorCode.VALIDATION_ERROR,
-          message: 'Lời mời đã hết hạn hoặc đã được sử dụng.',
+          message: 'The invitation has expired or has already been used.',
         },
         400,
       );
@@ -625,7 +625,7 @@ Replace all 4 throw sites:
 ```ts
       throw new AppError(
         ErrorCode.VALIDATION_ERROR,
-        'Lời mời đã hết hạn hoặc đã được sử dụng.',
+        'The invitation has expired or has already been used.',
       );
 ```
 
@@ -634,7 +634,7 @@ Replace all 4 throw sites:
         {
           statusCode: 401,
           errorCode: ErrorCode.UNAUTHORIZED,
-          message: 'Người dùng hiện tại phải đăng nhập để nhận lời mời.',
+          message: 'The current user must be logged in to accept the invitation.',
         },
         401,
       );
@@ -643,7 +643,7 @@ Replace all 4 throw sites:
 ```ts
       throw new AppError(
         ErrorCode.UNAUTHORIZED,
-        'Người dùng hiện tại phải đăng nhập để nhận lời mời.',
+        'The current user must be logged in to accept the invitation.',
       );
 ```
 
@@ -652,7 +652,7 @@ Replace all 4 throw sites:
           {
             statusCode: 400,
             errorCode: ErrorCode.VALIDATION_ERROR,
-            message: 'Mật khẩu là bắt buộc để tạo tài khoản mới.',
+            message: 'A password is required to create a new account.',
           },
           400,
         );
@@ -661,7 +661,7 @@ Replace all 4 throw sites:
 ```ts
         throw new AppError(
           ErrorCode.VALIDATION_ERROR,
-          'Mật khẩu là bắt buộc để tạo tài khoản mới.',
+          'A password is required to create a new account.',
         );
 ```
 
@@ -670,7 +670,7 @@ Replace all 4 throw sites:
         {
           statusCode: 409,
           errorCode: ErrorCode.CONFLICT,
-          message: 'Người dùng đã là thành viên của tổ chức này.',
+            message: 'The user is already a member of this organization.',
         },
         409,
       );
@@ -679,7 +679,7 @@ Replace all 4 throw sites:
 ```ts
       throw new AppError(
         ErrorCode.CONFLICT,
-        'Người dùng đã là thành viên của tổ chức này.',
+        'The user is already a member of this organization.',
       );
 ```
 
@@ -733,7 +733,7 @@ Replace both throw sites:
           {
             statusCode: 400,
             errorCode: ErrorCode.VALIDATION_ERROR,
-            message: 'Mã đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',
+            message: 'The password reset token is invalid or expired.',
           },
           400,
         );
@@ -742,7 +742,7 @@ Replace both throw sites:
 ```ts
         throw new AppError(
           ErrorCode.VALIDATION_ERROR,
-          'Mã đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',
+          'The password reset token is invalid or expired.',
         );
 ```
 
@@ -753,7 +753,7 @@ Replace both throw sites:
           {
             statusCode: 404,
             errorCode: ErrorCode.NOT_FOUND,
-            message: 'Không tìm thấy người dùng.',
+            message: 'User not found.',
           },
           404,
         );
@@ -762,7 +762,7 @@ Replace both throw sites:
 ```ts
       const user = await this.userRepo.findById(resetToken.userId, manager);
       if (!user) {
-        throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy người dùng.');
+        throw new AppError(ErrorCode.NOT_FOUND, 'User not found.');
       }
 ```
 
@@ -816,7 +816,7 @@ Replace the throw site:
         {
           statusCode: 409,
           errorCode: ErrorCode.CONFLICT,
-          message: 'Email đã được đăng ký.',
+          message: 'The email is already registered.',
         },
         409,
       );
@@ -825,7 +825,7 @@ Replace the throw site:
 with:
 
 ```ts
-      throw new AppError(ErrorCode.CONFLICT, 'Email đã được đăng ký.');
+      throw new AppError(ErrorCode.CONFLICT, 'The email is already registered.');
 ```
 
 - [ ] **Step 15: Update `signup.usecase.spec.ts`**
@@ -874,7 +874,7 @@ Replace both throw sites:
         {
           statusCode: 400,
           errorCode: ErrorCode.VALIDATION_ERROR,
-          message: 'Mã xác thực email không hợp lệ hoặc đã hết hạn.',
+          message: 'The email verification token is invalid or expired.',
         },
         400,
       );
@@ -883,7 +883,7 @@ Replace both throw sites:
 ```ts
       throw new AppError(
         ErrorCode.VALIDATION_ERROR,
-        'Mã xác thực email không hợp lệ hoặc đã hết hạn.',
+        'The email verification token is invalid or expired.',
       );
 ```
 
@@ -892,14 +892,14 @@ Replace both throw sites:
           {
             statusCode: 404,
             errorCode: ErrorCode.NOT_FOUND,
-            message: 'Không tìm thấy người dùng.',
+            message: 'User not found.',
           },
           404,
         );
 ```
 →
 ```ts
-        throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy người dùng.');
+        throw new AppError(ErrorCode.NOT_FOUND, 'User not found.');
 ```
 
 - [ ] **Step 17: Update `verify-email.usecase.spec.ts`**
@@ -1046,7 +1046,7 @@ Replace:
         throw new NotFoundException({
           statusCode: 404,
           errorCode: ErrorCode.RECEIVABLE_NOT_FOUND,
-          message: 'Không tìm thấy khoản phải thu.',
+          message: 'Receivable not found.',
         });
       }
 ```
@@ -1057,12 +1057,12 @@ with:
       if (!receivable) {
         throw new AppError(
           ErrorCode.RECEIVABLE_NOT_FOUND,
-          'Không tìm thấy khoản phải thu.',
+          'Receivable not found.',
         );
       }
 ```
 
-(`write-off-receivable.usecase.spec.ts` asserts only `.rejects.toThrow('Không tìm thấy khoản phải thu.')` — `AppError` preserves `message` via `super(message)`, so no test change is needed.)
+(`write-off-receivable.usecase.spec.ts` asserts only `.rejects.toThrow('Receivable not found.')` — `AppError` preserves `message` via `super(message)`, so no test change is needed.)
 
 - [ ] **Step 4: Run billing and receivables tests**
 
@@ -1104,25 +1104,25 @@ paths:
 
 # Application Layer Rules
 
-- Use case chỉ phụ thuộc port (`I<Entity>Repository`, `I<Thing>`) và domain.
-- KHÔNG import SDK/thư viện tích hợp cụ thể (`@nestjs/jwt`, `@nestjs/passport`,
-  `resend`, Cas ID client...) — định nghĩa port riêng, implement adapter ở
-  `infrastructure/`. Xem `ITokenSigner` (`modules/auth/application/token-signer.port.ts`)
-  làm ví dụ.
-- KHÔNG throw `HttpException`, `NotFoundException`, `UnauthorizedException`,
-  `BadRequestException`, `ConflictException`, `ForbiddenException`, hay bất kỳ
-  exception class nào từ `@nestjs/common` — throw `AppError(errorCode, message, details?)`
-  (`common/errors/app-error.ts`). `HttpExceptionFilter` (presentation) là nơi
-  duy nhất dịch lỗi sang HTTP status.
-- ĐƯỢC PHÉP (không phải vi phạm, không "sửa" các chỗ này):
-  - `@Injectable()`/`@Inject()` từ `@nestjs/common` — decorator DI thuần, không
-    mang logic nghiệp vụ.
-  - `DataSource`/`EntityManager` từ `typeorm` khi cần mở transaction xuyên
-    nhiều repository trong 1 use case (xem AGENTS.md).
-  - `bcryptjs` — thuật toán băm thuần, không cần DI/config, cùng loại với
+- Use cases depend only on ports (`I<Entity>Repository`, `I<Thing>`) and the domain.
+- MUST NOT import specific SDKs/integration libraries (`@nestjs/jwt`, `@nestjs/passport`,
+  `resend`, Cas ID client...) — define a dedicated port and implement the adapter in
+  `infrastructure/`. See `ITokenSigner` (`modules/auth/application/token-signer.port.ts`)
+  as an example.
+- MUST NOT throw `HttpException`, `NotFoundException`, `UnauthorizedException`,
+  `BadRequestException`, `ConflictException`, `ForbiddenException`, or any
+  any exception class from `@nestjs/common` — throw `AppError(errorCode, message, details?)`
+  (`common/errors/app-error.ts`). `HttpExceptionFilter` (presentation) is the
+  only place that translates errors into HTTP status codes.
+- ALLOWED (not violations; do not "fix" these locations):
+  - `@Injectable()`/`@Inject()` from `@nestjs/common` — inert DI decorators with no
+    business logic.
+  - `DataSource`/`EntityManager` from `typeorm` when opening a transaction across
+    multiple repositories in one use case (see AGENTS.md).
+  - `bcryptjs` — a stateless hashing algorithm that needs no DI/config, like
     `node:crypto`.
-- File: `*.usecase.ts` cho use case, `*-repository.port.ts` / `*-<thing>.port.ts`
-  cho port. DI token: `Symbol('X_REPOSITORY')` / `Symbol('X')`.
+- Files: `*.usecase.ts` for use cases, `*-repository.port.ts` / `*-<thing>.port.ts`
+  for ports. DI tokens: `Symbol('X_REPOSITORY')` / `Symbol('X')`.
 ```
 
 - [ ] **Step 2: Edit `.claude/rules/domain.md`**
@@ -1130,7 +1130,7 @@ paths:
 Add as the last bullet:
 
 ```
-- KHÔNG import từ application/, infrastructure/, hay presentation/ — domain là lõi, chỉ được phụ thuộc chính nó
+- MUST NOT import from application/, infrastructure/, or presentation/ — domain is the core and may depend only on itself
 ```
 
 - [ ] **Step 3: Edit `.claude/rules/infrastructure.md`**
@@ -1138,8 +1138,8 @@ Add as the last bullet:
 Add as the last two bullets:
 
 ```
-- KHÔNG import infrastructure/ của module khác trực tiếp — muốn dùng dữ liệu module khác, đi qua port ở application/
-- Query tra bằng token/hash bí mật (email-verification, refresh-token, password-reset) KHÔNG cần scope organizationId — token tự nó là khóa tra cứu trước khi biết tenant. Đây là exception có chủ đích, không phải bug.
+- MUST NOT import another module's infrastructure/ directly — access another module's data through a port in application/
+- Queries by secret token/hash (email-verification, refresh-token, password-reset) do not need organizationId scoping — the token itself is the lookup key before the tenant is known. This is an intentional exception, not a bug.
 ```
 
 - [ ] **Step 4: Edit `.claude/rules/api.md`**
@@ -1153,9 +1153,9 @@ Replace:
 with:
 
 ```
-- Endpoint yêu cầu đã đăng nhập (có `JwtAuthGuard`) PHẢI có `@RequirePermission()`
-- Endpoint tiền-xác thực (login, signup, verify-email, refresh, forgot-password) KHÔNG cần `@RequirePermission()` — chưa có identity để check quyền
-- Controller KHÔNG import trực tiếp từ infrastructure/ hay repository port — chỉ gọi use case
+- Authenticated endpoints (with `JwtAuthGuard`) MUST have `@RequirePermission()`
+- Pre-authentication endpoints (login, signup, verify-email, refresh, forgot-password) do not need `@RequirePermission()` — there is no identity to check permissions against yet
+- Controllers MUST NOT import infrastructure/ or repository ports directly — they only call use cases
 ```
 
 - [ ] **Step 5: Edit `AGENTS.md`**
@@ -1446,10 +1446,10 @@ In `docs/wayfinder/feature-map.md`, under the `### ADDITIONAL PLANS` heading, ad
 - **Plan**: `plans/2026-08-05-application-layer-boundaries.md`
 - **Blockers**: none
 - **Key rules**:
-  - application/ không import @nestjs/jwt, không throw HttpException — dùng AppError
-  - ITokenSigner port thay JwtService trực tiếp trong auth use case
-  - .claude/rules/application.md + AGENTS.md ghi rule tương ứng, api.md sửa lại rule @RequirePermission sai
-  - dependency-cruiser + Node script enforce tự động qua `pnpm verify`
+  - application/ must not import @nestjs/jwt or throw HttpException — use AppError
+  - The ITokenSigner port replaces direct JwtService usage in auth use cases
+  - .claude/rules/application.md + AGENTS.md record the corresponding rule; api.md corrects the incorrect @RequirePermission rule
+  - dependency-cruiser + Node script enforce the rules automatically through `pnpm verify`
 - **Creates**: `AppError`, `ITokenSigner` port + `JwtTokenSigner` adapter, rule docs, `arch-check` CI gate
 ```
 

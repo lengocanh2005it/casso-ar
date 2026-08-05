@@ -42,4 +42,4 @@ npx tsc --noEmit                  # Type check
 - `*.spec.ts` — unit tests (domain logic, use cases)
 - `*.e2e-spec.ts` — integration tests (full stack with DB)
 - `test/jest-e2e.json` — e2e test config
-- **BẮT BUỘC** cập nhật `docs/wayfinder/feature-map.md` khi hoàn thành task (đổi status → `done`, thêm `Shipped:` + PR ref)
+- **MUST** update `docs/wayfinder/feature-map.md` when completing a task (change status → `done`, add `Shipped:` + PR ref)

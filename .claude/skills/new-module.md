@@ -4,7 +4,7 @@ Scaffold a new NestJS module with Clean Architecture 4 layers.
 
 ## When to use
 
-User says: "tạo module mới", "scaffold module", "new module for X"
+User says: "create a new module", "scaffold module", "new module for X"
 
 ## File naming conventions
 
