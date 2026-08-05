@@ -58,6 +58,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **2026-08-04**: AuditLog uses enums (AuditActionType, AuditEntityType) — only used values
 - **2026-08-05**: PR #6 merged — whole-repo code-review remediation is shipped: standardized error envelope, tenant-scoped writes, rollup checks, persisted idempotency keys, `X-Organization-Id` membership selection, Invoice module, frontend plan gating, and Radix-based Sheet. Organization persistence/FK wiring remains deferred; idempotency is not yet atomic with the business transaction.
 - **2026-08-05**: Plan #3 shipped (branch `feat/billing-usage-metering`, PR #8, awaiting review) — `receivablesThisMonth` gate only. `activeBankConnections` gate deliberately deferred to Plan #5 (no `BankConnection` table to count yet). No signup/bootstrap transaction exists yet (Plan #4), so `PlanLimitService` lazily creates a FREE `Subscription` per organization on first use instead of at signup; billing period is a lazily-rolled current calendar month (no renewal cron). A `/code-review` pass found and fixed a real race condition (advisory lock replaces a row lock that couldn't cover first-time Subscription creation) and a dead `status` field; a `ponytail-review` pass then deleted 3 unused plan-limit catalog entries and merged two always-paired repository calls into one.
+- **2026-08-05**: Application Layer Boundary Enforcement shipped — `AppError`/`ITokenSigner` replace `HttpException`/`JwtService` leaks in 9 use case files across auth/billing/receivables; `.claude/rules/application.md` added; `api.md`'s unconditional `@RequirePermission()` rule corrected (was wrong for pre-auth endpoints); `arch-check` (dependency-cruiser + Node script) wired into `pnpm verify`. Domain/infrastructure/presentation audited clean, no code changes there.
 
 ## Not yet specified
 
@@ -549,6 +550,22 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Blockers**: All plans
 - **Key rules**: Documentation-only changes, ensures one implementable system across all specs/plans
 - **Creates**: Updated spec/plan files with reconciled contracts
+
+---
+
+#### Plan: Application Layer Boundary Enforcement
+- **Type**: task
+- **Status**: done
+- **Owner**: BE
+- **Spec**: `specs/2026-08-05-application-layer-boundaries-design.md`
+- **Plan**: `plans/2026-08-05-application-layer-boundaries.md`
+- **Blockers**: none
+- **Key rules**:
+  - application/ không import @nestjs/jwt, không throw HttpException — dùng AppError
+  - ITokenSigner port thay JwtService trực tiếp trong auth use case
+  - .claude/rules/application.md + AGENTS.md ghi rule tương ứng, api.md sửa lại rule @RequirePermission sai
+  - dependency-cruiser + Node script enforce tự động qua `pnpm verify`
+- **Creates**: `AppError`, `ITokenSigner` port + `JwtTokenSigner` adapter, rule docs, `arch-check` CI gate
 
 ---
 
