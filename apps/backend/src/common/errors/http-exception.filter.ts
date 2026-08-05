@@ -4,7 +4,6 @@ import {
   type ExceptionFilter,
   HttpException,
 } from '@nestjs/common';
-import { AuthError } from './auth.error';
 import { ErrorCode } from './error-code';
 
 interface ErrorEnvelope {
@@ -23,13 +22,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
   }
 
   private toEnvelope(exception: unknown): ErrorEnvelope {
-    if (exception instanceof AuthError) {
-      return {
-        statusCode: exception.statusCode,
-        errorCode: exception.errorCode,
-        message: exception.message,
-      };
-    }
     if (!(exception instanceof HttpException)) {
       return {
         statusCode: 500,

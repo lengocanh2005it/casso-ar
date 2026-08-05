@@ -1,8 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpException, Inject, Injectable } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: NestJS DI resolves this constructor parameter at runtime.
 import { DataSource } from 'typeorm';
-import { AuthError } from '../../../common/errors/auth.error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
   type ISubscriptionRepository,
@@ -82,7 +81,14 @@ export class SignupUseCase {
   async execute(input: SignupInput): Promise<SignupResult> {
     const email = input.email.trim().toLowerCase();
     if (await this.userRepo.findByEmail(email)) {
-      throw new AuthError(409, ErrorCode.CONFLICT, 'Email đã được đăng ký.');
+      throw new HttpException(
+        {
+          statusCode: 409,
+          errorCode: ErrorCode.CONFLICT,
+          message: 'Email đã được đăng ký.',
+        },
+        409,
+      );
     }
 
     const now = new Date();

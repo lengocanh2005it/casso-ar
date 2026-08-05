@@ -8,20 +8,15 @@ export interface PasswordResetTokenProps {
 }
 
 export class PasswordResetToken {
-  readonly id: string;
-  readonly userId: string;
-  readonly tokenHash: string;
-  readonly expiresAt: Date;
-  readonly usedAt: Date | null;
-  readonly createdAt: Date;
+  declare readonly id: string;
+  declare readonly userId: string;
+  declare readonly tokenHash: string;
+  declare readonly expiresAt: Date;
+  declare readonly usedAt: Date | null;
+  declare readonly createdAt: Date;
 
   constructor(props: PasswordResetTokenProps) {
-    this.id = props.id;
-    this.userId = props.userId;
-    this.tokenHash = props.tokenHash;
-    this.expiresAt = props.expiresAt;
-    this.usedAt = props.usedAt;
-    this.createdAt = props.createdAt;
+    Object.assign(this, props);
   }
 
   isValid(now: Date): boolean {

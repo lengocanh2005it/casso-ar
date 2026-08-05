@@ -8,20 +8,15 @@ export interface RefreshTokenProps {
 }
 
 export class RefreshToken {
-  readonly id: string;
-  readonly userId: string;
-  readonly tokenHash: string;
-  readonly expiresAt: Date;
-  readonly revokedAt: Date | null;
-  readonly createdAt: Date;
+  declare readonly id: string;
+  declare readonly userId: string;
+  declare readonly tokenHash: string;
+  declare readonly expiresAt: Date;
+  declare readonly revokedAt: Date | null;
+  declare readonly createdAt: Date;
 
   constructor(props: RefreshTokenProps) {
-    this.id = props.id;
-    this.userId = props.userId;
-    this.tokenHash = props.tokenHash;
-    this.expiresAt = props.expiresAt;
-    this.revokedAt = props.revokedAt;
-    this.createdAt = props.createdAt;
+    Object.assign(this, props);
   }
 
   isValid(now: Date): boolean {

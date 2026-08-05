@@ -8,20 +8,15 @@ export interface UserProps {
 }
 
 export class User {
-  readonly id: string;
-  readonly name: string;
-  readonly email: string;
-  readonly passwordHash: string;
-  readonly emailVerifiedAt: Date | null;
-  readonly createdAt: Date;
+  declare readonly id: string;
+  declare readonly name: string;
+  declare readonly email: string;
+  declare readonly passwordHash: string;
+  declare readonly emailVerifiedAt: Date | null;
+  declare readonly createdAt: Date;
 
   constructor(props: UserProps) {
-    this.id = props.id;
-    this.name = props.name;
-    this.email = props.email;
-    this.passwordHash = props.passwordHash;
-    this.emailVerifiedAt = props.emailVerifiedAt;
-    this.createdAt = props.createdAt;
+    Object.assign(this, props);
   }
 
   isEmailVerified(): boolean {

@@ -1,16 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpException, Inject, Injectable } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: NestJS DI resolves this constructor parameter at runtime.
 import { JwtService } from '@nestjs/jwt';
 // biome-ignore lint/style/useImportType: NestJS DI resolves this constructor parameter at runtime.
 import { DataSource } from 'typeorm';
-import { AuthError } from '../../../common/errors/auth.error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
 } from '../../organizations/application/membership-repository.port';
 import { RefreshToken } from '../domain/refresh-token';
+import { REFRESH_TOKEN_TTL_MS } from '../refresh-token-ttl';
 import {
   type IRefreshTokenRepository,
   REFRESH_TOKEN_REPOSITORY,
@@ -21,8 +21,6 @@ export interface RefreshResult {
   accessToken: string;
   refreshToken: string;
 }
-
-const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class RefreshAccessTokenUseCase {
@@ -37,10 +35,13 @@ export class RefreshAccessTokenUseCase {
 
   async execute(rawRefreshToken: string): Promise<RefreshResult> {
     if (!rawRefreshToken?.trim()) {
-      throw new AuthError(
+      throw new HttpException(
+        {
+          statusCode: 401,
+          errorCode: ErrorCode.UNAUTHORIZED,
+          message: 'Refresh token không hợp lệ hoặc đã hết hạn.',
+        },
         401,
-        ErrorCode.UNAUTHORIZED,
-        'Refresh token không hợp lệ hoặc đã hết hạn.',
       );
     }
     const { token: newRawToken, hash } = generateToken();
@@ -51,20 +52,26 @@ export class RefreshAccessTokenUseCase {
         true,
       );
       if (!existing?.isValid(new Date())) {
-        throw new AuthError(
+        throw new HttpException(
+          {
+            statusCode: 401,
+            errorCode: ErrorCode.UNAUTHORIZED,
+            message: 'Refresh token không hợp lệ hoặc đã hết hạn.',
+          },
           401,
-          ErrorCode.UNAUTHORIZED,
-          'Refresh token không hợp lệ hoặc đã hết hạn.',
         );
       }
       const membership = await this.membershipRepo.findFirstActiveByUserId(
         existing.userId,
       );
       if (!membership) {
-        throw new AuthError(
+        throw new HttpException(
+          {
+            statusCode: 403,
+            errorCode: ErrorCode.FORBIDDEN,
+            message: 'Tài khoản chưa thuộc tổ chức nào.',
+          },
           403,
-          ErrorCode.FORBIDDEN,
-          'Tài khoản chưa thuộc tổ chức nào.',
         );
       }
       const accessToken = this.jwtService.sign({

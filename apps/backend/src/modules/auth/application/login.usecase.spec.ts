@@ -71,6 +71,9 @@ describe('LoginUseCase', () => {
 
     await expect(
       useCase.execute({ email: 'ap@congtyb.vn', password: 'wrong-password' }),
-    ).rejects.toMatchObject({ errorCode: 'UNAUTHORIZED', statusCode: 401 });
+    ).rejects.toMatchObject({
+      status: 401,
+      response: expect.objectContaining({ errorCode: 'UNAUTHORIZED' }),
+    });
   });
 });

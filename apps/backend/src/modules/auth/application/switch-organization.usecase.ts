@@ -1,7 +1,6 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpException, Inject, Injectable } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: NestJS DI resolves this constructor parameter at runtime.
 import { JwtService } from '@nestjs/jwt';
-import { AuthError } from '../../../common/errors/auth.error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
   type IMembershipRepository,
@@ -25,10 +24,13 @@ export class SwitchOrganizationUseCase {
       organizationId,
     );
     if (!membership?.isActive()) {
-      throw new AuthError(
+      throw new HttpException(
+        {
+          statusCode: 403,
+          errorCode: ErrorCode.FORBIDDEN,
+          message: 'Người dùng không thuộc tổ chức này.',
+        },
         403,
-        ErrorCode.FORBIDDEN,
-        'Người dùng không thuộc tổ chức này.',
       );
     }
     return {

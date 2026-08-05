@@ -29,6 +29,7 @@ import { SignupUseCase } from '../application/signup.usecase';
 import { SwitchOrganizationUseCase } from '../application/switch-organization.usecase';
 // biome-ignore lint/style/useImportType: NestJS DI resolves constructor parameters at runtime.
 import { VerifyEmailUseCase } from '../application/verify-email.usecase';
+import { REFRESH_TOKEN_TTL_MS } from '../refresh-token-ttl';
 import { AuthCompositeRateLimitGuard } from './auth-composite-rate-limit.guard';
 // biome-ignore lint/style/useImportType: ValidationPipe needs the DTO runtime metadata.
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -46,7 +47,7 @@ const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'lax' as const,
-  maxAge: 7 * 24 * 60 * 60 * 1000,
+  maxAge: REFRESH_TOKEN_TTL_MS,
 };
 
 interface AuthRequest extends Request {

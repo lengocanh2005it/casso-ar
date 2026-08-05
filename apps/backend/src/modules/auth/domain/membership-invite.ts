@@ -13,26 +13,18 @@ export interface MembershipInviteProps {
 }
 
 export class MembershipInvite {
-  readonly id: string;
-  readonly organizationId: string;
-  readonly email: string;
-  readonly role: Role;
-  readonly invitedByUserId: string;
-  readonly tokenHash: string;
-  readonly expiresAt: Date;
-  readonly acceptedAt: Date | null;
-  readonly createdAt: Date;
+  declare readonly id: string;
+  declare readonly organizationId: string;
+  declare readonly email: string;
+  declare readonly role: Role;
+  declare readonly invitedByUserId: string;
+  declare readonly tokenHash: string;
+  declare readonly expiresAt: Date;
+  declare readonly acceptedAt: Date | null;
+  declare readonly createdAt: Date;
 
   constructor(props: MembershipInviteProps) {
-    this.id = props.id;
-    this.organizationId = props.organizationId;
-    this.email = props.email;
-    this.role = props.role;
-    this.invitedByUserId = props.invitedByUserId;
-    this.tokenHash = props.tokenHash;
-    this.expiresAt = props.expiresAt;
-    this.acceptedAt = props.acceptedAt;
-    this.createdAt = props.createdAt;
+    Object.assign(this, props);
   }
 
   isValid(now: Date): boolean {

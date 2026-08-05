@@ -1,8 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpException, Inject, Injectable } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: NestJS DI resolves this constructor parameter at runtime.
 import { DataSource } from 'typeorm';
-import { AuthError } from '../../../common/errors/auth.error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
   type IMembershipRepository,
@@ -43,10 +42,13 @@ export class AcceptInviteUseCase {
       hashToken(input.token),
     );
     if (!invite?.isValid(new Date())) {
-      throw new AuthError(
+      throw new HttpException(
+        {
+          statusCode: 400,
+          errorCode: ErrorCode.VALIDATION_ERROR,
+          message: 'Lời mời đã hết hạn hoặc đã được sử dụng.',
+        },
         400,
-        ErrorCode.VALIDATION_ERROR,
-        'Lời mời đã hết hạn hoặc đã được sử dụng.',
       );
     }
 
@@ -54,18 +56,24 @@ export class AcceptInviteUseCase {
     let createdUser = false;
     const now = new Date();
     if (user && input.authenticatedUserId !== user.id) {
-      throw new AuthError(
+      throw new HttpException(
+        {
+          statusCode: 401,
+          errorCode: ErrorCode.UNAUTHORIZED,
+          message: 'Người dùng hiện tại phải đăng nhập để nhận lời mời.',
+        },
         401,
-        ErrorCode.UNAUTHORIZED,
-        'Người dùng hiện tại phải đăng nhập để nhận lời mời.',
       );
     }
     if (!user) {
       if (!input.password) {
-        throw new AuthError(
+        throw new HttpException(
+          {
+            statusCode: 400,
+            errorCode: ErrorCode.VALIDATION_ERROR,
+            message: 'Mật khẩu là bắt buộc để tạo tài khoản mới.',
+          },
           400,
-          ErrorCode.VALIDATION_ERROR,
-          'Mật khẩu là bắt buộc để tạo tài khoản mới.',
         );
       }
       user = new User({
@@ -85,10 +93,13 @@ export class AcceptInviteUseCase {
         invite.organizationId,
       );
     if (existingMembership) {
-      throw new AuthError(
+      throw new HttpException(
+        {
+          statusCode: 409,
+          errorCode: ErrorCode.CONFLICT,
+          message: 'Người dùng đã là thành viên của tổ chức này.',
+        },
         409,
-        ErrorCode.CONFLICT,
-        'Người dùng đã là thành viên của tổ chức này.',
       );
     }
 

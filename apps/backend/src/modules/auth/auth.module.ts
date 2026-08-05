@@ -84,12 +84,5 @@ import { InvitesController } from './presentation/invites.controller';
     },
   ],
   controllers: [AuthController, InvitesController],
-  exports: [
-    EMAIL_VERIFICATION_TOKEN_REPOSITORY,
-    PASSWORD_RESET_TOKEN_REPOSITORY,
-    MEMBERSHIP_INVITE_REPOSITORY,
-    REFRESH_TOKEN_REPOSITORY,
-    AUTH_EMAIL_SENDER,
-  ],
 })
 export class AuthModule {}

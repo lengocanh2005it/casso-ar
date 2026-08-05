@@ -1,8 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpException, Inject, Injectable } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: NestJS DI resolves this constructor parameter at runtime.
 import { JwtService } from '@nestjs/jwt';
-import { AuthError } from '../../../common/errors/auth.error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
   type IMembershipRepository,
@@ -13,6 +12,7 @@ import {
   USER_REPOSITORY,
 } from '../../users/application/user-repository.port';
 import { RefreshToken } from '../domain/refresh-token';
+import { REFRESH_TOKEN_TTL_MS } from '../refresh-token-ttl';
 import { comparePassword } from './password-hasher';
 import {
   type IRefreshTokenRepository,
@@ -30,8 +30,6 @@ export interface LoginResult {
   refreshToken: string;
 }
 
-const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-
 @Injectable()
 export class LoginUseCase {
   constructor(
@@ -47,10 +45,13 @@ export class LoginUseCase {
     const email = input.email.trim().toLowerCase();
     const user = await this.userRepo.findByEmail(email);
     if (!user || !(await comparePassword(input.password, user.passwordHash))) {
-      throw new AuthError(
+      throw new HttpException(
+        {
+          statusCode: 401,
+          errorCode: ErrorCode.UNAUTHORIZED,
+          message: 'Email hoặc mật khẩu không đúng.',
+        },
         401,
-        ErrorCode.UNAUTHORIZED,
-        'Email hoặc mật khẩu không đúng.',
       );
     }
 
@@ -58,10 +59,13 @@ export class LoginUseCase {
       user.id,
     );
     if (!membership) {
-      throw new AuthError(
+      throw new HttpException(
+        {
+          statusCode: 403,
+          errorCode: ErrorCode.FORBIDDEN,
+          message: 'Tài khoản chưa thuộc tổ chức nào.',
+        },
         403,
-        ErrorCode.FORBIDDEN,
-        'Tài khoản chưa thuộc tổ chức nào.',
       );
     }
 

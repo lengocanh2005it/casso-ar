@@ -7,18 +7,14 @@ export interface EmailVerificationTokenProps {
 }
 
 export class EmailVerificationToken {
-  readonly id: string;
-  readonly userId: string;
-  readonly tokenHash: string;
-  readonly expiresAt: Date;
-  readonly createdAt: Date;
+  declare readonly id: string;
+  declare readonly userId: string;
+  declare readonly tokenHash: string;
+  declare readonly expiresAt: Date;
+  declare readonly createdAt: Date;
 
   constructor(props: EmailVerificationTokenProps) {
-    this.id = props.id;
-    this.userId = props.userId;
-    this.tokenHash = props.tokenHash;
-    this.expiresAt = props.expiresAt;
-    this.createdAt = props.createdAt;
+    Object.assign(this, props);
   }
 
   isExpired(now: Date): boolean {
