@@ -21,22 +21,16 @@ export class TypeOrmSubscriptionRepository
     super(repo, tenantContext);
   }
 
-  async acquireOrganizationLock(
+  async lockAndFindByOrganizationId(
     organizationId: string,
     manager: EntityManager,
-  ): Promise<void> {
+  ): Promise<Subscription | null> {
     // hashtext() collapses the UUID into a 32-bit key for the advisory-lock
     // keyspace; a rare hash collision would only over-serialize two
     // unrelated orgs, never under-serialize the same org.
     await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
       organizationId,
     ]);
-  }
-
-  async findByOrganizationId(
-    organizationId: string,
-    manager: EntityManager,
-  ): Promise<Subscription | null> {
     const row = await manager.findOne(SubscriptionOrmEntity, {
       where: { organizationId },
     });

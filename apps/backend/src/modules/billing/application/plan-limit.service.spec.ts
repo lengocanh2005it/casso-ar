@@ -21,10 +21,11 @@ describe('PlanLimitService', () => {
     });
   }
 
-  it('acquires the per-organization advisory lock before reading the subscription', async () => {
+  it('locks and reads the subscription for the caller organization', async () => {
     const repo = {
-      acquireOrganizationLock: jest.fn(),
-      findByOrganizationId: jest.fn().mockResolvedValue(activeSubscription()),
+      lockAndFindByOrganizationId: jest
+        .fn()
+        .mockResolvedValue(activeSubscription()),
       countReceivablesInPeriod: jest.fn().mockResolvedValue(0),
       save: jest.fn(),
     };
@@ -32,16 +33,15 @@ describe('PlanLimitService', () => {
 
     await service.enforceReceivableLimit(manager);
 
-    expect(repo.acquireOrganizationLock).toHaveBeenCalledWith('org-1', manager);
-    expect(
-      repo.acquireOrganizationLock.mock.invocationCallOrder[0],
-    ).toBeLessThan(repo.findByOrganizationId.mock.invocationCallOrder[0]);
+    expect(repo.lockAndFindByOrganizationId).toHaveBeenCalledWith(
+      'org-1',
+      manager,
+    );
   });
 
   it('lazily creates a FREE subscription when the organization has none', async () => {
     const repo = {
-      acquireOrganizationLock: jest.fn(),
-      findByOrganizationId: jest.fn().mockResolvedValue(null),
+      lockAndFindByOrganizationId: jest.fn().mockResolvedValue(null),
       countReceivablesInPeriod: jest.fn().mockResolvedValue(0),
       save: jest.fn(),
     };
@@ -57,8 +57,9 @@ describe('PlanLimitService', () => {
 
   it('throws a 402 PLAN_LIMIT_EXCEEDED once usage meets the monthly cap', async () => {
     const repo = {
-      acquireOrganizationLock: jest.fn(),
-      findByOrganizationId: jest.fn().mockResolvedValue(activeSubscription()),
+      lockAndFindByOrganizationId: jest
+        .fn()
+        .mockResolvedValue(activeSubscription()),
       countReceivablesInPeriod: jest.fn().mockResolvedValue(5),
       save: jest.fn(),
     };
@@ -73,8 +74,7 @@ describe('PlanLimitService', () => {
 
   it('throws a 402 PLAN_LIMIT_EXCEEDED when the subscription is not ACTIVE', async () => {
     const repo = {
-      acquireOrganizationLock: jest.fn(),
-      findByOrganizationId: jest
+      lockAndFindByOrganizationId: jest
         .fn()
         .mockResolvedValue(
           activeSubscription({ status: SubscriptionStatus.CANCELLED }),
@@ -95,8 +95,9 @@ describe('PlanLimitService', () => {
 
   it('passes when usage is under the monthly cap', async () => {
     const repo = {
-      acquireOrganizationLock: jest.fn(),
-      findByOrganizationId: jest.fn().mockResolvedValue(activeSubscription()),
+      lockAndFindByOrganizationId: jest
+        .fn()
+        .mockResolvedValue(activeSubscription()),
       countReceivablesInPeriod: jest.fn().mockResolvedValue(4),
       save: jest.fn(),
     };

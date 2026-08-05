@@ -12,21 +12,10 @@ export interface SubscriptionProps {
   createdAt: Date;
 }
 
-// ponytail: placeholder limits — spec section 10 (real pricing catalog) isn't
-// in this repo yet. Free matches the spec's worked example (50/1); the rest
-// are reasonable guesses. Replace once a real Plan catalog ships.
-export const PLAN_LIMITS: Record<
-  PlanId,
-  { receivableMonthlyLimit: number; bankConnectionLimit: number }
-> = {
-  [PlanId.FREE]: { receivableMonthlyLimit: 50, bankConnectionLimit: 1 },
-  [PlanId.STARTER]: { receivableMonthlyLimit: 300, bankConnectionLimit: 3 },
-  [PlanId.BUSINESS]: { receivableMonthlyLimit: 1000, bankConnectionLimit: 10 },
-  [PlanId.ENTERPRISE]: {
-    receivableMonthlyLimit: 1_000_000,
-    bankConnectionLimit: 1_000,
-  },
-};
+// ponytail: FREE only — matches the spec's worked example (50/1). No
+// upgrade/downgrade path reads STARTER/BUSINESS/ENTERPRISE limits yet; add
+// them back (from a real Plan catalog, spec section 10) when one does.
+const FREE_PLAN_LIMITS = { receivableMonthlyLimit: 50, bankConnectionLimit: 1 };
 
 function startOfMonth(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
@@ -64,13 +53,12 @@ export class Subscription {
     organizationId: string,
     now: Date,
   ): Subscription {
-    const limits = PLAN_LIMITS[PlanId.FREE];
     return new Subscription({
       id,
       organizationId,
       planId: PlanId.FREE,
-      receivableMonthlyLimit: limits.receivableMonthlyLimit,
-      bankConnectionLimit: limits.bankConnectionLimit,
+      receivableMonthlyLimit: FREE_PLAN_LIMITS.receivableMonthlyLimit,
+      bankConnectionLimit: FREE_PLAN_LIMITS.bankConnectionLimit,
       status: SubscriptionStatus.ACTIVE,
       currentPeriodStart: startOfMonth(now),
       currentPeriodEnd: startOfNextMonth(now),

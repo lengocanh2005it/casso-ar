@@ -24,12 +24,7 @@ export class PlanLimitService {
     const organizationId = this.tenant.getOrganizationId();
     const now = new Date();
 
-    // Serializes concurrent requests for the same org — including the very
-    // first request, which has to create the Subscription row (a row lock
-    // can't help there: there's no row yet to lock).
-    await this.repo.acquireOrganizationLock(organizationId, manager);
-
-    let subscription = await this.repo.findByOrganizationId(
+    let subscription = await this.repo.lockAndFindByOrganizationId(
       organizationId,
       manager,
     );
