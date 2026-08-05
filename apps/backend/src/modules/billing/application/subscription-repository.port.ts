@@ -16,7 +16,11 @@ export interface ISubscriptionRepository {
     periodEnd: Date,
     manager: EntityManager,
   ): Promise<number>;
-  save(subscription: Subscription, manager?: EntityManager): Promise<void>;
+  save(
+    subscription: Subscription,
+    manager?: EntityManager,
+    organizationId?: string,
+  ): Promise<void>;
 }
 
 export const SUBSCRIPTION_REPOSITORY = Symbol('SUBSCRIPTION_REPOSITORY');

@@ -25,8 +25,10 @@ export abstract class BaseRepository<
   protected async scopedSaveWithManager(
     entity: TEntity,
     manager?: EntityManager,
+    explicitOrganizationId?: string,
   ): Promise<void> {
-    const organizationId = this.tenantContext.getOrganizationId();
+    const organizationId =
+      explicitOrganizationId ?? this.tenantContext.getOrganizationId();
     if (entity.organizationId && entity.organizationId !== organizationId) {
       throw new Error('TENANT_MISMATCH');
     }

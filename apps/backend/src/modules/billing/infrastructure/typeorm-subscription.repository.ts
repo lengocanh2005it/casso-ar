@@ -56,10 +56,12 @@ export class TypeOrmSubscriptionRepository
   async save(
     subscription: Subscription,
     manager?: EntityManager,
+    organizationId?: string,
   ): Promise<void> {
     await this.scopedSaveWithManager(
       subscription as unknown as SubscriptionOrmEntity,
       manager,
+      organizationId,
     );
   }
 }

@@ -14,6 +14,7 @@ import { SubscriptionOrmEntity } from '../src/modules/billing/infrastructure/sub
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
+import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 
 describe('Billing quota enforcement (integration)', () => {
   let container: StartedPostgreSqlContainer;
@@ -48,6 +49,15 @@ describe('Billing quota enforcement (integration)', () => {
   async function setUpOrg(organizationId: string) {
     const userId = '00000000-0000-4000-8000-000000000100';
     const customerId = '00000000-0000-4000-8000-000000000101';
+
+    await dataSource.getRepository(UserOrmEntity).save({
+      id: userId,
+      name: 'Test User',
+      email: 'billing-test@example.com',
+      passwordHash: 'test-hash',
+      emailVerifiedAt: new Date(),
+      createdAt: new Date(),
+    });
 
     await dataSource.getRepository(MembershipOrmEntity).save({
       organizationId,

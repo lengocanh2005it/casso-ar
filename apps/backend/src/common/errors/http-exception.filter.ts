@@ -69,6 +69,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (statusCode === 403) return ErrorCode.FORBIDDEN;
     if (statusCode === 404) return ErrorCode.NOT_FOUND;
     if (statusCode === 409) return ErrorCode.CONFLICT;
+    if (statusCode === 429) return ErrorCode.RATE_LIMIT_EXCEEDED;
     return ErrorCode.INTERNAL_SERVER_ERROR;
   }
 
@@ -79,6 +80,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (statusCode === 403) return 'Bạn không có quyền thực hiện thao tác này.';
     if (statusCode === 404) return 'Không tìm thấy tài nguyên.';
     if (statusCode === 409) return 'Dữ liệu đang xung đột.';
+    if (statusCode === 429)
+      return 'Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau.';
     return 'Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.';
   }
 

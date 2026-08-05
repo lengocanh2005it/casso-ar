@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1, #2, #3, #18 complete, Plan #4+ pending
+**Map mode**: chart — Plan #1, #2, #3, #4, #18 complete, Plan #5+ pending
 
 ---
 
@@ -79,8 +79,8 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Ticket Index
 
 **26 plans** | status snapshot (2026-08-05):
-- 🟢 done (4): Plan #1, Plan #2, Plan #3, Plan #18
-- 🔴 open/not started (22): Plan #4–#17, #19–#23 + 3 additional plans
+- 🟢 done (5): Plan #1, Plan #2, Plan #3, Plan #4, Plan #18
+- 🔴 open/not started (21): Plan #5–#17, #19–#23 + 3 additional plans
 
 ---
 
@@ -144,19 +144,22 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #4 — Authentication + Onboarding
 - **Type**: task
-- **Status**: open
+- **Status**: done
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-authentication-onboarding-design.md`
-- **Blockers**: Plan #1 ✅, Plan #2, Plan #3
+- **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #3 ✅
 - **Key entities**: `User`, `EmailVerificationToken`, `PasswordResetToken`, `MembershipInvite`, `RefreshToken`
 - **Key rules**:
-  - Bootstrap transaction: Organization + User + Membership(OWNER) + Subscription(FREE) + 4 default email templates + default reminder rules
+  - Bootstrap transaction: Organization + User + Membership(OWNER) + Subscription(FREE)
+  - `IOrganizationBootstrap` is a no-op seam in this plan; Plans #6/#12 rebind it to seed default email templates/reminder rules without changing signup
+- **Shipped**: 2026-08-05 — PR #11
   - Tokens stored as SHA-256 hash (never plaintext)
   - Access token 15min, refresh token 7day httpOnly cookie
   - Rate limit 5/min per (IP, email) — not per-IP-only
   - Forgot-password always returns 200 (prevent enumeration)
   - Reset revokes all refresh tokens
 - **Creates**: `users/` module, `auth/` module (4 token entities + 8 use cases + controller), `EmailVerifiedGuard`
+- **Review follow-up** (same PR, commit `f27034f`): `switch-organization` now validates `organizationId` via a `class-validator` DTO instead of a raw unchecked body field; `EmailVerifiedGuard` moved into `presentation/` to match layering convention. Two findings raised against the generic AGENTS.md "access token in httpOnly cookie" / "rate-limit all auth endpoints" lines were checked against the actual spec and the already-shipped `JwtStrategy` (Plan #2) and left as-is — spec section 3/6 and shipped code both use Bearer-token-in-body + cookie-only-for-refresh, and rate limiting scoped to login/signup/forgot-password only.
 
 ---
 
@@ -551,7 +554,8 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **Next available tickets** (all blockers resolved):
-- **Plan #4** (Authentication + Onboarding) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #3 ✅
+- **Plan #5** (Cas ID Bank Connection) — blockers: Plan #2 ✅, Plan #3 ✅, Plan #4 ✅
+- **Plan #6** (Email Template Management) — blockers: Plan #2 ✅, Plan #3 ✅, Plan #4 ✅
 - **Plan #9** (Dispute Management) — blockers: Plan #1 ✅, Plan #2 ✅
 - **Plan #11** (Internal Task + Escalation) — blockers: Plan #1 ✅, Plan #2 ✅
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
@@ -559,4 +563,4 @@ Success = a single document a new developer can read and know exactly what to pi
 **Blocked tickets waiting:**
 - Plan #5–#8, #10, #12–#17, #20–#23, additional plans — waiting on Plan #4/#5/#6 or other dependencies
 
-**Recommended next step:** Start Plan #4 (Authentication + Onboarding) — it owns the signup/bootstrap transaction that Plan #3's lazy-FREE-subscription workaround should eventually be replaced by, and it unblocks Plan #5/#6/#19.
+**Recommended next step:** Start Plan #5 (Cas ID Bank Connection) or Plan #6 (Email Template Management); both are now unblocked by Plan #4.
