@@ -1,8 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { ConflictException, Injectable } from '@nestjs/common';
-import type { DataSource } from 'typeorm';
+// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
+import { DataSource } from 'typeorm';
 import { ErrorCode } from '../errors/error-code';
-import type { TenantContextService } from '../tenancy/tenant-context';
+// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
+import { TenantContextService } from '../tenancy/tenant-context';
 import { IdempotencyKeyOrmEntity } from './idempotency-key.orm-entity';
 
 @Injectable()
