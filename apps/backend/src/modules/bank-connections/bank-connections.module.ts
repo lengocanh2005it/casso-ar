@@ -1,0 +1,60 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { BANK_CONNECTION_REPOSITORY } from './application/bank-connection-repository.port';
+import { CAS_ID_CONNECTION_SESSION_REPOSITORY } from './application/cas-id-connection-session-repository.port';
+import { CAS_ID_INTEGRATION_ADAPTER } from './application/cas-id-integration-adapter.port';
+import { CONNECTION_AUDIT_EVENT_REPOSITORY } from './application/connection-audit-event-repository.port';
+import { DisconnectConnectionUseCase } from './application/disconnect-connection.usecase';
+import { ExchangeTokenUseCase } from './application/exchange-token.usecase';
+import { InitiateConnectionUseCase } from './application/initiate-connection.usecase';
+import { MarkRequiresReauthorizationUseCase } from './application/mark-requires-reauthorization.usecase';
+import { SyncTransactionsUseCase } from './application/sync-transactions.usecase';
+import { BankConnectionOrmEntity } from './infrastructure/bank-connection.orm-entity';
+import { CasIdConnectionSessionOrmEntity } from './infrastructure/cas-id-connection-session.orm-entity';
+import { ConnectionAuditEventOrmEntity } from './infrastructure/connection-audit-event.orm-entity';
+import { MockCasIdAdapter } from './infrastructure/mock-cas-id.adapter';
+import { TypeOrmBankConnectionRepository } from './infrastructure/typeorm-bank-connection.repository';
+import { TypeOrmCasIdConnectionSessionRepository } from './infrastructure/typeorm-cas-id-connection-session.repository';
+import { TypeOrmConnectionAuditEventRepository } from './infrastructure/typeorm-connection-audit-event.repository';
+import { BankConnectionsController } from './presentation/bank-connections.controller';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([
+      CasIdConnectionSessionOrmEntity,
+      BankConnectionOrmEntity,
+      ConnectionAuditEventOrmEntity,
+    ]),
+  ],
+  controllers: [BankConnectionsController],
+  providers: [
+    {
+      provide: CAS_ID_CONNECTION_SESSION_REPOSITORY,
+      useClass: TypeOrmCasIdConnectionSessionRepository,
+    },
+    {
+      provide: BANK_CONNECTION_REPOSITORY,
+      useClass: TypeOrmBankConnectionRepository,
+    },
+    {
+      provide: CONNECTION_AUDIT_EVENT_REPOSITORY,
+      useClass: TypeOrmConnectionAuditEventRepository,
+    },
+    { provide: CAS_ID_INTEGRATION_ADAPTER, useClass: MockCasIdAdapter },
+    InitiateConnectionUseCase,
+    ExchangeTokenUseCase,
+    DisconnectConnectionUseCase,
+    MarkRequiresReauthorizationUseCase,
+    SyncTransactionsUseCase,
+  ],
+  exports: [
+    BANK_CONNECTION_REPOSITORY,
+    CAS_ID_INTEGRATION_ADAPTER,
+    InitiateConnectionUseCase,
+    ExchangeTokenUseCase,
+    DisconnectConnectionUseCase,
+    MarkRequiresReauthorizationUseCase,
+    SyncTransactionsUseCase,
+  ],
+})
+export class BankConnectionsModule {}

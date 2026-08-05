@@ -167,7 +167,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #5 — Cas ID Bank Connection
 - **Type**: task
-- **Status**: open
+- **Status**: in-progress
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-cas-id-bank-connection-design.md`
 - **Blockers**: Plan #2 ✅, Plan #3 ✅, Plan #4 ✅
@@ -179,6 +179,7 @@ Success = a single document a new developer can read and know exactly what to pi
   - Re-auth reactivates existing row (not create new)
   - `MockCasIdAdapter` for MVP
 - **Creates**: `bank-connections/` module, token encryption utility, initiate/exchange/disconnect use cases, controller
+- **Implementation note**: Core connection flow is implemented on branch `feat/cas-id-bank-connection`. Webhook ACTIVE-status gating and the full Postgres integration test remain with Plan #8 because the webhook module does not exist yet; no duplicate webhook infrastructure is created here.
 
 ---
 
