@@ -5,5 +5,6 @@ Check if the project is ready for deployment.
 3. Unit tests: `cd apps/backend && npx jest --silent`
 4. Git status: `git status --short`
 5. Docker compose: `docker compose config`
+6. Run `verification-before-completion` and report only checks confirmed by fresh output.
 
 Report: pass/fail for each check.

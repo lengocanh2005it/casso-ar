@@ -120,6 +120,20 @@ await this.repo.findOne({ where: { id } }); // missing organizationId
 
 ## Testing
 
+### TDD workflow
+
+- For every new feature, bug fix, behavior change, or refactor, follow **RED → GREEN → REFACTOR**:
+  1. **RED** — Write one minimal test for the desired behavior.
+  2. Run it and verify that it fails for the expected reason.
+  3. **GREEN** — Write the smallest production-code change that makes it pass.
+  4. Run it again and verify that it passes.
+  5. **REFACTOR** — Clean up while keeping all tests green.
+- NEVER write production code before observing a relevant failing test.
+- Test behavior through public interfaces, not private methods or implementation details.
+- Work one vertical slice at a time; do not write all tests before implementation.
+- Bug fixes MUST include a regression test that fails before the fix.
+- Exceptions: generated code, configuration-only changes, migrations, and throwaway prototypes. State the exception in the final response.
+
 ### Unit tests
 
 - File: `*.spec.ts` placed alongside the source
@@ -139,6 +153,25 @@ npx jest                          # Run all unit tests
 npx jest --testPathPattern <name> # Run specific test
 npx tsc --noEmit                  # Type check
 ```
+
+### Verification before completion
+
+- Before claiming work is complete, fixed, or passing, use the `verification-before-completion` skill.
+- Identify the command that proves each claim, run it freshly, read the exit code and output, then report only what the evidence supports.
+- For code changes, run the focused test, the full relevant test suite, and `pnpm verify`; run e2e tests when the change affects integration behavior.
+- Do not claim completion from a previous run, a partial check, or an assumption that the change should work.
+
+### Skill routing
+
+- **Bug, failing test, or unexpected behavior:** use `systematic-debugging` before changing production code, then use TDD.
+- **Feature spanning multiple files or layers:** use `brainstorming`, then `writing-plans` before implementation.
+- **New domain concept, state machine, or business rule:** use `domain-modeling` before implementation.
+- **Frontend page, component, or visual behavior:** use `frontend-design` before implementation; use TDD for behavior.
+- **External API, library, regulation, or unstable technical detail:** use `research` with primary sources.
+- **Reviewing changes:** use `code-review`; before opening a PR, use `requesting-code-review`.
+- **Responding to review comments:** use `receiving-code-review` before applying non-trivial feedback.
+- **GitHub Actions failure:** use `github:gh-fix-ci`.
+- **Any completion claim, commit, or PR:** use `verification-before-completion` first.
 
 ---
 
@@ -491,7 +524,7 @@ REDIS_PORT=6379
 1. Scope queries by `organizationId`
 2. Use transactions for write operations
 3. Validate input with class-validator
-4. Write tests for new use cases
+4. Use TDD for new behavior and bug fixes
 5. Update the module when adding providers/controllers
 6. Check `organizationId` when saving
 

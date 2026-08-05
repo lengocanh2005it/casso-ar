@@ -1,5 +1,7 @@
 Review the current git diff for issues.
 
+Use the `code-review` skill before reporting findings. If the review is for a completed feature or PR, also use `verification-before-completion` and distinguish verified findings from assumptions.
+
 ```bash
 git diff --staged
 ```
@@ -14,5 +16,6 @@ Check for:
 7. Forbidden packages (lodash, moment, axios, uuid)
 8. Missing `node:` protocol for Node.js builtins
 9. Domain layer importing NestJS/TypeORM
+10. Missing test-first evidence for new behavior or bug fixes (failing test before production change)
 
 Report findings per file.

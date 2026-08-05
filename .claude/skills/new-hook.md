@@ -63,6 +63,8 @@ export function use<Logic>(data: <EntityType>[]) {
 
 ## Rules
 
+- For new hook behavior, write a focused test first and verify RED before implementation; implement the minimum change, verify GREEN, then refactor.
+- Test the hook's public return values and observable effects, not its internal React calls.
 - Hook name starts with `use`
 - Place in feature's `hooks/` folder
 - Export from feature's `index.ts` barrel

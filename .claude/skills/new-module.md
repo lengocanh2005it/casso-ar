@@ -19,7 +19,9 @@ User says: "tạo module mới", "scaffold module", "new module for X"
 
 ## Steps
 
-1. Create directory structure:
+1. Define the first externally observable behavior and write its domain/use-case test. Run it and verify RED.
+
+2. Create directory structure:
 ```
 apps/backend/src/modules/<name>/
   domain/           -- entity, value objects
@@ -29,24 +31,24 @@ apps/backend/src/modules/<name>/
   <name>.module.ts
 ```
 
-2. Create domain entity as interface (no behavior) or class (has behavior)
+3. Create domain entity as interface (no behavior) or class (has behavior)
 
-3. Create repository port in application layer
+4. Create repository port in application layer
 
-4. Create TypeORM entity in infrastructure:
+5. Create TypeORM entity in infrastructure:
 - Use `@Column('bigint')` for money fields
 - Use `@VersionColumn()` for optimistic locking if needed
 
-5. Create repository implementation:
+6. Create repository implementation:
 - Inject TenantContextService for organizationId scoping
 - Use EntityManager for transactional saves
 
-6. Create module file with DI wiring
+7. Create module file with DI wiring
 
-7. Register in app.module.ts
+8. Register in app.module.ts
 
-8. Create domain test (*.spec.ts)
+9. Add one test/implementation slice at a time; do not defer all tests until the module is complete
 
-9. Run tests: `npx jest --testPathPattern <name>`
+10. Run focused tests after each RED and GREEN step: `npx jest --testPathPattern <name>`
 
-10. Commit with message: `feat: add <name> module`
+11. Refactor only after green, then commit with message: `feat: add <name> module`

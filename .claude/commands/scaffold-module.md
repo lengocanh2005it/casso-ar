@@ -1,5 +1,7 @@
 Scaffold a new NestJS module with Clean Architecture layers.
 
+For a real feature, use `domain-modeling` for new business concepts, `writing-plans` for multi-layer work, and TDD before implementing production behavior. This command only scaffolds structure; do not treat scaffolding as feature completion.
+
 Usage: `/scaffold-module <module-name>`
 
 Creates:
