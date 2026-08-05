@@ -57,7 +57,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **2026-08-04**: PaymentAllocation uses `implements PaymentAllocationData` pattern
 - **2026-08-04**: AuditLog uses enums (AuditActionType, AuditEntityType) — only used values
 - **2026-08-05**: PR #6 merged — whole-repo code-review remediation is shipped: standardized error envelope, tenant-scoped writes, rollup checks, persisted idempotency keys, `X-Organization-Id` membership selection, Invoice module, frontend plan gating, and Radix-based Sheet. Organization persistence/FK wiring remains deferred; idempotency is not yet atomic with the business transaction.
-- **2026-08-05**: Plan #3 shipped (branch `feat/billing-usage-metering`, PR pending) — `receivablesThisMonth` gate only. `activeBankConnections` gate deliberately deferred to Plan #5 (no `BankConnection` table to count yet). No signup/bootstrap transaction exists yet (Plan #4), so `PlanLimitService` lazily creates a FREE `Subscription` per organization on first use instead of at signup; billing period is a lazily-rolled current calendar month (no renewal cron).
+- **2026-08-05**: Plan #3 shipped (branch `feat/billing-usage-metering`, PR #8, awaiting review) — `receivablesThisMonth` gate only. `activeBankConnections` gate deliberately deferred to Plan #5 (no `BankConnection` table to count yet). No signup/bootstrap transaction exists yet (Plan #4), so `PlanLimitService` lazily creates a FREE `Subscription` per organization on first use instead of at signup; billing period is a lazily-rolled current calendar month (no renewal cron). A `/code-review` pass found and fixed a real race condition (advisory lock replaces a row lock that couldn't cover first-time Subscription creation) and a dead `status` field; a `ponytail-review` pass then deleted 3 unused plan-limit catalog entries and merged two always-paired repository calls into one.
 
 ## Not yet specified
 
@@ -127,14 +127,16 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-billing-usage-metering-design.md`
 - **Blockers**: Plan #1 ✅, Plan #2 ✅
-- **Shipped**: 2026-08-05 — branch `feat/billing-usage-metering`
+- **Shipped**: 2026-08-05 — branch `feat/billing-usage-metering`, PR #8 (includes a `/code-review` fix wave + a `ponytail-review` fix wave)
 - **Key entities**: `Subscription` (FREE/STARTER/BUSINESS/ENTERPRISE, ACTIVE/PAST_DUE/CANCELLED) — `PlanId`/`SubscriptionStatus` added to `packages/shared-types` following the `ReceivableStatus` pattern
 - **Key rules**:
   - `receivablesThisMonth` gate shipped and wired into `POST /receivables`; count via raw SQL against the `receivables` table (no usage tracking table), per spec
-  - Lock via `SELECT ... FOR UPDATE` on the `Subscription` row (not `pg_advisory_xact_lock`) inside the same `DataSource.transaction()` as the receivable insert — same serialization guarantee, reuses the pessimistic-lock pattern already used elsewhere in this codebase (`ReceivableRepository.findByIdForUpdate`)
+  - Lock via `pg_advisory_xact_lock(hashtext(organizationId))` (spec's explicit alternative to `SELECT ... FOR UPDATE`) acquired before reading the `Subscription`, inside the same `DataSource.transaction()` as the receivable insert — `SubscriptionRepository.lockAndFindByOrganizationId`. A row-level `FOR UPDATE` lock was tried first and replaced: it can only lock a row that already exists, so two concurrent first-ever requests for a brand-new org both saw no row and raced to create one, tripping the `@Unique(['organizationId'])` constraint — caught by `/code-review`'s Spec axis
+  - `PlanLimitService` also checks `Subscription.status`: PAST_DUE/CANCELLED blocks with 402 before usage is even counted — the field was persisted but unread until the same review pass
   - No signup/bootstrap transaction exists yet (Plan #4 not shipped), so `PlanLimitService` lazily creates a FREE `Subscription` on first use per organization instead — replace with true bootstrap-transaction creation once Plan #4 ships (would then also need to guarantee "no active org lacks a subscription" up front)
   - Billing period is a rolling current-calendar-month, recalculated lazily on each check (no renewal cron exists — one of the spec's own open questions, calendar-month was chosen)
   - `activeBankConnections` gate and the `bank-connections` exchange 402 are **not implemented** — `BankConnection`/`bank-connections` module doesn't exist yet (Plan #5). `Subscription.bankConnectionLimit` is on the entity per spec, ready for Plan #5 to wire a matching gate when that module lands
+  - Plan-limit catalog trimmed to FREE only (`FREE_PLAN_LIMITS`) after `ponytail-review` flagged the STARTER/BUSINESS/ENTERPRISE entries as unread dead data (no upgrade/downgrade path exists yet) — reintroduce a real catalog only when one does
 - **Creates**: `billing/` module (`domain/subscription.ts`, `application/plan-limit.service.ts` + port, `infrastructure/` TypeORM entity+repo), `CreateReceivableUseCase` now runs inside a `DataSource.transaction()` with the plan-limit check, `test/billing-quota.e2e-spec.ts` (written; not run locally — Docker unavailable in this environment, needs a CI/Docker run before merge)
 
 ---
