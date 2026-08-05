@@ -5,7 +5,6 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-// biome-ignore lint/style/useImportType: NestJS DI resolves this constructor parameter at runtime.
 import { Reflector } from '@nestjs/core';
 import {
   type IUserRepository,

@@ -20,13 +20,9 @@ import {
   type IOrganizationRepository,
   ORGANIZATION_REPOSITORY,
 } from '../../organizations/application/organization-repository.port';
-// biome-ignore lint/style/useImportType: NestJS DI resolves constructor parameters at runtime.
 import { AcceptInviteUseCase } from '../application/accept-invite.usecase';
-// biome-ignore lint/style/useImportType: NestJS DI resolves constructor parameters at runtime.
 import { InviteMemberUseCase } from '../application/invite-member.usecase';
-// biome-ignore lint/style/useImportType: ValidationPipe needs the DTO runtime metadata.
 import { AcceptInviteDto } from './dto/accept-invite.dto';
-// biome-ignore lint/style/useImportType: ValidationPipe needs the DTO runtime metadata.
 import { InviteMemberDto } from './dto/invite-member.dto';
 
 interface AuthRequest extends Request {

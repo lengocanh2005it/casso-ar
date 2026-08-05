@@ -102,7 +102,7 @@ FE: `hasPermission(role, permission)` from `shared-types`, **hide the button whe
 - **Class:** PascalCase
 - **Variable/function:** camelCase
 - **Enum:** UPPER_SNAKE_CASE (e.g., `PARTIALLY_PAID`)
-- **Imports:** `node:` protocol for Node.js builtins (e.g., `node:crypto`)
+- **Imports:** `node:` protocol for Node.js builtins (e.g., `node:crypto`); `import type` for pure types, value imports (never `import type`) for classes used in constructor params/decorators — NestJS DI/ValidationPipe resolve them via `emitDecoratorMetadata`
 - **Biome:** single quotes, semicolons always, 2-space indent
 - **Test:** `*.spec.ts` for unit tests, `*.e2e-spec.ts` for integration tests
 - **TDD:** new behavior, bug fixes, and refactors follow RED → GREEN → REFACTOR; observe a relevant failing test before production code

@@ -4,7 +4,6 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
-// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
 import { Reflector } from '@nestjs/core';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 import { ErrorCode } from '../errors/error-code';

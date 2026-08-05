@@ -14,6 +14,7 @@ import { getJwtSecret } from './config/jwt.config';
 import { getTypeOrmConfig } from './config/typeorm.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { EmailVerifiedGuard } from './modules/auth/presentation/email-verified.guard';
+import { BankConnectionsModule } from './modules/bank-connections/bank-connections.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
@@ -36,6 +37,7 @@ import { UsersModule } from './modules/users/users.module';
     IdempotencyModule,
     OrganizationsModule,
     BillingModule,
+    BankConnectionsModule,
     AuthModule,
     CustomersModule,
     InvoicesModule,
