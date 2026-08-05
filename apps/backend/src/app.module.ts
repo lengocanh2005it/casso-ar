@@ -11,6 +11,7 @@ import { TenancyModule } from './common/tenancy/tenancy.module';
 import { TenantContextInterceptor } from './common/tenancy/tenant-context.interceptor';
 import { getJwtSecret } from './config/jwt.config';
 import { getTypeOrmConfig } from './config/typeorm.config';
+import { BillingModule } from './modules/billing/billing.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
@@ -29,6 +30,7 @@ import { ReceivablesModule } from './modules/receivables/receivables.module';
     TenancyModule,
     IdempotencyModule,
     OrganizationsModule,
+    BillingModule,
     CustomersModule,
     InvoicesModule,
     ReceivablesModule,

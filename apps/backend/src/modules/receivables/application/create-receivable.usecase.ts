@@ -3,7 +3,11 @@ import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 // biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
+import { DataSource } from 'typeorm';
+// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
+import { PlanLimitService } from '../../billing/application/plan-limit.service';
 import {
   CUSTOMER_REPOSITORY,
   type ICustomerRepository,
@@ -21,18 +25,17 @@ export class CreateReceivableUseCase {
     @Inject(CUSTOMER_REPOSITORY)
     private readonly customerRepo: ICustomerRepository,
     private readonly tenant: TenantContextService,
+    private readonly planLimit: PlanLimitService,
+    private readonly dataSource: DataSource,
   ) {}
 
-  async execute(
-    input: {
-      customerId: string;
-      invoiceId: string | null;
-      originalAmount: number;
-      dueDate: Date;
-      salesRepresentativeId: string | null;
-    },
-    manager?: EntityManager,
-  ): Promise<Receivable> {
+  async execute(input: {
+    customerId: string;
+    invoiceId: string | null;
+    originalAmount: number;
+    dueDate: Date;
+    salesRepresentativeId: string | null;
+  }): Promise<Receivable> {
     // customerRepo.findById is tenant-scoped (BaseRepository), so a customer
     // belonging to a different organization resolves to null here — this is
     // what prevents a receivable from being created against another tenant's customer.
@@ -41,16 +44,22 @@ export class CreateReceivableUseCase {
       throw new Error('Customer not found');
     }
 
-    const receivable = {
-      id: randomUUID(),
-      organizationId: this.tenant.getOrganizationId(),
-      ...input,
-      paidAmount: 0,
-      status: ReceivableStatus.OPEN,
-      createdAt: new Date(),
-      closedAt: null,
-    } as Receivable;
-    await this.repo.save(receivable, manager);
-    return receivable;
+    return this.dataSource.transaction(async (manager: EntityManager) => {
+      // Plan-limit check and the insert must share one transaction so two
+      // concurrent requests can't both squeeze past a limit with one slot left.
+      await this.planLimit.enforceReceivableLimit(manager);
+
+      const receivable = {
+        id: randomUUID(),
+        organizationId: this.tenant.getOrganizationId(),
+        ...input,
+        paidAmount: 0,
+        status: ReceivableStatus.OPEN,
+        createdAt: new Date(),
+        closedAt: null,
+      } as Receivable;
+      await this.repo.save(receivable, manager);
+      return receivable;
+    });
   }
 }
