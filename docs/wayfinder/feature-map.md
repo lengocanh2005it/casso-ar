@@ -561,10 +561,10 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Plan**: `plans/2026-08-05-application-layer-boundaries.md`
 - **Blockers**: none
 - **Key rules**:
-  - application/ không import @nestjs/jwt, không throw HttpException — dùng AppError
-  - ITokenSigner port thay JwtService trực tiếp trong auth use case
-  - .claude/rules/application.md + AGENTS.md ghi rule tương ứng, api.md sửa lại rule @RequirePermission sai
-  - dependency-cruiser + Node script enforce tự động qua `pnpm verify`
+  - application/ must not import @nestjs/jwt or throw HttpException — use AppError
+  - The ITokenSigner port replaces direct JwtService usage in auth use cases
+  - .claude/rules/application.md + AGENTS.md record the corresponding rule; api.md corrects the incorrect @RequirePermission rule
+  - dependency-cruiser + Node script enforce the rules automatically through `pnpm verify`
 - **Creates**: `AppError`, `ITokenSigner` port + `JwtTokenSigner` adapter, rule docs, `arch-check` CI gate
 
 ---
