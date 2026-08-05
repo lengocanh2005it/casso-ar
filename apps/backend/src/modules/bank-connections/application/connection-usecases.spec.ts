@@ -97,4 +97,44 @@ describe('bank connection use cases', () => {
       expect.anything(),
     );
   });
+
+  it('persists EXPIRED status when exchanging an expired session', async () => {
+    const session = new CasIdConnectionSession({
+      id: 'session-1',
+      organizationId: 'org-1',
+      initiatedByUserId: 'user-1',
+      bankConnectionId: null,
+      grantToken: 'grant',
+      scopes: ['identity'],
+      redirectUri: 'http://localhost/callback',
+      status: 'PENDING_AUTHORIZATION',
+      expiresAt: new Date(Date.now() - 1_000),
+      createdAt: new Date(),
+    });
+    const bankRepo = { findByIdForUpdate: jest.fn(), save: jest.fn() };
+    const sessionRepo = {
+      findById: jest.fn().mockResolvedValue(session),
+      save: jest.fn(),
+    };
+    const auditRepo = { save: jest.fn() };
+    const useCase = new ExchangeTokenUseCase(
+      sessionRepo as never,
+      {
+        exchangeToken: jest.fn(),
+        getAccountIdentity: jest.fn(),
+      } as never,
+      bankRepo as never,
+      auditRepo as never,
+      dataSource as never,
+    );
+
+    await expect(
+      useCase.execute({ sessionId: 'session-1', publicToken: 'public' }),
+    ).rejects.toThrow();
+
+    expect(sessionRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'EXPIRED' }),
+      expect.anything(),
+    );
+  });
 });

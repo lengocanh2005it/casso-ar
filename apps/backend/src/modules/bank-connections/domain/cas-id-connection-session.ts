@@ -39,4 +39,8 @@ export class CasIdConnectionSession {
   markCompleted(): CasIdConnectionSession {
     return new CasIdConnectionSession({ ...this, status: 'COMPLETED' });
   }
+
+  markExpired(): CasIdConnectionSession {
+    return new CasIdConnectionSession({ ...this, status: 'EXPIRED' });
+  }
 }

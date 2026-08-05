@@ -1,10 +1,11 @@
+import { PlanId } from '@casso-ledger/shared-types';
 import { describe, expect, it } from 'vitest';
 import { hasPlanAccess } from './plan-access';
 
 describe('hasPlanAccess', () => {
   it('uses the canonical billing plan order', () => {
-    expect(hasPlanAccess('STARTER', 'BUSINESS')).toBe(false);
-    expect(hasPlanAccess('BUSINESS', 'STARTER')).toBe(true);
-    expect(hasPlanAccess('ENTERPRISE', 'BUSINESS')).toBe(true);
+    expect(hasPlanAccess(PlanId.STARTER, PlanId.BUSINESS)).toBe(false);
+    expect(hasPlanAccess(PlanId.BUSINESS, PlanId.STARTER)).toBe(true);
+    expect(hasPlanAccess(PlanId.ENTERPRISE, PlanId.BUSINESS)).toBe(true);
   });
 });

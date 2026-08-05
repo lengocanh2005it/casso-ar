@@ -24,18 +24,20 @@ Primary color: `oklch(0.635 0.168 155)` ≈ `#16AB64` (CASSO/payOS green). Use t
 
 ## 2. Sidebar & navigation
 
+Labels are Vietnamese in the shipped implementation — this product is built for Vietnamese businesses and the error-message convention (`AGENTS.md`) already specifies Vietnamese user-facing text; nav labels follow the same rule. The English strings below name the item, not the literal UI copy.
+
 ```
 navItems (in the agreed order):
-  { to: '/dashboard',        label: 'Dashboard',            icon: LayoutDashboard }
-  { to: '/customers',        label: 'Customers',             icon: Users }
-  { to: '/receivables',      label: 'Receivables',            icon: FileText }
-  { to: '/bank-connections', label: 'Bank connections',      icon: Landmark }
-  { to: '/transactions',     label: 'Transactions / Reconciliation', icon: ArrowLeftRight }
-  { to: '/exceptions',       label: 'Exception Queue',      icon: AlertTriangle, badgeCount: <PENDING_REVIEW count> }
-  { to: '/reminders',        label: 'Reminders',              icon: BellRing }
-  { to: '/copilot',          label: 'Copilot',              icon: Bot }
-  { to: '/reports',          label: 'Reports',                 icon: BarChart3 }
-  { to: '/settings',         label: 'Settings',                icon: Settings }   // includes subscription/billing, user, RBAC
+  { to: '/dashboard',        label: 'Dashboard' (unchanged),         icon: LayoutDashboard }
+  { to: '/customers',        label: 'Khách hàng' (Customers),        icon: Users }
+  { to: '/receivables',      label: 'Công nợ' (Receivables),         icon: FileText }
+  { to: '/bank-connections', label: 'Kết nối ngân hàng' (Bank connections), icon: Landmark }
+  { to: '/transactions',     label: 'Giao dịch / Đối soát' (Transactions / Reconciliation), icon: ArrowLeftRight }
+  { to: '/exceptions',       label: 'Exception Queue' (unchanged),   icon: AlertTriangle, badgeCount: <PENDING_REVIEW count> }
+  { to: '/reminders',        label: 'Lịch nhắc' (Reminders),         icon: BellRing }
+  { to: '/copilot',          label: 'Copilot' (unchanged),           icon: Bot }
+  { to: '/reports',          label: 'Báo cáo' (Reports),             icon: BarChart3 }
+  { to: '/settings',         label: 'Cài đặt' (Settings),            icon: Settings }   // includes subscription/billing, user, RBAC
 ```
 
 `badgeCount` for Exception Queue: `COUNT(BankTransaction WHERE organizationId=? AND status='PENDING_REVIEW')`, reusing the `useReviewCount` pattern (React Query hook, periodic polling, or invalidation when a new transaction arrives).
