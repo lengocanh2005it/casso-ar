@@ -1,10 +1,4 @@
-import {
-  Column,
-  Entity,
-  Index,
-  PrimaryGeneratedColumn,
-  VersionColumn,
-} from 'typeorm';
+import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import type { CasIdConnectionSessionStatus } from '../domain/cas-id-connection-session';
 
 @Entity({ name: 'cas_id_connection_sessions' })
@@ -39,7 +33,4 @@ export class CasIdConnectionSessionOrmEntity {
 
   @Column()
   createdAt: Date;
-
-  @VersionColumn()
-  version: number;
 }

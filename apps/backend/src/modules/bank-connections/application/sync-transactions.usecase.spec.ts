@@ -31,7 +31,7 @@ describe('SyncTransactionsUseCase', () => {
       findByIdUnscoped: jest.fn().mockResolvedValue(activeConnection()),
     };
     const adapter = { getTransactions: jest.fn().mockResolvedValue([]) };
-    const markRequiresReauthorization = { execute: jest.fn() };
+    const markRequiresReauthorization = { handleAdapterError: jest.fn() };
     const useCase = new SyncTransactionsUseCase(
       adapter as never,
       bankConnectionRepo as never,
@@ -41,7 +41,9 @@ describe('SyncTransactionsUseCase', () => {
     const result = await useCase.execute('conn-1');
 
     expect(result).toEqual([]);
-    expect(markRequiresReauthorization.execute).not.toHaveBeenCalled();
+    expect(
+      markRequiresReauthorization.handleAdapterError,
+    ).not.toHaveBeenCalled();
   });
 
   it('marks the connection as requiring reauthorization and rethrows on a 401/403 from Cas ID', async () => {
@@ -53,7 +55,13 @@ describe('SyncTransactionsUseCase', () => {
         .fn()
         .mockRejectedValue(new CasIdUnauthorizedError()),
     };
-    const markRequiresReauthorization = { execute: jest.fn() };
+    const markRequiresReauthorization = {
+      handleAdapterError: jest
+        .fn()
+        .mockImplementation((_id: string, _reason: string, error: unknown) => {
+          throw error;
+        }),
+    };
     const useCase = new SyncTransactionsUseCase(
       adapter as never,
       bankConnectionRepo as never,
@@ -63,9 +71,10 @@ describe('SyncTransactionsUseCase', () => {
     await expect(useCase.execute('conn-1')).rejects.toBeInstanceOf(
       CasIdUnauthorizedError,
     );
-    expect(markRequiresReauthorization.execute).toHaveBeenCalledWith(
+    expect(markRequiresReauthorization.handleAdapterError).toHaveBeenCalledWith(
       'conn-1',
       '401/403 from getTransactions',
+      expect.any(CasIdUnauthorizedError),
     );
   });
 
@@ -76,7 +85,7 @@ describe('SyncTransactionsUseCase', () => {
     const useCase = new SyncTransactionsUseCase(
       { getTransactions: jest.fn() } as never,
       bankConnectionRepo as never,
-      { execute: jest.fn() } as never,
+      { handleAdapterError: jest.fn() } as never,
     );
 
     await expect(useCase.execute('missing')).rejects.toBeInstanceOf(AppError);

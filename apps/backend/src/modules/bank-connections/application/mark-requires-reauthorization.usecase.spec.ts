@@ -1,4 +1,5 @@
 import { BankConnection } from '../domain/bank-connection';
+import { CasIdUnauthorizedError } from './cas-id-integration-adapter.port';
 import { MarkRequiresReauthorizationUseCase } from './mark-requires-reauthorization.usecase';
 
 function connectionWithStatus(
@@ -94,5 +95,55 @@ describe('MarkRequiresReauthorizationUseCase', () => {
 
     expect(bankConnectionRepo.save).not.toHaveBeenCalled();
     expect(auditEventRepo.save).not.toHaveBeenCalled();
+  });
+
+  describe('handleAdapterError', () => {
+    it('marks the connection and rethrows on a CasIdUnauthorizedError', async () => {
+      const connection = connectionWithStatus('ACTIVE');
+      const bankConnectionRepo = {
+        findByIdUnscoped: jest.fn().mockResolvedValue(connection),
+        save: jest.fn(),
+      };
+      const auditEventRepo = { save: jest.fn() };
+      const useCase = new MarkRequiresReauthorizationUseCase(
+        bankConnectionRepo as never,
+        auditEventRepo as never,
+        dataSource as never,
+      );
+      const error = new CasIdUnauthorizedError();
+
+      await expect(
+        useCase.handleAdapterError(
+          'conn-1',
+          '401/403 from getTransactions',
+          error,
+        ),
+      ).rejects.toBe(error);
+
+      expect(bankConnectionRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'REQUIRES_REAUTHORIZATION' }),
+        expect.anything(),
+      );
+    });
+
+    it('rethrows without marking the connection on any other error', async () => {
+      const bankConnectionRepo = {
+        findByIdUnscoped: jest.fn(),
+        save: jest.fn(),
+      };
+      const auditEventRepo = { save: jest.fn() };
+      const useCase = new MarkRequiresReauthorizationUseCase(
+        bankConnectionRepo as never,
+        auditEventRepo as never,
+        dataSource as never,
+      );
+      const error = new Error('network timeout');
+
+      await expect(
+        useCase.handleAdapterError('conn-1', 'timeout', error),
+      ).rejects.toBe(error);
+
+      expect(bankConnectionRepo.findByIdUnscoped).not.toHaveBeenCalled();
+    });
   });
 });

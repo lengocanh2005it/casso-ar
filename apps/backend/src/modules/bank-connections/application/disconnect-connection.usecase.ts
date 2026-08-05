@@ -4,6 +4,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import type { BankConnection } from '../domain/bank-connection';
 import { ConnectionAuditEvent } from '../domain/connection-audit-event';
 import {
   BANK_CONNECTION_REPOSITORY,
@@ -11,7 +12,6 @@ import {
 } from './bank-connection-repository.port';
 import {
   CAS_ID_INTEGRATION_ADAPTER,
-  CasIdUnauthorizedError,
   type ICasIdIntegrationAdapter,
 } from './cas-id-integration-adapter.port';
 import {
@@ -37,24 +37,18 @@ export class DisconnectConnectionUseCase {
 
   async execute(connectionId: string): Promise<void> {
     const connection = await this.bankConnectionRepo.findById(connectionId);
-    if (!connection)
-      throw new AppError(
-        ErrorCode.NOT_FOUND,
-        'Không tìm thấy kết nối ngân hàng.',
-      );
+    this.assertFound(connection);
     // External call stays outside the transaction — only the DB writes below are wrapped.
     try {
       await this.adapter.invalidateToken(
         decryptToken(connection.encryptedAccessToken),
       );
     } catch (error) {
-      if (error instanceof CasIdUnauthorizedError) {
-        await this.markRequiresReauthorization.execute(
-          connectionId,
-          '401/403 from invalidateToken',
-        );
-      }
-      throw error;
+      await this.markRequiresReauthorization.handleAdapterError(
+        connectionId,
+        '401/403 from invalidateToken',
+        error,
+      );
     }
     await this.dataSource.transaction(async (manager) => {
       // Re-fetch under a row lock: the connection may have changed between
@@ -64,11 +58,7 @@ export class DisconnectConnectionUseCase {
         connectionId,
         manager,
       );
-      if (!locked)
-        throw new AppError(
-          ErrorCode.NOT_FOUND,
-          'Không tìm thấy kết nối ngân hàng.',
-        );
+      this.assertFound(locked);
       await this.bankConnectionRepo.save(locked.disconnect(), manager);
       await this.auditEventRepo.save(
         new ConnectionAuditEvent({
@@ -82,5 +72,16 @@ export class DisconnectConnectionUseCase {
         manager,
       );
     });
+  }
+
+  private assertFound(
+    connection: BankConnection | null,
+  ): asserts connection is BankConnection {
+    if (!connection) {
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        'Không tìm thấy kết nối ngân hàng.',
+      );
+    }
   }
 }

@@ -41,7 +41,7 @@ describe('DisconnectConnectionUseCase', () => {
     };
     const adapter = { invalidateToken: jest.fn().mockResolvedValue(undefined) };
     const auditEventRepo = { save: jest.fn() };
-    const markRequiresReauthorization = { execute: jest.fn() };
+    const markRequiresReauthorization = { handleAdapterError: jest.fn() };
     const useCase = new DisconnectConnectionUseCase(
       bankConnectionRepo as never,
       adapter as never,
@@ -69,7 +69,9 @@ describe('DisconnectConnectionUseCase', () => {
       'conn-1',
       expect.anything(),
     );
-    expect(markRequiresReauthorization.execute).not.toHaveBeenCalled();
+    expect(
+      markRequiresReauthorization.handleAdapterError,
+    ).not.toHaveBeenCalled();
   });
 
   it('marks the connection as requiring reauthorization and rethrows on a 401/403, without persisting a disconnect', async () => {
@@ -84,7 +86,13 @@ describe('DisconnectConnectionUseCase', () => {
         .mockRejectedValue(new CasIdUnauthorizedError()),
     };
     const auditEventRepo = { save: jest.fn() };
-    const markRequiresReauthorization = { execute: jest.fn() };
+    const markRequiresReauthorization = {
+      handleAdapterError: jest
+        .fn()
+        .mockImplementation((_id: string, _reason: string, error: unknown) => {
+          throw error;
+        }),
+    };
     const useCase = new DisconnectConnectionUseCase(
       bankConnectionRepo as never,
       adapter as never,
@@ -96,9 +104,10 @@ describe('DisconnectConnectionUseCase', () => {
     await expect(useCase.execute('conn-1')).rejects.toBeInstanceOf(
       CasIdUnauthorizedError,
     );
-    expect(markRequiresReauthorization.execute).toHaveBeenCalledWith(
+    expect(markRequiresReauthorization.handleAdapterError).toHaveBeenCalledWith(
       'conn-1',
       '401/403 from invalidateToken',
+      expect.any(CasIdUnauthorizedError),
     );
     expect(bankConnectionRepo.save).not.toHaveBeenCalled();
     expect(auditEventRepo.save).not.toHaveBeenCalled();
@@ -113,7 +122,7 @@ describe('DisconnectConnectionUseCase', () => {
       bankConnectionRepo as never,
       { invalidateToken: jest.fn() } as never,
       { save: jest.fn() } as never,
-      { execute: jest.fn() } as never,
+      { handleAdapterError: jest.fn() } as never,
       dataSource as never,
     );
 
@@ -131,7 +140,7 @@ describe('DisconnectConnectionUseCase', () => {
       bankConnectionRepo as never,
       { invalidateToken: jest.fn().mockResolvedValue(undefined) } as never,
       { save: jest.fn() } as never,
-      { execute: jest.fn() } as never,
+      { handleAdapterError: jest.fn() } as never,
       dataSource as never,
     );
 

@@ -6,6 +6,7 @@ import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { BankConnection } from '../domain/bank-connection';
 import { ConnectionAuditEvent } from '../domain/connection-audit-event';
+import { assertReauthorizable } from './assert-reauthorizable';
 import {
   BANK_CONNECTION_REPOSITORY,
   type IBankConnectionRepository,
@@ -69,15 +70,7 @@ export class ExchangeTokenUseCase {
             manager,
           )
         : null;
-      if (
-        session.bankConnectionId &&
-        (!existing || existing.status !== 'REQUIRES_REAUTHORIZATION')
-      ) {
-        throw new AppError(
-          ErrorCode.CONFLICT,
-          'Kết nối ngân hàng không ở trạng thái cần xác thực lại.',
-        );
-      }
+      assertReauthorizable(session.bankConnectionId, existing);
 
       const connection = existing
         ? existing.reactivate({

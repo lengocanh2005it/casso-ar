@@ -7,6 +7,7 @@ import {
   BANK_CONNECTION_REPOSITORY,
   type IBankConnectionRepository,
 } from './bank-connection-repository.port';
+import { CasIdUnauthorizedError } from './cas-id-integration-adapter.port';
 import {
   CONNECTION_AUDIT_EVENT_REPOSITORY,
   type IConnectionAuditEventRepository,
@@ -21,6 +22,20 @@ export class MarkRequiresReauthorizationUseCase {
     private readonly auditEventRepo: IConnectionAuditEventRepository,
     private readonly dataSource: DataSource,
   ) {}
+
+  // Shared by every adapter caller (disconnect, sync-transactions): on a
+  // Cas ID 401/403, mark the connection and rethrow so the caller's own
+  // retry/queue policy still applies; any other error just rethrows.
+  async handleAdapterError(
+    connectionId: string,
+    reason: string,
+    error: unknown,
+  ): Promise<never> {
+    if (error instanceof CasIdUnauthorizedError) {
+      await this.execute(connectionId, reason);
+    }
+    throw error;
+  }
 
   // Called from disconnect/sync-transactions' Cas ID 401/403 handling —
   // findByIdUnscoped is deliberate here, see bank-connection-repository.port.ts.

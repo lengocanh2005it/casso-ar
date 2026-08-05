@@ -2,12 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
 import { DataSource } from 'typeorm';
-import { AppError } from '../../../common/errors/app-error';
-import { ErrorCode } from '../../../common/errors/error-code';
 // biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { CasIdConnectionSession } from '../domain/cas-id-connection-session';
 import { ConnectionAuditEvent } from '../domain/connection-audit-event';
+import { assertReauthorizable } from './assert-reauthorizable';
 import {
   BANK_CONNECTION_REPOSITORY,
   type IBankConnectionRepository,
@@ -59,15 +58,7 @@ export class InitiateConnectionUseCase {
     const existing = input.bankConnectionId
       ? await this.bankConnectionRepo.findById(input.bankConnectionId)
       : null;
-    if (
-      input.bankConnectionId &&
-      (!existing || existing.status !== 'REQUIRES_REAUTHORIZATION')
-    ) {
-      throw new AppError(
-        ErrorCode.CONFLICT,
-        'Kết nối ngân hàng không ở trạng thái cần xác thực lại.',
-      );
-    }
+    assertReauthorizable(input.bankConnectionId, existing);
 
     // External call stays outside the transaction — only the DB writes below are wrapped.
     const { grantToken, expiresAt } = await this.adapter.createGrantToken(

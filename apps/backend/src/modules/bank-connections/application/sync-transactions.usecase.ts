@@ -7,7 +7,6 @@ import {
 } from './bank-connection-repository.port';
 import {
   CAS_ID_INTEGRATION_ADAPTER,
-  CasIdUnauthorizedError,
   type ICasIdIntegrationAdapter,
 } from './cas-id-integration-adapter.port';
 // biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
@@ -40,13 +39,11 @@ export class SyncTransactionsUseCase {
         decryptToken(connection.encryptedAccessToken),
       );
     } catch (error) {
-      if (error instanceof CasIdUnauthorizedError) {
-        await this.markRequiresReauthorization.execute(
-          connectionId,
-          '401/403 from getTransactions',
-        );
-      }
-      throw error;
+      await this.markRequiresReauthorization.handleAdapterError(
+        connectionId,
+        '401/403 from getTransactions',
+        error,
+      );
     }
   }
 }
