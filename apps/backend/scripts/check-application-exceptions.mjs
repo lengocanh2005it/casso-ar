@@ -1,14 +1,26 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-const FORBIDDEN = [
-  'HttpException',
-  'NotFoundException',
-  'UnauthorizedException',
-  'BadRequestException',
-  'ConflictException',
-  'ForbiddenException',
-];
+// Matches `import { A, B, type C } from '@nestjs/common'` and captures the
+// specifier list, so we can flag ANY imported exception class (not just a
+// hardcoded handful) — per .claude/rules/application.md, application/ must
+// not throw HttpException or any other @nestjs/common exception class.
+const NESTJS_COMMON_IMPORT = /import\s*\{([^}]*)\}\s*from\s*['"]@nestjs\/common['"]/g;
+
+function findExceptionImports(content) {
+  const found = [];
+  for (const match of content.matchAll(NESTJS_COMMON_IMPORT)) {
+    const specifiers = match[1].split(',').map((s) => s.trim());
+    for (const specifier of specifiers) {
+      if (!specifier) continue;
+      const name = specifier.replace(/^type\s+/, '').trim();
+      if (name.endsWith('Exception')) {
+        found.push(name);
+      }
+    }
+  }
+  return found;
+}
 
 const modulesDir = join(process.cwd(), 'src', 'modules');
 
@@ -38,10 +50,8 @@ for (const moduleName of readdirSync(modulesDir)) {
 
   for (const file of collectTsFiles(appDir)) {
     const content = readFileSync(file, 'utf8');
-    for (const name of FORBIDDEN) {
-      if (new RegExp(`\\b${name}\\b`).test(content)) {
-        violations.push(`${file}: uses ${name} — throw AppError instead (see common/errors/app-error.ts)`);
-      }
+    for (const name of findExceptionImports(content)) {
+      violations.push(`${file}: uses ${name} — throw AppError instead (see common/errors/app-error.ts)`);
     }
   }
 }

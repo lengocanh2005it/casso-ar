@@ -114,4 +114,24 @@ describe('HttpExceptionFilter', () => {
       message: 'Gửi email thất bại.',
     });
   });
+
+  // Regression guard for the AGENTS.md "API Error Codes" table drifting out
+  // of sync with http-exception.filter.ts's statusForErrorCode map. Every
+  // ErrorCode must resolve to a real (non-500) status unless it's one of the
+  // codes that is legitimately documented/expected to be 500.
+  it('never silently falls back to 500 for an ErrorCode with a documented non-500 status', () => {
+    const expectedFiveHundredCodes = new Set<ErrorCode>([
+      ErrorCode.INTERNAL_SERVER_ERROR,
+      ErrorCode.EMAIL_SEND_FAILED,
+    ]);
+
+    for (const code of Object.values(ErrorCode)) {
+      const { statusCode } = captureResponse(new AppError(code, 'x'));
+      if (expectedFiveHundredCodes.has(code)) {
+        expect(statusCode).toBe(500);
+      } else {
+        expect(statusCode).toBeLessThan(500);
+      }
+    }
+  });
 });

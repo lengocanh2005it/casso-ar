@@ -225,7 +225,8 @@ git branch -d feat/<ticket-name>
 
 ### Authorization
 
-- Every business endpoint MUST have the `@RequirePermission()` decorator
+- Endpoints requiring authentication (`JwtAuthGuard`) MUST have the `@RequirePermission()` decorator
+- Pre-auth endpoints (login, signup, verify-email, refresh, forgot-password) do NOT need `@RequirePermission()` — there is no identity yet to check permissions against
 - Check permission BEFORE executing the use case
 - Responses must not leak `organizationId`, `version`, or internal fields
 - Webhook auth: constant-time comparison (do not use `===`)

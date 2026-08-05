@@ -9,8 +9,10 @@ module.exports = {
       from: { path: '^src/modules/[^/]+/application/' },
       // Unanchored on purpose: pnpm resolves nested deps through
       // node_modules/.pnpm/<pkg>@<version>/node_modules/<pkg>/..., not a flat
-      // node_modules/<pkg>. Anchoring this with `^` breaks the match.
-      to: { path: 'node_modules/@nestjs/jwt' },
+      // node_modules/<pkg>. Anchoring this with `^` breaks the match. The
+      // trailing slash keeps the match anchored to the package boundary so
+      // it doesn't also catch an unrelated `@nestjs/jwt-*` sibling package.
+      to: { path: 'node_modules/@nestjs/jwt/' },
     },
   ],
   options: {
