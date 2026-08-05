@@ -13,6 +13,15 @@
 
 ## Test conventions
 
+- Follow RED → GREEN → REFACTOR for every behavior change:
+  1. Write one minimal failing test and verify the expected failure.
+  2. Write the smallest production change that makes it pass.
+  3. Refactor only while all tests remain green.
+- Bug fixes MUST start with a regression test that fails before the fix.
+- Test public behavior, not private implementation details.
+- Before reporting completion, use `verification-before-completion`; run fresh focused/full tests and type-checks, then report exit codes and failures.
+- Exceptions are generated code, configuration-only changes, migrations, and throwaway prototypes; state the exception.
+
 - Unit tests: `*.spec.ts` next to source file
 - Integration tests: `*.e2e-spec.ts` in `test/` directory
 - Use `@nestjs/testing` for NestJS module setup

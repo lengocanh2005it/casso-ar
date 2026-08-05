@@ -105,6 +105,8 @@ FE: `hasPermission(role, permission)` from `shared-types`, **hide the button whe
 - **Imports:** `node:` protocol for Node.js builtins (e.g., `node:crypto`)
 - **Biome:** single quotes, semicolons always, 2-space indent
 - **Test:** `*.spec.ts` for unit tests, `*.e2e-spec.ts` for integration tests
+- **TDD:** new behavior, bug fixes, and refactors follow RED → GREEN → REFACTOR; observe a relevant failing test before production code
+- **Verification:** before claiming completion or creating a PR, use `verification-before-completion` and report fresh command evidence
 
 ## Implementation Order
 
@@ -140,3 +142,14 @@ GitHub Issues via `gh` CLI. See `docs/agents/issue-tracker.md`.
 ### Domain docs
 
 Single-context layout — `CONTEXT.md` + `docs/adr/` at repo root. See `docs/agents/domain.md`.
+
+### Skill routing
+
+- Bug or unexpected behavior → `systematic-debugging` → TDD
+- Multi-file feature → `brainstorming` → `writing-plans` → TDD
+- New domain/business rule → `domain-modeling`
+- Frontend UI → `frontend-design`
+- External or unstable technical information → `research`
+- Review/PR → `code-review` → `requesting-code-review` → `verification-before-completion`
+- Review feedback → `receiving-code-review`
+- GitHub Actions failure → `github:gh-fix-ci`

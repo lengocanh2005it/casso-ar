@@ -8,7 +8,9 @@ User says: "tạo endpoint", "new API", "thêm route"
 
 ## Steps
 
-1. Create request DTO with class-validator:
+1. Write the first endpoint behavior test and run it to verify RED. Test through the HTTP boundary when validation, permissions, or response mapping are part of the behavior.
+
+2. Create request DTO with class-validator:
 ```typescript
 export class Create<X>Dto {
   @IsUUID()
@@ -20,12 +22,12 @@ export class Create<X>Dto {
 }
 ```
 
-2. Create response DTO (never leak organizationId/version):
+3. Create response DTO (never leak organizationId/version):
 ```typescript
 export type <X>ResponseDto = Omit<Entity, 'organizationId'>;
 ```
 
-3. Add controller method:
+4. Add the smallest controller/DTO change that makes the test pass:
 ```typescript
 @Post()
 @RequirePermission(Permission.<X>_WRITE)
@@ -35,10 +37,10 @@ async create(@Body() dto: Create<X>Dto) {
 }
 ```
 
-4. Register controller in module if new
+5. Register controller in module if new
 
-5. Update tests
+6. Add one test for each next behavior, verifying RED before implementation and GREEN after it
 
-6. Test endpoint manually or with integration test
+7. Test endpoint manually only as a supplement; automated tests remain the source of regression coverage
 
-7. Commit: `feat: add POST /<endpoint>`
+8. Refactor only after green, then commit: `feat: add POST /<endpoint>`
