@@ -161,6 +161,7 @@ npx tsc --noEmit                  # Type check
 - Before claiming work is complete, fixed, or passing, use the `verification-before-completion` skill.
 - Identify the command that proves each claim, run it freshly, read the exit code and output, then report only what the evidence supports.
 - For code changes, run the focused test, the full relevant test suite, and `pnpm verify`; run e2e tests when the change affects integration behavior.
+- After any backend code change, run the `domain-check` skill (`/domain-check`; see `.claude/skills/domain-check.md`) and fix violations before claiming completion.
 - Do not claim completion from a previous run, a partial check, or an assumption that the change should work.
 
 ### Skill routing

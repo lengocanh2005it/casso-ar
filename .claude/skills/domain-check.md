@@ -4,7 +4,8 @@ Check domain rules compliance across the codebase.
 
 ## When to use
 
-User says: "check domain rules", "check domain", "domain compliance"
+- After any backend code change (before claiming completion)
+- User says: "check domain rules", "check domain", "domain compliance"
 
 ## Rules to check
 

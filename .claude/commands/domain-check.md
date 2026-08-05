@@ -1,3 +1,5 @@
+Run after completing any backend code change (see AGENTS.md "Verification before completion").
+
 Check domain rules compliance in the codebase.
 
 Search for:
