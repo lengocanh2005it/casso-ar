@@ -36,4 +36,30 @@ describe('BankConnection', () => {
     expect(disconnected.status).toBe('DISCONNECTED');
     expect(disconnected.revokedAt).not.toBeNull();
   });
+
+  it('rejects disconnecting a connection that is already disconnected', () => {
+    const disconnected = activeConnection().disconnect();
+    expect(() => disconnected.disconnect()).toThrow(
+      'Cannot disconnect a connection that is already disconnected',
+    );
+  });
+
+  it('rejects marking a non-ACTIVE connection as requiring reauthorization', () => {
+    const reauth = activeConnection().markRequiresReauthorization();
+    expect(() => reauth.markRequiresReauthorization()).toThrow(
+      'Cannot mark connection as requiring reauthorization from status REQUIRES_REAUTHORIZATION',
+    );
+  });
+
+  it('rejects reactivating a connection that is not awaiting reauthorization', () => {
+    const active = activeConnection();
+    expect(() =>
+      active.reactivate({
+        casIdConnectionSessionId: 'session-2',
+        encryptedAccessToken: 'encrypted-2',
+        accountIdentity: { accountNumber: '0044005566', bankName: 'New Bank' },
+        scopes: ['identity', 'transaction'],
+      }),
+    ).toThrow('Cannot reactivate a connection in status ACTIVE');
+  });
 });

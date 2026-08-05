@@ -28,13 +28,13 @@ export class BankConnectionOrmEntity {
   @Column('simple-array')
   scopes: string[];
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   connectedAt: Date | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastSyncAt: Date | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   revokedAt: Date | null;
 
   @Column()

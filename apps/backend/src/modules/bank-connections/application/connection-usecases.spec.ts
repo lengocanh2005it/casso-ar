@@ -8,22 +8,27 @@ describe('bank connection use cases', () => {
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
   });
 
+  const dataSource = {
+    transaction: jest.fn(
+      async (callback: (manager: object) => Promise<unknown>) => callback({}),
+    ),
+  };
+
   it('initiates a first connection session for the current tenant', async () => {
     const sessionRepo = { save: jest.fn() };
     const auditRepo = { save: jest.fn() };
     const useCase = new InitiateConnectionUseCase(
       {
-        createGrantToken: jest
-          .fn()
-          .mockResolvedValue({
-            grantToken: 'grant',
-            expiresAt: new Date(Date.now() + 60_000),
-          }),
+        createGrantToken: jest.fn().mockResolvedValue({
+          grantToken: 'grant',
+          expiresAt: new Date(Date.now() + 60_000),
+        }),
       } as never,
       sessionRepo as never,
       { findById: jest.fn() } as never,
       auditRepo as never,
       { getOrganizationId: () => 'org-1' } as never,
+      dataSource as never,
     );
 
     const result = await useCase.execute({
@@ -36,6 +41,7 @@ describe('bank connection use cases', () => {
         organizationId: 'org-1',
         status: 'PENDING_AUTHORIZATION',
       }),
+      expect.anything(),
     );
     expect(auditRepo.save).not.toHaveBeenCalled();
   });
@@ -53,7 +59,7 @@ describe('bank connection use cases', () => {
       expiresAt: new Date(Date.now() + 60_000),
       createdAt: new Date(),
     });
-    const bankRepo = { findById: jest.fn(), save: jest.fn() };
+    const bankRepo = { findByIdForUpdate: jest.fn(), save: jest.fn() };
     const sessionRepo = {
       findById: jest.fn().mockResolvedValue(session),
       save: jest.fn(),
@@ -71,6 +77,7 @@ describe('bank connection use cases', () => {
       } as never,
       bankRepo as never,
       auditRepo as never,
+      dataSource as never,
     );
 
     const result = await useCase.execute({
@@ -80,12 +87,14 @@ describe('bank connection use cases', () => {
     expect(result.status).toBe('ACTIVE');
     expect(bankRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'ACTIVE' }),
+      expect.anything(),
     );
     expect(bankRepo.save.mock.calls[0][0].encryptedAccessToken).not.toBe(
       'raw-secret',
     );
     expect(sessionRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'COMPLETED' }),
+      expect.anything(),
     );
   });
 });

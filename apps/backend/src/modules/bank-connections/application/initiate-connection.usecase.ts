@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import type { TenantContextService } from '../../../common/tenancy/tenant-context';
+// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
+import { DataSource } from 'typeorm';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
+// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { CasIdConnectionSession } from '../domain/cas-id-connection-session';
 import { ConnectionAuditEvent } from '../domain/connection-audit-event';
 import {
@@ -45,6 +50,7 @@ export class InitiateConnectionUseCase {
     @Inject(CONNECTION_AUDIT_EVENT_REPOSITORY)
     private readonly auditEventRepo: IConnectionAuditEventRepository,
     private readonly tenantContext: TenantContextService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async execute(
@@ -57,9 +63,13 @@ export class InitiateConnectionUseCase {
       input.bankConnectionId &&
       (!existing || existing.status !== 'REQUIRES_REAUTHORIZATION')
     ) {
-      throw new Error('Bank connection is not awaiting reauthorization');
+      throw new AppError(
+        ErrorCode.CONFLICT,
+        'Kết nối ngân hàng không ở trạng thái cần xác thực lại.',
+      );
     }
 
+    // External call stays outside the transaction — only the DB writes below are wrapped.
     const { grantToken, expiresAt } = await this.adapter.createGrantToken(
       DEFAULT_SCOPES,
       input.redirectUri,
@@ -76,19 +86,22 @@ export class InitiateConnectionUseCase {
       expiresAt,
       createdAt: new Date(),
     });
-    await this.sessionRepo.save(session);
 
-    if (existing) {
-      await this.auditEventRepo.save(
-        new ConnectionAuditEvent({
-          id: randomUUID(),
-          bankConnectionId: existing.id,
-          eventType: 'SESSION_CREATED',
-          metadata: { sessionId: session.id },
-          createdAt: new Date(),
-        }),
-      );
-    }
+    await this.dataSource.transaction(async (manager) => {
+      await this.sessionRepo.save(session, manager);
+      if (existing) {
+        await this.auditEventRepo.save(
+          new ConnectionAuditEvent({
+            id: randomUUID(),
+            bankConnectionId: existing.id,
+            eventType: 'SESSION_CREATED',
+            metadata: { sessionId: session.id },
+            createdAt: new Date(),
+          }),
+          manager,
+        );
+      }
+    });
     return { sessionId: session.id, grantToken };
   }
 }

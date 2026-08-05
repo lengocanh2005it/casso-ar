@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
-import type { TenantContextService } from '../../../common/tenancy/tenant-context';
+// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { ICasIdConnectionSessionRepository } from '../application/cas-id-connection-session-repository.port';
 import { CasIdConnectionSession } from '../domain/cas-id-connection-session';
 import { CasIdConnectionSessionOrmEntity } from './cas-id-connection-session.orm-entity';

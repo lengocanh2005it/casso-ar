@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
+import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { BankConnection } from '../domain/bank-connection';
@@ -38,6 +40,7 @@ export class ExchangeTokenUseCase {
     private readonly bankConnectionRepo: IBankConnectionRepository,
     @Inject(CONNECTION_AUDIT_EVENT_REPOSITORY)
     private readonly auditEventRepo: IConnectionAuditEventRepository,
+    private readonly dataSource: DataSource,
   ) {}
 
   async execute(input: ExchangeTokenInput): Promise<BankConnection> {
@@ -54,53 +57,62 @@ export class ExchangeTokenUseCase {
       );
     }
 
+    // External call stays outside the transaction (AGENTS.md: don't call
+    // external APIs inside a transaction) — only the DB writes below are wrapped.
     const { accessToken } = await this.adapter.exchangeToken(input.publicToken);
     const accountIdentity = await this.adapter.getAccountIdentity(accessToken);
-    const existing = session.bankConnectionId
-      ? await this.bankConnectionRepo.findById(session.bankConnectionId)
-      : null;
-    if (
-      session.bankConnectionId &&
-      (!existing || existing.status !== 'REQUIRES_REAUTHORIZATION')
-    ) {
-      throw new AppError(
-        ErrorCode.CONFLICT,
-        'Kết nối ngân hàng không ở trạng thái cần xác thực lại.',
-      );
-    }
 
-    const connection = existing
-      ? existing.reactivate({
-          casIdConnectionSessionId: session.id,
-          encryptedAccessToken: encryptToken(accessToken),
-          accountIdentity,
-          scopes: session.scopes,
-        })
-      : new BankConnection({
+    return this.dataSource.transaction(async (manager) => {
+      const existing = session.bankConnectionId
+        ? await this.bankConnectionRepo.findByIdForUpdate(
+            session.bankConnectionId,
+            manager,
+          )
+        : null;
+      if (
+        session.bankConnectionId &&
+        (!existing || existing.status !== 'REQUIRES_REAUTHORIZATION')
+      ) {
+        throw new AppError(
+          ErrorCode.CONFLICT,
+          'Kết nối ngân hàng không ở trạng thái cần xác thực lại.',
+        );
+      }
+
+      const connection = existing
+        ? existing.reactivate({
+            casIdConnectionSessionId: session.id,
+            encryptedAccessToken: encryptToken(accessToken),
+            accountIdentity,
+            scopes: session.scopes,
+          })
+        : new BankConnection({
+            id: randomUUID(),
+            organizationId: session.organizationId,
+            casIdConnectionSessionId: session.id,
+            encryptedAccessToken: encryptToken(accessToken),
+            accountIdentity,
+            status: 'ACTIVE',
+            scopes: session.scopes,
+            connectedAt: new Date(),
+            lastSyncAt: null,
+            revokedAt: null,
+            createdAt: new Date(),
+          });
+
+      await this.bankConnectionRepo.save(connection, manager);
+      await this.sessionRepo.save(session.markCompleted(), manager);
+      await this.auditEventRepo.save(
+        new ConnectionAuditEvent({
           id: randomUUID(),
-          organizationId: session.organizationId,
-          casIdConnectionSessionId: session.id,
-          encryptedAccessToken: encryptToken(accessToken),
-          accountIdentity,
-          status: 'ACTIVE',
-          scopes: session.scopes,
-          connectedAt: new Date(),
-          lastSyncAt: null,
-          revokedAt: null,
+          bankConnectionId: connection.id,
+          eventType: existing ? 'RECONNECTED' : 'TOKEN_EXCHANGED',
+          metadata: { accountNumber: accountIdentity.accountNumber },
           createdAt: new Date(),
-        });
-
-    await this.bankConnectionRepo.save(connection);
-    await this.sessionRepo.save(session.markCompleted());
-    await this.auditEventRepo.save(
-      new ConnectionAuditEvent({
-        id: randomUUID(),
-        bankConnectionId: connection.id,
-        eventType: existing ? 'RECONNECTED' : 'TOKEN_EXCHANGED',
-        metadata: { accountNumber: accountIdentity.accountNumber },
-        createdAt: new Date(),
-      }),
-    );
-    return connection;
+        }),
+        manager,
+      );
+      return connection;
+    });
   }
 }

@@ -47,6 +47,11 @@ export class BankConnection {
   }
 
   markRequiresReauthorization(): BankConnection {
+    if (this.status !== 'ACTIVE') {
+      throw new Error(
+        `Cannot mark connection as requiring reauthorization from status ${this.status}`,
+      );
+    }
     return new BankConnection({ ...this, status: 'REQUIRES_REAUTHORIZATION' });
   }
 
@@ -56,6 +61,11 @@ export class BankConnection {
     accountIdentity: AccountIdentity;
     scopes: string[];
   }): BankConnection {
+    if (this.status !== 'REQUIRES_REAUTHORIZATION') {
+      throw new Error(
+        `Cannot reactivate a connection in status ${this.status}`,
+      );
+    }
     return new BankConnection({
       ...this,
       ...input,
@@ -66,6 +76,11 @@ export class BankConnection {
   }
 
   disconnect(): BankConnection {
+    if (this.status === 'DISCONNECTED') {
+      throw new Error(
+        'Cannot disconnect a connection that is already disconnected',
+      );
+    }
     return new BankConnection({
       ...this,
       status: 'DISCONNECTED',
