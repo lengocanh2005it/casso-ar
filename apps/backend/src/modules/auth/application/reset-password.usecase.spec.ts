@@ -78,8 +78,7 @@ describe('ResetPasswordUseCase', () => {
     await expect(
       useCase.execute({ token: rawToken, newPassword: 'x' }),
     ).rejects.toMatchObject({
-      status: 400,
-      response: expect.objectContaining({ errorCode: 'VALIDATION_ERROR' }),
+      errorCode: 'VALIDATION_ERROR',
     });
   });
 });

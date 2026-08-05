@@ -1,6 +1,7 @@
-import { HttpException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: NestJS DI resolves this constructor parameter at runtime.
 import { DataSource } from 'typeorm';
+import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
   type IUserRepository,
@@ -40,26 +41,16 @@ export class ResetPasswordUseCase {
         manager,
       );
       if (!resetToken?.isValid(new Date())) {
-        throw new HttpException(
-          {
-            statusCode: 400,
-            errorCode: ErrorCode.VALIDATION_ERROR,
-            message: 'Mã đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',
-          },
-          400,
+        throw new AppError(
+          ErrorCode.VALIDATION_ERROR,
+          'Mã đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',
         );
       }
 
       const user = await this.userRepo.findById(resetToken.userId, manager);
-      if (!user)
-        throw new HttpException(
-          {
-            statusCode: 404,
-            errorCode: ErrorCode.NOT_FOUND,
-            message: 'Không tìm thấy người dùng.',
-          },
-          404,
-        );
+      if (!user) {
+        throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy người dùng.');
+      }
 
       const newPasswordHash = await hashPassword(input.newPassword);
       await this.userRepo.save(user.withPasswordHash(newPasswordHash), manager);

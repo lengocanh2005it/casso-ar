@@ -20,10 +20,12 @@ import { REFRESH_TOKEN_REPOSITORY } from './application/refresh-token-repository
 import { ResetPasswordUseCase } from './application/reset-password.usecase';
 import { SignupUseCase } from './application/signup.usecase';
 import { SwitchOrganizationUseCase } from './application/switch-organization.usecase';
+import { TOKEN_SIGNER } from './application/token-signer.port';
 import { VerifyEmailUseCase } from './application/verify-email.usecase';
 import { ConsoleEmailSenderAdapter } from './infrastructure/console-email-sender.adapter';
 import { DefaultOrganizationBootstrap } from './infrastructure/default-organization-bootstrap.adapter';
 import { EmailVerificationTokenOrmEntity } from './infrastructure/email-verification-token.orm-entity';
+import { JwtTokenSigner } from './infrastructure/jwt-token-signer.adapter';
 import { MembershipInviteOrmEntity } from './infrastructure/membership-invite.orm-entity';
 import { PasswordResetTokenOrmEntity } from './infrastructure/password-reset-token.orm-entity';
 import { RefreshTokenOrmEntity } from './infrastructure/refresh-token.orm-entity';
@@ -82,6 +84,7 @@ import { InvitesController } from './presentation/invites.controller';
       provide: DEFAULT_ORGANIZATION_BOOTSTRAP,
       useClass: DefaultOrganizationBootstrap,
     },
+    { provide: TOKEN_SIGNER, useClass: JwtTokenSigner },
   ],
   controllers: [AuthController, InvitesController],
 })
