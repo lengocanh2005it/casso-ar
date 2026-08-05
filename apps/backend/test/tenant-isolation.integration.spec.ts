@@ -126,6 +126,7 @@ describe('Tenant isolation and RBAC (integration)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/receivables/${receivableId}/write-off`)
       .set('Authorization', `Bearer ${tokenOrgB}`)
+      .set('Idempotency-Key', 'tenant-isolation-cross-org-write-off')
       .expect(404); // Receivable not found (tenant-scoped) — NotFoundException, errorCode RECEIVABLE_NOT_FOUND
   });
 
@@ -148,6 +149,7 @@ describe('Tenant isolation and RBAC (integration)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/receivables/${receivableId}/write-off`)
       .set('Authorization', `Bearer ${tokenFinanceManager}`)
+      .set('Idempotency-Key', 'tenant-isolation-write-off')
       .expect(201);
 
     const row = await dataSource.query(
