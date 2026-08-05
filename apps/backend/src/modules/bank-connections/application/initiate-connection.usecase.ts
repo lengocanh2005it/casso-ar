@@ -1,8 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
 import { DataSource } from 'typeorm';
-// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { CasIdConnectionSession } from '../domain/cas-id-connection-session';
 import { ConnectionAuditEvent } from '../domain/connection-audit-event';

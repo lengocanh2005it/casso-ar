@@ -9,7 +9,6 @@ import {
   CAS_ID_INTEGRATION_ADAPTER,
   type ICasIdIntegrationAdapter,
 } from './cas-id-integration-adapter.port';
-// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
 import { MarkRequiresReauthorizationUseCase } from './mark-requires-reauthorization.usecase';
 import { decryptToken } from './token-encryption';
 

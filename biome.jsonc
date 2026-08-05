@@ -1,11 +1,19 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.6/schema.json",
+  // useImportType is disabled repo-wide: NestJS DI resolves constructor params
+  // and ValidationPipe DTO metatypes via emitDecoratorMetadata's design:paramtypes,
+  // which need runtime value imports — the rule flags every such import as a
+  // false positive (was 74 ignored instances). TS import elision (verbatimModuleSyntax
+  // is NOT enabled) already strips pure-type imports from the emit, so nothing is lost.
   "linter": {
     "enabled": true,
-    "rules": { "recommended": true }
+    "rules": {
+      "recommended": true,
+      "style": { "useImportType": "off" }
+    }
   },
   "files": {
-    "includes": ["**", "!**/*.css"]
+    "includes": ["**", "!**/*.css", "!**/dist"]
   },
   "overrides": [
     {

@@ -95,6 +95,7 @@ await this.repo.findOne({ where: { id } }); // missing organizationId
 - Do not use `any` in production code (allowed in tests)
 - Use the `node:` protocol for Node.js builtins (`import { randomUUID } from 'node:crypto'`)
 - Interface for data-only types, class for types with behavior
+- Imports: `import type` for pure types; **value import** (never `import type`) for classes used in constructor params or decorators — NestJS DI/ValidationPipe resolves them via `emitDecoratorMetadata`, and type-only imports erase to `Function`/`Object` at runtime. `useImportType` lint rule is disabled repo-wide (see `biome.jsonc`)
 
 ### NestJS
 

@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-// biome-ignore lint/style/useImportType: NestJS DI resolves this constructor parameter at runtime.
 import { DataSource } from 'typeorm';
 import type { Role } from '../../organizations/domain/membership';
 import { MembershipInvite } from '../domain/membership-invite';
