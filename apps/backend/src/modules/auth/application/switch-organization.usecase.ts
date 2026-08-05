@@ -1,18 +1,18 @@
-import { HttpException, Inject, Injectable } from '@nestjs/common';
-// biome-ignore lint/style/useImportType: NestJS DI resolves this constructor parameter at runtime.
-import { JwtService } from '@nestjs/jwt';
+import { Inject, Injectable } from '@nestjs/common';
+import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
 } from '../../organizations/application/membership-repository.port';
+import { type ITokenSigner, TOKEN_SIGNER } from './token-signer.port';
 
 @Injectable()
 export class SwitchOrganizationUseCase {
   constructor(
     @Inject(MEMBERSHIP_REPOSITORY)
     private readonly membershipRepo: IMembershipRepository,
-    private readonly jwtService: JwtService,
+    @Inject(TOKEN_SIGNER) private readonly tokenSigner: ITokenSigner,
   ) {}
 
   async execute(
@@ -24,17 +24,13 @@ export class SwitchOrganizationUseCase {
       organizationId,
     );
     if (!membership?.isActive()) {
-      throw new HttpException(
-        {
-          statusCode: 403,
-          errorCode: ErrorCode.FORBIDDEN,
-          message: 'Người dùng không thuộc tổ chức này.',
-        },
-        403,
+      throw new AppError(
+        ErrorCode.FORBIDDEN,
+        'Người dùng không thuộc tổ chức này.',
       );
     }
     return {
-      accessToken: this.jwtService.sign({
+      accessToken: this.tokenSigner.sign({
         userId,
         organizationId,
         role: membership.role,

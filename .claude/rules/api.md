@@ -13,5 +13,7 @@ paths:
 - Use `class-validator` decorators on all DTOs
 - POST endpoints accept `Idempotency-Key` header
 - Controller ONLY calls use case — no business logic
-- Every endpoint MUST have `@RequirePermission()` decorator
+- Endpoint yêu cầu đã đăng nhập (có `JwtAuthGuard`) PHẢI có `@RequirePermission()`
+- Endpoint tiền-xác thực (login, signup, verify-email, refresh, forgot-password) KHÔNG cần `@RequirePermission()` — chưa có identity để check quyền
+- Controller KHÔNG import trực tiếp từ infrastructure/ hay repository port — chỉ gọi use case
 - Error codes: `VALIDATION_ERROR`, `NOT_FOUND`, `UNAUTHORIZED`, `FORBIDDEN`, `CONFLICT`

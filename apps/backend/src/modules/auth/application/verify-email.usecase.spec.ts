@@ -68,8 +68,7 @@ describe('VerifyEmailUseCase', () => {
     );
 
     await expect(useCase.execute(rawToken)).rejects.toMatchObject({
-      status: 400,
-      response: expect.objectContaining({ errorCode: 'VALIDATION_ERROR' }),
+      errorCode: 'VALIDATION_ERROR',
     });
   });
 });

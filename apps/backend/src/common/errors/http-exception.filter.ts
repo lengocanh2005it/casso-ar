@@ -4,6 +4,7 @@ import {
   type ExceptionFilter,
   HttpException,
 } from '@nestjs/common';
+import { AppError } from './app-error';
 import { ErrorCode } from './error-code';
 
 interface ErrorEnvelope {
@@ -22,6 +23,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
   }
 
   private toEnvelope(exception: unknown): ErrorEnvelope {
+    if (exception instanceof AppError) {
+      return {
+        statusCode: this.statusForErrorCode(exception.errorCode),
+        errorCode: exception.errorCode,
+        message: exception.message,
+        ...(exception.details === undefined
+          ? {}
+          : { details: exception.details }),
+      };
+    }
     if (!(exception instanceof HttpException)) {
       return {
         statusCode: 500,
@@ -71,6 +82,39 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (statusCode === 409) return ErrorCode.CONFLICT;
     if (statusCode === 429) return ErrorCode.RATE_LIMIT_EXCEEDED;
     return ErrorCode.INTERNAL_SERVER_ERROR;
+  }
+
+  private statusForErrorCode(errorCode: ErrorCode): number {
+    // Kept in sync with the "API Error Codes" table in AGENTS.md. Every
+    // ErrorCode with a documented HTTP status there must have an entry here;
+    // only codes with no documented status (e.g. INTERNAL_SERVER_ERROR) may
+    // rely on the `?? 500` fallback. See http-exception.filter.spec.ts for
+    // the regression guard.
+    const statusByErrorCode: Partial<Record<ErrorCode, number>> = {
+      [ErrorCode.VALIDATION_ERROR]: 400,
+      [ErrorCode.NOT_FOUND]: 404,
+      [ErrorCode.UNAUTHORIZED]: 401,
+      [ErrorCode.FORBIDDEN]: 403,
+      [ErrorCode.CONFLICT]: 409,
+      [ErrorCode.RATE_LIMIT_EXCEEDED]: 429,
+      [ErrorCode.TENANT_MISMATCH]: 403,
+      [ErrorCode.PLAN_LIMIT_EXCEEDED]: 402,
+      [ErrorCode.ALLOCATION_EXCEEDS_REMAINING]: 400,
+      [ErrorCode.ALLOCATION_EXCEEDS_UNALLOCATED]: 400,
+      [ErrorCode.OPTIMISTIC_LOCK_CONFLICT]: 409,
+      [ErrorCode.PAYMENT_CUSTOMER_UNRESOLVED]: 400,
+      [ErrorCode.CUSTOMER_MISMATCH]: 400,
+      [ErrorCode.RECEIVABLE_NOT_FOUND]: 404,
+      [ErrorCode.PAYMENT_NOT_FOUND]: 404,
+      [ErrorCode.ALLOCATION_NOT_FOUND]: 404,
+      [ErrorCode.ALLOCATION_ALREADY_UNDONE]: 409,
+      [ErrorCode.DISPUTE_ALREADY_OPEN]: 409,
+      [ErrorCode.RECEIVABLE_HAS_PAYMENTS]: 400,
+      [ErrorCode.TEMPLATE_IN_USE]: 409,
+      [ErrorCode.EMAIL_SEND_FAILED]: 500,
+      [ErrorCode.IDEMPOTENCY_KEY_REUSED]: 409,
+    };
+    return statusByErrorCode[errorCode] ?? 500;
   }
 
   private defaultMessageForStatus(statusCode: number): string {

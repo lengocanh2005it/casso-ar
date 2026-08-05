@@ -1,6 +1,7 @@
-import { HttpException, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: NestJS DI resolves this constructor parameter at runtime.
 import { DataSource } from 'typeorm';
+import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
   type IUserRepository,
@@ -24,27 +25,16 @@ export class VerifyEmailUseCase {
   async execute(rawToken: string): Promise<void> {
     const token = await this.tokenRepo.findByTokenHash(hashToken(rawToken));
     if (!token || token.isExpired(new Date())) {
-      throw new HttpException(
-        {
-          statusCode: 400,
-          errorCode: ErrorCode.VALIDATION_ERROR,
-          message: 'Mã xác thực email không hợp lệ hoặc đã hết hạn.',
-        },
-        400,
+      throw new AppError(
+        ErrorCode.VALIDATION_ERROR,
+        'Mã xác thực email không hợp lệ hoặc đã hết hạn.',
       );
     }
 
     await this.dataSource.transaction(async (manager) => {
       const user = await this.userRepo.findById(token.userId, manager);
       if (!user) {
-        throw new HttpException(
-          {
-            statusCode: 404,
-            errorCode: ErrorCode.NOT_FOUND,
-            message: 'Không tìm thấy người dùng.',
-          },
-          404,
-        );
+        throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy người dùng.');
       }
       await this.userRepo.save(user.markEmailVerified(), manager);
       await this.tokenRepo.deleteById(token.id, manager);

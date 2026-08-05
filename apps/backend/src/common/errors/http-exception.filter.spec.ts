@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { AppError } from './app-error';
 import { ErrorCode } from './error-code';
 import { HttpExceptionFilter } from './http-exception.filter';
 
@@ -75,5 +76,62 @@ describe('HttpExceptionFilter', () => {
       errorCode: ErrorCode.INTERNAL_SERVER_ERROR,
       message: 'Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.',
     });
+  });
+
+  it('maps AppError to the standard envelope using the error code', () => {
+    expect(
+      captureResponse(new AppError(ErrorCode.UNAUTHORIZED, 'Sai mật khẩu.')),
+    ).toEqual({
+      statusCode: 401,
+      errorCode: ErrorCode.UNAUTHORIZED,
+      message: 'Sai mật khẩu.',
+    });
+  });
+
+  it('maps AppError with details to the standard envelope', () => {
+    expect(
+      captureResponse(
+        new AppError(ErrorCode.PLAN_LIMIT_EXCEEDED, 'Đã đạt giới hạn gói.', {
+          planId: 'FREE',
+        }),
+      ),
+    ).toEqual({
+      statusCode: 402,
+      errorCode: ErrorCode.PLAN_LIMIT_EXCEEDED,
+      message: 'Đã đạt giới hạn gói.',
+      details: { planId: 'FREE' },
+    });
+  });
+
+  it('maps AppError with an unmapped error code to 500', () => {
+    expect(
+      captureResponse(
+        new AppError(ErrorCode.EMAIL_SEND_FAILED, 'Gửi email thất bại.'),
+      ),
+    ).toEqual({
+      statusCode: 500,
+      errorCode: ErrorCode.EMAIL_SEND_FAILED,
+      message: 'Gửi email thất bại.',
+    });
+  });
+
+  // Regression guard for the AGENTS.md "API Error Codes" table drifting out
+  // of sync with http-exception.filter.ts's statusForErrorCode map. Every
+  // ErrorCode must resolve to a real (non-500) status unless it's one of the
+  // codes that is legitimately documented/expected to be 500.
+  it('never silently falls back to 500 for an ErrorCode with a documented non-500 status', () => {
+    const expectedFiveHundredCodes = new Set<ErrorCode>([
+      ErrorCode.INTERNAL_SERVER_ERROR,
+      ErrorCode.EMAIL_SEND_FAILED,
+    ]);
+
+    for (const code of Object.values(ErrorCode)) {
+      const { statusCode } = captureResponse(new AppError(code, 'x'));
+      if (expectedFiveHundredCodes.has(code)) {
+        expect(statusCode).toBe(500);
+      } else {
+        expect(statusCode).toBeLessThan(500);
+      }
+    }
   });
 });

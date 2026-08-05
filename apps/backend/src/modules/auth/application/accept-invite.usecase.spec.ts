@@ -86,8 +86,7 @@ describe('AcceptInviteUseCase', () => {
     await expect(
       useCase.execute({ token: rawToken, password: 'x' }),
     ).rejects.toMatchObject({
-      status: 400,
-      response: expect.objectContaining({ errorCode: 'VALIDATION_ERROR' }),
+      errorCode: 'VALIDATION_ERROR',
     });
   });
 });

@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { SubscriptionStatus } from '@casso-ledger/shared-types';
-import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
+import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 // biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
@@ -60,13 +61,6 @@ export class PlanLimitService {
   }
 
   private throwPlanLimitExceeded(message: string): never {
-    throw new HttpException(
-      {
-        statusCode: HttpStatus.PAYMENT_REQUIRED,
-        errorCode: ErrorCode.PLAN_LIMIT_EXCEEDED,
-        message,
-      },
-      HttpStatus.PAYMENT_REQUIRED,
-    );
+    throw new AppError(ErrorCode.PLAN_LIMIT_EXCEEDED, message);
   }
 }

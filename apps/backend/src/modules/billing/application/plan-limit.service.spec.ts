@@ -67,7 +67,7 @@ describe('PlanLimitService', () => {
 
     await expect(service.enforceReceivableLimit(manager)).rejects.toMatchObject(
       {
-        status: 402,
+        errorCode: 'PLAN_LIMIT_EXCEEDED',
       },
     );
   });
@@ -86,7 +86,7 @@ describe('PlanLimitService', () => {
 
     await expect(service.enforceReceivableLimit(manager)).rejects.toMatchObject(
       {
-        status: 402,
+        errorCode: 'PLAN_LIMIT_EXCEEDED',
       },
     );
     // A cancelled subscription is blocked before usage is even counted.

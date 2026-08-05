@@ -85,8 +85,7 @@ describe('SignupUseCase', () => {
         password: 'password',
       }),
     ).rejects.toMatchObject({
-      status: 409,
-      response: expect.objectContaining({ errorCode: 'CONFLICT' }),
+      errorCode: 'CONFLICT',
     });
   });
 });
