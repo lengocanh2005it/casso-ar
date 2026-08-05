@@ -160,6 +160,7 @@ Success = a single document a new developer can read and know exactly what to pi
   - Reset revokes all refresh tokens
 - **Creates**: `users/` module, `auth/` module (4 token entities + 8 use cases + controller), `EmailVerifiedGuard`
 - **Review follow-up** (same PR, commit `f27034f`): `switch-organization` now validates `organizationId` via a `class-validator` DTO instead of a raw unchecked body field; `EmailVerifiedGuard` moved into `presentation/` to match layering convention. Two findings raised against the generic AGENTS.md "access token in httpOnly cookie" / "rate-limit all auth endpoints" lines were checked against the actual spec and the already-shipped `JwtStrategy` (Plan #2) and left as-is — spec section 3/6 and shipped code both use Bearer-token-in-body + cookie-only-for-refresh, and rate limiting scoped to login/signup/forgot-password only.
+- **Ponytail-review follow-up** (same PR, commit `97d8a2f`): deleted `AuthError` (duplicated `HttpException`'s existing errorCode/message envelope handling) — all auth use cases now throw `HttpException` directly, matching the pre-existing `plan-limit.service.ts` convention (net line count unchanged: HttpException's call-site shape is more verbose than AuthError's, offsetting the savings elsewhere); removed `auth.module.ts`'s unused `exports` array; collapsed repeated field-by-field constructors into `Object.assign(this, props)` across the 4 auth token entities + `User`; extracted `REFRESH_TOKEN_TTL_MS` into one shared constant (was redefined identically in 3 places). Note: using `HttpException` (an HTTP/transport concern) directly in the `application/` layer is a pragmatic consistency choice, not strict Clean Architecture — a proper fix would need a framework-agnostic error taxonomy shared with `plan-limit.service.ts`; deferred to a separate whole-codebase PR per user decision.
 
 ---
 
@@ -168,7 +169,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-cas-id-bank-connection-design.md`
-- **Blockers**: Plan #2, Plan #3, Plan #4
+- **Blockers**: Plan #2 ✅, Plan #3 ✅, Plan #4 ✅
 - **Key entities**: `CasIdConnectionSession`, `BankConnection` (ACTIVE/REQUIRES_REAUTHORIZATION/DISCONNECTED), `ConnectionAuditEvent`
 - **Key rules**:
   - Redirect-based flow: grant token → Cas Link → publicToken → accessToken exchange
@@ -185,7 +186,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-email-template-management-design.md`
-- **Blockers**: Plan #2, Plan #3, Plan #4
+- **Blockers**: Plan #2 ✅, Plan #3 ✅, Plan #4 ✅
 - **Key entities**: `EmailTemplate` (isDefault, reminderStage, bodyHtml)
 - **Key rules**:
   - 4 default templates seeded per organization in bootstrap
