@@ -86,7 +86,7 @@ describe('Payment allocation (integration)', () => {
     const createReceivableRes = await request(app.getHttpServer())
       .post('/api/v1/receivables')
       .set('Authorization', `Bearer ${token}`)
-      .set('Idempotency-Key', 'payment-test-create-receivable')
+      .set('Idempotency-Key', 'payment-allocation-create-receivable')
       .send({
         organizationId,
         customerId,
@@ -114,7 +114,7 @@ describe('Payment allocation (integration)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/payments/${paymentId}/allocate`)
       .set('Authorization', `Bearer ${token}`)
-      .set('Idempotency-Key', 'payment-test-allocate')
+      .set('Idempotency-Key', 'payment-allocation-allocate')
       .send({
         receivableId,
         amount: 30_000_000,
