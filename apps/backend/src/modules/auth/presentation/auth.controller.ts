@@ -38,6 +38,8 @@ import { LoginDto } from './dto/login.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 // biome-ignore lint/style/useImportType: ValidationPipe needs the DTO runtime metadata.
 import { SignupDto } from './dto/signup.dto';
+// biome-ignore lint/style/useImportType: ValidationPipe needs the DTO runtime metadata.
+import { SwitchOrganizationDto } from './dto/switch-organization.dto';
 
 const REFRESH_COOKIE_NAME = 'refreshToken';
 const REFRESH_COOKIE_OPTIONS = {
@@ -140,11 +142,11 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async switchOrganization(
     @Req() request: AuthRequest,
-    @Body('organizationId') organizationId: string,
+    @Body() dto: SwitchOrganizationDto,
   ) {
     return this.switchOrganizationUseCase.execute(
       request.user?.userId ?? '',
-      organizationId,
+      dto.organizationId,
     );
   }
 

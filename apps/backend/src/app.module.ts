@@ -13,7 +13,7 @@ import { TenantContextInterceptor } from './common/tenancy/tenant-context.interc
 import { getJwtSecret } from './config/jwt.config';
 import { getTypeOrmConfig } from './config/typeorm.config';
 import { AuthModule } from './modules/auth/auth.module';
-import { EmailVerifiedGuard } from './modules/auth/email-verified.guard';
+import { EmailVerifiedGuard } from './modules/auth/presentation/email-verified.guard';
 import { BillingModule } from './modules/billing/billing.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';

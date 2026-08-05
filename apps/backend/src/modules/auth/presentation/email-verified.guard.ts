@@ -10,7 +10,7 @@ import { Reflector } from '@nestjs/core';
 import {
   type IUserRepository,
   USER_REPOSITORY,
-} from '../users/application/user-repository.port';
+} from '../../users/application/user-repository.port';
 
 interface AuthenticatedRequest {
   user?: { userId?: string };
