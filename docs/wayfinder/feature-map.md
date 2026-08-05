@@ -30,7 +30,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **Business rules (enforce on every ticket):**
 1. Money: integer VND, NEVER float/decimal
-2. Transactions: write money/status trong 1 DB transaction
+2. Transactions: write money/status in one DB transaction
 3. Tenant isolation: scope every query/write to `organizationId`
 4. Derived fields: calculate at query time, NEVER store
 5. `paidAmount`/`allocatedAmount` are persisted rollups, updated only in a locked transaction

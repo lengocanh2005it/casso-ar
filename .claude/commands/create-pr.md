@@ -12,7 +12,7 @@ Create a PR for the current branch.
 4. Create PR:
 ```bash
 gh pr create \
-  --title "feat: <mô tả>" \
+  --title "feat: <description>" \
   --body "## Changes
 
 - <list changes>

@@ -4,7 +4,7 @@ Create a new API endpoint with controller, DTO, and validation.
 
 ## When to use
 
-User says: "tạo endpoint", "new API", "thêm route"
+User says: "create endpoint", "new API", "add route"
 
 ## Steps
 

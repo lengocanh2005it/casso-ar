@@ -5,11 +5,11 @@ paths:
 
 # Module Wiring (`*.module.ts`) Rules
 
-- Thứ tự trong `@Module({...})` nhất quán trên toàn repo — giữ nguyên khi thêm module mới hoặc sửa module có sẵn:
-  1. `imports`: `TypeOrmModule.forFeature([...])` trước, rồi đến các module phụ thuộc (`XModule`)
-  2. `providers`: DI token bindings (`{ provide: X_REPOSITORY, useClass: TypeOrmXRepository }`) trước, use case (`XUseCase`) sau
+- Keep the order in `@Module({...})` consistent across the repository — preserve it when adding a new module or modifying an existing one:
+  1. `imports`: `TypeOrmModule.forFeature([...])` first, followed by dependent modules (`XModule`)
+  2. `providers`: DI token bindings (`{ provide: X_REPOSITORY, useClass: TypeOrmXRepository }`) first, followed by use cases (`XUseCase`)
   3. `controllers`
-  4. `exports`: export DI token + use case cho module khác dùng (không export domain/infrastructure internals)
-- DI token luôn bind bằng `{ provide: SYMBOL, useClass: Concrete }`, KHÔNG dùng `useValue`/`useFactory` trừ khi thực sự cần khởi tạo động (ví dụ đọc `process.env` — xem `JwtModule.register` trong `auth.module.ts`).
-- Module phụ thuộc module khác thì import nguyên `XModule` (không import lẻ provider) — xem `receivables.module.ts` import `CustomersModule`/`BillingModule`.
-- Nếu module cần dùng port/entity ở `common/` (ví dụ `AUDIT_LOG_REPOSITORY`), bind trực tiếp trong `providers` của module đó — xem `payments.module.ts`.
+  4. `exports`: export the DI token + use case for other modules (do not export domain/infrastructure internals)
+- Always bind DI tokens with `{ provide: SYMBOL, useClass: Concrete }`; DO NOT use `useValue`/`useFactory` unless dynamic initialization is genuinely needed (for example, reading `process.env` — see `JwtModule.register` in `auth.module.ts`).
+- When a module depends on another module, import the entire `XModule` (do not import individual providers) — see `receivables.module.ts` importing `CustomersModule`/`BillingModule`.
+- If a module needs a port/entity from `common/` (for example, `AUDIT_LOG_REPOSITORY`), bind it directly in that module's `providers` — see `payments.module.ts`.

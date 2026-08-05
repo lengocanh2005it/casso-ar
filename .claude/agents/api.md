@@ -22,4 +22,4 @@
 - Controller ONLY calls use case — no business logic in controller
 - Every endpoint MUST have `@RequirePermission(Permission.<X>)` decorator
 - Timezone: `Asia/Ho_Chi_Minh` for reminder-related endpoints
-- **BẮT BUỘC** cập nhật `docs/wayfinder/feature-map.md` khi hoàn thành task (đổi status → `done`, thêm `Shipped:` + PR ref)
+- **MUST** update `docs/wayfinder/feature-map.md` when completing a task (change status → `done`, add `Shipped:` + PR ref)

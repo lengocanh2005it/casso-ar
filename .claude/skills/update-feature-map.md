@@ -4,7 +4,7 @@ Update feature-map.md when a plan/ticket is completed.
 
 ## When to use
 
-User says: "cập nhật feature-map", "update feature map", "hoàn thành plan"
+User says: "update feature-map", "update feature map", "complete plan"
 
 ## Steps
 

@@ -4,7 +4,7 @@ Check domain rules compliance across the codebase.
 
 ## When to use
 
-User says: "kiểm tra domain rules", "check domain", "domain compliance"
+User says: "check domain rules", "check domain", "domain compliance"
 
 ## Rules to check
 
