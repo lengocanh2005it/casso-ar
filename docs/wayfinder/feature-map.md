@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1, #2, #3, #4, #18 complete, Plan #5+ pending
+**Map mode**: chart — Plan #1, #2, #3, #4, #5, #18 complete, Plan #6+ pending
 
 ---
 
@@ -59,6 +59,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **2026-08-05**: PR #6 merged — whole-repo code-review remediation is shipped: standardized error envelope, tenant-scoped writes, rollup checks, persisted idempotency keys, `X-Organization-Id` membership selection, Invoice module, frontend plan gating, and Radix-based Sheet. Organization persistence/FK wiring remains deferred; idempotency is not yet atomic with the business transaction.
 - **2026-08-05**: Plan #3 shipped (branch `feat/billing-usage-metering`, PR #8, awaiting review) — `receivablesThisMonth` gate only. `activeBankConnections` gate deliberately deferred to Plan #5 (no `BankConnection` table to count yet). No signup/bootstrap transaction exists yet (Plan #4), so `PlanLimitService` lazily creates a FREE `Subscription` per organization on first use instead of at signup; billing period is a lazily-rolled current calendar month (no renewal cron). A `/code-review` pass found and fixed a real race condition (advisory lock replaces a row lock that couldn't cover first-time Subscription creation) and a dead `status` field; a `ponytail-review` pass then deleted 3 unused plan-limit catalog entries and merged two always-paired repository calls into one.
 - **2026-08-05**: Application Layer Boundary Enforcement shipped — `AppError`/`ITokenSigner` replace `HttpException`/`JwtService` leaks in 9 use case files across auth/billing/receivables; `.claude/rules/application.md` added; `api.md`'s unconditional `@RequirePermission()` rule corrected (was wrong for pre-auth endpoints); `arch-check` (dependency-cruiser + Node script) wired into `pnpm verify`. Domain/infrastructure/presentation audited clean, no code changes there.
+- **2026-08-05**: Plan #5 shipped (branch `feat/cas-id-bank-connection`, PR #15 merged) — `bank-connections/` module: initiate/exchange/disconnect flow, AES-256-GCM token encryption, lazy 401/403 revocation detection via `MarkRequiresReauthorizationUseCase`, `MockCasIdAdapter` (real Cas ID client deferred). Webhook ACTIVE-status gating stays with Plan #8 (webhook module doesn't exist yet). Two review passes plus a `domain-check` pass ran before merge: Standards+Spec review found and fixed missing transactions, an unscoped `HttpException`→`AppError` gap, missing `IdempotencyService` wrapping, missing `organizationId` on `ConnectionAuditEvent`, and 3 real DI/ORM bugs invisible to unit tests + `tsc` (`import type` erasing NestJS constructor params to `Function`/`undefined`; a `Date | null` column with no explicit TypeORM `type`) — only caught because a Postgres integration test was added and Docker was available. A `ponytail-review` pass then removed a `@VersionColumn()` that had been added to match convention but was never wired through the domain layer, and deduplicated 3 repeated code blocks across use cases. `activeBankConnections` billing gate (deferred from Plan #3) is still not wired — `BankConnection` now exists but `PlanLimitService` doesn't count it yet.
 
 ## Not yet specified
 
@@ -80,8 +81,8 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Ticket Index
 
 **26 plans** | status snapshot (2026-08-05):
-- 🟢 done (5): Plan #1, Plan #2, Plan #3, Plan #4, Plan #18
-- 🔴 open/not started (21): Plan #5–#17, #19–#23 + 3 additional plans
+- 🟢 done (6): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #18
+- 🔴 open/not started (20): Plan #6–#17, #19–#23 + 3 additional plans
 
 ---
 
@@ -167,9 +168,10 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #5 — Cas ID Bank Connection
 - **Type**: task
-- **Status**: in-progress
+- **Status**: done ✅
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-cas-id-bank-connection-design.md`
+- **Shipped**: 2026-08-05 — PR #15 merged (branch `feat/cas-id-bank-connection`)
 - **Blockers**: Plan #2 ✅, Plan #3 ✅, Plan #4 ✅
 - **Key entities**: `CasIdConnectionSession`, `BankConnection` (ACTIVE/REQUIRES_REAUTHORIZATION/DISCONNECTED), `ConnectionAuditEvent`
 - **Key rules**:
@@ -228,7 +230,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-webhook-matching-engine-design.md`
-- **Blockers**: Plan #1 ✅, Plan #2, Plan #5
+- **Blockers**: Plan #1 ✅, Plan #2, Plan #5 ✅
 - **Key entities**: `WebhookInbox`, `BankTransaction`, `MatchingCandidate`, `CustomerBankAccount`
 - **Key rules**:
   - `providerTransactionId` unique constraint = idempotency
@@ -389,7 +391,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE
 - **Plan**: `plans/2026-08-03-read-apis-completion.md`
-- **Blockers**: Plan #1 ✅, Plan #2, Plan #3, Plan #5, Plan #8, Plan #9, Plan #10, Plan #13
+- **Blockers**: Plan #1 ✅, Plan #2, Plan #3, Plan #5 ✅, Plan #8, Plan #9, Plan #10, Plan #13
 - **Key rules**:
   - Pagination: `page≥1, limit default 20 max 100`
   - Response: `{ items, total, page, limit }`
@@ -458,7 +460,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: FE
 - **Plan**: `plans/2026-08-03-fe-reminders-copilot-reports-settings.md`
-- **Blockers**: Plan #4, Plan #5, Plan #6, Plan #7, Plan #12, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19
+- **Blockers**: Plan #4, Plan #5 ✅, Plan #6, Plan #7, Plan #12, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19
 - **Key rules**:
   - Reminders: policy + executions list
   - Copilot: chat message list + pending-action cards (confirm/cancel)
@@ -573,13 +575,12 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **Next available tickets** (all blockers resolved):
-- **Plan #5** (Cas ID Bank Connection) — blockers: Plan #2 ✅, Plan #3 ✅, Plan #4 ✅
 - **Plan #6** (Email Template Management) — blockers: Plan #2 ✅, Plan #3 ✅, Plan #4 ✅
 - **Plan #9** (Dispute Management) — blockers: Plan #1 ✅, Plan #2 ✅
 - **Plan #11** (Internal Task + Escalation) — blockers: Plan #1 ✅, Plan #2 ✅
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
 
 **Blocked tickets waiting:**
-- Plan #5–#8, #10, #12–#17, #20–#23, additional plans — waiting on Plan #4/#5/#6 or other dependencies
+- Plan #7–#8, #10, #12–#17, #20–#23, additional plans — waiting on Plan #6 or other dependencies
 
-**Recommended next step:** Start Plan #5 (Cas ID Bank Connection) or Plan #6 (Email Template Management); both are now unblocked by Plan #4.
+**Recommended next step:** Start Plan #6 (Email Template Management) — now the most-unblocking open ticket (Plan #7, #8, #21 all wait on it).
