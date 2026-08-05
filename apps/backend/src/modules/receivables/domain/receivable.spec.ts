@@ -14,6 +14,7 @@ function buildOpenReceivable(originalAmount: number): Receivable {
     salesRepresentativeId: 'user-1',
     createdAt: new Date('2026-07-20'),
     closedAt: null,
+    version: 1,
   });
 }
 

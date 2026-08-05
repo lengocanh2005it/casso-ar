@@ -10,6 +10,7 @@ export interface SubscriptionProps {
   currentPeriodStart: Date;
   currentPeriodEnd: Date;
   createdAt: Date;
+  version: number;
 }
 
 // ponytail: FREE only — matches the spec's worked example (50/1). No
@@ -35,6 +36,7 @@ export class Subscription {
   readonly currentPeriodStart: Date;
   readonly currentPeriodEnd: Date;
   readonly createdAt: Date;
+  readonly version: number;
 
   constructor(props: SubscriptionProps) {
     this.id = props.id;
@@ -46,6 +48,7 @@ export class Subscription {
     this.currentPeriodStart = props.currentPeriodStart;
     this.currentPeriodEnd = props.currentPeriodEnd;
     this.createdAt = props.createdAt;
+    this.version = props.version;
   }
 
   static createFree(
@@ -63,6 +66,7 @@ export class Subscription {
       currentPeriodStart: startOfMonth(now),
       currentPeriodEnd: startOfNextMonth(now),
       createdAt: now,
+      version: 1,
     });
   }
 

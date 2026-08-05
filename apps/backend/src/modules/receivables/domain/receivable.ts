@@ -12,6 +12,7 @@ export interface ReceivableProps {
   salesRepresentativeId: string | null;
   createdAt: Date;
   closedAt: Date | null;
+  version: number;
 }
 
 const OPEN_STATUSES = [ReceivableStatus.OPEN, ReceivableStatus.PARTIALLY_PAID];
@@ -28,6 +29,7 @@ export class Receivable {
   readonly salesRepresentativeId: string | null;
   readonly createdAt: Date;
   readonly closedAt: Date | null;
+  readonly version: number;
 
   constructor(props: ReceivableProps) {
     this.id = props.id;
@@ -41,6 +43,7 @@ export class Receivable {
     this.salesRepresentativeId = props.salesRepresentativeId;
     this.createdAt = props.createdAt;
     this.closedAt = props.closedAt;
+    this.version = props.version;
   }
 
   get remainingAmount(): number {

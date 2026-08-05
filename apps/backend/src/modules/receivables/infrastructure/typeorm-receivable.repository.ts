@@ -7,6 +7,25 @@ import type { IReceivableRepository } from '../application/receivable-repository
 import { Receivable } from '../domain/receivable';
 import { ReceivableOrmEntity } from './receivable.orm-entity';
 
+// Explicit domain → ORM translation: the compiler checks every field, so a
+// drift between the two shapes fails here instead of being cast away.
+function toOrm(receivable: Receivable): ReceivableOrmEntity {
+  return {
+    id: receivable.id,
+    organizationId: receivable.organizationId,
+    customerId: receivable.customerId,
+    invoiceId: receivable.invoiceId,
+    originalAmount: receivable.originalAmount,
+    paidAmount: receivable.paidAmount,
+    dueDate: receivable.dueDate,
+    status: receivable.status,
+    salesRepresentativeId: receivable.salesRepresentativeId,
+    createdAt: receivable.createdAt,
+    closedAt: receivable.closedAt,
+    version: receivable.version,
+  };
+}
+
 @Injectable()
 export class TypeOrmReceivableRepository
   extends BaseRepository<ReceivableOrmEntity>
@@ -40,9 +59,6 @@ export class TypeOrmReceivableRepository
   }
 
   async save(receivable: Receivable, manager?: EntityManager): Promise<void> {
-    await this.scopedSaveWithManager(
-      receivable as unknown as ReceivableOrmEntity,
-      manager,
-    );
+    await this.scopedSaveWithManager(toOrm(receivable), manager);
   }
 }
