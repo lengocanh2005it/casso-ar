@@ -7,7 +7,8 @@
     "dev": "nest start --watch",
     "type-check": "tsc --noEmit",
     "test": "jest",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "arch-check": "depcruise --config .dependency-cruiser.cjs src && node scripts/check-application-exceptions.mjs"
   },
   "dependencies": {
     "@casso-ledger/shared-types": "workspace:*",
@@ -41,6 +42,7 @@
     "@types/node": "22.10.2",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "6.0.2",
+    "dependency-cruiser": "18.1.1",
     "jest": "30.4.2",
     "supertest": "7.0.0",
     "ts-jest": "29.4.12",
