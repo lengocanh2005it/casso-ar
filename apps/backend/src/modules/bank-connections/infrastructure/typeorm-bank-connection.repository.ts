@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
-// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { IBankConnectionRepository } from '../application/bank-connection-repository.port';
 import { BankConnection } from '../domain/bank-connection';
@@ -50,7 +49,7 @@ export class TypeOrmBankConnectionRepository
     manager?: EntityManager,
   ): Promise<void> {
     await this.scopedSaveWithManager(
-      connection as unknown as BankConnectionOrmEntity,
+      connection,
       manager,
       connection.organizationId,
     );

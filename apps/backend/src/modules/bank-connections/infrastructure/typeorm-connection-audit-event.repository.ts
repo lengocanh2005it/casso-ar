@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, Repository } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
-// biome-ignore lint/style/useImportType: must be a value import — NestJS DI resolves this constructor param via emitDecoratorMetadata's design:paramtypes, which erases type-only imports to `Function`
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { IConnectionAuditEventRepository } from '../application/connection-audit-event-repository.port';
 import type { ConnectionAuditEvent } from '../domain/connection-audit-event';
@@ -28,10 +27,6 @@ export class TypeOrmConnectionAuditEventRepository
     event: ConnectionAuditEvent,
     manager?: EntityManager,
   ): Promise<void> {
-    await this.scopedSaveWithManager(
-      event as unknown as ConnectionAuditEventOrmEntity,
-      manager,
-      event.organizationId,
-    );
+    await this.scopedSaveWithManager(event, manager, event.organizationId);
   }
 }
