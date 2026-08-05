@@ -14,6 +14,7 @@ import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/custo
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
+import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 
 describe('Tenant isolation and RBAC (integration)', () => {
   let container: StartedPostgreSqlContainer;
@@ -51,6 +52,33 @@ describe('Tenant isolation and RBAC (integration)', () => {
     await app.init();
     dataSource = moduleRef.get(DataSource);
     jwtService = moduleRef.get(JwtService);
+
+    await dataSource.getRepository(UserOrmEntity).save([
+      {
+        id: userOrgBOwner,
+        name: 'Org B Owner',
+        email: 'org-b@example.com',
+        passwordHash: 'test-hash',
+        emailVerifiedAt: new Date(),
+        createdAt: new Date(),
+      },
+      {
+        id: userOrgAAccountant,
+        name: 'Org A Accountant',
+        email: 'org-a-accountant@example.com',
+        passwordHash: 'test-hash',
+        emailVerifiedAt: new Date(),
+        createdAt: new Date(),
+      },
+      {
+        id: userOrgAFinanceManager,
+        name: 'Org A Finance',
+        email: 'org-a-finance@example.com',
+        passwordHash: 'test-hash',
+        emailVerifiedAt: new Date(),
+        createdAt: new Date(),
+      },
+    ]);
 
     await dataSource.getRepository(MembershipOrmEntity).save([
       {
@@ -126,6 +154,7 @@ describe('Tenant isolation and RBAC (integration)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/receivables/${receivableId}/write-off`)
       .set('Authorization', `Bearer ${tokenOrgB}`)
+      .set('Idempotency-Key', 'tenant-org-b-write-off')
       .expect(404); // Receivable not found (tenant-scoped) — NotFoundException, errorCode RECEIVABLE_NOT_FOUND
   });
 
@@ -135,6 +164,7 @@ describe('Tenant isolation and RBAC (integration)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/receivables/${receivableId}/write-off`)
       .set('Authorization', `Bearer ${tokenAccountant}`)
+      .set('Idempotency-Key', 'tenant-accountant-write-off')
       .expect(403);
   });
 
@@ -148,6 +178,7 @@ describe('Tenant isolation and RBAC (integration)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/receivables/${receivableId}/write-off`)
       .set('Authorization', `Bearer ${tokenFinanceManager}`)
+      .set('Idempotency-Key', 'tenant-finance-manager-write-off')
       .expect(201);
 
     const row = await dataSource.query(

@@ -13,6 +13,7 @@ import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/custo
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
 import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment.orm-entity';
+import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 
 describe('Payment allocation (integration)', () => {
   let container: StartedPostgreSqlContainer;
@@ -49,6 +50,15 @@ describe('Payment allocation (integration)', () => {
     const customerId = '00000000-0000-4000-8000-000000000002';
     const userId = '00000000-0000-4000-8000-000000000003';
 
+    await dataSource.getRepository(UserOrmEntity).save({
+      id: userId,
+      name: 'Test User',
+      email: 'payment-test@example.com',
+      passwordHash: 'test-hash',
+      emailVerifiedAt: new Date(),
+      createdAt: new Date(),
+    });
+
     await dataSource.getRepository(MembershipOrmEntity).save({
       organizationId,
       userId,
@@ -76,6 +86,7 @@ describe('Payment allocation (integration)', () => {
     const createReceivableRes = await request(app.getHttpServer())
       .post('/api/v1/receivables')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'payment-test-create-receivable')
       .send({
         organizationId,
         customerId,
@@ -103,6 +114,7 @@ describe('Payment allocation (integration)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/payments/${paymentId}/allocate`)
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'payment-test-allocate')
       .send({
         receivableId,
         amount: 30_000_000,

@@ -1,0 +1,95 @@
+import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { getJwtSecret } from '../../config/jwt.config';
+import { BillingModule } from '../billing/billing.module';
+import { OrganizationsModule } from '../organizations/organizations.module';
+import { UsersModule } from '../users/users.module';
+import { AcceptInviteUseCase } from './application/accept-invite.usecase';
+import { AUTH_EMAIL_SENDER } from './application/auth-email-sender.port';
+import { EMAIL_VERIFICATION_TOKEN_REPOSITORY } from './application/email-verification-token-repository.port';
+import { ForgotPasswordUseCase } from './application/forgot-password.usecase';
+import { InviteMemberUseCase } from './application/invite-member.usecase';
+import { LoginUseCase } from './application/login.usecase';
+import { LogoutUseCase } from './application/logout.usecase';
+import { MEMBERSHIP_INVITE_REPOSITORY } from './application/membership-invite-repository.port';
+import { DEFAULT_ORGANIZATION_BOOTSTRAP } from './application/organization-bootstrap.port';
+import { PASSWORD_RESET_TOKEN_REPOSITORY } from './application/password-reset-token-repository.port';
+import { RefreshAccessTokenUseCase } from './application/refresh-access-token.usecase';
+import { REFRESH_TOKEN_REPOSITORY } from './application/refresh-token-repository.port';
+import { ResetPasswordUseCase } from './application/reset-password.usecase';
+import { SignupUseCase } from './application/signup.usecase';
+import { SwitchOrganizationUseCase } from './application/switch-organization.usecase';
+import { VerifyEmailUseCase } from './application/verify-email.usecase';
+import { ConsoleEmailSenderAdapter } from './infrastructure/console-email-sender.adapter';
+import { DefaultOrganizationBootstrap } from './infrastructure/default-organization-bootstrap.adapter';
+import { EmailVerificationTokenOrmEntity } from './infrastructure/email-verification-token.orm-entity';
+import { MembershipInviteOrmEntity } from './infrastructure/membership-invite.orm-entity';
+import { PasswordResetTokenOrmEntity } from './infrastructure/password-reset-token.orm-entity';
+import { RefreshTokenOrmEntity } from './infrastructure/refresh-token.orm-entity';
+import { TypeOrmEmailVerificationTokenRepository } from './infrastructure/typeorm-email-verification-token.repository';
+import { TypeOrmMembershipInviteRepository } from './infrastructure/typeorm-membership-invite.repository';
+import { TypeOrmPasswordResetTokenRepository } from './infrastructure/typeorm-password-reset-token.repository';
+import { TypeOrmRefreshTokenRepository } from './infrastructure/typeorm-refresh-token.repository';
+import { AuthController } from './presentation/auth.controller';
+import { InvitesController } from './presentation/invites.controller';
+
+@Module({
+  imports: [
+    JwtModule.register({
+      secret: getJwtSecret(),
+      signOptions: { expiresIn: '15m' },
+    }),
+    TypeOrmModule.forFeature([
+      EmailVerificationTokenOrmEntity,
+      PasswordResetTokenOrmEntity,
+      MembershipInviteOrmEntity,
+      RefreshTokenOrmEntity,
+    ]),
+    UsersModule,
+    OrganizationsModule,
+    BillingModule,
+  ],
+  providers: [
+    LoginUseCase,
+    SignupUseCase,
+    VerifyEmailUseCase,
+    AcceptInviteUseCase,
+    ForgotPasswordUseCase,
+    InviteMemberUseCase,
+    LogoutUseCase,
+    RefreshAccessTokenUseCase,
+    ResetPasswordUseCase,
+    SwitchOrganizationUseCase,
+    {
+      provide: EMAIL_VERIFICATION_TOKEN_REPOSITORY,
+      useClass: TypeOrmEmailVerificationTokenRepository,
+    },
+    {
+      provide: PASSWORD_RESET_TOKEN_REPOSITORY,
+      useClass: TypeOrmPasswordResetTokenRepository,
+    },
+    {
+      provide: MEMBERSHIP_INVITE_REPOSITORY,
+      useClass: TypeOrmMembershipInviteRepository,
+    },
+    {
+      provide: REFRESH_TOKEN_REPOSITORY,
+      useClass: TypeOrmRefreshTokenRepository,
+    },
+    { provide: AUTH_EMAIL_SENDER, useClass: ConsoleEmailSenderAdapter },
+    {
+      provide: DEFAULT_ORGANIZATION_BOOTSTRAP,
+      useClass: DefaultOrganizationBootstrap,
+    },
+  ],
+  controllers: [AuthController, InvitesController],
+  exports: [
+    EMAIL_VERIFICATION_TOKEN_REPOSITORY,
+    PASSWORD_RESET_TOKEN_REPOSITORY,
+    MEMBERSHIP_INVITE_REPOSITORY,
+    REFRESH_TOKEN_REPOSITORY,
+    AUTH_EMAIL_SENDER,
+  ],
+})
+export class AuthModule {}

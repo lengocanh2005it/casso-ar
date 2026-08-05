@@ -17,6 +17,7 @@ import { JwtAuthGuard } from '../src/common/auth/jwt-auth.guard';
 import { configureApp } from '../src/configure-app';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
+import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 
 @Controller('_test-protected')
 class TestProtectedController {
@@ -56,6 +57,14 @@ describe('JwtAuthGuard (e2e)', () => {
     // looks up (userId, organizationId) in the DB and derives the effective role
     // from it, ignoring the `role` claim in the JWT payload.
     const dataSource = moduleRef.get(DataSource);
+    await dataSource.getRepository(UserOrmEntity).save({
+      id: userId,
+      name: 'Test User',
+      email: 'jwt-test@example.com',
+      passwordHash: 'test-hash',
+      emailVerifiedAt: new Date(),
+      createdAt: new Date(),
+    });
     await dataSource.getRepository(MembershipOrmEntity).save({
       organizationId,
       userId,
