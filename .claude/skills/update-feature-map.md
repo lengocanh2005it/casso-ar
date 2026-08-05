@@ -4,7 +4,7 @@ Update feature-map.md when a plan/ticket is completed.
 
 ## When to use
 
-User says: "cập nhật feature-map", "update feature map", "hoàn thành plan"
+User says: "update feature-map", "update feature map", "complete plan"
 
 ## Steps
 
@@ -20,5 +20,6 @@ User says: "cập nhật feature-map", "update feature map", "hoàn thành plan"
 6. Update Frontier section:
    - Remove completed plan from "Next available tickets"
    - Add newly unblocked plans
-7. Commit: `docs: update feature-map — Plan #<N> done (<name>)`
-8. Push to main
+7. Use `verification-before-completion` and confirm the plan/PR reference and counts are correct.
+8. Commit on the current ticket branch: `docs: update feature-map — Plan #<N> done (<name>)`
+9. Push the ticket branch and open/update its PR; never push directly to `main`.

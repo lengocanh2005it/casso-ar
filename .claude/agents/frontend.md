@@ -50,5 +50,5 @@ apps/frontend/src/
 - All API calls use `/api/v1` prefix
 - `hasPermission(role, permission)` for RBAC — hide button, never disable
 - Money formatting: `formatVND()` utility
-- Money as integer đồng, never float
-- **BẮT BUỘC** cập nhật `docs/wayfinder/feature-map.md` khi hoàn thành task (đổi status → `done`, thêm `Shipped:` + PR ref)
+- Money as integer VND units, never float
+- **MUST** update `docs/wayfinder/feature-map.md` when completing a task (change status → `done`, add `Shipped:` + PR ref)

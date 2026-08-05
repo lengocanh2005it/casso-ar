@@ -4,7 +4,7 @@ Create a new React component.
 
 ## When to use
 
-User says: "tạo component", "new component", "thêm component"
+User says: "create component", "new component", "add component"
 
 ## File Structure
 
@@ -12,7 +12,7 @@ User says: "tạo component", "new component", "thêm component"
 apps/frontend/src/features/<feature>/
   components/
     <component-name>.tsx
-    <component-name>.test.tsx (optional)
+    <component-name>.test.tsx
 ```
 
 Or for shared components:
@@ -25,6 +25,8 @@ apps/frontend/src/components/
 
 ## Rules
 
+- For behavior changes, write a focused test first, verify RED, implement the minimum component, then verify GREEN before refactoring.
+- Keep a test for interactive or stateful behavior; static markup-only changes may use the documented configuration/generated-code exception when no behavior is added.
 - Only create shared component if used by 2+ features (Rule of Two)
 - Component for 1 feature → keep in that feature folder
 - Use shadcn/ui primitives when possible

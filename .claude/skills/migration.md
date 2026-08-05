@@ -4,7 +4,7 @@ Create or run TypeORM migrations.
 
 ## When to use
 
-User says: "tạo migration", "run migration", "update schema"
+User says: "create migration", "run migration", "update schema"
 
 ## Create migration
 

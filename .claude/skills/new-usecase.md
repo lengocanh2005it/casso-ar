@@ -4,7 +4,7 @@ Create a new use case with unit test.
 
 ## When to use
 
-User says: "tạo use case", "new use case for X", "thêm chức năng Y"
+User says: "create a use case", "new use case for X", "add feature Y"
 
 ## File naming
 
@@ -13,7 +13,9 @@ User says: "tạo use case", "new use case for X", "thêm chức năng Y"
 
 ## Steps
 
-1. Define input interface:
+1. Define the first desired behavior and write its unit test. Run it and verify that it fails for the expected reason.
+
+2. Define input interface:
 ```typescript
 export interface <Action>Input {
   <entityId>: string;
@@ -21,7 +23,7 @@ export interface <Action>Input {
 }
 ```
 
-2. Create use case class:
+3. Create the smallest use case implementation that makes the test pass:
 ```typescript
 @Injectable()
 export class <Action>UseCase {
@@ -39,7 +41,7 @@ export class <Action>UseCase {
 }
 ```
 
-3. Create unit test with mocked repositories:
+4. Add the next behavior with one test at a time. Use mocked repositories only at the use-case boundary:
 ```typescript
 describe('<Action>UseCase', () => {
   it('does X', async () => {
@@ -51,8 +53,8 @@ describe('<Action>UseCase', () => {
 });
 ```
 
-4. Register in module providers
+5. Register in module providers
 
-5. Run test: `npx jest --testPathPattern <usecase-name>`
+6. Run focused tests after each RED and GREEN step: `npx jest --testPathPattern <usecase-name>`
 
-6. Commit: `feat: add <Action>UseCase`
+7. Refactor only after green, then commit: `feat: add <Action>UseCase`

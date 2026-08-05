@@ -4,7 +4,7 @@ Create a new page with route, layout, and placeholder content.
 
 ## When to use
 
-User says: "tạo trang mới", "new page", "thêm route"
+User says: "create a new page", "new page", "add route"
 
 ## File Structure
 
@@ -18,7 +18,9 @@ apps/frontend/src/features/<feature>/
 
 ## Steps
 
-1. Create page component:
+1. Use `frontend-design` to establish the page's visual behavior. Write a focused test first for any interactive or data-dependent behavior and verify RED.
+
+2. Create the smallest page component that makes the test pass:
 ```tsx
 import { useQuery } from '@tanstack/react-query';
 import { fetcher } from '@/lib/api-client';
@@ -40,7 +42,7 @@ export function <PageName>() {
 }
 ```
 
-2. Add route in `routes/index.tsx`:
+3. Add route in `routes/index.tsx`:
 ```tsx
 {
   path: '/<page-name>',
@@ -48,9 +50,9 @@ export function <PageName>() {
 }
 ```
 
-3. Add nav item in sidebar (if new top-level page)
+4. Add nav item in sidebar (if new top-level page)
 
-4. Create API hook if needed:
+5. Create API hook if needed:
 ```tsx
 // features/<feature>/hooks/use-<entity>.ts
 export function use<Entity>() {
@@ -61,4 +63,4 @@ export function use<Entity>() {
 }
 ```
 
-5. Commit: `feat: add <page-name> page`
+6. Refactor only after green, run frontend tests/type-check, then use `verification-before-completion` before committing: `feat: add <page-name> page`

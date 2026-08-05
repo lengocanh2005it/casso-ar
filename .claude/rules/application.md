@@ -5,22 +5,22 @@ paths:
 
 # Application Layer Rules
 
-- Use case chỉ phụ thuộc port (`I<Entity>Repository`, `I<Thing>`) và domain.
-- KHÔNG import SDK/thư viện tích hợp cụ thể (`@nestjs/jwt`, `@nestjs/passport`,
-  `resend`, Cas ID client...) — định nghĩa port riêng, implement adapter ở
-  `infrastructure/`. Xem `ITokenSigner` (`modules/auth/application/token-signer.port.ts`)
-  làm ví dụ.
-- KHÔNG throw `HttpException`, `NotFoundException`, `UnauthorizedException`,
-  `BadRequestException`, `ConflictException`, `ForbiddenException`, hay bất kỳ
-  exception class nào từ `@nestjs/common` — throw `AppError(errorCode, message, details?)`
-  (`common/errors/app-error.ts`). `HttpExceptionFilter` (presentation) là nơi
-  duy nhất dịch lỗi sang HTTP status.
-- ĐƯỢC PHÉP (không phải vi phạm, không "sửa" các chỗ này):
-  - `@Injectable()`/`@Inject()` từ `@nestjs/common` — decorator DI thuần, không
-    mang logic nghiệp vụ.
-  - `DataSource`/`EntityManager` từ `typeorm` khi cần mở transaction xuyên
-    nhiều repository trong 1 use case (xem AGENTS.md).
-  - `bcryptjs` — thuật toán băm thuần, không cần DI/config, cùng loại với
+- Use cases depend only on ports (`I<Entity>Repository`, `I<Thing>`) and the domain.
+- MUST NOT import specific SDKs/integration libraries (`@nestjs/jwt`, `@nestjs/passport`,
+  `resend`, Cas ID client...) — define a dedicated port and implement the adapter in
+  `infrastructure/`. See `ITokenSigner` (`modules/auth/application/token-signer.port.ts`)
+  as an example.
+- MUST NOT throw `HttpException`, `NotFoundException`, `UnauthorizedException`,
+  `BadRequestException`, `ConflictException`, `ForbiddenException`, or any exception
+  class from `@nestjs/common` — throw `AppError(errorCode, message, details?)`
+  (`common/errors/app-error.ts`). `HttpExceptionFilter` (presentation) is the sole
+  place that translates errors into HTTP status codes.
+- ALLOWED (not violations; do not "fix" these locations):
+  - `@Injectable()`/`@Inject()` from `@nestjs/common` — inert DI decorators with no
+    business logic.
+  - `DataSource`/`EntityManager` from `typeorm` when opening a transaction across
+    multiple repositories in one use case (see AGENTS.md).
+  - `bcryptjs` — a stateless hashing algorithm that needs no DI/config, like
     `node:crypto`.
-- File: `*.usecase.ts` cho use case, `*-repository.port.ts` / `*-<thing>.port.ts`
-  cho port. DI token: `Symbol('X_REPOSITORY')` / `Symbol('X')`.
+- Files: `*.usecase.ts` for use cases, `*-repository.port.ts` / `*-<thing>.port.ts`
+  for ports. DI tokens: `Symbol('X_REPOSITORY')` / `Symbol('X')`.

@@ -4,7 +4,7 @@ Set up or modify tenant isolation for a module.
 
 ## When to use
 
-User says: "thêm tenant isolation", "setup tenancy", "multi-tenant"
+User says: "add tenant isolation", "setup tenancy", "multi-tenant"
 
 ## Current setup
 

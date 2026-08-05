@@ -132,7 +132,7 @@ Tools (actions, confirmation required):
 
 ## 9. Pricing & Billing Model
 
-Theo [billing-usage-metering spec](docs/superpowers/specs/2026-08-03-billing-usage-metering-design.md):
+According to the [billing-usage-metering spec](docs/superpowers/specs/2026-08-03-billing-usage-metering-design.md):
 
 **2 metric gate MVP:**
 

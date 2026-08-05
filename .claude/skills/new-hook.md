@@ -4,7 +4,7 @@ Create a new React hook for data fetching or business logic.
 
 ## When to use
 
-User says: "tạo hook", "new hook", "thêm hook"
+User says: "create hook", "new hook", "add hook"
 
 ## File Structure
 
@@ -63,6 +63,8 @@ export function use<Logic>(data: <EntityType>[]) {
 
 ## Rules
 
+- For new hook behavior, write a focused test first and verify RED before implementation; implement the minimum change, verify GREEN, then refactor.
+- Test the hook's public return values and observable effects, not its internal React calls.
 - Hook name starts with `use`
 - Place in feature's `hooks/` folder
 - Export from feature's `index.ts` barrel

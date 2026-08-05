@@ -11,4 +11,5 @@ Steps:
 4. Add `**Shipped**: <date> — PR #<number> merged, <N> commits`
 5. Update ticket count in Ticket Index
 6. Update Frontier section if needed
-7. Commit and push
+7. Use `verification-before-completion` to verify the diff and feature-map counts
+8. Commit on the current ticket branch and push that branch; never push directly to `main`
