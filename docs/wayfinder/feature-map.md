@@ -159,6 +159,7 @@ Success = a single document a new developer can read and know exactly what to pi
   - Forgot-password always returns 200 (prevent enumeration)
   - Reset revokes all refresh tokens
 - **Creates**: `users/` module, `auth/` module (4 token entities + 8 use cases + controller), `EmailVerifiedGuard`
+- **Review follow-up** (same PR, commit `f27034f`): `switch-organization` now validates `organizationId` via a `class-validator` DTO instead of a raw unchecked body field; `EmailVerifiedGuard` moved into `presentation/` to match layering convention. Two findings raised against the generic AGENTS.md "access token in httpOnly cookie" / "rate-limit all auth endpoints" lines were checked against the actual spec and the already-shipped `JwtStrategy` (Plan #2) and left as-is — spec section 3/6 and shipped code both use Bearer-token-in-body + cookie-only-for-refresh, and rate limiting scoped to login/signup/forgot-password only.
 
 ---
 
