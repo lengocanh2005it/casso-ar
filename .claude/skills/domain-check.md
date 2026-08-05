@@ -25,7 +25,9 @@ User says: "check domain rules", "check domain", "domain compliance"
 5. **Persisted rollup**: `paidAmount` and `allocatedAmount` only updated in transaction with lock
    - Check for direct updates outside transactions
 
-6. **No `any` in production code**: Search for `: any` or `as any` in non-test files
+6. **No `any` / unsafe casts in production code**: Search for `: any`, `as any`,
+   or `as unknown as` in non-test files
+   - Domain ↔ ORM translation must use an explicit mapper (`toOrm()`), never a cast
 
 7. **Derived fields not stored**: `remainingAmount`, `isOverdue`, `isDisputed` computed at query time
 
