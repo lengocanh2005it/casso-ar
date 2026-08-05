@@ -36,6 +36,7 @@ describe('DisconnectConnectionUseCase', () => {
     const connection = activeConnection();
     const bankConnectionRepo = {
       findById: jest.fn().mockResolvedValue(connection),
+      findByIdForUpdate: jest.fn().mockResolvedValue(connection),
       save: jest.fn(),
     };
     const adapter = { invalidateToken: jest.fn().mockResolvedValue(undefined) };
@@ -58,9 +59,14 @@ describe('DisconnectConnectionUseCase', () => {
     );
     expect(auditEventRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
+        organizationId: 'org-1',
         bankConnectionId: 'conn-1',
         eventType: 'DISCONNECTED',
       }),
+      expect.anything(),
+    );
+    expect(bankConnectionRepo.findByIdForUpdate).toHaveBeenCalledWith(
+      'conn-1',
       expect.anything(),
     );
     expect(markRequiresReauthorization.execute).not.toHaveBeenCalled();
@@ -112,5 +118,23 @@ describe('DisconnectConnectionUseCase', () => {
     );
 
     await expect(useCase.execute('missing')).rejects.toBeInstanceOf(AppError);
+  });
+
+  it('throws AppError if the connection disappears between the unlocked read and the locked re-read', async () => {
+    const connection = activeConnection();
+    const bankConnectionRepo = {
+      findById: jest.fn().mockResolvedValue(connection),
+      findByIdForUpdate: jest.fn().mockResolvedValue(null),
+      save: jest.fn(),
+    };
+    const useCase = new DisconnectConnectionUseCase(
+      bankConnectionRepo as never,
+      { invalidateToken: jest.fn().mockResolvedValue(undefined) } as never,
+      { save: jest.fn() } as never,
+      { execute: jest.fn() } as never,
+      dataSource as never,
+    );
+
+    await expect(useCase.execute('conn-1')).rejects.toBeInstanceOf(AppError);
   });
 });

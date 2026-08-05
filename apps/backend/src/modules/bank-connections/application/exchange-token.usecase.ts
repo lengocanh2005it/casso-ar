@@ -105,6 +105,7 @@ export class ExchangeTokenUseCase {
       await this.auditEventRepo.save(
         new ConnectionAuditEvent({
           id: randomUUID(),
+          organizationId: connection.organizationId,
           bankConnectionId: connection.id,
           eventType: existing ? 'RECONNECTED' : 'TOKEN_EXCHANGED',
           metadata: { accountNumber: accountIdentity.accountNumber },

@@ -93,6 +93,7 @@ export class InitiateConnectionUseCase {
         await this.auditEventRepo.save(
           new ConnectionAuditEvent({
             id: randomUUID(),
+            organizationId: existing.organizationId,
             bankConnectionId: existing.id,
             eventType: 'SESSION_CREATED',
             metadata: { sessionId: session.id },

@@ -1,4 +1,10 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+  VersionColumn,
+} from 'typeorm';
 import type {
   AccountIdentity,
   BankConnectionStatus,
@@ -39,4 +45,7 @@ export class BankConnectionOrmEntity {
 
   @Column()
   createdAt: Date;
+
+  @VersionColumn()
+  version: number;
 }

@@ -8,6 +8,7 @@ export type ConnectionAuditEventType =
 
 export interface ConnectionAuditEventProps {
   id: string;
+  organizationId: string;
   bankConnectionId: string;
   eventType: ConnectionAuditEventType;
   metadata: Record<string, unknown>;
@@ -16,6 +17,7 @@ export interface ConnectionAuditEventProps {
 
 export class ConnectionAuditEvent {
   readonly id: string;
+  readonly organizationId: string;
   readonly bankConnectionId: string;
   readonly eventType: ConnectionAuditEventType;
   readonly metadata: Record<string, unknown>;

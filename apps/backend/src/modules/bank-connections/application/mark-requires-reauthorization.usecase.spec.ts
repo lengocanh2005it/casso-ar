@@ -47,6 +47,7 @@ describe('MarkRequiresReauthorizationUseCase', () => {
     );
     expect(auditEventRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
+        organizationId: 'org-1',
         bankConnectionId: 'conn-1',
         eventType: 'MARKED_REQUIRES_REAUTH',
         metadata: { reason: '401 from getTransactions' },

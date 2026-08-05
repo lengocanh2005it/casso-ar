@@ -57,10 +57,23 @@ export class DisconnectConnectionUseCase {
       throw error;
     }
     await this.dataSource.transaction(async (manager) => {
-      await this.bankConnectionRepo.save(connection.disconnect(), manager);
+      // Re-fetch under a row lock: the connection may have changed between
+      // the unlocked read above and this transaction (e.g. a concurrent
+      // disconnect or a sync job marking it REQUIRES_REAUTHORIZATION).
+      const locked = await this.bankConnectionRepo.findByIdForUpdate(
+        connectionId,
+        manager,
+      );
+      if (!locked)
+        throw new AppError(
+          ErrorCode.NOT_FOUND,
+          'Không tìm thấy kết nối ngân hàng.',
+        );
+      await this.bankConnectionRepo.save(locked.disconnect(), manager);
       await this.auditEventRepo.save(
         new ConnectionAuditEvent({
           id: randomUUID(),
+          organizationId: locked.organizationId,
           bankConnectionId: connectionId,
           eventType: 'DISCONNECTED',
           metadata: {},

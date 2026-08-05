@@ -179,7 +179,7 @@ Success = a single document a new developer can read and know exactly what to pi
   - Re-auth reactivates existing row (not create new)
   - `MockCasIdAdapter` for MVP
 - **Creates**: `bank-connections/` module, token encryption utility, initiate/exchange/disconnect use cases, controller
-- **Implementation note**: Core connection flow is implemented on branch `feat/cas-id-bank-connection`. Webhook ACTIVE-status gating and the full Postgres integration test remain with Plan #8 because the webhook module does not exist yet; no duplicate webhook infrastructure is created here.
+- **Implementation note**: Core connection flow is implemented on branch `feat/cas-id-bank-connection`, including a Postgres integration test (`test/cas-id-bank-connection-flow.integration.spec.ts`) covering initiate → exchange → disconnect end to end. Webhook ACTIVE-status gating remains with Plan #8 because the webhook module does not exist yet; no duplicate webhook infrastructure is created here. A code-review pass on this branch found and fixed 3 real DI/ORM bugs invisible to unit tests + `tsc` (type-only imports erasing NestJS constructor params to `Function`/`undefined`; a `Date | null` ORM column with no explicit `type`), added missing transactions/pessimistic locking/`@VersionColumn()`, scoped `ConnectionAuditEvent` by `organizationId` (previously unscoped), and added the `REVOKED` status to `BankConnectionStatus` per the spec's field listing (§2) even though the spec's own transition table, §3, never produces it — a spec inconsistency, not an implementation gap.
 
 ---
 

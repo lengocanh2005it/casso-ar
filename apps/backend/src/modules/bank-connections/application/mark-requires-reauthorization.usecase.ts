@@ -39,6 +39,7 @@ export class MarkRequiresReauthorizationUseCase {
       await this.auditEventRepo.save(
         new ConnectionAuditEvent({
           id: randomUUID(),
+          organizationId: connection.organizationId,
           bankConnectionId: connectionId,
           eventType: wasActive
             ? 'MARKED_REQUIRES_REAUTH'

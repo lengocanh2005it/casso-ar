@@ -1,7 +1,11 @@
+// REVOKED is listed in the design spec's BankConnection fields (§2) but has
+// no transition in the spec's state machine (§3) — kept in the union for
+// forward-compat per that field listing; no code path produces it yet.
 export type BankConnectionStatus =
   | 'PENDING_AUTHORIZATION'
   | 'ACTIVE'
   | 'REQUIRES_REAUTHORIZATION'
+  | 'REVOKED'
   | 'DISCONNECTED'
   | 'ERROR';
 
