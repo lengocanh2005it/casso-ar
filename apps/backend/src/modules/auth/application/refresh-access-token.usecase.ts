@@ -4,6 +4,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 // biome-ignore lint/style/useImportType: NestJS DI resolves this constructor parameter at runtime.
 import { DataSource } from 'typeorm';
+import { AuthError } from '../../../common/errors/auth.error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
@@ -35,30 +37,41 @@ export class RefreshAccessTokenUseCase {
 
   async execute(rawRefreshToken: string): Promise<RefreshResult> {
     if (!rawRefreshToken?.trim()) {
-      throw new Error('Invalid or expired refresh token');
+      throw new AuthError(
+        401,
+        ErrorCode.UNAUTHORIZED,
+        'Refresh token không hợp lệ hoặc đã hết hạn.',
+      );
     }
-    const existing = await this.refreshTokenRepo.findByTokenHash(
-      hashToken(rawRefreshToken),
-    );
-    if (!existing?.isValid(new Date())) {
-      throw new Error('Invalid or expired refresh token');
-    }
-
-    const membership = await this.membershipRepo.findFirstActiveByUserId(
-      existing.userId,
-    );
-    if (!membership) {
-      throw new Error('User has no organization membership');
-    }
-
-    const accessToken = this.jwtService.sign({
-      userId: existing.userId,
-      organizationId: membership.organizationId,
-      role: membership.role,
-    });
     const { token: newRawToken, hash } = generateToken();
-
-    await this.dataSource.transaction(async (manager) => {
+    return this.dataSource.transaction(async (manager) => {
+      const existing = await this.refreshTokenRepo.findByTokenHash(
+        hashToken(rawRefreshToken),
+        manager,
+        true,
+      );
+      if (!existing?.isValid(new Date())) {
+        throw new AuthError(
+          401,
+          ErrorCode.UNAUTHORIZED,
+          'Refresh token không hợp lệ hoặc đã hết hạn.',
+        );
+      }
+      const membership = await this.membershipRepo.findFirstActiveByUserId(
+        existing.userId,
+      );
+      if (!membership) {
+        throw new AuthError(
+          403,
+          ErrorCode.FORBIDDEN,
+          'Tài khoản chưa thuộc tổ chức nào.',
+        );
+      }
+      const accessToken = this.jwtService.sign({
+        userId: existing.userId,
+        organizationId: membership.organizationId,
+        role: membership.role,
+      });
       await this.refreshTokenRepo.save(existing.revoke(), manager);
       await this.refreshTokenRepo.save(
         new RefreshToken({
@@ -71,8 +84,7 @@ export class RefreshAccessTokenUseCase {
         }),
         manager,
       );
+      return { accessToken, refreshToken: newRawToken };
     });
-
-    return { accessToken, refreshToken: newRawToken };
   }
 }

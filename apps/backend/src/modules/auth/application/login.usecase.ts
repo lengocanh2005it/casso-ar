@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: NestJS DI resolves this constructor parameter at runtime.
 import { JwtService } from '@nestjs/jwt';
+import { AuthError } from '../../../common/errors/auth.error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
@@ -45,14 +47,22 @@ export class LoginUseCase {
     const email = input.email.trim().toLowerCase();
     const user = await this.userRepo.findByEmail(email);
     if (!user || !(await comparePassword(input.password, user.passwordHash))) {
-      throw new Error('Invalid email or password');
+      throw new AuthError(
+        401,
+        ErrorCode.UNAUTHORIZED,
+        'Email hoặc mật khẩu không đúng.',
+      );
     }
 
     const membership = await this.membershipRepo.findFirstActiveByUserId(
       user.id,
     );
     if (!membership) {
-      throw new Error('User has no organization membership');
+      throw new AuthError(
+        403,
+        ErrorCode.FORBIDDEN,
+        'Tài khoản chưa thuộc tổ chức nào.',
+      );
     }
 
     const accessToken = this.jwtService.sign({

@@ -74,6 +74,15 @@ describe('Auth flow (integration)', () => {
       .getRepository(UserOrmEntity)
       .update({ email: 'ap@congtyb.vn' }, { emailVerifiedAt: new Date() });
 
+    const invalidLogin = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email: 'ap@congtyb.vn', password: 'wrong-password' })
+      .expect(401);
+    expect(invalidLogin.body).toMatchObject({
+      statusCode: 401,
+      errorCode: 'UNAUTHORIZED',
+    });
+
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email: 'ap@congtyb.vn', password: 'S3curePass!' })
@@ -92,6 +101,24 @@ describe('Auth flow (integration)', () => {
         'SELECT id FROM refresh_tokens WHERE "revokedAt" IS NOT NULL',
       ),
     ).not.toHaveLength(0);
+  });
+
+  it('auth rate limiting returns the standard 429 envelope', async () => {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email: 'rate-limit@example.com', password: 'wrong-password' })
+        .expect(401);
+    }
+
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email: 'rate-limit@example.com', password: 'wrong-password' })
+      .expect(429);
+    expect(response.body).toMatchObject({
+      statusCode: 429,
+      errorCode: 'RATE_LIMIT_EXCEEDED',
+    });
   });
 
   it('forgot-password returns 200 for known and unknown emails', async () => {

@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: NestJS DI resolves this constructor parameter at runtime.
 import { JwtService } from '@nestjs/jwt';
+import { AuthError } from '../../../common/errors/auth.error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
@@ -23,7 +25,11 @@ export class SwitchOrganizationUseCase {
       organizationId,
     );
     if (!membership?.isActive()) {
-      throw new Error('User is not a member of this organization');
+      throw new AuthError(
+        403,
+        ErrorCode.FORBIDDEN,
+        'Người dùng không thuộc tổ chức này.',
+      );
     }
     return {
       accessToken: this.jwtService.sign({

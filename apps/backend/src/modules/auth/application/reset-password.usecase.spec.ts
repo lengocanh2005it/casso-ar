@@ -77,6 +77,6 @@ describe('ResetPasswordUseCase', () => {
 
     await expect(
       useCase.execute({ token: rawToken, newPassword: 'x' }),
-    ).rejects.toThrow('Reset token expired or already used');
+    ).rejects.toMatchObject({ errorCode: 'VALIDATION_ERROR', statusCode: 400 });
   });
 });

@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: NestJS DI resolves this constructor parameter at runtime.
 import { DataSource } from 'typeorm';
+import { AuthError } from '../../../common/errors/auth.error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import {
   type IUserRepository,
   USER_REPOSITORY,
@@ -39,11 +41,20 @@ export class ResetPasswordUseCase {
         manager,
       );
       if (!resetToken?.isValid(new Date())) {
-        throw new Error('Reset token expired or already used');
+        throw new AuthError(
+          400,
+          ErrorCode.VALIDATION_ERROR,
+          'Mã đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',
+        );
       }
 
       const user = await this.userRepo.findById(resetToken.userId, manager);
-      if (!user) throw new Error('User not found');
+      if (!user)
+        throw new AuthError(
+          404,
+          ErrorCode.NOT_FOUND,
+          'Không tìm thấy người dùng.',
+        );
 
       const newPasswordHash = await hashPassword(input.newPassword);
       await this.userRepo.save(user.withPasswordHash(newPasswordHash), manager);

@@ -41,7 +41,11 @@ describe('AcceptInviteUseCase', () => {
       membershipRepo as any,
       dataSource as any,
     );
-    await useCase.execute({ token: rawToken, password: 'NewPass123!' });
+    await useCase.execute({
+      token: rawToken,
+      password: 'NewPass123!',
+      authenticatedUserId: 'another-user',
+    });
 
     expect(userRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ emailVerifiedAt: expect.any(Date) }),
@@ -81,6 +85,6 @@ describe('AcceptInviteUseCase', () => {
     );
     await expect(
       useCase.execute({ token: rawToken, password: 'x' }),
-    ).rejects.toThrow('Invite expired or already accepted');
+    ).rejects.toMatchObject({ errorCode: 'VALIDATION_ERROR', statusCode: 400 });
   });
 });

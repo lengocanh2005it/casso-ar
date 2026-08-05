@@ -67,8 +67,9 @@ describe('VerifyEmailUseCase', () => {
       {} as any,
     );
 
-    await expect(useCase.execute(rawToken)).rejects.toThrow(
-      'Verification token expired or invalid',
-    );
+    await expect(useCase.execute(rawToken)).rejects.toMatchObject({
+      errorCode: 'VALIDATION_ERROR',
+      statusCode: 400,
+    });
   });
 });

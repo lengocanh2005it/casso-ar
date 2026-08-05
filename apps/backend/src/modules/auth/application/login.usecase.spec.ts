@@ -71,6 +71,6 @@ describe('LoginUseCase', () => {
 
     await expect(
       useCase.execute({ email: 'ap@congtyb.vn', password: 'wrong-password' }),
-    ).rejects.toThrow('Invalid email or password');
+    ).rejects.toMatchObject({ errorCode: 'UNAUTHORIZED', statusCode: 401 });
   });
 });

@@ -84,6 +84,6 @@ describe('SignupUseCase', () => {
         email: 'dup@x.vn',
         password: 'password',
       }),
-    ).rejects.toThrow('Email already registered');
+    ).rejects.toMatchObject({ errorCode: 'CONFLICT', statusCode: 409 });
   });
 });

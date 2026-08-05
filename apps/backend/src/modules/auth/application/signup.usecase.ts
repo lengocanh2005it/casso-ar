@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: NestJS DI resolves this constructor parameter at runtime.
 import { DataSource } from 'typeorm';
+import { AuthError } from '../../../common/errors/auth.error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import {
   type ISubscriptionRepository,
   SUBSCRIPTION_REPOSITORY,
@@ -80,7 +82,7 @@ export class SignupUseCase {
   async execute(input: SignupInput): Promise<SignupResult> {
     const email = input.email.trim().toLowerCase();
     if (await this.userRepo.findByEmail(email)) {
-      throw new Error('Email already registered');
+      throw new AuthError(409, ErrorCode.CONFLICT, 'Email đã được đăng ký.');
     }
 
     const now = new Date();

@@ -48,6 +48,11 @@ describe('RefreshAccessTokenUseCase', () => {
 
     expect(result.accessToken).toBe('access');
     expect(result.refreshToken).toHaveLength(64);
+    expect(refreshTokenRepo.findByTokenHash).toHaveBeenCalledWith(
+      hashToken(raw),
+      expect.anything(),
+      true,
+    );
     expect(refreshTokenRepo.save).toHaveBeenCalledTimes(2);
     expect(refreshTokenRepo.save.mock.calls[0][0].revokedAt).toBeInstanceOf(
       Date,

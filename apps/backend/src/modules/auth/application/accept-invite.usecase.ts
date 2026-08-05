@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 // biome-ignore lint/style/useImportType: NestJS DI resolves this constructor parameter at runtime.
 import { DataSource } from 'typeorm';
+import { AuthError } from '../../../common/errors/auth.error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
@@ -41,17 +43,30 @@ export class AcceptInviteUseCase {
       hashToken(input.token),
     );
     if (!invite?.isValid(new Date())) {
-      throw new Error('Invite expired or already accepted');
+      throw new AuthError(
+        400,
+        ErrorCode.VALIDATION_ERROR,
+        'Lời mời đã hết hạn hoặc đã được sử dụng.',
+      );
     }
 
     let user = await this.userRepo.findByEmail(invite.email);
+    let createdUser = false;
     const now = new Date();
     if (user && input.authenticatedUserId !== user.id) {
-      throw new Error('Existing user must log in before accepting this invite');
+      throw new AuthError(
+        401,
+        ErrorCode.UNAUTHORIZED,
+        'Người dùng hiện tại phải đăng nhập để nhận lời mời.',
+      );
     }
     if (!user) {
       if (!input.password) {
-        throw new Error('Password is required to create a new account');
+        throw new AuthError(
+          400,
+          ErrorCode.VALIDATION_ERROR,
+          'Mật khẩu là bắt buộc để tạo tài khoản mới.',
+        );
       }
       user = new User({
         id: randomUUID(),
@@ -61,6 +76,7 @@ export class AcceptInviteUseCase {
         emailVerifiedAt: now,
         createdAt: now,
       });
+      createdUser = true;
     }
 
     const existingMembership =
@@ -69,11 +85,15 @@ export class AcceptInviteUseCase {
         invite.organizationId,
       );
     if (existingMembership) {
-      throw new Error('User is already a member of this organization');
+      throw new AuthError(
+        409,
+        ErrorCode.CONFLICT,
+        'Người dùng đã là thành viên của tổ chức này.',
+      );
     }
 
     await this.dataSource.transaction(async (manager) => {
-      if (!input.authenticatedUserId) {
+      if (createdUser) {
         await this.userRepo.save(user as User, manager);
       }
       await this.membershipRepo.save(

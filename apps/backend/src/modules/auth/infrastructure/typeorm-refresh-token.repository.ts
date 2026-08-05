@@ -16,11 +16,17 @@ export class TypeOrmRefreshTokenRepository implements IRefreshTokenRepository {
   async findByTokenHash(
     tokenHash: string,
     manager?: EntityManager,
+    lockForUpdate = false,
   ): Promise<RefreshToken | null> {
     const row = await (manager
       ? manager.getRepository(RefreshTokenOrmEntity)
       : this.repo
-    ).findOne({ where: { tokenHash } });
+    ).findOne({
+      where: { tokenHash },
+      ...(lockForUpdate
+        ? { lock: { mode: 'pessimistic_write' as const } }
+        : {}),
+    });
     return row ? new RefreshToken(row) : null;
   }
 
