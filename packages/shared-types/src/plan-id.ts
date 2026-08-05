@@ -1,0 +1,6 @@
+export enum PlanId {
+  FREE = 'FREE',
+  STARTER = 'STARTER',
+  BUSINESS = 'BUSINESS',
+  ENTERPRISE = 'ENTERPRISE',
+}

@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1, #2, #18 complete, Plan #3+ pending
+**Map mode**: chart — Plan #1, #2, #3, #18 complete, Plan #4+ pending
 
 ---
 
@@ -57,6 +57,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **2026-08-04**: PaymentAllocation uses `implements PaymentAllocationData` pattern
 - **2026-08-04**: AuditLog uses enums (AuditActionType, AuditEntityType) — only used values
 - **2026-08-05**: PR #6 merged — whole-repo code-review remediation is shipped: standardized error envelope, tenant-scoped writes, rollup checks, persisted idempotency keys, `X-Organization-Id` membership selection, Invoice module, frontend plan gating, and Radix-based Sheet. Organization persistence/FK wiring remains deferred; idempotency is not yet atomic with the business transaction.
+- **2026-08-05**: Plan #3 shipped (branch `feat/billing-usage-metering`, PR #8, awaiting review) — `receivablesThisMonth` gate only. `activeBankConnections` gate deliberately deferred to Plan #5 (no `BankConnection` table to count yet). No signup/bootstrap transaction exists yet (Plan #4), so `PlanLimitService` lazily creates a FREE `Subscription` per organization on first use instead of at signup; billing period is a lazily-rolled current calendar month (no renewal cron). A `/code-review` pass found and fixed a real race condition (advisory lock replaces a row lock that couldn't cover first-time Subscription creation) and a dead `status` field; a `ponytail-review` pass then deleted 3 unused plan-limit catalog entries and merged two always-paired repository calls into one.
 
 ## Not yet specified
 
@@ -77,9 +78,9 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Ticket Index
 
-**26 plans** | status snapshot (2026-08-04):
-- 🟢 done (3): Plan #1, Plan #2, Plan #18
-- 🔴 open/not started (23): Plan #3–#17, #19–#23 + 3 additional plans
+**26 plans** | status snapshot (2026-08-05):
+- 🟢 done (4): Plan #1, Plan #2, Plan #3, Plan #18
+- 🔴 open/not started (22): Plan #4–#17, #19–#23 + 3 additional plans
 
 ---
 
@@ -122,18 +123,22 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #3 — Billing + Usage Metering
 - **Type**: task
-- **Status**: open
+- **Status**: done ✅
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-billing-usage-metering-design.md`
-- **Blockers**: Plan #1 ✅, Plan #2
-- **Key entities**: `Subscription` (FREE/STARTER/BUSINESS/ENTERPRISE, ACTIVE/PAST_DUE/CANCELLED)
+- **Blockers**: Plan #1 ✅, Plan #2 ✅
+- **Shipped**: 2026-08-05 — branch `feat/billing-usage-metering`, PR #8 (includes a `/code-review` fix wave + a `ponytail-review` fix wave)
+- **Key entities**: `Subscription` (FREE/STARTER/BUSINESS/ENTERPRISE, ACTIVE/PAST_DUE/CANCELLED) — `PlanId`/`SubscriptionStatus` added to `packages/shared-types` following the `ReceivableStatus` pattern
 - **Key rules**:
-  - 2 metric gates: `receivablesThisMonth`, `activeBankConnections`
-  - Count directly from source tables (no usage tracking table)
-  - `pg_advisory_xact_lock` prevents race conditions
-  - Hard-block at 402: `POST /receivables` and bank connection exchange
-  - Signup creates FREE subscription in bootstrap transaction
-- **Creates**: `billing/` module, `PlanLimitService`, subscription entity, integration test for quota enforcement
+  - `receivablesThisMonth` gate shipped and wired into `POST /receivables`; count via raw SQL against the `receivables` table (no usage tracking table), per spec
+  - Lock via `pg_advisory_xact_lock(hashtext(organizationId))` (spec's explicit alternative to `SELECT ... FOR UPDATE`) acquired before reading the `Subscription`, inside the same `DataSource.transaction()` as the receivable insert — `SubscriptionRepository.lockAndFindByOrganizationId`. A row-level `FOR UPDATE` lock was tried first and replaced: it can only lock a row that already exists, so two concurrent first-ever requests for a brand-new org both saw no row and raced to create one, tripping the `@Unique(['organizationId'])` constraint — caught by `/code-review`'s Spec axis
+  - `PlanLimitService` also checks `Subscription.status`: PAST_DUE/CANCELLED blocks with 402 before usage is even counted — the field was persisted but unread until the same review pass
+  - No signup/bootstrap transaction exists yet (Plan #4 not shipped), so `PlanLimitService` lazily creates a FREE `Subscription` on first use per organization instead — replace with true bootstrap-transaction creation once Plan #4 ships (would then also need to guarantee "no active org lacks a subscription" up front)
+  - Billing period is a rolling current-calendar-month, recalculated lazily on each check (no renewal cron exists — one of the spec's own open questions, calendar-month was chosen)
+  - `activeBankConnections` gate and the `bank-connections` exchange 402 are **not implemented** — `BankConnection`/`bank-connections` module doesn't exist yet (Plan #5). `Subscription.bankConnectionLimit` is on the entity per spec, ready for Plan #5 to wire a matching gate when that module lands
+  - Plan-limit catalog trimmed to FREE only (`FREE_PLAN_LIMITS`) after `ponytail-review` flagged the STARTER/BUSINESS/ENTERPRISE entries as unread dead data (no upgrade/downgrade path exists yet) — reintroduce a real catalog only when one does
+- **Creates**: `billing/` module (`domain/subscription.ts`, `application/plan-limit.service.ts` + port, `infrastructure/` TypeORM entity+repo), `CreateReceivableUseCase` now runs inside a `DataSource.transaction()` with the plan-limit check, `test/billing-quota.e2e-spec.ts` (2 tests, run against a real Postgres testcontainer, both pass)
+- **Note**: Docker became available mid-branch, giving this codebase its first real e2e run since PR #6. It surfaced 4 pre-existing NestJS DI erasure bugs (`import type` on an undecorated constructor param resolves to `Function` at runtime) that silently blocked every e2e test booting `AppModule` — `IdempotencyService`'s own constructor, `TypeOrmInvoiceRepository`'s `TenantContextService` param, and `IdempotencyService` as injected into both `PaymentsController` and `ReceivablesController`. Fixed to match the codebase's established `biome-ignore lint/style/useImportType` + value-import pattern. Also surfaced, left as-is (pre-existing, out of scope): `payment-allocation.e2e-spec.ts` and `tenant-isolation.integration.spec.ts` don't send an `Idempotency-Key` header on their POST requests, so they now fail 409 instead of their expected 2xx/404 — worth a follow-up ticket
 
 ---
 
@@ -546,13 +551,12 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **Next available tickets** (all blockers resolved):
-- **Plan #3** (Billing + Usage Metering) — blockers: Plan #1 ✅, Plan #2 ✅
-- **Plan #4** (Authentication + Onboarding) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #3
+- **Plan #4** (Authentication + Onboarding) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #3 ✅
 - **Plan #9** (Dispute Management) — blockers: Plan #1 ✅, Plan #2 ✅
 - **Plan #11** (Internal Task + Escalation) — blockers: Plan #1 ✅, Plan #2 ✅
-- **Plan #19** (FE Auth + App Shell) — blockers: Plan #3, Plan #18 ✅
+- **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
 
 **Blocked tickets waiting:**
-- Plan #5–#8, #10, #12–#17, #20–#23, additional plans — waiting on Plan #3/#4/#5/#6 or other dependencies
+- Plan #5–#8, #10, #12–#17, #20–#23, additional plans — waiting on Plan #4/#5/#6 or other dependencies
 
-**Recommended next step:** Start Plan #3 (Billing + Usage Metering) — it and Plan #4 unblock most of the remaining backend lane.
+**Recommended next step:** Start Plan #4 (Authentication + Onboarding) — it owns the signup/bootstrap transaction that Plan #3's lazy-FREE-subscription workaround should eventually be replaced by, and it unblocks Plan #5/#6/#19.
