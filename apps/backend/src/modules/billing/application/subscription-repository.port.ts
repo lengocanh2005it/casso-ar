@@ -2,7 +2,14 @@ import type { EntityManager } from 'typeorm';
 import type { Subscription } from '../domain/subscription';
 
 export interface ISubscriptionRepository {
-  findByOrganizationIdForUpdate(
+  // Serializes concurrent transactions for the same org, including the case
+  // where no Subscription row exists yet to lock — a plain SELECT ... FOR
+  // UPDATE can't help there, since it can only lock a row that already exists.
+  acquireOrganizationLock(
+    organizationId: string,
+    manager: EntityManager,
+  ): Promise<void>;
+  findByOrganizationId(
     organizationId: string,
     manager: EntityManager,
   ): Promise<Subscription | null>;

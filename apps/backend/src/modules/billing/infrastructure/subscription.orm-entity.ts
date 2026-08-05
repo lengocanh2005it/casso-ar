@@ -1,5 +1,11 @@
 import { PlanId, SubscriptionStatus } from '@casso-ledger/shared-types';
-import { Column, Entity, PrimaryGeneratedColumn, Unique } from 'typeorm';
+import {
+  Column,
+  Entity,
+  PrimaryGeneratedColumn,
+  Unique,
+  VersionColumn,
+} from 'typeorm';
 
 @Entity({ name: 'subscriptions' })
 @Unique(['organizationId'])
@@ -30,4 +36,7 @@ export class SubscriptionOrmEntity {
 
   @Column()
   createdAt: Date;
+
+  @VersionColumn()
+  version: number;
 }

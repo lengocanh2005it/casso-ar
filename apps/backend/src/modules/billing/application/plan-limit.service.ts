@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { SubscriptionStatus } from '@casso-ledger/shared-types';
 import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { ErrorCode } from '../../../common/errors/error-code';
@@ -18,14 +19,17 @@ export class PlanLimitService {
     private readonly tenant: TenantContextService,
   ) {}
 
-  // Must run inside the same transaction as the write it's gating: locks the
-  // subscription row so two concurrent requests can't both slip past a limit
-  // that has one slot left.
+  // Must run inside the same transaction as the write it's gating.
   async enforceReceivableLimit(manager: EntityManager): Promise<void> {
     const organizationId = this.tenant.getOrganizationId();
     const now = new Date();
 
-    let subscription = await this.repo.findByOrganizationIdForUpdate(
+    // Serializes concurrent requests for the same org — including the very
+    // first request, which has to create the Subscription row (a row lock
+    // can't help there: there's no row yet to lock).
+    await this.repo.acquireOrganizationLock(organizationId, manager);
+
+    let subscription = await this.repo.findByOrganizationId(
       organizationId,
       manager,
     );
@@ -40,6 +44,12 @@ export class PlanLimitService {
       }
     }
 
+    if (subscription.status !== SubscriptionStatus.ACTIVE) {
+      this.throwPlanLimitExceeded(
+        `Gói ${subscription.planId} đang ở trạng thái ${subscription.status}; vui lòng cập nhật thanh toán để tiếp tục.`,
+      );
+    }
+
     const receivablesThisMonth = await this.repo.countReceivablesInPeriod(
       organizationId,
       subscription.currentPeriodStart,
@@ -48,14 +58,20 @@ export class PlanLimitService {
     );
 
     if (subscription.isReceivableLimitReached(receivablesThisMonth)) {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.PAYMENT_REQUIRED,
-          errorCode: ErrorCode.PLAN_LIMIT_EXCEEDED,
-          message: `Đã đạt giới hạn gói ${subscription.planId}; vui lòng nâng cấp để tiếp tục.`,
-        },
-        HttpStatus.PAYMENT_REQUIRED,
+      this.throwPlanLimitExceeded(
+        `Đã đạt giới hạn gói ${subscription.planId}; vui lòng nâng cấp để tiếp tục.`,
       );
     }
+  }
+
+  private throwPlanLimitExceeded(message: string): never {
+    throw new HttpException(
+      {
+        statusCode: HttpStatus.PAYMENT_REQUIRED,
+        errorCode: ErrorCode.PLAN_LIMIT_EXCEEDED,
+        message,
+      },
+      HttpStatus.PAYMENT_REQUIRED,
+    );
   }
 }
