@@ -110,6 +110,7 @@ await this.repo.findOne({ where: { id } }); // missing organizationId
 - Domain entities MUST NOT import TypeORM decorators
 - Use `@VersionColumn()` for optimistic locking
 - Use an `EntityManager` parameter for transactional saves
+- Domain ↔ ORM translation MUST be an explicit mapper (`toOrm()` in the repository); NEVER cast domain to ORM entity (`as`, `as unknown as`) — a drift between the shapes must fail the compiler, not be cast away
 
 ### Validation
 
@@ -518,7 +519,7 @@ REDIS_PORT=6379
 5. Leak internal fields in response DTOs
 6. Ignore tenant isolation
 7. Put business logic in controllers
-8. Use `any` in production code
+8. Use `any` in production code, or cast with `as any` / `as unknown as` (domain ↔ ORM must use an explicit mapper)
 
 ### ALWAYS
 
