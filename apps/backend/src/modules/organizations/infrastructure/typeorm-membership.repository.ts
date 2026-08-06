@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, Repository } from 'typeorm';
 import { IsNull, Not } from 'typeorm';
 import type { IMembershipRepository } from '../application/membership-repository.port';
-import { Membership } from '../domain/membership';
+import { Membership, Role } from '../domain/membership';
 import { MembershipOrmEntity } from './membership.orm-entity';
 
 @Injectable()
@@ -25,6 +25,15 @@ export class TypeOrmMembershipRepository implements IMembershipRepository {
     const row = await this.repo.findOne({
       where: { userId, joinedAt: Not(IsNull()) },
       order: { createdAt: 'ASC' },
+    });
+    return row ? new Membership(row) : null;
+  }
+
+  async findOwnerByOrganization(
+    organizationId: string,
+  ): Promise<Membership | null> {
+    const row = await this.repo.findOne({
+      where: { organizationId, role: Role.OWNER, joinedAt: Not(IsNull()) },
     });
     return row ? new Membership(row) : null;
   }

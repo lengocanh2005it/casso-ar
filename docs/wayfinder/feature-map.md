@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #18 complete, Plan #7+ pending
+**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #18 complete, Plan #7 in progress, Plan #8+ pending
 
 ---
 
@@ -84,7 +84,8 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **26 plans** | status snapshot (2026-08-06):
 - 🟢 done (7): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #18
-- 🔴 open/not started (19): Plan #7–#17, #19–#23 + 3 additional plans
+- 🟡 in-progress (1): Plan #7
+- 🔴 open/not started (18): Plan #8–#17, #19–#23 + 3 additional plans
 
 ---
 
@@ -215,7 +216,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #7 — Email Notification Service
 - **Type**: task
-- **Status**: open
+- **Status**: in-progress
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-email-notification-service-design.md`
 - **Blockers**: Plan #4 ✅, Plan #6 ✅

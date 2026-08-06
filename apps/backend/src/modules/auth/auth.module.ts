@@ -5,6 +5,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { getJwtModuleOptions } from '../../config/jwt.config';
 import { BillingModule } from '../billing/billing.module';
 import { EmailTemplatesModule } from '../email-templates/email-templates.module';
+import { ResendAuthEmailSenderAdapter } from '../notifications/infrastructure/resend-auth-email-sender.adapter';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { UsersModule } from '../users/users.module';
 import { AcceptInviteUseCase } from './application/accept-invite.usecase';
@@ -24,7 +26,6 @@ import { SignupUseCase } from './application/signup.usecase';
 import { SwitchOrganizationUseCase } from './application/switch-organization.usecase';
 import { TOKEN_SIGNER } from './application/token-signer.port';
 import { VerifyEmailUseCase } from './application/verify-email.usecase';
-import { ConsoleEmailSenderAdapter } from './infrastructure/console-email-sender.adapter';
 import { DefaultOrganizationBootstrap } from './infrastructure/default-organization-bootstrap.adapter';
 import { EmailVerificationTokenOrmEntity } from './infrastructure/email-verification-token.orm-entity';
 import { JwtTokenSigner } from './infrastructure/jwt-token-signer.adapter';
@@ -54,6 +55,7 @@ import { InvitesController } from './presentation/invites.controller';
     OrganizationsModule,
     BillingModule,
     EmailTemplatesModule,
+    NotificationsModule,
   ],
   providers: [
     LoginUseCase,
@@ -82,7 +84,7 @@ import { InvitesController } from './presentation/invites.controller';
       provide: REFRESH_TOKEN_REPOSITORY,
       useClass: TypeOrmRefreshTokenRepository,
     },
-    { provide: AUTH_EMAIL_SENDER, useClass: ConsoleEmailSenderAdapter },
+    { provide: AUTH_EMAIL_SENDER, useClass: ResendAuthEmailSenderAdapter },
     {
       provide: DEFAULT_ORGANIZATION_BOOTSTRAP,
       useClass: DefaultOrganizationBootstrap,

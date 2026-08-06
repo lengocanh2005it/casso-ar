@@ -36,6 +36,6 @@ import { EmailTemplatesController } from './presentation/email-templates.control
     PreviewEmailTemplateUseCase,
   ],
   controllers: [EmailTemplatesController],
-  exports: [EMAIL_TEMPLATE_REPOSITORY],
+  exports: [EMAIL_TEMPLATE_REPOSITORY, RenderEmailTemplateUseCase],
 })
 export class EmailTemplatesModule {}
