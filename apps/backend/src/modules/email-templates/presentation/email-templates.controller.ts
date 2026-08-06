@@ -35,7 +35,7 @@ export class EmailTemplatesController {
   ) {}
 
   @Get()
-  @RequirePermission(Permission.REMINDER_POLICY_WRITE)
+  @RequirePermission(Permission.EMAIL_TEMPLATE_READ)
   async list() {
     const templates = await this.listEmailTemplatesUseCase.execute();
     return templates.map(toEmailTemplateResponse);
