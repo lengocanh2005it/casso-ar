@@ -2,6 +2,7 @@ packages:
   - "apps/*"
   - "packages/*"
 allowBuilds:
+  '@swc/core': false
   cpu-features: true
   esbuild: true
   protobufjs: true
