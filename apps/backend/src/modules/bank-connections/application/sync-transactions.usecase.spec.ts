@@ -4,12 +4,15 @@ import { CasIdUnauthorizedError } from './cas-id-integration-adapter.port';
 import { SyncTransactionsUseCase } from './sync-transactions.usecase';
 import { encryptToken } from './token-encryption';
 
+const encryptionKey =
+  '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
 function activeConnection(): BankConnection {
   return new BankConnection({
     id: 'conn-1',
     organizationId: 'org-1',
     casIdConnectionSessionId: 'session-1',
-    encryptedAccessToken: encryptToken('raw-access-token'),
+    encryptedAccessToken: encryptToken('raw-access-token', encryptionKey),
     accountIdentity: { accountNumber: '0011002233', bankName: 'Mock Bank' },
     status: 'ACTIVE',
     scopes: ['identity', 'transaction'],
@@ -21,11 +24,6 @@ function activeConnection(): BankConnection {
 }
 
 describe('SyncTransactionsUseCase', () => {
-  beforeEach(() => {
-    process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
-      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-  });
-
   it('returns transactions fetched from the adapter', async () => {
     const bankConnectionRepo = {
       findByIdUnscoped: jest.fn().mockResolvedValue(activeConnection()),
@@ -36,6 +34,7 @@ describe('SyncTransactionsUseCase', () => {
       adapter as never,
       bankConnectionRepo as never,
       markRequiresReauthorization as never,
+      encryptionKey,
     );
 
     const result = await useCase.execute('conn-1');
@@ -66,6 +65,7 @@ describe('SyncTransactionsUseCase', () => {
       adapter as never,
       bankConnectionRepo as never,
       markRequiresReauthorization as never,
+      encryptionKey,
     );
 
     await expect(useCase.execute('conn-1')).rejects.toBeInstanceOf(
@@ -86,6 +86,7 @@ describe('SyncTransactionsUseCase', () => {
       { getTransactions: jest.fn() } as never,
       bankConnectionRepo as never,
       { handleAdapterError: jest.fn() } as never,
+      encryptionKey,
     );
 
     await expect(useCase.execute('missing')).rejects.toBeInstanceOf(AppError);

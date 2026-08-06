@@ -1,0 +1,3 @@
+export const ACCESS_TOKEN_ENCRYPTION_KEY = Symbol(
+  'ACCESS_TOKEN_ENCRYPTION_KEY',
+);

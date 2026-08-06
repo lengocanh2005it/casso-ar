@@ -3,10 +3,8 @@ import { ExchangeTokenUseCase } from './exchange-token.usecase';
 import { InitiateConnectionUseCase } from './initiate-connection.usecase';
 
 describe('bank connection use cases', () => {
-  beforeEach(() => {
-    process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
-      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-  });
+  const encryptionKey =
+    '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
   const dataSource = {
     transaction: jest.fn(
@@ -78,6 +76,7 @@ describe('bank connection use cases', () => {
       bankRepo as never,
       auditRepo as never,
       dataSource as never,
+      encryptionKey,
     );
 
     const result = await useCase.execute({
@@ -126,6 +125,7 @@ describe('bank connection use cases', () => {
       bankRepo as never,
       auditRepo as never,
       dataSource as never,
+      encryptionKey,
     );
 
     await expect(
