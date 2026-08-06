@@ -2,6 +2,7 @@ import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
+import { In, LessThan, MoreThanOrEqual } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { IReceivableRepository } from '../application/receivable-repository.port';
@@ -74,26 +75,46 @@ export class TypeOrmReceivableRepository
     return rows.map((row) => new Receivable(row));
   }
 
+  // Two index-served range scans (organizationId, status, dueDate) instead
+  // of one ORDER BY on a computed expression, which would force Postgres to
+  // sort every open receivable in the org before applying LIMIT. Each side
+  // fetches at most `limit` rows already ordered by distance from
+  // referenceDate; the small in-memory merge (<= 2*limit rows) picks the
+  // true N closest.
   async findOpenTopNByOrganization(
     organizationId: string,
     limit: number,
     referenceDate: Date,
   ): Promise<Receivable[]> {
-    const rows = await this.ormRepo
-      .createQueryBuilder('receivable')
-      .where('receivable.organizationId = :organizationId', {
-        organizationId,
-      })
-      .andWhere('receivable.status IN (:...statuses)', {
-        statuses: [ReceivableStatus.OPEN, ReceivableStatus.PARTIALLY_PAID],
-      })
-      .orderBy(
-        'ABS(EXTRACT(EPOCH FROM (receivable."dueDate" - :referenceDate)))',
-        'ASC',
+    const statuses = [ReceivableStatus.OPEN, ReceivableStatus.PARTIALLY_PAID];
+    const [onOrAfter, before] = await Promise.all([
+      this.ormRepo.find({
+        where: {
+          organizationId,
+          status: In(statuses),
+          dueDate: MoreThanOrEqual(referenceDate),
+        },
+        order: { dueDate: 'ASC' },
+        take: limit,
+      }),
+      this.ormRepo.find({
+        where: {
+          organizationId,
+          status: In(statuses),
+          dueDate: LessThan(referenceDate),
+        },
+        order: { dueDate: 'DESC' },
+        take: limit,
+      }),
+    ]);
+    const referenceTime = referenceDate.getTime();
+    const rows = [...onOrAfter, ...before]
+      .sort(
+        (left, right) =>
+          Math.abs(left.dueDate.getTime() - referenceTime) -
+          Math.abs(right.dueDate.getTime() - referenceTime),
       )
-      .setParameter('referenceDate', referenceDate)
-      .take(limit)
-      .getMany();
+      .slice(0, limit);
     return rows.map((row) => new Receivable(row));
   }
 }

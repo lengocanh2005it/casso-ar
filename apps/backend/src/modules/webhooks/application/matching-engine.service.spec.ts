@@ -43,9 +43,11 @@ describe('MatchingEngineService', () => {
         save: jest.fn(),
       },
       {
-        findByReceivableId: jest
+        findByReceivableIds: jest
           .fn()
-          .mockResolvedValue({ invoiceNumber: 'INV-2026-0012' }),
+          .mockResolvedValue(
+            new Map([['rec-1', { invoiceNumber: 'INV-2026-0012' }]]),
+          ),
         findById: jest.fn(),
         save: jest.fn(),
       },
@@ -74,9 +76,11 @@ describe('MatchingEngineService', () => {
         save: jest.fn(),
       },
       {
-        findByReceivableId: jest
+        findByReceivableIds: jest
           .fn()
-          .mockResolvedValue({ invoiceNumber: 'INV-2026-0012' }),
+          .mockResolvedValue(
+            new Map([['rec-1', { invoiceNumber: 'INV-2026-0012' }]]),
+          ),
         findById: jest.fn(),
         save: jest.fn(),
       },
