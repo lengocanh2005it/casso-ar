@@ -13,6 +13,7 @@ import { RequirePermission } from '../../../common/rbac/require-permission.decor
 import { CreateEmailTemplateUseCase } from '../application/create-email-template.usecase';
 import { ListEmailTemplatesUseCase } from '../application/list-email-templates.usecase';
 import { CreateEmailTemplateDto } from './dto/create-email-template.dto';
+import { toEmailTemplateResponse } from './dto/email-template-response.dto';
 
 @Controller('email-templates')
 @UseGuards(PermissionGuard)
@@ -25,7 +26,8 @@ export class EmailTemplatesController {
 
   @Get()
   async list() {
-    return this.listEmailTemplatesUseCase.execute();
+    const templates = await this.listEmailTemplatesUseCase.execute();
+    return templates.map(toEmailTemplateResponse);
   }
 
   @Post()
@@ -39,12 +41,13 @@ export class EmailTemplatesController {
       key,
       dto,
       async () => {
-        return this.createEmailTemplateUseCase.execute({
+        const template = await this.createEmailTemplateUseCase.execute({
           name: dto.name,
           subject: dto.subject,
           bodyHtml: dto.bodyHtml,
           reminderStage: dto.reminderStage ?? null,
         });
+        return toEmailTemplateResponse(template);
       },
     );
   }
