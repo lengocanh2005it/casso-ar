@@ -10,46 +10,45 @@ interface DefaultTemplateDefinition {
 
 const DEFAULT_TEMPLATE_DEFINITIONS: DefaultTemplateDefinition[] = [
   {
-    name: '3 Day Pre-Due Reminder',
-    reminderStage: '3 Day Pre-Due Reminder',
-    subject: 'Payment reminder for invoice {{invoiceNumber}}',
+    name: 'Nhắc trước hạn 3 ngày',
+    reminderStage: 'Nhắc trước hạn 3 ngày',
+    subject: 'Nhắc thanh toán hóa đơn {{invoiceNumber}}',
     bodyHtml:
-      '<p>Dear {{customerName}},</p>' +
-      '<p>Invoice {{invoiceNumber}} with remaining amount {{remainingAmount}} is due on {{dueDate}}. ' +
-      'Please arrange payment by the due date.</p>' +
-      '<p>Sincerely,<br/>{{organizationName}}</p>',
+      '<p>Kính gửi {{customerName}},</p>' +
+      '<p>Hóa đơn {{invoiceNumber}} với số tiền còn lại {{remainingAmount}} sẽ đến hạn thanh toán vào {{dueDate}}. ' +
+      'Quý khách vui lòng sắp xếp thanh toán đúng hạn.</p>' +
+      '<p>Trân trọng,<br/>{{organizationName}}</p>',
   },
   {
-    name: '1 Day Overdue Reminder',
-    reminderStage: '1 Day Overdue Reminder',
-    subject: 'Invoice {{invoiceNumber}} is overdue for payment',
+    name: 'Nhắc quá hạn 1 ngày',
+    reminderStage: 'Nhắc quá hạn 1 ngày',
+    subject: 'Hóa đơn {{invoiceNumber}} đã quá hạn thanh toán',
     bodyHtml:
-      '<p>Dear {{customerName}},</p>' +
-      '<p>Invoice {{invoiceNumber}} is {{daysOverdue}} days overdue for payment, with remaining amount {{remainingAmount}}. ' +
-      'Please make payment as soon as possible.</p>' +
-      '<p>Sincerely,<br/>{{organizationName}}</p>',
+      '<p>Kính gửi {{customerName}},</p>' +
+      '<p>Hóa đơn {{invoiceNumber}} đã quá hạn thanh toán {{daysOverdue}} ngày, với số tiền còn lại {{remainingAmount}}. ' +
+      'Quý khách vui lòng thanh toán sớm nhất có thể.</p>' +
+      '<p>Trân trọng,<br/>{{organizationName}}</p>',
   },
   {
-    name: '7 Day Overdue Reminder',
-    reminderStage: '7 Day Overdue Reminder',
+    name: 'Nhắc quá hạn 7 ngày',
+    reminderStage: 'Nhắc quá hạn 7 ngày',
     subject:
-      'Reminder 2: Invoice {{invoiceNumber}} is {{daysOverdue}} days overdue',
+      'Nhắc lần 2: Hóa đơn {{invoiceNumber}} đã quá hạn {{daysOverdue}} ngày',
     bodyHtml:
-      '<p>Dear {{customerName}},</p>' +
-      '<p>Invoice {{invoiceNumber}} is now {{daysOverdue}} days overdue, with remaining amount {{remainingAmount}}. ' +
-      'This is the second reminder; please complete payment soon.</p>' +
-      '<p>Sincerely,<br/>{{organizationName}}</p>',
+      '<p>Kính gửi {{customerName}},</p>' +
+      '<p>Hóa đơn {{invoiceNumber}} hiện đã quá hạn thanh toán {{daysOverdue}} ngày, với số tiền còn lại {{remainingAmount}}. ' +
+      'Đây là lần nhắc thứ hai, kính mong quý khách hoàn tất thanh toán sớm.</p>' +
+      '<p>Trân trọng,<br/>{{organizationName}}</p>',
   },
   {
-    name: '30 Day Overdue Reminder',
-    reminderStage: '30 Day Overdue Reminder',
-    subject:
-      'Urgent: Invoice {{invoiceNumber}} is {{daysOverdue}} days overdue',
+    name: 'Nhắc quá hạn 30 ngày',
+    reminderStage: 'Nhắc quá hạn 30 ngày',
+    subject: 'Khẩn: Hóa đơn {{invoiceNumber}} đã quá hạn {{daysOverdue}} ngày',
     bodyHtml:
-      '<p>Dear {{customerName}},</p>' +
-      '<p>Invoice {{invoiceNumber}} is {{daysOverdue}} days overdue for payment, with remaining amount {{remainingAmount}}. ' +
-      'Please contact {{organizationName}} accounts receivable as soon as possible to resolve this.</p>' +
-      '<p>Sincerely,<br/>{{organizationName}}</p>',
+      '<p>Kính gửi {{customerName}},</p>' +
+      '<p>Hóa đơn {{invoiceNumber}} đã quá hạn thanh toán {{daysOverdue}} ngày, với số tiền còn lại {{remainingAmount}}. ' +
+      'Kính mong quý khách liên hệ bộ phận công nợ của {{organizationName}} sớm nhất có thể để xử lý.</p>' +
+      '<p>Trân trọng,<br/>{{organizationName}}</p>',
   },
 ];
 
