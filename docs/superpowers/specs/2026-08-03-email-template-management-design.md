@@ -20,7 +20,7 @@ There is no separate version table—edits use a direct `UPDATE` with no history
 ```
 When signup creates an Organization (section 2 of 2026-08-03-authentication-onboarding-design.md):
   seed N EmailTemplate records (isDefault=true), each corresponding to one standard offsetDays milestone
-  (for example, "Reminder 3 days before due", "1 day overdue reminder", "7 days overdue reminder", "30 days overdue reminder")
+  (for example, "Nhắc trước hạn 3 ngày", "Nhắc quá hạn 1 ngày", "Nhắc quá hạn 7 ngày", "Nhắc quá hạn 30 ngày" — Vietnamese, since reminderStage is UI-display text shown to Vietnamese-speaking users, not a matching key)
   → the new organization's default ReminderRules point emailTemplateId to these records
 ```
 

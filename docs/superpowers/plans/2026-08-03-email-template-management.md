@@ -79,10 +79,10 @@ function buildTemplate(overrides: Partial<ConstructorParameters<typeof EmailTemp
   return new EmailTemplate({
     id: 'tpl-1',
     organizationId: 'org-1',
-    name: '1 Day Overdue Reminder',
+    name: 'Nhắc quá hạn 1 ngày',
     subject: 'Invoice {{invoiceNumber}} is overdue',
     bodyHtml: '<p>Dear {{customerName}}</p>',
-    reminderStage: '1 Day Overdue Reminder',
+    reminderStage: 'Nhắc quá hạn 1 ngày',
     isDefault: true,
     createdAt: new Date('2026-08-01'),
     updatedAt: new Date('2026-08-01'),
@@ -94,9 +94,9 @@ describe('EmailTemplate domain entity', () => {
   it('creates a template with the provided fields', () => {
     const template = buildTemplate();
 
-    expect(template.name).toBe('1 Day Overdue Reminder');
+    expect(template.name).toBe('Nhắc quá hạn 1 ngày');
     expect(template.isDefault).toBe(true);
-    expect(template.reminderStage).toBe('1 Day Overdue Reminder');
+    expect(template.reminderStage).toBe('Nhắc quá hạn 1 ngày');
   });
 
   it('updateContent returns a new instance with subject/bodyHtml replaced and updatedAt refreshed', () => {
@@ -760,10 +760,10 @@ describe('UpdateEmailTemplateUseCase', () => {
     const existing = new EmailTemplate({
       id: 'tpl-1',
       organizationId: 'org-1',
-      name: '1 Day Overdue Reminder',
+      name: 'Nhắc quá hạn 1 ngày',
       subject: 'Old',
       bodyHtml: '<p>Old</p>',
-      reminderStage: '1 Day Overdue Reminder',
+      reminderStage: 'Nhắc quá hạn 1 ngày',
       isDefault: true,
       createdAt: new Date('2026-08-01'),
       updatedAt: new Date('2026-08-01'),
@@ -1337,44 +1337,44 @@ interface DefaultTemplateDefinition {
 
 const DEFAULT_TEMPLATE_DEFINITIONS: DefaultTemplateDefinition[] = [
   {
-    name: '3 Day Pre-Due Reminder',
-    reminderStage: '3 Day Pre-Due Reminder',
-    subject: 'Payment reminder for invoice {{invoiceNumber}}',
+    name: 'Nhắc trước hạn 3 ngày',
+    reminderStage: 'Nhắc trước hạn 3 ngày',
+    subject: 'Nhắc thanh toán hóa đơn {{invoiceNumber}}',
     bodyHtml:
-      '<p>Dear {{customerName}},</p>' +
-      '<p>Invoice {{invoiceNumber}} with remaining amount {{remainingAmount}} is due on {{dueDate}}. ' +
-      'Please arrange payment by the due date.</p>' +
-      '<p>Sincerely,<br/>{{organizationName}}</p>',
+      '<p>Kính gửi {{customerName}},</p>' +
+      '<p>Hóa đơn {{invoiceNumber}} với số tiền còn lại {{remainingAmount}} sẽ đến hạn thanh toán vào {{dueDate}}. ' +
+      'Quý khách vui lòng sắp xếp thanh toán đúng hạn.</p>' +
+      '<p>Trân trọng,<br/>{{organizationName}}</p>',
   },
   {
-    name: '1 Day Overdue Reminder',
-    reminderStage: '1 Day Overdue Reminder',
-    subject: 'Invoice {{invoiceNumber}} is overdue for payment',
+    name: 'Nhắc quá hạn 1 ngày',
+    reminderStage: 'Nhắc quá hạn 1 ngày',
+    subject: 'Hóa đơn {{invoiceNumber}} đã quá hạn thanh toán',
     bodyHtml:
-      '<p>Dear {{customerName}},</p>' +
-      '<p>Invoice {{invoiceNumber}} is {{daysOverdue}} days overdue for payment, with remaining amount {{remainingAmount}}. ' +
-      'Please make payment as soon as possible.</p>' +
-      '<p>Sincerely,<br/>{{organizationName}}</p>',
+      '<p>Kính gửi {{customerName}},</p>' +
+      '<p>Hóa đơn {{invoiceNumber}} đã quá hạn thanh toán {{daysOverdue}} ngày, với số tiền còn lại {{remainingAmount}}. ' +
+      'Quý khách vui lòng thanh toán sớm nhất có thể.</p>' +
+      '<p>Trân trọng,<br/>{{organizationName}}</p>',
   },
   {
-    name: '7 Day Overdue Reminder',
-    reminderStage: '7 Day Overdue Reminder',
-    subject: 'Reminder 2: Invoice {{invoiceNumber}} is {{daysOverdue}} days overdue',
+    name: 'Nhắc quá hạn 7 ngày',
+    reminderStage: 'Nhắc quá hạn 7 ngày',
+    subject: 'Nhắc lần 2: Hóa đơn {{invoiceNumber}} đã quá hạn {{daysOverdue}} ngày',
     bodyHtml:
-      '<p>Dear {{customerName}},</p>' +
-      '<p>Invoice {{invoiceNumber}} is now {{daysOverdue}} days overdue, with remaining amount {{remainingAmount}}. ' +
-      'This is the second reminder; please complete payment soon.</p>' +
-      '<p>Sincerely,<br/>{{organizationName}}</p>',
+      '<p>Kính gửi {{customerName}},</p>' +
+      '<p>Hóa đơn {{invoiceNumber}} hiện đã quá hạn thanh toán {{daysOverdue}} ngày, với số tiền còn lại {{remainingAmount}}. ' +
+      'Đây là lần nhắc thứ hai, kính mong quý khách hoàn tất thanh toán sớm.</p>' +
+      '<p>Trân trọng,<br/>{{organizationName}}</p>',
   },
   {
-    name: '30 Day Overdue Reminder',
-    reminderStage: '30 Day Overdue Reminder',
-    subject: 'Urgent: Invoice {{invoiceNumber}} is {{daysOverdue}} days overdue',
+    name: 'Nhắc quá hạn 30 ngày',
+    reminderStage: 'Nhắc quá hạn 30 ngày',
+    subject: 'Khẩn: Hóa đơn {{invoiceNumber}} đã quá hạn {{daysOverdue}} ngày',
     bodyHtml:
-      '<p>Dear {{customerName}},</p>' +
-      '<p>Invoice {{invoiceNumber}} is {{daysOverdue}} days overdue for payment, with remaining amount {{remainingAmount}}. ' +
-      'Please contact {{organizationName}} accounts receivable as soon as possible to resolve this.</p>' +
-      '<p>Sincerely,<br/>{{organizationName}}</p>',
+      '<p>Kính gửi {{customerName}},</p>' +
+      '<p>Hóa đơn {{invoiceNumber}} đã quá hạn thanh toán {{daysOverdue}} ngày, với số tiền còn lại {{remainingAmount}}. ' +
+      'Kính mong quý khách liên hệ bộ phận công nợ của {{organizationName}} sớm nhất có thể để xử lý.</p>' +
+      '<p>Trân trọng,<br/>{{organizationName}}</p>',
   },
 ];
 
@@ -1396,7 +1396,7 @@ export function buildDefaultEmailTemplates(organizationId: string, now: Date): E
 }
 ```
 
-These 4 definitions match spec section 2's example stages exactly ("3 Day Pre-Due Reminder", "1 Day Overdue Reminder", "7 Day Overdue Reminder", "30 Day Overdue Reminder") — the Reminder Automation plan's default `ReminderPolicy`/`ReminderRule` seed will point its `emailTemplateId` at these same 4 rows by matching on `reminderStage`.
+These 4 definitions match spec section 2's example stages exactly ("Nhắc trước hạn 3 ngày", "Nhắc quá hạn 1 ngày", "Nhắc quá hạn 7 ngày", "Nhắc quá hạn 30 ngày" — Vietnamese, per product decision, since `reminderStage` is UI-display metadata, not a matching key; see spec section 1) — the Reminder Automation plan's default `ReminderPolicy`/`ReminderRule` seed will point its `emailTemplateId` at these same 4 rows by matching on `reminderStage`, so Plan #12 must use these exact Vietnamese strings, not translate or re-derive them.
 
 > **Cross-plan reconciliation:** `SignupUseCase` and `AuthModule` are implemented only by `2026-08-03-authentication-onboarding.md`. The adapter below is the sole bridge: it seeds templates and delegates reminder policies/rules to `IDefaultReminderBootstrap` with the same `EntityManager`. Do not apply an older version of this section that injected `IEmailTemplateRepository` directly into `SignupUseCase`; that would create a second bootstrap path and a constructor mismatch.
 
