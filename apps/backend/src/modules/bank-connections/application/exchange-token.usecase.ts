@@ -48,6 +48,14 @@ export class ExchangeTokenUseCase {
     if (!session)
       throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy phiên kết nối.');
     if (
+      session.status === 'PENDING_AUTHORIZATION' &&
+      session.isExpired(new Date())
+    ) {
+      await this.dataSource.transaction((manager) =>
+        this.sessionRepo.save(session.markExpired(), manager),
+      );
+    }
+    if (
       session.status !== 'PENDING_AUTHORIZATION' ||
       session.isExpired(new Date())
     ) {

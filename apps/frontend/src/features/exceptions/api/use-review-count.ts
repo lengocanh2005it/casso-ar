@@ -10,7 +10,7 @@ export function useReviewCount() {
     queryKey: ['exceptions', 'review-count'],
     queryFn: () =>
       apiClient.get<ReviewCountResponse>(
-        '/api/v1/bank-transactions/pending-review-count',
+        '/bank-transactions/pending-review-count',
       ),
     select: (data) => data.count,
     refetchInterval: 60_000,

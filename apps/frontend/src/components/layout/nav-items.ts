@@ -1,3 +1,4 @@
+import { PlanId } from '@casso-ledger/shared-types';
 import {
   AlertTriangle,
   ArrowLeftRight,
@@ -11,13 +12,12 @@ import {
   Settings,
   Users,
 } from 'lucide-react';
-import type { Plan } from '@/lib/plan-access';
 
 export interface NavItem {
   to: string;
   label: string;
   icon: LucideIcon;
-  minPlan?: Plan;
+  minPlan?: PlanId;
   badgeCount?: number;
 }
 
@@ -29,7 +29,7 @@ export const navItems: NavItem[] = [
   { to: '/transactions', label: 'Giao dịch / Đối soát', icon: ArrowLeftRight },
   { to: '/exceptions', label: 'Exception Queue', icon: AlertTriangle },
   { to: '/reminders', label: 'Lịch nhắc', icon: BellRing },
-  { to: '/copilot', label: 'Copilot', icon: Bot, minPlan: 'BUSINESS' },
+  { to: '/copilot', label: 'Copilot', icon: Bot, minPlan: PlanId.BUSINESS },
   { to: '/reports', label: 'Báo cáo', icon: BarChart3 },
   { to: '/settings', label: 'Cài đặt', icon: Settings },
 ];

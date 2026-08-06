@@ -1,15 +1,15 @@
 import type { RouteObject } from 'react-router-dom';
 import { Navigate } from 'react-router-dom';
-import { BankConnectionsPage } from '@/features/bank-connections/bank-connections-page';
-import { CopilotPage } from '@/features/copilot/copilot-page';
-import { CustomersPage } from '@/features/customers/customers-page';
-import { DashboardPage } from '@/features/dashboard/dashboard-page';
-import { ExceptionsPage } from '@/features/exceptions/exceptions-page';
-import { ReceivablesPage } from '@/features/receivables/receivables-page';
-import { RemindersPage } from '@/features/reminders/reminders-page';
-import { ReportsPage } from '@/features/reports/reports-page';
-import { SettingsPage } from '@/features/settings/settings-page';
-import { TransactionsPage } from '@/features/transactions/transactions-page';
+import { BankConnectionsPage } from '@/features/bank-connections';
+import { CopilotPage } from '@/features/copilot';
+import { CustomersPage } from '@/features/customers';
+import { DashboardPage } from '@/features/dashboard';
+import { ExceptionsPage } from '@/features/exceptions';
+import { ReceivablesPage } from '@/features/receivables';
+import { RemindersPage } from '@/features/reminders';
+import { ReportsPage } from '@/features/reports';
+import { SettingsPage } from '@/features/settings';
+import { TransactionsPage } from '@/features/transactions';
 
 export const appRoutes: RouteObject[] = [
   { index: true, element: <Navigate to="/dashboard" replace /> },

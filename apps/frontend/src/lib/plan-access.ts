@@ -1,12 +1,15 @@
-export type Plan = 'FREE' | 'STARTER' | 'BUSINESS' | 'ENTERPRISE';
+import { PlanId } from '@casso-ledger/shared-types';
 
-const PLAN_HIERARCHY: Record<Plan, number> = {
-  FREE: 0,
-  STARTER: 1,
-  BUSINESS: 2,
-  ENTERPRISE: 3,
+const PLAN_HIERARCHY: Record<PlanId, number> = {
+  [PlanId.FREE]: 0,
+  [PlanId.STARTER]: 1,
+  [PlanId.BUSINESS]: 2,
+  [PlanId.ENTERPRISE]: 3,
 };
 
-export function hasPlanAccess(currentPlan: Plan, requiredPlan: Plan): boolean {
+export function hasPlanAccess(
+  currentPlan: PlanId,
+  requiredPlan: PlanId,
+): boolean {
   return PLAN_HIERARCHY[currentPlan] >= PLAN_HIERARCHY[requiredPlan];
 }
