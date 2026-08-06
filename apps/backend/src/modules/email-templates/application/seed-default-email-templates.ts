@@ -68,6 +68,7 @@ export function buildDefaultEmailTemplates(
         isDefault: true,
         createdAt: now,
         updatedAt: now,
+        version: 1,
       }),
   );
 }

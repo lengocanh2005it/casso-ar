@@ -1,4 +1,5 @@
 import { EmailTemplate } from '../domain/email-template';
+import { HandlebarsTemplateCompiler } from '../infrastructure/handlebars-template-compiler.adapter';
 import { RenderEmailTemplateUseCase } from './render-email-template.usecase';
 
 function buildTemplate(subject: string, bodyHtml: string): EmailTemplate {
@@ -12,11 +13,14 @@ function buildTemplate(subject: string, bodyHtml: string): EmailTemplate {
     isDefault: false,
     createdAt: new Date('2026-08-01'),
     updatedAt: new Date('2026-08-01'),
+    version: 1,
   });
 }
 
 describe('RenderEmailTemplateUseCase', () => {
-  const useCase = new RenderEmailTemplateUseCase();
+  const useCase = new RenderEmailTemplateUseCase(
+    new HandlebarsTemplateCompiler(),
+  );
 
   it('substitutes all 7 fixed variables into subject and bodyHtml', () => {
     const template = buildTemplate(

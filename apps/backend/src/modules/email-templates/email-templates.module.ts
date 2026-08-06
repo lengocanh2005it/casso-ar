@@ -7,8 +7,10 @@ import { EMAIL_TEMPLATE_REPOSITORY } from './application/email-template-reposito
 import { ListEmailTemplatesUseCase } from './application/list-email-templates.usecase';
 import { PreviewEmailTemplateUseCase } from './application/preview-email-template.usecase';
 import { RenderEmailTemplateUseCase } from './application/render-email-template.usecase';
+import { TEMPLATE_COMPILER } from './application/template-compiler.port';
 import { UpdateEmailTemplateUseCase } from './application/update-email-template.usecase';
 import { EmailTemplateOrmEntity } from './infrastructure/email-template.orm-entity';
+import { HandlebarsTemplateCompiler } from './infrastructure/handlebars-template-compiler.adapter';
 import { TypeOrmEmailTemplateRepository } from './infrastructure/typeorm-email-template.repository';
 import { EmailTemplatesController } from './presentation/email-templates.controller';
 
@@ -21,6 +23,10 @@ import { EmailTemplatesController } from './presentation/email-templates.control
     {
       provide: EMAIL_TEMPLATE_REPOSITORY,
       useClass: TypeOrmEmailTemplateRepository,
+    },
+    {
+      provide: TEMPLATE_COMPILER,
+      useClass: HandlebarsTemplateCompiler,
     },
     CreateEmailTemplateUseCase,
     ListEmailTemplatesUseCase,

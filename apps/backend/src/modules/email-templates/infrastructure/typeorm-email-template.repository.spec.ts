@@ -13,6 +13,7 @@ const PROPS = {
   isDefault: false,
   createdAt: new Date('2026-07-01'),
   updatedAt: new Date('2026-07-01'),
+  version: 1,
 };
 
 describe('TypeOrmEmailTemplateRepository', () => {

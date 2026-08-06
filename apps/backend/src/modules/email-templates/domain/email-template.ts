@@ -8,6 +8,7 @@ export interface EmailTemplateProps {
   isDefault: boolean;
   createdAt: Date;
   updatedAt: Date;
+  version: number;
 }
 
 export class EmailTemplate {
@@ -20,6 +21,7 @@ export class EmailTemplate {
   readonly isDefault: boolean;
   readonly createdAt: Date;
   readonly updatedAt: Date;
+  readonly version: number;
 
   constructor(props: EmailTemplateProps) {
     this.id = props.id;
@@ -31,6 +33,7 @@ export class EmailTemplate {
     this.isDefault = props.isDefault;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
+    this.version = props.version;
   }
 
   updateContent(subject: string, bodyHtml: string): EmailTemplate {

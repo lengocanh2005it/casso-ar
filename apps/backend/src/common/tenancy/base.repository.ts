@@ -1,5 +1,16 @@
-import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
+import type {
+  EntityManager,
+  FindOptionsSelect,
+  FindOptionsWhere,
+  Repository,
+} from 'typeorm';
 import { TenantContextService } from './tenant-context';
+
+export interface ScopedFindManyOptions<TEntity> {
+  select?: FindOptionsSelect<TEntity>;
+  skip?: number;
+  take?: number;
+}
 
 export abstract class BaseRepository<
   TEntity extends { organizationId: string },
@@ -20,10 +31,12 @@ export abstract class BaseRepository<
 
   protected async scopedFindMany(
     where: FindOptionsWhere<TEntity> = {} as FindOptionsWhere<TEntity>,
+    options: ScopedFindManyOptions<TEntity> = {},
   ): Promise<TEntity[]> {
     const organizationId = this.tenantContext.getOrganizationId();
     return this.ormRepo.find({
       where: { ...where, organizationId } as FindOptionsWhere<TEntity>,
+      ...options,
     });
   }
 

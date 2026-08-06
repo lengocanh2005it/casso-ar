@@ -1,9 +1,16 @@
 import type { EntityManager } from 'typeorm';
 import type { EmailTemplate } from '../domain/email-template';
 
+export interface ListEmailTemplatesPagination {
+  page: number;
+  limit: number;
+}
+
 export interface IEmailTemplateRepository {
   findById(id: string): Promise<EmailTemplate | null>;
-  findAllForOrganization(): Promise<EmailTemplate[]>;
+  findAllForOrganization(
+    pagination: ListEmailTemplatesPagination,
+  ): Promise<EmailTemplate[]>;
   save(template: EmailTemplate, manager?: EntityManager): Promise<void>;
   delete(id: string): Promise<void>;
   /**

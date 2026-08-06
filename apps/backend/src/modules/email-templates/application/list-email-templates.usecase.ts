@@ -5,6 +5,15 @@ import {
   type IEmailTemplateRepository,
 } from './email-template-repository.port';
 
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+
+export interface ListEmailTemplatesInput {
+  page?: number;
+  limit?: number;
+}
+
 @Injectable()
 export class ListEmailTemplatesUseCase {
   constructor(
@@ -12,7 +21,12 @@ export class ListEmailTemplatesUseCase {
     private readonly templateRepo: IEmailTemplateRepository,
   ) {}
 
-  async execute(): Promise<EmailTemplate[]> {
-    return this.templateRepo.findAllForOrganization();
+  async execute(input: ListEmailTemplatesInput): Promise<EmailTemplate[]> {
+    const page = input.page && input.page > 0 ? input.page : DEFAULT_PAGE;
+    const limit =
+      input.limit && input.limit > 0
+        ? Math.min(input.limit, MAX_LIMIT)
+        : DEFAULT_LIMIT;
+    return this.templateRepo.findAllForOrganization({ page, limit });
   }
 }

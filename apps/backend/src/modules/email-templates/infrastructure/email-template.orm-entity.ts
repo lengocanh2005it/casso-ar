@@ -1,4 +1,10 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+  VersionColumn,
+} from 'typeorm';
 
 @Entity({ name: 'email_templates' })
 @Index(['organizationId'])
@@ -29,4 +35,7 @@ export class EmailTemplateOrmEntity {
 
   @Column()
   updatedAt: Date;
+
+  @VersionColumn()
+  version: number;
 }

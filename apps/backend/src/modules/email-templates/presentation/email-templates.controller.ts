@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
@@ -36,8 +37,11 @@ export class EmailTemplatesController {
 
   @Get()
   @RequirePermission(Permission.EMAIL_TEMPLATE_READ)
-  async list() {
-    const templates = await this.listEmailTemplatesUseCase.execute();
+  async list(@Query('page') page?: string, @Query('limit') limit?: string) {
+    const templates = await this.listEmailTemplatesUseCase.execute({
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
     return templates.map(toEmailTemplateResponse);
   }
 
@@ -103,7 +107,7 @@ export class EmailTemplatesController {
   }
 
   @Post(':id/preview')
-  @RequirePermission(Permission.REMINDER_POLICY_WRITE)
+  @RequirePermission(Permission.EMAIL_TEMPLATE_READ)
   async preview(@Param('id') id: string) {
     return this.previewEmailTemplateUseCase.execute(id);
   }

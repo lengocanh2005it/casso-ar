@@ -15,6 +15,13 @@ class FakeRepo extends BaseRepository<{
     return this.scopedFindMany();
   }
 
+  findManyPage(skip: number, take: number) {
+    return this.scopedFindMany(
+      {},
+      { select: { id: true, name: true }, skip, take },
+    );
+  }
+
   save(entity: { id: string; organizationId: string; name: string }) {
     return this.scopedSaveWithManager(entity);
   }
@@ -81,6 +88,26 @@ describe('BaseRepository', () => {
 
     expect(ormRepo.find).toHaveBeenCalledWith({
       where: { organizationId: 'org-1' },
+    });
+  });
+
+  it('passes select/skip/take through to findMany for pagination and column selection', async () => {
+    const tenantContext = new TenantContextService();
+    const ormRepo = { find: jest.fn().mockResolvedValue([]) };
+    const repo = new FakeRepo(ormRepo as any, tenantContext);
+
+    await tenantContext.run(
+      { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+      async () => {
+        await repo.findManyPage(20, 10);
+      },
+    );
+
+    expect(ormRepo.find).toHaveBeenCalledWith({
+      where: { organizationId: 'org-1' },
+      select: { id: true, name: true },
+      skip: 20,
+      take: 10,
     });
   });
 

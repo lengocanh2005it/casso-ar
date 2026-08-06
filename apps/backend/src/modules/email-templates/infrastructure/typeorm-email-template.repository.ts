@@ -3,7 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import type { IEmailTemplateRepository } from '../application/email-template-repository.port';
+import type {
+  IEmailTemplateRepository,
+  ListEmailTemplatesPagination,
+} from '../application/email-template-repository.port';
 import { EmailTemplate } from '../domain/email-template';
 import { EmailTemplateOrmEntity } from './email-template.orm-entity';
 
@@ -20,6 +23,7 @@ function toOrm(template: EmailTemplate): EmailTemplateOrmEntity {
     isDefault: template.isDefault,
     createdAt: template.createdAt,
     updatedAt: template.updatedAt,
+    version: template.version,
   };
 }
 
@@ -43,8 +47,28 @@ export class TypeOrmEmailTemplateRepository
     return row ? new EmailTemplate(row) : null;
   }
 
-  async findAllForOrganization(): Promise<EmailTemplate[]> {
-    const rows = await this.scopedFindMany();
+  async findAllForOrganization(
+    pagination: ListEmailTemplatesPagination,
+  ): Promise<EmailTemplate[]> {
+    const rows = await this.scopedFindMany(
+      {},
+      {
+        select: {
+          id: true,
+          organizationId: true,
+          name: true,
+          subject: true,
+          bodyHtml: true,
+          reminderStage: true,
+          isDefault: true,
+          createdAt: true,
+          updatedAt: true,
+          version: true,
+        },
+        skip: (pagination.page - 1) * pagination.limit,
+        take: pagination.limit,
+      },
+    );
     return rows.map((row) => new EmailTemplate(row));
   }
 

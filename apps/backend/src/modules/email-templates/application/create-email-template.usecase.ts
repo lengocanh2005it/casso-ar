@@ -34,6 +34,7 @@ export class CreateEmailTemplateUseCase {
       isDefault: false,
       createdAt: now,
       updatedAt: now,
+      version: 1,
     });
 
     await this.templateRepo.save(template);

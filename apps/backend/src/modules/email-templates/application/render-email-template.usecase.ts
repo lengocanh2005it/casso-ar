@@ -1,6 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import * as Handlebars from 'handlebars';
-import { EmailTemplate } from '../domain/email-template';
+import { Inject, Injectable } from '@nestjs/common';
+import type { EmailTemplate } from '../domain/email-template';
+import {
+  type ITemplateCompiler,
+  TEMPLATE_COMPILER,
+} from './template-compiler.port';
 
 export interface EmailTemplateRenderData {
   customerName: string;
@@ -19,12 +22,21 @@ export interface RenderedEmail {
 
 @Injectable()
 export class RenderEmailTemplateUseCase {
+  constructor(
+    @Inject(TEMPLATE_COMPILER)
+    private readonly templateCompiler: ITemplateCompiler,
+  ) {}
+
   render(
     template: EmailTemplate,
     data: EmailTemplateRenderData,
   ): RenderedEmail {
-    const subject = Handlebars.compile(template.subject)(data);
-    const bodyHtml = Handlebars.compile(template.bodyHtml)(data);
+    const subject = this.templateCompiler.compile(template.subject, {
+      ...data,
+    });
+    const bodyHtml = this.templateCompiler.compile(template.bodyHtml, {
+      ...data,
+    });
     return { subject, bodyHtml };
   }
 }

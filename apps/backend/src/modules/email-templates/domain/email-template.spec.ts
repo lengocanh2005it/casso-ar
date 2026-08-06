@@ -13,6 +13,7 @@ function buildTemplate(
     isDefault: true,
     createdAt: new Date('2026-08-01'),
     updatedAt: new Date('2026-08-01'),
+    version: 1,
     ...overrides,
   });
 }

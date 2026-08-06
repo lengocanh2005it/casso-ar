@@ -12,6 +12,7 @@ function buildTemplate(isDefault: boolean): EmailTemplate {
     isDefault,
     createdAt: new Date('2026-08-01'),
     updatedAt: new Date('2026-08-01'),
+    version: 1,
   });
 }
 
