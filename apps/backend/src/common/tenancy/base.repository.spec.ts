@@ -11,8 +11,23 @@ class FakeRepo extends BaseRepository<{
     return this.scopedFindOne(where);
   }
 
+  findMany() {
+    return this.scopedFindMany();
+  }
+
+  findManyPage(skip: number, take: number) {
+    return this.scopedFindMany(
+      {},
+      { select: { id: true, name: true }, skip, take },
+    );
+  }
+
   save(entity: { id: string; organizationId: string; name: string }) {
     return this.scopedSaveWithManager(entity);
+  }
+
+  remove(where: { id: string }) {
+    return this.scopedDelete(where);
   }
 }
 
@@ -53,5 +68,64 @@ describe('BaseRepository', () => {
     );
 
     expect(ormRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('injects organizationId from TenantContext into findMany where clause', async () => {
+    const tenantContext = new TenantContextService();
+    const ormRepo = {
+      find: jest
+        .fn()
+        .mockResolvedValue([{ id: '1', organizationId: 'org-1', name: 'x' }]),
+    };
+    const repo = new FakeRepo(ormRepo as any, tenantContext);
+
+    await tenantContext.run(
+      { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+      async () => {
+        await repo.findMany();
+      },
+    );
+
+    expect(ormRepo.find).toHaveBeenCalledWith({
+      where: { organizationId: 'org-1' },
+    });
+  });
+
+  it('passes select/skip/take through to findMany for pagination and column selection', async () => {
+    const tenantContext = new TenantContextService();
+    const ormRepo = { find: jest.fn().mockResolvedValue([]) };
+    const repo = new FakeRepo(ormRepo as any, tenantContext);
+
+    await tenantContext.run(
+      { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+      async () => {
+        await repo.findManyPage(20, 10);
+      },
+    );
+
+    expect(ormRepo.find).toHaveBeenCalledWith({
+      where: { organizationId: 'org-1' },
+      select: { id: true, name: true },
+      skip: 20,
+      take: 10,
+    });
+  });
+
+  it('scopes delete to the current organizationId', async () => {
+    const tenantContext = new TenantContextService();
+    const ormRepo = { delete: jest.fn() };
+    const repo = new FakeRepo(ormRepo as any, tenantContext);
+
+    await tenantContext.run(
+      { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+      async () => {
+        await repo.remove({ id: '1' });
+      },
+    );
+
+    expect(ormRepo.delete).toHaveBeenCalledWith({
+      id: '1',
+      organizationId: 'org-1',
+    });
   });
 });

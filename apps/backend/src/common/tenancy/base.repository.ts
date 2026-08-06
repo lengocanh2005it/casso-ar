@@ -1,5 +1,16 @@
-import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
+import type {
+  EntityManager,
+  FindOptionsSelect,
+  FindOptionsWhere,
+  Repository,
+} from 'typeorm';
 import { TenantContextService } from './tenant-context';
+
+export interface ScopedFindManyOptions<TEntity> {
+  select?: FindOptionsSelect<TEntity>;
+  skip?: number;
+  take?: number;
+}
 
 export abstract class BaseRepository<
   TEntity extends { organizationId: string },
@@ -16,6 +27,27 @@ export abstract class BaseRepository<
     return this.ormRepo.findOne({
       where: { ...where, organizationId } as FindOptionsWhere<TEntity>,
     });
+  }
+
+  protected async scopedFindMany(
+    where: FindOptionsWhere<TEntity> = {} as FindOptionsWhere<TEntity>,
+    options: ScopedFindManyOptions<TEntity> = {},
+  ): Promise<TEntity[]> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    return this.ormRepo.find({
+      where: { ...where, organizationId } as FindOptionsWhere<TEntity>,
+      ...options,
+    });
+  }
+
+  protected async scopedDelete(
+    where: FindOptionsWhere<TEntity>,
+  ): Promise<void> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    await this.ormRepo.delete({
+      ...where,
+      organizationId,
+    } as FindOptionsWhere<TEntity>);
   }
 
   // Writes through a transaction's EntityManager when one is given, falls
