@@ -23,6 +23,7 @@ import {
   type IConnectionAuditEventRepository,
 } from './connection-audit-event-repository.port';
 import { encryptToken } from './token-encryption';
+import { ACCESS_TOKEN_ENCRYPTION_KEY } from './token-encryption-key';
 
 export interface ExchangeTokenInput {
   sessionId: string;
@@ -41,6 +42,8 @@ export class ExchangeTokenUseCase {
     @Inject(CONNECTION_AUDIT_EVENT_REPOSITORY)
     private readonly auditEventRepo: IConnectionAuditEventRepository,
     private readonly dataSource: DataSource,
+    @Inject(ACCESS_TOKEN_ENCRYPTION_KEY)
+    private readonly encryptionKey: string,
   ) {}
 
   async execute(input: ExchangeTokenInput): Promise<BankConnection> {
@@ -82,7 +85,7 @@ export class ExchangeTokenUseCase {
       const connection = existing
         ? existing.reactivate({
             casIdConnectionSessionId: session.id,
-            encryptedAccessToken: encryptToken(accessToken),
+            encryptedAccessToken: encryptToken(accessToken, this.encryptionKey),
             accountIdentity,
             scopes: session.scopes,
           })
@@ -90,7 +93,7 @@ export class ExchangeTokenUseCase {
             id: randomUUID(),
             organizationId: session.organizationId,
             casIdConnectionSessionId: session.id,
-            encryptedAccessToken: encryptToken(accessToken),
+            encryptedAccessToken: encryptToken(accessToken, this.encryptionKey),
             accountIdentity,
             status: 'ACTIVE',
             scopes: session.scopes,

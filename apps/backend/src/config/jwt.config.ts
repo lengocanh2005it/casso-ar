@@ -1,9 +1,13 @@
-export function getJwtSecret(): string {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error(
-      'JWT_SECRET environment variable is required and has no default',
-    );
-  }
-  return secret;
+import type { ConfigService } from '@nestjs/config';
+import type { JwtModuleOptions } from '@nestjs/jwt';
+
+export function getJwtSecret(config: ConfigService): string {
+  return config.getOrThrow<string>('JWT_SECRET');
+}
+
+export function getJwtModuleOptions(config: ConfigService): JwtModuleOptions {
+  return {
+    secret: getJwtSecret(config),
+    signOptions: { expiresIn: '15m' },
+  };
 }

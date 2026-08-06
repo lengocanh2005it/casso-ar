@@ -11,6 +11,7 @@ import {
 } from './cas-id-integration-adapter.port';
 import { MarkRequiresReauthorizationUseCase } from './mark-requires-reauthorization.usecase';
 import { decryptToken } from './token-encryption';
+import { ACCESS_TOKEN_ENCRYPTION_KEY } from './token-encryption-key';
 
 @Injectable()
 export class SyncTransactionsUseCase {
@@ -20,6 +21,8 @@ export class SyncTransactionsUseCase {
     @Inject(BANK_CONNECTION_REPOSITORY)
     private readonly bankConnectionRepo: IBankConnectionRepository,
     private readonly markRequiresReauthorization: MarkRequiresReauthorizationUseCase,
+    @Inject(ACCESS_TOKEN_ENCRYPTION_KEY)
+    private readonly encryptionKey: string,
   ) {}
 
   // Called by a background sync job with only a connectionId (no authenticated
@@ -35,7 +38,7 @@ export class SyncTransactionsUseCase {
       );
     try {
       return await this.adapter.getTransactions(
-        decryptToken(connection.encryptedAccessToken),
+        decryptToken(connection.encryptedAccessToken, this.encryptionKey),
       );
     } catch (error) {
       await this.markRequiresReauthorization.handleAdapterError(
