@@ -44,8 +44,7 @@ export class TypeOrmEmailTemplateRepository
   }
 
   async findAllForOrganization(): Promise<EmailTemplate[]> {
-    const organizationId = this.tenantContext.getOrganizationId();
-    const rows = await this.ormRepo.find({ where: { organizationId } });
+    const rows = await this.scopedFindMany();
     return rows.map((row) => new EmailTemplate(row));
   }
 
@@ -54,8 +53,9 @@ export class TypeOrmEmailTemplateRepository
   }
 
   async delete(id: string): Promise<void> {
-    const organizationId = this.tenantContext.getOrganizationId();
-    await this.ormRepo.delete({ id, organizationId });
+    await this.scopedDelete({
+      id,
+    } as FindOptionsWhere<EmailTemplateOrmEntity>);
   }
 
   async saveMany(

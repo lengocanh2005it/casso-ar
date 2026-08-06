@@ -18,6 +18,25 @@ export abstract class BaseRepository<
     });
   }
 
+  protected async scopedFindMany(
+    where: FindOptionsWhere<TEntity> = {} as FindOptionsWhere<TEntity>,
+  ): Promise<TEntity[]> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    return this.ormRepo.find({
+      where: { ...where, organizationId } as FindOptionsWhere<TEntity>,
+    });
+  }
+
+  protected async scopedDelete(
+    where: FindOptionsWhere<TEntity>,
+  ): Promise<void> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    await this.ormRepo.delete({
+      ...where,
+      organizationId,
+    } as FindOptionsWhere<TEntity>);
+  }
+
   // Writes through a transaction's EntityManager when one is given, falls
   // back to the injected repository otherwise — collapses the manager-branch
   // every write-side repository was hand-rolling.
