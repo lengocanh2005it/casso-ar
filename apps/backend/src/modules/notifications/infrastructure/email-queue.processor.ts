@@ -8,6 +8,7 @@ import {
   type IReminderExecutionRepository,
   REMINDER_EXECUTION_REPOSITORY,
 } from '../../reminders/application/reminder-execution-repository.port';
+import { ReminderExecutionStatus } from '../../reminders/domain/reminder-execution';
 import {
   EMAIL_PROVIDER_ADAPTER,
   type IEmailProviderAdapter,
@@ -45,6 +46,14 @@ export class EmailQueueProcessor extends WorkerHost {
     await this.tenantContext.run(
       { userId: 'system', organizationId, role: Role.OWNER },
       async () => {
+        const status = await this.executionRepo.getStatus(reminderExecutionId);
+        if (status !== ReminderExecutionStatus.PENDING) {
+          this.logger.warn(
+            `Skipping email send for ${reminderExecutionId}: status is already ${status ?? 'unknown'}`,
+          );
+          return;
+        }
+
         const result = await this.emailProvider.send(
           to,
           subject,

@@ -15,6 +15,14 @@ export class TypeOrmReminderExecutionRepository
     private readonly tenantContext: TenantContextService,
   ) {}
 
+  async getStatus(id: string): Promise<ReminderExecutionStatus | null> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const execution = await this.dataSource
+      .getRepository(ReminderExecutionOrmEntity)
+      .findOne({ select: { status: true }, where: { id, organizationId } });
+    return execution?.status ?? null;
+  }
+
   async updateSendResult(
     id: string,
     status: 'SENT' | 'FAILED',

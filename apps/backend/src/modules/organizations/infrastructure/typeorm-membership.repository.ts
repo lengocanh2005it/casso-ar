@@ -33,7 +33,7 @@ export class TypeOrmMembershipRepository implements IMembershipRepository {
     organizationId: string,
   ): Promise<Membership | null> {
     const row = await this.repo.findOne({
-      where: { organizationId, role: Role.OWNER },
+      where: { organizationId, role: Role.OWNER, joinedAt: Not(IsNull()) },
     });
     return row ? new Membership(row) : null;
   }

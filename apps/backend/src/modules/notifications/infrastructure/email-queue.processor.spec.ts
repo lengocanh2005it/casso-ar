@@ -23,6 +23,7 @@ describe('EmailQueueProcessor', () => {
       send: jest.fn().mockResolvedValue({ providerMessageId: 'msg-1' }),
     };
     const executionRepo = {
+      getStatus: jest.fn().mockResolvedValue('PENDING'),
       updateSendResult: jest.fn().mockResolvedValue(undefined),
     };
     const tenantContext = { run: jest.fn((_user, callback) => callback()) };
@@ -53,6 +54,29 @@ describe('EmailQueueProcessor', () => {
       receivableId: 'rec-1',
       organizationId: 'org-1',
     });
+  });
+
+  it('skips sending when a previous attempt already recorded SENT (retry after a partial failure)', async () => {
+    const emailProvider = {
+      send: jest.fn().mockResolvedValue({ providerMessageId: 'msg-1' }),
+    };
+    const executionRepo = {
+      getStatus: jest.fn().mockResolvedValue('SENT'),
+      updateSendResult: jest.fn().mockResolvedValue(undefined),
+    };
+    const tenantContext = { run: jest.fn((_user, callback) => callback()) };
+    const eventEmitter = { emit: jest.fn() };
+    const processor = new EmailQueueProcessor(
+      emailProvider as any,
+      executionRepo as any,
+      tenantContext as any,
+      eventEmitter as any,
+    );
+
+    await processor.process(buildJob());
+
+    expect(emailProvider.send).not.toHaveBeenCalled();
+    expect(executionRepo.updateSendResult).not.toHaveBeenCalled();
   });
 
   it('records FAILED only after the final retry', async () => {

@@ -1,4 +1,7 @@
+import type { ReminderExecutionStatus } from '../domain/reminder-execution';
+
 export interface IReminderExecutionRepository {
+  getStatus(id: string): Promise<ReminderExecutionStatus | null>;
   updateSendResult(
     id: string,
     status: 'SENT' | 'FAILED',
