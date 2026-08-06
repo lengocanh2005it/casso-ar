@@ -191,7 +191,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #6 — Email Template Management
 - **Type**: task
-- **Status**: open
+- **Status**: in-progress
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-email-template-management-design.md`
 - **Blockers**: Plan #2 ✅, Plan #3 ✅, Plan #4 ✅
