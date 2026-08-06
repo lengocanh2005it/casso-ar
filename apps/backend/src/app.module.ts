@@ -17,6 +17,7 @@ import { EmailVerifiedGuard } from './modules/auth/presentation/email-verified.g
 import { BankConnectionsModule } from './modules/bank-connections/bank-connections.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { CustomersModule } from './modules/customers/customers.module';
+import { EmailTemplatesModule } from './modules/email-templates/email-templates.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { PaymentsModule } from './modules/payments/payments.module';
@@ -40,6 +41,7 @@ import { UsersModule } from './modules/users/users.module';
     BankConnectionsModule,
     AuthModule,
     CustomersModule,
+    EmailTemplatesModule,
     InvoicesModule,
     ReceivablesModule,
     PaymentsModule,
