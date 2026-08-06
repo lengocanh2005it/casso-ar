@@ -1,3 +1,4 @@
+import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
@@ -60,5 +61,31 @@ export class TypeOrmReceivableRepository
 
   async save(receivable: Receivable, manager?: EntityManager): Promise<void> {
     await this.scopedSaveWithManager(toOrm(receivable), manager);
+  }
+
+  async findOpenByCustomerId(customerId: string): Promise<Receivable[]> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const rows = await this.ormRepo.find({
+      where: [
+        { organizationId, customerId, status: ReceivableStatus.OPEN },
+        { organizationId, customerId, status: ReceivableStatus.PARTIALLY_PAID },
+      ],
+    });
+    return rows.map((row) => new Receivable(row));
+  }
+
+  async findOpenTopNByOrganization(
+    organizationId: string,
+    limit: number,
+  ): Promise<Receivable[]> {
+    const rows = await this.ormRepo.find({
+      where: [
+        { organizationId, status: ReceivableStatus.OPEN },
+        { organizationId, status: ReceivableStatus.PARTIALLY_PAID },
+      ],
+      order: { dueDate: 'ASC' },
+      take: limit,
+    });
+    return rows.map((row) => new Receivable(row));
   }
 }

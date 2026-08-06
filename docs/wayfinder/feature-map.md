@@ -239,7 +239,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #8 — Webhook Ingestion + Matching Engine
 - **Type**: task
-- **Status**: open
+- **Status**: in-progress
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-webhook-matching-engine-design.md`
 - **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #5 ✅ (not actually blocked on Plan #6 despite prior Frontier prose — this ticket's own Blockers line never listed it)

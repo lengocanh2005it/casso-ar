@@ -1,3 +1,4 @@
+// biome-ignore assist/source/organizeImports: BankAccountsModule must evaluate before AuthModule to avoid a runtime module cycle.
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -15,8 +16,7 @@ import { TenantContextInterceptor } from './common/tenancy/tenant-context.interc
 import { getBullMqConfig } from './config/bullmq.config';
 import { getJwtModuleOptions } from './config/jwt.config';
 import { getTypeOrmConfig } from './config/typeorm.config';
-import { AuthModule } from './modules/auth/auth.module';
-import { EmailVerifiedGuard } from './modules/auth/presentation/email-verified.guard';
+import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
 import { BankConnectionsModule } from './modules/bank-connections/bank-connections.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { CustomersModule } from './modules/customers/customers.module';
@@ -28,6 +28,9 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { ReceivablesModule } from './modules/receivables/receivables.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
 import { UsersModule } from './modules/users/users.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { EmailVerifiedGuard } from './modules/auth/presentation/email-verified.guard';
 
 @Module({
   imports: [
@@ -52,6 +55,7 @@ import { UsersModule } from './modules/users/users.module';
     OrganizationsModule,
     BillingModule,
     BankConnectionsModule,
+    BankAccountsModule,
     AuthModule,
     CustomersModule,
     EmailTemplatesModule,
@@ -61,6 +65,7 @@ import { UsersModule } from './modules/users/users.module';
     UsersModule,
     RemindersModule,
     NotificationsModule,
+    WebhooksModule,
   ],
   providers: [
     JwtStrategy,
