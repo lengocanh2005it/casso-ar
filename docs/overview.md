@@ -152,7 +152,9 @@ activeBankConnections = COUNT(BankConnection WHERE organizationId=? AND status='
 | FREE | 50 | 1 | Basic dashboard, Excel import |
 | STARTER | 500 | 2 | Automatic reminders, basic matching, partial payments |
 | BUSINESS | 5.000 | Many | Custom reminder policies, Exception Queue, advanced reporting |
-| ENTERPRISE | Custom | Custom | SSO, multiple legal entities, SLA (out of MVP) |
+| ENTERPRISE | Custom | Custom | SSO, multiple legal entities, SLA, custom email sending domain (out of MVP) |
+
+Custom email sending domain: FREE/STARTER/BUSINESS all send reminder emails from Casso's own verified domain (`Reply-To` is set to the organization's OWNER email so customer replies still reach the right inbox — see [email-notification-service spec](docs/superpowers/specs/2026-08-03-email-notification-service-design.md) section 1). Per-organization sending domain (`from: ...@congty-a.com`, needs DNS verification) is an ENTERPRISE-only upgrade, not built in the MVP.
 
 Out of scope: overage billing, grace period, automatic billing invoices through CASSO.
 
