@@ -1,3 +1,4 @@
+import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
@@ -60,5 +61,39 @@ export class TypeOrmReceivableRepository
 
   async save(receivable: Receivable, manager?: EntityManager): Promise<void> {
     await this.scopedSaveWithManager(toOrm(receivable), manager);
+  }
+
+  async findOpenByCustomerId(customerId: string): Promise<Receivable[]> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const rows = await this.ormRepo.find({
+      where: [
+        { organizationId, customerId, status: ReceivableStatus.OPEN },
+        { organizationId, customerId, status: ReceivableStatus.PARTIALLY_PAID },
+      ],
+    });
+    return rows.map((row) => new Receivable(row));
+  }
+
+  async findOpenTopNByOrganization(
+    organizationId: string,
+    limit: number,
+    referenceDate: Date,
+  ): Promise<Receivable[]> {
+    const rows = await this.ormRepo
+      .createQueryBuilder('receivable')
+      .where('receivable.organizationId = :organizationId', {
+        organizationId,
+      })
+      .andWhere('receivable.status IN (:...statuses)', {
+        statuses: [ReceivableStatus.OPEN, ReceivableStatus.PARTIALLY_PAID],
+      })
+      .orderBy(
+        'ABS(EXTRACT(EPOCH FROM (receivable."dueDate" - :referenceDate)))',
+        'ASC',
+      )
+      .setParameter('referenceDate', referenceDate)
+      .take(limit)
+      .getMany();
+    return rows.map((row) => new Receivable(row));
   }
 }

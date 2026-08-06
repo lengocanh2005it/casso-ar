@@ -46,4 +46,9 @@ export class TypeOrmCustomerRepository
   async save(customer: Customer, manager?: EntityManager): Promise<void> {
     await this.scopedSaveWithManager(toOrm(customer), manager);
   }
+
+  async findNameById(id: string): Promise<string | null> {
+    const customer = await this.findById(id);
+    return customer?.name ?? null;
+  }
 }

@@ -8,6 +8,12 @@ export interface IReceivableRepository {
     manager: EntityManager,
   ): Promise<Receivable | null>;
   save(receivable: Receivable, manager?: EntityManager): Promise<void>;
+  findOpenByCustomerId(customerId: string): Promise<Receivable[]>;
+  findOpenTopNByOrganization(
+    organizationId: string,
+    limit: number,
+    referenceDate: Date,
+  ): Promise<Receivable[]>;
 }
 
 export const RECEIVABLE_REPOSITORY = Symbol('RECEIVABLE_REPOSITORY');
