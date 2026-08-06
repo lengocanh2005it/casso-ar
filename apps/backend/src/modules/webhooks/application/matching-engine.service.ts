@@ -8,6 +8,7 @@ import type { IInvoiceRepository } from '../../invoices/application/invoice-repo
 import { INVOICE_REPOSITORY } from '../../invoices/application/invoice-repository.port';
 import type { IReceivableRepository } from '../../receivables/application/receivable-repository.port';
 import { RECEIVABLE_REPOSITORY } from '../../receivables/application/receivable-repository.port';
+import type { Receivable } from '../../receivables/domain/receivable';
 import { MatchingCandidate } from '../domain/matching-candidate';
 import { amountScore } from './scoring/amount-score';
 import { customerBankAccountScore } from './scoring/customer-bank-account-score';
@@ -49,14 +50,29 @@ export class MatchingEngineService {
     const account = await this.bankAccountRepo.findByAccountNumber(
       transaction.counterpartyAccountNumber,
     );
-    const receivables = account
-      ? await this.receivableRepo.findOpenByCustomerId(account.customerId)
+    let customerId = account?.customerId ?? null;
+    let receivables = customerId
+      ? await this.receivableRepo.findOpenByCustomerId(customerId)
       : await this.receivableRepo.findOpenTopNByOrganization(
           organizationId,
           ORG_WIDE_SCAN_LIMIT,
+          transaction.transactionDateTime,
         );
-    const customerName = account
-      ? await this.customerRepo.findNameById(account.customerId)
+
+    if (!customerId) {
+      customerId = await this.resolveCustomerByReferenceCode(
+        transaction.transferContent,
+        receivables,
+      );
+      if (customerId) {
+        receivables =
+          await this.receivableRepo.findOpenByCustomerId(customerId);
+      }
+    }
+
+    const knownAccountNumber = account?.accountNumber ?? null;
+    const customerName = customerId
+      ? await this.customerRepo.findNameById(customerId)
       : null;
     const scored = await Promise.all(
       receivables.map(async (receivable) => {
@@ -73,15 +89,17 @@ export class MatchingEngineService {
           transaction.amount,
           receivable.remainingAmount,
         );
-        const accountScore = account
-          ? customerBankAccountScore(transaction.counterpartyAccountNumber, [
-              account.accountNumber,
-            ])
+        const accountScore = customerId
+          ? customerBankAccountScore(
+              transaction.counterpartyAccountNumber,
+              knownAccountNumber ? [knownAccountNumber] : [],
+            )
           : 0;
-        const payer = customerName
-          ? payerNameScore(transaction.counterpartyName, customerName)
-          : 0;
-        const timing = account
+        const payer =
+          customerId && customerName
+            ? payerNameScore(transaction.counterpartyName, customerName)
+            : 0;
+        const timing = customerId
           ? timingScore(transaction.transactionDateTime, receivable.dueDate)
           : 0;
         return {
@@ -97,6 +115,26 @@ export class MatchingEngineService {
       }),
     );
     return scored.sort((left, right) => right.totalScore - left.totalScore);
+  }
+
+  // Spec §3: customerId can also be resolved by finding an invoice/receivable
+  // code in transferContent, not only via a stored CustomerBankAccount. Only
+  // an exact reference-code match (score 60) is trusted to resolve identity —
+  // a fuzzy near-match (30) is too weak to route a whole customer scope by.
+  private async resolveCustomerByReferenceCode(
+    transferContent: string,
+    orgWideReceivables: Receivable[],
+  ): Promise<string | null> {
+    for (const receivable of orgWideReceivables) {
+      const invoice = await this.invoiceRepo.findByReceivableId(receivable.id);
+      if (
+        invoice &&
+        referenceCodeScore(transferContent, invoice.invoiceNumber) === 60
+      ) {
+        return receivable.customerId;
+      }
+    }
+    return null;
   }
 
   toMatchingCandidateEntities(

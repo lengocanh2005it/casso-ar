@@ -58,4 +58,44 @@ describe('MatchingEngineService', () => {
     const [candidate] = await service.scoreCandidates(transaction, 'org-1');
     expect(candidate).toMatchObject({ receivableId: 'rec-1', totalScore: 100 });
   });
+
+  it('resolves the customer via an exact reference code in transferContent when the bank account is unregistered', async () => {
+    const findOpenByCustomerId = jest.fn().mockResolvedValue([receivable]);
+    const service = new MatchingEngineService(
+      {
+        findByAccountNumber: jest.fn().mockResolvedValue(null),
+        save: jest.fn(),
+      },
+      {
+        findOpenByCustomerId,
+        findOpenTopNByOrganization: jest.fn().mockResolvedValue([receivable]),
+        findById: jest.fn(),
+        findByIdForUpdate: jest.fn(),
+        save: jest.fn(),
+      },
+      {
+        findByReceivableId: jest
+          .fn()
+          .mockResolvedValue({ invoiceNumber: 'INV-2026-0012' }),
+        findById: jest.fn(),
+        save: jest.fn(),
+      },
+      {
+        findNameById: jest.fn().mockResolvedValue('Company B'),
+        findById: jest.fn(),
+        save: jest.fn(),
+      },
+    );
+
+    const [candidate] = await service.scoreCandidates(transaction, 'org-1');
+
+    expect(findOpenByCustomerId).toHaveBeenCalledWith('cust-1');
+    expect(candidate).toMatchObject({
+      receivableId: 'rec-1',
+      referenceCodeScore: 60,
+      payerNameScore: 5,
+      timingScore: 5,
+      customerBankAccountScore: 0,
+    });
+  });
 });

@@ -1,3 +1,6 @@
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
+
 export interface NormalizedTransaction {
   providerTransactionId: string;
   amount: number;
@@ -10,7 +13,10 @@ export interface NormalizedTransaction {
 function stringField(payload: Record<string, unknown>, key: string): string {
   const value = payload[key];
   if (typeof value !== 'string' || value.length === 0) {
-    throw new Error(`Webhook field ${key} is invalid`);
+    throw new AppError(
+      ErrorCode.VALIDATION_ERROR,
+      `Webhook field ${key} is invalid`,
+    );
   }
   return value;
 }
@@ -21,11 +27,17 @@ export function normalizeBalanceHookPayload(
   const amount = payload.amount;
   const transactionDateTime = stringField(payload, 'transactionDateTime');
   if (typeof amount !== 'number' || !Number.isInteger(amount)) {
-    throw new Error('Webhook field amount must be an integer');
+    throw new AppError(
+      ErrorCode.VALIDATION_ERROR,
+      'Webhook field amount must be an integer',
+    );
   }
   const date = new Date(transactionDateTime);
   if (Number.isNaN(date.getTime())) {
-    throw new Error('Webhook field transactionDateTime is invalid');
+    throw new AppError(
+      ErrorCode.VALIDATION_ERROR,
+      'Webhook field transactionDateTime is invalid',
+    );
   }
   return {
     providerTransactionId: stringField(payload, 'transactionId'),

@@ -77,15 +77,23 @@ export class TypeOrmReceivableRepository
   async findOpenTopNByOrganization(
     organizationId: string,
     limit: number,
+    referenceDate: Date,
   ): Promise<Receivable[]> {
-    const rows = await this.ormRepo.find({
-      where: [
-        { organizationId, status: ReceivableStatus.OPEN },
-        { organizationId, status: ReceivableStatus.PARTIALLY_PAID },
-      ],
-      order: { dueDate: 'ASC' },
-      take: limit,
-    });
+    const rows = await this.ormRepo
+      .createQueryBuilder('receivable')
+      .where('receivable.organizationId = :organizationId', {
+        organizationId,
+      })
+      .andWhere('receivable.status IN (:...statuses)', {
+        statuses: [ReceivableStatus.OPEN, ReceivableStatus.PARTIALLY_PAID],
+      })
+      .orderBy(
+        'ABS(EXTRACT(EPOCH FROM (receivable."dueDate" - :referenceDate)))',
+        'ASC',
+      )
+      .setParameter('referenceDate', referenceDate)
+      .take(limit)
+      .getMany();
     return rows.map((row) => new Receivable(row));
   }
 }

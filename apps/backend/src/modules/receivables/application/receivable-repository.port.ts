@@ -12,6 +12,7 @@ export interface IReceivableRepository {
   findOpenTopNByOrganization(
     organizationId: string,
     limit: number,
+    referenceDate: Date,
   ): Promise<Receivable[]>;
 }
 

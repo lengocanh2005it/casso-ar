@@ -11,6 +11,7 @@ import { BANK_TRANSACTION_REPOSITORY } from './application/bank-transaction-repo
 import { MATCHING_CANDIDATE_REPOSITORY } from './application/matching-candidate-repository.port';
 import { MatchingEngineService } from './application/matching-engine.service';
 import { ProcessWebhookUseCase } from './application/process-webhook.usecase';
+import { ReceiveWebhookUseCase } from './application/receive-webhook.usecase';
 import { WEBHOOK_INBOX_REPOSITORY } from './application/webhook-inbox-repository.port';
 import { BankTransactionOrmEntity } from './infrastructure/bank-transaction.orm-entity';
 import { MatchingCandidateOrmEntity } from './infrastructure/matching-candidate.orm-entity';
@@ -53,6 +54,7 @@ import { WebhooksController } from './presentation/webhooks.controller';
     },
     MatchingEngineService,
     ProcessWebhookUseCase,
+    ReceiveWebhookUseCase,
     WebhookProcessor,
   ],
   exports: [WEBHOOK_INBOX_REPOSITORY, BANK_TRANSACTION_REPOSITORY],

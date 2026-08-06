@@ -1,4 +1,3 @@
-import { DuplicateWebhookError } from '../application/webhook-inbox-repository.port';
 import { WebhooksController } from './webhooks.controller';
 
 const payload = {
@@ -12,34 +11,23 @@ const payload = {
 };
 
 describe('WebhooksController', () => {
-  it('returns duplicate without enqueueing a webhook already protected by the unique key', async () => {
-    const inboxRepo = {
-      insert: jest.fn().mockRejectedValue(new DuplicateWebhookError('TX-1')),
+  it('delegates to ReceiveWebhookUseCase with the payload mapped to its input', async () => {
+    const receiveWebhook = {
+      execute: jest
+        .fn()
+        .mockResolvedValue({ received: true, duplicate: false }),
     };
-    const connectionRepo = {
-      findByIdUnscoped: jest.fn().mockResolvedValue({
-        organizationId: 'org-1',
-        id: 'conn-1',
-        isUsable: () => true,
-      }),
-    };
-    const queue = { add: jest.fn() };
-    const dataSource = {
-      transaction: jest.fn(
-        async (callback: (manager: object) => Promise<void>) => callback({}),
-      ),
-    };
-    const controller = new WebhooksController(
-      inboxRepo as any,
-      connectionRepo as any,
-      queue as any,
-      dataSource as any,
-    );
+    const controller = new WebhooksController(receiveWebhook as any);
 
     await expect(controller.receiveBalanceHook(payload)).resolves.toEqual({
       received: true,
-      duplicate: true,
+      duplicate: false,
     });
-    expect(queue.add).not.toHaveBeenCalled();
+    expect(receiveWebhook.execute).toHaveBeenCalledWith({
+      bankConnectionId: 'conn-1',
+      organizationId: undefined,
+      transactionId: 'TX-1',
+      rawPayload: payload,
+    });
   });
 });

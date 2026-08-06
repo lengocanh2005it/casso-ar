@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { Role } from '../../organizations/domain/membership';
 import { AllocatePaymentUseCase } from '../../payments/application/allocate-payment.usecase';
@@ -39,7 +41,11 @@ export class ProcessWebhookUseCase {
 
   async execute(webhookInboxId: string, organizationId: string): Promise<void> {
     const inbox = await this.inboxRepo.findById(webhookInboxId, organizationId);
-    if (!inbox) throw new Error(`WebhookInbox ${webhookInboxId} not found`);
+    if (!inbox)
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        `WebhookInbox ${webhookInboxId} not found`,
+      );
     try {
       await this.tenantContext.run(
         {
@@ -49,12 +55,6 @@ export class ProcessWebhookUseCase {
         },
         async () => {
           const normalized = normalizeBalanceHookPayload(inbox.rawPayload);
-          if (normalized.amount < 0) {
-            await this.dataSource.transaction((manager) =>
-              this.inboxRepo.save(inbox.markProcessed(), manager),
-            );
-            return;
-          }
           const transaction = new BankTransaction({
             id: randomUUID(),
             organizationId: inbox.organizationId,
@@ -70,6 +70,16 @@ export class ProcessWebhookUseCase {
             version: 1,
             createdAt: new Date(),
           });
+          if (transaction.isRefund()) {
+            await this.dataSource.transaction(async (manager) => {
+              await this.transactionRepo.save(
+                transaction.markIgnored(),
+                manager,
+              );
+              await this.inboxRepo.save(inbox.markProcessed(), manager);
+            });
+            return;
+          }
           const candidates = await this.matchingEngine.scoreCandidates(
             normalized,
             inbox.organizationId,
@@ -128,10 +138,20 @@ export class ProcessWebhookUseCase {
         error instanceof Error
           ? error.message
           : 'Unknown webhook processing error';
-      const safeMessage = message.replace(
-        /(authorization|bearer|token|secret|password)\s*[:=]?\s*[^\s,;]+/gi,
-        '$1=[redacted]',
-      );
+      const safeMessage = message
+        .replace(
+          /(authorization|bearer|token|secret|password)\s*[:=]?\s*[^\s,;]+/gi,
+          '$1=[redacted]',
+        )
+        // ponytail: best-effort beyond labeled secrets — also strips
+        // JWT-shaped (a.b.c) and long hex/base64 token-shaped strings with
+        // no label. An opaque secret with neither a label nor a
+        // recognizable shape still passes through; tighten if one leaks.
+        .replace(
+          /\b[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g,
+          '[redacted]',
+        )
+        .replace(/\b[A-Za-z0-9+/_-]{32,}={0,2}\b/g, '[redacted]');
       await this.dataSource.transaction((manager) =>
         this.inboxRepo.save(inbox.markFailed(safeMessage), manager),
       );
