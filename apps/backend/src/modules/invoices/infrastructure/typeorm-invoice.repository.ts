@@ -6,6 +6,24 @@ import type { IInvoiceRepository } from '../application/invoice-repository.port'
 import { Invoice } from '../domain/invoice';
 import { InvoiceOrmEntity } from './invoice.orm-entity';
 
+// Explicit domain → ORM translation: the compiler checks every field, so a
+// drift between the two shapes fails here instead of being cast away.
+function toOrm(invoice: Invoice): InvoiceOrmEntity {
+  return {
+    id: invoice.id,
+    organizationId: invoice.organizationId,
+    customerId: invoice.customerId,
+    invoiceNumber: invoice.invoiceNumber,
+    issueDate: invoice.issueDate,
+    totalAmount: invoice.totalAmount,
+    taxAmount: invoice.taxAmount,
+    sourceType: invoice.sourceType,
+    fileUrl: invoice.fileUrl,
+    status: invoice.status,
+    createdAt: invoice.createdAt,
+  };
+}
+
 @Injectable()
 export class TypeOrmInvoiceRepository implements IInvoiceRepository {
   constructor(
@@ -27,6 +45,6 @@ export class TypeOrmInvoiceRepository implements IInvoiceRepository {
       throw new Error('TENANT_MISMATCH');
     }
     const repo = manager ? manager.getRepository(InvoiceOrmEntity) : this.repo;
-    await repo.save(invoice as InvoiceOrmEntity);
+    await repo.save(toOrm(invoice));
   }
 }
