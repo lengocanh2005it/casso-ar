@@ -16,6 +16,7 @@ import { RequirePermission } from '../../../common/rbac/require-permission.decor
 import { CreateEmailTemplateUseCase } from '../application/create-email-template.usecase';
 import { DeleteEmailTemplateUseCase } from '../application/delete-email-template.usecase';
 import { ListEmailTemplatesUseCase } from '../application/list-email-templates.usecase';
+import { PreviewEmailTemplateUseCase } from '../application/preview-email-template.usecase';
 import { UpdateEmailTemplateUseCase } from '../application/update-email-template.usecase';
 import { CreateEmailTemplateDto } from './dto/create-email-template.dto';
 import { toEmailTemplateResponse } from './dto/email-template-response.dto';
@@ -29,6 +30,7 @@ export class EmailTemplatesController {
     private readonly listEmailTemplatesUseCase: ListEmailTemplatesUseCase,
     private readonly updateEmailTemplateUseCase: UpdateEmailTemplateUseCase,
     private readonly deleteEmailTemplateUseCase: DeleteEmailTemplateUseCase,
+    private readonly previewEmailTemplateUseCase: PreviewEmailTemplateUseCase,
     private readonly idempotency: IdempotencyService,
   ) {}
 
@@ -96,6 +98,20 @@ export class EmailTemplatesController {
         await this.deleteEmailTemplateUseCase.execute(id);
         return { success: true };
       },
+    );
+  }
+
+  @Post(':id/preview')
+  @RequirePermission(Permission.REMINDER_POLICY_WRITE)
+  async preview(
+    @Param('id') id: string,
+    @Headers('idempotency-key') key: string | undefined,
+  ) {
+    return this.idempotency.execute(
+      `POST /email-templates/${id}/preview`,
+      key,
+      { id },
+      async () => this.previewEmailTemplateUseCase.execute(id),
     );
   }
 }
