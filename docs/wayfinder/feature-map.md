@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1, #2, #3, #4, #5, #18 complete, Plan #6+ pending
+**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #18 complete, Plan #7+ pending
 
 ---
 
@@ -82,9 +82,9 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Ticket Index
 
-**26 plans** | status snapshot (2026-08-05):
-- 🟢 done (6): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #18
-- 🔴 open/not started (20): Plan #6–#17, #19–#23 + 3 additional plans
+**26 plans** | status snapshot (2026-08-06):
+- 🟢 done (7): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #18
+- 🔴 open/not started (19): Plan #7–#17, #19–#23 + 3 additional plans
 
 ---
 
@@ -191,10 +191,11 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #6 — Email Template Management
 - **Type**: task
-- **Status**: in-progress
+- **Status**: done ✅
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-email-template-management-design.md`
 - **Blockers**: Plan #2 ✅, Plan #3 ✅, Plan #4 ✅
+- **Shipped**: 2026-08-06 — PR: pending (branch `feat/email-template-management`)
 - **Key entities**: `EmailTemplate` (isDefault, reminderStage, bodyHtml)
 - **Key rules**:
   - 4 default templates seeded per organization in bootstrap
@@ -204,6 +205,7 @@ Success = a single document a new developer can read and know exactly what to pi
   - Fixed 7 render variables
   - Preview endpoint returns `{ subject, bodyHtml }`
 - **Creates**: `email-templates/` module, render/create/list/update/delete/preview use cases, controller
+- **Implementation note**: Shipped with full CRUD (create/list/update/delete) + Handlebars preview + RBAC (`Permission.REMINDER_POLICY_WRITE` on every endpoint, including `GET` since the global `JwtAuthGuard` covers it and no dedicated read permission exists yet) + signup-bootstrap seeding of the 4 default templates. `DeleteEmailTemplateUseCase`'s reference check catches Postgres `42P01` (undefined table) and treats it as "not referenced" because the `reminder_rules` table doesn't exist yet — Plan #12 (Reminder Automation) will make this guard fully load-bearing once that table ships; until then it's a deliberate no-op fallback, not a bug. Task 7's reminder-bootstrap wiring (`IDefaultReminderBootstrap`, seeding default `ReminderPolicy`/`ReminderRule` rows alongside the default templates) was deliberately deferred to Plan #12 for the same reason — that module doesn't exist yet. A final whole-branch review pass fixed 5 findings: removed an incorrect `IdempotencyService` wrap on the read-only preview endpoint, added the missing `organizationId` index on `EmailTemplateOrmEntity`, added the `@RequirePermission()` decorator to `GET /email-templates`, and added closed-list Handlebars variable validation (rejecting unknown variable names and `{{{triple-stash}}}`) on both create/update DTOs.
 
 ---
 
@@ -216,7 +218,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-email-notification-service-design.md`
-- **Blockers**: Plan #4, Plan #6
+- **Blockers**: Plan #4 ✅, Plan #6 ✅
 - **Key entities**: None (orchestration only)
 - **Key rules**:
   - `IEmailProviderAdapter` port with `ResendEmailAdapter`
@@ -234,7 +236,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-webhook-matching-engine-design.md`
-- **Blockers**: Plan #1 ✅, Plan #2, Plan #5 ✅
+- **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #5 ✅ (not actually blocked on Plan #6 despite prior Frontier prose — this ticket's own Blockers line never listed it)
 - **Key entities**: `WebhookInbox`, `BankTransaction`, `MatchingCandidate`, `CustomerBankAccount`
 - **Key rules**:
   - `providerTransactionId` unique constraint = idempotency
@@ -301,7 +303,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-reminder-automation-design.md`
-- **Blockers**: Plan #1 ✅, Plan #2, Plan #6, Plan #7
+- **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #6 ✅, Plan #7
 - **Key entities**: `ReminderPolicy`, `ReminderRule`, `ReminderExecution`, `CustomerGroup` (VIP/REGULAR)
 - **Key rules**:
   - Policy unique by `(organizationId, customerGroup)`
@@ -371,7 +373,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE + FE
 - **Spec**: `specs/2026-08-03-collection-copilot-design.md`
-- **Blockers**: Plan #2, Plan #6, Plan #7, Plan #10, Plan #12
+- **Blockers**: Plan #2 ✅, Plan #6 ✅, Plan #7, Plan #10, Plan #12
 - **Key entities**: `CopilotConversation`, `CopilotMessage`, `CopilotPendingAction`, `CopilotDraft`, `AIUsageLog`
 - **Key rules**:
   - Chat-based AI (Claude via `@anthropic-ai/sdk`)
@@ -465,7 +467,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: FE
 - **Plan**: `plans/2026-08-03-fe-reminders-copilot-reports-settings.md`
-- **Blockers**: Plan #4, Plan #5 ✅, Plan #6, Plan #7, Plan #12, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19
+- **Blockers**: Plan #4 ✅, Plan #5 ✅, Plan #6 ✅, Plan #7, Plan #12, Plan #15, Plan #16, Plan #17, Plan #18 ✅, Plan #19
 - **Key rules**:
   - Reminders: policy + executions list
   - Copilot: chat message list + pending-action cards (confirm/cancel)
@@ -580,12 +582,16 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **Next available tickets** (all blockers resolved):
-- **Plan #6** (Email Template Management) — blockers: Plan #2 ✅, Plan #3 ✅, Plan #4 ✅
+- **Plan #7** (Email Notification Service) — blockers: Plan #4 ✅, Plan #6 ✅ — newly unblocked now that Plan #6 (Email Template Management) shipped
+- **Plan #8** (Webhook Ingestion + Matching Engine) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #5 ✅ — was already unblocked (its own Blockers line never listed Plan #6; the old "waiting on Plan #6" note below was stale prose, not a real blocker)
 - **Plan #9** (Dispute Management) — blockers: Plan #1 ✅, Plan #2 ✅
 - **Plan #11** (Internal Task + Escalation) — blockers: Plan #1 ✅, Plan #2 ✅
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
 
 **Blocked tickets waiting:**
-- Plan #7–#8, #10, #12–#17, #20–#23, additional plans — waiting on Plan #6 or other dependencies
+- Plan #10, #13–#17, #20, #22–#23, additional plans — waiting on other dependencies (not Plan #6, which is now done)
+- **Plan #12** (Reminder Automation) — Plan #6 no longer among its blockers; still waiting on Plan #7
+- **Plan #16** (Collection Copilot) — Plan #6 no longer among its blockers; still waiting on Plan #7, #10, #12
+- **Plan #21** (FE Reminders, Copilot, Reports, Settings) — Plan #6 no longer among its blockers; still waiting on Plan #7, #12, #15, #16, #17, #19
 
-**Recommended next step:** Start Plan #6 (Email Template Management) — now the most-unblocking open ticket (Plan #7, #8, #21 all wait on it).
+**Recommended next step:** Start Plan #7 (Email Notification Service) or Plan #8 (Webhook Ingestion + Matching Engine) — both are fully unblocked and each is itself a blocker for several downstream plans (#7 unblocks #12/#16/#21; #8 unblocks #13, which in turn unblocks #15).
