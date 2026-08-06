@@ -195,7 +195,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-email-template-management-design.md`
 - **Blockers**: Plan #2 ✅, Plan #3 ✅, Plan #4 ✅
-- **Shipped**: 2026-08-06 — PR: pending (branch `feat/email-template-management`)
+- **Shipped**: 2026-08-06 — PR #40 (branch `feat/email-template-management`)
 - **Key entities**: `EmailTemplate` (isDefault, reminderStage, bodyHtml)
 - **Key rules**:
   - 4 default templates seeded per organization in bootstrap
