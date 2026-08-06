@@ -1,6 +1,7 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity({ name: 'email_templates' })
+@Index(['organizationId'])
 export class EmailTemplateOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
