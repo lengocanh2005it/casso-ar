@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, Repository } from 'typeorm';
+import { In } from 'typeorm';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { ReceivableOrmEntity } from '../../receivables/infrastructure/receivable.orm-entity';
 import type { IInvoiceRepository } from '../application/invoice-repository.port';
@@ -49,14 +50,32 @@ export class TypeOrmInvoiceRepository implements IInvoiceRepository {
     await repo.save(toOrm(invoice));
   }
 
-  async findByReceivableId(receivableId: string): Promise<Invoice | null> {
-    const receivable = await this.repo.manager.findOne(ReceivableOrmEntity, {
-      where: {
-        id: receivableId,
-        organizationId: this.tenantContext.getOrganizationId(),
-      },
-      select: { invoiceId: true },
+  async findByReceivableIds(
+    receivableIds: string[],
+  ): Promise<Map<string, Invoice>> {
+    const result = new Map<string, Invoice>();
+    if (receivableIds.length === 0) return result;
+    const organizationId = this.tenantContext.getOrganizationId();
+    const receivables = await this.repo.manager.find(ReceivableOrmEntity, {
+      where: { id: In(receivableIds), organizationId },
+      select: { id: true, invoiceId: true },
     });
-    return receivable?.invoiceId ? this.findById(receivable.invoiceId) : null;
+    const invoiceIds = receivables
+      .map((receivable) => receivable.invoiceId)
+      .filter((invoiceId): invoiceId is string => invoiceId !== null);
+    if (invoiceIds.length === 0) return result;
+    const invoiceRows = await this.repo.find({
+      where: { id: In(invoiceIds), organizationId },
+    });
+    const invoiceById = new Map(
+      invoiceRows.map((row) => [row.id, new Invoice(row)]),
+    );
+    for (const receivable of receivables) {
+      const invoice = receivable.invoiceId
+        ? invoiceById.get(receivable.invoiceId)
+        : undefined;
+      if (invoice) result.set(receivable.id, invoice);
+    }
+    return result;
   }
 }

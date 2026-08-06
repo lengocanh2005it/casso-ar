@@ -109,6 +109,7 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(AuthCompositeRateLimitGuard)
   @Post('refresh')
   async refresh(
     @Req() request: AuthRequest,
@@ -159,6 +160,7 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(AuthCompositeRateLimitGuard)
   @Post('reset-password')
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.resetPasswordUseCase.execute(dto);
