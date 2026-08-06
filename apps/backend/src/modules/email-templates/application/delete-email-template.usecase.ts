@@ -29,7 +29,10 @@ export class DeleteEmailTemplateUseCase {
       );
     }
 
-    const referenced = await this.isReferencedByReminderRule(id);
+    const referenced = await this.isReferencedByReminderRule(
+      id,
+      template.organizationId,
+    );
     if (referenced) {
       throw new AppError(
         ErrorCode.TEMPLATE_IN_USE,
@@ -49,11 +52,12 @@ export class DeleteEmailTemplateUseCase {
   // the guard for real with no code change here.
   private async isReferencedByReminderRule(
     templateId: string,
+    organizationId: string,
   ): Promise<boolean> {
     try {
       const rows: Array<{ count: number }> = await this.dataSource.query(
-        'SELECT COUNT(*)::int AS count FROM reminder_rules WHERE "emailTemplateId" = $1',
-        [templateId],
+        'SELECT COUNT(*)::int AS count FROM reminder_rules WHERE "emailTemplateId" = $1 AND "organizationId" = $2',
+        [templateId, organizationId],
       );
       return Number(rows[0]?.count ?? 0) > 0;
     } catch (error) {
