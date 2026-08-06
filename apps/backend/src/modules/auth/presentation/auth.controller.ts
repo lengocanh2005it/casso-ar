@@ -35,6 +35,13 @@ interface AuthRequest extends Request {
   user?: { userId: string };
 }
 
+interface RefreshCookieOptions {
+  httpOnly: true;
+  secure: boolean;
+  sameSite: 'lax';
+  maxAge: number;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -56,12 +63,7 @@ export class AuthController {
     };
   }
 
-  private readonly refreshCookieOptions: {
-    httpOnly: true;
-    secure: boolean;
-    sameSite: 'lax';
-    maxAge: number;
-  };
+  private readonly refreshCookieOptions: RefreshCookieOptions;
 
   @Public()
   @UseGuards(AuthCompositeRateLimitGuard)

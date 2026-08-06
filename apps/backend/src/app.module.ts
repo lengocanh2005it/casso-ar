@@ -10,7 +10,7 @@ import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { IdempotencyModule } from './common/idempotency/idempotency.module';
 import { TenancyModule } from './common/tenancy/tenancy.module';
 import { TenantContextInterceptor } from './common/tenancy/tenant-context.interceptor';
-import { getJwtSecret } from './config/jwt.config';
+import { getJwtModuleOptions } from './config/jwt.config';
 import { getTypeOrmConfig } from './config/typeorm.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { EmailVerifiedGuard } from './modules/auth/presentation/email-verified.guard';
@@ -35,10 +35,7 @@ import { UsersModule } from './modules/users/users.module';
     PassportModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: getJwtSecret(config),
-        signOptions: { expiresIn: '15m' },
-      }),
+      useFactory: getJwtModuleOptions,
     }),
     TenancyModule,
     IdempotencyModule,

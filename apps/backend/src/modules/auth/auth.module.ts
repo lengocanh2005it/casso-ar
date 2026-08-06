@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { getJwtSecret } from '../../config/jwt.config';
+import { getJwtModuleOptions } from '../../config/jwt.config';
 import { BillingModule } from '../billing/billing.module';
 import { EmailTemplatesModule } from '../email-templates/email-templates.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
@@ -42,10 +42,7 @@ import { InvitesController } from './presentation/invites.controller';
   imports: [
     JwtModule.registerAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: getJwtSecret(config),
-        signOptions: { expiresIn: '15m' },
-      }),
+      useFactory: getJwtModuleOptions,
     }),
     TypeOrmModule.forFeature([
       EmailVerificationTokenOrmEntity,
