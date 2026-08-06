@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #7, #18 complete, Plan #8+ pending
+**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #7, #8, #18 complete, Plan #9+ pending
 
 ---
 
@@ -64,6 +64,8 @@ Success = a single document a new developer can read and know exactly what to pi
 - **2026-08-06**: Whole-repo `/code-review` (Standards + Spec axes, run against the empty-tree diff so it covered every shipped file) found 9 findings across Standards and Spec; branch `fix/code-review-remediation` fixed the actionable ones: persisted the previously-dead `CasIdConnectionSession` `EXPIRED` status (see Plan #5 note above); backfilled a missing `switch-organization.usecase.spec.ts`; added `qrcode.react`/`recharts` to the frontend per Plan #18 spec §1; fixed `api-client.ts` to bake in the `/api/v1` prefix instead of requiring callers to hardcode it; deduped the frontend's `Plan` type to import `PlanId` from `@casso-ledger/shared-types`; restructured all 10 frontend feature folders to the documented `pages/`+barrel `index.ts` shape (`.claude/rules/frontend.md`). Two findings were corrected as documentation instead of code: the Plan #2 "Organization entity deleted" claim was stale/wrong (entity still exists and is load-bearing since Plan #4's bootstrap transaction — see corrected Plan #2 note); the Plan #18 spec's English nav-label mockup was updated to reflect that shipped Vietnamese labels are intentional, not a bug. Two findings were deliberately deferred rather than fixed here: SALES_REP data-scope filtering (spec-required but has no query to attach to — no read/list endpoint exists yet, Plan #17 not shipped; requirement now recorded on the Plan #17 entry) and Plan #5's owner-notification-on-status-change (needs Plan #7's email adapter, which doesn't exist yet). This branch's own `@VersionColumn()` removal finding (Receivable, Subscription — believed dead at review time) was dropped during rebase onto `main`: PR #38, merged in the meantime, wired that exact `version` field through `domain/`+`toOrm()`, so it's load-bearing now, not dead — the finding was stale by the time this branch rebased, not wrong when written.
 - **2026-08-06**: Plan #7 shipped (branch `feat/email-notification-service`, PR #44 merged) — `notifications/` module: `IEmailProviderAdapter` port, `ResendEmailAdapter`, `ResendAuthEmailSenderAdapter` (rebinds `AUTH_EMAIL_SENDER`), `EmailQueueProcessor` on a BullMQ queue with 3 retries + exponential backoff. Also lands an early slice of Plan #12's `ReminderExecution` domain/ORM entity, needed as somewhere for the queue processor to record SENT/FAILED — the rest of Plan #12 (policy/rule/scan cron) is still unbuilt. A `/code-review` pass on the PR found and fixed 6 issues before merge: Resend's `reply_to` field was silently dropped (SDK expects camelCase `replyTo`); `RESEND_API_KEY` defaulted to `''` instead of failing fast at boot; auth emails (signup/invite/reset) could turn a successful signup into an HTTP 500 if Resend failed after the DB transaction had already committed (now caught + logged, matching the old console-stub's no-throw contract); `ReminderExecution`'s domain entity was missing the `version` field its ORM entity carries via `@VersionColumn()` (same drift class already fixed twice before, PR #38/#39); a DB write failure after a successful send could cause `EmailQueueProcessor`'s BullMQ retry to email the customer twice (now guarded by a status check before sending); `findOwnerByOrganization` could return a pending, never-accepted OWNER invite as the reply-to address on customer-facing reminder emails (now filters `joinedAt: Not(IsNull())`, matching `findFirstActiveByUserId`'s existing convention). Merging also required resolving a real conflict with `main`'s same-day `refactor: resolve configuration at module boundaries` (4d58445) — `getBullMqConfig` was converted from reading `process.env` directly to taking an injected `ConfigService`, matching the pattern that refactor established for `getJwtSecret`/`getTypeOrmConfig`. Known gaps: no integration test (e2e blocked by no local Docker; 139 unit tests cover the module instead); auth email failures are logged, not retried (no queue on that path).
 
+- **2026-08-06**: Plan #8 shipped on branch `feat/webhook-matching-engine`, PR #46 (draft, awaiting review) — webhook inbox/idempotency, constant-time CASSO auth, BullMQ processing, five-factor matching, auto-allocation/review/unmatched routing, and Docker/Testcontainers E2E coverage.
+
 ## Not yet specified
 
 - Cas ID OAuth flow details (grant → link → publicToken → accessToken)
@@ -84,8 +86,8 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Ticket Index
 
 **26 plans** | status snapshot (2026-08-06):
-- 🟢 done (8): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #18
-- 🔴 open/not started (18): Plan #8–#17, #19–#23 + 3 additional plans
+- 🟢 done (9): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #18
+- 🔴 open/not started (17): Plan #9–#17, #19–#23 + 3 additional plans
 
 ---
 
@@ -239,10 +241,11 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #8 — Webhook Ingestion + Matching Engine
 - **Type**: task
-- **Status**: in-progress
+- **Status**: done ✅
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-webhook-matching-engine-design.md`
 - **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #5 ✅ (not actually blocked on Plan #6 despite prior Frontier prose — this ticket's own Blockers line never listed it)
+- **Shipped**: 2026-08-06 — PR #46 (draft, awaiting review)
 - **Key entities**: `WebhookInbox`, `BankTransaction`, `MatchingCandidate`, `CustomerBankAccount`
 - **Key rules**:
   - `providerTransactionId` unique constraint = idempotency
@@ -588,10 +591,10 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **Next available tickets** (all blockers resolved):
-- **Plan #8** (Webhook Ingestion + Matching Engine) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #5 ✅ — was already unblocked (its own Blockers line never listed Plan #6; the old "waiting on Plan #6" note below was stale prose, not a real blocker)
 - **Plan #9** (Dispute Management) — blockers: Plan #1 ✅, Plan #2 ✅
 - **Plan #11** (Internal Task + Escalation) — blockers: Plan #1 ✅, Plan #2 ✅
 - **Plan #12** (Reminder Automation) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #6 ✅, Plan #7 ✅ — newly unblocked now that Plan #7 (Email Notification Service) shipped
+- **Plan #13** (Exception Queue + Audit Log) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
 
 **Blocked tickets waiting:**
@@ -599,4 +602,4 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Plan #16** (Collection Copilot) — Plan #6, #7 no longer among its blockers; still waiting on Plan #10, #12
 - **Plan #21** (FE Reminders, Copilot, Reports, Settings) — Plan #6, #7 no longer among its blockers; still waiting on Plan #12, #15, #16, #17, #19
 
-**Recommended next step:** Start Plan #8 (Webhook Ingestion + Matching Engine) or Plan #12 (Reminder Automation) — both are fully unblocked and each is itself a blocker for several downstream plans (#8 unblocks #13, which in turn unblocks #15; #12 unblocks #16/#21). Plan #12 also gets a head start from Plan #7's `ReminderExecution` entity, already shipped.
+**Recommended next step:** Start Plan #9 (Dispute Management), Plan #12 (Reminder Automation), or Plan #13 (Exception Queue + Audit Log) — all are fully unblocked. Plan #13 is the natural follow-up to Plan #8's `PENDING_REVIEW` routing and unblocks Plan #15.
