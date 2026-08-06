@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { getJwtSecret } from '../../config/jwt.config';
 import { BillingModule } from '../billing/billing.module';
+import { EmailTemplatesModule } from '../email-templates/email-templates.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { UsersModule } from '../users/users.module';
 import { AcceptInviteUseCase } from './application/accept-invite.usecase';
@@ -51,6 +52,7 @@ import { InvitesController } from './presentation/invites.controller';
     UsersModule,
     OrganizationsModule,
     BillingModule,
+    EmailTemplatesModule,
   ],
   providers: [
     LoginUseCase,
