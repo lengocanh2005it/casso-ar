@@ -103,15 +103,7 @@ export class EmailTemplatesController {
 
   @Post(':id/preview')
   @RequirePermission(Permission.REMINDER_POLICY_WRITE)
-  async preview(
-    @Param('id') id: string,
-    @Headers('idempotency-key') key: string | undefined,
-  ) {
-    return this.idempotency.execute(
-      `POST /email-templates/${id}/preview`,
-      key,
-      { id },
-      async () => this.previewEmailTemplateUseCase.execute(id),
-    );
+  async preview(@Param('id') id: string) {
+    return this.previewEmailTemplateUseCase.execute(id);
   }
 }
