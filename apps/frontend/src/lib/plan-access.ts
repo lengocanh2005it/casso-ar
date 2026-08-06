@@ -1,7 +1,5 @@
 import { PlanId } from '@casso-ledger/shared-types';
 
-export type Plan = PlanId;
-
 const PLAN_HIERARCHY: Record<PlanId, number> = {
   [PlanId.FREE]: 0,
   [PlanId.STARTER]: 1,

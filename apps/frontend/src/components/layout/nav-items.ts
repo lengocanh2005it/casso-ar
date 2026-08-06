@@ -12,13 +12,12 @@ import {
   Settings,
   Users,
 } from 'lucide-react';
-import type { Plan } from '@/lib/plan-access';
 
 export interface NavItem {
   to: string;
   label: string;
   icon: LucideIcon;
-  minPlan?: Plan;
+  minPlan?: PlanId;
   badgeCount?: number;
 }
 
