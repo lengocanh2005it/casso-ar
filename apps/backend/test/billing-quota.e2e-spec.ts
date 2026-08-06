@@ -30,6 +30,14 @@ describe('Billing quota enforcement (integration)', () => {
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
+    process.env.REDIS_HOST = 'localhost';
+    process.env.REDIS_PORT = '6379';
+    process.env.JWT_SECRET = 'e2e-jwt-secret';
+    process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    process.env.RESEND_API_KEY = 'e2e-resend-key';
+    process.env.CASSO_WEBHOOK_CLIENT_ID = 'e2e-client';
+    process.env.CASSO_WEBHOOK_SECRET_KEY = 'e2e-secret';
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
