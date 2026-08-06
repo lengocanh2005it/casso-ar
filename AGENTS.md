@@ -194,6 +194,8 @@ Examples:
 - `chore: upgrade NestJS to v11`
 - `refactor: Customer class → interface`
 
+The `Co-authored-by: Orca <help@stably.ai>` trailer is added automatically by the husky `prepare-commit-msg` hook — do not add it manually.
+
 ### Branches
 
 - `main` — production-ready code
