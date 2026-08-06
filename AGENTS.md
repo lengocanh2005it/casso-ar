@@ -110,6 +110,7 @@ await this.repo.findOne({ where: { id } }); // missing organizationId
 - Domain entities MUST NOT import TypeORM decorators
 - Use `@VersionColumn()` for optimistic locking
 - Use an `EntityManager` parameter for transactional saves
+- Domain ↔ ORM translation MUST be an explicit mapper (`toOrm()` in the repository); NEVER cast domain to ORM entity (`as`, `as unknown as`) — a drift between the shapes must fail the compiler, not be cast away
 
 ### Validation
 
@@ -160,6 +161,7 @@ npx tsc --noEmit                  # Type check
 - Before claiming work is complete, fixed, or passing, use the `verification-before-completion` skill.
 - Identify the command that proves each claim, run it freshly, read the exit code and output, then report only what the evidence supports.
 - For code changes, run the focused test, the full relevant test suite, and `pnpm verify`; run e2e tests when the change affects integration behavior.
+- After any backend code change, run the `domain-check` skill (`/domain-check`; see `.claude/skills/domain-check.md`) and fix violations before claiming completion.
 - Do not claim completion from a previous run, a partial check, or an assumption that the change should work.
 
 ### Skill routing
@@ -518,7 +520,7 @@ REDIS_PORT=6379
 5. Leak internal fields in response DTOs
 6. Ignore tenant isolation
 7. Put business logic in controllers
-8. Use `any` in production code
+8. Use `any` in production code, or cast with `as any` / `as unknown as` (domain ↔ ORM must use an explicit mapper)
 
 ### ALWAYS
 

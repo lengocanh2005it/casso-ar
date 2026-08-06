@@ -9,6 +9,7 @@ paths:
 - Use `@Column('bigint')` for all money fields
 - Use `@VersionColumn()` for optimistic locking on concurrent-write entities
 - Use `EntityManager` parameter for transactional saves
+- Domain ↔ ORM translation MUST be an explicit mapper (`toOrm()` in the repository); NEVER cast domain to ORM entity (`as`, `as unknown as`) — a drift between the shapes must fail the compiler, not be cast away
 - Entity class names: `XOrmEntity` (e.g., `CustomerOrmEntity`)
 - File naming: `*.orm-entity.ts`, `typeorm-*.repository.ts`
 - DO NOT use `SELECT *` — always select specific columns

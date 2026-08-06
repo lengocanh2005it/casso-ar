@@ -7,6 +7,23 @@ import type { ISubscriptionRepository } from '../application/subscription-reposi
 import { Subscription } from '../domain/subscription';
 import { SubscriptionOrmEntity } from './subscription.orm-entity';
 
+// Explicit domain → ORM translation: the compiler checks every field, so a
+// drift between the two shapes fails here instead of being cast away.
+function toOrm(subscription: Subscription): SubscriptionOrmEntity {
+  return {
+    id: subscription.id,
+    organizationId: subscription.organizationId,
+    planId: subscription.planId,
+    receivableMonthlyLimit: subscription.receivableMonthlyLimit,
+    bankConnectionLimit: subscription.bankConnectionLimit,
+    status: subscription.status,
+    currentPeriodStart: subscription.currentPeriodStart,
+    currentPeriodEnd: subscription.currentPeriodEnd,
+    createdAt: subscription.createdAt,
+    version: subscription.version,
+  };
+}
+
 @Injectable()
 export class TypeOrmSubscriptionRepository
   extends BaseRepository<SubscriptionOrmEntity>
@@ -58,7 +75,7 @@ export class TypeOrmSubscriptionRepository
     organizationId?: string,
   ): Promise<void> {
     await this.scopedSaveWithManager(
-      subscription as unknown as SubscriptionOrmEntity,
+      toOrm(subscription),
       manager,
       organizationId,
     );

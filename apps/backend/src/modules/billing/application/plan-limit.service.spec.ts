@@ -17,6 +17,7 @@ describe('PlanLimitService', () => {
       currentPeriodStart: new Date('2026-08-01'),
       currentPeriodEnd: new Date('2026-09-01'),
       createdAt: new Date('2026-08-01'),
+      version: 1,
       ...overrides,
     });
   }

@@ -43,6 +43,7 @@ describe('UndoPaymentAllocationUseCase', () => {
       salesRepresentativeId: null,
       createdAt: new Date(),
       closedAt: null,
+      version: 1,
     });
     const manager = {} as EntityManager;
     const allocationRepo = {

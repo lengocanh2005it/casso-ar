@@ -12,3 +12,6 @@ paths:
   imports erase to `Function`/`Object`, silently breaking DI and validation.
 - The `useImportType` lint rule is disabled repo-wide (see `biome.jsonc`); the
   convention is enforced by review, not by the linter.
+- No `any` in production code: no `: any`, no `as any`, no `as unknown as` casts
+  (allowed in tests). Casting a domain entity to its ORM shape is forbidden —
+  use an explicit `toOrm()` mapper in the repository instead.

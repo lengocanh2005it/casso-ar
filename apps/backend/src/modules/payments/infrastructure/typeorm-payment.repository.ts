@@ -7,6 +7,22 @@ import type { IPaymentRepository } from '../application/payment-repository.port'
 import { Payment } from '../domain/payment';
 import { PaymentOrmEntity } from './payment.orm-entity';
 
+// Explicit domain → ORM translation: the compiler checks every field, so a
+// drift between the two shapes fails here instead of being cast away.
+function toOrm(payment: Payment): PaymentOrmEntity {
+  return {
+    id: payment.id,
+    organizationId: payment.organizationId,
+    customerId: payment.customerId,
+    bankTransactionId: payment.bankTransactionId,
+    totalAmount: payment.totalAmount,
+    allocatedAmount: payment.allocatedAmount,
+    payerName: payment.payerName,
+    receivedAt: payment.receivedAt,
+    createdAt: payment.createdAt,
+  };
+}
+
 @Injectable()
 export class TypeOrmPaymentRepository
   extends BaseRepository<PaymentOrmEntity>
@@ -33,6 +49,6 @@ export class TypeOrmPaymentRepository
   }
 
   async save(payment: Payment, manager?: EntityManager): Promise<void> {
-    await this.scopedSaveWithManager(payment as PaymentOrmEntity, manager);
+    await this.scopedSaveWithManager(toOrm(payment), manager);
   }
 }
