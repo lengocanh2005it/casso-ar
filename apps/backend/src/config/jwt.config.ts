@@ -1,9 +1,5 @@
-export function getJwtSecret(): string {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error(
-      'JWT_SECRET environment variable is required and has no default',
-    );
-  }
-  return secret;
+import type { ConfigService } from '@nestjs/config';
+
+export function getJwtSecret(config: ConfigService): string {
+  return config.getOrThrow<string>('JWT_SECRET');
 }

@@ -4,12 +4,15 @@ import { CasIdUnauthorizedError } from './cas-id-integration-adapter.port';
 import { DisconnectConnectionUseCase } from './disconnect-connection.usecase';
 import { encryptToken } from './token-encryption';
 
+const encryptionKey =
+  '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
 function activeConnection(): BankConnection {
   return new BankConnection({
     id: 'conn-1',
     organizationId: 'org-1',
     casIdConnectionSessionId: 'session-1',
-    encryptedAccessToken: encryptToken('raw-access-token'),
+    encryptedAccessToken: encryptToken('raw-access-token', encryptionKey),
     accountIdentity: { accountNumber: '0011002233', bankName: 'Mock Bank' },
     status: 'ACTIVE',
     scopes: ['identity', 'transaction'],
@@ -27,11 +30,6 @@ const dataSource = {
 };
 
 describe('DisconnectConnectionUseCase', () => {
-  beforeEach(() => {
-    process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
-      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-  });
-
   it('invalidates the token and persists the disconnected connection', async () => {
     const connection = activeConnection();
     const bankConnectionRepo = {
@@ -48,6 +46,7 @@ describe('DisconnectConnectionUseCase', () => {
       auditEventRepo as never,
       markRequiresReauthorization as never,
       dataSource as never,
+      encryptionKey,
     );
 
     await useCase.execute('conn-1');
@@ -99,6 +98,7 @@ describe('DisconnectConnectionUseCase', () => {
       auditEventRepo as never,
       markRequiresReauthorization as never,
       dataSource as never,
+      encryptionKey,
     );
 
     await expect(useCase.execute('conn-1')).rejects.toBeInstanceOf(
@@ -124,6 +124,7 @@ describe('DisconnectConnectionUseCase', () => {
       { save: jest.fn() } as never,
       { handleAdapterError: jest.fn() } as never,
       dataSource as never,
+      encryptionKey,
     );
 
     await expect(useCase.execute('missing')).rejects.toBeInstanceOf(AppError);
@@ -142,6 +143,7 @@ describe('DisconnectConnectionUseCase', () => {
       { save: jest.fn() } as never,
       { handleAdapterError: jest.fn() } as never,
       dataSource as never,
+      encryptionKey,
     );
 
     await expect(useCase.execute('conn-1')).rejects.toBeInstanceOf(AppError);

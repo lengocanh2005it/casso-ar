@@ -19,6 +19,7 @@ import {
 } from './connection-audit-event-repository.port';
 import { MarkRequiresReauthorizationUseCase } from './mark-requires-reauthorization.usecase';
 import { decryptToken } from './token-encryption';
+import { ACCESS_TOKEN_ENCRYPTION_KEY } from './token-encryption-key';
 
 @Injectable()
 export class DisconnectConnectionUseCase {
@@ -31,6 +32,8 @@ export class DisconnectConnectionUseCase {
     private readonly auditEventRepo: IConnectionAuditEventRepository,
     private readonly markRequiresReauthorization: MarkRequiresReauthorizationUseCase,
     private readonly dataSource: DataSource,
+    @Inject(ACCESS_TOKEN_ENCRYPTION_KEY)
+    private readonly encryptionKey: string,
   ) {}
 
   async execute(connectionId: string): Promise<void> {
@@ -39,7 +42,7 @@ export class DisconnectConnectionUseCase {
     // External call stays outside the transaction — only the DB writes below are wrapped.
     try {
       await this.adapter.invalidateToken(
-        decryptToken(connection.encryptedAccessToken),
+        decryptToken(connection.encryptedAccessToken, this.encryptionKey),
       );
     } catch (error) {
       await this.markRequiresReauthorization.handleAdapterError(

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -28,11 +28,17 @@ import { UsersModule } from './modules/users/users.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 5 }]),
-    TypeOrmModule.forRootAsync({ useFactory: () => getTypeOrmConfig() }),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: getTypeOrmConfig,
+    }),
     PassportModule,
-    JwtModule.register({
-      secret: getJwtSecret(),
-      signOptions: { expiresIn: '15m' },
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: getJwtSecret(config),
+        signOptions: { expiresIn: '15m' },
+      }),
     }),
     TenancyModule,
     IdempotencyModule,

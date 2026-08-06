@@ -10,6 +10,7 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { Public } from '../../../common/auth/public.decorator';
@@ -30,13 +31,6 @@ import { SignupDto } from './dto/signup.dto';
 import { SwitchOrganizationDto } from './dto/switch-organization.dto';
 
 const REFRESH_COOKIE_NAME = 'refreshToken';
-const REFRESH_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
-  maxAge: REFRESH_TOKEN_TTL_MS,
-};
-
 interface AuthRequest extends Request {
   user?: { userId: string };
 }
@@ -52,7 +46,22 @@ export class AuthController {
     private readonly switchOrganizationUseCase: SwitchOrganizationUseCase,
     private readonly forgotPasswordUseCase: ForgotPasswordUseCase,
     private readonly resetPasswordUseCase: ResetPasswordUseCase,
-  ) {}
+    config: ConfigService,
+  ) {
+    this.refreshCookieOptions = {
+      httpOnly: true,
+      secure: config.get<string>('NODE_ENV', 'development') === 'production',
+      sameSite: 'lax',
+      maxAge: REFRESH_TOKEN_TTL_MS,
+    };
+  }
+
+  private readonly refreshCookieOptions: {
+    httpOnly: true;
+    secure: boolean;
+    sameSite: 'lax';
+    maxAge: number;
+  };
 
   @Public()
   @UseGuards(AuthCompositeRateLimitGuard)
@@ -65,7 +74,7 @@ export class AuthController {
     response.cookie(
       REFRESH_COOKIE_NAME,
       result.refreshToken,
-      REFRESH_COOKIE_OPTIONS,
+      this.refreshCookieOptions,
     );
     return {
       userId: result.user.id,
@@ -92,7 +101,7 @@ export class AuthController {
     response.cookie(
       REFRESH_COOKIE_NAME,
       result.refreshToken,
-      REFRESH_COOKIE_OPTIONS,
+      this.refreshCookieOptions,
     );
     return { accessToken: result.accessToken };
   }
@@ -109,7 +118,7 @@ export class AuthController {
     response.cookie(
       REFRESH_COOKIE_NAME,
       result.refreshToken,
-      REFRESH_COOKIE_OPTIONS,
+      this.refreshCookieOptions,
     );
     return { accessToken: result.accessToken };
   }
@@ -122,7 +131,7 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     await this.logoutUseCase.execute(request.cookies?.[REFRESH_COOKIE_NAME]);
-    response.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_OPTIONS);
+    response.clearCookie(REFRESH_COOKIE_NAME, this.refreshCookieOptions);
     return { success: true };
   }
 
