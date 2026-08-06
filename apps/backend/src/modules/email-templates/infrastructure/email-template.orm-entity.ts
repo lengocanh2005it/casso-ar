@@ -17,7 +17,7 @@ export class EmailTemplateOrmEntity {
   @Column('text')
   bodyHtml: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   reminderStage: string | null;
 
   @Column({ default: false })
