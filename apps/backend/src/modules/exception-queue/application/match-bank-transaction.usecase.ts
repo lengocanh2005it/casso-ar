@@ -1,0 +1,193 @@
+import { randomUUID } from 'node:crypto';
+import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { Inject, Injectable } from '@nestjs/common';
+import { DataSource } from 'typeorm';
+import { AuditContextService } from '../../../common/audit/audit-context';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { AllocatePaymentUseCase } from '../../payments/application/allocate-payment.usecase';
+import {
+  type IPaymentRepository,
+  PAYMENT_REPOSITORY,
+} from '../../payments/application/payment-repository.port';
+import { Payment } from '../../payments/domain/payment';
+import {
+  type IReceivableRepository,
+  RECEIVABLE_REPOSITORY,
+} from '../../receivables/application/receivable-repository.port';
+import type { Receivable } from '../../receivables/domain/receivable';
+import {
+  BANK_TRANSACTION_REPOSITORY,
+  type IBankTransactionRepository,
+} from '../../webhooks/application/bank-transaction-repository.port';
+import { BankTransaction } from '../../webhooks/domain/bank-transaction';
+
+export interface MatchAllocationItem {
+  receivableId: string;
+  amount: number;
+}
+
+export interface MatchBankTransactionInput {
+  bankTransactionId: string;
+  allocations: MatchAllocationItem[];
+  version: number;
+  allocatedByUserId: string;
+}
+
+@Injectable()
+export class MatchBankTransactionUseCase {
+  constructor(
+    @Inject(BANK_TRANSACTION_REPOSITORY)
+    private readonly bankTransactionRepo: IBankTransactionRepository,
+    @Inject(RECEIVABLE_REPOSITORY)
+    private readonly receivableRepo: IReceivableRepository,
+    @Inject(PAYMENT_REPOSITORY)
+    private readonly paymentRepo: IPaymentRepository,
+    private readonly allocatePaymentUseCase: AllocatePaymentUseCase,
+    private readonly dataSource: DataSource,
+    private readonly tenantContext: TenantContextService,
+    private readonly auditContext: AuditContextService,
+  ) {}
+
+  async execute(input: MatchBankTransactionInput): Promise<BankTransaction> {
+    if (input.allocations.length === 0) {
+      throw new AppError(
+        ErrorCode.VALIDATION_ERROR,
+        'Vui lòng chọn ít nhất một khoản phải thu.',
+      );
+    }
+
+    return this.dataSource.transaction(async (manager) => {
+      const transaction = await this.bankTransactionRepo.findByIdForUpdate(
+        input.bankTransactionId,
+        manager,
+      );
+      if (!transaction) {
+        throw new AppError(
+          ErrorCode.NOT_FOUND,
+          'Không tìm thấy giao dịch ngân hàng.',
+        );
+      }
+
+      this.auditContext.setBefore(transaction);
+      if (
+        transaction.version !== input.version ||
+        transaction.status !== 'PENDING_REVIEW'
+      ) {
+        throw new AppError(
+          ErrorCode.OPTIMISTIC_LOCK_CONFLICT,
+          'Giao dịch đã được xử lý bởi người dùng khác.',
+        );
+      }
+
+      const totalAllocation = input.allocations.reduce(
+        (total, allocation) => total + allocation.amount,
+        0,
+      );
+      if (
+        input.allocations.some(
+          (allocation) =>
+            !Number.isInteger(allocation.amount) || allocation.amount <= 0,
+        ) ||
+        totalAllocation > transaction.amount
+      ) {
+        throw new AppError(
+          ErrorCode.VALIDATION_ERROR,
+          'Tổng số tiền phân bổ không hợp lệ.',
+        );
+      }
+
+      const lockedReceivables = new Map<string, Receivable>();
+      const requestedByReceivable = new Map<string, number>();
+      for (const allocation of input.allocations) {
+        if (!lockedReceivables.has(allocation.receivableId)) {
+          const receivable = await this.receivableRepo.findByIdForUpdate(
+            allocation.receivableId,
+            manager,
+          );
+          if (!receivable) {
+            throw new AppError(
+              ErrorCode.RECEIVABLE_NOT_FOUND,
+              'Không tìm thấy khoản phải thu.',
+              { receivableId: allocation.receivableId },
+            );
+          }
+          lockedReceivables.set(allocation.receivableId, receivable);
+        }
+        const receivable = lockedReceivables.get(allocation.receivableId);
+        if (!receivable) {
+          throw new AppError(
+            ErrorCode.RECEIVABLE_NOT_FOUND,
+            'Không tìm thấy khoản phải thu.',
+          );
+        }
+        if (
+          receivable.status !== ReceivableStatus.OPEN &&
+          receivable.status !== ReceivableStatus.PARTIALLY_PAID
+        ) {
+          throw new AppError(
+            ErrorCode.VALIDATION_ERROR,
+            'Chỉ có thể phân bổ vào khoản phải thu đang mở.',
+            { receivableId: allocation.receivableId },
+          );
+        }
+        const requestedAmount =
+          (requestedByReceivable.get(allocation.receivableId) ?? 0) +
+          allocation.amount;
+        if (requestedAmount > receivable.remainingAmount) {
+          throw new AppError(
+            ErrorCode.ALLOCATION_EXCEEDS_REMAINING,
+            'Số tiền phân bổ vượt quá số dư còn lại của khoản phải thu.',
+            { receivableId: allocation.receivableId },
+          );
+        }
+        requestedByReceivable.set(allocation.receivableId, requestedAmount);
+      }
+
+      const firstReceivable = lockedReceivables.get(
+        input.allocations[0].receivableId,
+      );
+      if (!firstReceivable) {
+        throw new AppError(
+          ErrorCode.RECEIVABLE_NOT_FOUND,
+          'Không tìm thấy khoản phải thu.',
+        );
+      }
+      for (const receivable of lockedReceivables.values()) {
+        if (receivable.customerId !== firstReceivable.customerId) {
+          throw new AppError(
+            ErrorCode.CUSTOMER_MISMATCH,
+            'Các khoản phải thu phải thuộc cùng một khách hàng.',
+          );
+        }
+      }
+      const payment = new Payment({
+        id: randomUUID(),
+        organizationId: this.tenantContext.getOrganizationId(),
+        customerId: firstReceivable.customerId,
+        bankTransactionId: transaction.id,
+        totalAmount: transaction.amount,
+        allocatedAmount: 0,
+        payerName: transaction.counterpartyName,
+        receivedAt: transaction.transactionDateTime,
+        createdAt: new Date(),
+      });
+      await this.paymentRepo.save(payment, manager);
+
+      for (const allocation of input.allocations) {
+        await this.allocatePaymentUseCase.allocateWithinTransaction(manager, {
+          paymentId: payment.id,
+          receivableId: allocation.receivableId,
+          amount: allocation.amount,
+          allocatedByUserId: input.allocatedByUserId,
+        });
+      }
+
+      const matchedTransaction = transaction.markMatched();
+      await this.bankTransactionRepo.save(matchedTransaction, manager);
+      this.auditContext.setAfter(matchedTransaction);
+      return matchedTransaction;
+    });
+  }
+}

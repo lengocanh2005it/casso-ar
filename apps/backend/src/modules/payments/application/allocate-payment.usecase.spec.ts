@@ -1,5 +1,6 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { EntityManager } from 'typeorm';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { Receivable } from '../../receivables/domain/receivable';
 import { Payment } from '../domain/payment';
 import { AllocatePaymentUseCase } from './allocate-payment.usecase';
@@ -56,6 +57,7 @@ describe('AllocatePaymentUseCase', () => {
         cb({} as EntityManager),
       ),
     };
+    const auditContext = { setBefore: jest.fn(), setAfter: jest.fn() };
 
     const useCase = new AllocatePaymentUseCase(
       receivableRepo as any,
@@ -63,6 +65,7 @@ describe('AllocatePaymentUseCase', () => {
       allocationRepo as any,
       dataSource as any,
       tenantContext as any,
+      auditContext as any,
     );
 
     await useCase.execute({
@@ -84,6 +87,11 @@ describe('AllocatePaymentUseCase', () => {
       expect.anything(),
     );
     expect(allocationRepo.save).toHaveBeenCalled();
+    expect(auditContext.setBefore).toHaveBeenCalledWith({
+      payment,
+      receivable,
+    });
+    expect(auditContext.setAfter).toHaveBeenCalled();
   });
 
   it.each([0, -1, 1.5])(
@@ -98,12 +106,14 @@ describe('AllocatePaymentUseCase', () => {
         ),
       };
       const tenantContext = { getOrganizationId: () => 'org-1' };
+      const auditContext = { setBefore: jest.fn(), setAfter: jest.fn() };
       const useCase = new AllocatePaymentUseCase(
         receivableRepo as any,
         paymentRepo as any,
         allocationRepo as any,
         dataSource as any,
         tenantContext as any,
+        auditContext as any,
       );
 
       await expect(
@@ -113,7 +123,7 @@ describe('AllocatePaymentUseCase', () => {
           amount,
           allocatedByUserId: 'user-1',
         }),
-      ).rejects.toThrow('Allocation amount must be a positive integer');
+      ).rejects.toMatchObject({ errorCode: ErrorCode.VALIDATION_ERROR });
       expect(receivableRepo.findByIdForUpdate).not.toHaveBeenCalled();
     },
   );
@@ -141,6 +151,7 @@ describe('AllocatePaymentUseCase', () => {
       allocationRepo as any,
       dataSource as any,
       { getOrganizationId: () => 'org-1' } as any,
+      { setBefore: jest.fn(), setAfter: jest.fn() } as any,
     );
 
     await expect(
@@ -150,6 +161,6 @@ describe('AllocatePaymentUseCase', () => {
         amount: 1000,
         allocatedByUserId: 'user-1',
       }),
-    ).rejects.toThrow('Receivable not found');
+    ).rejects.toMatchObject({ errorCode: ErrorCode.RECEIVABLE_NOT_FOUND });
   });
 });

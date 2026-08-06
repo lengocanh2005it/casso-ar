@@ -2,6 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { DataSource } from 'typeorm';
+import { AuditContextService } from '../../../common/audit/audit-context';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import {
   type IReceivableRepository,
@@ -35,6 +38,7 @@ export class AllocatePaymentUseCase {
     private readonly allocationRepo: IPaymentAllocationRepository,
     private readonly dataSource: DataSource,
     private readonly tenantContext: TenantContextService,
+    private readonly auditContext: AuditContextService,
   ) {}
 
   async execute(input: AllocatePaymentInput): Promise<void> {
@@ -48,7 +52,10 @@ export class AllocatePaymentUseCase {
     input: AllocatePaymentInput,
   ): Promise<void> {
     if (!Number.isInteger(input.amount) || input.amount <= 0) {
-      throw new Error('Allocation amount must be a positive integer');
+      throw new AppError(
+        ErrorCode.VALIDATION_ERROR,
+        'Số tiền phân bổ phải là số nguyên dương.',
+      );
     }
 
     const receivable = await this.receivableRepo.findByIdForUpdate(
@@ -56,7 +63,10 @@ export class AllocatePaymentUseCase {
       manager,
     );
     if (!receivable) {
-      throw new Error('Receivable not found');
+      throw new AppError(
+        ErrorCode.RECEIVABLE_NOT_FOUND,
+        'Không tìm thấy khoản phải thu.',
+      );
     }
 
     const payment = await this.paymentRepo.findByIdForUpdate(
@@ -64,17 +74,26 @@ export class AllocatePaymentUseCase {
       manager,
     );
     if (!payment) {
-      throw new Error('Payment not found');
+      throw new AppError(
+        ErrorCode.PAYMENT_NOT_FOUND,
+        'Không tìm thấy khoản thanh toán.',
+      );
     }
 
     if (!payment.customerId) {
-      throw new Error(
-        'Payment customer is unresolved; send to Exception Queue first',
+      throw new AppError(
+        ErrorCode.PAYMENT_CUSTOMER_UNRESOLVED,
+        'Khoản thanh toán chưa xác định được khách hàng.',
       );
     }
     if (payment.customerId !== receivable.customerId) {
-      throw new Error('Payment and receivable belong to different customers');
+      throw new AppError(
+        ErrorCode.CUSTOMER_MISMATCH,
+        'Khoản thanh toán và khoản phải thu thuộc các khách hàng khác nhau.',
+      );
     }
+
+    this.auditContext.setBefore({ payment, receivable });
 
     const updatedReceivable = receivable.applyPaymentAllocation(input.amount);
     const updatedPayment = payment.withAdditionalAllocation(input.amount);
@@ -97,5 +116,9 @@ export class AllocatePaymentUseCase {
       }),
       manager,
     );
+    this.auditContext.setAfter({
+      payment: updatedPayment,
+      receivable: updatedReceivable,
+    });
   }
 }

@@ -6,6 +6,11 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../../../common/audit/audit.enums';
+import { Audited } from '../../../common/audit/audited.decorator';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
@@ -26,6 +31,7 @@ export class ReceivablesController {
 
   @Post()
   @RequirePermission(Permission.RECEIVABLE_WRITE)
+  @Audited(AuditActionType.RECEIVABLE_CREATE, AuditEntityType.RECEIVABLE)
   async create(
     @Headers('idempotency-key') key: string | undefined,
     @Body() dto: CreateReceivableDto,
@@ -44,6 +50,7 @@ export class ReceivablesController {
 
   @Post(':id/write-off')
   @RequirePermission(Permission.RECEIVABLE_WRITE_OFF)
+  @Audited(AuditActionType.RECEIVABLE_WRITE_OFF, AuditEntityType.RECEIVABLE)
   async writeOff(
     @Param('id') id: string,
     @Headers('idempotency-key') key: string | undefined,

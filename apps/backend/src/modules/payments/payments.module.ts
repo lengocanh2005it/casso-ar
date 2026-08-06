@@ -1,7 +1,5 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AUDIT_LOG_REPOSITORY } from '../../common/audit/audit-log-repository.port';
-import { TypeOrmAuditLogRepository } from '../../common/audit/typeorm-audit-log.repository';
 import { ReceivablesModule } from '../receivables/receivables.module';
 import { AllocatePaymentUseCase } from './application/allocate-payment.usecase';
 import { PAYMENT_ALLOCATION_REPOSITORY } from './application/payment-allocation-repository.port';
@@ -24,7 +22,6 @@ import { PaymentsController } from './presentation/payments.controller';
       provide: PAYMENT_ALLOCATION_REPOSITORY,
       useClass: TypeOrmPaymentAllocationRepository,
     },
-    { provide: AUDIT_LOG_REPOSITORY, useClass: TypeOrmAuditLogRepository },
     AllocatePaymentUseCase,
     UndoPaymentAllocationUseCase,
   ],

@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #7, #8, #18 complete, Plan #9+ pending
+**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #7, #8, #18 complete, Plan #13 in-progress, remaining Plan #9+ pending
 
 ---
 
@@ -87,7 +87,8 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **26 plans** | status snapshot (2026-08-06):
 - 🟢 done (9): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #18
-- 🔴 open/not started (17): Plan #9–#17, #19–#23 + 3 additional plans
+- 🟡 in-progress (1): Plan #13
+- 🔴 open/not started (16): Plan #9–#12, #14–#17, #19–#23 + 3 additional plans
 
 ---
 
@@ -328,10 +329,10 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #13 — Exception Queue + Audit Log
 - **Type**: task
-- **Status**: open
+- **Status**: in-progress 🚧
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-exception-queue-audit-log-design.md`
-- **Blockers**: Plan #1 ✅, Plan #2, Plan #8
+- **Blockers**: Plan #1 ✅, Plan #2, Plan #8; local Testcontainers e2e currently hangs during `Test.createTestingModule().compile()` after PostgreSQL startup (unit/type-check pass)
 - **Key entities**: `AuditLog` (INSERT-only), `BankTransaction` extended with `IGNORED` status
 - **Key rules**:
   - `match` uses `BankTransaction.version` optimistic lock + `AllocatePaymentUseCase`
@@ -594,12 +595,14 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Plan #9** (Dispute Management) — blockers: Plan #1 ✅, Plan #2 ✅
 - **Plan #11** (Internal Task + Escalation) — blockers: Plan #1 ✅, Plan #2 ✅
 - **Plan #12** (Reminder Automation) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #6 ✅, Plan #7 ✅ — newly unblocked now that Plan #7 (Email Notification Service) shipped
-- **Plan #13** (Exception Queue + Audit Log) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
 
 **Blocked tickets waiting:**
-- Plan #10, #13–#15, #17, #20, #22–#23, additional plans — waiting on other dependencies (not Plan #6 or Plan #7, both now done)
+- Plan #10, #14–#15, #17, #20, #22–#23, additional plans — waiting on other dependencies (not Plan #6 or Plan #7, both now done)
 - **Plan #16** (Collection Copilot) — Plan #6, #7 no longer among its blockers; still waiting on Plan #10, #12
 - **Plan #21** (FE Reminders, Copilot, Reports, Settings) — Plan #6, #7 no longer among its blockers; still waiting on Plan #12, #15, #16, #17, #19
 
-**Recommended next step:** Start Plan #9 (Dispute Management), Plan #12 (Reminder Automation), or Plan #13 (Exception Queue + Audit Log) — all are fully unblocked. Plan #13 is the natural follow-up to Plan #8's `PENDING_REVIEW` routing and unblocks Plan #15.
+**In progress:**
+- **Plan #13** (Exception Queue + Audit Log) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅
+
+**Recommended next step:** Plan #13 is in progress as the natural follow-up to Plan #8's `PENDING_REVIEW` routing; it will unblock Plan #15.

@@ -6,6 +6,12 @@ export interface IMatchingCandidateRepository {
     candidates: MatchingCandidate[],
     manager?: EntityManager,
   ): Promise<void>;
+  findByBankTransactionId(
+    bankTransactionId: string,
+  ): Promise<MatchingCandidate[]>;
+  findTopByBankTransactionIds(
+    bankTransactionIds: string[],
+  ): Promise<Map<string, MatchingCandidate>>;
 }
 export const MATCHING_CANDIDATE_REPOSITORY = Symbol(
   'MATCHING_CANDIDATE_REPOSITORY',

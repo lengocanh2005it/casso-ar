@@ -57,6 +57,10 @@ import { WebhooksController } from './presentation/webhooks.controller';
     ReceiveWebhookUseCase,
     WebhookProcessor,
   ],
-  exports: [WEBHOOK_INBOX_REPOSITORY, BANK_TRANSACTION_REPOSITORY],
+  exports: [
+    WEBHOOK_INBOX_REPOSITORY,
+    BANK_TRANSACTION_REPOSITORY,
+    MATCHING_CANDIDATE_REPOSITORY,
+  ],
 })
 export class WebhooksModule {}
