@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+if ! grep -q "Co-authored-by: Orca" "$1"; then
+  echo "" >> "$1"
+  echo "Co-authored-by: Orca <help@stably.ai>" >> "$1"
+fi
