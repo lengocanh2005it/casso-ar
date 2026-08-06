@@ -7,6 +7,7 @@ export interface IMembershipRepository {
     organizationId: string,
   ): Promise<Membership | null>;
   findFirstActiveByUserId(userId: string): Promise<Membership | null>;
+  findOwnerByOrganization(organizationId: string): Promise<Membership | null>;
   save(membership: Membership, manager?: EntityManager): Promise<void>;
 }
 

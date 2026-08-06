@@ -1,6 +1,8 @@
+import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -10,6 +12,7 @@ import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { IdempotencyModule } from './common/idempotency/idempotency.module';
 import { TenancyModule } from './common/tenancy/tenancy.module';
 import { TenantContextInterceptor } from './common/tenancy/tenant-context.interceptor';
+import { getBullMqConfig } from './config/bullmq.config';
 import { getJwtSecret } from './config/jwt.config';
 import { getTypeOrmConfig } from './config/typeorm.config';
 import { AuthModule } from './modules/auth/auth.module';
@@ -19,9 +22,11 @@ import { BillingModule } from './modules/billing/billing.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { EmailTemplatesModule } from './modules/email-templates/email-templates.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { ReceivablesModule } from './modules/receivables/receivables.module';
+import { RemindersModule } from './modules/reminders/reminders.module';
 import { UsersModule } from './modules/users/users.module';
 
 @Module({
@@ -29,6 +34,8 @@ import { UsersModule } from './modules/users/users.module';
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 5 }]),
     TypeOrmModule.forRootAsync({ useFactory: () => getTypeOrmConfig() }),
+    BullModule.forRoot(getBullMqConfig()),
+    EventEmitterModule.forRoot(),
     PassportModule,
     JwtModule.register({
       secret: getJwtSecret(),
@@ -46,6 +53,8 @@ import { UsersModule } from './modules/users/users.module';
     ReceivablesModule,
     PaymentsModule,
     UsersModule,
+    RemindersModule,
+    NotificationsModule,
   ],
   providers: [
     JwtStrategy,
