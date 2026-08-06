@@ -11,7 +11,13 @@ export class ResendEmailAdapter implements IEmailProviderAdapter {
   private readonly fromAddress: string;
 
   constructor() {
-    this.client = new Resend(process.env.RESEND_API_KEY ?? '');
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      throw new Error(
+        'RESEND_API_KEY environment variable is required and has no default',
+      );
+    }
+    this.client = new Resend(apiKey);
     this.fromAddress =
       process.env.RESEND_FROM_ADDRESS ?? 'no-reply@casso-ledger.vn';
   }
@@ -29,7 +35,7 @@ export class ResendEmailAdapter implements IEmailProviderAdapter {
       subject,
       html,
       tags: Object.entries(metadata).map(([name, value]) => ({ name, value })),
-      ...(replyTo ? { reply_to: replyTo } : {}),
+      ...(replyTo ? { replyTo } : {}),
     });
 
     if (result.error || !result.data?.id) {

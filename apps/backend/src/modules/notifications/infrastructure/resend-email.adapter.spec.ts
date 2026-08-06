@@ -46,7 +46,15 @@ describe('ResendEmailAdapter', () => {
     );
 
     expect(sendMock).toHaveBeenCalledWith(
-      expect.objectContaining({ reply_to: 'owner@example.com' }),
+      expect.objectContaining({ replyTo: 'owner@example.com' }),
+    );
+  });
+
+  it('throws when RESEND_API_KEY is not set', () => {
+    delete process.env.RESEND_API_KEY;
+
+    expect(() => new ResendEmailAdapter()).toThrow(
+      'RESEND_API_KEY environment variable is required and has no default',
     );
   });
 

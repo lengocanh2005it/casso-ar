@@ -48,4 +48,18 @@ describe('ResendAuthEmailSenderAdapter', () => {
       { emailType: 'AUTH_INVITE' },
     );
   });
+
+  it('does not throw when the email provider rejects', async () => {
+    const emailProvider = {
+      send: jest.fn().mockRejectedValue(new Error('Resend send failed: down')),
+    };
+    const adapter = new ResendAuthEmailSenderAdapter(emailProvider as any);
+
+    await expect(
+      adapter.sendVerificationEmail(
+        'user@example.com',
+        'https://app.casso.vn/verify?token=abc',
+      ),
+    ).resolves.toBeUndefined();
+  });
 });

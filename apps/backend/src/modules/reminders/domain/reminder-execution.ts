@@ -23,6 +23,7 @@ export interface ReminderExecutionProps {
   providerMessageId: string | null;
   failureReason: string | null;
   createdAt: Date;
+  version: number;
 }
 
 export class ReminderExecution {
@@ -37,6 +38,7 @@ export class ReminderExecution {
   readonly providerMessageId: string | null;
   readonly failureReason: string | null;
   readonly createdAt: Date;
+  readonly version: number;
 
   constructor(props: ReminderExecutionProps) {
     Object.assign(this, props);
