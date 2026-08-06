@@ -13,6 +13,7 @@
 ## Global Constraints
 
 - `EmailProviderAdapter` (`IEmailProviderAdapter` / `EMAIL_PROVIDER_ADAPTER`) is the ONLY seam to the Resend SDK — `EmailService` and `EmailQueueProcessor` never `import { Resend } from 'resend'` directly (spec section 1).
+- Every reminder email's `from` stays on Casso's own domain (no per-organization sending domain in the MVP — spec section 3). To keep customer replies reaching the actual business, `EmailService.sendReminderEmail` sets `Reply-To` to the sending organization's OWNER user's email (spec section 1, "Reply-to").
 - One real implementation only: `ResendEmailAdapter`. No speculative SES/SendGrid adapter built ahead of need (spec section 1, explicit YAGNI callout in the spec itself).
 - `EmailService.sendReminderEmail` enqueues into `email-queue`; it never calls `adapter.send()` synchronously inside the request/caller path (spec section 1, step 2).
 - `email-queue` job options: `attempts: 3, backoff: { type: 'exponential', delay: 5000 }` (spec section 2).
@@ -130,6 +131,7 @@ export interface IEmailProviderAdapter {
     subject: string,
     html: string,
     metadata: Record<string, string>,
+    replyTo?: string,
   ): Promise<EmailSendResult>;
 }
 
@@ -178,6 +180,24 @@ describe('ResendEmailAdapter', () => {
         html: '<p>You have an invoice due</p>',
       }),
     );
+    expect(sendMock.mock.calls[0][0]).not.toHaveProperty('reply_to');
+  });
+
+  it('passes replyTo through as Resend\'s reply_to when given', async () => {
+    sendMock.mockResolvedValue({ data: { id: 'resend-msg-2' }, error: null });
+
+    const adapter = new ResendEmailAdapter();
+    await adapter.send(
+      'customer@example.com',
+      'Payment reminder',
+      '<p>You have an invoice due</p>',
+      { reminderExecutionId: 'exec-1' },
+      'owner@congtyb.vn',
+    );
+
+    expect(sendMock).toHaveBeenCalledWith(
+      expect.objectContaining({ reply_to: 'owner@congtyb.vn' }),
+    );
   });
 
   it('throws when Resend responds with an error', async () => {
@@ -218,6 +238,7 @@ export class ResendEmailAdapter implements IEmailProviderAdapter {
     subject: string,
     html: string,
     metadata: Record<string, string>,
+    replyTo?: string,
   ): Promise<EmailSendResult> {
     const result = await this.client.emails.send({
       from: this.fromAddress,
@@ -225,6 +246,7 @@ export class ResendEmailAdapter implements IEmailProviderAdapter {
       subject,
       html,
       tags: Object.entries(metadata).map(([name, value]) => ({ name, value })),
+      ...(replyTo ? { reply_to: replyTo } : {}),
     });
 
     if (result.error || !result.data?.id) {
@@ -323,13 +345,24 @@ Nothing to commit for this task — it is a verification/documentation step conf
 **Files:**
 - Create: `apps/backend/src/modules/notifications/application/email.service.ts`
 - Test: `apps/backend/src/modules/notifications/application/email.service.spec.ts`
+- Modify: `apps/backend/src/modules/organizations/application/membership-repository.port.ts` (add `findOwnerByOrganization`, Step 0) and its `TypeOrmMembershipRepository` implementation
 - Modify: `apps/backend/src/modules/notifications/notifications.module.ts` (imports for the repositories below — full wiring happens in Task 6, but note it here since Task 4's test mocks these same dependencies)
 
 **Interfaces:**
-- Consumes: `IEmailTemplateRepository`/`EMAIL_TEMPLATE_REPOSITORY` (`2026-08-03-email-template-management.md`), `RenderEmailTemplateUseCase` (same plan), `IReceivableRepository`/`RECEIVABLE_REPOSITORY` and `IInvoiceRepository`/`INVOICE_REPOSITORY` (`2026-08-03-project-scaffolding-and-domain-core.md`, the latter's `findByReceivableId` added by `2026-08-03-webhook-matching-engine.md` Task 8 Step 5), `ICustomerRepository`/`CUSTOMER_REPOSITORY` (Domain Core plan), `IOrganizationRepository`/`ORGANIZATION_REPOSITORY` (`2026-08-03-multi-tenancy-rbac.md`), `email-queue` BullMQ queue (Task 1), `TenantContextService` (Multi-tenancy plan)
+- Consumes: `IEmailTemplateRepository`/`EMAIL_TEMPLATE_REPOSITORY` (`2026-08-03-email-template-management.md`), `RenderEmailTemplateUseCase` (same plan), `IReceivableRepository`/`RECEIVABLE_REPOSITORY` and `IInvoiceRepository`/`INVOICE_REPOSITORY` (`2026-08-03-project-scaffolding-and-domain-core.md`, the latter's `findByReceivableId` added by `2026-08-03-webhook-matching-engine.md` Task 8 Step 5), `ICustomerRepository`/`CUSTOMER_REPOSITORY` (Domain Core plan), `IOrganizationRepository`/`ORGANIZATION_REPOSITORY` (`2026-08-03-multi-tenancy-rbac.md`), `IMembershipRepository`/`MEMBERSHIP_REPOSITORY` (Multi-tenancy plan — gains a new `findOwnerByOrganization(organizationId)` method in this task, see Step 0 below) + `IUserRepository`/`USER_REPOSITORY` (Domain Core plan, to resolve that membership's email), `email-queue` BullMQ queue (Task 1), `TenantContextService` (Multi-tenancy plan)
 - Produces: `EmailService.sendReminderEmail(input): Promise<void>`, used by `2026-08-03-reminder-automation.md`'s `ReminderSenderService` as its sole entry point into this module
 
 `EmailService.sendReminderEmail` uses the canonical `{ receivableId, templateId, reminderExecutionId }` input. The worker must know which `ReminderExecution` row to update after the async send completes; there is no way to derive that id from `receivableId`/`templateId` alone because a receivable can have multiple executions over time. Building the actual render data (customer name/email, invoice number, amounts, due date, days overdue, organization name) from the real domain entities — rather than a single opaque `renderForReceivable()` call — keeps the implementation aligned with the Email Template contract.
+
+- [ ] **Step 0: Add `findOwnerByOrganization` to `IMembershipRepository`**
+
+Modify `apps/backend/src/modules/organizations/application/membership-repository.port.ts` (from `2026-08-03-multi-tenancy-rbac.md`) to add one method, alongside the existing `findByUserAndOrganization`/`findFirstActiveByUserId`:
+
+```typescript
+findOwnerByOrganization(organizationId: string): Promise<Membership | null>;
+```
+
+Implement it in `TypeOrmMembershipRepository` as `findOne({ where: { organizationId, role: Role.OWNER } })`, scoped the same way every other query in that repository already is. This is used only to resolve the reply-to email below — it does not change any existing caller of `IMembershipRepository`.
 
 - [ ] **Step 1: Write failing test for `EmailService.sendReminderEmail`**
 
@@ -389,12 +422,18 @@ describe('EmailService', () => {
       customerRepo: { findById: jest.fn().mockResolvedValue(customer) },
       organizationRepo: { findById: jest.fn().mockResolvedValue(organization) },
       invoiceRepo: { findByReceivableId: jest.fn().mockResolvedValue({ invoiceNumber: 'INV-2026-0012' }) },
+      membershipRepo: {
+        findOwnerByOrganization: jest.fn().mockResolvedValue({ userId: 'user-owner' }),
+      },
+      userRepo: {
+        findById: jest.fn().mockResolvedValue({ email: 'owner@congtyb.vn' }),
+      },
       queue: { add: jest.fn() },
       tenantContext: { getOrganizationId: jest.fn().mockReturnValue('org-1') },
     };
   }
 
-  it('builds render data from the real Receivable/Customer/Organization/Invoice, renders, and enqueues', async () => {
+  it('builds render data from the real Receivable/Customer/Organization/Invoice, resolves replyTo from the OWNER membership, and enqueues', async () => {
     const deps = buildDeps();
     const service = new EmailService(
       deps.templateRepo as any,
@@ -402,6 +441,8 @@ describe('EmailService', () => {
       deps.customerRepo as any,
       deps.organizationRepo as any,
       deps.invoiceRepo as any,
+      deps.membershipRepo as any,
+      deps.userRepo as any,
       deps.queue as any,
       deps.tenantContext as any,
     );
@@ -412,17 +453,44 @@ describe('EmailService', () => {
       reminderExecutionId: 'exec-1',
     });
 
+    expect(deps.membershipRepo.findOwnerByOrganization).toHaveBeenCalledWith('org-1');
     expect(deps.queue.add).toHaveBeenCalledWith(
       'send-reminder-email',
       expect.objectContaining({
         reminderExecutionId: 'exec-1',
         organizationId: 'org-1',
         to: 'ap@congtyb.vn',
+        replyTo: 'owner@congtyb.vn',
         subject: 'Invoice INV-2026-0012 — Casso Ledger',
         html: expect.stringContaining('Company B, outstanding 20000000'),
       }),
       { jobId: 'exec-1', attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
     );
+  });
+
+  it('omits replyTo (does not throw) when the organization has no OWNER membership', async () => {
+    const deps = buildDeps();
+    deps.membershipRepo.findOwnerByOrganization.mockResolvedValue(null);
+    const service = new EmailService(
+      deps.templateRepo as any,
+      deps.receivableRepo as any,
+      deps.customerRepo as any,
+      deps.organizationRepo as any,
+      deps.invoiceRepo as any,
+      deps.membershipRepo as any,
+      deps.userRepo as any,
+      deps.queue as any,
+      deps.tenantContext as any,
+    );
+
+    await service.sendReminderEmail({
+      receivableId: 'rec-1',
+      templateId: 'tpl-1',
+      reminderExecutionId: 'exec-1',
+    });
+
+    const [, payload] = deps.queue.add.mock.calls[0];
+    expect(payload.replyTo).toBeUndefined();
   });
 });
 ```
@@ -453,6 +521,11 @@ import {
   IOrganizationRepository,
 } from '../../organizations/application/organization-repository.port';
 import { INVOICE_REPOSITORY, IInvoiceRepository } from '../../invoices/application/invoice-repository.port';
+import {
+  MEMBERSHIP_REPOSITORY,
+  IMembershipRepository,
+} from '../../organizations/application/membership-repository.port';
+import { USER_REPOSITORY, IUserRepository } from '../../users/application/user-repository.port';
 import { EMAIL_QUEUE } from '../infrastructure/email-queue.constants';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 
@@ -472,6 +545,8 @@ export class EmailService {
     @Inject(CUSTOMER_REPOSITORY) private readonly customerRepo: ICustomerRepository,
     @Inject(ORGANIZATION_REPOSITORY) private readonly organizationRepo: IOrganizationRepository,
     @Inject(INVOICE_REPOSITORY) private readonly invoiceRepo: IInvoiceRepository,
+    @Inject(MEMBERSHIP_REPOSITORY) private readonly membershipRepo: IMembershipRepository,
+    @Inject(USER_REPOSITORY) private readonly userRepo: IUserRepository,
     @InjectQueue(EMAIL_QUEUE) private readonly queue: Queue,
     private readonly tenantContext: TenantContextService,
   ) {}
@@ -497,6 +572,10 @@ export class EmailService {
     const organization = await this.organizationRepo.findById(organizationId);
     const invoice = await this.invoiceRepo.findByReceivableId(input.receivableId);
 
+    const ownerMembership = await this.membershipRepo.findOwnerByOrganization(organizationId);
+    const owner = ownerMembership ? await this.userRepo.findById(ownerMembership.userId) : null;
+    const replyTo = owner?.email;
+
     const daysOverdue = Math.max(
       0,
       Math.floor((Date.now() - receivable.dueDate.getTime()) / MS_PER_DAY),
@@ -519,6 +598,7 @@ export class EmailService {
         receivableId: input.receivableId,
         organizationId,
         to: customer.email,
+        replyTo,
         subject: rendered.subject,
         html: rendered.bodyHtml,
       },
@@ -573,6 +653,7 @@ function buildJob(overrides: Partial<{ attemptsMade: number; attempts: number }>
       receivableId: 'rec-1',
       organizationId: 'org-1',
       to: 'customer@example.com',
+      replyTo: 'owner@congtyb.vn',
       subject: 'Payment reminder',
       html: '<p>html</p>',
     },
@@ -602,6 +683,7 @@ describe('EmailQueueProcessor', () => {
       'Payment reminder',
       '<p>html</p>',
       { reminderExecutionId: 'exec-1' },
+      'owner@congtyb.vn',
     );
     expect(reminderExecutionRepo.updateSendResult).toHaveBeenCalledWith(
       'exec-1',
@@ -666,6 +748,7 @@ export interface EmailJobData {
   receivableId: string;
   organizationId: string;
   to: string;
+  replyTo?: string;
   subject: string;
   html: string;
 }
@@ -686,12 +769,18 @@ export class EmailQueueProcessor extends WorkerHost {
   }
 
   async process(job: Job<EmailJobData>): Promise<void> {
-    const { reminderExecutionId, receivableId, organizationId, to, subject, html } = job.data;
+    const { reminderExecutionId, receivableId, organizationId, to, replyTo, subject, html } = job.data;
 
     await this.tenantContext.run(
       { userId: 'system', organizationId, role: Role.OWNER },
       async () => {
-        const result = await this.emailProvider.send(to, subject, html, { reminderExecutionId });
+        const result = await this.emailProvider.send(
+          to,
+          subject,
+          html,
+          { reminderExecutionId },
+          replyTo,
+        );
         await this.reminderExecutionRepo.updateSendResult(
           reminderExecutionId,
           'SENT',
@@ -744,7 +833,7 @@ git commit -m "feat: add EmailQueueProcessor worker with SENT/FAILED status upda
 - Modify: `apps/backend/src/modules/notifications/notifications.module.ts`
 
 **Interfaces:**
-- Consumes: `ResendEmailAdapter` (Task 2), `EmailService` (Task 4), `EmailQueueProcessor` (Task 5), `EmailTemplatesModule` (`2026-08-03-email-template-management.md`), `ReceivablesModule`/`CustomersModule`/`InvoicesModule` (Domain Core plan), `OrganizationsModule` (Multi-tenancy plan), `RemindersModule` (`2026-08-03-reminder-automation.md`, imported via `forwardRef`)
+- Consumes: `ResendEmailAdapter` (Task 2), `EmailService` (Task 4), `EmailQueueProcessor` (Task 5), `EmailTemplatesModule` (`2026-08-03-email-template-management.md`), `ReceivablesModule`/`CustomersModule`/`InvoicesModule` (Domain Core plan), `OrganizationsModule` (Multi-tenancy plan, exports `MEMBERSHIP_REPOSITORY` for the replyTo lookup, Task 4 Step 0), `UsersModule` (Domain Core plan, exports `USER_REPOSITORY`), `RemindersModule` (`2026-08-03-reminder-automation.md`, imported via `forwardRef`)
 - Produces: fully wired module — binds `EMAIL_PROVIDER_ADAPTER` to `ResendEmailAdapter`, exports `EmailService` and `EMAIL_PROVIDER_ADAPTER` for Task 7's auth rebind to consume, and re-exports enough for `RemindersModule` to close its side of the `forwardRef` cycle
 
 - [ ] **Step 1: Replace `apps/backend/src/modules/notifications/notifications.module.ts` with the full module**
@@ -763,6 +852,7 @@ import { ReceivablesModule } from '../receivables/receivables.module';
 import { CustomersModule } from '../customers/customers.module';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
+import { UsersModule } from '../users/users.module';
 import { RemindersModule } from '../reminders/reminders.module';
 
 @Module({
@@ -773,6 +863,7 @@ import { RemindersModule } from '../reminders/reminders.module';
     CustomersModule,
     InvoicesModule,
     OrganizationsModule,
+    UsersModule,
     forwardRef(() => RemindersModule),
   ],
   providers: [

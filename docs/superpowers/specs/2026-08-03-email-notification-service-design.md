@@ -6,7 +6,7 @@
 
 ```
 EmailProviderAdapter (interface)
-  send(to, subject, html, metadata): Promise<{ providerMessageId }>
+  send(to, subject, html, metadata, replyTo?): Promise<{ providerMessageId }>
 
 ResendEmailAdapter implements EmailProviderAdapter   // the only actual implementation for the MVP,
                                                        // do not prebuild unused SES/SendGrid adapters (YAGNI)
@@ -15,12 +15,15 @@ EmailService
   sendReminderEmail({ receivableId, templateId, reminderExecutionId }):
     1. Render EmailTemplate with variables (customerName, invoiceNumber, remainingAmount,
        dueDate, daysOverdue, organizationName)
-    2. Enqueue into "email-queue" (BullMQ); do not call adapter.send() directly in the request
-    3. Worker processes the job: call adapter.send(...), update the correct ReminderExecution
+    2. Look up the organization's OWNER membership → that user's email → pass as replyTo
+    3. Enqueue into "email-queue" (BullMQ); do not call adapter.send() directly in the request
+    4. Worker processes the job: call adapter.send(...), update the correct ReminderExecution
        using reminderExecutionId, and store providerMessageId
 ```
 
 `EmailProviderAdapter` isolates domain logic from a specific provider—switching from Resend later only requires a new implementation; `EmailService` and callers do not change.
+
+**Reply-to (MVP substitute for a per-organization sending domain):** every organization's outbound `from` address stays on Casso's own verified domain for the MVP (see section 3 — a custom sending domain per organization is an Enterprise feature, out of scope here). To avoid every reminder looking like it comes from Casso with no way for the recipient to reach the actual business, `EmailService.sendReminderEmail` sets the email's `Reply-To` header to the organization's OWNER user's email address. A reply from the end customer then lands directly in that owner's inbox, not Casso's. This needs no new domain field — it reads the existing `Membership`(role=OWNER)→`User`.email relationship. If an organization somehow has no OWNER membership (should not happen given signup always creates one), `replyTo` is simply omitted and the email's `Reply-To` falls back to whatever Resend/the mail client defaults to (i.e., the `from` address).
 
 `reminderExecutionId` is required so the email worker updates the execution for the current send. Do not infer the execution only from `receivableId` and `templateId`, because a receivable may be reminded multiple times.
 
