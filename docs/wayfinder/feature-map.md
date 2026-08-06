@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #18 complete, Plan #7 in progress, Plan #8+ pending
+**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #7, #18 complete, Plan #8+ pending
 
 ---
 
@@ -62,6 +62,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **2026-08-05**: Plan #5 shipped (branch `feat/cas-id-bank-connection`, PR #15 merged) — `bank-connections/` module: initiate/exchange/disconnect flow, AES-256-GCM token encryption, lazy 401/403 revocation detection via `MarkRequiresReauthorizationUseCase`, `MockCasIdAdapter` (real Cas ID client deferred). Webhook ACTIVE-status gating stays with Plan #8 (webhook module doesn't exist yet). Two review passes plus a `domain-check` pass ran before merge: Standards+Spec review found and fixed missing transactions, an unscoped `HttpException`→`AppError` gap, missing `IdempotencyService` wrapping, missing `organizationId` on `ConnectionAuditEvent`, and 3 real DI/ORM bugs invisible to unit tests + `tsc` (`import type` erasing NestJS constructor params to `Function`/`undefined`; a `Date | null` column with no explicit TypeORM `type`) — only caught because a Postgres integration test was added and Docker was available. A `ponytail-review` pass then removed a `@VersionColumn()` that had been added to match convention but was never wired through the domain layer, and deduplicated 3 repeated code blocks across use cases. `activeBankConnections` billing gate (deferred from Plan #3) is still not wired — `BankConnection` now exists but `PlanLimitService` doesn't count it yet.
 - **2026-08-06**: Tech-debt fix (branch `fix/domain-orm-mapper`, PR #38 merged) — dropped every remaining unsafe domain→ORM cast (`as`/`as unknown as`) across the backend: `Receivable`/`Subscription` domain entities gained an explicit `version` field plus `toOrm()` mappers in their repositories (original PR scope), and a `code-review` pass on the merged PR found the new "no domain→ORM cast" rule (now in `AGENTS.md`, `.claude/rules/infrastructure.md`, `.claude/rules/typescript.md`) wasn't applied repo-wide — `customers` and `payments` repositories still cast (behaviorally harmless, masked by `BaseRepository`'s spread-to-plain-object) and `typeorm-invoice.repository.ts` still cast a live `Invoice` class instance straight into `repo.save()` (a real bug: TypeORM would have received a class instance, not a plain row). All three got explicit `toOrm()` mappers with a RED→GREEN spec each; production `src/` now has zero `as any`/`as unknown as` casts (verified by repo-wide grep), `arch-check` and full `jest` suite pass.
 - **2026-08-06**: Whole-repo `/code-review` (Standards + Spec axes, run against the empty-tree diff so it covered every shipped file) found 9 findings across Standards and Spec; branch `fix/code-review-remediation` fixed the actionable ones: persisted the previously-dead `CasIdConnectionSession` `EXPIRED` status (see Plan #5 note above); backfilled a missing `switch-organization.usecase.spec.ts`; added `qrcode.react`/`recharts` to the frontend per Plan #18 spec §1; fixed `api-client.ts` to bake in the `/api/v1` prefix instead of requiring callers to hardcode it; deduped the frontend's `Plan` type to import `PlanId` from `@casso-ledger/shared-types`; restructured all 10 frontend feature folders to the documented `pages/`+barrel `index.ts` shape (`.claude/rules/frontend.md`). Two findings were corrected as documentation instead of code: the Plan #2 "Organization entity deleted" claim was stale/wrong (entity still exists and is load-bearing since Plan #4's bootstrap transaction — see corrected Plan #2 note); the Plan #18 spec's English nav-label mockup was updated to reflect that shipped Vietnamese labels are intentional, not a bug. Two findings were deliberately deferred rather than fixed here: SALES_REP data-scope filtering (spec-required but has no query to attach to — no read/list endpoint exists yet, Plan #17 not shipped; requirement now recorded on the Plan #17 entry) and Plan #5's owner-notification-on-status-change (needs Plan #7's email adapter, which doesn't exist yet). This branch's own `@VersionColumn()` removal finding (Receivable, Subscription — believed dead at review time) was dropped during rebase onto `main`: PR #38, merged in the meantime, wired that exact `version` field through `domain/`+`toOrm()`, so it's load-bearing now, not dead — the finding was stale by the time this branch rebased, not wrong when written.
+- **2026-08-06**: Plan #7 shipped (branch `feat/email-notification-service`, PR #44 merged) — `notifications/` module: `IEmailProviderAdapter` port, `ResendEmailAdapter`, `ResendAuthEmailSenderAdapter` (rebinds `AUTH_EMAIL_SENDER`), `EmailQueueProcessor` on a BullMQ queue with 3 retries + exponential backoff. Also lands an early slice of Plan #12's `ReminderExecution` domain/ORM entity, needed as somewhere for the queue processor to record SENT/FAILED — the rest of Plan #12 (policy/rule/scan cron) is still unbuilt. A `/code-review` pass on the PR found and fixed 6 issues before merge: Resend's `reply_to` field was silently dropped (SDK expects camelCase `replyTo`); `RESEND_API_KEY` defaulted to `''` instead of failing fast at boot; auth emails (signup/invite/reset) could turn a successful signup into an HTTP 500 if Resend failed after the DB transaction had already committed (now caught + logged, matching the old console-stub's no-throw contract); `ReminderExecution`'s domain entity was missing the `version` field its ORM entity carries via `@VersionColumn()` (same drift class already fixed twice before, PR #38/#39); a DB write failure after a successful send could cause `EmailQueueProcessor`'s BullMQ retry to email the customer twice (now guarded by a status check before sending); `findOwnerByOrganization` could return a pending, never-accepted OWNER invite as the reply-to address on customer-facing reminder emails (now filters `joinedAt: Not(IsNull())`, matching `findFirstActiveByUserId`'s existing convention). Merging also required resolving a real conflict with `main`'s same-day `refactor: resolve configuration at module boundaries` (4d58445) — `getBullMqConfig` was converted from reading `process.env` directly to taking an injected `ConfigService`, matching the pattern that refactor established for `getJwtSecret`/`getTypeOrmConfig`. Known gaps: no integration test (e2e blocked by no local Docker; 139 unit tests cover the module instead); auth email failures are logged, not retried (no queue on that path).
 
 ## Not yet specified
 
@@ -83,8 +84,7 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Ticket Index
 
 **26 plans** | status snapshot (2026-08-06):
-- 🟢 done (7): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #18
-- 🟡 in-progress (1): Plan #7
+- 🟢 done (8): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #18
 - 🔴 open/not started (18): Plan #8–#17, #19–#23 + 3 additional plans
 
 ---
@@ -185,7 +185,7 @@ Success = a single document a new developer can read and know exactly what to pi
   - `MockCasIdAdapter` for MVP
 - **Creates**: `bank-connections/` module, token encryption utility, initiate/exchange/disconnect use cases, controller
 - **Implementation note**: Core connection flow is implemented on branch `feat/cas-id-bank-connection`, including a Postgres integration test (`test/cas-id-bank-connection-flow.integration.spec.ts`) covering initiate → exchange → disconnect end to end. Webhook ACTIVE-status gating remains with Plan #8 because the webhook module does not exist yet; no duplicate webhook infrastructure is created here. A code-review pass on this branch found and fixed 3 real DI/ORM bugs invisible to unit tests + `tsc` (type-only imports erasing NestJS constructor params to `Function`/`undefined`; a `Date | null` ORM column with no explicit `type`), added missing transactions/pessimistic locking, scoped `ConnectionAuditEvent` by `organizationId` (previously unscoped), and added the `REVOKED` status to `BankConnectionStatus` per the spec's field listing (§2) even though the spec's own transition table, §3, never produces it — a spec inconsistency, not an implementation gap. A follow-up `@VersionColumn()` was added to match the Receivable/Subscription convention, then removed by a `ponytail-review` pass after it turned out never to be wired through the domain layer (no field, no conflict handling) — real protection for the entity's concurrent-write paths is the pessimistic lock (`findByIdForUpdate`) on the tenant-scoped `disconnect` flow plus the domain's own state-transition guards on the unscoped background paths. The same pass also deduplicated 3 identical code blocks across use cases (`MarkRequiresReauthorizationUseCase.handleAdapterError`, `DisconnectConnectionUseCase.assertFound`, `assertReauthorizable`).
-- **Known gap (deferred, 2026-08-06)**: spec §3 requires notifying the Organization Owner when a connection's status leaves ACTIVE. No notification is sent today — `notifications/` doesn't exist yet (Plan #7, Email Notification Service, is unbuilt, so there is no email adapter to call). Wire this into `MarkRequiresReauthorizationUseCase`/`DisconnectConnectionUseCase` once Plan #7 ships; not implemented as part of this branch or the 2026-08-06 code-review remediation branch.
+- **Known gap (deferred, 2026-08-06; Plan #7 now shipped)**: spec §3 requires notifying the Organization Owner when a connection's status leaves ACTIVE. No notification is sent today — `notifications/` exists as of Plan #7 (PR #44), so the email adapter is available, but `MarkRequiresReauthorizationUseCase`/`DisconnectConnectionUseCase` haven't been wired to call it yet. Still open, no longer blocked.
 - **Bug fixed (2026-08-06, code-review remediation branch)**: `CasIdConnectionSessionStatus = 'EXPIRED'` was declared but never persisted — `exchange-token.usecase.ts` only threw a transient error on an expired session without writing the status back, so the enum value was dead. `CasIdConnectionSession.markExpired()` added; `ExchangeTokenUseCase` now persists `EXPIRED` before throwing.
 
 ---
@@ -216,11 +216,12 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #7 — Email Notification Service
 - **Type**: task
-- **Status**: in-progress
+- **Status**: done ✅
+- **Shipped**: 2026-08-06 — branch `feat/email-notification-service`, PR #44 (merged `c5f3a7a`)
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-email-notification-service-design.md`
 - **Blockers**: Plan #4 ✅, Plan #6 ✅
-- **Key entities**: None (orchestration only)
+- **Key entities**: None (orchestration only) — plus an early slice of Plan #12's `ReminderExecution` domain entity (status/skip-reason/version), added because `EmailQueueProcessor` needed somewhere to record SENT/FAILED; the rest of Plan #12 (`ReminderPolicy`, `ReminderRule`, `CustomerGroup`, scan cron) is still unbuilt
 - **Key rules**:
   - `IEmailProviderAdapter` port with `ResendEmailAdapter`
   - Never call provider synchronously — always via BullMQ queue
@@ -228,7 +229,11 @@ Success = a single document a new developer can read and know exactly what to pi
   - `SENT` status only after provider confirms (has `providerMessageId`)
   - `FAILED` after final attempt
   - Rebinds `AUTH_EMAIL_SENDER` to real Resend adapter
-- **Creates**: `notifications/` module, `ResendEmailAdapter`, `ResendAuthEmailSenderAdapter`, `EmailQueueProcessor`, integration test
+- **Creates**: `notifications/` module, `ResendEmailAdapter`, `ResendAuthEmailSenderAdapter`, `EmailQueueProcessor`; `reminders/` module (`ReminderExecution` domain/ORM entity + repository, Plan #12 groundwork only)
+- **Known gaps (deferred)**:
+  - No integration test — e2e blocked by no local Docker; unit tests (135+) cover the module instead
+  - Auth email failures (signup/invite/reset) are caught and logged rather than retried — no BullMQ queue for that path yet (reminder emails do use the queue with 3 retries)
+  - Plan #5's owner-notification-on-status-change (needs this adapter) is now unblocked but not yet wired — see Plan #5 note above
 
 ---
 
@@ -304,8 +309,8 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-reminder-automation-design.md`
-- **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #6 ✅, Plan #7
-- **Key entities**: `ReminderPolicy`, `ReminderRule`, `ReminderExecution`, `CustomerGroup` (VIP/REGULAR)
+- **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #6 ✅, Plan #7 ✅
+- **Key entities**: `ReminderPolicy`, `ReminderRule`, `ReminderExecution` (domain/ORM entity shipped early by Plan #7 — see its note), `CustomerGroup` (VIP/REGULAR)
 - **Key rules**:
   - Policy unique by `(organizationId, customerGroup)`
   - Rule uses `offsetDays` (negative=before, positive=after dueDate)
@@ -374,7 +379,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE + FE
 - **Spec**: `specs/2026-08-03-collection-copilot-design.md`
-- **Blockers**: Plan #2 ✅, Plan #6 ✅, Plan #7, Plan #10, Plan #12
+- **Blockers**: Plan #2 ✅, Plan #6 ✅, Plan #7 ✅, Plan #10, Plan #12
 - **Key entities**: `CopilotConversation`, `CopilotMessage`, `CopilotPendingAction`, `CopilotDraft`, `AIUsageLog`
 - **Key rules**:
   - Chat-based AI (Claude via `@anthropic-ai/sdk`)
@@ -468,7 +473,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: FE
 - **Plan**: `plans/2026-08-03-fe-reminders-copilot-reports-settings.md`
-- **Blockers**: Plan #4 ✅, Plan #5 ✅, Plan #6 ✅, Plan #7, Plan #12, Plan #15, Plan #16, Plan #17, Plan #18 ✅, Plan #19
+- **Blockers**: Plan #4 ✅, Plan #5 ✅, Plan #6 ✅, Plan #7 ✅, Plan #12, Plan #15, Plan #16, Plan #17, Plan #18 ✅, Plan #19
 - **Key rules**:
   - Reminders: policy + executions list
   - Copilot: chat message list + pending-action cards (confirm/cancel)
@@ -583,16 +588,15 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **Next available tickets** (all blockers resolved):
-- **Plan #7** (Email Notification Service) — blockers: Plan #4 ✅, Plan #6 ✅ — newly unblocked now that Plan #6 (Email Template Management) shipped
 - **Plan #8** (Webhook Ingestion + Matching Engine) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #5 ✅ — was already unblocked (its own Blockers line never listed Plan #6; the old "waiting on Plan #6" note below was stale prose, not a real blocker)
 - **Plan #9** (Dispute Management) — blockers: Plan #1 ✅, Plan #2 ✅
 - **Plan #11** (Internal Task + Escalation) — blockers: Plan #1 ✅, Plan #2 ✅
+- **Plan #12** (Reminder Automation) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #6 ✅, Plan #7 ✅ — newly unblocked now that Plan #7 (Email Notification Service) shipped
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
 
 **Blocked tickets waiting:**
-- Plan #10, #13–#17, #20, #22–#23, additional plans — waiting on other dependencies (not Plan #6, which is now done)
-- **Plan #12** (Reminder Automation) — Plan #6 no longer among its blockers; still waiting on Plan #7
-- **Plan #16** (Collection Copilot) — Plan #6 no longer among its blockers; still waiting on Plan #7, #10, #12
-- **Plan #21** (FE Reminders, Copilot, Reports, Settings) — Plan #6 no longer among its blockers; still waiting on Plan #7, #12, #15, #16, #17, #19
+- Plan #10, #13–#15, #17, #20, #22–#23, additional plans — waiting on other dependencies (not Plan #6 or Plan #7, both now done)
+- **Plan #16** (Collection Copilot) — Plan #6, #7 no longer among its blockers; still waiting on Plan #10, #12
+- **Plan #21** (FE Reminders, Copilot, Reports, Settings) — Plan #6, #7 no longer among its blockers; still waiting on Plan #12, #15, #16, #17, #19
 
-**Recommended next step:** Start Plan #7 (Email Notification Service) or Plan #8 (Webhook Ingestion + Matching Engine) — both are fully unblocked and each is itself a blocker for several downstream plans (#7 unblocks #12/#16/#21; #8 unblocks #13, which in turn unblocks #15).
+**Recommended next step:** Start Plan #8 (Webhook Ingestion + Matching Engine) or Plan #12 (Reminder Automation) — both are fully unblocked and each is itself a blocker for several downstream plans (#8 unblocks #13, which in turn unblocks #15; #12 unblocks #16/#21). Plan #12 also gets a head start from Plan #7's `ReminderExecution` entity, already shipped.
