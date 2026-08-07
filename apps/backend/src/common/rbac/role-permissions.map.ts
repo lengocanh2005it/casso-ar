@@ -18,6 +18,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.INTERNAL_TASK_MANAGE,
     Permission.REPORT_READ,
     Permission.AUDIT_LOG_READ,
+    Permission.CUSTOMER_READ,
   ],
   [Role.ACCOUNTANT]: [
     Permission.RECEIVABLE_READ,
@@ -28,16 +29,19 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.REMINDER_SEND_MANUAL,
     Permission.INTERNAL_TASK_MANAGE,
     Permission.REPORT_READ,
+    Permission.CUSTOMER_READ,
   ],
   [Role.SALES_REP]: [
     Permission.RECEIVABLE_READ,
     Permission.EMAIL_TEMPLATE_READ,
     Permission.REPORT_READ,
+    Permission.CUSTOMER_READ,
   ],
   [Role.VIEWER]: [
     Permission.RECEIVABLE_READ,
     Permission.EMAIL_TEMPLATE_READ,
     Permission.REPORT_READ,
     Permission.AUDIT_LOG_READ,
+    Permission.CUSTOMER_READ,
   ],
 };

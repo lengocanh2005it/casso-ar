@@ -10,6 +10,7 @@ export interface ISubscriptionRepository {
     organizationId: string,
     manager: EntityManager,
   ): Promise<Subscription | null>;
+  findByOrganizationId(organizationId: string): Promise<Subscription | null>;
   countReceivablesInPeriod(
     organizationId: string,
     periodStart: Date,

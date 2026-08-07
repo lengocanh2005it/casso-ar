@@ -5,7 +5,10 @@ import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
 import { In, IsNull, LessThan, MoreThanOrEqual, Not } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import type { IReceivableRepository } from '../application/receivable-repository.port';
+import type {
+  IReceivableRepository,
+  ReceivableListFilters,
+} from '../application/receivable-repository.port';
 import { Receivable } from '../domain/receivable';
 import { ReceivableOrmEntity } from './receivable.orm-entity';
 
@@ -131,5 +134,41 @@ export class TypeOrmReceivableRepository
       )
       .slice(0, limit);
     return rows.map((row) => new Receivable(row));
+  }
+
+  async findPage(
+    organizationId: string,
+    filters: ReceivableListFilters,
+    page: number,
+    limit: number,
+  ): Promise<Receivable[]> {
+    const where: FindOptionsWhere<ReceivableOrmEntity> = { organizationId };
+    if (filters.status) {
+      where.status = filters.status as ReceivableStatus;
+    }
+    if (filters.salesRepresentativeId) {
+      where.salesRepresentativeId = filters.salesRepresentativeId;
+    }
+    const rows = await this.ormRepo.find({
+      where,
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return rows.map((row) => new Receivable(row));
+  }
+
+  async count(
+    organizationId: string,
+    filters: ReceivableListFilters,
+  ): Promise<number> {
+    const where: FindOptionsWhere<ReceivableOrmEntity> = { organizationId };
+    if (filters.status) {
+      where.status = filters.status as ReceivableStatus;
+    }
+    if (filters.salesRepresentativeId) {
+      where.salesRepresentativeId = filters.salesRepresentativeId;
+    }
+    return this.ormRepo.count({ where });
   }
 }

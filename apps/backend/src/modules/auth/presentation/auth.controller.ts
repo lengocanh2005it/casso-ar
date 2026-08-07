@@ -23,6 +23,7 @@ import { Public } from '../../../common/auth/public.decorator';
 import { Permission } from '../../../common/rbac/permission.enum';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ForgotPasswordUseCase } from '../application/forgot-password.usecase';
+import { GetUserProfileUseCase } from '../application/get-user-profile.usecase';
 import { LoginUseCase } from '../application/login.usecase';
 import { LogoutUseCase } from '../application/logout.usecase';
 import { RefreshAccessTokenUseCase } from '../application/refresh-access-token.usecase';
@@ -37,6 +38,10 @@ import { LoginDto } from './dto/login.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SignupDto } from './dto/signup.dto';
 import { SwitchOrganizationDto } from './dto/switch-organization.dto';
+import {
+  toUserProfileResponse,
+  UserProfileResponseDto,
+} from './dto/user-profile-response.dto';
 
 const REFRESH_COOKIE_NAME = 'refreshToken';
 interface AuthRequest extends Request {
@@ -61,6 +66,7 @@ export class AuthController {
     private readonly switchOrganizationUseCase: SwitchOrganizationUseCase,
     private readonly forgotPasswordUseCase: ForgotPasswordUseCase,
     private readonly resetPasswordUseCase: ResetPasswordUseCase,
+    private readonly getUserProfileUseCase: GetUserProfileUseCase,
     config: ConfigService,
   ) {
     this.refreshCookieOptions = {
@@ -161,6 +167,17 @@ export class AuthController {
       throw new UnauthorizedException();
     }
     return this.switchOrganizationUseCase.execute(userId, dto.organizationId);
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  async getMe(@Req() request: AuthRequest): Promise<UserProfileResponseDto> {
+    const userId = request.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
+    const result = await this.getUserProfileUseCase.execute(userId);
+    return toUserProfileResponse(result);
   }
 
   @Public()

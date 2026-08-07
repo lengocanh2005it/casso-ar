@@ -12,6 +12,7 @@ import { AcceptInviteUseCase } from './application/accept-invite.usecase';
 import { AUTH_EMAIL_SENDER } from './application/auth-email-sender.port';
 import { EMAIL_VERIFICATION_TOKEN_REPOSITORY } from './application/email-verification-token-repository.port';
 import { ForgotPasswordUseCase } from './application/forgot-password.usecase';
+import { GetUserProfileUseCase } from './application/get-user-profile.usecase';
 import { InviteMemberUseCase } from './application/invite-member.usecase';
 import { LoginUseCase } from './application/login.usecase';
 import { LogoutUseCase } from './application/logout.usecase';
@@ -62,6 +63,7 @@ import { InvitesController } from './presentation/invites.controller';
     SignupUseCase,
     VerifyEmailUseCase,
     AcceptInviteUseCase,
+    GetUserProfileUseCase,
     ForgotPasswordUseCase,
     InviteMemberUseCase,
     LogoutUseCase,

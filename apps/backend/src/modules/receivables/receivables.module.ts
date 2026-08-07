@@ -5,6 +5,7 @@ import { CustomersModule } from '../customers/customers.module';
 import { DisputesModule } from '../disputes/disputes.module';
 import { CreateReceivableUseCase } from './application/create-receivable.usecase';
 import { GetReceivableUseCase } from './application/get-receivable.usecase';
+import { ListReceivablesUseCase } from './application/list-receivables.usecase';
 import { RECEIVABLE_REPOSITORY } from './application/receivable-repository.port';
 import { WriteOffReceivableUseCase } from './application/write-off-receivable.usecase';
 import { ReceivableOrmEntity } from './infrastructure/receivable.orm-entity';
@@ -23,6 +24,7 @@ import { ReceivablesController } from './presentation/receivables.controller';
     CreateReceivableUseCase,
     WriteOffReceivableUseCase,
     GetReceivableUseCase,
+    ListReceivablesUseCase,
   ],
   controllers: [ReceivablesController],
   exports: [

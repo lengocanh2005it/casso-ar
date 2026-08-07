@@ -51,4 +51,48 @@ export class TypeOrmCustomerRepository
     const customer = await this.findById(id);
     return customer?.name ?? null;
   }
+
+  async findPage(
+    organizationId: string,
+    search: string | undefined,
+    page: number,
+    limit: number,
+  ): Promise<Customer[]> {
+    const qb = this.ormRepo
+      .createQueryBuilder('c')
+      .where('c.organizationId = :organizationId', { organizationId });
+
+    if (search) {
+      qb.andWhere(
+        '(c.name ILIKE :search OR c.taxCode ILIKE :search OR c.phone ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    const rows = await qb
+      .orderBy('c.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
+
+    return rows as Customer[];
+  }
+
+  async count(
+    organizationId: string,
+    search: string | undefined,
+  ): Promise<number> {
+    const qb = this.ormRepo
+      .createQueryBuilder('c')
+      .where('c.organizationId = :organizationId', { organizationId });
+
+    if (search) {
+      qb.andWhere(
+        '(c.name ILIKE :search OR c.taxCode ILIKE :search OR c.phone ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    return qb.getCount();
+  }
 }

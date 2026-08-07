@@ -12,6 +12,12 @@ export interface IBankConnectionRepository {
   // background sync / a Cas ID error callback with only a connectionId) —
   // there is no TenantContextService organizationId to scope by at that point.
   findByIdUnscoped(id: string): Promise<BankConnection | null>;
+  findPage(
+    organizationId: string,
+    page: number,
+    limit: number,
+  ): Promise<BankConnection[]>;
+  count(organizationId: string): Promise<number>;
   save(connection: BankConnection, manager?: EntityManager): Promise<void>;
 }
 
