@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #7, #8, #18 complete, Plan #13 in-progress, remaining Plan #9+ pending
+**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #7, #8, #13, #18 complete, remaining Plan #9+ pending
 
 ---
 
@@ -87,9 +87,8 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Ticket Index
 
-**26 plans** | status snapshot (2026-08-06):
-- 🟢 done (9): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #18
-- 🟡 in-progress (1): Plan #13
+**26 plans** | status snapshot (2026-08-07):
+- 🟢 done (10): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #13, Plan #18
 - 🔴 open/not started (16): Plan #9–#12, #14–#17, #19–#23 + 3 additional plans
 
 ---
@@ -331,10 +330,11 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #13 — Exception Queue + Audit Log
 - **Type**: task
-- **Status**: in-progress 🚧
+- **Status**: done ✅
+- **Shipped**: 2026-08-07, PR #49
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-exception-queue-audit-log-design.md`
-- **Blockers**: Plan #1 ✅, Plan #2, Plan #8; local Testcontainers e2e currently hangs during `Test.createTestingModule().compile()` after PostgreSQL startup (unit/type-check pass)
+- **Blockers**: none — Plan #1 ✅, Plan #2 ✅, Plan #8 ✅; local Testcontainers e2e still hangs during `Test.createTestingModule().compile()` after PostgreSQL startup (unit/type-check/arch-check pass; e2e is not part of the CI `verify` job)
 - **Key entities**: `AuditLog` (INSERT-only), `BankTransaction` extended with `IGNORED` status
 - **Key rules**:
   - `match` uses `BankTransaction.version` optimistic lock + `AllocatePaymentUseCase`
@@ -369,7 +369,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE + FE
 - **Spec**: `specs/2026-08-03-aging-dashboard-reporting-design.md`
-- **Blockers**: Plan #1 ✅, Plan #2, Plan #8, Plan #13
+- **Blockers**: Plan #1 ✅, Plan #2, Plan #8, Plan #13 ✅
 - **Key entities**: None (read-only queries)
 - **Key rules**:
   - 5 canonical aging buckets: `NOT_DUE`, `OVERDUE_1_7`, `OVERDUE_8_30`, `OVERDUE_31_60`, `OVERDUE_60_PLUS`
