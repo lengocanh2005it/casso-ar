@@ -4,6 +4,10 @@ import type { EntityManager } from 'typeorm';
 import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import {
+  EVENT_PUBLISHER,
+  type IEventPublisher,
+} from '../../../common/events/event-publisher.port';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import {
   type IReceivableRepository,
@@ -14,7 +18,6 @@ import {
   DISPUTE_REPOSITORY,
   type IDisputeRepository,
 } from './dispute-repository.port';
-import { EVENT_PUBLISHER, type IEventPublisher } from './event-publisher.port';
 
 export interface OpenDisputeInput {
   receivableId: string;

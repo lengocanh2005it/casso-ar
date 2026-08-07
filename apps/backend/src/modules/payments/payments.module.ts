@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { EVENT_PUBLISHER } from '../../common/events/event-publisher.port';
+import { NestEventPublisherAdapter } from '../../common/events/nest-event-publisher.adapter';
 import { ReceivablesModule } from '../receivables/receivables.module';
 import { AllocatePaymentUseCase } from './application/allocate-payment.usecase';
 import { PAYMENT_ALLOCATION_REPOSITORY } from './application/payment-allocation-repository.port';
@@ -22,6 +24,7 @@ import { PaymentsController } from './presentation/payments.controller';
       provide: PAYMENT_ALLOCATION_REPOSITORY,
       useClass: TypeOrmPaymentAllocationRepository,
     },
+    { provide: EVENT_PUBLISHER, useClass: NestEventPublisherAdapter },
     AllocatePaymentUseCase,
     UndoPaymentAllocationUseCase,
   ],

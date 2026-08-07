@@ -64,13 +64,21 @@ function buildUseCase(
   };
   const paymentRepo = { save: jest.fn() };
   const allocatePaymentUseCase = {
-    allocateWithinTransaction: jest.fn(),
+    allocateWithinTransaction: jest
+      .fn()
+      .mockResolvedValue({ customerId: 'cust-1', becameClosed: false }),
+    emitAllocationEvents: jest.fn(),
   };
   const manager = {} as EntityManager;
   const dataSource = {
     transaction: jest.fn(
-      (callback: (value: EntityManager) => Promise<unknown>) =>
-        callback(manager),
+      async (callback: (value: EntityManager) => Promise<unknown>) => {
+        const result = await callback(manager);
+        expect(
+          allocatePaymentUseCase.emitAllocationEvents,
+        ).not.toHaveBeenCalled();
+        return result;
+      },
     ),
   };
   const tenantContext = { getOrganizationId: () => 'org-1' };
@@ -185,6 +193,33 @@ describe('MatchBankTransactionUseCase', () => {
     );
     expect(auditContext.setBefore).toHaveBeenCalled();
     expect(result.status).toBe('MATCHED');
+    expect(allocatePaymentUseCase.emitAllocationEvents).toHaveBeenCalledTimes(
+      2,
+    );
+    expect(allocatePaymentUseCase.emitAllocationEvents).toHaveBeenNthCalledWith(
+      1,
+      {
+        paymentId: expect.any(String),
+        receivableId: 'rec-1',
+        amount: 15_000_000,
+        allocatedByUserId: 'user-1',
+        organizationId: 'org-1',
+        customerId: 'cust-1',
+        becameClosed: false,
+      },
+    );
+    expect(allocatePaymentUseCase.emitAllocationEvents).toHaveBeenNthCalledWith(
+      2,
+      {
+        paymentId: expect.any(String),
+        receivableId: 'rec-2',
+        amount: 10_000_000,
+        allocatedByUserId: 'user-1',
+        organizationId: 'org-1',
+        customerId: 'cust-1',
+        becameClosed: false,
+      },
+    );
   });
 
   it('rejects receivables belonging to different customers', async () => {

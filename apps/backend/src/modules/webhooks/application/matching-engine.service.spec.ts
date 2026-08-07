@@ -25,8 +25,20 @@ const receivable = new Receivable({
   version: 1,
 });
 
+const createInvoiceLookupMocks = () => ({
+  findInvoiceIdsByReceivableIds: jest
+    .fn()
+    .mockResolvedValue(new Map([['rec-1', 'inv-1']])),
+  findByIds: jest
+    .fn()
+    .mockResolvedValue(
+      new Map([['inv-1', { invoiceNumber: 'INV-2026-0012' }]]),
+    ),
+});
+
 describe('MatchingEngineService', () => {
   it('scores a known customer candidate using all five components', async () => {
+    const invoiceLookup = createInvoiceLookupMocks();
     const service = new MatchingEngineService(
       {
         findByAccountNumber: jest.fn().mockResolvedValue({
@@ -40,14 +52,12 @@ describe('MatchingEngineService', () => {
         findOpenTopNByOrganization: jest.fn(),
         findById: jest.fn(),
         findByIdForUpdate: jest.fn(),
+        findInvoiceIdsByReceivableIds:
+          invoiceLookup.findInvoiceIdsByReceivableIds,
         save: jest.fn(),
       },
       {
-        findByReceivableIds: jest
-          .fn()
-          .mockResolvedValue(
-            new Map([['rec-1', { invoiceNumber: 'INV-2026-0012' }]]),
-          ),
+        findByIds: invoiceLookup.findByIds,
         findById: jest.fn(),
         save: jest.fn(),
       },
@@ -59,10 +69,15 @@ describe('MatchingEngineService', () => {
     );
     const [candidate] = await service.scoreCandidates(transaction, 'org-1');
     expect(candidate).toMatchObject({ receivableId: 'rec-1', totalScore: 100 });
+    expect(invoiceLookup.findInvoiceIdsByReceivableIds).toHaveBeenCalledWith([
+      'rec-1',
+    ]);
+    expect(invoiceLookup.findByIds).toHaveBeenCalledWith(['inv-1']);
   });
 
   it('resolves the customer via an exact reference code in transferContent when the bank account is unregistered', async () => {
     const findOpenByCustomerId = jest.fn().mockResolvedValue([receivable]);
+    const invoiceLookup = createInvoiceLookupMocks();
     const service = new MatchingEngineService(
       {
         findByAccountNumber: jest.fn().mockResolvedValue(null),
@@ -73,14 +88,12 @@ describe('MatchingEngineService', () => {
         findOpenTopNByOrganization: jest.fn().mockResolvedValue([receivable]),
         findById: jest.fn(),
         findByIdForUpdate: jest.fn(),
+        findInvoiceIdsByReceivableIds:
+          invoiceLookup.findInvoiceIdsByReceivableIds,
         save: jest.fn(),
       },
       {
-        findByReceivableIds: jest
-          .fn()
-          .mockResolvedValue(
-            new Map([['rec-1', { invoiceNumber: 'INV-2026-0012' }]]),
-          ),
+        findByIds: invoiceLookup.findByIds,
         findById: jest.fn(),
         save: jest.fn(),
       },
@@ -94,6 +107,10 @@ describe('MatchingEngineService', () => {
     const [candidate] = await service.scoreCandidates(transaction, 'org-1');
 
     expect(findOpenByCustomerId).toHaveBeenCalledWith('cust-1');
+    expect(invoiceLookup.findInvoiceIdsByReceivableIds).toHaveBeenCalledTimes(
+      2,
+    );
+    expect(invoiceLookup.findByIds).toHaveBeenCalledTimes(2);
     expect(candidate).toMatchObject({
       receivableId: 'rec-1',
       referenceCodeScore: 60,
