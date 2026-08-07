@@ -1,9 +1,18 @@
-Review the current git diff for issues.
+Review the current PR or local diff for issues. Use the `code-review` skill. For backend changes, also use `.claude/skills/clean-architecture-review.md`; it supplies the Clean Architecture checks while `code-review` covers standards and spec compliance. If the review is for a completed feature or PR, also use `verification-before-completion` and distinguish verified findings from assumptions.
 
-Use the `code-review` skill before reporting findings. If the review is for a completed feature or PR, also use `verification-before-completion` and distinguish verified findings from assumptions.
+Resolve the committed PR range from its GitHub base SHA, falling back to `git merge-base origin/main HEAD`:
+
+```bash
+BASE_SHA="$(gh pr view --json baseRefOid --jq .baseRefOid 2>/dev/null || true)"
+BASE_SHA="${BASE_SHA:-$(git merge-base origin/main HEAD)}"
+git diff "$BASE_SHA...HEAD"
+```
+
+When there is no committed PR range, also review both local change sets:
 
 ```bash
 git diff --staged
+git diff
 ```
 
 Check for:

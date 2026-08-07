@@ -27,7 +27,7 @@ describe('ReceiveWebhookUseCase', () => {
         isUsable: () => true,
       }),
     };
-    const queue = { add: jest.fn() };
+    const queue = { enqueue: jest.fn() };
     const dataSource = {
       transaction: jest.fn(
         async (callback: (manager: object) => Promise<void>) => callback({}),
@@ -44,6 +44,6 @@ describe('ReceiveWebhookUseCase', () => {
       received: true,
       duplicate: true,
     });
-    expect(queue.add).not.toHaveBeenCalled();
+    expect(queue.enqueue).not.toHaveBeenCalled();
   });
 });
