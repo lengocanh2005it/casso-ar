@@ -56,27 +56,47 @@ export class AllocatePaymentUseCase {
     });
 
     // Emit only after the transaction has committed successfully.
+    await this.emitAllocationEvents({
+      paymentId: input.paymentId,
+      receivableId: input.receivableId,
+      amount: input.amount,
+      allocatedByUserId: input.allocatedByUserId,
+      organizationId,
+      customerId,
+      becameClosed,
+    });
+  }
+
+  async emitAllocationEvents(input: {
+    paymentId: string;
+    receivableId: string;
+    amount: number;
+    allocatedByUserId: string | null;
+    organizationId: string;
+    customerId: string;
+    becameClosed: boolean;
+  }): Promise<void> {
     await this.eventEmitter.emitAsync('payment.allocated', {
       paymentId: input.paymentId,
       receivableId: input.receivableId,
-      customerId,
-      organizationId,
+      customerId: input.customerId,
+      organizationId: input.organizationId,
       amount: input.amount,
       allocatedByUserId: input.allocatedByUserId,
     });
 
-    if (becameClosed) {
+    if (input.becameClosed) {
       await this.eventEmitter.emitAsync('receivable.closed', {
         receivableId: input.receivableId,
-        customerId,
-        organizationId,
+        customerId: input.customerId,
+        organizationId: input.organizationId,
       });
       // Separate, distinctly-named event for the internal-task-escalation
       // plan's auto-dismiss listener (any close reason), not just this
       // PAID-only 'receivable.closed'.
       await this.eventEmitter.emitAsync('receivable.status-closed', {
         receivableId: input.receivableId,
-        organizationId,
+        organizationId: input.organizationId,
       });
     }
   }

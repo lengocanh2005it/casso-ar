@@ -37,7 +37,12 @@ describe('ProcessWebhookUseCase', () => {
       toMatchingCandidateEntities: jest.fn(),
     };
     const paymentRepo = { save: jest.fn(), findByIdForUpdate: jest.fn() };
-    const allocation = { allocateWithinTransaction: jest.fn() };
+    const allocation = {
+      allocateWithinTransaction: jest
+        .fn()
+        .mockResolvedValue({ customerId: 'cust-1', becameClosed: true }),
+      emitAllocationEvents: jest.fn(),
+    };
     const dataSource = {
       transaction: jest.fn(
         async (callback: (manager: object) => Promise<void>) => callback({}),
@@ -70,5 +75,102 @@ describe('ProcessWebhookUseCase', () => {
       }),
     );
     expect(inboxRepo.save).toHaveBeenCalled();
+    expect(allocation.emitAllocationEvents).toHaveBeenCalledWith({
+      paymentId: expect.any(String),
+      receivableId: 'rec-1',
+      amount: 30_000_000,
+      allocatedByUserId: null,
+      organizationId: 'org-1',
+      customerId: 'cust-1',
+      becameClosed: true,
+    });
+  });
+
+  it('does not emit allocation events for the exception-queue branch', async () => {
+    const inboxRepo = {
+      findById: jest.fn().mockResolvedValue(inbox),
+      save: jest.fn(),
+    };
+    const transactionRepo = { save: jest.fn(), findById: jest.fn() };
+    const engine = {
+      scoreCandidates: jest
+        .fn()
+        .mockResolvedValue([
+          { receivableId: 'rec-1', customerId: 'cust-1', totalScore: 70 },
+        ]),
+      toMatchingCandidateEntities: jest.fn().mockReturnValue([]),
+    };
+    const paymentRepo = { save: jest.fn(), findByIdForUpdate: jest.fn() };
+    const allocation = {
+      allocateWithinTransaction: jest.fn(),
+      emitAllocationEvents: jest.fn(),
+    };
+    const dataSource = {
+      transaction: jest.fn(
+        async (callback: (manager: object) => Promise<void>) => callback({}),
+      ),
+    };
+    const tenant = {
+      run: jest.fn((_user: unknown, callback: () => Promise<void>) =>
+        callback(),
+      ),
+    };
+    const useCase = new ProcessWebhookUseCase(
+      inboxRepo as any,
+      transactionRepo as any,
+      engine as any,
+      { saveMany: jest.fn() } as any,
+      paymentRepo as any,
+      allocation as any,
+      dataSource as any,
+      tenant as any,
+    );
+
+    await useCase.execute('wh-1', 'org-1');
+
+    expect(allocation.allocateWithinTransaction).not.toHaveBeenCalled();
+    expect(allocation.emitAllocationEvents).not.toHaveBeenCalled();
+  });
+
+  it('does not emit allocation events for the unmatched branch', async () => {
+    const inboxRepo = {
+      findById: jest.fn().mockResolvedValue(inbox),
+      save: jest.fn(),
+    };
+    const transactionRepo = { save: jest.fn(), findById: jest.fn() };
+    const engine = {
+      scoreCandidates: jest.fn().mockResolvedValue([]),
+      toMatchingCandidateEntities: jest.fn(),
+    };
+    const paymentRepo = { save: jest.fn(), findByIdForUpdate: jest.fn() };
+    const allocation = {
+      allocateWithinTransaction: jest.fn(),
+      emitAllocationEvents: jest.fn(),
+    };
+    const dataSource = {
+      transaction: jest.fn(
+        async (callback: (manager: object) => Promise<void>) => callback({}),
+      ),
+    };
+    const tenant = {
+      run: jest.fn((_user: unknown, callback: () => Promise<void>) =>
+        callback(),
+      ),
+    };
+    const useCase = new ProcessWebhookUseCase(
+      inboxRepo as any,
+      transactionRepo as any,
+      engine as any,
+      { saveMany: jest.fn() } as any,
+      paymentRepo as any,
+      allocation as any,
+      dataSource as any,
+      tenant as any,
+    );
+
+    await useCase.execute('wh-1', 'org-1');
+
+    expect(allocation.allocateWithinTransaction).not.toHaveBeenCalled();
+    expect(allocation.emitAllocationEvents).not.toHaveBeenCalled();
   });
 });
