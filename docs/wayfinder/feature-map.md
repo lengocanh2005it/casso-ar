@@ -262,7 +262,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #9 — Dispute Management
 - **Type**: task
-- **Status**: open
+- **Status**: in-progress
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-dispute-management-design.md`
 - **Blockers**: none — Plan #1 ✅, Plan #2 ✅

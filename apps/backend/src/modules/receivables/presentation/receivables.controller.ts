@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Headers,
   Param,
   Post,
@@ -16,9 +17,13 @@ import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { CreateReceivableUseCase } from '../application/create-receivable.usecase';
+import { GetReceivableUseCase } from '../application/get-receivable.usecase';
 import { WriteOffReceivableUseCase } from '../application/write-off-receivable.usecase';
 import { CreateReceivableDto } from './dto/create-receivable.dto';
-import { toReceivableResponse } from './dto/receivable-response.dto';
+import {
+  toReceivableDetailResponse,
+  toReceivableResponse,
+} from './dto/receivable-response.dto';
 
 @Controller('receivables')
 @UseGuards(PermissionGuard)
@@ -26,6 +31,7 @@ export class ReceivablesController {
   constructor(
     private readonly createReceivableUseCase: CreateReceivableUseCase,
     private readonly writeOffReceivableUseCase: WriteOffReceivableUseCase,
+    private readonly getReceivableUseCase: GetReceivableUseCase,
     private readonly idempotency: IdempotencyService,
   ) {}
 
@@ -46,6 +52,17 @@ export class ReceivablesController {
       });
       return toReceivableResponse(receivable);
     });
+  }
+
+  @Get(':id')
+  @RequirePermission(Permission.RECEIVABLE_READ)
+  async findOne(@Param('id') id: string) {
+    const result = await this.getReceivableUseCase.execute(id);
+    return toReceivableDetailResponse(
+      result.receivable,
+      result.isDisputed,
+      result.disputeId,
+    );
   }
 
   @Post(':id/write-off')
