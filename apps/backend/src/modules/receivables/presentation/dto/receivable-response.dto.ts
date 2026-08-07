@@ -14,7 +14,12 @@ export interface ReceivableResponseDto {
   closedAt: Date | null;
 }
 
-export function toReceivableResponse(r: {
+export interface ReceivableDetailResponseDto extends ReceivableResponseDto {
+  isDisputed: boolean;
+  disputeId: string | null;
+}
+
+interface ReceivableResponseSource {
   id: string;
   customerId: string;
   invoiceId: string | null;
@@ -25,9 +30,21 @@ export function toReceivableResponse(r: {
   salesRepresentativeId: string | null;
   createdAt: Date;
   closedAt: Date | null;
-}): ReceivableResponseDto {
+}
+
+export function toReceivableResponse(
+  r: ReceivableResponseSource,
+): ReceivableResponseDto {
   return {
     ...r,
     remainingAmount: r.originalAmount - r.paidAmount,
   };
+}
+
+export function toReceivableDetailResponse(
+  r: ReceivableResponseSource,
+  isDisputed: boolean,
+  disputeId: string | null,
+): ReceivableDetailResponseDto {
+  return { ...toReceivableResponse(r), isDisputed, disputeId };
 }

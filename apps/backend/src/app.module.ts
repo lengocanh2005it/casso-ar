@@ -21,6 +21,7 @@ import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module
 import { BankConnectionsModule } from './modules/bank-connections/bank-connections.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { CustomersModule } from './modules/customers/customers.module';
+import { DisputesModule } from './modules/disputes/disputes.module';
 import { EmailTemplatesModule } from './modules/email-templates/email-templates.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
@@ -64,6 +65,7 @@ import { ExceptionQueueModule } from './modules/exception-queue/exception-queue.
     EmailTemplatesModule,
     InvoicesModule,
     ReceivablesModule,
+    DisputesModule,
     PaymentsModule,
     UsersModule,
     RemindersModule,
