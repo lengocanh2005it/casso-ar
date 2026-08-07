@@ -1,7 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import type { CustomerResponseDto } from '../presentation/dto/customer-response.dto';
-import { toCustomerResponse } from '../presentation/dto/customer-response.dto';
+import type { Customer } from '../domain/customer';
 import {
   CUSTOMER_REPOSITORY,
   type ICustomerRepository,
@@ -14,7 +13,7 @@ export interface ListCustomersInput {
 }
 
 export interface ListCustomersOutput {
-  items: CustomerResponseDto[];
+  items: Customer[];
   total: number;
   page: number;
   limit: number;
@@ -32,16 +31,11 @@ export class ListCustomersUseCase {
     const organizationId = this.tenantContext.getOrganizationId();
     const { search, page, limit } = input;
 
-    const [customers, total] = await Promise.all([
+    const [items, total] = await Promise.all([
       this.customerRepo.findPage(organizationId, search, page, limit),
       this.customerRepo.count(organizationId, search),
     ]);
 
-    return {
-      items: customers.map(toCustomerResponse),
-      total,
-      page,
-      limit,
-    };
+    return { items, total, page, limit };
   }
 }

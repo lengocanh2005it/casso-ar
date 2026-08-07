@@ -4,6 +4,7 @@ import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ListMembersUseCase } from '../application/list-members.usecase';
+import { toMemberResponse } from './dto/member-response.dto';
 
 @Controller('organizations')
 @UseGuards(PermissionGuard)
@@ -16,10 +17,16 @@ export class OrganizationsController {
     @Param('id') id: string,
     @Query() pagination: PaginationDto,
   ) {
-    return this.listMembersUseCase.execute({
+    const result = await this.listMembersUseCase.execute({
       organizationId: id,
       page: pagination.page,
       limit: pagination.limit,
     });
+    return {
+      items: result.items.map((x) => toMemberResponse(x.membership, x.user)),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+    };
   }
 }

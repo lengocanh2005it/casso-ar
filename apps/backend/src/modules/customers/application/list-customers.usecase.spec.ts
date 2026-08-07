@@ -45,7 +45,7 @@ describe('ListCustomersUseCase', () => {
     );
     expect(customerRepo.count).toHaveBeenCalledWith('org-1', undefined);
     expect(result).toEqual({
-      items: [expect.objectContaining({ id: 'customer-1' })],
+      items: [buildCustomer()],
       total: 1,
       page: 1,
       limit: 20,

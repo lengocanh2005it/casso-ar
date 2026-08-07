@@ -27,6 +27,7 @@ import {
   toReceivableDetailResponse,
   toReceivableResponse,
 } from './dto/receivable-response.dto';
+import { toReceivableSummaryResponse } from './dto/receivable-summary-response.dto';
 
 @Controller('receivables')
 @UseGuards(PermissionGuard)
@@ -46,11 +47,25 @@ export class ReceivablesController {
     @Query('status') status?: string,
     @Query('salesRepresentativeId') salesRepresentativeId?: string,
   ) {
-    return this.listReceivablesUseCase.execute({
+    const result = await this.listReceivablesUseCase.execute({
       filters: { status, salesRepresentativeId },
       page: pagination.page,
       limit: pagination.limit,
     });
+    return {
+      items: result.items.map((x) =>
+        toReceivableSummaryResponse(
+          x.receivable,
+          x.isOverdue,
+          x.isDisputed,
+          x.disputeId,
+          x.invoiceNumber,
+        ),
+      ),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+    };
   }
 
   @Post()

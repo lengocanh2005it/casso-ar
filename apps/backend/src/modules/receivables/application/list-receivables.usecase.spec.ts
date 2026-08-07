@@ -66,6 +66,7 @@ describe('ListReceivablesUseCase', () => {
     expect(disputeRepo.findOpenDispute).not.toHaveBeenCalled();
     expect(result.items[0].isDisputed).toBe(true);
     expect(result.items[0].disputeId).toBe('dispute-1');
+    expect(result.items[0].receivable).toBeInstanceOf(Receivable);
   });
 
   it('resolves invoiceNumber from the batched invoice lookup', async () => {

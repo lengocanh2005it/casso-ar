@@ -48,12 +48,9 @@ describe('ListMembersUseCase', () => {
     });
 
     expect(userRepo.findByIds).toHaveBeenCalledWith(['user-1']);
-    expect(result.items[0]).toMatchObject({
-      id: 'membership-1',
-      userId: 'user-1',
-      email: 'owner@casso.vn',
-      name: 'Owner',
-      role: Role.OWNER,
+    expect(result.items[0]).toEqual({
+      membership: buildMembership(),
+      user: { email: 'owner@casso.vn', name: 'Owner' },
     });
   });
 

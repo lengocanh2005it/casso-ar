@@ -6,8 +6,7 @@ import {
   type IUserRepository,
   USER_REPOSITORY,
 } from '../../users/application/user-repository.port';
-import type { MemberResponseDto } from '../presentation/dto/member-response.dto';
-import { toMemberResponse } from '../presentation/dto/member-response.dto';
+import type { Membership } from '../domain/membership';
 import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
@@ -19,8 +18,13 @@ export interface ListMembersInput {
   limit: number;
 }
 
+export interface MembershipWithUser {
+  membership: Membership;
+  user: { email: string; name: string };
+}
+
 export interface ListMembersOutput {
-  items: MemberResponseDto[];
+  items: MembershipWithUser[];
   total: number;
   page: number;
   limit: number;
@@ -55,12 +59,13 @@ export class ListMembersUseCase {
     const userIds = memberships.map((m) => m.userId);
     const users = await this.userRepo.findByIds(userIds);
 
-    const items = memberships.map((m) =>
-      toMemberResponse(m, {
-        email: users.get(m.userId)?.email ?? '',
-        name: users.get(m.userId)?.name ?? '',
-      }),
-    );
+    const items = memberships.map((membership) => ({
+      membership,
+      user: {
+        email: users.get(membership.userId)?.email ?? '',
+        name: users.get(membership.userId)?.name ?? '',
+      },
+    }));
 
     return { items, total, page, limit };
   }

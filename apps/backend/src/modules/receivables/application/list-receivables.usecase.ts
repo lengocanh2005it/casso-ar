@@ -11,10 +11,15 @@ import {
   type IReceivableRepository,
   RECEIVABLE_REPOSITORY,
 } from '../application/receivable-repository.port';
-import {
-  type ReceivableSummaryResponseDto,
-  toReceivableSummaryResponse,
-} from '../presentation/dto/receivable-summary-response.dto';
+import type { Receivable } from '../domain/receivable';
+
+export interface ReceivableListItem {
+  receivable: Receivable;
+  isOverdue: boolean;
+  isDisputed: boolean;
+  disputeId: string | null;
+  invoiceNumber: string | null;
+}
 
 @Injectable()
 export class ListReceivablesUseCase {
@@ -32,7 +37,7 @@ export class ListReceivablesUseCase {
     page: number;
     limit: number;
   }): Promise<{
-    items: ReceivableSummaryResponseDto[];
+    items: ReceivableListItem[];
     total: number;
     page: number;
     limit: number;
@@ -72,13 +77,13 @@ export class ListReceivablesUseCase {
       const invoiceNumber = r.invoiceId
         ? (invoices.get(r.invoiceId)?.invoiceNumber ?? null)
         : null;
-      return toReceivableSummaryResponse(
-        r,
+      return {
+        receivable: r,
         isOverdue,
-        disputeId !== null,
+        isDisputed: disputeId !== null,
         disputeId,
         invoiceNumber,
-      );
+      };
     });
 
     return { items, total, page: input.page, limit: input.limit };
