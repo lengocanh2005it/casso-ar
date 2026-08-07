@@ -5,6 +5,7 @@ import {
   Headers,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -12,18 +13,21 @@ import {
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { CreateReceivableUseCase } from '../application/create-receivable.usecase';
 import { GetReceivableUseCase } from '../application/get-receivable.usecase';
+import { ListReceivablesUseCase } from '../application/list-receivables.usecase';
 import { WriteOffReceivableUseCase } from '../application/write-off-receivable.usecase';
 import { CreateReceivableDto } from './dto/create-receivable.dto';
 import {
   toReceivableDetailResponse,
   toReceivableResponse,
 } from './dto/receivable-response.dto';
+import { toReceivableSummaryResponse } from './dto/receivable-summary-response.dto';
 
 @Controller('receivables')
 @UseGuards(PermissionGuard)
@@ -32,8 +36,37 @@ export class ReceivablesController {
     private readonly createReceivableUseCase: CreateReceivableUseCase,
     private readonly writeOffReceivableUseCase: WriteOffReceivableUseCase,
     private readonly getReceivableUseCase: GetReceivableUseCase,
+    private readonly listReceivablesUseCase: ListReceivablesUseCase,
     private readonly idempotency: IdempotencyService,
   ) {}
+
+  @Get()
+  @RequirePermission(Permission.RECEIVABLE_READ)
+  async findMany(
+    @Query() pagination: PaginationDto,
+    @Query('status') status?: string,
+    @Query('salesRepresentativeId') salesRepresentativeId?: string,
+  ) {
+    const result = await this.listReceivablesUseCase.execute({
+      filters: { status, salesRepresentativeId },
+      page: pagination.page,
+      limit: pagination.limit,
+    });
+    return {
+      items: result.items.map((x) =>
+        toReceivableSummaryResponse(
+          x.receivable,
+          x.isOverdue,
+          x.isDisputed,
+          x.disputeId,
+          x.invoiceNumber,
+        ),
+      ),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+    };
+  }
 
   @Post()
   @RequirePermission(Permission.RECEIVABLE_WRITE)
@@ -62,6 +95,7 @@ export class ReceivablesController {
       result.receivable,
       result.isDisputed,
       result.disputeId,
+      result.allocations,
     );
   }
 

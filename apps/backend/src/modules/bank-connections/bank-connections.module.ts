@@ -8,6 +8,7 @@ import { CONNECTION_AUDIT_EVENT_REPOSITORY } from './application/connection-audi
 import { DisconnectConnectionUseCase } from './application/disconnect-connection.usecase';
 import { ExchangeTokenUseCase } from './application/exchange-token.usecase';
 import { InitiateConnectionUseCase } from './application/initiate-connection.usecase';
+import { ListBankConnectionsUseCase } from './application/list-bank-connections.usecase';
 import { MarkRequiresReauthorizationUseCase } from './application/mark-requires-reauthorization.usecase';
 import { SyncTransactionsUseCase } from './application/sync-transactions.usecase';
 import { ACCESS_TOKEN_ENCRYPTION_KEY } from './application/token-encryption-key';
@@ -52,6 +53,7 @@ import { BankConnectionsController } from './presentation/bank-connections.contr
     InitiateConnectionUseCase,
     ExchangeTokenUseCase,
     DisconnectConnectionUseCase,
+    ListBankConnectionsUseCase,
     MarkRequiresReauthorizationUseCase,
     SyncTransactionsUseCase,
   ],
@@ -61,6 +63,7 @@ import { BankConnectionsController } from './presentation/bank-connections.contr
     InitiateConnectionUseCase,
     ExchangeTokenUseCase,
     DisconnectConnectionUseCase,
+    ListBankConnectionsUseCase,
     MarkRequiresReauthorizationUseCase,
     SyncTransactionsUseCase,
   ],

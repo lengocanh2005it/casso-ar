@@ -22,17 +22,30 @@ function buildReceivable(): Receivable {
 }
 
 describe('GetReceivableUseCase', () => {
-  it('returns computed dispute state and the open dispute id', async () => {
+  it('returns computed dispute state, the open dispute id, and active allocations', async () => {
     const receivable = buildReceivable();
+    const allocations = [
+      {
+        id: 'alloc-1',
+        paymentId: 'payment-1',
+        allocatedAmount: 10_000_000,
+        allocatedAt: new Date('2026-08-01'),
+        allocatedByUserId: 'user-1',
+      },
+    ];
     const receivableRepo = {
       findById: jest.fn().mockResolvedValue(receivable),
     };
     const disputeRepo = {
       findOpenDispute: jest.fn().mockResolvedValue({ id: 'dispute-1' }),
     };
+    const paymentAllocationRepo = {
+      findByReceivableId: jest.fn().mockResolvedValue(allocations),
+    };
     const useCase = new GetReceivableUseCase(
       receivableRepo as any,
       disputeRepo as any,
+      paymentAllocationRepo as any,
     );
 
     const result = await useCase.execute('receivable-1');
@@ -41,14 +54,19 @@ describe('GetReceivableUseCase', () => {
       receivable,
       isDisputed: true,
       disputeId: 'dispute-1',
+      allocations,
     });
     expect(disputeRepo.findOpenDispute).toHaveBeenCalledWith('receivable-1');
+    expect(paymentAllocationRepo.findByReceivableId).toHaveBeenCalledWith(
+      'receivable-1',
+    );
   });
 
   it('throws a standard not-found AppError when the receivable is missing', async () => {
     const useCase = new GetReceivableUseCase(
       { findById: jest.fn().mockResolvedValue(null) } as any,
       { findOpenDispute: jest.fn() } as any,
+      { findByReceivableId: jest.fn() } as any,
     );
 
     await expect(useCase.execute('missing')).rejects.toMatchObject({

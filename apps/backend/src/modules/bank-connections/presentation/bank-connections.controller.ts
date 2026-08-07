@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Get,
   Headers,
   Param,
   Post,
+  Query,
   Req,
   UnauthorizedException,
   UseGuards,
@@ -14,6 +16,7 @@ import {
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
@@ -21,6 +24,8 @@ import { RequirePermission } from '../../../common/rbac/require-permission.decor
 import { DisconnectConnectionUseCase } from '../application/disconnect-connection.usecase';
 import { ExchangeTokenUseCase } from '../application/exchange-token.usecase';
 import { InitiateConnectionUseCase } from '../application/initiate-connection.usecase';
+import { ListBankConnectionsUseCase } from '../application/list-bank-connections.usecase';
+import { toBankConnectionResponse } from './dto/bank-connection-response.dto';
 import { ExchangeTokenDto } from './dto/exchange-token.dto';
 import { InitiateConnectionDto } from './dto/initiate-connection.dto';
 
@@ -32,11 +37,27 @@ interface AuthenticatedRequest extends Request {
 @UseGuards(PermissionGuard)
 export class BankConnectionsController {
   constructor(
+    private readonly listBankConnectionsUseCase: ListBankConnectionsUseCase,
     private readonly initiateConnectionUseCase: InitiateConnectionUseCase,
     private readonly exchangeTokenUseCase: ExchangeTokenUseCase,
     private readonly disconnectConnectionUseCase: DisconnectConnectionUseCase,
     private readonly idempotency: IdempotencyService,
   ) {}
+
+  @Get()
+  @RequirePermission(Permission.BANK_CONNECTION_READ)
+  async findAll(@Query() query: PaginationDto) {
+    const result = await this.listBankConnectionsUseCase.execute(
+      query.page,
+      query.limit,
+    );
+    return {
+      items: result.items.map(toBankConnectionResponse),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+    };
+  }
 
   @Post('cas-id/initiate')
   @RequirePermission(Permission.BANK_CONNECTION_MANAGE)

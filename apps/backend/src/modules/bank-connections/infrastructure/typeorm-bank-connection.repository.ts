@@ -54,4 +54,22 @@ export class TypeOrmBankConnectionRepository
       connection.organizationId,
     );
   }
+
+  async findPage(
+    organizationId: string,
+    page: number,
+    limit: number,
+  ): Promise<BankConnection[]> {
+    const rows = await this.ormRepo.find({
+      where: { organizationId },
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return rows.map((row) => new BankConnection(row));
+  }
+
+  async count(organizationId: string): Promise<number> {
+    return this.ormRepo.count({ where: { organizationId } });
+  }
 }

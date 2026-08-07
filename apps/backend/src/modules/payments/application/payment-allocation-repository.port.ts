@@ -7,6 +7,7 @@ export interface IPaymentAllocationRepository {
     manager: EntityManager,
   ): Promise<PaymentAllocation | null>;
   save(allocation: PaymentAllocation, manager: EntityManager): Promise<void>;
+  findByReceivableId(receivableId: string): Promise<PaymentAllocation[]>;
 }
 
 export const PAYMENT_ALLOCATION_REPOSITORY = Symbol(

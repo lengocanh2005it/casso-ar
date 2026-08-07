@@ -4,6 +4,7 @@ import type { User } from '../domain/user';
 export interface IUserRepository {
   findById(id: string, manager?: EntityManager): Promise<User | null>;
   findByEmail(email: string, manager?: EntityManager): Promise<User | null>;
+  findByIds(ids: string[]): Promise<Map<string, User>>;
   save(user: User, manager?: EntityManager): Promise<void>;
 }
 

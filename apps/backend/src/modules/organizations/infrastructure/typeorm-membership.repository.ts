@@ -44,4 +44,26 @@ export class TypeOrmMembershipRepository implements IMembershipRepository {
       : this.repo
     ).save(membership);
   }
+
+  async findPageByOrganization(
+    organizationId: string,
+    page: number,
+    limit: number,
+  ): Promise<Membership[]> {
+    const rows = await this.repo.find({
+      where: { organizationId },
+      order: { createdAt: 'ASC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return rows.map((row) => new Membership(row));
+  }
+
+  async countByOrganization(organizationId: string): Promise<number> {
+    return this.repo
+      .createQueryBuilder('membership')
+      .where('membership.organizationId = :organizationId', { organizationId })
+      .getCount();
+  }
 }

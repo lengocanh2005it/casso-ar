@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager } from 'typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { type IDisputeRepository } from '../application/dispute-repository.port';
@@ -84,6 +84,22 @@ export class TypeOrmDisputeRepository
       },
     });
     return row ? toDomain(row) : null;
+  }
+
+  async findOpenDisputesByReceivableIds(
+    receivableIds: string[],
+  ): Promise<Map<string, string>> {
+    if (receivableIds.length === 0) return new Map();
+    const organizationId = this.tenantContext.getOrganizationId();
+    const rows = await this.ormRepo.find({
+      where: {
+        organizationId,
+        receivableId: In(receivableIds),
+        status: DisputeStatus.OPEN,
+      },
+      select: { id: true, receivableId: true },
+    });
+    return new Map(rows.map((row) => [row.receivableId, row.id]));
   }
 
   async save(dispute: Dispute, manager?: EntityManager): Promise<void> {

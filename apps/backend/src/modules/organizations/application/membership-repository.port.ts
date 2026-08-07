@@ -9,6 +9,12 @@ export interface IMembershipRepository {
   findFirstActiveByUserId(userId: string): Promise<Membership | null>;
   findOwnerByOrganization(organizationId: string): Promise<Membership | null>;
   save(membership: Membership, manager?: EntityManager): Promise<void>;
+  findPageByOrganization(
+    organizationId: string,
+    page: number,
+    limit: number,
+  ): Promise<Membership[]>;
+  countByOrganization(organizationId: string): Promise<number>;
 }
 
 export const MEMBERSHIP_REPOSITORY = Symbol('MEMBERSHIP_REPOSITORY');

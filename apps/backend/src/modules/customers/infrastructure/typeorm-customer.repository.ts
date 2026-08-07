@@ -24,6 +24,21 @@ function toOrm(customer: Customer): CustomerOrmEntity {
   };
 }
 
+function toDomain(row: CustomerOrmEntity): Customer {
+  return {
+    id: row.id,
+    organizationId: row.organizationId,
+    name: row.name,
+    taxCode: row.taxCode,
+    email: row.email,
+    phone: row.phone,
+    defaultPaymentTermDays: row.defaultPaymentTermDays,
+    creditLimit: row.creditLimit,
+    priority: row.priority,
+    createdAt: row.createdAt,
+  };
+}
+
 @Injectable()
 export class TypeOrmCustomerRepository
   extends BaseRepository<CustomerOrmEntity>
@@ -50,5 +65,49 @@ export class TypeOrmCustomerRepository
   async findNameById(id: string): Promise<string | null> {
     const customer = await this.findById(id);
     return customer?.name ?? null;
+  }
+
+  async findPage(
+    organizationId: string,
+    search: string | undefined,
+    page: number,
+    limit: number,
+  ): Promise<Customer[]> {
+    const qb = this.ormRepo
+      .createQueryBuilder('c')
+      .where('c.organizationId = :organizationId', { organizationId });
+
+    if (search) {
+      qb.andWhere(
+        '(c.name ILIKE :search OR c.taxCode ILIKE :search OR c.phone ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    const rows = await qb
+      .orderBy('c.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
+
+    return rows.map(toDomain);
+  }
+
+  async count(
+    organizationId: string,
+    search: string | undefined,
+  ): Promise<number> {
+    const qb = this.ormRepo
+      .createQueryBuilder('c')
+      .where('c.organizationId = :organizationId', { organizationId });
+
+    if (search) {
+      qb.andWhere(
+        '(c.name ILIKE :search OR c.taxCode ILIKE :search OR c.phone ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    return qb.getCount();
   }
 }

@@ -1,0 +1,48 @@
+import { Inject, Injectable } from '@nestjs/common';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import {
+  type ISubscriptionRepository,
+  SUBSCRIPTION_REPOSITORY,
+} from '../../billing/application/subscription-repository.port';
+import {
+  type IUserRepository,
+  USER_REPOSITORY,
+} from '../../users/application/user-repository.port';
+
+@Injectable()
+export class GetUserProfileUseCase {
+  constructor(
+    @Inject(USER_REPOSITORY)
+    private readonly userRepo: IUserRepository,
+    @Inject(SUBSCRIPTION_REPOSITORY)
+    private readonly subscriptionRepo: ISubscriptionRepository,
+    private readonly tenantContext: TenantContextService,
+  ) {}
+
+  async execute(userId: string): Promise<{
+    id: string;
+    email: string;
+    name: string;
+    organizationId: string;
+    subscriptionPlan: string;
+  }> {
+    const user = await this.userRepo.findById(userId);
+    if (!user) {
+      throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy người dùng.');
+    }
+
+    const organizationId = this.tenantContext.getOrganizationId();
+    const subscription =
+      await this.subscriptionRepo.findByOrganizationId(organizationId);
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      organizationId,
+      subscriptionPlan: subscription?.planId ?? 'FREE',
+    };
+  }
+}

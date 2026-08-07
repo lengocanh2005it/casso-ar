@@ -11,6 +11,9 @@ export interface IDisputeRepository {
     receivableId: string,
     manager?: EntityManager,
   ): Promise<Dispute | null>;
+  findOpenDisputesByReceivableIds(
+    receivableIds: string[],
+  ): Promise<Map<string, string>>;
   save(dispute: Dispute, manager?: EntityManager): Promise<void>;
 }
 

@@ -37,6 +37,13 @@ export class TypeOrmSubscriptionRepository
     super(repo, tenantContext);
   }
 
+  async findByOrganizationId(
+    organizationId: string,
+  ): Promise<Subscription | null> {
+    const row = await this.ormRepo.findOne({ where: { organizationId } });
+    return row ? new Subscription(row) : null;
+  }
+
   async lockAndFindByOrganizationId(
     organizationId: string,
     manager: EntityManager,
