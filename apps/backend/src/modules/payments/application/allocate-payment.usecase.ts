@@ -1,12 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { EntityManager } from 'typeorm';
 import { DataSource } from 'typeorm';
 import { AuditContextService } from '../../../common/audit/audit-context';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import {
+  EVENT_PUBLISHER,
+  type IEventPublisher,
+} from '../../../common/events/event-publisher.port';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import {
   type IReceivableRepository,
@@ -41,7 +44,8 @@ export class AllocatePaymentUseCase {
     private readonly dataSource: DataSource,
     private readonly tenantContext: TenantContextService,
     private readonly auditContext: AuditContextService,
-    private readonly eventEmitter: EventEmitter2,
+    @Inject(EVENT_PUBLISHER)
+    private readonly eventPublisher: IEventPublisher,
   ) {}
 
   async execute(input: AllocatePaymentInput): Promise<void> {
@@ -76,7 +80,7 @@ export class AllocatePaymentUseCase {
     customerId: string;
     becameClosed: boolean;
   }): Promise<void> {
-    await this.eventEmitter.emitAsync('payment.allocated', {
+    await this.eventPublisher.emitAsync('payment.allocated', {
       paymentId: input.paymentId,
       receivableId: input.receivableId,
       customerId: input.customerId,
@@ -86,7 +90,7 @@ export class AllocatePaymentUseCase {
     });
 
     if (input.becameClosed) {
-      await this.eventEmitter.emitAsync('receivable.closed', {
+      await this.eventPublisher.emitAsync('receivable.closed', {
         receivableId: input.receivableId,
         customerId: input.customerId,
         organizationId: input.organizationId,
@@ -94,7 +98,7 @@ export class AllocatePaymentUseCase {
       // Separate, distinctly-named event for the internal-task-escalation
       // plan's auto-dismiss listener (any close reason), not just this
       // PAID-only 'receivable.closed'.
-      await this.eventEmitter.emitAsync('receivable.status-closed', {
+      await this.eventPublisher.emitAsync('receivable.status-closed', {
         receivableId: input.receivableId,
         organizationId: input.organizationId,
       });
