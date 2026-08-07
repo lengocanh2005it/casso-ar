@@ -1,4 +1,5 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { Role } from '../../organizations/domain/membership';
 import { CreateReceivableUseCase } from './create-receivable.usecase';
 
@@ -74,7 +75,7 @@ describe('CreateReceivableUseCase', () => {
         dueDate: new Date('2026-09-01'),
         salesRepresentativeId: null,
       }),
-    ).rejects.toThrow('Customer not found');
+    ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
 
     expect(repo.save).not.toHaveBeenCalled();
   });

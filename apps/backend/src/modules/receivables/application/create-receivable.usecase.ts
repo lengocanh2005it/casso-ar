@@ -3,6 +3,8 @@ import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { DataSource } from 'typeorm';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { PlanLimitService } from '../../billing/application/plan-limit.service';
 import {
@@ -38,7 +40,7 @@ export class CreateReceivableUseCase {
     // what prevents a receivable from being created against another tenant's customer.
     const customer = await this.customerRepo.findById(input.customerId);
     if (!customer) {
-      throw new Error('Customer not found');
+      throw new AppError(ErrorCode.NOT_FOUND, 'Khách hàng không tồn tại');
     }
 
     return this.dataSource.transaction(async (manager: EntityManager) => {
