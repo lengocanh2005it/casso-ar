@@ -184,9 +184,6 @@ describe('MatchBankTransactionUseCase', () => {
       expect.anything(),
     );
     expect(auditContext.setBefore).toHaveBeenCalled();
-    expect(auditContext.setAfter).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'MATCHED' }),
-    );
     expect(result.status).toBe('MATCHED');
   });
 

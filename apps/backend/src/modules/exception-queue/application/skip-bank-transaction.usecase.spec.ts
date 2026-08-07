@@ -52,6 +52,7 @@ describe('SkipBankTransactionUseCase', () => {
       manager,
     );
     expect(auditContext.setBefore).toHaveBeenCalledWith(transaction);
+    expect(auditContext.setAfter).not.toHaveBeenCalled();
   });
 
   it('returns an already ignored transaction without writing it again', async () => {

@@ -16,6 +16,10 @@ export interface BankTransactionResponseDto {
   transferContent: string;
   status: BankTransaction['status'];
   createdAt: Date;
+  // Exception Queue spec §1: the accountant must round-trip this value in
+  // POST /bank-transactions/:id/match to prove they're acting on the
+  // current row — the one documented exception to "never leak version".
+  version: number;
 }
 
 export interface MatchingCandidateResponseDto {
@@ -68,6 +72,7 @@ export function toBankTransactionResponse(
     transferContent: transaction.transferContent,
     status: transaction.status,
     createdAt: transaction.createdAt,
+    version: transaction.version,
   };
 }
 

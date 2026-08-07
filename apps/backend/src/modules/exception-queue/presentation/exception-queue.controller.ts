@@ -13,6 +13,8 @@ import {
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
@@ -43,6 +45,14 @@ export class ExceptionQueueController {
     private readonly tenantContext: TenantContextService,
     private readonly idempotency: IdempotencyService,
   ) {}
+
+  private getCurrentUserIdOrThrow(): string {
+    const user = this.tenantContext.getCurrentUser();
+    if (!user) {
+      throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
+    }
+    return user.userId;
+  }
 
   @Get('unmatched')
   @RequirePermission(Permission.PAYMENT_ALLOCATE)
@@ -83,8 +93,7 @@ export class ExceptionQueueController {
             bankTransactionId: id,
             allocations: dto.allocations,
             version: dto.version,
-            allocatedByUserId:
-              this.tenantContext.getCurrentUser()?.userId ?? 'system',
+            allocatedByUserId: this.getCurrentUserIdOrThrow(),
           }),
         ),
     );

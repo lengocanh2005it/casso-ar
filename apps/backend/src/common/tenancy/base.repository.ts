@@ -1,5 +1,6 @@
 import type {
   EntityManager,
+  FindOptionsOrder,
   FindOptionsSelect,
   FindOptionsWhere,
   Repository,
@@ -8,6 +9,7 @@ import { TenantContextService } from './tenant-context';
 
 export interface ScopedFindManyOptions<TEntity> {
   select?: FindOptionsSelect<TEntity>;
+  order?: FindOptionsOrder<TEntity>;
   skip?: number;
   take?: number;
 }

@@ -1,4 +1,4 @@
-import { CallHandler, ExecutionContext } from '@nestjs/common';
+import { CallHandler, ExecutionContext, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { lastValueFrom, of, throwError } from 'rxjs';
 import { AuditActionType } from './audit.enums';
@@ -92,6 +92,30 @@ describe('AuditInterceptor', () => {
       lastValueFrom(interceptor.intercept(buildContext(undefined), handler)),
     ).rejects.toThrow('boom');
     expect(auditLogRepo.create).not.toHaveBeenCalled();
+  });
+
+  it('logs instead of silently dropping a failed audit write', async () => {
+    const { interceptor, auditLogRepo } = buildInterceptor({
+      actionType: AuditActionType.RECEIVABLE_WRITE_OFF,
+      entityType: 'Receivable',
+    });
+    auditLogRepo.create.mockRejectedValue(new Error('db unavailable'));
+    const handler: CallHandler = {
+      handle: () => of({ id: 'rec-1', status: 'WRITTEN_OFF' }),
+    };
+    const errorSpy = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+
+    await lastValueFrom(
+      interceptor.intercept(buildContext(undefined), handler),
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Failed to write audit log' }),
+    );
+    errorSpy.mockRestore();
   });
 
   it('passes through undecorated handlers without reading tenant context', async () => {

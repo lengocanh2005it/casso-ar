@@ -59,7 +59,7 @@ function buildUseCase(
 }
 
 describe('MarkPrepaidBankTransactionUseCase', () => {
-  it('creates an unallocated customer payment and marks the transaction matched', async () => {
+  it('creates an unallocated customer payment and marks the transaction prepaid', async () => {
     const { useCase, paymentRepo, bankTransactionRepo, auditContext } =
       buildUseCase();
 
@@ -77,11 +77,11 @@ describe('MarkPrepaidBankTransactionUseCase', () => {
       expect.anything(),
     );
     expect(bankTransactionRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'MATCHED' }),
+      expect.objectContaining({ status: 'PREPAID' }),
       expect.anything(),
     );
     expect(auditContext.setBefore).toHaveBeenCalled();
-    expect(result.transaction.status).toBe('MATCHED');
+    expect(result.transaction.status).toBe('PREPAID');
   });
 
   it('rejects a transaction already processed', async () => {

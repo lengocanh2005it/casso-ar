@@ -61,7 +61,8 @@ export class MarkPrepaidBankTransactionUseCase {
       }
       if (
         transaction.status === 'MATCHED' ||
-        transaction.status === 'IGNORED'
+        transaction.status === 'IGNORED' ||
+        transaction.status === 'PREPAID'
       ) {
         throw new AppError(ErrorCode.CONFLICT, 'Giao dịch đã được xử lý.');
       }
@@ -75,6 +76,7 @@ export class MarkPrepaidBankTransactionUseCase {
       }
 
       this.auditContext.setBefore(transaction);
+      const prepaid = transaction.markPrepaid();
       const payment = new Payment({
         id: randomUUID(),
         organizationId: this.tenantContext.getOrganizationId(),
@@ -87,11 +89,8 @@ export class MarkPrepaidBankTransactionUseCase {
         createdAt: new Date(),
       });
       await this.paymentRepo.save(payment, manager);
-
-      const matched = transaction.markMatched();
-      await this.bankTransactionRepo.save(matched, manager);
-      this.auditContext.setAfter(matched);
-      return { transaction: matched, payment };
+      await this.bankTransactionRepo.save(prepaid, manager);
+      return { transaction: prepaid, payment };
     });
   }
 }

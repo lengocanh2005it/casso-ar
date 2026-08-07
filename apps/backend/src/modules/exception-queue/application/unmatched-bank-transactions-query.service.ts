@@ -34,14 +34,13 @@ export class UnmatchedBankTransactionsQueryService {
   ) {}
 
   async execute(page = 1, limit = 20): Promise<UnmatchedBankTransactionPage> {
-    const transactions =
-      await this.bankTransactionRepo.findManyByStatus('PENDING_REVIEW');
-    // ponytail: in-memory paging for the MVP; switch to SQL LIMIT/OFFSET plus
-    // COUNT when pending-review volume makes loading the full queue measurable.
-    const pageTransactions = transactions.slice(
-      (page - 1) * limit,
-      page * limit,
-    );
+    const [pageTransactions, total] = await Promise.all([
+      this.bankTransactionRepo.findManyByStatus('PENDING_REVIEW', {
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.bankTransactionRepo.countByStatus('PENDING_REVIEW'),
+    ]);
     const topCandidates =
       await this.matchingCandidateRepo.findTopByBankTransactionIds(
         pageTransactions.map((transaction) => transaction.id),
@@ -51,7 +50,7 @@ export class UnmatchedBankTransactionsQueryService {
         transaction,
         topCandidate: topCandidates.get(transaction.id) ?? null,
       })),
-      total: transactions.length,
+      total,
       page,
       limit,
     };

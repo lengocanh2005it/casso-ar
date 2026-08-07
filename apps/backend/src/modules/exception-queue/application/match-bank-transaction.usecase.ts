@@ -186,7 +186,6 @@ export class MatchBankTransactionUseCase {
 
       const matchedTransaction = transaction.markMatched();
       await this.bankTransactionRepo.save(matchedTransaction, manager);
-      this.auditContext.setAfter(matchedTransaction);
       return matchedTransaction;
     });
   }

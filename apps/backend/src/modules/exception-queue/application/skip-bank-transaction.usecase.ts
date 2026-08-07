@@ -39,7 +39,6 @@ export class SkipBankTransactionUseCase {
       this.auditContext.setBefore(transaction);
       const ignored = transaction.markIgnored();
       await this.bankTransactionRepo.save(ignored, manager);
-      this.auditContext.setAfter(ignored);
       return ignored;
     });
   }

@@ -3,6 +3,7 @@ import {
   type ExecutionContext,
   Inject,
   Injectable,
+  Logger,
   type NestInterceptor,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -40,6 +41,8 @@ function responseId(value: unknown): string | undefined {
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(AuditInterceptor.name);
+
   constructor(
     private readonly reflector: Reflector,
     private readonly auditContext: AuditContextService,
@@ -81,7 +84,17 @@ export class AuditInterceptor implements NestInterceptor {
               });
               // ponytail: audit is fire-and-forget per the plan; keep a failed
               // audit write from turning a successful business request into 500.
-              void this.auditLogRepo.create(log).catch(() => undefined);
+              void this.auditLogRepo.create(log).catch((error: unknown) => {
+                this.logger.error({
+                  message: 'Failed to write audit log',
+                  actionType: metadata.actionType,
+                  entityType: metadata.entityType,
+                  entityId,
+                  organizationId: user.organizationId,
+                  userId: user.userId,
+                  error,
+                });
+              });
             }),
           )
           .subscribe(subscriber);

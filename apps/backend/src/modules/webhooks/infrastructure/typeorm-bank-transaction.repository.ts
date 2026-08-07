@@ -67,8 +67,12 @@ export class TypeOrmBankTransactionRepository
 
   async findManyByStatus(
     status: BankTransactionStatus,
+    options?: { skip?: number; take?: number },
   ): Promise<BankTransaction[]> {
-    const rows = await this.scopedFindMany({ status });
+    const rows = await this.scopedFindMany(
+      { status },
+      { order: { createdAt: 'ASC' }, ...options },
+    );
     return rows.map((row) => new BankTransaction(row));
   }
 

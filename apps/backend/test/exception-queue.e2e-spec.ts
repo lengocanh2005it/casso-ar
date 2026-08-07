@@ -131,11 +131,15 @@ describe('Exception Queue (e2e)', () => {
     return id;
   }
 
-  async function transactionVersion(id: string): Promise<number> {
-    const row = await dataSource
-      .getRepository(BankTransactionOrmEntity)
-      .findOneByOrFail({ id });
-    return Number(row.version);
+  async function fetchVersionViaApi(id: string): Promise<number> {
+    const unmatched = await request(app.getHttpServer())
+      .get('/api/v1/bank-transactions/unmatched')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    const item = unmatched.body.items.find(
+      (entry: { transaction: { id: string } }) => entry.transaction.id === id,
+    );
+    return item.transaction.version;
   }
 
   it('lets exactly one of two concurrent match requests succeed', async () => {
@@ -144,7 +148,7 @@ describe('Exception Queue (e2e)', () => {
     const transactionId = await createReviewTransaction(30_000_000);
     const body = {
       allocations: [{ receivableId, amount: 30_000_000 }],
-      version: await transactionVersion(transactionId),
+      version: await fetchVersionViaApi(transactionId),
     };
 
     const [first, second] = await Promise.all([
@@ -188,7 +192,7 @@ describe('Exception Queue (e2e)', () => {
           { receivableId: receivableIdA, amount: 20_000_000 },
           { receivableId: receivableIdB, amount: 5_000_000 },
         ],
-        version: await transactionVersion(transactionId),
+        version: await fetchVersionViaApi(transactionId),
       })
       .expect(201);
 

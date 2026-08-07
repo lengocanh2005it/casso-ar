@@ -11,7 +11,10 @@ export interface IBankTransactionRepository {
     id: string,
     manager: EntityManager,
   ): Promise<BankTransaction | null>;
-  findManyByStatus(status: BankTransactionStatus): Promise<BankTransaction[]>;
+  findManyByStatus(
+    status: BankTransactionStatus,
+    options?: { skip?: number; take?: number },
+  ): Promise<BankTransaction[]>;
   countByStatus(status: BankTransactionStatus): Promise<number>;
 }
 
