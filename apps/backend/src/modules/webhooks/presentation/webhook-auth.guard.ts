@@ -23,8 +23,11 @@ export class WebhookAuthGuard implements CanActivate {
     }>().headers;
     const clientId = headers['x-client-id'];
     const secretKey = headers['x-secret-key'];
-    const expectedClientId = process.env.CASSO_WEBHOOK_CLIENT_ID ?? '';
-    const expectedSecretKey = process.env.CASSO_WEBHOOK_SECRET_KEY ?? '';
+    const expectedClientId = process.env.CASSO_WEBHOOK_CLIENT_ID;
+    const expectedSecretKey = process.env.CASSO_WEBHOOK_SECRET_KEY;
+    if (!expectedClientId || !expectedSecretKey) {
+      throw new UnauthorizedException('Webhook credentials not configured');
+    }
     if (
       typeof clientId !== 'string' ||
       typeof secretKey !== 'string' ||
