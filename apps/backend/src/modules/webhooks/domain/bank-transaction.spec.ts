@@ -22,6 +22,7 @@ describe('BankTransaction', () => {
     expect(transaction.markMatched().status).toBe('MATCHED');
     expect(transaction.markPendingReview().status).toBe('PENDING_REVIEW');
     expect(transaction.markIgnored().status).toBe('IGNORED');
+    expect(transaction.markPrepaid().status).toBe('PREPAID');
     expect(transaction.isRefund()).toBe(false);
     expect(new BankTransaction({ ...props, amount: -1 }).isRefund()).toBe(true);
   });

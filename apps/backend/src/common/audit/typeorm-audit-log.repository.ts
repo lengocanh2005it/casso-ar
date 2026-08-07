@@ -1,27 +1,35 @@
 import { Injectable } from '@nestjs/common';
-import type { EntityManager } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import type { EntityManager, Repository } from 'typeorm';
 import type { AuditLog } from './audit-log';
+import { AuditLogOrmEntity } from './audit-log.orm-entity';
 import type { IAuditLogRepository } from './audit-log-repository.port';
+
+function toOrm(log: AuditLog): AuditLogOrmEntity {
+  return {
+    id: log.id,
+    organizationId: log.organizationId,
+    userId: log.userId,
+    actionType: log.actionType,
+    entityType: log.entityType,
+    entityId: log.entityId,
+    beforeState: log.beforeState,
+    afterState: log.afterState,
+    ipAddress: log.ipAddress,
+    createdAt: log.createdAt,
+  };
+}
 
 @Injectable()
 export class TypeOrmAuditLogRepository implements IAuditLogRepository {
+  constructor(
+    @InjectRepository(AuditLogOrmEntity)
+    private readonly repo: Repository<AuditLogOrmEntity>,
+  ) {}
+
   async create(log: AuditLog, manager?: EntityManager): Promise<void> {
-    if (manager) {
-      await manager.query(
-        `INSERT INTO audit_logs ("organizationId", "userId", "actionType", "entityType", "entityId", "beforeState", "afterState", "ipAddress", "createdAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [
-          log.organizationId,
-          log.userId,
-          log.actionType,
-          log.entityType,
-          log.entityId,
-          JSON.stringify(log.beforeState),
-          JSON.stringify(log.afterState),
-          log.ipAddress,
-          log.createdAt,
-        ],
-      );
-    }
+    const row = toOrm(log);
+    const executor = manager ?? this.repo.manager;
+    await executor.save(AuditLogOrmEntity, row);
   }
 }

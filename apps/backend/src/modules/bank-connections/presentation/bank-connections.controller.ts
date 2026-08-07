@@ -8,6 +8,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../../../common/audit/audit.enums';
+import { Audited } from '../../../common/audit/audited.decorator';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
@@ -75,6 +80,10 @@ export class BankConnectionsController {
 
   @Post(':id/disconnect')
   @RequirePermission(Permission.BANK_CONNECTION_MANAGE)
+  @Audited(
+    AuditActionType.BANK_CONNECTION_DISCONNECT,
+    AuditEntityType.BANK_CONNECTION,
+  )
   async disconnect(
     @Param('id') connectionId: string,
     @Headers('idempotency-key') key: string | undefined,

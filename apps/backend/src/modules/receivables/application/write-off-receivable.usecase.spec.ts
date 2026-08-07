@@ -30,10 +30,12 @@ describe('WriteOffReceivableUseCase', () => {
         callback(manager),
       ),
     };
+    const auditContext = { setBefore: jest.fn() };
 
     const useCase = new WriteOffReceivableUseCase(
       receivableRepo as any,
       dataSource as any,
+      auditContext as any,
     );
     const result = await useCase.execute('rec-1');
 
@@ -42,6 +44,7 @@ describe('WriteOffReceivableUseCase', () => {
       expect.objectContaining({ status: ReceivableStatus.WRITTEN_OFF }),
       manager,
     );
+    expect(auditContext.setBefore).toHaveBeenCalledWith(receivable);
   });
 
   it('throws if receivable not found', async () => {
@@ -54,9 +57,11 @@ describe('WriteOffReceivableUseCase', () => {
         callback({} as EntityManager),
       ),
     };
+    const auditContext = { setBefore: jest.fn() };
     const useCase = new WriteOffReceivableUseCase(
       receivableRepo as any,
       dataSource as any,
+      auditContext as any,
     );
 
     await expect(useCase.execute('missing')).rejects.toThrow(

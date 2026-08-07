@@ -6,6 +6,11 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../../../common/audit/audit.enums';
+import { Audited } from '../../../common/audit/audited.decorator';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
@@ -28,6 +33,7 @@ export class PaymentsController {
   @Post(':id/allocate')
   @UseGuards(PermissionGuard)
   @RequirePermission(Permission.PAYMENT_ALLOCATE)
+  @Audited(AuditActionType.PAYMENT_ALLOCATE, AuditEntityType.PAYMENT)
   async allocate(
     @Param('id') paymentId: string,
     @Body() dto: AllocatePaymentDto,

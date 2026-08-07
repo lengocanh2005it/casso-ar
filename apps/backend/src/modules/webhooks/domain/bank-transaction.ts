@@ -2,7 +2,8 @@ export type BankTransactionStatus =
   | 'UNMATCHED'
   | 'PENDING_REVIEW'
   | 'MATCHED'
-  | 'IGNORED';
+  | 'IGNORED'
+  | 'PREPAID';
 
 export interface BankTransactionProps {
   id: string;
@@ -52,5 +53,8 @@ export class BankTransaction {
   }
   markIgnored(): BankTransaction {
     return new BankTransaction({ ...this, status: 'IGNORED' });
+  }
+  markPrepaid(): BankTransaction {
+    return new BankTransaction({ ...this, status: 'PREPAID' });
   }
 }

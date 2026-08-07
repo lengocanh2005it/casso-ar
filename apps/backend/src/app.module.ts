@@ -10,6 +10,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtStrategy } from './common/auth/jwt.strategy';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
+import { AuditModule } from './common/audit/audit.module';
 import { IdempotencyModule } from './common/idempotency/idempotency.module';
 import { TenancyModule } from './common/tenancy/tenancy.module';
 import { TenantContextInterceptor } from './common/tenancy/tenant-context.interceptor';
@@ -31,6 +32,7 @@ import { UsersModule } from './modules/users/users.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { EmailVerifiedGuard } from './modules/auth/presentation/email-verified.guard';
+import { ExceptionQueueModule } from './modules/exception-queue/exception-queue.module';
 
 @Module({
   imports: [
@@ -52,6 +54,7 @@ import { EmailVerifiedGuard } from './modules/auth/presentation/email-verified.g
     }),
     TenancyModule,
     IdempotencyModule,
+    AuditModule,
     OrganizationsModule,
     BillingModule,
     BankConnectionsModule,
@@ -66,6 +69,7 @@ import { EmailVerifiedGuard } from './modules/auth/presentation/email-verified.g
     RemindersModule,
     NotificationsModule,
     WebhooksModule,
+    ExceptionQueueModule,
   ],
   providers: [
     JwtStrategy,
