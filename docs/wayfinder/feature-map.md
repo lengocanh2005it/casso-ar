@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #7, #8, #9, #13, #18 complete, remaining Plan #10+ pending
+**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #7, #8, #9, #10, #13, #17, #18 complete, remaining Plan #11, #12, #14–#16, #19–#23 pending
 
 ---
 
@@ -87,9 +87,9 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Ticket Index
 
-**26 plans** | status snapshot (2026-08-07):
-- 🟢 done (11): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #13, Plan #18
-- 🔴 open/not started (15): Plan #10–#12, #14–#17, #19–#23 + 3 additional plans
+**27 plans** | status snapshot (2026-08-07):
+- 🟢 done (14): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #13, Plan #17, Plan #18, Application Layer Boundary Enforcement
+- 🔴 open/not started (13): Plan #11, #12, #14–#16, #19–#23 + Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
 
 ---
 
@@ -388,7 +388,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE + FE
 - **Spec**: `specs/2026-08-03-collection-copilot-design.md`
-- **Blockers**: Plan #2 ✅, Plan #6 ✅, Plan #7 ✅, Plan #10, Plan #12
+- **Blockers**: Plan #2 ✅, Plan #6 ✅, Plan #7 ✅, Plan #10 ✅, Plan #12
 - **Key entities**: `CopilotConversation`, `CopilotMessage`, `CopilotPendingAction`, `CopilotDraft`, `AIUsageLog`
 - **Key rules**:
   - Chat-based AI (Claude via `@anthropic-ai/sdk`)
