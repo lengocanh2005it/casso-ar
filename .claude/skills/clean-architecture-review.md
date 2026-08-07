@@ -4,7 +4,7 @@ Review backend PRs for Clean Architecture compliance only. Do not modify code un
 
 ## Diff and context
 
-1. Read `AGENTS.md` and the relevant `.claude/rules/{domain,application,infrastructure,api}.md` files for changed backend layers.
+1. Read `AGENTS.md` and the relevant `.claude/rules/{domain,application,infrastructure,api}.md` files for changed backend layers. For changed backend module files, read `.claude/rules/module-wiring.md` before reviewing module composition roots.
 2. Resolve the committed review range:
 
    ```bash
