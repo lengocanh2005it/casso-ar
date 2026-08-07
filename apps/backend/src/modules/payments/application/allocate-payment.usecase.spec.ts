@@ -58,6 +58,7 @@ describe('AllocatePaymentUseCase', () => {
       ),
     };
     const auditContext = { setBefore: jest.fn(), setAfter: jest.fn() };
+    const eventEmitter = { emit: jest.fn(), emitAsync: jest.fn() };
 
     const useCase = new AllocatePaymentUseCase(
       receivableRepo as any,
@@ -66,6 +67,7 @@ describe('AllocatePaymentUseCase', () => {
       dataSource as any,
       tenantContext as any,
       auditContext as any,
+      eventEmitter as any,
     );
 
     await useCase.execute({
@@ -92,6 +94,86 @@ describe('AllocatePaymentUseCase', () => {
       receivable,
     });
     expect(auditContext.setAfter).not.toHaveBeenCalled();
+    expect(eventEmitter.emitAsync).toHaveBeenCalledWith('payment.allocated', {
+      paymentId: 'pay-1',
+      receivableId: 'rec-1',
+      customerId: 'cust-1',
+      organizationId: 'org-1',
+      amount: 30_000_000,
+      allocatedByUserId: 'user-1',
+    });
+    expect(eventEmitter.emitAsync).not.toHaveBeenCalledWith(
+      'receivable.closed',
+      expect.anything(),
+    );
+  });
+
+  it('emits payment.allocated and receivable.closed when the allocation fully pays off the receivable', async () => {
+    const receivable = new Receivable({
+      id: 'rec-1',
+      organizationId: 'org-1',
+      customerId: 'cust-1',
+      invoiceId: 'inv-1',
+      originalAmount: 30_000_000,
+      paidAmount: 0,
+      dueDate: new Date('2026-08-20'),
+      status: ReceivableStatus.OPEN,
+      salesRepresentativeId: 'user-1',
+      createdAt: new Date('2026-07-20'),
+      closedAt: null,
+      version: 1,
+    });
+    const payment = buildPayment();
+
+    const receivableRepo = {
+      findByIdForUpdate: jest.fn().mockResolvedValue(receivable),
+      save: jest.fn(),
+      findById: jest.fn(),
+    };
+    const paymentRepo = {
+      findByIdForUpdate: jest.fn().mockResolvedValue(payment),
+      save: jest.fn(),
+    };
+    const allocationRepo = { save: jest.fn() };
+    const tenantContext = { getOrganizationId: () => 'org-1' };
+    const dataSource = {
+      transaction: jest.fn((cb: (m: EntityManager) => Promise<void>) =>
+        cb({} as EntityManager),
+      ),
+    };
+    const auditContext = { setBefore: jest.fn(), setAfter: jest.fn() };
+    const eventEmitter = { emit: jest.fn(), emitAsync: jest.fn() };
+
+    const useCase = new AllocatePaymentUseCase(
+      receivableRepo as any,
+      paymentRepo as any,
+      allocationRepo as any,
+      dataSource as any,
+      tenantContext as any,
+      auditContext as any,
+      eventEmitter as any,
+    );
+
+    await useCase.execute({
+      paymentId: 'pay-1',
+      receivableId: 'rec-1',
+      amount: 30_000_000,
+      allocatedByUserId: 'user-1',
+    });
+
+    expect(eventEmitter.emitAsync).toHaveBeenCalledWith(
+      'payment.allocated',
+      expect.objectContaining({ amount: 30_000_000 }),
+    );
+    expect(eventEmitter.emitAsync).toHaveBeenCalledWith('receivable.closed', {
+      receivableId: 'rec-1',
+      customerId: 'cust-1',
+      organizationId: 'org-1',
+    });
+    expect(eventEmitter.emitAsync).not.toHaveBeenCalledWith(
+      'receivable.status-closed',
+      expect.anything(),
+    );
   });
 
   it.each([0, -1, 1.5])(
@@ -107,6 +189,7 @@ describe('AllocatePaymentUseCase', () => {
       };
       const tenantContext = { getOrganizationId: () => 'org-1' };
       const auditContext = { setBefore: jest.fn(), setAfter: jest.fn() };
+      const eventEmitter = { emit: jest.fn(), emitAsync: jest.fn() };
       const useCase = new AllocatePaymentUseCase(
         receivableRepo as any,
         paymentRepo as any,
@@ -114,6 +197,7 @@ describe('AllocatePaymentUseCase', () => {
         dataSource as any,
         tenantContext as any,
         auditContext as any,
+        eventEmitter as any,
       );
 
       await expect(
@@ -145,6 +229,8 @@ describe('AllocatePaymentUseCase', () => {
       ),
     };
 
+    const eventEmitter = { emit: jest.fn(), emitAsync: jest.fn() };
+
     const useCase = new AllocatePaymentUseCase(
       receivableRepo as any,
       paymentRepo as any,
@@ -152,6 +238,7 @@ describe('AllocatePaymentUseCase', () => {
       dataSource as any,
       { getOrganizationId: () => 'org-1' } as any,
       { setBefore: jest.fn(), setAfter: jest.fn() } as any,
+      eventEmitter as any,
     );
 
     await expect(
@@ -162,5 +249,6 @@ describe('AllocatePaymentUseCase', () => {
         allocatedByUserId: 'user-1',
       }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.RECEIVABLE_NOT_FOUND });
+    expect(eventEmitter.emitAsync).not.toHaveBeenCalled();
   });
 });
