@@ -72,8 +72,13 @@ function buildUseCase(
   const manager = {} as EntityManager;
   const dataSource = {
     transaction: jest.fn(
-      (callback: (value: EntityManager) => Promise<unknown>) =>
-        callback(manager),
+      async (callback: (value: EntityManager) => Promise<unknown>) => {
+        const result = await callback(manager);
+        expect(
+          allocatePaymentUseCase.emitAllocationEvents,
+        ).not.toHaveBeenCalled();
+        return result;
+      },
     ),
   };
   const tenantContext = { getOrganizationId: () => 'org-1' };

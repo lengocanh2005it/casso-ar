@@ -45,7 +45,11 @@ describe('ProcessWebhookUseCase', () => {
     };
     const dataSource = {
       transaction: jest.fn(
-        async (callback: (manager: object) => Promise<void>) => callback({}),
+        async (callback: (manager: object) => Promise<void>) => {
+          const result = await callback({});
+          expect(allocation.emitAllocationEvents).not.toHaveBeenCalled();
+          return result;
+        },
       ),
     };
     const tenant = {
@@ -107,7 +111,11 @@ describe('ProcessWebhookUseCase', () => {
     };
     const dataSource = {
       transaction: jest.fn(
-        async (callback: (manager: object) => Promise<void>) => callback({}),
+        async (callback: (manager: object) => Promise<void>) => {
+          const result = await callback({});
+          expect(allocation.emitAllocationEvents).not.toHaveBeenCalled();
+          return result;
+        },
       ),
     };
     const tenant = {
@@ -149,7 +157,11 @@ describe('ProcessWebhookUseCase', () => {
     };
     const dataSource = {
       transaction: jest.fn(
-        async (callback: (manager: object) => Promise<void>) => callback({}),
+        async (callback: (manager: object) => Promise<void>) => {
+          const result = await callback({});
+          expect(allocation.emitAllocationEvents).not.toHaveBeenCalled();
+          return result;
+        },
       ),
     };
     const tenant = {
