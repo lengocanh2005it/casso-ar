@@ -1,4 +1,5 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { In, IsNull, Not } from 'typeorm';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { Role } from '../../organizations/domain/membership';
 import { Receivable } from '../domain/receivable';
@@ -59,8 +60,8 @@ describe('TypeOrmReceivableRepository', () => {
 
     expect(ormRepo.find).toHaveBeenCalledWith({
       where: {
-        id: expect.anything(),
-        invoiceId: expect.anything(),
+        id: In(['rec-1', 'rec-2']),
+        invoiceId: Not(IsNull()),
         organizationId: 'org-1',
       },
       select: { id: true, invoiceId: true },
