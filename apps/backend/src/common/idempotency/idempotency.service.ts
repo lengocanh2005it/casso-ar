@@ -5,6 +5,16 @@ import { ErrorCode } from '../errors/error-code';
 import { TenantContextService } from '../tenancy/tenant-context';
 import { IdempotencyKeyOrmEntity } from './idempotency-key.orm-entity';
 
+function canonicalize(obj: unknown): string {
+  if (obj === undefined) return 'undefined';
+  if (obj === null || typeof obj !== 'object') return JSON.stringify(obj);
+  if (Array.isArray(obj)) {
+    return `[${obj.map(canonicalize).join(',')}]`;
+  }
+  const sorted = Object.keys(obj).sort();
+  return `{${sorted.map((k) => `${JSON.stringify(k)}:${canonicalize((obj as Record<string, unknown>)[k])}`).join(',')}}`;
+}
+
 @Injectable()
 export class IdempotencyService {
   constructor(
@@ -26,7 +36,7 @@ export class IdempotencyService {
     }
     const organizationId = this.tenantContext.getOrganizationId();
     const requestHash = createHash('sha256')
-      .update(JSON.stringify(input))
+      .update(canonicalize(input))
       .digest('hex');
     const existing = await this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(IdempotencyKeyOrmEntity);

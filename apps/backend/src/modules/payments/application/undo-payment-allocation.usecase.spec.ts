@@ -1,5 +1,7 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { EntityManager } from 'typeorm';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { Receivable } from '../../receivables/domain/receivable';
 import { Payment } from '../domain/payment';
 import { PaymentAllocation } from '../domain/payment-allocation';
@@ -96,7 +98,9 @@ describe('UndoPaymentAllocationUseCase', () => {
         deletedByUserId: 'user-2',
         undoReason: 'Again',
       }),
-    ).rejects.toThrow('already undone');
+    ).rejects.toMatchObject({
+      errorCode: ErrorCode.ALLOCATION_ALREADY_UNDONE,
+    });
     expect(auditLogRepo.create).toHaveBeenCalledTimes(1);
   });
 });

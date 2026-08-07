@@ -2,6 +2,7 @@ import { EmailQueueProcessor } from './email-queue.processor';
 
 function buildJob(attemptsMade = 1, attempts = 3) {
   return {
+    name: 'send-reminder-email',
     id: 'exec-1',
     data: {
       reminderExecutionId: 'exec-1',

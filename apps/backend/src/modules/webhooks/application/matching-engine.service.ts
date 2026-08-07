@@ -60,7 +60,7 @@ export class MatchingEngineService {
           transaction.transactionDateTime,
         );
 
-    let invoiceByReceivableId = await this.invoiceRepo.findByReceivableIds(
+    let invoiceByReceivableId = await this.findInvoicesByReceivableIds(
       receivables.map((receivable) => receivable.id),
     );
 
@@ -73,7 +73,7 @@ export class MatchingEngineService {
       if (customerId) {
         receivables =
           await this.receivableRepo.findOpenByCustomerId(customerId);
-        invoiceByReceivableId = await this.invoiceRepo.findByReceivableIds(
+        invoiceByReceivableId = await this.findInvoicesByReceivableIds(
           receivables.map((receivable) => receivable.id),
         );
       }
@@ -117,6 +117,22 @@ export class MatchingEngineService {
       };
     });
     return scored.sort((left, right) => right.totalScore - left.totalScore);
+  }
+
+  private async findInvoicesByReceivableIds(
+    receivableIds: string[],
+  ): Promise<Map<string, Invoice>> {
+    const invoiceIdsByReceivableId =
+      await this.receivableRepo.findInvoiceIdsByReceivableIds(receivableIds);
+    const invoicesById = await this.invoiceRepo.findByIds([
+      ...invoiceIdsByReceivableId.values(),
+    ]);
+    const invoicesByReceivableId = new Map<string, Invoice>();
+    for (const [receivableId, invoiceId] of invoiceIdsByReceivableId) {
+      const invoice = invoicesById.get(invoiceId);
+      if (invoice) invoicesByReceivableId.set(receivableId, invoice);
+    }
+    return invoicesByReceivableId;
   }
 
   // Spec §3: customerId can also be resolved by finding an invoice/receivable

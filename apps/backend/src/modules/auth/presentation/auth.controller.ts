@@ -8,17 +8,20 @@ import {
   Query,
   Req,
   Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
-import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
-import { Public } from '../../../common/auth/public.decorator';
-import { Audited } from '../../../common/audit/audited.decorator';
 import {
   AuditActionType,
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
+import { Audited } from '../../../common/audit/audited.decorator';
+import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
+import { Public } from '../../../common/auth/public.decorator';
+import { Permission } from '../../../common/rbac/permission.enum';
+import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ForgotPasswordUseCase } from '../application/forgot-password.usecase';
 import { LoginUseCase } from '../application/login.usecase';
 import { LogoutUseCase } from '../application/logout.usecase';
@@ -148,14 +151,16 @@ export class AuthController {
   @Post('switch-organization')
   @Audited(AuditActionType.AUTH_SWITCH_ORGANIZATION, AuditEntityType.AUTH)
   @UseGuards(JwtAuthGuard)
+  @RequirePermission(Permission.SWITCH_ORGANIZATION)
   async switchOrganization(
     @Req() request: AuthRequest,
     @Body() dto: SwitchOrganizationDto,
   ) {
-    return this.switchOrganizationUseCase.execute(
-      request.user?.userId ?? '',
-      dto.organizationId,
-    );
+    const userId = request.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
+    return this.switchOrganizationUseCase.execute(userId, dto.organizationId);
   }
 
   @Public()

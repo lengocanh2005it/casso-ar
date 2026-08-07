@@ -13,7 +13,10 @@ import {
   EMAIL_PROVIDER_ADAPTER,
   type IEmailProviderAdapter,
 } from '../application/email-provider-adapter.port';
-import type { EmailQueueJob } from '../application/email-queue.port';
+import type {
+  AuthEmailJob,
+  ReminderEmailJob,
+} from '../application/email-queue.port';
 import { EMAIL_QUEUE } from './email-queue.constants';
 
 @Injectable()
@@ -32,7 +35,31 @@ export class EmailQueueProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<EmailQueueJob>): Promise<void> {
+  async process(job: Job): Promise<void> {
+    if (job.name === 'send-auth-email') {
+      return this.processAuthEmail(job as Job<AuthEmailJob>);
+    }
+    return this.processReminderEmail(job as Job<ReminderEmailJob>);
+  }
+
+  private async processAuthEmail(job: Job<AuthEmailJob>): Promise<void> {
+    const { to, subject, html, emailType } = job.data;
+    try {
+      await this.emailProvider.send(to, subject, html, { emailType });
+    } catch (error) {
+      this.logger.error({
+        message: 'Auth email send failed',
+        emailType,
+        jobId: job.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
+  private async processReminderEmail(
+    job: Job<ReminderEmailJob>,
+  ): Promise<void> {
     const {
       reminderExecutionId,
       receivableId,
@@ -76,11 +103,19 @@ export class EmailQueueProcessor extends WorkerHost {
   }
 
   @OnWorkerEvent('failed')
-  async onFailed(job: Job<EmailQueueJob>): Promise<void> {
+  async onFailed(job: Job): Promise<void> {
     const maxAttempts = job.opts.attempts ?? 1;
     if (job.attemptsMade < maxAttempts) return;
 
-    const { reminderExecutionId, receivableId, organizationId } = job.data;
+    if (job.name === 'send-auth-email') {
+      this.logger.error(
+        `Auth email job ${job.id ?? 'unknown'} failed permanently after ${job.attemptsMade} attempts`,
+      );
+      return;
+    }
+
+    const data = job.data as ReminderEmailJob;
+    const { reminderExecutionId, receivableId, organizationId } = data;
     await this.tenantContext.run(
       { userId: 'system', organizationId, role: Role.OWNER },
       async () => {

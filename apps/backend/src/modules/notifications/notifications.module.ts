@@ -32,6 +32,6 @@ import { ResendEmailAdapter } from './infrastructure/resend-email.adapter';
     EmailService,
     EmailQueueProcessor,
   ],
-  exports: [EMAIL_PROVIDER_ADAPTER, EmailService],
+  exports: [EMAIL_PROVIDER_ADAPTER, EMAIL_QUEUE_PORT, EmailService],
 })
 export class NotificationsModule {}

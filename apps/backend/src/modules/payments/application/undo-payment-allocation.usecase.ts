@@ -10,6 +10,8 @@ import {
   AUDIT_LOG_REPOSITORY,
   type IAuditLogRepository,
 } from '../../../common/audit/audit-log-repository.port';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import {
   type IReceivableRepository,
   RECEIVABLE_REPOSITORY,
@@ -49,8 +51,17 @@ export class UndoPaymentAllocationUseCase {
         input.allocationId,
         manager,
       );
-      if (!allocation || !allocation.isActive()) {
-        throw new Error('Payment allocation not found or already undone');
+      if (!allocation) {
+        throw new AppError(
+          ErrorCode.ALLOCATION_NOT_FOUND,
+          'Phân bổ thanh toán không tồn tại',
+        );
+      }
+      if (!allocation.isActive()) {
+        throw new AppError(
+          ErrorCode.ALLOCATION_ALREADY_UNDONE,
+          'Phân bổ thanh toán đã được hoàn tác',
+        );
       }
 
       const payment = await this.paymentRepo.findByIdForUpdate(
@@ -61,8 +72,17 @@ export class UndoPaymentAllocationUseCase {
         allocation.receivableId,
         manager,
       );
-      if (!payment || !receivable) {
-        throw new Error('Payment or receivable not found');
+      if (!payment) {
+        throw new AppError(
+          ErrorCode.PAYMENT_NOT_FOUND,
+          'Thanh toán không tồn tại',
+        );
+      }
+      if (!receivable) {
+        throw new AppError(
+          ErrorCode.RECEIVABLE_NOT_FOUND,
+          'Khoản phải thu không tồn tại',
+        );
       }
 
       const undoneAllocation = allocation.undo(
