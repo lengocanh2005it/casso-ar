@@ -409,7 +409,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #17 — Read APIs Completion
 - **Type**: task
-- **Status**: open
+- **Status**: in-progress
 - **Owner**: BE
 - **Plan**: `plans/2026-08-03-read-apis-completion.md`
 - **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #3 ✅, Plan #5 ✅, Plan #8 ✅, Plan #9 ✅, Plan #10, Plan #13 ✅
