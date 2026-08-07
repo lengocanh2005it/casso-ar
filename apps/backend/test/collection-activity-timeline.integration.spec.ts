@@ -22,7 +22,6 @@ import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure
 import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment.orm-entity';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
-import { BankTransactionOrmEntity } from '../src/modules/webhooks/infrastructure/bank-transaction.orm-entity';
 
 describe('Collection Activity Timeline (integration)', () => {
   let container: StartedPostgreSqlContainer;
@@ -291,31 +290,6 @@ describe('Collection Activity Timeline (integration)', () => {
         })
         .expect(200, { received: true, duplicate: false });
 
-      const transactionRepo = dataSource.getRepository(
-        BankTransactionOrmEntity,
-      );
-      const receivableRepo = dataSource.getRepository(ReceivableOrmEntity);
-      const deadline = Date.now() + 10_000;
-      let transaction: BankTransactionOrmEntity | null = null;
-      let receivable: ReceivableOrmEntity | null = null;
-      while (Date.now() < deadline) {
-        transaction = await transactionRepo.findOneBy({
-          providerTransactionId: webhookTransactionId,
-        });
-        receivable = await receivableRepo.findOneBy({
-          id: webhookReceivableId,
-        });
-        if (
-          transaction?.status === 'MATCHED' &&
-          receivable?.status === 'PAID'
-        ) {
-          break;
-        }
-        await delay(100);
-      }
-      expect(transaction?.status).toBe('MATCHED');
-      expect(receivable?.status).toBe('PAID');
-
       const webhookToken = jwtService.sign({
         userId,
         organizationId: webhookOrganizationId,
@@ -331,14 +305,31 @@ describe('Collection Activity Timeline (integration)', () => {
         createdAt: new Date(),
       });
 
-      const receivableTimelineRes = await request(app.getHttpServer())
-        .get(`/api/v1/receivables/${webhookReceivableId}/timeline`)
-        .set('Authorization', `Bearer ${webhookToken}`)
-        .expect(200);
+      // Poll the timeline endpoint itself (the actual artifact under test)
+      // rather than transaction/receivable status: CollectionActivity rows
+      // are inserted by the listener AFTER process-webhook.usecase.ts's
+      // dataSource.transaction(...) commits, as a separate emitAllocationEvents
+      // step, so those statuses flip before the rows this test asserts on exist.
+      const deadline = Date.now() + 10_000;
+      let activityTypes: string[] = [];
+      let receivableTimelineRes: request.Response | undefined;
+      while (Date.now() < deadline) {
+        receivableTimelineRes = await request(app.getHttpServer())
+          .get(`/api/v1/receivables/${webhookReceivableId}/timeline`)
+          .set('Authorization', `Bearer ${webhookToken}`)
+          .expect(200);
+        activityTypes = receivableTimelineRes.body.map(
+          (a: { activityType: string }) => a.activityType,
+        );
+        if (
+          activityTypes.includes('PAYMENT_RECEIVED') &&
+          activityTypes.includes('RECEIVABLE_CLOSED')
+        ) {
+          break;
+        }
+        await delay(100);
+      }
 
-      const activityTypes = receivableTimelineRes.body.map(
-        (a: { activityType: string }) => a.activityType,
-      );
       expect(activityTypes).toEqual(
         expect.arrayContaining(['PAYMENT_RECEIVED', 'RECEIVABLE_CLOSED']),
       );
