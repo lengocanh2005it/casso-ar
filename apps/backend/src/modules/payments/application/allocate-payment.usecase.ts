@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { EntityManager } from 'typeorm';
 import { DataSource } from 'typeorm';
 import { AuditContextService } from '../../../common/audit/audit-context';
@@ -39,18 +41,50 @@ export class AllocatePaymentUseCase {
     private readonly dataSource: DataSource,
     private readonly tenantContext: TenantContextService,
     private readonly auditContext: AuditContextService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(input: AllocatePaymentInput): Promise<void> {
-    await this.dataSource.transaction((manager) =>
-      this.allocateWithinTransaction(manager, input).then(() => undefined),
-    );
+    const organizationId = this.tenantContext.getOrganizationId();
+    let customerId!: string;
+    let becameClosed = false;
+
+    await this.dataSource.transaction(async (manager) => {
+      const result = await this.allocateWithinTransaction(manager, input);
+      customerId = result.customerId;
+      becameClosed = result.becameClosed;
+    });
+
+    // Emit only after the transaction has committed successfully.
+    await this.eventEmitter.emitAsync('payment.allocated', {
+      paymentId: input.paymentId,
+      receivableId: input.receivableId,
+      customerId,
+      organizationId,
+      amount: input.amount,
+      allocatedByUserId: input.allocatedByUserId,
+    });
+
+    if (becameClosed) {
+      await this.eventEmitter.emitAsync('receivable.closed', {
+        receivableId: input.receivableId,
+        customerId,
+        organizationId,
+      });
+      // Separate, distinctly-named event for the internal-task-escalation
+      // plan's auto-dismiss listener (any close reason), not just this
+      // PAID-only 'receivable.closed'.
+      await this.eventEmitter.emitAsync('receivable.status-closed', {
+        receivableId: input.receivableId,
+        organizationId,
+      });
+    }
   }
 
   async allocateWithinTransaction(
     manager: EntityManager,
     input: AllocatePaymentInput,
-  ): Promise<void> {
+  ): Promise<{ customerId: string; becameClosed: boolean }> {
     if (!Number.isInteger(input.amount) || input.amount <= 0) {
       throw new AppError(
         ErrorCode.VALIDATION_ERROR,
@@ -97,6 +131,7 @@ export class AllocatePaymentUseCase {
 
     const updatedReceivable = receivable.applyPaymentAllocation(input.amount);
     const updatedPayment = payment.withAdditionalAllocation(input.amount);
+    const becameClosed = updatedReceivable.status === ReceivableStatus.PAID;
 
     await this.receivableRepo.save(updatedReceivable, manager);
     await this.paymentRepo.save(updatedPayment, manager);
@@ -116,5 +151,7 @@ export class AllocatePaymentUseCase {
       }),
       manager,
     );
+
+    return { customerId: receivable.customerId, becameClosed };
   }
 }
