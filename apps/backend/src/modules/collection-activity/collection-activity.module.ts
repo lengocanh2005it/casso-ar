@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReceivablesModule } from '../receivables/receivables.module';
 import { COLLECTION_ACTIVITY_REPOSITORY } from './application/collection-activity-repository.port';
+import { RecordManualActivityUseCase } from './application/record-manual-activity.usecase';
 import { CollectionActivityOrmEntity } from './infrastructure/collection-activity.orm-entity';
 import { TypeOrmCollectionActivityRepository } from './infrastructure/typeorm-collection-activity.repository';
 
@@ -15,7 +16,8 @@ import { TypeOrmCollectionActivityRepository } from './infrastructure/typeorm-co
       provide: COLLECTION_ACTIVITY_REPOSITORY,
       useClass: TypeOrmCollectionActivityRepository,
     },
+    RecordManualActivityUseCase,
   ],
-  exports: [COLLECTION_ACTIVITY_REPOSITORY],
+  exports: [COLLECTION_ACTIVITY_REPOSITORY, RecordManualActivityUseCase],
 })
 export class CollectionActivityModule {}

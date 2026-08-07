@@ -1,0 +1,123 @@
+import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { Receivable } from '../../receivables/domain/receivable';
+import { CollectionActivityType } from '../domain/collection-activity';
+import { RecordManualActivityUseCase } from './record-manual-activity.usecase';
+
+function buildReceivable(): Receivable {
+  return new Receivable({
+    id: 'rec-1',
+    organizationId: 'org-1',
+    customerId: 'cust-1',
+    invoiceId: 'inv-1',
+    originalAmount: 50_000_000,
+    paidAmount: 0,
+    dueDate: new Date('2026-08-20'),
+    status: ReceivableStatus.OPEN,
+    salesRepresentativeId: 'user-1',
+    createdAt: new Date('2026-07-20'),
+    closedAt: null,
+    version: 0,
+  });
+}
+
+describe('RecordManualActivityUseCase', () => {
+  it('records a MANUAL_CALL activity with the receivable customerId and current org', async () => {
+    const receivableRepo = {
+      findById: jest.fn().mockResolvedValue(buildReceivable()),
+      findByIdForUpdate: jest.fn(),
+      save: jest.fn(),
+    };
+    const activityRepo = {
+      create: jest.fn(),
+      findByReceivableId: jest.fn(),
+      findByCustomerId: jest.fn(),
+    };
+    const tenantContext = { getOrganizationId: () => 'org-1' };
+
+    const useCase = new RecordManualActivityUseCase(
+      activityRepo as any,
+      receivableRepo as any,
+      tenantContext as any,
+    );
+
+    const activity = await useCase.execute({
+      receivableId: 'rec-1',
+      activityType: CollectionActivityType.MANUAL_CALL,
+      description: 'Called; customer promised to pay next week',
+      createdByUserId: 'user-2',
+    });
+
+    expect(activity.activityType).toBe(CollectionActivityType.MANUAL_CALL);
+    expect(activity.customerId).toBe('cust-1');
+    expect(activityRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: 'org-1',
+        receivableId: 'rec-1',
+        customerId: 'cust-1',
+        activityType: CollectionActivityType.MANUAL_CALL,
+        createdByUserId: 'user-2',
+      }),
+    );
+  });
+
+  it('throws if the receivable does not exist', async () => {
+    const receivableRepo = {
+      findById: jest.fn().mockResolvedValue(null),
+      findByIdForUpdate: jest.fn(),
+      save: jest.fn(),
+    };
+    const activityRepo = {
+      create: jest.fn(),
+      findByReceivableId: jest.fn(),
+      findByCustomerId: jest.fn(),
+    };
+    const tenantContext = { getOrganizationId: () => 'org-1' };
+
+    const useCase = new RecordManualActivityUseCase(
+      activityRepo as any,
+      receivableRepo as any,
+      tenantContext as any,
+    );
+
+    await expect(
+      useCase.execute({
+        receivableId: 'missing',
+        activityType: CollectionActivityType.MANUAL_NOTE,
+        description: 'x',
+        createdByUserId: 'user-2',
+      }),
+    ).rejects.toThrow('Receivable not found');
+    expect(activityRepo.create).not.toHaveBeenCalled();
+  });
+
+  it('throws if activityType is not one of MANUAL_CALL/MANUAL_NOTE/PAYMENT_COMMITMENT', async () => {
+    const receivableRepo = {
+      findById: jest.fn().mockResolvedValue(buildReceivable()),
+      findByIdForUpdate: jest.fn(),
+      save: jest.fn(),
+    };
+    const activityRepo = {
+      create: jest.fn(),
+      findByReceivableId: jest.fn(),
+      findByCustomerId: jest.fn(),
+    };
+    const tenantContext = { getOrganizationId: () => 'org-1' };
+
+    const useCase = new RecordManualActivityUseCase(
+      activityRepo as any,
+      receivableRepo as any,
+      tenantContext as any,
+    );
+
+    await expect(
+      useCase.execute({
+        receivableId: 'rec-1',
+        activityType: CollectionActivityType.PAYMENT_RECEIVED as any,
+        description: 'x',
+        createdByUserId: 'user-2',
+      }),
+    ).rejects.toThrow(
+      'activityType must be one of MANUAL_CALL, MANUAL_NOTE, PAYMENT_COMMITMENT',
+    );
+  });
+});
