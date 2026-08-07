@@ -1,4 +1,6 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
+import type { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { Receivable } from '../../receivables/domain/receivable';
 import { CollectionActivityType } from '../domain/collection-activity';
 import { RecordManualActivityUseCase } from './record-manual-activity.usecase';
@@ -86,7 +88,9 @@ describe('RecordManualActivityUseCase', () => {
         description: 'x',
         createdByUserId: 'user-2',
       }),
-    ).rejects.toThrow('Receivable not found');
+    ).rejects.toMatchObject({
+      errorCode: ErrorCode.RECEIVABLE_NOT_FOUND,
+    } satisfies Partial<AppError>);
     expect(activityRepo.create).not.toHaveBeenCalled();
   });
 
@@ -116,8 +120,8 @@ describe('RecordManualActivityUseCase', () => {
         description: 'x',
         createdByUserId: 'user-2',
       }),
-    ).rejects.toThrow(
-      'activityType must be one of MANUAL_CALL, MANUAL_NOTE, PAYMENT_COMMITMENT',
-    );
+    ).rejects.toMatchObject({
+      errorCode: ErrorCode.VALIDATION_ERROR,
+    } satisfies Partial<AppError>);
   });
 });

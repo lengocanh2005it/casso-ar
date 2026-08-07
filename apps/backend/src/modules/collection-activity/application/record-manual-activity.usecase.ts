@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import {
   IReceivableRepository,
@@ -39,14 +41,18 @@ export class RecordManualActivityUseCase {
         input.activityType,
       )
     ) {
-      throw new Error(
-        `activityType must be one of ${MANUAL_ACTIVITY_TYPES.join(', ')}`,
+      throw new AppError(
+        ErrorCode.VALIDATION_ERROR,
+        `activityType phải là một trong các giá trị: ${MANUAL_ACTIVITY_TYPES.join(', ')}`,
       );
     }
 
     const receivable = await this.receivableRepo.findById(input.receivableId);
     if (!receivable) {
-      throw new Error('Receivable not found');
+      throw new AppError(
+        ErrorCode.RECEIVABLE_NOT_FOUND,
+        'Không tìm thấy khoản phải thu.',
+      );
     }
 
     const activity = new CollectionActivity({
