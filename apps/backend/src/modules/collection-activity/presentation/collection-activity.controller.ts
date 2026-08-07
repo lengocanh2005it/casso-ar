@@ -1,0 +1,74 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
+import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
+import { Permission } from '../../../common/rbac/permission.enum';
+import { PermissionGuard } from '../../../common/rbac/permission.guard';
+import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { GetCustomerTimelineUseCase } from '../application/get-customer-timeline.usecase';
+import { GetReceivableTimelineUseCase } from '../application/get-receivable-timeline.usecase';
+import { RecordManualActivityUseCase } from '../application/record-manual-activity.usecase';
+import { CreateManualActivityDto } from './dto/create-manual-activity.dto';
+
+@Controller()
+@UseGuards(PermissionGuard)
+export class CollectionActivityController {
+  constructor(
+    private readonly recordManualActivityUseCase: RecordManualActivityUseCase,
+    private readonly getReceivableTimelineUseCase: GetReceivableTimelineUseCase,
+    private readonly getCustomerTimelineUseCase: GetCustomerTimelineUseCase,
+    private readonly tenantContext: TenantContextService,
+    private readonly idempotency: IdempotencyService,
+  ) {}
+
+  @Post('receivables/:id/activities')
+  @RequirePermission(Permission.RECEIVABLE_WRITE)
+  async createManual(
+    @Param('id') receivableId: string,
+    @Body() dto: CreateManualActivityDto,
+    @Headers('idempotency-key') key: string | undefined,
+  ) {
+    const user = this.getCurrentUser();
+    return this.idempotency.execute(
+      `POST /receivables/${receivableId}/activities`,
+      key,
+      { receivableId, ...dto },
+      () =>
+        this.recordManualActivityUseCase.execute({
+          receivableId,
+          activityType: dto.activityType,
+          description: dto.description,
+          createdByUserId: user.userId,
+        }),
+    );
+  }
+
+  @Get('receivables/:id/timeline')
+  @RequirePermission(Permission.RECEIVABLE_READ)
+  async receivableTimeline(@Param('id') receivableId: string) {
+    return this.getReceivableTimelineUseCase.execute(receivableId);
+  }
+
+  @Get('customers/:id/timeline')
+  @RequirePermission(Permission.RECEIVABLE_READ)
+  async customerTimeline(@Param('id') customerId: string) {
+    return this.getCustomerTimelineUseCase.execute(customerId);
+  }
+
+  private getCurrentUser() {
+    const user = this.tenantContext.getCurrentUser();
+    if (!user) {
+      throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
+    }
+    return user;
+  }
+}
