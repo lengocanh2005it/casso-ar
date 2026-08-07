@@ -8,6 +8,11 @@ import {
 } from '@nestjs/common';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { Audited } from '../../../common/audit/audited.decorator';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../../../common/audit/audit.enums';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
@@ -29,6 +34,7 @@ export class DisputesController {
   ) {}
 
   @Post('receivables/:receivableId/disputes')
+  @Audited(AuditActionType.DISPUTE_OPEN, AuditEntityType.DISPUTE)
   @RequirePermission(Permission.RECEIVABLE_DISPUTE)
   async open(
     @Param('receivableId') receivableId: string,
@@ -52,6 +58,7 @@ export class DisputesController {
   }
 
   @Post('disputes/:id/resolve')
+  @Audited(AuditActionType.DISPUTE_RESOLVE, AuditEntityType.DISPUTE)
   @RequirePermission(Permission.RECEIVABLE_DISPUTE)
   async resolve(
     @Param('id') id: string,

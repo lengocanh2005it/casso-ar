@@ -14,6 +14,11 @@ import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { Public } from '../../../common/auth/public.decorator';
+import { Audited } from '../../../common/audit/audited.decorator';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../../../common/audit/audit.enums';
 import { ForgotPasswordUseCase } from '../application/forgot-password.usecase';
 import { LoginUseCase } from '../application/login.usecase';
 import { LogoutUseCase } from '../application/logout.usecase';
@@ -94,6 +99,7 @@ export class AuthController {
 
   @Public()
   @UseGuards(AuthCompositeRateLimitGuard)
+  @Audited(AuditActionType.AUTH_LOGIN, AuditEntityType.AUTH)
   @Post('login')
   async login(
     @Body() dto: LoginDto,
@@ -128,6 +134,7 @@ export class AuthController {
 
   @Public()
   @HttpCode(HttpStatus.OK)
+  @Audited(AuditActionType.AUTH_LOGOUT, AuditEntityType.AUTH)
   @Post('logout')
   async logout(
     @Req() request: AuthRequest,
@@ -139,6 +146,7 @@ export class AuthController {
   }
 
   @Post('switch-organization')
+  @Audited(AuditActionType.AUTH_SWITCH_ORGANIZATION, AuditEntityType.AUTH)
   @UseGuards(JwtAuthGuard)
   async switchOrganization(
     @Req() request: AuthRequest,
@@ -152,6 +160,7 @@ export class AuthController {
 
   @Public()
   @UseGuards(AuthCompositeRateLimitGuard)
+  @Audited(AuditActionType.AUTH_FORGOT_PASSWORD, AuditEntityType.AUTH)
   @HttpCode(HttpStatus.OK)
   @Post('forgot-password')
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
@@ -161,6 +170,7 @@ export class AuthController {
 
   @Public()
   @UseGuards(AuthCompositeRateLimitGuard)
+  @Audited(AuditActionType.AUTH_RESET_PASSWORD, AuditEntityType.AUTH)
   @Post('reset-password')
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.resetPasswordUseCase.execute(dto);
