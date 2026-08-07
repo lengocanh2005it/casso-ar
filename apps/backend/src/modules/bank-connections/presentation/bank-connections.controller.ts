@@ -5,6 +5,7 @@ import {
   Param,
   Post,
   Req,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
@@ -48,12 +49,17 @@ export class BankConnectionsController {
       'POST /bank-connections/cas-id/initiate',
       key,
       dto,
-      () =>
-        this.initiateConnectionUseCase.execute({
-          userId: request.user?.userId ?? '',
+      () => {
+        const userId = request.user?.userId;
+        if (!userId) {
+          throw new UnauthorizedException();
+        }
+        return this.initiateConnectionUseCase.execute({
+          userId,
           redirectUri: dto.redirectUri,
           bankConnectionId: dto.bankConnectionId,
-        }),
+        });
+      },
     );
   }
 

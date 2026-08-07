@@ -13,7 +13,9 @@ import { MatchingEngineService } from './application/matching-engine.service';
 import { ProcessWebhookUseCase } from './application/process-webhook.usecase';
 import { ReceiveWebhookUseCase } from './application/receive-webhook.usecase';
 import { WEBHOOK_INBOX_REPOSITORY } from './application/webhook-inbox-repository.port';
+import { WEBHOOK_JOB_QUEUE } from './application/webhook-job-queue.port';
 import { BankTransactionOrmEntity } from './infrastructure/bank-transaction.orm-entity';
+import { BullMqWebhookJobQueue } from './infrastructure/bullmq-webhook-job-queue.adapter';
 import { MatchingCandidateOrmEntity } from './infrastructure/matching-candidate.orm-entity';
 import { TypeOrmBankTransactionRepository } from './infrastructure/typeorm-bank-transaction.repository';
 import { TypeOrmMatchingCandidateRepository } from './infrastructure/typeorm-matching-candidate.repository';
@@ -52,6 +54,7 @@ import { WebhooksController } from './presentation/webhooks.controller';
       provide: MATCHING_CANDIDATE_REPOSITORY,
       useClass: TypeOrmMatchingCandidateRepository,
     },
+    { provide: WEBHOOK_JOB_QUEUE, useClass: BullMqWebhookJobQueue },
     MatchingEngineService,
     ProcessWebhookUseCase,
     ReceiveWebhookUseCase,

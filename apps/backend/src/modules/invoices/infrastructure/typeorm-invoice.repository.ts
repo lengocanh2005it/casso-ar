@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, Repository } from 'typeorm';
 import { In } from 'typeorm';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import { ReceivableOrmEntity } from '../../receivables/infrastructure/receivable.orm-entity';
 import type { IInvoiceRepository } from '../application/invoice-repository.port';
 import { Invoice } from '../domain/invoice';
 import { InvoiceOrmEntity } from './invoice.orm-entity';
@@ -50,32 +49,25 @@ export class TypeOrmInvoiceRepository implements IInvoiceRepository {
     await repo.save(toOrm(invoice));
   }
 
-  async findByReceivableIds(
-    receivableIds: string[],
-  ): Promise<Map<string, Invoice>> {
-    const result = new Map<string, Invoice>();
-    if (receivableIds.length === 0) return result;
+  async findByIds(ids: string[]): Promise<Map<string, Invoice>> {
+    if (ids.length === 0) return new Map();
     const organizationId = this.tenantContext.getOrganizationId();
-    const receivables = await this.repo.manager.find(ReceivableOrmEntity, {
-      where: { id: In(receivableIds), organizationId },
-      select: { id: true, invoiceId: true },
-    });
-    const invoiceIds = receivables
-      .map((receivable) => receivable.invoiceId)
-      .filter((invoiceId): invoiceId is string => invoiceId !== null);
-    if (invoiceIds.length === 0) return result;
     const invoiceRows = await this.repo.find({
-      where: { id: In(invoiceIds), organizationId },
+      select: {
+        id: true,
+        organizationId: true,
+        customerId: true,
+        invoiceNumber: true,
+        issueDate: true,
+        totalAmount: true,
+        taxAmount: true,
+        sourceType: true,
+        fileUrl: true,
+        status: true,
+        createdAt: true,
+      },
+      where: { id: In(ids), organizationId },
     });
-    const invoiceById = new Map(
-      invoiceRows.map((row) => [row.id, new Invoice(row)]),
-    );
-    for (const receivable of receivables) {
-      const invoice = receivable.invoiceId
-        ? invoiceById.get(receivable.invoiceId)
-        : undefined;
-      if (invoice) result.set(receivable.id, invoice);
-    }
-    return result;
+    return new Map(invoiceRows.map((row) => [row.id, new Invoice(row)]));
   }
 }

@@ -85,6 +85,14 @@ export class ProcessWebhookUseCase {
             inbox.organizationId,
           );
           const top = candidates[0];
+          let autoMatchResult:
+            | {
+                paymentId: string;
+                receivableId: string;
+                customerId: string;
+                becameClosed: boolean;
+              }
+            | undefined;
           await this.dataSource.transaction(async (manager) => {
             if (top && top.totalScore >= AUTO_MATCH_THRESHOLD) {
               const payment = new Payment({
@@ -100,12 +108,19 @@ export class ProcessWebhookUseCase {
               });
               await this.paymentRepo.save(payment, manager);
               await this.transactionRepo.save(transaction, manager);
-              await this.allocatePayment.allocateWithinTransaction(manager, {
+              const allocationResult =
+                await this.allocatePayment.allocateWithinTransaction(manager, {
+                  paymentId: payment.id,
+                  receivableId: top.receivableId,
+                  amount: transaction.amount,
+                  allocatedByUserId: null,
+                });
+              autoMatchResult = {
                 paymentId: payment.id,
                 receivableId: top.receivableId,
-                amount: transaction.amount,
-                allocatedByUserId: null,
-              });
+                customerId: allocationResult.customerId,
+                becameClosed: allocationResult.becameClosed,
+              };
               await this.transactionRepo.save(
                 transaction.markMatched(),
                 manager,
@@ -131,6 +146,18 @@ export class ProcessWebhookUseCase {
             }
             await this.inboxRepo.save(inbox.markProcessed(), manager);
           });
+
+          if (autoMatchResult) {
+            await this.allocatePayment.emitAllocationEvents({
+              paymentId: autoMatchResult.paymentId,
+              receivableId: autoMatchResult.receivableId,
+              amount: transaction.amount,
+              allocatedByUserId: null,
+              organizationId: inbox.organizationId,
+              customerId: autoMatchResult.customerId,
+              becameClosed: autoMatchResult.becameClosed,
+            });
+          }
         },
       );
     } catch (error) {

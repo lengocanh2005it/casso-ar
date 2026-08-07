@@ -279,17 +279,19 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #10 — Collection Activity Timeline
 - **Type**: task
-- **Status**: open
+- **Status**: done ✅
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-collection-activity-timeline-design.md`
 - **Blockers**: none — Plan #1 ✅, Plan #7 ✅, Plan #9 ✅
+- **Shipped**: 2026-08-07 — branch `feat/collection-activity-timeline`, PR #61 (awaiting review; e2e not yet run — Docker unavailable in the implementing environment)
 - **Key entities**: `CollectionActivity` (10 activity types, INSERT-only)
 - **Key rules**:
   - Never the source of truth — status lives in `ReminderExecution`/`PaymentAllocation`/`Dispute`/`Receivable`
   - Only INSERT, no update/delete
   - Single `CollectionActivityListener` subscribing to 6 events
   - Listener wraps tenant context for background events
-- **Creates**: `collection-activity/` module, listener (6 events), `RecordManualActivityUseCase`, modifies `AllocatePaymentUseCase` to emit events
+- **Creates**: `collection-activity/` module, listener (6 events, now in `infrastructure/`), `RecordManualActivityUseCase`, modifies `AllocatePaymentUseCase` to emit events
+- **Implementation note**: this session's subagent-driven-development execution (13 commits across 7 plan tasks + 1 controller-authored scope addition, each task reviewed and, where needed, fixed) found and fixed 4 gaps beyond the plan's written code samples: (1) the plan's `RecordManualActivityUseCase`/`CollectionActivityListener` samples threw plain `Error` — fixed to `AppError`/`ErrorCode`, matching the codebase's live convention; (2) **major finding** — `AllocatePaymentUseCase.execute()` was the plan's only specified event-emission hook, but bank-webhook auto-match (`process-webhook.usecase.ts`) and exception-queue match (`match-bank-transaction.usecase.ts`) both call the shared `allocateWithinTransaction()` directly, bypassing it — without a fix, the product's primary AR-automation path (webhook-driven payments) would never have produced timeline rows; fixed by extracting `emitAllocationEvents()` and wiring it into all 3 call sites, each firing only after its own owning transaction commits (human consulted and approved this scope expansion, tracked as "Task 5b"); (3) the controller's plan-sample code returned raw `CollectionActivity` domain entities, leaking `organizationId` into JSON responses — fixed with a `toCollectionActivityResponse()` DTO mapper at all 3 HTTP boundaries, including correct placement relative to `IdempotencyService` caching; (4) a final whole-branch review found `EventEmitter2` injected directly into the application layer (`AllocatePaymentUseCase`, the listener) — an earlier task had wrongly assumed this matched existing `disputes`-module debt, but `disputes` actually already has the correct `IEventPublisher` port; fixed by widening/relocating that port to `common/events/` and moving `CollectionActivityListener` itself to `infrastructure/`, plus wrapping the listener's fire-and-forget event handlers in try/catch so a timeline-write failure can never propagate into the business flow that produced it (previously a real unhandled-rejection/process-crash risk on 4 of its 6 handlers). The integration test (Task 7) was also extended, human-approved, to cover the webhook auto-match path, not just the manual endpoint the plan's brief exercised — this needed a mid-review fix of its own (an initial poll loop checked a proxy DB-status signal instead of polling for the actual `CollectionActivity` rows, a race window; fixed to poll the timeline endpoint directly). Known deferred gaps: timeline endpoints are unpaginated (plan-level oversight); `PaymentAllocatedEvent.allocatedByUserId` typed `string` but `null` flows through via the webhook path (cosmetic); a rejecting event listener after a committed webhook allocation still flips `WebhookInbox` to FAILED causing spurious retry/DLQ noise (no double-allocation risk, unique constraint on `providerTransactionId`). Docker/testcontainers unavailable throughout this session, so the integration test (including its extended webhook-path coverage) was written and type-checked but never executed against real Postgres/Redis — needs a Docker-available run before full merge confidence.
 
 ---
 
@@ -595,11 +597,11 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **Next available tickets** (all blockers resolved):
-- **Plan #10** (Collection Activity Timeline) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #9 ✅ — newly unblocked now that Plan #9 (Dispute Management) shipped
 - **Plan #11** (Internal Task + Escalation) — blockers: Plan #1 ✅, Plan #2 ✅
 - **Plan #12** (Reminder Automation) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #6 ✅, Plan #7 ✅
 - **Plan #14** (Invoice Import) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #3 ✅
 - **Plan #15** (Aging Dashboard + Reporting) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
+- **Plan #17** (Read APIs Completion) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #3 ✅, Plan #5 ✅, Plan #8 ✅, Plan #9 ✅, Plan #10 ✅, Plan #13 ✅ — newly unblocked now that Plan #10 (Collection Activity Timeline) shipped
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
 - **Plan #22** (Testing Strategy + CI) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #8 ✅, Plan #13 ✅
 - **Plan #23** (Deployment + Observability) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #18 ✅
@@ -607,10 +609,9 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Customer Bank Account Management** — blockers: Plan #8 ✅
 
 **Blocked tickets waiting:**
-- **Plan #16** (Collection Copilot) — waiting on Plan #10, Plan #12
-- **Plan #17** (Read APIs Completion) — waiting on Plan #10
-- **Plan #20** (FE Core AR Loop) — waiting on Plan #10, Plan #11, Plan #14, Plan #17, Plan #19
+- **Plan #16** (Collection Copilot) — waiting on Plan #12 (Plan #10 now shipped)
+- **Plan #20** (FE Core AR Loop) — waiting on Plan #11, Plan #14, Plan #17, Plan #19 (Plan #10 now shipped)
 - **Plan #21** (FE Reminders, Copilot, Reports, Settings) — waiting on Plan #12, Plan #15, Plan #16, Plan #17, Plan #19
 - **Spec-Plan Reconciliation** — waiting on all plans
 
-**Recommended next step:** Plan #10 (Collection Activity Timeline) is the highest-leverage pick now — it's the one shared blocker still holding back Plan #17 and (transitively) Plan #16 and Plan #20. Plan #15 (Aging Dashboard) remains a good alternative if reporting is the priority instead.
+**Recommended next step:** Plan #17 (Read APIs Completion) is the highest-leverage pick now — Plan #10 shipping cleared its last blocker, and it in turn unblocks Plan #20 (FE Core AR Loop). Plan #12 (Reminder Automation) is a good alternative — it's the last blocker on Plan #16 (Collection Copilot) and feeds Plan #21.

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   PostgreSqlContainer,
   type StartedPostgreSqlContainer,
@@ -38,11 +39,6 @@ describe('JwtAuthGuard (e2e)', () => {
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16').start();
-    process.env.DB_HOST = container.getHost();
-    process.env.DB_PORT = String(container.getMappedPort(5432));
-    process.env.DB_USERNAME = container.getUsername();
-    process.env.DB_PASSWORD = container.getPassword();
-    process.env.DB_DATABASE = container.getDatabase();
     process.env.REDIS_HOST = 'localhost';
     process.env.REDIS_PORT = '6379';
     process.env.JWT_SECRET = 'e2e-jwt-secret';
@@ -55,7 +51,22 @@ describe('JwtAuthGuard (e2e)', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
       controllers: [TestProtectedController],
-    }).compile();
+    })
+      .overrideModule(TypeOrmModule)
+      .useModule(
+        TypeOrmModule.forRoot({
+          type: 'postgres',
+          host: container.getHost(),
+          port: container.getMappedPort(5432),
+          username: container.getUsername(),
+          password: container.getPassword(),
+          database: container.getDatabase(),
+          autoLoadEntities: true,
+          synchronize: true,
+          retryAttempts: 0,
+        }),
+      )
+      .compile();
     app = moduleRef.createNestApplication();
     configureApp(app);
     await app.init();
