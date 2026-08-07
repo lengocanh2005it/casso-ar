@@ -59,13 +59,11 @@ export class ListMembersUseCase {
     const userIds = memberships.map((m) => m.userId);
     const users = await this.userRepo.findByIds(userIds);
 
-    const items = memberships.map((membership) => ({
-      membership,
-      user: {
-        email: users.get(membership.userId)?.email ?? '',
-        name: users.get(membership.userId)?.name ?? '',
-      },
-    }));
+    // Orphaned membership (user deleted) — excluded from results.
+    const items = memberships.flatMap((membership) => {
+      const user = users.get(membership.userId);
+      return user ? [{ membership, user }] : [];
+    });
 
     return { items, total, page, limit };
   }

@@ -1,6 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import { IDisputeRepository } from '../../disputes/application/dispute-repository.port';
+import {
+  DISPUTE_REPOSITORY,
+  type IDisputeRepository,
+} from '../../disputes/application/dispute-repository.port';
 import {
   type IInvoiceRepository,
   INVOICE_REPOSITORY,
@@ -26,6 +29,7 @@ export class ListReceivablesUseCase {
   constructor(
     @Inject(RECEIVABLE_REPOSITORY)
     private readonly receivableRepo: IReceivableRepository,
+    @Inject(DISPUTE_REPOSITORY)
     private readonly disputeRepo: IDisputeRepository,
     @Inject(INVOICE_REPOSITORY)
     private readonly invoiceRepo: IInvoiceRepository,
@@ -71,8 +75,7 @@ export class ListReceivablesUseCase {
 
     const now = new Date();
     const items = receivables.map((r) => {
-      const isOverdue =
-        r.status !== 'PAID' && r.dueDate.getTime() < now.getTime();
+      const isOverdue = r.isOverdue(now);
       const disputeId = openDisputes.get(r.id) ?? null;
       const invoiceNumber = r.invoiceId
         ? (invoices.get(r.invoiceId)?.invoiceNumber ?? null)

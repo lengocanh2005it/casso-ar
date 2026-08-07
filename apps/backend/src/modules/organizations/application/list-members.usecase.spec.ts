@@ -54,6 +54,28 @@ describe('ListMembersUseCase', () => {
     });
   });
 
+  it('excludes orphaned memberships (user deleted) from the results', async () => {
+    const { membershipRepo, userRepo, tenantContext } = buildDeps();
+    membershipRepo.findPageByOrganization.mockResolvedValue([
+      buildMembership(),
+      buildMembership({ id: 'membership-2', userId: 'user-orphaned' }),
+    ]);
+    const useCase = new ListMembersUseCase(
+      membershipRepo as any,
+      userRepo as any,
+      tenantContext as any,
+    );
+
+    const result = await useCase.execute({
+      organizationId: 'org-1',
+      page: 1,
+      limit: 20,
+    });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].membership.id).toBe('membership-1');
+  });
+
   it('throws FORBIDDEN when the requested organization does not match the tenant context', async () => {
     const { membershipRepo, userRepo, tenantContext } = buildDeps();
     const useCase = new ListMembersUseCase(

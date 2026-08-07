@@ -1,6 +1,11 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { Test } from '@nestjs/testing';
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { DISPUTE_REPOSITORY } from '../../disputes/application/dispute-repository.port';
+import { INVOICE_REPOSITORY } from '../../invoices/application/invoice-repository.port';
 import { Receivable } from '../domain/receivable';
 import { ListReceivablesUseCase } from './list-receivables.usecase';
+import { RECEIVABLE_REPOSITORY } from './receivable-repository.port';
 
 function buildReceivable(overrides: Partial<Receivable> = {}): Receivable {
   return new Receivable({
@@ -103,5 +108,42 @@ describe('ListReceivablesUseCase', () => {
 
     expect(invoiceRepo.findByIds).toHaveBeenCalledWith([]);
     expect(result.items[0].invoiceNumber).toBeNull();
+  });
+
+  it('marks a WRITTEN_OFF receivable as not overdue even with a past due date', async () => {
+    const { receivableRepo, disputeRepo, invoiceRepo, tenantContext } =
+      buildDeps();
+    receivableRepo.findPage.mockResolvedValue([
+      buildReceivable({
+        status: ReceivableStatus.WRITTEN_OFF,
+        dueDate: new Date('2020-01-01'),
+      }),
+    ]);
+    const useCase = new ListReceivablesUseCase(
+      receivableRepo as any,
+      disputeRepo as any,
+      invoiceRepo as any,
+      tenantContext as any,
+    );
+
+    const result = await useCase.execute({ filters: {}, page: 1, limit: 20 });
+
+    expect(result.items[0].isOverdue).toBe(false);
+  });
+
+  it('can be resolved through the real NestJS DI container', async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        ListReceivablesUseCase,
+        { provide: RECEIVABLE_REPOSITORY, useValue: {} },
+        { provide: DISPUTE_REPOSITORY, useValue: {} },
+        { provide: INVOICE_REPOSITORY, useValue: {} },
+        TenantContextService,
+      ],
+    }).compile();
+
+    expect(moduleRef.get(ListReceivablesUseCase)).toBeInstanceOf(
+      ListReceivablesUseCase,
+    );
   });
 });
