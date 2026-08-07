@@ -59,108 +59,136 @@ export class CollectionActivityListener {
 
   @OnEvent('payment.allocated')
   async onPaymentAllocated(payload: PaymentAllocatedEvent): Promise<void> {
-    await this.safely('payment.allocated', payload.receivableId, () =>
-      this.write({
-        organizationId: payload.organizationId,
-        receivableId: payload.receivableId,
-        customerId: payload.customerId,
-        activityType: CollectionActivityType.PAYMENT_RECEIVED,
-        description: `Received payment of ${payload.amount.toLocaleString('vi-VN')} VND for receivable`,
-        metadata: { paymentId: payload.paymentId, amount: payload.amount },
-        createdByUserId: payload.allocatedByUserId,
-      }),
+    await this.safely(
+      'payment.allocated',
+      payload.receivableId,
+      payload.organizationId,
+      () =>
+        this.write({
+          organizationId: payload.organizationId,
+          receivableId: payload.receivableId,
+          customerId: payload.customerId,
+          activityType: CollectionActivityType.PAYMENT_RECEIVED,
+          description: `Received payment of ${payload.amount.toLocaleString('vi-VN')} VND for receivable`,
+          metadata: { paymentId: payload.paymentId, amount: payload.amount },
+          createdByUserId: payload.allocatedByUserId,
+        }),
     );
   }
 
   @OnEvent('receivable.closed')
   async onReceivableClosed(payload: ReceivableClosedEvent): Promise<void> {
-    await this.safely('receivable.closed', payload.receivableId, () =>
-      this.write({
-        organizationId: payload.organizationId,
-        receivableId: payload.receivableId,
-        customerId: payload.customerId,
-        activityType: CollectionActivityType.RECEIVABLE_CLOSED,
-        description: 'Receivable has been fully paid (PAID)',
-        metadata: {},
-        createdByUserId: null,
-      }),
+    await this.safely(
+      'receivable.closed',
+      payload.receivableId,
+      payload.organizationId,
+      () =>
+        this.write({
+          organizationId: payload.organizationId,
+          receivableId: payload.receivableId,
+          customerId: payload.customerId,
+          activityType: CollectionActivityType.RECEIVABLE_CLOSED,
+          description: 'Receivable has been fully paid (PAID)',
+          metadata: {},
+          createdByUserId: null,
+        }),
     );
   }
 
   @OnEvent('dispute.opened')
   async onDisputeOpened(payload: DisputeEvent): Promise<void> {
-    await this.safely('dispute.opened', payload.receivableId, async () => {
-      const customerId = await this.resolveCustomerId(
-        payload.receivableId,
-        payload.organizationId,
-      );
-      await this.write({
-        organizationId: payload.organizationId,
-        receivableId: payload.receivableId,
-        customerId,
-        activityType: CollectionActivityType.DISPUTE_OPENED,
-        description: 'Dispute opened for receivable',
-        metadata: { disputeId: payload.disputeId },
-        createdByUserId: null,
-      });
-    });
+    await this.safely(
+      'dispute.opened',
+      payload.receivableId,
+      payload.organizationId,
+      async () => {
+        const customerId = await this.resolveCustomerId(
+          payload.receivableId,
+          payload.organizationId,
+        );
+        await this.write({
+          organizationId: payload.organizationId,
+          receivableId: payload.receivableId,
+          customerId,
+          activityType: CollectionActivityType.DISPUTE_OPENED,
+          description: 'Dispute opened for receivable',
+          metadata: { disputeId: payload.disputeId },
+          createdByUserId: null,
+        });
+      },
+    );
   }
 
   @OnEvent('dispute.resolved')
   async onDisputeResolved(payload: DisputeEvent): Promise<void> {
-    await this.safely('dispute.resolved', payload.receivableId, async () => {
-      const customerId = await this.resolveCustomerId(
-        payload.receivableId,
-        payload.organizationId,
-      );
-      await this.write({
-        organizationId: payload.organizationId,
-        receivableId: payload.receivableId,
-        customerId,
-        activityType: CollectionActivityType.DISPUTE_RESOLVED,
-        description: 'Dispute resolved',
-        metadata: { disputeId: payload.disputeId },
-        createdByUserId: null,
-      });
-    });
+    await this.safely(
+      'dispute.resolved',
+      payload.receivableId,
+      payload.organizationId,
+      async () => {
+        const customerId = await this.resolveCustomerId(
+          payload.receivableId,
+          payload.organizationId,
+        );
+        await this.write({
+          organizationId: payload.organizationId,
+          receivableId: payload.receivableId,
+          customerId,
+          activityType: CollectionActivityType.DISPUTE_RESOLVED,
+          description: 'Dispute resolved',
+          metadata: { disputeId: payload.disputeId },
+          createdByUserId: null,
+        });
+      },
+    );
   }
 
   @OnEvent('reminder.sent')
   async onReminderSent(payload: ReminderEvent): Promise<void> {
-    await this.safely('reminder.sent', payload.receivableId, async () => {
-      const customerId = await this.resolveCustomerId(
-        payload.receivableId,
-        payload.organizationId,
-      );
-      await this.write({
-        organizationId: payload.organizationId,
-        receivableId: payload.receivableId,
-        customerId,
-        activityType: CollectionActivityType.EMAIL_SENT,
-        description: 'Payment reminder email sent',
-        metadata: { reminderExecutionId: payload.reminderExecutionId },
-        createdByUserId: null,
-      });
-    });
+    await this.safely(
+      'reminder.sent',
+      payload.receivableId,
+      payload.organizationId,
+      async () => {
+        const customerId = await this.resolveCustomerId(
+          payload.receivableId,
+          payload.organizationId,
+        );
+        await this.write({
+          organizationId: payload.organizationId,
+          receivableId: payload.receivableId,
+          customerId,
+          activityType: CollectionActivityType.EMAIL_SENT,
+          description: 'Payment reminder email sent',
+          metadata: { reminderExecutionId: payload.reminderExecutionId },
+          createdByUserId: null,
+        });
+      },
+    );
   }
 
   @OnEvent('reminder.failed')
   async onReminderFailed(payload: ReminderEvent): Promise<void> {
-    await this.safely('reminder.failed', payload.receivableId, async () => {
-      const customerId = await this.resolveCustomerId(
-        payload.receivableId,
-        payload.organizationId,
-      );
-      await this.write({
-        organizationId: payload.organizationId,
-        receivableId: payload.receivableId,
-        customerId,
-        activityType: CollectionActivityType.EMAIL_FAILED,
-        description: 'Payment reminder email failed to send',
-        metadata: { reminderExecutionId: payload.reminderExecutionId },
-        createdByUserId: null,
-      });
-    });
+    await this.safely(
+      'reminder.failed',
+      payload.receivableId,
+      payload.organizationId,
+      async () => {
+        const customerId = await this.resolveCustomerId(
+          payload.receivableId,
+          payload.organizationId,
+        );
+        await this.write({
+          organizationId: payload.organizationId,
+          receivableId: payload.receivableId,
+          customerId,
+          activityType: CollectionActivityType.EMAIL_FAILED,
+          description: 'Payment reminder email failed to send',
+          metadata: { reminderExecutionId: payload.reminderExecutionId },
+          createdByUserId: null,
+        });
+      },
+    );
   }
 
   // A denormalized display log must never take down the business flow that
@@ -171,16 +199,18 @@ export class CollectionActivityListener {
   private async safely(
     eventName: string,
     receivableId: string,
+    organizationId: string,
     fn: () => Promise<void>,
   ): Promise<void> {
     try {
       await fn();
     } catch (error) {
-      this.logger.error(
-        `Failed to record collection activity for event "${eventName}" (receivableId=${receivableId}): ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
+      this.logger.error({
+        message: `Failed to record collection activity for event "${eventName}"`,
+        receivableId,
+        organizationId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

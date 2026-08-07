@@ -35,11 +35,15 @@ describe('RecordManualActivityUseCase', () => {
       findByCustomerId: jest.fn(),
     };
     const tenantContext = { getOrganizationId: () => 'org-1' };
+    const dataSource = {
+      transaction: jest.fn((cb: (m: unknown) => Promise<void>) => cb({})),
+    };
 
     const useCase = new RecordManualActivityUseCase(
       activityRepo as any,
       receivableRepo as any,
       tenantContext as any,
+      dataSource as any,
     );
 
     const activity = await useCase.execute({
@@ -59,6 +63,7 @@ describe('RecordManualActivityUseCase', () => {
         activityType: CollectionActivityType.MANUAL_CALL,
         createdByUserId: 'user-2',
       }),
+      expect.anything(),
     );
   });
 
@@ -74,11 +79,15 @@ describe('RecordManualActivityUseCase', () => {
       findByCustomerId: jest.fn(),
     };
     const tenantContext = { getOrganizationId: () => 'org-1' };
+    const dataSource = {
+      transaction: jest.fn((cb: (m: unknown) => Promise<void>) => cb({})),
+    };
 
     const useCase = new RecordManualActivityUseCase(
       activityRepo as any,
       receivableRepo as any,
       tenantContext as any,
+      dataSource as any,
     );
 
     await expect(
@@ -106,11 +115,15 @@ describe('RecordManualActivityUseCase', () => {
       findByCustomerId: jest.fn(),
     };
     const tenantContext = { getOrganizationId: () => 'org-1' };
+    const dataSource = {
+      transaction: jest.fn((cb: (m: unknown) => Promise<void>) => cb({})),
+    };
 
     const useCase = new RecordManualActivityUseCase(
       activityRepo as any,
       receivableRepo as any,
       tenantContext as any,
+      dataSource as any,
     );
 
     await expect(

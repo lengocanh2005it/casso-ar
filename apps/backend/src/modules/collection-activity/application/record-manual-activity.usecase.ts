@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
@@ -33,6 +34,7 @@ export class RecordManualActivityUseCase {
     @Inject(RECEIVABLE_REPOSITORY)
     private readonly receivableRepo: IReceivableRepository,
     private readonly tenantContext: TenantContextService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async execute(input: RecordManualActivityInput): Promise<CollectionActivity> {
@@ -67,7 +69,9 @@ export class RecordManualActivityUseCase {
       createdAt: new Date(),
     });
 
-    await this.activityRepo.create(activity);
+    await this.dataSource.transaction(async (manager) => {
+      await this.activityRepo.create(activity, manager);
+    });
     return activity;
   }
 }

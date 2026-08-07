@@ -95,13 +95,6 @@ export class AllocatePaymentUseCase {
         customerId: input.customerId,
         organizationId: input.organizationId,
       });
-      // Separate, distinctly-named event for the internal-task-escalation
-      // plan's auto-dismiss listener (any close reason), not just this
-      // PAID-only 'receivable.closed'.
-      await this.eventPublisher.emitAsync('receivable.status-closed', {
-        receivableId: input.receivableId,
-        organizationId: input.organizationId,
-      });
     }
   }
 

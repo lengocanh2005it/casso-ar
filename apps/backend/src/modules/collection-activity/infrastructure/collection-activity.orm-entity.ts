@@ -1,5 +1,5 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
-import { CollectionActivityType } from '../domain/collection-activity';
+import { CollectionActivityType } from '../common/collection-activity-types';
 
 @Entity({ name: 'collection_activities' })
 @Index(['receivableId', 'createdAt'])

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { QueryDeepPartialEntity } from 'typeorm';
+import type { EntityManager, QueryDeepPartialEntity } from 'typeorm';
 import { Repository } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
@@ -49,12 +49,18 @@ export class TypeOrmCollectionActivityRepository
     super(repo, tenantContext);
   }
 
-  async create(activity: CollectionActivity): Promise<void> {
+  async create(
+    activity: CollectionActivity,
+    manager?: EntityManager,
+  ): Promise<void> {
     // ponytail: TypeORM's insert() types Record<string, unknown> columns too
     // strictly for a jsonb field (see QueryDeepPartialEntity); the type-level
     // cast below only satisfies that generic, the toOrm() mapper above still
     // does the real domain -> ORM translation.
-    await this.ormRepo.insert(
+    const repo = manager
+      ? manager.getRepository(CollectionActivityOrmEntity)
+      : this.ormRepo;
+    await repo.insert(
       toOrm(activity) as QueryDeepPartialEntity<CollectionActivityOrmEntity>,
     );
   }

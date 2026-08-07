@@ -108,7 +108,7 @@ describe('AllocatePaymentUseCase', () => {
     );
   });
 
-  it('emits payment.allocated, receivable.closed, and receivable.status-closed when the allocation fully pays off the receivable', async () => {
+  it('emits payment.allocated and receivable.closed when the allocation fully pays off the receivable', async () => {
     const receivable = new Receivable({
       id: 'rec-1',
       organizationId: 'org-1',
@@ -170,12 +170,9 @@ describe('AllocatePaymentUseCase', () => {
       customerId: 'cust-1',
       organizationId: 'org-1',
     });
-    expect(eventEmitter.emitAsync).toHaveBeenCalledWith(
+    expect(eventEmitter.emitAsync).not.toHaveBeenCalledWith(
       'receivable.status-closed',
-      {
-        receivableId: 'rec-1',
-        organizationId: 'org-1',
-      },
+      expect.anything(),
     );
   });
 
