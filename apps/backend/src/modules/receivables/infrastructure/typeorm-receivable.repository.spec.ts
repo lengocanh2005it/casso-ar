@@ -41,4 +41,30 @@ describe('TypeOrmReceivableRepository', () => {
     const saved = ormRepo.save.mock.calls[0][0];
     expect(saved).not.toBeInstanceOf(Receivable);
   });
+
+  it('finds non-null invoice IDs for receivables in the current organization', async () => {
+    const ormRepo = {
+      find: jest.fn().mockResolvedValue([
+        { id: 'rec-1', invoiceId: 'inv-1' },
+        { id: 'rec-2', invoiceId: null },
+      ]),
+    };
+    const tenantContext = new TenantContextService();
+    const repo = new TypeOrmReceivableRepository(ormRepo as any, tenantContext);
+
+    const result = await tenantContext.run(
+      { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+      () => repo.findInvoiceIdsByReceivableIds(['rec-1', 'rec-2']),
+    );
+
+    expect(ormRepo.find).toHaveBeenCalledWith({
+      where: {
+        id: expect.anything(),
+        invoiceId: expect.anything(),
+        organizationId: 'org-1',
+      },
+      select: { id: true, invoiceId: true },
+    });
+    expect(result).toEqual(new Map([['rec-1', 'inv-1']]));
+  });
 });

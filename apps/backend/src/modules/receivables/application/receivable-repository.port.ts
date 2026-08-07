@@ -14,6 +14,7 @@ export interface IReceivableRepository {
     limit: number,
     referenceDate: Date,
   ): Promise<Receivable[]>;
+  findInvoiceIdsByReceivableIds(ids: string[]): Promise<Map<string, string>>;
 }
 
 export const RECEIVABLE_REPOSITORY = Symbol('RECEIVABLE_REPOSITORY');

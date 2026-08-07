@@ -2,7 +2,7 @@ import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
-import { In, LessThan, MoreThanOrEqual } from 'typeorm';
+import { In, IsNull, LessThan, MoreThanOrEqual, Not } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { IReceivableRepository } from '../application/receivable-repository.port';
@@ -73,6 +73,20 @@ export class TypeOrmReceivableRepository
       ],
     });
     return rows.map((row) => new Receivable(row));
+  }
+
+  async findInvoiceIdsByReceivableIds(
+    ids: string[],
+  ): Promise<Map<string, string>> {
+    if (ids.length === 0) return new Map();
+    const organizationId = this.tenantContext.getOrganizationId();
+    const rows = await this.ormRepo.find({
+      where: { id: In(ids), organizationId, invoiceId: Not(IsNull()) },
+      select: { id: true, invoiceId: true },
+    });
+    return new Map(
+      rows.flatMap((row) => (row.invoiceId ? [[row.id, row.invoiceId]] : [])),
+    );
   }
 
   // Two index-served range scans (organizationId, status, dueDate) instead

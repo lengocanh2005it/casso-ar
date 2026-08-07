@@ -39,27 +39,22 @@ describe('TypeOrmInvoiceRepository', () => {
     expect(saved).not.toBeInstanceOf(Invoice);
   });
 
-  it('batch-fetches invoices for multiple receivables in two queries instead of one pair per receivable', async () => {
+  it('batch-fetches invoices by IDs within the current organization', async () => {
     const ormRepo = {
       find: jest.fn().mockResolvedValue([{ ...PROPS, id: 'inv-1' }]),
-      manager: {
-        find: jest.fn().mockResolvedValue([
-          { id: 'rec-1', invoiceId: 'inv-1' },
-          { id: 'rec-2', invoiceId: null },
-        ]),
-      },
     };
     const tenantContext = new TenantContextService();
     const repo = new TypeOrmInvoiceRepository(ormRepo as any, tenantContext);
 
     const result = await tenantContext.run(
       { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
-      () => repo.findByReceivableIds(['rec-1', 'rec-2']),
+      () => repo.findByIds(['inv-1', 'inv-2']),
     );
 
-    expect(ormRepo.manager.find).toHaveBeenCalledTimes(1);
-    expect(ormRepo.find).toHaveBeenCalledTimes(1);
-    expect(result.get('rec-1')?.invoiceNumber).toBe('INV-001');
-    expect(result.has('rec-2')).toBe(false);
+    expect(ormRepo.find).toHaveBeenCalledWith({
+      where: { id: expect.anything(), organizationId: 'org-1' },
+    });
+    expect(result.get('inv-1')?.invoiceNumber).toBe('INV-001');
+    expect(result.has('inv-2')).toBe(false);
   });
 });
