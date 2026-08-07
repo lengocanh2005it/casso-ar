@@ -1,8 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
-
-const STATIC_IMPORT_OR_EXPORT = /\b(?:import|export)\s+(?:[\s\S]*?\s+from\s+)?['"]([^'"]+)['"]/g;
+import ts from 'typescript';
 
 function collectProductionTsFiles(dir) {
   return readdirSync(dir).flatMap((entry) => {
@@ -12,28 +11,32 @@ function collectProductionTsFiles(dir) {
   });
 }
 
-function getLineNumber(content, offset) {
-  return content.slice(0, offset).split('\n').length;
-}
-
 export function findCrossModuleInfrastructureViolations(sourceRoot) {
   return collectProductionTsFiles(sourceRoot).flatMap((file) => {
     const sourceModule = relative(sourceRoot, file).split(sep)[0];
     const content = readFileSync(file, 'utf8');
+    const sourceFile = ts.createSourceFile(file, content, ts.ScriptTarget.Latest);
     const violations = [];
 
-    for (const match of content.matchAll(STATIC_IMPORT_OR_EXPORT)) {
-      const importPath = match[1];
-      if (!importPath.startsWith('.')) continue;
+    for (const statement of sourceFile.statements) {
+      if (
+        !(ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) ||
+        !statement.moduleSpecifier ||
+        !ts.isStringLiteral(statement.moduleSpecifier)
+      ) continue;
 
-      const targetParts = relative(sourceRoot, resolve(file, '..', importPath)).split(sep);
+      const importPath = statement.moduleSpecifier.text;
+      const target = importPath.startsWith('.')
+        ? resolve(file, '..', importPath)
+        : resolve(sourceRoot, '..', importPath);
+      const targetParts = relative(sourceRoot, target).split(sep);
       if (
         targetParts[0] !== sourceModule &&
         targetParts[1] === 'infrastructure'
       ) {
         violations.push({
           file,
-          line: getLineNumber(content, match.index),
+          line: sourceFile.getLineAndCharacterOfPosition(statement.getStart(sourceFile)).line + 1,
           importPath,
         });
       }
