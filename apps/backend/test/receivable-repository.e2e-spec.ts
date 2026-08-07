@@ -57,6 +57,7 @@ describe('TypeOrmReceivableRepository.findOpenTopNByOrganization (e2e)', () => {
           database: container.getDatabase(),
           entities: [ReceivableOrmEntity],
           synchronize: true,
+          retryAttempts: 0,
         }),
         TypeOrmModule.forFeature([ReceivableOrmEntity]),
       ],
