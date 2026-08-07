@@ -53,6 +53,19 @@ export class TypeOrmInvoiceRepository implements IInvoiceRepository {
     if (ids.length === 0) return new Map();
     const organizationId = this.tenantContext.getOrganizationId();
     const invoiceRows = await this.repo.find({
+      select: {
+        id: true,
+        organizationId: true,
+        customerId: true,
+        invoiceNumber: true,
+        issueDate: true,
+        totalAmount: true,
+        taxAmount: true,
+        sourceType: true,
+        fileUrl: true,
+        status: true,
+        createdAt: true,
+      },
       where: { id: In(ids), organizationId },
     });
     return new Map(invoiceRows.map((row) => [row.id, new Invoice(row)]));

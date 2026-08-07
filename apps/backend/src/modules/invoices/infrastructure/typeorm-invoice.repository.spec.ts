@@ -52,6 +52,19 @@ describe('TypeOrmInvoiceRepository', () => {
     );
 
     expect(ormRepo.find).toHaveBeenCalledWith({
+      select: {
+        id: true,
+        organizationId: true,
+        customerId: true,
+        invoiceNumber: true,
+        issueDate: true,
+        totalAmount: true,
+        taxAmount: true,
+        sourceType: true,
+        fileUrl: true,
+        status: true,
+        createdAt: true,
+      },
       where: { id: expect.anything(), organizationId: 'org-1' },
     });
     expect(result.get('inv-1')?.invoiceNumber).toBe('INV-001');
