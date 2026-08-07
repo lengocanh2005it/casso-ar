@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { AuditContextService } from '../../../common/audit/audit-context';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import type { BankConnection } from '../domain/bank-connection';
@@ -34,6 +35,7 @@ export class DisconnectConnectionUseCase {
     private readonly dataSource: DataSource,
     @Inject(ACCESS_TOKEN_ENCRYPTION_KEY)
     private readonly encryptionKey: string,
+    private readonly auditContext: AuditContextService,
   ) {}
 
   async execute(connectionId: string): Promise<void> {
@@ -60,6 +62,7 @@ export class DisconnectConnectionUseCase {
         manager,
       );
       this.assertFound(locked);
+      this.auditContext.setBefore(locked);
       await this.bankConnectionRepo.save(locked.disconnect(), manager);
       await this.auditEventRepo.save(
         new ConnectionAuditEvent({

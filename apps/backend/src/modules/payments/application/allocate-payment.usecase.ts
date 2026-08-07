@@ -116,9 +116,5 @@ export class AllocatePaymentUseCase {
       }),
       manager,
     );
-    this.auditContext.setAfter({
-      payment: updatedPayment,
-      receivable: updatedReceivable,
-    });
   }
 }

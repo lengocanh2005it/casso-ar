@@ -40,6 +40,7 @@ describe('DisconnectConnectionUseCase', () => {
     const adapter = { invalidateToken: jest.fn().mockResolvedValue(undefined) };
     const auditEventRepo = { save: jest.fn() };
     const markRequiresReauthorization = { handleAdapterError: jest.fn() };
+    const auditContext = { setBefore: jest.fn() };
     const useCase = new DisconnectConnectionUseCase(
       bankConnectionRepo as never,
       adapter as never,
@@ -47,11 +48,13 @@ describe('DisconnectConnectionUseCase', () => {
       markRequiresReauthorization as never,
       dataSource as never,
       encryptionKey,
+      auditContext as never,
     );
 
     await useCase.execute('conn-1');
 
     expect(adapter.invalidateToken).toHaveBeenCalled();
+    expect(auditContext.setBefore).toHaveBeenCalledWith(connection);
     expect(bankConnectionRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'DISCONNECTED' }),
       expect.anything(),
@@ -99,6 +102,7 @@ describe('DisconnectConnectionUseCase', () => {
       markRequiresReauthorization as never,
       dataSource as never,
       encryptionKey,
+      { setBefore: jest.fn() } as never,
     );
 
     await expect(useCase.execute('conn-1')).rejects.toBeInstanceOf(
@@ -125,6 +129,7 @@ describe('DisconnectConnectionUseCase', () => {
       { handleAdapterError: jest.fn() } as never,
       dataSource as never,
       encryptionKey,
+      { setBefore: jest.fn() } as never,
     );
 
     await expect(useCase.execute('missing')).rejects.toBeInstanceOf(AppError);
@@ -144,6 +149,7 @@ describe('DisconnectConnectionUseCase', () => {
       { handleAdapterError: jest.fn() } as never,
       dataSource as never,
       encryptionKey,
+      { setBefore: jest.fn() } as never,
     );
 
     await expect(useCase.execute('conn-1')).rejects.toBeInstanceOf(AppError);

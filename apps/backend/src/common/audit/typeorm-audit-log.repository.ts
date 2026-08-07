@@ -43,22 +43,6 @@ export class TypeOrmAuditLogRepository implements IAuditLogRepository {
   async create(log: AuditLog, manager?: EntityManager): Promise<void> {
     const row = toOrm(log);
     const executor = manager ?? this.repo.manager;
-    await executor.query(
-      `INSERT INTO audit_logs
-       ("id", "organizationId", "userId", "actionType", "entityType", "entityId", "beforeState", "afterState", "ipAddress", "createdAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [
-        row.id,
-        row.organizationId,
-        row.userId,
-        row.actionType,
-        row.entityType,
-        row.entityId,
-        row.beforeState,
-        row.afterState,
-        row.ipAddress,
-        row.createdAt,
-      ],
-    );
+    await executor.save(AuditLogOrmEntity, row);
   }
 }

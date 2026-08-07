@@ -91,7 +91,7 @@ describe('AllocatePaymentUseCase', () => {
       payment,
       receivable,
     });
-    expect(auditContext.setAfter).toHaveBeenCalled();
+    expect(auditContext.setAfter).not.toHaveBeenCalled();
   });
 
   it.each([0, -1, 1.5])(
