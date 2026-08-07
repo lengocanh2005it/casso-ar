@@ -71,6 +71,7 @@ export class TypeOrmReceivableRepository
         { organizationId, customerId, status: ReceivableStatus.OPEN },
         { organizationId, customerId, status: ReceivableStatus.PARTIALLY_PAID },
       ],
+      take: 100,
     });
     return rows.map((row) => new Receivable(row));
   }

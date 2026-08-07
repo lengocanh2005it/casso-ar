@@ -10,6 +10,7 @@ import {
 
 @Entity({ name: 'receivables' })
 @Index(['organizationId', 'status', 'dueDate'])
+@Index(['organizationId', 'customerId', 'status'])
 @Check('"paidAmount" >= 0 AND "paidAmount" <= "originalAmount"')
 export class ReceivableOrmEntity {
   @PrimaryGeneratedColumn('uuid')
