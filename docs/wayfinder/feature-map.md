@@ -265,7 +265,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-dispute-management-design.md`
-- **Blockers**: Plan #1 ✅, Plan #2
+- **Blockers**: none — Plan #1 ✅, Plan #2 ✅
 - **Key entities**: `Dispute` (OPEN/RESOLVED)
 - **Key rules**:
   - Opening dispute does NOT change `Receivable.status`
@@ -281,7 +281,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-collection-activity-timeline-design.md`
-- **Blockers**: Plan #1 ✅, Plan #7, Plan #9
+- **Blockers**: Plan #1 ✅, Plan #7 ✅, Plan #9
 - **Key entities**: `CollectionActivity` (10 activity types, INSERT-only)
 - **Key rules**:
   - Never the source of truth — status lives in `ReminderExecution`/`PaymentAllocation`/`Dispute`/`Receivable`
@@ -297,7 +297,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-internal-task-escalation-design.md`
-- **Blockers**: Plan #1 ✅, Plan #2
+- **Blockers**: none — Plan #1 ✅, Plan #2 ✅
 - **Key entities**: `InternalTask` (ESCALATION/MANUAL, OPEN/DONE/DISMISSED)
 - **Key rules**:
   - Escalation threshold 30 days overdue (hardcoded MVP)
@@ -351,7 +351,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-invoice-import-design.md`
-- **Blockers**: Plan #1 ✅, Plan #2, Plan #3
+- **Blockers**: none — Plan #1 ✅, Plan #2 ✅, Plan #3 ✅
 - **Key entities**: Reuses existing `Customer`, `Invoice`, `Receivable`
 - **Key rules**:
   - Multipart Excel/CSV upload
@@ -369,7 +369,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE + FE
 - **Spec**: `specs/2026-08-03-aging-dashboard-reporting-design.md`
-- **Blockers**: Plan #1 ✅, Plan #2, Plan #8, Plan #13 ✅
+- **Blockers**: none — Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
 - **Key entities**: None (read-only queries)
 - **Key rules**:
   - 5 canonical aging buckets: `NOT_DUE`, `OVERDUE_1_7`, `OVERDUE_8_30`, `OVERDUE_31_60`, `OVERDUE_60_PLUS`
@@ -409,7 +409,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE
 - **Plan**: `plans/2026-08-03-read-apis-completion.md`
-- **Blockers**: Plan #1 ✅, Plan #2, Plan #3, Plan #5 ✅, Plan #8, Plan #9, Plan #10, Plan #13
+- **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #3 ✅, Plan #5 ✅, Plan #8 ✅, Plan #9, Plan #10, Plan #13 ✅
 - **Key rules**:
   - Pagination: `page≥1, limit default 20 max 100`
   - Response: `{ items, total, page, limit }`
@@ -444,7 +444,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: FE
 - **Plan**: `plans/2026-08-03-fe-auth-app-shell.md`
-- **Blockers**: Plan #3, Plan #18
+- **Blockers**: none — Plan #3 ✅, Plan #18 ✅
 - **Key rules**:
   - Auth UI: login, signup, verify-email, forgot/reset password, invite accept
   - Axios + `AuthTokenManager` (auto-refresh, single-flight)
@@ -462,7 +462,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: FE
 - **Plan**: `plans/2026-08-03-fe-core-ar-loop.md`
-- **Blockers**: Plan #1 ✅, Plan #2, Plan #8, Plan #9, Plan #10, Plan #11, Plan #13, Plan #14, Plan #17, Plan #18, Plan #19
+- **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #9, Plan #10, Plan #11, Plan #13 ✅, Plan #14, Plan #17, Plan #18 ✅, Plan #19
 - **Key rules**:
   - 4 core pages: Customers (list + detail route), Receivables (list + detail route + import + write-off/cancel/dispute), Transactions (matching workspace), Exceptions (review + split match)
   - Receivable/Customer detail = routes (`/receivables/:id`, `/customers/:id`)
@@ -501,7 +501,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-testing-strategy-design.md`
-- **Blockers**: Plan #1 ✅, Plan #7, Plan #8, Plan #13
+- **Blockers**: none — Plan #1 ✅, Plan #7 ✅, Plan #8 ✅, Plan #13 ✅
 - **Key rules**:
   - Testcontainers for real Postgres + Redis
   - `turbo run verify` in CI (lint + type-check + test)
@@ -516,7 +516,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-deployment-observability-design.md`
-- **Blockers**: Plan #1 ✅, Plan #7, Plan #18
+- **Blockers**: none — Plan #1 ✅, Plan #7 ✅, Plan #18 ✅
 - **Key rules**:
   - `GET /health` (Postgres + Redis + BullMQ checks) — returns 200/503, never throws
   - Structured JSON logs with `requestId` correlation (separate AsyncLocalStorage)
@@ -537,7 +537,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE
 - **Spec**: `specs/2026-08-04-credit-balance-management-design.md`
-- **Blockers**: Plan #2, Plan #8, Plan #13
+- **Blockers**: none — Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
 - **Key rules**:
   - Customer credit read API: `GET /customers/:customerId/credits`
   - `Payment` rollups are source of truth (no new credit entity)
@@ -552,7 +552,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE
 - **Spec**: `specs/2026-08-04-customer-bank-account-management-design.md`
-- **Blockers**: Plan #8
+- **Blockers**: none — Plan #8 ✅
 - **Key rules**:
   - Full CRUD for `CustomerBankAccount` mappings
   - Account number normalization (trim, remove separators, require 4-34 digits)
@@ -593,18 +593,24 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Frontier
 
-**Next available tickets** (all blockers resolved):
+**Next available tickets** (all blockers resolved) — this list also corrects several stale checkmarks found while closing out Plan #13:
 - **Plan #9** (Dispute Management) — blockers: Plan #1 ✅, Plan #2 ✅
 - **Plan #11** (Internal Task + Escalation) — blockers: Plan #1 ✅, Plan #2 ✅
-- **Plan #12** (Reminder Automation) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #6 ✅, Plan #7 ✅ — newly unblocked now that Plan #7 (Email Notification Service) shipped
+- **Plan #12** (Reminder Automation) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #6 ✅, Plan #7 ✅
+- **Plan #14** (Invoice Import) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #3 ✅
+- **Plan #15** (Aging Dashboard + Reporting) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #13 ✅ — newly unblocked now that Plan #13 (Exception Queue + Audit Log) shipped
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
+- **Plan #22** (Testing Strategy + CI) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #8 ✅, Plan #13 ✅
+- **Plan #23** (Deployment + Observability) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #18 ✅
+- **Credit Balance Management** — blockers: Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
+- **Customer Bank Account Management** — blockers: Plan #8 ✅
 
 **Blocked tickets waiting:**
-- Plan #10, #14–#15, #17, #20, #22–#23, additional plans — waiting on other dependencies (not Plan #6 or Plan #7, both now done)
-- **Plan #16** (Collection Copilot) — Plan #6, #7 no longer among its blockers; still waiting on Plan #10, #12
-- **Plan #21** (FE Reminders, Copilot, Reports, Settings) — Plan #6, #7 no longer among its blockers; still waiting on Plan #12, #15, #16, #17, #19
+- **Plan #10** (Collection Activity Timeline) — waiting on Plan #9
+- **Plan #16** (Collection Copilot) — waiting on Plan #10, Plan #12
+- **Plan #17** (Read APIs Completion) — waiting on Plan #9, Plan #10
+- **Plan #20** (FE Core AR Loop) — waiting on Plan #9, Plan #10, Plan #11, Plan #14, Plan #17, Plan #19
+- **Plan #21** (FE Reminders, Copilot, Reports, Settings) — waiting on Plan #12, Plan #15, Plan #16, Plan #17, Plan #19
+- **Spec-Plan Reconciliation** — waiting on all plans
 
-**In progress:**
-- **Plan #13** (Exception Queue + Audit Log) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅
-
-**Recommended next step:** Plan #13 is in progress as the natural follow-up to Plan #8's `PENDING_REVIEW` routing; it will unblock Plan #15.
+**Recommended next step:** Plan #9 (Dispute Management) is the highest-leverage pick — it's the one shared blocker still holding back Plan #10, Plan #17, and (transitively, once #10 lands) Plan #16 and Plan #20. Plan #15 (Aging Dashboard) is the direct follow-up to Plan #13 if reporting is the priority instead.
