@@ -1,29 +1,25 @@
 import { ResendAuthEmailSenderAdapter } from './resend-auth-email-sender.adapter';
 
 describe('ResendAuthEmailSenderAdapter', () => {
-  it('sends verification email through the provider port', async () => {
-    const emailProvider = {
-      send: jest.fn().mockResolvedValue({ providerMessageId: 'msg-1' }),
-    };
+  it('queues verification email', async () => {
+    const emailQueue = { add: jest.fn().mockResolvedValue(undefined) };
     await new ResendAuthEmailSenderAdapter(
-      emailProvider as any,
+      emailQueue as any,
     ).sendVerificationEmail(
       'user@example.com',
       'https://app.casso.vn/verify?token=abc',
     );
-    expect(emailProvider.send).toHaveBeenCalledWith(
-      'user@example.com',
-      expect.any(String),
-      expect.stringContaining('https://app.casso.vn/verify?token=abc'),
-      { emailType: 'AUTH_VERIFICATION' },
-    );
+    expect(emailQueue.add).toHaveBeenCalledWith('send-auth-email', {
+      to: 'user@example.com',
+      subject: expect.any(String),
+      html: expect.stringContaining('https://app.casso.vn/verify?token=abc'),
+      emailType: 'AUTH_VERIFICATION',
+    });
   });
 
-  it('sends reset and invite emails through the provider port', async () => {
-    const emailProvider = {
-      send: jest.fn().mockResolvedValue({ providerMessageId: 'msg-1' }),
-    };
-    const adapter = new ResendAuthEmailSenderAdapter(emailProvider as any);
+  it('queues reset and invite emails', async () => {
+    const emailQueue = { add: jest.fn().mockResolvedValue(undefined) };
+    const adapter = new ResendAuthEmailSenderAdapter(emailQueue as any);
     await adapter.sendPasswordResetEmail(
       'user@example.com',
       'https://app/reset',
@@ -33,33 +29,35 @@ describe('ResendAuthEmailSenderAdapter', () => {
       'https://app/invite',
       'Company B',
     );
-    expect(emailProvider.send).toHaveBeenNthCalledWith(
+    expect(emailQueue.add).toHaveBeenNthCalledWith(
       1,
-      'user@example.com',
-      expect.any(String),
-      expect.stringContaining('https://app/reset'),
-      { emailType: 'AUTH_PASSWORD_RESET' },
+      'send-auth-email',
+      expect.objectContaining({
+        to: 'user@example.com',
+        emailType: 'AUTH_PASSWORD_RESET',
+      }),
     );
-    expect(emailProvider.send).toHaveBeenNthCalledWith(
+    expect(emailQueue.add).toHaveBeenNthCalledWith(
       2,
-      'user@example.com',
-      expect.stringContaining('Company B'),
-      expect.stringContaining('https://app/invite'),
-      { emailType: 'AUTH_INVITE' },
+      'send-auth-email',
+      expect.objectContaining({
+        to: 'user@example.com',
+        emailType: 'AUTH_INVITE',
+      }),
     );
   });
 
-  it('does not throw when the email provider rejects', async () => {
-    const emailProvider = {
-      send: jest.fn().mockRejectedValue(new Error('Resend send failed: down')),
+  it('propagates queue errors', async () => {
+    const emailQueue = {
+      add: jest.fn().mockRejectedValue(new Error('Queue full')),
     };
-    const adapter = new ResendAuthEmailSenderAdapter(emailProvider as any);
+    const adapter = new ResendAuthEmailSenderAdapter(emailQueue as any);
 
     await expect(
       adapter.sendVerificationEmail(
         'user@example.com',
         'https://app.casso.vn/verify?token=abc',
       ),
-    ).resolves.toBeUndefined();
+    ).rejects.toThrow('Queue full');
   });
 });
