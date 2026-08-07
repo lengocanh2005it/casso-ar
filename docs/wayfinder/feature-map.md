@@ -409,10 +409,11 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #17 — Read APIs Completion
 - **Type**: task
-- **Status**: in-progress
+- **Status**: done ✅
 - **Owner**: BE
 - **Plan**: `plans/2026-08-03-read-apis-completion.md`
-- **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #3 ✅, Plan #5 ✅, Plan #8 ✅, Plan #9 ✅, Plan #10, Plan #13 ✅
+- **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #3 ✅, Plan #5 ✅, Plan #8 ✅, Plan #9 ✅, Plan #10 ✅, Plan #13 ✅
+- **Shipped**: 2026-08-07 — branch `feat/read-apis-completion`, PR #72
 - **Key rules**:
   - Pagination: `page≥1, limit default 20 max 100`
   - Response: `{ items, total, page, limit }`
@@ -601,7 +602,6 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Plan #12** (Reminder Automation) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #6 ✅, Plan #7 ✅
 - **Plan #14** (Invoice Import) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #3 ✅
 - **Plan #15** (Aging Dashboard + Reporting) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
-- **Plan #17** (Read APIs Completion) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #3 ✅, Plan #5 ✅, Plan #8 ✅, Plan #9 ✅, Plan #10 ✅, Plan #13 ✅ — newly unblocked now that Plan #10 (Collection Activity Timeline) shipped
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
 - **Plan #22** (Testing Strategy + CI) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #8 ✅, Plan #13 ✅
 - **Plan #23** (Deployment + Observability) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #18 ✅
@@ -610,8 +610,8 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **Blocked tickets waiting:**
 - **Plan #16** (Collection Copilot) — waiting on Plan #12 (Plan #10 now shipped)
-- **Plan #20** (FE Core AR Loop) — waiting on Plan #11, Plan #14, Plan #17, Plan #19 (Plan #10 now shipped)
-- **Plan #21** (FE Reminders, Copilot, Reports, Settings) — waiting on Plan #12, Plan #15, Plan #16, Plan #17, Plan #19
+- **Plan #20** (FE Core AR Loop) — waiting on Plan #11, Plan #14, Plan #19 (Plan #10 + #17 now shipped)
+- **Plan #21** (FE Reminders, Copilot, Reports, Settings) — waiting on Plan #12, Plan #15, Plan #16, Plan #19 (Plan #17 now shipped)
 - **Spec-Plan Reconciliation** — waiting on all plans
 
-**Recommended next step:** Plan #17 (Read APIs Completion) is the highest-leverage pick now — Plan #10 shipping cleared its last blocker, and it in turn unblocks Plan #20 (FE Core AR Loop). Plan #12 (Reminder Automation) is a good alternative — it's the last blocker on Plan #16 (Collection Copilot) and feeds Plan #21.
+**Recommended next step:** Plan #12 (Reminder Automation) is the highest-leverage pick — it's the last blocker on Plan #16 (Collection Copilot) and feeds Plan #21. Plan #11 (Internal Task + Escalation) is also unblocked.
