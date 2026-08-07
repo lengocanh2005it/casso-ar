@@ -1,4 +1,4 @@
-import { Dispute, DisputeStatus } from './dispute';
+import { Dispute, DisputeNotOpenError, DisputeStatus } from './dispute';
 
 function buildOpenDispute(): Dispute {
   return new Dispute({
@@ -30,8 +30,6 @@ describe('Dispute', () => {
   it('rejects resolving a dispute that is already resolved', () => {
     const resolved = buildOpenDispute().resolve('user-2');
 
-    expect(() => resolved.resolve('user-3')).toThrow(
-      'Cannot resolve a dispute that is not OPEN',
-    );
+    expect(() => resolved.resolve('user-3')).toThrow(DisputeNotOpenError);
   });
 });

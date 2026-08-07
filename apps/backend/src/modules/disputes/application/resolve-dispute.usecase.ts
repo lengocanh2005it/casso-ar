@@ -5,6 +5,7 @@ import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { Dispute } from '../domain/dispute';
+import { DisputeNotOpenError } from '../domain/dispute';
 import {
   DISPUTE_REPOSITORY,
   type IDisputeRepository,
@@ -42,10 +43,7 @@ export class ResolveDisputeUseCase {
         try {
           updated = dispute.resolve(input.resolvedByUserId);
         } catch (error) {
-          if (
-            error instanceof Error &&
-            error.message === 'Cannot resolve a dispute that is not OPEN'
-          ) {
+          if (error instanceof DisputeNotOpenError) {
             throw new AppError(
               ErrorCode.CONFLICT,
               'Tranh chấp đã được giải quyết.',

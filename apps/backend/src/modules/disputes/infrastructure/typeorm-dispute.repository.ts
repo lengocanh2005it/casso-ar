@@ -86,10 +86,6 @@ export class TypeOrmDisputeRepository
     return row ? toDomain(row) : null;
   }
 
-  async hasOpenDispute(receivableId: string): Promise<boolean> {
-    return (await this.findOpenDispute(receivableId)) !== null;
-  }
-
   async save(dispute: Dispute, manager?: EntityManager): Promise<void> {
     await this.scopedSaveWithManager(toOrm(dispute), manager);
   }

@@ -3,6 +3,12 @@ export enum DisputeStatus {
   RESOLVED = 'RESOLVED',
 }
 
+export class DisputeNotOpenError extends Error {
+  constructor() {
+    super('Cannot resolve a dispute that is not OPEN');
+  }
+}
+
 export interface DisputeProps {
   id: string;
   organizationId: string;
@@ -43,7 +49,7 @@ export class Dispute {
 
   resolve(resolvedByUserId: string): Dispute {
     if (this.status !== DisputeStatus.OPEN) {
-      throw new Error('Cannot resolve a dispute that is not OPEN');
+      throw new DisputeNotOpenError();
     }
 
     return new Dispute({
