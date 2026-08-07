@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
@@ -10,13 +10,13 @@ import {
   RECEIVABLE_REPOSITORY,
 } from '../../receivables/application/receivable-repository.port';
 import {
+  COLLECTION_ACTIVITY_REPOSITORY,
+  ICollectionActivityRepository,
+} from '../application/collection-activity-repository.port';
+import {
   CollectionActivity,
   CollectionActivityType,
 } from '../domain/collection-activity';
-import {
-  COLLECTION_ACTIVITY_REPOSITORY,
-  ICollectionActivityRepository,
-} from './collection-activity-repository.port';
 
 export interface PaymentAllocatedEvent {
   paymentId: string;
@@ -47,6 +47,8 @@ export interface ReminderEvent {
 
 @Injectable()
 export class CollectionActivityListener {
+  private readonly logger = new Logger(CollectionActivityListener.name);
+
   constructor(
     @Inject(COLLECTION_ACTIVITY_REPOSITORY)
     private readonly activityRepo: ICollectionActivityRepository,
@@ -57,96 +59,129 @@ export class CollectionActivityListener {
 
   @OnEvent('payment.allocated')
   async onPaymentAllocated(payload: PaymentAllocatedEvent): Promise<void> {
-    await this.write({
-      organizationId: payload.organizationId,
-      receivableId: payload.receivableId,
-      customerId: payload.customerId,
-      activityType: CollectionActivityType.PAYMENT_RECEIVED,
-      description: `Received payment of ${payload.amount.toLocaleString('vi-VN')} VND for receivable`,
-      metadata: { paymentId: payload.paymentId, amount: payload.amount },
-      createdByUserId: payload.allocatedByUserId,
-    });
+    await this.safely('payment.allocated', payload.receivableId, () =>
+      this.write({
+        organizationId: payload.organizationId,
+        receivableId: payload.receivableId,
+        customerId: payload.customerId,
+        activityType: CollectionActivityType.PAYMENT_RECEIVED,
+        description: `Received payment of ${payload.amount.toLocaleString('vi-VN')} VND for receivable`,
+        metadata: { paymentId: payload.paymentId, amount: payload.amount },
+        createdByUserId: payload.allocatedByUserId,
+      }),
+    );
   }
 
   @OnEvent('receivable.closed')
   async onReceivableClosed(payload: ReceivableClosedEvent): Promise<void> {
-    await this.write({
-      organizationId: payload.organizationId,
-      receivableId: payload.receivableId,
-      customerId: payload.customerId,
-      activityType: CollectionActivityType.RECEIVABLE_CLOSED,
-      description: 'Receivable has been fully paid (PAID)',
-      metadata: {},
-      createdByUserId: null,
-    });
+    await this.safely('receivable.closed', payload.receivableId, () =>
+      this.write({
+        organizationId: payload.organizationId,
+        receivableId: payload.receivableId,
+        customerId: payload.customerId,
+        activityType: CollectionActivityType.RECEIVABLE_CLOSED,
+        description: 'Receivable has been fully paid (PAID)',
+        metadata: {},
+        createdByUserId: null,
+      }),
+    );
   }
 
   @OnEvent('dispute.opened')
   async onDisputeOpened(payload: DisputeEvent): Promise<void> {
-    const customerId = await this.resolveCustomerId(
-      payload.receivableId,
-      payload.organizationId,
-    );
-    await this.write({
-      organizationId: payload.organizationId,
-      receivableId: payload.receivableId,
-      customerId,
-      activityType: CollectionActivityType.DISPUTE_OPENED,
-      description: 'Dispute opened for receivable',
-      metadata: { disputeId: payload.disputeId },
-      createdByUserId: null,
+    await this.safely('dispute.opened', payload.receivableId, async () => {
+      const customerId = await this.resolveCustomerId(
+        payload.receivableId,
+        payload.organizationId,
+      );
+      await this.write({
+        organizationId: payload.organizationId,
+        receivableId: payload.receivableId,
+        customerId,
+        activityType: CollectionActivityType.DISPUTE_OPENED,
+        description: 'Dispute opened for receivable',
+        metadata: { disputeId: payload.disputeId },
+        createdByUserId: null,
+      });
     });
   }
 
   @OnEvent('dispute.resolved')
   async onDisputeResolved(payload: DisputeEvent): Promise<void> {
-    const customerId = await this.resolveCustomerId(
-      payload.receivableId,
-      payload.organizationId,
-    );
-    await this.write({
-      organizationId: payload.organizationId,
-      receivableId: payload.receivableId,
-      customerId,
-      activityType: CollectionActivityType.DISPUTE_RESOLVED,
-      description: 'Dispute resolved',
-      metadata: { disputeId: payload.disputeId },
-      createdByUserId: null,
+    await this.safely('dispute.resolved', payload.receivableId, async () => {
+      const customerId = await this.resolveCustomerId(
+        payload.receivableId,
+        payload.organizationId,
+      );
+      await this.write({
+        organizationId: payload.organizationId,
+        receivableId: payload.receivableId,
+        customerId,
+        activityType: CollectionActivityType.DISPUTE_RESOLVED,
+        description: 'Dispute resolved',
+        metadata: { disputeId: payload.disputeId },
+        createdByUserId: null,
+      });
     });
   }
 
   @OnEvent('reminder.sent')
   async onReminderSent(payload: ReminderEvent): Promise<void> {
-    const customerId = await this.resolveCustomerId(
-      payload.receivableId,
-      payload.organizationId,
-    );
-    await this.write({
-      organizationId: payload.organizationId,
-      receivableId: payload.receivableId,
-      customerId,
-      activityType: CollectionActivityType.EMAIL_SENT,
-      description: 'Payment reminder email sent',
-      metadata: { reminderExecutionId: payload.reminderExecutionId },
-      createdByUserId: null,
+    await this.safely('reminder.sent', payload.receivableId, async () => {
+      const customerId = await this.resolveCustomerId(
+        payload.receivableId,
+        payload.organizationId,
+      );
+      await this.write({
+        organizationId: payload.organizationId,
+        receivableId: payload.receivableId,
+        customerId,
+        activityType: CollectionActivityType.EMAIL_SENT,
+        description: 'Payment reminder email sent',
+        metadata: { reminderExecutionId: payload.reminderExecutionId },
+        createdByUserId: null,
+      });
     });
   }
 
   @OnEvent('reminder.failed')
   async onReminderFailed(payload: ReminderEvent): Promise<void> {
-    const customerId = await this.resolveCustomerId(
-      payload.receivableId,
-      payload.organizationId,
-    );
-    await this.write({
-      organizationId: payload.organizationId,
-      receivableId: payload.receivableId,
-      customerId,
-      activityType: CollectionActivityType.EMAIL_FAILED,
-      description: 'Payment reminder email failed to send',
-      metadata: { reminderExecutionId: payload.reminderExecutionId },
-      createdByUserId: null,
+    await this.safely('reminder.failed', payload.receivableId, async () => {
+      const customerId = await this.resolveCustomerId(
+        payload.receivableId,
+        payload.organizationId,
+      );
+      await this.write({
+        organizationId: payload.organizationId,
+        receivableId: payload.receivableId,
+        customerId,
+        activityType: CollectionActivityType.EMAIL_FAILED,
+        description: 'Payment reminder email failed to send',
+        metadata: { reminderExecutionId: payload.reminderExecutionId },
+        createdByUserId: null,
+      });
     });
+  }
+
+  // A denormalized display log must never take down the business flow that
+  // produced it. 4 of the 6 events above are emitted fire-and-forget
+  // (EventEmitter2#emit, not #emitAsync) with no app-wide unhandledRejection
+  // handler, so any throw here (repo failure, receivable lookup miss, ...)
+  // would otherwise surface as an unhandled rejection. Log and swallow.
+  private async safely(
+    eventName: string,
+    receivableId: string,
+    fn: () => Promise<void>,
+  ): Promise<void> {
+    try {
+      await fn();
+    } catch (error) {
+      this.logger.error(
+        `Failed to record collection activity for event "${eventName}" (receivableId=${receivableId}): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   private async resolveCustomerId(

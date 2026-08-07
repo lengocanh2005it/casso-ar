@@ -250,4 +250,70 @@ describe('CollectionActivityListener', () => {
       }),
     );
   });
+
+  it('does not throw or reject when the activity repository write fails', async () => {
+    const activityRepo = {
+      create: jest.fn().mockRejectedValue(new Error('db unavailable')),
+      findByReceivableId: jest.fn(),
+      findByCustomerId: jest.fn(),
+    };
+    const receivableRepo = {
+      findById: jest.fn(),
+      findByIdForUpdate: jest.fn(),
+      save: jest.fn(),
+    };
+    const tenantContext = {
+      run: (_user: unknown, cb: () => unknown) => cb(),
+      getOrganizationId: () => 'org-1',
+    };
+
+    const listener = new CollectionActivityListener(
+      activityRepo as any,
+      receivableRepo as any,
+      tenantContext as any,
+    );
+
+    await expect(
+      listener.onPaymentAllocated({
+        paymentId: 'pay-1',
+        receivableId: 'rec-1',
+        customerId: 'cust-1',
+        organizationId: 'org-1',
+        amount: 30_000_000,
+        allocatedByUserId: 'user-2',
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('does not throw or reject when resolveCustomerId fails to find the receivable', async () => {
+    const activityRepo = {
+      create: jest.fn(),
+      findByReceivableId: jest.fn(),
+      findByCustomerId: jest.fn(),
+    };
+    const receivableRepo = {
+      findById: jest.fn().mockResolvedValue(null),
+      findByIdForUpdate: jest.fn(),
+      save: jest.fn(),
+    };
+    const tenantContext = {
+      run: (_user: unknown, cb: () => unknown) => cb(),
+      getOrganizationId: () => 'org-1',
+    };
+
+    const listener = new CollectionActivityListener(
+      activityRepo as any,
+      receivableRepo as any,
+      tenantContext as any,
+    );
+
+    await expect(
+      listener.onDisputeOpened({
+        disputeId: 'dis-1',
+        receivableId: 'rec-missing',
+        organizationId: 'org-1',
+      }),
+    ).resolves.toBeUndefined();
+    expect(activityRepo.create).not.toHaveBeenCalled();
+  });
 });
