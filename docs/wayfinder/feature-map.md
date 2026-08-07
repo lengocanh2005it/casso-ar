@@ -466,7 +466,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: FE
 - **Plan**: `plans/2026-08-03-fe-core-ar-loop.md`
-- **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #9 ✅, Plan #10, Plan #11, Plan #13 ✅, Plan #14, Plan #17, Plan #18 ✅, Plan #19
+- **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #9 ✅, Plan #10 ✅, Plan #11, Plan #13 ✅, Plan #14, Plan #17 ✅, Plan #18 ✅, Plan #19
 - **Key rules**:
   - 4 core pages: Customers (list + detail route), Receivables (list + detail route + import + write-off/cancel/dispute), Transactions (matching workspace), Exceptions (review + split match)
   - Receivable/Customer detail = routes (`/receivables/:id`, `/customers/:id`)
@@ -483,7 +483,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: FE
 - **Plan**: `plans/2026-08-03-fe-reminders-copilot-reports-settings.md`
-- **Blockers**: Plan #4 ✅, Plan #5 ✅, Plan #6 ✅, Plan #7 ✅, Plan #12, Plan #15, Plan #16, Plan #17, Plan #18 ✅, Plan #19
+- **Blockers**: Plan #4 ✅, Plan #5 ✅, Plan #6 ✅, Plan #7 ✅, Plan #12, Plan #15, Plan #16, Plan #17 ✅, Plan #18 ✅, Plan #19
 - **Key rules**:
   - Reminders: policy + executions list
   - Copilot: chat message list + pending-action cards (confirm/cancel)
