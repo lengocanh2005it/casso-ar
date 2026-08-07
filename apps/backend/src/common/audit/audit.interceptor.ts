@@ -67,7 +67,6 @@ export class AuditInterceptor implements NestInterceptor {
               const user = this.tenantContext.getCurrentUser();
               if (!user) return;
 
-              this.auditContext.setAfter(response);
               const entityId = request.params?.id ?? responseId(response) ?? '';
               const log = new AuditLog({
                 organizationId: user.organizationId,
@@ -78,7 +77,7 @@ export class AuditInterceptor implements NestInterceptor {
                 beforeState: sanitizeAuditPayload(
                   this.auditContext.getBefore(),
                 ),
-                afterState: sanitizeAuditPayload(this.auditContext.getAfter()),
+                afterState: sanitizeAuditPayload(response),
                 ipAddress: request.ip ?? null,
                 createdAt: new Date(),
               });

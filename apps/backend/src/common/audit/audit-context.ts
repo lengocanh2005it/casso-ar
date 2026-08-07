@@ -3,7 +3,6 @@ import { Injectable } from '@nestjs/common';
 
 interface AuditStore {
   before: unknown;
-  after: unknown;
 }
 
 @Injectable()
@@ -11,7 +10,7 @@ export class AuditContextService {
   private readonly storage = new AsyncLocalStorage<AuditStore>();
 
   run<T>(callback: () => T): T {
-    return this.storage.run({ before: null, after: null }, callback);
+    return this.storage.run({ before: null }, callback);
   }
 
   setBefore(value: unknown): void {
@@ -21,14 +20,5 @@ export class AuditContextService {
 
   getBefore(): unknown {
     return this.storage.getStore()?.before ?? null;
-  }
-
-  setAfter(value: unknown): void {
-    const store = this.storage.getStore();
-    if (store) store.after = value;
-  }
-
-  getAfter(): unknown {
-    return this.storage.getStore()?.after ?? null;
   }
 }

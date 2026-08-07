@@ -5,20 +5,7 @@ import type { AuditLog } from './audit-log';
 import { AuditLogOrmEntity } from './audit-log.orm-entity';
 import type { IAuditLogRepository } from './audit-log-repository.port';
 
-interface AuditLogRow {
-  id: string;
-  organizationId: string;
-  userId: string;
-  actionType: string;
-  entityType: string;
-  entityId: string;
-  beforeState: Record<string, unknown> | null;
-  afterState: Record<string, unknown> | null;
-  ipAddress: string | null;
-  createdAt: Date;
-}
-
-function toOrm(log: AuditLog): AuditLogRow {
+function toOrm(log: AuditLog): AuditLogOrmEntity {
   return {
     id: log.id,
     organizationId: log.organizationId,

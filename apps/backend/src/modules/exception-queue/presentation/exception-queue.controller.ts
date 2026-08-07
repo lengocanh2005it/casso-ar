@@ -46,14 +46,6 @@ export class ExceptionQueueController {
     private readonly idempotency: IdempotencyService,
   ) {}
 
-  private getCurrentUserIdOrThrow(): string {
-    const user = this.tenantContext.getCurrentUser();
-    if (!user) {
-      throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
-    }
-    return user.userId;
-  }
-
   @Get('unmatched')
   @RequirePermission(Permission.PAYMENT_ALLOCATE)
   async unmatched(@Query() query: ExceptionQueuePaginationDto) {
@@ -83,6 +75,10 @@ export class ExceptionQueueController {
     @Body() dto: MatchBankTransactionDto,
     @Headers('idempotency-key') key: string | undefined,
   ) {
+    const user = this.tenantContext.getCurrentUser();
+    if (!user) {
+      throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
+    }
     return this.idempotency.execute(
       `POST /bank-transactions/${id}/match`,
       key,
@@ -93,7 +89,7 @@ export class ExceptionQueueController {
             bankTransactionId: id,
             allocations: dto.allocations,
             version: dto.version,
-            allocatedByUserId: this.getCurrentUserIdOrThrow(),
+            allocatedByUserId: user.userId,
           }),
         ),
     );
