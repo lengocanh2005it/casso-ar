@@ -1,9 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { IAuthEmailSender } from '../../auth/application/auth-email-sender.port';
 import {
   EMAIL_PROVIDER_ADAPTER,
   type IEmailProviderAdapter,
-} from '../application/email-provider-adapter.port';
+} from '../../notifications/application/email-provider-adapter.port';
+import type { IAuthEmailSender } from '../application/auth-email-sender.port';
 
 @Injectable()
 export class ResendAuthEmailSenderAdapter implements IAuthEmailSender {
