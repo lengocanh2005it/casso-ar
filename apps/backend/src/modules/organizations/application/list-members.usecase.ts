@@ -3,11 +3,15 @@ import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import {
+  type IUserRepository,
+  USER_REPOSITORY,
+} from '../../users/application/user-repository.port';
+import type { MemberResponseDto } from '../presentation/dto/member-response.dto';
+import { toMemberResponse } from '../presentation/dto/member-response.dto';
+import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
-} from '../application/membership-repository.port';
-import type { MemberResponseDto } from './dto/member-response.dto';
-import { toMemberResponse } from './dto/member-response.dto';
+} from './membership-repository.port';
 
 export interface ListMembersInput {
   organizationId: string;
@@ -27,6 +31,8 @@ export class ListMembersUseCase {
   constructor(
     @Inject(MEMBERSHIP_REPOSITORY)
     private readonly membershipRepo: IMembershipRepository,
+    @Inject(USER_REPOSITORY)
+    private readonly userRepo: IUserRepository,
     private readonly tenantContext: TenantContextService,
   ) {}
 
@@ -46,10 +52,13 @@ export class ListMembersUseCase {
       this.membershipRepo.countByOrganization(organizationId),
     ]);
 
+    const userIds = memberships.map((m) => m.userId);
+    const users = await this.userRepo.findByIds(userIds);
+
     const items = memberships.map((m) =>
       toMemberResponse(m, {
-        email: (m as any).user?.email ?? '',
-        name: (m as any).user?.name ?? '',
+        email: users.get(m.userId)?.email ?? '',
+        name: users.get(m.userId)?.name ?? '',
       }),
     );
 

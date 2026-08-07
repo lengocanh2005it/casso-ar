@@ -5,6 +5,11 @@ import {
   DISPUTE_REPOSITORY,
   type IDisputeRepository,
 } from '../../disputes/application/dispute-repository.port';
+import {
+  type IPaymentAllocationRepository,
+  PAYMENT_ALLOCATION_REPOSITORY,
+} from '../../payments/application/payment-allocation-repository.port';
+import type { PaymentAllocation } from '../../payments/domain/payment-allocation';
 import type { Receivable } from '../domain/receivable';
 import {
   type IReceivableRepository,
@@ -15,6 +20,7 @@ export interface ReceivableWithDisputeStatus {
   receivable: Receivable;
   isDisputed: boolean;
   disputeId: string | null;
+  allocations: PaymentAllocation[];
 }
 
 @Injectable()
@@ -24,6 +30,8 @@ export class GetReceivableUseCase {
     private readonly receivableRepo: IReceivableRepository,
     @Inject(DISPUTE_REPOSITORY)
     private readonly disputeRepo: IDisputeRepository,
+    @Inject(PAYMENT_ALLOCATION_REPOSITORY)
+    private readonly paymentAllocationRepo: IPaymentAllocationRepository,
   ) {}
 
   async execute(id: string): Promise<ReceivableWithDisputeStatus> {
@@ -35,11 +43,15 @@ export class GetReceivableUseCase {
       );
     }
 
-    const openDispute = await this.disputeRepo.findOpenDispute(id);
+    const [openDispute, allocations] = await Promise.all([
+      this.disputeRepo.findOpenDispute(id),
+      this.paymentAllocationRepo.findByReceivableId(id),
+    ]);
     return {
       receivable,
       isDisputed: openDispute !== null,
       disputeId: openDispute?.id ?? null,
+      allocations,
     };
   }
 }

@@ -1,0 +1,72 @@
+import { Membership, Role } from '../domain/membership';
+import { ListMembersUseCase } from './list-members.usecase';
+
+function buildMembership(overrides: Partial<Membership> = {}): Membership {
+  return new Membership({
+    id: 'membership-1',
+    organizationId: 'org-1',
+    userId: 'user-1',
+    role: Role.OWNER,
+    invitedAt: new Date('2026-07-01'),
+    joinedAt: new Date('2026-07-02'),
+    createdAt: new Date('2026-07-01'),
+    ...overrides,
+  });
+}
+
+describe('ListMembersUseCase', () => {
+  function buildDeps() {
+    const membershipRepo = {
+      findPageByOrganization: jest.fn().mockResolvedValue([buildMembership()]),
+      countByOrganization: jest.fn().mockResolvedValue(1),
+    };
+    const userRepo = {
+      findByIds: jest
+        .fn()
+        .mockResolvedValue(
+          new Map([['user-1', { email: 'owner@casso.vn', name: 'Owner' }]]),
+        ),
+    };
+    const tenantContext = {
+      getOrganizationId: jest.fn().mockReturnValue('org-1'),
+    };
+    return { membershipRepo, userRepo, tenantContext };
+  }
+
+  it('joins membership rows with user email/name via a batched lookup', async () => {
+    const { membershipRepo, userRepo, tenantContext } = buildDeps();
+    const useCase = new ListMembersUseCase(
+      membershipRepo as any,
+      userRepo as any,
+      tenantContext as any,
+    );
+
+    const result = await useCase.execute({
+      organizationId: 'org-1',
+      page: 1,
+      limit: 20,
+    });
+
+    expect(userRepo.findByIds).toHaveBeenCalledWith(['user-1']);
+    expect(result.items[0]).toMatchObject({
+      id: 'membership-1',
+      userId: 'user-1',
+      email: 'owner@casso.vn',
+      name: 'Owner',
+      role: Role.OWNER,
+    });
+  });
+
+  it('throws FORBIDDEN when the requested organization does not match the tenant context', async () => {
+    const { membershipRepo, userRepo, tenantContext } = buildDeps();
+    const useCase = new ListMembersUseCase(
+      membershipRepo as any,
+      userRepo as any,
+      tenantContext as any,
+    );
+
+    await expect(
+      useCase.execute({ organizationId: 'org-2', page: 1, limit: 20 }),
+    ).rejects.toMatchObject({ errorCode: 'FORBIDDEN' });
+  });
+});

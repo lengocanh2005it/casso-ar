@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EVENT_PUBLISHER } from '../../common/events/event-publisher.port';
 import { NestEventPublisherAdapter } from '../../common/events/nest-event-publisher.adapter';
@@ -16,7 +16,7 @@ import { PaymentsController } from './presentation/payments.controller';
 @Module({
   imports: [
     TypeOrmModule.forFeature([PaymentOrmEntity, PaymentAllocationOrmEntity]),
-    ReceivablesModule,
+    forwardRef(() => ReceivablesModule),
   ],
   providers: [
     { provide: PAYMENT_REPOSITORY, useClass: TypeOrmPaymentRepository },

@@ -3,7 +3,7 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
-import { ListMembersUseCase } from './list-members.usecase';
+import { ListMembersUseCase } from '../application/list-members.usecase';
 
 @Controller('organizations')
 @UseGuards(PermissionGuard)

@@ -80,6 +80,7 @@ export class ReceivablesController {
       result.receivable,
       result.isDisputed,
       result.disputeId,
+      result.allocations,
     );
   }
 

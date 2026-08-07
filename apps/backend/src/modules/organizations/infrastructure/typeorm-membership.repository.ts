@@ -50,14 +50,12 @@ export class TypeOrmMembershipRepository implements IMembershipRepository {
     page: number,
     limit: number,
   ): Promise<Membership[]> {
-    const rows = await this.repo
-      .createQueryBuilder('membership')
-      .leftJoinAndSelect('membership.user', 'user')
-      .where('membership.organizationId = :organizationId', { organizationId })
-      .orderBy('membership.createdAt', 'ASC')
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getMany();
+    const rows = await this.repo.find({
+      where: { organizationId },
+      order: { createdAt: 'ASC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
 
     return rows.map((row) => new Membership(row));
   }

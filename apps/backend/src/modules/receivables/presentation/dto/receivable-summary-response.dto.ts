@@ -1,17 +1,10 @@
 import type { ReceivableStatus } from '@casso-ledger/shared-types';
 
-export interface ReceivableAllocationDto {
-  id: string;
-  paymentId: string;
-  allocatedAmount: number;
-  allocatedAt: Date;
-  allocatedByUserId: string | null;
-}
-
 export interface ReceivableSummaryResponseDto {
   id: string;
   customerId: string;
   invoiceId: string | null;
+  invoiceNumber: string | null;
   originalAmount: number;
   paidAmount: number;
   remainingAmount: number;
@@ -22,11 +15,6 @@ export interface ReceivableSummaryResponseDto {
   disputeId: string | null;
   salesRepresentativeId: string | null;
   createdAt: Date;
-}
-
-export interface ReceivableDetailResponseDto
-  extends ReceivableSummaryResponseDto {
-  allocations: ReceivableAllocationDto[];
 }
 
 interface ReceivableSource {
@@ -41,24 +29,18 @@ interface ReceivableSource {
   createdAt: Date;
 }
 
-interface AllocationSource {
-  id: string;
-  paymentId: string;
-  allocatedAmount: number;
-  allocatedAt: Date;
-  allocatedByUserId: string | null;
-}
-
 export function toReceivableSummaryResponse(
   r: ReceivableSource,
   isOverdue: boolean,
   isDisputed: boolean,
   disputeId: string | null,
+  invoiceNumber: string | null,
 ): ReceivableSummaryResponseDto {
   return {
     id: r.id,
     customerId: r.customerId,
     invoiceId: r.invoiceId,
+    invoiceNumber,
     originalAmount: r.originalAmount,
     paidAmount: r.paidAmount,
     remainingAmount: r.originalAmount - r.paidAmount,
@@ -69,24 +51,5 @@ export function toReceivableSummaryResponse(
     disputeId,
     salesRepresentativeId: r.salesRepresentativeId,
     createdAt: r.createdAt,
-  };
-}
-
-export function toReceivableDetailResponse(
-  r: ReceivableSource,
-  isOverdue: boolean,
-  isDisputed: boolean,
-  disputeId: string | null,
-  allocations: AllocationSource[],
-): ReceivableDetailResponseDto {
-  return {
-    ...toReceivableSummaryResponse(r, isOverdue, isDisputed, disputeId),
-    allocations: allocations.map((a) => ({
-      id: a.id,
-      paymentId: a.paymentId,
-      allocatedAmount: a.allocatedAmount,
-      allocatedAt: a.allocatedAt,
-      allocatedByUserId: a.allocatedByUserId,
-    })),
   };
 }

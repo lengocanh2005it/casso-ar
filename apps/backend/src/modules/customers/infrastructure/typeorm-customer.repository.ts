@@ -24,6 +24,21 @@ function toOrm(customer: Customer): CustomerOrmEntity {
   };
 }
 
+function toDomain(row: CustomerOrmEntity): Customer {
+  return {
+    id: row.id,
+    organizationId: row.organizationId,
+    name: row.name,
+    taxCode: row.taxCode,
+    email: row.email,
+    phone: row.phone,
+    defaultPaymentTermDays: row.defaultPaymentTermDays,
+    creditLimit: row.creditLimit,
+    priority: row.priority,
+    createdAt: row.createdAt,
+  };
+}
+
 @Injectable()
 export class TypeOrmCustomerRepository
   extends BaseRepository<CustomerOrmEntity>
@@ -75,7 +90,7 @@ export class TypeOrmCustomerRepository
       .take(limit)
       .getMany();
 
-    return rows as Customer[];
+    return rows.map(toDomain);
   }
 
   async count(

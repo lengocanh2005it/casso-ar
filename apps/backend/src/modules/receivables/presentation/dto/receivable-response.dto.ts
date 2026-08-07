@@ -1,5 +1,13 @@
 import type { ReceivableStatus } from '@casso-ledger/shared-types';
 
+export interface PaymentAllocationResponseDto {
+  id: string;
+  paymentId: string;
+  allocatedAmount: number;
+  allocatedAt: Date;
+  allocatedByUserId: string | null;
+}
+
 export interface ReceivableResponseDto {
   id: string;
   customerId: string;
@@ -17,6 +25,15 @@ export interface ReceivableResponseDto {
 export interface ReceivableDetailResponseDto extends ReceivableResponseDto {
   isDisputed: boolean;
   disputeId: string | null;
+  allocations: PaymentAllocationResponseDto[];
+}
+
+interface AllocationSource {
+  id: string;
+  paymentId: string;
+  allocatedAmount: number;
+  allocatedAt: Date;
+  allocatedByUserId: string | null;
 }
 
 interface ReceivableResponseSource {
@@ -45,6 +62,18 @@ export function toReceivableDetailResponse(
   r: ReceivableResponseSource,
   isDisputed: boolean,
   disputeId: string | null,
+  allocations: AllocationSource[],
 ): ReceivableDetailResponseDto {
-  return { ...toReceivableResponse(r), isDisputed, disputeId };
+  return {
+    ...toReceivableResponse(r),
+    isDisputed,
+    disputeId,
+    allocations: allocations.map((a) => ({
+      id: a.id,
+      paymentId: a.paymentId,
+      allocatedAmount: a.allocatedAmount,
+      allocatedAt: a.allocatedAt,
+      allocatedByUserId: a.allocatedByUserId,
+    })),
+  };
 }
