@@ -1,0 +1,81 @@
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import type { QueryDeepPartialEntity } from 'typeorm';
+import { Repository } from 'typeorm';
+import { BaseRepository } from '../../../common/tenancy/base.repository';
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { ICollectionActivityRepository } from '../application/collection-activity-repository.port';
+import { CollectionActivity } from '../domain/collection-activity';
+import { CollectionActivityOrmEntity } from './collection-activity.orm-entity';
+
+function toOrm(activity: CollectionActivity): CollectionActivityOrmEntity {
+  return {
+    id: activity.id,
+    organizationId: activity.organizationId,
+    receivableId: activity.receivableId,
+    customerId: activity.customerId,
+    activityType: activity.activityType,
+    description: activity.description,
+    metadata: activity.metadata,
+    createdByUserId: activity.createdByUserId,
+    createdAt: activity.createdAt,
+  };
+}
+
+function toDomain(row: CollectionActivityOrmEntity): CollectionActivity {
+  return new CollectionActivity({
+    id: row.id,
+    organizationId: row.organizationId,
+    receivableId: row.receivableId,
+    customerId: row.customerId,
+    activityType: row.activityType,
+    description: row.description,
+    metadata: row.metadata,
+    createdByUserId: row.createdByUserId,
+    createdAt: row.createdAt,
+  });
+}
+
+@Injectable()
+export class TypeOrmCollectionActivityRepository
+  extends BaseRepository<CollectionActivityOrmEntity>
+  implements ICollectionActivityRepository
+{
+  constructor(
+    @InjectRepository(CollectionActivityOrmEntity)
+    repo: Repository<CollectionActivityOrmEntity>,
+    tenantContext: TenantContextService,
+  ) {
+    super(repo, tenantContext);
+  }
+
+  async create(activity: CollectionActivity): Promise<void> {
+    // ponytail: TypeORM's insert() types Record<string, unknown> columns too
+    // strictly for a jsonb field (see QueryDeepPartialEntity); the type-level
+    // cast below only satisfies that generic, the toOrm() mapper above still
+    // does the real domain -> ORM translation.
+    await this.ormRepo.insert(
+      toOrm(activity) as QueryDeepPartialEntity<CollectionActivityOrmEntity>,
+    );
+  }
+
+  async findByReceivableId(
+    receivableId: string,
+  ): Promise<CollectionActivity[]> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const rows = await this.ormRepo.find({
+      where: { receivableId, organizationId },
+      order: { createdAt: 'DESC' },
+    });
+    return rows.map(toDomain);
+  }
+
+  async findByCustomerId(customerId: string): Promise<CollectionActivity[]> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const rows = await this.ormRepo.find({
+      where: { customerId, organizationId },
+      order: { createdAt: 'DESC' },
+    });
+    return rows.map(toDomain);
+  }
+}

@@ -20,6 +20,7 @@ import { getTypeOrmConfig } from './config/typeorm.config';
 import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
 import { BankConnectionsModule } from './modules/bank-connections/bank-connections.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { CollectionActivityModule } from './modules/collection-activity/collection-activity.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { DisputesModule } from './modules/disputes/disputes.module';
 import { EmailTemplatesModule } from './modules/email-templates/email-templates.module';
@@ -66,6 +67,7 @@ import { ExceptionQueueModule } from './modules/exception-queue/exception-queue.
     InvoicesModule,
     ReceivablesModule,
     DisputesModule,
+    CollectionActivityModule,
     PaymentsModule,
     UsersModule,
     RemindersModule,
