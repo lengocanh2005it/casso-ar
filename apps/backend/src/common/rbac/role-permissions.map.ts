@@ -19,6 +19,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.REPORT_READ,
     Permission.AUDIT_LOG_READ,
     Permission.CUSTOMER_READ,
+    Permission.ORGANIZATION_READ,
   ],
   [Role.ACCOUNTANT]: [
     Permission.RECEIVABLE_READ,
