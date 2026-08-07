@@ -279,7 +279,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #10 — Collection Activity Timeline
 - **Type**: task
-- **Status**: open
+- **Status**: in-progress
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-collection-activity-timeline-design.md`
 - **Blockers**: none — Plan #1 ✅, Plan #7 ✅, Plan #9 ✅
