@@ -17,6 +17,7 @@ import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { GetCustomerTimelineUseCase } from '../application/get-customer-timeline.usecase';
 import { GetReceivableTimelineUseCase } from '../application/get-receivable-timeline.usecase';
 import { RecordManualActivityUseCase } from '../application/record-manual-activity.usecase';
+import { toCollectionActivityResponse } from './dto/collection-activity-response.dto';
 import { CreateManualActivityDto } from './dto/create-manual-activity.dto';
 
 @Controller()
@@ -42,26 +43,32 @@ export class CollectionActivityController {
       `POST /receivables/${receivableId}/activities`,
       key,
       { receivableId, ...dto },
-      () =>
-        this.recordManualActivityUseCase.execute({
-          receivableId,
-          activityType: dto.activityType,
-          description: dto.description,
-          createdByUserId: user.userId,
-        }),
+      async () =>
+        toCollectionActivityResponse(
+          await this.recordManualActivityUseCase.execute({
+            receivableId,
+            activityType: dto.activityType,
+            description: dto.description,
+            createdByUserId: user.userId,
+          }),
+        ),
     );
   }
 
   @Get('receivables/:id/timeline')
   @RequirePermission(Permission.RECEIVABLE_READ)
   async receivableTimeline(@Param('id') receivableId: string) {
-    return this.getReceivableTimelineUseCase.execute(receivableId);
+    const activities =
+      await this.getReceivableTimelineUseCase.execute(receivableId);
+    return activities.map(toCollectionActivityResponse);
   }
 
   @Get('customers/:id/timeline')
   @RequirePermission(Permission.RECEIVABLE_READ)
   async customerTimeline(@Param('id') customerId: string) {
-    return this.getCustomerTimelineUseCase.execute(customerId);
+    const activities =
+      await this.getCustomerTimelineUseCase.execute(customerId);
+    return activities.map(toCollectionActivityResponse);
   }
 
   private getCurrentUser() {
