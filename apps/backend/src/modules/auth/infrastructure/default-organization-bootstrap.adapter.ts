@@ -7,10 +7,10 @@ import {
   type IEmailTemplateRepository,
 } from '../../email-templates/application/email-template-repository.port';
 import { buildDefaultEmailTemplates } from '../../email-templates/application/seed-default-email-templates';
+import type { IReminderPolicyRepository } from '../../reminders/application/reminder-policy-repository.port';
+import type { IReminderRuleRepository } from '../../reminders/application/reminder-rule-repository.port';
 import { ReminderPolicy } from '../../reminders/domain/reminder-policy';
 import { ReminderRule } from '../../reminders/domain/reminder-rule';
-import { TypeOrmReminderPolicyRepository } from '../../reminders/infrastructure/typeorm-reminder-policy.repository';
-import { TypeOrmReminderRuleRepository } from '../../reminders/infrastructure/typeorm-reminder-rule.repository';
 import type { IOrganizationBootstrap } from '../application/organization-bootstrap.port';
 
 @Injectable()
@@ -18,8 +18,10 @@ export class DefaultOrganizationBootstrap implements IOrganizationBootstrap {
   constructor(
     @Inject(EMAIL_TEMPLATE_REPOSITORY)
     private readonly templateRepo: IEmailTemplateRepository,
-    private readonly policyRepo: TypeOrmReminderPolicyRepository,
-    private readonly ruleRepo: TypeOrmReminderRuleRepository,
+    @Inject('IReminderPolicyRepository')
+    private readonly policyRepo: IReminderPolicyRepository,
+    @Inject('IReminderRuleRepository')
+    private readonly ruleRepo: IReminderRuleRepository,
   ) {}
 
   async seed(organizationId: string, manager: EntityManager): Promise<void> {

@@ -13,6 +13,7 @@ import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { AuditModule } from './common/audit/audit.module';
 import { IdempotencyModule } from './common/idempotency/idempotency.module';
 import { TenancyModule } from './common/tenancy/tenancy.module';
+import { CommonTokensModule } from './common/tokens/common-tokens.module';
 import { TenantContextInterceptor } from './common/tenancy/tenant-context.interceptor';
 import { getBullMqConfig } from './config/bullmq.config';
 import { getJwtModuleOptions } from './config/jwt.config';
@@ -55,6 +56,7 @@ import { ExceptionQueueModule } from './modules/exception-queue/exception-queue.
       useFactory: getJwtModuleOptions,
     }),
     TenancyModule,
+    CommonTokensModule,
     IdempotencyModule,
     AuditModule,
     OrganizationsModule,

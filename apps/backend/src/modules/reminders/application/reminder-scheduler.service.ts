@@ -1,10 +1,15 @@
 import { randomUUID } from 'node:crypto';
+import { InjectQueue } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import type { Queue } from 'bullmq';
 import { formatInTimeZone } from 'date-fns-tz';
-import type { IEventPublisher } from '../../../common/events/event-publisher.port';
+import {
+  EVENT_PUBLISHER,
+  type IEventPublisher,
+} from '../../../common/events/event-publisher.port';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { REMINDER_EXECUTION_REPOSITORY } from '../../../common/tokens/reminder-execution.token';
 import { Role } from '../../organizations/domain/membership';
 import {
   ReminderExecutionStatus,
@@ -41,13 +46,18 @@ export class ReminderSchedulerService {
   private readonly logger = new Logger(ReminderSchedulerService.name);
 
   constructor(
+    @Inject('IReminderPolicyRepository')
     private readonly policyRepo: IReminderPolicyRepository,
+    @Inject('IReminderRuleRepository')
     private readonly ruleRepo: IReminderRuleRepository,
+    @Inject(REMINDER_EXECUTION_REPOSITORY)
     private readonly executionRepo: IReminderExecutionRepository,
+    @Inject('IReminderCandidateReader')
     private readonly candidateReader: IReminderCandidateReader,
-    @Inject(REMINDER_SEND_QUEUE)
+    @InjectQueue(REMINDER_SEND_QUEUE)
     private readonly sendQueue: Queue<ReminderSendJob>,
     private readonly tenantContext: TenantContextService,
+    @Inject(EVENT_PUBLISHER)
     private readonly eventEmitter: IEventPublisher,
   ) {}
 

@@ -1,7 +1,7 @@
 import type { EntityManager } from 'typeorm';
 import type { IEmailTemplateRepository } from '../../email-templates/application/email-template-repository.port';
-import { TypeOrmReminderPolicyRepository } from '../../reminders/infrastructure/typeorm-reminder-policy.repository';
-import { TypeOrmReminderRuleRepository } from '../../reminders/infrastructure/typeorm-reminder-rule.repository';
+import type { IReminderPolicyRepository } from '../../reminders/application/reminder-policy-repository.port';
+import type { IReminderRuleRepository } from '../../reminders/application/reminder-rule-repository.port';
 import { DefaultOrganizationBootstrap } from './default-organization-bootstrap.adapter';
 
 describe('DefaultOrganizationBootstrap', () => {
@@ -16,10 +16,10 @@ describe('DefaultOrganizationBootstrap', () => {
     };
     const policyRepo = {
       save: jest.fn().mockResolvedValue(undefined),
-    } as unknown as TypeOrmReminderPolicyRepository;
+    } as unknown as IReminderPolicyRepository;
     const ruleRepo = {
       replaceForPolicy: jest.fn().mockResolvedValue(undefined),
-    } as unknown as TypeOrmReminderRuleRepository;
+    } as unknown as IReminderRuleRepository;
     const manager = {} as EntityManager;
     const organizationId = 'org-1';
 

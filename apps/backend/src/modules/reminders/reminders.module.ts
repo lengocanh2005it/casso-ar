@@ -1,6 +1,9 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { EVENT_PUBLISHER } from '../../common/events/event-publisher.port';
+import { NestEventPublisherAdapter } from '../../common/events/nest-event-publisher.adapter';
+import { CommonTokensModule } from '../../common/tokens/common-tokens.module';
 import { REMINDER_EXECUTION_REPOSITORY } from '../../common/tokens/reminder-execution.token';
 import { EmailService } from '../notifications/application/email.service';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -17,7 +20,6 @@ import { ReminderPolicyOrmEntity } from './infrastructure/reminder-policy.orm-en
 import { ReminderRuleOrmEntity } from './infrastructure/reminder-rule.orm-entity';
 import { ReminderSendProcessor } from './infrastructure/reminder-send.processor';
 import { TypeOrmReminderCandidateReader } from './infrastructure/typeorm-reminder-candidate.reader';
-import { TypeOrmReminderExecutionRepository } from './infrastructure/typeorm-reminder-execution.repository';
 import { TypeOrmReminderPolicyRepository } from './infrastructure/typeorm-reminder-policy.repository';
 import { TypeOrmReminderRuleRepository } from './infrastructure/typeorm-reminder-rule.repository';
 import {
@@ -27,24 +29,27 @@ import {
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      ReminderExecutionOrmEntity,
-      ReminderPolicyOrmEntity,
-      ReminderRuleOrmEntity,
-    ]),
+    TypeOrmModule.forFeature([ReminderPolicyOrmEntity, ReminderRuleOrmEntity]),
     BullModule.registerQueue({ name: REMINDER_SEND_QUEUE }),
+    CommonTokensModule,
     NotificationsModule,
   ],
   controllers: [RemindersController, ReminderExecutionsController],
   providers: [
-    {
-      provide: REMINDER_EXECUTION_REPOSITORY,
-      useClass: TypeOrmReminderExecutionRepository,
-    },
     { provide: I_EMAIL_SERVICE, useExisting: EmailService },
-    TypeOrmReminderPolicyRepository,
-    TypeOrmReminderRuleRepository,
-    TypeOrmReminderCandidateReader,
+    { provide: EVENT_PUBLISHER, useClass: NestEventPublisherAdapter },
+    {
+      provide: 'IReminderPolicyRepository',
+      useClass: TypeOrmReminderPolicyRepository,
+    },
+    {
+      provide: 'IReminderRuleRepository',
+      useClass: TypeOrmReminderRuleRepository,
+    },
+    {
+      provide: 'IReminderCandidateReader',
+      useClass: TypeOrmReminderCandidateReader,
+    },
     ReminderPolicyService,
     ReminderSenderService,
     ReminderSchedulerService,
@@ -52,10 +57,9 @@ import {
     ReminderExecutionListener,
   ],
   exports: [
-    REMINDER_EXECUTION_REPOSITORY,
-    TypeOrmReminderPolicyRepository,
-    TypeOrmReminderRuleRepository,
-    TypeOrmReminderCandidateReader,
+    'IReminderPolicyRepository',
+    'IReminderRuleRepository',
+    'IReminderCandidateReader',
   ],
 })
 export class RemindersModule {}

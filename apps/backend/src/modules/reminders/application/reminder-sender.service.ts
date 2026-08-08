@@ -1,13 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { ReceivableStatus } from '@casso-ledger/shared-types';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { REMINDER_EXECUTION_REPOSITORY } from '../../../common/tokens/reminder-execution.token';
 import {
   ReminderExecution,
   ReminderExecutionStatus,
   ReminderSkipReason,
 } from '../domain/reminder-execution';
 import type { IEmailService } from './i-email-service.port';
+import { I_EMAIL_SERVICE } from './i-email-service.port';
 import type { IReminderCandidateReader } from './reminder-candidate-reader.port';
 import type { IReminderExecutionRepository } from './reminder-execution-repository.port';
 import type { IReminderRuleRepository } from './reminder-rule-repository.port';
@@ -24,9 +26,13 @@ export class ReminderSenderService {
   private readonly logger = new Logger(ReminderSenderService.name);
 
   constructor(
+    @Inject('IReminderCandidateReader')
     private readonly candidateReader: IReminderCandidateReader,
+    @Inject('IReminderRuleRepository')
     private readonly ruleRepo: IReminderRuleRepository,
+    @Inject(REMINDER_EXECUTION_REPOSITORY)
     private readonly executionRepo: IReminderExecutionRepository,
+    @Inject(I_EMAIL_SERVICE)
     private readonly emailService: IEmailService,
     private readonly tenantContext: TenantContextService,
   ) {}

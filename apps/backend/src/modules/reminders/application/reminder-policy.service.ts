@@ -23,7 +23,9 @@ export interface SaveReminderPolicyInput {
 @Injectable()
 export class ReminderPolicyService {
   constructor(
+    @Inject('IReminderPolicyRepository')
     private readonly policyRepo: IReminderPolicyRepository,
+    @Inject('IReminderRuleRepository')
     private readonly ruleRepo: IReminderRuleRepository,
     private readonly dataSource: DataSource,
     private readonly tenantContext: TenantContextService,

@@ -314,9 +314,10 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #12 — Reminder Automation
 - **Type**: task
-- **Status**: open
+- **Status**: in-progress
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-reminder-automation-design.md`
+- **Plan**: `plans/2026-08-08-reminder-automation.md` (updated with grilling decisions)
 - **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #6 ✅, Plan #7 ✅
 - **Key entities**: `ReminderPolicy`, `ReminderRule`, `ReminderExecution` (domain/ORM entity shipped early by Plan #7 — see its note), `CustomerGroup` (VIP/REGULAR)
 - **Key rules**:
