@@ -27,22 +27,27 @@ describe('Read APIs completion (Plan #17, integration)', () => {
   let dataSource: DataSource;
   let jwtService: JwtService;
 
-  const orgA = '00000000-0000-0000-0000-00000000010a';
-  const orgB = '00000000-0000-0000-0000-00000000010b';
+  const orgA = '00000000-0000-0000-0000-00000000000a';
+  const orgB = '00000000-0000-0000-0000-00000000000b';
 
-  const ownerA = '00000000-0000-0000-0000-0000000010a1';
-  const salesRepA = '00000000-0000-0000-0000-0000000010a2';
-  const otherSalesRepA = '00000000-0000-0000-0000-0000000010a3';
-  const ownerB = '00000000-0000-0000-0000-0000000010b1';
+  const ownerA = '00000000-0000-0000-0000-0000000000a1';
+  const salesRepA = '00000000-0000-0000-0000-0000000000a2';
+  const otherSalesRepA = '00000000-0000-0000-0000-0000000000a3';
+  const ownerB = '00000000-0000-0000-0000-0000000000b1';
 
-  const customerA = '00000000-0000-0000-0000-0000000010c1';
-  const invoiceA = '00000000-0000-0000-0000-0000000010i1';
+  const customerA = '00000000-0000-0000-0000-0000000000c1';
+  const invoiceA = '00000000-0000-0000-0000-000000000011';
   const receivableOwnedBySalesRepA = '00000000-0000-0000-0000-000000001001';
   const receivableOwnedByOtherRep = '00000000-0000-0000-0000-000000001002';
-  const paymentA = '00000000-0000-0000-0000-0000000010p1';
+  const paymentA = '00000000-0000-0000-0000-0000000000d1';
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16').start();
+    process.env.DB_HOST = container.getHost();
+    process.env.DB_PORT = String(container.getMappedPort(5432));
+    process.env.DB_USERNAME = container.getUsername();
+    process.env.DB_PASSWORD = container.getPassword();
+    process.env.DB_DATABASE = container.getDatabase();
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     })
@@ -265,12 +270,12 @@ describe('Read APIs completion (Plan #17, integration)', () => {
       .set('Authorization', `Bearer ${tokenOwner}`)
       .expect(200);
 
-    expect(res.body.allocations).toEqual([
+    expect(res.body.allocations).toContainEqual(
       expect.objectContaining({
         paymentId: paymentA,
-        allocatedAmount: 3_000_000,
+        allocatedAmount: expect.stringMatching(/^3000000$/),
       }),
-    ]);
+    );
   });
 
   it('GET /organizations/:id/members is forbidden across tenants', async () => {

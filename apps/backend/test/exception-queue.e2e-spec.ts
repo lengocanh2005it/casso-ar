@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { INestApplication } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
@@ -29,6 +30,11 @@ describe('Exception Queue (e2e)', () => {
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16').start();
+    process.env.DB_HOST = container.getHost();
+    process.env.DB_PORT = String(container.getMappedPort(5432));
+    process.env.DB_USERNAME = container.getUsername();
+    process.env.DB_PASSWORD = container.getPassword();
+    process.env.DB_DATABASE = container.getDatabase();
     process.env.JWT_SECRET = 'exception-queue-e2e-secret';
     process.env.REDIS_HOST = 'localhost';
     process.env.REDIS_PORT = '6379';
@@ -75,7 +81,7 @@ describe('Exception Queue (e2e)', () => {
       createdAt: new Date(),
     });
 
-    const jwt = moduleRef.get<{ sign(payload: object): string }>('JwtService');
+    const jwt = moduleRef.get(JwtService);
     token = jwt.sign({ userId, organizationId, role: Role.OWNER });
   }, 60_000);
 

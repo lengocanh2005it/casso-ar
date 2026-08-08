@@ -109,6 +109,7 @@ describe('Collection Activity Timeline (integration)', () => {
     await dataSource.getRepository(PaymentOrmEntity).save({
       id: paymentId,
       organizationId,
+      customerId,
       bankTransactionId: null,
       totalAmount: 30_000_000,
       allocatedAmount: 0,

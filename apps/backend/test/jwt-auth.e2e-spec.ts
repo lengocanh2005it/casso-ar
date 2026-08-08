@@ -39,6 +39,11 @@ describe('JwtAuthGuard (e2e)', () => {
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16').start();
+    process.env.DB_HOST = container.getHost();
+    process.env.DB_PORT = String(container.getMappedPort(5432));
+    process.env.DB_USERNAME = container.getUsername();
+    process.env.DB_PASSWORD = container.getPassword();
+    process.env.DB_DATABASE = container.getDatabase();
     process.env.REDIS_HOST = 'localhost';
     process.env.REDIS_PORT = '6379';
     process.env.JWT_SECRET = 'e2e-jwt-secret';

@@ -20,5 +20,7 @@
         }
       }
     ]
-  }
+  },
+  "runInBand": true,
+  "forceExit": true
 }

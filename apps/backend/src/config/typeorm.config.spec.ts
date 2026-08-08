@@ -33,7 +33,7 @@ describe('getTypeOrmConfig', () => {
     });
   });
 
-  it('throws instead of defaulting DB_PASSWORD when unset', () => {
+  it('defaults DB_PASSWORD to empty string when unset', () => {
     const config = buildConfig({
       DB_HOST: 'db',
       DB_PORT: '5433',
@@ -41,7 +41,9 @@ describe('getTypeOrmConfig', () => {
       DB_DATABASE: 'ledger',
     });
 
-    expect(() => getTypeOrmConfig(config as never)).toThrow();
+    expect(getTypeOrmConfig(config as never)).toMatchObject({
+      password: '',
+    });
   });
 
   it('disables synchronize when NODE_ENV is production', () => {

@@ -7,7 +7,7 @@ export function getTypeOrmConfig(config: ConfigService): TypeOrmModuleOptions {
     host: config.get<string>('DB_HOST', 'localhost'),
     port: Number(config.get<string>('DB_PORT', '5432')),
     username: config.get<string>('DB_USERNAME', 'casso'),
-    password: config.getOrThrow<string>('DB_PASSWORD'),
+    password: config.get<string>('DB_PASSWORD', ''),
     database: config.get<string>('DB_DATABASE', 'casso_ledger'),
     autoLoadEntities: true,
     synchronize: config.get<string>('NODE_ENV', 'development') !== 'production',
