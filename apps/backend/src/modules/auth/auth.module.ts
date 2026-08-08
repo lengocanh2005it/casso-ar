@@ -7,6 +7,7 @@ import { BillingModule } from '../billing/billing.module';
 import { EmailTemplatesModule } from '../email-templates/email-templates.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
+import { RemindersModule } from '../reminders/reminders.module';
 import { UsersModule } from '../users/users.module';
 import { AcceptInviteUseCase } from './application/accept-invite.usecase';
 import { AUTH_EMAIL_SENDER } from './application/auth-email-sender.port';
@@ -57,6 +58,7 @@ import { InvitesController } from './presentation/invites.controller';
     BillingModule,
     EmailTemplatesModule,
     NotificationsModule,
+    RemindersModule,
   ],
   providers: [
     LoginUseCase,

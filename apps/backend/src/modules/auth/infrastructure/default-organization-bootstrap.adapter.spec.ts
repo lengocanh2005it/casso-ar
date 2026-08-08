@@ -1,5 +1,7 @@
 import type { EntityManager } from 'typeorm';
 import type { IEmailTemplateRepository } from '../../email-templates/application/email-template-repository.port';
+import { TypeOrmReminderPolicyRepository } from '../../reminders/infrastructure/typeorm-reminder-policy.repository';
+import { TypeOrmReminderRuleRepository } from '../../reminders/infrastructure/typeorm-reminder-rule.repository';
 import { DefaultOrganizationBootstrap } from './default-organization-bootstrap.adapter';
 
 describe('DefaultOrganizationBootstrap', () => {
@@ -12,10 +14,20 @@ describe('DefaultOrganizationBootstrap', () => {
       delete: jest.fn(),
       saveMany,
     };
+    const policyRepo = {
+      save: jest.fn().mockResolvedValue(undefined),
+    } as unknown as TypeOrmReminderPolicyRepository;
+    const ruleRepo = {
+      replaceForPolicy: jest.fn().mockResolvedValue(undefined),
+    } as unknown as TypeOrmReminderRuleRepository;
     const manager = {} as EntityManager;
     const organizationId = 'org-1';
 
-    const bootstrap = new DefaultOrganizationBootstrap(templateRepo);
+    const bootstrap = new DefaultOrganizationBootstrap(
+      templateRepo,
+      policyRepo,
+      ruleRepo,
+    );
     await bootstrap.seed(organizationId, manager);
 
     expect(saveMany).toHaveBeenCalledTimes(1);
