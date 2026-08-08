@@ -27,7 +27,7 @@ export class AuditLogOrmEntity {
   @Column({ type: 'jsonb', nullable: true })
   afterState: Record<string, unknown> | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   ipAddress: string | null;
 
   @Column()

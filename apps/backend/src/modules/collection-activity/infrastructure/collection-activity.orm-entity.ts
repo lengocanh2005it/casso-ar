@@ -26,7 +26,7 @@ export class CollectionActivityOrmEntity {
   @Column('jsonb', { default: {} })
   metadata: Record<string, unknown>;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   createdByUserId: string | null;
 
   @Column()

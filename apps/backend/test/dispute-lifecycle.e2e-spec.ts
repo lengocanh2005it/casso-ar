@@ -30,6 +30,11 @@ describe('Dispute lifecycle (integration)', () => {
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16').start();
+    process.env.DB_HOST = container.getHost();
+    process.env.DB_PORT = String(container.getMappedPort(5432));
+    process.env.DB_USERNAME = container.getUsername();
+    process.env.DB_PASSWORD = container.getPassword();
+    process.env.DB_DATABASE = container.getDatabase();
     process.env.JWT_SECRET = 'dispute-lifecycle-e2e-secret';
     process.env.REDIS_HOST = 'localhost';
     process.env.REDIS_PORT = '6379';

@@ -25,6 +25,11 @@ describe('Cas ID bank connection flow (integration)', () => {
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
     container = await new PostgreSqlContainer('postgres:16').start();
+    process.env.DB_HOST = container.getHost();
+    process.env.DB_PORT = String(container.getMappedPort(5432));
+    process.env.DB_USERNAME = container.getUsername();
+    process.env.DB_PASSWORD = container.getPassword();
+    process.env.DB_DATABASE = container.getDatabase();
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
