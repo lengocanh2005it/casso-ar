@@ -25,8 +25,8 @@ export class TypeOrmReminderCandidateReader
     const rows = await this.dataSource
       .getRepository(ReceivableOrmEntity)
       .createQueryBuilder('r')
-      .innerJoin(CustomerOrmEntity, 'c', 'c.id = r."customerId"')
-      .leftJoin(InvoiceOrmEntity, 'i', 'i.id = r."invoiceId"')
+      .innerJoin(CustomerOrmEntity, 'c', 'c.id::text = r."customerId"')
+      .leftJoin(InvoiceOrmEntity, 'i', 'i.id::text = r."invoiceId"')
       .leftJoin(
         DisputeOrmEntity,
         'd',
@@ -78,8 +78,8 @@ export class TypeOrmReminderCandidateReader
     const row = await this.dataSource
       .getRepository(ReceivableOrmEntity)
       .createQueryBuilder('r')
-      .innerJoin(CustomerOrmEntity, 'c', 'c.id = r."customerId"')
-      .leftJoin(InvoiceOrmEntity, 'i', 'i.id = r."invoiceId"')
+      .innerJoin(CustomerOrmEntity, 'c', 'c.id::text = r."customerId"')
+      .leftJoin(InvoiceOrmEntity, 'i', 'i.id::text = r."invoiceId"')
       .leftJoin(
         DisputeOrmEntity,
         'd',

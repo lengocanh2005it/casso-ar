@@ -4,10 +4,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { EVENT_PUBLISHER } from '../../common/events/event-publisher.port';
 import { NestEventPublisherAdapter } from '../../common/events/nest-event-publisher.adapter';
 import { CommonTokensModule } from '../../common/tokens/common-tokens.module';
-import { REMINDER_EXECUTION_REPOSITORY } from '../../common/tokens/reminder-execution.token';
 import { EmailService } from '../notifications/application/email.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { I_EMAIL_SERVICE } from './application/i-email-service.port';
+import { ReminderExecutionQueryService } from './application/reminder-execution-query.service';
 import { ReminderPolicyService } from './application/reminder-policy.service';
 import {
   REMINDER_SEND_QUEUE,
@@ -15,7 +15,6 @@ import {
 } from './application/reminder-scheduler.service';
 import { ReminderSenderService } from './application/reminder-sender.service';
 import { ReminderExecutionListener } from './infrastructure/reminder-execution.listener';
-import { ReminderExecutionOrmEntity } from './infrastructure/reminder-execution.orm-entity';
 import { ReminderPolicyOrmEntity } from './infrastructure/reminder-policy.orm-entity';
 import { ReminderRuleOrmEntity } from './infrastructure/reminder-rule.orm-entity';
 import { ReminderSendProcessor } from './infrastructure/reminder-send.processor';
@@ -51,6 +50,7 @@ import {
       useClass: TypeOrmReminderCandidateReader,
     },
     ReminderPolicyService,
+    ReminderExecutionQueryService,
     ReminderSenderService,
     ReminderSchedulerService,
     ReminderSendProcessor,

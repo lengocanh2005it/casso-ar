@@ -1,9 +1,10 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { ReminderExecutionStatus } from '../../domain/reminder-execution';
 
 export class ListReminderExecutionsQuery {
   @IsOptional()
+  @IsString()
   receivableId?: string;
 
   @IsOptional()

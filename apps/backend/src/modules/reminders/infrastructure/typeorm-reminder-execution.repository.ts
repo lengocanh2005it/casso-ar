@@ -31,7 +31,7 @@ export class TypeOrmReminderExecutionRepository
     const row = await this.dataSource
       .getRepository(ReminderExecutionOrmEntity)
       .createQueryBuilder('e')
-      .select('e."sentAt"')
+      .select(['e.id', 'e.sentAt'])
       .where('e."receivableId" = :receivableId', { receivableId })
       .andWhere('e."organizationId" = :organizationId', { organizationId })
       .andWhere('e.status = :status', {
@@ -40,7 +40,8 @@ export class TypeOrmReminderExecutionRepository
       .orderBy('e."sentAt"', 'DESC')
       .limit(1)
       .getOne();
-    return row ? { sentAt: row.sentAt! } : null;
+    if (!row?.sentAt) return null;
+    return { sentAt: row.sentAt };
   }
 
   async findByKey(
@@ -88,7 +89,7 @@ export class TypeOrmReminderExecutionRepository
     } catch (error) {
       if (
         error instanceof QueryFailedError &&
-        (error as any).code === '23505'
+        (error as { code?: string }).code === '23505'
       ) {
         return false;
       }
@@ -148,6 +149,7 @@ export class TypeOrmReminderExecutionRepository
     status: 'SENT' | 'FAILED',
     providerMessageId: string | null,
   ): Promise<void> {
+    const organizationId = this.tenantContext.getOrganizationId();
     const nextStatus =
       status === 'SENT'
         ? ReminderExecutionStatus.SENT
@@ -167,6 +169,7 @@ export class TypeOrmReminderExecutionRepository
               : null,
         })
         .where('id = :id', { id })
+        .andWhere('"organizationId" = :organizationId', { organizationId })
         .andWhere('status = :pending', {
           pending: ReminderExecutionStatus.PENDING,
         })

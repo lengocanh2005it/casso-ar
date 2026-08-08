@@ -1,4 +1,6 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import type { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { ReminderRule } from '../domain/reminder-rule';
 import type { IEmailService } from './i-email-service.port';
@@ -152,5 +154,47 @@ describe('ReminderSenderService', () => {
 
     expect(emailService.sendReminderEmail).not.toHaveBeenCalled();
     expect(executionRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('throws a NOT_FOUND AppError when the reminder rule no longer exists', async () => {
+    const candidate = {
+      receivableId: 'rec-1',
+      status: ReceivableStatus.OPEN,
+      isDisputed: false,
+    };
+    const emailService = { sendReminderEmail: jest.fn() };
+    const executionRepo = {
+      findByKey: jest.fn().mockResolvedValue(null),
+      insertIfAbsent: jest.fn(),
+      save: jest.fn(),
+    } as any;
+    const service = new ReminderSenderService(
+      {
+        findByReceivableId: jest.fn().mockResolvedValue(candidate),
+      } as unknown as IReminderCandidateReader,
+      {
+        findById: jest.fn().mockResolvedValue(null),
+      } as unknown as IReminderRuleRepository,
+      executionRepo,
+      emailService,
+      {
+        run: async (_user: unknown, cb: () => Promise<void>) => await cb(),
+      } as unknown as TenantContextService,
+    );
+
+    await expect(
+      service.send({
+        organizationId: 'org-1',
+        receivableId: 'rec-1',
+        reminderRuleId: 'rule-missing',
+        executionDate: '2026-08-03',
+      }),
+    ).rejects.toMatchObject(
+      new AppError(
+        ErrorCode.NOT_FOUND,
+        'Reminder rule rule-missing not found — configuration error',
+      ),
+    );
+    expect(emailService.sendReminderEmail).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { REMINDER_EXECUTION_REPOSITORY } from '../../../common/tokens/reminder-execution.token';
 import {
@@ -19,6 +21,25 @@ export interface SendReminderJob {
   receivableId: string;
   reminderRuleId: string;
   executionDate: string;
+}
+
+function buildSkippedExecution(
+  job: SendReminderJob,
+  skipReason: ReminderSkipReason,
+): ReminderExecution {
+  return new ReminderExecution({
+    id: randomUUID(),
+    organizationId: job.organizationId,
+    receivableId: job.receivableId,
+    reminderRuleId: job.reminderRuleId,
+    executionDate: new Date(job.executionDate),
+    sentAt: null,
+    status: ReminderExecutionStatus.SKIPPED,
+    skipReason,
+    providerMessageId: null,
+    failureReason: null,
+    createdAt: new Date(),
+  });
 }
 
 @Injectable()
@@ -55,44 +76,23 @@ export class ReminderSenderService {
       candidate.status === ReceivableStatus.WRITTEN_OFF ||
       candidate.status === ReceivableStatus.CANCELLED
     ) {
-      const execution = new ReminderExecution({
-        id: randomUUID(),
-        organizationId: job.organizationId,
-        receivableId: job.receivableId,
-        reminderRuleId: job.reminderRuleId,
-        executionDate: new Date(job.executionDate),
-        sentAt: null,
-        status: ReminderExecutionStatus.SKIPPED,
-        skipReason: ReminderSkipReason.ALREADY_PAID,
-        providerMessageId: null,
-        failureReason: null,
-        createdAt: new Date(),
-      });
-      await this.executionRepo.save(execution);
+      await this.executionRepo.save(
+        buildSkippedExecution(job, ReminderSkipReason.ALREADY_PAID),
+      );
       return;
     }
 
     if (candidate.isDisputed) {
-      const execution = new ReminderExecution({
-        id: randomUUID(),
-        organizationId: job.organizationId,
-        receivableId: job.receivableId,
-        reminderRuleId: job.reminderRuleId,
-        executionDate: new Date(job.executionDate),
-        sentAt: null,
-        status: ReminderExecutionStatus.SKIPPED,
-        skipReason: ReminderSkipReason.DISPUTED,
-        providerMessageId: null,
-        failureReason: null,
-        createdAt: new Date(),
-      });
-      await this.executionRepo.save(execution);
+      await this.executionRepo.save(
+        buildSkippedExecution(job, ReminderSkipReason.DISPUTED),
+      );
       return;
     }
 
     const rule = await this.ruleRepo.findById(job.reminderRuleId);
     if (!rule) {
-      throw new Error(
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
         `Reminder rule ${job.reminderRuleId} not found — configuration error`,
       );
     }

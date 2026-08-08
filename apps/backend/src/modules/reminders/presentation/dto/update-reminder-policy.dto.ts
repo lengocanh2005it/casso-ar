@@ -1,22 +1,6 @@
 import { Type } from 'class-transformer';
-import {
-  IsArray,
-  IsBoolean,
-  IsInt,
-  IsNotEmpty,
-  ValidateNested,
-} from 'class-validator';
-
-class ReminderRuleDto {
-  @IsInt()
-  offsetDays: number;
-
-  @IsNotEmpty()
-  emailTemplateId: string;
-
-  @IsInt()
-  minIntervalDays: number;
-}
+import { IsArray, IsBoolean, ValidateNested } from 'class-validator';
+import { ReminderRuleDto } from './reminder-rule.dto';
 
 export class UpdateReminderPolicyDto {
   @IsBoolean()

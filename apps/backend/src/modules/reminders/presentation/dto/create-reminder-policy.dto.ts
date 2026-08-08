@@ -1,24 +1,7 @@
 import { Type } from 'class-transformer';
-import {
-  IsArray,
-  IsBoolean,
-  IsEnum,
-  IsInt,
-  IsNotEmpty,
-  ValidateNested,
-} from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, ValidateNested } from 'class-validator';
 import { CustomerGroup } from '../../../customers/domain/customer-group';
-
-class ReminderRuleDto {
-  @IsInt()
-  offsetDays: number;
-
-  @IsNotEmpty()
-  emailTemplateId: string;
-
-  @IsInt()
-  minIntervalDays: number;
-}
+import { ReminderRuleDto } from './reminder-rule.dto';
 
 export class CreateReminderPolicyDto {
   @IsEnum(CustomerGroup)

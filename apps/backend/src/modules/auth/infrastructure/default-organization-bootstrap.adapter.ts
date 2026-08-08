@@ -44,21 +44,26 @@ export class DefaultOrganizationBootstrap implements IOrganizationBootstrap {
       await this.policyRepo.save(policy, manager);
 
       const rules = [
-        { name: 'Reminder 3 days before due date', offsetDays: -3 },
-        { name: 'Reminder 1 day overdue', offsetDays: 1 },
-        { name: 'Reminder 7 days overdue', offsetDays: 7 },
-        { name: 'Reminder 30 days overdue', offsetDays: 30 },
-      ].map(
-        (r) =>
-          new ReminderRule({
-            id: randomUUID(),
-            reminderPolicyId: policy.id,
-            offsetDays: r.offsetDays,
-            emailTemplateId: templateMap.get(r.name) ?? '',
-            minIntervalDays: 7,
-            createdAt: now,
-          }),
-      );
+        { name: 'Nhắc trước hạn 3 ngày', offsetDays: -3 },
+        { name: 'Nhắc quá hạn 1 ngày', offsetDays: 1 },
+        { name: 'Nhắc quá hạn 7 ngày', offsetDays: 7 },
+        { name: 'Nhắc quá hạn 30 ngày', offsetDays: 30 },
+      ].map((r) => {
+        const emailTemplateId = templateMap.get(r.name);
+        if (!emailTemplateId) {
+          throw new Error(
+            `Default email template "${r.name}" not found while seeding reminder rules`,
+          );
+        }
+        return new ReminderRule({
+          id: randomUUID(),
+          reminderPolicyId: policy.id,
+          offsetDays: r.offsetDays,
+          emailTemplateId,
+          minIntervalDays: 7,
+          createdAt: now,
+        });
+      });
       await this.ruleRepo.replaceForPolicy(policy.id, rules, manager);
     }
   }

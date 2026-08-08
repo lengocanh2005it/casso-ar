@@ -4,6 +4,7 @@ import type { EntityManager, Repository } from 'typeorm';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { IReminderRuleRepository } from '../application/reminder-rule-repository.port';
 import { ReminderRule } from '../domain/reminder-rule';
+import { ReminderPolicyOrmEntity } from './reminder-policy.orm-entity';
 import { ReminderRuleOrmEntity } from './reminder-rule.orm-entity';
 
 function toOrm(rule: ReminderRule): ReminderRuleOrmEntity {
@@ -37,7 +38,17 @@ export class TypeOrmReminderRuleRepository implements IReminderRuleRepository {
   ) {}
 
   async findById(id: string): Promise<ReminderRule | null> {
-    const row = await this.repo.findOne({ where: { id } });
+    const organizationId = this.tenantContext.getOrganizationId();
+    const row = await this.repo
+      .createQueryBuilder('r')
+      .innerJoin(
+        ReminderPolicyOrmEntity,
+        'p',
+        'p.id::text = r."reminderPolicyId" AND p."organizationId" = :organizationId',
+        { organizationId },
+      )
+      .where('r.id = :id', { id })
+      .getOne();
     return row ? toDomain(row) : null;
   }
 

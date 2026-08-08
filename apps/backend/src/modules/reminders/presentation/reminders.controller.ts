@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  Inject,
   Param,
   Patch,
   Post,
@@ -10,8 +9,7 @@ import {
 } from '@nestjs/common';
 import { Permission } from '../../../common/rbac/permission.enum';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
-import { REMINDER_EXECUTION_REPOSITORY } from '../../../common/tokens/reminder-execution.token';
-import type { IReminderExecutionRepository } from '../application/reminder-execution-repository.port';
+import { ReminderExecutionQueryService } from '../application/reminder-execution-query.service';
 import { ReminderPolicyService } from '../application/reminder-policy.service';
 import { CreateReminderPolicyDto } from './dto/create-reminder-policy.dto';
 import { ListReminderExecutionsQuery } from './dto/list-reminder-executions.query';
@@ -43,14 +41,13 @@ export class RemindersController {
 @Controller('reminder-executions')
 export class ReminderExecutionsController {
   constructor(
-    @Inject(REMINDER_EXECUTION_REPOSITORY)
-    private readonly executionRepo: IReminderExecutionRepository,
+    private readonly executionQueryService: ReminderExecutionQueryService,
   ) {}
 
   @Get()
   @RequirePermission(Permission.REPORT_READ)
   async list(@Query() query: ListReminderExecutionsQuery) {
-    return this.executionRepo.findPage({
+    return this.executionQueryService.list({
       receivableId: query.receivableId,
       status: query.status,
       page: query.page,

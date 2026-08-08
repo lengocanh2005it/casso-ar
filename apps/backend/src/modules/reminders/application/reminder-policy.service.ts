@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { CustomerGroup } from '../../customers/domain/customer-group';
 import { ReminderPolicy } from '../domain/reminder-policy';
@@ -20,6 +22,16 @@ export interface SaveReminderPolicyInput {
   rules: ReminderRuleInput[];
 }
 
+function assertUniqueOffsetDays(rules: ReminderRuleInput[]): void {
+  const offsetDays = rules.map((r) => r.offsetDays);
+  if (new Set(offsetDays).size !== offsetDays.length) {
+    throw new AppError(
+      ErrorCode.VALIDATION_ERROR,
+      'Duplicate offsetDays values',
+    );
+  }
+}
+
 @Injectable()
 export class ReminderPolicyService {
   constructor(
@@ -37,14 +49,13 @@ export class ReminderPolicyService {
       input.customerGroup,
     );
     if (existing) {
-      throw new Error('Reminder policy already exists for customer group');
+      throw new AppError(
+        ErrorCode.CONFLICT,
+        'Reminder policy already exists for customer group',
+      );
     }
 
-    const offsetDays = input.rules.map((r) => r.offsetDays);
-    const uniqueOffsets = new Set(offsetDays);
-    if (uniqueOffsets.size !== offsetDays.length) {
-      throw new Error('Duplicate offsetDays values');
-    }
+    assertUniqueOffsetDays(input.rules);
 
     const policy = new ReminderPolicy({
       id: randomUUID(),
@@ -77,17 +88,12 @@ export class ReminderPolicyService {
     id: string,
     input: { isActive: boolean; rules: ReminderRuleInput[] },
   ): Promise<ReminderPolicy> {
-    const policies = await this.policyRepo.findAll();
-    const policy = policies.find((p) => p.id === id);
+    const policy = await this.policyRepo.findById(id);
     if (!policy) {
-      throw new Error('Reminder policy not found');
+      throw new AppError(ErrorCode.NOT_FOUND, 'Reminder policy not found');
     }
 
-    const offsetDays = input.rules.map((r) => r.offsetDays);
-    const uniqueOffsets = new Set(offsetDays);
-    if (uniqueOffsets.size !== offsetDays.length) {
-      throw new Error('Duplicate offsetDays values');
-    }
+    assertUniqueOffsetDays(input.rules);
 
     const updated = new ReminderPolicy({
       ...policy,

@@ -41,6 +41,14 @@ export class TypeOrmReminderPolicyRepository
     super(repo, tenantContext);
   }
 
+  async findById(id: string): Promise<ReminderPolicy | null> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const row = await this.ormRepo.findOne({
+      where: { id, organizationId },
+    });
+    return row ? toDomain(row) : null;
+  }
+
   async findByCustomerGroup(
     customerGroup: CustomerGroup,
   ): Promise<ReminderPolicy | null> {
@@ -63,7 +71,7 @@ export class TypeOrmReminderPolicyRepository
       .select('DISTINCT p."organizationId"')
       .where('p."isActive" = :isActive', { isActive: true })
       .getRawMany();
-    return rows.map((r: any) => r.organizationId);
+    return rows.map((r: { organizationId: string }) => r.organizationId);
   }
 
   async save(policy: ReminderPolicy, manager?: EntityManager): Promise<void> {

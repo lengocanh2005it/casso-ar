@@ -3,6 +3,7 @@ import type { CustomerGroup } from '../../customers/domain/customer-group';
 import type { ReminderPolicy } from '../domain/reminder-policy';
 
 export interface IReminderPolicyRepository {
+  findById(id: string): Promise<ReminderPolicy | null>;
   findByCustomerGroup(
     customerGroup: CustomerGroup,
   ): Promise<ReminderPolicy | null>;

@@ -1,19 +1,50 @@
+import { randomUUID } from 'node:crypto';
+import { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { TenantContextService } from '../src/common/tenancy/tenant-context';
+import { REMINDER_EXECUTION_REPOSITORY } from '../src/common/tokens/reminder-execution.token';
 import { configureApp } from '../src/configure-app';
 import { CustomerGroup } from '../src/modules/customers/domain/customer-group';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
+import { DisputeStatus } from '../src/modules/disputes/domain/dispute';
+import { DisputeOrmEntity } from '../src/modules/disputes/infrastructure/dispute.orm-entity';
+import { EmailTemplateOrmEntity } from '../src/modules/email-templates/infrastructure/email-template.orm-entity';
+import { EMAIL_PROVIDER_ADAPTER } from '../src/modules/notifications/application/email-provider-adapter.port';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
+import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
+import type { IReminderExecutionRepository } from '../src/modules/reminders/application/reminder-execution-repository.port';
+import type { IReminderPolicyRepository } from '../src/modules/reminders/application/reminder-policy-repository.port';
+import type { IReminderRuleRepository } from '../src/modules/reminders/application/reminder-rule-repository.port';
 import { ReminderSchedulerService } from '../src/modules/reminders/application/reminder-scheduler.service';
-import { ReminderPolicyOrmEntity } from '../src/modules/reminders/infrastructure/reminder-policy.orm-entity';
-import { ReminderRuleOrmEntity } from '../src/modules/reminders/infrastructure/reminder-rule.orm-entity';
+import { ReminderSenderService } from '../src/modules/reminders/application/reminder-sender.service';
+import {
+  ReminderExecutionStatus,
+  ReminderSkipReason,
+} from '../src/modules/reminders/domain/reminder-execution';
+import { ReminderExecutionOrmEntity } from '../src/modules/reminders/infrastructure/reminder-execution.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
+
+const fakeEmailProvider = {
+  send: jest.fn().mockResolvedValue({ providerMessageId: 'fake-msg-id' }),
+};
+
+async function waitUntil(
+  check: () => Promise<boolean>,
+  timeoutMs = 10_000,
+): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (await check()) return;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error(`waitUntil timed out after ${timeoutMs}ms`);
+}
 
 describe('Reminder automation (integration)', () => {
   let app: INestApplication;
@@ -37,7 +68,10 @@ describe('Reminder automation (integration)', () => {
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(EMAIL_PROVIDER_ADAPTER)
+      .useValue(fakeEmailProvider)
+      .compile();
     app = moduleRef.createNestApplication();
     configureApp(app);
     await app.init();
@@ -142,5 +176,306 @@ describe('Reminder automation (integration)', () => {
   it('scheduler scans and does not throw for empty data', async () => {
     const scheduler = app.get(ReminderSchedulerService);
     await scheduler.scan(new Date('2026-08-03'));
+  });
+
+  async function createReceivable(
+    organizationId: string,
+    customerId: string,
+    overrides: Partial<{ status: ReceivableStatus; dueDate: Date }> = {},
+  ): Promise<string> {
+    const receivable = await dataSource
+      .getRepository(ReceivableOrmEntity)
+      .save({
+        id: randomUUID(),
+        organizationId,
+        customerId,
+        invoiceId: null,
+        originalAmount: 50_000_000,
+        paidAmount: 0,
+        dueDate: overrides.dueDate ?? new Date('2026-08-08'),
+        status: overrides.status ?? ReceivableStatus.OPEN,
+        salesRepresentativeId: null,
+        createdAt: new Date(),
+        closedAt: null,
+      });
+    return receivable.id;
+  }
+
+  async function createPolicyWithRule(
+    token: string,
+    offsetDays: number,
+    minIntervalDays: number,
+    emailTemplateId = 'tpl-1',
+  ): Promise<void> {
+    await request(app.getHttpServer())
+      .post('/api/v1/reminder-policies')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        customerGroup: 'VIP',
+        isActive: true,
+        rules: [{ offsetDays, emailTemplateId, minIntervalDays }],
+      })
+      .expect(201);
+  }
+
+  async function createEmailTemplate(organizationId: string): Promise<string> {
+    const template = await dataSource
+      .getRepository(EmailTemplateOrmEntity)
+      .save({
+        id: randomUUID(),
+        organizationId,
+        name: 'Test reminder template',
+        subject: 'Reminder',
+        bodyHtml: '<p>Reminder</p>',
+        reminderStage: null,
+        isDefault: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        version: 1,
+      });
+    return template.id;
+  }
+
+  async function getRuleId(organizationId: string): Promise<string> {
+    const tenantContext = app.get(TenantContextService);
+    return tenantContext.run(
+      { userId: 'system', organizationId, role: Role.OWNER },
+      async () => {
+        const policyRepo = app.get<IReminderPolicyRepository>(
+          'IReminderPolicyRepository',
+        );
+        const ruleRepo = app.get<IReminderRuleRepository>(
+          'IReminderRuleRepository',
+        );
+        const policy = await policyRepo.findByCustomerGroup(CustomerGroup.VIP);
+        if (!policy) throw new Error('VIP policy not found in test setup');
+        const rules = await ruleRepo.findByPolicyId(policy.id);
+        return rules[0].id;
+      },
+    );
+  }
+
+  it('scan() skips a receivable with an open dispute even at the exact offset', async () => {
+    const organizationId = '00000000-0000-4000-8000-000000000700';
+    const openedByUserId = '00000000-0000-4000-8000-000000000100';
+    const { customerId, token } = await setUpOrg(organizationId);
+    await createPolicyWithRule(token, -5, 7);
+    const receivableId = await createReceivable(organizationId, customerId, {
+      dueDate: new Date('2026-08-08'),
+    });
+    await dataSource.getRepository(DisputeOrmEntity).save({
+      id: randomUUID(),
+      organizationId,
+      receivableId,
+      reason: 'late payment',
+      status: DisputeStatus.OPEN,
+      openedByUserId,
+      resolvedByUserId: null,
+      resolvedAt: null,
+      createdAt: new Date(),
+    });
+
+    const scheduler = app.get(ReminderSchedulerService);
+    await scheduler.scan(new Date('2026-08-03'));
+
+    const executionRepo = app.get<IReminderExecutionRepository>(
+      REMINDER_EXECUTION_REPOSITORY,
+    );
+    const tenantContext = app.get(TenantContextService);
+    const executions = await tenantContext.run(
+      { userId: 'system', organizationId, role: Role.OWNER },
+      () => executionRepo.findPage({ receivableId, page: 1, limit: 10 }),
+    );
+    expect(executions.items).toHaveLength(0);
+  });
+
+  it('scan() records SKIPPED/RATE_LIMITED when a recent SENT execution is within minIntervalDays', async () => {
+    const organizationId = '00000000-0000-4000-8000-000000000800';
+    const { customerId, token } = await setUpOrg(organizationId);
+    await createPolicyWithRule(token, -5, 7);
+    const receivableId = await createReceivable(organizationId, customerId, {
+      dueDate: new Date('2026-08-08'),
+    });
+    const ruleId = await getRuleId(organizationId);
+
+    await dataSource.getRepository(ReminderExecutionOrmEntity).save({
+      id: randomUUID(),
+      organizationId,
+      receivableId,
+      reminderRuleId: ruleId,
+      executionDate: new Date('2026-08-01'),
+      sentAt: new Date('2026-08-01T08:00:00Z'),
+      status: ReminderExecutionStatus.SENT,
+      skipReason: null,
+      providerMessageId: 'earlier-send',
+      failureReason: null,
+      createdAt: new Date('2026-08-01'),
+    });
+
+    const scheduler = app.get(ReminderSchedulerService);
+    await scheduler.scan(new Date('2026-08-03'));
+
+    const executionRepo = app.get<IReminderExecutionRepository>(
+      REMINDER_EXECUTION_REPOSITORY,
+    );
+    const tenantContext = app.get(TenantContextService);
+    const executions = await tenantContext.run(
+      { userId: 'system', organizationId, role: Role.OWNER },
+      () => executionRepo.findPage({ receivableId, page: 1, limit: 10 }),
+    );
+    const skipped = executions.items.find(
+      (e) => e.status === ReminderExecutionStatus.SKIPPED,
+    );
+    expect(skipped?.skipReason).toBe(ReminderSkipReason.RATE_LIMITED);
+  });
+
+  it('sender records SKIPPED/ALREADY_PAID when the receivable was paid before the fresh-state re-check', async () => {
+    const organizationId = '00000000-0000-4000-8000-000000000900';
+    const { customerId, token } = await setUpOrg(organizationId);
+    await createPolicyWithRule(token, -5, 7);
+    const receivableId = await createReceivable(organizationId, customerId, {
+      dueDate: new Date('2026-08-08'),
+      status: ReceivableStatus.PAID,
+    });
+    const ruleId = await getRuleId(organizationId);
+
+    const sender = app.get(ReminderSenderService);
+    const tenantContext = app.get(TenantContextService);
+    await tenantContext.run(
+      { userId: 'system', organizationId, role: Role.OWNER },
+      () =>
+        sender.send({
+          organizationId,
+          receivableId,
+          reminderRuleId: ruleId,
+          executionDate: '2026-08-03',
+        }),
+    );
+
+    const executionRepo = app.get<IReminderExecutionRepository>(
+      REMINDER_EXECUTION_REPOSITORY,
+    );
+    const executions = await tenantContext.run(
+      { userId: 'system', organizationId, role: Role.OWNER },
+      () => executionRepo.findPage({ receivableId, page: 1, limit: 10 }),
+    );
+    expect(executions.items[0]?.status).toBe(ReminderExecutionStatus.SKIPPED);
+    expect(executions.items[0]?.skipReason).toBe(
+      ReminderSkipReason.ALREADY_PAID,
+    );
+    expect(fakeEmailProvider.send).not.toHaveBeenCalled();
+  });
+
+  it('sends a reminder end to end: PENDING -> EmailService -> SENT with a providerMessageId', async () => {
+    const organizationId = '00000000-0000-4000-8000-001000000000';
+    const { customerId, token } = await setUpOrg(organizationId);
+    const emailTemplateId = await createEmailTemplate(organizationId);
+    await createPolicyWithRule(token, -5, 7, emailTemplateId);
+    const receivableId = await createReceivable(organizationId, customerId, {
+      dueDate: new Date('2026-08-08'),
+    });
+    const ruleId = await getRuleId(organizationId);
+
+    const sender = app.get(ReminderSenderService);
+    const tenantContext = app.get(TenantContextService);
+    await tenantContext.run(
+      { userId: 'system', organizationId, role: Role.OWNER },
+      () =>
+        sender.send({
+          organizationId,
+          receivableId,
+          reminderRuleId: ruleId,
+          executionDate: '2026-08-03',
+        }),
+    );
+
+    const executionRepo = app.get<IReminderExecutionRepository>(
+      REMINDER_EXECUTION_REPOSITORY,
+    );
+    await waitUntil(async () => {
+      const executions = await tenantContext.run(
+        { userId: 'system', organizationId, role: Role.OWNER },
+        () => executionRepo.findPage({ receivableId, page: 1, limit: 10 }),
+      );
+      return executions.items[0]?.status === ReminderExecutionStatus.SENT;
+    });
+
+    const executions = await tenantContext.run(
+      { userId: 'system', organizationId, role: Role.OWNER },
+      () => executionRepo.findPage({ receivableId, page: 1, limit: 10 }),
+    );
+    expect(executions.items[0]?.providerMessageId).toBeTruthy();
+  }, 20_000);
+
+  it('a reminder rule created for one organization is invisible under another organization tenant context', async () => {
+    const orgA = '00000000-0000-4000-8000-001100000000';
+    const orgB = '00000000-0000-4000-8000-001200000000';
+    const { token: tokenA } = await setUpOrg(orgA);
+    await setUpOrg(orgB);
+    await createPolicyWithRule(tokenA, -5, 7);
+    const ruleId = await getRuleId(orgA);
+
+    const tenantContext = app.get(TenantContextService);
+    const ruleRepo = app.get<IReminderRuleRepository>(
+      'IReminderRuleRepository',
+    );
+    const ruleUnderWrongOrg = await tenantContext.run(
+      { userId: 'system', organizationId: orgB, role: Role.OWNER },
+      () => ruleRepo.findById(ruleId),
+    );
+    expect(ruleUnderWrongOrg).toBeNull();
+
+    const ruleUnderRightOrg = await tenantContext.run(
+      { userId: 'system', organizationId: orgA, role: Role.OWNER },
+      () => ruleRepo.findById(ruleId),
+    );
+    expect(ruleUnderRightOrg).not.toBeNull();
+  });
+
+  it('updateSendResult does not update a PENDING execution belonging to a different organization', async () => {
+    const orgA = '00000000-0000-4000-8000-001300000000';
+    const orgB = '00000000-0000-4000-8000-001400000000';
+    const { customerId } = await setUpOrg(orgA);
+    await setUpOrg(orgB);
+    const receivableId = await createReceivable(orgA, customerId);
+    const executionId = randomUUID();
+
+    await dataSource.getRepository(ReminderExecutionOrmEntity).save({
+      id: executionId,
+      organizationId: orgA,
+      receivableId,
+      reminderRuleId: null,
+      executionDate: new Date('2026-08-03'),
+      sentAt: null,
+      status: ReminderExecutionStatus.PENDING,
+      skipReason: null,
+      providerMessageId: null,
+      failureReason: null,
+      createdAt: new Date(),
+    });
+
+    const executionRepo = app.get<IReminderExecutionRepository>(
+      REMINDER_EXECUTION_REPOSITORY,
+    );
+    const tenantContext = app.get(TenantContextService);
+
+    await tenantContext.run(
+      { userId: 'system', organizationId: orgB, role: Role.OWNER },
+      () => executionRepo.updateSendResult(executionId, 'SENT', 'cross-tenant'),
+    );
+    const stillPending = await dataSource
+      .getRepository(ReminderExecutionOrmEntity)
+      .findOneBy({ id: executionId });
+    expect(stillPending?.status).toBe(ReminderExecutionStatus.PENDING);
+
+    await tenantContext.run(
+      { userId: 'system', organizationId: orgA, role: Role.OWNER },
+      () => executionRepo.updateSendResult(executionId, 'SENT', 'same-tenant'),
+    );
+    const nowSent = await dataSource
+      .getRepository(ReminderExecutionOrmEntity)
+      .findOneBy({ id: executionId });
+    expect(nowSent?.status).toBe(ReminderExecutionStatus.SENT);
+    expect(nowSent?.providerMessageId).toBe('same-tenant');
   });
 });
