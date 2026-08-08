@@ -136,7 +136,7 @@ export class ReminderSchedulerService {
           executionDate,
         },
         {
-          jobId: `reminder:${candidate.receivableId}:${matchingRule.id}:${executionDate}`,
+          jobId: `reminder-${candidate.receivableId}-${matchingRule.id}-${executionDate}`,
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },
         },

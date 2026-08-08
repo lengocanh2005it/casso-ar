@@ -478,4 +478,116 @@ describe('Reminder automation (integration)', () => {
     expect(nowSent?.status).toBe(ReminderExecutionStatus.SENT);
     expect(nowSent?.providerMessageId).toBe('same-tenant');
   });
+
+  it('marks the execution FAILED after all EmailService retries are exhausted', async () => {
+    const organizationId = '00000000-0000-4000-8000-001500000000';
+    const { customerId, token } = await setUpOrg(organizationId);
+    const emailTemplateId = await createEmailTemplate(organizationId);
+    await createPolicyWithRule(token, -5, 7, emailTemplateId);
+    const receivableId = await createReceivable(organizationId, customerId, {
+      dueDate: new Date('2026-08-08'),
+    });
+    const ruleId = await getRuleId(organizationId);
+
+    fakeEmailProvider.send
+      .mockRejectedValueOnce(new Error('smtp down'))
+      .mockRejectedValueOnce(new Error('smtp down'))
+      .mockRejectedValueOnce(new Error('smtp down'));
+
+    const sender = app.get(ReminderSenderService);
+    const tenantContext = app.get(TenantContextService);
+    await tenantContext.run(
+      { userId: 'system', organizationId, role: Role.OWNER },
+      () =>
+        sender.send({
+          organizationId,
+          receivableId,
+          reminderRuleId: ruleId,
+          executionDate: '2026-08-03',
+        }),
+    );
+
+    const executionRepo = app.get<IReminderExecutionRepository>(
+      REMINDER_EXECUTION_REPOSITORY,
+    );
+    await waitUntil(async () => {
+      const executions = await tenantContext.run(
+        { userId: 'system', organizationId, role: Role.OWNER },
+        () => executionRepo.findPage({ receivableId, page: 1, limit: 10 }),
+      );
+      return executions.items[0]?.status === ReminderExecutionStatus.FAILED;
+    }, 25_000);
+
+    const executions = await tenantContext.run(
+      { userId: 'system', organizationId, role: Role.OWNER },
+      () => executionRepo.findPage({ receivableId, page: 1, limit: 10 }),
+    );
+    expect(executions.items[0]?.status).toBe(ReminderExecutionStatus.FAILED);
+    expect(executions.items[0]?.providerMessageId).toBeNull();
+
+    fakeEmailProvider.send.mockReset();
+    fakeEmailProvider.send.mockResolvedValue({
+      providerMessageId: 'fake-msg-id',
+    });
+  }, 30_000);
+
+  it('re-matches a receivable in the same scan window after its dispute is resolved', async () => {
+    const organizationId = '00000000-0000-4000-8000-001600000000';
+    const openedByUserId = '00000000-0000-4000-8000-000000000100';
+    const { customerId, token } = await setUpOrg(organizationId);
+    const emailTemplateId = await createEmailTemplate(organizationId);
+    await createPolicyWithRule(token, -5, 7, emailTemplateId);
+    const receivableId = await createReceivable(organizationId, customerId, {
+      dueDate: new Date('2026-08-08'),
+    });
+    const dispute = await dataSource.getRepository(DisputeOrmEntity).save({
+      id: randomUUID(),
+      organizationId,
+      receivableId,
+      reason: 'late payment',
+      status: DisputeStatus.OPEN,
+      openedByUserId,
+      resolvedByUserId: null,
+      resolvedAt: null,
+      createdAt: new Date(),
+    });
+
+    const scheduler = app.get(ReminderSchedulerService);
+    const executionRepo = app.get<IReminderExecutionRepository>(
+      REMINDER_EXECUTION_REPOSITORY,
+    );
+    const tenantContext = app.get(TenantContextService);
+
+    await scheduler.scan(new Date('2026-08-03'));
+    const beforeResolve = await tenantContext.run(
+      { userId: 'system', organizationId, role: Role.OWNER },
+      () => executionRepo.findPage({ receivableId, page: 1, limit: 10 }),
+    );
+    expect(beforeResolve.items).toHaveLength(0);
+
+    await dataSource.getRepository(DisputeOrmEntity).update(dispute.id, {
+      status: DisputeStatus.RESOLVED,
+      resolvedByUserId: openedByUserId,
+      resolvedAt: new Date(),
+    });
+
+    await scheduler.scan(new Date('2026-08-03'));
+
+    await waitUntil(async () => {
+      const executions = await tenantContext.run(
+        { userId: 'system', organizationId, role: Role.OWNER },
+        () => executionRepo.findPage({ receivableId, page: 1, limit: 10 }),
+      );
+      return executions.items.length > 0;
+    });
+
+    const afterResolve = await tenantContext.run(
+      { userId: 'system', organizationId, role: Role.OWNER },
+      () => executionRepo.findPage({ receivableId, page: 1, limit: 10 }),
+    );
+    expect(afterResolve.items.length).toBeGreaterThan(0);
+    expect(afterResolve.items[0]?.skipReason).not.toBe(
+      ReminderSkipReason.DISPUTED,
+    );
+  }, 20_000);
 });

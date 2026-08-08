@@ -80,6 +80,8 @@ describe('ReminderSchedulerService', () => {
         jobId: expect.stringContaining('rec-1'),
       }),
     );
+    const jobId = queueAdd.mock.calls[0][2].jobId as string;
+    expect(jobId).not.toContain(':');
   });
 
   it('does not enqueue a disputed candidate', async () => {
