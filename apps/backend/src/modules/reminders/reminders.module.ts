@@ -20,7 +20,10 @@ import { TypeOrmReminderCandidateReader } from './infrastructure/typeorm-reminde
 import { TypeOrmReminderExecutionRepository } from './infrastructure/typeorm-reminder-execution.repository';
 import { TypeOrmReminderPolicyRepository } from './infrastructure/typeorm-reminder-policy.repository';
 import { TypeOrmReminderRuleRepository } from './infrastructure/typeorm-reminder-rule.repository';
-import { RemindersController } from './presentation/reminders.controller';
+import {
+  ReminderExecutionsController,
+  RemindersController,
+} from './presentation/reminders.controller';
 
 @Module({
   imports: [
@@ -32,7 +35,7 @@ import { RemindersController } from './presentation/reminders.controller';
     BullModule.registerQueue({ name: REMINDER_SEND_QUEUE }),
     NotificationsModule,
   ],
-  controllers: [RemindersController],
+  controllers: [RemindersController, ReminderExecutionsController],
   providers: [
     {
       provide: REMINDER_EXECUTION_REPOSITORY,
