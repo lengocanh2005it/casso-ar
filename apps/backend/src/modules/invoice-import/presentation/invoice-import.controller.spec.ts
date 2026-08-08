@@ -121,13 +121,13 @@ describe('InvoiceImportController', () => {
     expect(importInvoicesUseCase.execute).not.toHaveBeenCalled();
   });
 
-  it('requires RECEIVABLE_WRITE permission', () => {
+  it('requires RECEIVABLE_IMPORT permission', () => {
     expect(
       Reflect.getMetadata(
         REQUIRED_PERMISSION_KEY,
         InvoiceImportController.prototype.import,
       ),
-    ).toBe(Permission.RECEIVABLE_WRITE);
+    ).toBe(Permission.RECEIVABLE_IMPORT);
     expect(
       Reflect.getMetadata(GUARDS_METADATA, InvoiceImportController),
     ).toContain(PermissionGuard);

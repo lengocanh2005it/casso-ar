@@ -11,7 +11,7 @@ import {
   CUSTOMER_REPOSITORY,
   type ICustomerRepository,
 } from '../../customers/application/customer-repository.port';
-import type { Receivable } from '../domain/receivable';
+import { Receivable } from '../domain/receivable';
 import {
   type IReceivableRepository,
   RECEIVABLE_REPOSITORY,
@@ -66,7 +66,7 @@ export class CreateReceivableUseCase {
     // concurrent requests can't both squeeze past a limit with one slot left.
     await this.planLimit.enforceReceivableLimit(manager);
 
-    const receivable = {
+    const receivable = new Receivable({
       id: randomUUID(),
       organizationId: this.tenant.getOrganizationId(),
       ...input,
@@ -74,7 +74,8 @@ export class CreateReceivableUseCase {
       status: ReceivableStatus.OPEN,
       createdAt: new Date(),
       closedAt: null,
-    } as Receivable;
+      version: 0,
+    });
     await this.repo.save(receivable, manager);
     return receivable;
   }

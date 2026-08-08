@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { EntityManager, Repository } from 'typeorm';
+import type { EntityManager, FindOptionsSelect, Repository } from 'typeorm';
 import { In } from 'typeorm';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { IInvoiceRepository } from '../application/invoice-repository.port';
@@ -19,7 +19,7 @@ const INVOICE_SELECT = {
   fileUrl: true,
   status: true,
   createdAt: true,
-};
+} satisfies FindOptionsSelect<InvoiceOrmEntity>;
 
 // Explicit domain → ORM translation: the compiler checks every field, so a
 // drift between the two shapes fails here instead of being cast away.

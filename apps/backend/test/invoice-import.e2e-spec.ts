@@ -626,7 +626,7 @@ describe('Invoice import (integration)', () => {
       .set('Idempotency-Key', randomUUID())
       .attach('file', bigBuffer, { filename: 'big.xlsx' });
     expect(res.status).toBe(413);
-    expectStandardErrorEnvelope(res.body, 413, 'INTERNAL_SERVER_ERROR');
+    expectStandardErrorEnvelope(res.body, 413, 'FILE_TOO_LARGE');
   });
 
   it('9g. 1,001 rows returns 400', async () => {

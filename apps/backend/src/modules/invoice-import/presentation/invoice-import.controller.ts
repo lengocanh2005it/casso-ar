@@ -28,7 +28,7 @@ export class InvoiceImportController {
   ) {}
 
   @Post('import')
-  @RequirePermission(Permission.RECEIVABLE_WRITE)
+  @RequirePermission(Permission.RECEIVABLE_IMPORT)
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
