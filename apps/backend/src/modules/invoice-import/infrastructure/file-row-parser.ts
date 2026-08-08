@@ -3,6 +3,7 @@ import { parse } from 'csv-parse/sync';
 import { read, utils } from 'xlsx';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import type { ParsedImportFile } from '../application/import-file-row-parser.port';
 
 export const IMPORT_HEADERS = [
   'customerName',
@@ -14,11 +15,6 @@ export const IMPORT_HEADERS = [
   'totalAmount',
   'taxAmount',
 ] as const;
-
-export interface ParsedImportFile {
-  rows: Record<string, unknown>[];
-  totalRows: number;
-}
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_ROWS = 1000;
@@ -36,7 +32,7 @@ const normalizeFirstHeader = (headers: unknown[]): string[] =>
     if (typeof header === 'string') {
       return index === 0 ? header.replace(/^\uFEFF/, '') : header;
     }
-    return invalid('Import headers must be strings');
+    return invalid('Tên cột nhập phải là chuỗi');
   });
 
 const validateHeaders = (headers: unknown[]): string[] => {
@@ -44,12 +40,12 @@ const validateHeaders = (headers: unknown[]): string[] => {
   const seen = new Set<string>();
 
   for (const header of normalized) {
-    if (seen.has(header)) invalid(`Duplicate import header: ${header}`);
+    if (seen.has(header)) invalid(`Cột nhập bị trùng: ${header}`);
     seen.add(header);
   }
 
   for (const header of IMPORT_HEADERS) {
-    if (!seen.has(header)) invalid(`Missing import header: ${header}`);
+    if (!seen.has(header)) invalid(`Thiếu cột nhập: ${header}`);
   }
 
   return normalized;
@@ -61,8 +57,8 @@ const pickImportColumns = (
   Object.fromEntries(IMPORT_HEADERS.map((header) => [header, row[header]]));
 
 const enforceLimits = (rows: Record<string, unknown>[]): void => {
-  if (rows.length === 0) invalid('Import file has no data rows');
-  if (rows.length > MAX_ROWS) invalid('Import file exceeds 1,000 rows');
+  if (rows.length === 0) invalid('Tệp nhập không có dòng dữ liệu');
+  if (rows.length > MAX_ROWS) invalid('Tệp nhập vượt quá 1.000 dòng');
 };
 
 const parseCsv = (buffer: Buffer): Record<string, unknown>[] => {
@@ -79,7 +75,7 @@ const parseCsv = (buffer: Buffer): Record<string, unknown>[] => {
     });
   } catch (error) {
     if (error instanceof AppError) throw error;
-    return invalid('Malformed CSV import file');
+    return invalid('Tệp CSV nhập không hợp lệ');
   }
 };
 
@@ -94,18 +90,18 @@ const parseWorkbook = (
         : buffer
             .subarray(0, XLS_CFB_SIGNATURE.length)
             .equals(XLS_CFB_SIGNATURE);
-    if (!hasSignature) return invalid('Malformed workbook import file');
+    if (!hasSignature) return invalid('Tệp bảng tính nhập không hợp lệ');
 
     const workbook = read(buffer, { cellDates: true, type: 'buffer' });
     const firstSheetName = workbook.SheetNames[0];
-    if (!firstSheetName) return invalid('Import workbook has no sheets');
+    if (!firstSheetName) return invalid('Tệp bảng tính không có trang tính');
 
     const sheetRows = utils.sheet_to_json<unknown[]>(
       workbook.Sheets[firstSheetName],
       { blankrows: false, defval: null, header: 1, raw: true },
     );
     const [headers, ...dataRows] = sheetRows;
-    if (!headers) return invalid('Import workbook has no header row');
+    if (!headers) return invalid('Tệp bảng tính không có dòng tiêu đề');
 
     const normalizedHeaders = validateHeaders(headers);
     return dataRows.map((row) =>
@@ -117,7 +113,7 @@ const parseWorkbook = (
     );
   } catch (error) {
     if (error instanceof AppError) throw error;
-    return invalid('Malformed workbook import file');
+    return invalid('Tệp bảng tính nhập không hợp lệ');
   }
 };
 
@@ -126,7 +122,7 @@ export function parseFileToRows(
   originalFilename: string,
 ): ParsedImportFile {
   if (buffer.byteLength > MAX_FILE_BYTES) {
-    invalid('Import file exceeds 5 MiB');
+    invalid('Tệp nhập vượt quá 5 MiB');
   }
 
   const extension = extname(originalFilename).toLowerCase();
@@ -135,7 +131,7 @@ export function parseFileToRows(
       ? parseCsv(buffer)
       : extension === '.xlsx' || extension === '.xls'
         ? parseWorkbook(buffer, extension)
-        : invalid('Unsupported import file type');
+        : invalid('Định dạng tệp nhập không được hỗ trợ');
 
   const pickedRows = rows.map(pickImportColumns);
   enforceLimits(pickedRows);

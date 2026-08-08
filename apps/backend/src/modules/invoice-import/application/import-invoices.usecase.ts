@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { DataSource } from 'typeorm';
 import {
@@ -13,6 +13,7 @@ import {
 } from '../../../common/audit/audit-log-repository.port';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { StructuredLogger } from '../../../common/logging/structured-logger';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import {
   CUSTOMER_REPOSITORY,
@@ -26,22 +27,17 @@ import {
 } from '../../invoices/application/invoice-repository.port';
 import { Invoice, InvoiceStatus } from '../../invoices/domain/invoice';
 import { CreateReceivableUseCase } from '../../receivables/application/create-receivable.usecase';
+import {
+  IMPORT_FILE_ROW_PARSER,
+  type ImportFileRowParser,
+} from './import-file-row-parser.port';
 import { getImportRequestFingerprint } from './import-request-fingerprint';
 import { type ParsedInvoiceRow, parseInvoiceRow } from './invoice-row-parser';
 
 const DUPLICATE_INVOICE_NUMBER = 'DUPLICATE_INVOICE_NUMBER';
 const IMPORT_ROW_FAILED = 'IMPORT_ROW_FAILED';
-
-export interface ParsedImportFile {
-  rows: Record<string, unknown>[];
-  totalRows: number;
-}
-
-export interface ImportFileRowParser {
-  parseFileToRows(buffer: Buffer, originalFilename: string): ParsedImportFile;
-}
-
-export const IMPORT_FILE_ROW_PARSER = Symbol('IMPORT_FILE_ROW_PARSER');
+const INVOICE_NUMBER_UNIQUE_CONSTRAINT =
+  'UQ_invoices_organization_invoice_number';
 
 export interface ImportRowFailure {
   rowNumber: number;
@@ -57,8 +53,6 @@ export interface ImportInvoicesResult {
 
 @Injectable()
 export class ImportInvoicesUseCase {
-  private readonly logger = new Logger(ImportInvoicesUseCase.name);
-
   constructor(
     @Inject(CUSTOMER_REPOSITORY)
     private readonly customerRepo: ICustomerRepository,
@@ -71,6 +65,7 @@ export class ImportInvoicesUseCase {
     private readonly fileRowParser: ImportFileRowParser,
     @Inject(AUDIT_LOG_REPOSITORY)
     private readonly auditLogRepo: IAuditLogRepository,
+    private readonly logger: StructuredLogger,
   ) {}
 
   async execute(
@@ -91,6 +86,7 @@ export class ImportInvoicesUseCase {
     );
     const fileSha256 = getImportRequestFingerprint(buffer, filename);
     const organizationId = currentUser.organizationId;
+    const requestId = currentUser.requestId ?? 'unknown';
 
     const failedRows: ImportRowFailure[] = [];
     let successCount = 0;
@@ -104,12 +100,13 @@ export class ImportInvoicesUseCase {
         );
         successCount += 1;
       } catch (error) {
+        const isExpectedDuplicate = this.isInvoiceNumberUniqueViolation(error);
         failedRows.push({
           rowNumber,
           data: row,
           errors: [this.rowErrorCode(error)],
         });
-        if (!(error instanceof AppError)) {
+        if (!(error instanceof AppError) && !isExpectedDuplicate) {
           this.logger.error({
             message: 'Invoice import row failed',
             rowNumber,
@@ -119,6 +116,7 @@ export class ImportInvoicesUseCase {
                 : undefined,
             organizationId,
             userId: currentUser.userId,
+            requestId,
             errorName: error instanceof Error ? error.name : typeof error,
           });
         }
@@ -132,6 +130,7 @@ export class ImportInvoicesUseCase {
       result,
       organizationId,
       currentUser.userId,
+      requestId,
     );
     return result;
   }
@@ -147,7 +146,7 @@ export class ImportInvoicesUseCase {
       manager,
     );
     if (existingInvoice) {
-      throw new AppError(ErrorCode.CONFLICT, 'Invoice number already exists', {
+      throw new AppError(ErrorCode.CONFLICT, 'Số hóa đơn đã tồn tại', {
         rowErrorCode: DUPLICATE_INVOICE_NUMBER,
       });
     }
@@ -219,6 +218,9 @@ export class ImportInvoicesUseCase {
   }
 
   private rowErrorCode(error: unknown): string {
+    if (this.isInvoiceNumberUniqueViolation(error)) {
+      return DUPLICATE_INVOICE_NUMBER;
+    }
     if (!(error instanceof AppError)) return IMPORT_ROW_FAILED;
     if (
       typeof error.details === 'object' &&
@@ -237,6 +239,7 @@ export class ImportInvoicesUseCase {
     result: ImportInvoicesResult,
     organizationId: string,
     userId: string,
+    requestId: string = 'unknown',
   ): void {
     const log = new AuditLog({
       organizationId,
@@ -263,9 +266,26 @@ export class ImportInvoicesUseCase {
         message: 'Invoice import audit failed',
         organizationId,
         userId,
+        requestId,
         entityId: fileSha256,
         errorName: error instanceof Error ? error.name : typeof error,
       });
     });
+  }
+
+  private isInvoiceNumberUniqueViolation(error: unknown): boolean {
+    if (typeof error !== 'object' || error === null) return false;
+    const databaseError = error as {
+      code?: unknown;
+      constraint?: unknown;
+      driverError?: {
+        code?: unknown;
+        constraint?: unknown;
+      };
+    };
+    const code = databaseError.code ?? databaseError.driverError?.code;
+    const constraint =
+      databaseError.constraint ?? databaseError.driverError?.constraint;
+    return code === '23505' && constraint === INVOICE_NUMBER_UNIQUE_CONSTRAINT;
   }
 }

@@ -18,7 +18,7 @@ const invalid = (message: string): never => {
 
 const requiredText = (value: unknown, field: string): string => {
   if (typeof value !== 'string' || value.trim() === '') {
-    return invalid(`${field} is required`);
+    return invalid(`${field} là bắt buộc`);
   }
   return value.trim();
 };
@@ -32,7 +32,7 @@ const optionalText = (value: unknown): string | null => {
     return null;
   }
   if (typeof value !== 'string') {
-    return invalid('optional identifier must be a string');
+    return invalid('Mã định danh tùy chọn phải là chuỗi');
   }
   return value.trim();
 };
@@ -40,10 +40,10 @@ const optionalText = (value: unknown): string | null => {
 const parseDate = (value: unknown, field: string): Date => {
   if (value instanceof Date) {
     if (!Number.isNaN(value.getTime())) return value;
-    return invalid(`${field} must be a valid date`);
+    return invalid(`${field} phải là ngày hợp lệ`);
   }
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
-    return invalid(`${field} must be a valid date`);
+    return invalid(`${field} phải là ngày hợp lệ`);
   }
   const [year, month, day] = value.trim().split('-').map(Number);
   const date = new Date(0);
@@ -54,7 +54,7 @@ const parseDate = (value: unknown, field: string): Date => {
     date.getUTCMonth() !== month - 1 ||
     date.getUTCDate() !== day
   ) {
-    return invalid(`${field} must be a valid date`);
+    return invalid(`${field} phải là ngày hợp lệ`);
   }
   return date;
 };
@@ -77,22 +77,22 @@ const parseAmount = (
     const amount = Number(value.trim());
     if (Number.isSafeInteger(amount)) return amount;
   }
-  return invalid(`${field} must be a safe integer`);
+  return invalid(`${field} phải là số nguyên an toàn`);
 };
 
 export function parseInvoiceRow(
   row: Record<string, unknown>,
 ): ParsedInvoiceRow {
   const totalAmount = parseAmount(row.totalAmount, 'totalAmount');
-  if (totalAmount <= 0) invalid('totalAmount must be greater than 0');
+  if (totalAmount <= 0) invalid('totalAmount phải lớn hơn 0');
 
   const taxAmount = parseAmount(row.taxAmount, 'taxAmount', true);
   if (taxAmount < 0 || taxAmount > totalAmount)
-    invalid('taxAmount must be between 0 and totalAmount');
+    invalid('taxAmount phải nằm trong khoảng từ 0 đến totalAmount');
 
   const issueDate = parseDate(row.issueDate, 'issueDate');
   const dueDate = parseDate(row.dueDate, 'dueDate');
-  if (dueDate < issueDate) invalid('dueDate must be on or after issueDate');
+  if (dueDate < issueDate) invalid('dueDate phải cùng ngày hoặc sau issueDate');
 
   return {
     customerName: requiredText(row.customerName, 'customerName'),

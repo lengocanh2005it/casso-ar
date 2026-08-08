@@ -94,7 +94,7 @@ describe('parseInvoiceRow', () => {
   it('rejects tax greater than total', () => {
     expect(() =>
       parseInvoiceRow({ ...validRow, totalAmount: '1000', taxAmount: '1001' }),
-    ).toThrow('taxAmount must be between 0 and totalAmount');
+    ).toThrow('taxAmount phải nằm trong khoảng từ 0 đến totalAmount');
   });
 
   it('accepts valid JavaScript Date cells', () => {
@@ -147,7 +147,7 @@ describe('parseInvoiceRow', () => {
         issueDate: '2026-03-02',
         dueDate: '2026-03-01',
       }),
-    ).toThrow('dueDate must be on or after issueDate');
+    ).toThrow('dueDate phải cùng ngày hoặc sau issueDate');
   });
 
   it('uses the validation error code', () => {

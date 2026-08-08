@@ -34,6 +34,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
   [Role.SALES_REP]: [
     Permission.RECEIVABLE_READ,
+    Permission.RECEIVABLE_WRITE,
     Permission.EMAIL_TEMPLATE_READ,
     Permission.REPORT_READ,
     Permission.CUSTOMER_READ,

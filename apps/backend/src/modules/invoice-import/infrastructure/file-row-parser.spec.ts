@@ -171,7 +171,7 @@ describe('parseFileToRows', () => {
     ]);
 
     expect(() => parseFileToRows(oversized, 'invoices.csv')).toThrow(
-      'Import file exceeds 5 MiB',
+      'Tệp nhập vượt quá 5 MiB',
     );
   });
 

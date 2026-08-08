@@ -13,6 +13,7 @@ import { ErrorCode } from '../../../common/errors/error-code';
 import { HttpExceptionFilter } from '../../../common/errors/http-exception.filter';
 import { IdempotencyModule } from '../../../common/idempotency/idempotency.module';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
+import { StructuredLogger } from '../../../common/logging/structured-logger';
 import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { REQUIRED_PERMISSION_KEY } from '../../../common/rbac/require-permission.decorator';
@@ -24,8 +25,8 @@ import { InvoicesModule } from '../../invoices/invoices.module';
 import { CreateReceivableUseCase } from '../../receivables/application/create-receivable.usecase';
 import { RECEIVABLE_REPOSITORY } from '../../receivables/application/receivable-repository.port';
 import { ReceivablesModule } from '../../receivables/receivables.module';
+import { IMPORT_FILE_ROW_PARSER } from '../application/import-file-row-parser.port';
 import {
-  IMPORT_FILE_ROW_PARSER,
   type ImportInvoicesResult,
   ImportInvoicesUseCase,
 } from '../application/import-invoices.usecase';
@@ -209,6 +210,7 @@ describe('InvoiceImportModule', () => {
         { provide: TenantContextService, useValue: {} },
         { provide: DataSource, useValue: {} },
         { provide: AUDIT_LOG_REPOSITORY, useValue: {} },
+        StructuredLogger,
         { provide: IdempotencyService, useValue: {} },
       ],
     }).compile();

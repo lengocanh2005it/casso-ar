@@ -11,4 +11,10 @@ describe('ROLE_PERMISSIONS', () => {
       Permission.ORGANIZATION_READ,
     );
   });
+
+  it('allows SALES_REP to import receivables assigned to themselves', () => {
+    expect(ROLE_PERMISSIONS[Role.SALES_REP]).toContain(
+      Permission.RECEIVABLE_WRITE,
+    );
+  });
 });

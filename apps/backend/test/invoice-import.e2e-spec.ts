@@ -152,6 +152,20 @@ describe('Invoice import (integration)', () => {
     return Buffer.from(lines.join('\n'));
   }
 
+  function expectStandardErrorEnvelope(
+    body: unknown,
+    statusCode: number,
+    errorCode = 'VALIDATION_ERROR',
+  ): void {
+    expect(body).toEqual(
+      expect.objectContaining({
+        statusCode,
+        errorCode,
+        message: expect.any(String),
+      }),
+    );
+  }
+
   const VALID_HEADER =
     'customerName,customerTaxCode,customerEmail,invoiceNumber,issueDate,dueDate,totalAmount,taxAmount';
 
@@ -164,17 +178,6 @@ describe('Invoice import (integration)', () => {
     '2026-09-01',
     '1000000',
     '100000',
-  ];
-
-  const VALID_ROW_2 = [
-    'Beta Inc',
-    '67890',
-    'beta@test.com',
-    'INV-002',
-    '2026-08-01',
-    '2026-09-01',
-    '2000000',
-    '200000',
   ];
 
   it('1. .xlsx with valid+invalid row returns 201, creates Invoice+Receivable for valid row, reports invalid row', async () => {
@@ -503,6 +506,48 @@ describe('Invoice import (integration)', () => {
     }
   });
 
+  it('7b. Concurrent imports return a stable duplicate row failure', async () => {
+    const invoiceNumber = `INV-RACE-${randomUUID().slice(0, 6)}`;
+    const token = tokenFor(ownerA, orgA, Role.OWNER);
+    const buffer = makeXlsx([
+      {
+        customerName: 'Race Customer',
+        customerTaxCode: '',
+        customerEmail: '',
+        invoiceNumber,
+        issueDate: '2026-08-01',
+        dueDate: '2026-09-01',
+        totalAmount: 1000000,
+        taxAmount: 0,
+      },
+    ]);
+
+    const [first, second] = await Promise.all([
+      request(app.getHttpServer())
+        .post('/api/v1/invoices/import')
+        .set('Authorization', `Bearer ${token}`)
+        .set('Idempotency-Key', randomUUID())
+        .attach('file', buffer, { filename: 'race-a.xlsx' }),
+      request(app.getHttpServer())
+        .post('/api/v1/invoices/import')
+        .set('Authorization', `Bearer ${token}`)
+        .set('Idempotency-Key', randomUUID())
+        .attach('file', buffer, { filename: 'race-b.xlsx' }),
+    ]);
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    expect([first.body.successCount, second.body.successCount].sort()).toEqual([
+      0, 1,
+    ]);
+    const failedResult = [first.body, second.body].find(
+      (body) => body.successCount === 0,
+    );
+    expect(failedResult?.failedRows).toEqual([
+      expect.objectContaining({ errors: ['DUPLICATE_INVOICE_NUMBER'] }),
+    ]);
+  });
+
   it('8. DB unique index (organizationId, invoiceNumber) exists', async () => {
     const result = await dataSource.query(`
       SELECT indexname
@@ -516,66 +561,72 @@ describe('Invoice import (integration)', () => {
 
   it('9a. Missing file returns 400', async () => {
     const token = tokenFor(ownerA, orgA, Role.OWNER);
-    await request(app.getHttpServer())
+    const res = await request(app.getHttpServer())
       .post('/api/v1/invoices/import')
       .set('Authorization', `Bearer ${token}`)
-      .set('Idempotency-Key', randomUUID())
-      .expect(400);
+      .set('Idempotency-Key', randomUUID());
+    expect(res.status).toBe(400);
+    expectStandardErrorEnvelope(res.body, 400);
   });
 
   it('9b. Malformed file returns 400', async () => {
     const token = tokenFor(ownerA, orgA, Role.OWNER);
     const buffer = Buffer.from('not a real excel file');
-    await request(app.getHttpServer())
+    const res = await request(app.getHttpServer())
       .post('/api/v1/invoices/import')
       .set('Authorization', `Bearer ${token}`)
       .set('Idempotency-Key', randomUUID())
-      .attach('file', buffer, { filename: 'bad.xlsx' })
-      .expect(400);
+      .attach('file', buffer, { filename: 'bad.xlsx' });
+    expect(res.status).toBe(400);
+    expectStandardErrorEnvelope(res.body, 400);
   });
 
   it('9c. Missing header returns 400', async () => {
     const token = tokenFor(ownerA, orgA, Role.OWNER);
     const buffer = makeCsv('customerName,customerTaxCode', [['Foo', '123']]);
-    await request(app.getHttpServer())
+    const res = await request(app.getHttpServer())
       .post('/api/v1/invoices/import')
       .set('Authorization', `Bearer ${token}`)
       .set('Idempotency-Key', randomUUID())
-      .attach('file', buffer, { filename: 'no-header.csv' })
-      .expect(400);
+      .attach('file', buffer, { filename: 'no-header.csv' });
+    expect(res.status).toBe(400);
+    expectStandardErrorEnvelope(res.body, 400);
   });
 
   it('9d. Empty data file returns 400', async () => {
     const token = tokenFor(ownerA, orgA, Role.OWNER);
     const buffer = makeCsv(VALID_HEADER, []);
-    await request(app.getHttpServer())
+    const res = await request(app.getHttpServer())
       .post('/api/v1/invoices/import')
       .set('Authorization', `Bearer ${token}`)
       .set('Idempotency-Key', randomUUID())
-      .attach('file', buffer, { filename: 'empty.csv' })
-      .expect(400);
+      .attach('file', buffer, { filename: 'empty.csv' });
+    expect(res.status).toBe(400);
+    expectStandardErrorEnvelope(res.body, 400);
   });
 
   it('9e. Unsupported extension returns 400', async () => {
     const token = tokenFor(ownerA, orgA, Role.OWNER);
     const buffer = makeCsv(VALID_HEADER, [VALID_ROW]);
-    await request(app.getHttpServer())
+    const res = await request(app.getHttpServer())
       .post('/api/v1/invoices/import')
       .set('Authorization', `Bearer ${token}`)
       .set('Idempotency-Key', randomUUID())
-      .attach('file', buffer, { filename: 'data.pdf' })
-      .expect(400);
+      .attach('file', buffer, { filename: 'data.pdf' });
+    expect(res.status).toBe(400);
+    expectStandardErrorEnvelope(res.body, 400);
   });
 
   it('9f. File > 5 MiB returns 413 Payload Too Large', async () => {
     const token = tokenFor(ownerA, orgA, Role.OWNER);
     const bigBuffer = Buffer.alloc(5 * 1024 * 1024 + 1, 0);
-    await request(app.getHttpServer())
+    const res = await request(app.getHttpServer())
       .post('/api/v1/invoices/import')
       .set('Authorization', `Bearer ${token}`)
       .set('Idempotency-Key', randomUUID())
-      .attach('file', bigBuffer, { filename: 'big.xlsx' })
-      .expect(413);
+      .attach('file', bigBuffer, { filename: 'big.xlsx' });
+    expect(res.status).toBe(413);
+    expectStandardErrorEnvelope(res.body, 413, 'INTERNAL_SERVER_ERROR');
   });
 
   it('9g. 1,001 rows returns 400', async () => {
@@ -591,12 +642,13 @@ describe('Invoice import (integration)', () => {
       taxAmount: 0,
     }));
     const buffer = makeXlsx(rows);
-    await request(app.getHttpServer())
+    const res = await request(app.getHttpServer())
       .post('/api/v1/invoices/import')
       .set('Authorization', `Bearer ${token}`)
       .set('Idempotency-Key', randomUUID())
-      .attach('file', buffer, { filename: 'big.xlsx' })
-      .expect(400);
+      .attach('file', buffer, { filename: 'big.xlsx' });
+    expect(res.status).toBe(400);
+    expectStandardErrorEnvelope(res.body, 400);
   });
 
   it('10. Second workbook sheet is not imported', async () => {
@@ -649,7 +701,7 @@ describe('Invoice import (integration)', () => {
 
   it('11. SALES_REP import assigns Receivable to authenticated user', async () => {
     const invNum = `INV-SR-${randomUUID().slice(0, 6)}`;
-    const token = tokenFor(ownerA, orgA, Role.OWNER);
+    const token = tokenFor(salesRepA, orgA, Role.SALES_REP);
     const buffer = makeXlsx([
       {
         customerName: 'SR Customer',
@@ -679,7 +731,7 @@ describe('Invoice import (integration)', () => {
       where: { organizationId: orgA, invoiceId: inv!.id },
     });
     expect(rec).toBeDefined();
-    expect(rec!.salesRepresentativeId).toBe(ownerA);
+    expect(rec!.salesRepresentativeId).toBe(salesRepA);
   });
 
   it('12. Same Idempotency-Key + same file returns cached result without increasing counts', async () => {

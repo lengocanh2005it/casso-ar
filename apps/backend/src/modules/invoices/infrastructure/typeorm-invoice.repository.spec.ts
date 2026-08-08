@@ -17,6 +17,20 @@ const PROPS = {
   createdAt: new Date('2026-08-01'),
 };
 
+const INVOICE_SELECT = {
+  id: true,
+  organizationId: true,
+  customerId: true,
+  invoiceNumber: true,
+  issueDate: true,
+  totalAmount: true,
+  taxAmount: true,
+  sourceType: true,
+  fileUrl: true,
+  status: true,
+  createdAt: true,
+};
+
 describe('TypeOrmInvoiceRepository', () => {
   it('maps a domain Invoice to a plain ORM entity', async () => {
     const ormRepo = { save: jest.fn().mockResolvedValue(undefined) };
@@ -52,19 +66,7 @@ describe('TypeOrmInvoiceRepository', () => {
     );
 
     expect(ormRepo.find).toHaveBeenCalledWith({
-      select: {
-        id: true,
-        organizationId: true,
-        customerId: true,
-        invoiceNumber: true,
-        issueDate: true,
-        totalAmount: true,
-        taxAmount: true,
-        sourceType: true,
-        fileUrl: true,
-        status: true,
-        createdAt: true,
-      },
+      select: INVOICE_SELECT,
       where: { id: expect.anything(), organizationId: 'org-1' },
     });
     expect(result.get('inv-1')?.invoiceNumber).toBe('INV-001');
@@ -86,6 +88,7 @@ describe('TypeOrmInvoiceRepository', () => {
     expect(result).toBeInstanceOf(Invoice);
     expect(ormRepo.findOne).not.toHaveBeenCalled();
     expect(managerRepo.findOne).toHaveBeenCalledWith({
+      select: INVOICE_SELECT,
       where: { invoiceNumber: 'INV-001', organizationId: 'org-1' },
     });
   });
@@ -101,6 +104,7 @@ describe('TypeOrmInvoiceRepository', () => {
     );
 
     expect(ormRepo.findOne).toHaveBeenCalledWith({
+      select: INVOICE_SELECT,
       where: { invoiceNumber: 'INV-001', organizationId: 'org-1' },
     });
   });

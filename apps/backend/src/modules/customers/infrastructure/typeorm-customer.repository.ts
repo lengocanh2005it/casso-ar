@@ -1,11 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
+import type {
+  EntityManager,
+  FindOptionsSelect,
+  FindOptionsWhere,
+  Repository,
+} from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { ICustomerRepository } from '../application/customer-repository.port';
 import type { Customer } from '../domain/customer';
 import { CustomerOrmEntity } from './customer.orm-entity';
+
+const CUSTOMER_SELECT = {
+  id: true,
+  organizationId: true,
+  name: true,
+  taxCode: true,
+  email: true,
+  phone: true,
+  defaultPaymentTermDays: true,
+  creditLimit: true,
+  priority: true,
+  customerGroup: true,
+  createdAt: true,
+} satisfies FindOptionsSelect<CustomerOrmEntity>;
 
 // Explicit domain → ORM translation: the compiler checks every field, so a
 // drift between the two shapes fails here instead of being cast away.
@@ -79,19 +98,14 @@ export class TypeOrmCustomerRepository
     where: FindOptionsWhere<CustomerOrmEntity>,
     manager?: EntityManager,
   ): Promise<Customer | null> {
-    if (manager) {
-      const row = await manager.getRepository(CustomerOrmEntity).findOne({
-        where: {
-          ...where,
-          organizationId: this.tenantContext.getOrganizationId(),
-        },
-      });
-      return row ? toDomain(row) : null;
-    }
-
-    const row = await this.scopedFindOne({
-      ...where,
-    } as FindOptionsWhere<CustomerOrmEntity>);
+    const organizationId = this.tenantContext.getOrganizationId();
+    const repo = manager
+      ? manager.getRepository(CustomerOrmEntity)
+      : this.ormRepo;
+    const row = await repo.findOne({
+      select: CUSTOMER_SELECT,
+      where: { ...where, organizationId },
+    });
     return row ? toDomain(row) : null;
   }
 

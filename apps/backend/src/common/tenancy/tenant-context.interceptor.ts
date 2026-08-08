@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   type CallHandler,
   type ExecutionContext,
@@ -20,8 +21,11 @@ export class TenantContextInterceptor implements NestInterceptor {
       return next.handle();
     }
 
+    const requestId = request.header('X-Request-Id')?.trim() || randomUUID();
+    const contextualUser = { ...user, requestId };
+
     return new Observable((subscriber) => {
-      this.tenantContext.run(user, () => {
+      this.tenantContext.run(contextualUser, () => {
         next.handle().subscribe(subscriber);
       });
     });

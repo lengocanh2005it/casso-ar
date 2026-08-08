@@ -44,7 +44,7 @@ Create:
 - apps/backend/src/modules/invoice-import/presentation/invoice-import.controller.ts
 - apps/backend/src/modules/invoice-import/presentation/invoice-import.controller.spec.ts
 - apps/backend/src/modules/invoice-import/invoice-import.module.ts
-- apps/backend/test/invoice-import.integration.spec.ts
+- apps/backend/test/invoice-import.e2e-spec.ts
 
 Modify:
 
@@ -618,7 +618,7 @@ git commit -m "feat: expose idempotent invoice import endpoint"
 
 Files:
 
-- Create apps/backend/test/invoice-import.integration.spec.ts.
+- Create apps/backend/test/invoice-import.e2e-spec.ts.
 
 Test setup:
 
@@ -649,7 +649,7 @@ The suite must cover:
 Run:
 
 ~~~bash
-pnpm --filter @casso-ledger/backend test:e2e -- invoice-import.integration.spec.ts
+pnpm --filter @casso-ledger/backend test:e2e -- invoice-import.e2e-spec.ts
 ~~~
 
 Expected: all scenarios PASS against real PostgreSQL.
@@ -657,7 +657,7 @@ Expected: all scenarios PASS against real PostgreSQL.
 - [ ] Step 3: Commit
 
 ~~~bash
-git add apps/backend/test/invoice-import.integration.spec.ts
+git add apps/backend/test/invoice-import.e2e-spec.ts
 git commit -m "test: verify invoice import end to end"
 ~~~
 
@@ -687,7 +687,7 @@ pnpm --filter @casso-ledger/backend type-check
 Run:
 
 ~~~bash
-pnpm --filter @casso-ledger/backend test:e2e -- invoice-import.integration.spec.ts
+pnpm --filter @casso-ledger/backend test:e2e -- invoice-import.e2e-spec.ts
 ~~~
 
 If Testcontainers is unavailable, report that exact blocker; do not claim the integration path is verified.

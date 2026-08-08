@@ -1,4 +1,3 @@
-import { Logger } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import {
   AuditActionType,
@@ -66,14 +65,24 @@ function makeUseCase(rows: Record<string, unknown>[]) {
   const tenantContext = {
     getOrganizationId: jest.fn(() => 'org-1'),
     getCurrentUser: jest.fn(
-      (): { userId: string; organizationId: string } | undefined => ({
+      ():
+        | {
+            userId: string;
+            organizationId: string;
+            requestId: string;
+          }
+        | undefined => ({
         userId: 'user-1',
         organizationId: 'org-1',
+        requestId: 'request-1',
       }),
     ),
   };
   const auditRepo = {
     create: jest.fn().mockResolvedValue(undefined),
+  };
+  const logger = {
+    error: jest.fn(),
   };
   const fileRowParser = {
     parseFileToRows: jest
@@ -89,6 +98,7 @@ function makeUseCase(rows: Record<string, unknown>[]) {
     dataSource as any,
     fileRowParser,
     auditRepo as any,
+    logger as any,
   );
 
   return {
@@ -97,6 +107,7 @@ function makeUseCase(rows: Record<string, unknown>[]) {
     customerRepo,
     dataSource,
     invoiceRepo,
+    logger,
     fileRowParser,
     managers,
     tenantContext,
@@ -107,11 +118,6 @@ function makeUseCase(rows: Record<string, unknown>[]) {
 describe('ImportInvoicesUseCase', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
   });
 
   it('returns UNAUTHORIZED before resolving tenant context when no user exists', async () => {
@@ -282,6 +288,25 @@ describe('ImportInvoicesUseCase', () => {
     ]);
   });
 
+  it('maps a concurrent invoice-number unique violation to a duplicate row error', async () => {
+    const { invoiceRepo, logger, useCase } = makeUseCase([validRow()]);
+    const databaseError = Object.assign(
+      new Error('duplicate key value violates unique constraint'),
+      {
+        code: '23505',
+        constraint: 'UQ_invoices_organization_invoice_number',
+      },
+    );
+    invoiceRepo.save.mockRejectedValue(databaseError);
+
+    const result = await useCase.execute(Buffer.from('file'), 'invoices.csv');
+
+    expect(result.failedRows).toEqual([
+      { rowNumber: 2, data: validRow(), errors: ['DUPLICATE_INVOICE_NUMBER'] },
+    ]);
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
   it('continues after validation, duplicate, mismatch, quota, and unexpected row failures', async () => {
     const rows = [
       validRow({ invoiceNumber: 'INVALID', totalAmount: '0' }),
@@ -387,10 +412,7 @@ describe('ImportInvoicesUseCase', () => {
   });
 
   it('sanitizes unexpected row failures before logging', async () => {
-    const loggerSpy = jest
-      .spyOn(Logger.prototype, 'error')
-      .mockImplementation(() => undefined);
-    const { invoiceRepo, useCase } = makeUseCase([validRow()]);
+    const { invoiceRepo, logger, useCase } = makeUseCase([validRow()]);
     invoiceRepo.save.mockRejectedValue(new Error('password=secret'));
 
     const result = await useCase.execute(Buffer.from('file'), 'invoices.csv');
@@ -398,16 +420,17 @@ describe('ImportInvoicesUseCase', () => {
     expect(result.failedRows).toEqual([
       { rowNumber: 2, data: validRow(), errors: ['IMPORT_ROW_FAILED'] },
     ]);
-    expect(JSON.stringify(loggerSpy.mock.calls)).not.toContain(
+    expect(JSON.stringify(logger.error.mock.calls)).not.toContain(
       'password=secret',
     );
-    expect(loggerSpy).toHaveBeenCalledWith(
+    expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({
         message: 'Invoice import row failed',
         rowNumber: 2,
         invoiceNumber: 'INV-1',
         organizationId: 'org-1',
         userId: 'user-1',
+        requestId: 'request-1',
         errorName: 'Error',
       }),
     );
