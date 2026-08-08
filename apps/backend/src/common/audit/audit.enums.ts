@@ -22,6 +22,7 @@ export enum AuditActionType {
   EMAIL_TEMPLATE_CREATE = 'EMAIL_TEMPLATE_CREATE',
   EMAIL_TEMPLATE_UPDATE = 'EMAIL_TEMPLATE_UPDATE',
   EMAIL_TEMPLATE_DELETE = 'EMAIL_TEMPLATE_DELETE',
+  INVOICE_IMPORT = 'INVOICE_IMPORT',
 }
 
 export enum AuditEntityType {
@@ -35,4 +36,5 @@ export enum AuditEntityType {
   AUTH = 'Auth',
   DISPUTE = 'Dispute',
   EMAIL_TEMPLATE = 'EmailTemplate',
+  INVOICE_IMPORT = 'INVOICE_IMPORT',
 }
