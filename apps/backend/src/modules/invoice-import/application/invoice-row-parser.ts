@@ -42,12 +42,13 @@ const parseDate = (value: unknown, field: string): Date => {
     if (!Number.isNaN(value.getTime())) return value;
     return invalid(`${field} must be a valid date`);
   }
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
     return invalid(`${field} must be a valid date`);
   }
-  const [year, month, day] = value.split('-').map(Number);
-  const timestamp = Date.UTC(year, month - 1, day);
-  const date = new Date(timestamp);
+  const [year, month, day] = value.trim().split('-').map(Number);
+  const date = new Date(0);
+  date.setUTCFullYear(year, month - 1, day);
+  date.setUTCHours(0, 0, 0, 0);
   if (
     date.getUTCFullYear() !== year ||
     date.getUTCMonth() !== month - 1 ||

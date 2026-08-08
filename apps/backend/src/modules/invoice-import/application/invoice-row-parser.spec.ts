@@ -105,6 +105,26 @@ describe('parseInvoiceRow', () => {
     expect(parsed.issueDate).toEqual(new Date('2026-02-28T12:00:00.000Z'));
   });
 
+  it('trims date strings before parsing', () => {
+    const parsed = parseInvoiceRow({
+      ...validRow,
+      issueDate: ' 2026-02-28 ',
+      dueDate: ' 2026-03-28 ',
+    });
+    expect(parsed.issueDate).toEqual(new Date('2026-02-28T00:00:00.000Z'));
+    expect(parsed.dueDate).toEqual(new Date('2026-03-28T00:00:00.000Z'));
+  });
+
+  it('preserves four-digit ISO years below 100', () => {
+    const parsed = parseInvoiceRow({
+      ...validRow,
+      issueDate: '0099-01-01',
+      dueDate: '0099-01-02',
+    });
+    expect(parsed.issueDate.getUTCFullYear()).toBe(99);
+    expect(parsed.dueDate.getUTCFullYear()).toBe(99);
+  });
+
   it('rejects an invalid JavaScript Date cell', () => {
     expect(() =>
       parseInvoiceRow({ ...validRow, issueDate: new Date('invalid') }),
