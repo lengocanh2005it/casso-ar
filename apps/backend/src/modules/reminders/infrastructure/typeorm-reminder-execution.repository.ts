@@ -96,6 +96,20 @@ export class TypeOrmReminderExecutionRepository
     }
   }
 
+  async save(execution: ReminderExecution): Promise<void> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    await this.dataSource.getRepository(ReminderExecutionOrmEntity).save({
+      id: execution.id,
+      organizationId,
+      receivableId: execution.receivableId,
+      reminderRuleId: execution.reminderRuleId,
+      executionDate: execution.executionDate,
+      status: execution.status,
+      skipReason: execution.skipReason,
+      createdAt: execution.createdAt,
+    });
+  }
+
   async findPage(input: {
     receivableId?: string;
     status?: ReminderExecutionStatus;

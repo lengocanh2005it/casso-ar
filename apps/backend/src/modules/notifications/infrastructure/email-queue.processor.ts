@@ -91,9 +91,10 @@ export class EmailQueueProcessor extends WorkerHost {
           'SENT',
           result.providerMessageId,
         );
-        this.eventEmitter.emit('reminder.sent', {
-          reminderExecutionId,
-          receivableId,
+        this.eventEmitter.emit('reminder.execution.completed', {
+          id: reminderExecutionId,
+          status: 'SENT',
+          providerMessageId: result.providerMessageId,
           organizationId,
         });
       },
@@ -122,9 +123,10 @@ export class EmailQueueProcessor extends WorkerHost {
           'FAILED',
           null,
         );
-        this.eventEmitter.emit('reminder.failed', {
-          reminderExecutionId,
-          receivableId,
+        this.eventEmitter.emit('reminder.execution.completed', {
+          id: reminderExecutionId,
+          status: 'FAILED',
+          providerMessageId: null,
           organizationId,
         });
       },

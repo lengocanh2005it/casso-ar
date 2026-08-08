@@ -1,3 +1,4 @@
+import type { EntityManager } from 'typeorm';
 import type {
   ReminderExecution,
   ReminderExecutionStatus,
@@ -13,6 +14,7 @@ export interface IReminderExecutionRepository {
   ): Promise<{ id: string; status: ReminderExecutionStatus } | null>;
   findById(id: string): Promise<ReminderExecution | null>;
   insertIfAbsent(execution: ReminderExecution): Promise<boolean>;
+  save(execution: ReminderExecution, manager?: EntityManager): Promise<void>;
   findPage(input: {
     receivableId?: string;
     status?: ReminderExecutionStatus;
