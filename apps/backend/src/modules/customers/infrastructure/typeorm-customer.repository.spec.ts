@@ -1,6 +1,7 @@
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { Role } from '../../organizations/domain/membership';
 import type { Customer } from '../domain/customer';
+import { CustomerGroup } from '../domain/customer-group';
 import { TypeOrmCustomerRepository } from './typeorm-customer.repository';
 
 const PROPS: Customer = {
@@ -13,6 +14,7 @@ const PROPS: Customer = {
   defaultPaymentTermDays: 30,
   creditLimit: 5_000_000,
   priority: 1,
+  customerGroup: CustomerGroup.REGULAR,
   createdAt: new Date('2026-07-01'),
 };
 

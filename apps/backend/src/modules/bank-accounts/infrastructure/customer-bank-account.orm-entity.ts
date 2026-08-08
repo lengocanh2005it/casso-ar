@@ -4,8 +4,8 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 @Index(['organizationId', 'accountNumber'])
 export class CustomerBankAccountOrmEntity {
   @PrimaryGeneratedColumn('uuid') id: string;
-  @Column() organizationId: string;
-  @Column() customerId: string;
-  @Column() accountNumber: string;
-  @Column() createdAt: Date;
+  @Column({ type: 'varchar' }) organizationId: string;
+  @Column({ type: 'varchar' }) customerId: string;
+  @Column({ type: 'varchar' }) accountNumber: string;
+  @Column({ type: 'timestamptz' }) createdAt: Date;
 }

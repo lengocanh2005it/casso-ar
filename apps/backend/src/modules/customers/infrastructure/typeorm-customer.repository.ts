@@ -20,6 +20,7 @@ function toOrm(customer: Customer): CustomerOrmEntity {
     defaultPaymentTermDays: customer.defaultPaymentTermDays,
     creditLimit: customer.creditLimit,
     priority: customer.priority,
+    customerGroup: customer.customerGroup,
     createdAt: customer.createdAt,
   };
 }
@@ -35,6 +36,7 @@ function toDomain(row: CustomerOrmEntity): Customer {
     defaultPaymentTermDays: row.defaultPaymentTermDays,
     creditLimit: row.creditLimit,
     priority: row.priority,
+    customerGroup: row.customerGroup,
     createdAt: row.createdAt,
   };
 }

@@ -7,21 +7,21 @@ export class MembershipOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   organizationId: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   userId: string;
 
   @Column({ type: 'enum', enum: Role })
   role: Role;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   invitedAt: Date;
 
   @Column({ type: 'timestamp', nullable: true })
   joinedAt: Date | null;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

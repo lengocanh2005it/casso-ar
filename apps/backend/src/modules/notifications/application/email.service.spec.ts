@@ -1,5 +1,6 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Customer } from '../../customers/domain/customer';
+import { CustomerGroup } from '../../customers/domain/customer-group';
 import { EmailTemplate } from '../../email-templates/domain/email-template';
 import { Organization } from '../../organizations/domain/organization';
 import { Receivable } from '../../receivables/domain/receivable';
@@ -31,6 +32,7 @@ describe('EmailService', () => {
       defaultPaymentTermDays: 30,
       creditLimit: 0,
       priority: 1,
+      customerGroup: CustomerGroup.REGULAR,
       createdAt: new Date('2026-01-01'),
     };
     const organization = new Organization({

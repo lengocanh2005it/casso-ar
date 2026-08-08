@@ -8,27 +8,27 @@ export class CollectionActivityOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   organizationId: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   receivableId: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   customerId: string;
 
   @Column({ type: 'enum', enum: CollectionActivityType })
   activityType: CollectionActivityType;
 
-  @Column()
+  @Column({ type: 'varchar' })
   description: string;
 
   @Column('jsonb', { default: {} })
   metadata: Record<string, unknown>;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   createdByUserId: string | null;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

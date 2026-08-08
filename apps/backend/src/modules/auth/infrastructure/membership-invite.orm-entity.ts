@@ -7,28 +7,28 @@ export class MembershipInviteOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   organizationId: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   email: string;
 
   @Column({ type: 'enum', enum: Role })
   role: Role;
 
-  @Column()
+  @Column({ type: 'varchar' })
   invitedByUserId: string;
 
   @Index({ unique: true })
-  @Column()
+  @Column({ type: 'varchar' })
   tokenHash: string;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   expiresAt: Date;
 
   @Column({ type: 'timestamp', nullable: true })
   acceptedAt: Date | null;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

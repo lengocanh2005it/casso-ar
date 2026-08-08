@@ -41,7 +41,7 @@ export class ReceivableOrmEntity {
   @Column({ type: 'varchar', nullable: true })
   salesRepresentativeId: string | null;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 
   @Column({ type: 'timestamp', nullable: true })

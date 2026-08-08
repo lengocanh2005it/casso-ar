@@ -4,15 +4,15 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 @Index(['bankTransactionId', 'totalScore'])
 export class MatchingCandidateOrmEntity {
   @PrimaryGeneratedColumn('uuid') id: string;
-  @Column() organizationId: string;
-  @Column() bankTransactionId: string;
-  @Column() receivableId: string;
-  @Column() customerId: string;
-  @Column() referenceCodeScore: number;
-  @Column() amountScore: number;
-  @Column() customerBankAccountScore: number;
-  @Column() payerNameScore: number;
-  @Column() timingScore: number;
-  @Column() totalScore: number;
-  @Column() createdAt: Date;
+  @Column({ type: 'varchar' }) organizationId: string;
+  @Column({ type: 'varchar' }) bankTransactionId: string;
+  @Column({ type: 'varchar' }) receivableId: string;
+  @Column({ type: 'varchar' }) customerId: string;
+  @Column({ type: 'integer' }) referenceCodeScore: number;
+  @Column({ type: 'integer' }) amountScore: number;
+  @Column({ type: 'integer' }) customerBankAccountScore: number;
+  @Column({ type: 'integer' }) payerNameScore: number;
+  @Column({ type: 'integer' }) timingScore: number;
+  @Column({ type: 'integer' }) totalScore: number;
+  @Column({ type: 'timestamptz' }) createdAt: Date;
 }
