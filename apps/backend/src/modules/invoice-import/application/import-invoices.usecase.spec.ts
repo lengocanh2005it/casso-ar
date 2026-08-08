@@ -65,10 +65,12 @@ function makeUseCase(rows: Record<string, unknown>[]) {
   };
   const tenantContext = {
     getOrganizationId: jest.fn(() => 'org-1'),
-    getCurrentUser: jest.fn(() => ({
-      userId: 'user-1',
-      organizationId: 'org-1',
-    })),
+    getCurrentUser: jest.fn(
+      (): { userId: string; organizationId: string } | undefined => ({
+        userId: 'user-1',
+        organizationId: 'org-1',
+      }),
+    ),
   };
   const auditRepo = {
     create: jest.fn().mockResolvedValue(undefined),
@@ -110,6 +112,20 @@ describe('ImportInvoicesUseCase', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  it('returns UNAUTHORIZED before resolving tenant context when no user exists', async () => {
+    const { fileRowParser, tenantContext, useCase } = makeUseCase([validRow()]);
+    tenantContext.getCurrentUser.mockReturnValue(undefined);
+    tenantContext.getOrganizationId.mockImplementation(() => {
+      throw new Error('Tenant context is unavailable');
+    });
+
+    await expect(
+      useCase.execute(Buffer.from('file'), 'invoices.csv'),
+    ).rejects.toMatchObject({ errorCode: ErrorCode.UNAUTHORIZED });
+    expect(tenantContext.getOrganizationId).not.toHaveBeenCalled();
+    expect(fileRowParser.parseFileToRows).not.toHaveBeenCalled();
   });
 
   it('creates a customer, invoice, and receivable for one valid row', async () => {
@@ -249,6 +265,21 @@ describe('ImportInvoicesUseCase', () => {
     ]);
     expect(customerRepo.save).not.toHaveBeenCalled();
     expect(invoiceRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('maps a typed duplicate row code without reading the AppError message', async () => {
+    const { invoiceRepo, useCase } = makeUseCase([validRow()]);
+    invoiceRepo.findByInvoiceNumber.mockRejectedValue(
+      new AppError(ErrorCode.CONFLICT, 'Invoice number already exists', {
+        rowErrorCode: 'DUPLICATE_INVOICE_NUMBER',
+      }),
+    );
+
+    const result = await useCase.execute(Buffer.from('file'), 'invoices.csv');
+
+    expect(result.failedRows).toEqual([
+      { rowNumber: 2, data: validRow(), errors: ['DUPLICATE_INVOICE_NUMBER'] },
+    ]);
   });
 
   it('continues after validation, duplicate, mismatch, quota, and unexpected row failures', async () => {

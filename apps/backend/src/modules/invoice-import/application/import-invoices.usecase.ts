@@ -77,12 +77,6 @@ export class ImportInvoicesUseCase {
     buffer: Buffer,
     filename: string,
   ): Promise<ImportInvoicesResult> {
-    const { rows, totalRows } = this.fileRowParser.parseFileToRows(
-      buffer,
-      filename,
-    );
-    const fileSha256 = getImportRequestFingerprint(buffer, filename);
-    const organizationId = this.tenantContext.getOrganizationId();
     const currentUser = this.tenantContext.getCurrentUser();
     if (!currentUser) {
       throw new AppError(
@@ -90,6 +84,13 @@ export class ImportInvoicesUseCase {
         'Không tìm thấy người dùng hiện tại',
       );
     }
+
+    const { rows, totalRows } = this.fileRowParser.parseFileToRows(
+      buffer,
+      filename,
+    );
+    const fileSha256 = getImportRequestFingerprint(buffer, filename);
+    const organizationId = currentUser.organizationId;
 
     const failedRows: ImportRowFailure[] = [];
     let successCount = 0;
@@ -146,7 +147,9 @@ export class ImportInvoicesUseCase {
       manager,
     );
     if (existingInvoice) {
-      throw new AppError(ErrorCode.CONFLICT, DUPLICATE_INVOICE_NUMBER);
+      throw new AppError(ErrorCode.CONFLICT, 'Invoice number already exists', {
+        rowErrorCode: DUPLICATE_INVOICE_NUMBER,
+      });
     }
 
     const customer = await this.resolveCustomer(row, organizationId, manager);
@@ -217,8 +220,13 @@ export class ImportInvoicesUseCase {
 
   private rowErrorCode(error: unknown): string {
     if (!(error instanceof AppError)) return IMPORT_ROW_FAILED;
-    if (error.message === DUPLICATE_INVOICE_NUMBER) {
-      return DUPLICATE_INVOICE_NUMBER;
+    if (
+      typeof error.details === 'object' &&
+      error.details !== null &&
+      'rowErrorCode' in error.details &&
+      typeof error.details.rowErrorCode === 'string'
+    ) {
+      return error.details.rowErrorCode;
     }
     return error.errorCode;
   }
