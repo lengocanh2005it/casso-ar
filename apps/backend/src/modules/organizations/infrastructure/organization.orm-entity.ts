@@ -5,9 +5,9 @@ export class OrganizationOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   name: string;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

@@ -1,3 +1,5 @@
+import { CustomerGroup } from './customer-group';
+
 export interface Customer {
   id: string;
   organizationId: string;
@@ -8,5 +10,6 @@ export interface Customer {
   defaultPaymentTermDays: number;
   creditLimit: number;
   priority: number;
+  customerGroup: CustomerGroup;
   createdAt: Date;
 }

@@ -6,16 +6,16 @@ export class IdempotencyKeyOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   organizationId: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   endpoint: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   key: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   requestHash: string;
 
   @Column({ type: 'varchar' })
@@ -24,6 +24,6 @@ export class IdempotencyKeyOrmEntity {
   @Column({ type: 'jsonb', nullable: true })
   response: unknown;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

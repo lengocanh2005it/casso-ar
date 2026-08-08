@@ -7,7 +7,7 @@ export class PaymentOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   organizationId: string;
 
   @Column({ type: 'varchar', nullable: true })
@@ -22,12 +22,12 @@ export class PaymentOrmEntity {
   @Column('bigint', { default: 0 })
   allocatedAmount: number;
 
-  @Column()
+  @Column({ type: 'varchar' })
   payerName: string;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   receivedAt: Date;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

@@ -6,19 +6,19 @@ export class RefreshTokenOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   userId: string;
 
   @Index({ unique: true })
-  @Column()
+  @Column({ type: 'varchar' })
   tokenHash: string;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   expiresAt: Date;
 
   @Column({ type: 'timestamp', nullable: true })
   revokedAt: Date | null;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

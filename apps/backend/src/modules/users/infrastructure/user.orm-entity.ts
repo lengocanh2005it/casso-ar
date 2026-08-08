@@ -5,18 +5,18 @@ export class UserOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   name: string;
 
-  @Column({ unique: true })
+  @Column({ type: 'varchar', unique: true })
   email: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   passwordHash: string;
 
   @Column({ type: 'timestamp', nullable: true })
   emailVerifiedAt: Date | null;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

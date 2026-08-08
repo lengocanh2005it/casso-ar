@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #7, #8, #9, #10, #13, #17, #18 complete, remaining Plan #11, #12, #14–#16, #19–#23 pending
+**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #7, #8, #9, #10, #12, #13, #17, #18 complete, remaining Plan #11, #14–#16, #19–#23 pending
 
 ---
 
@@ -314,10 +314,12 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #12 — Reminder Automation
 - **Type**: task
-- **Status**: open
+- **Status**: done ✅
+- **Shipped**: 2026-08-08, PR #73
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-reminder-automation-design.md`
-- **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #6 ✅, Plan #7 ✅
+- **Plan**: `plans/2026-08-08-reminder-automation.md` (updated with grilling decisions)
+- **Blockers**: none — Plan #1 ✅, Plan #2 ✅, Plan #6 ✅, Plan #7 ✅
 - **Key entities**: `ReminderPolicy`, `ReminderRule`, `ReminderExecution` (domain/ORM entity shipped early by Plan #7 — see its note), `CustomerGroup` (VIP/REGULAR)
 - **Key rules**:
   - Policy unique by `(organizationId, customerGroup)`
@@ -327,7 +329,8 @@ Success = a single document a new developer can read and know exactly what to pi
   - Fresh-state worker re-checks before sending
   - Timezone: `Asia/Ho_Chi_Minh` (not server time)
   - `PENDING→SENT/FAILED` lifecycle, immutable `ReminderExecution`
-- **Creates**: `reminders/` module (3 entities + scheduler + sender + processors), CRUD endpoints, integration tests
+- **Creates**: `reminders/` module (3 entities + policy CRUD + scheduler + sender + processors), CRUD endpoints, e2e coverage against real Postgres/Redis/BullMQ
+- **Implementation note**: A `/code-review` pass (two rounds) found and fixed a long list of issues before merge. Standards-axis: `updateSendResult` had lost its `organizationId` scope (cross-tenant write); `TypeOrmReminderRuleRepository.findById` had no tenant scoping (now joins through the owning policy's `organizationId`); the application layer threw bare `Error` instead of `AppError`/`ErrorCode`; `ReminderExecutionsController` called the repository directly instead of an application service (added `ReminderExecutionQueryService`); `reminder-policy.service.ts#update()` used `findAll().find()` instead of a scoped `findById`; duplicated `ReminderRuleDto` and skip-execution construction were deduped. Spec-axis: the Task 10 integration test was essentially unimplemented (4 smoke tests, none of the 9 required behavior groups); the default bootstrap seeded reminder rules against English template names while the actual seed templates are Vietnamese, leaving every seeded rule's `emailTemplateId` empty. Three more critical bugs surfaced only once the e2e suite was actually run against real Postgres/Redis/BullMQ, which neither a static review nor a mocked unit test could catch: `TypeOrmReminderCandidateReader`'s joins compared a `uuid` column to a `varchar` column without a cast, so the daily scan silently found zero candidates for every organization with real receivables; `findLatestSent` selected via a raw quoted SQL string instead of an entity property path, silently breaking hydration so rate-limiting never took effect and duplicate reminders could send every day; and the scheduler's BullMQ `jobId` contained `:` separators, which BullMQ rejects, so the daily scan's real enqueue path failed for every match (masked by the per-organization try/catch) — only tests that bypassed the scheduler and called `ReminderSenderService.send()` directly ever exercised a successful send. A separate CI `arch-check` failure (the candidate reader importing other modules' ORM entity classes) was fixed by joining on raw table names instead. The e2e suite now covers all 9 Task 10 scenarios and passes 12/12 against real Postgres/Redis/BullMQ.
 
 ---
 
@@ -388,7 +391,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: BE + FE
 - **Spec**: `specs/2026-08-03-collection-copilot-design.md`
-- **Blockers**: Plan #2 ✅, Plan #6 ✅, Plan #7 ✅, Plan #10 ✅, Plan #12
+- **Blockers**: none — Plan #2 ✅, Plan #6 ✅, Plan #7 ✅, Plan #10 ✅, Plan #12 ✅
 - **Key entities**: `CopilotConversation`, `CopilotMessage`, `CopilotPendingAction`, `CopilotDraft`, `AIUsageLog`
 - **Key rules**:
   - Chat-based AI (Claude via `@anthropic-ai/sdk`)
@@ -483,7 +486,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: FE
 - **Plan**: `plans/2026-08-03-fe-reminders-copilot-reports-settings.md`
-- **Blockers**: Plan #4 ✅, Plan #5 ✅, Plan #6 ✅, Plan #7 ✅, Plan #12, Plan #15, Plan #16, Plan #17 ✅, Plan #18 ✅, Plan #19
+- **Blockers**: Plan #4 ✅, Plan #5 ✅, Plan #6 ✅, Plan #7 ✅, Plan #12 ✅, Plan #15, Plan #16, Plan #17 ✅, Plan #18 ✅, Plan #19
 - **Key rules**:
   - Reminders: policy + executions list
   - Copilot: chat message list + pending-action cards (confirm/cancel)
@@ -599,9 +602,9 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **Next available tickets** (all blockers resolved):
 - **Plan #11** (Internal Task + Escalation) — blockers: Plan #1 ✅, Plan #2 ✅
-- **Plan #12** (Reminder Automation) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #6 ✅, Plan #7 ✅
 - **Plan #14** (Invoice Import) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #3 ✅
 - **Plan #15** (Aging Dashboard + Reporting) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
+- **Plan #16** (Collection Copilot) — blockers: Plan #2 ✅, Plan #6 ✅, Plan #7 ✅, Plan #10 ✅, Plan #12 ✅
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
 - **Plan #22** (Testing Strategy + CI) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #8 ✅, Plan #13 ✅
 - **Plan #23** (Deployment + Observability) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #18 ✅
@@ -609,9 +612,8 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Customer Bank Account Management** — blockers: Plan #8 ✅
 
 **Blocked tickets waiting:**
-- **Plan #16** (Collection Copilot) — waiting on Plan #12 (Plan #10 now shipped)
 - **Plan #20** (FE Core AR Loop) — waiting on Plan #11, Plan #14, Plan #19 (Plan #10 + #17 now shipped)
-- **Plan #21** (FE Reminders, Copilot, Reports, Settings) — waiting on Plan #12, Plan #15, Plan #16, Plan #19 (Plan #17 now shipped)
+- **Plan #21** (FE Reminders, Copilot, Reports, Settings) — waiting on Plan #15, Plan #16, Plan #19 (Plan #12 + #17 now shipped)
 - **Spec-Plan Reconciliation** — waiting on all plans
 
-**Recommended next step:** Plan #12 (Reminder Automation) is the highest-leverage pick — it's the last blocker on Plan #16 (Collection Copilot) and feeds Plan #21. Plan #11 (Internal Task + Escalation) is also unblocked.
+**Recommended next step:** Plan #16 (Collection Copilot) is the highest-leverage pick now that Plan #12 (Reminder Automation) has shipped — it's the last blocker for Plan #16 and feeds Plan #21. Plan #11 (Internal Task + Escalation) and Plan #14 (Invoice Import) are also unblocked.

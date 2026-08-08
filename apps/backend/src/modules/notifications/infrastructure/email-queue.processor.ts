@@ -3,11 +3,9 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { Job } from 'bullmq';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { REMINDER_EXECUTION_REPOSITORY } from '../../../common/tokens/reminder-execution.token';
 import { Role } from '../../organizations/domain/membership';
-import {
-  type IReminderExecutionRepository,
-  REMINDER_EXECUTION_REPOSITORY,
-} from '../../reminders/application/reminder-execution-repository.port';
+import { type IReminderExecutionRepository } from '../../reminders/application/reminder-execution-repository.port';
 import { ReminderExecutionStatus } from '../../reminders/domain/reminder-execution';
 import {
   EMAIL_PROVIDER_ADAPTER,
@@ -93,9 +91,10 @@ export class EmailQueueProcessor extends WorkerHost {
           'SENT',
           result.providerMessageId,
         );
-        this.eventEmitter.emit('reminder.sent', {
-          reminderExecutionId,
-          receivableId,
+        this.eventEmitter.emit('reminder.execution.completed', {
+          id: reminderExecutionId,
+          status: 'SENT',
+          providerMessageId: result.providerMessageId,
           organizationId,
         });
       },
@@ -124,9 +123,10 @@ export class EmailQueueProcessor extends WorkerHost {
           'FAILED',
           null,
         );
-        this.eventEmitter.emit('reminder.failed', {
-          reminderExecutionId,
-          receivableId,
+        this.eventEmitter.emit('reminder.execution.completed', {
+          id: reminderExecutionId,
+          status: 'FAILED',
+          providerMessageId: null,
           organizationId,
         });
       },

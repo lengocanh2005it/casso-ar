@@ -50,11 +50,15 @@ describe('EmailQueueProcessor', () => {
       'SENT',
       'msg-1',
     );
-    expect(eventEmitter.emit).toHaveBeenCalledWith('reminder.sent', {
-      reminderExecutionId: 'exec-1',
-      receivableId: 'rec-1',
-      organizationId: 'org-1',
-    });
+    expect(eventEmitter.emit).toHaveBeenCalledWith(
+      'reminder.execution.completed',
+      {
+        id: 'exec-1',
+        status: 'SENT',
+        providerMessageId: 'msg-1',
+        organizationId: 'org-1',
+      },
+    );
   });
 
   it('skips sending when a previous attempt already recorded SENT (retry after a partial failure)', async () => {

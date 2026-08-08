@@ -1,4 +1,5 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import { CustomerGroup } from '../domain/customer-group';
 
 @Entity({ name: 'customers' })
 @Index(['organizationId'])
@@ -6,30 +7,33 @@ export class CustomerOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   organizationId: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   name: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   taxCode: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   email: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   phone: string;
 
-  @Column()
+  @Column({ type: 'integer' })
   defaultPaymentTermDays: number;
 
   @Column('bigint')
   creditLimit: number;
 
-  @Column()
+  @Column({ type: 'integer' })
   priority: number;
 
-  @Column()
+  @Column({ type: 'enum', enum: CustomerGroup, default: CustomerGroup.REGULAR })
+  customerGroup: CustomerGroup;
+
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 }
