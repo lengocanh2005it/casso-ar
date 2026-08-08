@@ -7,10 +7,10 @@ export class CasIdConnectionSessionOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   organizationId: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   initiatedByUserId: string;
 
   @Column({ type: 'uuid', nullable: true })
@@ -22,15 +22,15 @@ export class CasIdConnectionSessionOrmEntity {
   @Column('simple-array')
   scopes: string[];
 
-  @Column()
+  @Column({ type: 'varchar' })
   redirectUri: string;
 
   @Column({ type: 'varchar' })
   status: CasIdConnectionSessionStatus;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   expiresAt: Date;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

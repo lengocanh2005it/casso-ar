@@ -6,19 +6,19 @@ export class AuditLogOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   organizationId: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   userId: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   actionType: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   entityType: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   entityId: string;
 
   @Column({ type: 'jsonb', nullable: true })
@@ -27,9 +27,9 @@ export class AuditLogOrmEntity {
   @Column({ type: 'jsonb', nullable: true })
   afterState: Record<string, unknown> | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   ipAddress: string | null;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

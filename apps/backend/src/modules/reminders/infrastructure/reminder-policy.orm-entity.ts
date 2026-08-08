@@ -7,15 +7,15 @@ export class ReminderPolicyOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   organizationId: string;
 
   @Column({ type: 'enum', enum: CustomerGroup })
   customerGroup: CustomerGroup;
 
-  @Column({ default: true })
+  @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

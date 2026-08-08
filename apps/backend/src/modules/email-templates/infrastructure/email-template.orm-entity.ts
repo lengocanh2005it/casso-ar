@@ -12,13 +12,13 @@ export class EmailTemplateOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   organizationId: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   name: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   subject: string;
 
   @Column('text')
@@ -27,13 +27,13 @@ export class EmailTemplateOrmEntity {
   @Column({ type: 'varchar', nullable: true })
   reminderStage: string | null;
 
-  @Column({ default: false })
+  @Column({ type: 'boolean', default: false })
   isDefault: boolean;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   updatedAt: Date;
 
   @VersionColumn()

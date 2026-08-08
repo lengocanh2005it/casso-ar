@@ -5,13 +5,13 @@ import type { WebhookInboxStatus } from '../domain/webhook-inbox';
 @Index(['organizationId', 'providerTransactionId'], { unique: true })
 export class WebhookInboxOrmEntity {
   @PrimaryGeneratedColumn('uuid') id: string;
-  @Column() organizationId: string;
-  @Column() bankConnectionId: string;
-  @Column() providerTransactionId: string;
+  @Column({ type: 'varchar' }) organizationId: string;
+  @Column({ type: 'varchar' }) bankConnectionId: string;
+  @Column({ type: 'varchar' }) providerTransactionId: string;
   @Column({ type: 'jsonb' }) rawPayload: Record<string, unknown>;
   @Column({ type: 'timestamp' }) receivedAt: Date;
   @Column({ type: 'varchar' }) status: WebhookInboxStatus;
   @Column({ type: 'timestamp', nullable: true }) processedAt: Date | null;
   @Column({ type: 'varchar', nullable: true }) errorMessage: string | null;
-  @Column({ default: 0 }) retryCount: number;
+  @Column({ type: 'integer', default: 0 }) retryCount: number;
 }

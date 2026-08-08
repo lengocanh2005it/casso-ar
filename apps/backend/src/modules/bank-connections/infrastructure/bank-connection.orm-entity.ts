@@ -37,6 +37,6 @@ export class BankConnectionOrmEntity {
   @Column({ type: 'timestamp', nullable: true })
   revokedAt: Date | null;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

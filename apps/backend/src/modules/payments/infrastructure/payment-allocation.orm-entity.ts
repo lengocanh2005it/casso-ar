@@ -7,19 +7,19 @@ export class PaymentAllocationOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   organizationId: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   paymentId: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   receivableId: string;
 
   @Column('bigint')
   allocatedAmount: number;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   allocatedAt: Date;
 
   @Column({ type: 'varchar', nullable: true })
@@ -34,6 +34,6 @@ export class PaymentAllocationOrmEntity {
   @Column({ type: 'varchar', nullable: true })
   undoReason: string | null;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

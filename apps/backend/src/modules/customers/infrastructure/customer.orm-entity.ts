@@ -7,33 +7,33 @@ export class CustomerOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   organizationId: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   name: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   taxCode: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   email: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   phone: string;
 
-  @Column()
+  @Column({ type: 'integer' })
   defaultPaymentTermDays: number;
 
   @Column('bigint')
   creditLimit: number;
 
-  @Column()
+  @Column({ type: 'integer' })
   priority: number;
 
   @Column({ type: 'enum', enum: CustomerGroup, default: CustomerGroup.REGULAR })
   customerGroup: CustomerGroup;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

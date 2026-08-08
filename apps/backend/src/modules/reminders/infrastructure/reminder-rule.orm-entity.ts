@@ -6,18 +6,18 @@ export class ReminderRuleOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   reminderPolicyId: string;
 
   @Column('integer')
   offsetDays: number;
 
-  @Column()
+  @Column({ type: 'varchar' })
   emailTemplateId: string;
 
   @Column('integer')
   minIntervalDays: number;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

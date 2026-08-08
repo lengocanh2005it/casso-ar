@@ -13,7 +13,7 @@ export class SubscriptionOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   organizationId: string;
 
   @Column({ type: 'enum', enum: PlanId })
@@ -28,13 +28,13 @@ export class SubscriptionOrmEntity {
   @Column({ type: 'enum', enum: SubscriptionStatus })
   status: SubscriptionStatus;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   currentPeriodStart: Date;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   currentPeriodEnd: Date;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 
   @VersionColumn()

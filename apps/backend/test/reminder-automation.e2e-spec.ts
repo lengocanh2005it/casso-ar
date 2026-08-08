@@ -2,10 +2,6 @@ import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import {
-  PostgreSqlContainer,
-  type StartedPostgreSqlContainer,
-} from '@testcontainers/postgresql';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
@@ -15,21 +11,16 @@ import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/custo
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
 import { ReminderSchedulerService } from '../src/modules/reminders/application/reminder-scheduler.service';
-import { ReminderExecutionStatus } from '../src/modules/reminders/domain/reminder-execution';
-import { ReminderExecutionOrmEntity } from '../src/modules/reminders/infrastructure/reminder-execution.orm-entity';
 import { ReminderPolicyOrmEntity } from '../src/modules/reminders/infrastructure/reminder-policy.orm-entity';
 import { ReminderRuleOrmEntity } from '../src/modules/reminders/infrastructure/reminder-rule.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 
 describe('Reminder automation (integration)', () => {
-  let container: StartedPostgreSqlContainer;
   let app: INestApplication;
   let dataSource: DataSource;
   let jwtService: JwtService;
 
   beforeAll(async () => {
-    container = await new PostgreSqlContainer('postgres:16').start();
-
     process.env.REDIS_HOST = 'localhost';
     process.env.REDIS_PORT = '6379';
     process.env.JWT_SECRET = 'e2e-jwt-secret';
@@ -38,26 +29,15 @@ describe('Reminder automation (integration)', () => {
     process.env.RESEND_API_KEY = 'e2e-resend-key';
     process.env.CASSO_WEBHOOK_CLIENT_ID = 'e2e-client';
     process.env.CASSO_WEBHOOK_SECRET_KEY = 'e2e-secret';
-    process.env.DB_PASSWORD = 'e2e-password';
+    process.env.DB_HOST = 'localhost';
+    process.env.DB_PORT = '5432';
+    process.env.DB_USERNAME = 'postgres';
+    process.env.DB_PASSWORD = 'casso';
+    process.env.DB_DATABASE = 'casso_ledger';
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
-    })
-      .overrideModule(TypeOrmModule)
-      .useModule(
-        TypeOrmModule.forRoot({
-          type: 'postgres',
-          host: container.getHost(),
-          port: container.getMappedPort(5432),
-          username: container.getUsername(),
-          password: container.getPassword(),
-          database: container.getDatabase(),
-          autoLoadEntities: true,
-          synchronize: true,
-          retryAttempts: 0,
-        }),
-      )
-      .compile();
+    }).compile();
     app = moduleRef.createNestApplication();
     configureApp(app);
     await app.init();
@@ -67,7 +47,6 @@ describe('Reminder automation (integration)', () => {
 
   afterAll(async () => {
     await app?.close();
-    await container?.stop();
   });
 
   async function setUpOrg(organizationId: string) {
@@ -108,32 +87,6 @@ describe('Reminder automation (integration)', () => {
 
     const token = jwtService.sign({ userId, organizationId, role: Role.OWNER });
     return { customerId, token };
-  }
-
-  async function seedReminderPolicy(
-    organizationId: string,
-    templateId: string,
-  ) {
-    const policy = await dataSource
-      .getRepository(ReminderPolicyOrmEntity)
-      .save({
-        id: `policy-${organizationId.slice(-4)}`,
-        organizationId,
-        customerGroup: CustomerGroup.VIP,
-        isActive: true,
-        createdAt: new Date(),
-      });
-
-    await dataSource.getRepository(ReminderRuleOrmEntity).save({
-      id: `rule-${organizationId.slice(-4)}`,
-      reminderPolicyId: policy.id,
-      offsetDays: -5,
-      emailTemplateId: templateId,
-      minIntervalDays: 7,
-      createdAt: new Date(),
-    });
-
-    return policy;
   }
 
   it('GET /reminder-executions returns paginated results', async () => {
@@ -186,10 +139,8 @@ describe('Reminder automation (integration)', () => {
     expect(res.body.customerGroup).toBe('VIP');
   });
 
-  it('scheduler scans and does not enqueue for disputed candidates', async () => {
-    const orgId = '00000000-0000-4000-8000-000000000700';
+  it('scheduler scans and does not throw for empty data', async () => {
     const scheduler = app.get(ReminderSchedulerService);
-    // Should not throw
     await scheduler.scan(new Date('2026-08-03'));
   });
 });

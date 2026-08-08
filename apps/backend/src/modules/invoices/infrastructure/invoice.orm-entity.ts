@@ -10,16 +10,16 @@ export class InvoiceOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   organizationId: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   customerId: string;
 
-  @Column()
+  @Column({ type: 'varchar' })
   invoiceNumber: string;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   issueDate: Date;
 
   @Column('bigint')
@@ -37,6 +37,6 @@ export class InvoiceOrmEntity {
   @Column({ type: 'enum', enum: InvoiceStatus })
   status: InvoiceStatus;
 
-  @Column()
+  @Column({ type: 'timestamptz' })
   createdAt: Date;
 }
