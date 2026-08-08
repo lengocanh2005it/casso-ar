@@ -23,11 +23,11 @@ A B2B SaaS platform for automating accounts receivable management and collection
 | **BankTransaction** | Normalized transaction | `id`, `organizationId`, `status`, `amount`, `referenceCode` |
 | **WebhookInbox** | Raw webhook payload | `id`, `providerTransactionId`, `status`, `payload` |
 | **Dispute** | Dispute | `id`, `receivableId`, `status` |
-| **ReminderPolicy** | Reminder policy by customer group | `id`, `customerGroup`, `offsetDays` |
+| **ReminderPolicy** | Reminder policy by customer group | `id`, `customerGroup`, `escalationThresholdDays` |
 | **ReminderExecution** | Reminder sending history | `id`, `reminderRuleId`, `status`, `sentAt` |
 | **EmailTemplate** | HTML + Handlebars email template | `id`, `bodyHtml`, `isDefault` |
 | **CollectionActivity** | Denormalized, INSERT-only timeline | `id`, `receivableId`, `eventType` |
-| **InternalTask** | Internal ESCALATION/MANUAL task | `id`, `receivableId`, `status` |
+| **InternalTask** | Internal ESCALATION/MANUAL task | `id`, `receivableId`, `assignedToUserId`, `status` |
 | **AuditLog** | Change history, INSERT-only | `id`, `entityType`, `entityId`, `beforeState`, `afterState` |
 | **BankConnection** | Bank connection through Cas ID | `id`, `organizationId`, `status`, `accessToken` |
 | **Subscription** | Subscription plan | `id`, `organizationId`, `plan`, `status` |
@@ -118,6 +118,7 @@ Score components:
 | 0002 | Persisted rollup | No runtime `SUM(PaymentAllocation)` |
 | 0003 | isDisputed computed | `EXISTS(SELECT 1 FROM disputes WHERE status='OPEN')` |
 | 0004 | Reminder scan/send split | Cron enqueues, worker re-checks before sending |
+| 0005 | Distinct events per closure audience | `receivable.status-closed` (any terminal status) is separate from `receivable.closed` (PAID-only); don't widen one event to serve two contracts |
 
 ## Constraints
 

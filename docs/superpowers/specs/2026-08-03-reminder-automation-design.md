@@ -12,7 +12,11 @@ Out of scope: detailed Email Template Management (template content/variables —
 
 ```
 ReminderPolicy
-  id, organizationId, customerGroup (VIP/REGULAR), isActive, createdAt
+  id, organizationId, customerGroup (VIP/REGULAR), isActive,
+  escalationThresholdDays (default 30 — owned by Internal Task & Escalation, see
+  2026-08-03-internal-task-escalation-design.md section 2; stored here because
+  it varies per customerGroup, the same axis this policy is already keyed on),
+  createdAt
 
 ReminderRule
   id, reminderPolicyId, offsetDays (negative = before dueDate, positive = after dueDate),
