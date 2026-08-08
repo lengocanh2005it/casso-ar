@@ -13,6 +13,7 @@ import * as XLSX from 'xlsx';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
+import { getImportRequestFingerprint } from '../src/modules/invoice-import/application/import-request-fingerprint';
 import { InvoiceStatus } from '../src/modules/invoices/domain/invoice';
 import { InvoiceOrmEntity } from '../src/modules/invoices/infrastructure/invoice.orm-entity';
 import { Role } from '../src/modules/organizations/domain/membership';
@@ -566,9 +567,7 @@ describe('Invoice import (integration)', () => {
       .expect(400);
   });
 
-  // ponytail: multer returns 413 (Payload Too Large) instead of 400 per spec.
-  // Production bug: controller should handle multer LIMIT_FILE_SIZE → 400.
-  it('9f. File > 5 MiB returns 413 (should be 400 per spec)', async () => {
+  it('9f. File > 5 MiB returns 413 Payload Too Large', async () => {
     const token = tokenFor(ownerA, orgA, Role.OWNER);
     const bigBuffer = Buffer.alloc(5 * 1024 * 1024 + 1, 0);
     await request(app.getHttpServer())
@@ -771,8 +770,6 @@ describe('Invoice import (integration)', () => {
     expect(res.body.errorCode).toBe('IDEMPOTENCY_KEY_REUSED');
   });
 
-  // ponytail: audit write is fire-and-forget (void) and may fail silently.
-  // If no audit appears, this is a production bug to investigate separately.
   it('14. Audit INVOICE_IMPORT metadata present when write succeeds', async () => {
     const invNum = `INV-AUDIT-${randomUUID().slice(0, 6)}`;
     const token = tokenFor(ownerA, orgA, Role.OWNER);
@@ -796,34 +793,37 @@ describe('Invoice import (integration)', () => {
       .attach('file', buffer, { filename: 'test.xlsx' })
       .expect(201);
 
+    const expectedSha256 = getImportRequestFingerprint(buffer, 'test.xlsx');
+
     // poll for fire-and-forget audit
     let audits: Array<Record<string, unknown>> = [];
     for (let i = 0; i < 20; i++) {
       await new Promise((r) => setTimeout(r, 500));
       audits = await dataSource.query(
-        `SELECT * FROM audit_logs WHERE "organizationId" = $1 AND "actionType" = 'INVOICE_IMPORT' ORDER BY "createdAt" DESC LIMIT 10`,
-        [orgA],
+        `SELECT * FROM audit_logs
+         WHERE "organizationId" = $1
+           AND "actionType" = 'INVOICE_IMPORT'
+           AND "entityType" = 'INVOICE_IMPORT'
+           AND "entityId" = $2`,
+        [orgA, expectedSha256],
       );
       if (audits.length > 0) break;
     }
 
-    // If audit didn't appear, this documents the production bug but doesn't fail the suite
-    if (audits.length === 0) {
-      console.warn(
-        'CONCERN: INVOICE_IMPORT audit not written after 10s. Fire-and-forget audit write may be failing silently.',
-      );
-      return;
-    }
+    expect(audits).toHaveLength(1);
 
     const audit = audits[0];
-    expect(audit.entityType).toBe('INVOICE_IMPORT');
+    expect(audit.userId).toBe(ownerA);
     expect(audit.beforeState).toBeNull();
-    expect(audit.afterState).toBeDefined();
-    expect(audit.afterState).toHaveProperty('filename');
-    expect(audit.afterState).toHaveProperty('fileSha256');
-    expect(audit.afterState).toHaveProperty('totalRows');
-    expect(audit.afterState).toHaveProperty('successCount');
-    expect(audit.afterState).toHaveProperty('failedCount');
+    expect(audit.afterState).toEqual(
+      expect.objectContaining({
+        filename: 'test.xlsx',
+        fileSha256: expectedSha256,
+        totalRows: 1,
+        successCount: 1,
+        failedCount: 0,
+      }),
+    );
     expect(audit.afterState).not.toHaveProperty('rows');
     expect(audit.afterState).not.toHaveProperty('rawData');
     expect(audit.afterState).not.toHaveProperty('data');
