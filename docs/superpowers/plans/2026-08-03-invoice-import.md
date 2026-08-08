@@ -21,7 +21,7 @@
 - Every string is trimmed; email is lowercased; tax code is not reformatted.
 - Customer matching is tax code first and email second. If both identifiers resolve to different Customers, the row fails with CUSTOMER_MISMATCH. If neither resolves, create a Customer from the row, even when both identifiers are blank.
 - A newly created Receivable gets salesRepresentativeId equal to the authenticated importer.
-- The import endpoint requires Permission.RECEIVABLE_WRITE and an Idempotency-Key.
+- The import endpoint requires Permission.RECEIVABLE_IMPORT and an Idempotency-Key.
 - Idempotency fingerprint is SHA-256 of filename + file bytes; reuse the existing IdempotencyService.
 - Each valid row has its own transaction. The loop is sequential and continues after row failures.
 - Duplicate invoice numbers are checked in the transaction and protected by a unique database index on (organizationId, invoiceNumber).
@@ -531,7 +531,7 @@ Cover:
 
 - missing file returns standard 400 validation envelope;
 - missing idempotency key is rejected by IdempotencyService;
-- RECEIVABLE_WRITE is required;
+- RECEIVABLE_IMPORT is required;
 - the file-size limit is configured at 5 MiB;
 - idempotency receives endpoint POST /invoices/import and { filename, fileSha256 };
 - a valid request returns the use-case result with HTTP 201.
@@ -563,7 +563,7 @@ Import BadRequestException from @nestjs/common, FileInterceptor and memoryStorag
 @UseGuards(PermissionGuard)
 export class InvoiceImportController {
   @Post('import')
-  @RequirePermission(Permission.RECEIVABLE_WRITE)
+  @RequirePermission(Permission.RECEIVABLE_IMPORT)
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
