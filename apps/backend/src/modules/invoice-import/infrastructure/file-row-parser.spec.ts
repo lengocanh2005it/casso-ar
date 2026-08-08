@@ -134,6 +134,14 @@ describe('parseFileToRows', () => {
     );
   });
 
+  it('rejects CSV bytes renamed with an .xlsx extension', () => {
+    expectValidationError(() => parseFileToRows(csvBuffer(), 'invoices.xlsx'));
+  });
+
+  it('rejects CSV bytes renamed with an .xls extension', () => {
+    expectValidationError(() => parseFileToRows(csvBuffer(), 'invoices.xls'));
+  });
+
   it('rejects more than 1,000 data rows', () => {
     expectValidationError(() =>
       parseFileToRows(
@@ -152,6 +160,18 @@ describe('parseFileToRows', () => {
   it('rejects files larger than 5 MiB', () => {
     expectValidationError(() =>
       parseFileToRows(Buffer.alloc(5 * 1024 * 1024 + 1), 'invoices.csv'),
+    );
+  });
+
+  it('rejects oversized malformed files before parsing', () => {
+    const prefix = Buffer.from('not a CSV');
+    const oversized = Buffer.concat([
+      prefix,
+      Buffer.alloc(5 * 1024 * 1024 + 1 - prefix.length),
+    ]);
+
+    expect(() => parseFileToRows(oversized, 'invoices.csv')).toThrow(
+      'Import file exceeds 5 MiB',
     );
   });
 

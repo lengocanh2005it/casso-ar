@@ -23,6 +23,9 @@ export interface ParsedImportFile {
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_ROWS = 1000;
 const REQUIRED_HEADERS = new Set<string>(IMPORT_HEADERS);
+const XLS_CFB_SIGNATURE = Buffer.from([
+  0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1,
+]);
 
 const invalid = (message: string): never => {
   throw new AppError(ErrorCode.VALIDATION_ERROR, message);
@@ -57,11 +60,7 @@ const pickImportColumns = (
 ): Record<string, unknown> =>
   Object.fromEntries(IMPORT_HEADERS.map((header) => [header, row[header]]));
 
-const enforceLimits = (
-  buffer: Buffer,
-  rows: Record<string, unknown>[],
-): void => {
-  if (buffer.byteLength > MAX_FILE_BYTES) invalid('Import file exceeds 5 MiB');
+const enforceLimits = (rows: Record<string, unknown>[]): void => {
   if (rows.length === 0) invalid('Import file has no data rows');
   if (rows.length > MAX_ROWS) invalid('Import file exceeds 1,000 rows');
 };
@@ -84,8 +83,19 @@ const parseCsv = (buffer: Buffer): Record<string, unknown>[] => {
   }
 };
 
-const parseWorkbook = (buffer: Buffer): Record<string, unknown>[] => {
+const parseWorkbook = (
+  buffer: Buffer,
+  extension: '.xlsx' | '.xls',
+): Record<string, unknown>[] => {
   try {
+    const hasSignature =
+      extension === '.xlsx'
+        ? buffer.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]))
+        : buffer
+            .subarray(0, XLS_CFB_SIGNATURE.length)
+            .equals(XLS_CFB_SIGNATURE);
+    if (!hasSignature) return invalid('Malformed workbook import file');
+
     const workbook = read(buffer, { cellDates: true, type: 'buffer' });
     const firstSheetName = workbook.SheetNames[0];
     if (!firstSheetName) return invalid('Import workbook has no sheets');
@@ -115,15 +125,19 @@ export function parseFileToRows(
   buffer: Buffer,
   originalFilename: string,
 ): ParsedImportFile {
+  if (buffer.byteLength > MAX_FILE_BYTES) {
+    invalid('Import file exceeds 5 MiB');
+  }
+
   const extension = extname(originalFilename).toLowerCase();
   const rows =
     extension === '.csv'
       ? parseCsv(buffer)
       : extension === '.xlsx' || extension === '.xls'
-        ? parseWorkbook(buffer)
+        ? parseWorkbook(buffer, extension)
         : invalid('Unsupported import file type');
 
   const pickedRows = rows.map(pickImportColumns);
-  enforceLimits(buffer, pickedRows);
+  enforceLimits(pickedRows);
   return { rows: pickedRows, totalRows: pickedRows.length };
 }
