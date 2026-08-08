@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { INestApplication } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
@@ -80,7 +81,7 @@ describe('Exception Queue (e2e)', () => {
       createdAt: new Date(),
     });
 
-    const jwt = moduleRef.get<{ sign(payload: object): string }>('JwtService');
+    const jwt = moduleRef.get(JwtService);
     token = jwt.sign({ userId, organizationId, role: Role.OWNER });
   }, 60_000);
 

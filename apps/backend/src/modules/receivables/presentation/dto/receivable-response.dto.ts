@@ -53,8 +53,17 @@ export function toReceivableResponse(
   r: ReceivableResponseSource,
 ): ReceivableResponseDto {
   return {
-    ...r,
+    id: r.id,
+    customerId: r.customerId,
+    invoiceId: r.invoiceId,
+    originalAmount: r.originalAmount,
+    paidAmount: r.paidAmount,
     remainingAmount: r.originalAmount - r.paidAmount,
+    dueDate: r.dueDate,
+    status: r.status,
+    salesRepresentativeId: r.salesRepresentativeId,
+    createdAt: r.createdAt,
+    closedAt: r.closedAt,
   };
 }
 

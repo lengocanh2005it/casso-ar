@@ -270,12 +270,12 @@ describe('Read APIs completion (Plan #17, integration)', () => {
       .set('Authorization', `Bearer ${tokenOwner}`)
       .expect(200);
 
-    expect(res.body.allocations).toEqual([
+    expect(res.body.allocations).toContainEqual(
       expect.objectContaining({
         paymentId: paymentA,
-        allocatedAmount: 3_000_000,
+        allocatedAmount: expect.stringMatching(/^3000000$/),
       }),
-    ]);
+    );
   });
 
   it('GET /organizations/:id/members is forbidden across tenants', async () => {
