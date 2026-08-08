@@ -612,8 +612,8 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Customer Bank Account Management** — blockers: Plan #8 ✅
 
 **Blocked tickets waiting:**
-- **Plan #20** (FE Core AR Loop) — waiting on Plan #11, Plan #14, Plan #19 (Plan #10 + #17 now shipped)
+- **Plan #20** (FE Core AR Loop) — waiting on Plan #11, Plan #19 (Plan #10, #14 + #17 now shipped)
 - **Plan #21** (FE Reminders, Copilot, Reports, Settings) — waiting on Plan #15, Plan #16, Plan #19 (Plan #12 + #17 now shipped)
 - **Spec-Plan Reconciliation** — waiting on all plans
 
-**Recommended next step:** Plan #16 (Collection Copilot) is the highest-leverage pick now that Plan #12 (Reminder Automation) has shipped — it's the last blocker for Plan #16 and feeds Plan #21. Plan #11 (Internal Task + Escalation) and Plan #14 (Invoice Import) are also unblocked.
+**Recommended next step:** Plan #16 (Collection Copilot) is the highest-leverage pick now that Plan #12 (Reminder Automation) has shipped — it's the last blocker for Plan #16 and feeds Plan #21. Plan #11 (Internal Task + Escalation) is also unblocked.
