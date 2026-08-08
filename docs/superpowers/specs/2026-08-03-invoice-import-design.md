@@ -34,5 +34,5 @@ POST /invoices/import
 
 ## 3. Open questions (do not block implementation)
 
-- What should the maximum file size/row count be for one import (does this determine whether processing must be asynchronous through a queue rather than synchronous in one request)?
+- Resolved for the MVP: the maximum file size is 5 MiB and the maximum row count is 1,000. A file-size overflow returns HTTP 413 Payload Too Large; a row-count overflow returns HTTP 400.
 - When automatically creating a new Customer during import, should it receive a separate marker (e.g. `createdVia: IMPORT`) to distinguish it from a manually created Customer?

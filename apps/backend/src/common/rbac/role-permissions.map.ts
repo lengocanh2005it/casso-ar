@@ -8,6 +8,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.RECEIVABLE_WRITE,
     Permission.RECEIVABLE_WRITE_OFF,
     Permission.RECEIVABLE_DISPUTE,
+    Permission.RECEIVABLE_IMPORT,
     Permission.PAYMENT_ALLOCATE,
     Permission.PAYMENT_ALLOCATE_UNDO,
     Permission.SUBSCRIPTION_MANAGE,
@@ -25,6 +26,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.RECEIVABLE_READ,
     Permission.RECEIVABLE_WRITE,
     Permission.RECEIVABLE_DISPUTE,
+    Permission.RECEIVABLE_IMPORT,
     Permission.PAYMENT_ALLOCATE,
     Permission.EMAIL_TEMPLATE_READ,
     Permission.REMINDER_SEND_MANUAL,
@@ -34,6 +36,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
   [Role.SALES_REP]: [
     Permission.RECEIVABLE_READ,
+    Permission.RECEIVABLE_IMPORT,
     Permission.EMAIL_TEMPLATE_READ,
     Permission.REPORT_READ,
     Permission.CUSTOMER_READ,

@@ -16,7 +16,11 @@ describe('TenantContextInterceptor', () => {
   ): ExecutionContext {
     return {
       switchToHttp: () => ({
-        getRequest: () => ({ user: reqUser }),
+        getRequest: () => ({
+          user: reqUser,
+          header: (name: string) =>
+            name === 'X-Request-Id' ? 'request-1' : undefined,
+        }),
       }),
     } as unknown as ExecutionContext;
   }
@@ -44,7 +48,10 @@ describe('TenantContextInterceptor', () => {
       next: () => {},
       complete: () => {
         expect(seenInsideHandler).toHaveLength(1);
-        expect(seenInsideHandler[0]).toEqual(user);
+        expect(seenInsideHandler[0]).toEqual({
+          ...user,
+          requestId: 'request-1',
+        });
         done();
       },
     });

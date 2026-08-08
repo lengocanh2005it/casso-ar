@@ -11,4 +11,13 @@ describe('ROLE_PERMISSIONS', () => {
       Permission.ORGANIZATION_READ,
     );
   });
+
+  it('allows SALES_REP to import receivables assigned to themselves, without granting general receivable write', () => {
+    expect(ROLE_PERMISSIONS[Role.SALES_REP]).toContain(
+      Permission.RECEIVABLE_IMPORT,
+    );
+    expect(ROLE_PERMISSIONS[Role.SALES_REP]).not.toContain(
+      Permission.RECEIVABLE_WRITE,
+    );
+  });
 });

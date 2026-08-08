@@ -41,7 +41,7 @@ describe('CreateReceivableUseCase', () => {
       salesRepresentativeId: null,
     });
 
-    expect(customerRepo.findById).toHaveBeenCalledWith('cust-1');
+    expect(customerRepo.findById).toHaveBeenCalledWith('cust-1', manager);
     expect(planLimit.enforceReceivableLimit).toHaveBeenCalledWith(manager);
     expect(receivable.status).toBe(ReceivableStatus.OPEN);
     expect(repo.save).toHaveBeenCalledWith(
@@ -111,5 +111,81 @@ describe('CreateReceivableUseCase', () => {
     ).rejects.toThrow('PLAN_LIMIT_EXCEEDED');
 
     expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('uses an existing transaction manager instead of opening a nested transaction', async () => {
+    const input = {
+      customerId: 'cust-1',
+      invoiceId: null,
+      originalAmount: 10_000_000,
+      dueDate: new Date('2026-09-01'),
+      salesRepresentativeId: null,
+    };
+    const suppliedManager = { name: 'supplied-manager' };
+    const transactionManager = { name: 'transaction-manager' };
+
+    const transactionalRepo = { save: jest.fn() };
+    const transactionalCustomerRepo = {
+      findById: jest
+        .fn()
+        .mockResolvedValue({ id: 'cust-1', organizationId: 'org-1' }),
+    };
+    const transactionalPlanLimit = { enforceReceivableLimit: jest.fn() };
+    const transactionalDataSource = {
+      transaction: jest.fn((fn: (manager: unknown) => unknown) =>
+        fn(transactionManager),
+      ),
+    };
+    await new CreateReceivableUseCase(
+      transactionalRepo as any,
+      transactionalCustomerRepo as any,
+      tenantContext as any,
+      transactionalPlanLimit as any,
+      transactionalDataSource as any,
+    ).execute(input);
+
+    expect(transactionalDataSource.transaction).toHaveBeenCalledTimes(1);
+    expect(transactionalCustomerRepo.findById).toHaveBeenCalledWith(
+      'cust-1',
+      transactionManager,
+    );
+    expect(transactionalPlanLimit.enforceReceivableLimit).toHaveBeenCalledWith(
+      transactionManager,
+    );
+    expect(transactionalRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ customerId: 'cust-1' }),
+      transactionManager,
+    );
+
+    const suppliedRepo = { save: jest.fn() };
+    const suppliedCustomerRepo = {
+      findById: jest
+        .fn()
+        .mockResolvedValue({ id: 'cust-1', organizationId: 'org-1' }),
+    };
+    const suppliedPlanLimit = { enforceReceivableLimit: jest.fn() };
+    const suppliedDataSource = {
+      transaction: jest.fn(),
+    };
+    await new CreateReceivableUseCase(
+      suppliedRepo as any,
+      suppliedCustomerRepo as any,
+      tenantContext as any,
+      suppliedPlanLimit as any,
+      suppliedDataSource as any,
+    ).execute(input, suppliedManager as any);
+
+    expect(suppliedDataSource.transaction).not.toHaveBeenCalled();
+    expect(suppliedCustomerRepo.findById).toHaveBeenCalledWith(
+      'cust-1',
+      suppliedManager,
+    );
+    expect(suppliedPlanLimit.enforceReceivableLimit).toHaveBeenCalledWith(
+      suppliedManager,
+    );
+    expect(suppliedRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ customerId: 'cust-1' }),
+      suppliedManager,
+    );
   });
 });

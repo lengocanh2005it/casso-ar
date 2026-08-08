@@ -1,340 +1,181 @@
 # Invoice/Receivable Import (Excel/CSV) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> For agentic workers: REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking.
 
-**Goal:** Implement `POST /invoices/import` — multipart Excel/CSV upload of invoices with row-level partial-import semantics (valid rows create `Customer` + `Invoice` + `Receivable`, invalid rows are skipped and reported with row number + reason, the whole file is never rejected for a few bad rows), per `2026-08-03-invoice-import-design.md`. Builds on `2026-08-03-project-scaffolding-and-domain-core.md` (`Customer`, `Invoice`, `Receivable` domain classes, `CreateReceivableUseCase`) and `2026-08-03-multi-tenancy-rbac.md` (`BaseRepository` tenant scoping, `TenantContextService`, `JwtAuthGuard`, `PermissionGuard`).
+**Goal:** Implement POST /invoices/import for .xlsx, .xls, and .csv files, creating Customer + Invoice + Receivable per valid row while reporting invalid rows without rolling back valid rows.
 
-**Architecture:** New module `apps/backend/src/modules/invoice-import/` following the same `application/infrastructure/presentation` layering (no `domain/` — this module orchestrates existing domain entities, it introduces no new domain concept). File parsing is dispatched by file extension to either the `xlsx` package or `csv-parse`, normalized into plain row objects before validation. `InvoiceRowParser` is a pure function (no NestJS/TypeORM import) that validates one row and either returns a typed DTO or throws a row-level `RowValidationError` — this keeps row validation logic unit-testable without any HTTP/DB harness. `ImportInvoicesUseCase` iterates rows independently: a thrown error for one row is caught and recorded, execution continues to the next row (partial import). Customer resolution matches by `taxCode` first, then `customerEmail`, auto-creating a new `Customer` if neither matches. Receivable creation is delegated to the existing `CreateReceivableUseCase` (Domain Core plan) instead of duplicating receivable-construction logic.
+**Architecture:** Add an invoice-import module with a pure row parser, an infrastructure file parser, an application use case, and a multipart controller. Each valid row uses one DataSource.transaction() and passes the same EntityManager through Customer, Invoice, and Receivable writes. Existing repositories and CreateReceivableUseCase are widened with optional manager parameters; existing callers keep their current behavior.
 
-**Tech Stack:** `xlsx` (SheetJS) for `.xlsx`/`.xls`, `csv-parse` for `.csv`, `@nestjs/platform-express`'s `FileInterceptor` + `memoryStorage` for multipart upload, Jest + testcontainers + supertest for the integration test (same pattern as the two reference plans).
+**Tech Stack:** NestJS FileInterceptor with in-memory storage, xlsx for .xlsx/.xls, csv-parse for .csv, Node crypto for SHA-256/idempotency fingerprints, Jest, Supertest, and Testcontainers PostgreSQL.
 
 ## Global Constraints
 
-- Amounts: `totalAmount` stays an integer (VND), no `float` — matches Domain Core plan's amount convention.
-- Row numbering in error reports is 1-based counting the header row as row 1, so the first data row is row 2 (matches a user opening the file in Excel and looking at row numbers).
-- `InvoiceRowParser` lives in `application/` but is a **pure function**: no `@Injectable()`, no NestJS/TypeORM import, so it is testable with plain Jest and no DI container — mirrors the "domain has no framework import" rule from the scaffolding plan, applied here to the one piece of pure business logic in this module.
-- Partial import: one row's failure (validation error, duplicate invoice number, or any thrown error) is caught per-row and never aborts the remaining rows.
-- Fixed column names for MVP (no column-mapping UI): `customerName`, `customerTaxCode` (optional), `customerEmail` (optional), `invoiceNumber`, `issueDate`, `dueDate`, `totalAmount` — matches spec section 1.
-- Endpoint gated by `Permission.RECEIVABLE_WRITE` (reused from `2026-08-03-multi-tenancy-rbac.md`, not a new permission) since importing invoices is equivalent to writing receivables.
-- Naming: file kebab-case, class PascalCase (spec section 4, same as reference plans).
-- Each valid row is one `DataSource.transaction()` using the same `EntityManager` for Customer, Invoice, and Receivable writes. A row failure rolls back that row and is recorded in the partial-import error list; the loop then continues with the next row. Do not use the default repository connection inside the transaction callback.
-
----
+- Exact headers: customerName, customerTaxCode, customerEmail, invoiceNumber, issueDate, dueDate, totalAmount, taxAmount.
+- All eight headers must be present with exact casing after trimming a UTF-8 BOM; extra headers are ignored.
+- customerTaxCode, customerEmail, and taxAmount values may be blank; blank taxAmount becomes 0.
+- .xlsx/.xls reads only the first sheet. CSV accepts UTF-8 with optional BOM and comma delimiter only.
+- File size is at most 5 MiB and data rows are at most 1,000. A limit violation rejects the whole request.
+- totalAmount accepts only a safe positive integer or a digit-only string. taxAmount accepts only a safe non-negative integer or a digit-only string.
+- totalAmount is the gross amount owed and includes tax; 0 <= taxAmount <= totalAmount.
+- CSV dates must be strict YYYY-MM-DD; Excel date cells may be JavaScript Date values. Invalid dates and dueDate < issueDate fail the row.
+- Every string is trimmed; email is lowercased; tax code is not reformatted.
+- Customer matching is tax code first and email second. If both identifiers resolve to different Customers, the row fails with CUSTOMER_MISMATCH. If neither resolves, create a Customer from the row, even when both identifiers are blank.
+- A newly created Receivable gets salesRepresentativeId equal to the authenticated importer.
+- The import endpoint requires Permission.RECEIVABLE_IMPORT and an Idempotency-Key.
+- Idempotency fingerprint is SHA-256 of filename + file bytes; reuse the existing IdempotencyService.
+- Each valid row has its own transaction. The loop is sequential and continues after row failures.
+- Duplicate invoice numbers are checked in the transaction and protected by a unique database index on (organizationId, invoiceNumber).
+- Row-level failures remain failedRows: { rowNumber, data, errors: string[] }. Known validation errors use stable messages/codes; unexpected errors use IMPORT_ROW_FAILED and are logged without leaking database details.
+- A syntactically valid file always returns HTTP 201, including when successCount is zero. Missing file, invalid headers, malformed file, unsupported extension, empty data, and row-count limits return HTTP 400. A file over 5 MiB returns HTTP 413 Payload Too Large.
+- Each import writes one audit record with action/entity INVOICE_IMPORT; only filename, SHA-256, row counts, and actor metadata are stored, never raw row data.
+- Production code uses node: builtins, no any, no unsafe domain-to-ORM casts, explicit mappers, tenant-scoped queries, and AppError for application failures.
 
 ## File Structure
 
-```
-apps/backend/src/
-  modules/
-    customers/
-      application/customer-repository.port.ts        -- MODIFY: add findByTaxCode, findByEmail
-      infrastructure/typeorm-customer.repository.ts   -- MODIFY: implement new port methods
-    invoices/
-      application/invoice-repository.port.ts          -- MODIFY: add findByInvoiceNumber
-      infrastructure/typeorm-invoice.repository.ts     -- MODIFY: implement new port method
-    receivables/
-      receivables.module.ts                            -- MODIFY: export CreateReceivableUseCase
-    invoice-import/
-      application/
-        invoice-row-parser.ts
-        import-invoices.usecase.ts
-      infrastructure/
-        file-row-parser.ts
-      presentation/
-        invoice-import.controller.ts
-      invoice-import.module.ts
-  app.module.ts                                        -- MODIFY: register InvoiceImportModule
-test/
-  invoice-import.integration.spec.ts
-```
+Create:
+
+- apps/backend/src/modules/invoice-import/application/invoice-row-parser.ts
+- apps/backend/src/modules/invoice-import/application/invoice-row-parser.spec.ts
+- apps/backend/src/modules/invoice-import/application/import-invoices.usecase.ts
+- apps/backend/src/modules/invoice-import/application/import-invoices.usecase.spec.ts
+- apps/backend/src/modules/invoice-import/application/import-request-fingerprint.ts
+- apps/backend/src/modules/invoice-import/infrastructure/file-row-parser.ts
+- apps/backend/src/modules/invoice-import/infrastructure/file-row-parser.spec.ts
+- apps/backend/src/modules/invoice-import/presentation/invoice-import.controller.ts
+- apps/backend/src/modules/invoice-import/presentation/invoice-import.controller.spec.ts
+- apps/backend/src/modules/invoice-import/invoice-import.module.ts
+- apps/backend/test/invoice-import.e2e-spec.ts
+
+Modify:
+
+- apps/backend/src/modules/customers/application/customer-repository.port.ts
+- apps/backend/src/modules/customers/infrastructure/typeorm-customer.repository.ts
+- apps/backend/src/modules/customers/infrastructure/typeorm-customer.repository.spec.ts
+- apps/backend/src/modules/invoices/application/invoice-repository.port.ts
+- apps/backend/src/modules/invoices/infrastructure/typeorm-invoice.repository.ts
+- apps/backend/src/modules/invoices/infrastructure/typeorm-invoice.repository.spec.ts
+- apps/backend/src/modules/invoices/infrastructure/invoice.orm-entity.ts
+- apps/backend/src/modules/receivables/application/create-receivable.usecase.ts
+- apps/backend/src/modules/receivables/application/create-receivable.usecase.spec.ts
+- apps/backend/src/common/audit/audit.enums.ts
+- apps/backend/src/app.module.ts
+- apps/backend/package.json
 
 ---
 
-### Task 1: Extend Customer & Invoice repository ports for import lookups
+### Task 1: Make existing write contracts transaction-safe and invoice numbers unique
 
-**Files:**
-- Modify: `apps/backend/src/modules/customers/application/customer-repository.port.ts`
-- Modify: `apps/backend/src/modules/customers/infrastructure/typeorm-customer.repository.ts`
-- Modify: `apps/backend/src/modules/invoices/application/invoice-repository.port.ts`
-- Modify: `apps/backend/src/modules/invoices/infrastructure/typeorm-invoice.repository.ts`
+Files:
 
-**Interfaces:**
-- Consumes: `BaseRepository.scopedFindOne` (multi-tenancy plan Task 5) — already tenant-scoped, no `organizationId` param needed
-- Produces: `ICustomerRepository.findByTaxCode`/`findByEmail`, `IInvoiceRepository.findByInvoiceNumber` — used by Task 4 (`ImportInvoicesUseCase`)
+- Modify the repository ports, repositories, ORM entity, and CreateReceivableUseCase listed above.
+- Test the changed repositories and use case in their existing spec files.
 
-- [ ] **Step 1: Add lookup methods to `ICustomerRepository`**
+Interfaces:
 
-Modify `apps/backend/src/modules/customers/application/customer-repository.port.ts`:
-
-```typescript
-import { EntityManager } from 'typeorm';
-import { Customer } from '../domain/customer';
-
-export interface ICustomerRepository {
-  findById(id: string): Promise<Customer | null>;
-  findByTaxCode(taxCode: string, manager?: EntityManager): Promise<Customer | null>;
-  findByEmail(email: string, manager?: EntityManager): Promise<Customer | null>;
-  save(customer: Customer, manager?: EntityManager): Promise<void>;
+~~~typescript
+export interface CreateReceivableInput {
+  customerId: string;
+  invoiceId: string | null;
+  originalAmount: number;
+  dueDate: Date;
+  salesRepresentativeId: string | null;
 }
 
-export const CUSTOMER_REPOSITORY = Symbol('CUSTOMER_REPOSITORY');
-```
+ICustomerRepository.findById(id: string, manager?: EntityManager): Promise<Customer | null>
+ICustomerRepository.findByTaxCode(taxCode: string, manager?: EntityManager): Promise<Customer | null>
+ICustomerRepository.findByEmail(email: string, manager?: EntityManager): Promise<Customer | null>
+IInvoiceRepository.findByInvoiceNumber(invoiceNumber: string, manager?: EntityManager): Promise<Invoice | null>
+CreateReceivableUseCase.execute(input: CreateReceivableInput, manager?: EntityManager): Promise<Receivable>
+~~~
 
-- [ ] **Step 2: Implement the new methods in `TypeOrmCustomerRepository`**
+- [ ] Step 1: Write failing repository tests for manager-scoped lookups
 
-Modify `apps/backend/src/modules/customers/infrastructure/typeorm-customer.repository.ts`:
+Add tests proving findById, findByTaxCode, findByEmail, and findByInvoiceNumber use manager.getRepository(...).findOne() when a manager is passed, and include the current organizationId in every where clause.
 
-```typescript
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
-import { Customer } from '../domain/customer';
-import { ICustomerRepository } from '../application/customer-repository.port';
-import { CustomerOrmEntity } from './customer.orm-entity';
-import { BaseRepository } from '../../../common/tenancy/base.repository';
-import { TenantContextService } from '../../../common/tenancy/tenant-context';
+The tests must also prove that calls without a manager continue using the existing BaseRepository tenant-scoped path.
 
-@Injectable()
-export class TypeOrmCustomerRepository extends BaseRepository<CustomerOrmEntity> implements ICustomerRepository {
-  constructor(
-    @InjectRepository(CustomerOrmEntity) repo: Repository<CustomerOrmEntity>,
-    tenantContext: TenantContextService,
-  ) {
-    super(repo, tenantContext);
-  }
+- [ ] Step 2: Run the focused repository tests and verify failure
 
-  async findById(id: string): Promise<Customer | null> {
-    const row = await this.scopedFindOne({ id } as any);
-    return row ? new Customer(row) : null;
-  }
+Run:
 
-  async findByTaxCode(taxCode: string, manager?: EntityManager): Promise<Customer | null> {
-    const organizationId = this.tenantContext.getOrganizationId();
-    const row = manager
-      ? await manager.getRepository(CustomerOrmEntity).findOne({ where: { taxCode, organizationId } as any })
-      : await this.scopedFindOne({ taxCode } as any);
-    return row ? new Customer(row) : null;
-  }
+~~~bash
+pnpm --filter @casso-ledger/backend test typeorm-customer.repository.spec.ts typeorm-invoice.repository.spec.ts
+~~~
 
-  async findByEmail(email: string, manager?: EntityManager): Promise<Customer | null> {
-    const organizationId = this.tenantContext.getOrganizationId();
-    const row = manager
-      ? await manager.getRepository(CustomerOrmEntity).findOne({ where: { email, organizationId } as any })
-      : await this.scopedFindOne({ email } as any);
-    return row ? new Customer(row) : null;
-  }
+Expected: FAIL because the new method signatures and manager branches do not exist.
 
-  async save(customer: Customer, manager?: EntityManager): Promise<void> {
-    const repo = manager ? manager.getRepository(CustomerOrmEntity) : this.ormRepo;
-    await repo.save({ ...customer, organizationId: this.tenantContext.getOrganizationId() } as CustomerOrmEntity);
-  }
+- [ ] Step 3: Add the optional manager signatures
+
+Update both repository ports with the exact signatures above. Preserve all existing methods and import EntityManager as a type.
+
+- [ ] Step 4: Implement tenant-scoped manager queries
+
+In each repository, use the manager repository with { organizationId: this.tenantContext.getOrganizationId(), ...criteria } when a manager is provided. Keep the existing BaseRepository path when it is not.
+
+Update the explicit domain-to-ORM mappers where needed. Do not cast a domain object to an ORM entity.
+
+- [ ] Step 5: Add the unique invoice index
+
+Replace the single-column organization index on InvoiceOrmEntity with:
+
+~~~typescript
+@Index(['organizationId', 'invoiceNumber'], { unique: true })
+~~~
+
+Keep the entity column as varchar. The pre-insert lookup remains for a friendly row error; the database index is the concurrency guard.
+
+- [ ] Step 6: Write a failing transaction propagation test
+
+Add a CreateReceivableUseCase test proving that:
+
+1. execute(input) opens one DataSource.transaction().
+2. execute(input, manager) does not open another transaction.
+3. Customer validation, plan-limit enforcement, and repository save all receive the supplied manager.
+
+- [ ] Step 7: Make CreateReceivableUseCase manager-aware
+
+Refactor the current implementation into one transaction body:
+
+~~~typescript
+async execute(input: CreateReceivableInput, manager?: EntityManager): Promise<Receivable> {
+  if (manager) return this.createWithinTransaction(input, manager);
+  return this.dataSource.transaction((transactionManager) =>
+    this.createWithinTransaction(input, transactionManager),
+  );
 }
-```
+~~~
 
-- [ ] **Step 3: Add lookup method to `IInvoiceRepository`**
+createWithinTransaction must validate the customer with findById(input.customerId, manager), enforce the plan limit with the same manager, construct the Receivable, and save it with the same manager. Existing callers remain unchanged.
 
-Modify `apps/backend/src/modules/invoices/application/invoice-repository.port.ts`:
+- [ ] Step 8: Run focused tests and type-check
 
-```typescript
-import { EntityManager } from 'typeorm';
-import { Invoice } from '../domain/invoice';
+Run:
 
-export interface IInvoiceRepository {
-  findById(id: string): Promise<Invoice | null>;
-  findByInvoiceNumber(invoiceNumber: string, manager?: EntityManager): Promise<Invoice | null>;
-  save(invoice: Invoice, manager?: EntityManager): Promise<void>;
-}
+~~~bash
+pnpm --filter @casso-ledger/backend test typeorm-customer.repository.spec.ts typeorm-invoice.repository.spec.ts create-receivable.usecase.spec.ts
+pnpm --filter @casso-ledger/backend type-check
+~~~
 
-export const INVOICE_REPOSITORY = Symbol('INVOICE_REPOSITORY');
-```
+Expected: PASS.
 
-- [ ] **Step 4: Implement the new method in `TypeOrmInvoiceRepository`**
+- [ ] Step 9: Commit
 
-Modify `apps/backend/src/modules/invoices/infrastructure/typeorm-invoice.repository.ts`:
-
-```typescript
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
-import { Invoice } from '../domain/invoice';
-import { IInvoiceRepository } from '../application/invoice-repository.port';
-import { InvoiceOrmEntity } from './invoice.orm-entity';
-import { BaseRepository } from '../../../common/tenancy/base.repository';
-import { TenantContextService } from '../../../common/tenancy/tenant-context';
-
-@Injectable()
-export class TypeOrmInvoiceRepository extends BaseRepository<InvoiceOrmEntity> implements IInvoiceRepository {
-  constructor(
-    @InjectRepository(InvoiceOrmEntity) repo: Repository<InvoiceOrmEntity>,
-    tenantContext: TenantContextService,
-  ) {
-    super(repo, tenantContext);
-  }
-
-  async findById(id: string): Promise<Invoice | null> {
-    const row = await this.scopedFindOne({ id } as any);
-    return row ? new Invoice(row) : null;
-  }
-
-  async findByInvoiceNumber(invoiceNumber: string, manager?: EntityManager): Promise<Invoice | null> {
-    const organizationId = this.tenantContext.getOrganizationId();
-    const row = manager
-      ? await manager.getRepository(InvoiceOrmEntity).findOne({ where: { invoiceNumber, organizationId } as any })
-      : await this.scopedFindOne({ invoiceNumber } as any);
-    return row ? new Invoice(row) : null;
-  }
-
-  async save(invoice: Invoice, manager?: EntityManager): Promise<void> {
-    const repo = manager ? manager.getRepository(InvoiceOrmEntity) : this.ormRepo;
-    await repo.save({ ...invoice, organizationId: this.tenantContext.getOrganizationId() } as InvoiceOrmEntity);
-  }
-}
-```
-
-- [ ] **Step 5: Export `CreateReceivableUseCase` from `ReceivablesModule`**
-
-Modify `apps/backend/src/modules/receivables/receivables.module.ts` — add `CreateReceivableUseCase` to the `exports` array (it is already in `providers` per the Domain Core plan Task 13) so `InvoiceImportModule` (Task 5 below) can inject it:
-
-```typescript
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { ReceivableOrmEntity } from './infrastructure/receivable.orm-entity';
-import { TypeOrmReceivableRepository } from './infrastructure/typeorm-receivable.repository';
-import { RECEIVABLE_REPOSITORY } from './application/receivable-repository.port';
-import { CreateReceivableUseCase } from './application/create-receivable.usecase';
-import { WriteOffReceivableUseCase } from './application/write-off-receivable.usecase';
-import { ReceivablesController } from './presentation/receivables.controller';
-
-@Module({
-  imports: [TypeOrmModule.forFeature([ReceivableOrmEntity])],
-  controllers: [ReceivablesController],
-  providers: [
-    { provide: RECEIVABLE_REPOSITORY, useClass: TypeOrmReceivableRepository },
-    CreateReceivableUseCase,
-    WriteOffReceivableUseCase,
-  ],
-  exports: [RECEIVABLE_REPOSITORY, TypeOrmModule, CreateReceivableUseCase],
-})
-export class ReceivablesModule {}
-```
-
-- [ ] **Step 6: Run full test suite to confirm nothing broke**
-
-Run: `pnpm --filter @casso-ledger/backend test`
-Expected: all PASS (no existing test calls the removed/changed methods; these are additive)
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add apps/backend/src/modules/customers apps/backend/src/modules/invoices apps/backend/src/modules/receivables/receivables.module.ts
-git commit -m "feat: add customer/invoice lookup methods needed by invoice import"
-```
+~~~bash
+git add apps/backend/src/modules/customers apps/backend/src/modules/invoices apps/backend/src/modules/receivables/application/create-receivable.usecase.ts
+git commit -m "feat: make invoice import writes transaction-safe"
+~~~
 
 ---
 
-### Task 2: `InvoiceRowParser` — pure row validation
+### Task 2: Parse and validate one invoice row, including tax
 
-**Files:**
-- Create: `apps/backend/src/modules/invoice-import/application/invoice-row-parser.ts`
-- Test: `apps/backend/src/modules/invoice-import/application/invoice-row-parser.spec.ts`
+Files:
 
-**Interfaces:**
-- Consumes: nothing (pure function, plain `Record<string, unknown>` input)
-- Produces: `parseInvoiceRow(row): ParsedInvoiceRow`, `RowValidationError` — used by Task 4 (`ImportInvoicesUseCase`)
+- Create invoice-row-parser.ts and its spec.
 
-- [ ] **Step 1: Write failing tests**
+Interface:
 
-Create `apps/backend/src/modules/invoice-import/application/invoice-row-parser.spec.ts`:
-
-```typescript
-import { parseInvoiceRow, RowValidationError } from './invoice-row-parser';
-
-describe('parseInvoiceRow', () => {
-  const validRow = {
-    customerName: 'Company B',
-    customerTaxCode: '0312345678',
-    customerEmail: 'ap@congtyb.vn',
-    invoiceNumber: 'INV-2026-0001',
-    issueDate: '2026-07-01',
-    dueDate: '2026-08-01',
-    totalAmount: '50000000',
-  };
-
-  it('parses a fully valid row', () => {
-    const parsed = parseInvoiceRow(validRow);
-
-    expect(parsed.customerName).toBe('Company B');
-    expect(parsed.customerTaxCode).toBe('0312345678');
-    expect(parsed.customerEmail).toBe('ap@congtyb.vn');
-    expect(parsed.invoiceNumber).toBe('INV-2026-0001');
-    expect(parsed.issueDate.toISOString().slice(0, 10)).toBe('2026-07-01');
-    expect(parsed.dueDate.toISOString().slice(0, 10)).toBe('2026-08-01');
-    expect(parsed.totalAmount).toBe(50_000_000);
-  });
-
-  it('treats blank optional fields as null', () => {
-    const parsed = parseInvoiceRow({ ...validRow, customerTaxCode: '', customerEmail: '' });
-    expect(parsed.customerTaxCode).toBeNull();
-    expect(parsed.customerEmail).toBeNull();
-  });
-
-  it('throws when customerName is missing', () => {
-    const { customerName, ...rest } = validRow;
-    expect(() => parseInvoiceRow(rest)).toThrow(RowValidationError);
-  });
-
-  it('throws when invoiceNumber is blank', () => {
-    expect(() => parseInvoiceRow({ ...validRow, invoiceNumber: '  ' })).toThrow(
-      'invoiceNumber is required',
-    );
-  });
-
-  it('throws when totalAmount is missing or not positive', () => {
-    expect(() => parseInvoiceRow({ ...validRow, totalAmount: '' })).toThrow(
-      'totalAmount is required and must be a positive integer',
-    );
-    expect(() => parseInvoiceRow({ ...validRow, totalAmount: '-5' })).toThrow(
-      'totalAmount is required and must be a positive integer',
-    );
-    expect(() => parseInvoiceRow({ ...validRow, totalAmount: '1.5' })).toThrow(
-      'totalAmount is required and must be a positive integer',
-    );
-  });
-
-  it('throws when issueDate or dueDate is not a valid date', () => {
-    expect(() => parseInvoiceRow({ ...validRow, issueDate: 'not-a-date' })).toThrow(
-      'issueDate is not a valid date',
-    );
-    expect(() => parseInvoiceRow({ ...validRow, dueDate: 'not-a-date' })).toThrow(
-      'dueDate is not a valid date',
-    );
-  });
-
-  it('throws when dueDate is before issueDate', () => {
-    expect(() =>
-      parseInvoiceRow({ ...validRow, issueDate: '2026-08-01', dueDate: '2026-07-01' }),
-    ).toThrow('dueDate must be on or after issueDate');
-  });
-
-  it('accepts a JS Date object for issueDate/dueDate (xlsx cellDates output)', () => {
-    const parsed = parseInvoiceRow({
-      ...validRow,
-      issueDate: new Date('2026-07-01T00:00:00.000Z'),
-      dueDate: new Date('2026-08-01T00:00:00.000Z'),
-    });
-    expect(parsed.issueDate.toISOString().slice(0, 10)).toBe('2026-07-01');
-  });
-});
-```
-
-- [ ] **Step 2: Run tests to verify they fail**
-
-Run: `pnpm --filter @casso-ledger/backend test invoice-row-parser.spec.ts`
-Expected: FAIL — Cannot find module './invoice-row-parser'
-
-- [ ] **Step 3: Create `apps/backend/src/modules/invoice-import/application/invoice-row-parser.ts`**
-
-```typescript
+~~~typescript
 export interface ParsedInvoiceRow {
   customerName: string;
   customerTaxCode: string | null;
@@ -343,411 +184,184 @@ export interface ParsedInvoiceRow {
   issueDate: Date;
   dueDate: Date;
   totalAmount: number;
+  taxAmount: number;
 }
 
-export class RowValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'RowValidationError';
-  }
-}
+export function parseInvoiceRow(row: Record<string, unknown>): ParsedInvoiceRow;
+~~~
 
-function normalizeOptional(value: unknown): string | null {
-  if (value === undefined || value === null) {
-    return null;
-  }
-  const str = String(value).trim();
-  return str === '' ? null : str;
-}
+- [ ] Step 1: Write failing parser tests
 
-function parseDateValue(value: unknown): Date | null {
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? null : value;
-  }
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }
-  if (typeof value === 'number') {
-    // Excel serial date fallback, in case cellDates:true was not honored upstream.
-    const excelEpoch = Date.UTC(1899, 11, 30);
-    const parsed = new Date(excelEpoch + value * 86_400_000);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }
-  return null;
-}
+Cover:
 
-export function parseInvoiceRow(row: Record<string, unknown>): ParsedInvoiceRow {
-  const customerName = normalizeOptional(row.customerName);
-  if (!customerName) {
-    throw new RowValidationError('customerName is required');
-  }
+- valid row with numeric amount and tax;
+- valid row with digit-string amount and tax;
+- blank optional identifiers and blank tax becoming null, null, and 0;
+- missing customer name;
+- blank invoice number;
+- missing, zero, negative, decimal, comma-formatted, currency-formatted, and scientific-notation totalAmount;
+- negative, decimal, comma-formatted, and tax-greater-than-total taxAmount;
+- strict ISO date strings;
+- JavaScript Date cells;
+- invalid leap day and malformed dates;
+- dueDate before issueDate;
+- trimming and email lowercasing.
 
-  const invoiceNumber = normalizeOptional(row.invoiceNumber);
-  if (!invoiceNumber) {
-    throw new RowValidationError('invoiceNumber is required');
-  }
+Example:
 
-  const issueDate = parseDateValue(row.issueDate);
-  if (!issueDate) {
-    throw new RowValidationError('issueDate is not a valid date');
-  }
+~~~typescript
+it('rejects tax greater than total', () => {
+  expect(() =>
+    parseInvoiceRow({ ...validRow, totalAmount: '1000', taxAmount: '1001' }),
+  ).toThrow('taxAmount must be between 0 and totalAmount');
+});
+~~~
 
-  const dueDate = parseDateValue(row.dueDate);
-  if (!dueDate) {
-    throw new RowValidationError('dueDate is not a valid date');
-  }
+- [ ] Step 2: Run the parser test and verify failure
 
-  if (dueDate.getTime() < issueDate.getTime()) {
-    throw new RowValidationError('dueDate must be on or after issueDate');
-  }
+Run:
 
-  const rawAmount = typeof row.totalAmount === 'string' ? row.totalAmount.trim() : row.totalAmount;
-  const totalAmount = Number(rawAmount);
-  if (!Number.isSafeInteger(totalAmount) || totalAmount <= 0) {
-    throw new RowValidationError('totalAmount is required and must be a positive integer');
-  }
+~~~bash
+pnpm --filter @casso-ledger/backend test invoice-row-parser.spec.ts
+~~~
 
-  return {
-    customerName,
-    customerTaxCode: normalizeOptional(row.customerTaxCode),
-    customerEmail: normalizeOptional(row.customerEmail),
-    invoiceNumber,
-    issueDate,
-    dueDate,
-    totalAmount,
-  };
-}
-```
+Expected: FAIL because the module does not exist.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] Step 3: Implement the smallest pure parser
 
-Run: `pnpm --filter @casso-ledger/backend test invoice-row-parser.spec.ts`
-Expected: all 8 tests PASS
+Use AppError with ErrorCode.VALIDATION_ERROR for row validation failures. Do not import NestJS or TypeORM.
 
-- [ ] **Step 5: Commit**
+For dates, accept a JavaScript Date only when valid. For strings, require /^\d{4}-\d{2}-\d{2}$/, construct UTC midnight with Date.UTC, and verify the year/month/day round-trip so invalid dates such as 2026-02-29 are rejected. No new date library is needed.
 
-```bash
+For amounts, accept a number only when Number.isSafeInteger(value), or a trimmed digit-only string that converts to a safe integer. Reject all other forms. Tax may be zero; total must be positive.
+
+- [ ] Step 4: Run parser tests
+
+Run:
+
+~~~bash
+pnpm --filter @casso-ledger/backend test invoice-row-parser.spec.ts
+~~~
+
+Expected: all parser tests PASS.
+
+- [ ] Step 5: Commit
+
+~~~bash
 git add apps/backend/src/modules/invoice-import/application/invoice-row-parser.ts apps/backend/src/modules/invoice-import/application/invoice-row-parser.spec.ts
-git commit -m "feat: add pure InvoiceRowParser for import row validation"
-```
+git commit -m "feat: validate imported invoice rows and tax"
+~~~
 
 ---
 
-### Task 3: File-to-rows dispatch (`.xlsx`/`.xls` via `xlsx`, `.csv` via `csv-parse`)
+### Task 3: Parse files, validate headers, and enforce import limits
 
-**Files:**
-- Create: `apps/backend/src/modules/invoice-import/infrastructure/file-row-parser.ts`
-- Test: `apps/backend/src/modules/invoice-import/infrastructure/file-row-parser.spec.ts`
-- Modify: `apps/backend/package.json` (add `xlsx`, `csv-parse` dependencies)
+Files:
 
-**Interfaces:**
-- Consumes: nothing
-- Produces: `parseFileToRows(buffer, originalFilename): Record<string, unknown>[]` — used by Task 4 (`ImportInvoicesUseCase`)
+- Create file-row-parser.ts and its spec.
+- Modify apps/backend/package.json with runtime dependencies xlsx and csv-parse.
 
-- [ ] **Step 1: Install dependencies**
+Interface:
 
-Run: `pnpm --filter @casso-ledger/backend add xlsx csv-parse`
+~~~typescript
+export const IMPORT_HEADERS = [
+  'customerName',
+  'customerTaxCode',
+  'customerEmail',
+  'invoiceNumber',
+  'issueDate',
+  'dueDate',
+  'totalAmount',
+  'taxAmount',
+] as const;
 
-In `apps/backend/package.json` `dependencies`, this adds:
-```json
-"csv-parse": "5.6.0",
-"xlsx": "0.18.5"
-```
-
-- [ ] **Step 2: Write failing tests**
-
-Create `apps/backend/src/modules/invoice-import/infrastructure/file-row-parser.spec.ts`:
-
-```typescript
-import * as XLSX from 'xlsx';
-import { EntityManager } from 'typeorm';
-import { parseFileToRows } from './file-row-parser';
-
-function buildXlsxBuffer(rows: Record<string, unknown>[]): Buffer {
-  const worksheet = XLSX.utils.json_to_sheet(rows);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-  return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+export interface ParsedImportFile {
+  rows: Record<string, unknown>[];
+  totalRows: number;
 }
 
-describe('parseFileToRows', () => {
-  it('parses rows from an .xlsx buffer', () => {
-    const buffer = buildXlsxBuffer([
-      { customerName: 'Company B', invoiceNumber: 'INV-1', totalAmount: 1000 },
-      { customerName: 'Company C', invoiceNumber: 'INV-2', totalAmount: 2000 },
-    ]);
+export function parseFileToRows(
+  buffer: Buffer,
+  originalFilename: string,
+): ParsedImportFile;
+~~~
 
-    const rows = parseFileToRows(buffer, 'invoices.xlsx');
+- [ ] Step 1: Add the existing-parser dependencies
 
-    expect(rows).toHaveLength(2);
-    expect(rows[0].customerName).toBe('Company B');
-    expect(rows[1].invoiceNumber).toBe('INV-2');
-  });
+Run:
 
-  it('parses rows from a .csv buffer', () => {
-    const csv = 'customerName,invoiceNumber,totalAmount\nCompany B,INV-1,1000\nCompany C,INV-2,2000\n';
-    const buffer = Buffer.from(csv, 'utf-8');
+~~~bash
+pnpm --filter @casso-ledger/backend add xlsx csv-parse
+~~~
 
-    const rows = parseFileToRows(buffer, 'invoices.csv');
+- [ ] Step 2: Write failing file-parser tests
 
-    expect(rows).toHaveLength(2);
-    expect(rows[0].customerName).toBe('Company B');
-    expect(rows[1].totalAmount).toBe('2000');
-  });
+Cover:
 
-  it('throws for an unsupported file extension', () => {
-    expect(() => parseFileToRows(Buffer.from('x'), 'invoices.pdf')).toThrow(
-      'Unsupported import file extension: .pdf',
-    );
-  });
-});
-```
+- .xlsx rows from the first sheet;
+- .xls rows from the first sheet;
+- CSV with UTF-8 BOM and comma delimiter;
+- extra headers being ignored;
+- missing header being rejected;
+- duplicate header being rejected;
+- exact header casing being required;
+- empty data file being rejected;
+- unsupported extension being rejected;
+- malformed workbook/CSV being rejected;
+- more than 1,000 data rows being rejected;
+- a second workbook sheet being ignored.
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [ ] Step 3: Run the file-parser tests and verify failure
 
-Run: `pnpm --filter @casso-ledger/backend test file-row-parser.spec.ts`
-Expected: FAIL — Cannot find module './file-row-parser'
+Run:
 
-- [ ] **Step 4: Create `apps/backend/src/modules/invoice-import/infrastructure/file-row-parser.ts`**
+~~~bash
+pnpm --filter @casso-ledger/backend test file-row-parser.spec.ts
+~~~
 
-```typescript
-import * as XLSX from 'xlsx';
-import { parse as parseCsv } from 'csv-parse/sync';
+Expected: FAIL because the module does not exist.
 
-export function parseFileToRows(buffer: Buffer, originalFilename: string): Record<string, unknown>[] {
-  const extension = originalFilename.split('.').pop()?.toLowerCase();
+- [ ] Step 4: Implement extension dispatch
 
-  if (extension === 'csv') {
-    return parseCsv(buffer, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
-    }) as Record<string, unknown>[];
-  }
+For CSV, call csv-parse/sync with columns: true, bom: true, delimiter: ',', skip_empty_lines: true, trim: true, and strict column counts.
 
-  if (extension === 'xlsx' || extension === 'xls') {
-    const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    return XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
-  }
+For Excel, read the first sheet with cellDates: true, extract the first row as headers, validate it, and map subsequent rows by header index. Ignore columns not in IMPORT_HEADERS.
 
-  throw new Error(`Unsupported import file extension: .${extension ?? ''}`);
-}
-```
+Normalize a BOM only on the first header cell, preserve cell Date values, and return plain row objects. Throw AppError(ErrorCode.VALIDATION_ERROR, ...) for unsupported extension, malformed content, missing/duplicate headers, empty data, or more than 1,000 rows.
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [ ] Step 5: Run file-parser tests
 
-Run: `pnpm --filter @casso-ledger/backend test file-row-parser.spec.ts`
-Expected: all 3 tests PASS
+Run:
 
-- [ ] **Step 6: Commit**
+~~~bash
+pnpm --filter @casso-ledger/backend test file-row-parser.spec.ts
+~~~
 
-```bash
-git add apps/backend/src/modules/invoice-import/infrastructure/file-row-parser.ts apps/backend/src/modules/invoice-import/infrastructure/file-row-parser.spec.ts apps/backend/package.json
-git commit -m "feat: add xlsx/csv file-to-rows dispatch for invoice import"
-```
+Expected: PASS.
+
+- [ ] Step 6: Commit
+
+~~~bash
+git add apps/backend/src/modules/invoice-import/infrastructure apps/backend/package.json pnpm-lock.yaml
+git commit -m "feat: parse invoice import files with fixed headers"
+~~~
 
 ---
 
-### Task 4: `ImportInvoicesUseCase` — partial-import orchestration
+### Task 4: Orchestrate partial import with customer resolution, idempotency fingerprint, and audit
 
-**Files:**
-- Create: `apps/backend/src/modules/invoice-import/application/import-invoices.usecase.ts`
-- Test: `apps/backend/src/modules/invoice-import/application/import-invoices.usecase.spec.ts`
+Files:
 
-**Interfaces:**
-- Consumes: `parseFileToRows` (Task 3), `parseInvoiceRow`/`RowValidationError` (Task 2), `ICustomerRepository` (Task 1), `IInvoiceRepository` (Task 1), `CreateReceivableUseCase` (Domain Core plan), `TenantContextService` (multi-tenancy plan)
-- Produces: `ImportInvoicesUseCase.execute(buffer, filename): Promise<ImportInvoicesResult>` — used by Task 5 (`InvoiceImportController`)
+- Create import-request-fingerprint.ts, import-invoices.usecase.ts, and their specs.
+- Modify apps/backend/src/common/audit/audit.enums.ts.
 
-- [ ] **Step 1: Write failing unit tests with mocked collaborators**
+Interfaces:
 
-Create `apps/backend/src/modules/invoice-import/application/import-invoices.usecase.spec.ts`:
-
-```typescript
-import * as XLSX from 'xlsx';
-import { EntityManager } from 'typeorm';
-import { ImportInvoicesUseCase } from './import-invoices.usecase';
-import { Customer } from '../../customers/domain/customer';
-import { Role } from '../../../modules/organizations/domain/membership';
-
-function buildXlsxBuffer(rows: Record<string, unknown>[]): Buffer {
-  const worksheet = XLSX.utils.json_to_sheet(rows);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-  return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
-}
-
-describe('ImportInvoicesUseCase', () => {
-  function buildUseCase(overrides?: {
-    existingCustomer?: Customer | null;
-    existingInvoiceNumber?: string | null;
-  }) {
-    const customerRepo = {
-      findByTaxCode: jest.fn().mockResolvedValue(overrides?.existingCustomer ?? null),
-      findByEmail: jest.fn().mockResolvedValue(null),
-      findById: jest.fn(),
-      save: jest.fn(),
-    };
-    const invoiceRepo = {
-      findByInvoiceNumber: jest.fn().mockImplementation(async (invoiceNumber: string) =>
-        invoiceNumber === overrides?.existingInvoiceNumber ? {} : null,
-      ),
-      findById: jest.fn(),
-      save: jest.fn(),
-    };
-    const createReceivableUseCase = { execute: jest.fn().mockResolvedValue({ id: 'rec-1' }) };
-    const tenantContext = {
-      getOrganizationId: () => 'org-1',
-      getCurrentUser: () => ({ userId: 'user-1', organizationId: 'org-1', role: Role.OWNER }),
-    };
-    const manager = {} as EntityManager;
-    const dataSource = {
-      transaction: jest.fn(async (callback: (manager: EntityManager) => Promise<void>) => callback(manager)),
-    };
-
-    const useCase = new ImportInvoicesUseCase(
-      customerRepo as any,
-      invoiceRepo as any,
-      createReceivableUseCase as any,
-      tenantContext as any,
-      dataSource as any,
-    );
-
-    return { useCase, customerRepo, invoiceRepo, createReceivableUseCase, dataSource };
-  }
-
-  it('creates a customer, invoice, and receivable for a valid row', async () => {
-    const { useCase, customerRepo, invoiceRepo, createReceivableUseCase, dataSource } = buildUseCase();
-    const buffer = buildXlsxBuffer([
-      {
-        customerName: 'Company B',
-        customerTaxCode: '0312345678',
-        customerEmail: 'ap@congtyb.vn',
-        invoiceNumber: 'INV-2026-0001',
-        issueDate: '2026-07-01',
-        dueDate: '2026-08-01',
-        totalAmount: 50_000_000,
-      },
-    ]);
-
-    const result = await useCase.execute(buffer, 'invoices.xlsx');
-
-    expect(result.successCount).toBe(1);
-    expect(result.failedRows).toEqual([]);
-    expect(customerRepo.save).toHaveBeenCalledTimes(1);
-    expect(invoiceRepo.save).toHaveBeenCalledTimes(1);
-    expect(createReceivableUseCase.execute).toHaveBeenCalledWith(
-      expect.objectContaining({ originalAmount: 50_000_000, salesRepresentativeId: 'user-1' }),
-      expect.anything(),
-    );
-    expect(dataSource.transaction).toHaveBeenCalledTimes(1);
-  });
-
-  it('reuses an existing customer matched by taxCode instead of creating a new one', async () => {
-    const existingCustomer = new Customer({
-      id: 'cust-existing',
-      organizationId: 'org-1',
-      name: 'Company B',
-      taxCode: '0312345678',
-      email: 'ap@congtyb.vn',
-      phone: '',
-      defaultPaymentTermDays: 30,
-      creditLimit: 0,
-      priority: 1,
-      createdAt: new Date(),
-    });
-    const { useCase, customerRepo } = buildUseCase({ existingCustomer });
-    const buffer = buildXlsxBuffer([
-      {
-        customerName: 'Company B',
-        customerTaxCode: '0312345678',
-        customerEmail: 'ap@congtyb.vn',
-        invoiceNumber: 'INV-2026-0002',
-        issueDate: '2026-07-01',
-        dueDate: '2026-08-01',
-        totalAmount: 10_000,
-      },
-    ]);
-
-    const result = await useCase.execute(buffer, 'invoices.xlsx');
-
-    expect(result.successCount).toBe(1);
-    expect(customerRepo.save).not.toHaveBeenCalled();
-  });
-
-  it('reports a row-level error with row number and reason, without blocking other rows', async () => {
-    const { useCase } = buildUseCase();
-    const buffer = buildXlsxBuffer([
-      {
-        customerName: 'Company B',
-        invoiceNumber: 'INV-2026-0003',
-        issueDate: '2026-07-01',
-        dueDate: '2026-08-01',
-        totalAmount: '', // missing amount -> invalid
-      },
-      {
-        customerName: 'Company C',
-        invoiceNumber: 'INV-2026-0004',
-        issueDate: '2026-07-01',
-        dueDate: '2026-08-01',
-        totalAmount: 20_000,
-      },
-    ]);
-
-    const result = await useCase.execute(buffer, 'invoices.xlsx');
-
-    expect(result.successCount).toBe(1);
-    expect(result.failedRows).toEqual([
-      {
-        rowNumber: 2,
-        data: expect.objectContaining({ customerName: 'Company B' }),
-        errors: ['totalAmount is required and must be a positive integer'],
-      },
-    ]);
-  });
-
-  it('reports DUPLICATE_INVOICE_NUMBER for an invoice number that already exists', async () => {
-    const { useCase } = buildUseCase({ existingInvoiceNumber: 'INV-DUP' });
-    const buffer = buildXlsxBuffer([
-      {
-        customerName: 'Company B',
-        invoiceNumber: 'INV-DUP',
-        issueDate: '2026-07-01',
-        dueDate: '2026-08-01',
-        totalAmount: 20_000,
-      },
-    ]);
-
-    const result = await useCase.execute(buffer, 'invoices.xlsx');
-
-    expect(result.successCount).toBe(0);
-    expect(result.failedRows).toEqual([
-      { rowNumber: 2, data: expect.objectContaining({ invoiceNumber: 'INV-DUP' }), errors: ['DUPLICATE_INVOICE_NUMBER'] },
-    ]);
-  });
-});
-```
-
-- [ ] **Step 2: Run tests to verify they fail**
-
-Run: `pnpm --filter @casso-ledger/backend test import-invoices.usecase.spec.ts`
-Expected: FAIL — Cannot find module './import-invoices.usecase'
-
-- [ ] **Step 3: Create `apps/backend/src/modules/invoice-import/application/import-invoices.usecase.ts`**
-
-```typescript
-import { Inject, Injectable } from '@nestjs/common';
-import { randomUUID } from 'crypto';
-import { DataSource, EntityManager } from 'typeorm';
-import { ICustomerRepository, CUSTOMER_REPOSITORY } from '../../customers/application/customer-repository.port';
-import { Customer } from '../../customers/domain/customer';
-import { IInvoiceRepository, INVOICE_REPOSITORY } from '../../invoices/application/invoice-repository.port';
-import { Invoice, InvoiceStatus } from '../../invoices/domain/invoice';
-import { CreateReceivableUseCase } from '../../receivables/application/create-receivable.usecase';
-import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import { parseFileToRows } from '../infrastructure/file-row-parser';
-import { ParsedInvoiceRow, parseInvoiceRow, RowValidationError } from './invoice-row-parser';
+~~~typescript
+export function getImportRequestFingerprint(
+  buffer: Buffer,
+  filename: string,
+): string;
 
 export interface ImportRowFailure {
   rowNumber: number;
@@ -761,400 +375,350 @@ export interface ImportInvoicesResult {
   failedRows: ImportRowFailure[];
 }
 
-const HEADER_ROW_OFFSET = 2; // row 1 is the header, first data row is row 2
+ImportInvoicesUseCase.execute(
+  buffer: Buffer,
+  filename: string,
+): Promise<ImportInvoicesResult>;
+~~~
 
-@Injectable()
-export class ImportInvoicesUseCase {
-  constructor(
-    @Inject(CUSTOMER_REPOSITORY) private readonly customerRepo: ICustomerRepository,
-    @Inject(INVOICE_REPOSITORY) private readonly invoiceRepo: IInvoiceRepository,
-    private readonly createReceivableUseCase: CreateReceivableUseCase,
-    private readonly tenantContext: TenantContextService,
-    private readonly dataSource: DataSource,
-  ) {}
+- [ ] Step 1: Add audit enum values
 
-  async execute(buffer: Buffer, filename: string): Promise<ImportInvoicesResult> {
-    const rawRows = parseFileToRows(buffer, filename);
-    const failedRows: ImportRowFailure[] = [];
-    let successCount = 0;
+Add INVOICE_IMPORT to both AuditActionType and AuditEntityType. Use the SHA-256 fingerprint as the audit entityId.
 
-    for (let index = 0; index < rawRows.length; index++) {
-      const rowNumber = index + HEADER_ROW_OFFSET;
-      try {
-        await this.importRow(rawRows[index]);
-        successCount++;
-      } catch (error) {
-        failedRows.push({
-          rowNumber,
-          data: rawRows[index],
-          errors: [error instanceof Error ? error.message : 'Unknown error'],
-        });
-      }
-    }
+- [ ] Step 2: Write failing use-case tests
 
-    return {
-      totalRows: rawRows.length,
-      successCount,
-      failedRows,
-    };
-  }
+Use Jest mocks for repositories, DataSource, EntityManager, CreateReceivableUseCase, and the audit repository. Cover:
 
-  private async importRow(rawRow: Record<string, unknown>): Promise<void> {
-    const parsed = parseInvoiceRow(rawRow);
-    const currentUser = this.tenantContext.getCurrentUser();
-    if (!currentUser) {
-      throw new Error('Import accessed outside of an authenticated request');
-    }
+- one valid row creates Customer, Invoice, and Receivable;
+- taxAmount is persisted on Invoice and totalAmount is passed to Receivable;
+- tax/email match resolution and lowercased email;
+- tax/email mismatch returns CUSTOMER_MISMATCH;
+- name-only rows create a Customer;
+- duplicate invoice numbers return DUPLICATE_INVOICE_NUMBER;
+- valid rows continue after validation, duplicate, mismatch, quota, and unexpected failures;
+- every valid row gets its own transaction;
+- the same manager reaches customer lookup/save, invoice lookup/save, plan enforcement, and receivable creation;
+- unexpected errors become IMPORT_ROW_FAILED and do not expose the original error;
+- one metadata-only audit record is created with filename, hash, counts, and actor;
+- audit failure does not change a successful import result.
 
-    await this.dataSource.transaction(async (manager) => {
-      const existingInvoice = await this.invoiceRepo.findByInvoiceNumber(parsed.invoiceNumber, manager);
-      if (existingInvoice) {
-        throw new RowValidationError('DUPLICATE_INVOICE_NUMBER');
-      }
+- [ ] Step 3: Run the use-case tests and verify failure
 
-      const customer = await this.resolveOrCreateCustomer(parsed, manager);
-      const invoice = new Invoice({
-        id: randomUUID(),
-        organizationId: this.tenantContext.getOrganizationId(),
-        customerId: customer.id,
-        invoiceNumber: parsed.invoiceNumber,
-        issueDate: parsed.issueDate,
-        totalAmount: parsed.totalAmount,
-        taxAmount: 0,
-        sourceType: 'IMPORT',
-        fileUrl: null,
-        status: InvoiceStatus.ISSUED,
-        createdAt: new Date(),
-      });
-      await this.invoiceRepo.save(invoice, manager);
-      await this.createReceivableUseCase.execute({
-        customerId: customer.id,
-        invoiceId: invoice.id,
-        originalAmount: parsed.totalAmount,
-        dueDate: parsed.dueDate,
-        salesRepresentativeId: currentUser.userId,
-      }, manager);
-    });
-  }
+Run:
 
-  private async resolveOrCreateCustomer(parsed: ParsedInvoiceRow, manager: EntityManager): Promise<Customer> {
-    let customer: Customer | null = null;
+~~~bash
+pnpm --filter @casso-ledger/backend test import-invoices.usecase.spec.ts
+~~~
 
-    if (parsed.customerTaxCode) {
-      customer = await this.customerRepo.findByTaxCode(parsed.customerTaxCode, manager);
-    }
-    if (!customer && parsed.customerEmail) {
-      customer = await this.customerRepo.findByEmail(parsed.customerEmail, manager);
-    }
-    if (customer) {
-      return customer;
-    }
+Expected: FAIL because the module does not exist.
 
-    const newCustomer = new Customer({
-      id: randomUUID(),
-      organizationId: this.tenantContext.getOrganizationId(),
-      name: parsed.customerName,
-      taxCode: parsed.customerTaxCode ?? '',
-      email: parsed.customerEmail ?? '',
-      phone: '',
-      defaultPaymentTermDays: 30,
-      creditLimit: 0,
-      priority: 1,
-      createdAt: new Date(),
-    });
-    await this.customerRepo.save(newCustomer, manager);
-    return newCustomer;
-  }
+- [ ] Step 4: Implement the fingerprint helper
+
+Hash the filename and bytes with Node's standard library:
+
+~~~typescript
+import { createHash } from 'node:crypto';
+
+export function getImportRequestFingerprint(buffer: Buffer, filename: string): string {
+  return createHash('sha256')
+    .update(filename)
+    .update('\0')
+    .update(buffer)
+    .digest('hex');
 }
-```
+~~~
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] Step 5: Implement the sequential row loop
 
-Run: `pnpm --filter @casso-ledger/backend test import-invoices.usecase.spec.ts`
-Expected: all 4 tests PASS
+Call parseFileToRows, compute fileSha256 with getImportRequestFingerprint, then process rows in array order. The first data row is row number 2.
 
-- [ ] **Step 5: Commit**
+The constructor injects CUSTOMER_REPOSITORY, INVOICE_REPOSITORY, CreateReceivableUseCase, TenantContextService, DataSource, and AUDIT_LOG_REPOSITORY. Use Nest Logger for structured row and audit failure logs.
 
-```bash
-git add apps/backend/src/modules/invoice-import/application/import-invoices.usecase.ts apps/backend/src/modules/invoice-import/application/import-invoices.usecase.spec.ts
-git commit -m "feat: add ImportInvoicesUseCase with partial-import row handling"
-```
+For each row:
+
+1. Parse with parseInvoiceRow outside the transaction.
+2. Run one dataSource.transaction(async (manager) => ...).
+3. Look up an existing invoice by invoice number with the manager.
+4. Resolve by normalized tax code, then normalized email. If both matches exist and IDs differ, throw AppError(ErrorCode.CUSTOMER_MISMATCH, ...).
+5. Create a Customer with taxCode/email set to empty strings when absent, phone: '', defaultPaymentTermDays: 30, creditLimit: 0, priority: 1, and the current organization.
+6. Save Invoice with sourceType: IMPORT, status: InvoiceStatus.ISSUED, taxAmount from the row, fileUrl: null, and the current organization.
+7. Call createReceivableUseCase.execute({ customerId, invoiceId, originalAmount: totalAmount, dueDate, salesRepresentativeId: currentUser.userId }, manager).
+
+Catch only at the row boundary. Convert expected AppError values to stable row errors; convert all other errors to IMPORT_ROW_FAILED, log them with row number, invoice number, organization ID, and user ID, and continue.
+
+- [ ] Step 6: Record one metadata-only audit
+
+After the row loop, create an AuditLog with:
+
+~~~typescript
+{
+  organizationId,
+  userId,
+  actionType: AuditActionType.INVOICE_IMPORT,
+  entityType: AuditEntityType.INVOICE_IMPORT,
+  entityId: fileSha256,
+  beforeState: null,
+  afterState: {
+    filename,
+    fileSha256,
+    totalRows,
+    successCount,
+    failedCount: failedRows.length,
+  },
+  ipAddress: null,
+  createdAt: new Date(),
+}
+~~~
+
+Send this audit write fire-and-forget with structured error logging so an audit outage cannot turn a successful import into HTTP 500.
+
+- [ ] Step 7: Run use-case tests
+
+Run:
+
+~~~bash
+pnpm --filter @casso-ledger/backend test import-invoices.usecase.spec.ts
+~~~
+
+Expected: PASS.
+
+- [ ] Step 8: Commit
+
+~~~bash
+git add apps/backend/src/modules/invoice-import/application apps/backend/src/common/audit/audit.enums.ts
+git commit -m "feat: orchestrate partial invoice imports"
+~~~
 
 ---
 
-### Task 5: `InvoiceImportController` + module wiring
+### Task 5: Add the multipart endpoint, idempotency, permission, and module wiring
 
-**Files:**
-- Create: `apps/backend/src/modules/invoice-import/presentation/invoice-import.controller.ts`
-- Create: `apps/backend/src/modules/invoice-import/invoice-import.module.ts`
-- Modify: `apps/backend/src/app.module.ts`
-- Modify: `apps/backend/package.json` (add `@types/multer` devDependency)
+Files:
 
-**Interfaces:**
-- Consumes: `ImportInvoicesUseCase` (Task 4), `JwtAuthGuard`/`PermissionGuard`/`Permission.RECEIVABLE_WRITE` (multi-tenancy plan)
-- Produces: `POST /invoices/import` HTTP endpoint — used by Task 6 integration test
+- Create invoice-import.controller.ts, invoice-import.controller.spec.ts, and invoice-import.module.ts.
+- Modify apps/backend/src/app.module.ts and apps/backend/package.json.
+- Add @types/multer as a backend dev dependency for the Express.Multer.File type.
 
-- [ ] **Step 1: Install `@types/multer`**
+Interface:
 
-Run: `pnpm --filter @casso-ledger/backend add -D @types/multer`
+~~~http
+POST /api/v1/invoices/import
+Authorization: Bearer <access-token>
+Idempotency-Key: <client-generated-key>
+Content-Type: multipart/form-data
+file: <xlsx|xls|csv>
+~~~
 
-(`@nestjs/platform-express`'s `FileInterceptor` already ships with the `multer` runtime dependency transitively — only the type definitions are missing.)
+Successful response:
 
-- [ ] **Step 2: Create `apps/backend/src/modules/invoice-import/presentation/invoice-import.controller.ts`**
+~~~json
+{
+  "totalRows": 2,
+  "successCount": 1,
+  "failedRows": [
+    {
+      "rowNumber": 3,
+      "data": { "invoiceNumber": "INV-2" },
+      "errors": ["VALIDATION_ERROR"]
+    }
+  ]
+}
+~~~
 
-```typescript
-import {
-  BadRequestException,
-  Controller,
-  Post,
-  UploadedFile,
-  UseGuards,
-  UseInterceptors,
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { ImportInvoicesUseCase, ImportInvoicesResult } from '../application/import-invoices.usecase';
-import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
-import { PermissionGuard } from '../../../common/rbac/permission.guard';
-import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
-import { Permission } from '../../../common/rbac/permission.enum';
+- [ ] Step 1: Write failing controller/module tests
 
+Cover:
+
+- missing file returns standard 400 validation envelope;
+- missing idempotency key is rejected by IdempotencyService;
+- RECEIVABLE_IMPORT is required;
+- the file-size limit is configured at 5 MiB;
+- idempotency receives endpoint POST /invoices/import and { filename, fileSha256 };
+- a valid request returns the use-case result with HTTP 201.
+
+- [ ] Step 2: Run focused tests and verify failure
+
+Run:
+
+~~~bash
+pnpm --filter @casso-ledger/backend test invoice-import.controller.spec.ts
+~~~
+
+Expected: FAIL because the controller and module do not exist.
+
+- [ ] Step 3: Add the multipart type declarations
+
+Run:
+
+~~~bash
+pnpm --filter @casso-ledger/backend add -D @types/multer
+~~~
+
+- [ ] Step 4: Implement the controller
+
+Import BadRequestException from @nestjs/common, FileInterceptor and memoryStorage from @nestjs/platform-express, and use the established controller pattern:
+
+~~~typescript
 @Controller('invoices')
-@UseGuards(JwtAuthGuard, PermissionGuard)
+@UseGuards(PermissionGuard)
 export class InvoiceImportController {
-  constructor(private readonly importInvoicesUseCase: ImportInvoicesUseCase) {}
-
   @Post('import')
-  @RequirePermission(Permission.RECEIVABLE_WRITE)
-  @UseInterceptors(FileInterceptor('file'))
-  async import(@UploadedFile() file?: Express.Multer.File): Promise<ImportInvoicesResult> {
-    if (!file) {
-      throw new BadRequestException('A file is required under the "file" form field');
-    }
-    return this.importInvoicesUseCase.execute(file.buffer, file.originalname);
+  @RequirePermission(Permission.RECEIVABLE_IMPORT)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  async import(
+    @Headers('idempotency-key') key: string | undefined,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ): Promise<ImportInvoicesResult> {
+    if (!file) throw new BadRequestException('File là bắt buộc.');
+    const fileSha256 = getImportRequestFingerprint(file.buffer, file.originalname);
+    return this.idempotency.execute(
+      'POST /invoices/import',
+      key,
+      { filename: file.originalname, fileSha256 },
+      () => this.importInvoicesUseCase.execute(file.buffer, file.originalname),
+    );
   }
 }
-```
+~~~
 
-`FileInterceptor` defaults to in-memory storage when no `dest`/`storage` option is given, so `file.buffer` is populated directly — no temp file cleanup needed.
+Do not add @Audited to this method; the use case writes the metadata-only audit so row data never enters the interceptor's after-state.
 
-- [ ] **Step 3: Create `apps/backend/src/modules/invoice-import/invoice-import.module.ts`**
+- [ ] Step 5: Wire the module
 
-```typescript
-import { Module } from '@nestjs/common';
-import { CustomersModule } from '../customers/customers.module';
-import { InvoicesModule } from '../invoices/invoices.module';
-import { ReceivablesModule } from '../receivables/receivables.module';
-import { ImportInvoicesUseCase } from './application/import-invoices.usecase';
-import { InvoiceImportController } from './presentation/invoice-import.controller';
+Import CustomersModule, InvoicesModule, ReceivablesModule, and IdempotencyModule. Provide ImportInvoicesUseCase, expose the controller, and register InvoiceImportModule in AppModule.
 
-@Module({
-  imports: [CustomersModule, InvoicesModule, ReceivablesModule],
-  controllers: [InvoiceImportController],
-  providers: [ImportInvoicesUseCase],
-})
-export class InvoiceImportModule {}
-```
+Use the existing global AuditModule; do not create a second audit adapter.
 
-- [ ] **Step 4: Export `CUSTOMER_REPOSITORY`/`INVOICE_REPOSITORY` from their modules (verify, no code change expected)**
+- [ ] Step 6: Run focused tests and type-check
 
-Confirm `apps/backend/src/modules/customers/customers.module.ts` still `exports: [CUSTOMER_REPOSITORY]` and `apps/backend/src/modules/invoices/invoices.module.ts` still `exports: [INVOICE_REPOSITORY]` (both already true from the Domain Core plan) — `InvoiceImportModule` importing `CustomersModule`/`InvoicesModule` is sufficient for `ImportInvoicesUseCase`'s constructor injection to resolve.
+Run:
 
-- [ ] **Step 5: Register `InvoiceImportModule` in `apps/backend/src/app.module.ts`**
+~~~bash
+pnpm --filter @casso-ledger/backend test invoice-import.controller.spec.ts
+pnpm --filter @casso-ledger/backend type-check
+~~~
 
-Add `InvoiceImportModule` to the `imports` array, alongside `CustomersModule`, `InvoicesModule`, `ReceivablesModule`, `PaymentsModule`, `OrganizationsModule` (same pattern as every prior module registration).
+Expected: PASS.
 
-- [ ] **Step 6: Verify app still boots**
+- [ ] Step 7: Commit
 
-Run: `pnpm --filter @casso-ledger/backend test:e2e`
-Expected: PASS
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add apps/backend/src/modules/invoice-import apps/backend/src/app.module.ts apps/backend/package.json
-git commit -m "feat: add POST /invoices/import endpoint with FileInterceptor upload"
-```
+~~~bash
+git add apps/backend/src/modules/invoice-import apps/backend/src/app.module.ts apps/backend/package.json pnpm-lock.yaml
+git commit -m "feat: expose idempotent invoice import endpoint"
+~~~
 
 ---
 
-### Task 6: Integration test — partial import via multipart upload (testcontainers)
+### Task 6: Prove the complete flow against PostgreSQL
 
-**Files:**
-- Create: `apps/backend/test/invoice-import.integration.spec.ts`
+Files:
 
-**Interfaces:**
-- Consumes: full `AppModule` (Tasks 1-5, plus Domain Core and multi-tenancy plans), real Postgres via testcontainers, real multipart upload via supertest `.attach()`
-- Produces: verified end-to-end proof that 1 valid row creates exactly 1 `Receivable` and the 1 invalid row (missing `totalAmount`) is reported at row 2 with a reason, without aborting the valid row
+- Create apps/backend/test/invoice-import.e2e-spec.ts.
 
-- [ ] **Step 1: Write the integration test**
+Test setup:
 
-Create `apps/backend/test/invoice-import.integration.spec.ts`:
+Use the existing Testcontainers pattern from read-apis-completion.e2e-spec.ts: PostgreSQL 16, AppModule, configureApp(app), synchronize: true, an OWNER membership, and an authenticated JWT.
 
-```typescript
-import { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
-import { JwtService } from '@nestjs/jwt';
-import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import * as request from 'supertest';
-import { DataSource } from 'typeorm';
-import * as XLSX from 'xlsx';
-import { AppModule } from '../src/app.module';
-import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
-import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
-import { SubscriptionOrmEntity } from '../src/modules/billing/infrastructure/subscription.orm-entity';
+- [ ] Step 1: Write the integration tests before implementation is considered complete
 
-function buildImportXlsxBuffer(): Buffer {
-  const rows = [
-    {
-      customerName: 'Company B',
-      customerTaxCode: '0312345678',
-      customerEmail: 'ap@congtyb.vn',
-      invoiceNumber: 'INV-2026-1001',
-      issueDate: '2026-07-01',
-      dueDate: '2026-08-01',
-      totalAmount: 50_000_000,
-    },
-    {
-      customerName: 'Company C',
-      customerTaxCode: '0398765432',
-      customerEmail: 'ap@congtyc.vn',
-      invoiceNumber: 'INV-2026-1002',
-      issueDate: '2026-07-01',
-      dueDate: '2026-08-01',
-      totalAmount: '', // missing amount -> row-level error
-    },
-  ];
-  const worksheet = XLSX.utils.json_to_sheet(rows);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-  return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
-}
+The suite must cover:
 
-describe('Invoice import (integration)', () => {
-  let container: StartedPostgreSqlContainer;
-  let app: INestApplication;
-  let dataSource: DataSource;
-  let jwtService: JwtService;
+1. .xlsx with one valid row and one invalid amount row returns 201, creates exactly one Invoice and one Receivable, and reports the invalid row as row 3.
+2. The valid row persists totalAmount and taxAmount, and the Receivable original amount equals gross total.
+3. .csv with UTF-8 BOM works.
+4. Existing customer resolution by tax code and email reuses the same Customer.
+5. Tax/email mismatch creates no Invoice or Receivable for that row.
+6. Name-only input creates a Customer.
+7. Existing and same-file duplicate invoice numbers are rejected.
+8. The database unique index exists for (organizationId, invoiceNumber).
+9. Missing file, malformed file, missing header, empty file, unsupported extension, and 1,001 rows return 400 with the standard error envelope; a 5 MiB overflow returns 413 Payload Too Large.
+10. A second workbook sheet is not imported.
+11. A SALES_REP import assigns the created Receivable to the authenticated user.
+12. A repeated request with the same idempotency key returns the cached result and leaves row counts unchanged.
+13. Reusing the same key with a different file returns IDEMPOTENCY_KEY_REUSED.
+14. One metadata-only INVOICE_IMPORT audit row is written and contains no raw row data.
+15. A second organization cannot affect or read the first organization's imported rows.
 
-  const organizationId = '00000000-0000-0000-0000-000000000101';
-  const userId = '00000000-0000-0000-0000-000000000102';
+- [ ] Step 2: Run the focused integration suite
 
-  beforeAll(async () => {
-    container = await new PostgreSqlContainer('postgres:16').start();
+Run:
 
-    process.env.DB_HOST = container.getHost();
-    process.env.DB_PORT = String(container.getMappedPort(5432));
-    process.env.DB_USERNAME = container.getUsername();
-    process.env.DB_PASSWORD = container.getPassword();
-    process.env.DB_DATABASE = container.getDatabase();
+~~~bash
+pnpm --filter @casso-ledger/backend test:e2e -- invoice-import.e2e-spec.ts
+~~~
 
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = moduleRef.createNestApplication();
-    await app.init();
-    dataSource = moduleRef.get(DataSource);
-    jwtService = moduleRef.get(JwtService);
+Expected: all scenarios PASS against real PostgreSQL.
 
-    await dataSource.getRepository(UserOrmEntity).save({
-      id: userId,
-      name: 'Import Owner',
-      email: 'import-owner@test.vn',
-      passwordHash: 'fixture-hash',
-      emailVerifiedAt: new Date(),
-      createdAt: new Date(),
-    });
-    await dataSource.getRepository(MembershipOrmEntity).save({
-      id: '00000000-0000-0000-0000-000000000103',
-      organizationId,
-      userId,
-      role: 'OWNER',
-      invitedAt: new Date(),
-      joinedAt: new Date(),
-      createdAt: new Date(),
-    });
-    await dataSource.getRepository(SubscriptionOrmEntity).save({
-      id: '00000000-0000-0000-0000-000000000104',
-      organizationId,
-      planId: 'FREE',
-      receivableMonthlyLimit: 50,
-      bankConnectionLimit: 1,
-      status: 'ACTIVE',
-      currentPeriodStart: new Date('2026-08-01T00:00:00.000Z'),
-      currentPeriodEnd: new Date('2026-08-31T23:59:59.999Z'),
-      createdAt: new Date(),
-    });
-  }, 60_000);
+- [ ] Step 3: Commit
 
-  afterAll(async () => {
-    await app.close();
-    await container.stop();
-  });
-
-  it('imports the valid row, reports the invalid row, and creates exactly 1 Receivable', async () => {
-    const token = jwtService.sign({ userId, organizationId, role: 'OWNER' });
-    const buffer = buildImportXlsxBuffer();
-
-    const response = await request(app.getHttpServer())
-      .post('/api/v1/invoices/import')
-      .set('Authorization', `Bearer ${token}`)
-      .attach('file', buffer, 'invoices.xlsx')
-      .expect(201);
-
-    expect(response.body.successCount).toBe(1);
-    expect(response.body.failedRows).toEqual([
-      {
-        rowNumber: 3,
-        data: expect.objectContaining({ customerName: 'Company C' }),
-        errors: ['totalAmount is required and must be a positive integer'],
-      },
-    ]);
-
-    const receivables = await dataSource.query(
-      'SELECT r.id, r."originalAmount" FROM receivables r JOIN invoices i ON i.id = r."invoiceId" WHERE r."organizationId" = $1',
-      [organizationId],
-    );
-    expect(receivables).toHaveLength(1);
-    expect(Number(receivables[0].originalAmount)).toBe(50_000_000);
-
-    const invoices = await dataSource.query(
-      'SELECT "invoiceNumber" FROM invoices WHERE "organizationId" = $1',
-      [organizationId],
-    );
-    expect(invoices).toHaveLength(1);
-    expect(invoices[0].invoiceNumber).toBe('INV-2026-1001');
-  });
-
-  it('rejects a request with no file attached', async () => {
-    const token = jwtService.sign({ userId, organizationId, role: 'OWNER' });
-
-    await request(app.getHttpServer())
-      .post('/api/v1/invoices/import')
-      .set('Authorization', `Bearer ${token}`)
-      .expect(400);
-  });
-});
-```
-
-Note: `json_to_sheet` emits a header row derived from object keys, so with `XLSX.utils.json_to_sheet` the header occupies row 1 and the 2 data rows are rows 2-3 in the underlying sheet — the invalid row (missing `totalAmount`) is the 2nd data row, hence expected `row: 3` matching `ImportInvoicesUseCase`'s `HEADER_ROW_OFFSET` (index 1 + 2).
-
-- [ ] **Step 2: Run the integration test**
-
-Run: `pnpm --filter @casso-ledger/backend test:e2e -- invoice-import.integration.spec.ts`
-Expected: both tests PASS
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add apps/backend/test/invoice-import.integration.spec.ts
-git commit -m "test: add integration test for partial invoice import via multipart upload"
-```
+~~~bash
+git add apps/backend/test/invoice-import.e2e-spec.ts
+git commit -m "test: verify invoice import end to end"
+~~~
 
 ---
 
-## Self-Review Notes
+### Task 7: Final verification and map update
 
-- **Spec coverage:** File parsing dispatch by extension (`xlsx`/`csv`) → Task 3. Row-level validation independent per row → Task 2 + Task 4. Customer resolution by `taxCode` first then `customerEmail`, auto-create if not found → Task 4. Duplicate `invoiceNumber` within organization → `DUPLICATE_INVOICE_NUMBER` in Task 4. Invoice (`sourceType=IMPORT`) + 1:1 Receivable creation reusing `CreateReceivableUseCase` → Task 4. Canonical response `{ totalRows, successCount, failedRows: [{ rowNumber, data, errors }] }` → `ImportInvoicesResult` in Task 4, returned directly by the controller in Task 5. Multipart `POST /invoices/import` → Task 5.
-- **Not covered in this plan (by design, flagged as open questions in section 3 of the spec):** Max file size / row count limits and whether import should move to an async queue — spec explicitly marks this as non-blocking for implementation; if adopted later, `ImportInvoicesUseCase.execute` would need to accept a size/row cap and the controller would add a `MaxFileSizeValidator`. Marking auto-created customers with `createdVia: IMPORT` — spec explicitly leaves this open; `Customer` domain class (Domain Core plan) has no such field today, so it is not added here to avoid inventing an undesigned column.
-- **Transaction boundary:** every valid row uses one `DataSource.transaction()` and passes its `EntityManager` through Customer, Invoice, and CreateReceivable writes. A failed row rolls back completely before the partial-import loop records its error and continues.
-- **Type consistency checked:** `ICustomerRepository`/`IInvoiceRepository` new methods (Task 1) match their usage in `ImportInvoicesUseCase` (Task 4) and the mocks in its unit test (same method names and return types: `Customer | null`, `Invoice | null`). `CreateReceivableUseCase.execute()`'s input shape (`customerId`, `invoiceId`, `originalAmount`, `dueDate`, `salesRepresentativeId` — no `organizationId`, per the multi-tenancy plan's Task 6 migration) matches exactly what `ImportInvoicesUseCase.importRow` passes, including the active row `EntityManager`. `ParsedInvoiceRow.totalAmount` is a positive integer and its fields are consumed 1:1 by `ImportInvoicesUseCase` (Task 4) with no renamed/missing fields. Row numbering convention (`HEADER_ROW_OFFSET = 2`) is asserted identically in the unit test (Task 4, `rowNumber: 2`) and the integration test (Task 6, `rowNumber: 3` for the 2nd data row), consistent with treating the header as row 1.
+- [ ] Step 1: Run the focused unit suite
 
+Run:
 
+~~~bash
+pnpm --filter @casso-ledger/backend test invoice-row-parser.spec.ts file-row-parser.spec.ts import-invoices.usecase.spec.ts invoice-import.controller.spec.ts
+~~~
+
+- [ ] Step 2: Run the backend suite and type-check
+
+Run:
+
+~~~bash
+pnpm --filter @casso-ledger/backend test
+pnpm --filter @casso-ledger/backend type-check
+~~~
+
+- [ ] Step 3: Run integration tests
+
+Run:
+
+~~~bash
+pnpm --filter @casso-ledger/backend test:e2e -- invoice-import.e2e-spec.ts
+~~~
+
+If Testcontainers is unavailable, report that exact blocker; do not claim the integration path is verified.
+
+- [ ] Step 4: Run repository verification and domain checks
+
+Run:
+
+~~~bash
+pnpm verify
+~~~
+
+Run the repository's /domain-check procedure from .claude/skills/domain-check.md and fix every violation before completion.
+
+- [ ] Step 5: Update the feature map
+
+After all checks pass, change Plan #14 to done, add the shipped date and PR reference, and update the Frontier/blocked-ticket sections if Plan #20's blocker list changes.
+
+- [ ] Step 6: Commit the documentation update
+
+~~~bash
+git add docs/wayfinder/feature-map.md docs/superpowers/plans/2026-08-03-invoice-import.md
+git commit -m "docs: finalize invoice import implementation plan"
+~~~
+
+## Self-Review
+
+- Spec flow is covered by Tasks 2–6: fixed headers, Excel/CSV parsing, row validation, customer resolution, duplicate protection, Customer + Invoice + Receivable creation, partial results, and multipart endpoint.
+- The agreed tax extension is covered by Task 2, Task 4, and integration scenario 2.
+- The agreed operational safeguards are covered by Task 3 and Task 5: 5 MiB, 1,000 rows, sequential processing, idempotency, and generic unexpected-row errors.
+- The agreed concurrency safeguard is covered by Task 1's manager propagation and unique composite index.
+- Tenant isolation is covered by manager-scoped repository queries and integration scenario 15.
+- No new queue, column-mapping UI, ERP connector, tax-rate model, or customer createdVia field is introduced.
+- The existing plan's stale assumptions are deliberately corrected: current repository mappers are preserved, current CreateReceivableUseCase is made manager-aware, imports use node:crypto, and no as any/as unknown as casts are added.

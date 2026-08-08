@@ -36,6 +36,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { EmailVerifiedGuard } from './modules/auth/presentation/email-verified.guard';
 import { ExceptionQueueModule } from './modules/exception-queue/exception-queue.module';
+import { InvoiceImportModule } from './modules/invoice-import/invoice-import.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { ExceptionQueueModule } from './modules/exception-queue/exception-queue.
     NotificationsModule,
     WebhooksModule,
     ExceptionQueueModule,
+    InvoiceImportModule,
   ],
   providers: [
     JwtStrategy,

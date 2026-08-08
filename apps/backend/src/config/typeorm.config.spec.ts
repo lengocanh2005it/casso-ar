@@ -61,6 +61,18 @@ describe('getTypeOrmConfig', () => {
     });
   });
 
+  it('runs configured migrations in production', () => {
+    const config = buildConfig({
+      DB_PASSWORD: 'password',
+      NODE_ENV: 'production',
+    });
+
+    expect(getTypeOrmConfig(config as never)).toMatchObject({
+      migrationsRun: true,
+      migrations: [expect.stringMatching(/database[\\/]migrations/)],
+    });
+  });
+
   it('keeps synchronize on outside production', () => {
     const config = buildConfig({
       DB_HOST: 'db',
