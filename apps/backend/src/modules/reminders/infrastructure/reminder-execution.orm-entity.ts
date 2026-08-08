@@ -4,7 +4,6 @@ import {
   Entity,
   Index,
   PrimaryColumn,
-  VersionColumn,
 } from 'typeorm';
 import {
   ReminderExecutionStatus,
@@ -13,6 +12,7 @@ import {
 
 @Entity('reminder_executions')
 @Index(['organizationId', 'receivableId'])
+@Index(['receivableId', 'reminderRuleId', 'executionDate'], { unique: true })
 export class ReminderExecutionOrmEntity {
   @PrimaryColumn('uuid')
   id: string;
@@ -46,7 +46,4 @@ export class ReminderExecutionOrmEntity {
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
-
-  @VersionColumn()
-  version: number;
 }

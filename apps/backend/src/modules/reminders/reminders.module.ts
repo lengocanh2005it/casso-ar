@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { REMINDER_EXECUTION_REPOSITORY } from './application/reminder-execution-repository.port';
+import { REMINDER_EXECUTION_REPOSITORY } from '../../common/tokens/reminder-execution.token';
 import { ReminderExecutionOrmEntity } from './infrastructure/reminder-execution.orm-entity';
 import { TypeOrmReminderExecutionRepository } from './infrastructure/typeorm-reminder-execution.repository';
 

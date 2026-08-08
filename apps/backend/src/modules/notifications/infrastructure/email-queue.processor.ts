@@ -3,11 +3,9 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { Job } from 'bullmq';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { REMINDER_EXECUTION_REPOSITORY } from '../../../common/tokens/reminder-execution.token';
 import { Role } from '../../organizations/domain/membership';
-import {
-  type IReminderExecutionRepository,
-  REMINDER_EXECUTION_REPOSITORY,
-} from '../../reminders/application/reminder-execution-repository.port';
+import { type IReminderExecutionRepository } from '../../reminders/application/reminder-execution-repository.port';
 import { ReminderExecutionStatus } from '../../reminders/domain/reminder-execution';
 import {
   EMAIL_PROVIDER_ADAPTER,
