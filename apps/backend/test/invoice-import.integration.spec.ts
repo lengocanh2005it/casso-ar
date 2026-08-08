@@ -7,6 +7,7 @@ import {
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
 import request from 'supertest';
+import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import * as XLSX from 'xlsx';
 import { AppModule } from '../src/app.module';
@@ -20,7 +21,8 @@ import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/r
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 
 describe('Invoice import (integration)', () => {
-  let container: StartedPostgreSqlContainer;
+  let pgContainer: StartedPostgreSqlContainer;
+  let redisContainer: StartedTestContainer;
   let app: INestApplication;
   let dataSource: DataSource;
   let jwtService: JwtService;
@@ -32,14 +34,17 @@ describe('Invoice import (integration)', () => {
   const ownerB = '00000000-0000-0000-0000-0000000020b1';
 
   beforeAll(async () => {
-    container = await new PostgreSqlContainer('postgres:16').start();
-    process.env.DB_HOST = container.getHost();
-    process.env.DB_PORT = String(container.getMappedPort(5432));
-    process.env.DB_USERNAME = container.getUsername();
-    process.env.DB_PASSWORD = container.getPassword();
-    process.env.DB_DATABASE = container.getDatabase();
-    process.env.REDIS_HOST = 'localhost';
-    process.env.REDIS_PORT = '6379';
+    [pgContainer, redisContainer] = await Promise.all([
+      new PostgreSqlContainer('postgres:16').start(),
+      new GenericContainer('redis:7-alpine').withExposedPorts(6379).start(),
+    ]);
+    process.env.DB_HOST = pgContainer.getHost();
+    process.env.DB_PORT = String(pgContainer.getMappedPort(5432));
+    process.env.DB_USERNAME = pgContainer.getUsername();
+    process.env.DB_PASSWORD = pgContainer.getPassword();
+    process.env.DB_DATABASE = pgContainer.getDatabase();
+    process.env.REDIS_HOST = redisContainer.getHost();
+    process.env.REDIS_PORT = String(redisContainer.getMappedPort(6379));
     process.env.JWT_SECRET = 'invoice-import-e2e-secret';
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -114,7 +119,8 @@ describe('Invoice import (integration)', () => {
 
   afterAll(async () => {
     await app?.close();
-    await container?.stop();
+    await redisContainer?.stop();
+    await pgContainer?.stop();
   });
 
   function tokenFor(userId: string, organizationId: string, role: Role) {

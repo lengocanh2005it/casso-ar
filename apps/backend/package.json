@@ -60,6 +60,7 @@
     "dependency-cruiser": "18.1.1",
     "jest": "30.4.2",
     "supertest": "7.0.0",
+    "testcontainers": "^12.1.0",
     "ts-node": "10.9.2",
     "typescript": "6.0.3"
   }
