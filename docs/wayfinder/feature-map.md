@@ -87,9 +87,9 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Ticket Index
 
-**27 plans** | status snapshot (2026-08-07):
-- 🟢 done (14): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #13, Plan #17, Plan #18, Application Layer Boundary Enforcement
-- 🔴 open/not started (13): Plan #11, #12, #14–#16, #19–#23 + Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
+**27 plans** | status snapshot (2026-08-08):
+- 🟢 done (15): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #13, Plan #14, Plan #17, Plan #18, Application Layer Boundary Enforcement
+- 🔴 open/not started (12): Plan #11, #12, #15–#16, #19–#23 + Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
 
 ---
 
@@ -354,10 +354,11 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #14 — Invoice Import
 - **Type**: task
-- **Status**: open
+- **Status**: done ✅
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-invoice-import-design.md`
 - **Blockers**: none — Plan #1 ✅, Plan #2 ✅, Plan #3 ✅
+- **Shipped**: 2026-08-08 — PR #76 (branch `feat/invoice-import`)
 - **Key entities**: Reuses existing `Customer`, `Invoice`, `Receivable`
 - **Key rules**:
   - Multipart Excel/CSV upload
@@ -602,7 +603,6 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **Next available tickets** (all blockers resolved):
 - **Plan #11** (Internal Task + Escalation) — blockers: Plan #1 ✅, Plan #2 ✅
-- **Plan #14** (Invoice Import) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #3 ✅
 - **Plan #15** (Aging Dashboard + Reporting) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
 - **Plan #16** (Collection Copilot) — blockers: Plan #2 ✅, Plan #6 ✅, Plan #7 ✅, Plan #10 ✅, Plan #12 ✅
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
