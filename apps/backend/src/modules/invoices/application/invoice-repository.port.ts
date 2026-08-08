@@ -3,6 +3,10 @@ import type { Invoice } from '../domain/invoice';
 
 export interface IInvoiceRepository {
   findById(id: string): Promise<Invoice | null>;
+  findByInvoiceNumber(
+    invoiceNumber: string,
+    manager?: EntityManager,
+  ): Promise<Invoice | null>;
   findByIds(ids: string[]): Promise<Map<string, Invoice>>;
   save(invoice: Invoice, manager?: EntityManager): Promise<void>;
 }

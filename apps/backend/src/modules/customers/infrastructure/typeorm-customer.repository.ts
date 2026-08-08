@@ -54,10 +54,45 @@ export class TypeOrmCustomerRepository
     super(repo, tenantContext);
   }
 
-  async findById(id: string): Promise<Customer | null> {
-    return this.scopedFindOne({
-      id,
+  async findById(
+    id: string,
+    manager?: EntityManager,
+  ): Promise<Customer | null> {
+    return this.findOneScoped({ id }, manager);
+  }
+
+  async findByTaxCode(
+    taxCode: string,
+    manager?: EntityManager,
+  ): Promise<Customer | null> {
+    return this.findOneScoped({ taxCode }, manager);
+  }
+
+  async findByEmail(
+    email: string,
+    manager?: EntityManager,
+  ): Promise<Customer | null> {
+    return this.findOneScoped({ email }, manager);
+  }
+
+  private async findOneScoped(
+    where: FindOptionsWhere<CustomerOrmEntity>,
+    manager?: EntityManager,
+  ): Promise<Customer | null> {
+    if (manager) {
+      const row = await manager.getRepository(CustomerOrmEntity).findOne({
+        where: {
+          ...where,
+          organizationId: this.tenantContext.getOrganizationId(),
+        },
+      });
+      return row ? toDomain(row) : null;
+    }
+
+    const row = await this.scopedFindOne({
+      ...where,
     } as FindOptionsWhere<CustomerOrmEntity>);
+    return row ? toDomain(row) : null;
   }
 
   async save(customer: Customer, manager?: EntityManager): Promise<void> {

@@ -2,7 +2,12 @@ import type { EntityManager } from 'typeorm';
 import type { Customer } from '../domain/customer';
 
 export interface ICustomerRepository {
-  findById(id: string): Promise<Customer | null>;
+  findById(id: string, manager?: EntityManager): Promise<Customer | null>;
+  findByTaxCode(
+    taxCode: string,
+    manager?: EntityManager,
+  ): Promise<Customer | null>;
+  findByEmail(email: string, manager?: EntityManager): Promise<Customer | null>;
   findNameById(id: string): Promise<string | null>;
   findPage(
     organizationId: string,

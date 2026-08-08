@@ -40,6 +40,20 @@ export class TypeOrmInvoiceRepository implements IInvoiceRepository {
     return row ? new Invoice(row) : null;
   }
 
+  async findByInvoiceNumber(
+    invoiceNumber: string,
+    manager?: EntityManager,
+  ): Promise<Invoice | null> {
+    const repo = manager ? manager.getRepository(InvoiceOrmEntity) : this.repo;
+    const row = await repo.findOne({
+      where: {
+        invoiceNumber,
+        organizationId: this.tenantContext.getOrganizationId(),
+      },
+    });
+    return row ? new Invoice(row) : null;
+  }
+
   async save(invoice: Invoice, manager?: EntityManager): Promise<void> {
     const organizationId = this.tenantContext.getOrganizationId();
     if (invoice.organizationId !== organizationId) {

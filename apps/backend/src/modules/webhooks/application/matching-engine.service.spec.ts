@@ -60,12 +60,15 @@ describe('MatchingEngineService', () => {
       },
       {
         findByIds: invoiceLookup.findByIds,
+        findByInvoiceNumber: jest.fn(),
         findById: jest.fn(),
         save: jest.fn(),
       },
       {
         findNameById: jest.fn().mockResolvedValue('Company B'),
         findById: jest.fn(),
+        findByTaxCode: jest.fn(),
+        findByEmail: jest.fn(),
         findPage: jest.fn().mockResolvedValue([]),
         count: jest.fn().mockResolvedValue(0),
         save: jest.fn(),
@@ -100,12 +103,15 @@ describe('MatchingEngineService', () => {
       },
       {
         findByIds: invoiceLookup.findByIds,
+        findByInvoiceNumber: jest.fn(),
         findById: jest.fn(),
         save: jest.fn(),
       },
       {
         findNameById: jest.fn().mockResolvedValue('Company B'),
         findById: jest.fn(),
+        findByTaxCode: jest.fn(),
+        findByEmail: jest.fn(),
         findPage: jest.fn().mockResolvedValue([]),
         count: jest.fn().mockResolvedValue(0),
         save: jest.fn(),

@@ -17,6 +17,14 @@ import {
   RECEIVABLE_REPOSITORY,
 } from './receivable-repository.port';
 
+export interface CreateReceivableInput {
+  customerId: string;
+  invoiceId: string | null;
+  originalAmount: number;
+  dueDate: Date;
+  salesRepresentativeId: string | null;
+}
+
 @Injectable()
 export class CreateReceivableUseCase {
   constructor(
@@ -28,37 +36,46 @@ export class CreateReceivableUseCase {
     private readonly dataSource: DataSource,
   ) {}
 
-  async execute(input: {
-    customerId: string;
-    invoiceId: string | null;
-    originalAmount: number;
-    dueDate: Date;
-    salesRepresentativeId: string | null;
-  }): Promise<Receivable> {
+  async execute(
+    input: CreateReceivableInput,
+    manager?: EntityManager,
+  ): Promise<Receivable> {
+    if (manager) return this.createWithinTransaction(input, manager);
+
+    return this.dataSource.transaction((transactionManager) =>
+      this.createWithinTransaction(input, transactionManager),
+    );
+  }
+
+  private async createWithinTransaction(
+    input: CreateReceivableInput,
+    manager: EntityManager,
+  ): Promise<Receivable> {
     // customerRepo.findById is tenant-scoped (BaseRepository), so a customer
     // belonging to a different organization resolves to null here — this is
     // what prevents a receivable from being created against another tenant's customer.
-    const customer = await this.customerRepo.findById(input.customerId);
+    const customer = await this.customerRepo.findById(
+      input.customerId,
+      manager,
+    );
     if (!customer) {
       throw new AppError(ErrorCode.NOT_FOUND, 'Khách hàng không tồn tại');
     }
 
-    return this.dataSource.transaction(async (manager: EntityManager) => {
-      // Plan-limit check and the insert must share one transaction so two
-      // concurrent requests can't both squeeze past a limit with one slot left.
-      await this.planLimit.enforceReceivableLimit(manager);
+    // Plan-limit check and the insert must share one transaction so two
+    // concurrent requests can't both squeeze past a limit with one slot left.
+    await this.planLimit.enforceReceivableLimit(manager);
 
-      const receivable = {
-        id: randomUUID(),
-        organizationId: this.tenant.getOrganizationId(),
-        ...input,
-        paidAmount: 0,
-        status: ReceivableStatus.OPEN,
-        createdAt: new Date(),
-        closedAt: null,
-      } as Receivable;
-      await this.repo.save(receivable, manager);
-      return receivable;
-    });
+    const receivable = {
+      id: randomUUID(),
+      organizationId: this.tenant.getOrganizationId(),
+      ...input,
+      paidAmount: 0,
+      status: ReceivableStatus.OPEN,
+      createdAt: new Date(),
+      closedAt: null,
+    } as Receivable;
+    await this.repo.save(receivable, manager);
+    return receivable;
   }
 }

@@ -70,4 +70,38 @@ describe('TypeOrmInvoiceRepository', () => {
     expect(result.get('inv-1')?.invoiceNumber).toBe('INV-001');
     expect(result.has('inv-2')).toBe(false);
   });
+
+  it('finds an invoice number through the transaction manager when supplied', async () => {
+    const ormRepo = { findOne: jest.fn() };
+    const managerRepo = { findOne: jest.fn().mockResolvedValue(PROPS) };
+    const manager = { getRepository: jest.fn().mockReturnValue(managerRepo) };
+    const tenantContext = new TenantContextService();
+    const repo = new TypeOrmInvoiceRepository(ormRepo as any, tenantContext);
+
+    const result = await tenantContext.run(
+      { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+      () => repo.findByInvoiceNumber('INV-001', manager as any),
+    );
+
+    expect(result).toBeInstanceOf(Invoice);
+    expect(ormRepo.findOne).not.toHaveBeenCalled();
+    expect(managerRepo.findOne).toHaveBeenCalledWith({
+      where: { invoiceNumber: 'INV-001', organizationId: 'org-1' },
+    });
+  });
+
+  it('finds an invoice number through the tenant-scoped repository without a manager', async () => {
+    const ormRepo = { findOne: jest.fn().mockResolvedValue(PROPS) };
+    const tenantContext = new TenantContextService();
+    const repo = new TypeOrmInvoiceRepository(ormRepo as any, tenantContext);
+
+    await tenantContext.run(
+      { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+      () => repo.findByInvoiceNumber('INV-001'),
+    );
+
+    expect(ormRepo.findOne).toHaveBeenCalledWith({
+      where: { invoiceNumber: 'INV-001', organizationId: 'org-1' },
+    });
+  });
 });

@@ -2,7 +2,7 @@ import { Check, Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import { type InvoiceSourceType, InvoiceStatus } from '../domain/invoice';
 
 @Entity({ name: 'invoices' })
-@Index(['organizationId'])
+@Index(['organizationId', 'invoiceNumber'], { unique: true })
 @Check(
   '"totalAmount" >= 0 AND "taxAmount" >= 0 AND "taxAmount" <= "totalAmount"',
 )
