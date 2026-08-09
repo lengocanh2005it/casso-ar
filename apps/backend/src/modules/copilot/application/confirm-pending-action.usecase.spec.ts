@@ -19,6 +19,12 @@ function pendingAction(
   };
 }
 
+function buildDataSource() {
+  return {
+    transaction: jest.fn().mockImplementation((callback) => callback({})),
+  };
+}
+
 function buildDraft() {
   return {
     id: 'draft-1',
@@ -44,12 +50,14 @@ describe('ConfirmPendingActionUseCase', () => {
     const emailService = {
       sendReminderEmail: jest.fn().mockResolvedValue(undefined),
     };
+    const dataSource = buildDataSource();
     const useCase = new ConfirmPendingActionUseCase(
       pendingActionRepo as any,
       draftRepo as any,
       emailTemplateRepo as any,
       reminderExecutionRepo as any,
       emailService as any,
+      dataSource as any,
     );
 
     const result = await useCase.execute('action-1', 'user-1');
@@ -76,6 +84,9 @@ describe('ConfirmPendingActionUseCase', () => {
       templateId: savedTemplate.id,
       reminderExecutionId: savedExecution.id,
     });
+    expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+    expect(emailTemplateRepo.save.mock.calls[0][1]).toBeDefined(); // saved with the transaction's manager
+    expect(reminderExecutionRepo.save.mock.calls[0][1]).toBeDefined();
   });
 
   it('rejects when the atomic claim fails and never sends', async () => {
@@ -86,6 +97,7 @@ describe('ConfirmPendingActionUseCase', () => {
       { save: jest.fn() } as any,
       { save: jest.fn() } as any,
       emailService as any,
+      buildDataSource() as any,
     );
 
     await expect(useCase.execute('action-1', 'user-1')).rejects.toMatchObject({
@@ -110,6 +122,7 @@ describe('ConfirmPendingActionUseCase', () => {
       { save: jest.fn() } as any,
       { save: jest.fn() } as any,
       emailService as any,
+      buildDataSource() as any,
     );
 
     await expect(useCase.execute('action-1', 'user-1')).rejects.toMatchObject({

@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { REMINDER_EXECUTION_REPOSITORY } from '../../../common/tokens/reminder-execution.token';
@@ -39,6 +41,7 @@ export class ConfirmPendingActionUseCase {
     @Inject(REMINDER_EXECUTION_REPOSITORY)
     private readonly reminderExecutionRepo: IReminderExecutionRepository,
     private readonly emailService: EmailService,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   async execute(
@@ -86,8 +89,6 @@ export class ConfirmPendingActionUseCase {
       updatedAt: now,
       version: 1,
     });
-    await this.emailTemplateRepo.save(template);
-
     const execution = new ReminderExecution({
       id: randomUUID(),
       organizationId: action.organizationId,
@@ -101,7 +102,14 @@ export class ConfirmPendingActionUseCase {
       failureReason: null,
       createdAt: now,
     });
-    await this.reminderExecutionRepo.save(execution);
+
+    // Both rows must land together — a crash between them would otherwise
+    // leave an orphaned EmailTemplate with no matching execution. EmailService
+    // is called after the transaction commits, never inside it.
+    await this.dataSource.transaction(async (manager) => {
+      await this.emailTemplateRepo.save(template, manager);
+      await this.reminderExecutionRepo.save(execution, manager);
+    });
 
     await this.emailService.sendReminderEmail({
       receivableId: action.payload.receivableId,

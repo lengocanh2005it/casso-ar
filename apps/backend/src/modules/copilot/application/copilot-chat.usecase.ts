@@ -194,11 +194,15 @@ export class CopilotChatUseCase {
           organizationId,
         );
       case 'sendReminderEmail':
-        throw new Error(
-          'sendReminderEmail must be intercepted before execution',
+        throw new AppError(
+          ErrorCode.VALIDATION_ERROR,
+          'sendReminderEmail phải được chặn trước khi thực thi.',
         );
       default:
-        throw new Error(`Unknown Copilot tool "${name}"`);
+        throw new AppError(
+          ErrorCode.VALIDATION_ERROR,
+          `Tool Copilot không xác định: "${name}".`,
+        );
     }
   }
 

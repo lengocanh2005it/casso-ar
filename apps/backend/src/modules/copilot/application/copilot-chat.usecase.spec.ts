@@ -1,3 +1,4 @@
+import { ErrorCode } from '../../../common/errors/error-code';
 import { Role } from '../../organizations/domain/membership';
 import { CopilotChatUseCase } from './copilot-chat.usecase';
 import { CopilotToolRegistry } from './copilot-tool-registry';
@@ -263,5 +264,40 @@ describe('CopilotChatUseCase', () => {
         ([entry]) => entry.isError === true,
       ),
     ).toBe(true);
+  });
+
+  it('throws AppError(VALIDATION_ERROR) instead of a bare Error when the model calls a tool name outside the registry', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion.mockResolvedValueOnce({
+      content: null,
+      toolCalls: [
+        {
+          id: 'tool-x',
+          name: 'writeOffReceivable',
+          arguments: { receivableId: 'rec-1' },
+        },
+      ],
+      inputTokens: 5,
+      outputTokens: 2,
+    });
+    const deps = buildDeps();
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    await expect(
+      useCase.execute({ conversationId: 'conversation-1', userMessage: 'hi' }),
+    ).rejects.toMatchObject({ errorCode: ErrorCode.VALIDATION_ERROR });
   });
 });
