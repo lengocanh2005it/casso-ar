@@ -7,6 +7,7 @@ import {
   IsNull,
   LessThan,
   LessThanOrEqual,
+  MoreThan,
   MoreThanOrEqual,
   Not,
 } from 'typeorm';
@@ -106,6 +107,8 @@ export class TypeOrmReceivableRepository
   async findOverdueByThreshold(
     organizationId: string,
     minDaysOverdue: number,
+    afterId: string | null,
+    limit: number,
   ): Promise<Receivable[]> {
     const currentOrganizationId = this.tenantContext.getOrganizationId();
     if (currentOrganizationId !== organizationId) {
@@ -118,7 +121,10 @@ export class TypeOrmReceivableRepository
         organizationId: currentOrganizationId,
         status: In([ReceivableStatus.OPEN, ReceivableStatus.PARTIALLY_PAID]),
         dueDate: LessThanOrEqual(cutoff),
+        ...(afterId ? { id: MoreThan(afterId) } : {}),
       },
+      order: { id: 'ASC' },
+      take: limit,
       select: {
         id: true,
         organizationId: true,

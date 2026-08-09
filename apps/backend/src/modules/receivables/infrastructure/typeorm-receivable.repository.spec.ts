@@ -1,5 +1,5 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
-import { In, IsNull, LessThanOrEqual, Not } from 'typeorm';
+import { In, IsNull, LessThanOrEqual, MoreThan, Not } from 'typeorm';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { Role } from '../../organizations/domain/membership';
 import { Receivable } from '../domain/receivable';
@@ -31,7 +31,7 @@ describe('TypeOrmReceivableRepository', () => {
 
     await tenantContext.run(
       { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
-      () => repository.findOverdueByThreshold('org-1', 30),
+      () => repository.findOverdueByThreshold('org-1', 30, null, 500),
     );
 
     expect(ormRepo.find).toHaveBeenCalledWith(
@@ -40,6 +40,30 @@ describe('TypeOrmReceivableRepository', () => {
           organizationId: 'org-1',
           status: In([ReceivableStatus.OPEN, ReceivableStatus.PARTIALLY_PAID]),
           dueDate: expect.objectContaining(LessThanOrEqual(expect.any(Date))),
+        }),
+        order: { id: 'ASC' },
+        take: 500,
+      }),
+    );
+  });
+
+  it('pages through overdue receivables with a keyset cursor on id', async () => {
+    const ormRepo = { find: jest.fn().mockResolvedValue([]) };
+    const tenantContext = new TenantContextService();
+    const repository = new TypeOrmReceivableRepository(
+      ormRepo as any,
+      tenantContext,
+    );
+
+    await tenantContext.run(
+      { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+      () => repository.findOverdueByThreshold('org-1', 30, 'rcv-99', 500),
+    );
+
+    expect(ormRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: MoreThan('rcv-99'),
         }),
       }),
     );

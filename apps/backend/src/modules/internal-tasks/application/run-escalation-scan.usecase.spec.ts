@@ -18,11 +18,11 @@ function buildMembership(userId: string, role: Role): Membership {
   });
 }
 
-function buildReceivable(overdueByDays: number): Receivable {
+function buildReceivable(overdueByDays: number, id = 'rec-1'): Receivable {
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() - overdueByDays);
   return new Receivable({
-    id: 'rec-1',
+    id,
     organizationId: 'org-1',
     customerId: 'customer-1',
     invoiceId: null,
@@ -174,5 +174,49 @@ describe('RunEscalationScanUseCase', () => {
       expect.objectContaining({ assignedToUserId: 'owner-1' }),
       expect.anything(),
     );
+  });
+
+  it('pages through overdue receivables in batches instead of loading them all at once', async () => {
+    const batchSize = 500;
+    const firstBatch = Array.from({ length: batchSize }, (_, i) =>
+      buildReceivable(35, `rec-${String(i).padStart(4, '0')}`),
+    );
+    const findOverdueByThreshold = jest
+      .fn()
+      .mockResolvedValueOnce(firstBatch)
+      .mockResolvedValueOnce([]);
+    const deps = buildDeps({
+      receivableRepo: { findOverdueByThreshold },
+    });
+    const useCase = new RunEscalationScanUseCase(
+      deps.membershipRepo as any,
+      deps.receivableRepo as any,
+      deps.customerRepo as any,
+      deps.reminderPolicyRepo as any,
+      deps.internalTaskRepo as any,
+      deps.tenantContext as any,
+      deps.dataSource as any,
+    );
+
+    await useCase.scanOrganization('org-1');
+
+    expect(findOverdueByThreshold).toHaveBeenCalledTimes(2);
+    expect(findOverdueByThreshold).toHaveBeenNthCalledWith(
+      1,
+      'org-1',
+      1,
+      null,
+      batchSize,
+    );
+    expect(findOverdueByThreshold).toHaveBeenNthCalledWith(
+      2,
+      'org-1',
+      1,
+      firstBatch[firstBatch.length - 1].id,
+      batchSize,
+    );
+    expect(
+      deps.internalTaskRepo.createEscalationIfAbsent,
+    ).toHaveBeenCalledTimes(batchSize);
   });
 });

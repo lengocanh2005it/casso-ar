@@ -26,6 +26,7 @@ import {
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const OVERDUE_CANDIDATE_FLOOR_DAYS = 1;
+const SCAN_BATCH_SIZE = 500;
 
 function daysOverdue(dueDate: Date, today: Date): number {
   return Math.floor((today.getTime() - dueDate.getTime()) / MS_PER_DAY);
@@ -61,46 +62,60 @@ export class RunEscalationScanUseCase {
           (await this.membershipRepo.findOwnerByOrganization(organizationId));
         if (!assignee) return;
 
-        const candidates = await this.receivableRepo.findOverdueByThreshold(
-          organizationId,
-          OVERDUE_CANDIDATE_FLOOR_DAYS,
-        );
-        const customers = await this.customerRepo.findByIds([
-          ...new Set(candidates.map((candidate) => candidate.customerId)),
-        ]);
         const thresholds = new Map<CustomerGroup, number>();
         const today = new Date();
+        let afterId: string | null = null;
 
-        for (const receivable of candidates) {
-          const overdueDays = daysOverdue(receivable.dueDate, today);
-          const customer = customers.get(receivable.customerId);
-          const threshold = customer
-            ? await this.resolveEscalationThreshold(
-                customer.customerGroup,
-                thresholds,
-              )
-            : DEFAULT_ESCALATION_THRESHOLD_DAYS;
-          if (overdueDays < threshold) continue;
-
-          const task = new InternalTask({
-            id: randomUUID(),
+        // ponytail: batch-loop over a keyset cursor instead of loading every
+        // overdue receivable in the org at once — upgrade to a queue-backed
+        // worker if a single org's overdue count ever needs cross-request resumability.
+        while (true) {
+          const candidates = await this.receivableRepo.findOverdueByThreshold(
             organizationId,
-            receivableId: receivable.id,
-            assignedToUserId: assignee.userId,
-            createdByUserId: null,
-            taskType: 'ESCALATION',
-            title: `Overdue receivable for ${overdueDays} days requires action`,
-            description: null,
-            dueDate: null,
-            status: 'OPEN',
-            createdAt: new Date(),
-            resolvedAt: null,
-            version: 1,
-          });
-
-          await this.dataSource.transaction((manager) =>
-            this.internalTaskRepo.createEscalationIfAbsent(task, manager),
+            OVERDUE_CANDIDATE_FLOOR_DAYS,
+            afterId,
+            SCAN_BATCH_SIZE,
           );
+          if (candidates.length === 0) break;
+
+          const customers = await this.customerRepo.findByIds([
+            ...new Set(candidates.map((candidate) => candidate.customerId)),
+          ]);
+
+          for (const receivable of candidates) {
+            const overdueDays = daysOverdue(receivable.dueDate, today);
+            const customer = customers.get(receivable.customerId);
+            const threshold = customer
+              ? await this.resolveEscalationThreshold(
+                  customer.customerGroup,
+                  thresholds,
+                )
+              : DEFAULT_ESCALATION_THRESHOLD_DAYS;
+            if (overdueDays >= threshold) {
+              const task = new InternalTask({
+                id: randomUUID(),
+                organizationId,
+                receivableId: receivable.id,
+                assignedToUserId: assignee.userId,
+                createdByUserId: null,
+                taskType: 'ESCALATION',
+                title: `Overdue receivable for ${overdueDays} days requires action`,
+                description: null,
+                dueDate: null,
+                status: 'OPEN',
+                createdAt: new Date(),
+                resolvedAt: null,
+                version: 1,
+              });
+
+              await this.dataSource.transaction((manager) =>
+                this.internalTaskRepo.createEscalationIfAbsent(task, manager),
+              );
+            }
+          }
+
+          afterId = candidates[candidates.length - 1].id;
+          if (candidates.length < SCAN_BATCH_SIZE) break;
         }
       },
     );
