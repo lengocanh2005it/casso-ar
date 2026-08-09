@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { InlineFormError } from '@/components/ui/inline-form-error';
 import { apiRequest } from '@/lib/api-client';
 
 export function InviteAcceptPage() {
@@ -10,12 +11,14 @@ export function InviteAcceptPage() {
   const [password, setPassword] = useState('');
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError(null);
     const token = searchParams.get('token');
     if (!token) {
-      toast.error('Liên kết lời mời không hợp lệ.');
+      setError('Liên kết lời mời không hợp lệ.');
       return;
     }
 
@@ -29,7 +32,7 @@ export function InviteAcceptPage() {
       setDone(true);
       toast.success('Tham gia tổ chức thành công.');
     } catch {
-      toast.error('Lời mời đã hết hạn hoặc không hợp lệ.');
+      setError('Lời mời đã hết hạn hoặc không hợp lệ.');
     } finally {
       setSubmitting(false);
     }
@@ -38,7 +41,7 @@ export function InviteAcceptPage() {
   if (done) {
     return (
       <div className="flex min-h-svh items-center justify-center p-6 text-center">
-        <div className="space-y-2">
+        <div role="status" className="space-y-2">
           <h1 className="text-xl font-semibold">Tham gia tổ chức thành công</h1>
           <p className="text-sm text-muted-foreground">
             Bạn có thể đăng nhập để bắt đầu sử dụng Casso Ledger.
@@ -87,6 +90,8 @@ export function InviteAcceptPage() {
             className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </label>
+
+        <InlineFormError message={error} />
 
         <Button type="submit" disabled={submitting} className="w-full">
           {submitting ? 'Đang xử lý…' : 'Tham gia'}

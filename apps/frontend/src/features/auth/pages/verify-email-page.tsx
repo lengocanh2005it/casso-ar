@@ -25,12 +25,16 @@ export function VerifyEmailPage() {
   }, [searchParams]);
 
   if (state === 'verifying') {
-    return <div className="p-6 text-center">Đang xác minh email…</div>;
+    return (
+      <div role="status" className="p-6 text-center">
+        Đang xác minh email…
+      </div>
+    );
   }
 
   if (state === 'error') {
     return (
-      <div className="space-y-2 p-6 text-center">
+      <div role="status" className="space-y-2 p-6 text-center">
         <h1 className="text-xl font-semibold">Liên kết không hợp lệ</h1>
         <p className="text-sm text-muted-foreground">
           Liên kết xác minh đã hết hạn hoặc không tồn tại.
@@ -43,7 +47,7 @@ export function VerifyEmailPage() {
   }
 
   return (
-    <div className="space-y-2 p-6 text-center">
+    <div role="status" className="space-y-2 p-6 text-center">
       <h1 className="text-xl font-semibold">Email đã được xác minh</h1>
       <p className="text-sm text-muted-foreground">
         Bạn có thể đăng nhập để tiếp tục.

@@ -73,6 +73,40 @@ describe('authentication routes', () => {
     await waitFor(() => expect(screen.getByText('dashboard')).toBeVisible());
   });
 
+  it('shows an inline, focused error when login fails', async () => {
+    apiRequest.mockRejectedValueOnce(new Error('invalid credentials'));
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/login']}>
+          <Routes>
+            <Route
+              path="/login"
+              element={
+                <GuestRoute>
+                  <LoginPage />
+                </GuestRoute>
+              }
+            />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByLabelText(/email/i)).toBeVisible());
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: 'owner@casso.vn' },
+    });
+    fireEvent.change(screen.getByLabelText(/mật khẩu/i), {
+      target: { value: 'wrong' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /đăng nhập/i }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Email hoặc mật khẩu không đúng.');
+    expect(alert).toHaveFocus();
+  });
+
   it('redirects unauthenticated users from protected routes to login', async () => {
     render(
       <AuthProvider>

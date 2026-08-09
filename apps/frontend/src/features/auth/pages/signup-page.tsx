@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { InlineFormError } from '@/components/ui/inline-form-error';
 import { useAuth } from '@/contexts/auth-context';
 import { apiRequest, authTokenManager } from '@/lib/api-client';
 
@@ -13,10 +14,12 @@ export function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
+    setError(null);
 
     try {
       authTokenManager.resetLogoutState();
@@ -30,7 +33,7 @@ export function SignupPage() {
       toast.success('Tạo tài khoản thành công.');
       navigate('/dashboard');
     } catch {
-      toast.error('Không thể tạo tài khoản. Vui lòng kiểm tra thông tin.');
+      setError('Không thể tạo tài khoản. Vui lòng kiểm tra thông tin.');
     } finally {
       setSubmitting(false);
     }
@@ -78,6 +81,7 @@ export function SignupPage() {
             type="email"
             required
             autoComplete="email"
+            spellCheck={false}
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -96,6 +100,8 @@ export function SignupPage() {
             className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </label>
+
+        <InlineFormError message={error} />
 
         <Button type="submit" disabled={submitting} className="w-full">
           {submitting ? 'Đang xử lý…' : 'Tạo tài khoản'}
