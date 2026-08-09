@@ -17,6 +17,11 @@ export class TypeOrmOrganizationRepository implements IOrganizationRepository {
     return row ? new Organization(row) : null;
   }
 
+  async findAllIds(): Promise<string[]> {
+    const rows = await this.repo.find({ select: { id: true } });
+    return rows.map((row) => row.id);
+  }
+
   async save(
     organization: Organization,
     manager?: EntityManager,

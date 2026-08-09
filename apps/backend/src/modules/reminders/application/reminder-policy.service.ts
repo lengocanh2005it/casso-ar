@@ -19,6 +19,7 @@ export interface ReminderRuleInput {
 export interface SaveReminderPolicyInput {
   customerGroup: CustomerGroup;
   isActive: boolean;
+  escalationThresholdDays?: number;
   rules: ReminderRuleInput[];
 }
 
@@ -62,6 +63,7 @@ export class ReminderPolicyService {
       organizationId,
       customerGroup: input.customerGroup,
       isActive: input.isActive,
+      escalationThresholdDays: input.escalationThresholdDays,
       createdAt: new Date(),
     });
 
@@ -86,7 +88,11 @@ export class ReminderPolicyService {
 
   async update(
     id: string,
-    input: { isActive: boolean; rules: ReminderRuleInput[] },
+    input: {
+      isActive: boolean;
+      escalationThresholdDays?: number;
+      rules: ReminderRuleInput[];
+    },
   ): Promise<ReminderPolicy> {
     const policy = await this.policyRepo.findById(id);
     if (!policy) {
@@ -98,6 +104,8 @@ export class ReminderPolicyService {
     const updated = new ReminderPolicy({
       ...policy,
       isActive: input.isActive,
+      escalationThresholdDays:
+        input.escalationThresholdDays ?? policy.escalationThresholdDays,
     });
 
     await this.dataSource.transaction(async (manager) => {

@@ -18,6 +18,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
+import { CancelReceivableUseCase } from '../application/cancel-receivable.usecase';
 import { CreateReceivableUseCase } from '../application/create-receivable.usecase';
 import { GetReceivableUseCase } from '../application/get-receivable.usecase';
 import { ListReceivablesUseCase } from '../application/list-receivables.usecase';
@@ -34,6 +35,7 @@ import { toReceivableSummaryResponse } from './dto/receivable-summary-response.d
 export class ReceivablesController {
   constructor(
     private readonly createReceivableUseCase: CreateReceivableUseCase,
+    private readonly cancelReceivableUseCase: CancelReceivableUseCase,
     private readonly writeOffReceivableUseCase: WriteOffReceivableUseCase,
     private readonly getReceivableUseCase: GetReceivableUseCase,
     private readonly listReceivablesUseCase: ListReceivablesUseCase,
@@ -112,6 +114,24 @@ export class ReceivablesController {
       { id },
       async () => {
         const receivable = await this.writeOffReceivableUseCase.execute(id);
+        return toReceivableResponse(receivable);
+      },
+    );
+  }
+
+  @Post(':id/cancel')
+  @RequirePermission(Permission.RECEIVABLE_WRITE_OFF)
+  @Audited(AuditActionType.RECEIVABLE_CANCEL, AuditEntityType.RECEIVABLE)
+  async cancel(
+    @Param('id') id: string,
+    @Headers('idempotency-key') key: string | undefined,
+  ) {
+    return this.idempotency.execute(
+      `POST /receivables/${id}/cancel`,
+      key,
+      { id },
+      async () => {
+        const receivable = await this.cancelReceivableUseCase.execute(id);
         return toReceivableResponse(receivable);
       },
     );

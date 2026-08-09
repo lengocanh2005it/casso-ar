@@ -2,7 +2,15 @@ import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
-import { In, IsNull, LessThan, MoreThanOrEqual, Not } from 'typeorm';
+import {
+  In,
+  IsNull,
+  LessThan,
+  LessThanOrEqual,
+  MoreThan,
+  MoreThanOrEqual,
+  Not,
+} from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type {
@@ -31,6 +39,23 @@ function toOrm(receivable: Receivable): ReceivableOrmEntity {
   };
 }
 
+function toDomain(row: ReceivableOrmEntity): Receivable {
+  return new Receivable({
+    id: row.id,
+    organizationId: row.organizationId,
+    customerId: row.customerId,
+    invoiceId: row.invoiceId,
+    originalAmount: row.originalAmount,
+    paidAmount: row.paidAmount,
+    dueDate: row.dueDate,
+    status: row.status,
+    salesRepresentativeId: row.salesRepresentativeId,
+    createdAt: row.createdAt,
+    closedAt: row.closedAt,
+    version: row.version,
+  });
+}
+
 @Injectable()
 export class TypeOrmReceivableRepository
   extends BaseRepository<ReceivableOrmEntity>
@@ -48,7 +73,7 @@ export class TypeOrmReceivableRepository
     const row = await this.scopedFindOne({
       id,
     } as FindOptionsWhere<ReceivableOrmEntity>);
-    return row ? new Receivable(row) : null;
+    return row ? toDomain(row) : null;
   }
 
   async findByIdForUpdate(
@@ -60,7 +85,7 @@ export class TypeOrmReceivableRepository
       where: { id, organizationId },
       lock: { mode: 'pessimistic_write' },
     });
-    return row ? new Receivable(row) : null;
+    return row ? toDomain(row) : null;
   }
 
   async save(receivable: Receivable, manager?: EntityManager): Promise<void> {
@@ -76,7 +101,46 @@ export class TypeOrmReceivableRepository
       ],
       take: 100,
     });
-    return rows.map((row) => new Receivable(row));
+    return rows.map(toDomain);
+  }
+
+  async findOverdueByThreshold(
+    organizationId: string,
+    minDaysOverdue: number,
+    afterId: string | null,
+    limit: number,
+  ): Promise<Receivable[]> {
+    const currentOrganizationId = this.tenantContext.getOrganizationId();
+    if (currentOrganizationId !== organizationId) {
+      throw new Error('TENANT_MISMATCH');
+    }
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - minDaysOverdue);
+    const rows = await this.ormRepo.find({
+      where: {
+        organizationId: currentOrganizationId,
+        status: In([ReceivableStatus.OPEN, ReceivableStatus.PARTIALLY_PAID]),
+        dueDate: LessThanOrEqual(cutoff),
+        ...(afterId ? { id: MoreThan(afterId) } : {}),
+      },
+      order: { id: 'ASC' },
+      take: limit,
+      select: {
+        id: true,
+        organizationId: true,
+        customerId: true,
+        invoiceId: true,
+        originalAmount: true,
+        paidAmount: true,
+        dueDate: true,
+        status: true,
+        salesRepresentativeId: true,
+        createdAt: true,
+        closedAt: true,
+        version: true,
+      },
+    });
+    return rows.map(toDomain);
   }
 
   async findInvoiceIdsByReceivableIds(
@@ -133,7 +197,7 @@ export class TypeOrmReceivableRepository
           Math.abs(right.dueDate.getTime() - referenceTime),
       )
       .slice(0, limit);
-    return rows.map((row) => new Receivable(row));
+    return rows.map(toDomain);
   }
 
   async findPage(
@@ -155,7 +219,7 @@ export class TypeOrmReceivableRepository
       skip: (page - 1) * limit,
       take: limit,
     });
-    return rows.map((row) => new Receivable(row));
+    return rows.map(toDomain);
   }
 
   async count(

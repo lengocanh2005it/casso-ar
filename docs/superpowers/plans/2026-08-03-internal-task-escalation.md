@@ -10,10 +10,18 @@
 
 ## Global Constraints
 
-- **This plan shares the Reminder Automation scan contract:** the reminder scheduler owns the daily candidate scan and emits `reminder.scan.completed` with `{ organizationId, scanDate }`; `ReminderScanCompletedListener` consumes it and runs only escalation-specific rules. Do not create a second daily scan/queue, import `RemindersModule`, or make the reminder scheduler know this module's use case.
-- `escalationThresholdDays` is hardcoded to `30` (spec section 5's first open question is left unresolved at MVP; not configurable per `ReminderPolicy`/`customerGroup`).
-- Any authenticated user holding `Permission.INTERNAL_TASK_MANAGE` (granted to `FINANCE_MANAGER` and `ACCOUNTANT`, per spec section 3's `Permissions: FINANCE_MANAGER, ACCOUNTANT`) may resolve or dismiss *any* task in their organization — spec section 5's second open question (restrict to `assignedToUserId`/`OWNER` only) is resolved this way for MVP, simplest option, revisit if abuse becomes a problem.
-- `receivable.status-closed` is the broad terminal-state event consumed here. `receivable.closed` is reserved for Collection Activity's PAID-only timeline event.
+> **2026-08-08 grilling pass — supersedes the original MVP defaults below where noted.** Every bullet here reflects the decisions actually shipped; do not follow a code snippet further down that contradicts a bullet here — the bullet wins.
+
+- **This plan shares the Reminder Automation scan contract:** the reminder scheduler owns the daily candidate scan and emits `reminder.scan.completed` with `{ organizationId, scanDate }`; `ReminderScanCompletedListener` consumes it and runs only escalation-specific rules. Do not create a second daily scan/queue, or make the reminder scheduler know this module's use case. **Unlike the original draft of this constraint, this plan DOES import `RemindersModule`** — one-way, to inject the already-exported `IReminderPolicyRepository` (see the next bullet) — and `CustomersModule`, to inject `ICustomerRepository`. Neither import creates a cycle: `RemindersModule`/`CustomersModule` do not depend on `InternalTasksModule`.
+- **`escalationThresholdDays` is configurable per `ReminderPolicy`/`customerGroup`, NOT hardcoded.** It is a new field on the existing `ReminderPolicy` entity (`2026-08-03-reminder-automation-design.md` section 2), reusing that entity's existing write path (`PATCH /reminder-policies/:id`, `Permission.REMINDER_POLICY_WRITE`) rather than a new settings screen. `RunEscalationScanUseCase` resolves each overdue receivable's threshold via `IReminderPolicyRepository.findByCustomerGroup(customer.customerGroup)` (already exists, no port change needed); if the customer has no active policy for its group, fall back to `DEFAULT_ESCALATION_THRESHOLD_DAYS = 30`. See Task 6.
+- **Escalation assignee: first `FINANCE_MANAGER`, falling back to first `OWNER`.** Every organization has at least one `OWNER` (a tenant cannot exist without one), so this fallback guarantees an escalation is never silently assigned to nobody — replacing the original draft's "skip silently when there is no `FINANCE_MANAGER`". No in-app notification is added for this fallback case; see the design spec section 4 for why (no in-app notification system exists yet — that's a separate, cross-cutting ticket).
+- **Manual task creation validates `assignedToUserId`.** Whether supplied in the request body or defaulted to the creator, it MUST resolve to an existing `Membership` in the current organization (`IMembershipRepository.findByUserAndOrganization`, already exists) — reject with `AppError(ErrorCode.VALIDATION_ERROR, ...)` otherwise. See Task 7.
+- **Resolve/dismiss is assignee-scoped, with an `OWNER` override — NOT open to every `INTERNAL_TASK_MANAGE` holder.** Only the task's `assignedToUserId`, or any `OWNER`, may resolve or dismiss it; an `INTERNAL_TASK_MANAGE` holder who is neither is rejected with `AppError(ErrorCode.FORBIDDEN, ...)` even though they can still list and create tasks. This supersedes the original draft's "any `INTERNAL_TASK_MANAGE` holder may act on any task." See Task 8.
+- **Application-layer code throws only `AppError`, never a `@nestjs/common` exception class.** Several code snippets below predate this correction and still show `NotFoundException`/`BadRequestException` thrown from `application/` — those are fixed inline in Tasks 7, 8, and 10; do not copy the exception-class import from an unmarked snippet.
+- **Domain events are published through the `IEventPublisher` port (`common/events/event-publisher.port.ts`, token `EVENT_PUBLISHER`), never by injecting `EventEmitter2` directly into a use case.** `@nestjs/event-emitter` is a concrete SDK; `application/` may depend only on the port, matching `AllocatePaymentUseCase`'s existing pattern. Earlier drafts of Tasks 6 and 10 inject `EventEmitter2` directly — corrected inline in those tasks below.
+- **`@OnEvent`-decorated listener classes live in `infrastructure/`, not `application/`** — matching the only two precedents in the codebase, `CollectionActivityListener` and `ReminderExecutionListener` (both under `infrastructure/`). `ReminderScanCompletedListener` and `ReceivableClosedListener` are placed there too (Tasks 6 and 10), not under `application/` as an earlier draft of the File Structure below showed.
+- `receivable.status-closed` is the broad terminal-state event consumed here (see ADR-0005 for why it is a second, distinctly-named event rather than a widened `receivable.closed`). It is emitted from all three terminal-status call sites — `AllocatePaymentUseCase` (PAID), `WriteOffReceivableUseCase` (WRITTEN_OFF), and the new `CancelReceivableUseCase` (CANCELLED, built by this plan — see the note below and Task 10) — side by side with `receivable.closed`, which stays PAID-only and owned by Collection Activity.
+- **`CancelReceivableUseCase` + `POST /receivables/:id/cancel` do not exist yet and are built by this plan (Task 10).** `Receivable.cancel()` (domain) already exists and is fully implemented, but no use case or controller route ever called it — confirmed by searching the codebase, not assumed. `AuditActionType.RECEIVABLE_CANCEL` and `ErrorCode.RECEIVABLE_HAS_PAYMENTS` already exist in `common/`, unused until now, which is why Task 10 wires them up rather than adding new ones.
 - Background-job tenant scoping follows `ProcessWebhookUseCase`'s exact pattern (`2026-08-03-webhook-matching-engine.md` Task 9): `TenantContextService.run({ userId: 'system', organizationId, role: Role.OWNER }, async () => { ... })` opened once per organization being scanned.
 - Money fields, naming/layering rules from `2026-08-03-project-scaffolding-architecture-design.md` still apply (not directly relevant here — `InternalTask` has no money field — but the layering rule, domain has no framework imports, is followed).
 
@@ -32,8 +40,8 @@ apps/backend/src/
       infrastructure/typeorm-internal-task.repository.ts
       application/run-escalation-scan.usecase.ts
       application/run-escalation-scan.usecase.spec.ts
-      application/reminder-scan-completed.listener.ts
-      application/reminder-scan-completed.listener.spec.ts
+      infrastructure/reminder-scan-completed.listener.ts
+      infrastructure/reminder-scan-completed.listener.spec.ts
       application/create-manual-task.usecase.ts
       application/create-manual-task.usecase.spec.ts
       application/resolve-task.usecase.ts
@@ -42,22 +50,33 @@ apps/backend/src/
       application/dismiss-task.usecase.spec.ts
       application/list-receivable-tasks.usecase.ts
       application/list-receivable-tasks.usecase.spec.ts
-      application/receivable-closed.listener.ts
-      application/receivable-closed.listener.spec.ts
+      infrastructure/receivable-closed.listener.ts
+      infrastructure/receivable-closed.listener.spec.ts
       presentation/dto/create-manual-task.dto.ts
       presentation/internal-tasks.controller.ts
       internal-tasks.module.ts
     organizations/
       application/membership-repository.port.ts                  -- MODIFY: add findFirstByRole()
       infrastructure/typeorm-membership.repository.ts             -- MODIFY: add findFirstByRole()
-    receivables/
+    reminders/
+      domain/reminder-policy.ts                                   -- MODIFY: add escalationThresholdDays
+      domain/reminder-policy.spec.ts                               -- MODIFY: validate the new field
+      infrastructure/reminder-policy.orm-entity.ts                 -- MODIFY: add escalationThresholdDays column
+      presentation/dto/create-reminder-policy.dto.ts                -- MODIFY: add optional escalationThresholdDays
+      presentation/dto/update-reminder-policy.dto.ts                -- MODIFY: add optional escalationThresholdDays
+      application/reminder-policy.service.ts                        -- MODIFY: pass the field through create/update
+    receivables:
       application/receivable-repository.port.ts                  -- MODIFY: add findOverdueByThreshold()
       infrastructure/typeorm-receivable.repository.ts             -- MODIFY: add findOverdueByThreshold()
       application/write-off-receivable.usecase.ts                 -- MODIFY: emit 'receivable.status-closed'
-      application/write-off-receivable.usecase.spec.ts            -- MODIFY: new constructor args
-      application/cancel-receivable.usecase.ts                    -- MODIFY: emit 'receivable.status-closed'
-      application/cancel-receivable.usecase.spec.ts               -- MODIFY: new constructor args
-    payments/                                                     -- NOT modified by this plan; see Task 10 Step 8
+      application/write-off-receivable.usecase.spec.ts            -- MODIFY: new constructor arg
+      application/cancel-receivable.usecase.ts                    -- CREATE (did not exist — see Task 10)
+      application/cancel-receivable.usecase.spec.ts               -- CREATE
+      presentation/receivables.controller.ts                      -- MODIFY: add POST :id/cancel
+    payments/
+      application/allocate-payment.usecase.ts                     -- MODIFY: also emit 'receivable.status-closed'
+      application/allocate-payment.usecase.spec.ts                 -- MODIFY: new assertion
+    customers/                                                     -- NOT modified; ICustomerRepository already exported
   common/
     rbac/
       permission.enum.ts             -- MODIFY: add INTERNAL_TASK_MANAGE
@@ -609,46 +628,160 @@ git commit -m "feat: add INTERNAL_TASK_MANAGE permission for FINANCE_MANAGER and
 
 ---
 
-### Task 6: Escalation participant — `RunEscalationScanUseCase`
+### Task 6: `ReminderPolicy.escalationThresholdDays` + escalation participant — `RunEscalationScanUseCase`
 
 **Files:**
+- Modify: `apps/backend/src/modules/reminders/domain/reminder-policy.ts`
+- Modify: `apps/backend/src/modules/reminders/domain/reminder-policy.spec.ts`
+- Modify: `apps/backend/src/modules/reminders/infrastructure/reminder-policy.orm-entity.ts`
+- Create: `apps/backend/src/database/migrations/<timestamp>-add-reminder-policy-escalation-threshold.ts`
+- Modify: `apps/backend/src/modules/reminders/presentation/dto/create-reminder-policy.dto.ts`
+- Modify: `apps/backend/src/modules/reminders/presentation/dto/update-reminder-policy.dto.ts`
+- Modify: `apps/backend/src/modules/reminders/application/reminder-policy.service.ts`
 - Create: `apps/backend/src/modules/internal-tasks/application/run-escalation-scan.usecase.ts`
 - Test: `apps/backend/src/modules/internal-tasks/application/run-escalation-scan.usecase.spec.ts`
+- Create: `apps/backend/src/modules/internal-tasks/infrastructure/reminder-scan-completed.listener.ts`
+- Test: `apps/backend/src/modules/internal-tasks/infrastructure/reminder-scan-completed.listener.spec.ts`
 - Modify: `apps/backend/src/modules/internal-tasks/internal-tasks.module.ts`
 
 **Interfaces:**
-- Consumes: `IMembershipRepository.findFirstByRole()` (Task 3), `IReceivableRepository.findOverdueByThreshold()` (Task 4), `IInternalTaskRepository.createEscalationIfAbsent()` (Task 2), and `TenantContextService`
-- Produces: `RunEscalationScanUseCase.scanOrganization(organizationId)` — called by `ReminderScanCompletedListener` after the reminder scheduler emits `reminder.scan.completed`; no second queue and no Reminder→InternalTasks import.
+- Consumes: `IMembershipRepository.findFirstByRole()` (Task 3, for `FINANCE_MANAGER`) and `IMembershipRepository.findOwnerByOrganization()` (existing — reused as-is for the OWNER fallback, not a second `findFirstByRole` call), `IReceivableRepository.findOverdueByThreshold()` (Task 4, called with a 1-day floor, not a fixed threshold — see Step 4), `ICustomerRepository.findById()` (existing, from `CustomersModule`), `IReminderPolicyRepository.findByCustomerGroup()` (existing, from `RemindersModule`, no port change), `IInternalTaskRepository.createEscalationIfAbsent()` (Task 2), and `TenantContextService`
+- Produces: `RunEscalationScanUseCase.scanOrganization(organizationId)` — called by `ReminderScanCompletedListener` after the reminder scheduler emits `reminder.scan.completed`; no second queue.
 
-- [ ] **Step 1: Write failing test for `RunEscalationScanUseCase`**
+- [ ] **Step 1: Write a failing domain test for `ReminderPolicy.escalationThresholdDays`**
+
+Add to `apps/backend/src/modules/reminders/domain/reminder-policy.spec.ts`:
+
+```typescript
+it('rejects a non-positive escalationThresholdDays', () => {
+  expect(
+    () =>
+      new ReminderPolicy({
+        id: 'pol-1',
+        organizationId: 'org-1',
+        customerGroup: CustomerGroup.VIP,
+        isActive: true,
+        escalationThresholdDays: 0,
+        createdAt: new Date('2026-01-01'),
+      }),
+  ).toThrow('escalationThresholdDays must be a positive integer');
+});
+
+it('defaults escalationThresholdDays to 30 when not provided', () => {
+  const policy = new ReminderPolicy({
+    id: 'pol-1',
+    organizationId: 'org-1',
+    customerGroup: CustomerGroup.VIP,
+    isActive: true,
+    createdAt: new Date('2026-01-01'),
+  });
+  expect(policy.escalationThresholdDays).toBe(30);
+});
+```
+
+Run: `pnpm --filter @casso-ledger/backend test reminder-policy.spec.ts` → FAIL (property does not exist yet).
+
+- [ ] **Step 2: Add `escalationThresholdDays` to the `ReminderPolicy` domain entity**
+
+Modify `apps/backend/src/modules/reminders/domain/reminder-policy.ts`:
+
+```typescript
+import { CustomerGroup } from '../../customers/domain/customer-group';
+
+export const DEFAULT_ESCALATION_THRESHOLD_DAYS = 30;
+
+export interface ReminderPolicyProps {
+  id: string;
+  organizationId: string;
+  customerGroup: CustomerGroup;
+  isActive: boolean;
+  escalationThresholdDays?: number;
+  createdAt: Date;
+}
+
+export class ReminderPolicy {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly customerGroup: CustomerGroup;
+  readonly isActive: boolean;
+  readonly escalationThresholdDays: number;
+  readonly createdAt: Date;
+
+  constructor(props: ReminderPolicyProps) {
+    if (!Object.values(CustomerGroup).includes(props.customerGroup)) {
+      throw new Error(`Invalid customer group: ${props.customerGroup}`);
+    }
+    const escalationThresholdDays =
+      props.escalationThresholdDays ?? DEFAULT_ESCALATION_THRESHOLD_DAYS;
+    if (
+      !Number.isInteger(escalationThresholdDays) ||
+      escalationThresholdDays <= 0
+    ) {
+      throw new Error('escalationThresholdDays must be a positive integer');
+    }
+    Object.assign(this, { ...props, escalationThresholdDays });
+  }
+}
+```
+
+Run: `pnpm --filter @casso-ledger/backend test reminder-policy.spec.ts` → PASS.
+
+- [ ] **Step 3: Persist the column and expose it in the DTOs**
+
+Modify `apps/backend/src/modules/reminders/infrastructure/reminder-policy.orm-entity.ts` — add:
+
+```typescript
+@Column('int', { default: 30 })
+escalationThresholdDays: number;
+```
+
+Create a migration (`apps/backend/src/database/migrations/<timestamp>-add-reminder-policy-escalation-threshold.ts`) adding the column with `DEFAULT 30 NOT NULL`, following the existing migration style in that directory (see `20260808000000-add-invoice-unique-index.ts` for the file shape).
+
+Modify `apps/backend/src/modules/reminders/presentation/dto/create-reminder-policy.dto.ts` and `update-reminder-policy.dto.ts` — add:
+
+```typescript
+@IsOptional()
+@IsInt()
+@IsPositive()
+escalationThresholdDays?: number;
+```
+
+Modify `apps/backend/src/modules/reminders/application/reminder-policy.service.ts` — pass `dto.escalationThresholdDays` through to the `ReminderPolicy` constructor call in both `create()` and `update()` (omit the field to keep the domain default/existing value — do not force it to `30` on every update).
+
+Run: `pnpm --filter @casso-ledger/backend test` → all PASS. Run `npx tsc --noEmit` → clean.
+
+- [ ] **Step 4: Write a failing test for `RunEscalationScanUseCase`**
 
 Create `apps/backend/src/modules/internal-tasks/application/run-escalation-scan.usecase.spec.ts`:
 
 ```typescript
+import { CustomerGroup } from '../../customers/domain/customer-group';
+import { Customer } from '../../customers/domain/customer';
+import { ReminderPolicy } from '../../reminders/domain/reminder-policy';
 import { Role } from '../../organizations/domain/membership';
 import { Membership } from '../../organizations/domain/membership';
 import { Receivable } from '../../receivables/domain/receivable';
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { RunEscalationScanUseCase } from './run-escalation-scan.usecase';
 
-function buildFinanceManager(organizationId: string): Membership {
+function buildMembership(userId: string, role: Role): Membership {
   return new Membership({
-    id: 'mem-1',
-    organizationId,
-    userId: 'fm-user-1',
-    role: Role.FINANCE_MANAGER,
+    id: `mem-${userId}`,
+    organizationId: 'org-1',
+    userId,
+    role,
     invitedAt: new Date('2026-01-01'),
     joinedAt: new Date('2026-01-01'),
     createdAt: new Date('2026-01-01'),
   });
 }
 
-function buildOverdueReceivable(id: string, organizationId: string): Receivable {
+function buildOverdueReceivable(id: string, overdueByDays: number): Receivable {
   const dueDate = new Date();
-  dueDate.setDate(dueDate.getDate() - 35);
+  dueDate.setDate(dueDate.getDate() - overdueByDays);
   return new Receivable({
     id,
-    organizationId,
+    organizationId: 'org-1',
     customerId: 'cust-1',
     invoiceId: null,
     originalAmount: 50_000_000,
@@ -661,120 +794,151 @@ function buildOverdueReceivable(id: string, organizationId: string): Receivable 
   });
 }
 
+function buildCustomer(customerGroup: CustomerGroup): Customer {
+  return {
+    id: 'cust-1',
+    organizationId: 'org-1',
+    name: 'Acme',
+    taxCode: '',
+    email: '',
+    phone: '',
+    customerGroup,
+    defaultPaymentTermDays: 30,
+    creditLimit: 0,
+    priority: 0,
+    createdAt: new Date('2026-01-01'),
+  };
+}
+
+function buildPolicy(customerGroup: CustomerGroup, escalationThresholdDays: number): ReminderPolicy {
+  return new ReminderPolicy({
+    id: 'pol-1',
+    organizationId: 'org-1',
+    customerGroup,
+    isActive: true,
+    escalationThresholdDays,
+    createdAt: new Date('2026-01-01'),
+  });
+}
+
+function buildDeps(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    membershipRepo: {
+      findFirstByRole: jest.fn().mockResolvedValue(buildMembership('fm-user-1', Role.FINANCE_MANAGER)),
+      findOwnerByOrganization: jest.fn().mockResolvedValue(buildMembership('owner-user-1', Role.OWNER)),
+    },
+    receivableRepo: { findOverdueByThreshold: jest.fn().mockResolvedValue([buildOverdueReceivable('rec-1', 35)]) },
+    customerRepo: { findById: jest.fn().mockResolvedValue(buildCustomer(CustomerGroup.VIP)) },
+    reminderPolicyRepo: { findByCustomerGroup: jest.fn().mockResolvedValue(buildPolicy(CustomerGroup.VIP, 30)) },
+    internalTaskRepo: { createEscalationIfAbsent: jest.fn().mockResolvedValue(true), save: jest.fn() },
+    tenantContext: { run: jest.fn((_context: unknown, callback: () => unknown) => callback()) },
+    ...overrides,
+  };
+}
+
 describe('RunEscalationScanUseCase', () => {
-  it('creates an ESCALATION task assigned to the FINANCE_MANAGER for an overdue receivable with no existing task', async () => {
-    const financeManager = buildFinanceManager('org-1');
-    const receivable = buildOverdueReceivable('rec-1', 'org-1');
-
-    const membershipRepo = { findFirstByRole: jest.fn().mockResolvedValue(financeManager) };
-    const receivableRepo = { findOverdueByThreshold: jest.fn().mockResolvedValue([receivable]) };
-    const internalTaskRepo = {
-      createEscalationIfAbsent: jest.fn().mockResolvedValue(true),
-      save: jest.fn(),
-    };
-    const tenantContext = { run: jest.fn((_context, callback) => callback()) };
-
+  it('creates an ESCALATION task assigned to the FINANCE_MANAGER once past the customerGroup policy threshold', async () => {
+    const deps = buildDeps();
     const useCase = new RunEscalationScanUseCase(
-      membershipRepo as any,
-      receivableRepo as any,
-      internalTaskRepo as any,
-      tenantContext as any,
+      deps.membershipRepo as any, deps.receivableRepo as any, deps.customerRepo as any,
+      deps.reminderPolicyRepo as any, deps.internalTaskRepo as any, deps.tenantContext as any,
     );
 
     await useCase.scanOrganization('org-1');
 
-    expect(tenantContext.run).toHaveBeenCalledWith(
-      { userId: 'system', organizationId: 'org-1', role: Role.OWNER },
-      expect.any(Function),
+    expect(deps.internalTaskRepo.createEscalationIfAbsent).toHaveBeenCalledWith(
+      expect.objectContaining({ assignedToUserId: 'fm-user-1', taskType: 'ESCALATION', status: 'OPEN' }),
     );
-    expect(internalTaskRepo.createEscalationIfAbsent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        organizationId: 'org-1',
-        receivableId: 'rec-1',
-        assignedToUserId: 'fm-user-1',
-        taskType: 'ESCALATION',
-        status: 'OPEN',
-        createdByUserId: null,
-      }),
+  });
+
+  it('falls back to the DEFAULT_ESCALATION_THRESHOLD_DAYS when the customer has no matching active policy', async () => {
+    const deps = buildDeps({
+      reminderPolicyRepo: { findByCustomerGroup: jest.fn().mockResolvedValue(null) },
+      receivableRepo: { findOverdueByThreshold: jest.fn().mockResolvedValue([buildOverdueReceivable('rec-1', 25)]) },
+    });
+    const useCase = new RunEscalationScanUseCase(
+      deps.membershipRepo as any, deps.receivableRepo as any, deps.customerRepo as any,
+      deps.reminderPolicyRepo as any, deps.internalTaskRepo as any, deps.tenantContext as any,
+    );
+
+    await useCase.scanOrganization('org-1');
+
+    // 25 days overdue, no policy → falls back to 30-day default → not yet due for escalation
+    expect(deps.internalTaskRepo.createEscalationIfAbsent).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the OWNER when the organization has no FINANCE_MANAGER', async () => {
+    const deps = buildDeps({
+      membershipRepo: {
+        findFirstByRole: jest.fn().mockResolvedValue(null),
+        findOwnerByOrganization: jest.fn().mockResolvedValue(buildMembership('owner-user-1', Role.OWNER)),
+      },
+    });
+    const useCase = new RunEscalationScanUseCase(
+      deps.membershipRepo as any, deps.receivableRepo as any, deps.customerRepo as any,
+      deps.reminderPolicyRepo as any, deps.internalTaskRepo as any, deps.tenantContext as any,
+    );
+
+    await useCase.scanOrganization('org-1');
+
+    expect(deps.internalTaskRepo.createEscalationIfAbsent).toHaveBeenCalledWith(
+      expect.objectContaining({ assignedToUserId: 'owner-user-1' }),
     );
   });
 
   it('loses safely when another scan inserts the OPEN ESCALATION task first', async () => {
-    const financeManager = buildFinanceManager('org-1');
-    const receivable = buildOverdueReceivable('rec-1', 'org-1');
-
-    const membershipRepo = { findFirstByRole: jest.fn().mockResolvedValue(financeManager) };
-    const receivableRepo = { findOverdueByThreshold: jest.fn().mockResolvedValue([receivable]) };
-    const internalTaskRepo = {
-      createEscalationIfAbsent: jest.fn().mockResolvedValue(false),
-      save: jest.fn(),
-    };
-    const tenantContext = { run: jest.fn((_context, callback) => callback()) };
-
+    const deps = buildDeps({
+      internalTaskRepo: { createEscalationIfAbsent: jest.fn().mockResolvedValue(false), save: jest.fn() },
+    });
     const useCase = new RunEscalationScanUseCase(
-      membershipRepo as any,
-      receivableRepo as any,
-      internalTaskRepo as any,
-      tenantContext as any,
+      deps.membershipRepo as any, deps.receivableRepo as any, deps.customerRepo as any,
+      deps.reminderPolicyRepo as any, deps.internalTaskRepo as any, deps.tenantContext as any,
     );
 
     await useCase.scanOrganization('org-1');
 
-    expect(internalTaskRepo.createEscalationIfAbsent).toHaveBeenCalledTimes(1);
-    expect(internalTaskRepo.save).not.toHaveBeenCalled();
-  });
-
-  it('skips an organization that has no FINANCE_MANAGER membership', async () => {
-    const receivable = buildOverdueReceivable('rec-1', 'org-1');
-
-    const membershipRepo = { findFirstByRole: jest.fn().mockResolvedValue(null) };
-    const receivableRepo = { findOverdueByThreshold: jest.fn().mockResolvedValue([receivable]) };
-    const internalTaskRepo = {
-      createEscalationIfAbsent: jest.fn().mockResolvedValue(true),
-      save: jest.fn(),
-    };
-    const tenantContext = { run: jest.fn((_context, callback) => callback()) };
-
-    const useCase = new RunEscalationScanUseCase(
-      membershipRepo as any,
-      receivableRepo as any,
-      internalTaskRepo as any,
-      tenantContext as any,
-    );
-
-    await useCase.scanOrganization('org-1');
-
-    expect(internalTaskRepo.createEscalationIfAbsent).not.toHaveBeenCalled();
-    expect(receivableRepo.findOverdueByThreshold).not.toHaveBeenCalled();
+    expect(deps.internalTaskRepo.createEscalationIfAbsent).toHaveBeenCalledTimes(1);
+    expect(deps.internalTaskRepo.save).not.toHaveBeenCalled();
   });
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 5: Run test to verify it fails**
 
 Run: `pnpm --filter @casso-ledger/backend test run-escalation-scan.usecase.spec.ts`
 Expected: FAIL — Cannot find module './run-escalation-scan.usecase'
 
-- [ ] **Step 3: Create `apps/backend/src/modules/internal-tasks/application/run-escalation-scan.usecase.ts`**
+- [ ] **Step 6: Create `apps/backend/src/modules/internal-tasks/application/run-escalation-scan.usecase.ts`**
 
 ```typescript
 import { Inject, Injectable } from '@nestjs/common';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
+import {
+  ICustomerRepository,
+  CUSTOMER_REPOSITORY,
+} from '../../customers/application/customer-repository.port';
 import {
   IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
 } from '../../organizations/application/membership-repository.port';
+import { Role } from '../../organizations/domain/membership';
 import {
   IReceivableRepository,
   RECEIVABLE_REPOSITORY,
 } from '../../receivables/application/receivable-repository.port';
-import { IInternalTaskRepository, INTERNAL_TASK_REPOSITORY } from './internal-task-repository.port';
-import { InternalTask } from '../domain/internal-task';
-import { Role } from '../../organizations/domain/membership';
+import {
+  DEFAULT_ESCALATION_THRESHOLD_DAYS,
+} from '../../reminders/domain/reminder-policy';
+import type { IReminderPolicyRepository } from '../../reminders/application/reminder-policy-repository.port';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { InternalTask } from '../domain/internal-task';
+import { IInternalTaskRepository, INTERNAL_TASK_REPOSITORY } from './internal-task-repository.port';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const ESCALATION_THRESHOLD_DAYS = 30; // ponytail: fixed MVP threshold; make per-policy only when product needs it
+// Widest possible net for the DB pre-filter — the real, customer-group-specific
+// threshold is resolved per receivable below, so this floor only needs to be
+// no larger than the smallest threshold any policy could configure.
+const OVERDUE_CANDIDATE_FLOOR_DAYS = 1;
 
 function daysOverdue(dueDate: Date, today: Date): number {
   return Math.floor((today.getTime() - dueDate.getTime()) / MS_PER_DAY);
@@ -785,6 +949,8 @@ export class RunEscalationScanUseCase {
   constructor(
     @Inject(MEMBERSHIP_REPOSITORY) private readonly membershipRepo: IMembershipRepository,
     @Inject(RECEIVABLE_REPOSITORY) private readonly receivableRepo: IReceivableRepository,
+    @Inject(CUSTOMER_REPOSITORY) private readonly customerRepo: ICustomerRepository,
+    @Inject('IReminderPolicyRepository') private readonly reminderPolicyRepo: IReminderPolicyRepository,
     @Inject(INTERNAL_TASK_REPOSITORY) private readonly internalTaskRepo: IInternalTaskRepository,
     private readonly tenantContext: TenantContextService,
   ) {}
@@ -794,26 +960,30 @@ export class RunEscalationScanUseCase {
       { userId: 'system', organizationId, role: Role.OWNER },
       async () => {
         const financeManager = await this.membershipRepo.findFirstByRole(organizationId, Role.FINANCE_MANAGER);
-        // ponytail: no fallback assignee when an org has no FINANCE_MANAGER yet — skip silently.
-        // Add a fallback (e.g. assign to OWNER) if this proves to happen often in practice.
-        if (!financeManager) {
-          return;
+        const assignee = financeManager ?? (await this.membershipRepo.findOwnerByOrganization(organizationId));
+        if (!assignee) {
+          return; // guard only — every organization has at least one OWNER in practice
         }
 
-        const overdueReceivables = await this.receivableRepo.findOverdueByThreshold(
+        const candidates = await this.receivableRepo.findOverdueByThreshold(
           organizationId,
-          ESCALATION_THRESHOLD_DAYS,
+          OVERDUE_CANDIDATE_FLOOR_DAYS,
         );
 
         const today = new Date();
-        for (const receivable of overdueReceivables) {
+        for (const receivable of candidates) {
           const overdueDays = daysOverdue(receivable.dueDate, today);
+          const threshold = await this.resolveEscalationThreshold(receivable.customerId);
+          if (overdueDays < threshold) {
+            continue;
+          }
+
           await this.internalTaskRepo.createEscalationIfAbsent(
             new InternalTask({
               id: randomUUID(),
               organizationId,
               receivableId: receivable.id,
-              assignedToUserId: financeManager.userId,
+              assignedToUserId: assignee.userId,
               createdByUserId: null,
               taskType: 'ESCALATION',
               title: `Overdue receivable by ${overdueDays} days requires action`,
@@ -827,22 +997,33 @@ export class RunEscalationScanUseCase {
       },
     );
   }
+
+  private async resolveEscalationThreshold(customerId: string): Promise<number> {
+    const customer = await this.customerRepo.findById(customerId);
+    if (!customer) {
+      return DEFAULT_ESCALATION_THRESHOLD_DAYS;
+    }
+    const policy = await this.reminderPolicyRepo.findByCustomerGroup(customer.customerGroup);
+    return policy?.escalationThresholdDays ?? DEFAULT_ESCALATION_THRESHOLD_DAYS;
+  }
 }
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+`IReminderPolicyRepository` is injected with the string token `'IReminderPolicyRepository'`, matching how `RemindersModule` already provides/exports it (see that module's `providers`/`exports` arrays) — not a `Symbol`, because this plan does not modify that existing token style.
+
+- [ ] **Step 7: Run test to verify it passes**
 
 Run: `pnpm --filter @casso-ledger/backend test run-escalation-scan.usecase.spec.ts`
-Expected: all 3 tests PASS
+Expected: all 4 tests PASS
 
-- [ ] **Step 6: Subscribe the escalation participant to the Reminder Automation completion event**
+- [ ] **Step 8: Subscribe the escalation participant to the Reminder Automation completion event**
 
-Do not create `EscalationCronProcessor`, `EscalationSchedulerService`, or a second BullMQ repeatable queue. Create `application/reminder-scan-completed.listener.ts`:
+Do not create `EscalationCronProcessor`, `EscalationSchedulerService`, or a second BullMQ repeatable queue. Create `infrastructure/reminder-scan-completed.listener.ts` (in `infrastructure/`, not `application/` — matching `CollectionActivityListener`/`ReminderExecutionListener`'s existing placement):
 
 ```typescript
 import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { RunEscalationScanUseCase } from './run-escalation-scan.usecase';
+import { RunEscalationScanUseCase } from '../application/run-escalation-scan.usecase';
 
 export interface ReminderScanCompletedPayload {
   organizationId: string;
@@ -860,22 +1041,22 @@ export class ReminderScanCompletedListener {
 }
 ```
 
-Add `reminder-scan-completed.listener.spec.ts` that calls `handle({ organizationId: 'org-1', scanDate: '2026-08-03' })` and asserts the use case receives `org-1`. The use case itself reopens tenant context, so the listener does not rely on the emitter preserving async-local state.
+Add `infrastructure/reminder-scan-completed.listener.spec.ts` that calls `handle({ organizationId: 'org-1', scanDate: '2026-08-03' })` and asserts the use case receives `org-1`. The use case itself reopens tenant context, so the listener does not rely on the emitter preserving async-local state.
 
-- [ ] **Step 7: Register module providers**
+- [ ] **Step 9: Register module providers and imports**
 
-Register `RunEscalationScanUseCase`, `ReminderScanCompletedListener`, `InternalTask` repository, `OrganizationsModule` and `ReceivablesModule` in `InternalTasksModule`. Do not import `RemindersModule`; the listener subscribes to the event name only, so the dependency is one-way and no `forwardRef()` cycle is required. No `BullModule.registerQueue` belongs to this module.
+Register `RunEscalationScanUseCase`, `ReminderScanCompletedListener`, `InternalTask` repository in `InternalTasksModule`'s `providers`. Add `RemindersModule` (for `'IReminderPolicyRepository'`), `CustomersModule` (for `CUSTOMER_REPOSITORY`), `OrganizationsModule`, and `ReceivablesModule` to its `imports` — all one-way, no `forwardRef()` needed since none of those modules import `InternalTasksModule` back. No `BullModule.registerQueue` belongs to this module.
 
-- [ ] **Step 8: Run full test suite**
+- [ ] **Step 10: Run full test suite**
 
 Run: `pnpm --filter @casso-ledger/backend test`
 Expected: all PASS
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
-git add apps/backend/src/modules/internal-tasks
-git commit -m "feat: add internal task escalation to reminder scan"
+git add apps/backend/src/modules/internal-tasks apps/backend/src/modules/reminders apps/backend/src/database/migrations
+git commit -m "feat: add per-customerGroup escalation threshold and internal task escalation scan"
 ```
 
 ---
@@ -887,7 +1068,7 @@ git commit -m "feat: add internal task escalation to reminder scan"
 - Test: `apps/backend/src/modules/internal-tasks/application/create-manual-task.usecase.spec.ts`
 
 **Interfaces:**
-- Consumes: `IInternalTaskRepository` (Task 2), `IReceivableRepository` (existing), `TenantContextService`
+- Consumes: `IInternalTaskRepository` (Task 2), `IReceivableRepository` (existing), `IMembershipRepository.findByUserAndOrganization()` (existing — validates `assignedToUserId`), `TenantContextService`
 - Produces: `CreateManualTaskUseCase.execute(input)`, used by Task 9's controller
 
 - [ ] **Step 1: Write failing test**
@@ -895,8 +1076,9 @@ git commit -m "feat: add internal task escalation to reminder scan"
 Create `apps/backend/src/modules/internal-tasks/application/create-manual-task.usecase.spec.ts`:
 
 ```typescript
-import { NotFoundException } from '@nestjs/common';
+import { AppError } from '../../../common/errors/app-error';
 import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { Membership, Role } from '../../organizations/domain/membership';
 import { Receivable } from '../../receivables/domain/receivable';
 import { CreateManualTaskUseCase } from './create-manual-task.usecase';
 
@@ -916,13 +1098,28 @@ function buildReceivable(): Receivable {
   });
 }
 
+function buildMembership(userId: string): Membership {
+  return new Membership({
+    id: 'mem-1',
+    organizationId: 'org-1',
+    userId,
+    role: Role.ACCOUNTANT,
+    invitedAt: new Date('2026-01-01'),
+    joinedAt: new Date('2026-01-01'),
+    createdAt: new Date('2026-01-01'),
+  });
+}
+
 describe('CreateManualTaskUseCase', () => {
-  it('creates a MANUAL task for an existing receivable', async () => {
+  it('creates a MANUAL task for an existing receivable when the assignee is a member of the organization', async () => {
     const internalTaskRepo = { save: jest.fn() };
     const receivableRepo = { findById: jest.fn().mockResolvedValue(buildReceivable()) };
+    const membershipRepo = { findByUserAndOrganization: jest.fn().mockResolvedValue(buildMembership('user-2')) };
     const tenantContext = { getOrganizationId: () => 'org-1' };
 
-    const useCase = new CreateManualTaskUseCase(internalTaskRepo as any, receivableRepo as any, tenantContext as any);
+    const useCase = new CreateManualTaskUseCase(
+      internalTaskRepo as any, receivableRepo as any, membershipRepo as any, tenantContext as any,
+    );
 
     const task = await useCase.execute({
       receivableId: 'rec-1',
@@ -938,12 +1135,15 @@ describe('CreateManualTaskUseCase', () => {
     expect(internalTaskRepo.save).toHaveBeenCalledWith(task);
   });
 
-  it('throws NotFoundException when the receivable does not exist', async () => {
+  it('throws when the receivable does not exist', async () => {
     const internalTaskRepo = { save: jest.fn() };
     const receivableRepo = { findById: jest.fn().mockResolvedValue(null) };
+    const membershipRepo = { findByUserAndOrganization: jest.fn().mockResolvedValue(buildMembership('user-2')) };
     const tenantContext = { getOrganizationId: () => 'org-1' };
 
-    const useCase = new CreateManualTaskUseCase(internalTaskRepo as any, receivableRepo as any, tenantContext as any);
+    const useCase = new CreateManualTaskUseCase(
+      internalTaskRepo as any, receivableRepo as any, membershipRepo as any, tenantContext as any,
+    );
 
     await expect(
       useCase.execute({
@@ -953,8 +1153,51 @@ describe('CreateManualTaskUseCase', () => {
         description: null,
         createdByUserId: 'user-3',
       }),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toThrow(AppError);
     expect(internalTaskRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('throws when assignedToUserId is not a member of the organization', async () => {
+    const internalTaskRepo = { save: jest.fn() };
+    const receivableRepo = { findById: jest.fn().mockResolvedValue(buildReceivable()) };
+    const membershipRepo = { findByUserAndOrganization: jest.fn().mockResolvedValue(null) };
+    const tenantContext = { getOrganizationId: () => 'org-1' };
+
+    const useCase = new CreateManualTaskUseCase(
+      internalTaskRepo as any, receivableRepo as any, membershipRepo as any, tenantContext as any,
+    );
+
+    await expect(
+      useCase.execute({
+        receivableId: 'rec-1',
+        assignedToUserId: 'not-a-member',
+        title: 'x',
+        description: null,
+        createdByUserId: 'user-3',
+      }),
+    ).rejects.toThrow(AppError);
+    expect(internalTaskRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('validates the default assignee (the creator) the same way as an explicit one', async () => {
+    const internalTaskRepo = { save: jest.fn() };
+    const receivableRepo = { findById: jest.fn().mockResolvedValue(buildReceivable()) };
+    const membershipRepo = { findByUserAndOrganization: jest.fn().mockResolvedValue(buildMembership('user-3')) };
+    const tenantContext = { getOrganizationId: () => 'org-1' };
+
+    const useCase = new CreateManualTaskUseCase(
+      internalTaskRepo as any, receivableRepo as any, membershipRepo as any, tenantContext as any,
+    );
+
+    const task = await useCase.execute({
+      receivableId: 'rec-1',
+      title: 'x',
+      description: null,
+      createdByUserId: 'user-3',
+    });
+
+    expect(task.assignedToUserId).toBe('user-3');
+    expect(membershipRepo.findByUserAndOrganization).toHaveBeenCalledWith('user-3', 'org-1');
   });
 });
 ```
@@ -967,15 +1210,21 @@ Expected: FAIL — Cannot find module './create-manual-task.usecase'
 - [ ] **Step 3: Create `apps/backend/src/modules/internal-tasks/application/create-manual-task.usecase.ts`**
 
 ```typescript
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { randomUUID } from 'crypto';
-import { InternalTask } from '../domain/internal-task';
-import { IInternalTaskRepository, INTERNAL_TASK_REPOSITORY } from './internal-task-repository.port';
+import { Inject, Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import {
+  IMembershipRepository,
+  MEMBERSHIP_REPOSITORY,
+} from '../../organizations/application/membership-repository.port';
 import {
   IReceivableRepository,
   RECEIVABLE_REPOSITORY,
 } from '../../receivables/application/receivable-repository.port';
-import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { InternalTask } from '../domain/internal-task';
+import { IInternalTaskRepository, INTERNAL_TASK_REPOSITORY } from './internal-task-repository.port';
 
 export interface CreateManualTaskInput {
   receivableId: string;
@@ -991,20 +1240,34 @@ export class CreateManualTaskUseCase {
   constructor(
     @Inject(INTERNAL_TASK_REPOSITORY) private readonly internalTaskRepo: IInternalTaskRepository,
     @Inject(RECEIVABLE_REPOSITORY) private readonly receivableRepo: IReceivableRepository,
+    @Inject(MEMBERSHIP_REPOSITORY) private readonly membershipRepo: IMembershipRepository,
     private readonly tenantContext: TenantContextService,
   ) {}
 
   async execute(input: CreateManualTaskInput): Promise<InternalTask> {
     const receivable = await this.receivableRepo.findById(input.receivableId);
     if (!receivable) {
-      throw new NotFoundException('Receivable not found');
+      throw new AppError(ErrorCode.RECEIVABLE_NOT_FOUND, 'Không tìm thấy khoản phải thu.');
+    }
+
+    const organizationId = this.tenantContext.getOrganizationId();
+    const assignedToUserId = input.assignedToUserId ?? input.createdByUserId;
+    const assigneeMembership = await this.membershipRepo.findByUserAndOrganization(
+      assignedToUserId,
+      organizationId,
+    );
+    if (!assigneeMembership) {
+      throw new AppError(
+        ErrorCode.VALIDATION_ERROR,
+        'Người được giao việc không thuộc tổ chức này.',
+      );
     }
 
     const task = new InternalTask({
       id: randomUUID(),
-      organizationId: this.tenantContext.getOrganizationId(),
+      organizationId,
       receivableId: input.receivableId,
-      assignedToUserId: input.assignedToUserId ?? input.createdByUserId,
+      assignedToUserId,
       createdByUserId: input.createdByUserId,
       taskType: 'MANUAL',
       title: input.title,
@@ -1024,18 +1287,18 @@ export class CreateManualTaskUseCase {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `pnpm --filter @casso-ledger/backend test create-manual-task.usecase.spec.ts`
-Expected: both tests PASS
+Expected: all 4 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add apps/backend/src/modules/internal-tasks/application/create-manual-task.usecase.ts apps/backend/src/modules/internal-tasks/application/create-manual-task.usecase.spec.ts
-git commit -m "feat: add CreateManualTaskUseCase"
+git commit -m "feat: add CreateManualTaskUseCase with assignee membership validation"
 ```
 
 ---
 
-### Task 8: `ResolveTaskUseCase` + `DismissTaskUseCase`
+### Task 8: `ResolveTaskUseCase` + `DismissTaskUseCase` (assignee-or-OWNER only)
 
 **Files:**
 - Create: `apps/backend/src/modules/internal-tasks/application/resolve-task.usecase.ts`
@@ -1045,23 +1308,24 @@ git commit -m "feat: add CreateManualTaskUseCase"
 
 **Interfaces:**
 - Consumes: `IInternalTaskRepository` (Task 2), `InternalTask.resolve()`/`dismiss()` (Task 1)
-- Produces: `ResolveTaskUseCase.execute(taskId)`, `DismissTaskUseCase.execute(taskId)`, used by Task 9's controller
+- Produces: `ResolveTaskUseCase.execute(taskId, actor)`, `DismissTaskUseCase.execute(taskId, actor)` — `actor: { userId: string; role: Role }` — used by Task 9's controller. `PermissionGuard`/`RequirePermission(Permission.INTERNAL_TASK_MANAGE)` only proves the caller can act on *some* task; per-instance ownership (is this caller allowed to act on *this* task) is a resource-ownership check the role-based guard cannot express, so it lives here in the use case, not the controller decorator.
 
 - [ ] **Step 1: Write failing test for `ResolveTaskUseCase`**
 
 Create `apps/backend/src/modules/internal-tasks/application/resolve-task.usecase.spec.ts`:
 
 ```typescript
-import { NotFoundException } from '@nestjs/common';
+import { AppError } from '../../../common/errors/app-error';
+import { Role } from '../../organizations/domain/membership';
 import { InternalTask } from '../domain/internal-task';
 import { ResolveTaskUseCase } from './resolve-task.usecase';
 
-function buildOpenTask(): InternalTask {
+function buildOpenTask(assignedToUserId = 'user-1'): InternalTask {
   return new InternalTask({
     id: 'task-1',
     organizationId: 'org-1',
     receivableId: 'rec-1',
-    assignedToUserId: 'user-1',
+    assignedToUserId,
     createdByUserId: null,
     taskType: 'ESCALATION',
     title: 'Overdue receivable by 30 days requires action',
@@ -1073,21 +1337,42 @@ function buildOpenTask(): InternalTask {
 }
 
 describe('ResolveTaskUseCase', () => {
-  it('resolves an OPEN task and persists it', async () => {
-    const internalTaskRepo = { findById: jest.fn().mockResolvedValue(buildOpenTask()), save: jest.fn() };
+  it('resolves an OPEN task when the actor is the assignee', async () => {
+    const internalTaskRepo = { findById: jest.fn().mockResolvedValue(buildOpenTask('user-1')), save: jest.fn() };
     const useCase = new ResolveTaskUseCase(internalTaskRepo as any);
 
-    const result = await useCase.execute('task-1');
+    const result = await useCase.execute('task-1', { userId: 'user-1', role: Role.ACCOUNTANT });
 
     expect(result.status).toBe('DONE');
     expect(internalTaskRepo.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'DONE' }));
   });
 
-  it('throws NotFoundException when the task does not exist', async () => {
+  it('resolves an OPEN task when the actor is OWNER, even if not the assignee', async () => {
+    const internalTaskRepo = { findById: jest.fn().mockResolvedValue(buildOpenTask('user-1')), save: jest.fn() };
+    const useCase = new ResolveTaskUseCase(internalTaskRepo as any);
+
+    const result = await useCase.execute('task-1', { userId: 'owner-1', role: Role.OWNER });
+
+    expect(result.status).toBe('DONE');
+  });
+
+  it('rejects a non-assignee, non-OWNER actor', async () => {
+    const internalTaskRepo = { findById: jest.fn().mockResolvedValue(buildOpenTask('user-1')), save: jest.fn() };
+    const useCase = new ResolveTaskUseCase(internalTaskRepo as any);
+
+    await expect(
+      useCase.execute('task-1', { userId: 'user-2', role: Role.FINANCE_MANAGER }),
+    ).rejects.toThrow(AppError);
+    expect(internalTaskRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('throws when the task does not exist', async () => {
     const internalTaskRepo = { findById: jest.fn().mockResolvedValue(null), save: jest.fn() };
     const useCase = new ResolveTaskUseCase(internalTaskRepo as any);
 
-    await expect(useCase.execute('missing')).rejects.toThrow(NotFoundException);
+    await expect(
+      useCase.execute('missing', { userId: 'user-1', role: Role.ACCOUNTANT }),
+    ).rejects.toThrow(AppError);
   });
 });
 ```
@@ -1099,18 +1384,32 @@ Run: `pnpm --filter @casso-ledger/backend test resolve-task.usecase.spec.ts` →
 Create `apps/backend/src/modules/internal-tasks/application/resolve-task.usecase.ts`:
 
 ```typescript
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
+import { Role } from '../../organizations/domain/membership';
 import { InternalTask } from '../domain/internal-task';
 import { IInternalTaskRepository, INTERNAL_TASK_REPOSITORY } from './internal-task-repository.port';
+
+export interface TaskActor {
+  userId: string;
+  role: Role;
+}
 
 @Injectable()
 export class ResolveTaskUseCase {
   constructor(@Inject(INTERNAL_TASK_REPOSITORY) private readonly internalTaskRepo: IInternalTaskRepository) {}
 
-  async execute(taskId: string): Promise<InternalTask> {
+  async execute(taskId: string, actor: TaskActor): Promise<InternalTask> {
     const task = await this.internalTaskRepo.findById(taskId);
     if (!task) {
-      throw new NotFoundException('Internal task not found');
+      throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy công việc.');
+    }
+    if (task.assignedToUserId !== actor.userId && actor.role !== Role.OWNER) {
+      throw new AppError(
+        ErrorCode.FORBIDDEN,
+        'Chỉ người được giao việc hoặc chủ tổ chức mới có thể xử lý công việc này.',
+      );
     }
     const resolved = task.resolve();
     await this.internalTaskRepo.save(resolved);
@@ -1119,23 +1418,24 @@ export class ResolveTaskUseCase {
 }
 ```
 
-Run: `pnpm --filter @casso-ledger/backend test resolve-task.usecase.spec.ts` → both tests PASS
+Run: `pnpm --filter @casso-ledger/backend test resolve-task.usecase.spec.ts` → all 4 tests PASS
 
 - [ ] **Step 3: Write failing test for `DismissTaskUseCase`**
 
-Create `apps/backend/src/modules/internal-tasks/application/dismiss-task.usecase.spec.ts`:
+Create `apps/backend/src/modules/internal-tasks/application/dismiss-task.usecase.spec.ts` — mirror `resolve-task.usecase.spec.ts` exactly (assignee succeeds, OWNER succeeds, non-assignee/non-OWNER `FINANCE_MANAGER` rejected, missing task rejected), asserting `status: 'DISMISSED'` and importing `DismissTaskUseCase`:
 
 ```typescript
-import { NotFoundException } from '@nestjs/common';
+import { AppError } from '../../../common/errors/app-error';
+import { Role } from '../../organizations/domain/membership';
 import { InternalTask } from '../domain/internal-task';
 import { DismissTaskUseCase } from './dismiss-task.usecase';
 
-function buildOpenTask(): InternalTask {
+function buildOpenTask(assignedToUserId = 'user-1'): InternalTask {
   return new InternalTask({
     id: 'task-1',
     organizationId: 'org-1',
     receivableId: 'rec-1',
-    assignedToUserId: 'user-1',
+    assignedToUserId,
     createdByUserId: null,
     taskType: 'MANUAL',
     title: 'Call customer to remind them',
@@ -1147,21 +1447,41 @@ function buildOpenTask(): InternalTask {
 }
 
 describe('DismissTaskUseCase', () => {
-  it('dismisses an OPEN task and persists it', async () => {
-    const internalTaskRepo = { findById: jest.fn().mockResolvedValue(buildOpenTask()), save: jest.fn() };
+  it('dismisses an OPEN task when the actor is the assignee', async () => {
+    const internalTaskRepo = { findById: jest.fn().mockResolvedValue(buildOpenTask('user-1')), save: jest.fn() };
     const useCase = new DismissTaskUseCase(internalTaskRepo as any);
 
-    const result = await useCase.execute('task-1');
+    const result = await useCase.execute('task-1', { userId: 'user-1', role: Role.ACCOUNTANT });
 
     expect(result.status).toBe('DISMISSED');
-    expect(internalTaskRepo.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'DISMISSED' }));
   });
 
-  it('throws NotFoundException when the task does not exist', async () => {
+  it('dismisses an OPEN task when the actor is OWNER, even if not the assignee', async () => {
+    const internalTaskRepo = { findById: jest.fn().mockResolvedValue(buildOpenTask('user-1')), save: jest.fn() };
+    const useCase = new DismissTaskUseCase(internalTaskRepo as any);
+
+    const result = await useCase.execute('task-1', { userId: 'owner-1', role: Role.OWNER });
+
+    expect(result.status).toBe('DISMISSED');
+  });
+
+  it('rejects a non-assignee, non-OWNER actor', async () => {
+    const internalTaskRepo = { findById: jest.fn().mockResolvedValue(buildOpenTask('user-1')), save: jest.fn() };
+    const useCase = new DismissTaskUseCase(internalTaskRepo as any);
+
+    await expect(
+      useCase.execute('task-1', { userId: 'user-2', role: Role.FINANCE_MANAGER }),
+    ).rejects.toThrow(AppError);
+    expect(internalTaskRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('throws when the task does not exist', async () => {
     const internalTaskRepo = { findById: jest.fn().mockResolvedValue(null), save: jest.fn() };
     const useCase = new DismissTaskUseCase(internalTaskRepo as any);
 
-    await expect(useCase.execute('missing')).rejects.toThrow(NotFoundException);
+    await expect(
+      useCase.execute('missing', { userId: 'user-1', role: Role.ACCOUNTANT }),
+    ).rejects.toThrow(AppError);
   });
 });
 ```
@@ -1170,21 +1490,31 @@ describe('DismissTaskUseCase', () => {
 
 Run: `pnpm --filter @casso-ledger/backend test dismiss-task.usecase.spec.ts` → FAIL
 
-Create `apps/backend/src/modules/internal-tasks/application/dismiss-task.usecase.ts`:
+Create `apps/backend/src/modules/internal-tasks/application/dismiss-task.usecase.ts` — identical shape to `ResolveTaskUseCase`, calling `task.dismiss()` instead of `task.resolve()`:
 
 ```typescript
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
+import { Role } from '../../organizations/domain/membership';
 import { InternalTask } from '../domain/internal-task';
 import { IInternalTaskRepository, INTERNAL_TASK_REPOSITORY } from './internal-task-repository.port';
+import type { TaskActor } from './resolve-task.usecase';
 
 @Injectable()
 export class DismissTaskUseCase {
   constructor(@Inject(INTERNAL_TASK_REPOSITORY) private readonly internalTaskRepo: IInternalTaskRepository) {}
 
-  async execute(taskId: string): Promise<InternalTask> {
+  async execute(taskId: string, actor: TaskActor): Promise<InternalTask> {
     const task = await this.internalTaskRepo.findById(taskId);
     if (!task) {
-      throw new NotFoundException('Internal task not found');
+      throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy công việc.');
+    }
+    if (task.assignedToUserId !== actor.userId && actor.role !== Role.OWNER) {
+      throw new AppError(
+        ErrorCode.FORBIDDEN,
+        'Chỉ người được giao việc hoặc chủ tổ chức mới có thể xử lý công việc này.',
+      );
     }
     const dismissed = task.dismiss();
     await this.internalTaskRepo.save(dismissed);
@@ -1193,7 +1523,7 @@ export class DismissTaskUseCase {
 }
 ```
 
-Run: `pnpm --filter @casso-ledger/backend test dismiss-task.usecase.spec.ts` → both tests PASS
+Run: `pnpm --filter @casso-ledger/backend test dismiss-task.usecase.spec.ts` → all 4 tests PASS
 
 - [ ] **Step 5: Register both use cases in `internal-tasks.module.ts`**
 
@@ -1208,7 +1538,7 @@ Expected: all PASS
 
 ```bash
 git add apps/backend/src/modules/internal-tasks
-git commit -m "feat: add ResolveTaskUseCase and DismissTaskUseCase"
+git commit -m "feat: add assignee-or-OWNER-scoped ResolveTaskUseCase and DismissTaskUseCase"
 ```
 
 ---
@@ -1223,8 +1553,8 @@ git commit -m "feat: add ResolveTaskUseCase and DismissTaskUseCase"
 - Modify: `apps/backend/src/modules/internal-tasks/internal-tasks.module.ts`
 
 **Interfaces:**
-- Consumes: `ListReceivableTasksUseCase`, `CreateManualTaskUseCase`, `ResolveTaskUseCase`, `DismissTaskUseCase` (Tasks 7-8), `JwtAuthGuard`/`PermissionGuard`/`Permission.RECEIVABLE_READ`/`Permission.INTERNAL_TASK_MANAGE`
-- Produces: the four HTTP endpoints in the spec's section 3, used by the FE receivable detail and Task 10's integration test
+- Consumes: `ListReceivableTasksUseCase`, `CreateManualTaskUseCase`, `ResolveTaskUseCase`, `DismissTaskUseCase` (Tasks 7-8), `JwtAuthGuard`/`PermissionGuard`/`Permission.RECEIVABLE_READ`/`Permission.INTERNAL_TASK_MANAGE`, `TenantContextService.getCurrentUser()` (existing — see `collection-activity.controller.ts`/`disputes.controller.ts` for the established pattern; this plan does not use `@Req()`)
+- Produces: the four HTTP endpoints in the spec's section 3, used by the FE receivable detail and Task 11's integration test
 
 - [ ] **Step 1: Create `ListReceivableTasksUseCase` and its focused test**
 
@@ -1271,12 +1601,14 @@ export class CreateManualTaskDto {
 - [ ] **Step 3: Create `apps/backend/src/modules/internal-tasks/presentation/internal-tasks.controller.ts`**
 
 ```typescript
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
-import { Request } from 'express';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { Permission } from '../../../common/rbac/permission.enum';
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { CreateManualTaskUseCase } from '../application/create-manual-task.usecase';
 import { ResolveTaskUseCase } from '../application/resolve-task.usecase';
 import { DismissTaskUseCase } from '../application/dismiss-task.usecase';
@@ -1291,6 +1623,7 @@ export class InternalTasksController {
     private readonly createManualTaskUseCase: CreateManualTaskUseCase,
     private readonly resolveTaskUseCase: ResolveTaskUseCase,
     private readonly dismissTaskUseCase: DismissTaskUseCase,
+    private readonly tenantContext: TenantContextService,
   ) {}
 
   @Get('receivables/:id/tasks')
@@ -1301,31 +1634,43 @@ export class InternalTasksController {
 
   @Post('receivables/:id/tasks')
   @RequirePermission(Permission.INTERNAL_TASK_MANAGE)
-  async createManualTask(@Param('id') receivableId: string, @Body() dto: CreateManualTaskDto, @Req() req: Request) {
-    const user = req.user as { userId: string };
+  async createManualTask(@Param('id') receivableId: string, @Body() dto: CreateManualTaskDto) {
+    const currentUser = this.getCurrentUser();
     return this.createManualTaskUseCase.execute({
       receivableId,
       assignedToUserId: dto.assignedToUserId,
       title: dto.title,
       description: dto.description ?? null,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
-      createdByUserId: user.userId,
+      createdByUserId: currentUser.userId,
     });
   }
 
   @Post('tasks/:id/resolve')
   @RequirePermission(Permission.INTERNAL_TASK_MANAGE)
   async resolve(@Param('id') id: string) {
-    return this.resolveTaskUseCase.execute(id);
+    const currentUser = this.getCurrentUser();
+    return this.resolveTaskUseCase.execute(id, { userId: currentUser.userId, role: currentUser.role });
   }
 
   @Post('tasks/:id/dismiss')
   @RequirePermission(Permission.INTERNAL_TASK_MANAGE)
   async dismiss(@Param('id') id: string) {
-    return this.dismissTaskUseCase.execute(id);
+    const currentUser = this.getCurrentUser();
+    return this.dismissTaskUseCase.execute(id, { userId: currentUser.userId, role: currentUser.role });
+  }
+
+  private getCurrentUser() {
+    const user = this.tenantContext.getCurrentUser();
+    if (!user) {
+      throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
+    }
+    return user;
   }
 }
 ```
+
+The `getCurrentUser()` private helper matches the existing pattern in `disputes.controller.ts` exactly (`JwtAuthGuard` guarantees a user in practice; this throws instead of silently continuing with `undefined` if that guarantee is ever violated).
 
 Full paths (`receivables/:id/tasks`, `tasks/:id/resolve`, `tasks/:id/dismiss`) are set per-route with no shared `@Controller()` prefix, since the three routes live under two different resource roots (`/receivables/...` and `/tasks/...`) — the same simplest option as putting them in three separate one-route controllers, without three near-empty controller classes.
 
@@ -1347,27 +1692,31 @@ git commit -m "feat: expose task list/create/resolve/dismiss endpoints"
 
 ---
 
-### Task 10: Auto-dismiss on `receivable.status-closed`
+### Task 10: `CancelReceivableUseCase` + auto-dismiss on `receivable.status-closed`
+
+**Verified against the actual codebase, not assumed** (2026-08-08 grilling pass): `WriteOffReceivableUseCase` exists today with a transactional `DataSource`/`AuditContextService` shape that is materially different from — and better than — the stale snippet an earlier draft of this task showed (that draft's `throw new Error('Receivable not found')` and 1-argument constructor do not match reality; ignore them). `CancelReceivableUseCase` and `POST /receivables/:id/cancel` **do not exist at all** — no file, no route — even though `Receivable.cancel()` (domain), `AuditActionType.RECEIVABLE_CANCEL`, and `ErrorCode.RECEIVABLE_HAS_PAYMENTS` all already exist, unused, clearly waiting for exactly this. This task builds `CancelReceivableUseCase` from scratch, mirroring `WriteOffReceivableUseCase` exactly.
 
 **Files:**
-- Create: `apps/backend/src/modules/internal-tasks/application/receivable-closed.listener.ts`
-- Test: `apps/backend/src/modules/internal-tasks/application/receivable-closed.listener.spec.ts`
+- Create: `apps/backend/src/modules/internal-tasks/infrastructure/receivable-closed.listener.ts`
+- Test: `apps/backend/src/modules/internal-tasks/infrastructure/receivable-closed.listener.spec.ts`
 - Modify: `apps/backend/src/modules/internal-tasks/internal-tasks.module.ts`
-- Modify: `apps/backend/src/modules/receivables/application/write-off-receivable.usecase.ts`
+- Modify: `apps/backend/src/modules/receivables/application/write-off-receivable.usecase.ts` — add `EVENT_PUBLISHER` emission
 - Modify: `apps/backend/src/modules/receivables/application/write-off-receivable.usecase.spec.ts`
-- Modify: `apps/backend/src/modules/receivables/application/cancel-receivable.usecase.ts`
-- Modify: `apps/backend/src/modules/receivables/application/cancel-receivable.usecase.spec.ts`
-- (No changes to `apps/backend/src/modules/payments/application/allocate-payment.usecase.ts` — already emits `receivable.status-closed` per `2026-08-03-collection-activity-timeline.md` Task 5; see Step 8 below)
+- Create: `apps/backend/src/modules/receivables/application/cancel-receivable.usecase.ts` (did not exist)
+- Create: `apps/backend/src/modules/receivables/application/cancel-receivable.usecase.spec.ts`
+- Modify: `apps/backend/src/modules/receivables/presentation/receivables.controller.ts` — add `POST :id/cancel`
+- Modify: `apps/backend/src/modules/payments/application/allocate-payment.usecase.ts` — also emit `receivable.status-closed`
+- Modify: `apps/backend/src/modules/payments/application/allocate-payment.usecase.spec.ts`
 
 **Interfaces:**
-- Consumes: `EventEmitter2` (already installed and `EventEmitterModule.forRoot()`-registered by the dispute-management plan — reused, not reinstalled), `IInternalTaskRepository` (Task 2)
-- Produces: `@OnEvent('receivable.status-closed')` listener dismissing every `OPEN` `InternalTask` for a receivable; two emit call sites (the third, in `AllocatePaymentUseCase`, is added by `2026-08-03-collection-activity-timeline.md` Task 5 — see Step 8 below)
+- Consumes: `IEventPublisher`/`EVENT_PUBLISHER` (`common/events/event-publisher.port.ts`, existing — NOT `EventEmitter2` injected directly, see the Global Constraints correction), `IInternalTaskRepository` (Task 2), `Receivable.cancel()` (domain, existing)
+- Produces: `@OnEvent('receivable.status-closed')` listener dismissing every `OPEN` `InternalTask` for a receivable; three emit call sites now cover all three terminal statuses — `AllocatePaymentUseCase` (PAID), `WriteOffReceivableUseCase` (WRITTEN_OFF), `CancelReceivableUseCase` (CANCELLED, new)
 
-**Naming note:** this event is named `receivable.status-closed`, NOT `receivable.closed`. `2026-08-03-collection-activity-timeline.md` already owns `receivable.closed`, scoped narrowly to "became `PAID`" (matching its own spec's "Receivable.status → PAID" rule exactly — it does not fire on `WRITTEN_OFF`/`CANCELLED`). This plan needs a broader trigger (any of the three terminal statuses), so it defines its own, distinctly-named event rather than overloading the other plan's narrower one. `AllocatePaymentUseCase` (the one file both plans touch) ends up emitting BOTH events side by side when a payment fully pays off a receivable — see Step 8.
+**Naming note:** this event is named `receivable.status-closed`, NOT `receivable.closed` — see ADR-0005 for the full reasoning. `receivable.closed` stays PAID-only and owned by Collection Activity Timeline; `AllocatePaymentUseCase` ends up emitting both, side by side, in the same `if (input.becameClosed)` block (Step 8 below).
 
 - [ ] **Step 1: Write failing test for the listener**
 
-Create `apps/backend/src/modules/internal-tasks/application/receivable-closed.listener.spec.ts`:
+Create `apps/backend/src/modules/internal-tasks/infrastructure/receivable-closed.listener.spec.ts`:
 
 ```typescript
 import { InternalTask } from '../domain/internal-task';
@@ -1424,14 +1773,16 @@ describe('ReceivableClosedListener', () => {
 Run: `pnpm --filter @casso-ledger/backend test receivable-closed.listener.spec.ts`
 Expected: FAIL — Cannot find module './receivable-closed.listener'
 
-- [ ] **Step 3: Create `apps/backend/src/modules/internal-tasks/application/receivable-closed.listener.ts`**
+- [ ] **Step 3: Create `apps/backend/src/modules/internal-tasks/infrastructure/receivable-closed.listener.ts`**
+
+In `infrastructure/`, not `application/` — matching `CollectionActivityListener`/`ReminderExecutionListener`'s existing placement:
 
 ```typescript
 import { Inject, Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { Role } from '../../organizations/domain/membership';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import { IInternalTaskRepository, INTERNAL_TASK_REPOSITORY } from './internal-task-repository.port';
+import { IInternalTaskRepository, INTERNAL_TASK_REPOSITORY } from '../application/internal-task-repository.port';
 
 export interface ReceivableClosedPayload {
   receivableId: string;
@@ -1460,8 +1811,6 @@ export class ReceivableClosedListener {
 }
 ```
 
-This event name/payload shape (`'receivable.status-closed'`, `{ receivableId, organizationId }`) is **defined by this plan** — see the Naming note above for why it's distinct from `2026-08-03-collection-activity-timeline.md`'s `receivable.closed`.
-
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `pnpm --filter @casso-ledger/backend test receivable-closed.listener.spec.ts`
@@ -1473,35 +1822,50 @@ Modify `apps/backend/src/modules/internal-tasks/internal-tasks.module.ts` — ad
 
 - [ ] **Step 6: Emit `receivable.status-closed` from `WriteOffReceivableUseCase`**
 
-Replace `apps/backend/src/modules/receivables/application/write-off-receivable.usecase.ts`:
+Modify `apps/backend/src/modules/receivables/application/write-off-receivable.usecase.ts` (the real current file — add an `EVENT_PUBLISHER` constructor param and emit once the transaction has committed, matching `AllocatePaymentUseCase`'s "emit only after commit" comment):
 
 ```typescript
 import { Inject, Injectable } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { IReceivableRepository, RECEIVABLE_REPOSITORY } from './receivable-repository.port';
-import { Receivable } from '../domain/receivable';
-import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import type { EntityManager } from 'typeorm';
+import { DataSource } from 'typeorm';
+import { AuditContextService } from '../../../common/audit/audit-context';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
+import { EVENT_PUBLISHER, type IEventPublisher } from '../../../common/events/event-publisher.port';
+import type { Receivable } from '../domain/receivable';
+import {
+  type IReceivableRepository,
+  RECEIVABLE_REPOSITORY,
+} from './receivable-repository.port';
 
 @Injectable()
 export class WriteOffReceivableUseCase {
   constructor(
-    @Inject(RECEIVABLE_REPOSITORY) private readonly receivableRepo: IReceivableRepository,
-    private readonly tenantContext: TenantContextService,
-    private readonly eventEmitter: EventEmitter2,
+    @Inject(RECEIVABLE_REPOSITORY)
+    private readonly receivableRepo: IReceivableRepository,
+    private readonly dataSource: DataSource,
+    private readonly auditContext: AuditContextService,
+    @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
   ) {}
 
   async execute(receivableId: string): Promise<Receivable> {
-    const receivable = await this.receivableRepo.findById(receivableId);
-    if (!receivable) {
-      throw new Error('Receivable not found');
-    }
-    const updated = receivable.writeOff();
-    await this.receivableRepo.save(updated);
+    const updated = await this.dataSource.transaction(async (manager: EntityManager) => {
+      const receivable = await this.receivableRepo.findByIdForUpdate(receivableId, manager);
+      if (!receivable) {
+        throw new AppError(
+          ErrorCode.RECEIVABLE_NOT_FOUND,
+          'Không tìm thấy khoản phải thu.',
+        );
+      }
+      this.auditContext.setBefore(receivable);
+      const next = receivable.writeOff();
+      await this.receivableRepo.save(next, manager);
+      return next;
+    });
 
-    this.eventEmitter.emit('receivable.status-closed', {
+    await this.eventPublisher.emitAsync('receivable.status-closed', {
       receivableId: updated.id,
-      organizationId: this.tenantContext.getOrganizationId(),
+      organizationId: updated.organizationId,
     });
 
     return updated;
@@ -1509,56 +1873,158 @@ export class WriteOffReceivableUseCase {
 }
 ```
 
-Modify `apps/backend/src/modules/receivables/application/write-off-receivable.usecase.spec.ts` — the constructor now takes 3 arguments; update both existing test cases:
+Modify `apps/backend/src/modules/receivables/application/write-off-receivable.usecase.spec.ts` — add a 4th constructor argument (`eventPublisher`) to both existing test cases and one new assertion on the happy-path test:
 
 ```typescript
-const tenantContext = { getOrganizationId: () => 'org-1' };
-const eventEmitter = { emit: jest.fn() };
-const useCase = new WriteOffReceivableUseCase(receivableRepo as any, tenantContext as any, eventEmitter as any);
+const eventPublisher = { emit: jest.fn(), emitAsync: jest.fn() };
+const useCase = new WriteOffReceivableUseCase(
+  receivableRepo as any, dataSource as any, auditContext as any, eventPublisher as any,
+);
+// ...
+expect(eventPublisher.emitAsync).toHaveBeenCalledWith('receivable.status-closed', {
+  receivableId: 'rec-1',
+  organizationId: 'org-1',
+});
 ```
 
-Add one new assertion to the "writes off an OPEN receivable" test case:
+- [ ] **Step 7: Create `CancelReceivableUseCase` and its test**
+
+`Receivable.cancel()` (domain) throws a plain `Error` for two distinct conditions — wrong status, or `paidAmount > 0`. Check `paidAmount` explicitly before calling `cancel()` so the use case can map to the correct, already-existing `ErrorCode` without parsing the error message string:
+
+Create `apps/backend/src/modules/receivables/application/cancel-receivable.usecase.spec.ts`:
 
 ```typescript
-expect(eventEmitter.emit).toHaveBeenCalledWith('receivable.status-closed', { receivableId: 'rec-1', organizationId: 'org-1' });
-```
-
-- [ ] **Step 7: Emit `receivable.status-closed` from `CancelReceivableUseCase`**
-
-Replace `apps/backend/src/modules/receivables/application/cancel-receivable.usecase.ts`:
-
-```typescript
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { IReceivableRepository, RECEIVABLE_REPOSITORY } from './receivable-repository.port';
+import { ReceivableStatus } from '@casso-ledger/shared-types';
+import type { EntityManager } from 'typeorm';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { Receivable } from '../domain/receivable';
+import { CancelReceivableUseCase } from './cancel-receivable.usecase';
+
+function buildOpenReceivable(paidAmount = 0): Receivable {
+  return new Receivable({
+    id: 'rec-1',
+    organizationId: 'org-1',
+    customerId: 'cust-1',
+    invoiceId: null,
+    originalAmount: 50_000_000,
+    paidAmount,
+    dueDate: new Date('2026-08-20'),
+    status: ReceivableStatus.OPEN,
+    salesRepresentativeId: 'user-1',
+    createdAt: new Date('2026-07-20'),
+    closedAt: null,
+    version: 1,
+  });
+}
+
+function buildDeps(receivable: Receivable | null) {
+  const manager = {} as EntityManager;
+  return {
+    receivableRepo: { findByIdForUpdate: jest.fn().mockResolvedValue(receivable), save: jest.fn() },
+    dataSource: { transaction: jest.fn((cb: (m: EntityManager) => unknown) => cb(manager)) },
+    auditContext: { setBefore: jest.fn() },
+    eventPublisher: { emit: jest.fn(), emitAsync: jest.fn() },
+    manager,
+  };
+}
+
+describe('CancelReceivableUseCase', () => {
+  it('cancels an OPEN receivable with no payments and emits receivable.status-closed', async () => {
+    const receivable = buildOpenReceivable(0);
+    const deps = buildDeps(receivable);
+    const useCase = new CancelReceivableUseCase(
+      deps.receivableRepo as any, deps.dataSource as any, deps.auditContext as any, deps.eventPublisher as any,
+    );
+
+    const result = await useCase.execute('rec-1');
+
+    expect(result.status).toBe(ReceivableStatus.CANCELLED);
+    expect(deps.receivableRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: ReceivableStatus.CANCELLED }),
+      deps.manager,
+    );
+    expect(deps.eventPublisher.emitAsync).toHaveBeenCalledWith('receivable.status-closed', {
+      receivableId: 'rec-1',
+      organizationId: 'org-1',
+    });
+  });
+
+  it('throws RECEIVABLE_HAS_PAYMENTS when the receivable has received a payment', async () => {
+    const deps = buildDeps(buildOpenReceivable(10_000_000));
+    const useCase = new CancelReceivableUseCase(
+      deps.receivableRepo as any, deps.dataSource as any, deps.auditContext as any, deps.eventPublisher as any,
+    );
+
+    await expect(useCase.execute('rec-1')).rejects.toMatchObject({
+      errorCode: ErrorCode.RECEIVABLE_HAS_PAYMENTS,
+    });
+    expect(deps.receivableRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('throws when the receivable does not exist', async () => {
+    const deps = buildDeps(null);
+    const useCase = new CancelReceivableUseCase(
+      deps.receivableRepo as any, deps.dataSource as any, deps.auditContext as any, deps.eventPublisher as any,
+    );
+
+    await expect(useCase.execute('missing')).rejects.toThrow(AppError);
+  });
+});
+```
+
+Run: `pnpm --filter @casso-ledger/backend test cancel-receivable.usecase.spec.ts` → FAIL (module does not exist).
+
+Create `apps/backend/src/modules/receivables/application/cancel-receivable.usecase.ts` — mirrors `WriteOffReceivableUseCase` exactly:
+
+```typescript
+import { Inject, Injectable } from '@nestjs/common';
+import type { EntityManager } from 'typeorm';
+import { DataSource } from 'typeorm';
+import { AuditContextService } from '../../../common/audit/audit-context';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
+import { EVENT_PUBLISHER, type IEventPublisher } from '../../../common/events/event-publisher.port';
+import type { Receivable } from '../domain/receivable';
+import {
+  type IReceivableRepository,
+  RECEIVABLE_REPOSITORY,
+} from './receivable-repository.port';
 
 @Injectable()
 export class CancelReceivableUseCase {
   constructor(
-    @Inject(RECEIVABLE_REPOSITORY) private readonly receivableRepo: IReceivableRepository,
-    private readonly tenantContext: TenantContextService,
-    private readonly eventEmitter: EventEmitter2,
+    @Inject(RECEIVABLE_REPOSITORY)
+    private readonly receivableRepo: IReceivableRepository,
+    private readonly dataSource: DataSource,
+    private readonly auditContext: AuditContextService,
+    @Inject(EVENT_PUBLISHER) private readonly eventPublisher: IEventPublisher,
   ) {}
 
   async execute(receivableId: string): Promise<Receivable> {
-    const receivable = await this.receivableRepo.findById(receivableId);
-    if (!receivable) {
-      throw new NotFoundException('Receivable not found');
-    }
+    const updated = await this.dataSource.transaction(async (manager: EntityManager) => {
+      const receivable = await this.receivableRepo.findByIdForUpdate(receivableId, manager);
+      if (!receivable) {
+        throw new AppError(
+          ErrorCode.RECEIVABLE_NOT_FOUND,
+          'Không tìm thấy khoản phải thu.',
+        );
+      }
+      if (receivable.paidAmount > 0) {
+        throw new AppError(
+          ErrorCode.RECEIVABLE_HAS_PAYMENTS,
+          'Không thể hủy khoản phải thu đã nhận thanh toán.',
+        );
+      }
+      this.auditContext.setBefore(receivable);
+      const next = receivable.cancel(); // throws only the wrong-status case now — paidAmount already checked above
+      await this.receivableRepo.save(next, manager);
+      return next;
+    });
 
-    let updated: Receivable;
-    try {
-      updated = receivable.cancel();
-    } catch (error) {
-      throw new BadRequestException(error instanceof Error ? error.message : 'Cannot cancel receivable');
-    }
-
-    await this.receivableRepo.save(updated);
-
-    this.eventEmitter.emit('receivable.status-closed', {
+    await this.eventPublisher.emitAsync('receivable.status-closed', {
       receivableId: updated.id,
-      organizationId: this.tenantContext.getOrganizationId(),
+      organizationId: updated.organizationId,
     });
 
     return updated;
@@ -1566,38 +2032,87 @@ export class CancelReceivableUseCase {
 }
 ```
 
-Modify `apps/backend/src/modules/receivables/application/cancel-receivable.usecase.spec.ts` — the constructor now takes a 2nd argument; update all three test cases:
+Run: `pnpm --filter @casso-ledger/backend test cancel-receivable.usecase.spec.ts` → all 3 tests PASS.
+
+- [ ] **Step 8: Expose `POST /receivables/:id/cancel`**
+
+Modify `apps/backend/src/modules/receivables/presentation/receivables.controller.ts` — add a route mirroring the existing `write-off` route exactly, reusing `Permission.RECEIVABLE_WRITE_OFF` (cancelling is the same risk tier as writing off — a new receivable-terminating permission is not justified for one more action at the same tier) and the already-existing `AuditActionType.RECEIVABLE_CANCEL`:
 
 ```typescript
-const eventEmitter = { emit: jest.fn() };
-const tenantContext = { getOrganizationId: () => 'org-1' };
-const useCase = new CancelReceivableUseCase(receivableRepo as any, tenantContext as any, eventEmitter as any);
+@Post(':id/cancel')
+@RequirePermission(Permission.RECEIVABLE_WRITE_OFF)
+@Audited(AuditActionType.RECEIVABLE_CANCEL, AuditEntityType.RECEIVABLE)
+async cancel(
+  @Param('id') id: string,
+  @Headers('idempotency-key') key: string | undefined,
+) {
+  return this.idempotency.execute(
+    `POST /receivables/${id}/cancel`,
+    key,
+    { id },
+    async () => {
+      const receivable = await this.cancelReceivableUseCase.execute(id);
+      return toReceivableResponse(receivable);
+    },
+  );
+}
 ```
 
-Add one new assertion to the "cancels an OPEN receivable" test case:
+Add `cancelReceivableUseCase: CancelReceivableUseCase` to the constructor and its import, matching `writeOffReceivableUseCase`'s existing wiring.
+
+- [ ] **Step 9: Also emit `receivable.status-closed` from `AllocatePaymentUseCase`**
+
+Modify `apps/backend/src/modules/payments/application/allocate-payment.usecase.ts` — its `emitAllocationEvents` method already emits `payment.allocated` always and `receivable.closed` when `input.becameClosed`; add `receivable.status-closed` alongside `receivable.closed` in that same `if` block:
 
 ```typescript
-expect(eventEmitter.emit).toHaveBeenCalledWith('receivable.status-closed', { receivableId: 'rec-1', organizationId: 'org-1' });
+if (input.becameClosed) {
+  await this.eventPublisher.emitAsync('receivable.closed', {
+    receivableId: input.receivableId,
+    customerId: input.customerId,
+    organizationId: input.organizationId,
+  });
+  await this.eventPublisher.emitAsync('receivable.status-closed', {
+    receivableId: input.receivableId,
+    organizationId: input.organizationId,
+  });
+}
 ```
 
-(The final contract matches the RBAC-migrated `WriteOffReceivableUseCase`: tenant identity comes from `TenantContextService`, never from a request body or explicit use-case parameter.)
+Modify `apps/backend/src/modules/payments/application/allocate-payment.usecase.spec.ts` — add one assertion to whichever existing test case allocates a payment that fully closes the receivable (`becameClosed: true`):
 
-- [ ] **Step 8: Confirm `AllocatePaymentUseCase` already emits `receivable.status-closed` (no code change in this plan)**
+```typescript
+expect(eventPublisher.emitAsync).toHaveBeenCalledWith('receivable.status-closed', {
+  receivableId: 'rec-1',
+  organizationId: 'org-1',
+});
+```
 
-`2026-08-03-collection-activity-timeline.md` Task 5 modifies this same file (`apps/backend/src/modules/payments/application/allocate-payment.usecase.ts`) to emit its own `payment.allocated`/`receivable.closed` events, and its final version ALREADY includes the `receivable.status-closed` emission this plan needs, side by side with `receivable.closed`, inside the same `if (becameClosed)` block — added there specifically to avoid two plans independently rewriting the same use case (see that plan's Task 5 note). Do NOT re-modify `allocate-payment.usecase.ts` from this plan.
+- [ ] **Step 10: Register `CancelReceivableUseCase` and `EVENT_PUBLISHER` in `receivables.module.ts`**
 
-If implementing this plan BEFORE `2026-08-03-collection-activity-timeline.md` (out of the specs' natural dependency order), add the `EventEmitter2` dependency and a bare `if (updatedReceivable.status === ReceivableStatus.PAID) { this.eventEmitter.emit('receivable.status-closed', { receivableId: updatedReceivable.id, organizationId }); }` block yourself as a stand-in, but leave a comment noting it must be merged into that plan's richer version (which also captures `customerId` and emits `payment.allocated`) rather than left as a second, competing modification.
+`EVENT_PUBLISHER` is not exported by any module `ReceivablesModule` imports — `disputes.module.ts`, `payments.module.ts`, and `reminders.module.ts` each provide it locally, and none list it in their `exports` array (confirmed by reading all three; this is an established per-module pattern, not an oversight to "fix" by exporting one of them). Add the same local provider `ReceivablesModule` needs, alongside `CancelReceivableUseCase`:
 
-- [ ] **Step 9: Run full test suite**
+```typescript
+import { EVENT_PUBLISHER } from '../../common/events/event-publisher.port';
+import { NestEventPublisherAdapter } from '../../common/events/nest-event-publisher.adapter';
+import { CancelReceivableUseCase } from './application/cancel-receivable.usecase';
+
+// in @Module({ providers: [...] }):
+{ provide: EVENT_PUBLISHER, useClass: NestEventPublisherAdapter },
+CancelReceivableUseCase,
+```
+
+`WriteOffReceivableUseCase` (already a provider here) now also depends on `EVENT_PUBLISHER` (Step 6) — this same addition satisfies both.
+
+- [ ] **Step 11: Run full test suite**
 
 Run: `pnpm --filter @casso-ledger/backend test`
 Expected: all PASS
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 12: Commit**
 
 ```bash
 git add apps/backend/src/modules/internal-tasks apps/backend/src/modules/receivables apps/backend/src/modules/payments
-git commit -m "feat: auto-dismiss OPEN InternalTasks when a Receivable closes"
+git commit -m "feat: add CancelReceivableUseCase and auto-dismiss OPEN InternalTasks on any receivable closure"
 ```
 
 ---
@@ -1622,7 +2137,7 @@ import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers
 import { GenericContainer, StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { AppModule } from '../src/app.module';
 import { Role } from '../src/modules/organizations/domain/membership';
@@ -1759,15 +2274,20 @@ git commit -m "test: add integration coverage for the InternalTask escalation sc
 
 ## Self-Review Notes
 
-- **Scheduler ownership and event contract reconciled:** Reminder Automation owns the single daily BullMQ scan and emits `reminder.scan.completed`; `ReminderScanCompletedListener` is the only bridge into this module. This plan contributes escalation evaluation and task creation without importing `RemindersModule`, injecting the scheduler, or creating a second scheduler.
+- **Scheduler ownership and event contract reconciled:** Reminder Automation owns the single daily BullMQ scan and emits `reminder.scan.completed`; `ReminderScanCompletedListener` is the only bridge into this module for that event. This plan does not create a second scheduler or a second daily scan — it does, however, import `RemindersModule` and `CustomersModule` for repository access (see the next bullet and the Global Constraints correction).
 - **Escalation race closed:** the old read-then-save path was not safe when two event deliveries overlapped. `InternalTaskOrmEntity` now has a partial unique index for `(organizationId, receivableId)` where `taskType = ESCALATION AND status = OPEN`, and `createEscalationIfAbsent()` uses one insert and treats PostgreSQL `23505` as the expected losing scan.
-- **Background tenant setup is explicit:** the event listener passes only the organization payload; `RunEscalationScanUseCase` itself opens `TenantContextService.run({ userId: 'system', organizationId, role: Role.OWNER }, ...)` before any membership, receivable, or task repository call. Tests cover that constructor and callback contract.
-- **Reconciled with `2026-08-03-collection-activity-timeline.md` (2026-08-04 pass).** That plan now exists and owns `receivable.closed`, scoped narrowly to "became `PAID`" (matching its spec's "Receivable.status → PAID" rule exactly — it never fires on `WRITTEN_OFF`/`CANCELLED`). Since this plan's auto-dismiss needs ALL three terminal statuses, the event was renamed to `receivable.status-closed` (Task 10) — a distinct name, not competing for the same one. `WriteOffReceivableUseCase`/`CancelReceivableUseCase` still emit it directly (Steps 6-7, unchanged in substance, renamed). `AllocatePaymentUseCase` (Step 8) is NO LONGER modified by this plan at all — `2026-08-03-collection-activity-timeline.md` Task 5 already emits `receivable.status-closed` alongside its own `receivable.closed`/`payment.allocated` in the same code path, avoiding two plans independently rewriting the same use case.
-- **`escalationThresholdDays` is hardcoded to `30`** (`ESCALATION_THRESHOLD_DAYS` constant, Task 6 Step 1) per spec section 5's first open question being explicitly non-blocking. Making it configurable per-organization or per-`ReminderPolicy` is a follow-up once the Reminder Automation plan's `ReminderPolicy`/`ReminderRule` entities exist to hang that configuration off of.
-- **Resolve/dismiss permission model.** Spec section 5's second open question (restrict resolve/dismiss to `assignedToUserId`/`OWNER` only, or let anyone with visibility resolve) is resolved here as: any user holding `Permission.INTERNAL_TASK_MANAGE` (`FINANCE_MANAGER`, `ACCOUNTANT`) may resolve/dismiss any task in their organization. Simplest option that satisfies the spec's explicit creation-permission list; tighten to an assignee/owner check later if this proves too permissive in practice.
+- **Background tenant setup is explicit:** the event listener passes only the organization payload; `RunEscalationScanUseCase` itself opens `TenantContextService.run({ userId: 'system', organizationId, role: Role.OWNER }, ...)` before any membership, receivable, customer, policy, or task repository call. Tests cover that constructor and callback contract.
+- **`receivable.status-closed` vs `receivable.closed` — see ADR-0005.** Distinct, deliberately-named events per audience rather than widening `receivable.closed` out from under Collection Activity Timeline's PAID-only contract. All three terminal-status call sites emit `receivable.status-closed`: `AllocatePaymentUseCase` (PAID, Task 10 Step 9), `WriteOffReceivableUseCase` (WRITTEN_OFF, Task 10 Step 6), and the newly-built `CancelReceivableUseCase` (CANCELLED, Task 10 Step 7).
+
+**2026-08-08 grilling pass — the four corrections below supersede the plan's original MVP defaults; see the Global Constraints section for the authoritative summary:**
+
+- **`escalationThresholdDays` is configurable per `ReminderPolicy`/`customerGroup`, not hardcoded** (Task 6). Resolves spec section 5's first open question. Falls back to `DEFAULT_ESCALATION_THRESHOLD_DAYS = 30` when a customer has no matching active policy.
+- **Escalation assignee falls back to `OWNER`, never skips silently** (Task 6) — replacing the original "skip when no FINANCE_MANAGER" default. No in-app notification for this case; see the design spec section 4 for why.
+- **Resolve/dismiss is assignee-or-OWNER only, not any `INTERNAL_TASK_MANAGE` holder** (Task 8) — resolves spec section 5's second open question in the *stricter* direction than the original draft chose. `Permission.INTERNAL_TASK_MANAGE` still gates list/create; the assignee check is a separate, per-instance ownership check the role-based permission cannot express.
+- **`assignedToUserId` on manual task creation is validated against organization membership** (Task 7) — was previously accepted unchecked.
+- **`CancelReceivableUseCase` did not exist and is built by this plan** (Task 10) — the original draft's Step 7/8 assumed both `CancelReceivableUseCase` and `AllocatePaymentUseCase`'s `receivable.status-closed` emission already existed elsewhere. Neither did; both are now built/added directly in Task 10, verified against the actual current codebase rather than assumed from an older plan's claims.
+- **Application-layer exceptions and event publishing corrected to match `AGENTS.md`.** Earlier drafts of Tasks 6, 7, 8, and 10 threw `NotFoundException`/`BadRequestException` from `application/` and injected `EventEmitter2` directly — both forbidden. Fixed to `AppError` and the `IEventPublisher` port throughout; `@OnEvent` listeners moved to `infrastructure/` to match the only two existing precedents (`CollectionActivityListener`, `ReminderExecutionListener`).
 - **New permission, justified.** `Permission.INTERNAL_TASK_MANAGE` (Task 5) was added rather than reusing `RECEIVABLE_WRITE`, because editing a receivable's own fields and managing its side-table of assignable follow-up tasks are different capabilities — a role that can write receivables should not automatically be able to silently resolve another user's escalation task.
-- **`CancelReceivableUseCase` signature mismatch — fixed at the source (2026-08-04 pass).** `2026-08-03-testing-strategy.md` originally gave `CancelReceivableUseCase` an explicit `organizationId` parameter, targeting what it believed was a pre-RBAC-migration controller state. That plan has been corrected to match `WriteOffReceivableUseCase`'s shape exactly (`execute(receivableId)`, no `organizationId` argument, `TenantContextService`-scoped). Task 10 Step 7 here now emits `receivable.status-closed` from that corrected signature — no lingering mismatch, no follow-up needed.
-- **`AllocatePaymentInput.allocatedByUserId` is `string | null`** — this plan makes no changes to `AllocatePaymentUseCase` at all (see the note above), so it simply consumes whatever type `2026-08-03-collection-activity-timeline.md`/`2026-08-03-webhook-matching-engine.md` already established there.
-- **Spec coverage:** `InternalTask` entity (spec section 1) → Task 1-2. Auto-escalation (section 2) → Tasks 3, 4, 6. Manual create + resolve/dismiss (section 3) → Tasks 7-9. Auto-dismiss on closed status (section 3, last paragraph) → Task 10. Out-of-scope items (section 4: no auto-block on new receivables for a flagged customer, no separate push/Slack channel) are not implemented, matching the spec.
+- **Spec coverage:** `InternalTask` entity (spec section 1) → Task 1-2. Auto-escalation with per-customerGroup threshold and OWNER fallback (section 2) → Tasks 3, 4, 6. Manual create with assignee validation + assignee-or-OWNER resolve/dismiss (section 3) → Tasks 7-9. Auto-dismiss on closed status, all three terminal statuses (section 3, last paragraph) → Task 10. Out-of-scope items (section 4: no auto-block on new receivables for a flagged customer, no separate push/Slack channel, no in-app notification system) are not implemented, matching the spec.
 
 

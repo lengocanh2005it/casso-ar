@@ -66,6 +66,7 @@ describe('ReminderSchedulerService', () => {
         run: async (_user: unknown, cb: () => Promise<void>) => await cb(),
       } as any,
       { emitAsync: jest.fn().mockResolvedValue([]) } as any,
+      { findAllIds: jest.fn().mockResolvedValue(['org-1']) } as any,
     );
 
     await scheduler.scan(new Date('2026-08-03'));
@@ -109,6 +110,7 @@ describe('ReminderSchedulerService', () => {
         run: async (_user: unknown, cb: () => Promise<void>) => await cb(),
       } as any,
       { emitAsync: jest.fn().mockResolvedValue([]) } as any,
+      { findAllIds: jest.fn().mockResolvedValue(['org-1']) } as any,
     );
 
     await scheduler.scan(new Date('2026-08-03'));
@@ -137,6 +139,7 @@ describe('ReminderSchedulerService', () => {
         run: async (_user: unknown, cb: () => Promise<void>) => await cb(),
       } as any,
       eventEmitter as any,
+      { findAllIds: jest.fn().mockResolvedValue(['org-1']) } as any,
     );
 
     await scheduler.scan(new Date('2026-08-03'));
@@ -179,6 +182,7 @@ describe('ReminderSchedulerService', () => {
         run: async (_user: unknown, cb: () => Promise<void>) => await cb(),
       } as any,
       { emitAsync: jest.fn().mockResolvedValue([]) } as any,
+      { findAllIds: jest.fn().mockResolvedValue(['org-1']) } as any,
     );
 
     await scheduler.scan(new Date('2026-08-03'));

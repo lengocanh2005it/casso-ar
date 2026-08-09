@@ -34,6 +34,18 @@ export class TypeOrmMembershipRepository implements IMembershipRepository {
   ): Promise<Membership | null> {
     const row = await this.repo.findOne({
       where: { organizationId, role: Role.OWNER, joinedAt: Not(IsNull()) },
+      order: { createdAt: 'ASC' },
+    });
+    return row ? new Membership(row) : null;
+  }
+
+  async findFirstByRole(
+    organizationId: string,
+    role: Role,
+  ): Promise<Membership | null> {
+    const row = await this.repo.findOne({
+      where: { organizationId, role, joinedAt: Not(IsNull()) },
+      order: { createdAt: 'ASC' },
     });
     return row ? new Membership(row) : null;
   }

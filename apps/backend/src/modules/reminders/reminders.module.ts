@@ -6,6 +6,7 @@ import { NestEventPublisherAdapter } from '../../common/events/nest-event-publis
 import { CommonTokensModule } from '../../common/tokens/common-tokens.module';
 import { EmailService } from '../notifications/application/email.service';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { OrganizationsModule } from '../organizations/organizations.module';
 import { I_EMAIL_SERVICE } from './application/i-email-service.port';
 import { ReminderExecutionQueryService } from './application/reminder-execution-query.service';
 import { ReminderPolicyService } from './application/reminder-policy.service';
@@ -32,6 +33,7 @@ import {
     BullModule.registerQueue({ name: REMINDER_SEND_QUEUE }),
     CommonTokensModule,
     NotificationsModule,
+    OrganizationsModule,
   ],
   controllers: [RemindersController, ReminderExecutionsController],
   providers: [

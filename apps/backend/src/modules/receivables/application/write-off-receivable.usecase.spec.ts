@@ -31,11 +31,13 @@ describe('WriteOffReceivableUseCase', () => {
       ),
     };
     const auditContext = { setBefore: jest.fn() };
+    const eventPublisher = { emitAsync: jest.fn() };
 
     const useCase = new WriteOffReceivableUseCase(
       receivableRepo as any,
       dataSource as any,
       auditContext as any,
+      eventPublisher as any,
     );
     const result = await useCase.execute('rec-1');
 
@@ -45,6 +47,10 @@ describe('WriteOffReceivableUseCase', () => {
       manager,
     );
     expect(auditContext.setBefore).toHaveBeenCalledWith(receivable);
+    expect(eventPublisher.emitAsync).toHaveBeenCalledWith(
+      'receivable.status-closed',
+      { receivableId: 'rec-1', organizationId: 'org-1' },
+    );
   });
 
   it('throws if receivable not found', async () => {
@@ -58,10 +64,12 @@ describe('WriteOffReceivableUseCase', () => {
       ),
     };
     const auditContext = { setBefore: jest.fn() };
+    const eventPublisher = { emitAsync: jest.fn() };
     const useCase = new WriteOffReceivableUseCase(
       receivableRepo as any,
       dataSource as any,
       auditContext as any,
+      eventPublisher as any,
     );
 
     await expect(useCase.execute('missing')).rejects.toThrow(

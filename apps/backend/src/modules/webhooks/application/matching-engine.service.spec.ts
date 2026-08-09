@@ -50,6 +50,7 @@ describe('MatchingEngineService', () => {
       {
         findOpenByCustomerId: jest.fn().mockResolvedValue([receivable]),
         findOpenTopNByOrganization: jest.fn(),
+        findOverdueByThreshold: jest.fn(),
         findById: jest.fn(),
         findByIdForUpdate: jest.fn(),
         findInvoiceIdsByReceivableIds:
@@ -67,6 +68,7 @@ describe('MatchingEngineService', () => {
       {
         findNameById: jest.fn().mockResolvedValue('Company B'),
         findById: jest.fn(),
+        findByIds: jest.fn(),
         findByTaxCode: jest.fn(),
         findByEmail: jest.fn(),
         findPage: jest.fn().mockResolvedValue([]),
@@ -93,6 +95,7 @@ describe('MatchingEngineService', () => {
       {
         findOpenByCustomerId,
         findOpenTopNByOrganization: jest.fn().mockResolvedValue([receivable]),
+        findOverdueByThreshold: jest.fn(),
         findById: jest.fn(),
         findByIdForUpdate: jest.fn(),
         findInvoiceIdsByReceivableIds:
@@ -110,6 +113,7 @@ describe('MatchingEngineService', () => {
       {
         findNameById: jest.fn().mockResolvedValue('Company B'),
         findById: jest.fn(),
+        findByIds: jest.fn(),
         findByTaxCode: jest.fn(),
         findByEmail: jest.fn(),
         findPage: jest.fn().mockResolvedValue([]),

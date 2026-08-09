@@ -8,6 +8,5 @@ export interface IReminderPolicyRepository {
     customerGroup: CustomerGroup,
   ): Promise<ReminderPolicy | null>;
   findAll(): Promise<ReminderPolicy[]>;
-  findAllOrganizationIdsForScheduler(): Promise<string[]>;
   save(policy: ReminderPolicy, manager?: EntityManager): Promise<void>;
 }

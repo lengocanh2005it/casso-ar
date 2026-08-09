@@ -95,6 +95,10 @@ export class AllocatePaymentUseCase {
         customerId: input.customerId,
         organizationId: input.organizationId,
       });
+      await this.eventPublisher.emitAsync('receivable.status-closed', {
+        receivableId: input.receivableId,
+        organizationId: input.organizationId,
+      });
     }
   }
 

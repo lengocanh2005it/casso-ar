@@ -19,6 +19,12 @@ export interface IReceivableRepository {
     limit: number,
     referenceDate: Date,
   ): Promise<Receivable[]>;
+  findOverdueByThreshold(
+    organizationId: string,
+    minDaysOverdue: number,
+    afterId: string | null,
+    limit: number,
+  ): Promise<Receivable[]>;
   findInvoiceIdsByReceivableIds(ids: string[]): Promise<Map<string, string>>;
   findPage(
     organizationId: string,
