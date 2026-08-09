@@ -10,6 +10,10 @@ vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
 }));
 
+vi.mock('@/contexts/auth-context', () => ({
+  useAuth: () => ({ user: { role: 'OWNER' } }),
+}));
+
 describe('ReceivablesPage', () => {
   it('renders receivable amounts and links to detail', async () => {
     apiRequest.mockResolvedValue({

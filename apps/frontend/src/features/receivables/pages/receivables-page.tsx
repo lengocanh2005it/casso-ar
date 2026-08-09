@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useReceivables } from '../api/use-receivables';
+import { CreateReceivableDialog } from '../components/create-receivable-dialog';
 import { ReceivableFilters } from '../components/receivable-filters';
 import { ReceivableTable } from '../components/receivable-table';
 import type { ReceivableStatus } from '../types';
@@ -15,7 +16,12 @@ export function ReceivablesPage() {
     <div className="space-y-5">
       <div>
         <p className="text-sm font-medium text-primary">QUẢN LÝ CÔNG NỢ</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Công nợ</h1>
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+            Công nợ
+          </h1>
+          <CreateReceivableDialog />
+        </div>
       </div>
       <ReceivableFilters
         status={status}
