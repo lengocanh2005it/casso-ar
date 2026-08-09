@@ -9,6 +9,7 @@ import type { BankTransactionStatus } from '../domain/bank-transaction';
 
 @Entity({ name: 'bank_transactions' })
 @Index(['organizationId', 'status'])
+@Index(['organizationId', 'createdAt'])
 export class BankTransactionOrmEntity {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column({ type: 'varchar' }) organizationId: string;
