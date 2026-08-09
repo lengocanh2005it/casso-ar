@@ -13,7 +13,7 @@ import { CopilotPage } from '@/features/copilot';
 import { CustomerDetailPage, CustomersPage } from '@/features/customers';
 import { DashboardPage } from '@/features/dashboard';
 import { ExceptionsPage } from '@/features/exceptions';
-import { ReceivablesPage } from '@/features/receivables';
+import { ReceivableDetailPage, ReceivablesPage } from '@/features/receivables';
 import { RemindersPage } from '@/features/reminders';
 import { ReportsPage } from '@/features/reports';
 import { SettingsPage } from '@/features/settings';
@@ -77,6 +77,7 @@ export const appRoutes: RouteObject[] = [
   { path: 'customers', element: <CustomersPage /> },
   { path: 'customers/:id', element: <CustomerDetailPage /> },
   { path: 'receivables', element: <ReceivablesPage /> },
+  { path: 'receivables/:id', element: <ReceivableDetailPage /> },
   { path: 'bank-connections', element: <BankConnectionsPage /> },
   { path: 'transactions', element: <TransactionsPage /> },
   { path: 'exceptions', element: <ExceptionsPage /> },
