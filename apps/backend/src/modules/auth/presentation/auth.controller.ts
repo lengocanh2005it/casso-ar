@@ -171,6 +171,7 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
+  @RequirePermission(Permission.RECEIVABLE_READ)
   async getMe(@Req() request: AuthRequest): Promise<UserProfileResponseDto> {
     const userId = request.user?.userId;
     if (!userId) {

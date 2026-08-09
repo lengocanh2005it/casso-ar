@@ -7,6 +7,14 @@ import {
   SUBSCRIPTION_REPOSITORY,
 } from '../../billing/application/subscription-repository.port';
 import {
+  type IMembershipRepository,
+  MEMBERSHIP_REPOSITORY,
+} from '../../organizations/application/membership-repository.port';
+import {
+  type IOrganizationRepository,
+  ORGANIZATION_REPOSITORY,
+} from '../../organizations/application/organization-repository.port';
+import {
   type IUserRepository,
   USER_REPOSITORY,
 } from '../../users/application/user-repository.port';
@@ -18,6 +26,10 @@ export class GetUserProfileUseCase {
     private readonly userRepo: IUserRepository,
     @Inject(SUBSCRIPTION_REPOSITORY)
     private readonly subscriptionRepo: ISubscriptionRepository,
+    @Inject(MEMBERSHIP_REPOSITORY)
+    private readonly membershipRepo: IMembershipRepository,
+    @Inject(ORGANIZATION_REPOSITORY)
+    private readonly organizationRepo: IOrganizationRepository,
     private readonly tenantContext: TenantContextService,
   ) {}
 
@@ -26,6 +38,8 @@ export class GetUserProfileUseCase {
     email: string;
     name: string;
     organizationId: string;
+    organizationName: string;
+    role: string;
     subscriptionPlan: string;
   }> {
     const user = await this.userRepo.findById(userId);
@@ -34,14 +48,26 @@ export class GetUserProfileUseCase {
     }
 
     const organizationId = this.tenantContext.getOrganizationId();
-    const subscription =
-      await this.subscriptionRepo.findByOrganizationId(organizationId);
+    const [subscription, membership, organization] = await Promise.all([
+      this.subscriptionRepo.findByOrganizationId(organizationId),
+      this.membershipRepo.findByUserAndOrganization(userId, organizationId),
+      this.organizationRepo.findById(organizationId),
+    ]);
+
+    if (!membership?.isActive() || !organization) {
+      throw new AppError(
+        ErrorCode.FORBIDDEN,
+        'Người dùng không thuộc tổ chức hiện tại.',
+      );
+    }
 
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       organizationId,
+      organizationName: organization.name,
+      role: membership.role,
       subscriptionPlan: subscription?.planId ?? 'FREE',
     };
   }
