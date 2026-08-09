@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1–#18 complete, remaining Plan #19–#23 pending
+**Map mode**: chart — Plan #1–#19 complete, remaining Plan #20–#23 pending
 
 ---
 
@@ -88,9 +88,9 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Ticket Index
 
 **27 plans** | status snapshot (2026-08-09):
-- 🟢 done (19): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Application Layer Boundary Enforcement
+- 🟢 done (20): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Application Layer Boundary Enforcement
 - 🟡 in-progress (0): none
-- 🔴 open/not started (8): #19–#23 + Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
+- 🔴 open/not started (7): #20–#23 + Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
 
 ---
 
@@ -458,10 +458,11 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #19 — FE Auth + App Shell
 - **Type**: task
-- **Status**: in-progress
+- **Status**: done ✅
 - **Owner**: FE
 - **Plan**: `plans/2026-08-03-fe-auth-app-shell.md`
 - **Blockers**: none — Plan #3 ✅, Plan #18 ✅
+- **Shipped**: 2026-08-09 — branch `feat/fe-auth-app-shell`, PR #80 merged (`69b2d37`), closes issue #30
 - **Key rules**:
   - Auth UI: login, signup, verify-email, forgot/reset password, invite accept
   - Axios + `AuthTokenManager` (auto-refresh, single-flight)
@@ -471,6 +472,7 @@ Success = a single document a new developer can read and know exactly what to pi
   - Route guards (hide button when no permission, never disable)
   - No form library (controlled + HTML5)
 - **Creates**: Auth pages, AuthTokenManager, auth context, route guards
+- **Implementation note**: spec/plan revised in a grilling session before implementation — the plan was written before `apps/frontend` was scaffolded and before `GET /api/v1/me`/RBAC existed. `GET /me` now returns `role`/`organizationId`/`organizationName`; `Permission`/`Role`/`ROLE_PERMISSIONS` actually migrated to `packages/shared-types` (not copy-pasted) with every backend controller repointed; `AcceptInviteDto` gained a real `name` field. A post-implementation `/code-review` (Standards + Spec axes) found and fixed 5 more issues, and a `web-design-guidelines` pass found and fixed 3 accessibility gaps in the new auth forms (spellcheck, inline form errors with focus management, `role="status"` on state transitions). Verified with 138/138 backend suites (437/437 tests), 13/13 frontend suites (29/29 tests), clean `tsc`/Biome/arch-check.
 
 ---
 
@@ -479,7 +481,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: FE
 - **Plan**: `plans/2026-08-03-fe-core-ar-loop.md`
-- **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #9 ✅, Plan #10 ✅, Plan #11 ✅, Plan #13 ✅, Plan #14 ✅, Plan #17 ✅, Plan #18 ✅, Plan #19
+- **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #9 ✅, Plan #10 ✅, Plan #11 ✅, Plan #13 ✅, Plan #14 ✅, Plan #17 ✅, Plan #18 ✅, Plan #19 ✅
 - **Key rules**:
   - 4 core pages: Customers (list + detail route), Receivables (list + detail route + import + write-off/cancel/dispute), Transactions (matching workspace), Exceptions (review + split match)
   - Receivable/Customer detail = routes (`/receivables/:id`, `/customers/:id`)
@@ -496,7 +498,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: FE
 - **Plan**: `plans/2026-08-03-fe-reminders-copilot-reports-settings.md`
-- **Blockers**: Plan #4 ✅, Plan #5 ✅, Plan #6 ✅, Plan #7 ✅, Plan #12 ✅, Plan #15 ✅, Plan #16 ✅, Plan #17 ✅, Plan #18 ✅, Plan #19
+- **Blockers**: Plan #4 ✅, Plan #5 ✅, Plan #6 ✅, Plan #7 ✅, Plan #12 ✅, Plan #15 ✅, Plan #16 ✅, Plan #17 ✅, Plan #18 ✅, Plan #19 ✅
 - **Key rules**:
   - Reminders: policy + executions list
   - Copilot: chat message list + pending-action cards (confirm/cancel)
@@ -611,18 +613,17 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **In progress:**
-- **Plan #19** (FE Auth + App Shell) — plan revised in a 2026-08-09 grilling session, implementation starting
+- none — Plan #19 shipped
 
 **Next available tickets** (all blockers resolved):
-- **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
+- **Plan #20** (FE Core AR Loop) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #9 ✅, Plan #10 ✅, Plan #11 ✅, Plan #13 ✅, Plan #14 ✅, Plan #17 ✅, Plan #18 ✅, Plan #19 ✅
+- **Plan #21** (FE Reminders, Copilot, Reports, Settings) — blockers: Plan #4 ✅, Plan #5 ✅, Plan #6 ✅, Plan #7 ✅, Plan #12 ✅, Plan #15 ✅, Plan #16 ✅, Plan #17 ✅, Plan #18 ✅, Plan #19 ✅
 - **Plan #22** (Testing Strategy + CI) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #8 ✅, Plan #13 ✅
 - **Plan #23** (Deployment + Observability) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #18 ✅
 - **Credit Balance Management** — blockers: Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
 - **Customer Bank Account Management** — blockers: Plan #8 ✅
 
 **Blocked tickets waiting:**
-- **Plan #20** (FE Core AR Loop) — waiting on Plan #19 (Plan #10, #11, #14 + #17 now shipped)
-- **Plan #21** (FE Reminders, Copilot, Reports, Settings) — waiting on Plan #19 (Plan #12, #15, #16, #17 now shipped)
 - **Spec-Plan Reconciliation** — waiting on all plans
 
-**Recommended next step:** Plan #19 (FE Auth + App Shell) is now the sole blocker for both Plan #20 and Plan #21 — the entire backend lane (Plan #1–#18) is shipped.
+**Recommended next step:** Plan #20 (FE Core AR Loop) and Plan #21 (FE Reminders, Copilot, Reports, Settings) are both fully unblocked now that Plan #19 shipped — good parallel picks.
