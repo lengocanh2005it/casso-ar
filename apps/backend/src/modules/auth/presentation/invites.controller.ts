@@ -68,6 +68,7 @@ export class InvitesController {
   async accept(@Body() dto: AcceptInviteDto, @Req() request: AuthRequest) {
     await this.acceptInviteUseCase.execute({
       token: dto.token,
+      name: dto.name,
       password: dto.password,
       authenticatedUserId: request.user?.userId,
     });

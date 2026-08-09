@@ -43,12 +43,16 @@ describe('AcceptInviteUseCase', () => {
     );
     await useCase.execute({
       token: rawToken,
+      name: 'New Invitee',
       password: 'NewPass123!',
       authenticatedUserId: 'another-user',
     });
 
     expect(userRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ emailVerifiedAt: expect.any(Date) }),
+      expect.objectContaining({
+        name: 'New Invitee',
+        emailVerifiedAt: expect.any(Date),
+      }),
       expect.anything(),
     );
     expect(membershipRepo.save).toHaveBeenCalledWith(

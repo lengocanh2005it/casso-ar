@@ -6,6 +6,10 @@ export class AcceptInviteDto {
 
   @IsOptional()
   @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
   @MinLength(8)
   password?: string;
 }
