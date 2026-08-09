@@ -1,0 +1,77 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import {
+  fetchCandidates,
+  fetchPendingReview,
+  markPrepaid,
+  skipTransaction,
+  splitMatch,
+} from './exceptions-api';
+
+export function usePendingReview(page = 1) {
+  return useQuery({
+    queryKey: ['bank-transactions', page],
+    queryFn: () => fetchPendingReview(page),
+  });
+}
+
+export function useCandidates(bankTransactionId: string) {
+  return useQuery({
+    queryKey: ['bank-transaction-candidates', bankTransactionId],
+    queryFn: () => fetchCandidates(bankTransactionId),
+    enabled: bankTransactionId.length > 0,
+  });
+}
+
+function useExceptionMutation<TInput>(
+  mutationFn: (input: TInput) => Promise<unknown>,
+  onError?: (error: unknown) => void,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
+      void queryClient.invalidateQueries({
+        queryKey: ['exceptions', 'review-count'],
+      });
+    },
+    onError,
+  });
+}
+
+function isConflict(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const candidate = error as {
+    status?: unknown;
+    response?: { status?: unknown };
+  };
+  return candidate.status === 409 || candidate.response?.status === 409;
+}
+
+export function useSplitMatch() {
+  return useExceptionMutation<{
+    id: string;
+    allocations: Array<{ receivableId: string; amount: number }>;
+    version: number;
+  }>(
+    ({ id, allocations, version }) => splitMatch(id, allocations, version),
+    (error) => {
+      if (isConflict(error)) {
+        toast.error(
+          'Transaction was processed by another user; reload the list',
+        );
+      }
+    },
+  );
+}
+
+export function useSkipTransaction() {
+  return useExceptionMutation<string>(skipTransaction);
+}
+
+export function useMarkPrepaid() {
+  return useExceptionMutation<{ id: string; customerId: string }>(
+    ({ id, customerId }) => markPrepaid(id, customerId),
+  );
+}

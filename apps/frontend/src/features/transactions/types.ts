@@ -7,6 +7,7 @@ export type BankTransactionStatus =
 
 export interface BankTransaction {
   id: string;
+  bankConnectionId?: string;
   providerTransactionId: string;
   amount: number;
   transactionDateTime: string;
@@ -15,11 +16,12 @@ export interface BankTransaction {
   transferContent: string | null;
   status: BankTransactionStatus;
   version: number;
-  createdAt: string;
+  createdAt?: string;
 }
 
 export interface MatchingCandidate {
   id: string;
+  bankTransactionId?: string;
   receivableId: string;
   customerId: string;
   referenceCodeScore: number;

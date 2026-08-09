@@ -5,10 +5,11 @@ import {
   fetchCustomerTimeline,
 } from './customers-api';
 
-export function useCustomers(search = '', page = 1) {
+export function useCustomers(search = '', page = 1, enabled = true) {
   return useQuery({
     queryKey: ['customers', search, page],
     queryFn: () => fetchCustomers(search, page),
+    enabled,
   });
 }
 

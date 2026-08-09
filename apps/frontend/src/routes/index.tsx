@@ -17,7 +17,6 @@ import { ReceivableDetailPage, ReceivablesPage } from '@/features/receivables';
 import { RemindersPage } from '@/features/reminders';
 import { ReportsPage } from '@/features/reports';
 import { SettingsPage } from '@/features/settings';
-import { TransactionsPage } from '@/features/transactions';
 import { GuestRoute } from './protected-route';
 
 export const authRoutes: RouteObject[] = [
@@ -79,7 +78,6 @@ export const appRoutes: RouteObject[] = [
   { path: 'receivables', element: <ReceivablesPage /> },
   { path: 'receivables/:id', element: <ReceivableDetailPage /> },
   { path: 'bank-connections', element: <BankConnectionsPage /> },
-  { path: 'transactions', element: <TransactionsPage /> },
   { path: 'exceptions', element: <ExceptionsPage /> },
   { path: 'reminders', element: <RemindersPage /> },
   { path: 'copilot', element: <CopilotPage /> },

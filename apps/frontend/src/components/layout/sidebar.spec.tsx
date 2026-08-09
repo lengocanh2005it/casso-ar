@@ -44,9 +44,9 @@ describe('Sidebar', () => {
     }
   });
 
-  it('renders exactly the 10 nav items chốt in the spec, no more no less', () => {
+  it('renders exactly the 9 nav items chốt in the spec, no more no less', () => {
     renderSidebar();
-    expect(navItems).toHaveLength(10);
+    expect(navItems).toHaveLength(9);
   });
 
   it('renders the authenticated user and logs out from the footer', async () => {

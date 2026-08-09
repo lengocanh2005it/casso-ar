@@ -1,7 +1,6 @@
 import { PlanId } from '@casso-ledger/shared-types';
 import {
   AlertTriangle,
-  ArrowLeftRight,
   BarChart3,
   BellRing,
   Bot,
@@ -26,7 +25,6 @@ export const navItems: NavItem[] = [
   { to: '/customers', label: 'Khách hàng', icon: Users },
   { to: '/receivables', label: 'Công nợ', icon: FileText },
   { to: '/bank-connections', label: 'Kết nối ngân hàng', icon: Landmark },
-  { to: '/transactions', label: 'Giao dịch / Đối soát', icon: ArrowLeftRight },
   { to: '/exceptions', label: 'Exception Queue', icon: AlertTriangle },
   { to: '/reminders', label: 'Lịch nhắc', icon: BellRing },
   { to: '/copilot', label: 'Copilot', icon: Bot, minPlan: PlanId.BUSINESS },
