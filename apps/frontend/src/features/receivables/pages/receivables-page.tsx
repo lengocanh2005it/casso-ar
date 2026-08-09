@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useReceivables } from '../api/use-receivables';
 import { CreateReceivableDialog } from '../components/create-receivable-dialog';
+import { ImportInvoicesDialog } from '../components/import-invoices-dialog';
 import { ReceivableFilters } from '../components/receivable-filters';
 import { ReceivableTable } from '../components/receivable-table';
 import type { ReceivableStatus } from '../types';
@@ -20,7 +21,10 @@ export function ReceivablesPage() {
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">
             Công nợ
           </h1>
-          <CreateReceivableDialog />
+          <div className="flex flex-wrap gap-2">
+            <ImportInvoicesDialog />
+            <CreateReceivableDialog />
+          </div>
         </div>
       </div>
       <ReceivableFilters
