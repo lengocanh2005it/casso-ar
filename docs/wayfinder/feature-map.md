@@ -89,7 +89,8 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **27 plans** | status snapshot (2026-08-09):
 - 🟢 done (18): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #17, Plan #18, Application Layer Boundary Enforcement
-- 🔴 open/not started (9): Plan #16, #19–#23 + Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
+- 🟡 in-progress (1): Plan #16 — branch `feat/collection-copilot`, spec/plan revised, implementation not started
+- 🔴 open/not started (8): #19–#23 + Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
 
 ---
 
@@ -395,20 +396,21 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #16 — Collection Copilot
 - **Type**: task
-- **Status**: open
+- **Status**: in-progress — branch `feat/collection-copilot`, spec/plan revised after a grilling session (2026-08-09), implementation not yet started
 - **Owner**: BE + FE
 - **Spec**: `specs/2026-08-03-collection-copilot-design.md`
 - **Blockers**: none — Plan #2 ✅, Plan #6 ✅, Plan #7 ✅, Plan #10 ✅, Plan #12 ✅
 - **Key entities**: `CopilotConversation`, `CopilotMessage`, `CopilotPendingAction`, `CopilotDraft`, `AIUsageLog`
 - **Key rules**:
-  - Chat-based AI (Claude via `@anthropic-ai/sdk`)
+  - Chat-based AI via an OpenAI-compatible Chat Completions API (`openai` SDK behind a new `IAIChatProvider` port; MVP default OpenRouter + `gpt-4o-mini`, configurable via env vars) — changed from the original spec draft's Anthropic SDK during the 2026-08-09 grilling session
   - 5 tools max (hardcoded whitelist): `getReceivableSummary`, `getCollectionActivityTimeline`, `getPaymentHistory`, `draftReminderEmail`, `sendReminderEmail`
-  - `sendReminderEmail` intercepted into pending action (never executes in model turn)
-  - Confirm/cancel endpoints: `POST /copilot/actions/:id/confirm|cancel`
+  - `sendReminderEmail` intercepted into pending action (never executes in model turn); real multi-round ReAct tool loop, not a single hard-coded call
+  - Confirm/cancel endpoints: `POST /copilot/actions/:id/confirm|cancel`, both idempotency-wrapped and race-safe (atomic `confirmIfPending`/`cancelIfPending`)
   - 15s timeout + 1 retry
-  - `CopilotPendingAction` expires 10min
+  - `CopilotPendingAction` expires 10min, silently becomes uninteractable (no notification)
   - `Permission.REMINDER_SEND_MANUAL` gates write
   - Never expose credentials in prompts
+  - Chat turns gated by Billing (`PlanLimitService.enforceCopilotChatLimit`, FREE = 50/month) — new in scope per explicit user decision, reversing the original spec's "free in MVP" default
 - **Creates**: `copilot/` module (5 entities + tool registry + chat/confirm/cancel use cases + controller)
 
 ---
@@ -607,8 +609,10 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Frontier
 
+**In progress:**
+- **Plan #16** (Collection Copilot) — branch `feat/collection-copilot`, spec/plan revised after grilling, implementation not started
+
 **Next available tickets** (all blockers resolved):
-- **Plan #16** (Collection Copilot) — blockers: Plan #2 ✅, Plan #6 ✅, Plan #7 ✅, Plan #10 ✅, Plan #12 ✅
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
 - **Plan #22** (Testing Strategy + CI) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #8 ✅, Plan #13 ✅
 - **Plan #23** (Deployment + Observability) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #18 ✅
@@ -620,4 +624,4 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Plan #21** (FE Reminders, Copilot, Reports, Settings) — waiting on Plan #16, Plan #19 (Plan #12, #15 + #17 now shipped)
 - **Spec-Plan Reconciliation** — waiting on all plans
 
-**Recommended next step:** Plan #16 (Collection Copilot) is the highest-leverage pick now that Plan #12 (Reminder Automation) has shipped — it's the last blocker for Plan #16 and, along with Plan #19, one of the two remaining blockers on Plan #21.
+**Recommended next step:** finish implementing Plan #16 (Collection Copilot) — spec/plan are revised and ready, implementation is next. Plan #19 (FE Auth + App Shell) is a good parallel pick since it blocks both Plan #20 and Plan #21.
