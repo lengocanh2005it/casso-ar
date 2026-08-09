@@ -34,4 +34,16 @@ describe('GetDashboardSummaryQueryDto', () => {
       validationErrors({ from: '01/01/2026', to: '2026-01-02' }),
     ).resolves.not.toHaveLength(0);
   });
+
+  it('rejects from supplied without to', async () => {
+    await expect(
+      validationErrors({ from: '2026-01-01' }),
+    ).resolves.not.toHaveLength(0);
+  });
+
+  it('rejects to supplied without from', async () => {
+    await expect(
+      validationErrors({ to: '2026-01-01' }),
+    ).resolves.not.toHaveLength(0);
+  });
 });

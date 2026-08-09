@@ -301,6 +301,12 @@ describe('Aging dashboard reporting (integration)', () => {
       .expect(401);
   });
 
+  it('rejects unauthenticated dashboard summary requests', async () => {
+    await request(app?.getHttpServer())
+      .get('/api/v1/reports/dashboard-summary')
+      .expect(401);
+  });
+
   it('assigns receivables to all five aging buckets', async () => {
     const response = await request(app?.getHttpServer())
       .get('/api/v1/reports/aging')
@@ -360,6 +366,19 @@ describe('Aging dashboard reporting (integration)', () => {
       .get('/api/v1/reports/dashboard-summary')
       .set('Authorization', `Bearer ${token}`)
       .query({ from: '2026-01-01', to: '2026-04-02' })
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      statusCode: 400,
+      errorCode: ErrorCode.VALIDATION_ERROR,
+    });
+  });
+
+  it('rejects a dashboard date range with only "from" supplied', async () => {
+    const response = await request(app?.getHttpServer())
+      .get('/api/v1/reports/dashboard-summary')
+      .set('Authorization', `Bearer ${token}`)
+      .query({ from: '2026-08-01' })
       .expect(400);
 
     expect(response.body).toMatchObject({

@@ -1,7 +1,7 @@
 import {
   IsDateString,
-  IsOptional,
   Validate,
+  ValidateIf,
   type ValidationArguments,
   ValidatorConstraint,
   type ValidatorConstraintInterface,
@@ -14,11 +14,21 @@ interface DashboardDateRangeInput {
   to?: unknown;
 }
 
+function eitherDatePresent(dto: DashboardDateRangeInput): boolean {
+  return dto.from !== undefined || dto.to !== undefined;
+}
+
 @ValidatorConstraint({ name: 'dashboardDateRange', async: false })
 class DashboardDateRangeConstraint implements ValidatorConstraintInterface {
   validate(_value: unknown, args: ValidationArguments): boolean {
     const { from, to } = args.object as DashboardDateRangeInput;
-    if (typeof from !== 'string' || typeof to !== 'string') {
+    const fromPresent = typeof from === 'string';
+    const toPresent = typeof to === 'string';
+
+    if (fromPresent !== toPresent) {
+      return false;
+    }
+    if (!fromPresent || !toPresent) {
       return true;
     }
 
@@ -33,16 +43,16 @@ class DashboardDateRangeConstraint implements ValidatorConstraintInterface {
   }
 
   defaultMessage(): string {
-    return 'Khoảng thời gian phải có from <= to và không vượt quá 90 ngày.';
+    return 'from và to phải đi cùng nhau, có from <= to, và không vượt quá 90 ngày.';
   }
 }
 
 export class GetDashboardSummaryQueryDto {
-  @IsOptional()
+  @ValidateIf(eitherDatePresent)
   @IsDateString()
   from?: string;
 
-  @IsOptional()
+  @ValidateIf(eitherDatePresent)
   @IsDateString()
   @Validate(DashboardDateRangeConstraint)
   to?: string;
