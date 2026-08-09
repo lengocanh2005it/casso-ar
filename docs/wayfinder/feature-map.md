@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #7, #8, #9, #10, #11, #12, #13, #14, #17, #18 complete, remaining Plan #15–#16, #19–#23 pending
+**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #7, #8, #9, #10, #11, #12, #13, #14, #17, #18 complete, Plan #15 in progress, remaining Plan #16, #19–#23 pending
 
 ---
 
@@ -89,7 +89,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **27 plans** | status snapshot (2026-08-09):
 - 🟢 done (17): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #17, Plan #18, Application Layer Boundary Enforcement
-- 🔴 open/not started (10): Plan #15–#16, #19–#23 + Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
+- 🔴 open/not started (9): Plan #16, #19–#23 + Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
 
 ---
 
@@ -375,7 +375,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #15 — Aging Dashboard + Reporting
 - **Type**: task
-- **Status**: open
+- **Status**: in-progress
 - **Owner**: BE + FE
 - **Spec**: `specs/2026-08-03-aging-dashboard-reporting-design.md`
 - **Blockers**: none — Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
@@ -604,7 +604,7 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **Next available tickets** (all blockers resolved):
-- **Plan #15** (Aging Dashboard + Reporting) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
+- **Plan #15** (Aging Dashboard + Reporting) — in progress — blockers: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
 - **Plan #16** (Collection Copilot) — blockers: Plan #2 ✅, Plan #6 ✅, Plan #7 ✅, Plan #10 ✅, Plan #12 ✅
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
 - **Plan #22** (Testing Strategy + CI) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #8 ✅, Plan #13 ✅

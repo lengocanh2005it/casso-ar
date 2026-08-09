@@ -38,6 +38,7 @@ import { EmailVerifiedGuard } from './modules/auth/presentation/email-verified.g
 import { ExceptionQueueModule } from './modules/exception-queue/exception-queue.module';
 import { InvoiceImportModule } from './modules/invoice-import/invoice-import.module';
 import { InternalTasksModule } from './modules/internal-tasks/internal-tasks.module';
+import { ReportingModule } from './modules/reporting/reporting.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { InternalTasksModule } from './modules/internal-tasks/internal-tasks.mod
     ExceptionQueueModule,
     InvoiceImportModule,
     InternalTasksModule,
+    ReportingModule,
   ],
   providers: [
     JwtStrategy,
