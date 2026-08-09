@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1–#19 complete, remaining Plan #20–#23 pending
+**Map mode**: chart — Plan #1–#20 complete, remaining Plan #21–#23 pending
 
 ---
 
@@ -478,10 +478,11 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #20 — FE Core AR Loop
 - **Type**: task
-- **Status**: in-progress
+- **Status**: done ✅
 - **Owner**: FE
 - **Plan**: `plans/2026-08-03-fe-core-ar-loop.md`
 - **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #9 ✅, Plan #10 ✅, Plan #11 ✅, Plan #13 ✅, Plan #14 ✅, Plan #17 ✅, Plan #18 ✅, Plan #19 ✅
+- **Shipped**: 2026-08-10 — draft PR #81, branch `feat/fe-core-ar-loop`
 - **Key rules**:
   - 3 core pages: Customers (list + detail route), Receivables (list + detail route + import + write-off/cancel/dispute), Exception Queue (review + match + split match — merged with the originally-separate Transactions page, see plan revision note)
   - Receivable/Customer detail = routes (`/receivables/:id`, `/customers/:id`)
@@ -490,7 +491,7 @@ Success = a single document a new developer can read and know exactly what to pi
   - Money via `formatVND` utility
   - `ReceivableStatusBadge` shared component
 - **Creates**: Customer pages (+ new `GET /api/v1/customers/:id` backend endpoint), Receivable pages (+ `isOverdue`/`invoiceNumber` added to `GET /receivables/:id`), Exception Queue page (match + split match + skip + mark-prepaid with customer search)
-- **Implementation note**: plan revised in a 2026-08-10 grilling session — Transactions/Exception Queue merged into one page (only one backend endpoint exists for both), 2 small backend additions added to scope (`GET /customers/:id`, `isOverdue`/`invoiceNumber` on receivable detail), Dismiss task action added, mark-prepaid customer picker instead of raw text UUID, 2 RBAC bugs fixed before implementation (import gated on `RECEIVABLE_IMPORT` not `RECEIVABLE_WRITE`, cancel gated on `RECEIVABLE_WRITE_OFF` not `RECEIVABLE_WRITE`). See plan doc's revision note for full detail.
+- **Implementation note**: plan revised in a 2026-08-10 grilling session and shipped in this worktree — Transactions/Exception Queue merged into one page (only one backend endpoint exists for both), 2 small backend additions added to scope (`GET /customers/:id`, `isOverdue`/`invoiceNumber` on receivable detail), Dismiss task action added, mark-prepaid customer picker instead of raw text UUID, 2 RBAC bugs fixed before implementation (import gated on `RECEIVABLE_IMPORT` not `RECEIVABLE_WRITE`, cancel gated on `RECEIVABLE_WRITE_OFF` not `RECEIVABLE_WRITE`). See plan doc's revision note for full detail.
 
 ---
 
@@ -614,7 +615,7 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **In progress:**
-- **Plan #20** (FE Core AR Loop) — plan revised in a 2026-08-10 grilling session, implementation starting
+- None
 
 **Next available tickets** (all blockers resolved):
 - **Plan #21** (FE Reminders, Copilot, Reports, Settings) — blockers: Plan #4 ✅, Plan #5 ✅, Plan #6 ✅, Plan #7 ✅, Plan #12 ✅, Plan #15 ✅, Plan #16 ✅, Plan #17 ✅, Plan #18 ✅, Plan #19 ✅
