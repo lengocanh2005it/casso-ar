@@ -1,0 +1,82 @@
+import { type FormEvent, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/auth-context';
+
+export function LoginPage() {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitting(true);
+
+    try {
+      await login(email, password);
+      toast.success('Đăng nhập thành công.');
+      navigate('/dashboard');
+    } catch {
+      toast.error('Email hoặc mật khẩu không đúng.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="flex min-h-svh items-center justify-center bg-muted/30 p-6">
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm"
+      >
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-primary">Casso Ledger</p>
+          <h1 className="text-2xl font-semibold">Đăng nhập</h1>
+          <p className="text-sm text-muted-foreground">
+            Quản lý công nợ và dòng tiền của doanh nghiệp.
+          </p>
+        </div>
+
+        <label className="block space-y-1">
+          <span className="text-sm font-medium">Email</span>
+          <input
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        </label>
+
+        <label className="block space-y-1">
+          <span className="text-sm font-medium">Mật khẩu</span>
+          <input
+            type="password"
+            required
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        </label>
+
+        <Button type="submit" disabled={submitting} className="w-full">
+          {submitting ? 'Đang xử lý…' : 'Đăng nhập'}
+        </Button>
+
+        <div className="flex justify-between text-sm">
+          <Link to="/signup" className="text-primary hover:underline">
+            Tạo tài khoản
+          </Link>
+          <Link to="/forgot-password" className="text-primary hover:underline">
+            Quên mật khẩu?
+          </Link>
+        </div>
+      </form>
+    </div>
+  );
+}
