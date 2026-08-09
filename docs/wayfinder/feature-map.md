@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #7, #8, #9, #10, #11, #12, #13, #17, #18 complete, remaining Plan #14–#16, #19–#23 pending
+**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #7, #8, #9, #10, #11, #12, #13, #14, #17, #18 complete, remaining Plan #15–#16, #19–#23 pending
 
 ---
 
@@ -88,8 +88,8 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Ticket Index
 
 **27 plans** | status snapshot (2026-08-09):
-- 🟢 done (16): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #17, Plan #18, Application Layer Boundary Enforcement
-- 🔴 open/not started (11): Plan #15–#16, #19–#23 + Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
+- 🟢 done (17): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #17, Plan #18, Application Layer Boundary Enforcement
+- 🔴 open/not started (10): Plan #15–#16, #19–#23 + Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
 
 ---
 
@@ -300,16 +300,17 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: done ✅
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-internal-task-escalation-design.md`
+- **Plan**: `plans/2026-08-03-internal-task-escalation.md`
 - **Blockers**: none — Plan #1 ✅, Plan #2 ✅
-- **Shipped**: 2026-08-09 — PR #77 implementation complete (pending merge)
 - **Key entities**: `InternalTask` (ESCALATION/MANUAL, OPEN/DONE/DISMISSED)
 - **Key rules**:
-  - Escalation threshold configurable per active customer-group reminder policy, with a 30-day fallback
-  - `receivable.status-closed` = broad terminal event (auto-dismiss)
-  - `receivable.closed` = PAID-only
-  - Assigned to first active FINANCE_MANAGER, falling back to OWNER
+  - Escalation threshold per `customerGroup` on `ReminderPolicy.escalationThresholdDays` (fallback 30 days)
+  - `receivable.status-closed` = broad terminal event (auto-dismiss), distinct from PAID-only `receivable.closed` (ADR-0005)
+  - Assigned to first active FINANCE_MANAGER, falling back to first OWNER when the org has none
   - Manual assignees must be active organization members; resolve/dismiss is restricted to assignee or OWNER
+  - `findOverdueByThreshold` paginates via a keyset cursor (500/batch) so a large org's overdue scan stays memory-bounded
 - **Creates**: `internal-tasks/` module, `RunEscalationScanUseCase`, listeners, controller (4 endpoints), cancel endpoint, migration
+- **Shipped**: 2026-08-09 — PR #77 merged, 3 commits
 
 ---
 
@@ -471,7 +472,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: FE
 - **Plan**: `plans/2026-08-03-fe-core-ar-loop.md`
-- **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #9 ✅, Plan #10 ✅, Plan #11, Plan #13 ✅, Plan #14, Plan #17 ✅, Plan #18 ✅, Plan #19
+- **Blockers**: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #9 ✅, Plan #10 ✅, Plan #11 ✅, Plan #13 ✅, Plan #14 ✅, Plan #17 ✅, Plan #18 ✅, Plan #19
 - **Key rules**:
   - 4 core pages: Customers (list + detail route), Receivables (list + detail route + import + write-off/cancel/dispute), Transactions (matching workspace), Exceptions (review + split match)
   - Receivable/Customer detail = routes (`/receivables/:id`, `/customers/:id`)
@@ -616,4 +617,4 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Plan #21** (FE Reminders, Copilot, Reports, Settings) — waiting on Plan #15, Plan #16, Plan #19 (Plan #12 + #17 now shipped)
 - **Spec-Plan Reconciliation** — waiting on all plans
 
-**Recommended next step:** Plan #16 (Collection Copilot) is the highest-leverage pick now that Plan #12 (Reminder Automation) has shipped — it's the last blocker for Plan #16 and feeds Plan #21.
+**Recommended next step:** Plan #16 (Collection Copilot) is the highest-leverage pick now that Plan #12 (Reminder Automation) has shipped — it's the last blocker for Plan #16 and feeds Plan #21. Plan #15 (Aging Dashboard + Reporting) is also unblocked.
