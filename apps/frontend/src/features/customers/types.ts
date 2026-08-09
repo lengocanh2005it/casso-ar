@@ -9,3 +9,13 @@ export interface Customer {
   priority: number | null;
   createdAt: string;
 }
+
+export interface CustomerTimelineItem {
+  id: string;
+  receivableId: string;
+  activityType: string;
+  description: string;
+  metadata: Record<string, unknown> | null;
+  createdByUserId: string | null;
+  createdAt: string;
+}

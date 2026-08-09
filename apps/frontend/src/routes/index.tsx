@@ -10,7 +10,7 @@ import {
 } from '@/features/auth';
 import { BankConnectionsPage } from '@/features/bank-connections';
 import { CopilotPage } from '@/features/copilot';
-import { CustomersPage } from '@/features/customers';
+import { CustomerDetailPage, CustomersPage } from '@/features/customers';
 import { DashboardPage } from '@/features/dashboard';
 import { ExceptionsPage } from '@/features/exceptions';
 import { ReceivablesPage } from '@/features/receivables';
@@ -75,6 +75,7 @@ export const appRoutes: RouteObject[] = [
   { index: true, element: <Navigate to="/dashboard" replace /> },
   { path: 'dashboard', element: <DashboardPage /> },
   { path: 'customers', element: <CustomersPage /> },
+  { path: 'customers/:id', element: <CustomerDetailPage /> },
   { path: 'receivables', element: <ReceivablesPage /> },
   { path: 'bank-connections', element: <BankConnectionsPage /> },
   { path: 'transactions', element: <TransactionsPage /> },
