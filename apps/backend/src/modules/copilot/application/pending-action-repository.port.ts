@@ -1,3 +1,7 @@
+import type { EntityManager } from 'typeorm';
+
+export const PENDING_ACTION_EXPIRY_MINUTES = 10;
+
 export type CopilotPendingActionStatus =
   | 'PENDING'
   | 'CONFIRMED'
@@ -25,6 +29,7 @@ export interface ICopilotPendingActionRepository {
   create(
     conversationId: string,
     payload: SendReminderEmailPayload,
+    manager?: EntityManager,
   ): Promise<CopilotPendingAction>;
   findById(id: string): Promise<CopilotPendingAction | null>;
   markExpired(id: string): Promise<void>;

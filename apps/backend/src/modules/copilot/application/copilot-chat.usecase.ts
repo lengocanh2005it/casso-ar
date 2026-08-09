@@ -32,6 +32,7 @@ import { DraftReminderEmailTool } from './tools/draft-reminder-email.tool';
 import { GetCollectionActivityTimelineTool } from './tools/get-collection-activity-timeline.tool';
 import { GetPaymentHistoryTool } from './tools/get-payment-history.tool';
 import { GetReceivableSummaryTool } from './tools/get-receivable-summary.tool';
+import { SendReminderEmailTool } from './tools/send-reminder-email.tool';
 
 const PROMPT_VERSION = 'copilot-v1';
 const MODEL_CALL_TIMEOUT_MS = 15_000;
@@ -193,7 +194,7 @@ export class CopilotChatUseCase {
           },
           organizationId,
         );
-      case 'sendReminderEmail':
+      case SendReminderEmailTool.NAME:
         throw new AppError(
           ErrorCode.VALIDATION_ERROR,
           'sendReminderEmail phải được chặn trước khi thực thi.',
@@ -269,27 +270,45 @@ export class CopilotChatUseCase {
         input.conversationId,
       );
       const sendCall = response.toolCalls.find(
-        (call) => call.name === 'sendReminderEmail',
+        (call) => call.name === SendReminderEmailTool.NAME,
       );
 
       if (sendCall) {
         const draftId = requiredString(sendCall.arguments, 'draftId');
         const receivableId = requiredString(sendCall.arguments, 'receivableId');
-        const pendingAction = await this.pendingActionRepo.create(
-          input.conversationId,
-          { draftId, receivableId },
+        // Other tool calls the model batched into the same response still run
+        // and their results are recorded — only sendReminderEmail is halted.
+        await Promise.all(
+          response.toolCalls
+            .filter((call) => call.name !== SendReminderEmailTool.NAME)
+            .map((call) =>
+              this.executeTool(call.name, call.arguments, user.organizationId),
+            ),
         );
-        const saved = await this.conversationRepo.appendMessage({
-          conversationId: input.conversationId,
-          role: 'ASSISTANT',
-          content: response.content ?? '',
-          toolCalls: response.toolCalls.map((call) => ({
-            id: call.id,
-            name: call.name,
-            input: call.arguments,
-          })),
-          createdAt: new Date(),
-        });
+        const { pendingAction, saved } = await this.dataSource.transaction(
+          async (manager) => {
+            const action = await this.pendingActionRepo.create(
+              input.conversationId,
+              { draftId, receivableId },
+              manager,
+            );
+            const message = await this.conversationRepo.appendMessage(
+              {
+                conversationId: input.conversationId,
+                role: 'ASSISTANT',
+                content: response.content ?? '',
+                toolCalls: response.toolCalls.map((call) => ({
+                  id: call.id,
+                  name: call.name,
+                  input: call.arguments,
+                })),
+                createdAt: new Date(),
+              },
+              manager,
+            );
+            return { pendingAction: action, saved: message };
+          },
+        );
         return { message: saved, pendingAction };
       }
 

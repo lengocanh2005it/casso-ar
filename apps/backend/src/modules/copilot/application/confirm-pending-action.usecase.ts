@@ -25,9 +25,8 @@ import {
   COPILOT_PENDING_ACTION_REPOSITORY,
   type CopilotPendingAction,
   type ICopilotPendingActionRepository,
+  PENDING_ACTION_EXPIRY_MINUTES,
 } from './pending-action-repository.port';
-
-export const PENDING_ACTION_EXPIRY_MINUTES = 10;
 
 @Injectable()
 export class ConfirmPendingActionUseCase {

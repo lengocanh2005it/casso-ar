@@ -1,11 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
-import { PENDING_ACTION_EXPIRY_MINUTES } from './confirm-pending-action.usecase';
 import {
   COPILOT_PENDING_ACTION_REPOSITORY,
   type CopilotPendingAction,
   type ICopilotPendingActionRepository,
+  PENDING_ACTION_EXPIRY_MINUTES,
 } from './pending-action-repository.port';
 
 @Injectable()

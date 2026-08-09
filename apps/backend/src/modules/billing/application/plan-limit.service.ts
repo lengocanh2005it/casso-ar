@@ -21,32 +21,10 @@ export class PlanLimitService {
 
   // Must run inside the same transaction as the write it's gating.
   async enforceReceivableLimit(manager: EntityManager): Promise<void> {
-    const organizationId = this.tenant.getOrganizationId();
-    const now = new Date();
-
-    let subscription = await this.repo.lockAndFindByOrganizationId(
-      organizationId,
-      manager,
-    );
-    if (!subscription) {
-      subscription = Subscription.createFree(randomUUID(), organizationId, now);
-      await this.repo.save(subscription, manager);
-    } else {
-      const rolled = subscription.rollToCurrentPeriodIfExpired(now);
-      if (rolled !== subscription) {
-        subscription = rolled;
-        await this.repo.save(subscription, manager);
-      }
-    }
-
-    if (subscription.status !== SubscriptionStatus.ACTIVE) {
-      this.throwPlanLimitExceeded(
-        `Gói ${subscription.planId} đang ở trạng thái ${subscription.status}; vui lòng cập nhật thanh toán để tiếp tục.`,
-      );
-    }
+    const subscription = await this.lockActiveSubscription(manager);
 
     const receivablesThisMonth = await this.repo.countReceivablesInPeriod(
-      organizationId,
+      subscription.organizationId,
       subscription.currentPeriodStart,
       subscription.currentPeriodEnd,
       manager,
@@ -60,6 +38,28 @@ export class PlanLimitService {
   }
 
   async enforceCopilotChatLimit(manager: EntityManager): Promise<void> {
+    const subscription = await this.lockActiveSubscription(manager);
+
+    const chatTurnsThisMonth = await this.repo.countCopilotChatTurnsInPeriod(
+      subscription.organizationId,
+      subscription.currentPeriodStart,
+      subscription.currentPeriodEnd,
+      manager,
+    );
+
+    if (subscription.isCopilotChatLimitReached(chatTurnsThisMonth)) {
+      this.throwPlanLimitExceeded(
+        `Đã đạt giới hạn gói ${subscription.planId}; vui lòng nâng cấp để tiếp tục.`,
+      );
+    }
+  }
+
+  // Shared by every limit check: lock the subscription, roll its billing
+  // period if expired, and reject a non-ACTIVE subscription before the
+  // caller counts usage.
+  private async lockActiveSubscription(
+    manager: EntityManager,
+  ): Promise<Subscription> {
     const organizationId = this.tenant.getOrganizationId();
     const now = new Date();
 
@@ -84,18 +84,7 @@ export class PlanLimitService {
       );
     }
 
-    const chatTurnsThisMonth = await this.repo.countCopilotChatTurnsInPeriod(
-      organizationId,
-      subscription.currentPeriodStart,
-      subscription.currentPeriodEnd,
-      manager,
-    );
-
-    if (subscription.isCopilotChatLimitReached(chatTurnsThisMonth)) {
-      this.throwPlanLimitExceeded(
-        `Đã đạt giới hạn gói ${subscription.planId}; vui lòng nâng cấp để tiếp tục.`,
-      );
-    }
+    return subscription;
   }
 
   private throwPlanLimitExceeded(message: string): never {

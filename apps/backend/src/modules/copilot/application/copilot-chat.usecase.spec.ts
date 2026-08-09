@@ -199,9 +199,131 @@ describe('CopilotChatUseCase', () => {
     expect(deps.pendingActionRepo.create).toHaveBeenCalledWith(
       'conversation-1',
       { draftId: 'draft-1', receivableId: 'receivable-1' },
+      expect.anything(),
     );
     expect(aiProvider.createChatCompletion).toHaveBeenCalledTimes(1);
     expect(deps.usageLogRepo.log).toHaveBeenCalledTimes(1);
+  });
+
+  it('still executes other batched tool calls when the model also calls sendReminderEmail in the same response', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion.mockResolvedValueOnce({
+      content: 'Here is the summary, and proposing to send.',
+      toolCalls: [
+        {
+          id: 'tool-1',
+          name: 'getReceivableSummary',
+          arguments: { customerId: 'cust-1' },
+        },
+        {
+          id: 'tool-3',
+          name: 'sendReminderEmail',
+          arguments: { draftId: 'draft-1', receivableId: 'receivable-1' },
+        },
+      ],
+      inputTokens: 40,
+      outputTokens: 12,
+    });
+    const deps = buildDeps();
+    deps.summaryTool.execute.mockResolvedValue({ overdueCount: 2 });
+    deps.pendingActionRepo.create.mockResolvedValue({
+      id: 'action-1',
+      organizationId: 'org-1',
+      conversationId: 'conversation-1',
+      actionType: 'SEND_REMINDER_EMAIL',
+      status: 'PENDING',
+      payload: { draftId: 'draft-1', receivableId: 'receivable-1' },
+      createdAt: new Date('2026-08-09T10:00:00Z'),
+      resolvedAt: null,
+      resolvedByUserId: null,
+    });
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    const result = await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'How is cust-1 doing, and send the reminder for draft-1',
+    });
+
+    expect(result.pendingAction).toMatchObject({ id: 'action-1' });
+    expect(deps.summaryTool.execute).toHaveBeenCalledWith({
+      customerId: 'cust-1',
+    });
+    expect(aiProvider.createChatCompletion).toHaveBeenCalledTimes(1);
+  });
+
+  it('wraps the pending-action creation and the assistant message append in one transaction', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion.mockResolvedValueOnce({
+      content: 'Proposing to send.',
+      toolCalls: [
+        {
+          id: 'tool-3',
+          name: 'sendReminderEmail',
+          arguments: { draftId: 'draft-1', receivableId: 'receivable-1' },
+        },
+      ],
+      inputTokens: 40,
+      outputTokens: 12,
+    });
+    const managers: object[] = [];
+    const deps = buildDeps({
+      dataSource: {
+        transaction: jest.fn().mockImplementation((callback) => {
+          const manager = {};
+          managers.push(manager);
+          return callback(manager);
+        }),
+      },
+    });
+    deps.pendingActionRepo.create.mockResolvedValue({
+      id: 'action-1',
+      organizationId: 'org-1',
+      conversationId: 'conversation-1',
+      actionType: 'SEND_REMINDER_EMAIL',
+      status: 'PENDING',
+      payload: { draftId: 'draft-1', receivableId: 'receivable-1' },
+      createdAt: new Date('2026-08-09T10:00:00Z'),
+      resolvedAt: null,
+      resolvedByUserId: null,
+    });
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Send the reminder for draft-1',
+    });
+
+    expect(deps.dataSource.transaction).toHaveBeenCalledTimes(2);
+    expect(deps.pendingActionRepo.create.mock.calls[0][2]).toBe(managers[1]);
+    expect(deps.conversationRepo.appendMessage.mock.calls[1][1]).toBe(
+      managers[1],
+    );
   });
 
   it('enforces the billing quota before calling the AI provider', async () => {

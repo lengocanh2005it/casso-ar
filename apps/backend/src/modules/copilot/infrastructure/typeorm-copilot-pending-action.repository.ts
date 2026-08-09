@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import type { EntityManager } from 'typeorm';
 import { Repository } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
@@ -41,8 +42,12 @@ export class TypeOrmCopilotPendingActionRepository
   async create(
     conversationId: string,
     payload: SendReminderEmailPayload,
+    manager?: EntityManager,
   ): Promise<CopilotPendingAction> {
-    const row = await this.ormRepo.save({
+    const repo = manager
+      ? manager.getRepository(CopilotPendingActionOrmEntity)
+      : this.ormRepo;
+    const row = await repo.save({
       id: randomUUID(),
       organizationId: this.tenantContext.getOrganizationId(),
       conversationId,
