@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1–#14, #16–#18 complete, Plan #15 in progress, remaining Plan #19–#23 pending
+**Map mode**: chart — Plan #1–#18 complete, remaining Plan #19–#23 pending
 
 ---
 
@@ -496,7 +496,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Status**: open
 - **Owner**: FE
 - **Plan**: `plans/2026-08-03-fe-reminders-copilot-reports-settings.md`
-- **Blockers**: Plan #4 ✅, Plan #5 ✅, Plan #6 ✅, Plan #7 ✅, Plan #12 ✅, Plan #15, Plan #17 ✅, Plan #18 ✅, Plan #19
+- **Blockers**: Plan #4 ✅, Plan #5 ✅, Plan #6 ✅, Plan #7 ✅, Plan #12 ✅, Plan #15 ✅, Plan #16 ✅, Plan #17 ✅, Plan #18 ✅, Plan #19
 - **Key rules**:
   - Reminders: policy + executions list
   - Copilot: chat message list + pending-action cards (confirm/cancel)
@@ -611,7 +611,7 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **In progress:**
-- **Plan #15** (Reports Dashboard)
+- none — all BE lanes (Plan #1–#18) shipped
 
 **Next available tickets** (all blockers resolved):
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
@@ -622,7 +622,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **Blocked tickets waiting:**
 - **Plan #20** (FE Core AR Loop) — waiting on Plan #19 (Plan #10, #11, #14 + #17 now shipped)
-- **Plan #21** (FE Reminders, Copilot, Reports, Settings) — waiting on Plan #16, Plan #19 (Plan #12, #15 + #17 now shipped)
+- **Plan #21** (FE Reminders, Copilot, Reports, Settings) — waiting on Plan #19 (Plan #12, #15, #16, #17 now shipped)
 - **Spec-Plan Reconciliation** — waiting on all plans
 
-**Recommended next step:** Plan #19 (FE Auth + App Shell) is a good parallel pick since it blocks both Plan #20 and Plan #21.
+**Recommended next step:** Plan #19 (FE Auth + App Shell) is now the sole blocker for both Plan #20 and Plan #21 — the entire backend lane (Plan #1–#18) is shipped.
