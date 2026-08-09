@@ -26,6 +26,10 @@ import { CollectionActivityController } from './presentation/collection-activity
     CollectionActivityListener,
   ],
   controllers: [CollectionActivityController],
-  exports: [COLLECTION_ACTIVITY_REPOSITORY, RecordManualActivityUseCase],
+  exports: [
+    COLLECTION_ACTIVITY_REPOSITORY,
+    RecordManualActivityUseCase,
+    GetCustomerTimelineUseCase,
+  ],
 })
 export class CollectionActivityModule {}
