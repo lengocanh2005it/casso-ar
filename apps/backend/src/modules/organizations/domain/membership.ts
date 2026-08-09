@@ -1,6 +1,6 @@
-import { Role } from '@casso-ledger/shared-types';
-
 export { Role } from '@casso-ledger/shared-types';
+
+import type { Role } from '@casso-ledger/shared-types';
 
 export interface MembershipProps {
   id: string;

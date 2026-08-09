@@ -1,11 +1,13 @@
 import type { RouteObject } from 'react-router-dom';
 import { Navigate } from 'react-router-dom';
-import { ForgotPasswordPage } from '@/features/auth/forgot-password-page';
-import { InviteAcceptPage } from '@/features/auth/invite-accept-page';
-import { LoginPage } from '@/features/auth/login-page';
-import { ResetPasswordPage } from '@/features/auth/reset-password-page';
-import { SignupPage } from '@/features/auth/signup-page';
-import { VerifyEmailPage } from '@/features/auth/verify-email-page';
+import {
+  ForgotPasswordPage,
+  InviteAcceptPage,
+  LoginPage,
+  ResetPasswordPage,
+  SignupPage,
+  VerifyEmailPage,
+} from '@/features/auth';
 import { BankConnectionsPage } from '@/features/bank-connections';
 import { CopilotPage } from '@/features/copilot';
 import { CustomersPage } from '@/features/customers';

@@ -40,6 +40,7 @@ export function SidebarFooter({ collapsed }: { collapsed: boolean }) {
           <p className="truncate text-xs text-muted-foreground">
             {user.organizationName} · {getPlanLabel(user.subscriptionPlan)}
           </p>
+          <p className="truncate text-xs text-muted-foreground">{user.role}</p>
         </div>
       )}
       <button

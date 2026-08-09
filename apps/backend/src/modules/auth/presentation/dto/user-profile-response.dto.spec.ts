@@ -1,3 +1,4 @@
+import { Role } from '@casso-ledger/shared-types';
 import { toUserProfileResponse } from './user-profile-response.dto';
 
 describe('toUserProfileResponse', () => {
@@ -8,7 +9,7 @@ describe('toUserProfileResponse', () => {
       name: 'Owner',
       organizationId: 'org-1',
       organizationName: 'Casso Ledger',
-      role: 'OWNER',
+      role: Role.OWNER,
       subscriptionPlan: 'FREE',
     });
 
@@ -16,7 +17,7 @@ describe('toUserProfileResponse', () => {
       id: 'user-1',
       email: 'owner@casso.vn',
       name: 'Owner',
-      role: 'OWNER',
+      role: Role.OWNER,
       organizationId: 'org-1',
       organizationName: 'Casso Ledger',
       subscriptionPlan: 'FREE',

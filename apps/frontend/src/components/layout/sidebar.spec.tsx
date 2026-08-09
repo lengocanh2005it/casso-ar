@@ -57,6 +57,7 @@ describe('Sidebar', () => {
         email: 'anh@casso.vn',
         organizationName: 'Casso Ledger',
         subscriptionPlan: 'FREE',
+        role: 'OWNER',
       },
       logout,
     });
@@ -74,6 +75,7 @@ describe('Sidebar', () => {
 
     expect(screen.getByText('Anh Le')).toBeVisible();
     expect(screen.getByText(/casso ledger · free/i)).toBeVisible();
+    expect(screen.getByText('OWNER')).toBeVisible();
     screen.getByRole('button', { name: 'Đăng xuất' }).click();
     await waitFor(() => expect(logout).toHaveBeenCalledTimes(1));
   });

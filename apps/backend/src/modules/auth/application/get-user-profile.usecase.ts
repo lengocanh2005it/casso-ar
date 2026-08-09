@@ -1,3 +1,4 @@
+import type { Role } from '@casso-ledger/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
@@ -39,7 +40,7 @@ export class GetUserProfileUseCase {
     name: string;
     organizationId: string;
     organizationName: string;
-    role: string;
+    role: Role;
     subscriptionPlan: string;
   }> {
     const user = await this.userRepo.findById(userId);
