@@ -1,10 +1,11 @@
 import { PlanId } from '@casso-ledger/shared-types';
-import { ChevronLeft, ChevronRight, Lock, LogOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useReviewCount } from '@/features/exceptions/api/use-review-count';
 import { hasPlanAccess } from '@/lib/plan-access';
 import { cn } from '@/lib/utils';
 import { navItems } from './nav-items';
+import { SidebarFooter } from './sidebar-footer';
 
 function Badge({ count }: { count: number }) {
   if (count <= 0) return null;
@@ -90,28 +91,5 @@ export function Sidebar({
 
       <SidebarFooter collapsed={collapsed} />
     </aside>
-  );
-}
-
-function SidebarFooter({ collapsed }: { collapsed: boolean }) {
-  return (
-    <div className="flex items-center gap-3 border-t border-sidebar-border px-4 py-3">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
-        A
-      </div>
-      {!collapsed && (
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">Anh Le</p>
-          <p className="truncate text-xs text-muted-foreground">anh@casso.vn</p>
-        </div>
-      )}
-      <button
-        type="button"
-        aria-label="Đăng xuất"
-        className="rounded-md p-1.5 hover:bg-sidebar-accent"
-      >
-        <LogOut className="size-4" />
-      </button>
-    </div>
   );
 }

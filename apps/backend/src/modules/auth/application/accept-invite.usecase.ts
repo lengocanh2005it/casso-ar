@@ -22,6 +22,7 @@ import { hashToken } from './token-hasher';
 
 export interface AcceptInviteInput {
   token: string;
+  name?: string;
   password?: string;
   authenticatedUserId?: string;
 }
@@ -66,7 +67,7 @@ export class AcceptInviteUseCase {
       }
       user = new User({
         id: randomUUID(),
-        name: invite.email,
+        name: input.name?.trim() || invite.email,
         email: invite.email,
         passwordHash: await hashPassword(input.password),
         emailVerifiedAt: now,

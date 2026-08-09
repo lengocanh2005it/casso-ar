@@ -1,3 +1,4 @@
+import { Permission } from '@casso-ledger/shared-types';
 import {
   Body,
   Controller,
@@ -20,7 +21,6 @@ import {
 import { Audited } from '../../../common/audit/audited.decorator';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { Public } from '../../../common/auth/public.decorator';
-import { Permission } from '../../../common/rbac/permission.enum';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ForgotPasswordUseCase } from '../application/forgot-password.usecase';
 import { GetUserProfileUseCase } from '../application/get-user-profile.usecase';

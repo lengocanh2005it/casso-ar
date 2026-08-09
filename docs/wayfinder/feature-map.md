@@ -458,7 +458,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #19 — FE Auth + App Shell
 - **Type**: task
-- **Status**: open
+- **Status**: in-progress
 - **Owner**: FE
 - **Plan**: `plans/2026-08-03-fe-auth-app-shell.md`
 - **Blockers**: none — Plan #3 ✅, Plan #18 ✅
@@ -611,7 +611,7 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **In progress:**
-- none — all BE lanes (Plan #1–#18) shipped
+- **Plan #19** (FE Auth + App Shell) — plan revised in a 2026-08-09 grilling session, implementation starting
 
 **Next available tickets** (all blockers resolved):
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅

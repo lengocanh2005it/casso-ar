@@ -1,10 +1,6 @@
-export enum Role {
-  OWNER = 'OWNER',
-  FINANCE_MANAGER = 'FINANCE_MANAGER',
-  ACCOUNTANT = 'ACCOUNTANT',
-  SALES_REP = 'SALES_REP',
-  VIEWER = 'VIEWER',
-}
+export { Role } from '@casso-ledger/shared-types';
+
+import type { Role } from '@casso-ledger/shared-types';
 
 export interface MembershipProps {
   id: string;

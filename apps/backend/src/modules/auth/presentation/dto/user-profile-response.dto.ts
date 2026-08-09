@@ -1,7 +1,12 @@
+import type { Role } from '@casso-ledger/shared-types';
+
 export class UserProfileResponseDto {
   id: string;
   email: string;
   name: string;
+  role: Role;
+  organizationId: string;
+  organizationName: string;
   subscriptionPlan: string;
 }
 
@@ -10,12 +15,17 @@ export function toUserProfileResponse(data: {
   email: string;
   name: string;
   organizationId: string;
+  organizationName: string;
+  role: Role;
   subscriptionPlan: string;
 }): UserProfileResponseDto {
   const dto = new UserProfileResponseDto();
   dto.id = data.id;
   dto.email = data.email;
   dto.name = data.name;
+  dto.role = data.role;
+  dto.organizationId = data.organizationId;
+  dto.organizationName = data.organizationName;
   dto.subscriptionPlan = data.subscriptionPlan;
   return dto;
 }

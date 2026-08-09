@@ -1,3 +1,4 @@
+import { Permission } from '@casso-ledger/shared-types';
 import {
   Body,
   Controller,
@@ -13,7 +14,6 @@ import type { Request } from 'express';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../../../common/auth/optional-jwt-auth.guard';
 import { Public } from '../../../common/auth/public.decorator';
-import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import {
@@ -68,6 +68,7 @@ export class InvitesController {
   async accept(@Body() dto: AcceptInviteDto, @Req() request: AuthRequest) {
     await this.acceptInviteUseCase.execute({
       token: dto.token,
+      name: dto.name,
       password: dto.password,
       authenticatedUserId: request.user?.userId,
     });

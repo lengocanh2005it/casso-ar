@@ -1,3 +1,4 @@
+import { Permission } from '@casso-ledger/shared-types';
 import {
   Body,
   Controller,
@@ -10,13 +11,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
-import { Audited } from '../../../common/audit/audited.decorator';
 import {
   AuditActionType,
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
-import { Permission } from '../../../common/rbac/permission.enum';
+import { Audited } from '../../../common/audit/audited.decorator';
+import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { CreateEmailTemplateUseCase } from '../application/create-email-template.usecase';
@@ -51,7 +51,10 @@ export class EmailTemplatesController {
   }
 
   @Post()
-  @Audited(AuditActionType.EMAIL_TEMPLATE_CREATE, AuditEntityType.EMAIL_TEMPLATE)
+  @Audited(
+    AuditActionType.EMAIL_TEMPLATE_CREATE,
+    AuditEntityType.EMAIL_TEMPLATE,
+  )
   @RequirePermission(Permission.REMINDER_POLICY_WRITE)
   async create(
     @Headers('idempotency-key') key: string | undefined,
@@ -74,7 +77,10 @@ export class EmailTemplatesController {
   }
 
   @Patch(':id')
-  @Audited(AuditActionType.EMAIL_TEMPLATE_UPDATE, AuditEntityType.EMAIL_TEMPLATE)
+  @Audited(
+    AuditActionType.EMAIL_TEMPLATE_UPDATE,
+    AuditEntityType.EMAIL_TEMPLATE,
+  )
   @RequirePermission(Permission.REMINDER_POLICY_WRITE)
   async update(
     @Param('id') id: string,
@@ -97,7 +103,10 @@ export class EmailTemplatesController {
   }
 
   @Delete(':id')
-  @Audited(AuditActionType.EMAIL_TEMPLATE_DELETE, AuditEntityType.EMAIL_TEMPLATE)
+  @Audited(
+    AuditActionType.EMAIL_TEMPLATE_DELETE,
+    AuditEntityType.EMAIL_TEMPLATE,
+  )
   @RequirePermission(Permission.REMINDER_POLICY_WRITE)
   async remove(
     @Param('id') id: string,
