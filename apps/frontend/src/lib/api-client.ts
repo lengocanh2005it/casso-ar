@@ -8,8 +8,6 @@ const axiosClient = axios.create({
   withCredentials: true,
 });
 
-export const apiClient = axiosClient;
-
 interface JwtPayload {
   exp?: unknown;
 }

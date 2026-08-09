@@ -1,6 +1,6 @@
+import { Permission } from '@casso-ledger/shared-types';
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ListMembersUseCase } from '../application/list-members.usecase';

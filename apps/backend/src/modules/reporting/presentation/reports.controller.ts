@@ -1,6 +1,6 @@
+import { Permission } from '@casso-ledger/shared-types';
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
-import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { AgingReportQueryService } from '../application/aging-report-query.service';

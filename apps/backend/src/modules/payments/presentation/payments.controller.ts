@@ -1,3 +1,4 @@
+import { Permission } from '@casso-ledger/shared-types';
 import {
   Body,
   Controller,
@@ -12,7 +13,6 @@ import {
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
-import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';

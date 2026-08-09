@@ -1,3 +1,4 @@
+import { Permission } from '@casso-ledger/shared-types';
 import {
   Body,
   Controller,
@@ -7,7 +8,6 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { Permission } from '../../../common/rbac/permission.enum';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ReminderExecutionQueryService } from '../application/reminder-execution-query.service';
 import { ReminderPolicyService } from '../application/reminder-policy.service';

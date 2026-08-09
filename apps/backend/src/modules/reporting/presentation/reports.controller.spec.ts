@@ -1,6 +1,6 @@
+import { Permission } from '@casso-ledger/shared-types';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
-import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { REQUIRED_PERMISSION_KEY } from '../../../common/rbac/require-permission.decorator';
 import { ReportsController } from './reports.controller';

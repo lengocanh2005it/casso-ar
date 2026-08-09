@@ -1,10 +1,9 @@
+import { Permission, ROLE_PERMISSIONS } from '@casso-ledger/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
-import { Permission } from '../../../common/rbac/permission.enum';
-import { ROLE_PERMISSIONS } from '../../../common/rbac/role-permissions.map';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { PlanLimitService } from '../../billing/application/plan-limit.service';
 import {

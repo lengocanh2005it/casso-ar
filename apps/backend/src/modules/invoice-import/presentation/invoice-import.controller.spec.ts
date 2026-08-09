@@ -1,3 +1,4 @@
+import { Permission } from '@casso-ledger/shared-types';
 import { ConflictException, type INestApplication } from '@nestjs/common';
 import {
   GUARDS_METADATA,
@@ -14,7 +15,6 @@ import { HttpExceptionFilter } from '../../../common/errors/http-exception.filte
 import { IdempotencyModule } from '../../../common/idempotency/idempotency.module';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { StructuredLogger } from '../../../common/logging/structured-logger';
-import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { REQUIRED_PERMISSION_KEY } from '../../../common/rbac/require-permission.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';

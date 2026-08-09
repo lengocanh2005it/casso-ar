@@ -1,3 +1,4 @@
+import { Permission } from '@casso-ledger/shared-types';
 import {
   Body,
   Controller,
@@ -15,7 +16,6 @@ import {
 import { Audited } from '../../../common/audit/audited.decorator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
-import { Permission } from '../../../common/rbac/permission.enum';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { CancelReceivableUseCase } from '../application/cancel-receivable.usecase';

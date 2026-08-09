@@ -1,4 +1,4 @@
-import { PlanId, Role } from '@casso-ledger/shared-types';
+import type { PlanId, Role } from '@casso-ledger/shared-types';
 import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { apiRequest, authTokenManager } from '@/lib/api-client';
