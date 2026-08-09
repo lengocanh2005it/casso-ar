@@ -72,8 +72,8 @@ Success = a single document a new developer can read and know exactly what to pi
 
 - Cas ID OAuth flow details (grant → link → publicToken → accessToken)
 - Resend email provider configuration
-- Copilot AI model selection (Claude via @anthropic-ai/sdk per spec)
 - Frontend design tokens (oklch colors, "Be Vietnam Pro" font)
+- **Casso Admin Platform** (2026-08-09): a cross-organization admin panel for Casso's own operators — not an org-scoped feature like the Reports dashboard (Plan #15/#21). Needs a new superadmin role/concept (outside the existing 5-role RBAC, which is scoped per-organization) and queries that intentionally cross tenant isolation. Mentioned use cases so far: locking/unlocking organizations, and — once built — surfacing `AIUsageLog` (Plan #16) for cross-org AI cost/usage monitoring; `AIUsageLog` already captures everything this would need (model, tokens, latency, errors, per organizationId), no schema change required to support it later. No spec/plan/brainstorming session yet — needs `domain-modeling` before any implementation starts.
 
 ## Out of scope
 
