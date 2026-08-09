@@ -31,6 +31,6 @@ export class CopilotPendingActionOrmEntity {
   @Column({ type: 'timestamptz', nullable: true })
   resolvedAt: Date | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   resolvedByUserId: string | null;
 }

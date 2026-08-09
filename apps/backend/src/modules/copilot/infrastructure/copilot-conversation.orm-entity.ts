@@ -12,7 +12,7 @@ export class CopilotConversationOrmEntity {
   @Column()
   userId: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   customerId: string | null;
 
   @Column({ type: 'timestamptz' })

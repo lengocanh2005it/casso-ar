@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { ConflictException, Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, QueryFailedError } from 'typeorm';
 import { ErrorCode } from '../errors/error-code';
 import { TenantContextService } from '../tenancy/tenant-context';
 import { IdempotencyKeyOrmEntity } from './idempotency-key.orm-entity';
@@ -13,6 +13,13 @@ function canonicalize(obj: unknown): string {
   }
   const sorted = Object.keys(obj).sort();
   return `{${sorted.map((k) => `${JSON.stringify(k)}:${canonicalize((obj as Record<string, unknown>)[k])}`).join(',')}}`;
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    error instanceof QueryFailedError &&
+    (error as { code?: string }).code === '23505'
+  );
 }
 
 @Injectable()
@@ -38,36 +45,42 @@ export class IdempotencyService {
     const requestHash = createHash('sha256')
       .update(canonicalize(input))
       .digest('hex');
-    const existing = await this.dataSource.transaction(async (manager) => {
-      const repo = manager.getRepository(IdempotencyKeyOrmEntity);
-      const found = await repo.findOne({
-        where: { organizationId, endpoint, key },
-      });
-      if (found) {
-        if (found.requestHash !== requestHash) {
+    let existing: T | undefined;
+    try {
+      existing = await this.dataSource.transaction(async (manager) => {
+        const repo = manager.getRepository(IdempotencyKeyOrmEntity);
+        const found = await repo.findOne({
+          where: { organizationId, endpoint, key },
+        });
+        if (found) {
+          if (found.requestHash !== requestHash) {
+            throw new ConflictException({
+              errorCode: ErrorCode.IDEMPOTENCY_KEY_REUSED,
+              message: 'Idempotency-Key đã được dùng cho dữ liệu khác.',
+            });
+          }
+          if (found.status === 'COMPLETED') return found.response as T;
           throw new ConflictException({
-            errorCode: ErrorCode.IDEMPOTENCY_KEY_REUSED,
-            message: 'Idempotency-Key đã được dùng cho dữ liệu khác.',
+            errorCode: ErrorCode.CONFLICT,
+            message: 'Yêu cầu với Idempotency-Key này đang được xử lý.',
           });
         }
-        if (found.status === 'COMPLETED') return found.response as T;
-        throw new ConflictException({
-          errorCode: ErrorCode.CONFLICT,
-          message: 'Yêu cầu với Idempotency-Key này đang được xử lý.',
+        await repo.save({
+          id: randomUUID(),
+          organizationId,
+          endpoint,
+          key,
+          requestHash,
+          status: 'PENDING',
+          response: null,
+          createdAt: new Date(),
         });
-      }
-      await repo.save({
-        id: randomUUID(),
-        organizationId,
-        endpoint,
-        key,
-        requestHash,
-        status: 'PENDING',
-        response: null,
-        createdAt: new Date(),
+        return undefined;
       });
-      return undefined;
-    });
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      return this.execute(endpoint, key, input, operation);
+    }
     if (existing !== undefined) return existing;
 
     try {
