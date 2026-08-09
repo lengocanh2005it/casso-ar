@@ -69,7 +69,9 @@ export class TypeOrmCopilotPendingActionRepository
       .set({ status: 'EXPIRED', resolvedAt: new Date() })
       .where('id = :id', { id })
       .andWhere('"organizationId" = :organizationId', { organizationId })
-      .andWhere('status = :status', { status: 'PENDING' })
+      .andWhere('status IN (:...statuses)', {
+        statuses: ['PENDING', 'CONFIRMED', 'CANCELLED'],
+      })
       .execute();
   }
 
