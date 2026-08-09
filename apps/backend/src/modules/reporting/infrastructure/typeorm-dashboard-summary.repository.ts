@@ -1,0 +1,192 @@
+import { Injectable } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
+import type {
+  AutoMatchStats,
+  DashboardPeriod,
+  ForecastSummary,
+  IDashboardSummaryRepository,
+  OutstandingSummary,
+  ReminderEffectivenessStats,
+  TopOverdueCustomer,
+} from '../application/dashboard-summary.repository.port';
+
+interface OutstandingSummaryRow {
+  totalOutstanding: string | null;
+  totalOverdue: string | null;
+}
+
+interface ForecastSummaryRow {
+  forecast7d: string | null;
+  forecast14d: string | null;
+  forecast30d: string | null;
+}
+
+interface AutoMatchStatsRow {
+  matchedCount: string;
+  totalCount: string;
+}
+
+interface ReminderEffectivenessStatsRow {
+  paidWithin7dCount: string;
+  sentCount: string;
+}
+
+@Injectable()
+export class TypeOrmDashboardSummaryRepository
+  implements IDashboardSummaryRepository
+{
+  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+
+  async getOutstandingSummary(
+    organizationId: string,
+  ): Promise<OutstandingSummary> {
+    const [row]: OutstandingSummaryRow[] = await this.dataSource.query(
+      `
+        SELECT
+          COALESCE(SUM("originalAmount" - "paidAmount"), 0) AS "totalOutstanding",
+          COALESCE(
+            SUM("originalAmount" - "paidAmount")
+              FILTER (WHERE "dueDate"::date < CURRENT_DATE),
+            0
+          ) AS "totalOverdue"
+        FROM receivables
+        WHERE "organizationId" = $1 AND status IN ('OPEN', 'PARTIALLY_PAID')
+      `,
+      [organizationId],
+    );
+
+    return {
+      totalOutstanding: Number(row?.totalOutstanding ?? 0),
+      totalOverdue: Number(row?.totalOverdue ?? 0),
+    };
+  }
+
+  async getForecast(organizationId: string): Promise<ForecastSummary> {
+    const [row]: ForecastSummaryRow[] = await this.dataSource.query(
+      `
+        SELECT
+          COALESCE(
+            SUM("originalAmount" - "paidAmount")
+              FILTER (WHERE "dueDate"::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 day'),
+            0
+          ) AS "forecast7d",
+          COALESCE(
+            SUM("originalAmount" - "paidAmount")
+              FILTER (WHERE "dueDate"::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '14 day'),
+            0
+          ) AS "forecast14d",
+          COALESCE(
+            SUM("originalAmount" - "paidAmount")
+              FILTER (WHERE "dueDate"::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 day'),
+            0
+          ) AS "forecast30d"
+        FROM receivables
+        WHERE "organizationId" = $1 AND status IN ('OPEN', 'PARTIALLY_PAID')
+      `,
+      [organizationId],
+    );
+
+    return {
+      forecast7d: Number(row?.forecast7d ?? 0),
+      forecast14d: Number(row?.forecast14d ?? 0),
+      forecast30d: Number(row?.forecast30d ?? 0),
+    };
+  }
+
+  async getTopOverdueCustomers(
+    organizationId: string,
+  ): Promise<TopOverdueCustomer[]> {
+    const rows: Array<{
+      customerId: string;
+      customerName: string;
+      totalOverdue: string | null;
+    }> = await this.dataSource.query(
+      `
+        SELECT
+          r."customerId" AS "customerId",
+          c.name AS "customerName",
+          COALESCE(SUM(r."originalAmount" - r."paidAmount"), 0) AS "totalOverdue"
+        FROM receivables r
+        JOIN customers c
+          ON c.id = r."customerId" AND c."organizationId" = $1
+        WHERE r."organizationId" = $1
+          AND r.status IN ('OPEN', 'PARTIALLY_PAID')
+          AND r."dueDate"::date < CURRENT_DATE
+        GROUP BY r."customerId", c.name
+        ORDER BY "totalOverdue" DESC
+        LIMIT 10
+      `,
+      [organizationId],
+    );
+
+    return rows.map((row) => ({
+      customerId: row.customerId,
+      customerName: row.customerName,
+      totalOverdue: Number(row.totalOverdue ?? 0),
+    }));
+  }
+
+  async getAutoMatchStats(
+    organizationId: string,
+    period: DashboardPeriod,
+  ): Promise<AutoMatchStats> {
+    const [row]: AutoMatchStatsRow[] = await this.dataSource.query(
+      `
+        SELECT
+          COUNT(*) FILTER (WHERE status = 'MATCHED') AS "matchedCount",
+          COUNT(*) AS "totalCount"
+        FROM bank_transactions
+        WHERE "organizationId" = $1 AND "createdAt" BETWEEN $2 AND $3
+      `,
+      [organizationId, period.from, period.to],
+    );
+
+    return {
+      matchedCount: Number(row?.matchedCount ?? 0),
+      totalCount: Number(row?.totalCount ?? 0),
+    };
+  }
+
+  async getReminderEffectivenessStats(
+    organizationId: string,
+    period: DashboardPeriod,
+  ): Promise<ReminderEffectivenessStats> {
+    const [row]: ReminderEffectivenessStatsRow[] = await this.dataSource.query(
+      `
+          SELECT
+            COUNT(*) FILTER (
+              WHERE NOT EXISTS (
+                SELECT 1
+                FROM reminder_executions latest
+                WHERE latest."organizationId" = re."organizationId"
+                  AND latest."receivableId" = re."receivableId"
+                  AND latest.status = 'SENT'
+                  AND latest."sentAt" > re."sentAt"
+              )
+              AND EXISTS (
+                SELECT 1
+                FROM receivables rec
+                WHERE rec.id = re."receivableId"
+                  AND rec."organizationId" = $1
+                  AND rec.status = 'PAID'
+                  AND rec."closedAt" IS NOT NULL
+                  AND rec."closedAt" >= re."sentAt"
+                  AND rec."closedAt" <= re."sentAt" + INTERVAL '7 day'
+              )
+            ) AS "paidWithin7dCount",
+            COUNT(*) AS "sentCount"
+          FROM reminder_executions re
+          WHERE re."organizationId" = $1
+            AND re.status = 'SENT'
+            AND re."sentAt" BETWEEN $2 AND $3
+        `,
+      [organizationId, period.from, period.to],
+    );
+
+    return {
+      paidWithin7dCount: Number(row?.paidWithin7dCount ?? 0),
+      sentCount: Number(row?.sentCount ?? 0),
+    };
+  }
+}
