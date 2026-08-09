@@ -98,6 +98,8 @@ export class ReceivablesController {
       result.isDisputed,
       result.disputeId,
       result.allocations,
+      result.invoiceNumber,
+      result.isOverdue,
     );
   }
 

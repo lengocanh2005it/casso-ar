@@ -23,6 +23,8 @@ export interface ReceivableResponseDto {
 }
 
 export interface ReceivableDetailResponseDto extends ReceivableResponseDto {
+  invoiceNumber: string | null;
+  isOverdue: boolean;
   isDisputed: boolean;
   disputeId: string | null;
   allocations: PaymentAllocationResponseDto[];
@@ -72,9 +74,13 @@ export function toReceivableDetailResponse(
   isDisputed: boolean,
   disputeId: string | null,
   allocations: AllocationSource[],
+  invoiceNumber: string | null,
+  isOverdue: boolean,
 ): ReceivableDetailResponseDto {
   return {
     ...toReceivableResponse(r),
+    invoiceNumber,
+    isOverdue,
     isDisputed,
     disputeId,
     allocations: allocations.map((a) => ({

@@ -6,6 +6,10 @@ import {
   type IDisputeRepository,
 } from '../../disputes/application/dispute-repository.port';
 import {
+  type IInvoiceRepository,
+  INVOICE_REPOSITORY,
+} from '../../invoices/application/invoice-repository.port';
+import {
   type IPaymentAllocationRepository,
   PAYMENT_ALLOCATION_REPOSITORY,
 } from '../../payments/application/payment-allocation-repository.port';
@@ -21,6 +25,8 @@ export interface ReceivableWithDisputeStatus {
   isDisputed: boolean;
   disputeId: string | null;
   allocations: PaymentAllocation[];
+  invoiceNumber: string | null;
+  isOverdue: boolean;
 }
 
 @Injectable()
@@ -32,6 +38,8 @@ export class GetReceivableUseCase {
     private readonly disputeRepo: IDisputeRepository,
     @Inject(PAYMENT_ALLOCATION_REPOSITORY)
     private readonly paymentAllocationRepo: IPaymentAllocationRepository,
+    @Inject(INVOICE_REPOSITORY)
+    private readonly invoiceRepo: IInvoiceRepository,
   ) {}
 
   async execute(id: string): Promise<ReceivableWithDisputeStatus> {
@@ -43,15 +51,22 @@ export class GetReceivableUseCase {
       );
     }
 
-    const [openDispute, allocations] = await Promise.all([
+    const [openDispute, allocations, invoices] = await Promise.all([
       this.disputeRepo.findOpenDispute(id),
       this.paymentAllocationRepo.findByReceivableId(id),
+      this.invoiceRepo.findByIds(
+        receivable.invoiceId ? [receivable.invoiceId] : [],
+      ),
     ]);
     return {
       receivable,
       isDisputed: openDispute !== null,
       disputeId: openDispute?.id ?? null,
       allocations,
+      invoiceNumber: receivable.invoiceId
+        ? (invoices.get(receivable.invoiceId)?.invoiceNumber ?? null)
+        : null,
+      isOverdue: receivable.isOverdue(new Date()),
     };
   }
 }
