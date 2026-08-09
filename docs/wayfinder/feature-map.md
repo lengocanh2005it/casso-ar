@@ -88,7 +88,7 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Ticket Index
 
 **27 plans** | status snapshot (2026-08-09):
-- 🟢 done (17): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #17, Plan #18, Application Layer Boundary Enforcement
+- 🟢 done (18): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #17, Plan #18, Application Layer Boundary Enforcement
 - 🔴 open/not started (9): Plan #16, #19–#23 + Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
 
 ---
@@ -375,17 +375,21 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #15 — Aging Dashboard + Reporting
 - **Type**: task
-- **Status**: in-progress
+- **Status**: done ✅ (BE only — FE consumption is Plan #21's job, per that plan's own scope)
 - **Owner**: BE + FE
 - **Spec**: `specs/2026-08-03-aging-dashboard-reporting-design.md`
 - **Blockers**: none — Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
+- **Shipped**: 2026-08-09 — branch `feat/aging-dashboard-reporting`, PR #78 merged (`ff3e94a`), closes issue #27
 - **Key entities**: None (read-only queries)
 - **Key rules**:
-  - 5 canonical aging buckets: `NOT_DUE`, `OVERDUE_1_7`, `OVERDUE_8_30`, `OVERDUE_31_60`, `OVERDUE_60_PLUS`
+  - 5 canonical aging buckets: `NOT_DUE`, `OVERDUE_1_7`, `OVERDUE_8_30`, `OVERDUE_31_60`, `OVERDUE_60_PLUS`, always returned in fixed order, zero-filled
   - Real-time raw SQL, no precompute/materialized view
-  - Composite index: `receivables(organizationId, status, dueDate)`
-  - `Permission.REPORT_READ`
-- **Creates**: `reporting/` module (2 query services + controller), composite index
+  - Composite index: `receivables(organizationId, status, dueDate)` (already existed from an earlier plan) + new `bank_transactions(organizationId, createdAt)` (this plan) with a matching migration
+  - `Permission.REPORT_READ` on both endpoints
+  - `GET /reports/dashboard-summary` accepts optional `from`/`to` (validated: ISO date, must be supplied as a pair, `from <= to`, max 90-day range), defaulting to the current calendar month in `Asia/Ho_Chi_Minh` — scopes only `autoMatchRate`/`manualHandlingRate`/`reminderEffectiveness`; outstanding/overdue/forecast/top-customers stay "as of now"
+  - `reminderEffectiveness` (7-day post-send window, keyed on `ReminderExecution.sentAt`) — added to MVP scope during a grilling session with the user, beyond the original spec draft's deferral of this metric
+- **Creates**: `reporting/` module — `IAgingReportRepository`/`IDashboardSummaryRepository` ports in `application/`, `TypeOrmAgingReportRepository`/`TypeOrmDashboardSummaryRepository` in `infrastructure/` (raw parameterized SQL), `ReportsController`, `GetDashboardSummaryQueryDto`, composite index + migration
+- **Implementation note**: spec and plan were revised in a grilling session before implementation — a false "multi-tenancy plan exception" citation (used to justify bypassing Repository/UseCase layering) was found via grep to not exist anywhere and was dropped in favor of the port/repository architecture actually shipped; the original plan's receivables-index task was also dropped after discovering that index already existed. A `/code-review` pass (Standards + Spec axes) after implementation found one real bug — supplying only `from` (no `to`) on `dashboard-summary` silently passed validation (class-validator's `@IsOptional()` skips a property's other decorators when that property is undefined, so the pairing check never ran) and fell back to the default period instead of being rejected — fixed via `@ValidateIf`, with regression tests and an added 401 test for `dashboard-summary` that had been missing. Verified with 126/126 unit suites (400/400 tests), 7/7 e2e tests against real Postgres (testcontainers), clean `tsc --noEmit`/Biome/`domain-check`.
 
 ---
 
@@ -604,7 +608,6 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **Next available tickets** (all blockers resolved):
-- **Plan #15** (Aging Dashboard + Reporting) — in progress — blockers: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
 - **Plan #16** (Collection Copilot) — blockers: Plan #2 ✅, Plan #6 ✅, Plan #7 ✅, Plan #10 ✅, Plan #12 ✅
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
 - **Plan #22** (Testing Strategy + CI) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #8 ✅, Plan #13 ✅
@@ -614,7 +617,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **Blocked tickets waiting:**
 - **Plan #20** (FE Core AR Loop) — waiting on Plan #19 (Plan #10, #11, #14 + #17 now shipped)
-- **Plan #21** (FE Reminders, Copilot, Reports, Settings) — waiting on Plan #15, Plan #16, Plan #19 (Plan #12 + #17 now shipped)
+- **Plan #21** (FE Reminders, Copilot, Reports, Settings) — waiting on Plan #16, Plan #19 (Plan #12, #15 + #17 now shipped)
 - **Spec-Plan Reconciliation** — waiting on all plans
 
-**Recommended next step:** Plan #16 (Collection Copilot) is the highest-leverage pick now that Plan #12 (Reminder Automation) has shipped — it's the last blocker for Plan #16 and feeds Plan #21. Plan #15 (Aging Dashboard + Reporting) is also unblocked.
+**Recommended next step:** Plan #16 (Collection Copilot) is the highest-leverage pick now that Plan #12 (Reminder Automation) has shipped — it's the last blocker for Plan #16 and, along with Plan #19, one of the two remaining blockers on Plan #21.
