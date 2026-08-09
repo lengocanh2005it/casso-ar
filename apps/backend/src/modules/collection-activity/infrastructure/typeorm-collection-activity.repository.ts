@@ -76,11 +76,15 @@ export class TypeOrmCollectionActivityRepository
     return rows.map(toDomain);
   }
 
-  async findByCustomerId(customerId: string): Promise<CollectionActivity[]> {
+  async findByCustomerId(
+    customerId: string,
+    limit: number,
+  ): Promise<CollectionActivity[]> {
     const organizationId = this.tenantContext.getOrganizationId();
     const rows = await this.ormRepo.find({
       where: { customerId, organizationId },
       order: { createdAt: 'DESC' },
+      take: limit,
     });
     return rows.map(toDomain);
   }

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { type DataSource, QueryFailedError } from 'typeorm';
+import { type DataSource, type EntityManager, QueryFailedError } from 'typeorm';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { IReminderExecutionRepository } from '../application/reminder-execution-repository.port';
 import {
@@ -97,18 +97,23 @@ export class TypeOrmReminderExecutionRepository
     }
   }
 
-  async save(execution: ReminderExecution): Promise<void> {
+  async save(
+    execution: ReminderExecution,
+    manager?: EntityManager,
+  ): Promise<void> {
     const organizationId = this.tenantContext.getOrganizationId();
-    await this.dataSource.getRepository(ReminderExecutionOrmEntity).save({
-      id: execution.id,
-      organizationId,
-      receivableId: execution.receivableId,
-      reminderRuleId: execution.reminderRuleId,
-      executionDate: execution.executionDate,
-      status: execution.status,
-      skipReason: execution.skipReason,
-      createdAt: execution.createdAt,
-    });
+    await (manager ?? this.dataSource)
+      .getRepository(ReminderExecutionOrmEntity)
+      .save({
+        id: execution.id,
+        organizationId,
+        receivableId: execution.receivableId,
+        reminderRuleId: execution.reminderRuleId,
+        executionDate: execution.executionDate,
+        status: execution.status,
+        skipReason: execution.skipReason,
+        createdAt: execution.createdAt,
+      });
   }
 
   async findPage(input: {

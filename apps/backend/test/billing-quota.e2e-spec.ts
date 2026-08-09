@@ -119,6 +119,7 @@ describe('Billing quota enforcement (integration)', () => {
       planId: PlanId.FREE,
       receivableMonthlyLimit: 1,
       bankConnectionLimit: 1,
+      copilotChatMonthlyLimit: 50,
       status: SubscriptionStatus.ACTIVE,
       currentPeriodStart: new Date(
         Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),

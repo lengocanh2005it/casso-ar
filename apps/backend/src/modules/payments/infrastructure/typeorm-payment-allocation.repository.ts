@@ -46,4 +46,40 @@ export class TypeOrmPaymentAllocationRepository
     });
     return rows.map((row) => new PaymentAllocation(row));
   }
+
+  async findByCustomerId(
+    customerId: string,
+    limit: number,
+  ): Promise<PaymentAllocation[]> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const rows = await this.ormRepo
+      .createQueryBuilder('allocation')
+      .select([
+        'allocation.id',
+        'allocation.organizationId',
+        'allocation.paymentId',
+        'allocation.receivableId',
+        'allocation.allocatedAmount',
+        'allocation.allocatedAt',
+        'allocation.allocatedByUserId',
+        'allocation.deletedAt',
+        'allocation.deletedByUserId',
+        'allocation.undoReason',
+        'allocation.createdAt',
+      ])
+      .innerJoin(
+        'receivables',
+        'receivable',
+        'receivable.id = allocation."receivableId"',
+      )
+      .where('allocation."organizationId" = :organizationId', {
+        organizationId,
+      })
+      .andWhere('receivable."customerId" = :customerId', { customerId })
+      .andWhere('allocation."deletedAt" IS NULL')
+      .orderBy('allocation."allocatedAt"', 'DESC')
+      .take(limit)
+      .getMany();
+    return rows.map((row) => new PaymentAllocation(row));
+  }
 }

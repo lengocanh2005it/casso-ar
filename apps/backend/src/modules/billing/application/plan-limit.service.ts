@@ -21,6 +21,45 @@ export class PlanLimitService {
 
   // Must run inside the same transaction as the write it's gating.
   async enforceReceivableLimit(manager: EntityManager): Promise<void> {
+    const subscription = await this.lockActiveSubscription(manager);
+
+    const receivablesThisMonth = await this.repo.countReceivablesInPeriod(
+      subscription.organizationId,
+      subscription.currentPeriodStart,
+      subscription.currentPeriodEnd,
+      manager,
+    );
+
+    if (subscription.isReceivableLimitReached(receivablesThisMonth)) {
+      this.throwPlanLimitExceeded(
+        `Đã đạt giới hạn gói ${subscription.planId}; vui lòng nâng cấp để tiếp tục.`,
+      );
+    }
+  }
+
+  async enforceCopilotChatLimit(manager: EntityManager): Promise<void> {
+    const subscription = await this.lockActiveSubscription(manager);
+
+    const chatTurnsThisMonth = await this.repo.countCopilotChatTurnsInPeriod(
+      subscription.organizationId,
+      subscription.currentPeriodStart,
+      subscription.currentPeriodEnd,
+      manager,
+    );
+
+    if (subscription.isCopilotChatLimitReached(chatTurnsThisMonth)) {
+      this.throwPlanLimitExceeded(
+        `Đã đạt giới hạn gói ${subscription.planId}; vui lòng nâng cấp để tiếp tục.`,
+      );
+    }
+  }
+
+  // Shared by every limit check: lock the subscription, roll its billing
+  // period if expired, and reject a non-ACTIVE subscription before the
+  // caller counts usage.
+  private async lockActiveSubscription(
+    manager: EntityManager,
+  ): Promise<Subscription> {
     const organizationId = this.tenant.getOrganizationId();
     const now = new Date();
 
@@ -45,18 +84,7 @@ export class PlanLimitService {
       );
     }
 
-    const receivablesThisMonth = await this.repo.countReceivablesInPeriod(
-      organizationId,
-      subscription.currentPeriodStart,
-      subscription.currentPeriodEnd,
-      manager,
-    );
-
-    if (subscription.isReceivableLimitReached(receivablesThisMonth)) {
-      this.throwPlanLimitExceeded(
-        `Đã đạt giới hạn gói ${subscription.planId}; vui lòng nâng cấp để tiếp tục.`,
-      );
-    }
+    return subscription;
   }
 
   private throwPlanLimitExceeded(message: string): never {

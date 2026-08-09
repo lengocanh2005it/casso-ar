@@ -25,6 +25,9 @@ export class SubscriptionOrmEntity {
   @Column('int')
   bankConnectionLimit: number;
 
+  @Column('int', { default: 50 })
+  copilotChatMonthlyLimit: number;
+
   @Column({ type: 'enum', enum: SubscriptionStatus })
   status: SubscriptionStatus;
 

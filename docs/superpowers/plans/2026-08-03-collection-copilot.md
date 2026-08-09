@@ -2,25 +2,37 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement a chat-based AI Copilot that lets an accountant ask free-form questions about receivables/customers and, after explicit in-chat confirmation, send a single kind of reminder email — nothing else. The model (Claude, via `@anthropic-ai/sdk`) only ever sees pre-computed structured JSON from existing repositories (never raw DB rows) and a hardcoded, non-extensible tool whitelist. The one write-capable tool (`sendReminderEmail`) is never executed inside the model's turn — it is intercepted into a `CopilotPendingAction` and only runs from a separate, non-LLM confirm endpoint that calls the existing `EmailService.sendReminderEmail`.
+**Goal:** Implement a chat-based AI Copilot that lets an accountant ask free-form questions about receivables/customers and, after explicit in-chat confirmation, send a single kind of reminder email — nothing else. The model only ever sees pre-computed structured JSON from existing repositories (never raw DB rows) and a hardcoded, non-extensible tool whitelist. The one write-capable tool (`sendReminderEmail`) is never executed inside the model's turn — it is intercepted into a `CopilotPendingAction` and only runs from a separate, non-LLM confirm endpoint that calls the existing `EmailService.sendReminderEmail`.
 
-**Architecture:** New `apps/backend/src/modules/copilot/` module (3-layer: `application`/`infrastructure`/`presentation`, no rich `domain/` — same shape as the Notifications module, since there's no business rule to encode beyond orchestration). `CopilotToolRegistry` is a hardcoded allowlist class (`SAFE_TOOL_NAMES`) that physically cannot register a tool outside that list. `CopilotChatUseCase` runs the per-turn tool loop against `@anthropic-ai/sdk`'s `client.messages.create` (mocked in unit tests, never called for real in this plan's own test suite); any `tool_use` block named `sendReminderEmail` halts the loop and creates a `CopilotPendingAction` instead of executing anything. Separate `ConfirmPendingActionUseCase` and `CancelPendingActionUseCase`, reached only via `POST /api/v1/copilot/actions/:id/confirm` and `POST /api/v1/copilot/actions/:id/cancel`, are pure code — they never touch the Anthropic client; only the confirm path calls `EmailService.sendReminderEmail` (from `2026-08-03-email-notification-service.md`). They reuse the REAL `EMAIL_TEMPLATE_REPOSITORY`/`REMINDER_EXECUTION_REPOSITORY` bindings already provided by `2026-08-03-email-template-management.md`/`2026-08-03-reminder-automation.md` (imported into `CopilotModule` directly, no circular dependency) by creating one throwaway `EmailTemplate` row (the draft's literal composed content) and one `ReminderExecution` row (`reminderRuleId: null`, marking a manual send) before calling `EmailService` — not a parallel Copilot-owned pair of tables.
+**Revision note (2026-08-09, grilling session):** This plan was rewritten end-to-end after a grilling session found the original draft stale/broken against the current codebase and the user's own product decisions. Summary of what changed (details inline per task):
 
-**Tech Stack:** `@anthropic-ai/sdk` (model `claude-opus-5`), NestJS, TypeORM, `BaseRepository`/`TenantContextService`/`PermissionGuard` from `2026-08-03-multi-tenancy-rbac.md`, `IReceivableRepository`/`ICustomerRepository` from `2026-08-03-project-scaffolding-and-domain-core.md`, `EmailService` from `2026-08-03-email-notification-service.md`, Jest + `@testcontainers/postgresql` for the integration test (same pattern as `2026-08-03-project-scaffolding-and-domain-core.md` Task 14 and `2026-08-03-multi-tenancy-rbac.md` Task 9).
+- **Provider swap**: `@anthropic-ai/sdk` → OpenAI-compatible `openai` SDK (MVP default: OpenRouter, model `gpt-4o-mini`, configurable via env vars), behind a new `IAIChatProvider` port so the concrete SDK never leaks into `application/` — the original plan imported `@anthropic-ai/sdk` directly into `CopilotChatUseCase`, itself a violation of `.claude/rules/application.md` independent of the provider swap.
+- **Real bugs fixed before implementation**: `NotFoundException`/`BadRequestException` used directly in `application/` (3 files) instead of `AppError`; `EmailTemplate` construction missing the now-required `version` field; `DraftReminderEmailTool`'s third constructor parameter had no DI token (would crash at Nest boot); `ConfirmPendingActionUseCase` read `Repository<CopilotDraftOrmEntity>` directly via `@InjectRepository` in `application/` (zero precedent anywhere else in the codebase — grepped).
+- **Real gaps fixed**: original Task 1 (`IReceivableRepository.findByCustomerId`) was redundant — `findOpenByCustomerId` already exists and covers `getReceivableSummary`'s needs, so it's dropped. `getCollectionActivityTimeline`/`getPaymentHistory` referenced fictional ports (`'COLLECTION_ACTIVITY_READ_PORT'`/`'PAYMENT_HISTORY_READ_PORT'`) that don't exist — the real `GetCustomerTimelineUseCase` has no `limit` parameter (added here) and there is no customer-scoped payment-history query anywhere in the codebase at all (added here, in the Payments module, joining `PaymentAllocation` through `Receivable.customerId`).
+- **Correctness gaps fixed**: `/confirm` had a read-then-write race (two concurrent confirms could both pass the PENDING check and both call `EmailService`) — fixed with an atomic `confirmIfPending()` mirroring the already-correct `cancelIfPending()`. Neither `/confirm` nor `/cancel` was wrapped in `IdempotencyService.execute()`, unlike every other side-effecting POST endpoint in this codebase — fixed.
+- **New in scope, per explicit user decision**: Copilot chat turns are now gated by Billing/Usage Metering (`PlanLimitService`), FREE plan = 50 turns/month — the spec's own "open question" on this is resolved in favor of gating, mirroring `enforceReceivableLimit` exactly.
+
+**Architecture:** New `apps/backend/src/modules/copilot/` module (3-layer: `application`/`infrastructure`/`presentation`, no rich `domain/` — same shape as the Notifications module, since there's no business rule to encode beyond orchestration). `CopilotToolRegistry` is a hardcoded allowlist class (`SAFE_TOOL_NAMES`) that physically cannot register a tool outside that list. `CopilotChatUseCase` runs the per-turn tool loop against `IAIChatProvider` (a port; the real implementation wraps the `openai` SDK, mocked in every unit test — no test in this plan ever makes a real network call); any tool call named `sendReminderEmail` halts the loop and creates a `CopilotPendingAction` instead of executing anything. Separate `ConfirmPendingActionUseCase` and `CancelPendingActionUseCase`, reached only via `POST /api/v1/copilot/actions/:id/confirm` and `POST /api/v1/copilot/actions/:id/cancel`, are pure code — they never touch the AI provider; only the confirm path calls `EmailService.sendReminderEmail`. They reuse the REAL `EMAIL_TEMPLATE_REPOSITORY`/`REMINDER_EXECUTION_REPOSITORY` bindings already provided by the Email Template Management and Reminder Automation plans (imported into `CopilotModule` directly, no circular dependency) by creating one throwaway `EmailTemplate` row (the draft's literal composed content) and one `ReminderExecution` row (`reminderRuleId: null`, marking a manual send) before calling `EmailService` — not a parallel Copilot-owned pair of tables.
+
+**Tech Stack:** `openai` SDK (Chat Completions API, tool-calling), NestJS 11, TypeORM 1.1, `BaseRepository`/`TenantContextService`/`PermissionGuard`/`IdempotencyService` (existing common infra), `IReceivableRepository`/`ICustomerRepository`/`ICollectionActivityRepository`/`IPaymentAllocationRepository`, `EmailService`, `PlanLimitService`, Jest + `@testcontainers/postgresql` + `@testcontainers/redis` for the integration test.
 
 ## Global Constraints
 
 - **Hard action-whitelist boundary — quoted directly from the target spec (section 2):** *"More sensitive actions — write-off, payment allocation, dispute — must always be performed through the regular UI; no tool allows Copilot to call these actions, even after confirmation. This is a hard boundary and must not be expanded without a separate decision."* In code: `CopilotToolRegistry.SAFE_TOOL_NAMES` is a hardcoded, non-configurable array containing exactly `getReceivableSummary`, `getCollectionActivityTimeline`, `getPaymentHistory`, `draftReminderEmail`, `sendReminderEmail`. `register()` throws for any other name. There is no DI-based extensibility point, no config flag, and no code path — including confirm/cancel endpoints — that can invoke a write-off, payment-allocation, or dispute use case. This is proven by unit tests that must never be weakened or deleted.
-- **The model never executes a write directly.** `sendReminderEmail` is declared to Claude as a tool so it can *propose* sending, but `CopilotChatUseCase` intercepts any `tool_use` block named `sendReminderEmail` and creates a `CopilotPendingAction` instead of running anything — it never adds a `tool_result` for it and never lets the loop continue past it (spec section 1, "Key point"). The only code path that calls `EmailService.sendReminderEmail` is `ConfirmPendingActionUseCase`, reached by `POST /api/v1/copilot/actions/:id/confirm`, which never calls the Anthropic client; `CancelPendingActionUseCase` only marks the action `CANCELLED`.
-- **Structured data only, never raw rows.** Every read tool returns a small, pre-shaped JSON object (`totalOutstanding`, `maxOverdueDays`, `averageLateDays`, etc.) computed by application code from domain entities — never a serialized ORM row or raw SQL result (spec section 1).
-- **Tenant scoping is automatic, not optional.** Every repository call a tool makes goes through `IReceivableRepository`/`ICustomerRepository`, which are `BaseRepository`-backed and read `organizationId` from `TenantContextService` — no tool ever accepts or forwards an `organizationId` parameter (spec section 4, and `2026-08-03-multi-tenancy-rbac.md`).
-- **Hard per-turn timeout, one retry, no exceptions.** Each call to `client.messages.create` has a 15-second hard timeout; on timeout there is at most one automatic retry, then the turn fails and is reported to the caller (spec section 4).
-- **`AIUsageLog` is written for every model call, success or failure.** No code path that calls the Anthropic client is allowed to skip logging (spec section 4).
-- **`CopilotPendingAction` expires after 10 minutes.** `ConfirmPendingActionUseCase` rejects (and marks `EXPIRED`) any confirm attempt on a pending action older than `PENDING_ACTION_EXPIRY_MINUTES = 10`, even if the user clicks confirm late (spec section 4).
-- **`Permission.REMINDER_SEND_MANUAL` gates the write action, not `RECEIVABLE_READ`.** Chatting (read-only Q&A) requires `Permission.RECEIVABLE_READ`; seeing/triggering `sendReminderEmail` in chat and calling the confirm/cancel endpoints requires `Permission.REMINDER_SEND_MANUAL` — both already exist in `2026-08-03-multi-tenancy-rbac.md`'s `Permission` enum, no new permission is added (spec section 4).
-- **No credentials in prompts or tool responses.** No tool response, draft, or system prompt ever includes a `BankConnection` access token or any other credential (spec section 4).
+- **The model never executes a write directly.** `sendReminderEmail` is declared to the model as a tool so it can *propose* sending, but `CopilotChatUseCase` intercepts any tool call named `sendReminderEmail` and creates a `CopilotPendingAction` instead of running anything — it never adds a tool result for it and never lets the loop continue past it. The only code path that calls `EmailService.sendReminderEmail` is `ConfirmPendingActionUseCase`, reached by `POST /api/v1/copilot/actions/:id/confirm`, which never calls the AI provider; `CancelPendingActionUseCase` only marks the action `CANCELLED`.
+- **Structured data only, never raw rows.** Every read tool returns a small, pre-shaped JSON object (`totalOutstanding`, `maxOverdueDays`, `averageLateDays`, etc.) computed by application code from domain entities — never a serialized ORM row or raw SQL result.
+- **Tenant scoping is automatic, not optional.** Every repository call a tool makes goes through repositories that are `BaseRepository`-backed and read `organizationId` from `TenantContextService` — no tool ever accepts or forwards an `organizationId` parameter.
+- **Hard per-turn timeout, one retry, no exceptions.** Each call to the AI provider has a 15-second hard timeout; on timeout there is at most one automatic retry, then the turn fails and is reported to the caller.
+- **`AIUsageLog` is written for every model call, success or failure.** No code path that calls the AI provider is allowed to skip logging.
+- **`CopilotPendingAction` expires after 10 minutes.** `ConfirmPendingActionUseCase`/`CancelPendingActionUseCase` reject (and mark `EXPIRED`) any attempt on a pending action older than `PENDING_ACTION_EXPIRY_MINUTES = 10`. On expiry the action simply becomes uninteractable — no separate user notification.
+- **`Permission.REMINDER_SEND_MANUAL` gates the write action, not `RECEIVABLE_READ`.** Chatting (read-only Q&A) requires `Permission.RECEIVABLE_READ`; seeing/triggering `sendReminderEmail` in chat and calling the confirm/cancel endpoints requires `Permission.REMINDER_SEND_MANUAL` — both already exist in the `Permission` enum, no new permission is added.
+- **No credentials in prompts or tool responses.** No tool response, draft, or system prompt ever includes a `BankConnection` access token or any other credential.
 - **No new tools beyond this plan's five**, and no dynamic/DB-driven tool registration — the whitelist is a compile-time constant, which is what makes the boundary auditable.
-- Naming/layering rules from `2026-08-03-project-scaffolding-architecture-design.md` apply (kebab-case files, PascalCase classes, `application` never imports `infrastructure` types except via ports).
+- **The AI SDK never leaks into `application/`.** `CopilotChatUseCase` depends only on `IAIChatProvider` (a port); the concrete `openai`-SDK-backed adapter lives in `infrastructure/`.
+- **Every `application/` error is `AppError`, never a `@nestjs/common` HTTP exception class.** `RECEIVABLE_NOT_FOUND` for a missing receivable, `NOT_FOUND` for a missing customer/pending action/draft, `CONFLICT` for a pending action in the wrong state (already resolved or expired).
+- **Side-effecting POST endpoints go through `IdempotencyService.execute()`**, matching every other write endpoint in this codebase — `/confirm` and `/cancel` are not exceptions.
+- **Copilot chat turns are gated by `PlanLimitService`**, exactly like `enforceReceivableLimit` — FREE plan = 50 turns/month, one turn = one user message, checked+persisted inside one short transaction that never spans the AI provider call.
+- Naming/layering rules (kebab-case files, PascalCase classes, `application` never imports `infrastructure` types except via ports) apply throughout.
 
 ---
 
@@ -33,7 +45,9 @@ apps/backend/src/
       application/
         conversation-repository.port.ts
         pending-action-repository.port.ts
+        draft-repository.port.ts
         ai-usage-log-repository.port.ts
+        ai-chat-provider.port.ts
         copilot-tool-registry.ts
         copilot-tool-registry.spec.ts
         tools/
@@ -42,7 +56,6 @@ apps/backend/src/
           get-payment-history.tool.ts
           draft-reminder-email.tool.ts
           send-reminder-email.tool.ts
-        anthropic-client.provider.ts
         copilot-chat.usecase.ts
         copilot-chat.usecase.spec.ts
         confirm-pending-action.usecase.ts
@@ -57,14 +70,27 @@ apps/backend/src/
         ai-usage-log.orm-entity.ts
         typeorm-copilot-conversation.repository.ts
         typeorm-copilot-pending-action.repository.ts
+        typeorm-copilot-draft.repository.ts
         typeorm-ai-usage-log.repository.ts
+        openai-chat-provider.adapter.ts
       presentation/
         dto/post-copilot-message.dto.ts
         dto/copilot-response.dto.ts
         copilot.controller.ts
-      copilot.module.ts                                            -- imports EmailTemplatesModule, RemindersModule, NotificationsModule
-  modules/receivables/application/receivable-repository.port.ts   -- MODIFY: add findByCustomerId
-  modules/receivables/infrastructure/typeorm-receivable.repository.ts  -- MODIFY: implement findByCustomerId
+      copilot.module.ts                                            -- imports EmailTemplatesModule, RemindersModule, NotificationsModule, BillingModule
+  modules/
+    collection-activity/
+      application/collection-activity-repository.port.ts          -- MODIFY: findByCustomerId(customerId, limit)
+      application/get-customer-timeline.usecase.ts                -- MODIFY: execute(customerId, limit)
+      infrastructure/typeorm-collection-activity.repository.ts    -- MODIFY: implement limit
+    payments/
+      application/payment-allocation-repository.port.ts           -- MODIFY: add findByCustomerId(customerId, limit)
+      infrastructure/typeorm-payment-allocation.repository.ts     -- MODIFY: implement (join through receivables)
+    billing/
+      domain/subscription.ts                                       -- MODIFY: add copilotChatMonthlyLimit
+      application/subscription-repository.port.ts                  -- MODIFY: add countCopilotChatTurnsInPeriod
+      application/plan-limit.service.ts                             -- MODIFY: add enforceCopilotChatLimit
+      infrastructure/typeorm-subscription.repository.ts             -- MODIFY: implement countCopilotChatTurnsInPeriod
   app.module.ts                                                    -- MODIFY: register CopilotModule
 test/
   copilot-chat.integration.spec.ts
@@ -72,110 +98,223 @@ test/
 
 ---
 
-### Task 1: `IReceivableRepository.findByCustomerId` (shared prerequisite)
+### Task 1: `getCollectionActivityTimeline`'s real backing — add `limit` to `GetCustomerTimelineUseCase`
 
 **Files:**
-- Modify: `apps/backend/src/modules/receivables/application/receivable-repository.port.ts`
-- Modify: `apps/backend/src/modules/receivables/infrastructure/typeorm-receivable.repository.ts`
-- Test: `apps/backend/src/modules/receivables/infrastructure/typeorm-receivable.repository.spec.ts`
+- Modify: `apps/backend/src/modules/collection-activity/application/collection-activity-repository.port.ts`
+- Modify: `apps/backend/src/modules/collection-activity/application/get-customer-timeline.usecase.ts`
+- Modify: `apps/backend/src/modules/collection-activity/infrastructure/typeorm-collection-activity.repository.ts`
+- Test: extend `get-customer-timeline.usecase.spec.ts` (or create if it doesn't exist yet)
 
 **Interfaces:**
-- Consumes: `BaseRepository` (`2026-08-03-multi-tenancy-rbac.md` Task 5), `TenantContextService`
-- Produces: `IReceivableRepository.findByCustomerId(customerId): Promise<Receivable[]>`, consumed by Task 4's `getReceivableSummary` tool
+- Consumes: `BaseRepository`/`TenantContextService`
+- Produces: `GetCustomerTimelineUseCase.execute(customerId, limit): Promise<CollectionActivity[]>`, consumed by Task 5's `GetCollectionActivityTimelineTool` — this is the REAL port the read tool delegates to, replacing the original plan's fictional `'COLLECTION_ACTIVITY_READ_PORT'` string token
 
-The Copilot's receivable summary tool has no customer-scoped aggregate method to call yet — `IReceivableRepository` only exposes single-row lookups. This task adds the one list method it needs.
+`findByCustomerId` currently returns every activity row for a customer, unbounded — Collection Activity is INSERT-only (spec: never updated/deleted), so this grows without bound over a customer's lifetime. Add `limit` at the query layer (`ORDER BY createdAt DESC, LIMIT`) rather than fetching everything and slicing in the caller.
 
 - [ ] **Step 1: Write failing test**
 
-Create `apps/backend/src/modules/receivables/infrastructure/typeorm-receivable.repository.spec.ts`:
+Extend/create `apps/backend/src/modules/collection-activity/application/get-customer-timeline.usecase.spec.ts`:
 
 ```typescript
-import { ReceivableStatus } from '@casso-ledger/shared-types';
-import { TypeOrmReceivableRepository } from './typeorm-receivable.repository';
-import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import { Role } from '../../organizations/domain/membership';
+import { GetCustomerTimelineUseCase } from './get-customer-timeline.usecase';
 
-describe('TypeOrmReceivableRepository.findByCustomerId', () => {
-  it('scopes the query by both customerId and the current organizationId', async () => {
-    const tenantContext = new TenantContextService();
-    const row = {
-      id: 'rec-1',
-      organizationId: 'org-1',
-      customerId: 'cust-1',
-      invoiceId: null,
-      originalAmount: 1_000_000,
-      paidAmount: 0,
-      dueDate: new Date('2026-07-01'),
-      status: ReceivableStatus.OPEN,
-      salesRepresentativeId: 'user-1',
-      createdAt: new Date('2026-06-01'),
-      closedAt: null,
-    };
-    const ormRepo = { find: jest.fn().mockResolvedValue([row]) };
-    const repo = new TypeOrmReceivableRepository(ormRepo as any, tenantContext);
+describe('GetCustomerTimelineUseCase', () => {
+  it('passes a caller-supplied limit down to the repository', async () => {
+    const activityRepo = { findByCustomerId: jest.fn().mockResolvedValue([]) };
+    const useCase = new GetCustomerTimelineUseCase(activityRepo as any);
 
-    const result = await tenantContext.run(
-      { userId: 'u1', organizationId: 'org-1', role: Role.ACCOUNTANT },
-      () => repo.findByCustomerId('cust-1'),
-    );
+    await useCase.execute('cust-1', 25);
 
-    expect(ormRepo.find).toHaveBeenCalledWith({
-      where: { customerId: 'cust-1', organizationId: 'org-1' },
-    });
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe('rec-1');
+    expect(activityRepo.findByCustomerId).toHaveBeenCalledWith('cust-1', 25);
   });
 });
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @casso-ledger/backend test typeorm-receivable.repository.spec.ts`
-Expected: FAIL — `findByCustomerId` does not exist on `TypeOrmReceivableRepository`
+Run: `pnpm --filter @casso-ledger/backend test get-customer-timeline.usecase.spec.ts`
+Expected: FAIL — `execute` doesn't accept a second argument / repo mock isn't called with `limit`
 
-- [ ] **Step 3: Modify `apps/backend/src/modules/receivables/application/receivable-repository.port.ts`**
+- [ ] **Step 3: Modify `collection-activity-repository.port.ts`**
 
 ```typescript
-import { EntityManager } from 'typeorm';
-import { Receivable } from '../domain/receivable';
-
-export interface IReceivableRepository {
-  findById(id: string): Promise<Receivable | null>;
-  findByIdForUpdate(id: string, manager: EntityManager): Promise<Receivable | null>;
-  findByCustomerId(customerId: string): Promise<Receivable[]>;
-  save(receivable: Receivable, manager?: EntityManager): Promise<void>;
+export interface ICollectionActivityRepository {
+  create(activity: CollectionActivity, manager?: EntityManager): Promise<void>;
+  findByReceivableId(receivableId: string): Promise<CollectionActivity[]>;
+  findByCustomerId(customerId: string, limit: number): Promise<CollectionActivity[]>;
 }
-
-export const RECEIVABLE_REPOSITORY = Symbol('RECEIVABLE_REPOSITORY');
 ```
 
-- [ ] **Step 4: Modify `apps/backend/src/modules/receivables/infrastructure/typeorm-receivable.repository.ts`** — add the method to the existing class
+- [ ] **Step 4: Modify `get-customer-timeline.usecase.ts`**
 
 ```typescript
-  async findByCustomerId(customerId: string): Promise<Receivable[]> {
-    const organizationId = this.tenantContext.getOrganizationId();
-    const rows = await this.ormRepo.find({ where: { customerId, organizationId } });
-    return rows.map((row) => new Receivable(row));
-  }
+async execute(customerId: string, limit: number): Promise<CollectionActivity[]> {
+  return this.activityRepo.findByCustomerId(customerId, limit);
+}
 ```
 
-(`this.ormRepo` and `this.tenantContext` are the `protected` members `BaseRepository` already exposes — same access pattern as this class's existing `findByIdForUpdate`.)
+- [ ] **Step 5: Modify `typeorm-collection-activity.repository.ts`** — add `order: { createdAt: 'DESC' }, take: limit` to the existing `findByCustomerId` query (same `BaseRepository`/tenant-scoped shape it already uses).
+
+- [ ] **Step 6: Run test to verify it passes; run the full collection-activity test suite to confirm no other caller of `findByCustomerId` broke**
+
+Run: `pnpm --filter @casso-ledger/backend test collection-activity`
+Expected: all PASS (check whether any other caller of `findByCustomerId` exists and needs a `limit` argument added — grep before assuming there's exactly one)
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add apps/backend/src/modules/collection-activity
+git commit -m "feat: add limit to GetCustomerTimelineUseCase/findByCustomerId to bound Copilot's timeline reads"
+```
+
+---
+
+### Task 2: `getPaymentHistory`'s real backing — new `IPaymentAllocationRepository.findByCustomerId`
+
+**Files:**
+- Modify: `apps/backend/src/modules/payments/application/payment-allocation-repository.port.ts`
+- Modify: `apps/backend/src/modules/payments/infrastructure/typeorm-payment-allocation.repository.ts`
+- Test: `apps/backend/src/modules/payments/infrastructure/typeorm-payment-allocation.repository.spec.ts` (extend or create)
+
+**Interfaces:**
+- Consumes: `BaseRepository`/`TenantContextService`
+- Produces: `IPaymentAllocationRepository.findByCustomerId(customerId, limit): Promise<PaymentAllocation[]>`, consumed by Task 5's `GetPaymentHistoryTool` — there is no existing customer-scoped payment query anywhere in the codebase; `PaymentAllocation` has no `customerId` column, so this joins through `receivables.customerId`.
+
+- [ ] **Step 1: Write failing test**
+
+```typescript
+describe('TypeOrmPaymentAllocationRepository.findByCustomerId', () => {
+  it('joins through receivables, excludes soft-deleted allocations, orders by allocatedAt desc, and scopes by organizationId + limit', async () => {
+    // assert the query builder is called with a join on receivableId -> receivables.customerId,
+    // "deletedAt IS NULL", organizationId scoping, ORDER BY "allocatedAt" DESC, and a LIMIT
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pnpm --filter @casso-ledger/backend test typeorm-payment-allocation.repository.spec.ts`
+Expected: FAIL — `findByCustomerId` does not exist
+
+- [ ] **Step 3: Modify `payment-allocation-repository.port.ts`**
+
+```typescript
+export interface IPaymentAllocationRepository {
+  findByIdForUpdate(id: string, manager: EntityManager): Promise<PaymentAllocation | null>;
+  save(allocation: PaymentAllocation, manager: EntityManager): Promise<void>;
+  findByReceivableId(receivableId: string): Promise<PaymentAllocation[]>;
+  findByCustomerId(customerId: string, limit: number): Promise<PaymentAllocation[]>;
+}
+```
+
+- [ ] **Step 4: Implement in `typeorm-payment-allocation.repository.ts`**
+
+```typescript
+async findByCustomerId(customerId: string, limit: number): Promise<PaymentAllocation[]> {
+  const organizationId = this.tenantContext.getOrganizationId();
+  const rows = await this.ormRepo
+    .createQueryBuilder('allocation')
+    .innerJoin('receivables', 'receivable', 'receivable.id = allocation."receivableId"')
+    .where('allocation."organizationId" = :organizationId', { organizationId })
+    .andWhere('receivable."customerId" = :customerId', { customerId })
+    .andWhere('allocation."deletedAt" IS NULL')
+    .orderBy('allocation."allocatedAt"', 'DESC')
+    .take(limit)
+    .getMany();
+  return rows.map((row) => new PaymentAllocation(row));
+}
+```
+
+(Verify the exact TypeORM query-builder idiom already used elsewhere in this repository/module before writing this — match existing style rather than inventing a new one.)
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `pnpm --filter @casso-ledger/backend test typeorm-receivable.repository.spec.ts`
+Run: `pnpm --filter @casso-ledger/backend test typeorm-payment-allocation.repository.spec.ts`
 Expected: PASS
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/backend/src/modules/receivables/application/receivable-repository.port.ts apps/backend/src/modules/receivables/infrastructure/typeorm-receivable.repository.ts apps/backend/src/modules/receivables/infrastructure/typeorm-receivable.repository.spec.ts
-git commit -m "feat: add IReceivableRepository.findByCustomerId for Copilot read tools"
+git add apps/backend/src/modules/payments/application/payment-allocation-repository.port.ts apps/backend/src/modules/payments/infrastructure/typeorm-payment-allocation.repository.ts
+git commit -m "feat: add IPaymentAllocationRepository.findByCustomerId for Copilot's payment-history tool"
 ```
 
 ---
 
-### Task 2: Copilot entities — conversation, message, pending action, draft, AI usage log
+### Task 3: Billing gate — `Subscription.copilotChatMonthlyLimit` + `PlanLimitService.enforceCopilotChatLimit`
+
+**Files:**
+- Modify: `apps/backend/src/modules/billing/domain/subscription.ts`
+- Modify: `apps/backend/src/modules/billing/application/subscription-repository.port.ts`
+- Modify: `apps/backend/src/modules/billing/application/plan-limit.service.ts`
+- Modify: `apps/backend/src/modules/billing/infrastructure/typeorm-subscription.repository.ts`
+- Test: extend `plan-limit.service.spec.ts` / `subscription.spec.ts`
+
+**Interfaces:**
+- Consumes: existing `ISubscriptionRepository`/`Subscription` (Billing plan)
+- Produces: `PlanLimitService.enforceCopilotChatLimit(manager): Promise<void>`, consumed by Task 8's `CopilotChatUseCase`
+
+Mirrors `enforceReceivableLimit` exactly — same lock/roll-period/status-check/count/compare shape, same `AppError(ErrorCode.PLAN_LIMIT_EXCEEDED, ...)` on violation (already mapped to HTTP 402).
+
+- [ ] **Step 1: Write failing tests** — one for `Subscription.isCopilotChatLimitReached`, one for `PlanLimitService.enforceCopilotChatLimit` (happy path under the limit, throws `PLAN_LIMIT_EXCEEDED` at the limit, throws when subscription status isn't ACTIVE) — copy the shape of the existing `enforceReceivableLimit` tests file-for-file.
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `pnpm --filter @casso-ledger/backend test billing`
+Expected: FAIL — method doesn't exist
+
+- [ ] **Step 3: Modify `subscription.ts`**
+
+```typescript
+// ponytail: FREE only — see the existing note on this catalog.
+const FREE_PLAN_LIMITS = { receivableMonthlyLimit: 50, bankConnectionLimit: 1, copilotChatMonthlyLimit: 50 };
+
+// add copilotChatMonthlyLimit to SubscriptionProps, the class, and createFree()
+
+isCopilotChatLimitReached(chatTurnsThisMonth: number): boolean {
+  return chatTurnsThisMonth >= this.copilotChatMonthlyLimit;
+}
+```
+
+- [ ] **Step 4: Modify `subscription-repository.port.ts`** — add `countCopilotChatTurnsInPeriod(organizationId, periodStart, periodEnd, manager): Promise<number>`.
+
+- [ ] **Step 5: Implement in `typeorm-subscription.repository.ts`** — same raw-SQL-by-table-name shape as the existing `countReceivablesInPeriod`:
+
+```typescript
+async countCopilotChatTurnsInPeriod(
+  organizationId: string,
+  periodStart: Date,
+  periodEnd: Date,
+  manager: EntityManager,
+): Promise<number> {
+  const rows: Array<{ count: string }> = await manager.query(
+    'SELECT COUNT(*) as count FROM copilot_messages WHERE "organizationId" = $1 AND role = \'USER\' AND "createdAt" >= $2 AND "createdAt" < $3',
+    [organizationId, periodStart, periodEnd],
+  );
+  return Number(rows[0]?.count ?? 0);
+}
+```
+
+Note: `CopilotMessageOrmEntity` (Task 4) does not have an `organizationId` column in the original entity sketch — add one here (it needs to, both for this count query and for tenant-safety of the messages table itself; every other table in this codebase carries `organizationId` directly).
+
+- [ ] **Step 6: Modify `plan-limit.service.ts`** — add `enforceCopilotChatLimit(manager: EntityManager): Promise<void>`, structured identically to `enforceReceivableLimit` (lock+roll+status-check, then count via `countCopilotChatTurnsInPeriod`, then `isCopilotChatLimitReached` → `throwPlanLimitExceeded`).
+
+- [ ] **Step 7: Run tests to verify they pass**
+
+Run: `pnpm --filter @casso-ledger/backend test billing`
+Expected: PASS
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add apps/backend/src/modules/billing
+git commit -m "feat: gate Copilot chat turns behind PlanLimitService (FREE = 50/month)"
+```
+
+---
+
+### Task 4: Copilot entities, ports, and TypeORM repositories
 
 **Files:**
 - Create: `apps/backend/src/modules/copilot/infrastructure/copilot-conversation.orm-entity.ts`
@@ -185,18 +324,22 @@ git commit -m "feat: add IReceivableRepository.findByCustomerId for Copilot read
 - Create: `apps/backend/src/modules/copilot/infrastructure/ai-usage-log.orm-entity.ts`
 - Create: `apps/backend/src/modules/copilot/application/conversation-repository.port.ts`
 - Create: `apps/backend/src/modules/copilot/application/pending-action-repository.port.ts`
+- Create: `apps/backend/src/modules/copilot/application/draft-repository.port.ts`
 - Create: `apps/backend/src/modules/copilot/application/ai-usage-log-repository.port.ts`
 - Create: `apps/backend/src/modules/copilot/infrastructure/typeorm-copilot-conversation.repository.ts`
 - Create: `apps/backend/src/modules/copilot/infrastructure/typeorm-copilot-pending-action.repository.ts`
+- Create: `apps/backend/src/modules/copilot/infrastructure/typeorm-copilot-draft.repository.ts`
 - Create: `apps/backend/src/modules/copilot/infrastructure/typeorm-ai-usage-log.repository.ts`
 
 **Interfaces:**
-- Consumes: `BaseRepository`, `TenantContextService` (`2026-08-03-multi-tenancy-rbac.md`)
-- Produces: `ICopilotConversationRepository`, `ICopilotPendingActionRepository`, `IAIUsageLogRepository` — consumed by every later task in this plan
+- Consumes: `BaseRepository`, `TenantContextService`
+- Produces: `ICopilotConversationRepository`, `ICopilotPendingActionRepository`, `ICopilotDraftRepository`, `IAIUsageLogRepository` — consumed by every later task
 
-**Persistence decision — normalized rows, not one jsonb blob per conversation:** `CopilotMessage` is one row per message (role `USER`/`ASSISTANT`/`TOOL`), not a single `messages jsonb` column on `CopilotConversation`. Justification: (1) `AIUsageLog` already needs a row per model call for audit — a per-message table keeps the same granularity instead of mixing two persistence styles in one module; (2) every other entity in this codebase (`Receivable`, `Payment`, `PaymentAllocation`, …) is a normalized TypeORM entity, not an embedded document — a jsonb blob here would be the only exception in the codebase; (3) a single growing jsonb column write-amplifies on every turn (rewrite the whole conversation to append one message) where an `INSERT` does not.
+**Persistence decision — normalized rows, not one jsonb blob per conversation:** `CopilotMessage` is one row per message (role `USER`/`ASSISTANT`/`TOOL`), not a single `messages jsonb` column on `CopilotConversation`. Justification: (1) `AIUsageLog` already needs a row per model call for audit — a per-message table keeps the same granularity; (2) every other entity in this codebase is a normalized TypeORM entity, not an embedded document; (3) `PlanLimitService.enforceCopilotChatLimit` (Task 3) counts `copilot_messages` rows directly by SQL — a jsonb blob can't be counted this way without deserializing every row.
 
-- [ ] **Step 1: Create `apps/backend/src/modules/copilot/infrastructure/copilot-conversation.orm-entity.ts`**
+**`ICopilotDraftRepository` is new versus the original plan draft** — the original plan had no port for `CopilotDraftOrmEntity` at all and instead let two different call sites (`DraftReminderEmailTool`, `ConfirmPendingActionUseCase`) reach for it in two different, both-broken ways (an untyped constructor param with no DI token, and a raw `@InjectRepository` inside `application/`). This task adds the port so both later tasks consume one correct thing.
+
+- [ ] **Step 1: Create `copilot-conversation.orm-entity.ts`**
 
 ```typescript
 import { Column, Entity, PrimaryColumn } from 'typeorm';
@@ -220,9 +363,9 @@ export class CopilotConversationOrmEntity {
 }
 ```
 
-`id` is a `@PrimaryColumn` (not generated) because `CopilotChatUseCase` auto-creates the conversation row the first time a client posts to a given conversation id — see Task 7's note on lazy conversation creation.
+`id` is a `@PrimaryColumn` (not generated) because `CopilotChatUseCase` auto-creates the conversation row the first time a client posts to a given conversation id — there is no separate create-conversation endpoint (spec only defines `POST /conversations/:id/messages`).
 
-- [ ] **Step 2: Create `apps/backend/src/modules/copilot/infrastructure/copilot-message.orm-entity.ts`**
+- [ ] **Step 2: Create `copilot-message.orm-entity.ts`** — note the added `organizationId` column (Task 3's usage-count query needs it; every other table in this codebase carries it directly rather than joining to find it):
 
 ```typescript
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
@@ -231,9 +374,13 @@ export type CopilotMessageRole = 'USER' | 'ASSISTANT' | 'TOOL';
 
 @Entity({ name: 'copilot_messages' })
 @Index(['conversationId', 'createdAt'])
+@Index(['organizationId', 'role', 'createdAt'])
 export class CopilotMessageOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column()
+  organizationId: string;
 
   @Column()
   conversationId: string;
@@ -252,7 +399,7 @@ export class CopilotMessageOrmEntity {
 }
 ```
 
-- [ ] **Step 3: Create `apps/backend/src/modules/copilot/infrastructure/copilot-pending-action.orm-entity.ts`**
+- [ ] **Step 3: Create `copilot-pending-action.orm-entity.ts`**
 
 ```typescript
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
@@ -295,7 +442,7 @@ export class CopilotPendingActionOrmEntity {
 }
 ```
 
-- [ ] **Step 4: Create `apps/backend/src/modules/copilot/infrastructure/copilot-draft.orm-entity.ts`**
+- [ ] **Step 4: Create `copilot-draft.orm-entity.ts`**
 
 ```typescript
 import { Column, Entity, PrimaryColumn } from 'typeorm';
@@ -325,9 +472,9 @@ export class CopilotDraftOrmEntity {
 }
 ```
 
-`CopilotDraftOrmEntity` is what `draftReminderEmail` writes and what `ConfirmPendingActionUseCase` (Task 8) reads back to build a real, throwaway `EmailTemplate` row once the user confirms — see Task 8's note. The canonical field is `bodyHtml`, matching the Email Template contract.
+`bodyHtml`/`subject` here are the FINAL, already-substituted text (customer name/amounts already filled in, no `{{variable}}` tokens) — this is what `ConfirmPendingActionUseCase` (Task 9) reads back to build a real, throwaway `EmailTemplate` row once the user confirms.
 
-- [ ] **Step 5: Create `apps/backend/src/modules/copilot/infrastructure/ai-usage-log.orm-entity.ts`**
+- [ ] **Step 5: Create `ai-usage-log.orm-entity.ts`**
 
 ```typescript
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
@@ -369,9 +516,9 @@ export class AIUsageLogOrmEntity {
 }
 ```
 
-- [ ] **Step 6: Create the three ports**
+- [ ] **Step 6: Create the four ports** (`conversation-repository.port.ts`, `pending-action-repository.port.ts`, `draft-repository.port.ts`, `ai-usage-log-repository.port.ts`), following the shapes below. All errors on invalid state are `AppError`, never a `@nestjs/common` exception class.
 
-`apps/backend/src/modules/copilot/application/conversation-repository.port.ts`:
+`conversation-repository.port.ts`:
 
 ```typescript
 export interface CopilotConversation {
@@ -394,20 +541,17 @@ export interface CopilotMessageRecord {
 export interface ICopilotConversationRepository {
   findOrCreate(conversationId: string, userId: string): Promise<CopilotConversation>;
   listMessages(conversationId: string): Promise<CopilotMessageRecord[]>;
-  appendMessage(message: Omit<CopilotMessageRecord, 'id'>): Promise<CopilotMessageRecord>;
+  appendMessage(message: Omit<CopilotMessageRecord, 'id'>, manager?: EntityManager): Promise<CopilotMessageRecord>;
 }
 
 export const COPILOT_CONVERSATION_REPOSITORY = Symbol('COPILOT_CONVERSATION_REPOSITORY');
 ```
 
-`apps/backend/src/modules/copilot/application/pending-action-repository.port.ts`:
+(`appendMessage` takes an optional `manager` — Task 8's plan-limit-check-and-persist-user-message step must run inside one short transaction.)
+
+`pending-action-repository.port.ts`:
 
 ```typescript
-import {
-  CopilotPendingActionStatus,
-  SendReminderEmailPayload,
-} from '../infrastructure/copilot-pending-action.orm-entity';
-
 export interface CopilotPendingAction {
   id: string;
   organizationId: string;
@@ -423,14 +567,38 @@ export interface CopilotPendingAction {
 export interface ICopilotPendingActionRepository {
   create(conversationId: string, payload: SendReminderEmailPayload): Promise<CopilotPendingAction>;
   findById(id: string): Promise<CopilotPendingAction | null>;
-  save(action: CopilotPendingAction): Promise<void>;
+  markExpired(id: string): Promise<void>;
+  confirmIfPending(id: string, resolvedByUserId: string): Promise<CopilotPendingAction | null>;
   cancelIfPending(id: string, resolvedByUserId: string): Promise<CopilotPendingAction | null>;
 }
 
 export const COPILOT_PENDING_ACTION_REPOSITORY = Symbol('COPILOT_PENDING_ACTION_REPOSITORY');
 ```
 
-`apps/backend/src/modules/copilot/application/ai-usage-log-repository.port.ts`:
+(No generic `save()` — every mutation is one of the three named, intention-revealing methods: `markExpired`, `confirmIfPending`, `cancelIfPending`. `confirmIfPending`/`cancelIfPending` are atomic conditional updates — see Task 9's note on the confirm-race fix.)
+
+`draft-repository.port.ts`:
+
+```typescript
+export interface CopilotDraft {
+  id: string;
+  organizationId: string;
+  receivableId: string;
+  recipientEmail: string;
+  subject: string;
+  bodyHtml: string;
+  createdAt: Date;
+}
+
+export interface ICopilotDraftRepository {
+  save(draft: CopilotDraft): Promise<void>;
+  findById(id: string): Promise<CopilotDraft | null>;
+}
+
+export const COPILOT_DRAFT_REPOSITORY = Symbol('COPILOT_DRAFT_REPOSITORY');
+```
+
+`ai-usage-log-repository.port.ts`:
 
 ```typescript
 export interface AIUsageLogEntry {
@@ -451,183 +619,18 @@ export interface IAIUsageLogRepository {
 export const AI_USAGE_LOG_REPOSITORY = Symbol('AI_USAGE_LOG_REPOSITORY');
 ```
 
-- [ ] **Step 7: Create the three TypeORM implementations**
-
-`apps/backend/src/modules/copilot/infrastructure/typeorm-copilot-conversation.repository.ts`:
-
-```typescript
-import { randomUUID } from 'crypto';
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import {
-  CopilotConversation,
-  CopilotMessageRecord,
-  ICopilotConversationRepository,
-} from '../application/conversation-repository.port';
-import { CopilotConversationOrmEntity } from './copilot-conversation.orm-entity';
-import { CopilotMessageOrmEntity } from './copilot-message.orm-entity';
-import { BaseRepository } from '../../../common/tenancy/base.repository';
-import { TenantContextService } from '../../../common/tenancy/tenant-context';
-
-@Injectable()
-export class TypeOrmCopilotConversationRepository
-  extends BaseRepository<CopilotConversationOrmEntity>
-  implements ICopilotConversationRepository
-{
-  constructor(
-    @InjectRepository(CopilotConversationOrmEntity) repo: Repository<CopilotConversationOrmEntity>,
-    @InjectRepository(CopilotMessageOrmEntity)
-    private readonly messageRepo: Repository<CopilotMessageOrmEntity>,
-    tenantContext: TenantContextService,
-  ) {
-    super(repo, tenantContext);
-  }
-
-  async findOrCreate(conversationId: string, userId: string): Promise<CopilotConversation> {
-    const existing = await this.scopedFindOne({ id: conversationId } as any);
-    if (existing) return existing;
-
-    const organizationId = this.tenantContext.getOrganizationId();
-    const conversation: CopilotConversationOrmEntity = {
-      id: conversationId,
-      organizationId,
-      userId,
-      customerId: null,
-      createdAt: new Date(),
-    };
-    await this.ormRepo.save(conversation);
-    return conversation;
-  }
-
-  async listMessages(conversationId: string): Promise<CopilotMessageRecord[]> {
-    const conversation = await this.scopedFindOne({ id: conversationId } as any);
-    if (!conversation) return [];
-    return this.messageRepo.find({
-      where: { conversationId },
-      order: { createdAt: 'ASC' },
-    });
-  }
-
-  async appendMessage(message: Omit<CopilotMessageRecord, 'id'>): Promise<CopilotMessageRecord> {
-    const row: CopilotMessageOrmEntity = { id: randomUUID(), ...message };
-    await this.messageRepo.save(row);
-    return row;
-  }
-}
-```
-
-`apps/backend/src/modules/copilot/infrastructure/typeorm-copilot-pending-action.repository.ts`:
-
-```typescript
-import { randomUUID } from 'crypto';
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import {
-  CopilotPendingAction,
-  ICopilotPendingActionRepository,
-} from '../application/pending-action-repository.port';
-import {
-  CopilotPendingActionOrmEntity,
-  SendReminderEmailPayload,
-} from './copilot-pending-action.orm-entity';
-import { BaseRepository } from '../../../common/tenancy/base.repository';
-import { TenantContextService } from '../../../common/tenancy/tenant-context';
-
-@Injectable()
-export class TypeOrmCopilotPendingActionRepository
-  extends BaseRepository<CopilotPendingActionOrmEntity>
-  implements ICopilotPendingActionRepository
-{
-  constructor(
-    @InjectRepository(CopilotPendingActionOrmEntity)
-    repo: Repository<CopilotPendingActionOrmEntity>,
-    tenantContext: TenantContextService,
-  ) {
-    super(repo, tenantContext);
-  }
-
-  async create(
-    conversationId: string,
-    payload: SendReminderEmailPayload,
-  ): Promise<CopilotPendingAction> {
-    const organizationId = this.tenantContext.getOrganizationId();
-    const action: CopilotPendingActionOrmEntity = {
-      id: randomUUID(),
-      organizationId,
-      conversationId,
-      actionType: 'SEND_REMINDER_EMAIL',
-      payload,
-      status: 'PENDING',
-      createdAt: new Date(),
-      resolvedAt: null,
-      resolvedByUserId: null,
-    };
-    await this.ormRepo.save(action);
-    return action;
-  }
-
-  async findById(id: string): Promise<CopilotPendingAction | null> {
-    return this.scopedFindOne({ id } as any);
-  }
-
-  async save(action: CopilotPendingAction): Promise<void> {
-    await this.scopedSave(action as CopilotPendingActionOrmEntity);
-  }
-
-  async cancelIfPending(id: string, resolvedByUserId: string): Promise<CopilotPendingAction | null> {
-    const result = await this.ormRepo
-      .createQueryBuilder()
-      .update(CopilotPendingActionOrmEntity)
-      .set({ status: 'CANCELLED', resolvedAt: new Date(), resolvedByUserId })
-      .where('id = :id AND "organizationId" = :organizationId AND status = :status', {
-        id,
-        organizationId: this.tenantContext.getOrganizationId(),
-        status: 'PENDING',
-      })
-      .returning('*')
-      .execute();
-    return result.affected ? (result.raw[0] as CopilotPendingAction) : null;
-  }
-}
-```
-
-`apps/backend/src/modules/copilot/infrastructure/typeorm-ai-usage-log.repository.ts`:
-
-```typescript
-import { randomUUID } from 'crypto';
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { AIUsageLogEntry, IAIUsageLogRepository } from '../application/ai-usage-log-repository.port';
-import { AIUsageLogOrmEntity } from './ai-usage-log.orm-entity';
-import { TenantContextService } from '../../../common/tenancy/tenant-context';
-
-@Injectable()
-export class TypeOrmAIUsageLogRepository implements IAIUsageLogRepository {
-  constructor(
-    @InjectRepository(AIUsageLogOrmEntity) private readonly repo: Repository<AIUsageLogOrmEntity>,
-    private readonly tenantContext: TenantContextService,
-  ) {}
-
-  async log(entry: AIUsageLogEntry): Promise<void> {
-    const organizationId = this.tenantContext.getOrganizationId();
-    await this.repo.save({ id: randomUUID(), organizationId, createdAt: new Date(), ...entry });
-  }
-}
-```
+- [ ] **Step 7: Implement the four TypeORM repositories** in `infrastructure/`, `BaseRepository`-backed where they read/write tenant-scoped rows (Conversation, PendingAction, Draft), following `typeorm-copilot-conversation.repository.ts`'s existing shape from the original draft for `findOrCreate`/`listMessages`/`appendMessage`. `TypeOrmCopilotPendingActionRepository.confirmIfPending`/`cancelIfPending` both use the same `createQueryBuilder().update().set().where('id = :id AND "organizationId" = :organizationId AND status = :status')...returning('*')` shape — copy `cancelIfPending`'s exact structure for `confirmIfPending`, only the `set()` status differs (`'CONFIRMED'` vs `'CANCELLED'`). `TypeOrmCopilotDraftRepository` is the simplest of the four (no status machine, just `save`/`findById`).
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add apps/backend/src/modules/copilot/infrastructure apps/backend/src/modules/copilot/application/conversation-repository.port.ts apps/backend/src/modules/copilot/application/pending-action-repository.port.ts apps/backend/src/modules/copilot/application/ai-usage-log-repository.port.ts
-git commit -m "feat: add Copilot entities, ports, and TypeORM repositories"
+git add apps/backend/src/modules/copilot/infrastructure apps/backend/src/modules/copilot/application/conversation-repository.port.ts apps/backend/src/modules/copilot/application/pending-action-repository.port.ts apps/backend/src/modules/copilot/application/draft-repository.port.ts apps/backend/src/modules/copilot/application/ai-usage-log-repository.port.ts
+git commit -m "feat: add Copilot entities, ports (including the missing draft port), and TypeORM repositories"
 ```
 
 ---
 
-### Task 3: `CopilotToolRegistry` — the hardcoded, auditable whitelist
+### Task 5: `CopilotToolRegistry` — the hardcoded, auditable whitelist
 
 **Files:**
 - Create: `apps/backend/src/modules/copilot/application/copilot-tool-registry.ts`
@@ -635,13 +638,11 @@ git commit -m "feat: add Copilot entities, ports, and TypeORM repositories"
 
 **Interfaces:**
 - Consumes: nothing
-- Produces: `CopilotToolRegistry.getTools(canSendReminders): Anthropic.Tool[]`, `CopilotToolRegistry.register(tool)` — consumed by Task 4-6's tools and Task 7's `CopilotChatUseCase`
+- Produces: `CopilotToolRegistry.getTools(canSendReminders): OpenAiToolShape[]`, `CopilotToolRegistry.register(tool)` — consumed by the tools (Task 6-8) and `CopilotChatUseCase` (Task 10)
 
 This is the module's single most important file — the code that makes the write-action boundary a compile-time fact rather than a runtime policy. Write it, and its test, before any tool implementation exists.
 
-- [ ] **Step 1: Write the failing allowlist test**
-
-Create `apps/backend/src/modules/copilot/application/copilot-tool-registry.spec.ts`:
+- [ ] **Step 1: Write the failing allowlist test** (unchanged from the original draft's intent — only the output shape's field names differ, see Step 3):
 
 ```typescript
 import { CopilotToolRegistry, CopilotToolDefinition } from './copilot-tool-registry';
@@ -664,7 +665,7 @@ describe('CopilotToolRegistry', () => {
     registry.register(fakeTool('draftReminderEmail', true));
     registry.register(fakeTool('sendReminderEmail', true));
 
-    const names = registry.getTools(true).map((tool) => tool.name);
+    const names = registry.getTools(true).map((tool) => tool.function.name);
 
     expect(names.sort()).toEqual(
       [
@@ -688,9 +689,7 @@ describe('CopilotToolRegistry', () => {
     );
     expect(() => registry.register(fakeTool('allocatePayment'))).toThrow();
     expect(() => registry.register(fakeTool('disputeReceivable'))).toThrow();
-
-    // and none of them ever became visible to the model
-    expect(registry.getTools(true).map((t) => t.name)).toHaveLength(0);
+    expect(registry.getTools(true)).toHaveLength(0);
   });
 
   it('hides sendReminderEmail and draftReminderEmail from users without REMINDER_SEND_MANUAL', () => {
@@ -701,7 +700,7 @@ describe('CopilotToolRegistry', () => {
     registry.register(fakeTool('draftReminderEmail', true));
     registry.register(fakeTool('sendReminderEmail', true));
 
-    const names = registry.getTools(false).map((tool) => tool.name);
+    const names = registry.getTools(false).map((tool) => tool.function.name);
 
     expect(names).toEqual(['getReceivableSummary', 'getCollectionActivityTimeline', 'getPaymentHistory']);
   });
@@ -713,7 +712,7 @@ describe('CopilotToolRegistry', () => {
 Run: `pnpm --filter @casso-ledger/backend test copilot-tool-registry.spec.ts`
 Expected: FAIL — Cannot find module './copilot-tool-registry'
 
-- [ ] **Step 3: Create `apps/backend/src/modules/copilot/application/copilot-tool-registry.ts`**
+- [ ] **Step 3: Create `copilot-tool-registry.ts`** — shape the output as OpenAI's Chat Completions tool format (`{ type: 'function', function: { name, description, parameters } }`), not Anthropic's `{ name, description, input_schema }`:
 
 ```typescript
 import { Injectable } from '@nestjs/common';
@@ -732,10 +731,13 @@ export interface CopilotToolDefinition {
   requiresReminderPermission: boolean;
 }
 
-export interface AnthropicToolShape {
-  name: string;
-  description: string;
-  input_schema: CopilotJsonSchema;
+export interface OpenAiToolShape {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: CopilotJsonSchema;
+  };
 }
 
 /**
@@ -768,18 +770,13 @@ export class CopilotToolRegistry {
     this.tools.set(tool.name, tool);
   }
 
-  getTools(canSendReminders: boolean): AnthropicToolShape[] {
+  getTools(canSendReminders: boolean): OpenAiToolShape[] {
     return Array.from(this.tools.values())
       .filter((tool) => canSendReminders || !tool.requiresReminderPermission)
       .map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        input_schema: tool.inputSchema,
+        type: 'function' as const,
+        function: { name: tool.name, description: tool.description, parameters: tool.inputSchema },
       }));
-  }
-
-  getToolNames(canSendReminders: boolean): string[] {
-    return this.getTools(canSendReminders).map((tool) => tool.name);
   }
 }
 ```
@@ -793,12 +790,12 @@ Expected: all 3 tests PASS
 
 ```bash
 git add apps/backend/src/modules/copilot/application/copilot-tool-registry.ts apps/backend/src/modules/copilot/application/copilot-tool-registry.spec.ts
-git commit -m "feat: add CopilotToolRegistry with a hardcoded, test-proven safe tool allowlist"
+git commit -m "feat: add CopilotToolRegistry (OpenAI tool-calling shape) with a hardcoded, test-proven safe tool allowlist"
 ```
 
 ---
 
-### Task 4: Read-only tools — `getReceivableSummary`, `getCollectionActivityTimeline`, `getPaymentHistory`
+### Task 6: Read-only tools — `getReceivableSummary`, `getCollectionActivityTimeline`, `getPaymentHistory`
 
 **Files:**
 - Create: `apps/backend/src/modules/copilot/application/tools/get-receivable-summary.tool.ts`
@@ -807,12 +804,12 @@ git commit -m "feat: add CopilotToolRegistry with a hardcoded, test-proven safe 
 - Test: `apps/backend/src/modules/copilot/application/tools/copilot-read-tools.spec.ts`
 
 **Interfaces:**
-- Consumes: `IReceivableRepository.findByCustomerId` (Task 1), Collection Activity's read port, Payment History's read port, and `ICustomerRepository` (`2026-08-03-project-scaffolding-and-domain-core.md`)
-- Produces: `GetReceivableSummaryTool.execute(input)`, `GetCollectionActivityTimelineTool.execute(input)`, and `GetPaymentHistoryTool.execute(input)` — pre-shaped JSON, consumed by Task 7's `CopilotChatUseCase`
+- Consumes: `IReceivableRepository.findOpenByCustomerId` (already exists — no new method), `GetCustomerTimelineUseCase` (Task 1, now with `limit`), `IPaymentAllocationRepository.findByCustomerId` (Task 2)
+- Produces: `GetReceivableSummaryTool.execute(input)`, `GetCollectionActivityTimelineTool.execute(input)`, `GetPaymentHistoryTool.execute(input)` — pre-shaped JSON, consumed by Task 10's `CopilotChatUseCase`
 
-All three tools take `customerId` and the timeline/history tools also take bounded `limit`; no `organizationId` parameter exists because the repositories are `BaseRepository`-backed and scope every query to `TenantContextService.getOrganizationId()` automatically. The timeline tool delegates to Collection Activity's read port and the payment-history tool delegates to Domain Core's payment-history read port; neither tool queries raw tables directly.
+All three tools take `customerId`; the timeline/history tools also take a bounded `limit`. No tool accepts `organizationId` — every underlying repository call is `TenantContextService`-scoped automatically.
 
-- [ ] **Step 1: Create `apps/backend/src/modules/copilot/application/tools/get-receivable-summary.tool.ts`**
+- [ ] **Step 1: Create `get-receivable-summary.tool.ts`** — uses the EXISTING `findOpenByCustomerId`, not a new method:
 
 ```typescript
 import { Inject, Injectable } from '@nestjs/common';
@@ -846,7 +843,7 @@ export class GetReceivableSummaryTool {
   ) {}
 
   async execute(input: { customerId: string }, now: Date = new Date()): Promise<ReceivableSummaryDto> {
-    const receivables = await this.receivableRepo.findByCustomerId(input.customerId);
+    const receivables = await this.receivableRepo.findOpenByCustomerId(input.customerId);
     const overdue = receivables.filter((receivable) => receivable.isOverdue(now));
     const lateDays = overdue.map((receivable) =>
       Math.floor((now.getTime() - receivable.dueDate.getTime()) / (24 * 60 * 60 * 1000)),
@@ -867,8 +864,6 @@ export class GetReceivableSummaryTool {
 
 - [ ] **Step 2: Write failing tests for all three canonical read tools**
 
-Create `apps/backend/src/modules/copilot/application/tools/copilot-read-tools.spec.ts`:
-
 ```typescript
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Receivable } from '../../../receivables/domain/receivable';
@@ -876,11 +871,7 @@ import { GetReceivableSummaryTool } from './get-receivable-summary.tool';
 import { GetCollectionActivityTimelineTool } from './get-collection-activity-timeline.tool';
 import { GetPaymentHistoryTool } from './get-payment-history.tool';
 
-function receivable(overrides: Partial<Parameters<typeof Receivable.prototype.constructor>[0]> & {
-  originalAmount: number;
-  paidAmount: number;
-  dueDate: Date;
-}) {
+function receivable(overrides: { originalAmount: number; paidAmount: number; dueDate: Date }) {
   return new Receivable({
     id: 'rec',
     organizationId: 'org-1',
@@ -890,24 +881,25 @@ function receivable(overrides: Partial<Parameters<typeof Receivable.prototype.co
     salesRepresentativeId: 'user-1',
     createdAt: new Date('2026-01-01'),
     closedAt: null,
+    version: 1,
     ...overrides,
   } as any);
 }
 
 describe('Copilot read tools', () => {
-  it('computes the canonical receivable summary', async () => {
+  it('computes the canonical receivable summary from findOpenByCustomerId', async () => {
     const today = new Date('2026-08-03');
     const receivables = [
       receivable({ originalAmount: 10_000_000, paidAmount: 0, dueDate: new Date('2026-07-24') }), // 10 days late
       receivable({ originalAmount: 20_000_000, paidAmount: 5_000_000, dueDate: new Date('2026-07-04') }), // 30 days late
       receivable({ originalAmount: 5_000_000, paidAmount: 0, dueDate: new Date('2026-09-01') }), // not due yet
     ];
-    const receivableRepo = { findByCustomerId: jest.fn().mockResolvedValue(receivables) };
+    const receivableRepo = { findOpenByCustomerId: jest.fn().mockResolvedValue(receivables) };
 
     const tool = new GetReceivableSummaryTool(receivableRepo as any);
     const result = await tool.execute({ customerId: 'cust-1' }, today);
 
-    expect(result.customerId).toBe('cust-1');
+    expect(receivableRepo.findOpenByCustomerId).toHaveBeenCalledWith('cust-1');
     expect(result.overdueCount).toBe(2);
     expect(result.totalOutstanding).toBe(10_000_000 + 15_000_000);
     expect(result.totalOverdue).toBe(10_000_000 + 15_000_000);
@@ -915,22 +907,37 @@ describe('Copilot read tools', () => {
     expect(result.averageLateDays).toBe(20);
   });
 
-  it('delegates timeline and payment history with a bounded limit', async () => {
-    const timeline = { getByCustomerId: jest.fn().mockResolvedValue([{ id: 'activity-1' }]) };
-    const payments = { getByCustomerId: jest.fn().mockResolvedValue([{ id: 'payment-1' }]) };
-    const timelineTool = new GetCollectionActivityTimelineTool(timeline as any);
-    const paymentTool = new GetPaymentHistoryTool(payments as any);
+  it('delegates timeline to GetCustomerTimelineUseCase with a bounded limit', async () => {
+    const timelineUseCase = { execute: jest.fn().mockResolvedValue([{ id: 'activity-1' }]) };
+    const timelineTool = new GetCollectionActivityTimelineTool(timelineUseCase as any);
 
     await expect(timelineTool.execute({ customerId: 'cust-1', limit: 50 })).resolves.toEqual({
       customerId: 'cust-1',
       items: [{ id: 'activity-1' }],
     });
+    expect(timelineUseCase.execute).toHaveBeenCalledWith('cust-1', 50);
+  });
+
+  it('delegates payment history to IPaymentAllocationRepository.findByCustomerId with a bounded limit', async () => {
+    const allocationRepo = { findByCustomerId: jest.fn().mockResolvedValue([{ id: 'alloc-1' }]) };
+    const paymentTool = new GetPaymentHistoryTool(allocationRepo as any);
+
     await expect(paymentTool.execute({ customerId: 'cust-1', limit: 50 })).resolves.toEqual({
       customerId: 'cust-1',
-      items: [{ id: 'payment-1' }],
+      items: [{ id: 'alloc-1' }],
     });
-    expect(timeline.getByCustomerId).toHaveBeenCalledWith('cust-1', 50);
-    expect(payments.getByCustomerId).toHaveBeenCalledWith('cust-1', 50);
+    expect(allocationRepo.findByCustomerId).toHaveBeenCalledWith('cust-1', 50);
+  });
+
+  it('clamps an out-of-range limit into [1, 50] for both bounded tools', async () => {
+    const timelineUseCase = { execute: jest.fn().mockResolvedValue([]) };
+    const timelineTool = new GetCollectionActivityTimelineTool(timelineUseCase as any);
+
+    await timelineTool.execute({ customerId: 'cust-1', limit: 500 });
+    expect(timelineUseCase.execute).toHaveBeenCalledWith('cust-1', 50);
+
+    await timelineTool.execute({ customerId: 'cust-1' });
+    expect(timelineUseCase.execute).toHaveBeenCalledWith('cust-1', 20);
   });
 });
 ```
@@ -940,10 +947,11 @@ describe('Copilot read tools', () => {
 Run: `pnpm --filter @casso-ledger/backend test copilot-read-tools.spec.ts`
 Expected: FAIL — the three canonical tool classes do not exist
 
-- [ ] **Step 4: Create `apps/backend/src/modules/copilot/application/tools/get-collection-activity-timeline.tool.ts` and `get-payment-history.tool.ts`**
+- [ ] **Step 4: Create `get-collection-activity-timeline.tool.ts` and `get-payment-history.tool.ts`** — inject the REAL use case/port, not a fictional string-token adapter:
 
 ```typescript
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { GetCustomerTimelineUseCase } from '../../../collection-activity/application/get-customer-timeline.usecase';
 import { CopilotJsonSchema } from '../copilot-tool-registry';
 
 export const GET_COLLECTION_ACTIVITY_TIMELINE_SCHEMA: CopilotJsonSchema = {
@@ -955,26 +963,35 @@ export const GET_COLLECTION_ACTIVITY_TIMELINE_SCHEMA: CopilotJsonSchema = {
   required: ['customerId'],
 };
 
+const MIN_LIMIT = 1;
 const MAX_LIMIT = 50;
+const DEFAULT_LIMIT = 20;
+
+function clampLimit(limit: number | undefined): number {
+  return Math.min(Math.max(limit ?? DEFAULT_LIMIT, MIN_LIMIT), MAX_LIMIT);
+}
 
 @Injectable()
 export class GetCollectionActivityTimelineTool {
   static readonly NAME = 'getCollectionActivityTimeline';
 
-  constructor(@Inject('COLLECTION_ACTIVITY_READ_PORT') private readonly reader: {
-    getByCustomerId(customerId: string, limit: number): Promise<unknown[]>;
-  }) {}
+  constructor(private readonly getCustomerTimeline: GetCustomerTimelineUseCase) {}
 
   async execute(input: { customerId: string; limit?: number }) {
-    const limit = Math.min(Math.max(input.limit ?? 20, 1), MAX_LIMIT);
-    return { customerId: input.customerId, items: await this.reader.getByCustomerId(input.customerId, limit) };
+    const items = await this.getCustomerTimeline.execute(input.customerId, clampLimit(input.limit));
+    return { customerId: input.customerId, items };
   }
 }
 ```
 
-Create `get-payment-history.tool.ts` with the same bounded-input adapter shape and exact public name:
-
 ```typescript
+import { Inject, Injectable } from '@nestjs/common';
+import {
+  IPaymentAllocationRepository,
+  PAYMENT_ALLOCATION_REPOSITORY,
+} from '../../../payments/application/payment-allocation-repository.port';
+import { CopilotJsonSchema } from '../copilot-tool-registry';
+
 export const GET_PAYMENT_HISTORY_SCHEMA: CopilotJsonSchema = {
   type: 'object',
   properties: {
@@ -984,22 +1001,31 @@ export const GET_PAYMENT_HISTORY_SCHEMA: CopilotJsonSchema = {
   required: ['customerId'],
 };
 
+const MIN_LIMIT = 1;
+const MAX_LIMIT = 50;
+const DEFAULT_LIMIT = 20;
+
+function clampLimit(limit: number | undefined): number {
+  return Math.min(Math.max(limit ?? DEFAULT_LIMIT, MIN_LIMIT), MAX_LIMIT);
+}
+
 @Injectable()
 export class GetPaymentHistoryTool {
   static readonly NAME = 'getPaymentHistory';
 
-  constructor(@Inject('PAYMENT_HISTORY_READ_PORT') private readonly reader: {
-    getByCustomerId(customerId: string, limit: number): Promise<unknown[]>;
-  }) {}
+  constructor(
+    @Inject(PAYMENT_ALLOCATION_REPOSITORY)
+    private readonly allocationRepo: IPaymentAllocationRepository,
+  ) {}
 
   async execute(input: { customerId: string; limit?: number }) {
-    const limit = Math.min(Math.max(input.limit ?? 20, 1), MAX_LIMIT);
-    return { customerId: input.customerId, items: await this.reader.getByCustomerId(input.customerId, limit) };
+    const items = await this.allocationRepo.findByCustomerId(input.customerId, clampLimit(input.limit));
+    return { customerId: input.customerId, items };
   }
 }
 ```
 
-The two string tokens above are existing read-only ports owned by Collection Activity and Domain Core/Payments; register their existing providers in `CopilotModule`. Do not create Copilot-owned repositories or expose raw ORM rows. All three tools return only the documented structured DTOs and never accept `organizationId`.
+Both tools return only the documented structured DTOs and never accept `organizationId`; neither introduces a second persistence contract — they adapt an existing use case and an existing (Task 2's) repository method.
 
 - [ ] **Step 5: Run test to verify it passes**
 
@@ -1010,60 +1036,47 @@ Expected: PASS
 
 ```bash
 git add apps/backend/src/modules/copilot/application/tools/get-receivable-summary.tool.ts apps/backend/src/modules/copilot/application/tools/get-collection-activity-timeline.tool.ts apps/backend/src/modules/copilot/application/tools/get-payment-history.tool.ts apps/backend/src/modules/copilot/application/tools/copilot-read-tools.spec.ts
-git commit -m "feat: add canonical Copilot read tools"
+git commit -m "feat: add canonical Copilot read tools against the real repositories/use cases"
 ```
 
 ---
 
-### Task 5: `draftReminderEmail` tool
+### Task 7: `draftReminderEmail` tool
 
 **Files:**
 - Create: `apps/backend/src/modules/copilot/application/tools/draft-reminder-email.tool.ts`
 - Test: `apps/backend/src/modules/copilot/application/tools/draft-reminder-email.tool.spec.ts`
 
 **Interfaces:**
-- Consumes: `IReceivableRepository.findById`, `ICustomerRepository.findById`, `CopilotDraftOrmEntity` (Task 2)
-- Produces: `DraftReminderEmailTool.execute(input)` → `{ draftId, receivableId, recipientEmail, subject, bodyHtml }`, read back by `ConfirmPendingActionUseCase` (Task 8) once the user confirms
+- Consumes: `IReceivableRepository.findById`, `ICustomerRepository.findById`, `ICopilotDraftRepository` (Task 4's port — NOT an untyped inline object, fixing the original plan's DI-crash bug)
+- Produces: `DraftReminderEmailTool.execute(input, organizationId)` → `{ draftId, receivableId, recipientEmail, subject, bodyHtml }`, read back by `ConfirmPendingActionUseCase` (Task 9)
 
-`draftReminderEmail` never sends anything — it composes the email deterministically from structured `Receivable`/`Customer` data (never letting the model invent the amount) and persists it as a `CopilotDraftOrmEntity` row. Sending it for real is entirely Task 8's job.
+`draftReminderEmail` never sends anything — it composes the email deterministically from structured `Receivable`/`Customer` data (never letting the model invent the amount) and persists it via `ICopilotDraftRepository`. Errors are `AppError`, never `NotFoundException`.
 
 - [ ] **Step 1: Write failing test**
 
-Create `apps/backend/src/modules/copilot/application/tools/draft-reminder-email.tool.spec.ts`:
-
 ```typescript
+import { ErrorCode } from '../../../../common/errors/error-code';
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Receivable } from '../../../receivables/domain/receivable';
-import { Customer } from '../../../customers/domain/customer';
+import type { Customer } from '../../../customers/domain/customer';
+import { CustomerGroup } from '../../../customers/domain/customer-group';
 import { DraftReminderEmailTool } from './draft-reminder-email.tool';
 
 describe('DraftReminderEmailTool', () => {
-  it('composes a draft from structured Receivable + Customer data and persists it', async () => {
+  it('composes a draft from structured Receivable + Customer data and persists it via ICopilotDraftRepository', async () => {
     const receivable = new Receivable({
-      id: 'rec-1',
-      organizationId: 'org-1',
-      customerId: 'cust-1',
-      invoiceId: null,
-      originalAmount: 50_000_000,
-      paidAmount: 20_000_000,
-      dueDate: new Date('2026-07-20'),
-      status: ReceivableStatus.PARTIALLY_PAID,
-      salesRepresentativeId: 'user-1',
-      createdAt: new Date('2026-06-20'),
-      closedAt: null,
+      id: 'rec-1', organizationId: 'org-1', customerId: 'cust-1', invoiceId: null,
+      originalAmount: 50_000_000, paidAmount: 20_000_000, dueDate: new Date('2026-07-20'),
+      status: ReceivableStatus.PARTIALLY_PAID, salesRepresentativeId: 'user-1',
+      createdAt: new Date('2026-06-20'), closedAt: null, version: 1,
     });
-    const customer = new Customer({
-      id: 'cust-1',
-      organizationId: 'org-1',
-      name: 'ABC Company',
-      taxCode: '0101234567',
-      email: 'ap@abc.vn',
-      phone: '0900000000',
-      defaultPaymentTermDays: 30,
-      creditLimit: 100_000_000,
-      priority: 1,
-      createdAt: new Date('2026-01-01'),
-    });
+    // Customer is a plain data interface (no constructor) — build a literal, not `new Customer(...)`.
+    const customer: Customer = {
+      id: 'cust-1', organizationId: 'org-1', name: 'ABC Company', taxCode: '0101234567',
+      email: 'ap@abc.vn', phone: '0900000000', defaultPaymentTermDays: 30,
+      creditLimit: 100_000_000, priority: 1, customerGroup: CustomerGroup.REGULAR, createdAt: new Date('2026-01-01'),
+    };
     const receivableRepo = { findById: jest.fn().mockResolvedValue(receivable) };
     const customerRepo = { findById: jest.fn().mockResolvedValue(customer) };
     const draftRepo = { save: jest.fn() };
@@ -1075,22 +1088,35 @@ describe('DraftReminderEmailTool', () => {
     expect(result.subject).toContain('ABC Company');
     expect(result.bodyHtml).toContain('30.000.000');
     expect(draftRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: result.draftId,
-        organizationId: 'org-1',
-        receivableId: 'rec-1',
-        recipientEmail: 'ap@abc.vn',
-      }),
+      expect.objectContaining({ id: result.draftId, organizationId: 'org-1', receivableId: 'rec-1', recipientEmail: 'ap@abc.vn' }),
     );
   });
 
-  it('throws when the receivable does not exist in the current organization', async () => {
+  it('throws AppError(RECEIVABLE_NOT_FOUND) when the receivable does not exist in the current organization', async () => {
     const receivableRepo = { findById: jest.fn().mockResolvedValue(null) };
     const customerRepo = { findById: jest.fn() };
     const draftRepo = { save: jest.fn() };
     const tool = new DraftReminderEmailTool(receivableRepo as any, customerRepo as any, draftRepo as any);
 
-    await expect(tool.execute({ receivableId: 'missing' }, 'org-1')).rejects.toThrow('Receivable not found');
+    await expect(tool.execute({ receivableId: 'missing' }, 'org-1')).rejects.toMatchObject({
+      errorCode: ErrorCode.RECEIVABLE_NOT_FOUND,
+    });
+  });
+
+  it('throws AppError(NOT_FOUND) when the receivable\'s customer is missing', async () => {
+    const receivable = new Receivable({
+      id: 'rec-1', organizationId: 'org-1', customerId: 'missing-cust', invoiceId: null,
+      originalAmount: 1, paidAmount: 0, dueDate: new Date(), status: ReceivableStatus.OPEN,
+      salesRepresentativeId: 'user-1', createdAt: new Date(), closedAt: null, version: 1,
+    });
+    const receivableRepo = { findById: jest.fn().mockResolvedValue(receivable) };
+    const customerRepo = { findById: jest.fn().mockResolvedValue(null) };
+    const draftRepo = { save: jest.fn() };
+    const tool = new DraftReminderEmailTool(receivableRepo as any, customerRepo as any, draftRepo as any);
+
+    await expect(tool.execute({ receivableId: 'rec-1' }, 'org-1')).rejects.toMatchObject({
+      errorCode: ErrorCode.NOT_FOUND,
+    });
   });
 });
 ```
@@ -1100,11 +1126,13 @@ describe('DraftReminderEmailTool', () => {
 Run: `pnpm --filter @casso-ledger/backend test draft-reminder-email.tool.spec.ts`
 Expected: FAIL — Cannot find module './draft-reminder-email.tool'
 
-- [ ] **Step 3: Create `apps/backend/src/modules/copilot/application/tools/draft-reminder-email.tool.ts`**
+- [ ] **Step 3: Create `draft-reminder-email.tool.ts`**
 
 ```typescript
-import { randomUUID } from 'crypto';
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { Inject, Injectable } from '@nestjs/common';
+import { AppError } from '../../../../common/errors/app-error';
+import { ErrorCode } from '../../../../common/errors/error-code';
 import {
   IReceivableRepository,
   RECEIVABLE_REPOSITORY,
@@ -1113,18 +1141,14 @@ import {
   ICustomerRepository,
   CUSTOMER_REPOSITORY,
 } from '../../../customers/application/customer-repository.port';
-import { CopilotDraftOrmEntity } from '../../infrastructure/copilot-draft.orm-entity';
+import { ICopilotDraftRepository, COPILOT_DRAFT_REPOSITORY } from '../draft-repository.port';
 import { CopilotJsonSchema } from '../copilot-tool-registry';
 
 export const DRAFT_REMINDER_EMAIL_SCHEMA: CopilotJsonSchema = {
   type: 'object',
   properties: {
     receivableId: { type: 'string', description: 'The receivable UUID to draft a reminder for' },
-    tone: {
-      type: 'string',
-      enum: ['polite', 'urgent'],
-      description: 'Tone of the reminder email; defaults to polite',
-    },
+    tone: { type: 'string', enum: ['polite', 'urgent'], description: 'Tone of the reminder email; defaults to polite' },
   },
   required: ['receivableId'],
 };
@@ -1148,7 +1172,7 @@ export class DraftReminderEmailTool {
   constructor(
     @Inject(RECEIVABLE_REPOSITORY) private readonly receivableRepo: IReceivableRepository,
     @Inject(CUSTOMER_REPOSITORY) private readonly customerRepo: ICustomerRepository,
-    private readonly draftRepo: { save(draft: CopilotDraftOrmEntity): Promise<void> },
+    @Inject(COPILOT_DRAFT_REPOSITORY) private readonly draftRepo: ICopilotDraftRepository,
   ) {}
 
   async execute(
@@ -1157,11 +1181,11 @@ export class DraftReminderEmailTool {
   ): Promise<DraftReminderEmailResult> {
     const receivable = await this.receivableRepo.findById(input.receivableId);
     if (!receivable) {
-      throw new NotFoundException('Receivable not found');
+      throw new AppError(ErrorCode.RECEIVABLE_NOT_FOUND, 'Không tìm thấy khoản phải thu.');
     }
     const customer = await this.customerRepo.findById(receivable.customerId);
     if (!customer) {
-      throw new NotFoundException('Customer not found');
+      throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy khách hàng của khoản phải thu này.');
     }
 
     const tone = input.tone ?? 'polite';
@@ -1170,13 +1194,13 @@ export class DraftReminderEmailTool {
 
     const subject =
       tone === 'urgent'
-        ? `[Urgent payment reminder] ${customer.name} - ${remaining} remaining`
-        : `Payment reminder - ${customer.name}`;
+        ? `[Nhắc thanh toán khẩn] ${customer.name} - còn lại ${remaining}`
+        : `Nhắc thanh toán - ${customer.name}`;
 
     const bodyHtml =
       tone === 'urgent'
-        ? `<p>Dear ${customer.name},</p><p>Your receivable is past due (due date: ${dueDate}). Remaining amount: <strong>${remaining}</strong>. Please pay as soon as possible.</p>`
-        : `<p>Dear ${customer.name},</p><p>This is a reminder about the receivable due on ${dueDate}; the remaining amount is <strong>${remaining}</strong>. Thank you.</p>`;
+        ? `<p>Kính gửi ${customer.name},</p><p>Khoản phải thu đã quá hạn (hạn thanh toán: ${dueDate}). Số tiền còn lại: <strong>${remaining}</strong>. Vui lòng thanh toán sớm nhất có thể.</p>`
+        : `<p>Kính gửi ${customer.name},</p><p>Đây là thư nhắc về khoản phải thu đến hạn ngày ${dueDate}; số tiền còn lại là <strong>${remaining}</strong>. Cảm ơn.</p>`;
 
     const draftId = randomUUID();
     await this.draftRepo.save({
@@ -1197,31 +1221,29 @@ export class DraftReminderEmailTool {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `pnpm --filter @casso-ledger/backend test draft-reminder-email.tool.spec.ts`
-Expected: both tests PASS
+Expected: all 3 tests PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add apps/backend/src/modules/copilot/application/tools/draft-reminder-email.tool.ts apps/backend/src/modules/copilot/application/tools/draft-reminder-email.tool.spec.ts
-git commit -m "feat: add draftReminderEmail tool"
+git commit -m "feat: add draftReminderEmail tool against ICopilotDraftRepository, throwing AppError"
 ```
-
-`CopilotDraftOrmEntity` stores the fully-composed draft (subject/html with customer name and amounts already substituted, not Handlebars variables) purely for display back to the accountant in chat and for `ConfirmPendingActionUseCase` (Task 8) to read when the user confirms — it is not, and no longer needs to pretend to be, an `IEmailTemplateRepository` implementation. See Task 8 for how a confirmed draft actually reaches `EmailService`.
 
 ---
 
-### Task 6: `sendReminderEmail` tool (proposal-only, schema metadata)
+### Task 8: `sendReminderEmail` tool (proposal-only, schema metadata)
 
 **Files:**
 - Create: `apps/backend/src/modules/copilot/application/tools/send-reminder-email.tool.ts`
 
 **Interfaces:**
 - Consumes: nothing
-- Produces: `SendReminderEmailTool` (schema-only — its "execute" path is deliberately never called from the chat loop, see below), the tool name `CopilotChatUseCase` (Task 7) watches for to create a `CopilotPendingAction`
+- Produces: `SendReminderEmailTool` (schema-only — its "execute" path is deliberately never called from the chat loop), the tool name `CopilotChatUseCase` (Task 10) watches for to create a `CopilotPendingAction`
 
-`SendReminderEmailTool` here is schema metadata only, registered so the model can name it — `CopilotChatUseCase` (Task 7) never calls anything on this class; seeing a `tool_use` block named `sendReminderEmail` is the signal to create a `CopilotPendingAction` and stop, per Global Constraints. The class that actually touches `EmailService` is `ConfirmPendingActionUseCase` (Task 8), which is reached only via the confirm endpoint and never via the model. Unlike an earlier version of this plan, no Copilot-owned `ReminderExecution`/`EmailTemplate` stand-ins are created in this task — Task 8 now writes directly into the REAL tables owned by `2026-08-03-reminder-automation.md` and `2026-08-03-email-template-management.md`.
+`SendReminderEmailTool` here is schema metadata only, registered so the model can name it — `CopilotChatUseCase` (Task 10) never calls anything on this class; seeing a tool call named `sendReminderEmail` is the signal to create a `CopilotPendingAction` and stop, per Global Constraints. The class that actually touches `EmailService` is `ConfirmPendingActionUseCase` (Task 9), which is reached only via the confirm endpoint and never via the model.
 
-- [ ] **Step 1: Create `apps/backend/src/modules/copilot/application/tools/send-reminder-email.tool.ts`**
+- [ ] **Step 1: Create `send-reminder-email.tool.ts`**
 
 ```typescript
 import { CopilotJsonSchema } from '../copilot-tool-registry';
@@ -1236,11 +1258,11 @@ export const SEND_REMINDER_EMAIL_SCHEMA: CopilotJsonSchema = {
 };
 
 /**
- * Metadata only. This class has no execute() on purpose: a tool_use block
- * named "sendReminderEmail" is intercepted by CopilotChatUseCase and turned
- * into a CopilotPendingAction — it is never invoked as a normal tool call in
- * the same model turn (see Global Constraints and ConfirmPendingActionUseCase
- * in Task 8, the only class that actually calls EmailService).
+ * Metadata only. This class has no execute() on purpose: a tool call named
+ * "sendReminderEmail" is intercepted by CopilotChatUseCase and turned into a
+ * CopilotPendingAction — it is never invoked as a normal tool call in the
+ * same model turn (see Global Constraints and ConfirmPendingActionUseCase in
+ * Task 9, the only class that actually calls EmailService).
  */
 export class SendReminderEmailTool {
   static readonly NAME = 'sendReminderEmail';
@@ -1256,252 +1278,596 @@ git commit -m "feat: add proposal-only sendReminderEmail tool schema"
 
 ---
 
-### Task 7: `AnthropicClient` provider + `CopilotChatUseCase`
+### Task 9: `ConfirmPendingActionUseCase` (atomic, race-safe) + `CancelPendingActionUseCase`
 
 **Files:**
-- Modify: `apps/backend/package.json` (add `@anthropic-ai/sdk`)
-- Create: `apps/backend/src/modules/copilot/application/anthropic-client.provider.ts`
+- Create: `apps/backend/src/modules/copilot/application/confirm-pending-action.usecase.ts`
+- Create: `apps/backend/src/modules/copilot/application/cancel-pending-action.usecase.ts`
+- Test: `confirm-pending-action.usecase.spec.ts`, `cancel-pending-action.usecase.spec.ts`
+
+**Interfaces:**
+- Consumes: `ICopilotPendingActionRepository`/`ICopilotDraftRepository` (Task 4), the REAL `IEmailTemplateRepository`/`IReminderExecutionRepository`/`ReminderExecution` (Email Template Management / Reminder Automation plans), `EmailService` (Email Notification Service plan)
+- Produces: `ConfirmPendingActionUseCase.execute(pendingActionId, resolvedByUserId): Promise<{ reminderExecutionId: string }>`, `CancelPendingActionUseCase.execute(pendingActionId, resolvedByUserId): Promise<CopilotPendingActionDto>`, consumed by Task 11's controller
+
+**Race fix (2026-08-09):** the original plan's confirm flow read the pending action, checked `status === 'PENDING'`, did async work, then wrote `status = 'CONFIRMED'` — two concurrent confirm requests could both pass the read-check before either write landed, both calling `EmailService.sendReminderEmail` and creating two `ReminderExecution` rows. Fixed by claiming the action FIRST via an atomic `confirmIfPending()` conditional `UPDATE ... WHERE status = 'PENDING'` (mirroring the already-correct `cancelIfPending`), before any side effect — only the request that wins the atomic claim proceeds.
+
+- [ ] **Step 1: Write failing tests for `ConfirmPendingActionUseCase`**
+
+```typescript
+import { ErrorCode } from '../../../common/errors/error-code';
+import { ConfirmPendingActionUseCase } from './confirm-pending-action.usecase';
+
+function pendingAction(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: 'pa-1', organizationId: 'org-1', conversationId: 'conv-1',
+    actionType: 'SEND_REMINDER_EMAIL' as const,
+    payload: { draftId: 'draft-1', receivableId: 'rec-1' },
+    status: 'PENDING' as const, createdAt: new Date(), resolvedAt: null, resolvedByUserId: null,
+    ...overrides,
+  };
+}
+
+function buildDraft() {
+  return { id: 'draft-1', organizationId: 'org-1', receivableId: 'rec-1', recipientEmail: 'ap@abc.vn', subject: 'Nhắc thanh toán - ABC Company', bodyHtml: '<p>Kính gửi ABC Company...</p>', createdAt: new Date() };
+}
+
+describe('ConfirmPendingActionUseCase', () => {
+  it('atomically claims the pending action, creates an EmailTemplate + ReminderExecution, calls EmailService.sendReminderEmail exactly once', async () => {
+    const claimed = pendingAction();
+    const pendingActionRepo = { findById: jest.fn(), confirmIfPending: jest.fn().mockResolvedValue(claimed) };
+    const draftRepo = { findById: jest.fn().mockResolvedValue(buildDraft()) };
+    const emailTemplateRepo = { save: jest.fn().mockResolvedValue(undefined) };
+    const reminderExecutionRepo = { save: jest.fn().mockResolvedValue(undefined) };
+    const emailService = { sendReminderEmail: jest.fn().mockResolvedValue(undefined) };
+
+    const useCase = new ConfirmPendingActionUseCase(
+      pendingActionRepo as any, draftRepo as any, emailTemplateRepo as any, reminderExecutionRepo as any, emailService as any,
+    );
+
+    await useCase.execute('pa-1', 'user-1');
+
+    expect(pendingActionRepo.confirmIfPending).toHaveBeenCalledWith('pa-1', 'user-1');
+    const savedTemplate = emailTemplateRepo.save.mock.calls[0][0];
+    expect(savedTemplate).toMatchObject({ subject: 'Nhắc thanh toán - ABC Company', isDefault: false, version: 1 });
+    const savedExecution = reminderExecutionRepo.save.mock.calls[0][0];
+    expect(savedExecution).toMatchObject({ receivableId: 'rec-1', reminderRuleId: null, status: 'PENDING' });
+    expect(emailService.sendReminderEmail).toHaveBeenCalledWith({
+      receivableId: 'rec-1', templateId: savedTemplate.id, reminderExecutionId: savedExecution.id,
+    });
+  });
+
+  it('rejects with CONFLICT when the atomic claim fails because the action is already resolved, and never calls EmailService', async () => {
+    const pendingActionRepo = { findById: jest.fn(), confirmIfPending: jest.fn().mockResolvedValue(null) };
+    const draftRepo = { findById: jest.fn() };
+    const emailTemplateRepo = { save: jest.fn() };
+    const reminderExecutionRepo = { save: jest.fn() };
+    const emailService = { sendReminderEmail: jest.fn() };
+
+    const useCase = new ConfirmPendingActionUseCase(
+      pendingActionRepo as any, draftRepo as any, emailTemplateRepo as any, reminderExecutionRepo as any, emailService as any,
+    );
+
+    await expect(useCase.execute('pa-1', 'user-1')).rejects.toMatchObject({ errorCode: ErrorCode.CONFLICT });
+    expect(emailService.sendReminderEmail).not.toHaveBeenCalled();
+  });
+
+  it('rejects with CONFLICT and marks EXPIRED when the atomically-claimed action is older than 10 minutes, and never calls EmailService', async () => {
+    const claimed = pendingAction({ createdAt: new Date(Date.now() - 11 * 60 * 1000) });
+    const pendingActionRepo = { findById: jest.fn(), confirmIfPending: jest.fn().mockResolvedValue(claimed), markExpired: jest.fn() };
+    const draftRepo = { findById: jest.fn() };
+    const emailTemplateRepo = { save: jest.fn() };
+    const reminderExecutionRepo = { save: jest.fn() };
+    const emailService = { sendReminderEmail: jest.fn() };
+
+    const useCase = new ConfirmPendingActionUseCase(
+      pendingActionRepo as any, draftRepo as any, emailTemplateRepo as any, reminderExecutionRepo as any, emailService as any,
+    );
+
+    await expect(useCase.execute('pa-1', 'user-1')).rejects.toMatchObject({ errorCode: ErrorCode.CONFLICT });
+    expect(pendingActionRepo.markExpired).toHaveBeenCalledWith('pa-1');
+    expect(emailService.sendReminderEmail).not.toHaveBeenCalled();
+  });
+});
+```
+
+Why `confirmIfPending` is called even in the expiry case: the atomic claim must win FIRST (removing any race against a concurrent cancel/confirm), and only THEN is the claimed row's age checked — checking age before claiming would reopen the original TOCTOU gap.
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `pnpm --filter @casso-ledger/backend test confirm-pending-action.usecase.spec.ts`
+Expected: FAIL — Cannot find module './confirm-pending-action.usecase'
+
+- [ ] **Step 3: Create `confirm-pending-action.usecase.ts`**
+
+```typescript
+import { randomUUID } from 'node:crypto';
+import { Inject, Injectable } from '@nestjs/common';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
+import {
+  ICopilotPendingActionRepository,
+  COPILOT_PENDING_ACTION_REPOSITORY,
+} from './pending-action-repository.port';
+import { ICopilotDraftRepository, COPILOT_DRAFT_REPOSITORY } from './draft-repository.port';
+import {
+  IEmailTemplateRepository,
+  EMAIL_TEMPLATE_REPOSITORY,
+} from '../../email-templates/application/email-template-repository.port';
+import { EmailTemplate } from '../../email-templates/domain/email-template';
+import {
+  IReminderExecutionRepository,
+  REMINDER_EXECUTION_REPOSITORY,
+} from '../../reminders/application/reminder-execution-repository.port';
+import { ReminderExecution, ReminderExecutionStatus } from '../../reminders/domain/reminder-execution';
+import { EmailService } from '../../notifications/application/email.service';
+
+export const PENDING_ACTION_EXPIRY_MINUTES = 10;
+
+@Injectable()
+export class ConfirmPendingActionUseCase {
+  constructor(
+    @Inject(COPILOT_PENDING_ACTION_REPOSITORY)
+    private readonly pendingActionRepo: ICopilotPendingActionRepository,
+    @Inject(COPILOT_DRAFT_REPOSITORY) private readonly draftRepo: ICopilotDraftRepository,
+    @Inject(EMAIL_TEMPLATE_REPOSITORY) private readonly emailTemplateRepo: IEmailTemplateRepository,
+    @Inject(REMINDER_EXECUTION_REPOSITORY)
+    private readonly reminderExecutionRepo: IReminderExecutionRepository,
+    private readonly emailService: EmailService,
+  ) {}
+
+  async execute(pendingActionId: string, resolvedByUserId: string): Promise<{ reminderExecutionId: string }> {
+    // Atomic claim FIRST — this is the only thing standing between two
+    // concurrent confirm clicks and a double-send. Only the caller that wins
+    // this UPDATE proceeds past this line.
+    const action = await this.pendingActionRepo.confirmIfPending(pendingActionId, resolvedByUserId);
+    if (!action) {
+      throw new AppError(ErrorCode.CONFLICT, 'Đề xuất gửi email đã được xử lý hoặc không còn hiệu lực.');
+    }
+
+    const ageMs = Date.now() - action.createdAt.getTime();
+    if (ageMs > PENDING_ACTION_EXPIRY_MINUTES * 60 * 1000) {
+      await this.pendingActionRepo.markExpired(pendingActionId);
+      throw new AppError(ErrorCode.CONFLICT, 'Đề xuất gửi email đã hết hạn — vui lòng yêu cầu Copilot soạn lại.');
+    }
+
+    const draft = await this.draftRepo.findById(action.payload.draftId);
+    if (!draft) {
+      throw new AppError(ErrorCode.NOT_FOUND, `Không tìm thấy bản nháp email ${action.payload.draftId}.`);
+    }
+
+    const now = new Date();
+
+    // Throwaway EmailTemplate: subject/bodyHtml are the draft's ALREADY-substituted
+    // literal text (no {{variable}} tokens) — EmailService's Handlebars render step
+    // is a no-op pass-through for it. This is what lets a Copilot-confirmed send
+    // reuse the exact same EmailService/EmailQueueProcessor pipeline as a
+    // rule-based reminder, instead of a parallel one.
+    const template = new EmailTemplate({
+      id: randomUUID(),
+      organizationId: action.organizationId,
+      name: `Copilot draft ${draft.id}`,
+      subject: draft.subject,
+      bodyHtml: draft.bodyHtml,
+      reminderStage: null,
+      isDefault: false,
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
+    });
+    await this.emailTemplateRepo.save(template);
+
+    const execution = new ReminderExecution({
+      id: randomUUID(),
+      organizationId: action.organizationId,
+      receivableId: action.payload.receivableId,
+      reminderRuleId: null,
+      executionDate: now,
+      sentAt: null,
+      status: ReminderExecutionStatus.PENDING,
+      skipReason: null,
+      providerMessageId: null,
+      failureReason: null,
+      createdAt: now,
+    });
+    await this.reminderExecutionRepo.save(execution);
+
+    // The ONLY call to EmailService.sendReminderEmail in this entire module — pure code, no AI involved.
+    await this.emailService.sendReminderEmail({
+      receivableId: action.payload.receivableId,
+      templateId: template.id,
+      reminderExecutionId: execution.id,
+    });
+
+    return { reminderExecutionId: execution.id };
+  }
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `pnpm --filter @casso-ledger/backend test confirm-pending-action.usecase.spec.ts`
+Expected: all 3 tests PASS
+
+- [ ] **Step 5: Write failing tests + implement `CancelPendingActionUseCase`** — same atomic-claim-first shape, no `EmailService`/`EmailTemplateRepository`/`ReminderExecutionRepository` dependency at all:
+
+```typescript
+import { Inject, Injectable } from '@nestjs/common';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
+import {
+  ICopilotPendingActionRepository,
+  COPILOT_PENDING_ACTION_REPOSITORY,
+} from './pending-action-repository.port';
+import { CopilotPendingActionDto, toCopilotPendingActionDto } from '../presentation/dto/copilot-response.dto';
+import { PENDING_ACTION_EXPIRY_MINUTES } from './confirm-pending-action.usecase';
+
+@Injectable()
+export class CancelPendingActionUseCase {
+  constructor(
+    @Inject(COPILOT_PENDING_ACTION_REPOSITORY)
+    private readonly pendingActionRepo: ICopilotPendingActionRepository,
+  ) {}
+
+  async execute(pendingActionId: string, resolvedByUserId: string): Promise<CopilotPendingActionDto> {
+    const cancelled = await this.pendingActionRepo.cancelIfPending(pendingActionId, resolvedByUserId);
+    if (!cancelled) {
+      throw new AppError(ErrorCode.CONFLICT, 'Đề xuất gửi email đã được xử lý hoặc không còn hiệu lực.');
+    }
+    if (Date.now() - cancelled.createdAt.getTime() > PENDING_ACTION_EXPIRY_MINUTES * 60 * 1000) {
+      await this.pendingActionRepo.markExpired(pendingActionId);
+      throw new AppError(ErrorCode.CONFLICT, 'Đề xuất gửi email đã hết hạn.');
+    }
+    return toCopilotPendingActionDto(cancelled);
+  }
+}
+```
+
+Test the happy path, the race (`cancelIfPending` returns `null` → `CONFLICT`), and expiry-after-claim (mirrors Confirm's 3rd test).
+
+- [ ] **Step 6: Run the full test file set to verify it passes**
+
+Run: `pnpm --filter @casso-ledger/backend test cancel-pending-action.usecase.spec.ts confirm-pending-action.usecase.spec.ts`
+Expected: PASS
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add apps/backend/src/modules/copilot/application/confirm-pending-action.usecase.ts apps/backend/src/modules/copilot/application/confirm-pending-action.usecase.spec.ts apps/backend/src/modules/copilot/application/cancel-pending-action.usecase.ts apps/backend/src/modules/copilot/application/cancel-pending-action.usecase.spec.ts
+git commit -m "feat: add race-safe Confirm/CancelPendingActionUseCase (atomic claim before any side effect), AppError throughout"
+```
+
+---
+
+### Task 10: `IAIChatProvider` port + OpenAI-backed adapter + `CopilotChatUseCase` (the agent loop)
+
+**Files:**
+- Modify: `apps/backend/package.json` (add `openai`)
+- Create: `apps/backend/src/modules/copilot/application/ai-chat-provider.port.ts`
+- Create: `apps/backend/src/modules/copilot/infrastructure/openai-chat-provider.adapter.ts`
 - Create: `apps/backend/src/modules/copilot/application/copilot-chat.usecase.ts`
 - Test: `apps/backend/src/modules/copilot/application/copilot-chat.usecase.spec.ts`
 
 **Interfaces:**
-- Consumes: `CopilotToolRegistry` (Task 3), the five tools (Tasks 4-6), `ICopilotConversationRepository`/`ICopilotPendingActionRepository`/`IAIUsageLogRepository` (Task 2), `TenantContextService`, `ROLE_PERMISSIONS`
-- Produces: `CopilotChatUseCase.execute(input): Promise<CopilotChatResult>`, consumed by Task 9's controller
+- Consumes: `IAIChatProvider` (this task's own new port — `CopilotChatUseCase` never imports the `openai` SDK directly), `CopilotToolRegistry` (Task 5), the five tools (Tasks 6-8), `ICopilotConversationRepository`/`ICopilotPendingActionRepository`/`IAIUsageLogRepository` (Task 4), `PlanLimitService.enforceCopilotChatLimit` (Task 3), `TenantContextService`, `ROLE_PERMISSIONS`, `DataSource` (for the short limit-check transaction)
+- Produces: `CopilotChatUseCase.execute(input): Promise<CopilotChatResult>`, consumed by Task 11's controller
 
-`CopilotChatUseCase` is the only class in this plan that calls the Anthropic client — every unit test in this task mocks `@anthropic-ai/sdk` with `jest.mock('@anthropic-ai/sdk', ...)`, the same pattern `2026-08-03-email-notification-service.md` uses for `jest.mock('resend', ...)`; no test in this plan ever makes a real network call to Anthropic.
+**This is the module's core agent loop — get the ReAct shape right, not a single hard-coded tool call:**
 
-- [ ] **Step 1: Install `@anthropic-ai/sdk`**
+```
+1. User message arrives.
+2. Inside ONE short DB transaction: enforce the Billing chat-turn limit (Task 3),
+   find-or-create the conversation, persist the user's message. Commit.
+   (No AI provider call happens inside this transaction — external calls never
+   run inside a DB transaction, per this repo's transaction-scope rule.)
+3. Load full message history; build the OpenAI-format `messages` array
+   (system prompt + history), and the tool list scoped by the caller's
+   Permission.REMINDER_SEND_MANUAL.
+4. LOOP (up to MAX_TOOL_ITERATIONS):
+   a. Call IAIChatProvider.createChatCompletion(messages, tools) — 15s
+      timeout, exactly one automatic retry on failure. Log to AIUsageLog
+      unconditionally (success AND failure/timeout).
+   b. If the response has no tool calls → this is the final answer. Persist
+      it as an ASSISTANT message, return { message, pendingAction: null }.
+   c. If one of the tool calls is named "sendReminderEmail" → STOP THE LOOP
+      immediately. Do not execute any further tool calls from this response.
+      Create a CopilotPendingAction from its arguments, persist the
+      assistant's message (with its tool_calls recorded for history), and
+      return { message, pendingAction }.
+   d. Otherwise, execute every read/draft tool call in the response
+      (getReceivableSummary / getCollectionActivityTimeline /
+      getPaymentHistory / draftReminderEmail), append the assistant message
+      (with its tool_calls) AND one role:'tool' result message per tool
+      call to the in-memory `messages` array, and go to step 4a again — this
+      is what makes it a real multi-round loop, not a single call-and-done.
+5. If MAX_TOOL_ITERATIONS is exhausted without a final answer or a
+   sendReminderEmail interception, throw (surfaced to the user as an error,
+   not silently truncated).
+```
 
-Run: `pnpm --filter @casso-ledger/backend add @anthropic-ai/sdk`
+- [ ] **Step 1: Install `openai`**
 
-- [ ] **Step 2: Create `apps/backend/src/modules/copilot/application/anthropic-client.provider.ts`**
+Run: `pnpm --filter @casso-ledger/backend add openai`
+
+- [ ] **Step 2: Create `ai-chat-provider.port.ts`** — the port `CopilotChatUseCase` depends on; no `openai` types leak past this file's boundary into `application/`'s other files (this file itself may reference the SDK's types for the shared vocabulary, but nothing else in `application/` imports `openai` directly):
 
 ```typescript
-import Anthropic from '@anthropic-ai/sdk';
+export interface AIToolCall {
+  id: string;
+  name: string;
+  /** Already-parsed JSON — the adapter is responsible for parsing the provider's raw string arguments and throwing a clear error on malformed JSON. */
+  arguments: Record<string, unknown>;
+}
 
-export const ANTHROPIC_CLIENT = Symbol('ANTHROPIC_CLIENT');
+export interface AIChatMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string | null;
+  toolCalls?: AIToolCall[];
+  toolCallId?: string; // set when role === 'tool'
+}
 
-export function anthropicClientFactory(): Anthropic {
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? '' });
+export interface AIToolSpec {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
+
+export interface AIChatCompletionResult {
+  content: string | null;
+  toolCalls: AIToolCall[];
+  inputTokens: number | null;
+  outputTokens: number | null;
+}
+
+export interface IAIChatProvider {
+  createChatCompletion(messages: AIChatMessage[], tools: AIToolSpec[]): Promise<AIChatCompletionResult>;
+}
+
+export const AI_CHAT_PROVIDER = Symbol('AI_CHAT_PROVIDER');
+```
+
+- [ ] **Step 3: Create `openai-chat-provider.adapter.ts`** in `infrastructure/` — the ONLY file in this module that imports the `openai` SDK:
+
+```typescript
+import { Injectable } from '@nestjs/common';
+import OpenAI from 'openai';
+import {
+  AIChatCompletionResult,
+  AIChatMessage,
+  AIToolSpec,
+  IAIChatProvider,
+} from '../application/ai-chat-provider.port';
+
+@Injectable()
+export class OpenAiChatProviderAdapter implements IAIChatProvider {
+  private readonly client: OpenAI;
+  private readonly model: string;
+
+  constructor() {
+    this.client = new OpenAI({
+      apiKey: process.env.AI_PROVIDER_API_KEY ?? '',
+      baseURL: process.env.AI_PROVIDER_BASE_URL, // e.g. https://openrouter.ai/api/v1 — omit for the real OpenAI API
+    });
+    this.model = process.env.AI_PROVIDER_MODEL ?? 'gpt-4o-mini';
+  }
+
+  async createChatCompletion(messages: AIChatMessage[], tools: AIToolSpec[]): Promise<AIChatCompletionResult> {
+    const response = await this.client.chat.completions.create({
+      model: this.model,
+      messages: messages.map((m) => this.toOpenAiMessage(m)),
+      tools: tools.length
+        ? tools.map((t) => ({ type: 'function' as const, function: { name: t.name, description: t.description, parameters: t.parameters } }))
+        : undefined,
+      tool_choice: tools.length ? 'auto' : undefined,
+    });
+
+    const choice = response.choices[0];
+    const rawToolCalls = choice.message.tool_calls ?? [];
+
+    return {
+      content: choice.message.content,
+      toolCalls: rawToolCalls.map((call) => ({
+        id: call.id,
+        name: call.function.name,
+        arguments: this.parseArguments(call.function.arguments, call.function.name),
+      })),
+      inputTokens: response.usage?.prompt_tokens ?? null,
+      outputTokens: response.usage?.completion_tokens ?? null,
+    };
+  }
+
+  private parseArguments(raw: string, toolName: string): Record<string, unknown> {
+    try {
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      throw new Error(`Copilot model returned malformed JSON arguments for tool "${toolName}"`);
+    }
+  }
+
+  private toOpenAiMessage(message: AIChatMessage): OpenAI.Chat.ChatCompletionMessageParam {
+    if (message.role === 'tool') {
+      return { role: 'tool', tool_call_id: message.toolCallId ?? '', content: message.content ?? '' };
+    }
+    if (message.role === 'assistant' && message.toolCalls?.length) {
+      return {
+        role: 'assistant',
+        content: message.content,
+        tool_calls: message.toolCalls.map((call) => ({
+          id: call.id,
+          type: 'function' as const,
+          function: { name: call.name, arguments: JSON.stringify(call.arguments) },
+        })),
+      };
+    }
+    return { role: message.role, content: message.content ?? '' } as OpenAI.Chat.ChatCompletionMessageParam;
+  }
 }
 ```
 
-- [ ] **Step 3: Write failing tests for `CopilotChatUseCase`**
-
-Create `apps/backend/src/modules/copilot/application/copilot-chat.usecase.spec.ts`:
+- [ ] **Step 4: Write failing tests for `CopilotChatUseCase`** — mock `IAIChatProvider` (the port, not the SDK) so these tests exercise the loop's decision logic, not HTTP/SDK plumbing:
 
 ```typescript
-const messagesCreateMock = jest.fn();
-
-jest.mock('@anthropic-ai/sdk', () => {
-  return jest.fn().mockImplementation(() => ({
-    messages: { create: messagesCreateMock },
-  }));
-});
-
 import { CopilotChatUseCase } from './copilot-chat.usecase';
 import { CopilotToolRegistry } from './copilot-tool-registry';
 import { GetReceivableSummaryTool } from './tools/get-receivable-summary.tool';
 import { GetCollectionActivityTimelineTool } from './tools/get-collection-activity-timeline.tool';
 import { GetPaymentHistoryTool } from './tools/get-payment-history.tool';
 import { DraftReminderEmailTool } from './tools/draft-reminder-email.tool';
-import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { Role } from '../../organizations/domain/membership';
 
 function buildRegistry() {
   const registry = new CopilotToolRegistry();
-  registry.register({
-    name: 'getReceivableSummary',
-    description: 'x',
-    inputSchema: { type: 'object', properties: {}, required: [] },
-    requiresReminderPermission: false,
-  });
-  registry.register({
-    name: 'getCollectionActivityTimeline',
-    description: 'x',
-    inputSchema: { type: 'object', properties: {}, required: [] },
-    requiresReminderPermission: false,
-  });
-  registry.register({
-    name: 'getPaymentHistory',
-    description: 'x',
-    inputSchema: { type: 'object', properties: {}, required: [] },
-    requiresReminderPermission: false,
-  });
-  registry.register({
-    name: 'draftReminderEmail',
-    description: 'x',
-    inputSchema: { type: 'object', properties: {}, required: [] },
-    requiresReminderPermission: true,
-  });
-  registry.register({
-    name: 'sendReminderEmail',
-    description: 'x',
-    inputSchema: { type: 'object', properties: {}, required: [] },
-    requiresReminderPermission: true,
-  });
+  registry.register({ name: 'getReceivableSummary', description: 'x', inputSchema: { type: 'object', properties: {}, required: [] }, requiresReminderPermission: false });
+  registry.register({ name: 'getCollectionActivityTimeline', description: 'x', inputSchema: { type: 'object', properties: {}, required: [] }, requiresReminderPermission: false });
+  registry.register({ name: 'getPaymentHistory', description: 'x', inputSchema: { type: 'object', properties: {}, required: [] }, requiresReminderPermission: false });
+  registry.register({ name: 'draftReminderEmail', description: 'x', inputSchema: { type: 'object', properties: {}, required: [] }, requiresReminderPermission: true });
+  registry.register({ name: 'sendReminderEmail', description: 'x', inputSchema: { type: 'object', properties: {}, required: [] }, requiresReminderPermission: true });
   return registry;
 }
 
-describe('CopilotChatUseCase', () => {
-  beforeEach(() => messagesCreateMock.mockReset());
-
-  it('answers a read-only question with a structured tool result and never touches EmailService', async () => {
-    messagesCreateMock
-      .mockResolvedValueOnce({
-        content: [
-          { type: 'tool_use', id: 'tu_1', name: 'getReceivableSummary', input: { customerId: 'cust-1' } },
-        ],
-        stop_reason: 'tool_use',
-        usage: { input_tokens: 100, output_tokens: 20 },
-      })
-      .mockResolvedValueOnce({
-        content: [{ type: 'text', text: 'Customer cust-1 currently has 2 overdue invoices.' }],
-        stop_reason: 'end_turn',
-        usage: { input_tokens: 150, output_tokens: 40 },
-      });
-
-    const summaryTool = { execute: jest.fn().mockResolvedValue({ overdueCount: 2 }) };
-    const timelineTool = { execute: jest.fn() };
-    const paymentHistoryTool = { execute: jest.fn() };
-    const draftTool = { execute: jest.fn() };
-    const conversationRepo = {
+function buildDeps(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    summaryTool: { execute: jest.fn() },
+    timelineTool: { execute: jest.fn() },
+    paymentHistoryTool: { execute: jest.fn() },
+    draftTool: { execute: jest.fn() },
+    conversationRepo: {
       findOrCreate: jest.fn().mockResolvedValue({ id: 'conv-1' }),
       listMessages: jest.fn().mockResolvedValue([]),
       appendMessage: jest.fn().mockImplementation((m) => Promise.resolve({ id: 'm-1', ...m })),
-    };
-    const pendingActionRepo = { create: jest.fn() };
-    const usageLogRepo = { log: jest.fn() };
-    const tenantContext = { getCurrentUser: () => ({ userId: 'u1', organizationId: 'org-1', role: Role.ACCOUNTANT }) };
+    },
+    pendingActionRepo: { create: jest.fn() },
+    usageLogRepo: { log: jest.fn() },
+    planLimitService: { enforceCopilotChatLimit: jest.fn() },
+    dataSource: { transaction: jest.fn().mockImplementation((cb) => cb({})) },
+    tenantContext: { getCurrentUser: () => ({ userId: 'u1', organizationId: 'org-1', role: Role.FINANCE_MANAGER }) },
+    ...overrides,
+  };
+}
+
+describe('CopilotChatUseCase', () => {
+  it('loops across multiple tool rounds before answering — first getReceivableSummary, then getCollectionActivityTimeline, then a final answer', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion
+      .mockResolvedValueOnce({ content: null, toolCalls: [{ id: 't1', name: 'getReceivableSummary', arguments: { customerId: 'cust-1' } }], inputTokens: 10, outputTokens: 5 })
+      .mockResolvedValueOnce({ content: null, toolCalls: [{ id: 't2', name: 'getCollectionActivityTimeline', arguments: { customerId: 'cust-1', limit: 10 } }], inputTokens: 20, outputTokens: 8 })
+      .mockResolvedValueOnce({ content: 'Customer cust-1 has 2 overdue invoices and 3 recent activities.', toolCalls: [], inputTokens: 30, outputTokens: 15 });
+
+    const deps = buildDeps();
+    deps.summaryTool.execute.mockResolvedValue({ overdueCount: 2 });
+    deps.timelineTool.execute.mockResolvedValue({ items: [1, 2, 3] });
 
     const useCase = new CopilotChatUseCase(
-      buildRegistry(),
-      summaryTool as unknown as GetReceivableSummaryTool,
-      timelineTool as unknown as GetCollectionActivityTimelineTool,
-      paymentHistoryTool as unknown as GetPaymentHistoryTool,
-      draftTool as unknown as DraftReminderEmailTool,
-      conversationRepo as any,
-      pendingActionRepo as any,
-      usageLogRepo as any,
-      tenantContext as unknown as TenantContextService,
+      aiProvider as any, buildRegistry(), deps.summaryTool as any, deps.timelineTool as any,
+      deps.paymentHistoryTool as any, deps.draftTool as any, deps.conversationRepo as any,
+      deps.pendingActionRepo as any, deps.usageLogRepo as any, deps.planLimitService as any,
+      deps.dataSource as any, deps.tenantContext as any,
     );
 
-    const result = await useCase.execute({ conversationId: 'conv-1', userMessage: 'How overdue is customer cust-1?' });
+    const result = await useCase.execute({ conversationId: 'conv-1', userMessage: 'How is customer cust-1 doing?' });
 
     expect(result.pendingAction).toBeNull();
     expect(result.message.content).toContain('overdue');
-    expect(summaryTool.execute).toHaveBeenCalledWith({ customerId: 'cust-1' });
-    expect(pendingActionRepo.create).not.toHaveBeenCalled();
-    expect(usageLogRepo.log).toHaveBeenCalledTimes(2);
+    expect(aiProvider.createChatCompletion).toHaveBeenCalledTimes(3); // proves this is a real multi-round loop
+    expect(deps.summaryTool.execute).toHaveBeenCalledWith({ customerId: 'cust-1' });
+    expect(deps.timelineTool.execute).toHaveBeenCalledWith({ customerId: 'cust-1', limit: 10 });
+    expect(deps.pendingActionRepo.create).not.toHaveBeenCalled();
+    expect(deps.usageLogRepo.log).toHaveBeenCalledTimes(3);
+    expect(deps.planLimitService.enforceCopilotChatLimit).toHaveBeenCalledTimes(1);
   });
 
-  it('halts on sendReminderEmail and creates a CopilotPendingAction instead of executing anything', async () => {
-    messagesCreateMock.mockResolvedValueOnce({
-      content: [
-        { type: 'text', text: 'This is a reminder email draft.' },
-        {
-          type: 'tool_use',
-          id: 'tu_2',
-          name: 'sendReminderEmail',
-          input: { draftId: 'draft-1', receivableId: 'rec-1' },
-        },
-      ],
-      stop_reason: 'tool_use',
-      usage: { input_tokens: 200, output_tokens: 50 },
+  it('halts on sendReminderEmail and creates a CopilotPendingAction instead of executing anything or calling the model again', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion.mockResolvedValueOnce({
+      content: 'Proposing to send.',
+      toolCalls: [{ id: 't3', name: 'sendReminderEmail', arguments: { draftId: 'draft-1', receivableId: 'rec-1' } }],
+      inputTokens: 40, outputTokens: 12,
     });
 
-    const summaryTool = { execute: jest.fn() };
-    const timelineTool = { execute: jest.fn() };
-    const paymentHistoryTool = { execute: jest.fn() };
-    const draftTool = { execute: jest.fn() };
-    const conversationRepo = {
-      findOrCreate: jest.fn().mockResolvedValue({ id: 'conv-1' }),
-      listMessages: jest.fn().mockResolvedValue([]),
-      appendMessage: jest.fn().mockImplementation((m) => Promise.resolve({ id: 'm-1', ...m })),
-    };
-    const pendingActionRepo = {
-      create: jest
-        .fn()
-        .mockResolvedValue({
-          id: 'pa-1',
-          actionType: 'SEND_REMINDER_EMAIL',
-          status: 'PENDING',
-          payload: { draftId: 'draft-1', receivableId: 'rec-1' },
-          createdAt: new Date('2026-08-03T10:00:00Z'),
-          resolvedAt: null,
-        }),
-    };
-    const usageLogRepo = { log: jest.fn() };
-    const tenantContext = {
-      getCurrentUser: () => ({ userId: 'u1', organizationId: 'org-1', role: Role.FINANCE_MANAGER }),
-    };
+    const deps = buildDeps();
+    deps.pendingActionRepo.create.mockResolvedValue({
+      id: 'pa-1', actionType: 'SEND_REMINDER_EMAIL', status: 'PENDING',
+      payload: { draftId: 'draft-1', receivableId: 'rec-1' }, createdAt: new Date('2026-08-03T10:00:00Z'), resolvedAt: null,
+    });
 
     const useCase = new CopilotChatUseCase(
-      buildRegistry(),
-      summaryTool as unknown as GetReceivableSummaryTool,
-      timelineTool as unknown as GetCollectionActivityTimelineTool,
-      paymentHistoryTool as unknown as GetPaymentHistoryTool,
-      draftTool as unknown as DraftReminderEmailTool,
-      conversationRepo as any,
-      pendingActionRepo as any,
-      usageLogRepo as any,
-      tenantContext as unknown as TenantContextService,
+      aiProvider as any, buildRegistry(), deps.summaryTool as any, deps.timelineTool as any,
+      deps.paymentHistoryTool as any, deps.draftTool as any, deps.conversationRepo as any,
+      deps.pendingActionRepo as any, deps.usageLogRepo as any, deps.planLimitService as any,
+      deps.dataSource as any, deps.tenantContext as any,
     );
 
-    const result = await useCase.execute({ conversationId: 'conv-1', userMessage: 'Send the reminder email for draft-1' });
+    const result = await useCase.execute({ conversationId: 'conv-1', userMessage: 'Send the reminder for draft-1' });
 
-    expect(result.pendingAction).toEqual({
-      id: 'pa-1',
-      actionType: 'SEND_REMINDER_EMAIL',
-      status: 'PENDING',
-      payload: { draftId: 'draft-1', receivableId: 'rec-1' },
-      createdAt: '2026-08-03T10:00:00.000Z',
-      resolvedAt: null,
-    });
-    expect(pendingActionRepo.create).toHaveBeenCalledWith('conv-1', { draftId: 'draft-1', receivableId: 'rec-1' });
-    expect(messagesCreateMock).toHaveBeenCalledTimes(1); // loop halted — no second turn was sent
-    expect(usageLogRepo.log).toHaveBeenCalledTimes(1);
+    expect(result.pendingAction).toMatchObject({ id: 'pa-1', status: 'PENDING' });
+    expect(deps.pendingActionRepo.create).toHaveBeenCalledWith('conv-1', { draftId: 'draft-1', receivableId: 'rec-1' });
+    expect(aiProvider.createChatCompletion).toHaveBeenCalledTimes(1); // loop halted — no second round
+    expect(deps.usageLogRepo.log).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects the turn with PLAN_LIMIT_EXCEEDED before ever calling the AI provider, when the org is over its monthly chat quota', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    const deps = buildDeps();
+    deps.planLimitService.enforceCopilotChatLimit.mockRejectedValue(
+      Object.assign(new Error('over limit'), { errorCode: 'PLAN_LIMIT_EXCEEDED' }),
+    );
+
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any, buildRegistry(), deps.summaryTool as any, deps.timelineTool as any,
+      deps.paymentHistoryTool as any, deps.draftTool as any, deps.conversationRepo as any,
+      deps.pendingActionRepo as any, deps.usageLogRepo as any, deps.planLimitService as any,
+      deps.dataSource as any, deps.tenantContext as any,
+    );
+
+    await expect(useCase.execute({ conversationId: 'conv-1', userMessage: 'hi' })).rejects.toMatchObject({ errorCode: 'PLAN_LIMIT_EXCEEDED' });
+    expect(aiProvider.createChatCompletion).not.toHaveBeenCalled();
+  });
+
+  it('retries exactly once on a provider timeout, then logs and rethrows on a second failure', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion.mockRejectedValueOnce(new Error('timeout')).mockRejectedValueOnce(new Error('timeout again'));
+    const deps = buildDeps();
+
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any, buildRegistry(), deps.summaryTool as any, deps.timelineTool as any,
+      deps.paymentHistoryTool as any, deps.draftTool as any, deps.conversationRepo as any,
+      deps.pendingActionRepo as any, deps.usageLogRepo as any, deps.planLimitService as any,
+      deps.dataSource as any, deps.tenantContext as any,
+    );
+
+    await expect(useCase.execute({ conversationId: 'conv-1', userMessage: 'hi' })).rejects.toThrow('timeout again');
+    expect(aiProvider.createChatCompletion).toHaveBeenCalledTimes(2); // exactly one retry
+    expect(deps.usageLogRepo.log).toHaveBeenCalledTimes(2); // both attempts logged, including the failure
+    expect(deps.usageLogRepo.log.mock.calls.every(([entry]) => entry.isError || entry === deps.usageLogRepo.log.mock.calls[0][0])).toBeTruthy();
   });
 });
 ```
 
-- [ ] **Step 4: Run test to verify it fails**
+- [ ] **Step 5: Run test to verify it fails**
 
 Run: `pnpm --filter @casso-ledger/backend test copilot-chat.usecase.spec.ts`
 Expected: FAIL — Cannot find module './copilot-chat.usecase'
 
-- [ ] **Step 5: Create `apps/backend/src/modules/copilot/application/copilot-chat.usecase.ts`**
+- [ ] **Step 6: Create `copilot-chat.usecase.ts`**
 
 ```typescript
 import { Inject, Injectable } from '@nestjs/common';
-import Anthropic from '@anthropic-ai/sdk';
-import { ANTHROPIC_CLIENT } from './anthropic-client.provider';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
+import { AI_CHAT_PROVIDER, type IAIChatProvider, type AIChatMessage } from './ai-chat-provider.port';
 import { CopilotToolRegistry } from './copilot-tool-registry';
 import { GetReceivableSummaryTool } from './tools/get-receivable-summary.tool';
 import { GetCollectionActivityTimelineTool } from './tools/get-collection-activity-timeline.tool';
 import { GetPaymentHistoryTool } from './tools/get-payment-history.tool';
 import { DraftReminderEmailTool } from './tools/draft-reminder-email.tool';
-import {
-  ICopilotConversationRepository,
-  COPILOT_CONVERSATION_REPOSITORY,
-} from './conversation-repository.port';
-import {
-  CopilotPendingAction,
-  ICopilotPendingActionRepository,
-  COPILOT_PENDING_ACTION_REPOSITORY,
-} from './pending-action-repository.port';
+import { ICopilotConversationRepository, COPILOT_CONVERSATION_REPOSITORY } from './conversation-repository.port';
+import { ICopilotPendingActionRepository, COPILOT_PENDING_ACTION_REPOSITORY } from './pending-action-repository.port';
 import { IAIUsageLogRepository, AI_USAGE_LOG_REPOSITORY } from './ai-usage-log-repository.port';
+import { PlanLimitService } from '../../billing/application/plan-limit.service';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { ROLE_PERMISSIONS } from '../../../common/rbac/role-permissions.map';
 import { Permission } from '../../../common/rbac/permission.enum';
-import {
-  CopilotMessageDto,
-  CopilotPendingActionDto,
-  toCopilotMessageDto,
-  toCopilotPendingActionDto,
-} from '../presentation/dto/copilot-response.dto';
+import { CopilotMessageDto, CopilotPendingActionDto, toCopilotMessageDto, toCopilotPendingActionDto } from '../presentation/dto/copilot-response.dto';
 
-const MODEL = 'claude-opus-5';
 const PROMPT_VERSION = 'copilot-v1';
 const MODEL_CALL_TIMEOUT_MS = 15_000;
 const MAX_TOOL_ITERATIONS = 5;
@@ -1523,13 +1889,6 @@ export interface CopilotChatResult {
   pendingAction: CopilotPendingActionDto | null;
 }
 
-interface ToolUseBlock {
-  type: 'tool_use';
-  id: string;
-  name: string;
-  input: Record<string, unknown>;
-}
-
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     promise,
@@ -1540,94 +1899,67 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 @Injectable()
 export class CopilotChatUseCase {
   constructor(
+    @Inject(AI_CHAT_PROVIDER) private readonly aiProvider: IAIChatProvider,
     private readonly toolRegistry: CopilotToolRegistry,
     private readonly getReceivableSummaryTool: GetReceivableSummaryTool,
     private readonly getCollectionActivityTimelineTool: GetCollectionActivityTimelineTool,
     private readonly getPaymentHistoryTool: GetPaymentHistoryTool,
     private readonly draftReminderEmailTool: DraftReminderEmailTool,
-    @Inject(COPILOT_CONVERSATION_REPOSITORY)
-    private readonly conversationRepo: ICopilotConversationRepository,
-    @Inject(COPILOT_PENDING_ACTION_REPOSITORY)
-    private readonly pendingActionRepo: ICopilotPendingActionRepository,
+    @Inject(COPILOT_CONVERSATION_REPOSITORY) private readonly conversationRepo: ICopilotConversationRepository,
+    @Inject(COPILOT_PENDING_ACTION_REPOSITORY) private readonly pendingActionRepo: ICopilotPendingActionRepository,
     @Inject(AI_USAGE_LOG_REPOSITORY) private readonly usageLogRepo: IAIUsageLogRepository,
+    private readonly planLimitService: PlanLimitService,
+    @InjectDataSource() private readonly dataSource: DataSource,
     private readonly tenantContext: TenantContextService,
-    @Inject(ANTHROPIC_CLIENT) private readonly anthropic?: Anthropic,
   ) {}
 
-  private async callModel(
-    tools: ReturnType<CopilotToolRegistry['getTools']>,
-    messages: Anthropic.MessageParam[],
-    conversationId: string,
-  ): Promise<Anthropic.Message> {
+  private async callModel(messages: AIChatMessage[], tools: ReturnType<CopilotToolRegistry['getTools']>, conversationId: string) {
     const start = Date.now();
     try {
       const response = await withTimeout(
-        this.anthropic!.messages.create({
-          model: MODEL,
-          max_tokens: 2048,
-          system: SYSTEM_PROMPT,
-          tools,
+        this.aiProvider.createChatCompletion(
           messages,
-        }) as unknown as Promise<Anthropic.Message>,
+          tools.map((t) => ({ name: t.function.name, description: t.function.description, parameters: t.function.parameters })),
+        ),
         MODEL_CALL_TIMEOUT_MS,
       );
       await this.usageLogRepo.log({
-        conversationId,
-        model: MODEL,
-        promptVersion: PROMPT_VERSION,
-        inputTokens: response.usage?.input_tokens ?? null,
-        outputTokens: response.usage?.output_tokens ?? null,
-        latencyMs: Date.now() - start,
-        toolCallsCount: response.content.filter((b: any) => b.type === 'tool_use').length,
-        isError: false,
+        conversationId, model: process.env.AI_PROVIDER_MODEL ?? 'gpt-4o-mini', promptVersion: PROMPT_VERSION,
+        inputTokens: response.inputTokens, outputTokens: response.outputTokens,
+        latencyMs: Date.now() - start, toolCallsCount: response.toolCalls.length, isError: false,
       });
       return response;
     } catch (error) {
       await this.usageLogRepo.log({
-        conversationId,
-        model: MODEL,
-        promptVersion: PROMPT_VERSION,
-        inputTokens: null,
-        outputTokens: null,
-        latencyMs: Date.now() - start,
-        toolCallsCount: 0,
-        isError: true,
+        conversationId, model: process.env.AI_PROVIDER_MODEL ?? 'gpt-4o-mini', promptVersion: PROMPT_VERSION,
+        inputTokens: null, outputTokens: null, latencyMs: Date.now() - start, toolCallsCount: 0, isError: true,
       });
       throw error;
     }
   }
 
-  private async callModelWithRetry(
-    tools: ReturnType<CopilotToolRegistry['getTools']>,
-    messages: Anthropic.MessageParam[],
-    conversationId: string,
-  ): Promise<Anthropic.Message> {
+  private async callModelWithRetry(messages: AIChatMessage[], tools: ReturnType<CopilotToolRegistry['getTools']>, conversationId: string) {
     try {
-      return await this.callModel(tools, messages, conversationId);
-    } catch (error) {
-      return this.callModel(tools, messages, conversationId); // exactly one automatic retry
+      return await this.callModel(messages, tools, conversationId);
+    } catch {
+      return this.callModel(messages, tools, conversationId); // exactly one automatic retry
     }
   }
 
-  private async executeReadOrDraftTool(block: ToolUseBlock, organizationId: string): Promise<unknown> {
-    switch (block.name) {
+  private async executeReadOrDraftTool(name: string, input: Record<string, unknown>, organizationId: string): Promise<unknown> {
+    switch (name) {
       case GetReceivableSummaryTool.NAME:
-        return this.getReceivableSummaryTool.execute(block.input as { customerId: string });
+        return this.getReceivableSummaryTool.execute(input as { customerId: string });
       case GetCollectionActivityTimelineTool.NAME:
-        return this.getCollectionActivityTimelineTool.execute(
-          block.input as { customerId: string; limit?: number },
-        );
+        return this.getCollectionActivityTimelineTool.execute(input as { customerId: string; limit?: number });
       case GetPaymentHistoryTool.NAME:
-        return this.getPaymentHistoryTool.execute(block.input as { customerId: string; limit?: number });
+        return this.getPaymentHistoryTool.execute(input as { customerId: string; limit?: number });
       case DraftReminderEmailTool.NAME:
-        return this.draftReminderEmailTool.execute(
-          block.input as { receivableId: string; tone?: 'polite' | 'urgent' },
-          organizationId,
-        );
+        return this.draftReminderEmailTool.execute(input as { receivableId: string; tone?: 'polite' | 'urgent' }, organizationId);
       case 'sendReminderEmail':
         throw new Error('sendReminderEmail must be intercepted before normal tool execution');
       default:
-        throw new Error(`Unknown Copilot tool "${block.name}"`);
+        throw new Error(`Unknown Copilot tool "${name}"`);
     }
   }
 
@@ -1638,80 +1970,67 @@ export class CopilotChatUseCase {
     }
     const canSendReminders = ROLE_PERMISSIONS[user.role].includes(Permission.REMINDER_SEND_MANUAL);
 
-    await this.conversationRepo.findOrCreate(input.conversationId, user.userId);
-    await this.conversationRepo.appendMessage({
-      conversationId: input.conversationId,
-      role: 'USER',
-      content: input.userMessage,
-      toolCalls: null,
-      createdAt: new Date(),
+    // Step 2 of the loop description: one short transaction, no AI provider
+    // call inside it — plan-limit check + persisting the user's message only.
+    await this.dataSource.transaction(async (manager) => {
+      await this.planLimitService.enforceCopilotChatLimit(manager);
+      await this.conversationRepo.findOrCreate(input.conversationId, user.userId);
+      await this.conversationRepo.appendMessage(
+        { conversationId: input.conversationId, role: 'USER', content: input.userMessage, toolCalls: null, createdAt: new Date() },
+        manager,
+      );
     });
 
     const history = await this.conversationRepo.listMessages(input.conversationId);
-    const messages: Anthropic.MessageParam[] = history.map((m) => ({
-      role: m.role === 'ASSISTANT' ? 'assistant' : 'user',
-      content: m.content,
-    }));
+    const messages: AIChatMessage[] = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...history.map((m): AIChatMessage => ({
+        role: m.role === 'ASSISTANT' ? 'assistant' : m.role === 'TOOL' ? 'tool' : 'user',
+        content: m.content,
+      })),
+    ];
 
     const tools = this.toolRegistry.getTools(canSendReminders);
 
     for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
-      const response = await this.callModelWithRetry(tools, messages, input.conversationId);
+      const response = await this.callModelWithRetry(messages, tools, input.conversationId);
 
-      const textBlocks = response.content.filter((b: any): b is Anthropic.TextBlock => b.type === 'text');
-      const toolUseBlocks = response.content.filter(
-        (b: any): b is ToolUseBlock => b.type === 'tool_use',
-      );
-      const combinedText = textBlocks.map((b) => b.text).join('\n');
-
-      const sendBlock = toolUseBlocks.find((b) => b.name === 'sendReminderEmail');
-      if (sendBlock) {
-        const draftId = sendBlock.input.draftId as string;
-        const receivableId = sendBlock.input.receivableId as string;
+      const sendCall = response.toolCalls.find((call) => call.name === 'sendReminderEmail');
+      if (sendCall) {
+        const draftId = sendCall.arguments.draftId as string | undefined;
+        const receivableId = sendCall.arguments.receivableId as string | undefined;
         if (!draftId || !receivableId) {
           throw new Error('sendReminderEmail requires draftId and receivableId');
         }
-        const pendingAction = await this.pendingActionRepo.create(input.conversationId, {
-          draftId,
-          receivableId,
+        const pendingAction = await this.pendingActionRepo.create(input.conversationId, { draftId, receivableId });
+        const saved = await this.conversationRepo.appendMessage({
+          conversationId: input.conversationId, role: 'ASSISTANT', content: response.content ?? '',
+          toolCalls: response.toolCalls.map((c) => ({ id: c.id, name: c.name, input: c.arguments })), createdAt: new Date(),
         });
-        await this.conversationRepo.appendMessage({
-          conversationId: input.conversationId,
-          role: 'ASSISTANT',
-          content: combinedText,
-          toolCalls: toolUseBlocks.map((b) => ({ id: b.id, name: b.name, input: b.input })),
-          createdAt: new Date(),
-        });
-        return {
-          message: toCopilotMessageDto({ id: 'assistant', role: 'ASSISTANT', content: combinedText, createdAt: new Date() }),
-          pendingAction: toCopilotPendingActionDto(pendingAction),
-        };
+        return { message: toCopilotMessageDto(saved), pendingAction: toCopilotPendingActionDto(pendingAction) };
       }
 
-      if (toolUseBlocks.length === 0) {
-        await this.conversationRepo.appendMessage({
-          conversationId: input.conversationId,
-          role: 'ASSISTANT',
-          content: combinedText,
-          toolCalls: null,
-          createdAt: new Date(),
+      if (response.toolCalls.length === 0) {
+        const saved = await this.conversationRepo.appendMessage({
+          conversationId: input.conversationId, role: 'ASSISTANT', content: response.content ?? '', toolCalls: null, createdAt: new Date(),
         });
-        return {
-          message: toCopilotMessageDto({ id: 'assistant', role: 'ASSISTANT', content: combinedText, createdAt: new Date() }),
-          pendingAction: null,
-        };
+        return { message: toCopilotMessageDto(saved), pendingAction: null };
       }
 
       const toolResults = await Promise.all(
-        toolUseBlocks.map(async (block) => ({
-          type: 'tool_result' as const,
-          tool_use_id: block.id,
-          content: JSON.stringify(await this.executeReadOrDraftTool(block, user.organizationId)),
+        response.toolCalls.map(async (call) => ({
+          id: call.id,
+          result: await this.executeReadOrDraftTool(call.name, call.arguments, user.organizationId),
         })),
       );
 
-      messages.push({ role: 'assistant', content: response.content });
-      messages.push({ role: 'user', content: toolResults });
+      messages.push({
+        role: 'assistant', content: response.content,
+        toolCalls: response.toolCalls.map((c) => ({ id: c.id, name: c.name, arguments: c.arguments })),
+      });
+      for (const { id, result } of toolResults) {
+        messages.push({ role: 'tool', content: JSON.stringify(result), toolCallId: id });
+      }
     }
 
     throw new Error('Copilot exceeded the maximum number of tool-use iterations for a single turn');
@@ -1719,314 +2038,21 @@ export class CopilotChatUseCase {
 }
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [ ] **Step 7: Run test to verify it passes**
 
 Run: `pnpm --filter @casso-ledger/backend test copilot-chat.usecase.spec.ts`
-Expected: both tests PASS
+Expected: all 4 tests PASS
 
-- [ ] **Step 7: Commit**
-
-```bash
-git add apps/backend/package.json apps/backend/src/modules/copilot/application/anthropic-client.provider.ts apps/backend/src/modules/copilot/application/copilot-chat.usecase.ts apps/backend/src/modules/copilot/application/copilot-chat.usecase.spec.ts
-git commit -m "feat: add CopilotChatUseCase — mocked Anthropic tool loop that halts on sendReminderEmail"
-```
-
----
-
-### Task 8: `ConfirmPendingActionUseCase` — creates a real `EmailTemplate` + `ReminderExecution`, then calls `EmailService`
-
-**Files:**
-- Create: `apps/backend/src/modules/copilot/application/confirm-pending-action.usecase.ts`
-- Test: `apps/backend/src/modules/copilot/application/confirm-pending-action.usecase.spec.ts`
-- Modify: `apps/backend/src/modules/copilot/copilot.module.ts` (import `EmailTemplatesModule`, `RemindersModule`, `NotificationsModule`, register `TypeOrmModule.forFeature([CopilotDraftOrmEntity])` if not already present from Task 5)
-
-**Interfaces:**
-- Consumes: `ICopilotPendingActionRepository` (Task 2), `CopilotDraftOrmEntity` (Task 5, read directly via `@InjectRepository`), the REAL `IEmailTemplateRepository`/`EMAIL_TEMPLATE_REPOSITORY` (`2026-08-03-email-template-management.md`), the REAL `IReminderExecutionRepository`/`REMINDER_EXECUTION_REPOSITORY` and `ReminderExecution` domain class (`2026-08-03-reminder-automation.md`, whose `reminderRuleId` is nullable specifically so this use case can write `null` here), `EmailService` (`2026-08-03-email-notification-service.md`)
-- Produces: `ConfirmPendingActionUseCase.execute(pendingActionId, resolvedByUserId)`, consumed by Task 9's controller
-
-Earlier drafts of this plan had a `ConfirmPendingActionUseCase` calling a Copilot-owned "`ICopilotReminderExecutionRepository`" that faked being `IReminderExecutionRepository`, and a `templateId` that was really just the `draftId` interpreted by a Copilot-owned fake `IEmailTemplateRepository`. Both of those real ports now have real, bound implementations (`2026-08-03-email-template-management.md`, `2026-08-03-reminder-automation.md`) — a second, parallel binding of the same DI tokens is not how NestJS DI works and was never going to function as designed. This task now creates one throwaway `EmailTemplate` row (its `subject`/`bodyHtml` are the draft's ALREADY-composed literal text — no `{{variable}}` syntax, so `EmailService`'s Handlebars render step is a harmless no-op pass-through) and one real `ReminderExecution` row (`reminderRuleId: null`, marking it as a manual/ad-hoc send, not a rule-matched one), then calls `EmailService.sendReminderEmail` exactly as `2026-08-03-reminder-automation.md`'s own `ReminderSenderService` does.
-
-- [ ] **Step 1: Write failing tests**
-
-Create `apps/backend/src/modules/copilot/application/confirm-pending-action.usecase.spec.ts`:
-
-```typescript
-import { ConfirmPendingActionUseCase } from './confirm-pending-action.usecase';
-
-function pendingAction(overrides: Partial<Record<string, unknown>> = {}) {
-  return {
-    id: 'pa-1',
-    organizationId: 'org-1',
-    conversationId: 'conv-1',
-    actionType: 'SEND_REMINDER_EMAIL' as const,
-    payload: { draftId: 'draft-1', receivableId: 'rec-1' },
-    status: 'PENDING' as const,
-    createdAt: new Date(),
-    resolvedAt: null,
-    resolvedByUserId: null,
-    ...overrides,
-  };
-}
-
-function buildDraft() {
-  return { id: 'draft-1', receivableId: 'rec-1', recipientEmail: 'ap@abc.vn', subject: 'Payment reminder - ABC Company', bodyHtml: '<p>Dear ABC Company...</p>' };
-}
-
-describe('ConfirmPendingActionUseCase', () => {
-  it('creates an EmailTemplate + ReminderExecution and calls EmailService.sendReminderEmail exactly once, then marks the action CONFIRMED', async () => {
-    const action = pendingAction();
-    const pendingActionRepo = { findById: jest.fn().mockResolvedValue(action), save: jest.fn() };
-    const draftOrmRepo = { findOne: jest.fn().mockResolvedValue(buildDraft()) };
-    const emailTemplateRepo = { save: jest.fn().mockResolvedValue(undefined) };
-    const reminderExecutionRepo = { save: jest.fn().mockResolvedValue(undefined) };
-    const emailService = { sendReminderEmail: jest.fn().mockResolvedValue(undefined) };
-
-    const useCase = new ConfirmPendingActionUseCase(
-      pendingActionRepo as any,
-      draftOrmRepo as any,
-      emailTemplateRepo as any,
-      reminderExecutionRepo as any,
-      emailService as any,
-    );
-
-    await useCase.execute('pa-1', 'user-1');
-
-    expect(emailTemplateRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ subject: 'Payment reminder - ABC Company', isDefault: false }),
-    );
-    const savedTemplate = emailTemplateRepo.save.mock.calls[0][0];
-
-    expect(reminderExecutionRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ receivableId: 'rec-1', reminderRuleId: null, status: 'PENDING' }),
-    );
-    const savedExecution = reminderExecutionRepo.save.mock.calls[0][0];
-
-    expect(emailService.sendReminderEmail).toHaveBeenCalledTimes(1);
-    expect(emailService.sendReminderEmail).toHaveBeenCalledWith({
-      receivableId: 'rec-1',
-      templateId: savedTemplate.id,
-      reminderExecutionId: savedExecution.id,
-    });
-    expect(pendingActionRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'CONFIRMED', resolvedByUserId: 'user-1' }),
-    );
-  });
-
-  it('rejects and marks EXPIRED when confirmed more than 10 minutes after creation, and never calls EmailService', async () => {
-    const staleAction = pendingAction({ createdAt: new Date(Date.now() - 11 * 60 * 1000) });
-    const pendingActionRepo = { findById: jest.fn().mockResolvedValue(staleAction), save: jest.fn() };
-    const draftOrmRepo = { findOne: jest.fn() };
-    const emailTemplateRepo = { save: jest.fn() };
-    const reminderExecutionRepo = { save: jest.fn() };
-    const emailService = { sendReminderEmail: jest.fn() };
-
-    const useCase = new ConfirmPendingActionUseCase(
-      pendingActionRepo as any,
-      draftOrmRepo as any,
-      emailTemplateRepo as any,
-      reminderExecutionRepo as any,
-      emailService as any,
-    );
-
-    await expect(useCase.execute('pa-1', 'user-1')).rejects.toThrow('expired');
-    expect(pendingActionRepo.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'EXPIRED' }));
-    expect(emailService.sendReminderEmail).not.toHaveBeenCalled();
-  });
-
-  it('rejects a pending action that is already CONFIRMED or CANCELLED without calling EmailService', async () => {
-    const alreadyConfirmed = pendingAction({ status: 'CONFIRMED' });
-    const pendingActionRepo = { findById: jest.fn().mockResolvedValue(alreadyConfirmed), save: jest.fn() };
-    const draftOrmRepo = { findOne: jest.fn() };
-    const emailTemplateRepo = { save: jest.fn() };
-    const reminderExecutionRepo = { save: jest.fn() };
-    const emailService = { sendReminderEmail: jest.fn() };
-
-    const useCase = new ConfirmPendingActionUseCase(
-      pendingActionRepo as any,
-      draftOrmRepo as any,
-      emailTemplateRepo as any,
-      reminderExecutionRepo as any,
-      emailService as any,
-    );
-
-    await expect(useCase.execute('pa-1', 'user-1')).rejects.toThrow();
-    expect(emailService.sendReminderEmail).not.toHaveBeenCalled();
-  });
-});
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `pnpm --filter @casso-ledger/backend test confirm-pending-action.usecase.spec.ts`
-Expected: FAIL — Cannot find module './confirm-pending-action.usecase'
-
-- [ ] **Step 3: Create `apps/backend/src/modules/copilot/application/confirm-pending-action.usecase.ts`**
-
-```typescript
-import { randomUUID } from 'crypto';
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import {
-  ICopilotPendingActionRepository,
-  COPILOT_PENDING_ACTION_REPOSITORY,
-} from './pending-action-repository.port';
-import { CopilotDraftOrmEntity } from '../infrastructure/copilot-draft.orm-entity';
-import {
-  IEmailTemplateRepository,
-  EMAIL_TEMPLATE_REPOSITORY,
-} from '../../email-templates/application/email-template-repository.port';
-import { EmailTemplate } from '../../email-templates/domain/email-template';
-import {
-  IReminderExecutionRepository,
-  REMINDER_EXECUTION_REPOSITORY,
-} from '../../reminders/application/reminder-execution-repository.port';
-import { ReminderExecution, ReminderExecutionStatus } from '../../reminders/domain/reminder-execution';
-import { EmailService } from '../../notifications/application/email.service';
-
-export const PENDING_ACTION_EXPIRY_MINUTES = 10;
-
-@Injectable()
-export class ConfirmPendingActionUseCase {
-  constructor(
-    @Inject(COPILOT_PENDING_ACTION_REPOSITORY)
-    private readonly pendingActionRepo: ICopilotPendingActionRepository,
-    @InjectRepository(CopilotDraftOrmEntity)
-    private readonly draftOrmRepo: Repository<CopilotDraftOrmEntity>,
-    @Inject(EMAIL_TEMPLATE_REPOSITORY) private readonly emailTemplateRepo: IEmailTemplateRepository,
-    @Inject(REMINDER_EXECUTION_REPOSITORY)
-    private readonly reminderExecutionRepo: IReminderExecutionRepository,
-    private readonly emailService: EmailService,
-  ) {}
-
-  async execute(pendingActionId: string, resolvedByUserId: string): Promise<{ reminderExecutionId: string }> {
-    const action = await this.pendingActionRepo.findById(pendingActionId);
-    if (!action) {
-      throw new NotFoundException('Pending action not found');
-    }
-    if (action.status !== 'PENDING') {
-      throw new BadRequestException(`Pending action is already ${action.status}`);
-    }
-
-    const ageMs = Date.now() - action.createdAt.getTime();
-    if (ageMs > PENDING_ACTION_EXPIRY_MINUTES * 60 * 1000) {
-      await this.pendingActionRepo.save({ ...action, status: 'EXPIRED' });
-      throw new BadRequestException('Pending action has expired — please ask the Copilot to draft a new reminder');
-    }
-
-    const draft = await this.draftOrmRepo.findOne({ where: { id: action.payload.draftId } });
-    if (!draft) {
-      throw new NotFoundException(`Copilot draft ${action.payload.draftId} not found`);
-    }
-
-    const now = new Date();
-
-    // Throwaway EmailTemplate: subject/bodyHtml are the draft's ALREADY-substituted literal
-    // text (no {{variable}} tokens) — EmailService's Handlebars render step is a no-op
-    // pass-through for it. This is what lets a Copilot-confirmed send reuse the exact same
-    // EmailService/EmailQueueProcessor pipeline as a rule-based reminder, instead of a
-    // parallel one.
-    const template = new EmailTemplate({
-      id: randomUUID(),
-      organizationId: action.organizationId,
-      name: `Copilot draft ${draft.id}`,
-      subject: draft.subject,
-      bodyHtml: draft.bodyHtml,
-      reminderStage: null,
-      isDefault: false,
-      createdAt: now,
-      updatedAt: now,
-    });
-    await this.emailTemplateRepo.save(template);
-
-    const execution = new ReminderExecution({
-      id: randomUUID(),
-      organizationId: action.organizationId,
-      receivableId: action.payload.receivableId,
-      reminderRuleId: null,
-      executionDate: now,
-      sentAt: null,
-      status: ReminderExecutionStatus.PENDING,
-      skipReason: null,
-      providerMessageId: null,
-      failureReason: null,
-      createdAt: now,
-    });
-    await this.reminderExecutionRepo.save(execution);
-
-    // The ONLY call to EmailService.sendReminderEmail in this entire module — pure code, no LLM involved.
-    await this.emailService.sendReminderEmail({
-      receivableId: action.payload.receivableId,
-      templateId: template.id,
-      reminderExecutionId: execution.id,
-    });
-
-    await this.pendingActionRepo.save({
-      ...action,
-      status: 'CONFIRMED',
-      resolvedAt: new Date(),
-      resolvedByUserId,
-    });
-
-    return { reminderExecutionId: execution.id };
-  }
-}
-```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `pnpm --filter @casso-ledger/backend test confirm-pending-action.usecase.spec.ts`
-Expected: all 3 tests PASS
-
-- [ ] **Step 5: Wire the new module dependencies into `CopilotModule`**
-
-Modify `apps/backend/src/modules/copilot/copilot.module.ts` — add `EmailTemplatesModule`, `RemindersModule` (via `forwardRef` is NOT needed here — `CopilotModule` is not imported back by either of them, so this is a normal one-directional import), and `NotificationsModule` to `imports`, alongside whatever `TypeOrmModule.forFeature([CopilotDraftOrmEntity, ...])` Task 2/5 already registered.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add apps/backend/src/modules/copilot/application/confirm-pending-action.usecase.ts apps/backend/src/modules/copilot/application/confirm-pending-action.usecase.spec.ts apps/backend/src/modules/copilot/copilot.module.ts
-git commit -m "feat: add ConfirmPendingActionUseCase creating a real EmailTemplate + ReminderExecution before calling EmailService"
+git add apps/backend/package.json apps/backend/src/modules/copilot/application/ai-chat-provider.port.ts apps/backend/src/modules/copilot/infrastructure/openai-chat-provider.adapter.ts apps/backend/src/modules/copilot/application/copilot-chat.usecase.ts apps/backend/src/modules/copilot/application/copilot-chat.usecase.spec.ts
+git commit -m "feat: add IAIChatProvider port + OpenAI adapter, and a real multi-round CopilotChatUseCase agent loop"
 ```
 
 ---
 
-### Task 8b: `CancelPendingActionUseCase` — pure cancellation path
-
-**Files:**
-- Create: `apps/backend/src/modules/copilot/application/cancel-pending-action.usecase.ts`
-- Test: `apps/backend/src/modules/copilot/application/cancel-pending-action.usecase.spec.ts`
-
-The cancel endpoint must not call Anthropic, `EmailService`, `EmailTemplateRepository`, or `ReminderExecutionRepository`. It only atomically transitions an unexpired `PENDING` action to `CANCELLED`; `CONFIRMED`, `CANCELLED`, and `EXPIRED` actions are rejected. The repository update must use a conditional status check so two concurrent confirm/cancel requests cannot both win.
-
-```typescript
-@Injectable()
-export class CancelPendingActionUseCase {
-  constructor(
-    @Inject(COPILOT_PENDING_ACTION_REPOSITORY)
-    private readonly pendingActionRepo: ICopilotPendingActionRepository,
-  ) {}
-
-  async execute(pendingActionId: string, resolvedByUserId: string): Promise<CopilotPendingActionDto> {
-    const action = await this.pendingActionRepo.findById(pendingActionId);
-    if (!action) throw new NotFoundException('Pending action not found');
-    if (action.status !== 'PENDING') throw new BadRequestException(`Pending action is already ${action.status}`);
-    if (Date.now() - action.createdAt.getTime() > PENDING_ACTION_EXPIRY_MINUTES * 60 * 1000) {
-      await this.pendingActionRepo.save({ ...action, status: 'EXPIRED' });
-      throw new BadRequestException('Pending action has expired');
-    }
-    const cancelled = await this.pendingActionRepo.cancelIfPending(pendingActionId, resolvedByUserId);
-    if (!cancelled) throw new BadRequestException('Pending action is no longer pending');
-    return toCopilotPendingActionDto(cancelled);
-  }
-}
-```
-
-Add `cancelIfPending(id, resolvedByUserId)` to `ICopilotPendingActionRepository`; its SQL/TypeORM update must include `WHERE id = :id AND status = 'PENDING'`. Test the happy path, expiry, already-confirmed rejection, and the race returning `null`.
-
----
-
-### Task 9: `CopilotController`, cancel endpoint, `CopilotModule` wiring
+### Task 11: `CopilotController` (idempotency-wrapped), `CopilotModule` wiring
 
 **Files:**
 - Create: `apps/backend/src/modules/copilot/presentation/dto/copilot-response.dto.ts`
@@ -2036,10 +2062,12 @@ Add `cancelIfPending(id, resolvedByUserId)` to `ICopilotPendingActionRepository`
 - Modify: `apps/backend/src/app.module.ts`
 
 **Interfaces:**
-- Consumes: `CopilotChatUseCase` (Task 7), `ConfirmPendingActionUseCase`/`CancelPendingActionUseCase` (Tasks 8/8b), `JwtAuthGuard`/`PermissionGuard`/`RequirePermission` (`2026-08-03-multi-tenancy-rbac.md`)
+- Consumes: `CopilotChatUseCase` (Task 10), `ConfirmPendingActionUseCase`/`CancelPendingActionUseCase` (Task 9), `JwtAuthGuard`/`PermissionGuard`/`RequirePermission`, `IdempotencyService`
 - Produces: `POST /api/v1/copilot/conversations/:id/messages`, `POST /api/v1/copilot/actions/:actionId/confirm`, `POST /api/v1/copilot/actions/:id/cancel`
 
-- [ ] **Step 1: Create `apps/backend/src/modules/copilot/presentation/dto/copilot-response.dto.ts`**
+**Idempotency (2026-08-09 fix):** the original plan didn't wrap `/confirm`/`/cancel` in `IdempotencyService.execute()` despite both being side-effecting POSTs — every other write endpoint in this codebase does. Both now require an `Idempotency-Key` header, matching `receivables.controller.ts`/`payments.controller.ts`'s existing pattern exactly. `/messages` is also side-effecting (it persists messages and counts against the Billing quota) and gets the same treatment.
+
+- [ ] **Step 1: Create `copilot-response.dto.ts`**
 
 ```typescript
 import { CopilotMessageRecord } from '../../application/conversation-repository.port';
@@ -2061,16 +2089,6 @@ export interface CopilotPendingActionDto {
   resolvedAt: string | null;
 }
 
-export interface CopilotTurnResponseDto {
-  message: CopilotMessageDto;
-  pendingAction: CopilotPendingActionDto | null;
-}
-
-export interface CopilotActionResponseDto {
-  action: CopilotPendingActionDto;
-  reminderExecutionId?: string;
-}
-
 export const toCopilotMessageDto = (message: CopilotMessageRecord): CopilotMessageDto => ({
   id: message.id,
   role: message.role === 'TOOL' ? 'ASSISTANT' : message.role,
@@ -2088,7 +2106,7 @@ export const toCopilotPendingActionDto = (action: CopilotPendingAction): Copilot
 });
 ```
 
-- [ ] **Step 2: Create `apps/backend/src/modules/copilot/presentation/dto/post-copilot-message.dto.ts`**
+- [ ] **Step 2: Create `post-copilot-message.dto.ts`**
 
 ```typescript
 import { IsNotEmpty, IsString } from 'class-validator';
@@ -2100,10 +2118,10 @@ export class PostCopilotMessageDto {
 }
 ```
 
-- [ ] **Step 3: Create `apps/backend/src/modules/copilot/presentation/copilot.controller.ts`**
+- [ ] **Step 3: Create `copilot.controller.ts`** — every handler wrapped with `IdempotencyService.execute`, following `receivables.controller.ts`'s exact idiom:
 
 ```typescript
-import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Headers, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { CopilotChatUseCase } from '../application/copilot-chat.usecase';
 import { ConfirmPendingActionUseCase } from '../application/confirm-pending-action.usecase';
@@ -2114,6 +2132,7 @@ import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { Permission } from '../../../common/rbac/permission.enum';
 import { AuthenticatedUser } from '../../../common/auth/authenticated-user';
+import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 
 @Controller('copilot')
 @UseGuards(JwtAuthGuard, PermissionGuard)
@@ -2122,33 +2141,63 @@ export class CopilotController {
     private readonly copilotChatUseCase: CopilotChatUseCase,
     private readonly confirmPendingActionUseCase: ConfirmPendingActionUseCase,
     private readonly cancelPendingActionUseCase: CancelPendingActionUseCase,
+    private readonly idempotency: IdempotencyService,
   ) {}
 
   @Post('conversations/:id/messages')
   @RequirePermission(Permission.RECEIVABLE_READ)
-  async postMessage(@Param('id') conversationId: string, @Body() dto: PostCopilotMessageDto) {
-    return this.copilotChatUseCase.execute({ conversationId, userMessage: dto.content });
+  async postMessage(
+    @Param('id') conversationId: string,
+    @Body() dto: PostCopilotMessageDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+  ) {
+    return this.idempotency.execute(
+      `POST /copilot/conversations/${conversationId}/messages`,
+      idempotencyKey,
+      dto,
+      () => this.copilotChatUseCase.execute({ conversationId, userMessage: dto.content }),
+    );
   }
 
   @Post('actions/:actionId/confirm')
   @RequirePermission(Permission.REMINDER_SEND_MANUAL)
-  async confirm(@Param('actionId') actionId: string, @Req() req: Request) {
+  async confirm(
+    @Param('actionId') actionId: string,
+    @Req() req: Request,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+  ) {
     const user = req.user as AuthenticatedUser;
-    return this.confirmPendingActionUseCase.execute(actionId, user.userId);
+    return this.idempotency.execute(
+      'POST /copilot/actions/:id/confirm',
+      idempotencyKey,
+      { actionId },
+      () => this.confirmPendingActionUseCase.execute(actionId, user.userId),
+    );
   }
 
   @Post('actions/:actionId/cancel')
   @RequirePermission(Permission.REMINDER_SEND_MANUAL)
-  async cancel(@Param('actionId') actionId: string, @Req() req: Request) {
+  async cancel(
+    @Param('actionId') actionId: string,
+    @Req() req: Request,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+  ) {
     const user = req.user as AuthenticatedUser;
-    return this.cancelPendingActionUseCase.execute(actionId, user.userId);
+    return this.idempotency.execute(
+      'POST /copilot/actions/:id/cancel',
+      idempotencyKey,
+      { actionId },
+      () => this.cancelPendingActionUseCase.execute(actionId, user.userId),
+    );
   }
 }
 ```
 
-`postMessage` is gated by `Permission.RECEIVABLE_READ` only — chatting (including seeing a drafted reminder in the assistant's text) requires just read access; `CopilotChatUseCase` itself decides per-message, via `ROLE_PERMISSIONS`, whether the `draftReminderEmail`/`sendReminderEmail` tools are even visible to the model for this user (Task 7). Only the confirm endpoint — the one that can trigger an actual send — is gated by `Permission.REMINDER_SEND_MANUAL`.
+`IdempotencyService.execute<T>(endpoint: string, key: string | undefined, input: unknown, operation: () => Promise<T>)` — 4 params, `endpoint` is a fixed per-route string identifier (not the URL params), `key` is `string | undefined` (optional header, lowercase `idempotency-key`), matching `receivables.controller.ts`'s exact live signature (verified against source during this revision, corrected from an earlier 3-param guess).
 
-- [ ] **Step 4: Create `apps/backend/src/modules/copilot/copilot.module.ts`**
+`postMessage` is gated by `Permission.RECEIVABLE_READ` only — chatting (including seeing a drafted reminder in the assistant's text) requires just read access; `CopilotChatUseCase` itself decides per-message, via `ROLE_PERMISSIONS`, whether the `draftReminderEmail`/`sendReminderEmail` tools are even visible to the model for this user. Only the confirm endpoint — the one that can trigger an actual send — is gated by `Permission.REMINDER_SEND_MANUAL`.
+
+- [ ] **Step 4: Create `copilot.module.ts`**
 
 ```typescript
 import { Module } from '@nestjs/common';
@@ -2156,96 +2205,66 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CopilotConversationOrmEntity } from './infrastructure/copilot-conversation.orm-entity';
 import { CopilotMessageOrmEntity } from './infrastructure/copilot-message.orm-entity';
 import { CopilotPendingActionOrmEntity } from './infrastructure/copilot-pending-action.orm-entity';
+import { CopilotDraftOrmEntity } from './infrastructure/copilot-draft.orm-entity';
 import { AIUsageLogOrmEntity } from './infrastructure/ai-usage-log.orm-entity';
 import { TypeOrmCopilotConversationRepository } from './infrastructure/typeorm-copilot-conversation.repository';
 import { TypeOrmCopilotPendingActionRepository } from './infrastructure/typeorm-copilot-pending-action.repository';
+import { TypeOrmCopilotDraftRepository } from './infrastructure/typeorm-copilot-draft.repository';
 import { TypeOrmAIUsageLogRepository } from './infrastructure/typeorm-ai-usage-log.repository';
+import { OpenAiChatProviderAdapter } from './infrastructure/openai-chat-provider.adapter';
 import { COPILOT_CONVERSATION_REPOSITORY } from './application/conversation-repository.port';
 import { COPILOT_PENDING_ACTION_REPOSITORY } from './application/pending-action-repository.port';
+import { COPILOT_DRAFT_REPOSITORY } from './application/draft-repository.port';
 import { AI_USAGE_LOG_REPOSITORY } from './application/ai-usage-log-repository.port';
-import { ANTHROPIC_CLIENT, anthropicClientFactory } from './application/anthropic-client.provider';
+import { AI_CHAT_PROVIDER } from './application/ai-chat-provider.port';
 import { CopilotToolRegistry } from './application/copilot-tool-registry';
 import { GET_RECEIVABLE_SUMMARY_SCHEMA, GetReceivableSummaryTool } from './application/tools/get-receivable-summary.tool';
-import {
-  GET_COLLECTION_ACTIVITY_TIMELINE_SCHEMA,
-  GetCollectionActivityTimelineTool,
-} from './application/tools/get-collection-activity-timeline.tool';
+import { GET_COLLECTION_ACTIVITY_TIMELINE_SCHEMA, GetCollectionActivityTimelineTool } from './application/tools/get-collection-activity-timeline.tool';
 import { GET_PAYMENT_HISTORY_SCHEMA, GetPaymentHistoryTool } from './application/tools/get-payment-history.tool';
-import {
-  DRAFT_REMINDER_EMAIL_SCHEMA,
-  DraftReminderEmailTool,
-} from './application/tools/draft-reminder-email.tool';
-import {
-  SEND_REMINDER_EMAIL_SCHEMA,
-  SendReminderEmailTool,
-} from './application/tools/send-reminder-email.tool';
+import { DRAFT_REMINDER_EMAIL_SCHEMA, DraftReminderEmailTool } from './application/tools/draft-reminder-email.tool';
+import { SEND_REMINDER_EMAIL_SCHEMA, SendReminderEmailTool } from './application/tools/send-reminder-email.tool';
 import { CopilotChatUseCase } from './application/copilot-chat.usecase';
 import { ConfirmPendingActionUseCase } from './application/confirm-pending-action.usecase';
 import { CancelPendingActionUseCase } from './application/cancel-pending-action.usecase';
 import { CopilotController } from './presentation/copilot.controller';
 import { ReceivablesModule } from '../receivables/receivables.module';
 import { CustomersModule } from '../customers/customers.module';
+import { CollectionActivityModule } from '../collection-activity/collection-activity.module';
+import { PaymentsModule } from '../payments/payments.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { EmailTemplatesModule } from '../email-templates/email-templates.module';
 import { RemindersModule } from '../reminders/reminders.module';
-import { CopilotDraftOrmEntity } from './infrastructure/copilot-draft.orm-entity';
+import { BillingModule } from '../billing/billing.module';
 
 function copilotToolRegistryFactory(): CopilotToolRegistry {
   const registry = new CopilotToolRegistry();
-  registry.register({
-    name: GetReceivableSummaryTool.NAME,
-    description: 'Summarize a customer receivable using precomputed structured data.',
-    inputSchema: GET_RECEIVABLE_SUMMARY_SCHEMA,
-    requiresReminderPermission: false,
-  });
-  registry.register({
-    name: GetCollectionActivityTimelineTool.NAME,
-    description: 'A customer\'s collection activity history.',
-    inputSchema: GET_COLLECTION_ACTIVITY_TIMELINE_SCHEMA,
-    requiresReminderPermission: false,
-  });
-  registry.register({
-    name: GetPaymentHistoryTool.NAME,
-    description: 'A customer\'s payment history.',
-    inputSchema: GET_PAYMENT_HISTORY_SCHEMA,
-    requiresReminderPermission: false,
-  });
-  registry.register({
-    name: DraftReminderEmailTool.NAME,
-    description: 'Create a payment reminder email draft for a receivable — do NOT send the email.',
-    inputSchema: DRAFT_REMINDER_EMAIL_SCHEMA,
-    requiresReminderPermission: true,
-  });
-  registry.register({
-    name: SendReminderEmailTool.NAME,
-    description: 'Propose sending a previously created reminder email draft — the user must separately confirm the actual send.',
-    inputSchema: SEND_REMINDER_EMAIL_SCHEMA,
-    requiresReminderPermission: true,
-  });
+  registry.register({ name: GetReceivableSummaryTool.NAME, description: 'Summarize a customer receivable using precomputed structured data.', inputSchema: GET_RECEIVABLE_SUMMARY_SCHEMA, requiresReminderPermission: false });
+  registry.register({ name: GetCollectionActivityTimelineTool.NAME, description: "A customer's collection activity history.", inputSchema: GET_COLLECTION_ACTIVITY_TIMELINE_SCHEMA, requiresReminderPermission: false });
+  registry.register({ name: GetPaymentHistoryTool.NAME, description: "A customer's payment history.", inputSchema: GET_PAYMENT_HISTORY_SCHEMA, requiresReminderPermission: false });
+  registry.register({ name: DraftReminderEmailTool.NAME, description: 'Create a payment reminder email draft for a receivable — do NOT send the email.', inputSchema: DRAFT_REMINDER_EMAIL_SCHEMA, requiresReminderPermission: true });
+  registry.register({ name: SendReminderEmailTool.NAME, description: 'Propose sending a previously created reminder email draft — the user must separately confirm the actual send.', inputSchema: SEND_REMINDER_EMAIL_SCHEMA, requiresReminderPermission: true });
   return registry;
 }
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      CopilotConversationOrmEntity,
-      CopilotMessageOrmEntity,
-      CopilotPendingActionOrmEntity,
-      CopilotDraftOrmEntity,
-      AIUsageLogOrmEntity,
-    ]),
+    TypeOrmModule.forFeature([CopilotConversationOrmEntity, CopilotMessageOrmEntity, CopilotPendingActionOrmEntity, CopilotDraftOrmEntity, AIUsageLogOrmEntity]),
     ReceivablesModule,
     CustomersModule,
+    CollectionActivityModule,
+    PaymentsModule,
     NotificationsModule,
     EmailTemplatesModule,
     RemindersModule,
+    BillingModule,
   ],
   controllers: [CopilotController],
   providers: [
     { provide: COPILOT_CONVERSATION_REPOSITORY, useClass: TypeOrmCopilotConversationRepository },
     { provide: COPILOT_PENDING_ACTION_REPOSITORY, useClass: TypeOrmCopilotPendingActionRepository },
+    { provide: COPILOT_DRAFT_REPOSITORY, useClass: TypeOrmCopilotDraftRepository },
     { provide: AI_USAGE_LOG_REPOSITORY, useClass: TypeOrmAIUsageLogRepository },
-    { provide: ANTHROPIC_CLIENT, useFactory: anthropicClientFactory },
+    { provide: AI_CHAT_PROVIDER, useClass: OpenAiChatProviderAdapter },
     { provide: CopilotToolRegistry, useFactory: copilotToolRegistryFactory },
     GetReceivableSummaryTool,
     GetCollectionActivityTimelineTool,
@@ -2259,24 +2278,13 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
 export class CopilotModule {}
 ```
 
-`EmailTemplatesModule`/`RemindersModule` are imported directly (no `forwardRef` needed) because neither of those modules imports `CopilotModule` back — the cycle from `2026-08-03-email-notification-service.md`'s reconciliation is strictly between `NotificationsModule` and `RemindersModule`; `CopilotModule` sits outside it as a normal consumer of all three.
+(Confirm the exact export names of `CollectionActivityModule`/`PaymentsModule`/`BillingModule` before wiring — this plan assumes the same `<Domain>Module` naming convention every other module in this file structure already uses; verify rather than guess.)
 
-- [ ] **Step 5: Verify tool registration**
+`EmailTemplatesModule`/`RemindersModule`/`BillingModule` are imported directly (no `forwardRef` needed) because none of them imports `CopilotModule` back.
 
-Confirm the last `registry.register(...)` call in `copilotToolRegistryFactory` uses `SendReminderEmailTool.NAME` and does not require a cast:
+- [ ] **Step 5: Register `CopilotModule` in `app.module.ts`**
 
-```typescript
-  registry.register({
-    name: SendReminderEmailTool.NAME,
-    description: 'Propose sending a previously created reminder email draft — the user must separately confirm the actual send.',
-    inputSchema: SEND_REMINDER_EMAIL_SCHEMA,
-    requiresReminderPermission: true,
-  });
-```
-
-- [ ] **Step 6: Register `CopilotModule` in `apps/backend/src/app.module.ts`**
-
-Add `CopilotModule` to the `imports` array, with `import { CopilotModule } from './modules/copilot/copilot.module';`.
+- [ ] **Step 6: Add the new env vars to `.env.example`** — `AI_PROVIDER_API_KEY`, `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_MODEL` (placeholder values, per this repo's `.env.example` convention).
 
 - [ ] **Step 7: Run full test suite**
 
@@ -2286,329 +2294,46 @@ Expected: all PASS
 - [ ] **Step 8: Commit**
 
 ```bash
-git add apps/backend/src/modules/copilot/presentation apps/backend/src/modules/copilot/copilot.module.ts apps/backend/src/app.module.ts
-git commit -m "feat: wire CopilotController, CopilotModule, and register it in AppModule"
+git add apps/backend/src/modules/copilot/presentation apps/backend/src/modules/copilot/copilot.module.ts apps/backend/src/app.module.ts apps/backend/.env.example
+git commit -m "feat: wire CopilotController (idempotency-wrapped) + CopilotModule, register it in AppModule"
 ```
 
 ---
 
-### Task 10: Integration test — read-only Q&A sends no email; send-reminder flow calls `EmailService.sendReminderEmail` exactly once
+### Task 12: Integration test — multi-round tool loop, confirm/cancel, quota, idempotency
 
 **Files:**
 - Create: `apps/backend/test/copilot-chat.integration.spec.ts`
 
 **Interfaces:**
-- Consumes: full `AppModule` (Tasks 1-9), real Postgres + Redis via testcontainers (`AppModule` boots `BullMQ`/`NotificationsModule` regardless of Copilot, so both containers are required here — same pattern as `2026-08-03-email-notification-service.md` Task 8), mocked `@anthropic-ai/sdk` (never a real API call), mocked `EMAIL_PROVIDER_ADAPTER` (so no real Resend call happens either)
-- Produces: verified end-to-end proof of the two scenarios required by this task, asserted against the REAL `reminder_executions` table (owned by `2026-08-03-reminder-automation.md`) filtered to this test's `receivableId` — not a Copilot-only table
+- Consumes: full `AppModule` (Tasks 1-11), real Postgres + Redis via testcontainers, mocked `IAIChatProvider` (bound via `.overrideProvider(AI_CHAT_PROVIDER)`, never a real network call), mocked `EMAIL_PROVIDER_ADAPTER`
+- Produces: end-to-end proof of the scenarios below, asserted against the REAL `reminder_executions` table
 
-- [ ] **Step 1: Write the integration test**
-
-Create `apps/backend/test/copilot-chat.integration.spec.ts`:
-
-```typescript
-const messagesCreateMock = jest.fn();
-
-jest.mock('@anthropic-ai/sdk', () => {
-  return jest.fn().mockImplementation(() => ({
-    messages: { create: messagesCreateMock },
-  }));
-});
-
-import { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
-import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { GenericContainer, StartedTestContainer } from 'testcontainers';
-import * as request from 'supertest';
-import { DataSource } from 'typeorm';
-import { JwtService } from '@nestjs/jwt';
-import { ReceivableStatus } from '@casso-ledger/shared-types';
-import { AppModule } from '../src/app.module';
-import { EMAIL_PROVIDER_ADAPTER } from '../src/modules/notifications/application/email-provider-adapter.port';
-import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
-import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
-import { OrganizationOrmEntity } from '../src/modules/organizations/infrastructure/organization.orm-entity';
-import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
-import { ReminderExecutionOrmEntity } from '../src/modules/reminders/infrastructure/reminder-execution.orm-entity';
-import { Role } from '../src/modules/organizations/domain/membership';
-
-describe('Collection Copilot (integration)', () => {
-  let postgres: StartedPostgreSqlContainer;
-  let redis: StartedTestContainer;
-  let app: INestApplication;
-  let dataSource: DataSource;
-  let jwtService: JwtService;
-  let token: string;
-
-  const organizationId = '00000000-0000-0000-0000-0000000000a1';
-  const customerId = '00000000-0000-0000-0000-0000000000a2';
-  const receivableId = '00000000-0000-0000-0000-0000000000a3';
-
-  beforeAll(async () => {
-    postgres = await new PostgreSqlContainer('postgres:16').start();
-    redis = await new GenericContainer('redis:7').withExposedPorts(6379).start();
-    process.env.DB_HOST = postgres.getHost();
-    process.env.DB_PORT = String(postgres.getMappedPort(5432));
-    process.env.DB_USERNAME = postgres.getUsername();
-    process.env.DB_PASSWORD = postgres.getPassword();
-    process.env.DB_NAME = postgres.getDatabase();
-    process.env.REDIS_HOST = redis.getHost();
-    process.env.REDIS_PORT = String(redis.getMappedPort(6379));
-
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(EMAIL_PROVIDER_ADAPTER)
-      .useValue({ send: jest.fn().mockResolvedValue({ providerMessageId: 'resend-msg-copilot-1' }) })
-      .compile();
-
-    app = moduleRef.createNestApplication();
-    await app.init();
-
-    dataSource = moduleRef.get(DataSource);
-    jwtService = moduleRef.get(JwtService);
-
-    await dataSource.getRepository(OrganizationOrmEntity).save({
-      id: organizationId,
-      name: 'Casso QA',
-      createdAt: new Date(),
-    });
-    await dataSource.getRepository(MembershipOrmEntity).save({
-      id: '00000000-0000-0000-0000-0000000000a9',
-      organizationId,
-      userId: 'user-1',
-      role: Role.FINANCE_MANAGER,
-      invitedAt: new Date(),
-      joinedAt: new Date(),
-      createdAt: new Date(),
-    });
-    await dataSource.getRepository(CustomerOrmEntity).save({
-      id: customerId,
-      organizationId,
-      name: 'QA Company',
-      taxCode: '000',
-      email: 'qa@example.com',
-      phone: '0900000000',
-      defaultPaymentTermDays: 30,
-      creditLimit: 100_000_000,
-      priority: 1,
-      createdAt: new Date(),
-    });
-    await dataSource.getRepository(ReceivableOrmEntity).save({
-      id: receivableId,
-      organizationId,
-      customerId,
-      invoiceId: null,
-      originalAmount: 20_000_000,
-      paidAmount: 0,
-      dueDate: new Date('2026-07-01'),
-      status: ReceivableStatus.OPEN,
-      salesRepresentativeId: 'user-1',
-      createdAt: new Date('2026-06-01'),
-      closedAt: null,
-      version: 1,
-    });
-
-    token = jwtService.sign({ userId: 'user-1', organizationId, role: Role.FINANCE_MANAGER });
-  }, 60_000);
-
-  afterEach(() => messagesCreateMock.mockReset());
-
-  afterAll(async () => {
-    await app.close();
-    await redis.stop();
-    await postgres.stop();
-  });
-
-  it('answers a read-only question with structured data and sends no email', async () => {
-    messagesCreateMock.mockResolvedValueOnce({
-      content: [
-        {
-          type: 'tool_use',
-          id: 'tu_1',
-          name: 'getReceivableSummary',
-          input: { customerId },
-        },
-      ],
-      stop_reason: 'tool_use',
-      usage: { input_tokens: 10, output_tokens: 5 },
-    });
-    messagesCreateMock.mockResolvedValueOnce({
-      content: [{ type: 'text', text: 'This customer currently has an overdue receivable.' }],
-      stop_reason: 'end_turn',
-      usage: { input_tokens: 20, output_tokens: 10 },
-    });
-
-    const response = await request(app.getHttpServer())
-      .post('/api/v1/copilot/conversations/00000000-0000-0000-0000-0000000000b1/messages')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ content: 'How overdue is this customer?' })
-      .expect(201);
-
-    expect(response.body.pendingAction).toBeNull();
-    expect(response.body.message.content).toContain('overdue');
-
-    const executions = await dataSource.getRepository(ReminderExecutionOrmEntity).find({ where: { receivableId } });
-    expect(executions).toHaveLength(0);
-  });
-
-  it('drafts then proposes a reminder; only the confirm endpoint calls EmailService.sendReminderEmail, exactly once', async () => {
-    messagesCreateMock.mockResolvedValueOnce({
-      content: [
-        { type: 'tool_use', id: 'tu_2', name: 'draftReminderEmail', input: { receivableId, tone: 'polite' } },
-      ],
-      stop_reason: 'tool_use',
-      usage: { input_tokens: 30, output_tokens: 10 },
-    });
-    messagesCreateMock.mockResolvedValueOnce({
-      content: [
-        { type: 'text', text: 'This is a draft; would you like to send it?' },
-      ],
-      stop_reason: 'end_turn',
-      usage: { input_tokens: 40, output_tokens: 15 },
-    });
-
-    const draftResponse = await request(app.getHttpServer())
-      .post('/api/v1/copilot/conversations/00000000-0000-0000-0000-0000000000b2/messages')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ content: 'Draft a reminder email for QA Company' })
-      .expect(201);
-
-    expect(draftResponse.body.pendingAction).toBeNull();
-    expect(draftResponse.body.message.content).toContain('draft');
-
-    // Extract the draftId the tool call produced via a fresh model turn that asks to send it.
-    const draftRow = await dataSource.query(
-      `SELECT id FROM copilot_drafts WHERE "receivableId" = $1 ORDER BY "createdAt" DESC LIMIT 1`,
-      [receivableId],
-    );
-    const draftId = draftRow[0].id;
-
-    messagesCreateMock.mockResolvedValueOnce({
-      content: [
-        { type: 'text', text: 'Proposing to send the reminder email.' },
-        {
-          type: 'tool_use',
-          id: 'tu_3',
-          name: 'sendReminderEmail',
-          input: { draftId, receivableId },
-        },
-      ],
-      stop_reason: 'tool_use',
-      usage: { input_tokens: 50, output_tokens: 20 },
-    });
-
-    const sendResponse = await request(app.getHttpServer())
-      .post('/api/v1/copilot/conversations/00000000-0000-0000-0000-0000000000b2/messages')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ content: 'That is right, send the reminder email now' })
-      .expect(201);
-
-    expect(sendResponse.body.pendingAction).not.toBeNull();
-    expect(messagesCreateMock).toHaveBeenCalledTimes(3); // 1 for the draft turn, 1 for its final text, 1 for the send-proposal turn — loop halted before any 4th call
-    const executionsBeforeConfirm = await dataSource
-      .getRepository(ReminderExecutionOrmEntity)
-      .find({ where: { receivableId } });
-    expect(executionsBeforeConfirm).toHaveLength(0); // proposing never executes anything
-
-    const pendingActionId = sendResponse.body.pendingAction.id;
-    await request(app.getHttpServer())
-      .post(`/api/v1/copilot/actions/${pendingActionId}/confirm`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(201);
-
-    const executionsAfterConfirm = await dataSource
-      .getRepository(ReminderExecutionOrmEntity)
-      .find({ where: { receivableId } });
-    expect(executionsAfterConfirm).toHaveLength(1); // ConfirmPendingActionUseCase creates this row (reminderRuleId: null) before calling EmailService
-    expect(executionsAfterConfirm[0].reminderRuleId).toBeNull();
-
-    // Confirming twice must not be allowed — the second confirm 400s and no second execution row is created.
-    await request(app.getHttpServer())
-      .post(`/api/v1/copilot/actions/${pendingActionId}/confirm`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(400);
-
-    const executionsAfterSecondConfirm = await dataSource
-      .getRepository(ReminderExecutionOrmEntity)
-      .find({ where: { receivableId } });
-    expect(executionsAfterSecondConfirm).toHaveLength(1);
-  });
-
-  it('cancels a proposed reminder without creating an execution', async () => {
-    const before = await dataSource
-      .getRepository(ReminderExecutionOrmEntity)
-      .count({ where: { receivableId } });
-    const draftRow = await dataSource.query(
-      `SELECT id FROM copilot_drafts WHERE "receivableId" = $1 ORDER BY "createdAt" DESC LIMIT 1`,
-      [receivableId],
-    );
-    messagesCreateMock.mockResolvedValueOnce({
-      content: [{ type: 'tool_use', id: 'tu_cancel', name: 'sendReminderEmail', input: { draftId: draftRow[0].id, receivableId } }],
-      stop_reason: 'tool_use',
-      usage: { input_tokens: 10, output_tokens: 5 },
-    });
-
-    const response = await request(app.getHttpServer())
-      .post('/api/v1/copilot/conversations/00000000-0000-0000-0000-0000000000b3/messages')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ content: 'Do not send this email' })
-      .expect(201);
-    const pendingActionId = response.body.pendingAction.id;
-
-    await request(app.getHttpServer())
-      .post(`/api/v1/copilot/actions/${pendingActionId}/cancel`)
-      .set('Authorization', `Bearer ${token}`)
-      .expect(201);
-
-    const after = await dataSource
-      .getRepository(ReminderExecutionOrmEntity)
-      .count({ where: { receivableId } });
-    expect(after).toBe(before);
-  });
-});
-```
+- [ ] **Step 1: Write the integration test covering:**
+  1. A read-only question that triggers 2 tool rounds (e.g. `getReceivableSummary` then `getCollectionActivityTimeline`) before the final answer — asserts `reminderExecutions` stays empty and the mocked provider was called exactly 3 times (2 tool rounds + 1 final).
+  2. Draft → propose-send → confirm: asserts exactly one `ReminderExecution` row is created, `reminderRuleId` is `null`, and a second confirm attempt on the same action 409s via `AppError(CONFLICT)` without creating a second row.
+  3. Draft → propose-send → cancel: asserts no `ReminderExecution` row is created and a second cancel attempt 409s.
+  4. Sending the SAME `Idempotency-Key` header on two concurrent `/confirm` requests for the same action: asserts only one `ReminderExecution` row exists and `EmailService.sendReminderEmail`-equivalent evidence (the mocked email adapter) was invoked once — proves the atomic `confirmIfPending` claim, not just `IdempotencyService`, is what prevents the double-send (this test should race two real concurrent HTTP requests, not two sequential ones, to actually exercise the fix from Task 9).
+  5. Sending 51 chat messages within the same billing period on a FREE-plan organization: the 51st returns 402 `PLAN_LIMIT_EXCEEDED` and the mocked AI provider is never called for that 51st request.
 
 - [ ] **Step 2: Run the integration test**
 
 Run: `pnpm --filter @casso-ledger/backend test:e2e -- copilot-chat.integration.spec.ts`
-Expected: all three tests PASS. The read-only test proves no send, the confirm test proves exactly one execution and rejects a second confirm, and the cancel test proves cancellation creates no execution.
+Expected: all scenarios PASS
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add apps/backend/test/copilot-chat.integration.spec.ts
-git commit -m "test: add end-to-end proof that Copilot sends reminders only via confirm, never mid-chat"
+git commit -m "test: add end-to-end proof of Copilot's multi-round loop, race-safe confirm, and chat-quota gate"
 ```
 
 ---
 
 ## Self-Review Notes
 
-### Reconciliation contract (authoritative)
-
-The tool classes and registry names in this plan must resolve to these exact public names before implementation is considered complete:
-
-```typescript
-type CopilotReadToolName =
-  | 'getReceivableSummary'
-  | 'getCollectionActivityTimeline'
-  | 'getPaymentHistory';
-
-type CopilotActionToolName = 'draftReminderEmail' | 'sendReminderEmail';
-
-interface GetCollectionActivityTimelineInput { customerId: string; limit?: number }
-interface GetPaymentHistoryInput { customerId: string; limit?: number }
-interface CopilotTurnResponseDto {
-  message: CopilotMessageRecord;
-  pendingAction: CopilotPendingAction | null;
-}
-```
-
-`getCollectionActivityTimeline` delegates to the Collection Activity read port and `getPaymentHistory` delegates to the Payment history read port; they are required public tools, not optional follow-up tools. Only the five names in `SAFE_TOOL_NAMES` may be registered or returned in the HTTP DTO.
-
-- **Spec coverage:** Hardcoded, test-proven tool whitelist (spec section 2) → Task 3. Structured-data-only read tools (spec section 1) → Task 4. Draft-then-confirm flow where the model never executes the write (spec section 1 "Key point") → Tasks 5-8, proven end-to-end in Task 10. `AIUsageLog` on every call including errors, 15s timeout + 1 retry (spec section 4) → Task 7's `CopilotChatUseCase.callModel`/`callModelWithRetry`. `CopilotPendingAction` 10-minute expiry (spec section 4) → Task 8. `Permission.REMINDER_SEND_MANUAL` gating both tool visibility and the confirm endpoint (spec section 4) → Tasks 7 and 9. No credentials in prompts/tool responses (spec section 4) → every tool in Tasks 4-6 only ever returns `Receivable`/`Customer`/draft fields, never a `BankConnection` field.
-- **Read-tool ownership:** `getReceivableSummary` adapts the receivable/customer read port, `getCollectionActivityTimeline` adapts the Collection Activity read port, and `getPaymentHistory` adapts the payment-history read port. The Copilot module owns only tool registration and tenant/permission guards; it does not duplicate any domain query or introduce a second persistence contract.
-- **Reconciled with the real Email Template and Reminder Automation plans (2026-08-04 pass):** an earlier version of this plan bound its own `CopilotEmailTemplateRepository`/`TypeOrmCopilotReminderExecutionRepository` to `NotificationsModule`'s then-unbound `EMAIL_TEMPLATE_REPOSITORY`/`REMINDER_EXECUTION_REPOSITORY` tokens, on the theory that no real implementation existed yet. Both `2026-08-03-email-template-management.md` and `2026-08-03-reminder-automation.md` now exist and are already bound into `NotificationsModule` by `2026-08-03-email-notification-service.md`'s own reconciliation — a second `useClass` for the same token was never actually going to work (NestJS resolves one provider per token per module graph, not "whichever module registered it last"), so this was fixed at the design level, not patched around. `ConfirmPendingActionUseCase` (Task 8) now creates one throwaway real `EmailTemplate` row (the draft's already-composed subject/bodyHtml, no `{{}}` tokens, so `RenderEmailTemplateUseCase` is a harmless pass-through) and one real `ReminderExecution` row (`reminderRuleId: null` — reminder-automation.md's Task 2 made this field nullable specifically for this case), then calls `EmailService.sendReminderEmail` exactly as a rule-based reminder would. `CopilotModule` now imports `EmailTemplatesModule`/`RemindersModule` directly (no `forwardRef`, no cycle — neither module imports `CopilotModule` back).
-- **Lazy conversation creation:** the task brief specifies only `POST /api/v1/copilot/conversations/:id/messages`, no separate create-conversation endpoint. `ICopilotConversationRepository.findOrCreate` (Task 2) auto-creates the conversation row scoped to the caller's organization and user id the first time a client posts to a given conversation id, rather than requiring a prior `POST /api/v1/copilot/conversations`. If a future plan wants an explicit "list my conversations" UI, add a `GET /api/v1/copilot/conversations` endpoint and a `findByUserId` method — no changes needed to the auto-create behavior.
-- **Billing/usage-metering gating was left out on purpose:** the target spec's own "Open questions" section (section 6) leaves "should the daily chat-turn limit follow Usage Metering or remain free in the MVP?" explicitly open and unresolved by the spec author. Per this task's instruction to only add plan-gating "if the spec clearly calls for it," this plan treats Copilot chat as free/ungated in the MVP and does not touch `2026-08-03-billing-usage-metering.md`. Wiring a per-organization daily chat-turn cap is a natural follow-up once that open question is resolved — the natural seam is `CopilotChatUseCase.execute`, which already logs every call to `AIUsageLog` and could check a daily count there before calling the model.
-- **Type/token consistency checked:** `EmailService.sendReminderEmail`'s exact signature `{ receivableId, templateId, reminderExecutionId }` (from `2026-08-03-email-notification-service.md` Task 4) is used verbatim in `ConfirmPendingActionUseCase` (Task 8) — no signature drift. `IReceivableRepository`/`ICustomerRepository`'s post-multi-tenancy-plan shape (`findById(id)`, no `organizationId` parameter) is used throughout Tasks 4-6, matching `2026-08-03-multi-tenancy-rbac.md` Task 6's migration exactly. `EmailTemplate`/`ReminderExecution` domain classes and their real `EMAIL_TEMPLATE_REPOSITORY`/`REMINDER_EXECUTION_REPOSITORY` tokens (Task 8) are imported from their owning modules, not redeclared — `ReminderExecution`'s `reminderRuleId: string | null` widening is consumed here exactly as `2026-08-03-reminder-automation.md`'s own Self-Review Notes describe it.
-
-
+- **Spec coverage:** Hardcoded, test-proven tool whitelist (spec section 2) → Task 5. Structured-data-only read tools (spec section 1) → Task 6, now against real repositories/use cases instead of fictional ports. Draft-then-confirm flow where the model never executes the write (spec section 1 "Key point") → Tasks 7-9, proven end-to-end in Task 12, now race-safe. `AIUsageLog` on every call including errors, 15s timeout + 1 retry → Task 10. `CopilotPendingAction` 10-minute expiry → Task 9. `Permission.REMINDER_SEND_MANUAL` gating both tool visibility and the confirm/cancel endpoints → Tasks 10 and 11. No credentials in prompts/tool responses → every tool in Tasks 6-8 only ever returns `Receivable`/`Customer`/draft fields, never a `BankConnection` field. Provider choice and chat-turn gating (spec section 6, both resolved 2026-08-09) → Task 10 and Task 3 respectively.
+- **Architecture correctness (this revision's main fix):** `application/` depends only on ports throughout — `IAIChatProvider` (Task 10), `ICopilotDraftRepository` (Task 4), `IPaymentAllocationRepository`/`ICollectionActivityRepository` (Tasks 1-2). The `openai` SDK is imported in exactly one file (`infrastructure/openai-chat-provider.adapter.ts`). No `@nestjs/common` HTTP exception classes remain in `application/` — every error path is `AppError`. No `application/` file injects a raw TypeORM `Repository<T>`.
+- **Race/idempotency correctness:** `confirmIfPending`/`cancelIfPending` are the only mutators of `CopilotPendingAction.status`, both atomic conditional updates claimed BEFORE any side effect — the double-send TOCTOU from the original draft cannot recur. `/messages`, `/confirm`, `/cancel` all require `Idempotency-Key` and are wrapped in `IdempotencyService.execute`, matching every other side-effecting POST endpoint in this codebase.
+- **No speculative scope:** the original plan's Task 1 (`IReceivableRepository.findByCustomerId`) is gone — `findOpenByCustomerId` already existed and covers `getReceivableSummary`'s exact need. The two genuinely-new repository methods added (Tasks 1-2 of this revision) exist because the capabilities they provide (bounded timeline reads, customer-scoped payment history) had no real backing anywhere in the codebase — not because more surface area seemed nice to have.
+- **Type/token consistency:** `EmailService.sendReminderEmail`'s exact signature `{ receivableId, templateId, reminderExecutionId }` is used verbatim in `ConfirmPendingActionUseCase` (Task 9) — verified against the live source, no drift. `EmailTemplate`'s constructor now includes the required `version: 1` field the original draft omitted (verified against the live `EmailTemplateProps` interface, which added `version` after this plan was first drafted). `ReminderExecutionProps`'s shape was verified to match Task 9's construction exactly, no changes needed there.

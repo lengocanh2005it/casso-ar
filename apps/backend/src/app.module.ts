@@ -22,6 +22,7 @@ import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module
 import { BankConnectionsModule } from './modules/bank-connections/bank-connections.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { CollectionActivityModule } from './modules/collection-activity/collection-activity.module';
+import { CopilotModule } from './modules/copilot/copilot.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { DisputesModule } from './modules/disputes/disputes.module';
 import { EmailTemplatesModule } from './modules/email-templates/email-templates.module';
@@ -73,6 +74,7 @@ import { ReportingModule } from './modules/reporting/reporting.module';
     ReceivablesModule,
     DisputesModule,
     CollectionActivityModule,
+    CopilotModule,
     PaymentsModule,
     UsersModule,
     RemindersModule,

@@ -9,6 +9,7 @@ describe('Subscription', () => {
     expect(subscription.planId).toBe(PlanId.FREE);
     expect(subscription.status).toBe(SubscriptionStatus.ACTIVE);
     expect(subscription.receivableMonthlyLimit).toBe(50);
+    expect(subscription.copilotChatMonthlyLimit).toBe(50);
     expect(subscription.currentPeriodStart).toEqual(
       new Date('2026-08-01T00:00:00.000Z'),
     );
@@ -27,6 +28,17 @@ describe('Subscription', () => {
     expect(subscription.isReceivableLimitReached(49)).toBe(false);
     expect(subscription.isReceivableLimitReached(50)).toBe(true);
     expect(subscription.isReceivableLimitReached(51)).toBe(true);
+  });
+
+  it('reports the Copilot chat limit once usage meets the monthly cap', () => {
+    const subscription = Subscription.createFree(
+      'sub-1',
+      'org-1',
+      new Date('2026-08-15T00:00:00.000Z'),
+    );
+
+    expect(subscription.isCopilotChatLimitReached(49)).toBe(false);
+    expect(subscription.isCopilotChatLimitReached(50)).toBe(true);
   });
 
   it('rolls to the next calendar month once the current period has expired', () => {

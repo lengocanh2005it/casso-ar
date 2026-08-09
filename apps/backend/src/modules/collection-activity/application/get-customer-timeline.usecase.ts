@@ -12,7 +12,10 @@ export class GetCustomerTimelineUseCase {
     private readonly activityRepo: ICollectionActivityRepository,
   ) {}
 
-  async execute(customerId: string): Promise<CollectionActivity[]> {
-    return this.activityRepo.findByCustomerId(customerId);
+  async execute(
+    customerId: string,
+    limit = 100,
+  ): Promise<CollectionActivity[]> {
+    return this.activityRepo.findByCustomerId(customerId, limit);
   }
 }

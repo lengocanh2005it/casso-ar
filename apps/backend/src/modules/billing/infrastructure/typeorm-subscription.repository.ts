@@ -16,6 +16,7 @@ function toOrm(subscription: Subscription): SubscriptionOrmEntity {
     planId: subscription.planId,
     receivableMonthlyLimit: subscription.receivableMonthlyLimit,
     bankConnectionLimit: subscription.bankConnectionLimit,
+    copilotChatMonthlyLimit: subscription.copilotChatMonthlyLimit,
     status: subscription.status,
     currentPeriodStart: subscription.currentPeriodStart,
     currentPeriodEnd: subscription.currentPeriodEnd,
@@ -71,6 +72,19 @@ export class TypeOrmSubscriptionRepository
   ): Promise<number> {
     const rows: Array<{ count: string }> = await manager.query(
       'SELECT COUNT(*) as count FROM receivables WHERE "organizationId" = $1 AND "createdAt" >= $2 AND "createdAt" < $3',
+      [organizationId, periodStart, periodEnd],
+    );
+    return Number(rows[0]?.count ?? 0);
+  }
+
+  async countCopilotChatTurnsInPeriod(
+    organizationId: string,
+    periodStart: Date,
+    periodEnd: Date,
+    manager: EntityManager,
+  ): Promise<number> {
+    const rows: Array<{ count: string }> = await manager.query(
+      'SELECT COUNT(*) as count FROM copilot_messages WHERE "organizationId" = $1 AND role = \'USER\' AND "createdAt" >= $2 AND "createdAt" < $3',
       [organizationId, periodStart, periodEnd],
     );
     return Number(rows[0]?.count ?? 0);
