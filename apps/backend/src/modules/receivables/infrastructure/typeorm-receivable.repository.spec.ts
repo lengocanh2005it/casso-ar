@@ -1,5 +1,5 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
-import { In, IsNull, Not } from 'typeorm';
+import { In, IsNull, LessThanOrEqual, Not } from 'typeorm';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { Role } from '../../organizations/domain/membership';
 import { Receivable } from '../domain/receivable';
@@ -21,6 +21,30 @@ const PROPS = {
 };
 
 describe('TypeOrmReceivableRepository', () => {
+  it('finds open receivables overdue by at least the requested threshold', async () => {
+    const ormRepo = { find: jest.fn().mockResolvedValue([]) };
+    const tenantContext = new TenantContextService();
+    const repository = new TypeOrmReceivableRepository(
+      ormRepo as any,
+      tenantContext,
+    );
+
+    await tenantContext.run(
+      { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+      () => repository.findOverdueByThreshold('org-1', 30),
+    );
+
+    expect(ormRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: 'org-1',
+          status: In([ReceivableStatus.OPEN, ReceivableStatus.PARTIALLY_PAID]),
+          dueDate: expect.objectContaining(LessThanOrEqual(expect.any(Date))),
+        }),
+      }),
+    );
+  });
+
   it('maps a domain Receivable to a plain ORM entity preserving the version', async () => {
     const ormRepo = { save: jest.fn().mockResolvedValue(undefined) };
     const tenantContext = new TenantContextService();

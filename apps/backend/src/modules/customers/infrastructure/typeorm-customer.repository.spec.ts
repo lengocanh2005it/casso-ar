@@ -119,4 +119,24 @@ describe('TypeOrmCustomerRepository', () => {
       where: { email: 'acme@example.com', organizationId: 'org-1' },
     });
   });
+
+  it('finds many customers in one tenant-scoped query', async () => {
+    const ormRepo = { find: jest.fn().mockResolvedValue([PROPS]) };
+    const tenantContext = new TenantContextService();
+    const repo = new TypeOrmCustomerRepository(ormRepo as any, tenantContext);
+
+    await expect(
+      tenantContext.run(
+        { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+        () => repo.findByIds(['cus-1']),
+      ),
+    ).resolves.toEqual(new Map([['cus-1', PROPS]]));
+    expect(ormRepo.find).toHaveBeenCalledWith({
+      select: CUSTOMER_SELECT,
+      where: {
+        id: expect.anything(),
+        organizationId: 'org-1',
+      },
+    });
+  });
 });

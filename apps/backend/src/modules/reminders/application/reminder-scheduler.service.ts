@@ -10,6 +10,10 @@ import {
 } from '../../../common/events/event-publisher.port';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { REMINDER_EXECUTION_REPOSITORY } from '../../../common/tokens/reminder-execution.token';
+import {
+  type IOrganizationRepository,
+  ORGANIZATION_REPOSITORY,
+} from '../../organizations/application/organization-repository.port';
 import { Role } from '../../organizations/domain/membership';
 import {
   ReminderExecutionStatus,
@@ -59,11 +63,13 @@ export class ReminderSchedulerService {
     private readonly tenantContext: TenantContextService,
     @Inject(EVENT_PUBLISHER)
     private readonly eventEmitter: IEventPublisher,
+    @Inject(ORGANIZATION_REPOSITORY)
+    private readonly organizationRepo: IOrganizationRepository,
   ) {}
 
   @Cron('0 1 * * *', { timeZone: REMINDER_TIMEZONE })
   async scan(today: Date = new Date()): Promise<void> {
-    const orgIds = await this.policyRepo.findAllOrganizationIdsForScheduler();
+    const orgIds = await this.organizationRepo.findAllIds();
 
     for (const orgId of orgIds) {
       try {
@@ -94,7 +100,7 @@ export class ReminderSchedulerService {
       const policy = await this.policyRepo.findByCustomerGroup(
         candidate.customerGroup,
       );
-      if (!policy || !policy.isActive) continue;
+      if (!policy?.isActive) continue;
 
       const rules = await this.ruleRepo.findByPolicyId(policy.id);
       const offsetDays = calculateOffsetDays(candidate.dueDate, today);

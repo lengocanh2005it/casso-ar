@@ -170,9 +170,9 @@ describe('AllocatePaymentUseCase', () => {
       customerId: 'cust-1',
       organizationId: 'org-1',
     });
-    expect(eventEmitter.emitAsync).not.toHaveBeenCalledWith(
+    expect(eventEmitter.emitAsync).toHaveBeenCalledWith(
       'receivable.status-closed',
-      expect.anything(),
+      { receivableId: 'rec-1', organizationId: 'org-1' },
     );
   });
 

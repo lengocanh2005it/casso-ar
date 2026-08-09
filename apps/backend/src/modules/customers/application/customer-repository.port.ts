@@ -3,6 +3,7 @@ import type { Customer } from '../domain/customer';
 
 export interface ICustomerRepository {
   findById(id: string, manager?: EntityManager): Promise<Customer | null>;
+  findByIds(ids: string[]): Promise<Map<string, Customer>>;
   findByTaxCode(
     taxCode: string,
     manager?: EntityManager,

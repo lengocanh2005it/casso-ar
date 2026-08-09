@@ -6,6 +6,7 @@ import type {
   FindOptionsWhere,
   Repository,
 } from 'typeorm';
+import { In } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { ICustomerRepository } from '../application/customer-repository.port';
@@ -78,6 +79,16 @@ export class TypeOrmCustomerRepository
     manager?: EntityManager,
   ): Promise<Customer | null> {
     return this.findOneScoped({ id }, manager);
+  }
+
+  async findByIds(ids: string[]): Promise<Map<string, Customer>> {
+    if (ids.length === 0) return new Map();
+    const organizationId = this.tenantContext.getOrganizationId();
+    const rows = await this.ormRepo.find({
+      select: CUSTOMER_SELECT,
+      where: { id: In(ids), organizationId },
+    });
+    return new Map(rows.map((row) => [row.id, toDomain(row)]));
   }
 
   async findByTaxCode(

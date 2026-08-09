@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #7, #8, #9, #10, #12, #13, #17, #18 complete, remaining Plan #11, #14–#16, #19–#23 pending
+**Map mode**: chart — Plan #1, #2, #3, #4, #5, #6, #7, #8, #9, #10, #11, #12, #13, #17, #18 complete, remaining Plan #14–#16, #19–#23 pending
 
 ---
 
@@ -87,9 +87,9 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Ticket Index
 
-**27 plans** | status snapshot (2026-08-08):
-- 🟢 done (15): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #13, Plan #14, Plan #17, Plan #18, Application Layer Boundary Enforcement
-- 🔴 open/not started (12): Plan #11, #12, #15–#16, #19–#23 + Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
+**27 plans** | status snapshot (2026-08-09):
+- 🟢 done (16): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #17, Plan #18, Application Layer Boundary Enforcement
+- 🔴 open/not started (11): Plan #15–#16, #19–#23 + Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
 
 ---
 
@@ -297,18 +297,19 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #11 — Internal Task + Escalation
 - **Type**: task
-- **Status**: open
+- **Status**: done ✅
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-internal-task-escalation-design.md`
 - **Blockers**: none — Plan #1 ✅, Plan #2 ✅
+- **Shipped**: 2026-08-09 — PR #77 implementation complete (pending merge)
 - **Key entities**: `InternalTask` (ESCALATION/MANUAL, OPEN/DONE/DISMISSED)
 - **Key rules**:
-  - Escalation threshold 30 days overdue (hardcoded MVP)
+  - Escalation threshold configurable per active customer-group reminder policy, with a 30-day fallback
   - `receivable.status-closed` = broad terminal event (auto-dismiss)
   - `receivable.closed` = PAID-only
-  - Assigned to first FINANCE_MANAGER
-  - CRUD endpoints for manual tasks
-- **Creates**: `internal-tasks/` module, `RunEscalationScanUseCase`, listeners, controller (4 endpoints)
+  - Assigned to first active FINANCE_MANAGER, falling back to OWNER
+  - Manual assignees must be active organization members; resolve/dismiss is restricted to assignee or OWNER
+- **Creates**: `internal-tasks/` module, `RunEscalationScanUseCase`, listeners, controller (4 endpoints), cancel endpoint, migration
 
 ---
 
@@ -602,7 +603,6 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **Next available tickets** (all blockers resolved):
-- **Plan #11** (Internal Task + Escalation) — blockers: Plan #1 ✅, Plan #2 ✅
 - **Plan #15** (Aging Dashboard + Reporting) — blockers: Plan #1 ✅, Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
 - **Plan #16** (Collection Copilot) — blockers: Plan #2 ✅, Plan #6 ✅, Plan #7 ✅, Plan #10 ✅, Plan #12 ✅
 - **Plan #19** (FE Auth + App Shell) — blockers: Plan #3 ✅, Plan #18 ✅
@@ -612,8 +612,8 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Customer Bank Account Management** — blockers: Plan #8 ✅
 
 **Blocked tickets waiting:**
-- **Plan #20** (FE Core AR Loop) — waiting on Plan #11, Plan #19 (Plan #10, #14 + #17 now shipped)
+- **Plan #20** (FE Core AR Loop) — waiting on Plan #19 (Plan #10, #11, #14 + #17 now shipped)
 - **Plan #21** (FE Reminders, Copilot, Reports, Settings) — waiting on Plan #15, Plan #16, Plan #19 (Plan #12 + #17 now shipped)
 - **Spec-Plan Reconciliation** — waiting on all plans
 
-**Recommended next step:** Plan #16 (Collection Copilot) is the highest-leverage pick now that Plan #12 (Reminder Automation) has shipped — it's the last blocker for Plan #16 and feeds Plan #21. Plan #11 (Internal Task + Escalation) is also unblocked.
+**Recommended next step:** Plan #16 (Collection Copilot) is the highest-leverage pick now that Plan #12 (Reminder Automation) has shipped — it's the last blocker for Plan #16 and feeds Plan #21.

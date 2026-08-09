@@ -14,6 +14,7 @@ function toOrm(policy: ReminderPolicy): ReminderPolicyOrmEntity {
     organizationId: policy.organizationId,
     customerGroup: policy.customerGroup,
     isActive: policy.isActive,
+    escalationThresholdDays: policy.escalationThresholdDays,
     createdAt: policy.createdAt,
   };
 }
@@ -24,6 +25,7 @@ function toDomain(row: ReminderPolicyOrmEntity): ReminderPolicy {
     organizationId: row.organizationId,
     customerGroup: row.customerGroup,
     isActive: row.isActive,
+    escalationThresholdDays: row.escalationThresholdDays,
     createdAt: row.createdAt,
   });
 }
@@ -63,15 +65,6 @@ export class TypeOrmReminderPolicyRepository
     const organizationId = this.tenantContext.getOrganizationId();
     const rows = await this.ormRepo.find({ where: { organizationId } });
     return rows.map(toDomain);
-  }
-
-  async findAllOrganizationIdsForScheduler(): Promise<string[]> {
-    const rows = await this.ormRepo
-      .createQueryBuilder('p')
-      .select('DISTINCT p."organizationId"')
-      .where('p."isActive" = :isActive', { isActive: true })
-      .getRawMany();
-    return rows.map((r: { organizationId: string }) => r.organizationId);
   }
 
   async save(policy: ReminderPolicy, manager?: EntityManager): Promise<void> {

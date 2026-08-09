@@ -32,12 +32,14 @@ describe('ReminderPolicyService', () => {
     const result = await service.create({
       customerGroup: CustomerGroup.VIP,
       isActive: true,
+      escalationThresholdDays: 14,
       rules: [
         { offsetDays: -5, emailTemplateId: 'template-1', minIntervalDays: 7 },
       ],
     });
 
     expect(result.customerGroup).toBe(CustomerGroup.VIP);
+    expect(result.escalationThresholdDays).toBe(14);
     expect(ruleRepo.replaceForPolicy).toHaveBeenCalledWith(
       result.id,
       expect.arrayContaining([expect.objectContaining({ offsetDays: -5 })]),

@@ -16,6 +16,9 @@ export class ReminderPolicyOrmEntity {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
+  @Column({ type: 'int', default: 30 })
+  escalationThresholdDays: number;
+
   @Column({ type: 'timestamptz' })
   createdAt: Date;
 }
