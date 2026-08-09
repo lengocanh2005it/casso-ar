@@ -40,8 +40,11 @@ interface DashboardSummaryResponse {
   topOverdueCustomers: Array<{ customerId: string; customerName: string; totalOverdue: number }>;
   autoMatchRate: number | null;
   manualHandlingRate: number | null;
+  reminderEffectiveness: number | null;
 }
 ```
+
+`GET /api/v1/reports/dashboard-summary` accepts optional `from`/`to` query params (ISO date strings, `from <= to`, max 90-day range — validated, 400 `VALIDATION_ERROR` on violation). Defaults to the current calendar month in `Asia/Ho_Chi_Minh` when omitted. This period scopes `autoMatchRate`/`manualHandlingRate`/`reminderEffectiveness`; the other fields (`totalOutstanding`, `totalOverdue`, `overdueRate`, `cashForecast`, `topOverdueCustomers`) are always "as of now" and unaffected by the period.
 
 `GET /api/v1/reports/aging` returns `AgingReportResponse`; `GET /api/v1/reports/dashboard-summary` returns `DashboardSummaryResponse`. This MVP contract does not use the labels `0-30`/`31-60`/`61-90`/`90+` or the fields `overdueAmount`, `pendingReviewCount`, `openDisputeCount`, `monthReceivedAmount`.
 
@@ -73,21 +76,24 @@ Auto-match rate (for the reporting period):
 Manual handling rate = 1 - Auto-match rate
   (transactions requiring manual Exception Queue handling / total transactions)
 
-Reminder effectiveness:
-  COUNT(Receivable closed as PAID within 7 days after the latest ReminderExecution) /
-  COUNT(ReminderExecution status='SENT') during the period
+Reminder effectiveness (in MVP as of 2026-08-09, resolved per §6):
+  COUNT(Receivable closed as PAID within 7 days after the receivable's latest SENT ReminderExecution) /
+  COUNT(ReminderExecution status='SENT' AND sentAt within the reporting period)
+  — window fixed at 7 days (not "until next send" — avoids an unbounded window when
+    no next execution exists); `sentAt` (actual provider-confirmed send time), not
+    `executionDate` (the scheduled date), scopes "within the period", consistent with
+    how `autoMatchRate` scopes by `BankTransaction.createdAt`.
 ```
 
-`Reminder effectiveness` is a follow-up metric and is not part of the MVP response for `GET /reports/dashboard-summary`; Reminder Automation/Email Notification owns the data and sending pipeline. The formula is retained only as a future extension after the measurement window is finalized.
+`Reminder effectiveness` reads `ReminderExecution`/`Receivable` (owned by Reminder Automation/Email Notification) but is computed here, in Reporting, like every other cross-entity aggregate in this spec — it is part of the MVP `GET /reports/dashboard-summary` response (`reminderEffectiveness: number | null`, §2).
 
 ## 5. Out of scope
 
 - Materialized view / precomputation job—only needed when the data scale far exceeds the demo scope.
 - Forecast adjusted by each customer's historical on-time payment probability.
 - A separate data warehouse (ClickHouse) for reporting—the original document lists this as an open question in section 22; PostgreSQL is sufficient for the MVP.
-- Reminder effectiveness in the MVP dashboard—keep it in Reminder Automation/Email Notification follow-up rather than duplicating the logic in Reporting.
 
-## 6. Open questions (do not block implementation)
+## 6. Resolved decisions (2026-08-09)
 
-- Is a 7-day window after the latest send appropriate for "Reminder effectiveness", or should another period be used (for example, until the next send)?
-- Does the Dashboard need a custom date-range filter, or are fixed periods sufficient (7/14/30 days, current month)?
+- **Reminder effectiveness window**: fixed 7 days after the latest SENT execution (not "until next send" — that would require a self-join to find the next execution per receivable, and produce an unbounded window for receivables with no follow-up send). Included in the MVP dashboard response, not deferred.
+- **Date-range filter**: `GET /reports/dashboard-summary` accepts optional `from`/`to` (validated: ISO date, `from <= to`, max 90-day range) instead of only fixed periods — needed once `autoMatchRate`/`reminderEffectiveness` became period-scoped MVP fields. Default when omitted: current calendar month, `Asia/Ho_Chi_Minh`.
