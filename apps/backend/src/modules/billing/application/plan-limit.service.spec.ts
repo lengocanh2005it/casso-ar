@@ -13,6 +13,7 @@ describe('PlanLimitService', () => {
       planId: PlanId.FREE,
       receivableMonthlyLimit: 5,
       bankConnectionLimit: 1,
+      copilotChatMonthlyLimit: 5,
       status: SubscriptionStatus.ACTIVE,
       currentPeriodStart: new Date('2026-08-01'),
       currentPeriodEnd: new Date('2026-09-01'),
@@ -108,5 +109,25 @@ describe('PlanLimitService', () => {
       service.enforceReceivableLimit(manager),
     ).resolves.toBeUndefined();
     expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('enforces the Copilot chat monthly limit inside the billing period', async () => {
+    const subscription = activeSubscription();
+    const repo = {
+      lockAndFindByOrganizationId: jest.fn().mockResolvedValue(subscription),
+      countCopilotChatTurnsInPeriod: jest.fn().mockResolvedValue(5),
+      save: jest.fn(),
+    };
+    const service = new PlanLimitService(repo as any, tenant as any);
+
+    await expect(
+      service.enforceCopilotChatLimit(manager),
+    ).rejects.toMatchObject({ errorCode: 'PLAN_LIMIT_EXCEEDED' });
+    expect(repo.countCopilotChatTurnsInPeriod).toHaveBeenCalledWith(
+      'org-1',
+      subscription.currentPeriodStart,
+      subscription.currentPeriodEnd,
+      manager,
+    );
   });
 });

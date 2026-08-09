@@ -17,6 +17,12 @@ export interface ISubscriptionRepository {
     periodEnd: Date,
     manager: EntityManager,
   ): Promise<number>;
+  countCopilotChatTurnsInPeriod(
+    organizationId: string,
+    periodStart: Date,
+    periodEnd: Date,
+    manager: EntityManager,
+  ): Promise<number>;
   save(
     subscription: Subscription,
     manager?: EntityManager,

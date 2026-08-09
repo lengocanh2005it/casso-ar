@@ -6,6 +6,7 @@ export interface SubscriptionProps {
   planId: PlanId;
   receivableMonthlyLimit: number;
   bankConnectionLimit: number;
+  copilotChatMonthlyLimit: number;
   status: SubscriptionStatus;
   currentPeriodStart: Date;
   currentPeriodEnd: Date;
@@ -16,7 +17,11 @@ export interface SubscriptionProps {
 // ponytail: FREE only — matches the spec's worked example (50/1). No
 // upgrade/downgrade path reads STARTER/BUSINESS/ENTERPRISE limits yet; add
 // them back (from a real Plan catalog, spec section 10) when one does.
-const FREE_PLAN_LIMITS = { receivableMonthlyLimit: 50, bankConnectionLimit: 1 };
+const FREE_PLAN_LIMITS = {
+  receivableMonthlyLimit: 50,
+  bankConnectionLimit: 1,
+  copilotChatMonthlyLimit: 50,
+};
 
 function startOfMonth(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
@@ -32,6 +37,7 @@ export class Subscription {
   readonly planId: PlanId;
   readonly receivableMonthlyLimit: number;
   readonly bankConnectionLimit: number;
+  readonly copilotChatMonthlyLimit: number;
   readonly status: SubscriptionStatus;
   readonly currentPeriodStart: Date;
   readonly currentPeriodEnd: Date;
@@ -44,6 +50,7 @@ export class Subscription {
     this.planId = props.planId;
     this.receivableMonthlyLimit = props.receivableMonthlyLimit;
     this.bankConnectionLimit = props.bankConnectionLimit;
+    this.copilotChatMonthlyLimit = props.copilotChatMonthlyLimit;
     this.status = props.status;
     this.currentPeriodStart = props.currentPeriodStart;
     this.currentPeriodEnd = props.currentPeriodEnd;
@@ -62,6 +69,7 @@ export class Subscription {
       planId: PlanId.FREE,
       receivableMonthlyLimit: FREE_PLAN_LIMITS.receivableMonthlyLimit,
       bankConnectionLimit: FREE_PLAN_LIMITS.bankConnectionLimit,
+      copilotChatMonthlyLimit: FREE_PLAN_LIMITS.copilotChatMonthlyLimit,
       status: SubscriptionStatus.ACTIVE,
       currentPeriodStart: startOfMonth(now),
       currentPeriodEnd: startOfNextMonth(now),
@@ -72,6 +80,10 @@ export class Subscription {
 
   isReceivableLimitReached(receivablesThisMonth: number): boolean {
     return receivablesThisMonth >= this.receivableMonthlyLimit;
+  }
+
+  isCopilotChatLimitReached(chatTurnsThisMonth: number): boolean {
+    return chatTurnsThisMonth >= this.copilotChatMonthlyLimit;
   }
 
   // ponytail: no renewal cron exists yet (out of scope in the spec); roll the

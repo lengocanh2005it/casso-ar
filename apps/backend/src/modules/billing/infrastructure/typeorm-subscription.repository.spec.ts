@@ -10,6 +10,7 @@ const PROPS = {
   planId: PlanId.FREE,
   receivableMonthlyLimit: 50,
   bankConnectionLimit: 1,
+  copilotChatMonthlyLimit: 50,
   status: SubscriptionStatus.ACTIVE,
   currentPeriodStart: new Date('2026-08-01'),
   currentPeriodEnd: new Date('2026-09-01'),
@@ -21,7 +22,10 @@ describe('TypeOrmSubscriptionRepository', () => {
   it('maps a domain Subscription to a plain ORM entity preserving the version', async () => {
     const ormRepo = { save: jest.fn().mockResolvedValue(undefined) };
     const tenantContext = new TenantContextService();
-    const repo = new TypeOrmSubscriptionRepository(ormRepo as any, tenantContext);
+    const repo = new TypeOrmSubscriptionRepository(
+      ormRepo as any,
+      tenantContext,
+    );
 
     await tenantContext.run(
       { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
