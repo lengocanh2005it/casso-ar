@@ -109,7 +109,7 @@ export class TypeOrmDashboardSummaryRepository
           COALESCE(SUM(r."originalAmount" - r."paidAmount"), 0) AS "totalOverdue"
         FROM receivables r
         JOIN customers c
-          ON c.id = r."customerId" AND c."organizationId" = $1
+          ON c.id::text = r."customerId" AND c."organizationId" = $1
         WHERE r."organizationId" = $1
           AND r.status IN ('OPEN', 'PARTIALLY_PAID')
           AND r."dueDate"::date < CURRENT_DATE
@@ -177,7 +177,7 @@ export class TypeOrmDashboardSummaryRepository
             ) AS "paidWithin7dCount",
             COUNT(*) AS "sentCount"
           FROM reminder_executions re
-          WHERE re."organizationId" = $1
+          WHERE re."organizationId" = $1::uuid
             AND re.status = 'SENT'
             AND re."sentAt" BETWEEN $2 AND $3
         `,
