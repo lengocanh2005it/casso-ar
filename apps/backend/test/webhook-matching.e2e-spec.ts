@@ -9,22 +9,32 @@ import {
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
 import request from 'supertest';
+import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { TenantContextService } from '../src/common/tenancy/tenant-context';
 import { configureApp } from '../src/configure-app';
+import {
+  CUSTOMER_BANK_ACCOUNT_REPOSITORY,
+  type ICustomerBankAccountRepository,
+} from '../src/modules/bank-accounts/application/customer-bank-account-repository.port';
 import { CustomerBankAccountOrmEntity } from '../src/modules/bank-accounts/infrastructure/customer-bank-account.orm-entity';
 import { BankConnectionOrmEntity } from '../src/modules/bank-connections/infrastructure/bank-connection.orm-entity';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
 import { InvoiceStatus } from '../src/modules/invoices/domain/invoice';
 import { InvoiceOrmEntity } from '../src/modules/invoices/infrastructure/invoice.orm-entity';
+import { Role } from '../src/modules/organizations/domain/membership';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { BankTransactionOrmEntity } from '../src/modules/webhooks/infrastructure/bank-transaction.orm-entity';
 import { WebhookInboxOrmEntity } from '../src/modules/webhooks/infrastructure/webhook-inbox.orm-entity';
 
 describe('Webhook matching (e2e)', () => {
   let container: StartedPostgreSqlContainer;
+  let redis: StartedTestContainer;
   let app: INestApplication;
   let dataSource: DataSource;
+  let bankAccountRepo: ICustomerBankAccountRepository;
+  let tenantContext: TenantContextService;
 
   const organizationId = '00000000-0000-0000-0000-0000000000f1';
   const bankConnectionId = '00000000-0000-0000-0000-0000000000f2';
@@ -42,14 +52,17 @@ describe('Webhook matching (e2e)', () => {
   };
 
   beforeAll(async () => {
-    container = await new PostgreSqlContainer('postgres:16').start();
+    [container, redis] = await Promise.all([
+      new PostgreSqlContainer('postgres:16').start(),
+      new GenericContainer('redis:7-alpine').withExposedPorts(6379).start(),
+    ]);
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
-    process.env.REDIS_HOST = 'localhost';
-    process.env.REDIS_PORT = '6379';
+    process.env.REDIS_HOST = redis.getHost();
+    process.env.REDIS_PORT = String(redis.getMappedPort(6379));
     process.env.JWT_SECRET = 'e2e-jwt-secret';
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -79,6 +92,8 @@ describe('Webhook matching (e2e)', () => {
     configureApp(app);
     await app.init();
     dataSource = moduleRef.get(DataSource);
+    bankAccountRepo = moduleRef.get(CUSTOMER_BANK_ACCOUNT_REPOSITORY);
+    tenantContext = moduleRef.get(TenantContextService);
 
     await dataSource.getRepository(BankConnectionOrmEntity).save({
       id: bankConnectionId,
@@ -97,7 +112,7 @@ describe('Webhook matching (e2e)', () => {
 
   afterAll(async () => {
     await app.close();
-    await container.stop();
+    await Promise.all([redis.stop(), container.stop()]);
   });
 
   it('accepts the hook and deduplicates the provider transaction', async () => {
@@ -125,6 +140,45 @@ describe('Webhook matching (e2e)', () => {
       await delay(100);
     }
     expect(count).toBe(1);
+  });
+
+  it('matches normalized active mappings and ignores inactive mappings', async () => {
+    const customerId = '00000000-0000-0000-0000-0000000000f8';
+    const bankAccountId = '00000000-0000-0000-0000-0000000000f9';
+    const ormRepo = dataSource.getRepository(CustomerBankAccountOrmEntity);
+    await dataSource.getRepository(CustomerOrmEntity).save({
+      id: customerId,
+      organizationId,
+      name: 'Company C',
+      taxCode: 'TAX-2',
+      email: 'company-c@example.com',
+      phone: '0900000002',
+      defaultPaymentTermDays: 30,
+      creditLimit: 100_000_000,
+      priority: 1,
+      createdAt: new Date(),
+    });
+    await ormRepo.save({
+      id: bankAccountId,
+      organizationId,
+      customerId,
+      accountNumber: '00001122',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const lookup = () =>
+      tenantContext.run(
+        { userId: 'e2e-user', organizationId, role: Role.OWNER },
+        () => bankAccountRepo.findByAccountNumber(' 0000 1122- '),
+      );
+
+    await expect(lookup()).resolves.toEqual(
+      expect.objectContaining({ customerId }),
+    );
+    await ormRepo.update(bankAccountId, { isActive: false });
+    await expect(lookup()).resolves.toBeNull();
   });
 
   it('processes a high-confidence match through the queue', async () => {

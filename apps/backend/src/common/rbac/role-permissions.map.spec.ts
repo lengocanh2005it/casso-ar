@@ -20,4 +20,22 @@ describe('ROLE_PERMISSIONS', () => {
       Permission.RECEIVABLE_WRITE,
     );
   });
+
+  it('grants bank-account management only to financial write roles', () => {
+    expect(ROLE_PERMISSIONS[Role.OWNER]).toContain(
+      Permission.CUSTOMER_BANK_ACCOUNT_MANAGE,
+    );
+    expect(ROLE_PERMISSIONS[Role.FINANCE_MANAGER]).toContain(
+      Permission.CUSTOMER_BANK_ACCOUNT_MANAGE,
+    );
+    expect(ROLE_PERMISSIONS[Role.ACCOUNTANT]).toContain(
+      Permission.CUSTOMER_BANK_ACCOUNT_MANAGE,
+    );
+    expect(ROLE_PERMISSIONS[Role.SALES_REP]).not.toContain(
+      Permission.CUSTOMER_BANK_ACCOUNT_MANAGE,
+    );
+    expect(ROLE_PERMISSIONS[Role.VIEWER]).not.toContain(
+      Permission.CUSTOMER_BANK_ACCOUNT_MANAGE,
+    );
+  });
 });
