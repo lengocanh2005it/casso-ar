@@ -2,7 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Close the gap between `2026-08-03-testing-strategy-design.md`'s 5 mandatory integration test cases and what other plans already build. Cases 1 (duplicate webhook idempotency) and 2 (partial payment allocation) are already covered elsewhere — this plan only confirms and references them. Case 4 (concurrent optimistic-lock conflict) is owned by `2026-08-03-exception-queue-audit-log.md` — also referenced, not duplicated. This plan adds the two genuinely missing pieces: case 3 (overpayment leftover stays unallocated, no auto-apply) and case 5 (a PARTIALLY_PAID receivable rejects CANCEL), plus the `CancelReceivableUseCase` + `POST /api/v1/receivables/:id/cancel` endpoint that case 5 needs but doesn't yet exist, plus a GitHub Actions CI workflow that runs lint/type-check/unit tests and explicitly runs `test:e2e` against the real Postgres + Redis testcontainers suites.
+> **2026-08-10 rescoping note (grilling session):** This plan was written before `CancelReceivableUseCase`, its controller route, and `.github/workflows/ci.yml` existed. All three now exist, shipped by other plans in the meantime, and are **more robust** than this plan's original sample code (real DB transaction + pessimistic lock + `AppError`/`ErrorCode` + domain event + `@Audited` + idempotency-key handling, vs. the plan's untransacted `HttpException`-throwing sketch). Tasks 2, 3, and 6 below are kept for historical record but are **superseded — do not implement them as written**; see each task's "SUPERSEDED" note. Test file naming has also moved from `*.integration.spec.ts` to `*.e2e-spec.ts` repo-wide (`.claude/rules/testing.md`) since this plan was drafted — Tasks 4/5 below are rewritten against that convention plus the real `AppError` HTTP shape (`{ statusCode, errorCode, message }`) and the real permission the shipped `cancel` route actually requires (`RECEIVABLE_WRITE_OFF`, not `RECEIVABLE_WRITE` as originally guessed). A CI-contract decision was also made this session: `test:e2e` stays local-only (not wired into `.github/workflows/ci.yml`), to avoid the added time/cost of testcontainers on every push — see `2026-08-03-testing-strategy-design.md` §5 for the updated CI contract and reasoning.
+>
+> **What's actually left to build**, post-rescoping: the two genuinely missing integration tests (case 3: overpayment leftover stays unallocated; case 5: CANCEL rejected on a PARTIALLY_PAID receivable) plus a `test:e2e` task in `turbo.json` so it's runnable uniformly via `pnpm turbo run test:e2e` locally. That's it — Tasks 4, 5, and the new Task 7 (turbo task) below are the only tasks with real work remaining.
+
+**Original goal (kept for context):** Close the gap between `2026-08-03-testing-strategy-design.md`'s 5 mandatory integration test cases and what other plans already build. Cases 1 (duplicate webhook idempotency) and 2 (partial payment allocation) are already covered elsewhere — this plan only confirms and references them. Case 4 (concurrent optimistic-lock conflict) is owned by `2026-08-03-exception-queue-audit-log.md` — also referenced, not duplicated. This plan adds the two genuinely missing pieces: case 3 (overpayment leftover stays unallocated, no auto-apply) and case 5 (a PARTIALLY_PAID receivable rejects CANCEL), plus the `CancelReceivableUseCase` + `POST /api/v1/receivables/:id/cancel` endpoint that case 5 needs but doesn't yet exist, plus a GitHub Actions CI workflow that runs lint/type-check/unit tests and explicitly runs `test:e2e` against the real Postgres + Redis testcontainers suites.
 
 **Architecture:** New integration tests are standalone files under `apps/backend/test/`, built against the FULL, RBAC-migrated `AppModule` — `JwtAuthGuard`/`PermissionGuard` applied, `organizationId` read from the JWT via `TenantContextService`, never from the request body (matching `2026-08-03-multi-tenancy-rbac.md`'s final controller shape, not the pre-migration one). `CancelReceivableUseCase` mirrors `WriteOffReceivableUseCase` exactly (`2026-08-03-multi-tenancy-rbac.md` Task 7) — `findById()` with no `organizationId` argument (resolved internally via `TenantContextService`) → domain transition → `save()` — added as a standalone new file, so it does not conflict with that plan's own `receivable-repository.port.ts`/`write-off-receivable.usecase.ts` edits. This plan adds one small, additive modification to `receivables.controller.ts` (a `@Post(':id/cancel')` route using the SAME `@UseGuards(JwtAuthGuard, PermissionGuard)`/`@RequirePermission` pattern the `write-off` route already uses) and `receivables.module.ts` (registering the new use case) — it does not introduce a second, incompatible version of the controller.
 
@@ -20,22 +24,18 @@
 
 ---
 
-## File Structure
+## File Structure (post-rescoping — what's actually left)
 
 ```
 apps/backend/
-  src/modules/receivables/
-    application/
-      cancel-receivable.usecase.ts                    -- NEW
-      cancel-receivable.usecase.spec.ts                -- NEW
-    presentation/
-      receivables.controller.ts                        -- MODIFY: add POST :id/cancel route
-    receivables.module.ts                               -- MODIFY: register CancelReceivableUseCase
   test/
-    overpayment.integration.spec.ts                     -- NEW (case 3)
-    cancel-partially-paid-rejected.integration.spec.ts  -- NEW (case 5)
-.github/workflows/ci.yml                                -- NEW
+    overpayment.e2e-spec.ts                             -- NEW (case 3)
+    cancel-partially-paid-rejected.e2e-spec.ts           -- NEW (case 5)
+turbo.json                                               -- MODIFY: add test:e2e task
+docs/superpowers/specs/2026-08-03-testing-strategy-design.md -- MODIFY: §5 CI contract (done, see spec file)
 ```
+
+Everything under `src/modules/receivables/` and `.github/workflows/ci.yml` already exists — see the rescoping note above.
 
 ---
 
@@ -48,13 +48,13 @@ apps/backend/
 - Consumes: `2026-08-03-project-scaffolding-and-domain-core.md` Task 14, `2026-08-03-webhook-matching-engine.md` Task 10
 - Produces: nothing — this task exists only to record the cross-reference so a future reader doesn't duplicate work
 
-- [ ] **Step 1: Confirm case 2 (partial payment allocation) coverage**
+- [x] **Step 1: Confirm case 2 (partial payment allocation) coverage**
 
-Read `2026-08-03-project-scaffolding-and-domain-core.md` Task 14, file `apps/backend/test/payment-allocation.integration.spec.ts`. It spins up real Postgres + Redis via testcontainers, seeds a `Customer`, creates a `Receivable` via `POST /api/v1/receivables`, creates a `Payment` row directly, then calls `POST /api/v1/payments/:id/allocate` with `amount: 30_000_000` against a `50_000_000` receivable and asserts `status === 'PARTIALLY_PAID'` and `paidAmount === 30_000_000` by querying the `receivables` table directly. This is testing-strategy-design.md section 1 case 2 verbatim (its own docstring says so: "matches testing-strategy-design.md section 1, case 2"). No new test needed for case 2.
+**(2026-08-10: filename corrected)** Covered by `apps/backend/test/payment-allocation.e2e-spec.ts` (renamed from the `.integration.spec.ts` this task originally pointed at — see the repo-wide `*.e2e-spec.ts` convention note at the top of this plan). It spins up a real Postgres testcontainer, seeds a `Customer` + `Membership`, creates a `Receivable` via `POST /api/v1/receivables`, creates a `Payment` row directly, then calls `POST /api/v1/payments/:id/allocate` with `amount: 30_000_000` against a `50_000_000` receivable and asserts `status === 'PARTIALLY_PAID'` and `paidAmount === 30_000_000` by querying the `receivables` table directly. This is testing-strategy-design.md section 1 case 2 verbatim. No new test needed for case 2.
 
-- [ ] **Step 2: Confirm case 1 (duplicate webhook idempotency) coverage**
+- [x] **Step 2: Confirm case 1 (duplicate webhook idempotency) coverage**
 
-Read `2026-08-03-webhook-matching-engine.md` Task 10, file `apps/backend/test/webhook-idempotency.integration.spec.ts`. It POSTs the same `transactionId` to `/webhooks/casso-balance-hook` twice with valid auth headers, asserts the first call enqueues a job and inserts a `WebhookInbox`/`BankTransaction` row, and the second call returns `200 { received: true, duplicate: true }` with no second row created (relying on the `providerTransactionId` unique constraint from Task 2). This is testing-strategy-design.md section 1 case 1 verbatim. No new test needed for case 1.
+**(2026-08-10: filename corrected)** Covered inside `apps/backend/test/webhook-matching.e2e-spec.ts` (the standalone `webhook-idempotency.integration.spec.ts` this task originally pointed at was merged into the matching-engine e2e file at some point after this plan was drafted). It POSTs the same `transactionId` to `/webhooks/casso-balance-hook` twice with valid auth headers, asserts the first call enqueues a job and inserts a `WebhookInbox`/`BankTransaction` row, and the second call returns `200 { received: true, duplicate: true }` with no second row created (relying on the `providerTransactionId` unique constraint). This is testing-strategy-design.md section 1 case 1 verbatim. No new test needed for case 1.
 
 - [ ] **Step 3: Record the cross-reference**
 
@@ -62,7 +62,16 @@ No commit — this task produces no files. The Self-Review Notes section at the 
 
 ---
 
-### Task 2: `CancelReceivableUseCase` (unit test first)
+### Task 2: `CancelReceivableUseCase` (unit test first) — SUPERSEDED, already shipped
+
+**Do not implement this task as written.** `apps/backend/src/modules/receivables/application/cancel-receivable.usecase.ts` and its `.spec.ts` already exist, shipped by another plan before this one was picked up. The shipped version is a strictly better implementation than this task's sample code below:
+
+- Runs inside `DataSource.transaction()` with `receivableRepo.findByIdForUpdate()` (pessimistic row lock) — the sample below has neither transaction nor lock.
+- Throws `AppError(ErrorCode.RECEIVABLE_NOT_FOUND | ErrorCode.RECEIVABLE_HAS_PAYMENTS | ErrorCode.CONFLICT, ...)` with Vietnamese messages, not the sample's `NotFoundException`/`BadRequestException` — `application/` throwing `HttpException` is now forbidden repo-wide (`.claude/rules/application.md`, added by the "Application Layer Boundary Enforcement" plan, which shipped after this plan was drafted but before this task was implemented).
+- Emits `receivable.status-closed` via `IEventPublisher` after commit (feeds the Collection Activity Timeline and Internal Task auto-dismiss listeners).
+- Wired through `@Audited(AuditActionType.RECEIVABLE_CANCEL, ...)` and `IdempotencyService` at the controller (Task 3), neither of which existed as concepts when this task was drafted.
+
+The rest of this task's steps (below) are kept only as a historical record of the original design intent — skip them.
 
 **Files:**
 - Create: `apps/backend/src/modules/receivables/application/cancel-receivable.usecase.spec.ts`
@@ -200,7 +209,11 @@ git commit -m "feat: add CancelReceivableUseCase mapping domain cancel rejection
 
 ---
 
-### Task 3: Expose `POST /api/v1/receivables/:id/cancel`
+### Task 3: Expose `POST /api/v1/receivables/:id/cancel` — SUPERSEDED, already shipped
+
+**Do not implement this task as written.** The route already exists in the real `receivables.controller.ts`, gated by `@RequirePermission(Permission.RECEIVABLE_WRITE_OFF)` — **not** `Permission.RECEIVABLE_WRITE` as this task's Step 1 guessed (the closest-match reasoning at the bottom of Step 1 turned out wrong once implemented; write-off and cancel ended up sharing the narrower, Finance-Manager-oriented permission instead). It's also wrapped in `@Audited(...)` and `IdempotencyService.execute(...)` (reads `Idempotency-Key` header), matching every other mutating route on this controller — concepts this task predates. Tasks 4/5's rewritten tests below assert against the real permission and idempotency-key behavior.
+
+The rest of this task's steps (below) are kept only as a historical record — skip them.
 
 **Files:**
 - Modify: `apps/backend/src/modules/receivables/presentation/receivables.controller.ts`
@@ -284,74 +297,115 @@ git commit -m "feat: expose POST /api/v1/receivables/:id/cancel endpoint"
 
 ### Task 4: Integration test — overpayment leftover stays unallocated (case 3)
 
+**(2026-08-10: rewritten against the real, current e2e conventions — filename, `TypeOrmModule` override to avoid the issue #48 cross-file retry-loop class of bug (fixed in PR #67 by injecting DB config directly instead of relying on shared `process.env`/`ConfigService`), `Membership` seeding required by the real `JwtStrategy` DB re-validation, no `organizationId`/`allocatedByUserId` in request bodies since neither DTO accepts them anymore.)**
+
 **Files:**
-- Create: `apps/backend/test/overpayment.integration.spec.ts`
+- Create: `apps/backend/test/overpayment.e2e-spec.ts`
 
 **Interfaces:**
-- Consumes: full `AppModule`, real Postgres + Redis via testcontainers, `AllocatePaymentUseCase`/`Payment.withAdditionalAllocation` (Domain Core plan Task 11-12), `JwtService` for signing a test bearer token (Multi-tenancy/RBAC plan)
-- Produces: verified end-to-end proof that allocating less than a `Payment`'s `totalAmount` leaves `unallocatedAmount > 0` and that the leftover is never auto-applied to another `Receivable` of the same `Customer` — matches testing-strategy-design.md section 1, case 3
+- Consumes: full `AppModule`, real Postgres via testcontainers (matches `payment-allocation.e2e-spec.ts`'s pattern — no Redis container needed, this path never touches BullMQ), `AllocatePaymentUseCase` (already shipped), `JwtService` for signing a test bearer token
+- Produces: verified end-to-end proof that allocating less than a `Payment`'s `totalAmount` leaves the remainder unallocated and that it is never auto-applied to another `Receivable` of the same `Customer` — matches testing-strategy-design.md section 1, case 3
 
 - [ ] **Step 1: Write the integration test**
 
-Create `apps/backend/test/overpayment.integration.spec.ts`:
+Create `apps/backend/test/overpayment.e2e-spec.ts`, following `apps/backend/test/payment-allocation.e2e-spec.ts`'s exact setup shape (container bootstrap, `TypeOrmModule` override, `configureApp(app)`, `Membership` seeding, env vars for JWT/encryption/webhook secrets):
 
 ```typescript
-import { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
-import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { GenericContainer, StartedTestContainer } from 'testcontainers';
+import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import * as request from 'supertest';
+import { Test } from '@nestjs/testing';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import {
+  PostgreSqlContainer,
+  type StartedPostgreSqlContainer,
+} from '@testcontainers/postgresql';
+import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { configureApp } from '../src/configure-app';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
-import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment.orm-entity';
 import { Role } from '../src/modules/organizations/domain/membership';
+import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
+import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment.orm-entity';
+import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 
-describe('Overpayment allocation (integration)', () => {
+describe('Overpayment allocation (e2e)', () => {
   let container: StartedPostgreSqlContainer;
-  let redis: StartedTestContainer;
   let app: INestApplication;
   let dataSource: DataSource;
   let jwtService: JwtService;
 
-  const organizationId = '00000000-0000-0000-0000-000000000001';
-  let token: string;
-
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16').start();
-    redis = await new GenericContainer('redis:7').withExposedPorts(6379).start();
-
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
-    process.env.REDIS_HOST = redis.getHost();
-    process.env.REDIS_PORT = String(redis.getMappedPort(6379));
+    process.env.REDIS_HOST = 'localhost';
+    process.env.REDIS_PORT = '6379';
+    process.env.JWT_SECRET = 'e2e-jwt-secret';
+    process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    process.env.RESEND_API_KEY = 'e2e-resend-key';
+    process.env.CASSO_WEBHOOK_CLIENT_ID = 'e2e-client';
+    process.env.CASSO_WEBHOOK_SECRET_KEY = 'e2e-secret';
 
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideModule(TypeOrmModule)
+      .useModule(
+        TypeOrmModule.forRoot({
+          type: 'postgres',
+          host: container.getHost(),
+          port: container.getMappedPort(5432),
+          username: container.getUsername(),
+          password: container.getPassword(),
+          database: container.getDatabase(),
+          autoLoadEntities: true,
+          synchronize: true,
+          retryAttempts: 0,
+        }),
+      )
+      .compile();
     app = moduleRef.createNestApplication();
+    configureApp(app);
     await app.init();
     dataSource = moduleRef.get(DataSource);
     jwtService = moduleRef.get(JwtService);
-    token = jwtService.sign({ userId: 'user-1', organizationId, role: Role.OWNER });
   }, 60_000);
 
   afterAll(async () => {
     await app.close();
-    await redis.stop();
     await container.stop();
   });
 
   it('allocating only remainingAmount from a larger payment leaves the rest unallocated and never auto-applies to another receivable', async () => {
-    const customerId = '00000000-0000-0000-0000-000000000002';
-    const userId = '00000000-0000-0000-0000-000000000003';
+    const organizationId = '00000000-0000-4000-8000-000000000101';
+    const customerId = '00000000-0000-4000-8000-000000000102';
+    const userId = '00000000-0000-4000-8000-000000000103';
+
+    await dataSource.getRepository(UserOrmEntity).save({
+      id: userId,
+      name: 'Overpayment Test User',
+      email: 'overpayment-test@example.com',
+      passwordHash: 'test-hash',
+      emailVerifiedAt: new Date(),
+      createdAt: new Date(),
+    });
+    await dataSource.getRepository(MembershipOrmEntity).save({
+      organizationId,
+      userId,
+      role: Role.OWNER,
+      invitedAt: new Date(),
+      joinedAt: new Date(),
+      createdAt: new Date(),
+    });
+    const token = jwtService.sign({ userId, organizationId, role: Role.OWNER });
 
     await dataSource.getRepository(CustomerOrmEntity).save({
       id: customerId,
       organizationId,
-      name: 'Company B',
+      name: 'Công ty B',
       taxCode: '0312345678',
       email: 'ap@congtyb.vn',
       phone: '0900000000',
@@ -365,6 +419,7 @@ describe('Overpayment allocation (integration)', () => {
     const receivableARes = await request(app.getHttpServer())
       .post('/api/v1/receivables')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'overpayment-create-receivable-a')
       .send({
         customerId,
         originalAmount: 50_000_000,
@@ -379,6 +434,7 @@ describe('Overpayment allocation (integration)', () => {
     const receivableBRes = await request(app.getHttpServer())
       .post('/api/v1/receivables')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'overpayment-create-receivable-b')
       .send({
         customerId,
         originalAmount: 100_000_000,
@@ -388,14 +444,15 @@ describe('Overpayment allocation (integration)', () => {
       .expect(201);
     const receivableBId = receivableBRes.body.id;
 
-    const paymentId = '00000000-0000-0000-0000-000000000004';
+    const paymentId = '00000000-0000-4000-8000-000000000104';
     await dataSource.getRepository(PaymentOrmEntity).save({
       id: paymentId,
       organizationId,
+      customerId,
       bankTransactionId: null,
       totalAmount: 80_000_000, // larger than receivableA.remainingAmount (50_000_000)
       allocatedAmount: 0,
-      payerName: 'Company B',
+      payerName: 'Công ty B',
       receivedAt: new Date(),
       createdAt: new Date(),
     });
@@ -404,11 +461,8 @@ describe('Overpayment allocation (integration)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/payments/${paymentId}/allocate`)
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        receivableId: receivableAId,
-        amount: 50_000_000,
-        allocatedByUserId: userId,
-      })
+      .set('Idempotency-Key', 'overpayment-allocate-a')
+      .send({ receivableId: receivableAId, amount: 50_000_000 })
       .expect(201);
 
     const receivableARow = await dataSource.query(
@@ -422,7 +476,8 @@ describe('Overpayment allocation (integration)', () => {
       'SELECT "totalAmount", "allocatedAmount" FROM payments WHERE id = $1',
       [paymentId],
     );
-    const unallocatedAmount = Number(paymentRow[0].totalAmount) - Number(paymentRow[0].allocatedAmount);
+    const unallocatedAmount =
+      Number(paymentRow[0].totalAmount) - Number(paymentRow[0].allocatedAmount);
     expect(unallocatedAmount).toBe(30_000_000);
 
     // Receivable B was never touched by the allocation above.
@@ -434,7 +489,7 @@ describe('Overpayment allocation (integration)', () => {
     expect(Number(receivableBRow[0].paidAmount)).toBe(0);
 
     const allocationRows = await dataSource.query(
-      'SELECT "receivableId" FROM payment_allocations WHERE "paymentId" = $1',
+      'SELECT "receivableId" FROM payment_allocations WHERE "paymentId" = $1 AND "deletedAt" IS NULL',
       [paymentId],
     );
     expect(allocationRows).toHaveLength(1);
@@ -446,11 +501,8 @@ describe('Overpayment allocation (integration)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/payments/${paymentId}/allocate`)
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        receivableId: receivableBId,
-        amount: 30_000_000,
-        allocatedByUserId: userId,
-      })
+      .set('Idempotency-Key', 'overpayment-allocate-b')
+      .send({ receivableId: receivableBId, amount: 30_000_000 })
       .expect(201);
 
     const receivableBRowAfter = await dataSource.query(
@@ -463,68 +515,96 @@ describe('Overpayment allocation (integration)', () => {
 });
 ```
 
-Uses `JwtService.sign(...)` + `Authorization: Bearer` header (the pattern established by `2026-08-03-multi-tenancy-rbac.md` Task 9's own integration test) instead of passing `organizationId` in the request body — the RBAC-migrated `ReceivablesController`/`PaymentsController` (both guarded by `JwtAuthGuard`) reject/ignore a body-supplied `organizationId` since it now comes from the token via `TenantContextService`.
+(`deletedAt` confirmed against `payment-allocation.orm-entity.ts` — `PaymentAllocation`'s soft-delete column.)
 
-- [ ] **Step 2: Verify Docker is available and run the integration test**
+- [ ] **Step 2: Verify Docker is available and run the test**
 
-Run: `pnpm --filter @casso-ledger/backend test:e2e -- overpayment.integration.spec.ts`
+Run: `pnpm --filter @casso-ledger/backend test:e2e -- overpayment.e2e-spec.ts`
 Expected: PASS
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add apps/backend/test/overpayment.integration.spec.ts
-git commit -m "test: add integration test for overpayment leftover not auto-applied (case 3)"
+git add apps/backend/test/overpayment.e2e-spec.ts
+git commit -m "test: add e2e test for overpayment leftover not auto-applied (case 3)"
 ```
 
 ---
 
 ### Task 5: Integration test — CANCEL rejected on PARTIALLY_PAID (case 5)
 
+**(2026-08-10: rewritten — real permission is `RECEIVABLE_WRITE_OFF` not `RECEIVABLE_WRITE`; error shape is `AppError`'s `{ statusCode, errorCode, message }` via `HttpExceptionFilter`, errorCode `RECEIVABLE_HAS_PAYMENTS`, message is Vietnamese ("Không thể hủy khoản phải thu đã nhận thanh toán."), not the plan's original English `BadRequestException` string; cancel route requires `Idempotency-Key` handling like every other mutating route; no Redis container needed, same as Task 4.)**
+
 **Files:**
-- Create: `apps/backend/test/cancel-partially-paid-rejected.integration.spec.ts`
+- Create: `apps/backend/test/cancel-partially-paid-rejected.e2e-spec.ts`
 
 **Interfaces:**
-- Consumes: full `AppModule`, real Postgres + Redis via testcontainers, `CancelReceivableUseCase` + `POST /api/v1/receivables/:id/cancel` (Task 2-3), `JwtService` for signing a test bearer token (Multi-tenancy/RBAC plan)
-- Produces: verified end-to-end proof that a `PARTIALLY_PAID` receivable's CANCEL call is rejected with 400, and that an untouched `OPEN` receivable can still be cancelled — matches testing-strategy-design.md section 1, case 5
+- Consumes: full `AppModule`, real Postgres via testcontainers, already-shipped `CancelReceivableUseCase` + `POST /api/v1/receivables/:id/cancel`, `JwtService` for signing a test bearer token
+- Produces: verified end-to-end proof that a `PARTIALLY_PAID` receivable's CANCEL call is rejected with 400/`RECEIVABLE_HAS_PAYMENTS`, and that an untouched `OPEN` receivable can still be cancelled — matches testing-strategy-design.md section 1, case 5
 
 - [ ] **Step 1: Write the integration test**
 
-Create `apps/backend/test/cancel-partially-paid-rejected.integration.spec.ts`:
+Create `apps/backend/test/cancel-partially-paid-rejected.e2e-spec.ts`, following the same bootstrap shape as Task 4's `overpayment.e2e-spec.ts`:
 
 ```typescript
-import { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
-import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import * as request from 'supertest';
+import { Test } from '@nestjs/testing';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import {
+  PostgreSqlContainer,
+  type StartedPostgreSqlContainer,
+} from '@testcontainers/postgresql';
+import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { configureApp } from '../src/configure-app';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
-import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment.orm-entity';
 import { Role } from '../src/modules/organizations/domain/membership';
+import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
+import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment.orm-entity';
+import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 
-describe('Cancel a PARTIALLY_PAID receivable (integration)', () => {
+describe('Cancel a PARTIALLY_PAID receivable (e2e)', () => {
   let container: StartedPostgreSqlContainer;
-  let redis: StartedTestContainer;
   let app: INestApplication;
   let dataSource: DataSource;
   let jwtService: JwtService;
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16').start();
-    redis = await new GenericContainer('redis:7').withExposedPorts(6379).start();
-
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
-    process.env.REDIS_HOST = redis.getHost();
-    process.env.REDIS_PORT = String(redis.getMappedPort(6379));
+    process.env.REDIS_HOST = 'localhost';
+    process.env.REDIS_PORT = '6379';
+    process.env.JWT_SECRET = 'e2e-jwt-secret';
+    process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
+      '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    process.env.RESEND_API_KEY = 'e2e-resend-key';
+    process.env.CASSO_WEBHOOK_CLIENT_ID = 'e2e-client';
+    process.env.CASSO_WEBHOOK_SECRET_KEY = 'e2e-secret';
 
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideModule(TypeOrmModule)
+      .useModule(
+        TypeOrmModule.forRoot({
+          type: 'postgres',
+          host: container.getHost(),
+          port: container.getMappedPort(5432),
+          username: container.getUsername(),
+          password: container.getPassword(),
+          database: container.getDatabase(),
+          autoLoadEntities: true,
+          synchronize: true,
+          retryAttempts: 0,
+        }),
+      )
+      .compile();
     app = moduleRef.createNestApplication();
+    configureApp(app);
     await app.init();
     dataSource = moduleRef.get(DataSource);
     jwtService = moduleRef.get(JwtService);
@@ -532,20 +612,36 @@ describe('Cancel a PARTIALLY_PAID receivable (integration)', () => {
 
   afterAll(async () => {
     await app.close();
-    await redis.stop();
     await container.stop();
   });
 
   it('rejects POST /api/v1/receivables/:id/cancel once the receivable has received a payment', async () => {
-    const organizationId = '00000000-0000-0000-0000-000000000101';
-    const customerId = '00000000-0000-0000-0000-000000000102';
-    const userId = '00000000-0000-0000-0000-000000000103';
-    const token = jwtService.sign({ userId: 'user-1', organizationId, role: Role.OWNER });
+    const organizationId = '00000000-0000-4000-8000-000000000201';
+    const customerId = '00000000-0000-4000-8000-000000000202';
+    const userId = '00000000-0000-4000-8000-000000000203';
+
+    await dataSource.getRepository(UserOrmEntity).save({
+      id: userId,
+      name: 'Cancel Test User',
+      email: 'cancel-rejected-test@example.com',
+      passwordHash: 'test-hash',
+      emailVerifiedAt: new Date(),
+      createdAt: new Date(),
+    });
+    await dataSource.getRepository(MembershipOrmEntity).save({
+      organizationId,
+      userId,
+      role: Role.OWNER,
+      invitedAt: new Date(),
+      joinedAt: new Date(),
+      createdAt: new Date(),
+    });
+    const token = jwtService.sign({ userId, organizationId, role: Role.OWNER });
 
     await dataSource.getRepository(CustomerOrmEntity).save({
       id: customerId,
       organizationId,
-      name: 'Company C',
+      name: 'Công ty C',
       taxCode: '0398765432',
       email: 'ap@congtyc.vn',
       phone: '0911111111',
@@ -558,6 +654,7 @@ describe('Cancel a PARTIALLY_PAID receivable (integration)', () => {
     const receivableRes = await request(app.getHttpServer())
       .post('/api/v1/receivables')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'cancel-rejected-create-receivable')
       .send({
         customerId,
         originalAmount: 50_000_000,
@@ -567,14 +664,15 @@ describe('Cancel a PARTIALLY_PAID receivable (integration)', () => {
       .expect(201);
     const receivableId = receivableRes.body.id;
 
-    const paymentId = '00000000-0000-0000-0000-000000000104';
+    const paymentId = '00000000-0000-4000-8000-000000000204';
     await dataSource.getRepository(PaymentOrmEntity).save({
       id: paymentId,
       organizationId,
+      customerId,
       bankTransactionId: null,
       totalAmount: 20_000_000,
       allocatedAmount: 0,
-      payerName: 'Company C',
+      payerName: 'Công ty C',
       receivedAt: new Date(),
       createdAt: new Date(),
     });
@@ -582,11 +680,8 @@ describe('Cancel a PARTIALLY_PAID receivable (integration)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/payments/${paymentId}/allocate`)
       .set('Authorization', `Bearer ${token}`)
-      .send({
-        receivableId,
-        amount: 20_000_000,
-        allocatedByUserId: userId,
-      })
+      .set('Idempotency-Key', 'cancel-rejected-allocate')
+      .send({ receivableId, amount: 20_000_000 })
       .expect(201);
 
     const beforeCancelRow = await dataSource.query(
@@ -598,8 +693,12 @@ describe('Cancel a PARTIALLY_PAID receivable (integration)', () => {
     const cancelRes = await request(app.getHttpServer())
       .post(`/api/v1/receivables/${receivableId}/cancel`)
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'cancel-rejected-cancel-attempt')
       .expect(400);
-    expect(cancelRes.body.message).toContain('Cannot cancel a receivable that has received payment');
+    expect(cancelRes.body).toMatchObject({
+      statusCode: 400,
+      errorCode: 'RECEIVABLE_HAS_PAYMENTS',
+    });
 
     const afterCancelRow = await dataSource.query(
       'SELECT status, "paidAmount" FROM receivables WHERE id = $1',
@@ -610,15 +709,32 @@ describe('Cancel a PARTIALLY_PAID receivable (integration)', () => {
   });
 
   it('allows cancelling an OPEN receivable that has never received a payment', async () => {
-    const organizationId = '00000000-0000-0000-0000-000000000201';
-    const customerId = '00000000-0000-0000-0000-000000000202';
-    const userId = '00000000-0000-0000-0000-000000000203';
-    const token = jwtService.sign({ userId: 'user-1', organizationId, role: Role.OWNER });
+    const organizationId = '00000000-0000-4000-8000-000000000301';
+    const customerId = '00000000-0000-4000-8000-000000000302';
+    const userId = '00000000-0000-4000-8000-000000000303';
+
+    await dataSource.getRepository(UserOrmEntity).save({
+      id: userId,
+      name: 'Cancel OK Test User',
+      email: 'cancel-ok-test@example.com',
+      passwordHash: 'test-hash',
+      emailVerifiedAt: new Date(),
+      createdAt: new Date(),
+    });
+    await dataSource.getRepository(MembershipOrmEntity).save({
+      organizationId,
+      userId,
+      role: Role.OWNER,
+      invitedAt: new Date(),
+      joinedAt: new Date(),
+      createdAt: new Date(),
+    });
+    const token = jwtService.sign({ userId, organizationId, role: Role.OWNER });
 
     await dataSource.getRepository(CustomerOrmEntity).save({
       id: customerId,
       organizationId,
-      name: 'Company D',
+      name: 'Công ty D',
       taxCode: '0387654321',
       email: 'ap@congtyd.vn',
       phone: '0922222222',
@@ -631,6 +747,7 @@ describe('Cancel a PARTIALLY_PAID receivable (integration)', () => {
     const receivableRes = await request(app.getHttpServer())
       .post('/api/v1/receivables')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'cancel-ok-create-receivable')
       .send({
         customerId,
         originalAmount: 50_000_000,
@@ -643,6 +760,7 @@ describe('Cancel a PARTIALLY_PAID receivable (integration)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/receivables/${receivableId}/cancel`)
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'cancel-ok-cancel')
       .expect(201);
 
     const row = await dataSource.query(
@@ -654,21 +772,27 @@ describe('Cancel a PARTIALLY_PAID receivable (integration)', () => {
 });
 ```
 
-- [ ] **Step 2: Verify Docker is available and run the integration test**
+- [ ] **Step 2: Verify Docker is available and run the test**
 
-Run: `pnpm --filter @casso-ledger/backend test:e2e -- cancel-partially-paid-rejected.integration.spec.ts`
+Run: `pnpm --filter @casso-ledger/backend test:e2e -- cancel-partially-paid-rejected.e2e-spec.ts`
 Expected: PASS
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add apps/backend/test/cancel-partially-paid-rejected.integration.spec.ts
-git commit -m "test: add integration test rejecting CANCEL on a PARTIALLY_PAID receivable (case 5)"
+git add apps/backend/test/cancel-partially-paid-rejected.e2e-spec.ts
+git commit -m "test: add e2e test rejecting CANCEL on a PARTIALLY_PAID receivable (case 5)"
 ```
 
 ---
 
-### Task 6: GitHub Actions CI workflow
+### Task 6: GitHub Actions CI workflow — SUPERSEDED, do not wire `test:e2e` into CI
+
+**Do not implement this task as written.** `.github/workflows/ci.yml` already exists (shipped by another plan) and runs `pnpm verify` (lint + type-check + unit `test` + `arch-check`) + `pnpm build` on every push/PR — it does not run `test:e2e`, and per the **2026-08-10 grilling-session decision** (see rescoping note at the top of this plan and `2026-08-03-testing-strategy-design.md` §5), it should **stay that way deliberately** — `test:e2e` is local-only, to avoid the added time/cost of spinning testcontainers on every push. Do not add a `test:e2e` step to `ci.yml`. Task 7 below (new) covers the one real remaining piece: making `test:e2e` runnable via `pnpm turbo run test:e2e`, for local use only.
+
+The rest of this task's steps (below) are kept only as a historical record of the design this plan originally intended before the CI-cost tradeoff was decided against — skip them.
+
+**Original task content (superseded):**
 
 **Files:**
 - Create: `.github/workflows/ci.yml`
@@ -732,21 +856,84 @@ git commit -m "ci: add GitHub Actions workflow running lint, type-check, and tes
 
 ---
 
+### Task 7: Add `test:e2e` as a `turbo.json` task (local-only, new)
+
+**Files:**
+- Modify: `turbo.json`
+
+**Interfaces:**
+- Consumes: `apps/backend/package.json`'s existing `test:e2e` script (`jest --config ./test/jest-e2e.json`, already present)
+- Produces: `pnpm turbo run test:e2e`, runnable uniformly across the workspace (today only the backend defines the script, but the task exists at the workspace level so any future package can opt in the same way `test` already works)
+
+`turbo.json` currently defines `build`, `dev`, `lint`, `type-check`, `test`, `arch-check` but no `test:e2e` — running it today only works via `pnpm --filter @casso-ledger/backend test:e2e`, which is what `CLAUDE.local.md`'s "Before Committing" checklist already documents. Adding the turbo task doesn't change that checklist's behavior, it just makes `pnpm turbo run test:e2e` available too, mirroring how `test` is already defined.
+
+- [ ] **Step 1: Add the task to `turbo.json`**
+
+```json
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {},
+    "type-check": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
+    },
+    "test:e2e": {
+      "dependsOn": ["^build"]
+    },
+    "arch-check": {}
+  }
+}
+```
+
+Cacheable, same as `test` — turbo's cache key is the hash of the backend package's own tracked source files (plus the lockfile), not "whether Docker ran." Each real run still spins fresh testcontainers in `beforeAll` regardless of caching; caching only skips re-running the suite when nothing in `apps/backend`'s source changed since the last successful run, exactly like `test` already does. Editing files outside that package (e.g. `docs/`) doesn't touch the hash, so it was never going to force a rerun either way.
+
+- [ ] **Step 2: Run it locally to confirm the task resolves and executes the real e2e suite**
+
+Run: `pnpm turbo run test:e2e` (Docker must be running)
+Expected: turbo invokes `apps/backend`'s `test:e2e` script; all e2e suites pass (including the two new ones from Tasks 4-5)
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add turbo.json
+git commit -m "chore: add test:e2e turbo task for local-only testcontainers e2e runs"
+```
+
+---
+
 ## Self-Review Notes
 
-**Mapping of all 5 mandatory testing-strategy-design.md section 1 cases:**
+**Mapping of all 5 mandatory testing-strategy-design.md section 1 cases (updated 2026-08-10):**
 
-1. **Duplicate webhook idempotency** — covered by `2026-08-03-webhook-matching-engine.md` Task 10, `apps/backend/test/webhook-idempotency.integration.spec.ts`. Confirmed in this plan's Task 1, Step 2. Not duplicated here.
-2. **Partial payment allocation** — covered by `2026-08-03-project-scaffolding-and-domain-core.md` Task 14, `apps/backend/test/payment-allocation.integration.spec.ts`. Confirmed in this plan's Task 1, Step 1. Not duplicated here.
-3. **Overpayment leftover stays unallocated, no auto-apply** — NOT previously covered. Added in this plan's Task 4, `apps/backend/test/overpayment.integration.spec.ts`.
-4. **Concurrent optimistic-lock conflict on `BankTransaction.version`** — owned by `2026-08-03-exception-queue-audit-log.md` section 1 (that plan explicitly names `BankTransaction.version`, already scaffolded with `@VersionColumn()` in `2026-08-03-webhook-matching-engine.md` Task 3, as the field the conflict test exercises). Not duplicated here — this plan takes no action on case 4 beyond this note.
-5. **CANCEL rejected on PARTIALLY_PAID** — NOT previously covered (the domain method `Receivable.cancel()` already existed and already threw the right error per Domain Core plan Task 9, but no HTTP endpoint exposed it). Added in this plan's Task 2 (`CancelReceivableUseCase`), Task 3 (`POST /api/v1/receivables/:id/cancel` route), and Task 5 (`apps/backend/test/cancel-partially-paid-rejected.integration.spec.ts`).
+1. **Duplicate webhook idempotency** — covered, `apps/backend/test/webhook-matching.e2e-spec.ts` (renamed/merged from the file this plan's Task 1 originally pointed at). Confirmed, not duplicated.
+2. **Partial payment allocation** — covered, `apps/backend/test/payment-allocation.e2e-spec.ts` (renamed from `.integration.spec.ts`). Confirmed, not duplicated.
+3. **Overpayment leftover stays unallocated, no auto-apply** — was NOT covered as of 2026-08-10. Added by this plan's Task 4, `apps/backend/test/overpayment.e2e-spec.ts`.
+4. **Concurrent optimistic-lock conflict on `BankTransaction.version`** — covered, `apps/backend/test/exception-queue.e2e-spec.ts` (`'lets exactly one of two concurrent match requests succeed'`, asserts `[201, 409]`). Owned by `2026-08-03-exception-queue-audit-log.md`, shipped since this plan was drafted. Not duplicated here.
+5. **CANCEL rejected on PARTIALLY_PAID** — the behavior (`CancelReceivableUseCase` throwing `AppError(ErrorCode.RECEIVABLE_HAS_PAYMENTS)`) already shipped, but was NOT covered by a dedicated e2e test as of 2026-08-10. Added by this plan's Task 5, `apps/backend/test/cancel-partially-paid-rejected.e2e-spec.ts`.
 
-**Design decisions worth flagging:**
+**2026-08-10 grilling-session decisions (superseding the original design decisions below):**
 
-- **Reconciled with the RBAC-migrated controller (2026-08-04 pass):** an earlier version of this plan built `POST /api/v1/receivables/:id/cancel` against the Domain Core plan's PRE-`2026-08-03-multi-tenancy-rbac.md` `ReceivablesController` shape (no guards, `organizationId` in the request body) on the theory that this kept the diff independent of that plan's parallel edits. In the actual implementation order, `multi-tenancy-rbac.md` runs before this plan and already replaces `ReceivablesController` with the guarded, `TenantContextService`-based version (`create` + `write-off`, `@RequirePermission` per route) — building against the older shape would have produced a controller state that never actually exists once both plans are applied in order. Fixed: `CancelReceivableUseCase.execute(receivableId)` now takes no `organizationId` parameter (matches `WriteOffReceivableUseCase` exactly), the controller diff in Task 3 is additive on top of the RBAC-migrated file, gated by `@RequirePermission(Permission.RECEIVABLE_WRITE)` (reusing the existing permission, no new one added), and Tasks 4-5's integration tests now sign a JWT (`JwtService.sign(...)`) and send it as a `Bearer` token instead of putting `organizationId` in request bodies the guarded controllers no longer read from there.
-- `CancelReceivableUseCase` translates the domain's plain `Error` into `BadRequestException`/`NotFoundException` at the use case layer (not in `domain/`, keeping the "domain never imports NestJS" constraint intact) — this is a new, small, deliberate design choice not present in `WriteOffReceivableUseCase` (which lets the plain `Error` bubble up), added specifically because case 5 needs a real HTTP status code to assert against in the integration test.
+- `CancelReceivableUseCase` + `POST /api/v1/receivables/:id/cancel` (originally this plan's Tasks 2-3) shipped independently, before this plan was picked up for implementation, as part of a later plan's work — with a transaction + pessimistic lock + `AppError`/`ErrorCode` + domain event + `@Audited` + idempotency-key handling that this plan never specified. See the SUPERSEDED notes on Tasks 2 and 3 above. Nothing to build there.
+- CI (`.github/workflows/ci.yml`) will **not** run `test:e2e` — decided against, for time/cost reasons (spinning testcontainers on every push). `test:e2e` is local-only, made runnable via `pnpm turbo run test:e2e` by this plan's new Task 7. `2026-08-03-testing-strategy-design.md` §5 was updated to reflect this as the CI contract, reversing its original wording (which mandated CI run `test:e2e`).
+- Test file naming moved from `*.integration.spec.ts` to `*.e2e-spec.ts` repo-wide since this plan was drafted (`.claude/rules/testing.md`) — Tasks 4-5 above use the current convention.
+- The real `cancel` route requires `Permission.RECEIVABLE_WRITE_OFF`, not `Permission.RECEIVABLE_WRITE` as this plan originally guessed in Task 3.
+- Issue #48 (e2e cross-file flakiness when multiple testcontainer-backed suites run in the same Jest worker) was found, tracked, and fixed by PR #67 — no longer a blocker to trusting `pnpm turbo run test:e2e` locally.
+
+**Original design decisions (kept for historical context — see above for what actually shipped):**
+
+- **Reconciled with the RBAC-migrated controller (2026-08-04 pass):** an earlier version of this plan built `POST /api/v1/receivables/:id/cancel` against the Domain Core plan's PRE-`2026-08-03-multi-tenancy-rbac.md` `ReceivablesController` shape (no guards, `organizationId` in the request body) on the theory that this kept the diff independent of that plan's parallel edits. In the actual implementation order, `multi-tenancy-rbac.md` runs before this plan and already replaces `ReceivablesController` with the guarded, `TenantContextService`-based version (`create` + `write-off`, `@RequirePermission` per route) — building against the older shape would have produced a controller state that never actually exists once both plans are applied in order.
 - The overpayment test (Task 4) demonstrates "no auto-apply" by allocating the leftover to a second receivable in a **separate, explicit** API call and asserting it only happens because that call was made — proving the system has no background/automatic reallocation logic, not merely that a single call didn't reallocate by accident.
-- CI workflow (Task 6) needs no Docker-in-Docker service: GitHub's `ubuntu-latest` hosted runners ship a native Docker Engine already reachable at `/var/run/docker.sock`, which `testcontainers-node` uses automatically — dind is only relevant when the job itself runs inside a container (`jobs.<id>.container:`), which this workflow does not use. The workflow nevertheless runs `pnpm turbo run test:e2e` explicitly, so the real Postgres + Redis suites cannot be skipped by a generic `test` task. This resolves the open question in testing-strategy-design.md section 5.
+- The original Task 6 correctly identified that GitHub's `ubuntu-latest` hosted runners ship a native Docker Engine already reachable at `/var/run/docker.sock` (no Docker-in-Docker needed) — that finding stays true and would apply if the CI-wiring decision is revisited later, but per the 2026-08-10 decision above, it's moot for now.
 
 
