@@ -68,7 +68,7 @@ describe('DeleteEmailTemplateUseCase', () => {
     expect(templateRepo.delete).not.toHaveBeenCalled();
   });
 
-  it('deletes the template when the reminder_rules table does not exist yet (Postgres 42P01)', async () => {
+  it('propagates a missing reminder table error instead of deleting the template', async () => {
     const templateRepo = {
       findById: jest.fn().mockResolvedValue(buildTemplate(false)),
       delete: jest.fn(),
@@ -81,9 +81,11 @@ describe('DeleteEmailTemplateUseCase', () => {
       dataSource as any,
     );
 
-    await useCase.execute('tpl-1');
+    await expect(useCase.execute('tpl-1')).rejects.toMatchObject({
+      code: '42P01',
+    });
 
-    expect(templateRepo.delete).toHaveBeenCalledWith('tpl-1');
+    expect(templateRepo.delete).not.toHaveBeenCalled();
   });
 
   it('deletes the template when no reminder rule references it', async () => {
@@ -135,7 +137,9 @@ describe('DeleteEmailTemplateUseCase', () => {
     await useCase.execute('tpl-1');
 
     expect(dataSource.query).toHaveBeenCalledWith(
-      expect.stringContaining('JOIN reminder_policies'),
+      expect.stringContaining(
+        'JOIN reminder_policies p ON p.id::text = r."reminderPolicyId" WHERE r."emailTemplateId" = $1 AND p."organizationId" = $2',
+      ),
       ['tpl-1', 'org-1'],
     );
   });
