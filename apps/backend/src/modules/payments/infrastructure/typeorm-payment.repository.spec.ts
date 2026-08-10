@@ -16,6 +16,35 @@ const PROPS = {
 };
 
 describe('TypeOrmPaymentRepository', () => {
+  it('normalizes PostgreSQL bigint strings before constructing a domain Payment', async () => {
+    const ormRepo = { save: jest.fn().mockResolvedValue(undefined) };
+    const manager = {
+      findOne: jest.fn().mockResolvedValue({
+        ...PROPS,
+        totalAmount: '80000000',
+        allocatedAmount: '50000000',
+      }),
+    };
+    const tenantContext = new TenantContextService();
+    const repo = new TypeOrmPaymentRepository(ormRepo as any, tenantContext);
+
+    const payment = await tenantContext.run(
+      { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+      () => repo.findByIdForUpdate('pay-1', manager as any),
+    );
+
+    expect(payment).toEqual(
+      expect.objectContaining({
+        totalAmount: 80_000_000,
+        allocatedAmount: 50_000_000,
+      }),
+    );
+    expect(payment?.unallocatedAmount).toBe(30_000_000);
+    expect(payment?.withAdditionalAllocation(30_000_000).allocatedAmount).toBe(
+      80_000_000,
+    );
+  });
+
   it('maps a domain Payment to a plain ORM entity', async () => {
     const ormRepo = { save: jest.fn().mockResolvedValue(undefined) };
     const tenantContext = new TenantContextService();

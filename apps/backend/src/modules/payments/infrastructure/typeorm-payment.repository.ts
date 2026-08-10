@@ -23,6 +23,17 @@ function toOrm(payment: Payment): PaymentOrmEntity {
   };
 }
 
+// The `pg` driver returns `bigint` columns as strings (to avoid silent
+// precision loss above Number.MAX_SAFE_INTEGER), so bigint money columns
+// must be coerced back to number before reaching the domain layer.
+function fromOrm(row: PaymentOrmEntity): Payment {
+  return new Payment({
+    ...row,
+    totalAmount: Number(row.totalAmount),
+    allocatedAmount: Number(row.allocatedAmount),
+  });
+}
+
 @Injectable()
 export class TypeOrmPaymentRepository
   extends BaseRepository<PaymentOrmEntity>
@@ -45,7 +56,7 @@ export class TypeOrmPaymentRepository
       where: { id, organizationId },
       lock: { mode: 'pessimistic_write' },
     });
-    return row ? new Payment(row) : null;
+    return row ? fromOrm(row) : null;
   }
 
   async save(payment: Payment, manager?: EntityManager): Promise<void> {
