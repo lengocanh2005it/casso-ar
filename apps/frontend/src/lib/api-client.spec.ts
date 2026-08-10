@@ -81,6 +81,20 @@ describe('AuthTokenManager', () => {
     );
   });
 
+  it('dispatches the plan-limit event for HTTP 402 responses', async () => {
+    const handler = vi.fn();
+    window.addEventListener('casso:plan-limit', handler);
+    const error = { response: { status: 402 } };
+    requestMock.mockRejectedValue(error);
+
+    await expect(
+      apiRequest({ url: '/api/v1/receivables', method: 'POST' }),
+    ).rejects.toBe(error);
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    window.removeEventListener('casso:plan-limit', handler);
+  });
+
   it('revokes the refresh session during logout', async () => {
     postMock.mockResolvedValue({ data: {} });
 
