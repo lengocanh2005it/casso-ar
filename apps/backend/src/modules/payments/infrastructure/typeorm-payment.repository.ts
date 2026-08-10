@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, Repository } from 'typeorm';
+import { Raw } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import type { IPaymentRepository } from '../application/payment-repository.port';
+import type {
+  CustomerCreditRow,
+  IPaymentRepository,
+} from '../application/payment-repository.port';
 import { Payment } from '../domain/payment';
 import { PaymentOrmEntity } from './payment.orm-entity';
 
@@ -57,6 +61,23 @@ export class TypeOrmPaymentRepository
       lock: { mode: 'pessimistic_write' },
     });
     return row ? fromOrm(row) : null;
+  }
+
+  async findUnallocatedByCustomerId(
+    customerId: string,
+  ): Promise<CustomerCreditRow[]> {
+    const rows = await this.scopedFindMany(
+      {
+        customerId,
+        totalAmount: Raw((alias) => `${alias} > "allocatedAmount"`),
+      },
+      { order: { receivedAt: 'ASC', id: 'ASC' } },
+    );
+
+    return rows.map((row) => {
+      const payment = fromOrm(row);
+      return { payment, unallocatedAmount: payment.unallocatedAmount };
+    });
   }
 
   async save(payment: Payment, manager?: EntityManager): Promise<void> {

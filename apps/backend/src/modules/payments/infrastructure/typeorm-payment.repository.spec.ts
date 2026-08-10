@@ -65,4 +65,40 @@ describe('TypeOrmPaymentRepository', () => {
     const saved = ormRepo.save.mock.calls[0][0];
     expect(saved).not.toBeInstanceOf(Payment);
   });
+
+  it('returns only the current tenant customer payments with a positive unallocated rollup', async () => {
+    const ormRepo = {
+      find: jest.fn().mockResolvedValue([
+        {
+          id: 'pay-1',
+          organizationId: 'org-1',
+          customerId: 'cus-1',
+          bankTransactionId: null,
+          totalAmount: 25_000_000,
+          allocatedAmount: 20_000_000,
+          payerName: 'Công ty B',
+          receivedAt: new Date('2026-08-01'),
+          createdAt: new Date('2026-08-01'),
+        },
+      ]),
+    };
+    const tenantContext = new TenantContextService();
+    const repo = new TypeOrmPaymentRepository(ormRepo as any, tenantContext);
+
+    const rows = await tenantContext.run(
+      { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+      () => repo.findUnallocatedByCustomerId('cus-1'),
+    );
+
+    expect(ormRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: 'org-1',
+          customerId: 'cus-1',
+        }),
+        order: { receivedAt: 'ASC', id: 'ASC' },
+      }),
+    );
+    expect(rows[0].unallocatedAmount).toBe(5_000_000);
+  });
 });
