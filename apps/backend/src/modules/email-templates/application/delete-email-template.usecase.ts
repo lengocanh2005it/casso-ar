@@ -7,8 +7,6 @@ import {
   type IEmailTemplateRepository,
 } from './email-template-repository.port';
 
-const POSTGRES_UNDEFINED_TABLE_ERROR_CODE = '42P01';
-
 @Injectable()
 export class DeleteEmailTemplateUseCase {
   constructor(
@@ -43,31 +41,14 @@ export class DeleteEmailTemplateUseCase {
     await this.templateRepo.delete(id);
   }
 
-  // ASSUMPTION: assumes a `reminder_rules` table with an `emailTemplateId`
-  // column, per the Reminder Automation design (ReminderRule.emailTemplateId).
-  // That plan has not been implemented yet, so the table may not exist. If it
-  // doesn't (Postgres error 42P01 "undefined_table"), there is nothing that
-  // could reference this template yet — allow the delete. Once the Reminder
-  // Automation plan creates the real table, this same query starts enforcing
-  // the guard for real with no code change here.
   private async isReferencedByReminderRule(
     templateId: string,
     organizationId: string,
   ): Promise<boolean> {
-    try {
-      const rows: Array<{ count: number }> = await this.dataSource.query(
-        'SELECT COUNT(*)::int AS count FROM reminder_rules WHERE "emailTemplateId" = $1 AND "organizationId" = $2',
-        [templateId, organizationId],
-      );
-      return Number(rows[0]?.count ?? 0) > 0;
-    } catch (error) {
-      if (
-        (error as { code?: string }).code ===
-        POSTGRES_UNDEFINED_TABLE_ERROR_CODE
-      ) {
-        return false;
-      }
-      throw error;
-    }
+    const rows: Array<{ count: number }> = await this.dataSource.query(
+      'SELECT COUNT(*)::int AS count FROM reminder_rules r JOIN reminder_policies p ON p.id::text = r."reminderPolicyId" WHERE r."emailTemplateId" = $1 AND p."organizationId" = $2',
+      [templateId, organizationId],
+    );
+    return Number(rows[0]?.count ?? 0) > 0;
   }
 }

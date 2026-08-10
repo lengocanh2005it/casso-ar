@@ -3,6 +3,11 @@ import { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import {
+  PostgreSqlContainer,
+  type StartedPostgreSqlContainer,
+} from '@testcontainers/postgresql';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
@@ -17,6 +22,7 @@ import { EmailTemplateOrmEntity } from '../src/modules/email-templates/infrastru
 import { EMAIL_PROVIDER_ADAPTER } from '../src/modules/notifications/application/email-provider-adapter.port';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
+import { OrganizationOrmEntity } from '../src/modules/organizations/infrastructure/organization.orm-entity';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import type { IReminderExecutionRepository } from '../src/modules/reminders/application/reminder-execution-repository.port';
 import type { IReminderPolicyRepository } from '../src/modules/reminders/application/reminder-policy-repository.port';
@@ -47,11 +53,18 @@ async function waitUntil(
 }
 
 describe('Reminder automation (integration)', () => {
+  let container: StartedPostgreSqlContainer | undefined;
   let app: INestApplication;
   let dataSource: DataSource;
   let jwtService: JwtService;
 
   beforeAll(async () => {
+    container = await new PostgreSqlContainer('postgres:16').start();
+    process.env.DB_HOST = container.getHost();
+    process.env.DB_PORT = String(container.getMappedPort(5432));
+    process.env.DB_USERNAME = container.getUsername();
+    process.env.DB_PASSWORD = container.getPassword();
+    process.env.DB_DATABASE = container.getDatabase();
     process.env.REDIS_HOST = 'localhost';
     process.env.REDIS_PORT = '6379';
     process.env.JWT_SECRET = 'e2e-jwt-secret';
@@ -60,15 +73,23 @@ describe('Reminder automation (integration)', () => {
     process.env.RESEND_API_KEY = 'e2e-resend-key';
     process.env.CASSO_WEBHOOK_CLIENT_ID = 'e2e-client';
     process.env.CASSO_WEBHOOK_SECRET_KEY = 'e2e-secret';
-    process.env.DB_HOST = 'localhost';
-    process.env.DB_PORT = '5432';
-    process.env.DB_USERNAME = 'postgres';
-    process.env.DB_PASSWORD = 'casso';
-    process.env.DB_DATABASE = 'casso_ledger';
-
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     })
+      .overrideModule(TypeOrmModule)
+      .useModule(
+        TypeOrmModule.forRoot({
+          type: 'postgres',
+          host: container.getHost(),
+          port: container.getMappedPort(5432),
+          username: container.getUsername(),
+          password: container.getPassword(),
+          database: container.getDatabase(),
+          autoLoadEntities: true,
+          synchronize: true,
+          retryAttempts: 0,
+        }),
+      )
       .overrideProvider(EMAIL_PROVIDER_ADAPTER)
       .useValue(fakeEmailProvider)
       .compile();
@@ -81,11 +102,19 @@ describe('Reminder automation (integration)', () => {
 
   afterAll(async () => {
     await app?.close();
+    await container?.stop();
   });
 
   async function setUpOrg(organizationId: string) {
     const userId = '00000000-0000-4000-8000-000000000100';
     const customerId = '00000000-0000-4000-8000-000000000101';
+    const now = new Date();
+
+    await dataSource.getRepository(OrganizationOrmEntity).save({
+      id: organizationId,
+      name: `Reminder Test ${organizationId.slice(-4)}`,
+      createdAt: now,
+    });
 
     await dataSource.getRepository(UserOrmEntity).save({
       id: userId,

@@ -10,9 +10,14 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
+import { EMAIL_PROVIDER_ADAPTER } from '../src/modules/notifications/application/email-provider-adapter.port';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
+
+const fakeEmailProvider = {
+  send: jest.fn().mockResolvedValue({ providerMessageId: 'fake-msg-id' }),
+};
 
 describe('Email Template Management (integration)', () => {
   let container: StartedPostgreSqlContainer;
@@ -58,6 +63,8 @@ describe('Email Template Management (integration)', () => {
           retryAttempts: 0,
         }),
       )
+      .overrideProvider(EMAIL_PROVIDER_ADAPTER)
+      .useValue(fakeEmailProvider)
       .compile();
     app = moduleRef.createNestApplication();
     configureApp(app);
