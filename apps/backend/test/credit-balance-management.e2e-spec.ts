@@ -365,4 +365,66 @@ describe('Customer credit balance (e2e)', () => {
 
     expect(res.body.errorCode).toBe('ALLOCATION_EXCEEDS_UNALLOCATED');
   });
+
+  it('rejects allocating a credit to a receivable of a different customer with 400', async () => {
+    const financeToken = token(financeManagerId, organizationA);
+    const creditCustomerId = await createCustomer(organizationA);
+    const otherCustomerId = await createCustomer(organizationA);
+    const paymentId = await seedPayment(
+      organizationA,
+      creditCustomerId,
+      5_000_000,
+    );
+    const receivableId = await createReceivable(
+      organizationA,
+      otherCustomerId,
+      5_000_000,
+    );
+
+    const res = await request(app.getHttpServer())
+      .post(`/api/v1/payments/${paymentId}/allocate`)
+      .set('Authorization', `Bearer ${financeToken}`)
+      .set('Idempotency-Key', `cross-customer-${randomUUID()}`)
+      .send({ receivableId, amount: 1_000_000 })
+      .expect(400);
+
+    expect(res.body.errorCode).toBe('CUSTOMER_MISMATCH');
+  });
+
+  it('lets exactly one of two concurrent allocations against the same payment succeed', async () => {
+    const financeToken = token(financeManagerId, organizationA);
+    const customerId = await createCustomer(organizationA);
+    // Payment has just enough credit for one of the two concurrent requests.
+    const paymentId = await seedPayment(organizationA, customerId, 5_000_000);
+    const receivableA = await createReceivable(
+      organizationA,
+      customerId,
+      5_000_000,
+    );
+    const receivableB = await createReceivable(
+      organizationA,
+      customerId,
+      5_000_000,
+    );
+
+    const [first, second] = await Promise.all([
+      request(app.getHttpServer())
+        .post(`/api/v1/payments/${paymentId}/allocate`)
+        .set('Authorization', `Bearer ${financeToken}`)
+        .set('Idempotency-Key', `race-a-${randomUUID()}`)
+        .send({ receivableId: receivableA, amount: 5_000_000 }),
+      request(app.getHttpServer())
+        .post(`/api/v1/payments/${paymentId}/allocate`)
+        .set('Authorization', `Bearer ${financeToken}`)
+        .set('Idempotency-Key', `race-b-${randomUUID()}`)
+        .send({ receivableId: receivableB, amount: 5_000_000 }),
+    ]);
+
+    expect([first.status, second.status].sort()).toEqual([201, 400]);
+    const finalCredit = await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerId}/credits`)
+      .set('Authorization', `Bearer ${financeToken}`)
+      .expect(200);
+    expect(finalCredit.body.totalAvailableAmount).toBe(0);
+  });
 });

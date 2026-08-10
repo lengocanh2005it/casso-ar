@@ -153,10 +153,24 @@ export class AllocatePaymentUseCase {
     let updatedReceivable: typeof receivable;
     try {
       updatedReceivable = receivable.applyPaymentAllocation(input.amount);
-    } catch {
+    } catch (error) {
+      // Receivable.applyPaymentAllocation() throws a plain Error for two
+      // distinct reasons (status not open for allocation, amount exceeds
+      // remainingAmount) — a single blanket ErrorCode would mislabel the
+      // status case as an amount problem, misleading the FE's errorCode
+      // switch (AGENTS.md: "the FE switches on errorCode").
+      if (
+        error instanceof Error &&
+        error.message.includes('exceeds remaining amount')
+      ) {
+        throw new AppError(
+          ErrorCode.ALLOCATION_EXCEEDS_REMAINING,
+          'Số tiền phân bổ vượt quá số tiền còn lại của khoản phải thu.',
+        );
+      }
       throw new AppError(
-        ErrorCode.ALLOCATION_EXCEEDS_REMAINING,
-        'Số tiền phân bổ vượt quá số tiền còn lại của khoản phải thu.',
+        ErrorCode.CONFLICT,
+        'Không thể phân bổ vào khoản phải thu ở trạng thái hiện tại.',
       );
     }
 

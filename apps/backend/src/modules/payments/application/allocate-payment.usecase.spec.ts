@@ -375,6 +375,49 @@ describe('AllocatePaymentUseCase', () => {
     expect(paymentRepo.save).not.toHaveBeenCalled();
   });
 
+  it('maps allocation against a closed receivable to CONFLICT, not ALLOCATION_EXCEEDS_REMAINING', async () => {
+    const receivable = buildReceivable();
+    const closedReceivable = new Receivable({
+      ...receivable,
+      status: ReceivableStatus.WRITTEN_OFF,
+    });
+    const payment = buildPayment();
+    const receivableRepo = {
+      findByIdForUpdate: jest.fn().mockResolvedValue(closedReceivable),
+      save: jest.fn(),
+    };
+    const paymentRepo = {
+      findByIdForUpdate: jest.fn().mockResolvedValue(payment),
+      save: jest.fn(),
+    };
+    const allocationRepo = { save: jest.fn() };
+    const dataSource = {
+      transaction: jest.fn((cb: (m: EntityManager) => Promise<void>) =>
+        cb({} as EntityManager),
+      ),
+    };
+    const useCase = new AllocatePaymentUseCase(
+      receivableRepo as any,
+      paymentRepo as any,
+      allocationRepo as any,
+      dataSource as any,
+      { getOrganizationId: () => 'org-1' } as any,
+      { setBefore: jest.fn(), setAfter: jest.fn() } as any,
+      { emit: jest.fn(), emitAsync: jest.fn() } as any,
+    );
+
+    await expect(
+      useCase.execute({
+        paymentId: payment.id,
+        receivableId: closedReceivable.id,
+        amount: 1_000_000,
+        allocatedByUserId: 'u1',
+      }),
+    ).rejects.toMatchObject({ errorCode: ErrorCode.CONFLICT });
+    expect(receivableRepo.save).not.toHaveBeenCalled();
+    expect(paymentRepo.save).not.toHaveBeenCalled();
+  });
+
   it('maps a payment over-allocation to ALLOCATION_EXCEEDS_UNALLOCATED instead of an unhandled error', async () => {
     const receivable = buildReceivable();
     const payment = buildPayment();
