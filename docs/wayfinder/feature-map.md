@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Map mode**: chart — Plan #1–#20 complete, remaining Plan #21–#23 pending
+**Map mode**: chart — Plan #1–#21 complete, remaining Plan #22–#23 pending
 
 ---
 
@@ -497,10 +497,11 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #21 — FE Reminders, Copilot, Reports, Settings
 - **Type**: task
-- **Status**: in-progress
+- **Status**: done ✅
 - **Owner**: FE
 - **Plan**: `plans/2026-08-03-fe-reminders-copilot-reports-settings.md`
 - **Blockers**: Plan #4 ✅, Plan #5 ✅, Plan #6 ✅, Plan #7 ✅, Plan #12 ✅, Plan #15 ✅, Plan #16 ✅, Plan #17 ✅, Plan #18 ✅, Plan #19 ✅
+- **Shipped**: 2026-08-10 — PR #82, branch `feat/fe-reminders-copilot-reports-settings`, closes issue #32
 - **Key rules**:
   - Reminders: policy + executions list
   - Copilot: chat message list + pending-action cards (confirm/cancel)
@@ -510,6 +511,7 @@ Success = a single document a new developer can read and know exactly what to pi
   - 402 handling → upgrade prompt
   - No conversation list (fresh per session for Copilot)
 - **Creates**: Reminder pages, Copilot chat, Reports dashboard, Bank Connection page, Settings tabs
+- **Implementation note**: plan revised in a 2026-08-10 grilling session — Task 1 (`lib/plan.ts`) dropped in favor of the existing `lib/plan-access.ts`; Copilot nav `minPlan` corrected from an undocumented `BUSINESS` drift back to `STARTER` (the original design-system spec decision); `sidebar.tsx` hardcoded-`FREE` bug fixed; reminder-policy RBAC corrected from `RECEIVABLE_WRITE` to `REMINDER_POLICY_WRITE`; `PATCH /reminder-policies/:id` documented/implemented as a full-body update; `escalationThresholdDays` field added; Copilot confirm/cancel response types corrected to match the real backend (no shared wrapper); `DashboardSummary.reminderEffectiveness` and `EmailTemplate.reminderStage`/`updatedAt` added. During implementation, a real backend gap was found and fixed: `GET /reminder-policies` didn't return each policy's `rules`, needed by the full-body PATCH toggle — fixed with a batched, tenant-scoped lookup (no N+1). Two post-implementation fix passes: a `code-review` wave (Copilot chat could get permanently stuck for a user without `REMINDER_SEND_MANUAL`) and a Web Interface Guidelines wave (billing plan label, 3 tables moved to the shared shadcn `Table`, URL state for the reminders filter and settings tab).
 
 ---
 
@@ -618,7 +620,6 @@ Success = a single document a new developer can read and know exactly what to pi
 - None
 
 **Next available tickets** (all blockers resolved):
-- **Plan #21** (FE Reminders, Copilot, Reports, Settings) — blockers: Plan #4 ✅, Plan #5 ✅, Plan #6 ✅, Plan #7 ✅, Plan #12 ✅, Plan #15 ✅, Plan #16 ✅, Plan #17 ✅, Plan #18 ✅, Plan #19 ✅
 - **Plan #22** (Testing Strategy + CI) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #8 ✅, Plan #13 ✅
 - **Plan #23** (Deployment + Observability) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #18 ✅
 - **Credit Balance Management** — blockers: Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
@@ -627,4 +628,4 @@ Success = a single document a new developer can read and know exactly what to pi
 **Blocked tickets waiting:**
 - **Spec-Plan Reconciliation** — waiting on all plans
 
-**Recommended next step:** Plan #21 (FE Reminders, Copilot, Reports, Settings).
+**Recommended next step:** Plan #22 (Testing Strategy + CI).
