@@ -60,8 +60,9 @@ Do not write integration tests for every simple CRUD operation (basic Customer/I
 
 ## 5. CI contract
 
-- CI uses a GitHub Actions runner with a Docker daemon and explicitly runs `pnpm turbo run test` and `pnpm turbo run test:e2e`; `test:e2e` must run testcontainers suites with real PostgreSQL + Redis.
-- Local and CI must not downgrade testcontainers to mocks or use only shared service containers that hide environment differences.
+- CI (`.github/workflows/ci.yml`) runs `pnpm verify` (lint + type-check + unit `test` + `arch-check`) and `pnpm build` on every push/PR. It does **not** run `test:e2e`.
+- **2026-08-10 decision (Plan #22 grilling session):** `test:e2e` (testcontainers suites against real PostgreSQL + Redis) stays a **local-only** command (`pnpm --filter @casso-ledger/backend test:e2e`), not wired into CI — deliberately, to avoid the added time/cost of spinning testcontainers on every push. `turbo.json` still gets a `test:e2e` task so it's runnable uniformly via `pnpm turbo run test:e2e`, just never invoked by the CI workflow. Revisit if CI minutes/cost stop being a concern, or once GitHub Actions Docker-layer caching is evaluated.
+- Local `test:e2e` must not downgrade testcontainers to mocks or use only shared service containers that hide environment differences.
 
 ## 6. Open questions (do not block implementation)
 

@@ -87,10 +87,10 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Ticket Index
 
-**27 plans** | status snapshot (2026-08-09):
-- 🟢 done (20): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Application Layer Boundary Enforcement
+**27 plans** | status snapshot (2026-08-10):
+- 🟢 done (23): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Application Layer Boundary Enforcement
 - 🟡 in-progress (0): none
-- 🔴 open/not started (7): #20–#23 + Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
+- 🔴 open/not started (4): Plan #23, Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
 
 ---
 
@@ -521,16 +521,17 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #22 — Testing Strategy + CI
 - **Type**: task
-- **Status**: open
+- **Status**: done ✅
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-testing-strategy-design.md`
 - **Blockers**: none — Plan #1 ✅, Plan #7 ✅, Plan #8 ✅, Plan #13 ✅
 - **Key rules**:
-  - Testcontainers for real Postgres + Redis
-  - `turbo run verify` in CI (lint + type-check + test)
-  - Missing integration tests: overpayment leftover, PARTIALLY_PAID reject cancel
-  - Domain errors translated to HTTP in use case layer
-- **Creates**: `CancelReceivableUseCase`, GitHub Actions CI workflow, missing integration tests
+  - Testcontainers for real Postgres (+ a real local Redis on `localhost:6379` for suites that exercise BullMQ directly, e.g. `reminder-automation.e2e-spec.ts` — those don't spin their own Redis testcontainer)
+  - `test:e2e` stays **local-only**, not wired into `.github/workflows/ci.yml` — 2026-08-10 grilling-session decision, to avoid testcontainers cost on every push; CI runs `pnpm verify` + `pnpm build` only
+  - `CancelReceivableUseCase` + `POST /api/v1/receivables/:id/cancel` were already shipped by earlier work (transaction + pessimistic lock + `AppError` + domain event), not new to this plan
+  - Domain errors translated via `AppError`/`ErrorCode` in the use case layer, not raw `HttpException`
+- **Creates**: `overpayment.e2e-spec.ts` (case 3), `cancel-partially-paid-rejected.e2e-spec.ts` (case 5), `test:e2e` turbo task
+- **Implementation note**: this ticket's own spec/plan (`2026-08-03-testing-strategy-design.md`/`2026-08-03-testing-strategy.md`) were stale — a 2026-08-10 grilling session found `CancelReceivableUseCase`/its endpoint/`ci.yml` already shipped (more robustly than the plan's sample code) and the CI-wiring task (`test:e2e` in CI) decided against for cost reasons; both docs were rewritten to match. Real remaining work was just the 2 missing integration tests (case 3: overpayment leftover stays unallocated; case 5: CANCEL rejected on PARTIALLY_PAID) plus a `test:e2e` turbo task. While writing case 3's e2e test against a real Postgres container, found and fixed a real money-integrity bug: `TypeOrmPaymentRepository.findByIdForUpdate()` passed Postgres's string-typed `bigint` columns straight into `new Payment(row)`, making `unallocatedAmount = totalAmount - allocatedAmount` a string concatenation instead of a subtraction — fixed with a `fromOrm()` mapper (regression-tested). The branch was also rebased onto `main`'s same-day `fix: stabilize reminder automation and email template e2e` (5ee924f) partway through, since it landed on `main` after this worktree was created. Full local `pnpm turbo run test:e2e` (20 suites) is 19/20 reliable — `reminder-automation.e2e-spec.ts` passes standalone (12/12) but intermittently times out only when run as part of the full batched suite (pre-existing cross-file flakiness in the same class as issue #48, untouched by this branch, not part of this ticket's scope) — worth its own follow-up issue.
 
 ---
 
@@ -620,7 +621,6 @@ Success = a single document a new developer can read and know exactly what to pi
 - None
 
 **Next available tickets** (all blockers resolved):
-- **Plan #22** (Testing Strategy + CI) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #8 ✅, Plan #13 ✅
 - **Plan #23** (Deployment + Observability) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #18 ✅
 - **Credit Balance Management** — blockers: Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
 - **Customer Bank Account Management** — blockers: Plan #8 ✅
@@ -628,4 +628,4 @@ Success = a single document a new developer can read and know exactly what to pi
 **Blocked tickets waiting:**
 - **Spec-Plan Reconciliation** — waiting on all plans
 
-**Recommended next step:** Plan #22 (Testing Strategy + CI).
+**Recommended next step:** Plan #23 (Deployment + Observability) — Lane D's other remaining ticket. `reminder-automation.e2e-spec.ts`'s cross-file flakiness in the full batched `test:e2e` run (see Plan #22's implementation note) is worth its own tracked follow-up issue but isn't a blocker for any of the above.
