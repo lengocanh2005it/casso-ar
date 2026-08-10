@@ -211,6 +211,13 @@ The `Co-authored-by: Orca <help@stably.ai>` trailer is added automatically by th
 ```bash
 git worktree add .worktrees/feat/<ticket-name> -b feat/<ticket-name>
 ```
+(Or an equivalent tool, e.g. `orca worktree create`.)
+
+1b. **Copy gitignored local env files into the new worktree** — `apps/backend/.env` (and any other untracked `.env*` needed to run tests/dev) is never copied by `git worktree add` or Orca's worktree creation, since git never tracked it in the first place:
+```bash
+cp apps/backend/.env .worktrees/feat/<ticket-name>/apps/backend/.env
+```
+Skipping this causes confusing, environment-only failures later (e.g. backend e2e tests failing with "JWT_SECRET is required" or similar config errors that have nothing to do with the code change).
 
 2. **Work in that worktree**, NOT on `main`
 
