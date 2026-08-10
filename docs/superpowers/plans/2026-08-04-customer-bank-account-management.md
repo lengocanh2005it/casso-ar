@@ -336,8 +336,10 @@ git commit -m "feat: authorize and audit customer bank account management"
 - Modify: `apps/backend/src/modules/bank-accounts/bank-accounts.module.ts`
 
 **Interfaces:**
-- Consumes: `ICustomerRepository.findById`, `ICustomerBankAccountRepository`, `TenantContextService`, `AuditContextService`, `normalizeAccountNumber`, and the existing Nest exception conventions.
+- Consumes: `ICustomerRepository.findById`, `ICustomerBankAccountRepository`, `TenantContextService`, `AuditContextService`, `normalizeAccountNumber`, and `AppError`/`ErrorCode`.
 - Produces: four injectable use cases with the input/output contracts used by Task 4.
+
+**(2026-08-10 correction, caught before implementation: application-layer code in this repo must throw `AppError(ErrorCode, message)`, never NestJS's `NotFoundException`/`ConflictException`/`BadRequestException` directly — see `AGENTS.md`'s Error Handling section and `apps/backend/src/common/errors/app-error.ts`/`http-exception.filter.ts`, which is the single place that translates `AppError` → HTTP status via a status map (`ErrorCode.NOT_FOUND` → 404, `ErrorCode.VALIDATION_ERROR` → 400, `ErrorCode.CONFLICT` → 409 already exist and cover every case this ticket needs — no new `ErrorCode` values required). Every `NotFoundException(...)`/`ConflictException(...)`/`BadRequestException(...)` reference below is replaced with the matching `AppError`.)**
 
 - [ ] **Step 1: Write failing use-case tests**
 
@@ -378,7 +380,7 @@ it('deactivates without deleting the row and remains idempotent', async () => {
 });
 ```
 
-Also test missing customer/mapping (`NotFoundException`), cross-tenant access through the scoped repositories, update with neither field (`BadRequestException`), immutable `customerId`, and raw-account masking in audit snapshots.
+Also test missing customer/mapping (`AppError` with `ErrorCode.NOT_FOUND`), cross-tenant access through the scoped repositories, update with neither field (`AppError` with `ErrorCode.VALIDATION_ERROR`), immutable `customerId`, and raw-account masking in audit snapshots. Assert on `error.errorCode`, not just the message string, matching how other use case specs in this codebase assert (e.g. `expect(error).toBeInstanceOf(AppError); expect(error.errorCode).toBe(ErrorCode.NOT_FOUND)`).
 
 - [ ] **Step 2: Run the use-case tests and verify they fail**
 
@@ -400,28 +402,28 @@ Return type:
 
 Algorithm:
 
-1. `customerRepo.findById(input.customerId)`; throw `NotFoundException('Customer not found')` when null.
-2. Normalize `input.accountNumber`.
+1. `customerRepo.findById(input.customerId)`; throw `new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy khách hàng.')` when null (Vietnamese message, matching every other use case's user-facing text — see `cancel-receivable.usecase.ts` for the convention).
+2. Normalize `input.accountNumber` (catch `normalizeAccountNumber`'s thrown plain `Error` and rethrow as `new AppError(ErrorCode.VALIDATION_ERROR, 'Số tài khoản không hợp lệ.')`).
 3. Call `findByAccountNumber(normalized)` only as a friendly pre-check.
-4. Throw `ConflictException('Account number is already mapped')` when a row exists.
+4. Throw `new AppError(ErrorCode.CONFLICT, 'Số tài khoản này đã được gán cho một khách hàng.')` when a row exists.
 5. Create a UUID-backed domain object with `isActive: true` and save it.
 6. Set masked audit before/after state using the existing audit context.
-7. Translate a database unique-constraint error into the same `ConflictException` so concurrent creates are safe.
+7. Translate a database unique-constraint error (Postgres code `23505`, same `QueryFailedError` check pattern `IdempotencyService`/other repositories already use) into the same `AppError(ErrorCode.CONFLICT, ...)` so concurrent creates are safe.
 
 - [ ] **Step 5: Implement update and deactivate**
 
 Update algorithm:
 
-1. Find the row by ID and verify `row.customerId === input.customerId`; otherwise throw `NotFoundException`.
-2. Reject an empty patch.
-3. Normalize a supplied account number and reject a different existing mapping with `ConflictException`.
+1. Find the row by ID and verify `row.customerId === input.customerId`; otherwise throw `new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy tài khoản ngân hàng.')`.
+2. Reject an empty patch with `new AppError(ErrorCode.VALIDATION_ERROR, 'Vui lòng cung cấp ít nhất một trường để cập nhật.')`.
+3. Normalize a supplied account number and reject a different existing mapping with `new AppError(ErrorCode.CONFLICT, ...)` (same message/handling as create, including the `23505` translation).
 4. Apply `changeAccountNumber()` and/or `setActive()`.
 5. Save once and record masked before/after audit state.
 
 Deactivate algorithm:
 
-1. Find and customer-check the row.
-2. If already inactive, return it without changing `updatedAt` or creating a duplicate audit event.
+1. Find and customer-check the row (same `AppError(ErrorCode.NOT_FOUND, ...)` as update, step 1).
+2. If already inactive, return it as-is (still record the audit event — see the rescoping note at the top of this plan on why the no-op case is still audited, not suppressed).
 3. Otherwise call `deactivate()`, save, and record the deactivate audit state.
 
 - [ ] **Step 6: Register use cases and import dependencies**
