@@ -1381,6 +1381,53 @@ git commit -m "feat: extend docker-compose to 4 services (add backend + frontend
 
 ---
 
+### Task 11 (2026-08-10 addition): `pg_dump` daily backup cron service
+
+**Files:**
+- Modify: `docker-compose.yml`
+
+**Interfaces:**
+- Consumes: the `postgres` service (Task 5's compose base)
+- Produces: spec section 5's required daily, compressed, 7-copy-rotated `pg_dump` backup written to a `./backups` volume outside the Postgres container
+
+Spec section 5: *"a separate `pg_dump` cron container/service in Docker Compose, running daily, compressed, and written to the `./backups` volume mounted outside the Postgres container; keep the 7 most recent copies (rotate and delete older copies)."* This was never in this plan's original task list (a plan-level gap, not a scope decision — see Self-Review Notes). Per the ladder in this project's own conventions (favor an existing, maintained tool over hand-rolling one), use `prodrigestivill/postgres-backup-local` — a small, widely-used image that does exactly this (cron-scheduled `pg_dump`, gzip compression, day/week/month-bucketed rotation) via environment variables, instead of writing a custom cron script + Dockerfile.
+
+- [ ] **Step 1: Add the `backup` service to `docker-compose.yml`**
+
+```yaml
+  backup:
+    image: prodrigestivill/postgres-backup-local:16
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: casso_ledger
+      POSTGRES_USER: casso
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      SCHEDULE: '@daily'
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 0
+      BACKUP_KEEP_MONTHS: 0
+    volumes:
+      - ./backups:/backups
+    logging: *json-file-logging
+    depends_on:
+      - postgres
+```
+
+`BACKUP_KEEP_DAYS: 7` with a `@daily` schedule and `BACKUP_KEEP_WEEKS`/`BACKUP_KEEP_MONTHS` both `0` matches the spec's "keep the 7 most recent copies (rotate and delete older copies)" literally — one dump per day, seven retained, nothing older. `./backups` is a bind mount (not a named volume) so it lives outside the Postgres container/volume, per spec.
+
+- [ ] **Step 2: Verify**
+
+Run: `docker compose up -d backup` (with `postgres` already running) — confirm the container starts without error and, after triggering a manual run (`docker compose exec backup /backup.sh` — the image's documented manual-trigger entrypoint), a `.sql.gz` file appears under `./backups/`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add docker-compose.yml
+git commit -m "feat: add daily pg_dump backup service with 7-copy rotation"
+```
+
+---
+
 ## Self-Review Notes
 
 - **Spec coverage:** `GET /health` with `{status, checks}` shape + 503 on failure (deployment spec section 1) → Task 5. Structured JSON logs with required fields incl. `requestId` correlation (section 2) → Task 1, Task 2. `/metrics` with all 4 required series plus `email-queue` backlog/failure labels (section 3 and the email notification contract) → Task 3, Task 4, Task 6. Distributed tracing explicitly deferred (section 4) → not built, matches spec. 4-service `docker-compose.yml` (section 1) → Task 10. Dockerfiles for both apps → Task 8, Task 9.
@@ -1394,5 +1441,7 @@ git commit -m "feat: extend docker-compose to 4 services (add backend + frontend
 - `requestId` still uses its own `AsyncLocalStorage` (`RequestIdStore`), for the same reason originally given (unauthenticated routes need one but never populate `TenantContextService`) — **but** it is now the *single* source of truth: `TenantContextInterceptor` (shipped after this plan was drafted, already independently minting its own `requestId` for audit-log fingerprinting in `invoice-import`) is modified in Task 1 to read from `RequestIdStore` instead of generating a second, divergent ID. Without this fix, one authenticated HTTP request would have ended up with two different `requestId` values across logs vs. audit records.
 - `WebhookProcessor`/`EmailQueueProcessor` (Task 6) already carry `onFailed` logic this plan didn't know about when drafted (dead-letter logging; `job.name`-branched auth-email vs. reminder-email handling, respectively) — the metric increment is merged into the existing bodies, not pasted over them.
 - `HealthController` calling `DataSource`/`Queue` directly (Task 5), with no use-case layer, was confirmed as a deliberate, documented exception to `.claude/rules/api.md`'s "controller only calls use case" rule — `/health` (like `/metrics`) is a cross-cutting `common/` system-status endpoint, not business-domain logic under `modules/`.
+- **Undocumented-at-plan-time addition, confirmed correct by code review:** both `WebhookProcessor.process()`/`.onFailed()` and `EmailQueueProcessor.process()`/`.onFailed()` wrap their bodies in `this.requestIdStore.run(getJobRequestId(job), ...)` (a small helper producing `` `bullmq:${job.id ?? randomUUID()}` ``) — extending spec section 4's "follow a request within one process via log context" goal from HTTP requests to background BullMQ jobs, so job-triggered log lines also carry a `requestId`. Not in Task 6's original code samples; noted here so it isn't mistaken for missing coverage later.
+- **Spec section 5 gap, found by code review, fixed in a follow-up commit:** the `pg_dump` daily-backup cron service was never in this plan's task list at all (unlike the Grafana/Loki/Tempo/K8s items, which section 6 explicitly excludes) — a plan-level oversight, not a deviation during implementation. Added as Task 11 below.
 
 
