@@ -2,6 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **2026-08-10 rescoping note (grilling session):** unlike Plan #22, this plan's scope is still almost entirely greenfield — no `observability/` module, no Dockerfiles, no `prom-client` dependency exist yet, and `docker-compose.yml` is still exactly the 2-service (`postgres`/`redis`) base this plan assumes. Four real discrepancies against the current codebase were found and resolved before implementation:
+>
+> 1. **`TenantContextInterceptor` (shipped by the Multi-tenancy/RBAC plan, after this plan was drafted) already generates its own `requestId`** per authenticated HTTP request and stores it on `AuthenticatedUser.requestId` — already load-bearing (`invoice-import`'s audit-log fingerprinting reads it). Task 1's `RequestIdMiddleware`/`RequestIdStore` is still needed (unauthenticated paths like `/health`/webhook ingestion/BullMQ jobs never populate `TenantContextService`), but it must be the **single source of truth** — `TenantContextInterceptor` is now also modified (additive, out of this plan's original file list) to read from `RequestIdStore` instead of independently minting a second ID with its own `randomUUID()` call. See Task 1's updated Step 5/6.
+> 2. **`WebhookProcessor` already has an `onFailed` handler** (dead-letter-queue logging, added by the Webhook Ingestion plan). Task 6's original "Replace it with" full-file sample would have deleted it. Rewritten below as a merge into the existing method body.
+> 3. **`EmailQueueProcessor` has evolved past a single-job-type shape** — it now branches on `job.name` ('send-auth-email' vs reminder email) in both `process()` and `onFailed()`, added by the Reminder Automation plan. Task 6's sample assumed one branch; rewritten below to show the real current file and where the metric increment goes in each branch.
+> 4. **`HealthController` calling `DataSource`/`Queue` directly, with no use-case layer, was confirmed as a deliberate exception** to `.claude/rules/api.md`'s "controller only calls use case" rule — `/health` (like `/metrics`) is a cross-cutting `common/` system-status endpoint, not a business-domain module under `modules/`, so the rule (aimed at business logic leaking into controllers) doesn't apply. No change from the plan's original Task 5 sample; documented here so it isn't mistaken for an oversight later.
+>
+> Task 5's `main.ts` change (`bufferLogs: true` + `app.useLogger(...)`) was confirmed to still apply cleanly — no existing logger wiring to conflict with.
+
 **Goal:** Wire up the MVP observability slice — `GET /health` (Docker healthcheck + LB probe), structured JSON logs to stdout with per-request `requestId` correlation, a `/metrics` Prometheus endpoint, and Dockerfiles for `apps/backend`/`apps/frontend` — then extend the Domain Core plan's `docker-compose.yml` (currently `postgres` + `redis` only) to the full 4-service compose the spec requires.
 
 **Architecture:** All observability code lives in one `apps/backend/src/common/observability/` module (`ObservabilityModule`, marked `@Global` so `JsonLogger` and `MetricsService` are injectable anywhere without re-importing). Health check is a **plain custom controller**, not `@nestjs/terminus`: there are exactly 3 known dependencies to probe (Postgres, Redis, BullMQ) and terminus's `HealthIndicator` abstraction exists to make N heterogeneous checks pluggable — with N fixed at 3 and never growing without a spec change, a ~30-line controller is less code and one fewer dependency than wiring terminus's indicator classes. Logging is a **custom `LoggerService` implementation** (`JsonLogger`), not `nestjs-pino`: pino's value is transport plumbing (multiple destinations, log rotation, worker-thread serialization) which this MVP explicitly doesn't need (spec section 2: stdout only, Docker log driver collects it) — a class that JSON-stringifies to `process.stdout.write` satisfies the exact required field list with zero new runtime dependencies. `requestId` is generated in a small `RequestIdMiddleware` and stored in its own `AsyncLocalStorage` (kept separate from the existing `TenantContextService` ALS from the Multi-tenancy plan, because `requestId` exists on every request — including unauthenticated ones like `/health` and the webhook endpoint's queue-processing path — while `TenantContextService`'s store is only populated post-JWT-auth); `JsonLogger` reads both stores and merges whatever is present.
@@ -34,8 +43,9 @@ apps/backend/
         health.controller.ts                           -- GET /health
         metrics.controller.ts                          -- GET /metrics
         observability.module.ts                        -- @Global, wires the above + RequestIdMiddleware
-    modules/webhooks/infrastructure/webhook.processor.ts  -- MODIFY: record webhook_processing_duration_seconds, bullmq_job_failed_total
-    modules/notifications/infrastructure/email-queue.processor.ts -- MODIFY: record bullmq_job_failed_total for email-queue
+      tenancy/tenant-context.interceptor.ts             -- MODIFY (2026-08-10 addition): read requestId from RequestIdStore instead of minting its own
+    modules/webhooks/infrastructure/webhook.processor.ts  -- MODIFY: record webhook_processing_duration_seconds, bullmq_job_failed_total (merge into existing onFailed)
+    modules/notifications/infrastructure/email-queue.processor.ts -- MODIFY: record bullmq_job_failed_total for email-queue (merge into both onFailed branches)
     app.module.ts                                       -- MODIFY: import ObservabilityModule, useLogger(JsonLogger)
     main.ts                                              -- MODIFY: app.useLogger(app.get(JsonLogger))
   test/
@@ -160,11 +170,41 @@ export class RequestIdMiddleware implements NestMiddleware {
 
 `x-request-id` is honored if a reverse proxy already set one (open question from spec section 6 — resolved in favor of "use it if present, generate if not," which is the standard pattern and requires no extra config).
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6 (2026-08-10 addition): Modify `apps/backend/src/common/tenancy/tenant-context.interceptor.ts` to read from `RequestIdStore` instead of minting its own**
+
+The current file (shipped by the Multi-tenancy/RBAC plan, after this plan was originally drafted) independently generates a second `requestId` for every authenticated request:
+
+```typescript
+// current (before this change):
+const requestId = request.header('X-Request-Id')?.trim() || randomUUID();
+const contextualUser = { ...user, requestId };
+```
+
+By the time `TenantContextInterceptor` runs, `RequestIdMiddleware` (Step 5 above) has already run — Nest applies middleware before guards/interceptors — so `RequestIdStore` already holds the one true `requestId` for this request. Replace the two lines above with:
+
+```typescript
+const requestId = this.requestIdStore.getRequestId();
+const contextualUser = { ...user, requestId };
+```
+
+and inject `RequestIdStore` into the constructor:
+
+```typescript
+constructor(
+  private readonly tenantContext: TenantContextService,
+  private readonly requestIdStore: RequestIdStore,
+) {}
+```
+
+Drop the now-unused `randomUUID` import. `RequestIdStore` is available here because `ObservabilityModule` (Task 5) is `@Global`, so no explicit import wiring is needed in `TenancyModule`. This keeps `AuthenticatedUser.requestId` (already consumed by `invoice-import`'s audit-log fingerprinting) identical to what `JsonLogger` logs and what `RequestIdMiddleware` sets on the response header — one `requestId` per request, not two.
+
+Update `apps/backend/src/common/tenancy/tenant-context.interceptor.spec.ts` accordingly: construct `TenantContextInterceptor` with a `RequestIdStore` double (`{ getRequestId: () => 'req-test-1' }`) and assert the contextual user's `requestId` matches it, rather than asserting a `randomUUID()`-shaped string.
+
+- [ ] **Step 7: Commit**
 
 ```bash
-git add apps/backend/src/common/observability/request-id.store.ts apps/backend/src/common/observability/request-id.middleware.ts apps/backend/src/common/observability/request-id.store.spec.ts
-git commit -m "feat: add per-request requestId store and middleware"
+git add apps/backend/src/common/observability/request-id.store.ts apps/backend/src/common/observability/request-id.middleware.ts apps/backend/src/common/observability/request-id.store.spec.ts apps/backend/src/common/tenancy/tenant-context.interceptor.ts apps/backend/src/common/tenancy/tenant-context.interceptor.spec.ts
+git commit -m "feat: add per-request requestId store and middleware, unify with TenantContextInterceptor"
 ```
 
 ---
@@ -868,44 +908,65 @@ git commit -m "feat: wire ObservabilityModule (health, metrics, JSON logging) in
 - Consumes: `MetricsService` (Task 3, injected via `ObservabilityModule` being `@Global`) and `EMAIL_QUEUE`
 - Produces: real failure counts for both `webhook-processing` and `email-queue`, plus webhook duration data, closing the loop from spec section 3
 
-- [ ] **Step 1: Modify `WebhookProcessor` to time `process()` and hook the `failed` worker event**
+**(2026-08-10: both processors have evolved since this task was drafted — rewritten below as merges into the real current files, not full-file replacements. See the rescoping note at the top of this plan.)**
 
-The Webhook Ingestion plan's `webhook.processor.ts` (its Task 9 Step 6) is:
+- [ ] **Step 1: Modify `WebhookProcessor` to time `process()` and increment the failure counter inside its existing `onFailed`**
+
+The real current `apps/backend/src/modules/webhooks/infrastructure/webhook.processor.ts` already has dead-letter-queue logging in `onFailed` (added by the Webhook Ingestion plan) that must be preserved:
 
 ```typescript
-import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
-import { Injectable } from '@nestjs/common';
-import { WEBHOOK_PROCESSING_QUEUE } from './webhooks-queue.constants';
-import { ProcessWebhookUseCase } from '../application/process-webhook.usecase';
-
 @Processor(WEBHOOK_PROCESSING_QUEUE)
 export class WebhookProcessor extends WorkerHost {
-  constructor(private readonly processWebhookUseCase: ProcessWebhookUseCase) {
+  private readonly logger = new Logger(WebhookProcessor.name);
+
+  constructor(private readonly processWebhook: ProcessWebhookUseCase) {
     super();
   }
-
   async process(job: Job<WebhookJobData>): Promise<void> {
-    await this.processWebhookUseCase.execute(job.data.webhookInboxId);
+    await this.processWebhook.execute(
+      job.data.webhookInboxId,
+      job.data.organizationId,
+    );
+  }
+
+  // Spec §4.3: after the retry budget is exhausted, the job moves to the
+  // Dead Letter Queue. WebhookInbox is already left in FAILED status by
+  // ProcessWebhookUseCase on every attempt (with retryCount incremented) —
+  // this only logs the terminal transition, same convention as
+  // EmailQueueProcessor.onFailed.
+  @OnWorkerEvent('failed')
+  onFailed(job: Job<WebhookJobData> | undefined): void {
+    if (!job) return;
+    const maxAttempts = job.opts.attempts ?? 1;
+    if (job.attemptsMade < maxAttempts) return;
+    this.logger.error(
+      `Webhook job ${job.id ?? 'unknown'} moved to dead letter after ${job.attemptsMade} attempts (webhookInboxId=${job.data.webhookInboxId})`,
+    );
   }
 }
 ```
 
-Replace it with:
+Add a `MetricsService` constructor dependency, time `process()`, and increment the counter **on every failed attempt** (not gated behind the `maxAttempts` dead-letter check below it — the metric should count all failures, the dead-letter log should only fire on the terminal one):
 
 ```typescript
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
-import { Injectable } from '@nestjs/common';
-import { WEBHOOK_PROCESSING_QUEUE } from './webhooks-queue.constants';
-import { ProcessWebhookUseCase } from '../application/process-webhook.usecase';
+import { Logger } from '@nestjs/common';
+import type { Job } from 'bullmq';
 import { MetricsService } from '../../../common/observability/metrics.service';
+import { ProcessWebhookUseCase } from '../application/process-webhook.usecase';
+import { WEBHOOK_PROCESSING_QUEUE } from './webhooks-queue.constants';
 
-@Injectable()
+interface WebhookJobData {
+  webhookInboxId: string;
+  organizationId: string;
+}
+
 @Processor(WEBHOOK_PROCESSING_QUEUE)
 export class WebhookProcessor extends WorkerHost {
+  private readonly logger = new Logger(WebhookProcessor.name);
+
   constructor(
-    private readonly processWebhookUseCase: ProcessWebhookUseCase,
+    private readonly processWebhook: ProcessWebhookUseCase,
     private readonly metrics: MetricsService,
   ) {
     super();
@@ -914,66 +975,88 @@ export class WebhookProcessor extends WorkerHost {
   async process(job: Job<WebhookJobData>): Promise<void> {
     const start = process.hrtime.bigint();
     try {
-      await this.processWebhookUseCase.execute(job.data.webhookInboxId);
+      await this.processWebhook.execute(
+        job.data.webhookInboxId,
+        job.data.organizationId,
+      );
     } finally {
       const seconds = Number(process.hrtime.bigint() - start) / 1e9;
       this.metrics.observeWebhookProcessing(seconds);
     }
   }
 
+  // Spec §4.3: after the retry budget is exhausted, the job moves to the
+  // Dead Letter Queue. WebhookInbox is already left in FAILED status by
+  // ProcessWebhookUseCase on every attempt (with retryCount incremented) —
+  // this only logs the terminal transition, same convention as
+  // EmailQueueProcessor.onFailed.
   @OnWorkerEvent('failed')
-  onFailed(): void {
+  onFailed(job: Job<WebhookJobData> | undefined): void {
+    if (!job) return;
     this.metrics.incrementBullmqJobFailed(WEBHOOK_PROCESSING_QUEUE);
+    const maxAttempts = job.opts.attempts ?? 1;
+    if (job.attemptsMade < maxAttempts) return;
+    this.logger.error(
+      `Webhook job ${job.id ?? 'unknown'} moved to dead letter after ${job.attemptsMade} attempts (webhookInboxId=${job.data.webhookInboxId})`,
+    );
   }
 }
 ```
 
-(`@Injectable()` was implicit before via `@Processor()`'s own metadata in Nest's BullMQ integration, but making it explicit costs nothing and documents that this class now has a second constructor dependency injected through Nest's DI, not just decorator magic.)
+- [ ] **Step 2: Modify `EmailQueueProcessor` to increment the failure counter in both `job.name` branches of its existing `onFailed`**
 
-Also modify `apps/backend/src/modules/notifications/infrastructure/email-queue.processor.ts` to inject the same global `MetricsService` and count failures for the existing `EMAIL_QUEUE` without changing the email retry or `ReminderExecution` behavior. Add the import and constructor parameter:
-
-```typescript
-import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
-import { EMAIL_QUEUE } from './email-queue.constants';
-import { MetricsService } from '../../../common/observability/metrics.service';
-```
-
-Append `private readonly metrics: MetricsService` to the existing `EmailQueueProcessor` constructor, and make its existing `onFailed(job)` begin with:
+The real current `apps/backend/src/modules/notifications/infrastructure/email-queue.processor.ts` (139 lines, added by the Reminder Automation plan) branches on `job.name` — `'send-auth-email'` vs. reminder email — in both `process()` and `onFailed()`. Only `onFailed()` needs a change, adding the metric increment as the very first line so it fires for both branches before either one returns:
 
 ```typescript
   @OnWorkerEvent('failed')
-  async onFailed(job: Job<EmailJobData>): Promise<void> {
+  async onFailed(job: Job): Promise<void> {
     this.metrics.incrementBullmqJobFailed(EMAIL_QUEUE);
 
     const maxAttempts = job.opts.attempts ?? 1;
-    if (job.attemptsMade < maxAttempts) {
-      return; // more retries scheduled — existing final-failure logic stays below this guard
+    if (job.attemptsMade < maxAttempts) return;
+
+    if (job.name === 'send-auth-email') {
+      this.logger.error(
+        `Auth email job ${job.id ?? 'unknown'} failed permanently after ${job.attemptsMade} attempts`,
+      );
+      return;
     }
 
-    await this.reminderExecutionRepo.updateSendResult(job.data.reminderExecutionId, 'FAILED', null);
-    this.eventEmitter.emit('reminder.failed', {
-      reminderExecutionId: job.data.reminderExecutionId,
-      receivableId: job.data.receivableId,
-      organizationId: job.data.organizationId,
-    });
+    const data = job.data as ReminderEmailJob;
+    const { reminderExecutionId, receivableId, organizationId } = data;
+    await this.tenantContext.run(
+      { userId: 'system', organizationId, role: Role.OWNER },
+      async () => {
+        await this.executionRepo.updateSendResult(
+          reminderExecutionId,
+          'FAILED',
+          null,
+        );
+        this.eventEmitter.emit('reminder.execution.completed', {
+          id: reminderExecutionId,
+          status: 'FAILED',
+          providerMessageId: null,
+          organizationId,
+        });
+      },
+    );
     this.logger.error(
-      `Email job ${job.id} failed permanently after ${job.attemptsMade} attempts (reminderExecutionId=${job.data.reminderExecutionId})`,
+      `Email job ${job.id ?? 'unknown'} failed permanently after ${job.attemptsMade} attempts`,
     );
   }
 ```
 
-The existing `process(job)` body and final-attempt update remain exactly as defined by the Email Notification plan; the metric increments on every failed attempt, while `ReminderExecution.status = FAILED` remains final-attempt-only.
+Add `private readonly metrics: MetricsService` to the constructor and `import { MetricsService } from '../../../common/observability/metrics.service';`. `process()` is untouched — timing/duration metrics were only specced for webhook processing (spec section 3 lists `webhook_processing_duration_seconds`, not an email equivalent), so no change there.
 
-- [ ] **Step 2: Run the existing `process-webhook.usecase.spec.ts` and webhook e2e suite**
+- [ ] **Step 3: Run the existing webhook and notifications unit/e2e suites**
 
-Run: `pnpm --filter @casso-ledger/backend test:e2e -- webhook-idempotency.integration.spec.ts webhook-matching-routing.integration.spec.ts`
-Expected: PASS — `MetricsService` is provided by the now-`@Global` `ObservabilityModule`, so `WebhooksModule` needs no import changes to resolve it.
+Run: `pnpm --filter @casso-ledger/backend test webhook && pnpm --filter @casso-ledger/backend test:e2e -- webhook-matching.e2e-spec.ts`
+Expected: PASS — `MetricsService` is provided by the now-`@Global` `ObservabilityModule`, so `WebhooksModule`/`NotificationsModule` need no import changes to resolve it. (**2026-08-10:** file name corrected — `webhook-idempotency.integration.spec.ts`/`webhook-matching-routing.integration.spec.ts` referenced by this task's original draft don't exist; the real, current e2e file is `webhook-matching.e2e-spec.ts`, per Plan #22's rescoping.)
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add apps/backend/src/modules/webhooks/infrastructure/webhook.processor.ts
+git add apps/backend/src/modules/webhooks/infrastructure/webhook.processor.ts apps/backend/src/modules/notifications/infrastructure/email-queue.processor.ts
 git commit -m "feat: record webhook and email BullMQ metrics"
 ```
 
@@ -1298,6 +1381,53 @@ git commit -m "feat: extend docker-compose to 4 services (add backend + frontend
 
 ---
 
+### Task 11 (2026-08-10 addition): `pg_dump` daily backup cron service
+
+**Files:**
+- Modify: `docker-compose.yml`
+
+**Interfaces:**
+- Consumes: the `postgres` service (Task 5's compose base)
+- Produces: spec section 5's required daily, compressed, 7-copy-rotated `pg_dump` backup written to a `./backups` volume outside the Postgres container
+
+Spec section 5: *"a separate `pg_dump` cron container/service in Docker Compose, running daily, compressed, and written to the `./backups` volume mounted outside the Postgres container; keep the 7 most recent copies (rotate and delete older copies)."* This was never in this plan's original task list (a plan-level gap, not a scope decision — see Self-Review Notes). Per the ladder in this project's own conventions (favor an existing, maintained tool over hand-rolling one), use `prodrigestivill/postgres-backup-local` — a small, widely-used image that does exactly this (cron-scheduled `pg_dump`, gzip compression, day/week/month-bucketed rotation) via environment variables, instead of writing a custom cron script + Dockerfile.
+
+- [ ] **Step 1: Add the `backup` service to `docker-compose.yml`**
+
+```yaml
+  backup:
+    image: prodrigestivill/postgres-backup-local:16
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: casso_ledger
+      POSTGRES_USER: casso
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      SCHEDULE: '@daily'
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 0
+      BACKUP_KEEP_MONTHS: 0
+    volumes:
+      - ./backups:/backups
+    logging: *json-file-logging
+    depends_on:
+      - postgres
+```
+
+`BACKUP_KEEP_DAYS: 7` with a `@daily` schedule and `BACKUP_KEEP_WEEKS`/`BACKUP_KEEP_MONTHS` both `0` matches the spec's "keep the 7 most recent copies (rotate and delete older copies)" literally — one dump per day, seven retained, nothing older. `./backups` is a bind mount (not a named volume) so it lives outside the Postgres container/volume, per spec.
+
+- [ ] **Step 2: Verify**
+
+Run: `docker compose up -d backup` (with `postgres` already running) — confirm the container starts without error and, after triggering a manual run (`docker compose exec backup /backup.sh` — the image's documented manual-trigger entrypoint), a `.sql.gz` file appears under `./backups/`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add docker-compose.yml
+git commit -m "feat: add daily pg_dump backup service with 7-copy rotation"
+```
+
+---
+
 ## Self-Review Notes
 
 - **Spec coverage:** `GET /health` with `{status, checks}` shape + 503 on failure (deployment spec section 1) → Task 5. Structured JSON logs with required fields incl. `requestId` correlation (section 2) → Task 1, Task 2. `/metrics` with all 4 required series plus `email-queue` backlog/failure labels (section 3 and the email notification contract) → Task 3, Task 4, Task 6. Distributed tracing explicitly deferred (section 4) → not built, matches spec. 4-service `docker-compose.yml` (section 1) → Task 10. Dockerfiles for both apps → Task 8, Task 9.
@@ -1305,5 +1435,13 @@ git commit -m "feat: extend docker-compose to 4 services (add backend + frontend
 - **Not covered in this plan (by design, per spec section 5):** Grafana dashboards, Loki log aggregation, Tempo/OpenTelemetry tracing, alerting (PagerDuty/Slack), Kubernetes — all explicitly out of scope for this MVP per the spec's "Out of scope" section.
 - **Open question from spec section 6 resolved:** `requestId` honors an incoming `x-request-id` header (e.g. from a future reverse proxy) and falls back to generating a `randomUUID()` — see Task 1 Step 5 comment. Retention limits for logs/metrics in the demo environment are left unresolved (genuinely non-blocking per the spec) — Docker's default json-file log driver has no size cap configured here; revisit if demo Docker volumes fill up.
 - **Cross-plan consistency checked:** `WEBHOOK_PROCESSING_QUEUE = 'webhook-processing'` and `EMAIL_QUEUE = 'email-queue'` are imported from their owning plans and reused verbatim in `HealthController`, `MetricsService`, `WebhookProcessor`, and `EmailQueueProcessor`; the backlog/failure metrics therefore cover both BullMQ queues without inventing a duplicate queue token. `DataSource` injection in `HealthController` follows the same no-forFeature-needed pattern already used by `AllocatePaymentUseCase` (Multi-tenancy plan), since `TypeOrmCoreModule` is global. `ObservabilityModule` being `@Global` means both workers consume `MetricsService` without a second observability module.
+
+**2026-08-10 grilling-session decisions (superseding the "Deliberate scope decisions" bullet above where it conflicts):**
+
+- `requestId` still uses its own `AsyncLocalStorage` (`RequestIdStore`), for the same reason originally given (unauthenticated routes need one but never populate `TenantContextService`) — **but** it is now the *single* source of truth: `TenantContextInterceptor` (shipped after this plan was drafted, already independently minting its own `requestId` for audit-log fingerprinting in `invoice-import`) is modified in Task 1 to read from `RequestIdStore` instead of generating a second, divergent ID. Without this fix, one authenticated HTTP request would have ended up with two different `requestId` values across logs vs. audit records.
+- `WebhookProcessor`/`EmailQueueProcessor` (Task 6) already carry `onFailed` logic this plan didn't know about when drafted (dead-letter logging; `job.name`-branched auth-email vs. reminder-email handling, respectively) — the metric increment is merged into the existing bodies, not pasted over them.
+- `HealthController` calling `DataSource`/`Queue` directly (Task 5), with no use-case layer, was confirmed as a deliberate, documented exception to `.claude/rules/api.md`'s "controller only calls use case" rule — `/health` (like `/metrics`) is a cross-cutting `common/` system-status endpoint, not business-domain logic under `modules/`.
+- **Undocumented-at-plan-time addition, confirmed correct by code review:** both `WebhookProcessor.process()`/`.onFailed()` and `EmailQueueProcessor.process()`/`.onFailed()` wrap their bodies in `this.requestIdStore.run(getJobRequestId(job), ...)` (a small helper producing `` `bullmq:${job.id ?? randomUUID()}` ``) — extending spec section 4's "follow a request within one process via log context" goal from HTTP requests to background BullMQ jobs, so job-triggered log lines also carry a `requestId`. Not in Task 6's original code samples; noted here so it isn't mistaken for missing coverage later.
+- **Spec section 5 gap, found by code review, fixed in a follow-up commit:** the `pg_dump` daily-backup cron service was never in this plan's task list at all (unlike the Grafana/Loki/Tempo/K8s items, which section 6 explicitly excludes) — a plan-level oversight, not a deviation during implementation. Added as Task 11 below.
 
 

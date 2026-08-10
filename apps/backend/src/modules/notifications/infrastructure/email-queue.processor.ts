@@ -1,7 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { Job } from 'bullmq';
+import { MetricsService } from '../../../common/observability/metrics.service';
+import { RequestIdStore } from '../../../common/observability/request-id.store';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { REMINDER_EXECUTION_REPOSITORY } from '../../../common/tokens/reminder-execution.token';
 import { Role } from '../../organizations/domain/membership';
@@ -17,6 +20,10 @@ import type {
 } from '../application/email-queue.port';
 import { EMAIL_QUEUE } from './email-queue.constants';
 
+function getJobRequestId(job: Job): string {
+  return `bullmq:${job.id ?? randomUUID()}`;
+}
+
 @Injectable()
 @Processor(EMAIL_QUEUE)
 export class EmailQueueProcessor extends WorkerHost {
@@ -29,15 +36,19 @@ export class EmailQueueProcessor extends WorkerHost {
     private readonly executionRepo: IReminderExecutionRepository,
     private readonly tenantContext: TenantContextService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly metrics: MetricsService,
+    private readonly requestIdStore: RequestIdStore,
   ) {
     super();
   }
 
   async process(job: Job): Promise<void> {
-    if (job.name === 'send-auth-email') {
-      return this.processAuthEmail(job as Job<AuthEmailJob>);
-    }
-    return this.processReminderEmail(job as Job<ReminderEmailJob>);
+    return this.requestIdStore.run(getJobRequestId(job), () => {
+      if (job.name === 'send-auth-email') {
+        return this.processAuthEmail(job as Job<AuthEmailJob>);
+      }
+      return this.processReminderEmail(job as Job<ReminderEmailJob>);
+    });
   }
 
   private async processAuthEmail(job: Job<AuthEmailJob>): Promise<void> {
@@ -103,36 +114,39 @@ export class EmailQueueProcessor extends WorkerHost {
 
   @OnWorkerEvent('failed')
   async onFailed(job: Job): Promise<void> {
-    const maxAttempts = job.opts.attempts ?? 1;
-    if (job.attemptsMade < maxAttempts) return;
+    return this.requestIdStore.run(getJobRequestId(job), async () => {
+      this.metrics.incrementBullmqJobFailed(EMAIL_QUEUE);
+      const maxAttempts = job.opts.attempts ?? 1;
+      if (job.attemptsMade < maxAttempts) return;
 
-    if (job.name === 'send-auth-email') {
-      this.logger.error(
-        `Auth email job ${job.id ?? 'unknown'} failed permanently after ${job.attemptsMade} attempts`,
-      );
-      return;
-    }
-
-    const data = job.data as ReminderEmailJob;
-    const { reminderExecutionId, receivableId, organizationId } = data;
-    await this.tenantContext.run(
-      { userId: 'system', organizationId, role: Role.OWNER },
-      async () => {
-        await this.executionRepo.updateSendResult(
-          reminderExecutionId,
-          'FAILED',
-          null,
+      if (job.name === 'send-auth-email') {
+        this.logger.error(
+          `Auth email job ${job.id ?? 'unknown'} failed permanently after ${job.attemptsMade} attempts`,
         );
-        this.eventEmitter.emit('reminder.execution.completed', {
-          id: reminderExecutionId,
-          status: 'FAILED',
-          providerMessageId: null,
-          organizationId,
-        });
-      },
-    );
-    this.logger.error(
-      `Email job ${job.id ?? 'unknown'} failed permanently after ${job.attemptsMade} attempts`,
-    );
+        return;
+      }
+
+      const data = job.data as ReminderEmailJob;
+      const { reminderExecutionId, organizationId } = data;
+      await this.tenantContext.run(
+        { userId: 'system', organizationId, role: Role.OWNER },
+        async () => {
+          await this.executionRepo.updateSendResult(
+            reminderExecutionId,
+            'FAILED',
+            null,
+          );
+          this.eventEmitter.emit('reminder.execution.completed', {
+            id: reminderExecutionId,
+            status: 'FAILED',
+            providerMessageId: null,
+            organizationId,
+          });
+        },
+      );
+      this.logger.error(
+        `Email job ${job.id ?? 'unknown'} failed permanently after ${job.attemptsMade} attempts`,
+      );
+    });
   }
 }

@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import {
   type CallHandler,
   type ExecutionContext,
@@ -7,11 +6,15 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
+import { RequestIdStore } from '../observability/request-id.store';
 import { TenantContextService } from './tenant-context';
 
 @Injectable()
 export class TenantContextInterceptor implements NestInterceptor {
-  constructor(private readonly tenantContext: TenantContextService) {}
+  constructor(
+    private readonly tenantContext: TenantContextService,
+    private readonly requestIdStore: RequestIdStore,
+  ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest();
@@ -21,7 +24,7 @@ export class TenantContextInterceptor implements NestInterceptor {
       return next.handle();
     }
 
-    const requestId = request.header('X-Request-Id')?.trim() || randomUUID();
+    const requestId = this.requestIdStore.getRequestId();
     const contextualUser = { ...user, requestId };
 
     return new Observable((subscriber) => {

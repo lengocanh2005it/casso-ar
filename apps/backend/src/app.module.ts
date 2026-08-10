@@ -15,6 +15,7 @@ import { IdempotencyModule } from './common/idempotency/idempotency.module';
 import { TenancyModule } from './common/tenancy/tenancy.module';
 import { CommonTokensModule } from './common/tokens/common-tokens.module';
 import { TenantContextInterceptor } from './common/tenancy/tenant-context.interceptor';
+import { ObservabilityModule } from './common/observability/observability.module';
 import { getBullMqConfig } from './config/bullmq.config';
 import { getJwtModuleOptions } from './config/jwt.config';
 import { getTypeOrmConfig } from './config/typeorm.config';
@@ -60,6 +61,7 @@ import { ReportingModule } from './modules/reporting/reporting.module';
       useFactory: getJwtModuleOptions,
     }),
     TenancyModule,
+    ObservabilityModule,
     CommonTokensModule,
     IdempotencyModule,
     AuditModule,

@@ -1,6 +1,7 @@
 import type { CallHandler, ExecutionContext } from '@nestjs/common';
 import { Observable, of } from 'rxjs';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
+import { RequestIdStore } from '../observability/request-id.store';
 import { TenantContextService } from './tenant-context';
 import { TenantContextInterceptor } from './tenant-context.interceptor';
 
@@ -18,8 +19,6 @@ describe('TenantContextInterceptor', () => {
       switchToHttp: () => ({
         getRequest: () => ({
           user: reqUser,
-          header: (name: string) =>
-            name === 'X-Request-Id' ? 'request-1' : undefined,
         }),
       }),
     } as unknown as ExecutionContext;
@@ -27,7 +26,13 @@ describe('TenantContextInterceptor', () => {
 
   it('makes the tenant context available inside the subscribed handler, not just inside run()', (done) => {
     const tenantContext = new TenantContextService();
-    const interceptor = new TenantContextInterceptor(tenantContext);
+    const requestIdStore = {
+      getRequestId: () => 'req-test-1',
+    } as RequestIdStore;
+    const interceptor = new TenantContextInterceptor(
+      tenantContext,
+      requestIdStore,
+    );
     const seenInsideHandler: (AuthenticatedUser | undefined)[] = [];
 
     // Simulate what next.handle() really does: return a deferred Observable
@@ -50,7 +55,7 @@ describe('TenantContextInterceptor', () => {
         expect(seenInsideHandler).toHaveLength(1);
         expect(seenInsideHandler[0]).toEqual({
           ...user,
-          requestId: 'request-1',
+          requestId: 'req-test-1',
         });
         done();
       },
@@ -59,7 +64,9 @@ describe('TenantContextInterceptor', () => {
 
   it('passes through next.handle() untouched when there is no authenticated user', (done) => {
     const tenantContext = new TenantContextService();
-    const interceptor = new TenantContextInterceptor(tenantContext);
+    const interceptor = new TenantContextInterceptor(tenantContext, {
+      getRequestId: () => undefined,
+    } as RequestIdStore);
     const handler: CallHandler = { handle: () => of('unauthenticated-result') };
 
     interceptor

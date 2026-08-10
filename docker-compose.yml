@@ -1,9 +1,16 @@
+x-json-file-logging: &json-file-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   postgres:
     image: postgres:16
+    logging: *json-file-logging
     environment:
       POSTGRES_USER: casso
-      POSTGRES_PASSWORD: casso
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       POSTGRES_DB: casso_ledger
     ports:
       - "5432:5432"
@@ -12,8 +19,59 @@ services:
 
   redis:
     image: redis:7
+    logging: *json-file-logging
     ports:
       - "6379:6379"
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: casso
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      DB_DATABASE: casso_ledger
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      ACCESS_TOKEN_ENCRYPTION_KEY: ${ACCESS_TOKEN_ENCRYPTION_KEY:?ACCESS_TOKEN_ENCRYPTION_KEY is required}
+      CASSO_WEBHOOK_CLIENT_ID: ${CASSO_WEBHOOK_CLIENT_ID:?CASSO_WEBHOOK_CLIENT_ID is required}
+      CASSO_WEBHOOK_SECRET_KEY: ${CASSO_WEBHOOK_SECRET_KEY:?CASSO_WEBHOOK_SECRET_KEY is required}
+    logging: *json-file-logging
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    ports:
+      - "8080:80"
+    logging: *json-file-logging
+    depends_on:
+      - backend
+
+  backup:
+    image: prodrigestivill/postgres-backup-local:16
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: casso_ledger
+      POSTGRES_USER: casso
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      SCHEDULE: '@daily'
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 0
+      BACKUP_KEEP_MONTHS: 0
+    volumes:
+      - ./backups:/backups
+    logging: *json-file-logging
+    depends_on:
+      - postgres
 
 volumes:
   casso_pg_data:
