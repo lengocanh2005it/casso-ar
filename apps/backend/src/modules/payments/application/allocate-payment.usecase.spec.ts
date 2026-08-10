@@ -327,4 +327,92 @@ describe('AllocatePaymentUseCase', () => {
       }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.CUSTOMER_MISMATCH });
   });
+
+  it('maps a receivable over-allocation to ALLOCATION_EXCEEDS_REMAINING instead of an unhandled error', async () => {
+    const receivable = buildReceivable();
+    // originalAmount is 50_000_000 by default; shrink remainingAmount to
+    // 10_000_000 so the receivable's own limit is hit before the payment's.
+    const smallReceivable = new Receivable({
+      ...receivable,
+      originalAmount: 10_000_000,
+    });
+    const payment = buildPayment();
+    const receivableRepo = {
+      findByIdForUpdate: jest.fn().mockResolvedValue(smallReceivable),
+      save: jest.fn(),
+    };
+    const paymentRepo = {
+      findByIdForUpdate: jest.fn().mockResolvedValue(payment),
+      save: jest.fn(),
+    };
+    const allocationRepo = { save: jest.fn() };
+    const dataSource = {
+      transaction: jest.fn((cb: (m: EntityManager) => Promise<void>) =>
+        cb({} as EntityManager),
+      ),
+    };
+    const useCase = new AllocatePaymentUseCase(
+      receivableRepo as any,
+      paymentRepo as any,
+      allocationRepo as any,
+      dataSource as any,
+      { getOrganizationId: () => 'org-1' } as any,
+      { setBefore: jest.fn(), setAfter: jest.fn() } as any,
+      { emit: jest.fn(), emitAsync: jest.fn() } as any,
+    );
+
+    await expect(
+      useCase.execute({
+        paymentId: payment.id,
+        receivableId: smallReceivable.id,
+        amount: 20_000_000, // exceeds the 10_000_000 remainingAmount, within payment's 30_000_000 unallocatedAmount
+        allocatedByUserId: 'u1',
+      }),
+    ).rejects.toMatchObject({
+      errorCode: ErrorCode.ALLOCATION_EXCEEDS_REMAINING,
+    });
+    expect(receivableRepo.save).not.toHaveBeenCalled();
+    expect(paymentRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('maps a payment over-allocation to ALLOCATION_EXCEEDS_UNALLOCATED instead of an unhandled error', async () => {
+    const receivable = buildReceivable();
+    const payment = buildPayment();
+    const receivableRepo = {
+      findByIdForUpdate: jest.fn().mockResolvedValue(receivable),
+      save: jest.fn(),
+    };
+    const paymentRepo = {
+      findByIdForUpdate: jest.fn().mockResolvedValue(payment),
+      save: jest.fn(),
+    };
+    const allocationRepo = { save: jest.fn() };
+    const dataSource = {
+      transaction: jest.fn((cb: (m: EntityManager) => Promise<void>) =>
+        cb({} as EntityManager),
+      ),
+    };
+    const useCase = new AllocatePaymentUseCase(
+      receivableRepo as any,
+      paymentRepo as any,
+      allocationRepo as any,
+      dataSource as any,
+      { getOrganizationId: () => 'org-1' } as any,
+      { setBefore: jest.fn(), setAfter: jest.fn() } as any,
+      { emit: jest.fn(), emitAsync: jest.fn() } as any,
+    );
+
+    await expect(
+      useCase.execute({
+        paymentId: payment.id,
+        receivableId: receivable.id,
+        amount: 40_000_000, // within receivable's 50_000_000 remainingAmount, exceeds payment's 30_000_000 unallocatedAmount
+        allocatedByUserId: 'u1',
+      }),
+    ).rejects.toMatchObject({
+      errorCode: ErrorCode.ALLOCATION_EXCEEDS_UNALLOCATED,
+    });
+    expect(receivableRepo.save).not.toHaveBeenCalled();
+    expect(paymentRepo.save).not.toHaveBeenCalled();
+  });
 });
