@@ -1,7 +1,7 @@
 import { CallHandler, ExecutionContext, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { lastValueFrom, of, throwError } from 'rxjs';
-import { AuditActionType } from './audit.enums';
+import { AuditActionType, AuditEntityType } from './audit.enums';
 import { AuditInterceptor } from './audit.interceptor';
 import { AuditContextService } from './audit-context';
 
@@ -40,6 +40,19 @@ function buildInterceptor(metadata: object | undefined) {
 }
 
 describe('AuditInterceptor', () => {
+  it('defines customer bank account audit contracts', () => {
+    expect(AuditActionType.CUSTOMER_BANK_ACCOUNT_CREATE).toBe(
+      'CUSTOMER_BANK_ACCOUNT_CREATE',
+    );
+    expect(AuditActionType.CUSTOMER_BANK_ACCOUNT_UPDATE).toBe(
+      'CUSTOMER_BANK_ACCOUNT_UPDATE',
+    );
+    expect(AuditActionType.CUSTOMER_BANK_ACCOUNT_DEACTIVATE).toBe(
+      'CUSTOMER_BANK_ACCOUNT_DEACTIVATE',
+    );
+    expect(AuditEntityType.CUSTOMER_BANK_ACCOUNT).toBe('CustomerBankAccount');
+  });
+
   it('writes a sanitized audit log after a decorated handler succeeds', async () => {
     const { interceptor, auditContext, auditLogRepo } = buildInterceptor({
       actionType: AuditActionType.RECEIVABLE_WRITE_OFF,
