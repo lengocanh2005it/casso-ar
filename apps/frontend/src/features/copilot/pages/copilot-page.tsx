@@ -13,8 +13,19 @@ import { PendingActionCard } from '../components/pending-action-card';
 export function CopilotPage() {
   const { user } = useAuth();
   const [draft, setDraft] = useState('');
-  const { messages, pendingAction, isSending, send, confirm, cancel, busy } =
-    useCopilotChat();
+  const canSendManual = user
+    ? hasPermission(user.role, Permission.REMINDER_SEND_MANUAL)
+    : false;
+  const {
+    messages,
+    pendingAction,
+    isSending,
+    send,
+    confirm,
+    cancel,
+    busy,
+    blockedByPendingAction,
+  } = useCopilotChat(canSendManual);
 
   if (!user || !hasPlanAccess(user.subscriptionPlan, PlanId.STARTER)) {
     return (
@@ -27,15 +38,10 @@ export function CopilotPage() {
     );
   }
 
-  const canSendManual = hasPermission(
-    user.role,
-    Permission.REMINDER_SEND_MANUAL,
-  );
-
   function onSubmit(event: FormEvent) {
     event.preventDefault();
     const content = draft.trim();
-    if (!content || isSending || pendingAction) return;
+    if (!content || isSending || blockedByPendingAction) return;
     setDraft('');
     void send(content);
   }
@@ -60,11 +66,11 @@ export function CopilotPage() {
           placeholder="Hỏi về công nợ…"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          disabled={isSending || Boolean(pendingAction)}
+          disabled={isSending || blockedByPendingAction}
         />
         <Button
           type="submit"
-          disabled={isSending || Boolean(pendingAction) || !draft.trim()}
+          disabled={isSending || blockedByPendingAction || !draft.trim()}
         >
           {isSending ? 'Đang suy nghĩ…' : 'Send'}
         </Button>

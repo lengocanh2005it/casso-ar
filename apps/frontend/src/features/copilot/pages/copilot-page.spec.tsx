@@ -2,16 +2,19 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { CopilotPage } from './copilot-page';
 
-const { apiRequest } = vi.hoisted(() => ({ apiRequest: vi.fn() }));
+const { apiRequest, mockUseAuth } = vi.hoisted(() => ({
+  apiRequest: vi.fn(),
+  mockUseAuth: vi.fn(() => ({
+    user: { role: 'FINANCE_MANAGER', subscriptionPlan: 'STARTER' },
+  })),
+}));
 
 vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
   authTokenManager: { getValidAccessToken: vi.fn().mockResolvedValue('t') },
 }));
 vi.mock('@/contexts/auth-context', () => ({
-  useAuth: () => ({
-    user: { role: 'FINANCE_MANAGER', subscriptionPlan: 'STARTER' },
-  }),
+  useAuth: () => mockUseAuth(),
 }));
 
 describe('CopilotPage', () => {
@@ -56,5 +59,45 @@ describe('CopilotPage', () => {
     await waitFor(() =>
       expect(screen.queryByText(/confirm reminder email send/i)).toBeNull(),
     );
+  });
+
+  it('does not permanently lock the chat input for a user without REMINDER_SEND_MANUAL', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { role: 'SALES_REP', subscriptionPlan: 'STARTER' },
+    });
+    apiRequest.mockResolvedValueOnce({
+      message: {
+        id: 'm1',
+        role: 'ASSISTANT',
+        content: 'I can send a reminder email for receivable r1.',
+        createdAt: '2026-08-03T00:00:00Z',
+      },
+      pendingAction: {
+        id: 'pa1',
+        actionType: 'SEND_REMINDER_EMAIL',
+        status: 'PENDING',
+        payload: { draftId: 'd1', receivableId: 'r1' },
+        createdAt: '2026-08-03T00:00:00Z',
+        resolvedAt: null,
+      },
+    });
+
+    render(<CopilotPage />);
+
+    fireEvent.change(screen.getByLabelText(/enter question/i), {
+      target: { value: 'Send reminder email for r1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/i can send a reminder email/i),
+      ).toBeInTheDocument(),
+    );
+    // No permission to confirm/cancel, so no card — and the input must not be stuck disabled
+    expect(
+      screen.queryByText(/confirm reminder email send/i),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/enter question/i)).not.toBeDisabled();
   });
 });

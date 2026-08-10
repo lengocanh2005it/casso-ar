@@ -7,17 +7,19 @@ import {
   sendCopilotMessage,
 } from './copilot-api';
 
-export function useCopilotChat() {
+export function useCopilotChat(canResolvePendingAction: boolean) {
   const conversationId = useRef(crypto.randomUUID()).current;
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
   const [pendingAction, setPendingAction] =
     useState<CopilotPendingAction | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [busy, setBusy] = useState(false);
+  const blockedByPendingAction =
+    pendingAction !== null && canResolvePendingAction;
 
   async function send(content: string) {
     const trimmed = content.trim();
-    if (!trimmed || isSending || pendingAction) return;
+    if (!trimmed || isSending || blockedByPendingAction) return;
 
     setIsSending(true);
     setMessages((current) => [
@@ -68,5 +70,14 @@ export function useCopilotChat() {
     }
   }
 
-  return { messages, pendingAction, send, isSending, confirm, cancel, busy };
+  return {
+    messages,
+    pendingAction,
+    send,
+    isSending,
+    confirm,
+    cancel,
+    busy,
+    blockedByPendingAction,
+  };
 }
