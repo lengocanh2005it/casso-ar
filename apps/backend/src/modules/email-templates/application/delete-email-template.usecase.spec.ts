@@ -120,4 +120,23 @@ describe('DeleteEmailTemplateUseCase', () => {
       'org-1',
     ]);
   });
+
+  it('scopes reminder-rule references through their policy organization', async () => {
+    const templateRepo = {
+      findById: jest.fn().mockResolvedValue(buildTemplate(false)),
+      delete: jest.fn(),
+    };
+    const dataSource = { query: jest.fn().mockResolvedValue([{ count: 0 }]) };
+    const useCase = new DeleteEmailTemplateUseCase(
+      templateRepo as any,
+      dataSource as any,
+    );
+
+    await useCase.execute('tpl-1');
+
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining('JOIN reminder_policies'),
+      ['tpl-1', 'org-1'],
+    );
+  });
 });

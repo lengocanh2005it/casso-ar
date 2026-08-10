@@ -56,7 +56,7 @@ export class DeleteEmailTemplateUseCase {
   ): Promise<boolean> {
     try {
       const rows: Array<{ count: number }> = await this.dataSource.query(
-        'SELECT COUNT(*)::int AS count FROM reminder_rules WHERE "emailTemplateId" = $1 AND "organizationId" = $2',
+        'SELECT COUNT(*)::int AS count FROM reminder_rules r JOIN reminder_policies p ON p.id::text = r."reminderPolicyId" WHERE r."emailTemplateId" = $1 AND p."organizationId" = $2',
         [templateId, organizationId],
       );
       return Number(rows[0]?.count ?? 0) > 0;
