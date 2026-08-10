@@ -4,6 +4,13 @@
 
 **Goal:** Add a tenant-safe backend API for managing `CustomerBankAccount` mappings and make the existing Matching Engine consume only active mappings using the same normalization rule.
 
+> **2026-08-10 rescoping note (pre-implementation review):** this plan was drafted 2026-08-04, the same day as the spec, before several later plans reshaped the codebase it targets. Four real discrepancies found and resolved before implementation:
+>
+> 1. **Permission/audit file paths are wrong.** `common/rbac/permission.enum.ts`, `common/rbac/role-permissions.map.ts`, and `common/audit/audit-action-type.enum.ts` no longer exist. `Permission` moved to `packages/shared-types/src/permission.ts` during the FE Auth plan (Plan #19) — it's a **real, already-populated enum with ~20 values today** (`RECEIVABLE_IMPORT`, `CUSTOMER_READ`, `ORGANIZATION_READ`, `BANK_CONNECTION_READ`, `SWITCH_ORGANIZATION`, etc.), not the ~15-value list Task 2 Step 3 shows as "the exact set" — that list is a stale snapshot from 2026-08-04 and must not be pasted in literally, or it would delete every permission added since. `ROLE_PERMISSIONS` lives in `packages/shared-types/src/role-permissions.ts`. `AuditActionType`/`AuditEntityType` live in `apps/backend/src/common/audit/audit.enums.ts`, and `@Audited()`'s real signature is `(actionType: AuditActionType, entityType: AuditEntityType)` — both real enum types, not the raw string literal `'CustomerBankAccount'` Task 4 Step 4 passes (confirmed via `audited.decorator.ts`; that line wouldn't type-check as written). Task 2 (and Task 4's `@Audited` calls) are rewritten below against the real files.
+> 2. **"No migration file needed, `synchronize: true` covers it" (Task 1 Step 5) is wrong.** `apps/backend/src/database/migrations/` now holds real, hand-written migrations (e.g. `20260808000000-add-invoice-unique-index.ts`) used for production correctness — `synchronize: true` is dev/test-only convenience, not a substitute. Task 1 gets a migration step added.
+> 3. **Task 2 Step 4's proposed `AuditContextService.skip()`/`shouldSkip()` mechanism is dropped as unnecessary (YAGNI).** It exists to avoid writing a redundant audit row when `DELETE` no-ops on an already-inactive row — but the spec only requires the *endpoint* to be idempotent (204, no error), never says a no-op deactivate must suppress its audit trail. A redundant "deactivate was called, already inactive" audit row is harmless and arguably useful, not a bug. Building a second cross-cutting mechanism into `AuditContextService`/its interceptor for a case the spec doesn't ask to hide is scope the ticket doesn't need — removed from Task 2 below.
+> 4. **Task 6's documentation-sync scope is pruned.** The original Task 6 proposed editing 5 other plans' docs (`docs/overview.md`, `2026-08-03-multi-tenancy-rbac-design.md`/`.md`, `2026-08-03-webhook-matching-engine-design.md`/`.md`, `2026-08-03-spec-plan-reconciliation.md`) — all of which have moved on substantially since 2026-08-04 (confirmed stale in the same way this plan itself was). Matching the established convention from the two most recently shipped tickets (Plan #22, Plan #23), Task 6 is narrowed to: this ticket's own spec/plan docs (already covered by this rescoping) plus `docs/wayfinder/feature-map.md` at the end. No other plan's docs are touched.
+
 **Architecture:** Extend the `BankAccountsModule` created by the Webhook/Matching Engine plan. The module owns the domain entity, repository, four use cases, and nested customer controller; it imports the existing Customers module only to validate a tenant-scoped customer. The Matching Engine keeps using the existing repository token, so there is one persistence and lookup path.
 
 **Tech Stack:** NestJS 10, TypeORM, class-validator, existing JWT/RBAC/audit infrastructure, Jest, Supertest, and the existing Postgres testcontainer setup. No new npm dependency.
@@ -27,13 +34,11 @@
 
 ## File Structure
 
+**(2026-08-10: file list corrected — see rescoping note above for why the permission/audit paths changed, and the repo-wide `*.integration.spec.ts` → `*.e2e-spec.ts` naming convention confirmed during Plan #22's own rescoping.)**
+
 ```
 apps/backend/src/
-  common/rbac/permission.enum.ts                         -- MODIFY: add CUSTOMER_BANK_ACCOUNT_MANAGE
-  common/rbac/role-permissions.map.ts                    -- MODIFY: grant the new permission
-  common/audit/audit-action-type.enum.ts                  -- MODIFY: add 3 account actions
-  common/audit/audit-context.ts                            -- MODIFY: allow explicit no-op audit skip
-  common/audit/audit.interceptor.ts                       -- MODIFY: honor no-op audit skip
+  database/migrations/<timestamp>-add-customer-bank-account-status.ts -- NEW
   modules/customers/customers.module.ts                  -- VERIFY: exports CUSTOMER_REPOSITORY
   modules/bank-accounts/
     domain/customer-bank-account.ts                       -- MODIFY: active state + timestamps + domain methods
@@ -52,19 +57,14 @@ apps/backend/src/
     presentation/customer-bank-accounts.controller.ts     -- NEW: nested HTTP routes
     bank-accounts.module.ts                                -- MODIFY: imports, providers, controller
   modules/webhooks/application/matching-engine.service.ts -- MODIFY: consume active normalized lookup
-  test/customer-bank-account-management.integration.spec.ts -- NEW
-  test/webhook-matching-routing.integration.spec.ts      -- MODIFY: active/inactive mapping cases
+  common/audit/audit.enums.ts                              -- MODIFY: 3 new AuditActionType values + 1 AuditEntityType value
+  test/customer-bank-account-management.e2e-spec.ts       -- NEW
+  test/webhook-matching.e2e-spec.ts                        -- MODIFY: active/inactive mapping cases
 
-packages/shared-types/src/permission.ts                  -- NEW: shared permission enum used by BE and FE
-packages/shared-types/src/index.ts                       -- MODIFY: export permission type
+packages/shared-types/src/permission.ts                  -- MODIFY: append CUSTOMER_BANK_ACCOUNT_MANAGE (already exists, ~20 values)
+packages/shared-types/src/role-permissions.ts             -- MODIFY: grant to FINANCE_MANAGER, ACCOUNTANT
 
-docs/overview.md                                               -- MODIFY: permission/API/module ownership
-(implementation order defined in feature-map.md)                  -- MODIFY: dependency row and route ownership
-docs/superpowers/specs/2026-08-03-multi-tenancy-rbac-design.md -- MODIFY: permission definition
-docs/superpowers/plans/2026-08-03-multi-tenancy-rbac.md   -- MODIFY: permission implementation
-docs/superpowers/specs/2026-08-03-webhook-matching-engine-design.md -- MODIFY: active mapping contract
-docs/superpowers/plans/2026-08-03-webhook-matching-engine.md -- MODIFY: Task 1 ownership/lookup contract
-docs/superpowers/plans/2026-08-03-spec-plan-reconciliation.md -- MODIFY: checklist and dependency note
+docs/wayfinder/feature-map.md                             -- MODIFY: mark this ticket done
 ```
 
 The current Webhook plan's `CustomerBankAccount` Task 1 is the persistence foundation. This plan extends that task; it must not create a second entity, repository token, or `BankAccountsModule`.
@@ -174,7 +174,48 @@ createdAt: Date;
 updatedAt: Date;
 ```
 
-Remove the old non-unique duplicate index rather than keeping two overlapping indexes. The project currently uses `synchronize: true`, so no migration file is added in this plan.
+Remove the old non-unique duplicate index rather than keeping two overlapping indexes.
+
+**(2026-08-10 correction: a real migration file is required — see the rescoping note above.)** Add `apps/backend/src/database/migrations/<timestamp>-add-customer-bank-account-status.ts`, mirroring `20260808000000-add-invoice-unique-index.ts`'s style (`MigrationInterface`, raw SQL in `up()`/`down()`):
+
+```typescript
+import type { MigrationInterface, QueryRunner } from 'typeorm';
+
+export class AddCustomerBankAccountStatus<TIMESTAMP>
+  implements MigrationInterface
+{
+  name = 'AddCustomerBankAccountStatus<TIMESTAMP>';
+
+  async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      'ALTER TABLE customer_bank_accounts ADD COLUMN IF NOT EXISTS "isActive" boolean NOT NULL DEFAULT true',
+    );
+    await queryRunner.query(
+      'ALTER TABLE customer_bank_accounts ADD COLUMN IF NOT EXISTS "updatedAt" timestamptz NOT NULL DEFAULT now()',
+    );
+    await queryRunner.query(
+      'DROP INDEX IF EXISTS "IDX_<existing-plain-index-name>"',
+    );
+    await queryRunner.query(
+      'CREATE UNIQUE INDEX IF NOT EXISTS "UQ_customer_bank_accounts_org_account_number" ON customer_bank_accounts ("organizationId", "accountNumber")',
+    );
+  }
+
+  async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      'DROP INDEX IF EXISTS "UQ_customer_bank_accounts_org_account_number"',
+    );
+    await queryRunner.query(
+      'ALTER TABLE customer_bank_accounts DROP COLUMN IF EXISTS "updatedAt"',
+    );
+    await queryRunner.query(
+      'ALTER TABLE customer_bank_accounts DROP COLUMN IF EXISTS "isActive"',
+    );
+  }
+}
+```
+
+Look up the existing plain index's real generated name (TypeORM's default naming for `@Index(['organizationId', 'accountNumber'])` on `customer_bank_accounts`) before writing the `DROP INDEX` line — do not guess it.
 
 - [ ] **Step 6: Extend the repository port and implementation**
 
@@ -204,25 +245,21 @@ git commit -m "feat: add active tenant-scoped customer bank account mappings"
 
 ### Task 2: Add permission and audit action contracts
 
+**(2026-08-10: rewritten against the real files — `Permission` already lives in `packages/shared-types/src/permission.ts` with ~20 real values today, `ROLE_PERMISSIONS` in `packages/shared-types/src/role-permissions.ts`, `AuditActionType`/`AuditEntityType` in `apps/backend/src/common/audit/audit.enums.ts`. Nothing is created fresh here — only additive edits to existing enums. The audit-skip mechanism from the original draft is dropped; see the rescoping note at the top of this plan.)**
+
 **Files:**
-- Modify: `apps/backend/src/common/rbac/permission.enum.ts`
-- Modify: `apps/backend/src/common/rbac/role-permissions.map.ts`
-- Modify: `apps/backend/src/common/audit/audit-action-type.enum.ts`
-- Modify: `apps/backend/src/common/audit/audit-context.ts`
-- Modify: `apps/backend/src/common/audit/audit.interceptor.ts`
-- Create: `packages/shared-types/src/permission.ts`
-- Modify: `packages/shared-types/src/index.ts`
-- Test: `apps/backend/src/common/rbac/role-permissions.map.spec.ts`
-- Test: `apps/backend/src/common/audit/audit-action-type.enum.spec.ts`
-- Test: `apps/backend/src/common/audit/audit.interceptor.spec.ts`
+- Modify: `packages/shared-types/src/permission.ts`
+- Modify: `packages/shared-types/src/role-permissions.ts`
+- Modify: `apps/backend/src/common/audit/audit.enums.ts`
+- Test: `packages/shared-types/src/role-permissions.spec.ts` (or wherever the existing `ROLE_PERMISSIONS` test lives — check first)
 
 **Interfaces:**
-- Consumes: existing `PermissionGuard`, `@RequirePermission`, `ROLE_PERMISSIONS`, `AuditActionType`, and `@Audited`.
-- Produces: `Permission.CUSTOMER_BANK_ACCOUNT_MANAGE` and the three audit action values used by Task 4's controller.
+- Consumes: existing `PermissionGuard`, `@RequirePermission`, `ROLE_PERMISSIONS`, `AuditActionType`, `AuditEntityType`, and `@Audited`.
+- Produces: `Permission.CUSTOMER_BANK_ACCOUNT_MANAGE` and the three audit action values + one entity type value used by Task 4's controller.
 
 - [ ] **Step 1: Add failing contract assertions**
 
-Extend the existing RBAC/audit tests with:
+Extend the existing `ROLE_PERMISSIONS` test with:
 
 ```typescript
 it('grants bank-account management only to financial write roles', () => {
@@ -232,47 +269,23 @@ it('grants bank-account management only to financial write roles', () => {
   expect(ROLE_PERMISSIONS[Role.SALES_REP]).not.toContain(Permission.CUSTOMER_BANK_ACCOUNT_MANAGE);
   expect(ROLE_PERMISSIONS[Role.VIEWER]).not.toContain(Permission.CUSTOMER_BANK_ACCOUNT_MANAGE);
 });
-
-it('defines all CustomerBankAccount audit actions', () => {
-  expect(AuditActionType.CUSTOMER_BANK_ACCOUNT_CREATE).toBe('CUSTOMER_BANK_ACCOUNT_CREATE');
-  expect(AuditActionType.CUSTOMER_BANK_ACCOUNT_UPDATE).toBe('CUSTOMER_BANK_ACCOUNT_UPDATE');
-  expect(AuditActionType.CUSTOMER_BANK_ACCOUNT_DEACTIVATE).toBe('CUSTOMER_BANK_ACCOUNT_DEACTIVATE');
-});
 ```
+
+And a similar assertion wherever `audit.enums.ts` already has coverage, asserting `AuditActionType.CUSTOMER_BANK_ACCOUNT_CREATE`/`_UPDATE`/`_DEACTIVATE` and `AuditEntityType.CUSTOMER_BANK_ACCOUNT` exist with their expected string values.
 
 - [ ] **Step 2: Run the contract tests and verify they fail**
 
-Run: `pnpm --filter @casso-ledger/backend test -- role-permissions.map.spec.ts audit-action-type.enum.spec.ts --runInBand`
+Run: `pnpm --filter @casso-ledger/backend test -- role-permissions --runInBand` (adjust the test filename once located in Step 1)
 
-Expected: FAIL because the new permission and action values are absent.
+Expected: FAIL because the new permission/action/entity values are absent.
 
-- [ ] **Step 3: Add the permission and audit values**
+- [ ] **Step 3: Add the permission**
 
-Create `packages/shared-types/src/permission.ts` with the complete existing permission set plus `CUSTOMER_BANK_ACCOUNT_MANAGE`, export it from `packages/shared-types/src/index.ts`, and change `apps/backend/src/common/rbac/permission.enum.ts` to re-export that shared `Permission` enum. This keeps one permission definition for BE and FE. Grant the new value to `OWNER`, `FINANCE_MANAGER`, and `ACCOUNTANT`; keep `SALES_REP` and `VIEWER` out of the write permission.
+Append `CUSTOMER_BANK_ACCOUNT_MANAGE = 'CUSTOMER_BANK_ACCOUNT_MANAGE'` to the existing `Permission` enum in `packages/shared-types/src/permission.ts` — do not replace or reorder the existing values. In `packages/shared-types/src/role-permissions.ts`, add it to `FINANCE_MANAGER`'s and `ACCOUNTANT`'s arrays (`OWNER` gets every permission automatically via `Object.values(Permission)`, confirmed in that file's existing pattern); leave `SALES_REP`/`VIEWER` untouched.
 
-The shared enum must contain this exact set:
+- [ ] **Step 4: Add the audit action + entity type values**
 
-```typescript
-export enum Permission {
-  RECEIVABLE_READ = 'RECEIVABLE_READ',
-  RECEIVABLE_WRITE = 'RECEIVABLE_WRITE',
-  RECEIVABLE_WRITE_OFF = 'RECEIVABLE_WRITE_OFF',
-  RECEIVABLE_DISPUTE = 'RECEIVABLE_DISPUTE',
-  PAYMENT_ALLOCATE = 'PAYMENT_ALLOCATE',
-  PAYMENT_ALLOCATE_UNDO = 'PAYMENT_ALLOCATE_UNDO',
-  REMINDER_POLICY_WRITE = 'REMINDER_POLICY_WRITE',
-  REMINDER_SEND_MANUAL = 'REMINDER_SEND_MANUAL',
-  BANK_CONNECTION_MANAGE = 'BANK_CONNECTION_MANAGE',
-  SUBSCRIPTION_MANAGE = 'SUBSCRIPTION_MANAGE',
-  USER_MANAGE = 'USER_MANAGE',
-  INTERNAL_TASK_MANAGE = 'INTERNAL_TASK_MANAGE',
-  REPORT_READ = 'REPORT_READ',
-  AUDIT_LOG_READ = 'AUDIT_LOG_READ',
-  CUSTOMER_BANK_ACCOUNT_MANAGE = 'CUSTOMER_BANK_ACCOUNT_MANAGE',
-}
-```
-
-Add these exact enum values to `AuditActionType`:
+In `apps/backend/src/common/audit/audit.enums.ts`, append to `AuditActionType`:
 
 ```typescript
 CUSTOMER_BANK_ACCOUNT_CREATE = 'CUSTOMER_BANK_ACCOUNT_CREATE',
@@ -280,11 +293,15 @@ CUSTOMER_BANK_ACCOUNT_UPDATE = 'CUSTOMER_BANK_ACCOUNT_UPDATE',
 CUSTOMER_BANK_ACCOUNT_DEACTIVATE = 'CUSTOMER_BANK_ACCOUNT_DEACTIVATE',
 ```
 
-Do not create a second role-permission map in `packages/shared-types`; the backend `ROLE_PERMISSIONS` map remains the authorization source of truth.
+and one value to `AuditEntityType`, matching the existing `PascalCase`-string convention (e.g. `BANK_CONNECTION = 'BankConnection'`):
 
-- [ ] **Step 4: Protect audit state from raw account numbers**
+```typescript
+CUSTOMER_BANK_ACCOUNT = 'CustomerBankAccount',
+```
 
-Use the existing audit snapshot path, but map `CustomerBankAccount` to a masked plain object before `AuditContextService.setBefore()`/`setAfter()`:
+- [ ] **Step 5: Protect audit state from raw account numbers**
+
+The existing `@Audited` interceptor snapshots whatever `AuditContextService.setBefore()`/`setAfter()` is given — it does not know which fields are sensitive. Each use case (Task 3) calls these with a masked plain object, not the raw domain entity:
 
 ```typescript
 export function toAuditedBankAccount(account: CustomerBankAccount) {
@@ -297,37 +314,14 @@ export function toAuditedBankAccount(account: CustomerBankAccount) {
 }
 ```
 
-Do not broaden the generic sanitizer as a substitute; the owning mapper knows exactly which fields are safe.
+Do not broaden the generic audit sanitizer as a substitute; the owning mapper is what knows which fields are safe. No `AuditContextService`/interceptor changes needed for this — the existing `setBefore`/`setAfter` contract already supports passing any plain object.
 
-When the existing `DELETE` endpoint is called for an already inactive row, the deactivate use case calls `auditContext.skip()` and the existing interceptor checks `auditContext.shouldSkip()` before inserting. This preserves idempotent HTTP behavior without creating a duplicate no-op audit event. Add the two methods to the existing `AuditContextService` store and cover the branch in `audit.interceptor.spec.ts`; do not create a second interceptor.
-
-The minimal context change is:
-
-```typescript
-type AuditStore = { before: unknown; after: unknown; skip: boolean };
-
-skip(): void {
-  const store = this.storage.getStore();
-  if (store) store.skip = true;
-}
-
-shouldSkip(): boolean {
-  return this.storage.getStore()?.skip ?? false;
-}
-```
-
-Initialize `skip: false` in the existing `run()` method and add this guard before `auditLogRepo.create(...)` in the existing interceptor:
-
-```typescript
-if (this.auditContext.shouldSkip()) return;
-```
-
-- [ ] **Step 5: Run the contract tests and commit**
+- [ ] **Step 6: Run the contract tests and commit**
 
 Run the command from Step 2. Expected: PASS.
 
 ```bash
-git add apps/backend/src/common/rbac apps/backend/src/common/audit packages/shared-types
+git add packages/shared-types apps/backend/src/common/audit
 git commit -m "feat: authorize and audit customer bank account management"
 ```
 
@@ -522,20 +516,24 @@ list(@Param('customerId') customerId: string) {}
 
 @Post()
 @RequirePermission(Permission.CUSTOMER_BANK_ACCOUNT_MANAGE)
-@Audited(AuditActionType.CUSTOMER_BANK_ACCOUNT_CREATE, 'CustomerBankAccount')
+@Audited(AuditActionType.CUSTOMER_BANK_ACCOUNT_CREATE, AuditEntityType.CUSTOMER_BANK_ACCOUNT)
 create(@Param('customerId') customerId: string, @Body() dto: CreateCustomerBankAccountDto) {}
 
 @Patch(':id')
 @RequirePermission(Permission.CUSTOMER_BANK_ACCOUNT_MANAGE)
-@Audited(AuditActionType.CUSTOMER_BANK_ACCOUNT_UPDATE, 'CustomerBankAccount')
+@Audited(AuditActionType.CUSTOMER_BANK_ACCOUNT_UPDATE, AuditEntityType.CUSTOMER_BANK_ACCOUNT)
 update(@Param('customerId') customerId: string, @Param('id') id: string, @Body() dto: UpdateCustomerBankAccountDto) {}
 
 @Delete(':id')
 @HttpCode(HttpStatus.NO_CONTENT)
 @RequirePermission(Permission.CUSTOMER_BANK_ACCOUNT_MANAGE)
-@Audited(AuditActionType.CUSTOMER_BANK_ACCOUNT_DEACTIVATE, 'CustomerBankAccount')
+@Audited(AuditActionType.CUSTOMER_BANK_ACCOUNT_DEACTIVATE, AuditEntityType.CUSTOMER_BANK_ACCOUNT)
 deactivate(@Param('customerId') customerId: string, @Param('id') id: string) {}
 ```
+
+**(2026-08-10: `AuditEntityType.CUSTOMER_BANK_ACCOUNT` — not the raw string `'CustomerBankAccount'` the original draft used — per `@Audited`'s real signature `(actionType: AuditActionType, entityType: AuditEntityType)`; see Task 2 Step 4.)**
+
+Every mutating route also needs `@Headers('idempotency-key') key: string | undefined` and a body wrapped in `IdempotencyService.execute(endpoint, key, dto, async () => {...})`, matching `.claude/rules/api.md`'s "POST/PATCH/DELETE endpoints with side effects MUST wrap the handler with `IdempotencyService.execute`" rule — every other controller in this codebase follows this pattern (e.g. `receivables.controller.ts`), and the original draft's Step 4 sample omits it.
 
 Use the project's existing global JWT/permission guards; do not add a second local authentication implementation. The controller passes only route IDs and validated DTO values to the use cases.
 
@@ -558,8 +556,8 @@ git commit -m "feat: expose masked customer bank account API"
 
 **Files:**
 - Modify: `apps/backend/src/modules/webhooks/application/matching-engine.service.ts`
-- Modify: `apps/backend/test/webhook-matching-routing.integration.spec.ts`
-- Create: `apps/backend/test/customer-bank-account-management.integration.spec.ts`
+- Modify: `apps/backend/test/webhook-matching.e2e-spec.ts`
+- Create: `apps/backend/test/customer-bank-account-management.e2e-spec.ts`
 - Modify: `apps/backend/src/modules/bank-accounts/infrastructure/typeorm-customer-bank-account.repository.ts`
 
 **Interfaces:**
@@ -584,7 +582,7 @@ it('scores an active normalized mapping and ignores an inactive mapping', async 
 
 - [ ] **Step 2: Run the matching integration test and verify it fails**
 
-Run: `pnpm --filter @casso-ledger/backend test:e2e -- webhook-matching-routing.integration.spec.ts --runInBand`
+Run: `pnpm --filter @casso-ledger/backend test:e2e -- webhook-matching.e2e-spec.ts --runInBand`
 
 Expected: FAIL until active filtering and shared normalization are wired into the repository/Matching Engine path.
 
@@ -594,7 +592,7 @@ Remove any direct `trim`, numeric coercion, or duplicate account-number normaliz
 
 - [ ] **Step 4: Add API integration tests**
 
-The new `customer-bank-account-management.integration.spec.ts` must prove:
+The new `customer-bank-account-management.e2e-spec.ts` must prove:
 
 ```typescript
 await request(app.getHttpServer())
@@ -616,7 +614,7 @@ Run:
 
 ```bash
 pnpm --filter @casso-ledger/backend test -- bank-accounts --runInBand
-pnpm --filter @casso-ledger/backend test:e2e -- customer-bank-account-management.integration.spec.ts webhook-matching-routing.integration.spec.ts --runInBand
+pnpm --filter @casso-ledger/backend test:e2e -- customer-bank-account-management.e2e-spec.ts webhook-matching.e2e-spec.ts --runInBand
 pnpm --filter @casso-ledger/backend type-check
 ```
 
@@ -627,56 +625,31 @@ git add apps/backend/src/modules/webhooks apps/backend/test
 git commit -m "test: verify bank account mappings feed active matching only"
 ```
 
-### Task 6: Synchronize the spec/plan contracts and implementation order
+### Task 6: Update `feature-map.md`
+
+**(2026-08-10: scope pruned — the original draft proposed editing 5 other already-shipped plans' spec/plan docs plus `docs/overview.md`. All of those have moved on substantially since 2026-08-04 in ways this session confirmed are themselves stale — editing them here would repeat the exact mistake this rescoping is fixing. Matching how Plan #22 and Plan #23 closed out, this ticket only updates its own two docs (already covered above) and `feature-map.md`.)**
 
 **Files:**
-- Modify: `docs/overview.md`
-- Modify: `(implementation order defined in feature-map.md)`
-- Modify: `docs/superpowers/specs/2026-08-03-multi-tenancy-rbac-design.md`
-- Modify: `docs/superpowers/plans/2026-08-03-multi-tenancy-rbac.md`
-- Modify: `docs/superpowers/specs/2026-08-03-webhook-matching-engine-design.md`
-- Modify: `docs/superpowers/plans/2026-08-03-webhook-matching-engine.md`
-- Modify: `docs/superpowers/plans/2026-08-03-spec-plan-reconciliation.md`
+- Modify: `docs/wayfinder/feature-map.md`
 
 **Interfaces:**
-- Consumes: the accepted design in `docs/superpowers/specs/2026-08-04-customer-bank-account-management-design.md` and all implementation contracts from Tasks 1–5.
-- Produces: one canonical documentation path with no remaining statement that bank-account mappings are seed-only or inferred by matching.
+- Consumes: the completed implementation from Tasks 1–5.
+- Produces: an accurate `feature-map.md` entry for this ticket (it currently has no dedicated section — check the "ADDITIONAL PLANS" area near `Credit Balance Management`/`Spec-Plan Reconciliation` for the right insertion point and format to match).
 
-- [ ] **Step 1: Update RBAC documentation**
+- [ ] **Step 1: Add/update this ticket's `feature-map.md` entry**
 
-Add `CUSTOMER_BANK_ACCOUNT_MANAGE` to the permission enum/table and role matrix in the Multi-tenancy spec and plan. Record the exact role grants: `OWNER`, `FINANCE_MANAGER`, `ACCOUNTANT` only. Do not add a generic `CUSTOMER_WRITE` permission.
+Mark status `done ✅` with a `Shipped:` date + PR reference, following the same entry shape every other completed ticket uses (Type/Status/Owner/Spec/Blockers/Shipped/Key rules/Creates/Implementation note — see any recently-closed entry, e.g. Plan #22 or Plan #23, for the exact format). Update the "Ticket Index" snapshot count and the "Frontier" section (remove this ticket from "Next available tickets", note anything still open).
 
-- [ ] **Step 2: Update Webhook/Matching ownership**
-
-Change the Webhook spec/plan language from “management flow or seeded/admin setup creates the row” to: the Customer Bank Account Management plan owns runtime creation/update/deactivation; fixtures may seed rows only for isolated tests. State that lookup uses the shared normalizer and `isActive = true`.
-
-- [ ] **Step 3: Add API ownership and dependency order**
-
-Add the bank-account route contract to `docs/wayfinder/feature-map.md` after Webhook + Exception/Audit dependencies and before FE Core consumes any future bank-account UI. Keep existing FE routes untouched. In `docs/overview.md`, add the module/API ownership and permission row.
-
-- [ ] **Step 4: Mark reconciliation coverage**
-
-Add the new spec/plan pair and its cross-document updates to `2026-08-03-spec-plan-reconciliation.md`. Record that the feature is BE-only and does not require removing any FE API.
-
-- [ ] **Step 5: Run documentation consistency checks and commit**
-
-Run:
+- [ ] **Step 2: Commit**
 
 ```bash
-rg -n "CustomerBankAccount|customer-bank-account|CUSTOMER_BANK_ACCOUNT_MANAGE|/customers/:customerId/bank-accounts|isActive" docs/superpowers/specs docs/superpowers/plans docs/overview.md
-rg -n "seeded/admin setup|infer.*customer|BankAccountsModule.*read-only" docs/superpowers/specs docs/superpowers/plans docs/overview.md
-```
-
-Expected: every occurrence points to the management plan or explicitly describes a test fixture; no current contract says Matching Engine may infer ownership or read inactive mappings. Commit:
-
-```bash
-git add docs/overview.md docs/superpowers
-git commit -m "docs: reconcile customer bank account management contracts"
+git add docs/wayfinder/feature-map.md
+git commit -m "docs: mark Customer Bank Account Management done"
 ```
 
 ## Execution order and verification gate
 
-Execute Tasks 1–6 in order. Before declaring the feature complete, run the focused unit tests, the two integration suites, type-check, and the documentation searches from Task 6. In the current workspace only the documentation exists, so those runtime commands will be runnable after the scaffold/backend plans have been implemented; do not claim runtime tests pass in the docs-only workspace.
+Execute Tasks 1–6 in order. Before declaring the feature complete: run the focused unit tests (Tasks 1-3), the migration against a real local Postgres (Task 1), the controller tests (Task 4), both e2e suites standalone against real Postgres+Redis (Task 5 — `customer-bank-account-management.e2e-spec.ts` and `webhook-matching.e2e-spec.ts`, per `test:e2e` staying local-only per Plan #22's CI-contract decision), `pnpm verify` (lint/type-check/test/arch-check), and the `domain-check` skill (AGENTS.md requires this after every backend change).
 
 ## Self-review checklist
 
@@ -686,5 +659,7 @@ Execute Tasks 1–6 in order. Before declaring the feature complete, run the foc
 - Raw account numbers appear only in write input and internal domain/repository operations, never in response/audit/log output.
 - Cross-tenant access is handled by existing tenant-scoped repository contracts, not caller-supplied organization IDs.
 - FE is intentionally not modified; existing FE calls remain untouched.
+- Every mutating route uses `IdempotencyService.execute` + `@Audited`, matching `.claude/rules/api.md` and every other controller in this codebase (Task 4).
+- A real migration file exists for the new columns/unique index, not just reliance on dev-only `synchronize: true` (Task 1).
 
 
