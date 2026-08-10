@@ -13,6 +13,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useAuth } from '@/contexts/auth-context';
 import { formatDate } from '@/lib/format';
 import { hasPermission } from '@/lib/rbac';
@@ -50,33 +58,33 @@ export function ConnectionTable({
   }
 
   return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b text-left">
-          <th className="p-2">Ngân hàng</th>
-          <th className="p-2">Số tài khoản</th>
-          <th className="p-2">Trạng thái</th>
-          <th className="p-2">Đồng bộ gần nhất</th>
-          {canManage && <th className="p-2">Thao tác</th>}
-        </tr>
-      </thead>
-      <tbody>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Ngân hàng</TableHead>
+          <TableHead>Số tài khoản</TableHead>
+          <TableHead>Trạng thái</TableHead>
+          <TableHead>Đồng bộ gần nhất</TableHead>
+          {canManage && <TableHead>Thao tác</TableHead>}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {connections.map((connection) => (
-          <tr className="border-b" key={connection.id}>
-            <td className="p-2 font-medium">{connection.bankName}</td>
-            <td className="p-2">{connection.accountNumber}</td>
-            <td className="p-2">
+          <TableRow key={connection.id}>
+            <TableCell className="font-medium">{connection.bankName}</TableCell>
+            <TableCell>{connection.accountNumber}</TableCell>
+            <TableCell>
               <Badge
                 variant={connection.status === 'ACTIVE' ? 'default' : 'outline'}
               >
                 {statusLabels[connection.status]}
               </Badge>
-            </td>
-            <td className="p-2">
+            </TableCell>
+            <TableCell>
               {connection.lastSyncAt ? formatDate(connection.lastSyncAt) : '—'}
-            </td>
+            </TableCell>
             {canManage && (
-              <td className="p-2">
+              <TableCell>
                 {connection.status === 'ACTIVE' && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
@@ -111,11 +119,11 @@ export function ConnectionTable({
                     </AlertDialogContent>
                   </AlertDialog>
                 )}
-              </td>
+              </TableCell>
             )}
-          </tr>
+          </TableRow>
         ))}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   );
 }

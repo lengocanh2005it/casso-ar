@@ -3,6 +3,13 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
 
+const planLabels: Record<PlanId, string> = {
+  [PlanId.FREE]: 'Free',
+  [PlanId.STARTER]: 'Starter',
+  [PlanId.BUSINESS]: 'Business',
+  [PlanId.ENTERPRISE]: 'Enterprise',
+};
+
 const plans = [
   { id: PlanId.FREE, receivables: '50 / tháng', connections: '1 kết nối' },
   { id: PlanId.STARTER, receivables: '200 / tháng', connections: '3 kết nối' },
@@ -31,7 +38,7 @@ export function BillingTab() {
         >
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              {plan.id}
+              {planLabels[plan.id]}
               {plan.id === currentPlan && <Badge>Hiện tại</Badge>}
             </CardTitle>
           </CardHeader>

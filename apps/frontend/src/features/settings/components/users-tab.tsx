@@ -2,6 +2,14 @@ import { Permission, Role } from '@casso-ledger/shared-types';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
 import { useInviteMember, useOrganizationMembers } from '../api/use-settings';
@@ -71,24 +79,24 @@ export function UsersTab() {
           <p className="text-destructive">Không thể tải thành viên.</p>
         )}
         {membersQuery.data && (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left">
-                <th className="p-2">Tên</th>
-                <th className="p-2">Email</th>
-                <th className="p-2">Vai trò</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tên</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Vai trò</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {membersQuery.data.items.map((member) => (
-                <tr className="border-b" key={member.id}>
-                  <td className="p-2">{member.name}</td>
-                  <td className="p-2">{member.email}</td>
-                  <td className="p-2">{member.role}</td>
-                </tr>
+                <TableRow key={member.id}>
+                  <TableCell>{member.name}</TableCell>
+                  <TableCell>{member.email}</TableCell>
+                  <TableCell>{member.role}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
       </div>
     </div>

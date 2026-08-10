@@ -13,6 +13,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
 import { useDeleteTemplate, useEmailTemplates } from '../api/use-settings';
@@ -68,25 +76,25 @@ export function EmailTemplatesTab() {
         </p>
       )}
       {templatesQuery.data && templatesQuery.data.length > 0 && (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left">
-              <th className="p-2">Tên</th>
-              <th className="p-2">Tiêu đề</th>
-              <th className="p-2">Mặc định</th>
-              {canWrite && <th className="p-2">Thao tác</th>}
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Tên</TableHead>
+              <TableHead>Tiêu đề</TableHead>
+              <TableHead>Mặc định</TableHead>
+              {canWrite && <TableHead>Thao tác</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {templatesQuery.data.map((template) => (
-              <tr className="border-b" key={template.id}>
-                <td className="p-2 font-medium">{template.name}</td>
-                <td className="p-2">{template.subject}</td>
-                <td className="p-2">
+              <TableRow key={template.id}>
+                <TableCell className="font-medium">{template.name}</TableCell>
+                <TableCell>{template.subject}</TableCell>
+                <TableCell>
                   {template.isDefault && <Badge>Mặc định</Badge>}
-                </td>
+                </TableCell>
                 {canWrite && (
-                  <td className="flex gap-2 p-2">
+                  <TableCell className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -128,12 +136,12 @@ export function EmailTemplatesTab() {
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
-                  </td>
+                  </TableCell>
                 )}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       )}
       {canWrite && (
         <>
