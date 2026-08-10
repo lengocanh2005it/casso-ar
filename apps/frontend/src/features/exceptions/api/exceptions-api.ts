@@ -1,5 +1,5 @@
 import type { MatchingCandidate } from '@/features/transactions/types';
-import { apiRequest } from '@/lib/api-client';
+import { apiRequest, postWithIdempotency } from '@/lib/api-client';
 import type { PendingReviewItem } from '../types';
 
 export interface PendingReviewPage {
@@ -23,15 +23,6 @@ export function fetchCandidates(
   return apiRequest<MatchingCandidate[]>({
     url: `/api/v1/bank-transactions/${bankTransactionId}/candidates`,
     method: 'GET',
-  });
-}
-
-function postWithIdempotency<T>(url: string, data?: unknown): Promise<T> {
-  return apiRequest<T>({
-    url,
-    method: 'POST',
-    data,
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
   });
 }
 

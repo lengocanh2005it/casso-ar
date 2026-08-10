@@ -10,6 +10,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/contexts/auth-context';
 import { useCustomers } from '@/features/customers/api/use-customers';
 import type { BankTransaction } from '@/features/transactions/types';
@@ -157,19 +164,24 @@ export function SplitMatchDialog({
             />
           </label>
           {customerPage && customerPage.items.length > 0 && (
-            <select
-              aria-label="Customer for credit balance"
-              className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+            <Select
               value={prepaidCustomerId}
-              onChange={(event) => setPrepaidCustomerId(event.target.value)}
+              onValueChange={setPrepaidCustomerId}
             >
-              <option value="">Select customer</option>
-              {customerPage.items.map((customer) => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                aria-label="Customer for credit balance"
+                className="w-full"
+              >
+                <SelectValue placeholder="Select customer" />
+              </SelectTrigger>
+              <SelectContent>
+                {customerPage.items.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
           <div className="flex justify-end gap-2">
             <Button

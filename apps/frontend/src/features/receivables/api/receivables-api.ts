@@ -1,4 +1,4 @@
-import { apiRequest } from '@/lib/api-client';
+import { apiRequest, postWithIdempotency } from '@/lib/api-client';
 import type {
   InternalTask,
   Receivable,
@@ -41,15 +41,6 @@ export function fetchReceivable(id: string): Promise<Receivable> {
   return apiRequest<Receivable>({
     url: `/api/v1/receivables/${id}`,
     method: 'GET',
-  });
-}
-
-function postWithIdempotency<T>(url: string, data?: unknown): Promise<T> {
-  return apiRequest<T>({
-    url,
-    method: 'POST',
-    data,
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
   });
 }
 
@@ -110,12 +101,12 @@ interface InternalTaskPage {
 }
 
 export async function fetchTasks(id: string): Promise<InternalTask[]> {
-  const result = await apiRequest<InternalTaskPage | InternalTask[]>({
+  const result = await apiRequest<InternalTaskPage>({
     url: `/api/v1/receivables/${id}/tasks`,
     method: 'GET',
     params: { page: 1, limit: 100 },
   });
-  return Array.isArray(result) ? result : result.items;
+  return result.items;
 }
 
 export function createTask(

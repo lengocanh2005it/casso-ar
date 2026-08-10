@@ -7,6 +7,13 @@ const apiRequest = vi.fn();
 
 vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
+  postWithIdempotency: (url: string, data?: unknown, headers?: unknown) =>
+    apiRequest({
+      url,
+      method: 'POST',
+      data,
+      headers: { 'Idempotency-Key': 'test-key', ...(headers as object) },
+    }),
 }));
 
 vi.mock('@/contexts/auth-context', () => ({

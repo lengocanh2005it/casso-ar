@@ -627,4 +627,4 @@ Success = a single document a new developer can read and know exactly what to pi
 **Blocked tickets waiting:**
 - **Spec-Plan Reconciliation** — waiting on all plans
 
-**Recommended next step:** Plan #21 (FE Reminders, Copilot, Reports, Settings) is a good parallel pick alongside Plan #20.
+**Recommended next step:** Plan #21 (FE Reminders, Copilot, Reports, Settings).

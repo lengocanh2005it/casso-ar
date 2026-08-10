@@ -54,7 +54,6 @@ export function ReceivableTasks({ receivableId }: { receivableId: string }) {
     user?.role ?? null,
     Permission.INTERNAL_TASK_MANAGE,
   );
-  const canAct = hasPermission(user?.role ?? null, Permission.RECEIVABLE_READ);
 
   return (
     <div className="space-y-4">
@@ -96,7 +95,7 @@ export function ReceivableTasks({ receivableId }: { receivableId: string }) {
                   {task.dueDate ? ` · ${formatDate(task.dueDate)}` : ''}
                 </p>
               </div>
-              {canAct && task.status === 'OPEN' && (
+              {canManage && task.status === 'OPEN' && (
                 <div className="flex gap-2">
                   <Button
                     size="sm"
