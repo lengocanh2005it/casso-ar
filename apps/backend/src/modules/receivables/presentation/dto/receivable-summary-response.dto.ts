@@ -3,6 +3,7 @@ import type { ReceivableStatus } from '@casso-ledger/shared-types';
 export interface ReceivableSummaryResponseDto {
   id: string;
   customerId: string;
+  customerName: string | null;
   invoiceId: string | null;
   invoiceNumber: string | null;
   originalAmount: number;
@@ -35,10 +36,12 @@ export function toReceivableSummaryResponse(
   isDisputed: boolean,
   disputeId: string | null,
   invoiceNumber: string | null,
+  customerName: string | null,
 ): ReceivableSummaryResponseDto {
   return {
     id: r.id,
     customerId: r.customerId,
+    customerName,
     invoiceId: r.invoiceId,
     invoiceNumber,
     originalAmount: r.originalAmount,

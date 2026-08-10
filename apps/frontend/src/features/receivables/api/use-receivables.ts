@@ -1,0 +1,52 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  type CreateReceivableInput,
+  cancelReceivable,
+  createReceivable,
+  fetchReceivable,
+  fetchReceivables,
+  type ReceivableFilters,
+  writeOffReceivable,
+} from './receivables-api';
+
+export function useReceivables(filters: ReceivableFilters, page = 1) {
+  return useQuery({
+    queryKey: ['receivables', filters, page],
+    queryFn: () => fetchReceivables(filters, page),
+  });
+}
+
+export function useReceivable(id: string) {
+  return useQuery({
+    queryKey: ['receivable', id],
+    queryFn: () => fetchReceivable(id),
+    enabled: id.length > 0,
+  });
+}
+
+function useReceivableMutation<TInput>(
+  mutationFn: (input: TInput) => Promise<unknown>,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: (_, input) => {
+      void queryClient.invalidateQueries({ queryKey: ['receivables'] });
+      if (typeof input === 'string') {
+        void queryClient.invalidateQueries({ queryKey: ['receivable', input] });
+      }
+    },
+  });
+}
+
+export function useCreateReceivable() {
+  return useReceivableMutation<CreateReceivableInput>(createReceivable);
+}
+
+export function useWriteOffReceivable() {
+  return useReceivableMutation<string>(writeOffReceivable);
+}
+
+export function useCancelReceivable() {
+  return useReceivableMutation<string>(cancelReceivable);
+}

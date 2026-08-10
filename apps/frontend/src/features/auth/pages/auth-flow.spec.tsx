@@ -104,7 +104,7 @@ describe('authentication routes', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Email hoặc mật khẩu không đúng.');
-    expect(alert).toHaveFocus();
+    await waitFor(() => expect(alert).toHaveFocus());
   });
 
   it('redirects unauthenticated users from protected routes to login', async () => {

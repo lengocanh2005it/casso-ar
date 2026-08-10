@@ -81,7 +81,7 @@ export class InternalTasksController {
   }
 
   @Post('tasks/:id/resolve')
-  @RequirePermission(Permission.RECEIVABLE_READ)
+  @RequirePermission(Permission.INTERNAL_TASK_MANAGE)
   async resolve(
     @Param('id') id: string,
     @Headers('idempotency-key') key: string | undefined,
@@ -102,7 +102,7 @@ export class InternalTasksController {
   }
 
   @Post('tasks/:id/dismiss')
-  @RequirePermission(Permission.RECEIVABLE_READ)
+  @RequirePermission(Permission.INTERNAL_TASK_MANAGE)
   async dismiss(
     @Param('id') id: string,
     @Headers('idempotency-key') key: string | undefined,

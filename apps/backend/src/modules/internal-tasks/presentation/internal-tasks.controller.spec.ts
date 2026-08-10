@@ -1,3 +1,5 @@
+import { Permission } from '@casso-ledger/shared-types';
+import { REQUIRED_PERMISSION_KEY } from '../../../common/rbac/require-permission.decorator';
 import { Role } from '../../organizations/domain/membership';
 import { InternalTask } from '../domain/internal-task';
 import { InternalTasksController } from './internal-tasks.controller';
@@ -65,5 +67,20 @@ describe('InternalTasksController', () => {
     });
     expect(result).not.toHaveProperty('organizationId');
     expect(result).not.toHaveProperty('version');
+  });
+
+  it('requires INTERNAL_TASK_MANAGE to resolve or dismiss a task, not just RECEIVABLE_READ', () => {
+    expect(
+      Reflect.getMetadata(
+        REQUIRED_PERMISSION_KEY,
+        InternalTasksController.prototype.resolve,
+      ),
+    ).toBe(Permission.INTERNAL_TASK_MANAGE);
+    expect(
+      Reflect.getMetadata(
+        REQUIRED_PERMISSION_KEY,
+        InternalTasksController.prototype.dismiss,
+      ),
+    ).toBe(Permission.INTERNAL_TASK_MANAGE);
   });
 });

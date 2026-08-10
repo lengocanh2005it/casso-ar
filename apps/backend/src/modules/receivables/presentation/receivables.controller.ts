@@ -62,6 +62,7 @@ export class ReceivablesController {
           x.isDisputed,
           x.disputeId,
           x.invoiceNumber,
+          x.customerName,
         ),
       ),
       total: result.total,
@@ -98,6 +99,8 @@ export class ReceivablesController {
       result.isDisputed,
       result.disputeId,
       result.allocations,
+      result.invoiceNumber,
+      result.isOverdue,
     );
   }
 

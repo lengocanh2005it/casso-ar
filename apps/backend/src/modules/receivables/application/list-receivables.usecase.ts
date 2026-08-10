@@ -1,6 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import {
+  CUSTOMER_REPOSITORY,
+  type ICustomerRepository,
+} from '../../customers/application/customer-repository.port';
+import {
   DISPUTE_REPOSITORY,
   type IDisputeRepository,
 } from '../../disputes/application/dispute-repository.port';
@@ -22,6 +26,7 @@ export interface ReceivableListItem {
   isDisputed: boolean;
   disputeId: string | null;
   invoiceNumber: string | null;
+  customerName: string | null;
 }
 
 @Injectable()
@@ -33,6 +38,8 @@ export class ListReceivablesUseCase {
     private readonly disputeRepo: IDisputeRepository,
     @Inject(INVOICE_REPOSITORY)
     private readonly invoiceRepo: IInvoiceRepository,
+    @Inject(CUSTOMER_REPOSITORY)
+    private readonly customerRepo: ICustomerRepository,
     private readonly tenantContext: TenantContextService,
   ) {}
 
@@ -67,10 +74,12 @@ export class ListReceivablesUseCase {
         receivables.flatMap((r) => (r.invoiceId ? [r.invoiceId] : [])),
       ),
     ];
+    const customerIds = [...new Set(receivables.map((r) => r.customerId))];
 
-    const [openDisputes, invoices] = await Promise.all([
+    const [openDisputes, invoices, customers] = await Promise.all([
       this.disputeRepo.findOpenDisputesByReceivableIds(receivableIds),
       this.invoiceRepo.findByIds(invoiceIds),
+      this.customerRepo.findByIds(customerIds),
     ]);
 
     const now = new Date();
@@ -80,12 +89,14 @@ export class ListReceivablesUseCase {
       const invoiceNumber = r.invoiceId
         ? (invoices.get(r.invoiceId)?.invoiceNumber ?? null)
         : null;
+      const customerName = customers.get(r.customerId)?.name ?? null;
       return {
         receivable: r,
         isOverdue,
         isDisputed: disputeId !== null,
         disputeId,
         invoiceNumber,
+        customerName,
       };
     });
 

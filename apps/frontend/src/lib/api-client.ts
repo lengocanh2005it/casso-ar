@@ -119,3 +119,16 @@ export async function apiRequest<T>(config: AxiosRequestConfig): Promise<T> {
 
   return response.data;
 }
+
+export function postWithIdempotency<T>(
+  url: string,
+  data?: unknown,
+  headers?: Record<string, string>,
+): Promise<T> {
+  return apiRequest<T>({
+    url,
+    method: 'POST',
+    data,
+    headers: { 'Idempotency-Key': crypto.randomUUID(), ...headers },
+  });
+}
