@@ -15,5 +15,36 @@ services:
     ports:
       - "6379:6379"
 
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: casso
+      DB_PASSWORD: casso
+      DB_DATABASE: casso_ledger
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      ACCESS_TOKEN_ENCRYPTION_KEY: ${ACCESS_TOKEN_ENCRYPTION_KEY:?ACCESS_TOKEN_ENCRYPTION_KEY is required}
+      CASSO_WEBHOOK_CLIENT_ID: ${CASSO_WEBHOOK_CLIENT_ID:-dev-client}
+      CASSO_WEBHOOK_SECRET_KEY: ${CASSO_WEBHOOK_SECRET_KEY:-dev-secret}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
 volumes:
   casso_pg_data:

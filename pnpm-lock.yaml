@@ -92,6 +92,9 @@ importers:
       ioredis:
         specifier: ^6.0.0
         version: 6.0.0(supports-color@8.1.1)
+      multer:
+        specifier: ^2.2.0
+        version: 2.2.0
       openai:
         specifier: ^7.4.0
         version: 7.4.0(ws@8.21.1)
