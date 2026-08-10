@@ -497,7 +497,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #21 — FE Reminders, Copilot, Reports, Settings
 - **Type**: task
-- **Status**: open
+- **Status**: in-progress
 - **Owner**: FE
 - **Plan**: `plans/2026-08-03-fe-reminders-copilot-reports-settings.md`
 - **Blockers**: Plan #4 ✅, Plan #5 ✅, Plan #6 ✅, Plan #7 ✅, Plan #12 ✅, Plan #15 ✅, Plan #16 ✅, Plan #17 ✅, Plan #18 ✅, Plan #19 ✅
