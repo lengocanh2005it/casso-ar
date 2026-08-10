@@ -370,4 +370,21 @@ describe('Customer bank account management (e2e)', () => {
       201, 409,
     ]);
   });
+
+  it('allows the same normalized account number in a different organization', async () => {
+    const accountNumber = '5566 7788';
+    await request(app.getHttpServer())
+      .post(`/api/v1/customers/${customerA}/bank-accounts`)
+      .set('Authorization', `Bearer ${token(financeManager, organizationA)}`)
+      .set('Idempotency-Key', `cross-org-a-${randomUUID()}`)
+      .send({ accountNumber })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/customers/${customerB}/bank-accounts`)
+      .set('Authorization', `Bearer ${token(otherTenantOwner, organizationB)}`)
+      .set('Idempotency-Key', `cross-org-b-${randomUUID()}`)
+      .send({ accountNumber })
+      .expect(201);
+  });
 });
