@@ -1,20 +1,31 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import {
+  PostgreSqlContainer,
+  type StartedPostgreSqlContainer,
+} from '@testcontainers/postgresql';
 import request from 'supertest';
+import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
 
 describe('Health and metrics (e2e)', () => {
   let app: INestApplication;
+  let postgresContainer: StartedPostgreSqlContainer;
+  let redisContainer: StartedTestContainer;
 
   beforeAll(async () => {
-    process.env.DB_HOST = 'localhost';
-    process.env.DB_PORT = '5432';
-    process.env.DB_USERNAME = 'casso';
-    process.env.DB_PASSWORD = 'casso';
-    process.env.DB_DATABASE = 'casso_ledger';
-    process.env.REDIS_HOST = 'localhost';
-    process.env.REDIS_PORT = '6379';
+    [postgresContainer, redisContainer] = await Promise.all([
+      new PostgreSqlContainer('postgres:16').start(),
+      new GenericContainer('redis:7-alpine').withExposedPorts(6379).start(),
+    ]);
+    process.env.DB_HOST = postgresContainer.getHost();
+    process.env.DB_PORT = String(postgresContainer.getMappedPort(5432));
+    process.env.DB_USERNAME = postgresContainer.getUsername();
+    process.env.DB_PASSWORD = postgresContainer.getPassword();
+    process.env.DB_DATABASE = postgresContainer.getDatabase();
+    process.env.REDIS_HOST = redisContainer.getHost();
+    process.env.REDIS_PORT = String(redisContainer.getMappedPort(6379));
     process.env.JWT_SECRET = 'e2e-jwt-secret';
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -28,10 +39,11 @@ describe('Health and metrics (e2e)', () => {
     app = moduleRef.createNestApplication();
     configureApp(app);
     await app.init();
-  }, 30_000);
+  }, 60_000);
 
   afterAll(async () => {
     await app?.close();
+    await Promise.all([postgresContainer?.stop(), redisContainer?.stop()]);
   });
 
   it('GET /health returns 200 with status ok and all checks true when dependencies are up', async () => {

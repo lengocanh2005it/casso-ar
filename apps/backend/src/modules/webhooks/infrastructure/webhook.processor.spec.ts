@@ -16,9 +16,13 @@ describe('WebhookProcessor', () => {
       observeWebhookProcessing: jest.fn(),
       incrementBullmqJobFailed: jest.fn(),
     };
+    const requestIdStore = {
+      run: jest.fn((_requestId, callback) => callback()),
+    };
     const processor = new WebhookProcessor(
       processWebhook as any,
       metrics as any,
+      requestIdStore as any,
     );
 
     await processor.process(buildJob(1, 5));
@@ -26,6 +30,10 @@ describe('WebhookProcessor', () => {
     expect(processWebhook.execute).toHaveBeenCalledWith('wh-1', 'org-1');
     expect(metrics.observeWebhookProcessing).toHaveBeenCalledWith(
       expect.any(Number),
+    );
+    expect(requestIdStore.run).toHaveBeenCalledWith(
+      'bullmq:wh-1',
+      expect.any(Function),
     );
   });
 
@@ -35,9 +43,13 @@ describe('WebhookProcessor', () => {
       observeWebhookProcessing: jest.fn(),
       incrementBullmqJobFailed: jest.fn(),
     };
+    const requestIdStore = {
+      run: jest.fn((_requestId, callback) => callback()),
+    };
     const processor = new WebhookProcessor(
       processWebhook as any,
       metrics as any,
+      requestIdStore as any,
     );
     const errorSpy = jest.spyOn((processor as any).logger, 'error');
 
@@ -52,5 +64,9 @@ describe('WebhookProcessor', () => {
       expect.stringContaining('moved to dead letter'),
     );
     expect(metrics.incrementBullmqJobFailed).toHaveBeenCalledTimes(2);
+    expect(requestIdStore.run).toHaveBeenCalledWith(
+      'bullmq:wh-1',
+      expect.any(Function),
+    );
   });
 });

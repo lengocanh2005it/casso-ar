@@ -5,7 +5,7 @@ import {
   type NestInterceptor,
 } from '@nestjs/common';
 import type { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { finalize } from 'rxjs/operators';
 import { MetricsService } from './metrics.service';
 
 @Injectable()
@@ -19,7 +19,7 @@ export class HttpMetricsInterceptor implements NestInterceptor {
     const start = process.hrtime.bigint();
 
     return next.handle().pipe(
-      tap(() => {
+      finalize(() => {
         const seconds = Number(process.hrtime.bigint() - start) / 1e9;
         this.metrics.observeHttpRequest(
           request.method,
