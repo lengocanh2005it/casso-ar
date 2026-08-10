@@ -1,3 +1,6 @@
+import { QueryFailedError } from 'typeorm';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import type { CustomerBankAccount } from '../domain/customer-bank-account';
 
 const ACCOUNT_NUMBER_PATTERN = /^[0-9]{4,34}$/;
@@ -10,6 +13,27 @@ export function normalizeAccountNumber(value: unknown): string {
     throw new Error('Account number must contain 4-34 digits');
   }
   return normalized;
+}
+
+// Both create and update use cases need the same "normalize or reject with a
+// user-facing AppError" behavior and the same DB-race duplicate detection --
+// centralized here instead of duplicated per use case.
+export function normalizeOrThrow(value: string): string {
+  try {
+    return normalizeAccountNumber(value);
+  } catch {
+    throw new AppError(
+      ErrorCode.VALIDATION_ERROR,
+      'Số tài khoản ngân hàng không hợp lệ.',
+    );
+  }
+}
+
+export function isUniqueViolation(error: unknown): boolean {
+  return (
+    error instanceof QueryFailedError &&
+    (error as { code?: string }).code === '23505'
+  );
 }
 
 export function maskAccountNumber(normalized: string): string {

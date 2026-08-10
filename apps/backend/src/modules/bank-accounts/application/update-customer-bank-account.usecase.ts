@@ -6,7 +6,8 @@ import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import type { CustomerBankAccount } from '../domain/customer-bank-account';
 import {
-  normalizeAccountNumber,
+  isUniqueViolation,
+  normalizeOrThrow,
   toAuditedBankAccount,
 } from './account-number-normalizer';
 import {
@@ -19,25 +20,6 @@ export interface UpdateCustomerBankAccountInput {
   customerId: string;
   accountNumber?: string;
   isActive?: boolean;
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    Reflect.get(error, 'code') === '23505'
-  );
-}
-
-function normalizeOrThrow(value: string): string {
-  try {
-    return normalizeAccountNumber(value);
-  } catch {
-    throw new AppError(
-      ErrorCode.VALIDATION_ERROR,
-      'Số tài khoản ngân hàng không hợp lệ.',
-    );
-  }
 }
 
 @Injectable()

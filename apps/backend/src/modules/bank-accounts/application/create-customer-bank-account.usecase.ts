@@ -10,7 +10,10 @@ import {
   type ICustomerRepository,
 } from '../../customers/application/customer-repository.port';
 import { CustomerBankAccount } from '../domain/customer-bank-account';
-import { normalizeAccountNumber } from './account-number-normalizer';
+import {
+  isUniqueViolation,
+  normalizeOrThrow,
+} from './account-number-normalizer';
 import {
   CUSTOMER_BANK_ACCOUNT_REPOSITORY,
   type ICustomerBankAccountRepository,
@@ -19,25 +22,6 @@ import {
 export interface CreateCustomerBankAccountInput {
   customerId: string;
   accountNumber: string;
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    Reflect.get(error, 'code') === '23505'
-  );
-}
-
-function normalizeOrThrow(value: string): string {
-  try {
-    return normalizeAccountNumber(value);
-  } catch {
-    throw new AppError(
-      ErrorCode.VALIDATION_ERROR,
-      'Số tài khoản ngân hàng không hợp lệ.',
-    );
-  }
 }
 
 @Injectable()

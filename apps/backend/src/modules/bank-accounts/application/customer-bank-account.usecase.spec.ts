@@ -1,6 +1,18 @@
+import { QueryFailedError } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { CustomerBankAccount } from '../domain/customer-bank-account';
+
+function buildUniqueViolation(): QueryFailedError {
+  const error = new QueryFailedError(
+    'INSERT ...',
+    [],
+    new Error('duplicate key'),
+  );
+  (error as unknown as { code: string }).code = '23505';
+  return error;
+}
+
 import { CreateCustomerBankAccountUseCase } from './create-customer-bank-account.usecase';
 import { DeactivateCustomerBankAccountUseCase } from './deactivate-customer-bank-account.usecase';
 import { ListCustomerBankAccountsUseCase } from './list-customer-bank-accounts.usecase';
@@ -138,7 +150,7 @@ describe('customer bank account use cases', () => {
   it('maps a concurrent unique violation to a conflict error', async () => {
     const bankAccountRepo = {
       findByAccountNumber: jest.fn().mockResolvedValue(null),
-      save: jest.fn().mockRejectedValue({ code: '23505' }),
+      save: jest.fn().mockRejectedValue(buildUniqueViolation()),
     };
     const useCase = buildCreateUseCase(
       { findById: jest.fn().mockResolvedValue({ id: 'cust-1' }) },
