@@ -35,7 +35,10 @@ export interface ScoredCandidate {
 export class MatchingEngineService {
   constructor(
     @Inject(CUSTOMER_BANK_ACCOUNT_REPOSITORY)
-    private readonly bankAccountRepo: ICustomerBankAccountRepository,
+    private readonly bankAccountRepo: Pick<
+      ICustomerBankAccountRepository,
+      'findByAccountNumber' | 'save'
+    >,
     @Inject(RECEIVABLE_REPOSITORY)
     private readonly receivableRepo: IReceivableRepository,
     @Inject(INVOICE_REPOSITORY)

@@ -4,6 +4,8 @@ export interface ICustomerBankAccountRepository {
   findByAccountNumber(
     accountNumber: string,
   ): Promise<CustomerBankAccount | null>;
+  findByCustomerId(customerId: string): Promise<CustomerBankAccount[]>;
+  findById(id: string): Promise<CustomerBankAccount | null>;
   save(account: CustomerBankAccount): Promise<void>;
 }
 
