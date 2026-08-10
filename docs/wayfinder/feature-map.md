@@ -89,8 +89,8 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **27 plans** | status snapshot (2026-08-10):
 - 🟢 done (23): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Application Layer Boundary Enforcement
-- 🟡 in-progress (0): none
-- 🔴 open/not started (4): Plan #23, Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
+- 🟡 in-progress (1): Plan #23
+- 🔴 open/not started (3): Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
 
 ---
 
@@ -537,7 +537,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #23 — Deployment + Observability
 - **Type**: task
-- **Status**: open
+- **Status**: in-progress
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-deployment-observability-design.md`
 - **Blockers**: none — Plan #1 ✅, Plan #7 ✅, Plan #18 ✅
@@ -618,10 +618,9 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **In progress:**
-- None
+- **Plan #23** (Deployment + Observability)
 
 **Next available tickets** (all blockers resolved):
-- **Plan #23** (Deployment + Observability) — blockers: Plan #1 ✅, Plan #7 ✅, Plan #18 ✅
 - **Credit Balance Management** — blockers: Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
 - **Customer Bank Account Management** — blockers: Plan #8 ✅
 
