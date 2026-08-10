@@ -8,6 +8,7 @@ import { ListCustomerBankAccountsUseCase } from './application/list-customer-ban
 import { UpdateCustomerBankAccountUseCase } from './application/update-customer-bank-account.usecase';
 import { CustomerBankAccountOrmEntity } from './infrastructure/customer-bank-account.orm-entity';
 import { TypeOrmCustomerBankAccountRepository } from './infrastructure/typeorm-customer-bank-account.repository';
+import { CustomerBankAccountsController } from './presentation/customer-bank-accounts.controller';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { TypeOrmCustomerBankAccountRepository } from './infrastructure/typeorm-c
     UpdateCustomerBankAccountUseCase,
     DeactivateCustomerBankAccountUseCase,
   ],
+  controllers: [CustomerBankAccountsController],
   exports: [CUSTOMER_BANK_ACCOUNT_REPOSITORY],
 })
 export class BankAccountsModule {}
