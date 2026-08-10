@@ -32,11 +32,9 @@ describe('WriteOffDialog', () => {
       </QueryClientProvider>,
     );
 
-    fireEvent.click(screen.getByText('Write off'));
-    expect(
-      screen.getByText(/accept the loss of the remaining amount/i),
-    ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /confirm write-off/i }));
+    fireEvent.click(screen.getByText('Xóa nợ'));
+    expect(screen.getByText(/chấp nhận mất phần còn lại/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /xác nhận xóa nợ/i }));
 
     await waitFor(() =>
       expect(apiRequest).toHaveBeenCalledWith(

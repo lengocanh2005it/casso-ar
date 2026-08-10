@@ -25,14 +25,15 @@ export function WriteOffDialog({ receivableId }: { receivableId: string }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="destructive">Write off</Button>
+        <Button variant="destructive">Xóa nợ</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Write off {receivableId}</DialogTitle>
+          <DialogTitle>Xóa nợ {receivableId}</DialogTitle>
         </DialogHeader>
         <DialogDescription>
-          Accept the loss of the remaining amount. This action cannot be undone.
+          Chấp nhận mất phần còn lại của khoản phải thu này. Không thể hoàn tác
+          thao tác này.
         </DialogDescription>
         {mutation.isError && (
           <p className="text-sm text-destructive">
@@ -46,7 +47,7 @@ export function WriteOffDialog({ receivableId }: { receivableId: string }) {
             mutation.mutate(receivableId, { onSuccess: () => setOpen(false) })
           }
         >
-          {mutation.isPending ? 'Processing…' : 'Confirm write-off'}
+          {mutation.isPending ? 'Đang xử lý…' : 'Xác nhận xóa nợ'}
         </Button>
       </DialogContent>
     </Dialog>

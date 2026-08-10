@@ -91,7 +91,7 @@ export function SplitMatchDialog({
   function onMatch() {
     if (!valid) {
       toast.error(
-        `Total allocation ${formatVND(total)} exceeds transaction amount ${formatVND(tx.amount)}`,
+        `Tổng phân bổ ${formatVND(total)} vượt quá số tiền giao dịch ${formatVND(tx.amount)}`,
       );
       return;
     }
@@ -106,12 +106,12 @@ export function SplitMatchDialog({
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>
-            Process transaction {tx.providerTransactionId} —{' '}
-            {formatVND(tx.amount)}
+            Xử lý giao dịch {tx.providerTransactionId} — {formatVND(tx.amount)}
           </DialogTitle>
         </DialogHeader>
         <DialogDescription>
-          Review candidate receivables before allocating this bank transaction.
+          Xem lại các khoản phải thu gợi ý trước khi phân bổ giao dịch ngân hàng
+          này.
         </DialogDescription>
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground">{tx.transferContent}</p>
@@ -128,9 +128,9 @@ export function SplitMatchDialog({
                 htmlFor={`allocation-${candidate.receivableId}`}
                 className="flex items-center gap-2 text-sm"
               >
-                Allocation amount
+                Số tiền phân bổ
                 <Input
-                  aria-label={`Allocation amount for ${candidate.receivableId}`}
+                  aria-label={`Số tiền phân bổ cho ${candidate.receivableId}`}
                   id={`allocation-${candidate.receivableId}`}
                   type="number"
                   min={0}
@@ -148,11 +148,11 @@ export function SplitMatchDialog({
             </div>
           ))}
           <p className="text-sm">
-            Allocated: <span className="tabular-nums">{formatVND(total)}</span>{' '}
+            Đã phân bổ: <span className="tabular-nums">{formatVND(total)}</span>{' '}
             / {formatVND(tx.amount)}
           </p>
           <label htmlFor="customer-search" className="block text-sm">
-            Search customer for credit balance
+            Tìm khách hàng để ghi nhận công nợ
             <Input
               id="customer-search"
               value={customerSearch}
@@ -160,7 +160,7 @@ export function SplitMatchDialog({
                 setCustomerSearch(event.target.value);
                 setPrepaidCustomerId('');
               }}
-              placeholder="Customer name, tax code, or phone"
+              placeholder="Tên khách hàng, mã số thuế hoặc số điện thoại"
             />
           </label>
           {customerPage && customerPage.items.length > 0 && (
@@ -169,10 +169,10 @@ export function SplitMatchDialog({
               onValueChange={setPrepaidCustomerId}
             >
               <SelectTrigger
-                aria-label="Customer for credit balance"
+                aria-label="Khách hàng để ghi nhận công nợ"
                 className="w-full"
               >
-                <SelectValue placeholder="Select customer" />
+                <SelectValue placeholder="Chọn khách hàng" />
               </SelectTrigger>
               <SelectContent>
                 {customerPage.items.map((customer) => (
@@ -194,7 +194,7 @@ export function SplitMatchDialog({
                 )
               }
             >
-              Hold (credit balance)
+              Ghi nhận công nợ
             </Button>
             <Button
               variant="outline"
@@ -203,10 +203,10 @@ export function SplitMatchDialog({
                 skip.mutate(tx.id, { onSuccess: () => onOpenChange(false) })
               }
             >
-              Skip
+              Bỏ qua
             </Button>
             <Button onClick={onMatch} disabled={!valid || splitMatch.isPending}>
-              Match transaction
+              Khớp giao dịch
             </Button>
           </div>
         </div>

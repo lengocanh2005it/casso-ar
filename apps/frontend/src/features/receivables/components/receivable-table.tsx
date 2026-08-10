@@ -48,7 +48,9 @@ export function ReceivableTable({
                 {receivable.invoiceNumber ?? 'Không có hóa đơn'}
               </Link>
             </TableCell>
-            <TableCell>{receivable.customerId}</TableCell>
+            <TableCell>
+              {receivable.customerName ?? receivable.customerId}
+            </TableCell>
             <TableCell>{formatVND(receivable.originalAmount)}</TableCell>
             <TableCell className="font-medium">
               {formatVND(receivable.remainingAmount)}

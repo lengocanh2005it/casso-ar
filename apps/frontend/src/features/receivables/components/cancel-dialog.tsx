@@ -25,15 +25,15 @@ export function CancelDialog({ receivableId }: { receivableId: string }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">Cancel</Button>
+        <Button variant="outline">Hủy</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Cancel receivable {receivableId}</DialogTitle>
+          <DialogTitle>Hủy khoản phải thu {receivableId}</DialogTitle>
         </DialogHeader>
         <DialogDescription>
-          Only valid when there are no payments. If there is money, use Write
-          off instead.
+          Chỉ áp dụng khi chưa có khoản thanh toán nào. Nếu đã có tiền, hãy dùng
+          chức năng Xóa nợ thay thế.
         </DialogDescription>
         {mutation.isError && (
           <p className="text-sm text-destructive">
@@ -47,7 +47,7 @@ export function CancelDialog({ receivableId }: { receivableId: string }) {
             mutation.mutate(receivableId, { onSuccess: () => setOpen(false) })
           }
         >
-          {mutation.isPending ? 'Processing…' : 'Confirm cancellation'}
+          {mutation.isPending ? 'Đang xử lý…' : 'Xác nhận hủy'}
         </Button>
       </DialogContent>
     </Dialog>

@@ -56,9 +56,9 @@ export function ImportInvoicesDialog() {
     try {
       const response = await importInvoices(file);
       setResult(response);
-      toast.success(`Successfully imported ${response.successCount} rows`);
+      toast.success(`Đã nhập thành công ${response.successCount} dòng`);
     } catch {
-      toast.error('File import failed');
+      toast.error('Nhập file thất bại');
     } finally {
       setUploading(false);
     }
@@ -73,39 +73,39 @@ export function ImportInvoicesDialog() {
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="outline">Import invoices</Button>
+        <Button variant="outline">Nhập hóa đơn</Button>
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Import invoices</DialogTitle>
+          <DialogTitle>Nhập hóa đơn</DialogTitle>
         </DialogHeader>
         <DialogDescription>
-          Upload a CSV or XLSX file to create invoices and receivables.
+          Tải lên file CSV hoặc XLSX để tạo hóa đơn và khoản phải thu.
         </DialogDescription>
         {!result ? (
           <div className="space-y-3">
             <input
-              aria-label="Invoice file"
+              aria-label="File hóa đơn"
               type="file"
               accept=".xlsx,.csv"
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             />
             <Button onClick={onUpload} disabled={!file || uploading}>
-              {uploading ? 'Uploading…' : 'Upload'}
+              {uploading ? 'Đang tải lên…' : 'Tải lên'}
             </Button>
           </div>
         ) : (
           <div className="space-y-3">
             <p>
-              <span>Successfully imported {result.successCount} rows</span>.
-              Failed rows are skipped; remaining amounts are unaffected.
+              <span>Đã nhập thành công {result.successCount} dòng</span>. Các
+              dòng lỗi bị bỏ qua; số tiền còn lại không bị ảnh hưởng.
             </p>
             {result.failedRows.length > 0 && (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Row</TableHead>
-                    <TableHead>Reason</TableHead>
+                    <TableHead>Dòng</TableHead>
+                    <TableHead>Lý do</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

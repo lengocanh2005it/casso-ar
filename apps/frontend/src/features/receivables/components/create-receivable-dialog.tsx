@@ -41,11 +41,11 @@ export function CreateReceivableDialog() {
       }}
     >
       <DialogTrigger asChild>
-        <Button>Create receivable</Button>
+        <Button>Tạo khoản phải thu</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create receivable</DialogTitle>
+          <DialogTitle>Tạo khoản phải thu</DialogTitle>
         </DialogHeader>
         <form
           className="space-y-3"
@@ -67,7 +67,7 @@ export function CreateReceivableDialog() {
           }}
         >
           <Label className="block space-y-1">
-            <span className="text-sm">Customer ID</span>
+            <span className="text-sm">Mã khách hàng</span>
             <Input
               required
               value={customerId}
@@ -76,7 +76,7 @@ export function CreateReceivableDialog() {
             />
           </Label>
           <Label className="block space-y-1">
-            <span className="text-sm">Amount (dong)</span>
+            <span className="text-sm">Số tiền (đồng)</span>
             <Input
               required
               type="number"
@@ -87,7 +87,7 @@ export function CreateReceivableDialog() {
             />
           </Label>
           <Label className="block space-y-1">
-            <span className="text-sm">Due date</span>
+            <span className="text-sm">Hạn thanh toán</span>
             <Input
               required
               type="date"
@@ -101,7 +101,7 @@ export function CreateReceivableDialog() {
             </p>
           )}
           <Button type="submit" disabled={mutation.isPending}>
-            {mutation.isPending ? 'Saving…' : 'Create'}
+            {mutation.isPending ? 'Đang lưu…' : 'Tạo'}
           </Button>
         </form>
       </DialogContent>

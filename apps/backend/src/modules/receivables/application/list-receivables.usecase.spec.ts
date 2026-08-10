@@ -1,6 +1,7 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Test } from '@nestjs/testing';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { CUSTOMER_REPOSITORY } from '../../customers/application/customer-repository.port';
 import { DISPUTE_REPOSITORY } from '../../disputes/application/dispute-repository.port';
 import { INVOICE_REPOSITORY } from '../../invoices/application/invoice-repository.port';
 import { Receivable } from '../domain/receivable';
@@ -44,22 +45,39 @@ describe('ListReceivablesUseCase', () => {
           new Map([['invoice-1', { invoiceNumber: 'INV-001' }]]),
         ),
     };
+    const customerRepo = {
+      findByIds: jest
+        .fn()
+        .mockResolvedValue(new Map([['customer-1', { name: 'Acme Co' }]])),
+    };
     const tenantContext = {
       getOrganizationId: jest.fn().mockReturnValue('org-1'),
       getCurrentUser: jest
         .fn()
         .mockReturnValue({ userId: 'user-1', role: 'OWNER' }),
     };
-    return { receivableRepo, disputeRepo, invoiceRepo, tenantContext };
+    return {
+      receivableRepo,
+      disputeRepo,
+      invoiceRepo,
+      customerRepo,
+      tenantContext,
+    };
   }
 
   it('batches the open-dispute lookup instead of querying per row', async () => {
-    const { receivableRepo, disputeRepo, invoiceRepo, tenantContext } =
-      buildDeps();
+    const {
+      receivableRepo,
+      disputeRepo,
+      invoiceRepo,
+      customerRepo,
+      tenantContext,
+    } = buildDeps();
     const useCase = new ListReceivablesUseCase(
       receivableRepo as any,
       disputeRepo as any,
       invoiceRepo as any,
+      customerRepo as any,
       tenantContext as any,
     );
 
@@ -75,12 +93,18 @@ describe('ListReceivablesUseCase', () => {
   });
 
   it('resolves invoiceNumber from the batched invoice lookup', async () => {
-    const { receivableRepo, disputeRepo, invoiceRepo, tenantContext } =
-      buildDeps();
+    const {
+      receivableRepo,
+      disputeRepo,
+      invoiceRepo,
+      customerRepo,
+      tenantContext,
+    } = buildDeps();
     const useCase = new ListReceivablesUseCase(
       receivableRepo as any,
       disputeRepo as any,
       invoiceRepo as any,
+      customerRepo as any,
       tenantContext as any,
     );
 
@@ -91,8 +115,13 @@ describe('ListReceivablesUseCase', () => {
   });
 
   it('returns null invoiceNumber when the receivable has no invoice', async () => {
-    const { receivableRepo, disputeRepo, invoiceRepo, tenantContext } =
-      buildDeps();
+    const {
+      receivableRepo,
+      disputeRepo,
+      invoiceRepo,
+      customerRepo,
+      tenantContext,
+    } = buildDeps();
     receivableRepo.findPage.mockResolvedValue([
       buildReceivable({ id: 'receivable-2', invoiceId: null }),
     ]);
@@ -101,6 +130,7 @@ describe('ListReceivablesUseCase', () => {
       receivableRepo as any,
       disputeRepo as any,
       invoiceRepo as any,
+      customerRepo as any,
       tenantContext as any,
     );
 
@@ -110,9 +140,36 @@ describe('ListReceivablesUseCase', () => {
     expect(result.items[0].invoiceNumber).toBeNull();
   });
 
+  it('resolves customerName from the batched customer lookup', async () => {
+    const {
+      receivableRepo,
+      disputeRepo,
+      invoiceRepo,
+      customerRepo,
+      tenantContext,
+    } = buildDeps();
+    const useCase = new ListReceivablesUseCase(
+      receivableRepo as any,
+      disputeRepo as any,
+      invoiceRepo as any,
+      customerRepo as any,
+      tenantContext as any,
+    );
+
+    const result = await useCase.execute({ filters: {}, page: 1, limit: 20 });
+
+    expect(customerRepo.findByIds).toHaveBeenCalledWith(['customer-1']);
+    expect(result.items[0].customerName).toBe('Acme Co');
+  });
+
   it('marks a WRITTEN_OFF receivable as not overdue even with a past due date', async () => {
-    const { receivableRepo, disputeRepo, invoiceRepo, tenantContext } =
-      buildDeps();
+    const {
+      receivableRepo,
+      disputeRepo,
+      invoiceRepo,
+      customerRepo,
+      tenantContext,
+    } = buildDeps();
     receivableRepo.findPage.mockResolvedValue([
       buildReceivable({
         status: ReceivableStatus.WRITTEN_OFF,
@@ -123,6 +180,7 @@ describe('ListReceivablesUseCase', () => {
       receivableRepo as any,
       disputeRepo as any,
       invoiceRepo as any,
+      customerRepo as any,
       tenantContext as any,
     );
 
@@ -138,6 +196,7 @@ describe('ListReceivablesUseCase', () => {
         { provide: RECEIVABLE_REPOSITORY, useValue: {} },
         { provide: DISPUTE_REPOSITORY, useValue: {} },
         { provide: INVOICE_REPOSITORY, useValue: {} },
+        { provide: CUSTOMER_REPOSITORY, useValue: {} },
         TenantContextService,
       ],
     }).compile();

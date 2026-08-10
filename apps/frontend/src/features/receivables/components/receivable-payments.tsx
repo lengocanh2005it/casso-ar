@@ -14,17 +14,19 @@ export function ReceivablePayments({ receivableId }: { receivableId: string }) {
   const allocations = data?.allocations ?? [];
 
   if (allocations.length === 0) {
-    return <p className="text-sm text-muted-foreground">No payments.</p>;
+    return (
+      <p className="text-sm text-muted-foreground">Chưa có khoản thanh toán.</p>
+    );
   }
 
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Payment</TableHead>
-          <TableHead>Amount</TableHead>
-          <TableHead>Date</TableHead>
-          <TableHead>Source</TableHead>
+          <TableHead>Thanh toán</TableHead>
+          <TableHead>Số tiền</TableHead>
+          <TableHead>Ngày</TableHead>
+          <TableHead>Nguồn</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -35,7 +37,7 @@ export function ReceivablePayments({ receivableId }: { receivableId: string }) {
             <TableCell>{formatDate(allocation.allocatedAt)}</TableCell>
             <TableCell>
               {allocation.allocatedByUserId === null
-                ? 'Automatically matched'
+                ? 'Tự động khớp'
                 : allocation.allocatedByUserId}
             </TableCell>
           </TableRow>

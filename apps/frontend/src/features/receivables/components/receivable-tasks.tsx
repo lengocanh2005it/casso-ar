@@ -45,9 +45,9 @@ export function ReceivableTasks({ receivableId }: { receivableId: string }) {
       }),
   });
 
-  if (isPending) return <p>Loading…</p>;
+  if (isPending) return <p>Đang tải…</p>;
   if (isError) {
-    return <p className="text-destructive">Unable to load tasks.</p>;
+    return <p className="text-destructive">Không thể tải công việc.</p>;
   }
 
   const canManage = hasPermission(
@@ -66,8 +66,8 @@ export function ReceivableTasks({ receivableId }: { receivableId: string }) {
           }}
         >
           <Input
-            aria-label="Task title"
-            placeholder="Task title"
+            aria-label="Tiêu đề công việc"
+            placeholder="Tiêu đề công việc"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
           />
@@ -75,12 +75,12 @@ export function ReceivableTasks({ receivableId }: { receivableId: string }) {
             type="submit"
             disabled={createMutation.isPending || !title.trim()}
           >
-            Add task
+            Thêm công việc
           </Button>
         </form>
       )}
       {!data || data.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No tasks.</p>
+        <p className="text-sm text-muted-foreground">Chưa có công việc.</p>
       ) : (
         <ul className="space-y-3">
           {data.map((task) => (
@@ -102,7 +102,7 @@ export function ReceivableTasks({ receivableId }: { receivableId: string }) {
                     disabled={resolveMutation.isPending}
                     onClick={() => resolveMutation.mutate(task.id)}
                   >
-                    Complete
+                    Hoàn thành
                   </Button>
                   <Button
                     size="sm"
@@ -110,7 +110,7 @@ export function ReceivableTasks({ receivableId }: { receivableId: string }) {
                     disabled={dismissMutation.isPending}
                     onClick={() => dismissMutation.mutate(task.id)}
                   >
-                    Dismiss
+                    Bỏ qua
                   </Button>
                 </div>
               )}

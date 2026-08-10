@@ -40,6 +40,7 @@ export interface InternalTask {
 export interface Receivable {
   id: string;
   customerId: string;
+  customerName?: string | null;
   invoiceId: string | null;
   invoiceNumber: string | null;
   originalAmount: number;

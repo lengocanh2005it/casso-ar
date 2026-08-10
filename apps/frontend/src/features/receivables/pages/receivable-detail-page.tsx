@@ -16,7 +16,7 @@ export function ReceivableDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const { data: receivable, isPending, isError } = useReceivable(id);
 
-  if (isPending) return <p>Loading…</p>;
+  if (isPending) return <p>Đang tải…</p>;
   if (isError || !receivable) {
     return <p className="text-destructive">Không tìm thấy khoản phải thu.</p>;
   }
@@ -33,16 +33,14 @@ export function ReceivableDetailPage() {
             to="/receivables"
             className="text-sm text-primary hover:underline"
           >
-            ← Receivables
+            ← Công nợ
           </Link>
           <h1 className="text-2xl font-semibold">{receivable.id}</h1>
           <ReceivableStatusBadge status={receivable.status} />
           {receivable.isDisputed && (
-            <Badge variant="destructive">Disputed</Badge>
+            <Badge variant="destructive">Tranh chấp</Badge>
           )}
-          {receivable.isOverdue && (
-            <Badge className="bg-red-100 text-red-700">Overdue</Badge>
-          )}
+          {receivable.isOverdue && <Badge variant="destructive">Quá hạn</Badge>}
         </div>
         {!terminal && (
           <div className="flex flex-wrap gap-2">
@@ -59,7 +57,7 @@ export function ReceivableDetailPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Original</CardTitle>
+            <CardTitle className="text-sm">Nguyên giá</CardTitle>
           </CardHeader>
           <CardContent className="tabular-nums">
             {formatVND(receivable.originalAmount)}
@@ -67,7 +65,7 @@ export function ReceivableDetailPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Paid</CardTitle>
+            <CardTitle className="text-sm">Đã thu</CardTitle>
           </CardHeader>
           <CardContent className="tabular-nums">
             {formatVND(receivable.paidAmount)}
@@ -75,7 +73,7 @@ export function ReceivableDetailPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Remaining</CardTitle>
+            <CardTitle className="text-sm">Còn lại</CardTitle>
           </CardHeader>
           <CardContent className="tabular-nums">
             {formatVND(receivable.remainingAmount)}
@@ -83,13 +81,13 @@ export function ReceivableDetailPage() {
         </Card>
       </div>
       <p className="text-sm text-muted-foreground">
-        Due: {formatDate(receivable.dueDate)}
+        Hạn thanh toán: {formatDate(receivable.dueDate)}
       </p>
       <Tabs defaultValue="payments">
         <TabsList>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="payments">Thanh toán</TabsTrigger>
+          <TabsTrigger value="activity">Hoạt động</TabsTrigger>
+          <TabsTrigger value="tasks">Công việc</TabsTrigger>
         </TabsList>
         <TabsContent value="payments">
           <ReceivablePayments receivableId={receivable.id} />

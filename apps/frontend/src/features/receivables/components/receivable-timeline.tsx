@@ -8,12 +8,12 @@ export function ReceivableTimeline({ receivableId }: { receivableId: string }) {
     queryFn: () => fetchReceivableTimeline(receivableId),
   });
 
-  if (isPending) return <p>Loading…</p>;
+  if (isPending) return <p>Đang tải…</p>;
   if (isError) {
-    return <p className="text-destructive">Unable to load activity.</p>;
+    return <p className="text-destructive">Không thể tải hoạt động.</p>;
   }
   if (!data || data.length === 0) {
-    return <p className="text-sm text-muted-foreground">No activity.</p>;
+    return <p className="text-sm text-muted-foreground">Chưa có hoạt động.</p>;
   }
 
   return (

@@ -58,8 +58,8 @@ describe('ReceivableTasks', () => {
     await waitFor(() =>
       expect(screen.getByText('Follow up')).toBeInTheDocument(),
     );
-    expect(screen.queryByText('Complete')).not.toBeInTheDocument();
-    expect(screen.queryByText('Dismiss')).not.toBeInTheDocument();
+    expect(screen.queryByText('Hoàn thành')).not.toBeInTheDocument();
+    expect(screen.queryByText('Bỏ qua')).not.toBeInTheDocument();
   });
 
   it('shows Complete/Dismiss for a role with INTERNAL_TASK_MANAGE', async () => {
@@ -75,7 +75,7 @@ describe('ReceivableTasks', () => {
     await waitFor(() =>
       expect(screen.getByText('Follow up')).toBeInTheDocument(),
     );
-    expect(screen.getByText('Complete')).toBeInTheDocument();
-    expect(screen.getByText('Dismiss')).toBeInTheDocument();
+    expect(screen.getByText('Hoàn thành')).toBeInTheDocument();
+    expect(screen.getByText('Bỏ qua')).toBeInTheDocument();
   });
 });

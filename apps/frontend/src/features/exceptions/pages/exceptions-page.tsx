@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,23 +16,32 @@ import { usePendingReview } from '../api/use-exceptions';
 import { SplitMatchDialog } from '../components/split-match-dialog';
 
 export function ExceptionsPage() {
-  const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = Number(searchParams.get('page') ?? '1');
   const [selected, setSelected] = useState<BankTransaction | null>(null);
   const { data, isPending, isError } = usePendingReview(page);
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
+
+  function setPage(nextPage: number) {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.set('page', String(nextPage));
+      return next;
+    });
+  }
 
   return (
     <div className="space-y-5">
       <div>
         <p className="text-sm font-medium text-primary">CẦN XỬ LÝ</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          Exception Queue
+          Hàng chờ xử lý ngoại lệ
         </h1>
       </div>
-      {isPending && <p>Loading…</p>}
+      {isPending && <p>Đang tải…</p>}
       {isError && (
         <p className="text-destructive">
-          Unable to load the transaction review list.
+          Không thể tải danh sách giao dịch cần xử lý.
         </p>
       )}
       {data && data.items.length === 0 && (
@@ -43,10 +53,10 @@ export function ExceptionsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Date/time</TableHead>
-              <TableHead>Counterparty</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Highest score</TableHead>
+              <TableHead>Ngày giờ</TableHead>
+              <TableHead>Đối tác</TableHead>
+              <TableHead>Số tiền</TableHead>
+              <TableHead>Điểm cao nhất</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -54,7 +64,15 @@ export function ExceptionsPage() {
               <TableRow
                 key={row.transaction.id}
                 className="cursor-pointer"
+                role="button"
+                tabIndex={0}
                 onClick={() => setSelected(row.transaction)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setSelected(row.transaction);
+                  }
+                }}
               >
                 <TableCell>
                   {formatDate(row.transaction.transactionDateTime)}
@@ -87,7 +105,7 @@ export function ExceptionsPage() {
               variant="outline"
               size="sm"
               disabled={page === 1}
-              onClick={() => setPage((current) => current - 1)}
+              onClick={() => setPage(page - 1)}
             >
               Trước
             </Button>
@@ -95,7 +113,7 @@ export function ExceptionsPage() {
               variant="outline"
               size="sm"
               disabled={page >= totalPages}
-              onClick={() => setPage((current) => current + 1)}
+              onClick={() => setPage(page + 1)}
             >
               Sau
             </Button>

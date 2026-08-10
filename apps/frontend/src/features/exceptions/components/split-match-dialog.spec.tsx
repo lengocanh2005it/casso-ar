@@ -81,10 +81,10 @@ describe('SplitMatchDialog', () => {
     renderDialog();
 
     await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
-    const inputs = screen.getAllByLabelText(/allocation amount/i);
+    const inputs = screen.getAllByLabelText(/số tiền phân bổ/i);
     fireEvent.change(inputs[0], { target: { value: '30000000' } });
     fireEvent.change(inputs[1], { target: { value: '20000000' } });
-    fireEvent.click(screen.getByRole('button', { name: /match transaction/i }));
+    fireEvent.click(screen.getByRole('button', { name: /khớp giao dịch/i }));
 
     await waitFor(() =>
       expect(apiRequest).toHaveBeenCalledWith(
@@ -113,9 +113,9 @@ describe('SplitMatchDialog', () => {
     renderDialog();
 
     await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
-    const inputs = screen.getAllByLabelText(/allocation amount/i);
+    const inputs = screen.getAllByLabelText(/số tiền phân bổ/i);
     fireEvent.change(inputs[0], { target: { value: '60000000' } });
-    fireEvent.click(screen.getByRole('button', { name: /match transaction/i }));
+    fireEvent.click(screen.getByRole('button', { name: /khớp giao dịch/i }));
 
     expect(apiRequest).not.toHaveBeenCalledWith(
       expect.objectContaining({

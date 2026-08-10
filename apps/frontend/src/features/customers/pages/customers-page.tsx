@@ -1,14 +1,23 @@
-import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCustomers } from '../api/use-customers';
 import { CustomerTable } from '../components/customer-table';
 
 export function CustomersPage() {
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const search = searchParams.get('search') ?? '';
+  const page = Number(searchParams.get('page') ?? '1');
   const { data, isPending, isError } = useCustomers(search, page);
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
+
+  function setPage(nextPage: number) {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.set('page', String(nextPage));
+      return next;
+    });
+  }
 
   return (
     <div className="space-y-5">
@@ -23,8 +32,17 @@ export function CustomersPage() {
         placeholder="Tìm theo tên, mã số thuế hoặc số điện thoại"
         value={search}
         onChange={(event) => {
-          setSearch(event.target.value);
-          setPage(1);
+          const value = event.target.value;
+          setSearchParams((current) => {
+            const next = new URLSearchParams(current);
+            if (value) {
+              next.set('search', value);
+            } else {
+              next.delete('search');
+            }
+            next.set('page', '1');
+            return next;
+          });
         }}
         className="max-w-lg"
       />
@@ -43,7 +61,7 @@ export function CustomersPage() {
               variant="outline"
               size="sm"
               disabled={page === 1}
-              onClick={() => setPage((current) => current - 1)}
+              onClick={() => setPage(page - 1)}
             >
               Trước
             </Button>
@@ -51,7 +69,7 @@ export function CustomersPage() {
               variant="outline"
               size="sm"
               disabled={page >= totalPages}
-              onClick={() => setPage((current) => current + 1)}
+              onClick={() => setPage(page + 1)}
             >
               Sau
             </Button>

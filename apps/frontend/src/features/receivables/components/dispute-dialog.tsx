@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
@@ -61,13 +62,13 @@ export function DisputeDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline">
-          {isDisputed ? 'Close dispute' : 'Open dispute'}
+          {isDisputed ? 'Đóng tranh chấp' : 'Mở tranh chấp'}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isDisputed ? 'Close dispute' : 'Open dispute'}
+            {isDisputed ? 'Đóng tranh chấp' : 'Mở tranh chấp'}
           </DialogTitle>
         </DialogHeader>
         {isDisputed ? (
@@ -76,21 +77,24 @@ export function DisputeDialog({
             disabled={resolveMutation.isPending || disputeId === null}
             onClick={() => resolveMutation.mutate()}
           >
-            Confirm dispute closure
+            Xác nhận đóng tranh chấp
           </Button>
         ) : (
           <div className="space-y-3">
-            <Textarea
-              required
-              placeholder="Dispute reason…"
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-            />
+            <Label className="block space-y-1">
+              <span className="text-sm">Lý do tranh chấp</span>
+              <Textarea
+                required
+                placeholder="Nhập lý do tranh chấp…"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+              />
+            </Label>
             <Button
               disabled={!reason.trim() || openMutation.isPending}
               onClick={() => openMutation.mutate()}
             >
-              Confirm dispute opening
+              Xác nhận mở tranh chấp
             </Button>
           </div>
         )}

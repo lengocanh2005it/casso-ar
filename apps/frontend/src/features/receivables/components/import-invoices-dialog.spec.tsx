@@ -27,18 +27,16 @@ describe('ImportInvoicesDialog', () => {
     });
 
     render(<ImportInvoicesDialog />);
-    fireEvent.click(screen.getByText('Import invoices'));
-    fireEvent.change(screen.getByLabelText('Invoice file'), {
+    fireEvent.click(screen.getByText('Nhập hóa đơn'));
+    fireEvent.change(screen.getByLabelText('File hóa đơn'), {
       target: {
         files: [new File(['invoice'], 'invoices.csv', { type: 'text/csv' })],
       },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lên' }));
 
     await waitFor(() =>
-      expect(
-        screen.getByText('Successfully imported 2 rows'),
-      ).toBeInTheDocument(),
+      expect(screen.getByText('Đã nhập thành công 2 dòng')).toBeInTheDocument(),
     );
     expect(screen.getByText('Số hóa đơn đã tồn tại')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
