@@ -128,6 +128,23 @@ export class ReminderPolicyService {
   }
 
   async list(): Promise<ReminderPolicy[]> {
-    return this.policyRepo.findAll();
+    const policies = await this.policyRepo.findAll();
+    const rules = await this.ruleRepo.findByPolicyIds(
+      policies.map((policy) => policy.id),
+    );
+    const rulesByPolicyId = new Map<string, ReminderRule[]>();
+    for (const rule of rules) {
+      const policyRules = rulesByPolicyId.get(rule.reminderPolicyId) ?? [];
+      policyRules.push(rule);
+      rulesByPolicyId.set(rule.reminderPolicyId, policyRules);
+    }
+
+    return policies.map(
+      (policy) =>
+        new ReminderPolicy({
+          ...policy,
+          rules: rulesByPolicyId.get(policy.id) ?? [],
+        }),
+    );
   }
 }

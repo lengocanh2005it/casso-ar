@@ -109,15 +109,25 @@ export const authTokenManager = new AuthTokenManager();
 
 export async function apiRequest<T>(config: AxiosRequestConfig): Promise<T> {
   const token = await authTokenManager.getValidAccessToken();
-  const response = await axiosClient.request<T>({
-    ...config,
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(config.headers ?? {}),
-    },
-  });
-
-  return response.data;
+  try {
+    const response = await axiosClient.request<T>({
+      ...config,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(config.headers ?? {}),
+      },
+    });
+    return response.data;
+  } catch (error) {
+    const status =
+      typeof error === 'object' && error !== null && 'response' in error
+        ? (error.response as { status?: unknown }).status
+        : undefined;
+    if (status === 402) {
+      window.dispatchEvent(new CustomEvent('casso:plan-limit'));
+    }
+    throw error;
+  }
 }
 
 export function postWithIdempotency<T>(

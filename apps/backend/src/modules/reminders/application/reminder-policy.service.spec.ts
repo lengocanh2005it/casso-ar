@@ -53,7 +53,10 @@ describe('ReminderPolicyService', () => {
     };
     const service = new ReminderPolicyService(
       policyRepo as unknown as IReminderPolicyRepository,
-      { replaceForPolicy: jest.fn() } as unknown as IReminderRuleRepository,
+      {
+        replaceForPolicy: jest.fn(),
+        findByPolicyIds: jest.fn().mockResolvedValue([]),
+      } as unknown as IReminderRuleRepository,
       { transaction: jest.fn() } as unknown as DataSource,
       tenantContext,
     );
@@ -78,7 +81,10 @@ describe('ReminderPolicyService', () => {
     };
     const service = new ReminderPolicyService(
       policyRepo as unknown as IReminderPolicyRepository,
-      { replaceForPolicy: jest.fn() } as unknown as IReminderRuleRepository,
+      {
+        replaceForPolicy: jest.fn(),
+        findByPolicyIds: jest.fn().mockResolvedValue([]),
+      } as unknown as IReminderRuleRepository,
       { transaction: jest.fn() } as unknown as DataSource,
       tenantContext,
     );
@@ -176,12 +182,55 @@ describe('ReminderPolicyService', () => {
     };
     const service = new ReminderPolicyService(
       policyRepo as unknown as IReminderPolicyRepository,
-      { replaceForPolicy: jest.fn() } as unknown as IReminderRuleRepository,
+      {
+        replaceForPolicy: jest.fn(),
+        findByPolicyIds: jest.fn().mockResolvedValue([]),
+      } as unknown as IReminderRuleRepository,
       { transaction: jest.fn() } as unknown as DataSource,
       tenantContext,
     );
 
     const result = await service.list();
     expect(result).toHaveLength(2);
+  });
+
+  it('includes each policy rule in the list response without an N+1 lookup', async () => {
+    const policies = [
+      {
+        id: 'p1',
+        organizationId: 'org-1',
+        customerGroup: CustomerGroup.VIP,
+        isActive: true,
+        escalationThresholdDays: 30,
+        createdAt: new Date(),
+      },
+    ];
+    const rules = [
+      {
+        id: 'r1',
+        reminderPolicyId: 'p1',
+        offsetDays: -3,
+        emailTemplateId: 'template-1',
+        minIntervalDays: 1,
+        createdAt: new Date(),
+      },
+    ];
+    const policyRepo = {
+      findAll: jest.fn().mockResolvedValue(policies),
+    };
+    const ruleRepo = {
+      findByPolicyIds: jest.fn().mockResolvedValue(rules),
+    };
+    const service = new ReminderPolicyService(
+      policyRepo as unknown as IReminderPolicyRepository,
+      ruleRepo as unknown as IReminderRuleRepository,
+      { transaction: jest.fn() } as unknown as DataSource,
+      tenantContext,
+    );
+
+    const result = await service.list();
+
+    expect(ruleRepo.findByPolicyIds).toHaveBeenCalledWith(['p1']);
+    expect(result[0].rules).toEqual(rules);
   });
 });

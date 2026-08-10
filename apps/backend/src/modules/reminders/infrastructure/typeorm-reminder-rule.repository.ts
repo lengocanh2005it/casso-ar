@@ -59,6 +59,22 @@ export class TypeOrmReminderRuleRepository implements IReminderRuleRepository {
     return rows.map(toDomain);
   }
 
+  async findByPolicyIds(policyIds: string[]): Promise<ReminderRule[]> {
+    if (policyIds.length === 0) return [];
+    const organizationId = this.tenantContext.getOrganizationId();
+    const rows = await this.repo
+      .createQueryBuilder('r')
+      .innerJoin(
+        ReminderPolicyOrmEntity,
+        'p',
+        'p.id::text = r."reminderPolicyId" AND p."organizationId" = :organizationId',
+        { organizationId },
+      )
+      .where('r."reminderPolicyId" IN (:...policyIds)', { policyIds })
+      .getMany();
+    return rows.map(toDomain);
+  }
+
   async replaceForPolicy(
     policyId: string,
     rules: ReminderRule[],
