@@ -88,8 +88,8 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Ticket Index
 
 **27 plans** | status snapshot (2026-08-10):
-- 🟢 done (23): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Application Layer Boundary Enforcement
-- 🟡 in-progress (1): Plan #23
+- 🟢 done (24): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement
+- 🟡 in-progress (0): none
 - 🔴 open/not started (3): Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
 
 ---
@@ -537,18 +537,20 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan #23 — Deployment + Observability
 - **Type**: task
-- **Status**: in-progress
+- **Status**: done ✅
 - **Owner**: BE
 - **Spec**: `specs/2026-08-03-deployment-observability-design.md`
 - **Blockers**: none — Plan #1 ✅, Plan #7 ✅, Plan #18 ✅
+- **Shipped**: 2026-08-10 — PR #85, branch `feat/deployment-observability`
 - **Key rules**:
   - `GET /health` (Postgres + Redis + BullMQ checks) — returns 200/503, never throws
-  - Structured JSON logs with `requestId` correlation (separate AsyncLocalStorage)
-  - `/metrics` Prometheus endpoint (no auth)
-  - Multi-stage Docker builds
-  - Extend compose to 4 services (backend, frontend/nginx, postgres, redis)
+  - Structured JSON logs with `requestId` correlation (`RequestIdStore`, its own `AsyncLocalStorage` — needed because unauthenticated routes like `/health`/webhook ingestion and background BullMQ jobs never populate `TenantContextService`)
+  - `/metrics` Prometheus endpoint (no auth), all 4 required series for both `webhook-processing` and `email-queue`
+  - Multi-stage Docker builds (backend Node 20, frontend Vite → nginx)
+  - Compose extended to 5 services (backend, frontend/nginx, postgres, redis, daily `pg_dump` backup cron)
   - No `@nestjs/terminus` / `nestjs-pino` (YAGNI)
-- **Creates**: Health endpoint, metrics endpoint, Dockerfiles, extended docker-compose
+- **Creates**: `common/observability/` module (health/metrics controllers, `JsonLogger`, `MetricsService`, `RequestIdStore`/`RequestIdMiddleware`), Dockerfiles for both apps, extended `docker-compose.yml`, `backup` service
+- **Implementation note**: this plan's own spec/plan docs (drafted 2026-08-03, early in the project) were stale by the time this ticket was picked up — a grilling session found `TenantContextInterceptor` (shipped later by the Multi-tenancy/RBAC plan) already independently minted its own `requestId` for audit-log fingerprinting in `invoice-import`; implementing the plan's original `RequestIdStore` literally would have given one HTTP request two divergent `requestId` values. Fixed: `RequestIdStore`/`RequestIdMiddleware` stays the single source of truth, and `TenantContextInterceptor` now reads from it instead of minting a second ID. `WebhookProcessor`/`EmailQueueProcessor` had also grown `onFailed` logic (dead-letter logging; `job.name` branching for auth-email vs. reminder-email) the plan didn't know about — the metrics increment was merged into the existing bodies rather than pasted over them. `HealthController` calling `DataSource`/`Queue` directly with no use-case layer was confirmed as a deliberate exception to `.claude/rules/api.md`'s "controller only calls use case" rule (a cross-cutting `common/` system-status endpoint, not business-domain logic). A `/code-review` pass (Standards + Spec axes) after implementation found one real spec-section-5 gap the plan itself had never scoped in at all (unlike the explicitly-excluded Grafana/Loki/Tempo/K8s items): the daily `pg_dump` backup cron with 7-copy rotation. Added using `prodrigestivill/postgres-backup-local` (a maintained image handling cron/compression/rotation via env vars) rather than a hand-rolled script, verified with a real manual backup run producing a compressed `.sql.gz`. `test:e2e` stays local-only per Plan #22's CI-contract decision (not wired into `.github/workflows/ci.yml`) — verified locally instead: fresh `pnpm verify` (8/8 tasks, 144 backend + 27 frontend suites) and the new/modified e2e coverage (`health-and-metrics.e2e-spec.ts`, `webhook-matching.e2e-spec.ts`, `reminder-automation.e2e-spec.ts`) all pass reliably standalone against real Postgres+Redis; two unrelated pre-existing suites are flaky only in the full batched run (same pre-existing cross-file flakiness class noted in Plan #22, not caused by this branch).
 
 ---
 
@@ -618,7 +620,7 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **In progress:**
-- **Plan #23** (Deployment + Observability)
+- None
 
 **Next available tickets** (all blockers resolved):
 - **Credit Balance Management** — blockers: Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
@@ -627,4 +629,4 @@ Success = a single document a new developer can read and know exactly what to pi
 **Blocked tickets waiting:**
 - **Spec-Plan Reconciliation** — waiting on all plans
 
-**Recommended next step:** Plan #23 (Deployment + Observability) — Lane D's other remaining ticket. `reminder-automation.e2e-spec.ts`'s cross-file flakiness in the full batched `test:e2e` run (see Plan #22's implementation note) is worth its own tracked follow-up issue but isn't a blocker for any of the above.
+**Recommended next step:** Lane A–D (Plans 1–23) are now fully shipped. Pick either **Credit Balance Management** or **Customer Bank Account Management** — both are small, independent BE-only additions with no blockers. `reminder-automation.e2e-spec.ts`'s cross-file flakiness in the full batched `test:e2e` run (see Plan #22's implementation note) is worth its own tracked follow-up issue but isn't a blocker for either.
