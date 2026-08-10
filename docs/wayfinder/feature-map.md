@@ -88,9 +88,9 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Ticket Index
 
 **27 plans** | status snapshot (2026-08-10):
-- 🟢 done (24): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement
+- 🟢 done (25): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management
 - 🟡 in-progress (0): none
-- 🔴 open/not started (3): Credit Balance Management, Customer Bank Account Management, Spec-Plan Reconciliation
+- 🔴 open/not started (2): Credit Balance Management, Spec-Plan Reconciliation
 
 ---
 
@@ -575,10 +575,11 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan: Customer Bank Account Management
 - **Type**: task
-- **Status**: open
+- **Status**: done ✅
 - **Owner**: BE
 - **Spec**: `specs/2026-08-04-customer-bank-account-management-design.md`
 - **Blockers**: none — Plan #8 ✅
+- **Shipped**: 2026-08-10 — PR not opened per task instruction; branch `lengocanh2005it/feat-customer-bank-account-management`
 - **Key rules**:
   - Full CRUD for `CustomerBankAccount` mappings
   - Account number normalization (trim, remove separators, require 4-34 digits)
@@ -586,7 +587,8 @@ Success = a single document a new developer can read and know exactly what to pi
   - Masked responses in API/audit
   - `CUSTOMER_BANK_ACCOUNT_MANAGE` permission
   - Matching Engine consumes only active mappings
-- **Creates**: `bank-accounts/` module (full CRUD), normalization utility
+- **Creates**: `bank-accounts/` module (full CRUD), normalization utility, migration, standalone Postgres+Redis e2e coverage
+- **Implementation note**: Account numbers are normalized before persistence, responses and audit snapshots are masked, all repository access is tenant-scoped, and writes use idempotency plus audit decorators. Deactivation is a soft delete; the unique organization/account constraint prevents duplicate normalized mappings, including concurrent inserts.
 
 ---
 
@@ -624,9 +626,8 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **Next available tickets** (all blockers resolved):
 - **Credit Balance Management** — blockers: Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
-- **Customer Bank Account Management** — blockers: Plan #8 ✅
 
 **Blocked tickets waiting:**
 - **Spec-Plan Reconciliation** — waiting on all plans
 
-**Recommended next step:** Lane A–D (Plans 1–23) are now fully shipped. Pick either **Credit Balance Management** or **Customer Bank Account Management** — both are small, independent BE-only additions with no blockers. `reminder-automation.e2e-spec.ts`'s cross-file flakiness in the full batched `test:e2e` run (see Plan #22's implementation note) is worth its own tracked follow-up issue but isn't a blocker for either.
+**Recommended next step:** Lane A–D (Plans 1–23) are now fully shipped. Pick **Credit Balance Management**, the remaining small independent BE-only addition with no blockers. `reminder-automation.e2e-spec.ts`'s cross-file flakiness in the full batched `test:e2e` run (see Plan #22's implementation note) is worth its own tracked follow-up issue but isn't a blocker for it.
