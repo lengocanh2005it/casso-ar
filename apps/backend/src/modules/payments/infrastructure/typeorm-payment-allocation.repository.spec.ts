@@ -64,3 +64,39 @@ describe('TypeOrmPaymentAllocationRepository.findByCustomerId', () => {
     expect(query.take).toHaveBeenCalledWith(25);
   });
 });
+
+describe('TypeOrmPaymentAllocationRepository.findByIdForUpdate', () => {
+  it('coerces the bigint allocatedAmount column from a string to a number', async () => {
+    const manager = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 'allocation-1',
+        organizationId: 'org-1',
+        paymentId: 'payment-1',
+        receivableId: 'receivable-1',
+        allocatedAmount: '4000000', // pg driver returns bigint columns as strings
+        allocatedAt: new Date('2026-08-03'),
+        allocatedByUserId: 'user-1',
+        deletedAt: null,
+        deletedByUserId: null,
+        undoReason: null,
+        createdAt: new Date('2026-08-03'),
+      }),
+    };
+    const tenantContext = new TenantContextService();
+    const repository = new TypeOrmPaymentAllocationRepository(
+      {} as any,
+      tenantContext,
+    );
+
+    const allocation = await tenantContext.run(
+      { userId: 'user-1', organizationId: 'org-1', role: Role.OWNER },
+      () => repository.findByIdForUpdate('allocation-1', manager as any),
+    );
+
+    expect(allocation?.allocatedAmount).toBe(4_000_000);
+    // A string allocatedAmount would fail this Number.isInteger check inside
+    // PaymentAllocation.undo() -> Payment.withRemovedAllocation(), the exact
+    // bug this regression test guards against.
+    expect(Number.isInteger(allocation?.allocatedAmount)).toBe(true);
+  });
+});
