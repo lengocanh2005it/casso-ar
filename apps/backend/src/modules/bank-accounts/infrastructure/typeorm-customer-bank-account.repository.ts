@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { FindOptionsSelect, Repository } from 'typeorm';
+import type { EntityManager, FindOptionsSelect, Repository } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { normalizeAccountNumber } from '../application/account-number-normalizer';
@@ -81,7 +81,10 @@ export class TypeOrmCustomerBankAccountRepository
     return row ? toDomain(row) : null;
   }
 
-  async save(account: CustomerBankAccount): Promise<void> {
-    await this.scopedSaveWithManager(toOrm(account));
+  async save(
+    account: CustomerBankAccount,
+    manager?: EntityManager,
+  ): Promise<void> {
+    await this.scopedSaveWithManager(toOrm(account), manager);
   }
 }
