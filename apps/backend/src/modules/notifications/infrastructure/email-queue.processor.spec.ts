@@ -27,6 +27,7 @@ describe('EmailQueueProcessor', () => {
       getStatus: jest.fn().mockResolvedValue('PENDING'),
       updateSendResult: jest.fn().mockResolvedValue(undefined),
     };
+    const metrics = { incrementBullmqJobFailed: jest.fn() };
     const tenantContext = { run: jest.fn((_user, callback) => callback()) };
     const eventEmitter = { emit: jest.fn() };
     const processor = new EmailQueueProcessor(
@@ -34,6 +35,7 @@ describe('EmailQueueProcessor', () => {
       executionRepo as any,
       tenantContext as any,
       eventEmitter as any,
+      metrics as any,
     );
 
     await processor.process(buildJob());
@@ -69,6 +71,7 @@ describe('EmailQueueProcessor', () => {
       getStatus: jest.fn().mockResolvedValue('SENT'),
       updateSendResult: jest.fn().mockResolvedValue(undefined),
     };
+    const metrics = { incrementBullmqJobFailed: jest.fn() };
     const tenantContext = { run: jest.fn((_user, callback) => callback()) };
     const eventEmitter = { emit: jest.fn() };
     const processor = new EmailQueueProcessor(
@@ -76,6 +79,7 @@ describe('EmailQueueProcessor', () => {
       executionRepo as any,
       tenantContext as any,
       eventEmitter as any,
+      metrics as any,
     );
 
     await processor.process(buildJob());
@@ -88,15 +92,20 @@ describe('EmailQueueProcessor', () => {
     const executionRepo = {
       updateSendResult: jest.fn().mockResolvedValue(undefined),
     };
+    const metrics = { incrementBullmqJobFailed: jest.fn() };
     const processor = new EmailQueueProcessor(
       { send: jest.fn() } as any,
       executionRepo as any,
       { run: jest.fn((_user, callback) => callback()) } as any,
       { emit: jest.fn() } as any,
+      metrics as any,
     );
 
     await processor.onFailed(buildJob(2, 3));
     expect(executionRepo.updateSendResult).not.toHaveBeenCalled();
+    expect(metrics.incrementBullmqJobFailed).toHaveBeenCalledWith(
+      'email-queue',
+    );
 
     await processor.onFailed(buildJob(3, 3));
     expect(executionRepo.updateSendResult).toHaveBeenCalledWith(
@@ -104,5 +113,8 @@ describe('EmailQueueProcessor', () => {
       'FAILED',
       null,
     );
+
+    await processor.onFailed({ ...buildJob(3, 3), name: 'send-auth-email' });
+    expect(metrics.incrementBullmqJobFailed).toHaveBeenCalledTimes(3);
   });
 });

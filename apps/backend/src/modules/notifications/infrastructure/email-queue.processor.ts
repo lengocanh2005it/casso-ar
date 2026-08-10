@@ -2,6 +2,7 @@ import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { Job } from 'bullmq';
+import { MetricsService } from '../../../common/observability/metrics.service';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { REMINDER_EXECUTION_REPOSITORY } from '../../../common/tokens/reminder-execution.token';
 import { Role } from '../../organizations/domain/membership';
@@ -29,6 +30,7 @@ export class EmailQueueProcessor extends WorkerHost {
     private readonly executionRepo: IReminderExecutionRepository,
     private readonly tenantContext: TenantContextService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly metrics: MetricsService,
   ) {
     super();
   }
@@ -103,6 +105,7 @@ export class EmailQueueProcessor extends WorkerHost {
 
   @OnWorkerEvent('failed')
   async onFailed(job: Job): Promise<void> {
+    this.metrics.incrementBullmqJobFailed(EMAIL_QUEUE);
     const maxAttempts = job.opts.attempts ?? 1;
     if (job.attemptsMade < maxAttempts) return;
 
