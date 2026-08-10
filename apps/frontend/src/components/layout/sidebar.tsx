@@ -1,6 +1,7 @@
 import { PlanId } from '@casso-ledger/shared-types';
 import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '@/contexts/auth-context';
 import { useReviewCount } from '@/features/exceptions/api/use-review-count';
 import { hasPlanAccess } from '@/lib/plan-access';
 import { cn } from '@/lib/utils';
@@ -25,8 +26,9 @@ export function Sidebar({
   collapsed = false,
   onToggleCollapsed,
 }: SidebarProps) {
+  const { user } = useAuth();
   const { data: reviewCount = 0 } = useReviewCount();
-  const currentPlan: PlanId = PlanId.FREE;
+  const currentPlan = user?.subscriptionPlan ?? PlanId.FREE;
 
   return (
     <aside

@@ -49,6 +49,34 @@ describe('Sidebar', () => {
     expect(navItems).toHaveLength(9);
   });
 
+  it('does not lock Copilot for a Starter subscriber', () => {
+    useAuth.mockReturnValue({
+      user: {
+        name: 'Anh Le',
+        email: 'anh@casso.vn',
+        organizationName: 'Casso Ledger',
+        subscriptionPlan: 'STARTER',
+        role: 'OWNER',
+      },
+      logout: vi.fn(),
+    });
+    const queryClient = new QueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <Sidebar />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const copilotLink = screen.getByRole('link', { name: 'Copilot' });
+    expect(copilotLink.querySelector('svg.lucide-lock')).toBeNull();
+    expect(navItems.find((item) => item.to === '/copilot')?.minPlan).toBe(
+      'STARTER',
+    );
+  });
+
   it('renders the authenticated user and logs out from the footer', async () => {
     const logout = vi.fn().mockResolvedValue(undefined);
     useAuth.mockReturnValue({
