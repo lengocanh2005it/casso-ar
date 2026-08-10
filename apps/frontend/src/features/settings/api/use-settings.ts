@@ -13,8 +13,12 @@ import {
 
 const templatesKey = ['email-templates'];
 
-export function useEmailTemplates() {
-  return useQuery({ queryKey: templatesKey, queryFn: fetchEmailTemplates });
+export function useEmailTemplates(enabled = true) {
+  return useQuery({
+    queryKey: templatesKey,
+    queryFn: fetchEmailTemplates,
+    enabled,
+  });
 }
 
 export function useCreateTemplate() {

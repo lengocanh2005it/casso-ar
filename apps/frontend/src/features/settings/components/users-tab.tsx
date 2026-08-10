@@ -15,7 +15,9 @@ export function UsersTab() {
   const canInvite = hasPermission(user?.role ?? null, Permission.USER_MANAGE);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>(Role.ACCOUNTANT);
-  const membersQuery = useOrganizationMembers(user?.organizationId);
+  const membersQuery = useOrganizationMembers(
+    canView ? user?.organizationId : undefined,
+  );
   const invite = useInviteMember();
 
   if (!canView) return null;

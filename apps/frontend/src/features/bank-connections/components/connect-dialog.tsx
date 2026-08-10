@@ -1,6 +1,6 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { QRCodeSVG } from 'qrcode.react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,20 +26,9 @@ export function ConnectDialog() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [grantToken, setGrantToken] = useState<string | null>(null);
   const [publicToken, setPublicToken] = useState('');
-  const connectionsQuery = usePollConnections(open);
+  usePollConnections(open);
   const connectMutation = useConnectCasId();
   const exchangeMutation = useExchangeCasId();
-
-  useEffect(() => {
-    if (
-      !sessionId ||
-      !connectionsQuery.data?.items.some((item) => item.status === 'ACTIVE')
-    ) {
-      return;
-    }
-    toast.success('Đã kết nối ngân hàng.');
-    setOpen(false);
-  }, [connectionsQuery.data, sessionId]);
 
   function reset() {
     setSessionId(null);
@@ -64,10 +53,10 @@ export function ConnectDialog() {
 
   function handleExchange() {
     if (!sessionId || !publicToken.trim()) return;
-    exchangeMutation.mutate({
-      sessionId,
-      publicToken: publicToken.trim(),
-    });
+    exchangeMutation.mutate(
+      { sessionId, publicToken: publicToken.trim() },
+      { onSuccess: () => setOpen(false) },
+    );
   }
 
   if (!hasPermission(user?.role ?? null, Permission.BANK_CONNECTION_MANAGE)) {
