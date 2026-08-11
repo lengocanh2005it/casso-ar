@@ -1,3 +1,5 @@
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import {
   OrganizationSmtpConfig,
   SmtpConfigStatus,
@@ -84,9 +86,10 @@ describe('TypeOrmSmtpConfigRepository', () => {
       buildTenantContext('org-1') as any,
     );
 
-    await expect(repo.findByOrganizationId('org-2')).rejects.toThrow(
-      'TENANT_MISMATCH',
-    );
+    await expect(repo.findByOrganizationId('org-2')).rejects.toThrow(AppError);
+    await expect(repo.findByOrganizationId('org-2')).rejects.toMatchObject({
+      errorCode: ErrorCode.TENANT_MISMATCH,
+    });
   });
 
   it('save upserts by organizationId', async () => {

@@ -171,37 +171,47 @@ export class EmailQueueProcessor extends WorkerHost {
           const config =
             await this.smtpConfigRepo.findByOrganizationId(organizationId);
           if (config?.isConnected()) {
+            // `transitioned` is false when another reminder job for the same
+            // org already flipped this config CONNECTED -> FAILED (concurrent
+            // exhaustion race). Either way THIS reminder must still be
+            // rescued via the Resend fallback below — only the one-time
+            // warning email is guarded by the transition, so it's sent
+            // exactly once regardless of which job wins the race.
             const transitioned =
               await this.smtpConfigRepo.markFailedIfVersionMatches(
                 config.markFailed(),
               );
-            if (!transitioned) return;
 
-            const ownerMembership =
-              await this.membershipRepo.findOwnerByOrganization(organizationId);
-            const owner = ownerMembership
-              ? await this.userRepo.findById(ownerMembership.userId)
-              : null;
-            if (owner?.email) {
-              try {
-                const warningAdapter = await this.resolver.resolve(
+            if (transitioned) {
+              const ownerMembership =
+                await this.membershipRepo.findOwnerByOrganization(
                   organizationId,
-                  'RESEND',
                 );
-                await warningAdapter.send(
-                  owner.email,
-                  'Email server riêng của bạn đang gặp sự cố',
-                  '<p>Casso không thể gửi email nhắc nợ qua SMTP server riêng của bạn. Các email nhắc nợ tạm thời sẽ gửi qua Casso cho đến khi bạn cấu hình lại.</p>',
-                  { emailType: 'SMTP_CONNECTION_FAILED_WARNING' },
-                );
-              } catch (error) {
-                this.logger.error({
-                  message: 'SMTP failure warning email could not be sent',
-                  organizationId,
-                  userId: 'system',
-                  requestId: getJobRequestId(job),
-                  error: error instanceof Error ? error.message : String(error),
-                });
+              const owner = ownerMembership
+                ? await this.userRepo.findById(ownerMembership.userId)
+                : null;
+              if (owner?.email) {
+                try {
+                  const warningAdapter = await this.resolver.resolve(
+                    organizationId,
+                    'RESEND',
+                  );
+                  await warningAdapter.send(
+                    owner.email,
+                    'Email server riêng của bạn đang gặp sự cố',
+                    '<p>Casso không thể gửi email nhắc nợ qua SMTP server riêng của bạn. Các email nhắc nợ tạm thời sẽ gửi qua Casso cho đến khi bạn cấu hình lại.</p>',
+                    { emailType: 'SMTP_CONNECTION_FAILED_WARNING' },
+                  );
+                } catch (error) {
+                  this.logger.error({
+                    message: 'SMTP failure warning email could not be sent',
+                    organizationId,
+                    userId: 'system',
+                    requestId: getJobRequestId(job),
+                    error:
+                      error instanceof Error ? error.message : String(error),
+                  });
+                }
               }
             }
 
@@ -215,8 +225,9 @@ export class EmailQueueProcessor extends WorkerHost {
               },
             );
             this.logger.warn({
-              message:
-                'SMTP config exhausted retries; flipped to FAILED and requeued via Resend',
+              message: transitioned
+                ? 'SMTP config exhausted retries; flipped to FAILED and requeued via Resend'
+                : 'SMTP config already FAILED by a concurrent job; requeued this reminder via Resend',
               organizationId,
               userId: 'system',
               requestId: getJobRequestId(job),

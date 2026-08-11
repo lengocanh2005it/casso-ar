@@ -224,7 +224,12 @@ describe('EmailQueueProcessor — provider resolution', () => {
     );
   });
 
-  it('does not warn or requeue when another worker wins the SMTP transition', async () => {
+  it('still rescues the reminder via the Resend fallback (but skips the warning) when another concurrent job already won the SMTP transition', async () => {
+    // Regression test: two reminder jobs for the same org exhausting SMTP
+    // retries at the same time must never both silently drop their reminder.
+    // Only the job that actually performs the CONNECTED -> FAILED transition
+    // sends the one-time warning; every affected reminder — winner and loser
+    // of the race alike — must still be requeued through Resend.
     const deps = buildDeps();
     const warningAdapter = { send: jest.fn() };
     deps.resolver.resolve.mockResolvedValue(warningAdapter);
@@ -244,7 +249,15 @@ describe('EmailQueueProcessor — provider resolution', () => {
     );
 
     expect(warningAdapter.send).not.toHaveBeenCalled();
-    expect(deps.emailQueue.add).not.toHaveBeenCalled();
+    expect(deps.executionRepo.updateSendResult).not.toHaveBeenCalled();
+    expect(deps.emailQueue.add).toHaveBeenCalledWith(
+      'send-reminder-email',
+      expect.objectContaining({
+        reminderExecutionId: 'exec-1',
+        forceProvider: 'RESEND',
+      }),
+      expect.objectContaining({ jobId: 'exec-1-resend-fallback' }),
+    );
   });
 
   it('on final exhaustion of a forced Resend retry marks the execution FAILED', async () => {

@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { ISmtpConfigRepository } from '../application/smtp-config-repository.port';
@@ -62,7 +64,10 @@ export class TypeOrmSmtpConfigRepository
 
   private assertTenant(organizationId: string): void {
     if (this.tenantContext.getOrganizationId() !== organizationId) {
-      throw new Error('TENANT_MISMATCH');
+      throw new AppError(
+        ErrorCode.TENANT_MISMATCH,
+        'Tổ chức không khớp với ngữ cảnh hiện tại.',
+      );
     }
   }
 
