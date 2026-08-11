@@ -88,9 +88,9 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Ticket Index
 
 **27 plans** | status snapshot (2026-08-11):
-- 🟢 done (26): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management
+- 🟢 done (27): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management, Spec-Plan Reconciliation
 - 🟡 in-progress (0): none
-- 🔴 open/not started (1): Spec-Plan Reconciliation (blocked — waiting on all plans)
+- 🔴 open/not started (0): none
 
 ---
 
@@ -596,12 +596,14 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan: Spec-Plan Reconciliation
 - **Type**: task
-- **Status**: open
+- **Status**: done ✅
 - **Owner**: BE
 - **Plan**: `plans/2026-08-03-spec-plan-reconciliation.md`
-- **Blockers**: All plans
+- **Blockers**: All plans ✅
 - **Key rules**: Documentation-only changes, ensures one implementable system across all specs/plans
 - **Creates**: Updated spec/plan files with reconciled contracts
+- **Shipped**: 2026-08-11 — docs-only, not yet committed (worktree `.worktrees/lengocanh2005it/feat-spec-plan-reconciliation`, no PR yet)
+- **Implementation note**: independently re-verified the plan's 4 tasks against the real shipped code rather than trusting the file's own all-`[x]` checkboxes (every checkbox was already checked as far back as the repo's first commit, which is explained by the pattern already documented throughout this file — each ticket's own "ground-truth review" fixed spec/plan drift during its own implementation, e.g. Plan #15/#19/#20/#21, Credit Balance Management, Customer Bank Account Management). Verified by grep-cross-referencing named contracts across all 27 specs + 31 plans against `apps/backend/src/`: `AllocatePaymentUseCase.allocateWithinTransaction(manager, input)` signature matches the real method and all 3 call sites (`process-webhook.usecase.ts`, `match-bank-transaction.usecase.ts`, `allocate-payment.usecase.ts` itself); invoice-import's `{ totalRows, successCount, failedRows: [{ rowNumber, data, errors }] }` shape matches `import-invoices.usecase.ts` and its DTO exactly; Copilot's 5 tool names (`getReceivableSummary`/`getCollectionActivityTimeline`/`getPaymentHistory`/`draftReminderEmail`/`sendReminderEmail`) match the 5 files under `copilot/application/tools/`; the 5 aging buckets (`NOT_DUE`/`OVERDUE_1_7`/`OVERDUE_8_30`/`OVERDUE_31_60`/`OVERDUE_60_PLUS`) match `reporting/`; `BankTransaction.version` optimistic-lock wording matches the real `@VersionColumn()`; `CUSTOMER_BANK_ACCOUNT_MANAGE` permission matches `packages/shared-types`; FE `/api/v1` base-path convention matches `apps/frontend/src/lib/api-client.ts`; Copilot's OpenAI-SDK/`IAIChatProvider` provider swap (superseding the original spec's Anthropic-SDK draft) is reflected consistently in `plans/2026-08-03-collection-copilot.md`, not just in this file's Plan #16 note. One real, current drift was found and fixed: `docs/superpowers/specs/2026-08-03-project-scaffolding-architecture-design.md` §5 linked to `../IMPLEMENTATION-ORDER.md`, a file that has never existed in this repo (the actual source is `CLAUDE.md`'s "Implementation Order" section plus this file) — the link was rewritten to point at those two real sources. No other broken cross-spec/plan markdown links were found (all `[text](path.md)` references across `docs/superpowers/` resolve to real files), and `README.md`/`docs/overview.md` contain no stale file references. No other contradictions were found; the ticket's own checkbox state was accurate.
 
 ---
 
@@ -630,6 +632,6 @@ Success = a single document a new developer can read and know exactly what to pi
 - None — every BE ticket except Spec-Plan Reconciliation is done.
 
 **Blocked tickets waiting:**
-- **Spec-Plan Reconciliation** — waiting on all plans (now technically unblocked, since every other plan is done — pick this up next if the doc-reconciliation work is still wanted)
+- None.
 
-**Recommended next step:** All independently-scoped BE work (Plans 1–23 + Application Layer Boundary Enforcement + Customer Bank Account Management + Credit Balance Management) is shipped. **Spec-Plan Reconciliation** is the only remaining tracked ticket. `reminder-automation.e2e-spec.ts`'s cross-file flakiness in the full batched `test:e2e` run (see Plan #22's implementation note) is worth its own tracked follow-up issue but isn't a blocker for it.
+**Recommended next step:** All 27 tracked tickets (Plans 1–23 + Application Layer Boundary Enforcement + Customer Bank Account Management + Credit Balance Management + Spec-Plan Reconciliation) are shipped. No open or in-progress ticket remains in this map. `reminder-automation.e2e-spec.ts`'s cross-file flakiness in the full batched `test:e2e` run (see Plan #22's implementation note) is worth its own tracked follow-up issue but isn't a blocker for anything currently tracked here.
