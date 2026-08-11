@@ -4,6 +4,19 @@
 
 **Goal:** Add a tenant-scoped customer credit read API while keeping `Payment` rollups as the only source of truth and reusing the existing allocation/undo transaction core.
 
+> **2026-08-11 rescoping note (pre-implementation review):** this plan was drafted 2026-08-04, the same day as its spec. Ground-truth review of the current codebase found most of its premises already shipped by other work — this is smaller than the two most recently shipped tickets' rescopings, not bigger:
+>
+> 1. **Task 3 (validate customer in `mark-prepaid`) is a complete no-op.** `mark-prepaid-bank-transaction.usecase.ts` already injects `ICustomerRepository`, already throws `AppError(ErrorCode.NOT_FOUND, ...)` for a missing/cross-tenant customer, and `mark-prepaid-bank-transaction.usecase.spec.ts` already has `it('rejects a customer outside the current tenant', ...)`. `ExceptionQueueModule` already imports `CustomersModule`. **Task 3 is dropped entirely** — nothing to build.
+> 2. **Task 4's production guards already exist; only the test coverage was missing.** `allocate-payment.usecase.ts` already throws `AppError(ErrorCode.PAYMENT_CUSTOMER_UNRESOLVED, ...)` for a null `payment.customerId` and `AppError(ErrorCode.CUSTOMER_MISMATCH, ...)` for a customerId mismatch — but `allocate-payment.usecase.spec.ts` has no test exercising either path. **Task 4 is narrowed to just adding the 2 missing unit tests** — no production code changes.
+> 3. **Task 1's `scopedQueryBuilder` addition to `BaseRepository` is unnecessary.** The `totalAmount > allocatedAmount` column-to-column comparison this needs can be expressed with TypeORM's `Raw()` FindOperator inside the existing `scopedFindMany(where, options)` — no new `BaseRepository` surface needed. See Task 1's rewritten Step 3.
+> 4. **`IPaymentRepository`'s real current shape** is `findByIdForUpdate(id, manager)` (not the plan's assumed `findById(id)`) + `save(payment, manager?)`, with an existing `toOrm`/`fromOrm` explicit-mapper pair already in `typeorm-payment.repository.ts` (added by an unrelated Postgres-bigint-coercion fix — still present, not reverted). `findUnallocatedByCustomerId` is added alongside these, not replacing them.
+> 5. **Guard pattern correction (Task 2):** `JwtAuthGuard` is registered globally (`APP_GUARD` in `app.module.ts`) — the existing `PaymentsController` only declares `@UseGuards(PermissionGuard)`, never re-declaring `JwtAuthGuard`. The plan's controller sample (`@UseGuards(JwtAuthGuard, PermissionGuard)`) is stale; follow the established single-guard pattern.
+> 6. **Error handling correction (Task 2):** every use case in `payments/application/` and `exception-queue/application/` already throws `AppError(ErrorCode.X, message)` — never NestJS's `NotFoundException`/`BadRequestException` directly, per AGENTS.md's Error Handling section (the exact same mistake a prior ticket's plan made, caught before implementation here instead of after). `GetCustomerCreditsUseCase`'s samples are rewritten below to match.
+> 7. **Test naming (Task 5):** repo convention is dominantly `*.e2e-spec.ts` (19 of 23 files in `apps/backend/test/`) — the plan's `credit-balance-management.e2e-spec.ts` is renamed to `credit-balance-management.e2e-spec.ts`.
+> 8. **Task 6's documentation-sync scope is pruned**, matching how the two most recently shipped tickets closed — down from 6 other files (`docs/overview.md`, Domain Core spec, Exception Queue spec/plan, Spec-Plan Reconciliation plan) to just `docs/wayfinder/feature-map.md`.
+>
+> **What's actually left to build**, post-rescoping: Task 1 (repository query, using `Raw()` not a new `BaseRepository` method), Task 2 (the read use case + controller + `CustomersModule` import into `PaymentsModule` — this part is genuinely new), Task 4 narrowed to 2 missing unit tests, Task 5 (e2e test), Task 6 narrowed to `feature-map.md`. Task 3 is gone.
+
 **Architecture:** Extend the Payments module with `GetCustomerCreditsUseCase` and `GET /customers/:customerId/credits`. Extend the existing Payment repository with an active unallocated query; do not create a credit entity or repository. Harden the existing `mark-prepaid` and allocation paths so every credit Payment has a valid tenant customer and can only be allocated to that customer's Receivable.
 
 **Tech Stack:** NestJS 10, TypeORM, existing `BaseRepository`/`TenantContextService`, JWT/RBAC, existing AuditLog, Jest, Supertest, and the existing Postgres testcontainer setup. No new npm dependency.
@@ -26,197 +39,137 @@
 
 ## File Structure
 
+**(2026-08-11: file list corrected — see rescoping note above. `base.repository.ts` is untouched, Task 3's files are dropped, Task 4 only touches its spec file, doc sprawl pruned to `feature-map.md`.)**
+
 ```
 apps/backend/src/
-  common/tenancy/base.repository.ts                         -- MODIFY: scopedQueryBuilder helper
-  common/tenancy/base.repository.spec.ts                   -- MODIFY: tenant query-builder test
   modules/payments/
-    application/payment-repository.port.ts                  -- MODIFY: CustomerCreditRow + query method
+    application/payment-repository.port.ts                  -- MODIFY: CustomerCreditRow + findUnallocatedByCustomerId
     application/get-customer-credits.usecase.ts             -- NEW
     application/get-customer-credits.usecase.spec.ts        -- NEW
-    infrastructure/typeorm-payment.repository.ts            -- MODIFY: unallocated customer query
+    infrastructure/typeorm-payment.repository.ts            -- MODIFY: unallocated customer query (Raw() operator)
     infrastructure/typeorm-payment.repository.spec.ts       -- NEW
     presentation/customer-credits.controller.ts             -- NEW: GET endpoint
     presentation/customer-credits.controller.spec.ts        -- NEW
-    payments.module.ts                                       -- MODIFY: register use case/controller/imports
-    application/allocate-payment.usecase.ts                 -- MODIFY only for missing credit guards
-    application/allocate-payment.usecase.spec.ts            -- MODIFY: credit contract cases
-    application/undo-payment-allocation.usecase.spec.ts     -- MODIFY: credit restoration case
-  modules/exception-queue/
-    application/mark-prepaid-bank-transaction.usecase.ts    -- MODIFY: validate customer tenant ownership
-    application/mark-prepaid-bank-transaction.usecase.spec.ts -- MODIFY
-    exception-queue.module.ts                               -- MODIFY: import CustomersModule if needed
-  test/credit-balance-management.integration.spec.ts        -- NEW
+    payments.module.ts                                       -- MODIFY: register use case/controller, import CustomersModule
+    application/allocate-payment.usecase.spec.ts             -- MODIFY: add 2 missing guard-coverage tests (no production code change)
+  test/credit-balance-management.e2e-spec.ts                 -- NEW
 
-docs/overview.md                                                   -- MODIFY: credit API ownership
-(implementation order defined in feature-map.md)                      -- MODIFY: route/dependency row
-docs/superpowers/specs/2026-08-03-domain-core-design.md       -- MODIFY: link credit management contract
-docs/superpowers/specs/2026-08-03-exception-queue-audit-log-design.md -- MODIFY: mark-prepaid validation ownership
-docs/superpowers/plans/2026-08-03-exception-queue-audit-log.md -- MODIFY: credit read contract and validation
-docs/superpowers/plans/2026-08-03-spec-plan-reconciliation.md -- MODIFY: new spec/plan coverage
+docs/wayfinder/feature-map.md                                -- MODIFY: mark this ticket done
 ```
 
 The existing Payment entity, `Payment.customerId`, `Payment.unallocatedAmount`, `AllocatePaymentUseCase`, and `UndoPaymentAllocationUseCase` are reused. No database table or migration is added.
 
 ### Task 1: Add a tenant-scoped unallocated Payment query
 
+**(2026-08-11: rewritten — no `BaseRepository` changes. `totalAmount > allocatedAmount` is a column-to-column comparison, which TypeORM's `Raw()` FindOperator expresses inside the existing `scopedFindMany(where, options)` helper, so no new query-builder surface is needed on the shared base class.)**
+
 **Files:**
-- Modify: `apps/backend/src/common/tenancy/base.repository.ts`
-- Modify: `apps/backend/src/common/tenancy/base.repository.spec.ts`
 - Modify: `apps/backend/src/modules/payments/application/payment-repository.port.ts`
 - Modify: `apps/backend/src/modules/payments/infrastructure/typeorm-payment.repository.ts`
 - Create: `apps/backend/src/modules/payments/infrastructure/typeorm-payment.repository.spec.ts`
 
 **Interfaces:**
-- Consumes: `TenantContextService`, `BaseRepository`, `Payment`, and the existing `PAYMENT_REPOSITORY` token.
+- Consumes: `TenantContextService`, `BaseRepository.scopedFindMany`, `Payment`, `fromOrm` (the mapper already in this file), and the existing `PAYMENT_REPOSITORY` token.
 - Produces: `CustomerCreditRow` and `IPaymentRepository.findUnallocatedByCustomerId(customerId)` for Task 2.
 
-- [ ] **Step 1: Add the failing scoped query-builder test**
+- [ ] **Step 1: Extend the Payment repository port**
 
-Extend `base.repository.spec.ts` with:
-
-```typescript
-it('injects the current organization into a scoped query builder', async () => {
-  class TestRepo extends FakeRepo {
-    query(alias: string) {
-      return this.scopedQueryBuilder(alias);
-    }
-  }
-
-  const tenantContext = new TenantContextService();
-  const queryBuilder = {
-    where: jest.fn().mockReturnThis(),
-  };
-  const ormRepo = { createQueryBuilder: jest.fn().mockReturnValue(queryBuilder) };
-  const repo = new TestRepo(ormRepo as any, tenantContext);
-
-  await tenantContext.run({ userId: 'u1', organizationId: 'org-1', role: Role.OWNER }, async () => {
-    repo.query('payment');
-  });
-
-  expect(ormRepo.createQueryBuilder).toHaveBeenCalledWith('payment');
-  expect(queryBuilder.where).toHaveBeenCalledWith(
-    'payment.organizationId = :organizationId',
-    { organizationId: 'org-1' },
-  );
-});
-```
-
-- [ ] **Step 2: Run the test and verify it fails**
-
-Run: `pnpm --filter @casso-ledger/backend test -- base.repository.spec.ts --runInBand`
-
-Expected: FAIL because `scopedQueryBuilder` is not defined.
-
-- [ ] **Step 3: Add the minimal BaseRepository helper**
-
-Add this protected method to `BaseRepository`:
+Modify `payment-repository.port.ts` — add to the existing interface, do not replace `findByIdForUpdate`/`save`:
 
 ```typescript
-protected scopedQueryBuilder(alias: string) {
-  const organizationId = this.tenantContext.getOrganizationId();
-  return this.ormRepo
-    .createQueryBuilder(alias)
-    .where(`${alias}.organizationId = :organizationId`, { organizationId });
-}
-```
-
-Do not expose `organizationId` to callers and do not add a separate credit repository base class.
-
-- [ ] **Step 4: Run the BaseRepository tests and verify they pass**
-
-Run the command from Step 2. Expected: PASS.
-
-- [ ] **Step 5: Extend the Payment repository port**
-
-Modify `payment-repository.port.ts`:
-
-```typescript
-import { EntityManager } from 'typeorm';
-import { Payment } from '../domain/payment';
-
 export interface CustomerCreditRow {
   payment: Payment;
   unallocatedAmount: number;
 }
 
 export interface IPaymentRepository {
-  findById(id: string): Promise<Payment | null>;
+  findByIdForUpdate(id: string, manager: EntityManager): Promise<Payment | null>;
   findUnallocatedByCustomerId(customerId: string): Promise<CustomerCreditRow[]>;
   save(payment: Payment, manager?: EntityManager): Promise<void>;
 }
-
-export const PAYMENT_REPOSITORY = Symbol('PAYMENT_REPOSITORY');
 ```
 
-Keep every existing Payment repository method already required by Domain Core and Exception Queue; add only `findUnallocatedByCustomerId`.
+- [ ] **Step 2: Write the failing Payment query test**
 
-- [ ] **Step 6: Write the failing Payment query tests**
-
-Create `typeorm-payment.repository.spec.ts` and assert the query builder receives all conditions:
+Create `typeorm-payment.repository.spec.ts`:
 
 ```typescript
-it('returns only the current tenant customer payments with positive unallocated rollup', async () => {
-  const query = {
-    where: jest.fn().mockReturnThis(),
-    andWhere: jest.fn().mockReturnThis(),
-    orderBy: jest.fn().mockReturnThis(),
-    addOrderBy: jest.fn().mockReturnThis(),
-    getMany: jest.fn().mockResolvedValue([
-      { id: 'pay-1', customerId: 'cust-1', totalAmount: 25_000_000, allocatedAmount: 20_000_000 },
+it('returns only the current tenant customer payments with a positive unallocated rollup', async () => {
+  const tenantContext = new TenantContextService();
+  const ormRepo = {
+    find: jest.fn().mockResolvedValue([
+      {
+        id: 'pay-1',
+        organizationId: 'org-1',
+        customerId: 'cust-1',
+        bankTransactionId: null,
+        totalAmount: 25_000_000,
+        allocatedAmount: 20_000_000,
+        payerName: 'Công ty B',
+        receivedAt: new Date('2026-08-01'),
+        createdAt: new Date('2026-08-01'),
+      },
     ]),
   };
-  const repo = buildPaymentRepository(query);
+  const repo = new TypeOrmPaymentRepository(ormRepo as any, tenantContext);
 
-  const rows = await repo.findUnallocatedByCustomerId('cust-1');
+  const rows = await tenantContext.run(
+    { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+    () => repo.findUnallocatedByCustomerId('cust-1'),
+  );
 
-  expect(query.andWhere).toHaveBeenCalledWith('payment.customerId = :customerId', { customerId: 'cust-1' });
-  expect(query.andWhere).toHaveBeenCalledWith('payment.totalAmount > payment.allocatedAmount');
-  expect(query.orderBy).toHaveBeenCalledWith('payment.receivedAt', 'ASC');
+  expect(ormRepo.find).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: expect.objectContaining({ organizationId: 'org-1', customerId: 'cust-1' }),
+      order: { receivedAt: 'ASC', id: 'ASC' },
+    }),
+  );
   expect(rows[0].unallocatedAmount).toBe(5_000_000);
 });
 ```
 
-- [ ] **Step 7: Run the query tests and verify they fail**
+- [ ] **Step 3: Run the test and verify it fails**
 
 Run: `pnpm --filter @casso-ledger/backend test -- typeorm-payment.repository.spec.ts --runInBand`
 
 Expected: FAIL because `findUnallocatedByCustomerId` is not implemented.
 
-- [ ] **Step 8: Implement the tenant-scoped query**
+- [ ] **Step 4: Implement the tenant-scoped query using `Raw()`**
 
-In `TypeOrmPaymentRepository`, extend the existing `BaseRepository<PaymentOrmEntity>` and implement:
+In `TypeOrmPaymentRepository`, add (reusing the existing `fromOrm` mapper already in this file):
 
 ```typescript
 async findUnallocatedByCustomerId(customerId: string): Promise<CustomerCreditRow[]> {
-  const rows = await this.scopedQueryBuilder('payment')
-    .andWhere('payment.customerId = :customerId', { customerId })
-    .andWhere('payment.totalAmount > payment.allocatedAmount')
-    .orderBy('payment.receivedAt', 'ASC')
-    .addOrderBy('payment.id', 'ASC')
-    .getMany();
+  const rows = await this.scopedFindMany(
+    {
+      customerId,
+      totalAmount: Raw((alias) => `${alias} > "allocatedAmount"`),
+    },
+    { order: { receivedAt: 'ASC', id: 'ASC' } },
+  );
 
   return rows.map((row) => {
-    const payment = new Payment(row);
+    const payment = fromOrm(row);
     return { payment, unallocatedAmount: payment.unallocatedAmount };
   });
 }
 ```
 
-This uses persisted Payment rollups and the BaseRepository tenant predicate. Do not query `PaymentAllocation` or add `organizationId` to the method signature.
+This uses persisted Payment rollups (never sums `PaymentAllocation`) and `scopedFindMany`'s existing tenant predicate — no new `BaseRepository` method, no `organizationId` parameter on the port method.
 
-- [ ] **Step 9: Run focused repository tests and commit**
+- [ ] **Step 5: Run focused repository tests and commit**
 
 Run:
 
 ```bash
-pnpm --filter @casso-ledger/backend test -- base.repository.spec.ts typeorm-payment.repository.spec.ts --runInBand
+pnpm --filter @casso-ledger/backend test -- typeorm-payment.repository.spec.ts --runInBand
 ```
 
 Expected: PASS.
 
 ```bash
-git add apps/backend/src/common/tenancy/base.repository.ts apps/backend/src/common/tenancy/base.repository.spec.ts apps/backend/src/modules/payments
+git add apps/backend/src/modules/payments/application/payment-repository.port.ts apps/backend/src/modules/payments/infrastructure
 git commit -m "feat: query tenant-scoped unallocated customer payments"
 ```
 
@@ -270,7 +223,7 @@ it('returns an empty balance for a customer with no unallocated payments', async
 });
 ```
 
-Also assert missing customer throws `NotFoundException` and the use case input contains only `customerId`.
+Also assert missing customer throws `AppError` with `errorCode: ErrorCode.NOT_FOUND` (**2026-08-11: corrected from `NotFoundException`** — every use case in `payments/application/` and `exception-queue/application/` throws `AppError(ErrorCode.X, message)`, never a NestJS exception directly, per AGENTS.md's Error Handling section; see the rescoping note at the top of this plan) and the use case input contains only `customerId`.
 
 - [ ] **Step 2: Run the use-case tests and verify they fail**
 
@@ -305,7 +258,7 @@ export interface CustomerCreditsResult {
 
 Algorithm:
 
-1. Call `customerRepo.findById(input.customerId)`; throw `NotFoundException('Customer not found')` when null.
+1. Call `customerRepo.findById(input.customerId)`; throw `new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy khách hàng.')` when null (Vietnamese message, matching every other use case's user-facing text).
 2. Call `paymentRepo.findUnallocatedByCustomerId(input.customerId)`.
 3. Sum the integer `unallocatedAmount` values.
 4. Map only the response fields above; do not return the Payment domain object directly.
@@ -342,21 +295,25 @@ Expected: FAIL because the controller is absent.
 
 Create `customer-credits.controller.ts`:
 
+**(2026-08-11: corrected — `JwtAuthGuard` is registered globally via `APP_GUARD` in `app.module.ts`; the existing `PaymentsController` in this same module never re-declares it, only `@UseGuards(PermissionGuard)`. Also added `ParseUUIDPipe` on the route param, matching the convention every other tenant-scoped controller in this codebase uses.)**
+
 ```typescript
 @Controller('customers/:customerId/credits')
-@UseGuards(JwtAuthGuard, PermissionGuard)
+@UseGuards(PermissionGuard)
 export class CustomerCreditsController {
   constructor(private readonly getCustomerCreditsUseCase: GetCustomerCreditsUseCase) {}
 
   @Get()
   @RequirePermission(Permission.RECEIVABLE_READ)
-  async list(@Param('customerId') customerId: string): Promise<CustomerCreditsResult> {
+  async list(
+    @Param('customerId', ParseUUIDPipe) customerId: string,
+  ): Promise<CustomerCreditsResult> {
     return this.getCustomerCreditsUseCase.execute({ customerId });
   }
 }
 ```
 
-Modify `PaymentsModule` to import `CustomersModule`, provide `GetCustomerCreditsUseCase`, and register `CustomerCreditsController`. Preserve the existing Payments controller, allocation use case, and exports.
+Modify `PaymentsModule` to import `CustomersModule` (genuinely new wiring — confirmed not already imported), provide `GetCustomerCreditsUseCase`, and register `CustomerCreditsController`. Preserve the existing Payments controller, allocation use case, and exports.
 
 - [ ] **Step 8: Run focused API tests and commit**
 
@@ -373,161 +330,62 @@ git add apps/backend/src/modules/payments
 git commit -m "feat: expose customer credit balance read API"
 ```
 
-### Task 3: Harden `mark-prepaid` customer attribution
+### Task 3: Harden `mark-prepaid` customer attribution — DROPPED, already shipped
+
+**Do not implement this task.** `mark-prepaid-bank-transaction.usecase.ts` already injects `ICustomerRepository`/`CUSTOMER_REPOSITORY` and already throws `AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy khách hàng trong tổ chức hiện tại.')` for a missing/cross-tenant customer before creating the credit Payment. `mark-prepaid-bank-transaction.usecase.spec.ts` already has `it('rejects a customer outside the current tenant', ...)`. `ExceptionQueueModule` already imports `CustomersModule`. This entire task — production code, tests, and module wiring — was shipped by earlier work. Nothing to build here.
+
+### Task 4: Add missing test coverage for existing allocation credit guards
+
+**(2026-08-11: narrowed — the production guards this task originally set out to add already exist in `allocate-payment.usecase.ts`. Only the test coverage is missing. No production code changes in this task.)**
 
 **Files:**
-- Modify: `apps/backend/src/modules/exception-queue/application/mark-prepaid-bank-transaction.usecase.ts`
-- Modify: `apps/backend/src/modules/exception-queue/application/mark-prepaid-bank-transaction.usecase.spec.ts`
-- Modify: `apps/backend/src/modules/exception-queue/exception-queue.module.ts`
-
-**Interfaces:**
-- Consumes: `ICustomerRepository.findById`, existing `IBankTransactionRepository`, `IPaymentRepository`, `TenantContextService`, and `AuditContextService`.
-- Produces: a `mark-prepaid` path that cannot create a Payment attributed to a missing or cross-tenant customer.
-
-- [ ] **Step 1: Add failing tenant-validation tests**
-
-Extend the existing mark-prepaid spec:
-
-```typescript
-it('rejects a customer that is missing in the current tenant', async () => {
-  const customerRepo = { findById: jest.fn().mockResolvedValue(null) };
-  const useCase = buildMarkPrepaidUseCase({ customerRepo });
-
-  await expect(useCase.execute({ bankTransactionId: 'bt-1', customerId: 'cust-other' }))
-    .rejects.toThrow('Customer not found');
-});
-
-it('persists the validated customer id on the credit Payment', async () => {
-  const paymentRepo = { save: jest.fn() };
-  const useCase = buildMarkPrepaidUseCase({
-    customerRepo: { findById: jest.fn().mockResolvedValue({ id: 'cust-1' }) },
-    paymentRepo,
-  });
-
-  await useCase.execute({ bankTransactionId: 'bt-1', customerId: 'cust-1' });
-
-  expect(paymentRepo.save).toHaveBeenCalledWith(expect.objectContaining({
-    customerId: 'cust-1', allocatedAmount: 0,
-  }));
-});
-```
-
-- [ ] **Step 2: Run the mark-prepaid tests and verify they fail**
-
-Run: `pnpm --filter @casso-ledger/backend test -- mark-prepaid-bank-transaction.usecase.spec.ts --runInBand`
-
-Expected: FAIL because the use case does not inject or call `ICustomerRepository`.
-
-- [ ] **Step 3: Validate customer before creating Payment**
-
-Inject `ICustomerRepository` using `CUSTOMER_REPOSITORY`, then add this check before `paymentRepo.save()`:
-
-```typescript
-const customer = await this.customerRepo.findById(input.customerId);
-if (!customer) {
-  throw new NotFoundException('Customer not found');
-}
-```
-
-Keep the existing tenant context for `organizationId`, the existing Payment fields, `transaction.markMatched()`, and the existing `BANK_TRANSACTION_MARK_PREPAID` audit behavior. Do not add a credit-specific audit action.
-
-- [ ] **Step 4: Wire `CustomersModule` and run tests**
-
-Import `CustomersModule` into `ExceptionQueueModule`, preserve its existing Webhooks/Payments/Audit imports, and provide the existing repository token through the module export.
-
-Run the command from Step 2. Expected: PASS.
-
-```bash
-git add apps/backend/src/modules/exception-queue
-git commit -m "fix: validate prepaid credit customer within tenant"
-```
-
-### Task 4: Prove existing allocation and undo paths handle credits
-
-**Files:**
-- Modify: `apps/backend/src/modules/payments/application/allocate-payment.usecase.ts`
 - Modify: `apps/backend/src/modules/payments/application/allocate-payment.usecase.spec.ts`
-- Modify: `apps/backend/src/modules/payments/application/undo-payment-allocation.usecase.spec.ts`
 
 **Interfaces:**
-- Consumes: existing `AllocatePaymentUseCase`, `UndoPaymentAllocationUseCase`, Payment/Receivable repositories, row-lock transaction, and audit context.
-- Produces: no new API or use case; the existing allocation core explicitly handles a customer-attributed Payment with positive `unallocatedAmount`.
+- Consumes: existing `AllocatePaymentUseCase` (already throws `AppError(ErrorCode.PAYMENT_CUSTOMER_UNRESOLVED, ...)` for a null `payment.customerId`, and `AppError(ErrorCode.CUSTOMER_MISMATCH, ...)` for a `payment.customerId !== receivable.customerId` mismatch).
+- Produces: 2 new unit tests proving these already-shipped guards, closing a real coverage gap (confirmed via `grep` — no existing test in this spec file exercises either path).
 
-- [ ] **Step 1: Add failing credit invariant tests**
-
-Add to the existing allocation unit tests:
+- [ ] **Step 1: Add the 2 missing tests**
 
 ```typescript
-it('allocates a customer credit only to a receivable of the same customer', async () => {
+it('rejects allocation when the payment has no resolved customer', async () => {
+  const payment = buildPayment({ customerId: null, totalAmount: 10_000_000, allocatedAmount: 0 });
+  const receivable = buildReceivable({ customerId: 'cust-1' });
+
+  await expect(
+    useCase.execute({ paymentId: payment.id, receivableId: receivable.id, amount: 1_000_000, allocatedByUserId: 'u1' }),
+  ).rejects.toMatchObject({ errorCode: ErrorCode.PAYMENT_CUSTOMER_UNRESOLVED });
+});
+
+it('rejects allocation when the payment and receivable belong to different customers', async () => {
   const payment = buildPayment({ customerId: 'cust-1', totalAmount: 10_000_000, allocatedAmount: 0 });
-  const receivable = buildReceivable({ customerId: 'cust-1', originalAmount: 6_000_000, paidAmount: 0 });
+  const receivable = buildReceivable({ customerId: 'cust-2' });
 
-  await useCase.execute({ paymentId: payment.id, receivableId: receivable.id, amount: 6_000_000, allocatedByUserId: 'u1' });
-
-  expect(paymentRepo.save).toHaveBeenCalledWith(expect.objectContaining({ allocatedAmount: 6_000_000 }), expect.anything());
-});
-
-it('rejects a credit applied to another customer or beyond unallocated amount', async () => {
-  const payment = buildPayment({ customerId: 'cust-1', totalAmount: 10_000_000, allocatedAmount: 8_000_000 });
-  const otherCustomerReceivable = buildReceivable({ customerId: 'cust-2' });
-
-  await expect(useCase.execute({ paymentId: payment.id, receivableId: otherCustomerReceivable.id, amount: 1_000_000, allocatedByUserId: 'u1' }))
-    .rejects.toThrow();
-  await expect(useCase.execute({ paymentId: payment.id, receivableId: buildReceivable({ customerId: 'cust-1' }).id, amount: 3_000_000, allocatedByUserId: 'u1' }))
-    .rejects.toThrow();
+  await expect(
+    useCase.execute({ paymentId: payment.id, receivableId: receivable.id, amount: 1_000_000, allocatedByUserId: 'u1' }),
+  ).rejects.toMatchObject({ errorCode: ErrorCode.CUSTOMER_MISMATCH });
 });
 ```
 
-Add to the existing undo test:
+Adapt to whatever fixture/mock-building helpers (`buildPayment`, `buildReceivable`, `useCase`) already exist at the top of this spec file — do not invent new ones if equivalents are already there.
 
-```typescript
-it('restores an undone credit allocation to Payment.unallocatedAmount', async () => {
-  const payment = buildPayment({ customerId: 'cust-1', totalAmount: 10_000_000, allocatedAmount: 6_000_000 });
-  // Existing undo fixture has one active allocation for 6,000,000.
-  await useCase.execute({ allocationId: 'alloc-1', undoReason: 'wrong invoice', deletedByUserId: 'u1' });
+- [ ] **Step 2: Run and verify both pass immediately (proving the guards already work)**
 
-  expect(paymentRepo.save).toHaveBeenCalledWith(expect.objectContaining({ allocatedAmount: 0 }), expect.anything());
-});
-```
+Run: `pnpm --filter @casso-ledger/backend test -- allocate-payment.usecase.spec.ts --runInBand`
 
-- [ ] **Step 2: Run the tests and verify any missing guard fails**
+Expected: PASS on the first run — these tests exercise pre-existing code, so there is no RED step here (the standard TDD exception for "adding regression/coverage tests for already-correct behavior," not a new-behavior change).
 
-Run: `pnpm --filter @casso-ledger/backend test -- allocate-payment.usecase.spec.ts undo-payment-allocation.usecase.spec.ts --runInBand`
-
-Expected: the tests identify a missing guard or pass if the existing Domain Core implementation already satisfies the contract. Do not add a parallel implementation when the existing guards already pass.
-
-- [ ] **Step 3: Keep or add the guards in the shared allocation core**
-
-Ensure the existing `AllocatePaymentUseCase.allocateWithinTransaction(manager, input)` performs these checks before creating `PaymentAllocation`:
-
-```typescript
-if (!payment.customerId) throw new BadRequestException('Payment customer is required');
-if (payment.customerId !== receivable.customerId) {
-  throw new BadRequestException('Payment and receivable belong to different customers');
-}
-if (!Number.isInteger(input.amount) || input.amount <= 0) {
-  throw new BadRequestException('Allocation amount must be a positive integer');
-}
-if (input.amount > payment.unallocatedAmount) {
-  throw new BadRequestException('Allocation amount exceeds unallocated payment amount');
-}
-```
-
-Keep the existing row locks, rollup updates, allocation insert, audit, and event emission in the same transaction. Do not sum allocations to calculate the available credit.
-
-- [ ] **Step 4: Run tests and commit**
-
-Run the command from Step 2. Expected: PASS.
+- [ ] **Step 3: Commit**
 
 ```bash
-git add apps/backend/src/modules/payments/application
-git commit -m "test: prove credit allocation and undo invariants"
+git add apps/backend/src/modules/payments/application/allocate-payment.usecase.spec.ts
+git commit -m "test: cover existing credit allocation customer guards"
 ```
 
 ### Task 5: Add end-to-end credit lifecycle tests
 
 **Files:**
-- Create: `apps/backend/test/credit-balance-management.integration.spec.ts`
+- Create: `apps/backend/test/credit-balance-management.e2e-spec.ts`
 
 **Interfaces:**
 - Consumes: the new credits GET route, existing mark-prepaid route, existing allocate/undo routes, and Postgres testcontainer setup.
@@ -569,7 +427,7 @@ Also cover empty result, fully allocated exclusion, invalid role (`403`), cross-
 
 - [ ] **Step 2: Run the integration suite and verify it fails**
 
-Run: `pnpm --filter @casso-ledger/backend test:e2e -- credit-balance-management.integration.spec.ts --runInBand`
+Run: `pnpm --filter @casso-ledger/backend test:e2e -- credit-balance-management.e2e-spec.ts --runInBand`
 
 Expected: FAIL until the route and contract wiring are complete.
 
@@ -583,7 +441,7 @@ Run:
 
 ```bash
 pnpm --filter @casso-ledger/backend test
-pnpm --filter @casso-ledger/backend test:e2e -- credit-balance-management.integration.spec.ts --runInBand
+pnpm --filter @casso-ledger/backend test:e2e -- credit-balance-management.e2e-spec.ts --runInBand
 pnpm --filter @casso-ledger/backend type-check
 ```
 
@@ -594,64 +452,42 @@ git add apps/backend/test
 git commit -m "test: verify customer credit balance lifecycle"
 ```
 
-### Task 6: Synchronize specs, plans, and route ownership
+### Task 6: Update `feature-map.md`
+
+**(2026-08-11: scope pruned — the original draft proposed editing 5 other already-shipped plans' spec/plan docs plus `docs/overview.md`. Matching how the three most recently shipped tickets closed (Plan #22, Plan #23, Customer Bank Account Management), this ticket only updates `feature-map.md`.)**
 
 **Files:**
-- Modify: `docs/overview.md`
-- Modify: `(implementation order defined in feature-map.md)`
-- Modify: `docs/superpowers/specs/2026-08-03-domain-core-design.md`
-- Modify: `docs/superpowers/specs/2026-08-03-exception-queue-audit-log-design.md`
-- Modify: `docs/superpowers/plans/2026-08-03-exception-queue-audit-log.md`
-- Modify: `docs/superpowers/plans/2026-08-03-spec-plan-reconciliation.md`
+- Modify: `docs/wayfinder/feature-map.md`
 
 **Interfaces:**
-- Consumes: `docs/superpowers/specs/2026-08-04-credit-balance-management-design.md` and the implementation contracts from Tasks 1–5.
-- Produces: one canonical statement that Payment rollups are the source of truth and credit lifecycle uses the existing allocation/undo APIs.
+- Consumes: the completed implementation from Tasks 1, 2, 4, 5.
+- Produces: an accurate `feature-map.md` entry for this ticket (currently in the "ADDITIONAL PLANS" section as open).
 
-- [ ] **Step 1: Update Overview and route ownership**
+- [ ] **Step 1: Update this ticket's `feature-map.md` entry**
 
-Add `GET /customers/:customerId/credits` to the backend route ownership table, owned by this plan. Add the read permission `RECEIVABLE_READ`, and explicitly state that no credit table exists. Keep the existing allocation/undo route owner unchanged.
+Mark status `done ✅` with a `Shipped:` date + PR reference, following the same entry shape every other completed ticket uses (Type/Status/Owner/Spec/Blockers/Shipped/Key rules/Creates/Implementation note). Note in the implementation note that Task 3 was found already-shipped and dropped, and Task 4 was narrowed to test-only. Update the "Ticket Index" snapshot count and the "Frontier" section.
 
-- [ ] **Step 2: Link Domain Core credit behavior to this spec**
-
-In `2026-08-03-domain-core-design.md`, keep the existing overpayment invariant and add a link to this Credit Balance spec for the customer credit read/apply lifecycle. Do not change the persisted rollup decision or PaymentAllocation source-of-truth decision.
-
-- [ ] **Step 3: Reconcile Exception Queue mark-prepaid**
-
-In the Exception Queue spec/plan, document that `mark-prepaid` validates the customer through `CUSTOMER_REPOSITORY` before creating Payment and that `GET /customers/:customerId/credits` reads the resulting Payment. State that no new audit action or credit write endpoint is introduced.
-
-- [ ] **Step 4: Update implementation order and reconciliation checklist**
-
-Add this plan after Domain Core, Multi-tenancy, and Exception Queue/Audit dependencies and before any future FE credit UI. Add the new spec/plan pair to the reconciliation checklist. Do not remove or rename existing FE payment allocation/undo routes.
-
-- [ ] **Step 5: Run documentation consistency checks and commit**
-
-Run:
+- [ ] **Step 2: Commit**
 
 ```bash
-rg -n "CreditBalance|CustomerCreditBalance|GET /customers/:customerId/credits|findUnallocatedByCustomerId|unallocatedAmount|mark-prepaid" docs/overview.md docs/superpowers/specs docs/superpowers/plans (implementation order defined in feature-map.md)
-rg -n "credit.*table|separate.*ledger|new.*allocation.*endpoint" docs/superpowers/specs/2026-08-04-credit-balance-management-design.md docs/superpowers/plans/2026-08-04-credit-balance-management.md
-```
-
-Expected: all current references point to Payment rollups and the new read contract; no current spec/plan introduces a second balance source or credit-specific write API. Commit:
-
-```bash
-git add docs/overview.md docs/superpowers
-git commit -m "docs: reconcile credit balance management contracts"
+git add docs/wayfinder/feature-map.md
+git commit -m "docs: mark Credit Balance Management done"
 ```
 
 ## Execution order and verification gate
 
-Execute Tasks 1–6 in order. Before claiming completion, run the focused unit tests, credit integration suite, type-check, and documentation searches from Task 6. In the current workspace only documentation exists, so runtime commands are expected to remain unavailable until the scaffold/backend plans have been implemented; do not claim runtime tests pass in this docs-only workspace.
+Execute Tasks 1, 2, 4, 5, 6 in order (Task 3 is dropped). Before claiming completion: run the focused unit tests, the e2e suite standalone against real Postgres (`test:e2e` stays local-only per Plan #22's CI-contract decision — not wired into `.github/workflows/ci.yml`), `pnpm verify` (lint/type-check/test/arch-check), and the `domain-check` skill (AGENTS.md requires this after every backend change).
 
 ## Self-review checklist
 
-- Every requirement in `2026-08-04-credit-balance-management-design.md` maps to Tasks 1–6.
+- Every requirement in `2026-08-04-credit-balance-management-design.md` maps to Tasks 1, 2, 4, 5 (Task 3 dropped, already shipped).
 - No task creates a CreditBalance entity, table, snapshot, or parallel allocation implementation.
 - `Payment.totalAmount`/`allocatedAmount` and the existing transaction core remain the only balance/write sources.
 - The read route, repository method, permission, tenant behavior, and response fields are consistent across all tasks.
-- `mark-prepaid` validates customer ownership before creating Payment.
-- Allocation and undo change the visible balance through existing persisted rollups.
+- `mark-prepaid` already validates customer ownership before creating Payment (confirmed shipped, not re-implemented).
+- Allocation and undo change the visible balance through existing persisted rollups; the customer-mismatch/unresolved-customer guards already exist and are now test-covered (Task 4).
 - FE remains untouched and existing payment allocation/undo calls remain canonical.
+- Every error path uses `AppError(ErrorCode.X, message)`, never a NestJS exception directly (Task 2).
+- No new `BaseRepository` method — `findUnallocatedByCustomerId` uses the existing `scopedFindMany` + TypeORM `Raw()` operator (Task 1).
 
 

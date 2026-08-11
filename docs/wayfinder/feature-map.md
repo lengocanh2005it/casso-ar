@@ -87,10 +87,10 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Ticket Index
 
-**27 plans** | status snapshot (2026-08-10):
-- 🟢 done (25): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management
+**27 plans** | status snapshot (2026-08-11):
+- 🟢 done (26): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management
 - 🟡 in-progress (0): none
-- 🔴 open/not started (2): Credit Balance Management, Spec-Plan Reconciliation
+- 🔴 open/not started (1): Spec-Plan Reconciliation (blocked — waiting on all plans)
 
 ---
 
@@ -560,16 +560,18 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan: Credit Balance Management
 - **Type**: task
-- **Status**: open
+- **Status**: done ✅
 - **Owner**: BE
 - **Spec**: `specs/2026-08-04-credit-balance-management-design.md`
 - **Blockers**: none — Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
+- **Shipped**: 2026-08-11 — branch `feat/credit-balance-management`
 - **Key rules**:
-  - Customer credit read API: `GET /customers/:customerId/credits`
-  - `Payment` rollups are source of truth (no new credit entity)
-  - `mark-prepaid` validates customer tenant ownership
-  - Harden allocation paths for credit Payments
-- **Creates**: Credit read endpoint, validation logic
+  - Customer credit read API: `GET /customers/:customerId/credits` (`RECEIVABLE_READ`, universal across all 5 roles — no 403 case exists for this endpoint)
+  - `Payment` rollups are source of truth (no new credit entity); query via `scopedFindMany` + TypeORM `Raw()` operator for the `totalAmount > allocatedAmount` column comparison, no new `BaseRepository` method
+  - Existing `POST /payments/:id/allocate`/`.../undo` remain the only write/undo paths — no new mutating endpoint
+- **Creates**: `GetCustomerCreditsUseCase`, `CustomerCreditsController`, `IPaymentRepository.findUnallocatedByCustomerId`
+- **Implementation note**: this plan (drafted 2026-08-04, same day as its spec) was rescoped before implementation — ground-truth review found `mark-prepaid`'s customer validation and `allocate-payment.usecase.ts`'s customer/null-customer guards already fully shipped by earlier work (the plan's Task 3 dropped entirely; Task 4 narrowed to 2 missing unit tests, no production change). Writing the ticket's own e2e lifecycle test surfaced two real, pre-existing bugs in the reused allocate/undo endpoints, both fixed on this branch: (1) `AllocatePaymentUseCase` let `Receivable.applyPaymentAllocation()`/`Payment.withAdditionalAllocation()`'s plain-`Error` over-allocation rejection bubble up as an unhandled 500 instead of `AppError(ErrorCode.ALLOCATION_EXCEEDS_REMAINING/UNALLOCATED)` (400) — both codes already existed and were already mapped to 400, just never thrown from this call site; (2) `TypeOrmPaymentAllocationRepository` never coerced the bigint `allocatedAmount` column from Postgres's string representation to a number (same bug class already fixed for `Payment` in Plan #22), so `POST /payments/allocations/:id/undo` crashed on every call — no e2e test had ever exercised the undo endpoint before this ticket's own test needed it. Both fixed with regression tests, following the established `toOrm()`/`fromOrm()` explicit-mapper convention.
+- **Post-merge-review follow-up (2026-08-11)**: a `/code-review` pass (Standards + Spec axes) against `origin/main` found 3 spec §9 acceptance criteria without a test: deterministic multi-row ordering (`receivedAt ASC, id ASC`) of `findUnallocatedByCustomerId`, dynamic item removal once a payment becomes fully allocated (previously only asserted statically via a pre-seeded fully-allocated payment), and 403 enforcement of `PAYMENT_ALLOCATE`/`PAYMENT_ALLOCATE_UNDO` for a role that lacks them (SALES_REP). All 3 added as regression/coverage tests for already-correct behavior (no production code change) in `typeorm-payment.repository.spec.ts` and `credit-balance-management.e2e-spec.ts`. Two other flagged items were investigated and confirmed not real gaps: `Payment.withAdditionalAllocation()`'s single-cause catch block (unlike `Receivable`, `Payment` has no `status` field, so no second reachable error case exists to disambiguate) and `customerId = null` exclusion (structurally guaranteed — Postgres `customerId = :value` never matches a NULL column, nothing to test). `domain-check` and full `pnpm verify`-equivalent (149 unit suites/495 tests, e2e suite, `tsc --noEmit`, `biome check`) re-run clean after the addition.
 
 ---
 
@@ -625,9 +627,9 @@ Success = a single document a new developer can read and know exactly what to pi
 - None
 
 **Next available tickets** (all blockers resolved):
-- **Credit Balance Management** — blockers: Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
+- None — every BE ticket except Spec-Plan Reconciliation is done.
 
 **Blocked tickets waiting:**
-- **Spec-Plan Reconciliation** — waiting on all plans
+- **Spec-Plan Reconciliation** — waiting on all plans (now technically unblocked, since every other plan is done — pick this up next if the doc-reconciliation work is still wanted)
 
-**Recommended next step:** Lane A–D (Plans 1–23) are now fully shipped. Pick **Credit Balance Management**, the remaining small independent BE-only addition with no blockers. `reminder-automation.e2e-spec.ts`'s cross-file flakiness in the full batched `test:e2e` run (see Plan #22's implementation note) is worth its own tracked follow-up issue but isn't a blocker for it.
+**Recommended next step:** All independently-scoped BE work (Plans 1–23 + Application Layer Boundary Enforcement + Customer Bank Account Management + Credit Balance Management) is shipped. **Spec-Plan Reconciliation** is the only remaining tracked ticket. `reminder-automation.e2e-spec.ts`'s cross-file flakiness in the full batched `test:e2e` run (see Plan #22's implementation note) is worth its own tracked follow-up issue but isn't a blocker for it.

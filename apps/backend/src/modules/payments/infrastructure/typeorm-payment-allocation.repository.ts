@@ -7,6 +7,36 @@ import type { IPaymentAllocationRepository } from '../application/payment-alloca
 import { PaymentAllocation } from '../domain/payment-allocation';
 import { PaymentAllocationOrmEntity } from './payment-allocation.orm-entity';
 
+// Explicit domain → ORM translation: the compiler checks every field, so a
+// drift between the two shapes fails here instead of being cast away.
+function toOrm(allocation: PaymentAllocation): PaymentAllocationOrmEntity {
+  return {
+    id: allocation.id,
+    organizationId: allocation.organizationId,
+    paymentId: allocation.paymentId,
+    receivableId: allocation.receivableId,
+    allocatedAmount: allocation.allocatedAmount,
+    allocatedAt: allocation.allocatedAt,
+    allocatedByUserId: allocation.allocatedByUserId,
+    deletedAt: allocation.deletedAt,
+    deletedByUserId: allocation.deletedByUserId,
+    undoReason: allocation.undoReason,
+    createdAt: allocation.createdAt,
+  };
+}
+
+// The `pg` driver returns `bigint` columns as strings (to avoid silent
+// precision loss above Number.MAX_SAFE_INTEGER), so `allocatedAmount` must
+// be coerced back to number before reaching the domain layer — otherwise
+// PaymentAllocation.undo()'s downstream Payment.withRemovedAllocation()/
+// Receivable.removePaymentAllocation() calls reject it as a non-integer.
+function fromOrm(row: PaymentAllocationOrmEntity): PaymentAllocation {
+  return new PaymentAllocation({
+    ...row,
+    allocatedAmount: Number(row.allocatedAmount),
+  });
+}
+
 @Injectable()
 export class TypeOrmPaymentAllocationRepository
   implements IPaymentAllocationRepository
@@ -25,7 +55,7 @@ export class TypeOrmPaymentAllocationRepository
       where: { id, organizationId: this.tenantContext.getOrganizationId() },
       lock: { mode: 'pessimistic_write' },
     });
-    return row ? new PaymentAllocation(row) : null;
+    return row ? fromOrm(row) : null;
   }
 
   async save(
@@ -35,7 +65,9 @@ export class TypeOrmPaymentAllocationRepository
     if (allocation.organizationId !== this.tenantContext.getOrganizationId()) {
       throw new Error('TENANT_MISMATCH');
     }
-    await manager.getRepository(PaymentAllocationOrmEntity).save(allocation);
+    await manager
+      .getRepository(PaymentAllocationOrmEntity)
+      .save(toOrm(allocation));
   }
 
   async findByReceivableId(receivableId: string): Promise<PaymentAllocation[]> {
@@ -44,7 +76,7 @@ export class TypeOrmPaymentAllocationRepository
       where: { receivableId, organizationId, deletedAt: IsNull() },
       order: { allocatedAt: 'ASC' },
     });
-    return rows.map((row) => new PaymentAllocation(row));
+    return rows.map(fromOrm);
   }
 
   async findByCustomerId(
@@ -80,6 +112,6 @@ export class TypeOrmPaymentAllocationRepository
       .orderBy('allocation."allocatedAt"', 'DESC')
       .take(limit)
       .getMany();
-    return rows.map((row) => new PaymentAllocation(row));
+    return rows.map(fromOrm);
   }
 }

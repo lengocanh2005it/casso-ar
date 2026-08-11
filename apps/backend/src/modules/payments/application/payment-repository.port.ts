@@ -6,7 +6,13 @@ export interface IPaymentRepository {
     id: string,
     manager: EntityManager,
   ): Promise<Payment | null>;
+  findUnallocatedByCustomerId(customerId: string): Promise<CustomerCreditRow[]>;
   save(payment: Payment, manager?: EntityManager): Promise<void>;
+}
+
+export interface CustomerCreditRow {
+  payment: Payment;
+  unallocatedAmount: number;
 }
 
 export const PAYMENT_REPOSITORY = Symbol('PAYMENT_REPOSITORY');

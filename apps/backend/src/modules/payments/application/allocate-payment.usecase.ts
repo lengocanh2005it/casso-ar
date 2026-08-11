@@ -150,8 +150,39 @@ export class AllocatePaymentUseCase {
 
     this.auditContext.setBefore({ payment, receivable });
 
-    const updatedReceivable = receivable.applyPaymentAllocation(input.amount);
-    const updatedPayment = payment.withAdditionalAllocation(input.amount);
+    let updatedReceivable: typeof receivable;
+    try {
+      updatedReceivable = receivable.applyPaymentAllocation(input.amount);
+    } catch (error) {
+      // Receivable.applyPaymentAllocation() throws a plain Error for two
+      // distinct reasons (status not open for allocation, amount exceeds
+      // remainingAmount) — a single blanket ErrorCode would mislabel the
+      // status case as an amount problem, misleading the FE's errorCode
+      // switch (AGENTS.md: "the FE switches on errorCode").
+      if (
+        error instanceof Error &&
+        error.message.includes('exceeds remaining amount')
+      ) {
+        throw new AppError(
+          ErrorCode.ALLOCATION_EXCEEDS_REMAINING,
+          'Số tiền phân bổ vượt quá số tiền còn lại của khoản phải thu.',
+        );
+      }
+      throw new AppError(
+        ErrorCode.CONFLICT,
+        'Không thể phân bổ vào khoản phải thu ở trạng thái hiện tại.',
+      );
+    }
+
+    let updatedPayment: typeof payment;
+    try {
+      updatedPayment = payment.withAdditionalAllocation(input.amount);
+    } catch {
+      throw new AppError(
+        ErrorCode.ALLOCATION_EXCEEDS_UNALLOCATED,
+        'Số tiền phân bổ vượt quá số tiền chưa phân bổ của khoản thanh toán.',
+      );
+    }
     const becameClosed = updatedReceivable.status === ReceivableStatus.PAID;
 
     await this.receivableRepo.save(updatedReceivable, manager);
