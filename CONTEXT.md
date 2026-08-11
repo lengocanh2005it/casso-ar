@@ -31,6 +31,7 @@ A B2B SaaS platform for automating accounts receivable management and collection
 | **AuditLog** | Change history, INSERT-only | `id`, `entityType`, `entityId`, `beforeState`, `afterState` |
 | **BankConnection** | Bank connection through Cas ID | `id`, `organizationId`, `status`, `accessToken` |
 | **Subscription** | Subscription plan | `id`, `organizationId`, `plan`, `status` |
+| **OrganizationSmtpConfig** | Org's own SMTP server for sending org-branded reminder emails (BUSINESS+ only). One per org; only ever exists as `CONNECTED` or `FAILED` — a failed test-send is never persisted | `id`, `organizationId`, `host`, `port`, `username`, `encryptedPassword`, `fromAddress`, `status` |
 | **CopilotConversation** | Chat conversation with AI | `id`, `organizationId` |
 | **CopilotPendingAction** | Action awaiting user confirmation | `id`, `conversationId`, `status` |
 
@@ -119,6 +120,7 @@ Score components:
 | 0003 | isDisputed computed | `EXISTS(SELECT 1 FROM disputes WHERE status='OPEN')` |
 | 0004 | Reminder scan/send split | Cron enqueues, worker re-checks before sending |
 | 0005 | Distinct events per closure audience | `receivable.status-closed` (any terminal status) is separate from `receivable.closed` (PAID-only); don't widen one event to serve two contracts |
+| 0006 | BYO-SMTP for org-branded reminder emails | Org supplies own SMTP server (Supabase-style) instead of Resend domain-verification/DNS; sync test-send, reactive failure detection, fallback to Resend — BUSINESS+ only |
 
 ## Constraints
 
