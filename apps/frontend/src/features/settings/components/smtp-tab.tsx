@@ -27,13 +27,7 @@ import { useDeleteSmtpConfig, useSmtpConfig } from '../api/use-settings';
 import type { SmtpConfig } from '../types';
 import { SmtpConfigDialog } from './smtp-config-dialog';
 
-function ConfiguredSmtpCard({
-  config,
-  canManage,
-}: {
-  config: SmtpConfig;
-  canManage: boolean;
-}) {
+function ConfiguredSmtpCard({ config }: { config: SmtpConfig }) {
   const deleteMutation = useDeleteSmtpConfig();
   const isConnected = config.status === 'CONNECTED';
 
@@ -56,40 +50,38 @@ function ConfiguredSmtpCard({
             ? 'Email nhắc nợ đang gửi từ domain của bạn.'
             : 'Không thể kết nối — đang tạm gửi qua Casso. Đã gửi email cảnh báo tới bạn.'}
         </p>
-        {canManage && (
-          <div className="flex flex-wrap gap-2">
-            <SmtpConfigDialog
-              trigger={<Button variant="outline">Sửa cấu hình</Button>}
-              existingConfig={config}
-            />
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive">Xoá cấu hình</Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    Xoá cấu hình email server riêng?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Email nhắc nợ sẽ quay về gửi qua casso.vn ngay lập tức. Bạn
-                    cần nhập lại toàn bộ thông tin, kể cả mật khẩu, nếu muốn
-                    dùng lại.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Hủy</AlertDialogCancel>
-                  <AlertDialogAction
-                    disabled={deleteMutation.isPending}
-                    onClick={() => deleteMutation.mutate()}
-                  >
-                    Xác nhận xoá cấu hình
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <SmtpConfigDialog
+            trigger={<Button variant="outline">Sửa cấu hình</Button>}
+            existingConfig={config}
+          />
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">Xoá cấu hình</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Xoá cấu hình email server riêng?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Email nhắc nợ sẽ quay về gửi qua casso.vn ngay lập tức. Bạn
+                  cần nhập lại toàn bộ thông tin, kể cả mật khẩu, nếu muốn dùng
+                  lại.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Hủy</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={deleteMutation.isPending}
+                  onClick={() => deleteMutation.mutate()}
+                >
+                  Xác nhận xoá cấu hình
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </CardContent>
     </Card>
   );
@@ -104,7 +96,14 @@ export function SmtpTab() {
     user?.role ?? null,
     Permission.ORGANIZATION_SMTP_MANAGE,
   );
-  const smtpQuery = useSmtpConfig(hasPlan);
+  // GET /api/v1/smtp-config itself requires ORGANIZATION_SMTP_MANAGE (backend
+  // gates read + write behind the same OWNER-only permission, unlike
+  // billing-tab's unrestricted read) — hide the whole tab, not just the
+  // action buttons, so a non-OWNER never triggers a 403. Same pattern as
+  // UsersTab's `if (!canView) return null;`.
+  const smtpQuery = useSmtpConfig(canManage && hasPlan);
+
+  if (!canManage) return null;
 
   if (!hasPlan) {
     return (
@@ -151,16 +150,14 @@ export function SmtpTab() {
           <p className="text-sm text-muted-foreground">
             Chưa cấu hình — email nhắc nợ đang gửi từ casso.vn.
           </p>
-          {canManage && (
-            <SmtpConfigDialog
-              trigger={<Button>Cấu hình SMTP</Button>}
-              existingConfig={null}
-            />
-          )}
+          <SmtpConfigDialog
+            trigger={<Button>Cấu hình SMTP</Button>}
+            existingConfig={null}
+          />
         </CardContent>
       </Card>
     );
   }
 
-  return <ConfiguredSmtpCard config={smtpQuery.data} canManage={canManage} />;
+  return <ConfiguredSmtpCard config={smtpQuery.data} />;
 }

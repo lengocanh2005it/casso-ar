@@ -33,16 +33,17 @@ apps/frontend/src/features/settings/
   pages/settings-page.tsx           -- MODIFY: 4th tab
 ```
 
-`SmtpTab` owns all four visual states from a single `useSmtpConfig()` query plus two client-side gates (`hasPermission`, `hasPlanAccess`):
+`SmtpTab` owns all four visual states from a single `useSmtpConfig()` query plus two client-side gates (`hasPermission`, `hasPlanAccess`), checked in this order:
 
 ```
-locked (plan)     : !hasPlanAccess(currentPlan, PlanId.BUSINESS)
-not configured    : hasPlanAccess === true, query resolved to null (404)
+hidden (RBAC)     : !hasPermission(role, Permission.ORGANIZATION_SMTP_MANAGE) -> render nothing
+locked (plan)     : hasPermission === true, !hasPlanAccess(currentPlan, PlanId.BUSINESS)
+not configured    : both gates pass, query resolved to null (404)
 CONNECTED         : query resolved to { ..., status: 'CONNECTED' }
 FAILED            : query resolved to { ..., status: 'FAILED' }
 ```
 
-RBAC (`ORGANIZATION_SMTP_MANAGE`) hides the configure/edit/delete buttons per `.claude/rules/frontend.md` ("hide button, never disable") — same as `ConnectDialog`'s `if (!hasPermission(...)) return null;` pattern — but the tab itself (and its status view) stays visible to any role so non-OWNER users can still see whether custom SMTP is active, matching how `billing-tab.tsx` is read-only-visible to everyone while `users-tab.tsx`'s invite form is role-gated.
+**Correction from the initial design pass:** `GET /api/v1/smtp-config` itself requires `ORGANIZATION_SMTP_MANAGE` on the backend (`smtp-config.controller.ts` gates all three verbs behind the same OWNER-only permission — backend spec §7, "Covers create/replace, read, and delete"). The original version of this section assumed `billing-tab.tsx`'s pattern (unrestricted read, permission only gates the mutation buttons) applied here too; it doesn't — a non-OWNER calling `GET` would get `403`, not a valid empty/configured response. `SmtpTab` therefore follows `UsersTab`'s pattern instead (`if (!canView) return null;`, `users-tab.tsx`): the entire tab content renders nothing for a non-OWNER, and `useSmtpConfig()` is never even called (`enabled: canManage && hasPlan`), so no 403 is ever triggered. The tab's `TabsTrigger` in `settings-page.tsx` still always renders (consistent with how `UsersTab`'s trigger isn't conditionally hidden either) — only the tab's content self-gates to empty.
 
 ## 3. States & copy
 

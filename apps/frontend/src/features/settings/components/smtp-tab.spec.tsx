@@ -23,7 +23,7 @@ function renderTab() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  render(
+  return render(
     <MemoryRouter>
       <QueryClientProvider client={queryClient}>
         <SmtpTab />
@@ -135,15 +135,12 @@ describe('SmtpTab', () => {
     );
   });
 
-  it('hides configure/edit/delete buttons without SMTP manage permission', async () => {
+  it('renders nothing and never calls the API without SMTP manage permission — GET itself requires it, unlike billing-tab', () => {
     mockUser = { role: 'VIEWER', subscriptionPlan: PlanId.BUSINESS };
-    apiRequest.mockRejectedValueOnce({ response: { status: 404 } });
 
-    renderTab();
+    const { container } = renderTab();
 
-    await waitFor(() =>
-      expect(screen.getByText(/chưa cấu hình/i)).toBeInTheDocument(),
-    );
-    expect(screen.queryByRole('button', { name: /cấu hình smtp/i })).toBeNull();
+    expect(container).toBeEmptyDOMElement();
+    expect(apiRequest).not.toHaveBeenCalled();
   });
 });
