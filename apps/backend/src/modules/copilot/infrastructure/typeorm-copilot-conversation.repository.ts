@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager } from 'typeorm';
 import { Repository } from 'typeorm';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type {
@@ -57,9 +59,28 @@ export class TypeOrmCopilotConversationRepository
   ): Promise<CopilotConversation> {
     const organizationId = this.tenantContext.getOrganizationId();
     const existing = await this.ormRepo.findOne({
-      where: { id: conversationId, organizationId },
+      select: {
+        id: true,
+        organizationId: true,
+        userId: true,
+        customerId: true,
+        createdAt: true,
+      },
+      where: { id: conversationId, organizationId, userId },
     });
     if (existing) return toConversation(existing);
+
+    const ownedByAnotherUser = await this.ormRepo.findOne({
+      select: {
+        id: true,
+        organizationId: true,
+        userId: true,
+        customerId: true,
+        createdAt: true,
+      },
+      where: { id: conversationId, organizationId },
+    });
+    if (ownedByAnotherUser) return toConversation(ownedByAnotherUser);
 
     const row = await this.ormRepo.save({
       id: conversationId,
@@ -73,6 +94,16 @@ export class TypeOrmCopilotConversationRepository
 
   async listMessages(conversationId: string): Promise<CopilotMessageRecord[]> {
     const organizationId = this.tenantContext.getOrganizationId();
+    const userId = this.tenantContext.getCurrentUser()?.userId;
+    if (!userId) {
+      throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
+    }
+    const conversation = await this.ormRepo.findOne({
+      select: { id: true },
+      where: { id: conversationId, organizationId, userId },
+    });
+    if (!conversation) return [];
+
     const rows = await this.messageRepo.find({
       select: {
         id: true,
@@ -84,9 +115,10 @@ export class TypeOrmCopilotConversationRepository
         createdAt: true,
       },
       where: { conversationId, organizationId },
-      order: { createdAt: 'ASC' },
+      order: { createdAt: 'DESC' },
+      take: 20,
     });
-    return rows.map(toMessage);
+    return rows.reverse().map(toMessage);
   }
 
   async appendMessage(
@@ -94,6 +126,23 @@ export class TypeOrmCopilotConversationRepository
     manager?: EntityManager,
   ): Promise<CopilotMessageRecord> {
     const organizationId = this.tenantContext.getOrganizationId();
+    const userId = this.tenantContext.getCurrentUser()?.userId;
+    if (!userId) {
+      throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
+    }
+    const conversationRepo = manager
+      ? manager.getRepository(CopilotConversationOrmEntity)
+      : this.ormRepo;
+    const conversation = await conversationRepo.findOne({
+      select: { id: true },
+      where: { id: message.conversationId, organizationId, userId },
+    });
+    if (!conversation) {
+      throw new AppError(
+        ErrorCode.FORBIDDEN,
+        'Bạn không có quyền truy cập cuộc hội thoại này.',
+      );
+    }
     const repo = manager
       ? manager.getRepository(CopilotMessageOrmEntity)
       : this.messageRepo;

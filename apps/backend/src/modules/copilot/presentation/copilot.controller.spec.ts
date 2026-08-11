@@ -1,5 +1,7 @@
+import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { Role } from '../../organizations/domain/membership';
 import { CopilotController } from './copilot.controller';
+import { CopilotRateLimitGuard } from './copilot-rate-limit.guard';
 
 function buildController() {
   const copilotChatUseCase = { execute: jest.fn() };
@@ -26,6 +28,15 @@ function buildController() {
 }
 
 describe('CopilotController', () => {
+  it('rate-limits chat messages with the copilot guard', () => {
+    expect(
+      Reflect.getMetadata(
+        GUARDS_METADATA,
+        CopilotController.prototype.postMessage,
+      ),
+    ).toContain(CopilotRateLimitGuard);
+  });
+
   it('wraps messages in idempotency and strips internal fields from responses', async () => {
     const deps = buildController();
     deps.copilotChatUseCase.execute.mockResolvedValue({

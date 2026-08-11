@@ -9,6 +9,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import type { AuthenticatedUser } from '../../../common/auth/authenticated-user';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
@@ -19,6 +20,7 @@ import { CancelPendingActionUseCase } from '../application/cancel-pending-action
 import { ConfirmPendingActionUseCase } from '../application/confirm-pending-action.usecase';
 import { CopilotChatUseCase } from '../application/copilot-chat.usecase';
 import { GetCopilotUsageUseCase } from '../application/get-copilot-usage.usecase';
+import { CopilotRateLimitGuard } from './copilot-rate-limit.guard';
 import {
   type CopilotChatResponseDto,
   toCopilotMessageDto,
@@ -44,6 +46,8 @@ export class CopilotController {
   }
 
   @Post('conversations/:id/messages')
+  @UseGuards(CopilotRateLimitGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @RequirePermission(Permission.RECEIVABLE_READ)
   async postMessage(
     @Param('id') conversationId: string,

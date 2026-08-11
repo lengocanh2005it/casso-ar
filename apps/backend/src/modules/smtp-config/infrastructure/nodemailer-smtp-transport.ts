@@ -11,5 +11,8 @@ export function createSmtpTransport(
     host: config.host,
     port: config.port,
     auth: { user: config.username, pass: config.password },
+    connectionTimeout: config.connectionTimeout,
+    socketTimeout: config.socketTimeout,
+    greetingTimeout: config.greetingTimeout,
   });
 }

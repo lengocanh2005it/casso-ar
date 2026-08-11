@@ -8,6 +8,88 @@ import { TypeOrmCopilotPendingActionRepository } from './typeorm-copilot-pending
 const USER = { userId: 'user-1', organizationId: 'org-1', role: Role.OWNER };
 
 describe('Copilot TypeORM repositories', () => {
+  it("does not read or append messages for another user's conversation", async () => {
+    const messageRepo = {
+      find: jest.fn(),
+      save: jest.fn(),
+    };
+    const conversationRepo = { findOne: jest.fn().mockResolvedValue(null) };
+    const tenantContext = new TenantContextService();
+    const repository = new TypeOrmCopilotConversationRepository(
+      conversationRepo as any,
+      messageRepo as any,
+      tenantContext,
+    );
+
+    await tenantContext.run(USER, async () => {
+      await expect(repository.listMessages('conversation-2')).resolves.toEqual(
+        [],
+      );
+      await expect(
+        repository.appendMessage({
+          conversationId: 'conversation-2',
+          role: 'USER',
+          content: 'should not append',
+          toolCalls: null,
+          createdAt: new Date('2026-08-09'),
+        }),
+      ).rejects.toMatchObject({ errorCode: 'FORBIDDEN' });
+    });
+
+    expect(messageRepo.find).not.toHaveBeenCalled();
+    expect(messageRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('returns only the 20 newest messages in their original order', async () => {
+    const messages = Array.from({ length: 25 }, (_, index) => ({
+      id: `message-${index + 1}`,
+      organizationId: 'org-1',
+      conversationId: 'conversation-1',
+      role: 'USER',
+      content: `message ${index + 1}`,
+      toolCalls: null,
+      createdAt: new Date(
+        `2026-08-09T00:${String(index).padStart(2, '0')}:00Z`,
+      ),
+    }));
+    const messageRepo = {
+      find: jest
+        .fn()
+        .mockImplementation((options: { order: { createdAt: string } }) =>
+          options.order.createdAt === 'DESC'
+            ? [...messages].reverse().slice(0, 20)
+            : messages,
+        ),
+    };
+    const conversationRepo = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 'conversation-1',
+        organizationId: 'org-1',
+        userId: 'user-1',
+      }),
+    };
+    const tenantContext = new TenantContextService();
+    const repository = new TypeOrmCopilotConversationRepository(
+      conversationRepo as any,
+      messageRepo as any,
+      tenantContext,
+    );
+
+    const result = await tenantContext.run(USER, () =>
+      repository.listMessages('conversation-1'),
+    );
+
+    expect(result.map((message) => message.id)).toEqual(
+      Array.from({ length: 20 }, (_, index) => `message-${index + 6}`),
+    );
+    expect(messageRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order: { createdAt: 'DESC' },
+        take: 20,
+      }),
+    );
+  });
+
   it('appends a conversation message with the current organization', async () => {
     const messageRepo = {
       save: jest.fn().mockResolvedValue({
@@ -20,7 +102,13 @@ describe('Copilot TypeORM repositories', () => {
         createdAt: new Date('2026-08-09'),
       }),
     };
-    const conversationRepo = { findOne: jest.fn() };
+    const conversationRepo = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 'conversation-1',
+        organizationId: 'org-1',
+        userId: 'user-1',
+      }),
+    };
     const tenantContext = new TenantContextService();
     const repository = new TypeOrmCopilotConversationRepository(
       conversationRepo as any,

@@ -9,6 +9,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   AuditActionType,
   AuditEntityType,
@@ -22,6 +23,7 @@ import { GetSmtpConfigUseCase } from '../application/get-smtp-config.usecase';
 import { TestAndSaveSmtpConfigUseCase } from '../application/test-and-save-smtp-config.usecase';
 import { SaveSmtpConfigDto } from './dto/save-smtp-config.dto';
 import { toSmtpConfigResponse } from './dto/smtp-config-response.dto';
+import { SmtpConfigRateLimitGuard } from './smtp-config-rate-limit.guard';
 
 @Controller('smtp-config')
 @UseGuards(PermissionGuard)
@@ -42,6 +44,8 @@ export class SmtpConfigController {
   }
 
   @Post()
+  @UseGuards(SmtpConfigRateLimitGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Audited(AuditActionType.SMTP_CONFIG_SAVE, AuditEntityType.SMTP_CONFIG)
   @RequirePermission(Permission.ORGANIZATION_SMTP_MANAGE)
   async save(

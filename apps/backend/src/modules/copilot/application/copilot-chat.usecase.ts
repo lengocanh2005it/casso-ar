@@ -238,10 +238,16 @@ export class CopilotChatUseCase {
 
     await this.dataSource.transaction(async (manager) => {
       await this.planLimitService.enforceCopilotChatLimit(manager);
-      await this.conversationRepo.findOrCreate(
+      const conversation = await this.conversationRepo.findOrCreate(
         input.conversationId,
         user.userId,
       );
+      if (conversation.userId !== user.userId) {
+        throw new AppError(
+          ErrorCode.FORBIDDEN,
+          'Bạn không có quyền truy cập cuộc hội thoại này.',
+        );
+      }
       await this.conversationRepo.appendMessage(
         {
           conversationId: input.conversationId,

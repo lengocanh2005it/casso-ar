@@ -45,7 +45,9 @@ function buildDeps(overrides: Record<string, unknown> = {}) {
     paymentHistoryTool: { execute: jest.fn() },
     draftTool: { execute: jest.fn() },
     conversationRepo: {
-      findOrCreate: jest.fn().mockResolvedValue({ id: 'conversation-1' }),
+      findOrCreate: jest
+        .fn()
+        .mockResolvedValue({ id: 'conversation-1', userId: 'user-1' }),
       listMessages: jest.fn().mockResolvedValue([]),
       appendMessage: jest.fn().mockImplementation((message) =>
         Promise.resolve({
@@ -73,6 +75,41 @@ function buildDeps(overrides: Record<string, unknown> = {}) {
 }
 
 describe('CopilotChatUseCase', () => {
+  it('rejects a conversation owned by another user before reading or appending', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    const deps = buildDeps({
+      conversationRepo: {
+        findOrCreate: jest.fn().mockResolvedValue({
+          id: 'conversation-1',
+          userId: 'user-2',
+        }),
+        listMessages: jest.fn(),
+        appendMessage: jest.fn(),
+      },
+    });
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    await expect(
+      useCase.execute({ conversationId: 'conversation-1', userMessage: 'hi' }),
+    ).rejects.toMatchObject({ errorCode: ErrorCode.FORBIDDEN });
+    expect(deps.conversationRepo.listMessages).not.toHaveBeenCalled();
+    expect(deps.conversationRepo.appendMessage).not.toHaveBeenCalled();
+    expect(aiProvider.createChatCompletion).not.toHaveBeenCalled();
+  });
+
   it('loops through multiple tool rounds before returning a final answer', async () => {
     const aiProvider = { createChatCompletion: jest.fn() };
     aiProvider.createChatCompletion
