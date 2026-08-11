@@ -11,6 +11,7 @@ export function createSmtpTransport(
     host: config.host,
     port: config.port,
     auth: { user: config.username, pass: config.password },
+    ...(config.serverName ? { tls: { servername: config.serverName } } : {}),
     connectionTimeout: config.connectionTimeout,
     socketTimeout: config.socketTimeout,
     greetingTimeout: config.greetingTimeout,

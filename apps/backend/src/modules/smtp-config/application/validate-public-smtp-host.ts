@@ -16,6 +16,7 @@ function isPrivateIpv4(address: string): boolean {
     return true;
   }
   return (
+    octets[0] === 0 ||
     octets[0] === 10 ||
     octets[0] === 127 ||
     (octets[0] === 169 && octets[1] === 254) ||
@@ -75,7 +76,8 @@ function isPublicIp(address: string): boolean {
   if (version !== 6) return false;
 
   const value = ipv6ToBigInt(normalized);
-  if (value === null || value < 0n || value === 1n) return false;
+  if (value === null || value < 0n || value === 0n || value === 1n)
+    return false;
   if (value >> 121n === 126n || value >> 118n === 1018n) return false;
   if (value >> 32n === 0xffffn) {
     const ipv4 = Number(value & 0xffffffffn);

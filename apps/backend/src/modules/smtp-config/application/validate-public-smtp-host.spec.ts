@@ -7,7 +7,9 @@ describe('validatePublicSmtpHost', () => {
     '192.168.1.1',
     '127.0.0.1',
     '169.254.1.1',
+    '0.0.0.0',
     '::1',
+    '::',
     'fc00::1',
     'fe80::1',
   ])('rejects private or local address %s', (host) => {

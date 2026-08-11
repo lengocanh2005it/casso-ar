@@ -23,7 +23,10 @@ import {
   CONNECTION_AUDIT_EVENT_REPOSITORY,
   type IConnectionAuditEventRepository,
 } from './connection-audit-event-repository.port';
-import { isCasRedirectUriAllowed } from './validate-cas-redirect-uri';
+import {
+  isCasRedirectUriAllowed,
+  parseCasRedirectUriAllowlist,
+} from './validate-cas-redirect-uri';
 
 const DEFAULT_SCOPES = ['identity', 'transaction'];
 
@@ -56,10 +59,9 @@ export class InitiateConnectionUseCase {
   async execute(
     input: InitiateConnectionInput,
   ): Promise<InitiateConnectionResult> {
-    const allowlist = (process.env.CAS_ID_REDIRECT_URI_ALLOWLIST ?? '')
-      .split(',')
-      .map((origin) => origin.trim())
-      .filter(Boolean);
+    const allowlist = parseCasRedirectUriAllowlist(
+      process.env.CAS_ID_REDIRECT_URI_ALLOWLIST,
+    );
     if (!isCasRedirectUriAllowed(input.redirectUri, allowlist)) {
       throw new AppError(
         ErrorCode.FORBIDDEN,

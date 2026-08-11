@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { Inject, Injectable } from '@nestjs/common';
 import { AppError } from '../../../common/errors/app-error';
@@ -28,6 +27,10 @@ import {
   type ISmtpConfigRepository,
   SMTP_CONFIG_REPOSITORY,
 } from './smtp-config-repository.port';
+import {
+  type ISmtpHostResolver,
+  SMTP_HOST_RESOLVER,
+} from './smtp-host-resolver.port';
 import { validatePublicSmtpHost } from './validate-public-smtp-host';
 
 const GENERIC_SMTP_ERROR = 'Không thể kết nối hoặc gửi email thử.';
@@ -45,6 +48,7 @@ export interface SmtpTransportConfig {
   port: number;
   username: string;
   password: string;
+  serverName?: string;
   connectionTimeout: number;
   socketTimeout: number;
   greetingTimeout: number;
@@ -81,23 +85,32 @@ export class TestAndSaveSmtpConfigUseCase {
     private readonly transportFactory: SmtpTransportFactory,
     @Inject(ACCESS_TOKEN_ENCRYPTION_KEY) private readonly encryptionKey: string,
     private readonly logger: JsonLogger,
+    @Inject(SMTP_HOST_RESOLVER)
+    private readonly smtpHostResolver: ISmtpHostResolver,
   ) {}
 
-  private async assertPublicSmtpHost(host: string): Promise<void> {
+  private async resolveSmtpHost(
+    host: string,
+  ): Promise<{ host: string; serverName?: string }> {
     const allowlist = (process.env.SMTP_HOST_ALLOWLIST ?? '')
       .split(',')
       .map((entry) => entry.trim())
       .filter(Boolean);
-    if (validatePublicSmtpHost(host, [], allowlist)) return;
+    if (validatePublicSmtpHost(host, [], allowlist)) return { host };
 
     const addresses = isIP(host)
       ? [host]
-      : (await lookup(host, { all: true, verbatim: true })).map(
-          ({ address }) => address,
-        );
+      : await this.smtpHostResolver.resolve(host);
     if (!validatePublicSmtpHost(host, addresses, allowlist)) {
       throw new Error('SMTP host is not public');
     }
+    const resolvedHost = addresses[0];
+    if (!resolvedHost) {
+      throw new Error('SMTP host has no resolved address');
+    }
+    return isIP(host)
+      ? { host: resolvedHost }
+      : { host: resolvedHost, serverName: host };
   }
 
   async execute(
@@ -126,9 +139,9 @@ export class TestAndSaveSmtpConfigUseCase {
     }
 
     try {
-      await this.assertPublicSmtpHost(input.host);
+      const resolvedHost = await this.resolveSmtpHost(input.host);
       const transport = this.transportFactory({
-        host: input.host,
+        ...resolvedHost,
         port: input.port,
         username: input.username,
         password: input.password,

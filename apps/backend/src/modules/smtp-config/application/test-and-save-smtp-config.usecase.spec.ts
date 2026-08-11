@@ -20,6 +20,9 @@ function buildDeps() {
       findById: jest.fn().mockResolvedValue({ email: 'owner@congtyb.vn' }),
     },
     tenantContext: { getOrganizationId: jest.fn().mockReturnValue('org-1') },
+    smtpHostResolver: {
+      resolve: jest.fn().mockResolvedValue(['93.184.216.34']),
+    },
     transportFactory: jest.fn(),
     encryptionKey: 'a'.repeat(64),
     logger: { error: jest.fn() },
@@ -52,6 +55,7 @@ describe('TestAndSaveSmtpConfigUseCase', () => {
       deps.transportFactory,
       deps.encryptionKey,
       deps.logger as any,
+      deps.smtpHostResolver as any,
     );
 
     const config = await useCase.execute(input);
@@ -101,6 +105,7 @@ describe('TestAndSaveSmtpConfigUseCase', () => {
       deps.transportFactory,
       deps.encryptionKey,
       deps.logger as any,
+      deps.smtpHostResolver as any,
     );
 
     await expect(useCase.execute(input)).rejects.toMatchObject({
@@ -127,6 +132,7 @@ describe('TestAndSaveSmtpConfigUseCase', () => {
       deps.transportFactory,
       deps.encryptionKey,
       deps.logger as any,
+      deps.smtpHostResolver as any,
     );
 
     await expect(useCase.execute(input)).rejects.toMatchObject({
@@ -151,6 +157,7 @@ describe('TestAndSaveSmtpConfigUseCase', () => {
       deps.transportFactory,
       deps.encryptionKey,
       deps.logger as any,
+      deps.smtpHostResolver as any,
     );
 
     await expect(useCase.execute(input)).rejects.toThrow();
@@ -169,6 +176,7 @@ describe('TestAndSaveSmtpConfigUseCase', () => {
       deps.transportFactory,
       deps.encryptionKey,
       deps.logger as any,
+      deps.smtpHostResolver as any,
     );
 
     await expect(
@@ -178,5 +186,39 @@ describe('TestAndSaveSmtpConfigUseCase', () => {
       message: 'Không thể kết nối hoặc gửi email thử.',
     });
     expect(deps.transportFactory).not.toHaveBeenCalled();
+  });
+
+  it('connects to the validated DNS address and keeps the hostname for TLS', async () => {
+    const deps = buildDeps();
+    const transport = {
+      verify: jest.fn().mockResolvedValue(true),
+      sendMail: jest.fn().mockResolvedValue({}),
+    };
+    deps.transportFactory.mockReturnValue(transport);
+    deps.smtpHostResolver.resolve.mockResolvedValue(['93.184.216.34']);
+
+    const useCase = new TestAndSaveSmtpConfigUseCase(
+      deps.smtpConfigRepo as any,
+      deps.subscriptionRepo as any,
+      deps.membershipRepo as any,
+      deps.userRepo as any,
+      deps.tenantContext as any,
+      deps.transportFactory,
+      deps.encryptionKey,
+      deps.logger as any,
+      deps.smtpHostResolver as any,
+    );
+
+    await useCase.execute({ ...input, host: 'smtp.example.com' });
+
+    expect(deps.smtpHostResolver.resolve).toHaveBeenCalledWith(
+      'smtp.example.com',
+    );
+    expect(deps.transportFactory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: '93.184.216.34',
+        serverName: 'smtp.example.com',
+      }),
+    );
   });
 });
