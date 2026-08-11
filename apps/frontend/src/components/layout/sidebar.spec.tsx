@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
+import { ThemeProvider } from '@/contexts/theme-context';
 import { navItems } from './nav-items';
 import { Sidebar } from './sidebar';
 
@@ -27,11 +28,13 @@ function renderSidebar() {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <Sidebar />
-      </MemoryRouter>
-    </QueryClientProvider>,
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <Sidebar />
+        </MemoryRouter>
+      </QueryClientProvider>
+    </ThemeProvider>,
   );
 }
 
@@ -63,11 +66,13 @@ describe('Sidebar', () => {
     const queryClient = new QueryClient();
 
     render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <Sidebar />
-        </MemoryRouter>
-      </QueryClientProvider>,
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <Sidebar />
+          </MemoryRouter>
+        </QueryClientProvider>
+      </ThemeProvider>,
     );
 
     const copilotLink = screen.getByRole('link', { name: 'Copilot' });
@@ -94,11 +99,13 @@ describe('Sidebar', () => {
     });
 
     render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <Sidebar />
-        </MemoryRouter>
-      </QueryClientProvider>,
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <Sidebar />
+          </MemoryRouter>
+        </QueryClientProvider>
+      </ThemeProvider>,
     );
 
     expect(screen.getByText('Anh Le')).toBeVisible();

@@ -75,7 +75,7 @@ export function ImportInvoicesDialog() {
       <DialogTrigger asChild>
         <Button variant="outline">Nhập hóa đơn</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Nhập hóa đơn</DialogTitle>
         </DialogHeader>

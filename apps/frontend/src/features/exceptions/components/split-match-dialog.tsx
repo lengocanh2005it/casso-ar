@@ -103,7 +103,7 @@ export function SplitMatchDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>
             Xử lý giao dịch {tx.providerTransactionId} — {formatVND(tx.amount)}
@@ -118,9 +118,9 @@ export function SplitMatchDialog({
           {sortedCandidates.map((candidate) => (
             <div
               key={candidate.receivableId}
-              className="flex items-center gap-3 rounded-lg border p-3"
+              className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:gap-3"
             >
-              <span className="w-16 text-sm font-medium tabular-nums">
+              <span className="text-sm font-medium tabular-nums">
                 {candidate.totalScore}/100
               </span>
               <span className="flex-1 text-sm">{candidate.receivableId}</span>
@@ -135,7 +135,7 @@ export function SplitMatchDialog({
                   type="number"
                   min={0}
                   step={1}
-                  className="w-40"
+                  className="w-full sm:w-40"
                   value={amounts[candidate.receivableId] ?? ''}
                   onChange={(event) =>
                     setAmounts((current) => ({

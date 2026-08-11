@@ -48,12 +48,12 @@ export function CopilotPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Copilot</h1>
+    <div className="flex h-full min-h-0 flex-col p-4 sm:p-6">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold sm:text-2xl">Copilot</h1>
         <UsageIndicator />
       </div>
-      <div className="flex-1 space-y-3 overflow-y-auto rounded-lg border p-4">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-lg border p-4">
         <MessageList messages={messages} />
         {pendingAction && canSendManual && (
           <PendingActionCard

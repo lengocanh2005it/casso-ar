@@ -2,6 +2,7 @@ import { LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
+import { ThemeToggle } from './theme-toggle';
 
 function getInitials(name: string): string {
   return name
@@ -43,11 +44,12 @@ export function SidebarFooter({ collapsed }: { collapsed: boolean }) {
           <p className="truncate text-xs text-muted-foreground">{user.role}</p>
         </div>
       )}
+      <ThemeToggle />
       <button
         type="button"
         aria-label="Đăng xuất"
         onClick={() => void handleLogout()}
-        className="rounded-md p-1.5 hover:bg-sidebar-accent"
+        className="rounded-md p-1.5 hover:bg-sidebar-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
       >
         <LogOut className="size-4" />
       </button>

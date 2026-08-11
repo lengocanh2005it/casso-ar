@@ -1,8 +1,10 @@
 @import "tailwindcss";
+@plugin "tailwindcss-animate";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  color-scheme: light;
   --radius: 0.75rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.24 0.006 255);
@@ -39,6 +41,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.17 0.015 155);
   --foreground: oklch(0.97 0.005 155);
   --card: oklch(0.21 0.018 155);

@@ -45,7 +45,7 @@ export function Sidebar({
           <button
             type="button"
             onClick={onToggleCollapsed}
-            className="rounded-md p-1.5 hover:bg-sidebar-accent"
+            className="rounded-md p-1.5 hover:bg-sidebar-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
             aria-label={collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}
           >
             {collapsed ? (

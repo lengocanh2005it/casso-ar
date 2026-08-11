@@ -11,7 +11,7 @@ export function MobileSidebarWrapper() {
       <SheetTrigger asChild>
         <button
           type="button"
-          className="rounded-md p-2 hover:bg-accent md:hidden"
+          className="rounded-md p-2 hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none md:hidden"
           aria-label="Mở menu điều hướng"
         >
           <Menu className="size-5" />

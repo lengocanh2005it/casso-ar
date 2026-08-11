@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AppLayout } from '@/components/layout/app-layout';
+import { useTheme } from '@/contexts/theme-context';
 import {
   UpgradeDialog,
   usePlanLimitDialog,
@@ -32,10 +33,11 @@ export function AppRoutes() {
 
 export function App() {
   const planLimitDialog = usePlanLimitDialog();
+  const { resolvedTheme } = useTheme();
 
   return (
     <BrowserRouter>
-      <Toaster richColors position="top-right" />
+      <Toaster richColors position="top-right" theme={resolvedTheme} />
       <AppRoutes />
       <UpgradeDialog
         open={planLimitDialog.open}
