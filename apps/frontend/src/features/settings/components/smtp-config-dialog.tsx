@@ -33,7 +33,7 @@ function getErrorMessage(error: unknown): string {
   ) {
     return data.message;
   }
-  return 'Không thể lưu cấu hình SMTP.';
+  return 'Không thể lưu cấu hình SMTP. Kiểm tra lại thông tin và thử lại.';
 }
 
 export function SmtpConfigDialog({
@@ -98,6 +98,7 @@ export function SmtpConfigDialog({
             <Label htmlFor="smtp-host">Máy chủ (host)</Label>
             <Input
               id="smtp-host"
+              autoComplete="off"
               value={host}
               onChange={(event) => setHost(event.target.value)}
               required
@@ -108,6 +109,7 @@ export function SmtpConfigDialog({
             <Input
               id="smtp-port"
               type="number"
+              inputMode="numeric"
               min="1"
               max="65535"
               value={port}
@@ -119,6 +121,8 @@ export function SmtpConfigDialog({
             <Label htmlFor="smtp-username">Tên đăng nhập</Label>
             <Input
               id="smtp-username"
+              autoComplete="off"
+              spellCheck={false}
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               required
@@ -133,6 +137,7 @@ export function SmtpConfigDialog({
             <Input
               id="smtp-password"
               type="password"
+              autoComplete="new-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
@@ -143,6 +148,8 @@ export function SmtpConfigDialog({
             <Input
               id="smtp-from-address"
               type="email"
+              autoComplete="off"
+              spellCheck={false}
               value={fromAddress}
               onChange={(event) => setFromAddress(event.target.value)}
               required

@@ -42,7 +42,7 @@ function ConfiguredSmtpCard({ config }: { config: SmtpConfig }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="font-medium">
+        <p className="break-words font-medium">
           {config.fromAddress} · {config.host}:{config.port}
         </p>
         <p className="text-sm text-muted-foreground">
@@ -130,11 +130,19 @@ export function SmtpTab() {
   }
 
   if (smtpQuery.isPending) {
-    return <p>Đang tải cấu hình SMTP…</p>;
+    return (
+      <p role="status" aria-live="polite">
+        Đang tải cấu hình SMTP…
+      </p>
+    );
   }
 
   if (smtpQuery.isError) {
-    return <p className="text-destructive">Không thể tải cấu hình SMTP.</p>;
+    return (
+      <p role="alert" className="text-destructive">
+        Không thể tải cấu hình SMTP.
+      </p>
+    );
   }
 
   if (!smtpQuery.data) {
