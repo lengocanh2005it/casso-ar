@@ -683,18 +683,12 @@ Success = a single document a new developer can read and know exactly what to pi
 **Blocked tickets waiting:**
 - None.
 
-**Recommended next step:** All 29 tracked tickets (Plans 1–23 + Application Layer Boundary Enforcement + Customer Bank Account Management + Credit Balance Management + Spec-Plan Reconciliation + Org-Branded Reminder Emails via Custom SMTP + SMTP Settings UI) are shipped. No open or in-progress ticket remains in this map. The reminder-automation e2e flakiness was tracked in issue #88 and is now closed. Current untracked GitHub follow-ups:
+**Recommended next step:** All 29 tracked tickets (Plans 1–23 + Application Layer Boundary Enforcement + Customer Bank Account Management + Credit Balance Management + Spec-Plan Reconciliation + Org-Branded Reminder Emails via Custom SMTP + SMTP Settings UI) are shipped. No open or in-progress ticket remains in this map. The reminder-automation e2e flakiness was tracked in issue #88 and is now closed. **2026-08-11**: PR #140 ("quick wins batch") closed 16 audit-backlog issues in one pass — #96, #99, #100, #103, #104, #109, #112, #114, #116, #120, #121, #122, #123, #124, #129, #132, #138 — covering security (dead `PermissionGuard` on reminder-policies/reminder-executions/switch-organization, JWT algorithm pinning, webhook rate limiting, refresh-token-family revocation on reuse, verify-email GET→POST, `/metrics` token protection, webhook tenant-mismatch ordering, `@Audited` coverage, XLSX zip-bomb row-budget check, Copilot email HTML-escaping), perf/UX (sender display name, timeline pagination, receivables index, customer credit balance + receivables panel, Copilot usage indicator, dead `features/transactions` folder removal), and a follow-up commit fixing an XLSX row-budget off-by-one (header row counted against the data-row cap) found in post-merge review. #107 (remove `ioredis`) was investigated and closed as invalid — BullMQ 6 declares `ioredis` as a peerDependency, so the direct dependency is required. Current untracked GitHub follow-ups:
 
 - #90 — real Plan catalog for STARTER/BUSINESS/ENTERPRISE limits and feature flags
-- #96 — display-name-only sender customization for reminder emails
 - #97 — notify the Organization Owner when a bank connection leaves ACTIVE
 - #98 — research Casso Admin Platform
-- #99 — paginate collection-activity timeline endpoints
-- #100 — nullable `allocatedByUserId` typing; the listener-error/`WebhookInbox` FAILED half is already guarded in code and should be split or closed separately
 - #101 — enforce the active bank-connection plan limit during token exchange
 - #102 — transition bank connections to `ERROR` on non-authentication Cas ID failures
-- #103 — reject webhook tenant mismatches before ignoring inactive connections
-- #104 — add audit coverage for reminder-policy updates and bank-connection activation
 - #105 — fail fast when required database and Resend configuration is missing
 - #106 — restore application-layer `AppError` and integration boundaries
-- #107 — remove the unused direct `ioredis` dependency
