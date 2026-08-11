@@ -94,48 +94,50 @@ export function EmailTemplatesTab() {
                   {template.isDefault && <Badge>Mặc định</Badge>}
                 </TableCell>
                 {canWrite && (
-                  <TableCell className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      aria-label="Preview template"
-                      onClick={() => setPreviewing(template)}
-                    >
-                      Xem trước
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEditing(template);
-                        setDialogOpen(true);
-                      }}
-                    >
-                      Sửa
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm">
-                          Xóa
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Xóa mẫu email?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Thao tác này không thể hoàn tác.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Hủy</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteMutation.mutate(template.id)}
-                          >
-                            Xác nhận
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        aria-label="Preview template"
+                        onClick={() => setPreviewing(template)}
+                      >
+                        Xem trước
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditing(template);
+                          setDialogOpen(true);
+                        }}
+                      >
+                        Sửa
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm">
+                            Xóa
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Xóa mẫu email?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Thao tác này không thể hoàn tác.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Hủy</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteMutation.mutate(template.id)}
+                            >
+                              Xác nhận
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </TableCell>
                 )}
               </TableRow>
