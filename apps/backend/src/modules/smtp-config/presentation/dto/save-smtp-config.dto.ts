@@ -1,7 +1,15 @@
-import { IsEmail, IsInt, IsString, Max, Min } from 'class-validator';
+import {
+  IsEmail,
+  IsInt,
+  IsNotEmpty,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class SaveSmtpConfigDto {
   @IsString()
+  @IsNotEmpty()
   host: string;
 
   @IsInt()
@@ -10,9 +18,11 @@ export class SaveSmtpConfigDto {
   port: number;
 
   @IsString()
+  @IsNotEmpty()
   username: string;
 
   @IsString()
+  @IsNotEmpty()
   password: string;
 
   @IsEmail()

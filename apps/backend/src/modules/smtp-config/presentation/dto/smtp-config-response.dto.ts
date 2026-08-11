@@ -1,11 +1,14 @@
-import type { OrganizationSmtpConfig } from '../../domain/organization-smtp-config';
+import type {
+  OrganizationSmtpConfig,
+  SmtpConfigStatus,
+} from '../../domain/organization-smtp-config';
 
 export interface SmtpConfigResponseDto {
   host: string;
   port: number;
   username: string;
   fromAddress: string;
-  status: string;
+  status: SmtpConfigStatus;
 }
 
 export function toSmtpConfigResponse(
