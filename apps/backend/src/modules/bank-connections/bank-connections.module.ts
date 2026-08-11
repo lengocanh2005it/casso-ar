@@ -60,6 +60,7 @@ import { BankConnectionsController } from './presentation/bank-connections.contr
   exports: [
     BANK_CONNECTION_REPOSITORY,
     CAS_ID_INTEGRATION_ADAPTER,
+    ACCESS_TOKEN_ENCRYPTION_KEY,
     InitiateConnectionUseCase,
     ExchangeTokenUseCase,
     DisconnectConnectionUseCase,
