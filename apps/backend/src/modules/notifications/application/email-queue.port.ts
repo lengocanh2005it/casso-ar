@@ -6,6 +6,7 @@ export interface ReminderEmailJob {
   replyTo?: string;
   subject: string;
   html: string;
+  forceProvider?: 'RESEND';
 }
 
 export interface AuthEmailJob {

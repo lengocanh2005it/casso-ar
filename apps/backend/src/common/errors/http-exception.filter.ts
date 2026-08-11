@@ -114,6 +114,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       [ErrorCode.RECEIVABLE_HAS_PAYMENTS]: 400,
       [ErrorCode.TEMPLATE_IN_USE]: 409,
       [ErrorCode.EMAIL_SEND_FAILED]: 500,
+      [ErrorCode.SMTP_CONNECTION_FAILED]: 400,
       [ErrorCode.IDEMPOTENCY_KEY_REUSED]: 409,
     };
     return statusByErrorCode[errorCode] ?? 500;

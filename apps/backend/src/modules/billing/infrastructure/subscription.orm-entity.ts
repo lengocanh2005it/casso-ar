@@ -28,6 +28,9 @@ export class SubscriptionOrmEntity {
   @Column('int', { default: 50 })
   copilotChatMonthlyLimit: number;
 
+  @Column('boolean', { default: false })
+  canUseCustomSmtp: boolean;
+
   @Column({ type: 'enum', enum: SubscriptionStatus })
   status: SubscriptionStatus;
 

@@ -7,16 +7,30 @@ import { MetricsService } from '../../../common/observability/metrics.service';
 import { RequestIdStore } from '../../../common/observability/request-id.store';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { REMINDER_EXECUTION_REPOSITORY } from '../../../common/tokens/reminder-execution.token';
+import {
+  type IMembershipRepository,
+  MEMBERSHIP_REPOSITORY,
+} from '../../organizations/application/membership-repository.port';
 import { Role } from '../../organizations/domain/membership';
-import { type IReminderExecutionRepository } from '../../reminders/application/reminder-execution-repository.port';
+import type { IReminderExecutionRepository } from '../../reminders/application/reminder-execution-repository.port';
 import { ReminderExecutionStatus } from '../../reminders/domain/reminder-execution';
 import {
-  EMAIL_PROVIDER_ADAPTER,
-  type IEmailProviderAdapter,
-} from '../application/email-provider-adapter.port';
-import type {
-  AuthEmailJob,
-  ReminderEmailJob,
+  type ISmtpConfigRepository,
+  SMTP_CONFIG_REPOSITORY,
+} from '../../smtp-config/application/smtp-config-repository.port';
+import {
+  type IUserRepository,
+  USER_REPOSITORY,
+} from '../../users/application/user-repository.port';
+import {
+  EMAIL_PROVIDER_RESOLVER,
+  type IEmailProviderResolver,
+} from '../application/email-provider-resolver.port';
+import {
+  type AuthEmailJob,
+  EMAIL_QUEUE_PORT,
+  type IEmailQueue,
+  type ReminderEmailJob,
 } from '../application/email-queue.port';
 import { EMAIL_QUEUE } from './email-queue.constants';
 
@@ -30,14 +44,20 @@ export class EmailQueueProcessor extends WorkerHost {
   private readonly logger = new Logger(EmailQueueProcessor.name);
 
   constructor(
-    @Inject(EMAIL_PROVIDER_ADAPTER)
-    private readonly emailProvider: IEmailProviderAdapter,
+    @Inject(EMAIL_PROVIDER_RESOLVER)
+    private readonly resolver: IEmailProviderResolver,
     @Inject(REMINDER_EXECUTION_REPOSITORY)
     private readonly executionRepo: IReminderExecutionRepository,
+    @Inject(SMTP_CONFIG_REPOSITORY)
+    private readonly smtpConfigRepo: ISmtpConfigRepository,
+    @Inject(MEMBERSHIP_REPOSITORY)
+    private readonly membershipRepo: IMembershipRepository,
+    @Inject(USER_REPOSITORY) private readonly userRepo: IUserRepository,
     private readonly tenantContext: TenantContextService,
     private readonly eventEmitter: EventEmitter2,
     private readonly metrics: MetricsService,
     private readonly requestIdStore: RequestIdStore,
+    @Inject(EMAIL_QUEUE_PORT) private readonly emailQueue: IEmailQueue,
   ) {
     super();
   }
@@ -53,8 +73,9 @@ export class EmailQueueProcessor extends WorkerHost {
 
   private async processAuthEmail(job: Job<AuthEmailJob>): Promise<void> {
     const { to, subject, html, emailType } = job.data;
+    const resendAdapter = await this.resolver.resolve('__auth__', 'RESEND');
     try {
-      await this.emailProvider.send(to, subject, html, { emailType });
+      await resendAdapter.send(to, subject, html, { emailType });
     } catch (error) {
       this.logger.error({
         message: 'Auth email send failed',
@@ -71,12 +92,12 @@ export class EmailQueueProcessor extends WorkerHost {
   ): Promise<void> {
     const {
       reminderExecutionId,
-      receivableId,
       organizationId,
       to,
       replyTo,
       subject,
       html,
+      forceProvider,
     } = job.data;
 
     await this.tenantContext.run(
@@ -84,13 +105,23 @@ export class EmailQueueProcessor extends WorkerHost {
       async () => {
         const status = await this.executionRepo.getStatus(reminderExecutionId);
         if (status !== ReminderExecutionStatus.PENDING) {
-          this.logger.warn(
-            `Skipping email send for ${reminderExecutionId}: status is already ${status ?? 'unknown'}`,
-          );
+          this.logger.warn({
+            message:
+              'Skipping email send because the execution is no longer pending',
+            reminderExecutionId,
+            status: status ?? 'unknown',
+            organizationId,
+            userId: 'system',
+            requestId: getJobRequestId(job),
+          });
           return;
         }
 
-        const result = await this.emailProvider.send(
+        const adapter = await this.resolver.resolve(
+          organizationId,
+          forceProvider,
+        );
+        const result = await adapter.send(
           to,
           subject,
           html,
@@ -128,25 +159,115 @@ export class EmailQueueProcessor extends WorkerHost {
 
       const data = job.data as ReminderEmailJob;
       const { reminderExecutionId, organizationId } = data;
+
+      if (data.forceProvider === 'RESEND') {
+        await this.markExecutionFailed(reminderExecutionId, organizationId);
+        return;
+      }
+
       await this.tenantContext.run(
         { userId: 'system', organizationId, role: Role.OWNER },
         async () => {
-          await this.executionRepo.updateSendResult(
-            reminderExecutionId,
-            'FAILED',
-            null,
-          );
-          this.eventEmitter.emit('reminder.execution.completed', {
-            id: reminderExecutionId,
-            status: 'FAILED',
-            providerMessageId: null,
-            organizationId,
-          });
+          const config =
+            await this.smtpConfigRepo.findByOrganizationId(organizationId);
+          if (config?.isConnected()) {
+            // `transitioned` is false when another reminder job for the same
+            // org already flipped this config CONNECTED -> FAILED (concurrent
+            // exhaustion race). Either way THIS reminder must still be
+            // rescued via the Resend fallback below — only the one-time
+            // warning email is guarded by the transition, so it's sent
+            // exactly once regardless of which job wins the race.
+            const transitioned =
+              await this.smtpConfigRepo.markFailedIfVersionMatches(
+                config.markFailed(),
+              );
+
+            if (transitioned) {
+              const ownerMembership =
+                await this.membershipRepo.findOwnerByOrganization(
+                  organizationId,
+                );
+              const owner = ownerMembership
+                ? await this.userRepo.findById(ownerMembership.userId)
+                : null;
+              if (owner?.email) {
+                try {
+                  const warningAdapter = await this.resolver.resolve(
+                    organizationId,
+                    'RESEND',
+                  );
+                  await warningAdapter.send(
+                    owner.email,
+                    'Email server riêng của bạn đang gặp sự cố',
+                    '<p>Casso không thể gửi email nhắc nợ qua SMTP server riêng của bạn. Các email nhắc nợ tạm thời sẽ gửi qua Casso cho đến khi bạn cấu hình lại.</p>',
+                    { emailType: 'SMTP_CONNECTION_FAILED_WARNING' },
+                  );
+                } catch (error) {
+                  this.logger.error({
+                    message: 'SMTP failure warning email could not be sent',
+                    organizationId,
+                    userId: 'system',
+                    requestId: getJobRequestId(job),
+                    error:
+                      error instanceof Error ? error.message : String(error),
+                  });
+                }
+              }
+            }
+
+            await this.emailQueue.add(
+              'send-reminder-email',
+              { ...data, forceProvider: 'RESEND' },
+              {
+                jobId: `${reminderExecutionId}-resend-fallback`,
+                attempts: 3,
+                backoff: { type: 'exponential', delay: 5000 },
+              },
+            );
+            this.logger.warn({
+              message: transitioned
+                ? 'SMTP config exhausted retries; flipped to FAILED and requeued via Resend'
+                : 'SMTP config already FAILED by a concurrent job; requeued this reminder via Resend',
+              organizationId,
+              userId: 'system',
+              requestId: getJobRequestId(job),
+              reminderExecutionId,
+            });
+            return;
+          }
+
+          await this.markExecutionFailed(reminderExecutionId, organizationId);
         },
       );
-      this.logger.error(
-        `Email job ${job.id ?? 'unknown'} failed permanently after ${job.attemptsMade} attempts`,
-      );
+    });
+  }
+
+  private async markExecutionFailed(
+    reminderExecutionId: string,
+    organizationId: string,
+  ): Promise<void> {
+    await this.tenantContext.run(
+      { userId: 'system', organizationId, role: Role.OWNER },
+      async () => {
+        await this.executionRepo.updateSendResult(
+          reminderExecutionId,
+          'FAILED',
+          null,
+        );
+        this.eventEmitter.emit('reminder.execution.completed', {
+          id: reminderExecutionId,
+          status: 'FAILED',
+          providerMessageId: null,
+          organizationId,
+        });
+      },
+    );
+    this.logger.error({
+      message: 'Reminder execution failed permanently',
+      reminderExecutionId,
+      organizationId,
+      userId: 'system',
+      requestId: this.requestIdStore.getRequestId(),
     });
   }
 }

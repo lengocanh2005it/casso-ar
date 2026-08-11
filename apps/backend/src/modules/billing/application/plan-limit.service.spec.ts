@@ -14,6 +14,7 @@ describe('PlanLimitService', () => {
       receivableMonthlyLimit: 5,
       bankConnectionLimit: 1,
       copilotChatMonthlyLimit: 5,
+      canUseCustomSmtp: false,
       status: SubscriptionStatus.ACTIVE,
       currentPeriodStart: new Date('2026-08-01'),
       currentPeriodEnd: new Date('2026-09-01'),
