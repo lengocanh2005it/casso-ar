@@ -21,6 +21,6 @@
       }
     ]
   },
-  "runInBand": true,
+  "maxWorkers": 1,
   "forceExit": true
 }
