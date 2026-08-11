@@ -273,7 +273,7 @@ describe('Read APIs completion (Plan #17, integration)', () => {
     expect(res.body.allocations).toContainEqual(
       expect.objectContaining({
         paymentId: paymentA,
-        allocatedAmount: expect.stringMatching(/^3000000$/),
+        allocatedAmount: 3_000_000,
       }),
     );
   });
