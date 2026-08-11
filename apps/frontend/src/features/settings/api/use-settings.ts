@@ -1,23 +1,58 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import type { EmailTemplateInput } from '../types';
+import type { EmailTemplateInput, SmtpConfigInput } from '../types';
 import {
   createEmailTemplate,
   deleteEmailTemplate,
+  deleteSmtpConfig,
   fetchEmailTemplates,
   fetchOrganizationMembers,
+  fetchSmtpConfig,
   inviteOrganizationMember,
   previewEmailTemplate,
+  saveSmtpConfig,
   updateEmailTemplate,
 } from './settings-api';
 
 const templatesKey = ['email-templates'];
+const smtpConfigKey = ['smtp-config'];
 
 export function useEmailTemplates(enabled = true) {
   return useQuery({
     queryKey: templatesKey,
     queryFn: fetchEmailTemplates,
     enabled,
+  });
+}
+
+export function useSmtpConfig(enabled = true) {
+  return useQuery({
+    queryKey: smtpConfigKey,
+    queryFn: fetchSmtpConfig,
+    enabled,
+  });
+}
+
+export function useSaveSmtpConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SmtpConfigInput) => saveSmtpConfig(input),
+    onSuccess: () => {
+      toast.success('Đã lưu cấu hình SMTP.');
+      void queryClient.invalidateQueries({ queryKey: smtpConfigKey });
+    },
+  });
+}
+
+export function useDeleteSmtpConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteSmtpConfig,
+    onSuccess: () => {
+      toast.success('Đã xoá cấu hình SMTP.');
+      void queryClient.invalidateQueries({ queryKey: smtpConfigKey });
+    },
+    onError: () => toast.error('Không thể xoá cấu hình SMTP.'),
   });
 }
 
