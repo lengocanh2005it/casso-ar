@@ -53,6 +53,7 @@ describe('OpenAiChatProviderAdapter', () => {
 
     expect(mockCreateCompletion).toHaveBeenCalledWith({
       model: 'test-model',
+      max_tokens: 1024,
       messages: [{ role: 'user', content: 'Show summary' }],
       tools: [
         {

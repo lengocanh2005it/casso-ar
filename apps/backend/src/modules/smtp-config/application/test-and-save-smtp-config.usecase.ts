@@ -1,7 +1,9 @@
 import { randomUUID } from 'node:crypto';
+import { isIP } from 'node:net';
 import { Inject, Injectable } from '@nestjs/common';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { JsonLogger } from '../../../common/observability/json-logger.service';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { encryptToken } from '../../bank-connections/application/token-encryption';
 import { ACCESS_TOKEN_ENCRYPTION_KEY } from '../../bank-connections/application/token-encryption-key';
@@ -25,6 +27,13 @@ import {
   type ISmtpConfigRepository,
   SMTP_CONFIG_REPOSITORY,
 } from './smtp-config-repository.port';
+import {
+  type ISmtpHostResolver,
+  SMTP_HOST_RESOLVER,
+} from './smtp-host-resolver.port';
+import { validatePublicSmtpHost } from './validate-public-smtp-host';
+
+const GENERIC_SMTP_ERROR = 'Không thể kết nối hoặc gửi email thử.';
 
 export interface TestAndSaveSmtpConfigInput {
   host: string;
@@ -39,6 +48,10 @@ export interface SmtpTransportConfig {
   port: number;
   username: string;
   password: string;
+  serverName?: string;
+  connectionTimeout: number;
+  socketTimeout: number;
+  greetingTimeout: number;
 }
 
 export interface SmtpTransport {
@@ -71,7 +84,34 @@ export class TestAndSaveSmtpConfigUseCase {
     @Inject(SMTP_TRANSPORT_FACTORY)
     private readonly transportFactory: SmtpTransportFactory,
     @Inject(ACCESS_TOKEN_ENCRYPTION_KEY) private readonly encryptionKey: string,
+    private readonly logger: JsonLogger,
+    @Inject(SMTP_HOST_RESOLVER)
+    private readonly smtpHostResolver: ISmtpHostResolver,
   ) {}
+
+  private async resolveSmtpHost(
+    host: string,
+  ): Promise<{ host: string; serverName?: string }> {
+    const allowlist = (process.env.SMTP_HOST_ALLOWLIST ?? '')
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    if (validatePublicSmtpHost(host, [], allowlist)) return { host };
+
+    const addresses = isIP(host)
+      ? [host]
+      : await this.smtpHostResolver.resolve(host);
+    if (!validatePublicSmtpHost(host, addresses, allowlist)) {
+      throw new Error('SMTP host is not public');
+    }
+    const resolvedHost = addresses[0];
+    if (!resolvedHost) {
+      throw new Error('SMTP host has no resolved address');
+    }
+    return isIP(host)
+      ? { host: resolvedHost }
+      : { host: resolvedHost, serverName: host };
+  }
 
   async execute(
     input: TestAndSaveSmtpConfigInput,
@@ -98,14 +138,17 @@ export class TestAndSaveSmtpConfigUseCase {
       );
     }
 
-    const transport = this.transportFactory({
-      host: input.host,
-      port: input.port,
-      username: input.username,
-      password: input.password,
-    });
-
     try {
+      const resolvedHost = await this.resolveSmtpHost(input.host);
+      const transport = this.transportFactory({
+        ...resolvedHost,
+        port: input.port,
+        username: input.username,
+        password: input.password,
+        connectionTimeout: 10_000,
+        socketTimeout: 30_000,
+        greetingTimeout: 10_000,
+      });
       await transport.verify();
       await transport.sendMail({
         from: input.fromAddress,
@@ -114,10 +157,16 @@ export class TestAndSaveSmtpConfigUseCase {
         html: '<p>Cấu hình SMTP của bạn đã được kết nối thành công với Casso.</p>',
       });
     } catch (error) {
-      throw new AppError(
-        ErrorCode.SMTP_CONNECTION_FAILED,
-        `Không thể kết nối hoặc gửi email thử: ${error instanceof Error ? error.message : String(error)}`,
+      this.logger.error(
+        {
+          message: 'SMTP test connection failed',
+          organizationId,
+          host: input.host,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        TestAndSaveSmtpConfigUseCase.name,
       );
+      throw new AppError(ErrorCode.SMTP_CONNECTION_FAILED, GENERIC_SMTP_ERROR);
     }
 
     const now = new Date();

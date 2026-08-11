@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { CasIdConnectionSession } from '../domain/cas-id-connection-session';
 import { ConnectionAuditEvent } from '../domain/connection-audit-event';
@@ -21,6 +23,10 @@ import {
   CONNECTION_AUDIT_EVENT_REPOSITORY,
   type IConnectionAuditEventRepository,
 } from './connection-audit-event-repository.port';
+import {
+  isCasRedirectUriAllowed,
+  parseCasRedirectUriAllowlist,
+} from './validate-cas-redirect-uri';
 
 const DEFAULT_SCOPES = ['identity', 'transaction'];
 
@@ -53,6 +59,16 @@ export class InitiateConnectionUseCase {
   async execute(
     input: InitiateConnectionInput,
   ): Promise<InitiateConnectionResult> {
+    const allowlist = parseCasRedirectUriAllowlist(
+      process.env.CAS_ID_REDIRECT_URI_ALLOWLIST,
+    );
+    if (!isCasRedirectUriAllowed(input.redirectUri, allowlist)) {
+      throw new AppError(
+        ErrorCode.FORBIDDEN,
+        'Địa chỉ chuyển hướng không được phép.',
+      );
+    }
+
     const existing = input.bankConnectionId
       ? await this.bankConnectionRepo.findById(input.bankConnectionId)
       : null;

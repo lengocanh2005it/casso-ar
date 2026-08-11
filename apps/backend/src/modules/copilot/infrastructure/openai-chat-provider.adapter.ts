@@ -26,6 +26,8 @@ export class OpenAiChatProviderAdapter implements IAIChatProvider {
   ): Promise<AIChatCompletionResult> {
     const response = await this.client.chat.completions.create({
       model: this.model,
+      // Bound completion cost per request; longer answers should use a new turn.
+      max_tokens: 1024,
       messages: messages.map((message) => this.toOpenAiMessage(message)),
       tools: tools.length
         ? tools.map((tool) => ({
