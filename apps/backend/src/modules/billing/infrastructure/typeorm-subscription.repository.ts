@@ -17,6 +17,7 @@ function toOrm(subscription: Subscription): SubscriptionOrmEntity {
     receivableMonthlyLimit: subscription.receivableMonthlyLimit,
     bankConnectionLimit: subscription.bankConnectionLimit,
     copilotChatMonthlyLimit: subscription.copilotChatMonthlyLimit,
+    canUseCustomSmtp: subscription.canUseCustomSmtp,
     status: subscription.status,
     currentPeriodStart: subscription.currentPeriodStart,
     currentPeriodEnd: subscription.currentPeriodEnd,

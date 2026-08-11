@@ -7,6 +7,7 @@ export interface SubscriptionProps {
   receivableMonthlyLimit: number;
   bankConnectionLimit: number;
   copilotChatMonthlyLimit: number;
+  canUseCustomSmtp?: boolean;
   status: SubscriptionStatus;
   currentPeriodStart: Date;
   currentPeriodEnd: Date;
@@ -21,6 +22,7 @@ const FREE_PLAN_LIMITS = {
   receivableMonthlyLimit: 50,
   bankConnectionLimit: 1,
   copilotChatMonthlyLimit: 50,
+  canUseCustomSmtp: false,
 };
 
 function startOfMonth(date: Date): Date {
@@ -38,6 +40,7 @@ export class Subscription {
   readonly receivableMonthlyLimit: number;
   readonly bankConnectionLimit: number;
   readonly copilotChatMonthlyLimit: number;
+  readonly canUseCustomSmtp: boolean;
   readonly status: SubscriptionStatus;
   readonly currentPeriodStart: Date;
   readonly currentPeriodEnd: Date;
@@ -51,6 +54,7 @@ export class Subscription {
     this.receivableMonthlyLimit = props.receivableMonthlyLimit;
     this.bankConnectionLimit = props.bankConnectionLimit;
     this.copilotChatMonthlyLimit = props.copilotChatMonthlyLimit;
+    this.canUseCustomSmtp = props.canUseCustomSmtp ?? false;
     this.status = props.status;
     this.currentPeriodStart = props.currentPeriodStart;
     this.currentPeriodEnd = props.currentPeriodEnd;
@@ -70,6 +74,7 @@ export class Subscription {
       receivableMonthlyLimit: FREE_PLAN_LIMITS.receivableMonthlyLimit,
       bankConnectionLimit: FREE_PLAN_LIMITS.bankConnectionLimit,
       copilotChatMonthlyLimit: FREE_PLAN_LIMITS.copilotChatMonthlyLimit,
+      canUseCustomSmtp: FREE_PLAN_LIMITS.canUseCustomSmtp,
       status: SubscriptionStatus.ACTIVE,
       currentPeriodStart: startOfMonth(now),
       currentPeriodEnd: startOfNextMonth(now),
