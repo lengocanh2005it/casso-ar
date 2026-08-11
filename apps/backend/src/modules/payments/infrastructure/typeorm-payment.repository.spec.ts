@@ -102,7 +102,7 @@ describe('TypeOrmPaymentRepository', () => {
     expect(rows[0].unallocatedAmount).toBe(5_000_000);
   });
 
-  it('preserves the database-returned row order (receivedAt ASC, id ASC)', async () => {
+  it('requests receivedAt ASC, id ASC ordering and maps multiple rows in the order returned', async () => {
     const ormRepo = {
       find: jest.fn().mockResolvedValue([
         { ...PROPS, id: 'pay-1', receivedAt: new Date('2026-08-01') },
@@ -118,6 +118,13 @@ describe('TypeOrmPaymentRepository', () => {
       () => repo.findUnallocatedByCustomerId('cus-1'),
     );
 
+    // The DB, not this mock, is what actually enforces the sort — this only
+    // proves the query requests it and the mapping doesn't reorder rows.
+    // Real multi-row ordering is verified end-to-end against Postgres in
+    // credit-balance-management.e2e-spec.ts.
+    expect(ormRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({ order: { receivedAt: 'ASC', id: 'ASC' } }),
+    );
     expect(rows.map((row) => row.payment.id)).toEqual([
       'pay-1',
       'pay-2',

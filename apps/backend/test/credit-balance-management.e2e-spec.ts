@@ -391,6 +391,55 @@ describe('Customer credit balance (e2e)', () => {
     expect(res.body.errorCode).toBe('CUSTOMER_MISMATCH');
   });
 
+  it('sorts items by receivedAt ASC regardless of insertion order', async () => {
+    const customerId = await createCustomer(organizationA);
+    const paymentRepo = dataSource.getRepository(PaymentOrmEntity);
+    // Inserted newest-first, on purpose, to prove the DB sorts by
+    // receivedAt rather than returning rows in insertion/creation order.
+    await paymentRepo.save({
+      id: randomUUID(),
+      organizationId: organizationA,
+      customerId,
+      bankTransactionId: null,
+      totalAmount: 3_000_000,
+      allocatedAmount: 0,
+      payerName: 'Công ty Credit',
+      receivedAt: new Date('2026-08-03'),
+      createdAt: new Date(),
+    });
+    await paymentRepo.save({
+      id: randomUUID(),
+      organizationId: organizationA,
+      customerId,
+      bankTransactionId: null,
+      totalAmount: 1_000_000,
+      allocatedAmount: 0,
+      payerName: 'Công ty Credit',
+      receivedAt: new Date('2026-08-01'),
+      createdAt: new Date(),
+    });
+    await paymentRepo.save({
+      id: randomUUID(),
+      organizationId: organizationA,
+      customerId,
+      bankTransactionId: null,
+      totalAmount: 2_000_000,
+      allocatedAmount: 0,
+      payerName: 'Công ty Credit',
+      receivedAt: new Date('2026-08-02'),
+      createdAt: new Date(),
+    });
+
+    const res = await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerId}/credits`)
+      .set('Authorization', `Bearer ${token(financeManagerId, organizationA)}`)
+      .expect(200);
+
+    expect(
+      res.body.items.map((item: { totalAmount: number }) => item.totalAmount),
+    ).toEqual([1_000_000, 2_000_000, 3_000_000]);
+  });
+
   it('goes to zero and drops the item once a payment becomes fully allocated', async () => {
     const financeToken = token(financeManagerId, organizationA);
     const customerId = await createCustomer(organizationA);
