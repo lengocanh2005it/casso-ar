@@ -12,6 +12,10 @@ import {
 @Index(['organizationId', 'status', 'dueDate'])
 @Index(['organizationId', 'customerId', 'status'])
 @Index(['organizationId', 'salesRepresentativeId'])
+@Index('IDX_receivables_organization_created_at', [
+  'organizationId',
+  'createdAt',
+])
 @Check('"paidAmount" >= 0 AND "paidAmount" <= "originalAmount"')
 export class ReceivableOrmEntity {
   @PrimaryGeneratedColumn('uuid')

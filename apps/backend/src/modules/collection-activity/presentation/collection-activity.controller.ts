@@ -6,8 +6,10 @@ import {
   Headers,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
@@ -57,18 +59,40 @@ export class CollectionActivityController {
 
   @Get('receivables/:id/timeline')
   @RequirePermission(Permission.RECEIVABLE_READ)
-  async receivableTimeline(@Param('id') receivableId: string) {
-    const activities =
-      await this.getReceivableTimelineUseCase.execute(receivableId);
-    return activities.map(toCollectionActivityResponse);
+  async receivableTimeline(
+    @Param('id') receivableId: string,
+    @Query() pagination: PaginationDto,
+  ) {
+    const result = await this.getReceivableTimelineUseCase.execute(
+      receivableId,
+      pagination.page,
+      pagination.limit,
+    );
+    return {
+      items: result.items.map(toCollectionActivityResponse),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+    };
   }
 
   @Get('customers/:id/timeline')
   @RequirePermission(Permission.RECEIVABLE_READ)
-  async customerTimeline(@Param('id') customerId: string) {
-    const activities =
-      await this.getCustomerTimelineUseCase.execute(customerId);
-    return activities.map(toCollectionActivityResponse);
+  async customerTimeline(
+    @Param('id') customerId: string,
+    @Query() pagination: PaginationDto,
+  ) {
+    const result = await this.getCustomerTimelineUseCase.execute(
+      customerId,
+      pagination.page,
+      pagination.limit,
+    );
+    return {
+      items: result.items.map(toCollectionActivityResponse),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+    };
   }
 
   private getCurrentUser() {

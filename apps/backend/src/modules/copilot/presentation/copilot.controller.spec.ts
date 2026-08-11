@@ -5,6 +5,7 @@ function buildController() {
   const copilotChatUseCase = { execute: jest.fn() };
   const confirmPendingActionUseCase = { execute: jest.fn() };
   const cancelPendingActionUseCase = { execute: jest.fn() };
+  const getCopilotUsageUseCase = { execute: jest.fn() };
   const idempotency = {
     execute: jest.fn((_endpoint, _key, _input, operation) => operation()),
   };
@@ -13,11 +14,13 @@ function buildController() {
       copilotChatUseCase as any,
       confirmPendingActionUseCase as any,
       cancelPendingActionUseCase as any,
+      getCopilotUsageUseCase as any,
       idempotency as any,
     ),
     copilotChatUseCase,
     confirmPendingActionUseCase,
     cancelPendingActionUseCase,
+    getCopilotUsageUseCase,
     idempotency,
   };
 }

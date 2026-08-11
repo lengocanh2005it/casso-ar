@@ -42,6 +42,20 @@ function formatVnd(amount: number): string {
   return `${amount.toLocaleString('vi-VN')} VND`;
 }
 
+// Customer-controlled values (name originates from CSV/Excel import) are
+// interpolated into the draft's subject/bodyHtml, which is sent verbatim as an
+// email — escape so a name like `<img src=x onerror=...>` cannot execute in
+// HTML-rendering email clients (the Handlebars reminder path already escapes;
+// this draft path must too).
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 @Injectable()
 export class DraftReminderEmailTool {
   static readonly NAME = 'draftReminderEmail';
@@ -90,14 +104,15 @@ export class DraftReminderEmailTool {
     const tone = input.tone ?? 'polite';
     const remaining = formatVnd(receivable.remainingAmount);
     const dueDate = receivable.dueDate.toISOString().slice(0, 10);
+    const customerName = escapeHtml(customer.name);
     const subject =
       tone === 'urgent'
-        ? `[Nhắc thanh toán khẩn] ${customer.name} - còn lại ${remaining}`
-        : `Nhắc thanh toán - ${customer.name}`;
+        ? `[Nhắc thanh toán khẩn] ${customerName} - còn lại ${remaining}`
+        : `Nhắc thanh toán - ${customerName}`;
     const bodyHtml =
       tone === 'urgent'
-        ? `<p>Kính gửi ${customer.name},</p><p>Khoản phải thu đã quá hạn (hạn thanh toán: ${dueDate}). Số tiền còn lại: <strong>${remaining}</strong>. Vui lòng thanh toán sớm nhất có thể.</p>`
-        : `<p>Kính gửi ${customer.name},</p><p>Đây là thư nhắc về khoản phải thu đến hạn ngày ${dueDate}; số tiền còn lại là <strong>${remaining}</strong>. Cảm ơn.</p>`;
+        ? `<p>Kính gửi ${customerName},</p><p>Khoản phải thu đã quá hạn (hạn thanh toán: ${dueDate}). Số tiền còn lại: <strong>${remaining}</strong>. Vui lòng thanh toán sớm nhất có thể.</p>`
+        : `<p>Kính gửi ${customerName},</p><p>Đây là thư nhắc về khoản phải thu đến hạn ngày ${dueDate}; số tiền còn lại là <strong>${remaining}</strong>. Cảm ơn.</p>`;
 
     const draftId = randomUUID();
     await this.draftRepo.save({

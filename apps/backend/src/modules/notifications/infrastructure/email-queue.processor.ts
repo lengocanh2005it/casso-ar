@@ -98,6 +98,7 @@ export class EmailQueueProcessor extends WorkerHost {
       subject,
       html,
       forceProvider,
+      fromName,
     } = job.data;
 
     await this.tenantContext.run(
@@ -127,6 +128,7 @@ export class EmailQueueProcessor extends WorkerHost {
           html,
           { reminderExecutionId },
           replyTo,
+          fromName,
         );
         await this.executionRepo.updateSendResult(
           reminderExecutionId,

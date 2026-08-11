@@ -118,6 +118,11 @@ export class EmailService {
         ...(owner?.email ? { replyTo: owner.email } : {}),
         subject: rendered.subject,
         html: rendered.bodyHtml,
+        // Display-name-only sender customization (issue #96): the actual
+        // domain stays Casso's, the org's name is the From display identity.
+        fromName: organization?.name
+          ? `${organization.name} (qua Casso)`
+          : undefined,
       },
       {
         jobId: input.reminderExecutionId,

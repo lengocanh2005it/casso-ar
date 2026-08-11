@@ -213,6 +213,9 @@ export class TypeOrmReceivableRepository
     if (filters.salesRepresentativeId) {
       where.salesRepresentativeId = filters.salesRepresentativeId;
     }
+    if (filters.customerId) {
+      where.customerId = filters.customerId;
+    }
     const rows = await this.ormRepo.find({
       where,
       order: { createdAt: 'DESC' },
@@ -232,6 +235,9 @@ export class TypeOrmReceivableRepository
     }
     if (filters.salesRepresentativeId) {
       where.salesRepresentativeId = filters.salesRepresentativeId;
+    }
+    if (filters.customerId) {
+      where.customerId = filters.customerId;
     }
     return this.ormRepo.count({ where });
   }

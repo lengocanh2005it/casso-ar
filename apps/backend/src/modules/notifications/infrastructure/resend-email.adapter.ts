@@ -5,6 +5,16 @@ import type {
   IEmailProviderAdapter,
 } from '../application/email-provider-adapter.port';
 
+// RFC 5322 quoted-string hygiene for an org-controlled display name: strip
+// CR/LF (header injection) and escape backslash + double-quote so the name
+// cannot break out of the From header.
+function sanitizeDisplayName(name: string): string {
+  return name
+    .replace(/[\r\n]+/g, ' ')
+    .replaceAll('\\', '\\\\')
+    .replaceAll('"', "'");
+}
+
 @Injectable()
 export class ResendEmailAdapter implements IEmailProviderAdapter {
   private readonly client: Resend;
@@ -16,16 +26,19 @@ export class ResendEmailAdapter implements IEmailProviderAdapter {
     this.fromAddress =
       process.env.RESEND_FROM_ADDRESS ?? 'no-reply@casso-ledger.vn';
   }
-
   async send(
     to: string,
     subject: string,
     html: string,
     metadata: Record<string, string>,
     replyTo?: string,
+    fromName?: string,
   ): Promise<EmailSendResult> {
+    const from = fromName
+      ? `"${sanitizeDisplayName(fromName)}" <${this.fromAddress}>`
+      : this.fromAddress;
     const result = await this.client.emails.send({
-      from: this.fromAddress,
+      from,
       to,
       subject,
       html,

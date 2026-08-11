@@ -11,8 +11,12 @@ export function ReceivablesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const status =
     (searchParams.get('status') as ReceivableStatus | null) ?? undefined;
+  const customerId = searchParams.get('customerId') ?? undefined;
   const page = Number(searchParams.get('page') ?? '1');
-  const { data, isPending, isError } = useReceivables({ status }, page);
+  const { data, isPending, isError } = useReceivables(
+    { status, customerId },
+    page,
+  );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
 
   function setPage(nextPage: number) {

@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { CollectionActivity } from '../domain/collection-activity';
 import {
   COLLECTION_ACTIVITY_REPOSITORY,
   ICollectionActivityRepository,
 } from './collection-activity-repository.port';
+import type { TimelinePage } from './get-receivable-timeline.usecase';
 
 @Injectable()
 export class GetCustomerTimelineUseCase {
@@ -14,8 +14,14 @@ export class GetCustomerTimelineUseCase {
 
   async execute(
     customerId: string,
-    limit = 100,
-  ): Promise<CollectionActivity[]> {
-    return this.activityRepo.findByCustomerId(customerId, limit);
+    page: number,
+    limit: number,
+  ): Promise<TimelinePage> {
+    const result = await this.activityRepo.findByCustomerId(
+      customerId,
+      page,
+      limit,
+    );
+    return { ...result, page, limit };
   }
 }

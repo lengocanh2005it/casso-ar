@@ -4,7 +4,10 @@ import type { EntityManager, QueryDeepPartialEntity } from 'typeorm';
 import { Repository } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import { ICollectionActivityRepository } from '../application/collection-activity-repository.port';
+import {
+  type CollectionActivityPage,
+  type ICollectionActivityRepository,
+} from '../application/collection-activity-repository.port';
 import { CollectionActivity } from '../domain/collection-activity';
 import { CollectionActivityOrmEntity } from './collection-activity.orm-entity';
 
@@ -67,25 +70,31 @@ export class TypeOrmCollectionActivityRepository
 
   async findByReceivableId(
     receivableId: string,
-  ): Promise<CollectionActivity[]> {
+    page: number,
+    limit: number,
+  ): Promise<CollectionActivityPage> {
     const organizationId = this.tenantContext.getOrganizationId();
-    const rows = await this.ormRepo.find({
+    const [rows, total] = await this.ormRepo.findAndCount({
       where: { receivableId, organizationId },
       order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
     });
-    return rows.map(toDomain);
+    return { items: rows.map(toDomain), total };
   }
 
   async findByCustomerId(
     customerId: string,
+    page: number,
     limit: number,
-  ): Promise<CollectionActivity[]> {
+  ): Promise<CollectionActivityPage> {
     const organizationId = this.tenantContext.getOrganizationId();
-    const rows = await this.ormRepo.find({
+    const [rows, total] = await this.ormRepo.findAndCount({
       where: { customerId, organizationId },
       order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
       take: limit,
     });
-    return rows.map(toDomain);
+    return { items: rows.map(toDomain), total };
   }
 }

@@ -94,4 +94,32 @@ describe('DraftReminderEmailTool', () => {
       tool.execute({ receivableId: 'rec-1' }, 'org-1'),
     ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
   });
+
+  it('escapes HTML in customer.name inside the draft subject and body', async () => {
+    const maliciousName = '<img src=x onerror=alert(1)> & "quoted"';
+    const receivableRepo = {
+      findById: jest.fn().mockResolvedValue(buildReceivable()),
+    };
+    const customerRepo = {
+      findById: jest.fn().mockResolvedValue({
+        ...buildCustomer(),
+        name: maliciousName,
+      }),
+    };
+    const draftRepo = { save: jest.fn() };
+    const tool = new DraftReminderEmailTool(
+      receivableRepo as any,
+      customerRepo as any,
+      draftRepo as any,
+    );
+
+    const result = await tool.execute({ receivableId: 'rec-1' }, 'org-1');
+
+    expect(result.subject).not.toContain('<img');
+    expect(result.subject).toContain('&lt;img src=x onerror=alert(1)&gt;');
+    expect(result.bodyHtml).not.toContain('<img src=x onerror=');
+    expect(result.bodyHtml).toContain(
+      'Kính gửi &lt;img src=x onerror=alert(1)&gt; &amp; &quot;quoted&quot;,',
+    );
+  });
 });

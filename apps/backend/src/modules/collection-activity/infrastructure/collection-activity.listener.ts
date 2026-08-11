@@ -24,7 +24,10 @@ export interface PaymentAllocatedEvent {
   customerId: string;
   organizationId: string;
   amount: number;
-  allocatedByUserId: string;
+  // null when the allocation was made by an automated path (webhook
+  // auto-match, exception-queue match) with no human allocator — matches
+  // PaymentAllocation.allocatedByUserId.
+  allocatedByUserId: string | null;
 }
 
 export interface ReceivableClosedEvent {

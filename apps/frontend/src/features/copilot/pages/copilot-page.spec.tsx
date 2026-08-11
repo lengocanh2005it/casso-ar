@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { CopilotPage } from './copilot-page';
@@ -17,9 +18,27 @@ vi.mock('@/contexts/auth-context', () => ({
   useAuth: () => mockUseAuth(),
 }));
 
+function renderPage() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <CopilotPage />
+    </QueryClientProvider>,
+  );
+}
+
+const USAGE = {
+  turnsUsed: 0,
+  turnsLimit: 50,
+  periodStart: '2026-08-01T00:00:00Z',
+  periodEnd: '2026-09-01T00:00:00Z',
+};
+
 describe('CopilotPage', () => {
   it('shows a pending action card and confirms it via the pure-code endpoint', async () => {
-    apiRequest.mockResolvedValueOnce({
+    apiRequest.mockResolvedValueOnce(USAGE).mockResolvedValueOnce({
       message: {
         id: 'm1',
         role: 'ASSISTANT',
@@ -37,7 +56,7 @@ describe('CopilotPage', () => {
     });
     apiRequest.mockResolvedValueOnce({ reminderExecutionId: 'ex1' });
 
-    render(<CopilotPage />);
+    renderPage();
 
     fireEvent.change(screen.getByLabelText(/enter question/i), {
       target: { value: 'Send reminder email for r1' },
@@ -65,7 +84,7 @@ describe('CopilotPage', () => {
     mockUseAuth.mockReturnValue({
       user: { role: 'SALES_REP', subscriptionPlan: 'STARTER' },
     });
-    apiRequest.mockResolvedValueOnce({
+    apiRequest.mockResolvedValueOnce(USAGE).mockResolvedValueOnce({
       message: {
         id: 'm1',
         role: 'ASSISTANT',
@@ -82,7 +101,7 @@ describe('CopilotPage', () => {
       },
     });
 
-    render(<CopilotPage />);
+    renderPage();
 
     fireEvent.change(screen.getByLabelText(/enter question/i), {
       target: { value: 'Send reminder email for r1' },

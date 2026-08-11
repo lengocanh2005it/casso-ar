@@ -16,6 +16,7 @@ export interface ReceivablePage {
 export interface ReceivableFilters {
   status?: ReceivableStatus;
   salesRepresentativeId?: string;
+  customerId?: string;
 }
 
 export interface CreateReceivableInput {
@@ -60,10 +61,17 @@ export function cancelReceivable(id: string): Promise<Receivable> {
 
 export function fetchReceivableTimeline(
   id: string,
-): Promise<ReceivableTimelineItem[]> {
-  return apiRequest<ReceivableTimelineItem[]>({
+  page = 1,
+): Promise<{
+  items: ReceivableTimelineItem[];
+  total: number;
+  page: number;
+  limit: number;
+}> {
+  return apiRequest({
     url: `/api/v1/receivables/${id}/timeline`,
     method: 'GET',
+    params: { page, limit: 20 },
   });
 }
 

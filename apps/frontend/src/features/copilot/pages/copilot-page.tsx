@@ -9,6 +9,7 @@ import { hasPermission } from '@/lib/rbac';
 import { useCopilotChat } from '../api/use-copilot';
 import { MessageList } from '../components/message-list';
 import { PendingActionCard } from '../components/pending-action-card';
+import { UsageIndicator } from '../components/usage-indicator';
 
 export function CopilotPage() {
   const { user } = useAuth();
@@ -48,7 +49,10 @@ export function CopilotPage() {
 
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col p-6">
-      <h1 className="mb-4 text-2xl font-semibold">Copilot</h1>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Copilot</h1>
+        <UsageIndicator />
+      </div>
       <div className="flex-1 space-y-3 overflow-y-auto rounded-lg border p-4">
         <MessageList messages={messages} />
         {pendingAction && canSendManual && (

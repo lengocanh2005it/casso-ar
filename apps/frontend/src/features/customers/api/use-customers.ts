@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchCustomer,
+  fetchCustomerCredits,
   fetchCustomers,
   fetchCustomerTimeline,
 } from './customers-api';
@@ -21,10 +22,18 @@ export function useCustomer(id: string) {
   });
 }
 
-export function useCustomerTimeline(customerId: string) {
+export function useCustomerTimeline(customerId: string, page = 1) {
   return useQuery({
-    queryKey: ['customer-timeline', customerId],
-    queryFn: () => fetchCustomerTimeline(customerId),
+    queryKey: ['customer-timeline', customerId, page],
+    queryFn: () => fetchCustomerTimeline(customerId, page),
+    enabled: customerId.length > 0,
+  });
+}
+
+export function useCustomerCredits(customerId: string) {
+  return useQuery({
+    queryKey: ['customer-credits', customerId],
+    queryFn: () => fetchCustomerCredits(customerId),
     enabled: customerId.length > 0,
   });
 }

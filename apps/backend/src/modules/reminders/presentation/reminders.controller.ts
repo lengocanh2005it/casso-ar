@@ -7,7 +7,14 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../../../common/audit/audit.enums';
+import { Audited } from '../../../common/audit/audited.decorator';
+import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ReminderExecutionQueryService } from '../application/reminder-execution-query.service';
 import { ReminderPolicyService } from '../application/reminder-policy.service';
@@ -16,6 +23,7 @@ import { ListReminderExecutionsQuery } from './dto/list-reminder-executions.quer
 import { UpdateReminderPolicyDto } from './dto/update-reminder-policy.dto';
 
 @Controller('reminder-policies')
+@UseGuards(PermissionGuard)
 export class RemindersController {
   constructor(private readonly policyService: ReminderPolicyService) {}
 
@@ -33,12 +41,17 @@ export class RemindersController {
 
   @Patch(':id')
   @RequirePermission(Permission.REMINDER_POLICY_WRITE)
+  @Audited(
+    AuditActionType.REMINDER_POLICY_UPDATE,
+    AuditEntityType.REMINDER_POLICY,
+  )
   async update(@Param('id') id: string, @Body() dto: UpdateReminderPolicyDto) {
     return this.policyService.update(id, dto);
   }
 }
 
 @Controller('reminder-executions')
+@UseGuards(PermissionGuard)
 export class ReminderExecutionsController {
   constructor(
     private readonly executionQueryService: ReminderExecutionQueryService,

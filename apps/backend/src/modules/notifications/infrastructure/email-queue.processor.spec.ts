@@ -6,6 +6,7 @@ function buildJob(
     attemptsMade: number;
     attempts: number;
     forceProvider: 'RESEND';
+    fromName?: string;
   }> = {},
 ) {
   return {
@@ -22,6 +23,7 @@ function buildJob(
       ...(overrides.forceProvider
         ? { forceProvider: overrides.forceProvider }
         : {}),
+      ...(overrides.fromName ? { fromName: overrides.fromName } : {}),
     },
     attemptsMade: overrides.attemptsMade ?? 1,
     opts: { attempts: overrides.attempts ?? 3 },
@@ -98,6 +100,7 @@ describe('EmailQueueProcessor', () => {
       '<p>Due</p>',
       { reminderExecutionId: 'exec-1' },
       'owner@example.com',
+      undefined,
     );
     expect(deps.executionRepo.updateSendResult).toHaveBeenCalledWith(
       'exec-1',
@@ -116,6 +119,26 @@ describe('EmailQueueProcessor', () => {
     expect(deps.requestIdStore.run).toHaveBeenCalledWith(
       'bullmq:exec-1',
       expect.any(Function),
+    );
+  });
+
+  it('passes the job fromName through to the provider (issue #96)', async () => {
+    const emailProvider = {
+      send: jest.fn().mockResolvedValue({ providerMessageId: 'msg-1' }),
+    };
+    const deps = buildDeps();
+    deps.resolver.resolve.mockResolvedValue(emailProvider);
+    const processor = buildProcessor(deps);
+
+    await processor.process(buildJob({ fromName: 'Công ty ABC (qua Casso)' }));
+
+    expect(emailProvider.send).toHaveBeenCalledWith(
+      'customer@example.com',
+      'Payment reminder',
+      '<p>Due</p>',
+      { reminderExecutionId: 'exec-1' },
+      'owner@example.com',
+      'Công ty ABC (qua Casso)',
     );
   });
 

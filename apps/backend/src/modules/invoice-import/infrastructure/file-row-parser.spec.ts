@@ -1,7 +1,11 @@
 import { utils, write } from 'xlsx';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
-import { IMPORT_HEADERS, parseFileToRows } from './file-row-parser';
+import {
+  declaredRowCountInRange,
+  IMPORT_HEADERS,
+  parseFileToRows,
+} from './file-row-parser';
 
 const validRow: Record<string, string> = {
   customerName: 'Nguyen Van A',
@@ -41,6 +45,20 @@ const expectValidationError = (act: () => unknown): void => {
   expect(act).toThrow(
     expect.objectContaining({ errorCode: ErrorCode.VALIDATION_ERROR }),
   );
+};
+
+const workbookWithDeclaredRange = (
+  range: string,
+  bookType: 'xlsx' | 'xls' = 'xlsx',
+): Buffer => {
+  const sheet = utils.aoa_to_sheet([
+    [...IMPORT_HEADERS],
+    Object.values(validRow),
+  ]);
+  sheet['!ref'] = range;
+  const workbook = utils.book_new();
+  utils.book_append_sheet(workbook, sheet, 'Sheet1');
+  return write(workbook, { bookType, type: 'buffer' }) as Buffer;
 };
 
 describe('parseFileToRows', () => {
@@ -185,5 +203,32 @@ describe('parseFileToRows', () => {
         'invoices.xlsx',
       ),
     ).toEqual({ rows: [validRow], totalRows: 1 });
+  });
+
+  it('accepts an xlsx whose declared range fits the row budget', () => {
+    expect(
+      parseFileToRows(workbookWithDeclaredRange('A1:H2'), 'invoices.xlsx'),
+    ).toEqual({ rows: [validRow], totalRows: 1 });
+  });
+
+  it('accepts a declared range with exactly 1,000 data rows (1 header + 1000 data rows)', () => {
+    expect(() =>
+      parseFileToRows(workbookWithDeclaredRange('A1:H1001'), 'invoices.xlsx'),
+    ).not.toThrow();
+  });
+
+  it('rejects a declared range with more than 1,000 data rows', () => {
+    expectValidationError(() =>
+      parseFileToRows(workbookWithDeclaredRange('A1:H1002'), 'invoices.xlsx'),
+    );
+  });
+
+  it('parses the declared row count out of a !ref range', () => {
+    expect(declaredRowCountInRange('A1:H5000000')).toBe(5_000_000);
+    expect(declaredRowCountInRange('A1:H2')).toBe(2);
+    expect(declaredRowCountInRange('B12:C13')).toBe(2);
+    expect(declaredRowCountInRange('B12:C5000000')).toBe(4_999_989);
+    expect(declaredRowCountInRange(undefined)).toBe(0);
+    expect(declaredRowCountInRange('garbage')).toBe(0);
   });
 });

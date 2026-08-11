@@ -58,4 +58,80 @@ describe('RefreshAccessTokenUseCase', () => {
       Date,
     );
   });
+
+  it('revokes the whole token family when a revoked token is reused (theft detection)', async () => {
+    const raw = 'r'.repeat(64);
+    const existing = new RefreshToken({
+      id: 'refresh-1',
+      userId: 'user-1',
+      tokenHash: hashToken(raw),
+      expiresAt: new Date(Date.now() + 60_000),
+      revokedAt: new Date(Date.now() - 1_000),
+      createdAt: new Date(),
+    });
+    const refreshTokenRepo = {
+      findByTokenHash: jest.fn().mockResolvedValue(existing),
+      save: jest.fn(),
+      revokeAllForUser: jest.fn(),
+    };
+    const membershipRepo = { findFirstActiveByUserId: jest.fn() };
+    const jwtService = { sign: jest.fn() };
+    const dataSource = {
+      transaction: jest.fn(
+        async (callback: (manager: object) => Promise<unknown>) => callback({}),
+      ),
+    };
+    const useCase = new RefreshAccessTokenUseCase(
+      refreshTokenRepo as any,
+      membershipRepo as any,
+      jwtService as any,
+      dataSource as any,
+    );
+
+    await expect(useCase.execute(raw)).rejects.toThrow(
+      'Refresh token không hợp lệ hoặc đã hết hạn.',
+    );
+
+    // Family revocation must run OUTSIDE the rotation transaction so the
+    // UNAUTHORIZED throw cannot roll it back.
+    expect(refreshTokenRepo.revokeAllForUser).toHaveBeenCalledWith('user-1');
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+    expect(membershipRepo.findFirstActiveByUserId).not.toHaveBeenCalled();
+  });
+
+  it('does not revoke the family when an expired (never revoked) token is reused', async () => {
+    const raw = 'r'.repeat(64);
+    const existing = new RefreshToken({
+      id: 'refresh-1',
+      userId: 'user-1',
+      tokenHash: hashToken(raw),
+      expiresAt: new Date(Date.now() - 1_000),
+      revokedAt: null,
+      createdAt: new Date(),
+    });
+    const refreshTokenRepo = {
+      findByTokenHash: jest.fn().mockResolvedValue(existing),
+      save: jest.fn(),
+      revokeAllForUser: jest.fn(),
+    };
+    const membershipRepo = { findFirstActiveByUserId: jest.fn() };
+    const jwtService = { sign: jest.fn() };
+    const dataSource = {
+      transaction: jest.fn(
+        async (callback: (manager: object) => Promise<unknown>) => callback({}),
+      ),
+    };
+    const useCase = new RefreshAccessTokenUseCase(
+      refreshTokenRepo as any,
+      membershipRepo as any,
+      jwtService as any,
+      dataSource as any,
+    );
+
+    await expect(useCase.execute(raw)).rejects.toThrow(
+      'Refresh token không hợp lệ hoặc đã hết hạn.',
+    );
+
+    expect(refreshTokenRepo.revokeAllForUser).not.toHaveBeenCalled();
+  });
 });

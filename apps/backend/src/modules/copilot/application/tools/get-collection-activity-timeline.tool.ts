@@ -36,10 +36,11 @@ export class GetCollectionActivityTimelineTool {
     customerId: string;
     limit?: number;
   }): Promise<{ customerId: string; items: CollectionActivity[] }> {
-    const items = await this.getCustomerTimeline.execute(
+    const page = await this.getCustomerTimeline.execute(
       input.customerId,
+      1,
       clampLimit(input.limit),
     );
-    return { customerId: input.customerId, items };
+    return { customerId: input.customerId, items: page.items };
   }
 }

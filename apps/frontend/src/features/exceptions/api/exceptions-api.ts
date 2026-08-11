@@ -1,6 +1,5 @@
-import type { MatchingCandidate } from '@/features/transactions/types';
 import { apiRequest, postWithIdempotency } from '@/lib/api-client';
-import type { PendingReviewItem } from '../types';
+import type { MatchingCandidate, PendingReviewItem } from '../types';
 
 export interface PendingReviewPage {
   items: PendingReviewItem[];

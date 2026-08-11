@@ -5,7 +5,7 @@ import {
 import { GetReceivableTimelineUseCase } from './get-receivable-timeline.usecase';
 
 describe('GetReceivableTimelineUseCase', () => {
-  it('returns activities for the receivable, ordered as the repository provides them', async () => {
+  it('returns the paginated envelope for the receivable', async () => {
     const activities = [
       new CollectionActivity({
         id: 'act-2',
@@ -32,14 +32,22 @@ describe('GetReceivableTimelineUseCase', () => {
     ];
     const activityRepo = {
       create: jest.fn(),
-      findByReceivableId: jest.fn().mockResolvedValue(activities),
+      findByReceivableId: jest.fn().mockResolvedValue({
+        items: activities,
+        total: 2,
+      }),
       findByCustomerId: jest.fn(),
     };
 
     const useCase = new GetReceivableTimelineUseCase(activityRepo as any);
-    const result = await useCase.execute('rec-1');
+    const result = await useCase.execute('rec-1', 1, 20);
 
-    expect(result).toBe(activities);
-    expect(activityRepo.findByReceivableId).toHaveBeenCalledWith('rec-1');
+    expect(result.items).toBe(activities);
+    expect(result.total).toBe(2);
+    expect(activityRepo.findByReceivableId).toHaveBeenCalledWith(
+      'rec-1',
+      1,
+      20,
+    );
   });
 });

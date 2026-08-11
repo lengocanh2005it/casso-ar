@@ -6,7 +6,6 @@ import {
   HttpCode,
   HttpStatus,
   Post,
-  Query,
   Req,
   Res,
   UnauthorizedException,
@@ -21,6 +20,7 @@ import {
 import { Audited } from '../../../common/audit/audited.decorator';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { Public } from '../../../common/auth/public.decorator';
+import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ForgotPasswordUseCase } from '../application/forgot-password.usecase';
 import { GetUserProfileUseCase } from '../application/get-user-profile.usecase';
@@ -42,6 +42,7 @@ import {
   toUserProfileResponse,
   UserProfileResponseDto,
 } from './dto/user-profile-response.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 
 const REFRESH_COOKIE_NAME = 'refreshToken';
 interface AuthRequest extends Request {
@@ -100,9 +101,10 @@ export class AuthController {
   }
 
   @Public()
-  @Get('verify-email')
-  async verifyEmail(@Query('token') token: string) {
-    await this.verifyEmailUseCase.execute(token);
+  @HttpCode(HttpStatus.OK)
+  @Post('verify-email')
+  async verifyEmail(@Body() dto: VerifyEmailDto) {
+    await this.verifyEmailUseCase.execute(dto.token);
     return { verified: true };
   }
 
@@ -156,7 +158,7 @@ export class AuthController {
 
   @Post('switch-organization')
   @Audited(AuditActionType.AUTH_SWITCH_ORGANIZATION, AuditEntityType.AUTH)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionGuard)
   @RequirePermission(Permission.SWITCH_ORGANIZATION)
   async switchOrganization(
     @Req() request: AuthRequest,

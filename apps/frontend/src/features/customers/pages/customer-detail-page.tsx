@@ -1,13 +1,20 @@
 import { Link, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useReceivables } from '@/features/receivables/api/use-receivables';
 import { formatDate, formatVND } from '@/lib/format';
-import { useCustomer, useCustomerTimeline } from '../api/use-customers';
+import {
+  useCustomer,
+  useCustomerCredits,
+  useCustomerTimeline,
+} from '../api/use-customers';
 import { CustomerTimeline } from '../components/customer-timeline';
 
 export function CustomerDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const customerQuery = useCustomer(id);
   const timelineQuery = useCustomerTimeline(id);
+  const creditsQuery = useCustomerCredits(id);
+  const receivablesQuery = useReceivables({ customerId: id }, 1);
 
   if (customerQuery.isPending) {
     return <p>Đang tải thông tin khách hàng…</p>;
@@ -77,10 +84,71 @@ export function CustomerDetailPage() {
             <p className="text-destructive">Không thể tải lịch sử hoạt động.</p>
           )}
           {timelineQuery.data && (
-            <CustomerTimeline items={timelineQuery.data} />
+            <CustomerTimeline items={timelineQuery.data.items} />
           )}
         </CardContent>
       </Card>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Số dư tín dụng</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {creditsQuery.isPending && <p>Đang tải…</p>}
+            {creditsQuery.isError && (
+              <p className="text-destructive">Không thể tải số dư tín dụng.</p>
+            )}
+            {creditsQuery.data && (
+              <>
+                <p>
+                  Số dư khả dụng:{' '}
+                  <strong>
+                    {formatVND(creditsQuery.data.totalAvailableAmount)}
+                  </strong>
+                </p>
+                <p className="text-muted-foreground">
+                  {creditsQuery.data.items.length} khoản thanh toán chưa phân bổ
+                </p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Khoản phải thu</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {receivablesQuery.isPending && <p>Đang tải…</p>}
+            {receivablesQuery.isError && (
+              <p className="text-destructive">Không thể tải khoản phải thu.</p>
+            )}
+            {receivablesQuery.data && (
+              <>
+                <p>Tổng cộng: {receivablesQuery.data.total} khoản phải thu</p>
+                <ul className="space-y-1">
+                  {receivablesQuery.data.items.slice(0, 5).map((receivable) => (
+                    <li
+                      key={receivable.id}
+                      className="flex justify-between gap-2"
+                    >
+                      <span>{receivable.status}</span>
+                      <span>{formatVND(receivable.remainingAmount)}</span>
+                    </li>
+                  ))}
+                </ul>
+                {receivablesQuery.data.total > 5 && (
+                  <Link
+                    to={`/receivables?customerId=${encodeURIComponent(id)}`}
+                    className="text-primary hover:underline"
+                  >
+                    Xem tất cả →
+                  </Link>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
