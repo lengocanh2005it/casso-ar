@@ -2,9 +2,10 @@ import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BillingTab } from '../components/billing-tab';
 import { EmailTemplatesTab } from '../components/email-templates-tab';
+import { SmtpTab } from '../components/smtp-tab';
 import { UsersTab } from '../components/users-tab';
 
-const TABS = ['billing', 'users', 'templates'] as const;
+const TABS = ['billing', 'users', 'templates', 'smtp'] as const;
 
 export function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -33,6 +34,7 @@ export function SettingsPage() {
           <TabsTrigger value="billing">Thanh toán</TabsTrigger>
           <TabsTrigger value="users">Người dùng</TabsTrigger>
           <TabsTrigger value="templates">Mẫu email</TabsTrigger>
+          <TabsTrigger value="smtp">Email server riêng</TabsTrigger>
         </TabsList>
         <TabsContent value="billing" className="pt-4">
           <BillingTab />
@@ -42,6 +44,9 @@ export function SettingsPage() {
         </TabsContent>
         <TabsContent value="templates" className="pt-4">
           <EmailTemplatesTab />
+        </TabsContent>
+        <TabsContent value="smtp" className="pt-4">
+          <SmtpTab />
         </TabsContent>
       </Tabs>
     </div>
