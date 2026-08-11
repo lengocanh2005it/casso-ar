@@ -8,6 +8,37 @@ import type {
   SmtpConfigInput,
 } from '../types';
 
+/** HTTP status of a failed apiRequest call, or undefined for a non-HTTP error. */
+function getResponseStatus(error: unknown): number | undefined {
+  const response =
+    typeof error === 'object' && error !== null && 'response' in error
+      ? (error as { response?: { status?: unknown } }).response
+      : undefined;
+  const status = response?.status;
+  return typeof status === 'number' ? status : undefined;
+}
+
+/** The backend's `{ message }` error body, or a caller-supplied fallback. */
+export function getResponseErrorMessage(
+  error: unknown,
+  fallback: string,
+): string {
+  const response =
+    typeof error === 'object' && error !== null && 'response' in error
+      ? (error as { response?: { data?: unknown } }).response
+      : undefined;
+  const data = response?.data;
+  if (
+    typeof data === 'object' &&
+    data !== null &&
+    'message' in data &&
+    typeof data.message === 'string'
+  ) {
+    return data.message;
+  }
+  return fallback;
+}
+
 export async function fetchSmtpConfig(): Promise<SmtpConfig | null> {
   try {
     return await apiRequest<SmtpConfig>({
@@ -15,11 +46,7 @@ export async function fetchSmtpConfig(): Promise<SmtpConfig | null> {
       method: 'GET',
     });
   } catch (error) {
-    const status =
-      typeof error === 'object' && error !== null && 'response' in error
-        ? (error.response as { status?: unknown }).status
-        : undefined;
-    if (status === 404) return null;
+    if (getResponseStatus(error) === 404) return null;
     throw error;
   }
 }

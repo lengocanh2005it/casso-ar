@@ -13,28 +13,25 @@ import {
 import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { getResponseErrorMessage } from '../api/settings-api';
 import { useSaveSmtpConfig } from '../api/use-settings';
 import type { SmtpConfig, SmtpConfigInput } from '../types';
 
-function getErrorMessage(error: unknown): string {
-  const response =
-    typeof error === 'object' && error !== null && 'response' in error
-      ? error.response
-      : null;
-  const data =
-    typeof response === 'object' && response !== null && 'data' in response
-      ? response.data
-      : null;
-  if (
-    typeof data === 'object' &&
-    data !== null &&
-    'message' in data &&
-    typeof data.message === 'string'
-  ) {
-    return data.message;
-  }
-  return 'Không thể lưu cấu hình SMTP. Kiểm tra lại thông tin và thử lại.';
+interface FormState {
+  host: string;
+  port: string;
+  username: string;
+  password: string;
+  fromAddress: string;
 }
+
+const emptyForm: FormState = {
+  host: '',
+  port: '',
+  username: '',
+  password: '',
+  fromAddress: '',
+};
 
 export function SmtpConfigDialog({
   trigger,
@@ -44,21 +41,28 @@ export function SmtpConfigDialog({
   existingConfig: SmtpConfig | null;
 }) {
   const [open, setOpen] = useState(false);
-  const [host, setHost] = useState('');
-  const [port, setPort] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [fromAddress, setFromAddress] = useState('');
+  const [form, setForm] = useState<FormState>(emptyForm);
   const [formError, setFormError] = useState<string | null>(null);
   const saveMutation = useSaveSmtpConfig();
 
+  function updateField<K extends keyof FormState>(
+    field: K,
+    value: FormState[K],
+  ) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
   useEffect(() => {
     if (!open) return;
-    setHost(existingConfig?.host ?? '');
-    setPort(existingConfig ? String(existingConfig.port) : '');
-    setUsername(existingConfig?.username ?? '');
-    setPassword('');
-    setFromAddress(existingConfig?.fromAddress ?? '');
+    // Password is never prefilled — the GET response has no password field
+    // to prefill from (the backend never returns it, even encrypted).
+    setForm({
+      host: existingConfig?.host ?? '',
+      port: existingConfig ? String(existingConfig.port) : '',
+      username: existingConfig?.username ?? '',
+      password: '',
+      fromAddress: existingConfig?.fromAddress ?? '',
+    });
     setFormError(null);
   }, [existingConfig, open]);
 
@@ -68,16 +72,22 @@ export function SmtpConfigDialog({
     saveMutation.reset();
 
     const input: SmtpConfigInput = {
-      host: host.trim(),
-      port: Number(port),
-      username: username.trim(),
-      password,
-      fromAddress: fromAddress.trim(),
+      host: form.host.trim(),
+      port: Number(form.port),
+      username: form.username.trim(),
+      password: form.password,
+      fromAddress: form.fromAddress.trim(),
     };
 
     saveMutation.mutate(input, {
       onSuccess: () => setOpen(false),
-      onError: (error) => setFormError(getErrorMessage(error)),
+      onError: (error) =>
+        setFormError(
+          getResponseErrorMessage(
+            error,
+            'Không thể lưu cấu hình SMTP. Kiểm tra lại thông tin và thử lại.',
+          ),
+        ),
     });
   }
 
@@ -99,8 +109,8 @@ export function SmtpConfigDialog({
             <Input
               id="smtp-host"
               autoComplete="off"
-              value={host}
-              onChange={(event) => setHost(event.target.value)}
+              value={form.host}
+              onChange={(event) => updateField('host', event.target.value)}
               required
             />
           </div>
@@ -112,8 +122,8 @@ export function SmtpConfigDialog({
               inputMode="numeric"
               min="1"
               max="65535"
-              value={port}
-              onChange={(event) => setPort(event.target.value)}
+              value={form.port}
+              onChange={(event) => updateField('port', event.target.value)}
               required
             />
           </div>
@@ -123,8 +133,8 @@ export function SmtpConfigDialog({
               id="smtp-username"
               autoComplete="off"
               spellCheck={false}
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
+              value={form.username}
+              onChange={(event) => updateField('username', event.target.value)}
               required
             />
           </div>
@@ -138,8 +148,8 @@ export function SmtpConfigDialog({
               id="smtp-password"
               type="password"
               autoComplete="new-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              value={form.password}
+              onChange={(event) => updateField('password', event.target.value)}
               required
             />
           </div>
@@ -150,8 +160,10 @@ export function SmtpConfigDialog({
               type="email"
               autoComplete="off"
               spellCheck={false}
-              value={fromAddress}
-              onChange={(event) => setFromAddress(event.target.value)}
+              value={form.fromAddress}
+              onChange={(event) =>
+                updateField('fromAddress', event.target.value)
+              }
               required
             />
           </div>
