@@ -4,7 +4,37 @@ import type {
   EmailTemplateInput,
   EmailTemplatePreview,
   OrganizationMemberList,
+  SmtpConfig,
+  SmtpConfigInput,
 } from '../types';
+
+export async function fetchSmtpConfig(): Promise<SmtpConfig | null> {
+  try {
+    return await apiRequest<SmtpConfig>({
+      url: '/api/v1/smtp-config',
+      method: 'GET',
+    });
+  } catch (error) {
+    const status =
+      typeof error === 'object' && error !== null && 'response' in error
+        ? (error.response as { status?: unknown }).status
+        : undefined;
+    if (status === 404) return null;
+    throw error;
+  }
+}
+
+export function saveSmtpConfig(input: SmtpConfigInput): Promise<SmtpConfig> {
+  return postWithIdempotency<SmtpConfig>('/api/v1/smtp-config', input);
+}
+
+export function deleteSmtpConfig(): Promise<{ success: boolean }> {
+  return apiRequest<{ success: boolean }>({
+    url: '/api/v1/smtp-config',
+    method: 'DELETE',
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}
 
 export function fetchEmailTemplates(): Promise<EmailTemplate[]> {
   return apiRequest<EmailTemplate[]>({

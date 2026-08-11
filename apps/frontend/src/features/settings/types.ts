@@ -22,6 +22,24 @@ export interface EmailTemplatePreview {
   bodyHtml: string;
 }
 
+export type SmtpConfigStatus = 'CONNECTED' | 'FAILED';
+
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  username: string;
+  fromAddress: string;
+  status: SmtpConfigStatus;
+}
+
+export interface SmtpConfigInput {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  fromAddress: string;
+}
+
 export interface OrganizationMember {
   id: string;
   userId: string;
