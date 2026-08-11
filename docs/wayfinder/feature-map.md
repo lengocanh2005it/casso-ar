@@ -564,7 +564,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Owner**: BE
 - **Spec**: `specs/2026-08-04-credit-balance-management-design.md`
 - **Blockers**: none — Plan #2 ✅, Plan #8 ✅, Plan #13 ✅
-- **Shipped**: 2026-08-11 — branch `feat/credit-balance-management`
+- **Shipped**: 2026-08-11 — PR #87 merged, 11 commits
 - **Key rules**:
   - Customer credit read API: `GET /customers/:customerId/credits` (`RECEIVABLE_READ`, universal across all 5 roles — no 403 case exists for this endpoint)
   - `Payment` rollups are source of truth (no new credit entity); query via `scopedFindMany` + TypeORM `Raw()` operator for the `totalAmount > allocatedAmount` column comparison, no new `BaseRepository` method
