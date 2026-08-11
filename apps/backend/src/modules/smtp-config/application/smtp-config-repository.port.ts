@@ -6,6 +6,8 @@ export interface ISmtpConfigRepository {
   ): Promise<OrganizationSmtpConfig | null>;
   /** Upsert on organizationId — replaces any existing row. */
   save(config: OrganizationSmtpConfig): Promise<void>;
+  /** Atomically applies CONNECTED -> FAILED for the config version read by the caller. */
+  markFailedIfVersionMatches(config: OrganizationSmtpConfig): Promise<boolean>;
   deleteByOrganizationId(organizationId: string): Promise<void>;
 }
 

@@ -2,6 +2,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { CommonTokensModule } from '../../common/tokens/common-tokens.module';
 import { BankConnectionsModule } from '../bank-connections/bank-connections.module';
+import { BillingModule } from '../billing/billing.module';
 import { CustomersModule } from '../customers/customers.module';
 import { EmailTemplatesModule } from '../email-templates/email-templates.module';
 import { InvoicesModule } from '../invoices/invoices.module';
@@ -24,6 +25,7 @@ import { ResendEmailAdapter } from './infrastructure/resend-email.adapter';
     BullModule.registerQueue({ name: EMAIL_QUEUE }),
     CommonTokensModule,
     BankConnectionsModule,
+    BillingModule,
     CustomersModule,
     EmailTemplatesModule,
     InvoicesModule,

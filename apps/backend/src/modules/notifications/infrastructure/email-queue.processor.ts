@@ -165,7 +165,11 @@ export class EmailQueueProcessor extends WorkerHost {
           const config =
             await this.smtpConfigRepo.findByOrganizationId(organizationId);
           if (config?.isConnected()) {
-            await this.smtpConfigRepo.save(config.markFailed());
+            const transitioned =
+              await this.smtpConfigRepo.markFailedIfVersionMatches(
+                config.markFailed(),
+              );
+            if (!transitioned) return;
 
             const ownerMembership =
               await this.membershipRepo.findOwnerByOrganization(organizationId);

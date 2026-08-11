@@ -55,6 +55,7 @@ function buildDeps() {
     smtpConfigRepo: {
       findByOrganizationId: jest.fn().mockResolvedValue(null),
       save: jest.fn(),
+      markFailedIfVersionMatches: jest.fn().mockResolvedValue(true),
     },
     membershipRepo: {
       findOwnerByOrganization: jest.fn().mockResolvedValue({
@@ -208,7 +209,7 @@ describe('EmailQueueProcessor — provider resolution', () => {
       expect.any(String),
       { emailType: 'SMTP_CONNECTION_FAILED_WARNING' },
     );
-    expect(deps.smtpConfigRepo.save).toHaveBeenCalledWith(
+    expect(deps.smtpConfigRepo.markFailedIfVersionMatches).toHaveBeenCalledWith(
       expect.objectContaining({ status: SmtpConfigStatus.FAILED }),
     );
     expect(deps.executionRepo.updateSendResult).not.toHaveBeenCalled();
@@ -220,6 +221,29 @@ describe('EmailQueueProcessor — provider resolution', () => {
       }),
       expect.objectContaining({ jobId: 'exec-1-resend-fallback' }),
     );
+  });
+
+  it('does not warn or requeue when another worker wins the SMTP transition', async () => {
+    const deps = buildDeps();
+    const warningAdapter = { send: jest.fn() };
+    deps.resolver.resolve.mockResolvedValue(warningAdapter);
+    deps.smtpConfigRepo.findByOrganizationId.mockResolvedValue({
+      status: SmtpConfigStatus.CONNECTED,
+      organizationId: 'org-1',
+      isConnected: jest.fn().mockReturnValue(true),
+      markFailed: jest.fn().mockReturnValue({
+        status: SmtpConfigStatus.FAILED,
+        organizationId: 'org-1',
+      }),
+    });
+    deps.smtpConfigRepo.markFailedIfVersionMatches.mockResolvedValue(false);
+
+    await buildProcessor(deps).onFailed(
+      buildJob({ attemptsMade: 3, attempts: 3 }),
+    );
+
+    expect(warningAdapter.send).not.toHaveBeenCalled();
+    expect(deps.emailQueue.add).not.toHaveBeenCalled();
   });
 
   it('on final exhaustion of a forced Resend retry marks the execution FAILED', async () => {

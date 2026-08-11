@@ -5,6 +5,14 @@ import {
 import { TypeOrmSmtpConfigRepository } from './typeorm-smtp-config.repository';
 
 describe('TypeOrmSmtpConfigRepository', () => {
+  function buildDataSource(ormRepo: object) {
+    return {
+      transaction: jest.fn((callback) =>
+        callback({ getRepository: () => ormRepo }),
+      ),
+    };
+  }
+
   function buildOrmRow() {
     return {
       id: 'smtp-1',
@@ -23,11 +31,27 @@ describe('TypeOrmSmtpConfigRepository', () => {
 
   it('findByOrganizationId maps every ORM field to the domain entity', async () => {
     const ormRepo = { findOne: jest.fn().mockResolvedValue(buildOrmRow()) };
-    const repo = new TypeOrmSmtpConfigRepository(ormRepo as any);
+    const repo = new TypeOrmSmtpConfigRepository(
+      ormRepo as any,
+      buildDataSource(ormRepo) as any,
+    );
 
     const config = await repo.findByOrganizationId('org-1');
 
     expect(ormRepo.findOne).toHaveBeenCalledWith({
+      select: {
+        id: true,
+        organizationId: true,
+        host: true,
+        port: true,
+        username: true,
+        encryptedPassword: true,
+        fromAddress: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        version: true,
+      },
       where: { organizationId: 'org-1' },
     });
     expect(config?.host).toBe('smtp.congtyb.vn');
@@ -38,14 +62,24 @@ describe('TypeOrmSmtpConfigRepository', () => {
 
   it('findByOrganizationId returns null when no row exists', async () => {
     const ormRepo = { findOne: jest.fn().mockResolvedValue(null) };
-    const repo = new TypeOrmSmtpConfigRepository(ormRepo as any);
+    const repo = new TypeOrmSmtpConfigRepository(
+      ormRepo as any,
+      buildDataSource(ormRepo) as any,
+    );
 
     expect(await repo.findByOrganizationId('org-1')).toBeNull();
   });
 
   it('save upserts by organizationId', async () => {
     const ormRepo = { upsert: jest.fn() };
-    const repo = new TypeOrmSmtpConfigRepository(ormRepo as any);
+    const repo = new TypeOrmSmtpConfigRepository(
+      ormRepo as any,
+      {
+        transaction: jest.fn((callback) =>
+          callback({ getRepository: () => ormRepo }),
+        ),
+      } as any,
+    );
 
     await repo.save(new OrganizationSmtpConfig(buildOrmRow()));
 
@@ -56,5 +90,92 @@ describe('TypeOrmSmtpConfigRepository', () => {
       }),
       ['organizationId'],
     );
+  });
+
+  it('persists SMTP status changes inside a transaction', async () => {
+    const ormRepo = { upsert: jest.fn() };
+    const transaction = jest.fn((callback) =>
+      callback({ getRepository: () => ormRepo }),
+    );
+    const repo = new TypeOrmSmtpConfigRepository(
+      ormRepo as any,
+      {
+        transaction,
+      } as any,
+    );
+
+    await repo.save(new OrganizationSmtpConfig(buildOrmRow()));
+
+    expect(transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks a connected config as failed only when its version still matches', async () => {
+    const execute = jest.fn().mockResolvedValue({ affected: 1 });
+    const queryBuilder = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute,
+    };
+    const ormRepo = { createQueryBuilder: jest.fn(() => queryBuilder) };
+    const repo = new TypeOrmSmtpConfigRepository(
+      ormRepo as any,
+      {
+        transaction: jest.fn((callback) =>
+          callback({ getRepository: () => ormRepo }),
+        ),
+      } as any,
+    );
+    const failedConfig = new OrganizationSmtpConfig({
+      ...buildOrmRow(),
+      status: SmtpConfigStatus.FAILED,
+      updatedAt: new Date('2026-08-11'),
+    });
+
+    expect(await repo.markFailedIfVersionMatches(failedConfig)).toBe(true);
+    expect(queryBuilder.set).toHaveBeenCalledWith({
+      status: SmtpConfigStatus.FAILED,
+      updatedAt: failedConfig.updatedAt,
+      version: 2,
+    });
+    expect(queryBuilder.where).toHaveBeenCalledWith(
+      '"organizationId" = :organizationId',
+      { organizationId: 'org-1' },
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'status = :connected AND version = :version',
+      { connected: SmtpConfigStatus.CONNECTED, version: 1 },
+    );
+  });
+
+  it('returns false when another worker already transitioned the config', async () => {
+    const queryBuilder = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 0 }),
+    };
+    const ormRepo = {
+      createQueryBuilder: jest.fn(() => queryBuilder),
+    };
+    const repo = new TypeOrmSmtpConfigRepository(
+      ormRepo as any,
+      {
+        transaction: jest.fn((callback) =>
+          callback({ getRepository: () => ormRepo }),
+        ),
+      } as any,
+    );
+
+    expect(
+      await repo.markFailedIfVersionMatches(
+        new OrganizationSmtpConfig({
+          ...buildOrmRow(),
+          status: SmtpConfigStatus.FAILED,
+        }),
+      ),
+    ).toBe(false);
   });
 });
