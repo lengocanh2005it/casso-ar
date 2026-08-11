@@ -7,7 +7,7 @@ export interface SubscriptionProps {
   receivableMonthlyLimit: number;
   bankConnectionLimit: number;
   copilotChatMonthlyLimit: number;
-  canUseCustomSmtp?: boolean;
+  canUseCustomSmtp: boolean;
   status: SubscriptionStatus;
   currentPeriodStart: Date;
   currentPeriodEnd: Date;
@@ -54,7 +54,7 @@ export class Subscription {
     this.receivableMonthlyLimit = props.receivableMonthlyLimit;
     this.bankConnectionLimit = props.bankConnectionLimit;
     this.copilotChatMonthlyLimit = props.copilotChatMonthlyLimit;
-    this.canUseCustomSmtp = props.canUseCustomSmtp ?? false;
+    this.canUseCustomSmtp = props.canUseCustomSmtp;
     this.status = props.status;
     this.currentPeriodStart = props.currentPeriodStart;
     this.currentPeriodEnd = props.currentPeriodEnd;

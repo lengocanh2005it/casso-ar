@@ -11,6 +11,7 @@ const PROPS = {
   receivableMonthlyLimit: 50,
   bankConnectionLimit: 1,
   copilotChatMonthlyLimit: 50,
+  canUseCustomSmtp: false,
   status: SubscriptionStatus.ACTIVE,
   currentPeriodStart: new Date('2026-08-01'),
   currentPeriodEnd: new Date('2026-09-01'),
