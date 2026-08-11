@@ -391,6 +391,60 @@ describe('Customer credit balance (e2e)', () => {
     expect(res.body.errorCode).toBe('CUSTOMER_MISMATCH');
   });
 
+  it('goes to zero and drops the item once a payment becomes fully allocated', async () => {
+    const financeToken = token(financeManagerId, organizationA);
+    const customerId = await createCustomer(organizationA);
+    const paymentId = await seedPayment(organizationA, customerId, 5_000_000);
+    const receivableId = await createReceivable(
+      organizationA,
+      customerId,
+      5_000_000,
+    );
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/payments/${paymentId}/allocate`)
+      .set('Authorization', `Bearer ${financeToken}`)
+      .set('Idempotency-Key', `full-allocate-${randomUUID()}`)
+      .send({ receivableId, amount: 5_000_000 })
+      .expect(201);
+
+    const res = await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerId}/credits`)
+      .set('Authorization', `Bearer ${financeToken}`)
+      .expect(200);
+
+    expect(res.body).toEqual({
+      customerId,
+      totalAvailableAmount: 0,
+      items: [],
+    });
+  });
+
+  it('rejects a SALES_REP (no PAYMENT_ALLOCATE) from allocating or undoing a credit', async () => {
+    const salesToken = token(salesRepId, organizationA);
+    const customerId = await createCustomer(organizationA);
+    const paymentId = await seedPayment(organizationA, customerId, 5_000_000);
+    const receivableId = await createReceivable(
+      organizationA,
+      customerId,
+      5_000_000,
+    );
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/payments/${paymentId}/allocate`)
+      .set('Authorization', `Bearer ${salesToken}`)
+      .set('Idempotency-Key', `sales-rep-allocate-${randomUUID()}`)
+      .send({ receivableId, amount: 5_000_000 })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/payments/allocations/${randomUUID()}/undo`)
+      .set('Authorization', `Bearer ${salesToken}`)
+      .set('Idempotency-Key', `sales-rep-undo-${randomUUID()}`)
+      .send({ undoReason: 'not allowed' })
+      .expect(403);
+  });
+
   it('lets exactly one of two concurrent allocations against the same payment succeed', async () => {
     const financeToken = token(financeManagerId, organizationA);
     const customerId = await createCustomer(organizationA);

@@ -101,4 +101,27 @@ describe('TypeOrmPaymentRepository', () => {
     );
     expect(rows[0].unallocatedAmount).toBe(5_000_000);
   });
+
+  it('preserves the database-returned row order (receivedAt ASC, id ASC)', async () => {
+    const ormRepo = {
+      find: jest.fn().mockResolvedValue([
+        { ...PROPS, id: 'pay-1', receivedAt: new Date('2026-08-01') },
+        { ...PROPS, id: 'pay-2', receivedAt: new Date('2026-08-02') },
+        { ...PROPS, id: 'pay-3', receivedAt: new Date('2026-08-03') },
+      ]),
+    };
+    const tenantContext = new TenantContextService();
+    const repo = new TypeOrmPaymentRepository(ormRepo as any, tenantContext);
+
+    const rows = await tenantContext.run(
+      { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+      () => repo.findUnallocatedByCustomerId('cus-1'),
+    );
+
+    expect(rows.map((row) => row.payment.id)).toEqual([
+      'pay-1',
+      'pay-2',
+      'pay-3',
+    ]);
+  });
 });
