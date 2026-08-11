@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { BaseRepository } from '../../../common/tenancy/base.repository';
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { ISmtpConfigRepository } from '../application/smtp-config-repository.port';
 import {
   OrganizationSmtpConfig,
@@ -45,18 +47,32 @@ function toDomain(
 }
 
 @Injectable()
-export class TypeOrmSmtpConfigRepository implements ISmtpConfigRepository {
+export class TypeOrmSmtpConfigRepository
+  extends BaseRepository<OrganizationSmtpConfigOrmEntity>
+  implements ISmtpConfigRepository
+{
   constructor(
     @InjectRepository(OrganizationSmtpConfigOrmEntity)
-    private readonly repo: Repository<OrganizationSmtpConfigOrmEntity>,
+    repo: Repository<OrganizationSmtpConfigOrmEntity>,
     private readonly dataSource: DataSource,
-  ) {}
+    tenantContext: TenantContextService,
+  ) {
+    super(repo, tenantContext);
+  }
+
+  private assertTenant(organizationId: string): void {
+    if (this.tenantContext.getOrganizationId() !== organizationId) {
+      throw new Error('TENANT_MISMATCH');
+    }
+  }
 
   async findByOrganizationId(
     organizationId: string,
   ): Promise<OrganizationSmtpConfig | null> {
-    const row = await this.repo.findOne({
-      select: {
+    this.assertTenant(organizationId);
+    const row = await this.scopedFindOne(
+      {},
+      {
         id: true,
         organizationId: true,
         host: true,
@@ -69,12 +85,12 @@ export class TypeOrmSmtpConfigRepository implements ISmtpConfigRepository {
         updatedAt: true,
         version: true,
       },
-      where: { organizationId },
-    });
+    );
     return row ? toDomain(row) : null;
   }
 
   async save(config: OrganizationSmtpConfig): Promise<void> {
+    this.assertTenant(config.organizationId);
     await this.dataSource.transaction(async (manager) => {
       await manager
         .getRepository(OrganizationSmtpConfigOrmEntity)
@@ -85,6 +101,7 @@ export class TypeOrmSmtpConfigRepository implements ISmtpConfigRepository {
   async markFailedIfVersionMatches(
     config: OrganizationSmtpConfig,
   ): Promise<boolean> {
+    this.assertTenant(config.organizationId);
     const result = await this.dataSource.transaction(async (manager) =>
       manager
         .getRepository(OrganizationSmtpConfigOrmEntity)
@@ -108,6 +125,7 @@ export class TypeOrmSmtpConfigRepository implements ISmtpConfigRepository {
   }
 
   async deleteByOrganizationId(organizationId: string): Promise<void> {
+    this.assertTenant(organizationId);
     await this.dataSource.transaction(async (manager) => {
       await manager
         .getRepository(OrganizationSmtpConfigOrmEntity)

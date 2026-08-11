@@ -13,6 +13,10 @@ describe('TypeOrmSmtpConfigRepository', () => {
     };
   }
 
+  function buildTenantContext(organizationId = 'org-1') {
+    return { getOrganizationId: jest.fn(() => organizationId) };
+  }
+
   function buildOrmRow() {
     return {
       id: 'smtp-1',
@@ -34,6 +38,7 @@ describe('TypeOrmSmtpConfigRepository', () => {
     const repo = new TypeOrmSmtpConfigRepository(
       ormRepo as any,
       buildDataSource(ormRepo) as any,
+      buildTenantContext() as any,
     );
 
     const config = await repo.findByOrganizationId('org-1');
@@ -65,9 +70,23 @@ describe('TypeOrmSmtpConfigRepository', () => {
     const repo = new TypeOrmSmtpConfigRepository(
       ormRepo as any,
       buildDataSource(ormRepo) as any,
+      buildTenantContext() as any,
     );
 
     expect(await repo.findByOrganizationId('org-1')).toBeNull();
+  });
+
+  it('rejects SMTP access across organization boundaries', async () => {
+    const ormRepo = { findOne: jest.fn() };
+    const repo = new TypeOrmSmtpConfigRepository(
+      ormRepo as any,
+      buildDataSource(ormRepo) as any,
+      buildTenantContext('org-1') as any,
+    );
+
+    await expect(repo.findByOrganizationId('org-2')).rejects.toThrow(
+      'TENANT_MISMATCH',
+    );
   });
 
   it('save upserts by organizationId', async () => {
@@ -79,6 +98,7 @@ describe('TypeOrmSmtpConfigRepository', () => {
           callback({ getRepository: () => ormRepo }),
         ),
       } as any,
+      buildTenantContext() as any,
     );
 
     await repo.save(new OrganizationSmtpConfig(buildOrmRow()));
@@ -102,6 +122,7 @@ describe('TypeOrmSmtpConfigRepository', () => {
       {
         transaction,
       } as any,
+      buildTenantContext() as any,
     );
 
     await repo.save(new OrganizationSmtpConfig(buildOrmRow()));
@@ -126,6 +147,7 @@ describe('TypeOrmSmtpConfigRepository', () => {
           callback({ getRepository: () => ormRepo }),
         ),
       } as any,
+      buildTenantContext() as any,
     );
     const failedConfig = new OrganizationSmtpConfig({
       ...buildOrmRow(),
@@ -167,6 +189,7 @@ describe('TypeOrmSmtpConfigRepository', () => {
           callback({ getRepository: () => ormRepo }),
         ),
       } as any,
+      buildTenantContext() as any,
     );
 
     expect(

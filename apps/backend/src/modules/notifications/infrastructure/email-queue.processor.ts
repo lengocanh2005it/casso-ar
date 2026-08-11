@@ -105,9 +105,15 @@ export class EmailQueueProcessor extends WorkerHost {
       async () => {
         const status = await this.executionRepo.getStatus(reminderExecutionId);
         if (status !== ReminderExecutionStatus.PENDING) {
-          this.logger.warn(
-            `Skipping email send for ${reminderExecutionId}: status is already ${status ?? 'unknown'}`,
-          );
+          this.logger.warn({
+            message:
+              'Skipping email send because the execution is no longer pending',
+            reminderExecutionId,
+            status: status ?? 'unknown',
+            organizationId,
+            userId: 'system',
+            requestId: getJobRequestId(job),
+          });
           return;
         }
 
@@ -192,6 +198,8 @@ export class EmailQueueProcessor extends WorkerHost {
                 this.logger.error({
                   message: 'SMTP failure warning email could not be sent',
                   organizationId,
+                  userId: 'system',
+                  requestId: getJobRequestId(job),
                   error: error instanceof Error ? error.message : String(error),
                 });
               }
@@ -206,9 +214,14 @@ export class EmailQueueProcessor extends WorkerHost {
                 backoff: { type: 'exponential', delay: 5000 },
               },
             );
-            this.logger.warn(
-              `SMTP config for org ${organizationId} exhausted retries — flipped to FAILED, requeued ${reminderExecutionId} via Resend`,
-            );
+            this.logger.warn({
+              message:
+                'SMTP config exhausted retries; flipped to FAILED and requeued via Resend',
+              organizationId,
+              userId: 'system',
+              requestId: getJobRequestId(job),
+              reminderExecutionId,
+            });
             return;
           }
 
@@ -238,8 +251,12 @@ export class EmailQueueProcessor extends WorkerHost {
         });
       },
     );
-    this.logger.error(
-      `Reminder execution ${reminderExecutionId} failed permanently (organizationId=${organizationId})`,
-    );
+    this.logger.error({
+      message: 'Reminder execution failed permanently',
+      reminderExecutionId,
+      organizationId,
+      userId: 'system',
+      requestId: this.requestIdStore.getRequestId(),
+    });
   }
 }

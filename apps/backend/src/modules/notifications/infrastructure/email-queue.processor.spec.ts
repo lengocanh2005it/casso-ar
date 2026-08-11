@@ -74,6 +74,7 @@ function buildDeps() {
     metrics: { incrementBullmqJobFailed: jest.fn() },
     requestIdStore: {
       run: jest.fn((_id: string, callback: () => Promise<void>) => callback()),
+      getRequestId: jest.fn().mockReturnValue('request-1'),
     },
     emailQueue: { add: jest.fn() },
   };

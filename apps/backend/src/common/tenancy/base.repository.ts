@@ -24,10 +24,12 @@ export abstract class BaseRepository<
 
   protected async scopedFindOne(
     where: FindOptionsWhere<TEntity>,
+    select?: FindOptionsSelect<TEntity>,
   ): Promise<TEntity | null> {
     const organizationId = this.tenantContext.getOrganizationId();
     return this.ormRepo.findOne({
       where: { ...where, organizationId } as FindOptionsWhere<TEntity>,
+      ...(select ? { select } : {}),
     });
   }
 
