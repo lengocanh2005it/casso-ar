@@ -5,8 +5,8 @@ import { Repository } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import {
-  CollectionActivityPage,
-  ICollectionActivityRepository,
+  type CollectionActivityPage,
+  type ICollectionActivityRepository,
 } from '../application/collection-activity-repository.port';
 import { CollectionActivity } from '../domain/collection-activity';
 import { CollectionActivityOrmEntity } from './collection-activity.orm-entity';

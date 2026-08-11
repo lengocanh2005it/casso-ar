@@ -39,23 +39,30 @@ export class RefreshAccessTokenUseCase {
         'Refresh token không hợp lệ hoặc đã hết hạn.',
       );
     }
+    const rawHash = hashToken(rawRefreshToken);
+
+    // Theft detection outside the rotation transaction: a revoked token can
+    // only be revoked after rotation, so anyone presenting it again holds a
+    // leaked copy. Revoke the whole family in its OWN committed transaction
+    // — if this ran inside the rotation transaction it would be rolled back
+    // with the UNAUTHORIZED throw and never persist.
+    const probe = await this.refreshTokenRepo.findByTokenHash(rawHash);
+    if (probe?.revokedAt) {
+      await this.refreshTokenRepo.revokeAllForUser(probe.userId);
+      throw new AppError(
+        ErrorCode.UNAUTHORIZED,
+        'Refresh token không hợp lệ hoặc đã hết hạn.',
+      );
+    }
+
     const { token: newRawToken, hash } = generateToken();
     return this.dataSource.transaction(async (manager) => {
       const existing = await this.refreshTokenRepo.findByTokenHash(
-        hashToken(rawRefreshToken),
+        rawHash,
         manager,
         true,
       );
       if (!existing?.isValid(new Date())) {
-        // Reuse of a revoked token is a theft signal: the token could only be
-        // revoked after being rotated, so anyone presenting it again holds a
-        // leaked copy. Revoke the whole family for that user before failing.
-        if (existing?.revokedAt) {
-          await this.refreshTokenRepo.revokeAllForUser(
-            existing.userId,
-            manager,
-          );
-        }
         throw new AppError(
           ErrorCode.UNAUTHORIZED,
           'Refresh token không hợp lệ hoặc đã hết hạn.',

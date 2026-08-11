@@ -67,9 +67,12 @@ const enforceLimits = (rows: Record<string, unknown>[]): void => {
 // expanding it into memory (zip-bomb defense).
 export function declaredRowCountInRange(range: string | undefined): number {
   if (!range) return 0;
-  const end = range.split(':')[1] ?? range;
-  const rowNumber = Number(end.replace(/^[A-Za-z]+/, ''));
-  return Number.isInteger(rowNumber) ? rowNumber : 0;
+  const [start, end] = range.split(':');
+  const endRow = Number((end ?? range).replace(/^[A-Za-z]+/, ''));
+  if (!Number.isInteger(endRow)) return 0;
+  const startRow = Number((start ?? range).replace(/^[A-Za-z]+/, ''));
+  if (!Number.isInteger(startRow) || startRow < 1) return endRow;
+  return Math.max(1, endRow - startRow + 1);
 }
 
 const assertDeclaredRowCountWithinLimit = (range: string | undefined): void => {

@@ -7,12 +7,14 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   AuditActionType,
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
+import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ReminderExecutionQueryService } from '../application/reminder-execution-query.service';
 import { ReminderPolicyService } from '../application/reminder-policy.service';
@@ -21,6 +23,7 @@ import { ListReminderExecutionsQuery } from './dto/list-reminder-executions.quer
 import { UpdateReminderPolicyDto } from './dto/update-reminder-policy.dto';
 
 @Controller('reminder-policies')
+@UseGuards(PermissionGuard)
 export class RemindersController {
   constructor(private readonly policyService: ReminderPolicyService) {}
 
@@ -48,6 +51,7 @@ export class RemindersController {
 }
 
 @Controller('reminder-executions')
+@UseGuards(PermissionGuard)
 export class ReminderExecutionsController {
   constructor(
     private readonly executionQueryService: ReminderExecutionQueryService,

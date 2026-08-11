@@ -20,6 +20,7 @@ import {
 import { Audited } from '../../../common/audit/audited.decorator';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { Public } from '../../../common/auth/public.decorator';
+import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ForgotPasswordUseCase } from '../application/forgot-password.usecase';
 import { GetUserProfileUseCase } from '../application/get-user-profile.usecase';
@@ -157,7 +158,7 @@ export class AuthController {
 
   @Post('switch-organization')
   @Audited(AuditActionType.AUTH_SWITCH_ORGANIZATION, AuditEntityType.AUTH)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionGuard)
   @RequirePermission(Permission.SWITCH_ORGANIZATION)
   async switchOrganization(
     @Req() request: AuthRequest,

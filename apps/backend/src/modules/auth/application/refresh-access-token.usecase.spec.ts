@@ -92,10 +92,10 @@ describe('RefreshAccessTokenUseCase', () => {
       'Refresh token không hợp lệ hoặc đã hết hạn.',
     );
 
-    expect(refreshTokenRepo.revokeAllForUser).toHaveBeenCalledWith(
-      'user-1',
-      expect.anything(),
-    );
+    // Family revocation must run OUTSIDE the rotation transaction so the
+    // UNAUTHORIZED throw cannot roll it back.
+    expect(refreshTokenRepo.revokeAllForUser).toHaveBeenCalledWith('user-1');
+    expect(dataSource.transaction).not.toHaveBeenCalled();
     expect(membershipRepo.findFirstActiveByUserId).not.toHaveBeenCalled();
   });
 

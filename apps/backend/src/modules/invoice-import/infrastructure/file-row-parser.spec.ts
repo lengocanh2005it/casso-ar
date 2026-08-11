@@ -214,7 +214,8 @@ describe('parseFileToRows', () => {
   it('parses the declared row count out of a !ref range', () => {
     expect(declaredRowCountInRange('A1:H5000000')).toBe(5_000_000);
     expect(declaredRowCountInRange('A1:H2')).toBe(2);
-    expect(declaredRowCountInRange('B12:C13')).toBe(13);
+    expect(declaredRowCountInRange('B12:C13')).toBe(2);
+    expect(declaredRowCountInRange('B12:C5000000')).toBe(4_999_989);
     expect(declaredRowCountInRange(undefined)).toBe(0);
     expect(declaredRowCountInRange('garbage')).toBe(0);
   });
