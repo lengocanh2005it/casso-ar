@@ -41,6 +41,7 @@ import { ExceptionQueueModule } from './modules/exception-queue/exception-queue.
 import { InvoiceImportModule } from './modules/invoice-import/invoice-import.module';
 import { InternalTasksModule } from './modules/internal-tasks/internal-tasks.module';
 import { ReportingModule } from './modules/reporting/reporting.module';
+import { SmtpConfigModule } from './modules/smtp-config/smtp-config.module';
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { ReportingModule } from './modules/reporting/reporting.module';
     InvoiceImportModule,
     InternalTasksModule,
     ReportingModule,
+    SmtpConfigModule,
   ],
   providers: [
     JwtStrategy,
