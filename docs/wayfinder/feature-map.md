@@ -87,8 +87,8 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Ticket Index
 
-**28 plans** | status snapshot (2026-08-11):
-- 🟢 done (28): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management, Spec-Plan Reconciliation, Org-Branded Reminder Emails via Custom SMTP (BYO-SMTP)
+**29 plans** | status snapshot (2026-08-11):
+- 🟢 done (29): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management, Spec-Plan Reconciliation, Org-Branded Reminder Emails via Custom SMTP (BYO-SMTP), SMTP Settings UI (Frontend)
 - 🟡 in-progress (0): none
 - 🔴 open/not started (0): none
 
@@ -645,15 +645,36 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ---
 
+#### Plan: SMTP Settings UI (Frontend)
+- **Type**: task
+- **Status**: done ✅
+- **Owner**: FE
+- **Spec**: `specs/2026-08-11-smtp-settings-ui-design.md`
+- **Plan**: `plans/2026-08-11-smtp-settings-ui.md`
+- **Blockers**: none — Org-Branded Reminder Emails via Custom SMTP (BYO-SMTP) ✅ (PR #91, the backend API this consumes)
+- **Shipped**: 2026-08-11 — PR #95, closes issue #92
+- **Key rules**:
+  - Frontend-only — no backend changes; consumes the already-shipped `GET|POST|DELETE /api/v1/smtp-config`
+  - 4th "Email server riêng" tab in `features/settings/pages/settings-page.tsx`, alongside billing/users/templates
+  - `SmtpTab` renders 4 states from one `useSmtpConfig()` query: RBAC-hidden, plan-locked (below BUSINESS), not-configured, `CONNECTED`/`FAILED` — status shown as plain-language consequence, not just a badge
+  - `GET /api/v1/smtp-config` requires `ORGANIZATION_SMTP_MANAGE` on the backend (same as `POST`/`DELETE`) — `SmtpTab` hides its entire content for non-OWNER (`if (!canManage) return null`, matching `UsersTab`'s existing pattern), not just the action buttons
+  - Password field never prefilled on edit (backend never returns it); submit button shows "Đang kiểm tra kết nối…" while the synchronous test-then-save request is pending
+  - Delete requires an `AlertDialog` confirmation
+  - No new design tokens — reuses existing shadcn/ui primitives and the `features/settings/`/`features/bank-connections/` conventions already in the codebase
+- **Creates**: `SmtpTab`, `SmtpConfigDialog`, `fetchSmtpConfig`/`saveSmtpConfig`/`deleteSmtpConfig` + `useSmtpConfig`/`useSaveSmtpConfig`/`useDeleteSmtpConfig` in `features/settings/`
+- **Implementation note**: implemented by a subagent from the written plan, then went through four review passes before merge. During implementation, a real spec/backend mismatch was caught: the design spec's first draft assumed non-OWNER roles could view SMTP status read-only (by analogy to `billing-tab.tsx`'s unrestricted read), but the backend gates `GET` behind `ORGANIZATION_SMTP_MANAGE` too — fixed by hiding the whole tab for non-OWNER instead of just its buttons, with the spec updated in place ("Correction from the initial design pass"). `code-review` (Standards + Spec axes) then found no hard violations, only a judgement-call note about a duplicated axios-error-parsing idiom. `requesting-code-review` confirmed ready-to-merge with two Minor, non-blocking notes. `web-design-guidelines` found and the implementer fixed several accessibility/UX gaps: missing `autoComplete`/`spellCheck`/`inputMode` on form fields (including `autoComplete="new-password"` on the password field to stop the browser conflating it with the app's own login), missing `aria-live`/`role` on the tab's loading/error states, and a missing `break-words` guard on the host/from-address summary line. `security-review` found nothing (RBAC independently enforced server-side; password never logged, prefilled, or persisted client-side). `simplify` (4 parallel angles) found and fixed two real issues: the axios-error-parsing duplication (deduped into `settings-api.ts`, deliberately kept local to `features/settings/` rather than promoted to the shared `lib/api-client.ts` — 19 other test files across the app fully mock that module via `vi.mock`, and adding exports there breaks all of them; an earlier attempt at the global version was reverted for exactly this reason) and 5 separate `useState` calls in `SmtpConfigDialog` collapsed into one `FormState` object. Efficiency and Altitude passes found nothing. Verified with 30/30 frontend suites (61/61 tests), clean `tsc -b --noEmit` and Biome, at every stage.
+
+---
+
 ## Frontier
 
 **In progress:**
 - None
 
 **Next available tickets** (all blockers resolved):
-- None — every BE ticket except Spec-Plan Reconciliation is done.
+- None — every tracked ticket is done.
 
 **Blocked tickets waiting:**
 - None.
 
-**Recommended next step:** All 28 tracked tickets (Plans 1–23 + Application Layer Boundary Enforcement + Customer Bank Account Management + Credit Balance Management + Spec-Plan Reconciliation + Org-Branded Reminder Emails via Custom SMTP) are shipped. No open or in-progress ticket remains in this map. `reminder-automation.e2e-spec.ts`'s cross-file flakiness in the full batched `test:e2e` run (see Plan #22's implementation note) is worth its own tracked follow-up issue but isn't a blocker for anything currently tracked here. Issue #90 (a general plan-catalog for STARTER/BUSINESS/ENTERPRISE limits/features, deferred during this ticket's grilling session) and the display-name-only sender customization (issue #43's interim-solution comment, still unshipped) are both open, untracked-in-this-map follow-ups worth picking up next.
+**Recommended next step:** All 29 tracked tickets (Plans 1–23 + Application Layer Boundary Enforcement + Customer Bank Account Management + Credit Balance Management + Spec-Plan Reconciliation + Org-Branded Reminder Emails via Custom SMTP + SMTP Settings UI) are shipped. No open or in-progress ticket remains in this map. `reminder-automation.e2e-spec.ts`'s cross-file flakiness in the full batched `test:e2e` run (see Plan #22's implementation note) is worth its own tracked follow-up issue but isn't a blocker for anything currently tracked here. Issue #90 (a general plan-catalog for STARTER/BUSINESS/ENTERPRISE limits/features, deferred during the BYO-SMTP grilling session) and the display-name-only sender customization (issue #43's interim-solution comment, still unshipped) are both open, untracked-in-this-map follow-ups worth picking up next.
