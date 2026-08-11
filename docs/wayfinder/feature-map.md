@@ -87,8 +87,8 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Ticket Index
 
-**27 plans** | status snapshot (2026-08-11):
-- 🟢 done (27): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management, Spec-Plan Reconciliation
+**28 plans** | status snapshot (2026-08-11):
+- 🟢 done (28): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management, Spec-Plan Reconciliation, Org-Branded Reminder Emails via Custom SMTP (BYO-SMTP)
 - 🟡 in-progress (0): none
 - 🔴 open/not started (0): none
 
@@ -623,6 +623,28 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ---
 
+#### Plan: Org-Branded Reminder Emails via Custom SMTP (BYO-SMTP)
+- **Type**: task
+- **Status**: done ✅
+- **Owner**: BE
+- **Spec**: `specs/2026-08-11-org-branded-smtp-design.md`
+- **Plan**: `plans/2026-08-11-org-branded-smtp.md`
+- **ADR**: `docs/adr/0006-byo-smtp-for-org-branded-reminder-emails.md`
+- **Blockers**: none — Plan #7 ✅ (email-notification-service)
+- **Shipped**: 2026-08-11 — PR #91, closes issue #43
+- **Key rules**:
+  - Replaces issue #43's original Resend-managed-domain research entirely — BYO-SMTP, not DNS/domain-verification
+  - `OrganizationSmtpConfig` only ever persists as `CONNECTED` — a failed test-send is never saved (no `PENDING` state)
+  - Gated to BUSINESS/ENTERPRISE via `Subscription.canUseCustomSmtp` (flat boolean, not a general plan-catalog — see issue #90)
+  - `IEmailProviderAdapter` port unchanged; new `IEmailProviderResolver` picks Resend vs. org SMTP per send
+  - Reuses `encryptToken`/`decryptToken` (AES-256-GCM) from `bank-connections` for the password at rest — no new crypto scheme
+  - `ORGANIZATION_SMTP_MANAGE` permission is OWNER-only
+  - On SMTP exhausting its existing 3-attempt/exponential-backoff retry: flip to `FAILED`, warn the OWNER once via Resend, requeue the reminder forced through Resend — including the concurrent-failure race case (two reminders for the same org exhausting retries at once)
+- **Creates**: `smtp-config/` module (domain/application/infrastructure/presentation), `SmtpEmailAdapter` + `IEmailProviderResolver` in `notifications/`, `GET|POST|DELETE /api/v1/smtp-config`
+- **Implementation note**: implemented by a subagent from the written plan, then went through two independent review rounds before merge. The first (`code-review`, Standards + Spec axes) found and the implementer fixed two issues: `TypeOrmSmtpConfigRepository.assertTenant()` throwing a raw `Error` instead of `AppError(TENANT_MISMATCH)`, and a real bug where `EmailQueueProcessor.onFailed`'s optimistic-lock CAS (`markFailedIfVersionMatches`) silently dropped a reminder — no warning, no fallback, no `FAILED` status — when two reminder jobs for the same org exhausted SMTP retries concurrently and one lost the version race; fixed so the losing job still requeues its reminder through Resend, skipping only the (already-sent) warning email. A second, independent pre-merge review (`requesting-code-review`) found two Minor issues, also fixed before merge: `SaveSmtpConfigDto` allowed empty-string host/username/password past validation (added `@IsNotEmpty()`), and `SmtpConfigResponseDto.status` was typed as bare `string` instead of `SmtpConfigStatus`. Verified with 154/154 backend unit suites (521/521 tests) and 5/5 `smtp-config` e2e tests (Postgres via testcontainers, Redis via a standalone container), clean `tsc --noEmit` and Biome. Full-repo `test:e2e` was not re-run for this ticket (only the `smtp-config` e2e file) — worth confirming in CI. The separately-proposed display-name-only customization (issue #43's interim-solution comment, all tiers, no SMTP/DNS) remains unshipped and is unaffected by this ticket.
+
+---
+
 ## Frontier
 
 **In progress:**
@@ -634,4 +656,4 @@ Success = a single document a new developer can read and know exactly what to pi
 **Blocked tickets waiting:**
 - None.
 
-**Recommended next step:** All 27 tracked tickets (Plans 1–23 + Application Layer Boundary Enforcement + Customer Bank Account Management + Credit Balance Management + Spec-Plan Reconciliation) are shipped. No open or in-progress ticket remains in this map. `reminder-automation.e2e-spec.ts`'s cross-file flakiness in the full batched `test:e2e` run (see Plan #22's implementation note) is worth its own tracked follow-up issue but isn't a blocker for anything currently tracked here.
+**Recommended next step:** All 28 tracked tickets (Plans 1–23 + Application Layer Boundary Enforcement + Customer Bank Account Management + Credit Balance Management + Spec-Plan Reconciliation + Org-Branded Reminder Emails via Custom SMTP) are shipped. No open or in-progress ticket remains in this map. `reminder-automation.e2e-spec.ts`'s cross-file flakiness in the full batched `test:e2e` run (see Plan #22's implementation note) is worth its own tracked follow-up issue but isn't a blocker for anything currently tracked here. Issue #90 (a general plan-catalog for STARTER/BUSINESS/ENTERPRISE limits/features, deferred during this ticket's grilling session) and the display-name-only sender customization (issue #43's interim-solution comment, still unshipped) are both open, untracked-in-this-map follow-ups worth picking up next.
