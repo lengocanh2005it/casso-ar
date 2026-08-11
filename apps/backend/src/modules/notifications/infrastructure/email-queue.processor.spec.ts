@@ -218,7 +218,7 @@ describe('EmailQueueProcessor — provider resolution', () => {
         reminderExecutionId: 'exec-1',
         forceProvider: 'RESEND',
       }),
-      expect.objectContaining({ jobId: 'exec-1:resend-fallback' }),
+      expect.objectContaining({ jobId: 'exec-1-resend-fallback' }),
     );
   });
 

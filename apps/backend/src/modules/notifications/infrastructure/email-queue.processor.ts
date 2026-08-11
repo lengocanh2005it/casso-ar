@@ -197,7 +197,7 @@ export class EmailQueueProcessor extends WorkerHost {
               'send-reminder-email',
               { ...data, forceProvider: 'RESEND' },
               {
-                jobId: `${reminderExecutionId}:resend-fallback`,
+                jobId: `${reminderExecutionId}-resend-fallback`,
                 attempts: 3,
                 backoff: { type: 'exponential', delay: 5000 },
               },
