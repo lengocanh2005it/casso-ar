@@ -17,8 +17,8 @@ export function VerifyEmailPage() {
 
     void apiRequest({
       url: '/api/v1/auth/verify-email',
-      method: 'GET',
-      params: { token },
+      method: 'POST',
+      data: { token },
     })
       .then(() => setState('success'))
       .catch(() => setState('error'));

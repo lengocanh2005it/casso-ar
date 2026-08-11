@@ -9,6 +9,7 @@ export interface IEmailProviderAdapter {
     html: string,
     metadata: Record<string, string>,
     replyTo?: string,
+    fromName?: string,
   ): Promise<EmailSendResult>;
 }
 

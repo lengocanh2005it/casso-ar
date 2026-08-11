@@ -61,6 +61,23 @@ const enforceLimits = (rows: Record<string, unknown>[]): void => {
   if (rows.length > MAX_ROWS) invalid('Tệp nhập vượt quá 1.000 dòng');
 };
 
+// A workbook's !ref range (e.g. "A1:C5000000") declares its full extent.
+// Checking it BEFORE sheet_to_json() materializes rows means a compressed
+// workbook whose declared size is over the cap is rejected without ever
+// expanding it into memory (zip-bomb defense).
+export function declaredRowCountInRange(range: string | undefined): number {
+  if (!range) return 0;
+  const end = range.split(':')[1] ?? range;
+  const rowNumber = Number(end.replace(/^[A-Za-z]+/, ''));
+  return Number.isInteger(rowNumber) ? rowNumber : 0;
+}
+
+const assertDeclaredRowCountWithinLimit = (range: string | undefined): void => {
+  if (declaredRowCountInRange(range) > MAX_ROWS) {
+    invalid('Tệp bảng tính vượt quá 1.000 dòng');
+  }
+};
+
 const parseCsv = (buffer: Buffer): Record<string, unknown>[] => {
   try {
     return parse<Record<string, unknown>>(buffer, {
@@ -96,10 +113,14 @@ const parseWorkbook = (
     const firstSheetName = workbook.SheetNames[0];
     if (!firstSheetName) return invalid('Tệp bảng tính không có trang tính');
 
-    const sheetRows = utils.sheet_to_json<unknown[]>(
-      workbook.Sheets[firstSheetName],
-      { blankrows: false, defval: null, header: 1, raw: true },
-    );
+    const firstSheet = workbook.Sheets[firstSheetName];
+    assertDeclaredRowCountWithinLimit(firstSheet['!ref']);
+    const sheetRows = utils.sheet_to_json<unknown[]>(firstSheet, {
+      blankrows: false,
+      defval: null,
+      header: 1,
+      raw: true,
+    });
     const [headers, ...dataRows] = sheetRows;
     if (!headers) return invalid('Tệp bảng tính không có dòng tiêu đề');
 

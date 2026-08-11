@@ -55,6 +55,7 @@ export class SmtpEmailAdapter implements IEmailProviderAdapter {
     html: string,
     _metadata: Record<string, string>,
     replyTo?: string,
+    _fromName?: string,
   ): Promise<EmailSendResult> {
     const password = this.decryptFn(
       this.config.encryptedPassword,

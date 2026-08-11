@@ -143,14 +143,19 @@ describe('Collection Activity Timeline (integration)', () => {
       .set('Authorization', authHeader())
       .expect(200);
 
-    const receivableActivityTypes = receivableTimelineRes.body.map(
+    expect(receivableTimelineRes.body).toMatchObject({
+      total: 2,
+      page: 1,
+      limit: 20,
+    });
+    const receivableActivityTypes = receivableTimelineRes.body.items.map(
       (a: { activityType: string }) => a.activityType,
     );
     expect(receivableActivityTypes).toEqual(
       expect.arrayContaining(['PAYMENT_RECEIVED', 'RECEIVABLE_CLOSED']),
     );
-    expect(receivableTimelineRes.body).toHaveLength(2);
-    for (const activity of receivableTimelineRes.body) {
+    expect(receivableTimelineRes.body.items).toHaveLength(2);
+    for (const activity of receivableTimelineRes.body.items) {
       expect(activity.receivableId).toBe(receivableId);
       expect(activity.customerId).toBe(customerId);
       expect(activity.organizationId).toBeUndefined();
@@ -162,7 +167,7 @@ describe('Collection Activity Timeline (integration)', () => {
       .set('Authorization', authHeader())
       .expect(200);
 
-    const customerActivityTypes = customerTimelineRes.body.map(
+    const customerActivityTypes = customerTimelineRes.body.items.map(
       (a: { activityType: string }) => a.activityType,
     );
     expect(customerActivityTypes).toEqual(

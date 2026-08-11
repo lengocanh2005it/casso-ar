@@ -19,7 +19,6 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/contexts/auth-context';
 import { useCustomers } from '@/features/customers/api/use-customers';
-import type { BankTransaction } from '@/features/transactions/types';
 import { formatVND } from '@/lib/format';
 import { hasPermission } from '@/lib/rbac';
 import {
@@ -28,6 +27,7 @@ import {
   useSkipTransaction,
   useSplitMatch,
 } from '../api/use-exceptions';
+import type { BankTransaction } from '../types';
 
 export function SplitMatchDialog({
   tx,

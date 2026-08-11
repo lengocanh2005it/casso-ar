@@ -45,16 +45,17 @@ export class ReceiveWebhookUseCase {
     const connection = await this.bankConnectionRepo.findByIdUnscoped(
       input.bankConnectionId,
     );
-    if (!connection?.isUsable()) return { received: true, ignored: true };
     if (
+      connection &&
       input.organizationId &&
       input.organizationId !== connection.organizationId
     ) {
       throw new AppError(
-        ErrorCode.VALIDATION_ERROR,
+        ErrorCode.TENANT_MISMATCH,
         'Webhook organization does not match bank connection',
       );
     }
+    if (!connection?.isUsable()) return { received: true, ignored: true };
     const inbox = new WebhookInbox({
       id: randomUUID(),
       organizationId: connection.organizationId,

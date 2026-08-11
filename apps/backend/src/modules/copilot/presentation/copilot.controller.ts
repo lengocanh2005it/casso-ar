@@ -2,6 +2,7 @@ import { Permission } from '@casso-ledger/shared-types';
 import {
   Body,
   Controller,
+  Get,
   Headers,
   Param,
   Post,
@@ -17,6 +18,7 @@ import { RequirePermission } from '../../../common/rbac/require-permission.decor
 import { CancelPendingActionUseCase } from '../application/cancel-pending-action.usecase';
 import { ConfirmPendingActionUseCase } from '../application/confirm-pending-action.usecase';
 import { CopilotChatUseCase } from '../application/copilot-chat.usecase';
+import { GetCopilotUsageUseCase } from '../application/get-copilot-usage.usecase';
 import {
   type CopilotChatResponseDto,
   toCopilotMessageDto,
@@ -31,8 +33,15 @@ export class CopilotController {
     private readonly copilotChatUseCase: CopilotChatUseCase,
     private readonly confirmPendingActionUseCase: ConfirmPendingActionUseCase,
     private readonly cancelPendingActionUseCase: CancelPendingActionUseCase,
+    private readonly getCopilotUsageUseCase: GetCopilotUsageUseCase,
     private readonly idempotency: IdempotencyService,
   ) {}
+
+  @Get('usage')
+  @RequirePermission(Permission.RECEIVABLE_READ)
+  async usage() {
+    return this.getCopilotUsageUseCase.execute();
+  }
 
   @Post('conversations/:id/messages')
   @RequirePermission(Permission.RECEIVABLE_READ)

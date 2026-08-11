@@ -24,7 +24,18 @@ describe('CustomerDetailPage', () => {
         priority: 1,
         createdAt: '2026-08-01T00:00:00.000Z',
       })
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce({ items: [], total: 0, page: 1, limit: 20 })
+      .mockResolvedValueOnce({
+        customerId: 'customer-1',
+        totalAvailableAmount: 0,
+        items: [],
+      })
+      .mockResolvedValueOnce({
+        items: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+      });
 
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },

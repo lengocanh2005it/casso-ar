@@ -86,6 +86,10 @@ export class BankConnectionsController {
 
   @Post('cas-id/sessions/:id/exchange')
   @RequirePermission(Permission.BANK_CONNECTION_MANAGE)
+  @Audited(
+    AuditActionType.BANK_CONNECTION_CREATE,
+    AuditEntityType.BANK_CONNECTION,
+  )
   async exchange(
     @Param('id') sessionId: string,
     @Headers('idempotency-key') key: string | undefined,

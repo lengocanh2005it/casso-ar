@@ -54,6 +54,43 @@ export class PlanLimitService {
     }
   }
 
+  // Read-side view of the Copilot usage gate (issue #132): same advisory-lock
+  // + period-roll semantics as the enforcing path, but never throws — a
+  // non-ACTIVE subscription still reports its usage/limits.
+  async getCopilotUsage(manager: EntityManager): Promise<{
+    turnsUsed: number;
+    turnsLimit: number;
+    periodStart: Date;
+    periodEnd: Date;
+  }> {
+    const organizationId = this.tenant.getOrganizationId();
+    const now = new Date();
+
+    let subscription = await this.repo.lockAndFindByOrganizationId(
+      organizationId,
+      manager,
+    );
+    if (!subscription) {
+      subscription = Subscription.createFree(randomUUID(), organizationId, now);
+    } else {
+      const rolled = subscription.rollToCurrentPeriodIfExpired(now);
+      if (rolled !== subscription) subscription = rolled;
+    }
+
+    const turnsUsed = await this.repo.countCopilotChatTurnsInPeriod(
+      subscription.organizationId,
+      subscription.currentPeriodStart,
+      subscription.currentPeriodEnd,
+      manager,
+    );
+    return {
+      turnsUsed,
+      turnsLimit: subscription.copilotChatMonthlyLimit,
+      periodStart: subscription.currentPeriodStart,
+      periodEnd: subscription.currentPeriodEnd,
+    };
+  }
+
   // Shared by every limit check: lock the subscription, roll its billing
   // period if expired, and reject a non-ACTIVE subscription before the
   // caller counts usage.

@@ -10,10 +10,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { BankTransaction } from '@/features/transactions/types';
 import { formatDate, formatVND } from '@/lib/format';
 import { usePendingReview } from '../api/use-exceptions';
 import { SplitMatchDialog } from '../components/split-match-dialog';
+import type { BankTransaction } from '../types';
 
 export function ExceptionsPage() {
   const [searchParams, setSearchParams] = useSearchParams();

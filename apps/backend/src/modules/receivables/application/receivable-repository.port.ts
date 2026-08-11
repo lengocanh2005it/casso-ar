@@ -4,6 +4,7 @@ import type { Receivable } from '../domain/receivable';
 export interface ReceivableListFilters {
   status?: string;
   salesRepresentativeId?: string;
+  customerId?: string;
 }
 
 export interface IReceivableRepository {

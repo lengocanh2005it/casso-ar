@@ -8,6 +8,11 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../../../common/audit/audit.enums';
+import { Audited } from '../../../common/audit/audited.decorator';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ReminderExecutionQueryService } from '../application/reminder-execution-query.service';
 import { ReminderPolicyService } from '../application/reminder-policy.service';
@@ -33,6 +38,10 @@ export class RemindersController {
 
   @Patch(':id')
   @RequirePermission(Permission.REMINDER_POLICY_WRITE)
+  @Audited(
+    AuditActionType.REMINDER_POLICY_UPDATE,
+    AuditEntityType.REMINDER_POLICY,
+  )
   async update(@Param('id') id: string, @Body() dto: UpdateReminderPolicyDto) {
     return this.policyService.update(id, dto);
   }

@@ -1,9 +1,31 @@
+import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/api-client';
 import type { CopilotMessage, CopilotPendingAction } from '../types';
 
 export interface CopilotTurnResult {
   message: CopilotMessage;
   pendingAction: CopilotPendingAction | null;
+}
+
+export interface CopilotUsage {
+  turnsUsed: number;
+  turnsLimit: number;
+  periodStart: string;
+  periodEnd: string;
+}
+
+export function fetchCopilotUsage(): Promise<CopilotUsage> {
+  return apiRequest<CopilotUsage>({
+    url: '/api/v1/copilot/usage',
+    method: 'GET',
+  });
+}
+
+export function useCopilotUsage() {
+  return useQuery({
+    queryKey: ['copilot-usage'],
+    queryFn: fetchCopilotUsage,
+  });
 }
 
 export function sendCopilotMessage(

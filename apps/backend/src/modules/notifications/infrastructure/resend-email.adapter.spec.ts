@@ -50,6 +50,44 @@ describe('ResendEmailAdapter', () => {
     );
   });
 
+  it('builds a display-name From header when fromName is provided', async () => {
+    sendMock.mockResolvedValue({ data: { id: 'resend-msg-3' }, error: null });
+
+    await new ResendEmailAdapter().send(
+      'customer@example.com',
+      'Payment reminder',
+      '<p>Due</p>',
+      {},
+      undefined,
+      'Công ty ABC (qua Casso)',
+    );
+
+    expect(sendMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: '"Công ty ABC (qua Casso)" <no-reply@casso-ledger.vn>',
+      }),
+    );
+  });
+
+  it('sanitizes quotes inside the display name', async () => {
+    sendMock.mockResolvedValue({ data: { id: 'resend-msg-4' }, error: null });
+
+    await new ResendEmailAdapter().send(
+      'customer@example.com',
+      'Payment reminder',
+      '<p>Due</p>',
+      {},
+      undefined,
+      'Bad "name"',
+    );
+
+    expect(sendMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: '"Bad \'name\'" <no-reply@casso-ledger.vn>',
+      }),
+    );
+  });
+
   it('does not throw when RESEND_API_KEY is not set', () => {
     delete process.env.RESEND_API_KEY;
 

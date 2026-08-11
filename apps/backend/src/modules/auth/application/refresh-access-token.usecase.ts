@@ -47,6 +47,15 @@ export class RefreshAccessTokenUseCase {
         true,
       );
       if (!existing?.isValid(new Date())) {
+        // Reuse of a revoked token is a theft signal: the token could only be
+        // revoked after being rotated, so anyone presenting it again holds a
+        // leaked copy. Revoke the whole family for that user before failing.
+        if (existing?.revokedAt) {
+          await this.refreshTokenRepo.revokeAllForUser(
+            existing.userId,
+            manager,
+          );
+        }
         throw new AppError(
           ErrorCode.UNAUTHORIZED,
           'Refresh token không hợp lệ hoặc đã hết hạn.',

@@ -48,9 +48,10 @@ export class ReceivablesController {
     @Query() pagination: PaginationDto,
     @Query('status') status?: string,
     @Query('salesRepresentativeId') salesRepresentativeId?: string,
+    @Query('customerId') customerId?: string,
   ) {
     const result = await this.listReceivablesUseCase.execute({
-      filters: { status, salesRepresentativeId },
+      filters: { status, salesRepresentativeId, customerId },
       page: pagination.page,
       limit: pagination.limit,
     });

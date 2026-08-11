@@ -23,9 +23,13 @@ export class ResendEmailAdapter implements IEmailProviderAdapter {
     html: string,
     metadata: Record<string, string>,
     replyTo?: string,
+    fromName?: string,
   ): Promise<EmailSendResult> {
+    const from = fromName
+      ? `"${fromName.replaceAll('"', "'")}" <${this.fromAddress}>`
+      : this.fromAddress;
     const result = await this.client.emails.send({
-      from: this.fromAddress,
+      from,
       to,
       subject,
       html,

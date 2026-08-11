@@ -12,13 +12,13 @@ export function ReceivableTimeline({ receivableId }: { receivableId: string }) {
   if (isError) {
     return <p className="text-destructive">Không thể tải hoạt động.</p>;
   }
-  if (!data || data.length === 0) {
+  if (!data || data.items.length === 0) {
     return <p className="text-sm text-muted-foreground">Chưa có hoạt động.</p>;
   }
 
   return (
     <ol className="space-y-4">
-      {data.map((item) => (
+      {data.items.map((item) => (
         <li key={item.id} className="rounded-lg border p-4">
           <div className="flex items-center justify-between gap-4">
             <span className="font-medium">{item.activityType}</span>

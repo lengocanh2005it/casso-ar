@@ -108,8 +108,8 @@ describe('signup and email verification', () => {
     );
     expect(apiRequest).toHaveBeenCalledWith({
       url: '/api/v1/auth/verify-email',
-      method: 'GET',
-      params: { token: 'verify-token' },
+      method: 'POST',
+      data: { token: 'verify-token' },
     });
   });
 });

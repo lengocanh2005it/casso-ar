@@ -5,18 +5,19 @@ import {
 import { GetCustomerTimelineUseCase } from './get-customer-timeline.usecase';
 
 describe('GetCustomerTimelineUseCase', () => {
-  it('passes a caller-supplied limit down to the repository', async () => {
+  it('passes page and limit down to the repository and returns the envelope', async () => {
     const activityRepo = {
       create: jest.fn(),
       findByReceivableId: jest.fn(),
-      findByCustomerId: jest.fn().mockResolvedValue([]),
+      findByCustomerId: jest.fn().mockResolvedValue({ items: [], total: 0 }),
     };
 
     const useCase = new GetCustomerTimelineUseCase(activityRepo as any);
 
-    await useCase.execute('cust-1', 25);
+    const result = await useCase.execute('cust-1', 2, 25);
 
-    expect(activityRepo.findByCustomerId).toHaveBeenCalledWith('cust-1', 25);
+    expect(activityRepo.findByCustomerId).toHaveBeenCalledWith('cust-1', 2, 25);
+    expect(result).toEqual({ items: [], total: 0, page: 2, limit: 25 });
   });
 
   it('returns activities across all receivables for the customer', async () => {
@@ -36,13 +37,16 @@ describe('GetCustomerTimelineUseCase', () => {
     const activityRepo = {
       create: jest.fn(),
       findByReceivableId: jest.fn(),
-      findByCustomerId: jest.fn().mockResolvedValue(activities),
+      findByCustomerId: jest.fn().mockResolvedValue({
+        items: activities,
+        total: 1,
+      }),
     };
 
     const useCase = new GetCustomerTimelineUseCase(activityRepo as any);
-    const result = await useCase.execute('cust-1');
+    const result = await useCase.execute('cust-1', 1, 20);
 
-    expect(result).toBe(activities);
-    expect(activityRepo.findByCustomerId).toHaveBeenCalledWith('cust-1', 100);
+    expect(result.items).toBe(activities);
+    expect(activityRepo.findByCustomerId).toHaveBeenCalledWith('cust-1', 1, 20);
   });
 });

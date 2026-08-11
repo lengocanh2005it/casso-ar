@@ -63,7 +63,9 @@ describe('Copilot read tools', () => {
 
   it('delegates the collection timeline with a bounded limit', async () => {
     const timelineUseCase = {
-      execute: jest.fn().mockResolvedValue([{ id: 'activity-1' }]),
+      execute: jest
+        .fn()
+        .mockResolvedValue({ items: [{ id: 'activity-1' }], total: 1 }),
     };
     const tool = new GetCollectionActivityTimelineTool(timelineUseCase as any);
 
@@ -73,7 +75,7 @@ describe('Copilot read tools', () => {
       customerId: 'cust-1',
       items: [{ id: 'activity-1' }],
     });
-    expect(timelineUseCase.execute).toHaveBeenCalledWith('cust-1', 50);
+    expect(timelineUseCase.execute).toHaveBeenCalledWith('cust-1', 1, 50);
   });
 
   it('delegates payment history with a bounded limit', async () => {
@@ -92,15 +94,17 @@ describe('Copilot read tools', () => {
   });
 
   it('clamps bounded tool limits to the inclusive range 1 through 50', async () => {
-    const timelineUseCase = { execute: jest.fn().mockResolvedValue([]) };
+    const timelineUseCase = {
+      execute: jest.fn().mockResolvedValue({ items: [], total: 0 }),
+    };
     const tool = new GetCollectionActivityTimelineTool(timelineUseCase as any);
 
     await tool.execute({ customerId: 'cust-1', limit: 500 });
     await tool.execute({ customerId: 'cust-1', limit: 0 });
     await tool.execute({ customerId: 'cust-1' });
 
-    expect(timelineUseCase.execute).toHaveBeenNthCalledWith(1, 'cust-1', 50);
-    expect(timelineUseCase.execute).toHaveBeenNthCalledWith(2, 'cust-1', 1);
-    expect(timelineUseCase.execute).toHaveBeenNthCalledWith(3, 'cust-1', 20);
+    expect(timelineUseCase.execute).toHaveBeenNthCalledWith(1, 'cust-1', 1, 50);
+    expect(timelineUseCase.execute).toHaveBeenNthCalledWith(2, 'cust-1', 1, 1);
+    expect(timelineUseCase.execute).toHaveBeenNthCalledWith(3, 'cust-1', 1, 20);
   });
 });
