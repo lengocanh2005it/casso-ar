@@ -211,6 +211,18 @@ describe('parseFileToRows', () => {
     ).toEqual({ rows: [validRow], totalRows: 1 });
   });
 
+  it('accepts a declared range with exactly 1,000 data rows (1 header + 1000 data rows)', () => {
+    expect(() =>
+      parseFileToRows(workbookWithDeclaredRange('A1:H1001'), 'invoices.xlsx'),
+    ).not.toThrow();
+  });
+
+  it('rejects a declared range with more than 1,000 data rows', () => {
+    expectValidationError(() =>
+      parseFileToRows(workbookWithDeclaredRange('A1:H1002'), 'invoices.xlsx'),
+    );
+  });
+
   it('parses the declared row count out of a !ref range', () => {
     expect(declaredRowCountInRange('A1:H5000000')).toBe(5_000_000);
     expect(declaredRowCountInRange('A1:H2')).toBe(2);

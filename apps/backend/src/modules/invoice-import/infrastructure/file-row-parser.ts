@@ -76,7 +76,8 @@ export function declaredRowCountInRange(range: string | undefined): number {
 }
 
 const assertDeclaredRowCountWithinLimit = (range: string | undefined): void => {
-  if (declaredRowCountInRange(range) > MAX_ROWS) {
+  const declaredDataRows = Math.max(0, declaredRowCountInRange(range) - 1);
+  if (declaredDataRows > MAX_ROWS) {
     invalid('Tệp bảng tính vượt quá 1.000 dòng');
   }
 };
