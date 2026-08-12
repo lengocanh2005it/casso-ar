@@ -200,7 +200,6 @@ describe('ReminderSchedulerService', () => {
       findLatestSentByReceivableIds: jest
         .fn()
         .mockResolvedValue(new Map<string, { sentAt: Date }>()),
-      findLatestSent: jest.fn(),
       insertIfAbsent: jest.fn().mockResolvedValue(true),
       save: jest.fn(),
     };
@@ -223,7 +222,6 @@ describe('ReminderSchedulerService', () => {
     expect(policyRepo.findByCustomerGroup).not.toHaveBeenCalled();
     expect(policyRepo.findAll).toHaveBeenCalledTimes(1);
     expect(ruleRepo.findByPolicyId).toHaveBeenCalledTimes(1);
-    expect(executionRepo.findLatestSent).not.toHaveBeenCalled();
     expect(executionRepo.findLatestSentByReceivableIds).toHaveBeenCalledTimes(
       1,
     );

@@ -185,9 +185,13 @@ export class EmailQueueProcessor extends WorkerHost {
       }
 
       if (job.name === 'send-owner-alert') {
-        this.logger.error(
-          `Owner alert job ${job.id ?? 'unknown'} failed permanently after ${job.attemptsMade} attempts`,
-        );
+        const alertData = job.data as OwnerAlertEmailJob;
+        this.logger.error({
+          message: `Owner alert job ${job.id ?? 'unknown'} failed permanently after ${job.attemptsMade} attempts`,
+          organizationId: alertData.organizationId,
+          userId: 'system',
+          requestId: getJobRequestId(job),
+        });
         return;
       }
 

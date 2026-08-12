@@ -2,6 +2,10 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import {
+  BANK_CONNECTION_STATUS_CHANGED,
+  type BankConnectionStatusChangedEvent,
+} from '../../bank-connections/application/mark-requires-reauthorization.usecase';
+import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
 } from '../../organizations/application/membership-repository.port';
@@ -15,12 +19,6 @@ import {
   type IEmailQueue,
 } from '../application/email-queue.port';
 
-export interface BankConnectionStatusChangedEvent {
-  bankConnectionId: string;
-  organizationId: string;
-  status: 'REQUIRES_REAUTHORIZATION' | 'ERROR';
-}
-
 @Injectable()
 export class BankConnectionStatusListener {
   private readonly logger = new Logger(BankConnectionStatusListener.name);
@@ -33,8 +31,25 @@ export class BankConnectionStatusListener {
     private readonly tenantContext: TenantContextService,
   ) {}
 
-  @OnEvent('bank-connection.status.changed')
+  @OnEvent(BANK_CONNECTION_STATUS_CHANGED)
   async handle(payload: BankConnectionStatusChangedEvent): Promise<void> {
+    try {
+      await this.enqueueOwnerAlert(payload);
+    } catch (error) {
+      this.logger.error({
+        message: 'Owner alert could not be enqueued',
+        bankConnectionId: payload.bankConnectionId,
+        organizationId: payload.organizationId,
+        status: payload.status,
+        userId: 'system',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  private async enqueueOwnerAlert(
+    payload: BankConnectionStatusChangedEvent,
+  ): Promise<void> {
     await this.tenantContext.run(
       {
         userId: 'system',

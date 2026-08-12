@@ -27,24 +27,6 @@ export class TypeOrmReminderExecutionRepository
     return execution?.status ?? null;
   }
 
-  async findLatestSent(receivableId: string): Promise<{ sentAt: Date } | null> {
-    const organizationId = this.tenantContext.getOrganizationId();
-    const row = await this.dataSource
-      .getRepository(ReminderExecutionOrmEntity)
-      .createQueryBuilder('e')
-      .select(['e.id', 'e.sentAt'])
-      .where('e."receivableId" = :receivableId', { receivableId })
-      .andWhere('e."organizationId" = :organizationId', { organizationId })
-      .andWhere('e.status = :status', {
-        status: ReminderExecutionStatus.SENT,
-      })
-      .orderBy('e."sentAt"', 'DESC')
-      .limit(1)
-      .getOne();
-    if (!row?.sentAt) return null;
-    return { sentAt: row.sentAt };
-  }
-
   async findLatestSentByReceivableIds(
     receivableIds: string[],
   ): Promise<Map<string, { sentAt: Date }>> {

@@ -95,11 +95,13 @@ export class ReminderSchedulerService {
     const candidates = await this.candidateReader.findOpenCandidates();
     const executionDate = calendarDate(today);
     const eligible = candidates.filter((candidate) => !candidate.isDisputed);
-    if (eligible.length === 0) {
-      await this.eventEmitter.emitAsync('reminder.scan.completed', {
+    const emitScanCompleted = () =>
+      this.eventEmitter.emitAsync('reminder.scan.completed', {
         organizationId,
         scanDate: executionDate,
       });
+    if (eligible.length === 0) {
+      await emitScanCompleted();
       return;
     }
 
@@ -173,9 +175,6 @@ export class ReminderSchedulerService {
       );
     }
 
-    await this.eventEmitter.emitAsync('reminder.scan.completed', {
-      organizationId,
-      scanDate: executionDate,
-    });
+    await emitScanCompleted();
   }
 }

@@ -18,6 +18,12 @@ import {
 
 export const BANK_CONNECTION_STATUS_CHANGED = 'bank-connection.status.changed';
 
+export interface BankConnectionStatusChangedEvent {
+  bankConnectionId: string;
+  organizationId: string;
+  status: 'REQUIRES_REAUTHORIZATION' | 'ERROR';
+}
+
 @Injectable()
 export class MarkRequiresReauthorizationUseCase {
   constructor(
@@ -49,42 +55,38 @@ export class MarkRequiresReauthorizationUseCase {
   }
 
   private async markError(connectionId: string, reason: string): Promise<void> {
-    const connection =
-      await this.bankConnectionRepo.findByIdUnscoped(connectionId);
-    if (!connection) return;
-    const wasActive = connection.status === 'ACTIVE';
-    await this.dataSource.transaction(async (manager) => {
-      if (wasActive) {
-        await this.bankConnectionRepo.save(connection.markError(), manager);
-      }
-      await this.auditEventRepo.save(
-        new ConnectionAuditEvent({
-          id: randomUUID(),
-          organizationId: connection.organizationId,
-          bankConnectionId: connectionId,
-          eventType: wasActive ? 'MARKED_ERROR' : 'API_CALL_FAILED',
-          metadata: { reason },
-          createdAt: new Date(),
-        }),
-        manager,
-      );
-    });
-    if (wasActive) {
-      this.emitStatusChanged(connectionId, connection.organizationId, 'ERROR');
-    }
+    await this.markStatus(connectionId, reason, 'ERROR');
   }
 
   // Called from disconnect/sync-transactions' Cas ID 401/403 handling —
   // findByIdUnscoped is deliberate here, see bank-connection-repository.port.ts.
   async execute(connectionId: string, reason: string): Promise<void> {
+    await this.markStatus(connectionId, reason, 'REQUIRES_REAUTHORIZATION');
+  }
+
+  private async markStatus(
+    connectionId: string,
+    reason: string,
+    status: 'REQUIRES_REAUTHORIZATION' | 'ERROR',
+  ): Promise<void> {
     const connection =
       await this.bankConnectionRepo.findByIdUnscoped(connectionId);
     if (!connection) return;
     const wasActive = connection.status === 'ACTIVE';
+    const eventType =
+      status === 'ERROR'
+        ? wasActive
+          ? 'MARKED_ERROR'
+          : 'API_CALL_FAILED'
+        : wasActive
+          ? 'MARKED_REQUIRES_REAUTH'
+          : 'API_CALL_FAILED_401';
     await this.dataSource.transaction(async (manager) => {
       if (wasActive) {
         await this.bankConnectionRepo.save(
-          connection.markRequiresReauthorization(),
+          status === 'ERROR'
+            ? connection.markError()
+            : connection.markRequiresReauthorization(),
           manager,
         );
       }
@@ -93,9 +95,7 @@ export class MarkRequiresReauthorizationUseCase {
           id: randomUUID(),
           organizationId: connection.organizationId,
           bankConnectionId: connectionId,
-          eventType: wasActive
-            ? 'MARKED_REQUIRES_REAUTH'
-            : 'API_CALL_FAILED_401',
+          eventType,
           metadata: { reason },
           createdAt: new Date(),
         }),
@@ -103,11 +103,7 @@ export class MarkRequiresReauthorizationUseCase {
       );
     });
     if (wasActive) {
-      this.emitStatusChanged(
-        connectionId,
-        connection.organizationId,
-        'REQUIRES_REAUTHORIZATION',
-      );
+      this.emitStatusChanged(connectionId, connection.organizationId, status);
     }
   }
 

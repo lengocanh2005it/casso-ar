@@ -22,6 +22,7 @@ describe('TypeOrmDashboardSummaryRepository.getReminderEffectivenessStats (e2e)'
   const paidWithin7d = '00000000-0000-0000-0000-0000000000f2';
   const paidLate = '00000000-0000-0000-0000-0000000000f3';
   const stillOpen = '00000000-0000-0000-0000-0000000000f4';
+  const paidOnTime = '00000000-0000-0000-0000-0000000000f6';
 
   const PERIOD = { from: new Date('2026-08-01'), to: new Date('2026-08-31') };
 
@@ -101,6 +102,7 @@ describe('TypeOrmDashboardSummaryRepository.getReminderEffectivenessStats (e2e)'
         receivable(paidWithin7d, ReceivableStatus.PAID),
         receivable(paidLate, ReceivableStatus.PAID),
         receivable(stillOpen, ReceivableStatus.OPEN),
+        receivable(paidOnTime, ReceivableStatus.PAID),
       ]);
 
     await dataSource.getRepository(ReminderExecutionOrmEntity).save([
@@ -130,6 +132,12 @@ describe('TypeOrmDashboardSummaryRepository.getReminderEffectivenessStats (e2e)'
         new Date('2026-09-02'),
         ReminderExecutionStatus.SENT,
       ),
+      // paidOnTime: single send 08-04, paid 08-06 (within 7d) → counts
+      execution(
+        paidOnTime,
+        new Date('2026-08-04'),
+        ReminderExecutionStatus.SENT,
+      ),
     ]);
   }, 60_000);
 
@@ -144,7 +152,7 @@ describe('TypeOrmDashboardSummaryRepository.getReminderEffectivenessStats (e2e)'
       PERIOD,
     );
 
-    expect(stats.sentCount).toBe(4);
-    expect(stats.paidWithin7dCount).toBe(0);
+    expect(stats.sentCount).toBe(5);
+    expect(stats.paidWithin7dCount).toBe(1);
   });
 });
