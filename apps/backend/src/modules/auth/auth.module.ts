@@ -16,6 +16,7 @@ import { EMAIL_VERIFICATION_TOKEN_REPOSITORY } from './application/email-verific
 import { ForgotPasswordUseCase } from './application/forgot-password.usecase';
 import { GetUserProfileUseCase } from './application/get-user-profile.usecase';
 import { InviteMemberUseCase } from './application/invite-member.usecase';
+import { ListInvitesUseCase } from './application/list-invites.usecase';
 import { LoginUseCase } from './application/login.usecase';
 import { LogoutUseCase } from './application/logout.usecase';
 import { MEMBERSHIP_INVITE_REPOSITORY } from './application/membership-invite-repository.port';
@@ -71,6 +72,7 @@ import { InvitesController } from './presentation/invites.controller';
     GetUserProfileUseCase,
     ForgotPasswordUseCase,
     InviteMemberUseCase,
+    ListInvitesUseCase,
     DeleteInviteUseCase,
     ResendInviteUseCase,
     RemoveMemberUseCase,
