@@ -20,6 +20,7 @@ interface PlanConfig {
   bankConnectionLimit: number;
   copilotChatMonthlyLimit: number;
   canUseCustomSmtp: boolean;
+  tier: number;
 }
 
 const PLAN_CATALOG: Record<PlanId, PlanConfig> = {
@@ -28,24 +29,28 @@ const PLAN_CATALOG: Record<PlanId, PlanConfig> = {
     bankConnectionLimit: 1,
     copilotChatMonthlyLimit: 50,
     canUseCustomSmtp: false,
+    tier: 0,
   },
   [PlanId.STARTER]: {
     receivableMonthlyLimit: 500,
     bankConnectionLimit: 2,
     copilotChatMonthlyLimit: 100,
     canUseCustomSmtp: false,
+    tier: 1,
   },
   [PlanId.BUSINESS]: {
     receivableMonthlyLimit: 5000,
     bankConnectionLimit: 5,
     copilotChatMonthlyLimit: 1000,
     canUseCustomSmtp: true,
+    tier: 2,
   },
   [PlanId.ENTERPRISE]: {
     receivableMonthlyLimit: 15000,
     bankConnectionLimit: 10,
     copilotChatMonthlyLimit: 10000,
     canUseCustomSmtp: true,
+    tier: 3,
   },
 };
 
@@ -169,6 +174,27 @@ export class Subscription {
       ...this,
       currentPeriodStart: startOfMonth(now),
       currentPeriodEnd: startOfNextMonth(now),
+    });
+  }
+
+  changeToPlan(newPlanId: PlanId): Subscription {
+    const currentTier = PLAN_CATALOG[this.planId].tier;
+    const newTier = PLAN_CATALOG[newPlanId].tier;
+
+    if (newTier <= currentTier) {
+      throw new Error(
+        `Cannot change plan from ${this.planId} (tier ${currentTier}) to ${newPlanId} (tier ${newTier}): target tier must be strictly higher`,
+      );
+    }
+
+    const plan = PLAN_CATALOG[newPlanId];
+    return new Subscription({
+      ...this,
+      planId: newPlanId,
+      receivableMonthlyLimit: plan.receivableMonthlyLimit,
+      bankConnectionLimit: plan.bankConnectionLimit,
+      copilotChatMonthlyLimit: plan.copilotChatMonthlyLimit,
+      canUseCustomSmtp: plan.canUseCustomSmtp,
     });
   }
 }
