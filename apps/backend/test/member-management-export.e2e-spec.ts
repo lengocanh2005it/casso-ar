@@ -268,6 +268,18 @@ describe('Member management + CSV export (integration)', () => {
   });
 
   it('lists pending invites, excluding accepted ones', async () => {
+    await dataSource.getRepository(MembershipInviteOrmEntity).save({
+      id: randomUUID(),
+      organizationId: orgA,
+      email: 'accepted@example.com',
+      role: Role.VIEWER,
+      invitedByUserId: ownerA,
+      tokenHash: 'hash-accepted',
+      expiresAt: new Date(Date.now() + 60_000),
+      acceptedAt: new Date(),
+      createdAt: new Date(),
+    });
+
     const response = await request(app.getHttpServer())
       .get(`/api/v1/organizations/${orgA}/invites`)
       .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
