@@ -1,4 +1,3 @@
-import { QueryFailedError } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import type { CustomerBankAccount } from '../domain/customer-bank-account';
@@ -27,13 +26,6 @@ export function normalizeOrThrow(value: string): string {
       'Số tài khoản ngân hàng không hợp lệ.',
     );
   }
-}
-
-export function isUniqueViolation(error: unknown): boolean {
-  return (
-    error instanceof QueryFailedError &&
-    (error as { code?: string }).code === '23505'
-  );
 }
 
 export function maskAccountNumber(normalized: string): string {

@@ -1,5 +1,9 @@
+import { QueryFailedError } from 'typeorm';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { Role } from '../../organizations/domain/membership';
+import { DUPLICATE_INVOICE_NUMBER } from '../application/invoice-repository.port';
 import { Invoice, InvoiceStatus } from '../domain/invoice';
 import { TypeOrmInvoiceRepository } from './typeorm-invoice.repository';
 
@@ -71,6 +75,54 @@ describe('TypeOrmInvoiceRepository', () => {
     });
     expect(result.get('inv-1')?.invoiceNumber).toBe('INV-001');
     expect(result.has('inv-2')).toBe(false);
+  });
+
+  it('translates an invoice-number unique violation into a duplicate-row AppError', async () => {
+    const ormRepo = {
+      save: jest.fn().mockRejectedValue(
+        new QueryFailedError(
+          'INSERT ...',
+          [],
+          Object.assign(new Error('duplicate key'), {
+            code: '23505',
+            constraint: 'UQ_invoices_organization_invoice_number',
+          }),
+        ),
+      ),
+    };
+    const tenantContext = new TenantContextService();
+    const repo = new TypeOrmInvoiceRepository(ormRepo as any, tenantContext);
+
+    await expect(
+      tenantContext.run(
+        { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+        () => repo.save(new Invoice(PROPS)),
+      ),
+    ).rejects.toMatchObject({
+      errorCode: ErrorCode.CONFLICT,
+      details: { rowErrorCode: DUPLICATE_INVOICE_NUMBER },
+    });
+  });
+
+  it('rethrows unique violations on a different constraint unchanged', async () => {
+    const dbError = new QueryFailedError(
+      'INSERT ...',
+      [],
+      Object.assign(new Error('duplicate key'), {
+        code: '23505',
+        constraint: 'UQ_other_thing',
+      }),
+    );
+    const ormRepo = { save: jest.fn().mockRejectedValue(dbError) };
+    const tenantContext = new TenantContextService();
+    const repo = new TypeOrmInvoiceRepository(ormRepo as any, tenantContext);
+
+    await expect(
+      tenantContext.run(
+        { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+        () => repo.save(new Invoice(PROPS)),
+      ),
+    ).rejects.toBe(dbError);
   });
 
   it('finds an invoice number through the transaction manager when supplied', async () => {

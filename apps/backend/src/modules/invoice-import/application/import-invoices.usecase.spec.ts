@@ -288,16 +288,13 @@ describe('ImportInvoicesUseCase', () => {
     ]);
   });
 
-  it('maps a concurrent invoice-number unique violation to a duplicate row error', async () => {
+  it('maps an invoice-number unique violation raised by the repository to a duplicate row error', async () => {
     const { invoiceRepo, logger, useCase } = makeUseCase([validRow()]);
-    const databaseError = Object.assign(
-      new Error('duplicate key value violates unique constraint'),
-      {
-        code: '23505',
-        constraint: 'UQ_invoices_organization_invoice_number',
-      },
+    invoiceRepo.save.mockRejectedValue(
+      new AppError(ErrorCode.CONFLICT, 'Số hóa đơn đã tồn tại.', {
+        rowErrorCode: 'DUPLICATE_INVOICE_NUMBER',
+      }),
     );
-    invoiceRepo.save.mockRejectedValue(databaseError);
 
     const result = await useCase.execute(Buffer.from('file'), 'invoices.csv');
 

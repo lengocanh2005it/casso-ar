@@ -56,6 +56,7 @@ describe('BYO SMTP configuration and fallback (e2e)', () => {
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
     process.env.RESEND_API_KEY = 'smtp-e2e-resend-key';
+    process.env.SMTP_HOST_ALLOWLIST = 'smtp.example.com';
     process.env.CASSO_WEBHOOK_CLIENT_ID = 'smtp-e2e-client';
     process.env.CASSO_WEBHOOK_SECRET_KEY = 'smtp-e2e-secret';
 
@@ -394,6 +395,7 @@ describe('BYO SMTP configuration and fallback (e2e)', () => {
       'Reminder',
       '<p>Reminder</p>',
       { reminderExecutionId },
+      undefined,
       undefined,
     );
   }, 20_000);

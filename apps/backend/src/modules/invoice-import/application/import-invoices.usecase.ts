@@ -22,8 +22,10 @@ import {
 import type { Customer } from '../../customers/domain/customer';
 import { CustomerGroup } from '../../customers/domain/customer-group';
 import {
+  DUPLICATE_INVOICE_NUMBER,
   type IInvoiceRepository,
   INVOICE_REPOSITORY,
+  isDuplicateInvoiceNumberError,
 } from '../../invoices/application/invoice-repository.port';
 import { Invoice, InvoiceStatus } from '../../invoices/domain/invoice';
 import { CreateReceivableUseCase } from '../../receivables/application/create-receivable.usecase';
@@ -34,10 +36,7 @@ import {
 import { getImportRequestFingerprint } from './import-request-fingerprint';
 import { type ParsedInvoiceRow, parseInvoiceRow } from './invoice-row-parser';
 
-const DUPLICATE_INVOICE_NUMBER = 'DUPLICATE_INVOICE_NUMBER';
 const IMPORT_ROW_FAILED = 'IMPORT_ROW_FAILED';
-const INVOICE_NUMBER_UNIQUE_CONSTRAINT =
-  'UQ_invoices_organization_invoice_number';
 
 export interface ImportRowFailure {
   rowNumber: number;
@@ -100,7 +99,7 @@ export class ImportInvoicesUseCase {
         );
         successCount += 1;
       } catch (error) {
-        const isExpectedDuplicate = this.isInvoiceNumberUniqueViolation(error);
+        const isExpectedDuplicate = isDuplicateInvoiceNumberError(error);
         failedRows.push({
           rowNumber,
           data: row,
@@ -218,7 +217,7 @@ export class ImportInvoicesUseCase {
   }
 
   private rowErrorCode(error: unknown): string {
-    if (this.isInvoiceNumberUniqueViolation(error)) {
+    if (isDuplicateInvoiceNumberError(error)) {
       return DUPLICATE_INVOICE_NUMBER;
     }
     if (!(error instanceof AppError)) return IMPORT_ROW_FAILED;
@@ -271,21 +270,5 @@ export class ImportInvoicesUseCase {
         errorName: error instanceof Error ? error.name : typeof error,
       });
     });
-  }
-
-  private isInvoiceNumberUniqueViolation(error: unknown): boolean {
-    if (typeof error !== 'object' || error === null) return false;
-    const databaseError = error as {
-      code?: unknown;
-      constraint?: unknown;
-      driverError?: {
-        code?: unknown;
-        constraint?: unknown;
-      };
-    };
-    const code = databaseError.code ?? databaseError.driverError?.code;
-    const constraint =
-      databaseError.constraint ?? databaseError.driverError?.constraint;
-    return code === '23505' && constraint === INVOICE_NUMBER_UNIQUE_CONSTRAINT;
   }
 }

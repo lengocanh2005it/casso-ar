@@ -8,6 +8,12 @@ describe('getJwtSecret', () => {
     expect(config.getOrThrow).toHaveBeenCalledWith('JWT_SECRET');
   });
 
+  it('fails fast when JWT_SECRET is set but empty', () => {
+    const config = { getOrThrow: jest.fn().mockReturnValue('') };
+
+    expect(() => getJwtSecret(config as never)).toThrow(/JWT_SECRET/);
+  });
+
   it('builds shared JWT module options', () => {
     const config = { getOrThrow: jest.fn().mockReturnValue('secret') };
 

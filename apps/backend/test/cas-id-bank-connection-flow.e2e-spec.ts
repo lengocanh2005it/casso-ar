@@ -30,6 +30,7 @@ describe('Cas ID bank connection flow (integration)', () => {
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
+    process.env.RESEND_API_KEY = 'cas-id-flow-e2e-resend-key';
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],

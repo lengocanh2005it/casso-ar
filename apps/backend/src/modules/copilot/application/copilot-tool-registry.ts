@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 
 export interface CopilotJsonSchema {
   type: 'object';
@@ -38,7 +40,8 @@ export class CopilotToolRegistry {
     if (
       !CopilotToolRegistry.SAFE_TOOL_NAMES.some((name) => name === tool.name)
     ) {
-      throw new Error(
+      throw new AppError(
+        ErrorCode.INTERNAL_SERVER_ERROR,
         `Tool "${tool.name}" is not in the Copilot safe tool allowlist (${CopilotToolRegistry.SAFE_TOOL_NAMES.join(', ')}).`,
       );
     }

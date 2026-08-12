@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, FindOptionsSelect, Repository } from 'typeorm';
+import { isUniqueViolation } from '../../../common/database/unique-violation';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { normalizeAccountNumber } from '../application/account-number-normalizer';
@@ -85,6 +88,16 @@ export class TypeOrmCustomerBankAccountRepository
     account: CustomerBankAccount,
     manager?: EntityManager,
   ): Promise<void> {
-    await this.scopedSaveWithManager(toOrm(account), manager);
+    try {
+      await this.scopedSaveWithManager(toOrm(account), manager);
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new AppError(
+          ErrorCode.CONFLICT,
+          'Số tài khoản ngân hàng đã được liên kết.',
+        );
+      }
+      throw error;
+    }
   }
 }

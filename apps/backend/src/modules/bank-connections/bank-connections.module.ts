@@ -47,8 +47,13 @@ import { BankConnectionsController } from './presentation/bank-connections.contr
     {
       provide: ACCESS_TOKEN_ENCRYPTION_KEY,
       inject: [ConfigService],
-      useFactory: (config: ConfigService) =>
-        config.getOrThrow<string>('ACCESS_TOKEN_ENCRYPTION_KEY'),
+      useFactory: (config: ConfigService) => {
+        const key = config.getOrThrow<string>('ACCESS_TOKEN_ENCRYPTION_KEY');
+        if (key.trim() === '') {
+          throw new Error('ACCESS_TOKEN_ENCRYPTION_KEY must not be empty');
+        }
+        return key;
+      },
     },
     InitiateConnectionUseCase,
     ExchangeTokenUseCase,
