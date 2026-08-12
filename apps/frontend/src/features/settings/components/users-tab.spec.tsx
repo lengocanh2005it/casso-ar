@@ -1,0 +1,142 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { UsersTab } from './users-tab';
+
+const { apiRequest, useAuth } = vi.hoisted(() => ({
+  apiRequest: vi.fn(),
+  useAuth: vi.fn(),
+}));
+
+vi.mock('@/lib/api-client', () => ({
+  apiRequest: (...args: unknown[]) => apiRequest(...args),
+  postWithIdempotency: (url: string, data?: unknown) =>
+    apiRequest({ url, method: 'POST', data }),
+}));
+vi.mock('@/contexts/auth-context', () => ({ useAuth }));
+
+const ownerMember = {
+  id: 'm1',
+  userId: 'owner-1',
+  email: 'owner@congtyb.vn',
+  name: 'Chủ sở hữu',
+  role: 'OWNER',
+  joinedAt: '2026-08-01',
+};
+const accountantMember = {
+  id: 'm2',
+  userId: 'user-2',
+  email: 'ke-toan@congtyb.vn',
+  name: 'Kế toán',
+  role: 'ACCOUNTANT',
+  joinedAt: '2026-08-01',
+};
+
+function mockApi({
+  members = [ownerMember, accountantMember],
+  invites = [],
+}: {
+  members?: unknown[];
+  invites?: unknown[];
+} = {}) {
+  apiRequest.mockImplementation((config: { url: string }) => {
+    if (config.url.includes('/invites')) {
+      return Promise.resolve({
+        items: invites,
+        total: invites.length,
+        page: 1,
+        limit: 100,
+      });
+    }
+    return Promise.resolve({
+      items: members,
+      total: members.length,
+      page: 1,
+      limit: 100,
+    });
+  });
+}
+
+function renderTab() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <UsersTab />
+    </QueryClientProvider>,
+  );
+}
+
+describe('UsersTab', () => {
+  it("lets an OWNER change another member's role", async () => {
+    useAuth.mockReturnValue({
+      user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
+    });
+    mockApi();
+    renderTab();
+
+    await waitFor(() => expect(screen.getByText('Kế toán')).toBeTruthy());
+    const select = screen.getByLabelText('Vai trò của Kế toán');
+    fireEvent.change(select, { target: { value: 'VIEWER' } });
+
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: '/api/v1/organizations/org-1/members/user-2',
+          method: 'PATCH',
+          data: { role: 'VIEWER' },
+        }),
+      ),
+    );
+  });
+
+  it('confirms before removing a member', async () => {
+    useAuth.mockReturnValue({
+      user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
+    });
+    mockApi();
+    renderTab();
+
+    await waitFor(() => expect(screen.getByText('Kế toán')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Xoá Kế toán' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: '/api/v1/organizations/org-1/members/user-2',
+          method: 'DELETE',
+        }),
+      ),
+    );
+  });
+
+  it("hides role select and remove button on the current user's own row", async () => {
+    useAuth.mockReturnValue({
+      user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
+    });
+    mockApi();
+    renderTab();
+
+    await waitFor(() => expect(screen.getByText('Chủ sở hữu')).toBeTruthy());
+    expect(screen.queryByLabelText('Vai trò của Chủ sở hữu')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Xoá Chủ sở hữu' })).toBeNull();
+  });
+
+  it('hides management actions for a non-OWNER', async () => {
+    useAuth.mockReturnValue({
+      user: {
+        id: 'fm-1',
+        role: 'FINANCE_MANAGER',
+        organizationId: 'org-1',
+      },
+    });
+    mockApi();
+    renderTab();
+
+    await waitFor(() => expect(screen.getByText('Kế toán')).toBeTruthy());
+    expect(screen.queryByLabelText('Vai trò của Kế toán')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Xoá/ })).toBeNull();
+  });
+});
