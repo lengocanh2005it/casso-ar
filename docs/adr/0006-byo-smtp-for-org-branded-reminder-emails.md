@@ -14,7 +14,7 @@ A grilling session considered an alternative modeled on Supabase's "custom SMTP"
 
 ## Decision
 
-Replace the Resend-domain-verification design entirely with bring-your-own-SMTP, gated to BUSINESS and ENTERPRISE tiers (`Subscription.canUseCustomSmtp`, a flat boolean field — see #90 for the deferred general plan-catalog).
+Replace the Resend-domain-verification design entirely with bring-your-own-SMTP, gated to BUSINESS and ENTERPRISE tiers (`Subscription.canUseCustomSmtp`, a flat boolean field — see #90 for the general plan-catalog that later wired up `createBusiness()`/`createEnterprise()` to set it).
 
 - `OrganizationSmtpConfig` lives in its own module (mirroring `email-templates`), consumed by `notifications` only through an application-layer port — never a direct import of the config module's internals.
 - A new `SmtpEmailAdapter` implements the existing `IEmailProviderAdapter` port alongside `ResendEmailAdapter`; an `EmailProviderResolver` in the application layer picks the adapter per send by looking up the org's config, keeping "which provider" out of any single adapter.

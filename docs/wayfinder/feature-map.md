@@ -654,7 +654,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Key rules**:
   - Replaces issue #43's original Resend-managed-domain research entirely — BYO-SMTP, not DNS/domain-verification
   - `OrganizationSmtpConfig` only ever persists as `CONNECTED` — a failed test-send is never saved (no `PENDING` state)
-  - Gated to BUSINESS/ENTERPRISE via `Subscription.canUseCustomSmtp` (flat boolean, not a general plan-catalog — see issue #90)
+  - Gated to BUSINESS/ENTERPRISE via `Subscription.canUseCustomSmtp` (flat boolean; issue #90's `PLAN_CATALOG` later sets this per plan without replacing the field)
   - `IEmailProviderAdapter` port unchanged; new `IEmailProviderResolver` picks Resend vs. org SMTP per send
   - Reuses `encryptToken`/`decryptToken` (AES-256-GCM) from `bank-connections` for the password at rest — no new crypto scheme
   - `ORGANIZATION_SMTP_MANAGE` permission is OWNER-only
@@ -688,7 +688,7 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Frontier
 
 **In progress:**
-- None
+- #90 — real Plan catalog for STARTER/BUSINESS/ENTERPRISE limits and feature flags (worktree `feat-plan-catalog`)
 
 **Next available tickets** (all blockers resolved):
 - None — every tracked ticket is done.
@@ -698,5 +698,5 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **Recommended next step:** All 29 tracked tickets (Plans 1–23 + Application Layer Boundary Enforcement + Customer Bank Account Management + Credit Balance Management + Spec-Plan Reconciliation + Org-Branded Reminder Emails via Custom SMTP + SMTP Settings UI) are shipped. No open or in-progress ticket remains in this map. The reminder-automation e2e flakiness was tracked in issue #88 and is now closed. **2026-08-11**: PR #140 ("quick wins batch") closed 16 audit-backlog issues in one pass — #96, #99, #100, #103, #104, #109, #112, #114, #116, #120, #121, #122, #123, #124, #129, #132, #138 — covering security (dead `PermissionGuard` on reminder-policies/reminder-executions/switch-organization, JWT algorithm pinning, webhook rate limiting, refresh-token-family revocation on reuse, verify-email GET→POST, `/metrics` token protection, webhook tenant-mismatch ordering, `@Audited` coverage, XLSX zip-bomb row-budget check, Copilot email HTML-escaping), perf/UX (sender display name, timeline pagination, receivables index, customer credit balance + receivables panel, Copilot usage indicator, dead `features/transactions` folder removal), and a follow-up commit fixing an XLSX row-budget off-by-one (header row counted against the data-row cap) found in post-merge review. **2026-08-12**: PR #141 ("security hardening") closed #110, #111, #113, and #125 — Copilot abuse/cost controls, user-scoped conversations, SMTP probe/timeout hardening, and CAS ID redirect URI allowlisting. #107 (remove `ioredis`) was investigated and closed as invalid — BullMQ 6 declares `ioredis` as a peerDependency, so the direct dependency is required. Current untracked GitHub follow-ups:
 
-- #90 — real Plan catalog for STARTER/BUSINESS/ENTERPRISE limits and feature flags
 - #98 — research Casso Admin Platform
+- #150 — plan upgrade/downgrade use case (split out of #90 during grilling; depends on #90 landing first)
