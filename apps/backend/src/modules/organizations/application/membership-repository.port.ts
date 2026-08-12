@@ -13,12 +13,22 @@ export interface IMembershipRepository {
     role: Role,
   ): Promise<Membership | null>;
   save(membership: Membership, manager?: EntityManager): Promise<void>;
+  deleteByUserAndOrganization(
+    userId: string,
+    organizationId: string,
+    manager?: EntityManager,
+  ): Promise<void>;
   findPageByOrganization(
     organizationId: string,
     page: number,
     limit: number,
   ): Promise<Membership[]>;
   countByOrganization(organizationId: string): Promise<number>;
+  countActiveByRole(
+    organizationId: string,
+    role: Role,
+    manager?: EntityManager,
+  ): Promise<number>;
 }
 
 export const MEMBERSHIP_REPOSITORY = Symbol('MEMBERSHIP_REPOSITORY');

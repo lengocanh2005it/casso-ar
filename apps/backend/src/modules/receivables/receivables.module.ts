@@ -9,6 +9,7 @@ import { InvoicesModule } from '../invoices/invoices.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { CancelReceivableUseCase } from './application/cancel-receivable.usecase';
 import { CreateReceivableUseCase } from './application/create-receivable.usecase';
+import { ExportReceivablesUseCase } from './application/export-receivables.usecase';
 import { GetReceivableUseCase } from './application/get-receivable.usecase';
 import { ListReceivablesUseCase } from './application/list-receivables.usecase';
 import { RECEIVABLE_REPOSITORY } from './application/receivable-repository.port';
@@ -34,6 +35,7 @@ import { ReceivablesController } from './presentation/receivables.controller';
     WriteOffReceivableUseCase,
     GetReceivableUseCase,
     ListReceivablesUseCase,
+    ExportReceivablesUseCase,
   ],
   controllers: [ReceivablesController],
   exports: [

@@ -19,10 +19,29 @@ export class TypeOrmMembershipInviteRepository
     return row ? new MembershipInvite(row) : null;
   }
 
+  async findById(
+    id: string,
+    organizationId: string,
+  ): Promise<MembershipInvite | null> {
+    const row = await this.repo.findOne({ where: { id, organizationId } });
+    return row ? new MembershipInvite(row) : null;
+  }
+
   async save(invite: MembershipInvite, manager?: EntityManager): Promise<void> {
     await (manager
       ? manager.getRepository(MembershipInviteOrmEntity)
       : this.repo
     ).save(invite);
+  }
+
+  async delete(
+    id: string,
+    organizationId: string,
+    manager?: EntityManager,
+  ): Promise<void> {
+    await (manager
+      ? manager.getRepository(MembershipInviteOrmEntity)
+      : this.repo
+    ).delete({ id, organizationId });
   }
 }

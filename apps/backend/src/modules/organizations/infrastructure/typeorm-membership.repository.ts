@@ -78,4 +78,38 @@ export class TypeOrmMembershipRepository implements IMembershipRepository {
       .where('membership.organizationId = :organizationId', { organizationId })
       .getCount();
   }
+
+  async countActiveByRole(
+    organizationId: string,
+    role: Role,
+    manager?: EntityManager,
+  ): Promise<number> {
+    if (!manager) {
+      return this.repo.count({
+        where: { organizationId, role, joinedAt: Not(IsNull()) },
+      });
+    }
+    // Row-locked within the caller's transaction so a concurrent last-owner
+    // check on the same organization serializes instead of racing.
+    const rows = await manager
+      .getRepository(MembershipOrmEntity)
+      .createQueryBuilder('membership')
+      .setLock('pessimistic_write')
+      .where('membership.organizationId = :organizationId', { organizationId })
+      .andWhere('membership.role = :role', { role })
+      .andWhere('membership.joinedAt IS NOT NULL')
+      .getMany();
+    return rows.length;
+  }
+
+  async deleteByUserAndOrganization(
+    userId: string,
+    organizationId: string,
+    manager?: EntityManager,
+  ): Promise<void> {
+    await (manager?.getRepository(MembershipOrmEntity) ?? this.repo).delete({
+      userId,
+      organizationId,
+    });
+  }
 }

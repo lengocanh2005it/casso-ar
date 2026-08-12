@@ -3,12 +3,15 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Headers,
   Param,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import {
   AuditActionType,
   AuditEntityType,
@@ -20,6 +23,7 @@ import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { CancelReceivableUseCase } from '../application/cancel-receivable.usecase';
 import { CreateReceivableUseCase } from '../application/create-receivable.usecase';
+import { ExportReceivablesUseCase } from '../application/export-receivables.usecase';
 import { GetReceivableUseCase } from '../application/get-receivable.usecase';
 import { ListReceivablesUseCase } from '../application/list-receivables.usecase';
 import { WriteOffReceivableUseCase } from '../application/write-off-receivable.usecase';
@@ -39,8 +43,28 @@ export class ReceivablesController {
     private readonly writeOffReceivableUseCase: WriteOffReceivableUseCase,
     private readonly getReceivableUseCase: GetReceivableUseCase,
     private readonly listReceivablesUseCase: ListReceivablesUseCase,
+    private readonly exportReceivablesUseCase: ExportReceivablesUseCase,
     private readonly idempotency: IdempotencyService,
   ) {}
+
+  @Get('export')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="receivables.csv"')
+  @RequirePermission(Permission.RECEIVABLE_READ)
+  async exportCsv(
+    @Res() response: Response,
+    @Query('status') status?: string,
+    @Query('salesRepresentativeId') salesRepresentativeId?: string,
+    @Query('customerId') customerId?: string,
+  ) {
+    const { csv, truncated } = await this.exportReceivablesUseCase.execute({
+      filters: { status, salesRepresentativeId, customerId },
+    });
+    if (truncated) {
+      response.setHeader('X-Export-Truncated', 'true');
+    }
+    response.send(csv);
+  }
 
   @Get()
   @RequirePermission(Permission.RECEIVABLE_READ)

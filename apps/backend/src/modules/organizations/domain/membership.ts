@@ -34,4 +34,8 @@ export class Membership {
   isActive(): boolean {
     return this.joinedAt !== null;
   }
+
+  withRole(role: Role): Membership {
+    return new Membership({ ...this, role });
+  }
 }

@@ -11,6 +11,7 @@ import { RemindersModule } from '../reminders/reminders.module';
 import { UsersModule } from '../users/users.module';
 import { AcceptInviteUseCase } from './application/accept-invite.usecase';
 import { AUTH_EMAIL_SENDER } from './application/auth-email-sender.port';
+import { DeleteInviteUseCase } from './application/delete-invite.usecase';
 import { EMAIL_VERIFICATION_TOKEN_REPOSITORY } from './application/email-verification-token-repository.port';
 import { ForgotPasswordUseCase } from './application/forgot-password.usecase';
 import { GetUserProfileUseCase } from './application/get-user-profile.usecase';
@@ -22,6 +23,8 @@ import { DEFAULT_ORGANIZATION_BOOTSTRAP } from './application/organization-boots
 import { PASSWORD_RESET_TOKEN_REPOSITORY } from './application/password-reset-token-repository.port';
 import { RefreshAccessTokenUseCase } from './application/refresh-access-token.usecase';
 import { REFRESH_TOKEN_REPOSITORY } from './application/refresh-token-repository.port';
+import { RemoveMemberUseCase } from './application/remove-member.usecase';
+import { ResendInviteUseCase } from './application/resend-invite.usecase';
 import { ResetPasswordUseCase } from './application/reset-password.usecase';
 import { SignupUseCase } from './application/signup.usecase';
 import { SwitchOrganizationUseCase } from './application/switch-organization.usecase';
@@ -68,6 +71,9 @@ import { InvitesController } from './presentation/invites.controller';
     GetUserProfileUseCase,
     ForgotPasswordUseCase,
     InviteMemberUseCase,
+    DeleteInviteUseCase,
+    ResendInviteUseCase,
+    RemoveMemberUseCase,
     LogoutUseCase,
     RefreshAccessTokenUseCase,
     ResetPasswordUseCase,

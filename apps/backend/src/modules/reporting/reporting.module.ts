@@ -3,6 +3,7 @@ import { AGING_REPORT_REPOSITORY } from './application/aging-report.repository.p
 import { AgingReportQueryService } from './application/aging-report-query.service';
 import { DASHBOARD_SUMMARY_REPOSITORY } from './application/dashboard-summary.repository.port';
 import { DashboardSummaryQueryService } from './application/dashboard-summary-query.service';
+import { ExportAgingReportUseCase } from './application/export-aging-report.usecase';
 import { TypeOrmAgingReportRepository } from './infrastructure/typeorm-aging-report.repository';
 import { TypeOrmDashboardSummaryRepository } from './infrastructure/typeorm-dashboard-summary.repository';
 import { ReportsController } from './presentation/reports.controller';
@@ -19,6 +20,7 @@ import { ReportsController } from './presentation/reports.controller';
     },
     AgingReportQueryService,
     DashboardSummaryQueryService,
+    ExportAgingReportUseCase,
   ],
   controllers: [ReportsController],
 })
