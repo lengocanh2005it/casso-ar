@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { type DataSource, type EntityManager, QueryFailedError } from 'typeorm';
+import { type DataSource, type EntityManager } from 'typeorm';
+import { isUniqueViolation } from '../../../common/database/unique-violation';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { IReminderExecutionRepository } from '../application/reminder-execution-repository.port';
 import {
@@ -87,10 +88,7 @@ export class TypeOrmReminderExecutionRepository
       });
       return true;
     } catch (error) {
-      if (
-        error instanceof QueryFailedError &&
-        (error as { code?: string }).code === '23505'
-      ) {
+      if (isUniqueViolation(error)) {
         return false;
       }
       throw error;

@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { ConflictException, Injectable } from '@nestjs/common';
-import { DataSource, QueryFailedError } from 'typeorm';
+import { DataSource } from 'typeorm';
+import { isUniqueViolation } from '../database/unique-violation';
 import { ErrorCode } from '../errors/error-code';
 import { TenantContextService } from '../tenancy/tenant-context';
 import { IdempotencyKeyOrmEntity } from './idempotency-key.orm-entity';
@@ -13,13 +14,6 @@ function canonicalize(obj: unknown): string {
   }
   const sorted = Object.keys(obj).sort();
   return `{${sorted.map((k) => `${JSON.stringify(k)}:${canonicalize((obj as Record<string, unknown>)[k])}`).join(',')}}`;
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    error instanceof QueryFailedError &&
-    (error as { code?: string }).code === '23505'
-  );
 }
 
 @Injectable()

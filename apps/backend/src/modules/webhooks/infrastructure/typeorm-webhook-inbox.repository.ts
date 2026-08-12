@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, Repository } from 'typeorm';
-import { QueryFailedError } from 'typeorm';
+import { isUniqueViolation } from '../../../common/database/unique-violation';
 import type { IWebhookInboxRepository } from '../application/webhook-inbox-repository.port';
 import { DuplicateWebhookError } from '../application/webhook-inbox-repository.port';
 import { WebhookInbox } from '../domain/webhook-inbox';
@@ -9,16 +9,6 @@ import { WebhookInboxOrmEntity } from './webhook-inbox.orm-entity';
 
 function toOrm(inbox: WebhookInbox): WebhookInboxOrmEntity {
   return Object.assign(new WebhookInboxOrmEntity(), inbox);
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  if (
-    !(error instanceof QueryFailedError) ||
-    typeof error.driverError !== 'object' ||
-    error.driverError === null
-  )
-    return false;
-  return 'code' in error.driverError && error.driverError.code === '23505';
 }
 
 @Injectable()

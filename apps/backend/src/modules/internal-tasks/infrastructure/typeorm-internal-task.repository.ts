@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, Repository } from 'typeorm';
-import { QueryFailedError } from 'typeorm';
+import { isUniqueViolation } from '../../../common/database/unique-violation';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { IInternalTaskRepository } from '../application/internal-task-repository.port';
@@ -147,7 +147,7 @@ export class TypeOrmInternalTaskRepository
       await repo.insert(toOrm(task));
       return true;
     } catch (error) {
-      if (error instanceof QueryFailedError && isUniqueViolation(error)) {
+      if (isUniqueViolation(error)) {
         return false;
       }
       throw error;
@@ -172,12 +172,4 @@ export class TypeOrmInternalTaskRepository
   async save(task: InternalTask, manager?: EntityManager): Promise<void> {
     await this.scopedSaveWithManager(toOrm(task), manager);
   }
-}
-
-function isUniqueViolation(error: QueryFailedError): boolean {
-  return (
-    typeof error.driverError === 'object' &&
-    error.driverError !== null &&
-    Reflect.get(error.driverError, 'code') === '23505'
-  );
 }

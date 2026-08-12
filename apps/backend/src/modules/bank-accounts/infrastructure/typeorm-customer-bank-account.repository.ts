@@ -1,11 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  type EntityManager,
-  type FindOptionsSelect,
-  QueryFailedError,
-  type Repository,
-} from 'typeorm';
+import type { EntityManager, FindOptionsSelect, Repository } from 'typeorm';
+import { isUniqueViolation } from '../../../common/database/unique-violation';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
@@ -95,10 +91,7 @@ export class TypeOrmCustomerBankAccountRepository
     try {
       await this.scopedSaveWithManager(toOrm(account), manager);
     } catch (error) {
-      if (
-        error instanceof QueryFailedError &&
-        (error as { code?: string }).code === '23505'
-      ) {
+      if (isUniqueViolation(error)) {
         throw new AppError(
           ErrorCode.CONFLICT,
           'Số tài khoản ngân hàng đã được liên kết.',

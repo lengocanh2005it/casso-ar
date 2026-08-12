@@ -1,11 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, FindOptionsSelect, Repository } from 'typeorm';
-import { In } from 'typeorm';
+import { In, QueryFailedError } from 'typeorm';
+import { isUniqueViolation } from '../../../common/database/unique-violation';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import type { IInvoiceRepository } from '../application/invoice-repository.port';
+import {
+  DUPLICATE_INVOICE_NUMBER,
+  type IInvoiceRepository,
+} from '../application/invoice-repository.port';
 import { Invoice } from '../domain/invoice';
 import { InvoiceOrmEntity } from './invoice.orm-entity';
+
+const INVOICE_NUMBER_UNIQUE_CONSTRAINT =
+  'UQ_invoices_organization_invoice_number';
 
 const INVOICE_SELECT = {
   id: true,
@@ -76,7 +85,30 @@ export class TypeOrmInvoiceRepository implements IInvoiceRepository {
       throw new Error('TENANT_MISMATCH');
     }
     const repo = manager ? manager.getRepository(InvoiceOrmEntity) : this.repo;
-    await repo.save(toOrm(invoice));
+    try {
+      await repo.save(toOrm(invoice));
+    } catch (error) {
+      if (
+        error instanceof QueryFailedError &&
+        isUniqueViolation(error) &&
+        this.isInvoiceNumberConstraint(error)
+      ) {
+        throw new AppError(ErrorCode.CONFLICT, 'Số hóa đơn đã tồn tại.', {
+          rowErrorCode: DUPLICATE_INVOICE_NUMBER,
+        });
+      }
+      throw error;
+    }
+  }
+
+  private isInvoiceNumberConstraint(error: QueryFailedError): boolean {
+    if (typeof error.driverError !== 'object' || error.driverError === null) {
+      return false;
+    }
+    return (
+      'constraint' in error.driverError &&
+      error.driverError.constraint === INVOICE_NUMBER_UNIQUE_CONSTRAINT
+    );
   }
 
   async findByIds(ids: string[]): Promise<Map<string, Invoice>> {

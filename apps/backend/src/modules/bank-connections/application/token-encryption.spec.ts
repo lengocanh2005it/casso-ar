@@ -1,3 +1,4 @@
+import { ErrorCode } from '../../../common/errors/error-code';
 import { decryptToken, encryptToken } from './token-encryption';
 
 describe('token encryption', () => {
@@ -13,15 +14,19 @@ describe('token encryption', () => {
     expect(decryptToken(first, key)).toBe('secret-token');
   });
 
-  it('rejects invalid encryption keys', () => {
+  it('rejects invalid encryption keys with the token error code', () => {
     expect(() => encryptToken('secret-token', 'z'.repeat(64))).toThrow(
-      '64-character hex string',
+      expect.objectContaining({
+        errorCode: ErrorCode.TOKEN_ENCRYPTION_FAILED,
+      }),
     );
   });
 
-  it('rejects a truncated or corrupt ciphertext', () => {
+  it('rejects a truncated or corrupt ciphertext with the token error code', () => {
     expect(() => decryptToken('bm90LWVuZ3RwX3VzZXJ0b3BhZ2U=', key)).toThrow(
-      'Invalid encrypted token',
+      expect.objectContaining({
+        errorCode: ErrorCode.TOKEN_ENCRYPTION_FAILED,
+      }),
     );
   });
 });

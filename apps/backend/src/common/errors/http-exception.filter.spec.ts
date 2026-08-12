@@ -123,6 +123,7 @@ describe('HttpExceptionFilter', () => {
     const expectedFiveHundredCodes = new Set<ErrorCode>([
       ErrorCode.INTERNAL_SERVER_ERROR,
       ErrorCode.EMAIL_SEND_FAILED,
+      ErrorCode.TOKEN_ENCRYPTION_FAILED,
     ]);
 
     for (const code of Object.values(ErrorCode)) {
