@@ -73,6 +73,7 @@ A B2B SaaS platform for automating accounts receivable management and collection
 6. **Allocation:** `Payment.customerId` MUST exist and match `Receivable.customerId`
 7. **Undo:** soft-delete + audit; do not physically delete
 8. **Terminal statuses:** PAID, WRITTEN_OFF, CANCELLED — cannot transition further
+9. **Plan tiers:** FREE < STARTER < BUSINESS < ENTERPRISE (strict order). A `Subscription` may only move to a strictly higher tier (self-service upgrade); there is no downgrade or cancel action — an org that stops paying is moved back to FREE automatically at the next billing period, not by a user-triggered downgrade
 
 ## RBAC
 
@@ -86,7 +87,7 @@ A B2B SaaS platform for automating accounts receivable management and collection
 | PAYMENT_ALLOCATE | ✓ | ✓ | ✓ | — | — |
 | PAYMENT_ALLOCATE_UNDO | ✓ | ✓ | — | — | — |
 | BANK_CONNECTION_MANAGE | ✓ | — | — | — | — |
-| SUBSCRIPTION_MANAGE | ✓ | — | — | — | — |
+| SUBSCRIPTION_MANAGE | ✓ | ✓ | — | — | — |
 | USER_MANAGE | ✓ | ✓ | — | — | — |
 
 **SALES_REP:** can only view receivables for assigned customers (`WHERE salesRepresentativeId = ctx.userId`)
