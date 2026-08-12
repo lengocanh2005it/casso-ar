@@ -1,4 +1,7 @@
-import axios, { type AxiosRequestConfig } from 'axios';
+import axios, {
+  type AxiosRequestConfig,
+  type RawAxiosResponseHeaders,
+} from 'axios';
 
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
@@ -109,7 +112,7 @@ export const authTokenManager = new AuthTokenManager();
 
 async function send<T>(
   config: AxiosRequestConfig,
-): Promise<{ data: T; headers: Record<string, string> }> {
+): Promise<{ data: T; headers: RawAxiosResponseHeaders }> {
   const token = await authTokenManager.getValidAccessToken();
   try {
     const response = await axiosClient.request<T>({
@@ -121,7 +124,7 @@ async function send<T>(
     });
     return {
       data: response.data,
-      headers: response.headers as Record<string, string>,
+      headers: response.headers,
     };
   } catch (error) {
     const status =
@@ -142,7 +145,7 @@ export async function apiRequest<T>(config: AxiosRequestConfig): Promise<T> {
 
 export async function apiRequestWithHeaders<T>(
   config: AxiosRequestConfig,
-): Promise<{ data: T; headers: Record<string, string> }> {
+): Promise<{ data: T; headers: RawAxiosResponseHeaders }> {
   return send<T>(config);
 }
 

@@ -81,7 +81,12 @@ export function UsersTab() {
               id="invite-role"
               className="h-9 rounded-md border bg-background px-3 text-sm"
               value={role}
-              onChange={(event) => setRole(event.target.value as Role)}
+              onChange={(event) => {
+                const nextRole = roles.find(
+                  (item) => item === event.target.value,
+                );
+                if (nextRole) setRole(nextRole);
+              }}
             >
               {roles.map((item) => (
                 <option key={item} value={item}>
