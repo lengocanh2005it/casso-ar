@@ -132,7 +132,8 @@ describe('TypeOrmDashboardSummaryRepository.getReminderEffectivenessStats (e2e)'
         new Date('2026-09-02'),
         ReminderExecutionStatus.SENT,
       ),
-      // paidOnTime: single send 08-04, paid 08-06 (within 7d) → counts
+      // paidOnTime: single send 08-04, paid 08-10 (6 days later, within 7d)
+      // → counts
       execution(
         paidOnTime,
         new Date('2026-08-04'),

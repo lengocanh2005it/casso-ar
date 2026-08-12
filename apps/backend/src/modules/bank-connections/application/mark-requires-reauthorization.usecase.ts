@@ -5,6 +5,8 @@ import {
   EVENT_PUBLISHER,
   type IEventPublisher,
 } from '../../../common/events/event-publisher.port';
+import type { BankConnection } from '../domain/bank-connection';
+import type { ConnectionAuditEventType } from '../domain/connection-audit-event';
 import { ConnectionAuditEvent } from '../domain/connection-audit-event';
 import {
   BANK_CONNECTION_REPOSITORY,
@@ -18,10 +20,14 @@ import {
 
 export const BANK_CONNECTION_STATUS_CHANGED = 'bank-connection.status.changed';
 
+export type BankConnectionStatusTransition =
+  | 'REQUIRES_REAUTHORIZATION'
+  | 'ERROR';
+
 export interface BankConnectionStatusChangedEvent {
   bankConnectionId: string;
   organizationId: string;
-  status: 'REQUIRES_REAUTHORIZATION' | 'ERROR';
+  status: BankConnectionStatusTransition;
 }
 
 @Injectable()
@@ -64,29 +70,40 @@ export class MarkRequiresReauthorizationUseCase {
     await this.markStatus(connectionId, reason, 'REQUIRES_REAUTHORIZATION');
   }
 
+  private readonly transitions: Record<
+    BankConnectionStatusTransition,
+    {
+      auditWhenActive: ConnectionAuditEventType;
+      auditWhenInactive: ConnectionAuditEventType;
+      apply: (connection: BankConnection) => BankConnection;
+    }
+  > = {
+    REQUIRES_REAUTHORIZATION: {
+      auditWhenActive: 'MARKED_REQUIRES_REAUTH',
+      auditWhenInactive: 'API_CALL_FAILED_401',
+      apply: (connection) => connection.markRequiresReauthorization(),
+    },
+    ERROR: {
+      auditWhenActive: 'MARKED_ERROR',
+      auditWhenInactive: 'API_CALL_FAILED',
+      apply: (connection) => connection.markError(),
+    },
+  };
+
   private async markStatus(
     connectionId: string,
     reason: string,
-    status: 'REQUIRES_REAUTHORIZATION' | 'ERROR',
+    status: BankConnectionStatusTransition,
   ): Promise<void> {
     const connection =
       await this.bankConnectionRepo.findByIdUnscoped(connectionId);
     if (!connection) return;
     const wasActive = connection.status === 'ACTIVE';
-    const eventType =
-      status === 'ERROR'
-        ? wasActive
-          ? 'MARKED_ERROR'
-          : 'API_CALL_FAILED'
-        : wasActive
-          ? 'MARKED_REQUIRES_REAUTH'
-          : 'API_CALL_FAILED_401';
+    const transition = this.transitions[status];
     await this.dataSource.transaction(async (manager) => {
       if (wasActive) {
         await this.bankConnectionRepo.save(
-          status === 'ERROR'
-            ? connection.markError()
-            : connection.markRequiresReauthorization(),
+          transition.apply(connection),
           manager,
         );
       }
@@ -95,7 +112,9 @@ export class MarkRequiresReauthorizationUseCase {
           id: randomUUID(),
           organizationId: connection.organizationId,
           bankConnectionId: connectionId,
-          eventType,
+          eventType: wasActive
+            ? transition.auditWhenActive
+            : transition.auditWhenInactive,
           metadata: { reason },
           createdAt: new Date(),
         }),
@@ -110,7 +129,7 @@ export class MarkRequiresReauthorizationUseCase {
   private emitStatusChanged(
     bankConnectionId: string,
     organizationId: string,
-    status: 'REQUIRES_REAUTHORIZATION' | 'ERROR',
+    status: BankConnectionStatusTransition,
   ): void {
     this.eventPublisher.emit(BANK_CONNECTION_STATUS_CHANGED, {
       bankConnectionId,
