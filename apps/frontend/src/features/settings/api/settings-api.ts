@@ -3,6 +3,7 @@ import type {
   EmailTemplate,
   EmailTemplateInput,
   EmailTemplatePreview,
+  OrganizationInviteList,
   OrganizationMemberList,
   SmtpConfig,
   SmtpConfigInput,
@@ -123,4 +124,59 @@ export function inviteOrganizationMember(
     `/api/v1/organizations/${organizationId}/invites`,
     input,
   );
+}
+
+export function changeMemberRole(
+  organizationId: string,
+  userId: string,
+  role: string,
+): Promise<{ id: string; userId: string; role: string }> {
+  return apiRequest({
+    url: `/api/v1/organizations/${organizationId}/members/${userId}`,
+    method: 'PATCH',
+    data: { role },
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}
+
+export function removeMember(
+  organizationId: string,
+  userId: string,
+): Promise<void> {
+  return apiRequest({
+    url: `/api/v1/organizations/${organizationId}/members/${userId}`,
+    method: 'DELETE',
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}
+
+export function fetchOrganizationInvites(
+  organizationId: string,
+): Promise<OrganizationInviteList> {
+  return apiRequest<OrganizationInviteList>({
+    url: `/api/v1/organizations/${organizationId}/invites?page=1&limit=100`,
+    method: 'GET',
+  });
+}
+
+export function revokeInvite(
+  organizationId: string,
+  inviteId: string,
+): Promise<void> {
+  return apiRequest({
+    url: `/api/v1/organizations/${organizationId}/invites/${inviteId}`,
+    method: 'DELETE',
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}
+
+export function resendInvite(
+  organizationId: string,
+  inviteId: string,
+): Promise<{ success: boolean }> {
+  return apiRequest({
+    url: `/api/v1/organizations/${organizationId}/invites/${inviteId}/resend`,
+    method: 'POST',
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
 }

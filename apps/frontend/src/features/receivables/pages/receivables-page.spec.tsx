@@ -1,13 +1,20 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { ReceivablesPage } from './receivables-page';
 
 const apiRequest = vi.fn();
+const apiRequestWithHeaders = vi.fn();
+const downloadCsv = vi.fn();
 
 vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
+  apiRequestWithHeaders: (...args: unknown[]) => apiRequestWithHeaders(...args),
+}));
+
+vi.mock('@/lib/download-csv', () => ({
+  downloadCsv: (...args: unknown[]) => downloadCsv(...args),
 }));
 
 vi.mock('@/contexts/auth-context', () => ({
@@ -60,5 +67,36 @@ describe('ReceivablesPage', () => {
       'href',
       '/receivables/receivable-1',
     );
+  });
+
+  it('exports the current filters as CSV', async () => {
+    apiRequest.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
+    apiRequestWithHeaders.mockResolvedValue({
+      data: 'a,b\n1,2',
+      headers: {},
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ReceivablesPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Xuất CSV' }));
+
+    await waitFor(() =>
+      expect(apiRequestWithHeaders).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: '/api/v1/receivables/export',
+          method: 'GET',
+        }),
+      ),
+    );
+    expect(downloadCsv).toHaveBeenCalledWith('a,b\n1,2', 'cong-no.csv');
   });
 });

@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   Headers,
   HttpCode,
   Inject,
@@ -10,6 +11,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -20,6 +22,7 @@ import {
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../../../common/auth/optional-jwt-auth.guard';
 import { Public } from '../../../common/auth/public.decorator';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
@@ -30,10 +33,12 @@ import {
 import { AcceptInviteUseCase } from '../application/accept-invite.usecase';
 import { DeleteInviteUseCase } from '../application/delete-invite.usecase';
 import { InviteMemberUseCase } from '../application/invite-member.usecase';
+import { ListInvitesUseCase } from '../application/list-invites.usecase';
 import { RemoveMemberUseCase } from '../application/remove-member.usecase';
 import { ResendInviteUseCase } from '../application/resend-invite.usecase';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { InviteMemberDto } from './dto/invite-member.dto';
+import { toInviteResponse } from './dto/invite-response.dto';
 
 @Controller()
 export class InvitesController {
@@ -43,6 +48,7 @@ export class InvitesController {
     private readonly deleteInviteUseCase: DeleteInviteUseCase,
     private readonly resendInviteUseCase: ResendInviteUseCase,
     private readonly removeMemberUseCase: RemoveMemberUseCase,
+    private readonly listInvitesUseCase: ListInvitesUseCase,
     @Inject(ORGANIZATION_REPOSITORY)
     private readonly organizationRepo: IOrganizationRepository,
     private readonly idempotency: IdempotencyService,
@@ -68,6 +74,27 @@ export class InvitesController {
       invitedByUserId: request.user?.userId ?? '',
     });
     return { success: true };
+  }
+
+  @Get('organizations/:id/invites')
+  @UseGuards(JwtAuthGuard, PermissionGuard)
+  @RequirePermission(Permission.ORGANIZATION_MANAGE)
+  async listInvites(
+    @Param('id') organizationId: string,
+    @Query() pagination: PaginationDto,
+    @Req() request: AuthRequest,
+  ) {
+    assertOrgMatches(request, organizationId);
+    const result = await this.listInvitesUseCase.execute({
+      page: pagination.page,
+      limit: pagination.limit,
+    });
+    return {
+      items: result.items.map(toInviteResponse),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+    };
   }
 
   @Public()

@@ -55,3 +55,18 @@ export interface OrganizationMemberList {
   page: number;
   limit: number;
 }
+
+export interface Invite {
+  id: string;
+  email: string;
+  role: Role;
+  invitedAt: string;
+  expiresAt: string;
+}
+
+export interface OrganizationInviteList {
+  items: Invite[];
+  total: number;
+  page: number;
+  limit: number;
+}

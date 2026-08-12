@@ -2,14 +2,20 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { EmailTemplateInput, SmtpConfigInput } from '../types';
 import {
+  changeMemberRole,
   createEmailTemplate,
   deleteEmailTemplate,
   deleteSmtpConfig,
   fetchEmailTemplates,
+  fetchOrganizationInvites,
   fetchOrganizationMembers,
   fetchSmtpConfig,
+  getResponseErrorMessage,
   inviteOrganizationMember,
   previewEmailTemplate,
+  removeMember,
+  resendInvite,
+  revokeInvite,
   saveSmtpConfig,
   updateEmailTemplate,
 } from './settings-api';
@@ -129,5 +135,84 @@ export function useInviteMember() {
       });
     },
     onError: () => toast.error('Không thể gửi lời mời.'),
+  });
+}
+
+export function useChangeMemberRole(organizationId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: string }) =>
+      changeMemberRole(organizationId ?? '', userId, role),
+    onSuccess: () => {
+      toast.success('Đã đổi vai trò.');
+      void queryClient.invalidateQueries({
+        queryKey: ['organization-members', organizationId],
+      });
+    },
+    onError: (error) =>
+      toast.error(
+        getResponseErrorMessage(
+          error,
+          'Không thể xoá/đổi vai trò OWNER cuối cùng.',
+        ),
+      ),
+  });
+}
+
+export function useRemoveMember(organizationId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => removeMember(organizationId ?? '', userId),
+    onSuccess: () => {
+      toast.success('Đã xoá thành viên.');
+      void queryClient.invalidateQueries({
+        queryKey: ['organization-members', organizationId],
+      });
+    },
+    onError: (error) =>
+      toast.error(
+        getResponseErrorMessage(
+          error,
+          'Không thể xoá/đổi vai trò OWNER cuối cùng.',
+        ),
+      ),
+  });
+}
+
+export function useOrganizationInvites(organizationId: string | undefined) {
+  return useQuery({
+    queryKey: ['organization-invites', organizationId],
+    queryFn: () => fetchOrganizationInvites(organizationId ?? ''),
+    enabled: Boolean(organizationId),
+  });
+}
+
+export function useRevokeInvite(organizationId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (inviteId: string) =>
+      revokeInvite(organizationId ?? '', inviteId),
+    onSuccess: () => {
+      toast.success('Đã thu hồi lời mời.');
+      void queryClient.invalidateQueries({
+        queryKey: ['organization-invites', organizationId],
+      });
+    },
+    onError: () => toast.error('Không thể thu hồi lời mời.'),
+  });
+}
+
+export function useResendInvite(organizationId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (inviteId: string) =>
+      resendInvite(organizationId ?? '', inviteId),
+    onSuccess: () => {
+      toast.success('Đã gửi lại lời mời.');
+      void queryClient.invalidateQueries({
+        queryKey: ['organization-invites', organizationId],
+      });
+    },
+    onError: () => toast.error('Không thể gửi lại lời mời.'),
   });
 }

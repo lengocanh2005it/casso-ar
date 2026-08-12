@@ -1,5 +1,16 @@
 import { Permission, Role } from '@casso-ledger/shared-types';
 import { useState } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,7 +23,13 @@ import {
 } from '@/components/ui/table';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
-import { useInviteMember, useOrganizationMembers } from '../api/use-settings';
+import {
+  useChangeMemberRole,
+  useInviteMember,
+  useOrganizationMembers,
+  useRemoveMember,
+} from '../api/use-settings';
+import { PendingInvitesTable } from './pending-invites-table';
 
 const roles = Object.values(Role);
 
@@ -21,12 +38,18 @@ export function UsersTab() {
   const canView =
     user?.role === Role.OWNER || user?.role === Role.FINANCE_MANAGER;
   const canInvite = hasPermission(user?.role ?? null, Permission.USER_MANAGE);
+  const canManage = hasPermission(
+    user?.role ?? null,
+    Permission.ORGANIZATION_MANAGE,
+  );
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>(Role.ACCOUNTANT);
   const membersQuery = useOrganizationMembers(
     canView ? user?.organizationId : undefined,
   );
   const invite = useInviteMember();
+  const changeRole = useChangeMemberRole(user?.organizationId);
+  const removeMember = useRemoveMember(user?.organizationId);
 
   if (!canView) return null;
 
@@ -58,7 +81,12 @@ export function UsersTab() {
               id="invite-role"
               className="h-9 rounded-md border bg-background px-3 text-sm"
               value={role}
-              onChange={(event) => setRole(event.target.value as Role)}
+              onChange={(event) => {
+                const nextRole = roles.find(
+                  (item) => item === event.target.value,
+                );
+                if (nextRole) setRole(nextRole);
+              }}
             >
               {roles.map((item) => (
                 <option key={item} value={item}>
@@ -85,20 +113,88 @@ export function UsersTab() {
                 <TableHead>Tên</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Vai trò</TableHead>
+                {canManage && <TableHead>Thao tác</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {membersQuery.data.items.map((member) => (
-                <TableRow key={member.id}>
-                  <TableCell>{member.name}</TableCell>
-                  <TableCell>{member.email}</TableCell>
-                  <TableCell>{member.role}</TableCell>
-                </TableRow>
-              ))}
+              {membersQuery.data.items.map((member) => {
+                const isSelf = member.userId === user?.id;
+                return (
+                  <TableRow key={member.id}>
+                    <TableCell>{member.name}</TableCell>
+                    <TableCell>{member.email}</TableCell>
+                    <TableCell>
+                      {canManage && !isSelf ? (
+                        <select
+                          aria-label={`Vai trò của ${member.name}`}
+                          className="h-9 rounded-md border bg-background px-3 text-sm"
+                          value={member.role}
+                          onChange={(event) => {
+                            const nextRole = roles.find(
+                              (item) => item === event.target.value,
+                            );
+                            if (nextRole) {
+                              changeRole.mutate({
+                                userId: member.userId,
+                                role: nextRole,
+                              });
+                            }
+                          }}
+                        >
+                          {roles.map((item) => (
+                            <option key={item} value={item}>
+                              {item}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        member.role
+                      )}
+                    </TableCell>
+                    {canManage && (
+                      <TableCell>
+                        {!isSelf && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="sm">
+                                Xoá {member.name}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Xoá {member.name} khỏi tổ chức?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Người này sẽ mất quyền truy cập ngay lập tức.
+                                  Thao tác này không thể hoàn tác.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Hủy</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() =>
+                                    removeMember.mutate(member.userId)
+                                  }
+                                >
+                                  Xác nhận
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}
       </div>
+      {canManage && (
+        <PendingInvitesTable organizationId={user?.organizationId} />
+      )}
     </div>
   );
 }

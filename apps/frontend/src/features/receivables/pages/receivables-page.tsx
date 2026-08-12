@@ -1,5 +1,10 @@
+import { Permission } from '@casso-ledger/shared-types';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/auth-context';
+import { hasPermission } from '@/lib/rbac';
+import { useCsvExport } from '@/lib/use-csv-export';
+import { exportReceivablesCsv } from '../api/receivables-api';
 import { useReceivables } from '../api/use-receivables';
 import { CreateReceivableDialog } from '../components/create-receivable-dialog';
 import { ImportInvoicesDialog } from '../components/import-invoices-dialog';
@@ -8,7 +13,9 @@ import { ReceivableTable } from '../components/receivable-table';
 import type { ReceivableStatus } from '../types';
 
 export function ReceivablesPage() {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { isExporting, exportCsv } = useCsvExport();
   const status =
     (searchParams.get('status') as ReceivableStatus | null) ?? undefined;
   const customerId = searchParams.get('customerId') ?? undefined;
@@ -18,6 +25,10 @@ export function ReceivablesPage() {
     page,
   );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
+  const canExport = hasPermission(
+    user?.role ?? null,
+    Permission.RECEIVABLE_READ,
+  );
 
   function setPage(nextPage: number) {
     setSearchParams((current) => {
@@ -36,6 +47,20 @@ export function ReceivablesPage() {
             Công nợ
           </h1>
           <div className="flex flex-wrap gap-2">
+            {canExport && (
+              <Button
+                variant="outline"
+                disabled={isExporting}
+                onClick={() =>
+                  exportCsv(
+                    () => exportReceivablesCsv({ status, customerId }),
+                    'cong-no.csv',
+                  )
+                }
+              >
+                {isExporting ? 'Đang xuất…' : 'Xuất CSV'}
+              </Button>
+            )}
             <ImportInvoicesDialog />
             <CreateReceivableDialog />
           </div>

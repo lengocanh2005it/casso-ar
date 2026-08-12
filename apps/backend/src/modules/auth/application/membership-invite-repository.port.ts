@@ -1,5 +1,8 @@
 import type { EntityManager } from 'typeorm';
-import type { MembershipInvite } from '../domain/membership-invite';
+import type {
+  MembershipInvite,
+  PendingInviteSummary,
+} from '../domain/membership-invite';
 
 export interface IMembershipInviteRepository {
   findByTokenHash(tokenHash: string): Promise<MembershipInvite | null>;
@@ -13,6 +16,12 @@ export interface IMembershipInviteRepository {
     organizationId: string,
     manager?: EntityManager,
   ): Promise<void>;
+  findPendingPageByOrganization(
+    organizationId: string,
+    page: number,
+    limit: number,
+  ): Promise<PendingInviteSummary[]>;
+  countPendingByOrganization(organizationId: string): Promise<number>;
 }
 
 export const MEMBERSHIP_INVITE_REPOSITORY = Symbol(

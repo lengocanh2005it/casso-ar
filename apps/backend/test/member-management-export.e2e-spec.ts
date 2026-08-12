@@ -267,6 +267,29 @@ describe('Member management + CSV export (integration)', () => {
     expect(freshInvite?.tokenHash).not.toBe('hash-invite');
   });
 
+  it('lists pending invites, excluding accepted ones', async () => {
+    await dataSource.getRepository(MembershipInviteOrmEntity).save({
+      id: randomUUID(),
+      organizationId: orgA,
+      email: 'accepted@example.com',
+      role: Role.VIEWER,
+      invitedByUserId: ownerA,
+      tokenHash: 'hash-accepted',
+      expiresAt: new Date(Date.now() + 60_000),
+      acceptedAt: new Date(),
+      createdAt: new Date(),
+    });
+
+    const response = await request(app.getHttpServer())
+      .get(`/api/v1/organizations/${orgA}/invites`)
+      .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .expect(200);
+
+    expect(response.body.items).toHaveLength(1);
+    expect(response.body.items[0].email).toBe('invitee@example.com');
+    expect(response.body.items[0]).not.toHaveProperty('tokenHash');
+  });
+
   it('exports receivables as an attachment CSV', async () => {
     const response = await request(app.getHttpServer())
       .get('/api/v1/receivables/export')

@@ -11,7 +11,11 @@ vi.mock('axios', () => ({
   },
 }));
 
-import { AuthTokenManager, apiRequest } from './api-client';
+import {
+  AuthTokenManager,
+  apiRequest,
+  apiRequestWithHeaders,
+} from './api-client';
 
 function tokenWithExpiry(expiresAt: number): string {
   return `header.${btoa(JSON.stringify({ exp: expiresAt }))}.signature`;
@@ -103,5 +107,28 @@ describe('AuthTokenManager', () => {
 
     expect(postMock).toHaveBeenCalledWith('/api/v1/auth/logout');
     await expect(manager.getValidAccessToken()).resolves.toBeNull();
+  });
+});
+
+describe('apiRequestWithHeaders', () => {
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+
+  it('resolves with both the response data and headers', async () => {
+    requestMock.mockResolvedValue({
+      data: 'csv text',
+      headers: { 'x-export-truncated': 'true' },
+    });
+
+    await expect(
+      apiRequestWithHeaders({
+        url: '/api/v1/receivables/export',
+        method: 'GET',
+      }),
+    ).resolves.toEqual({
+      data: 'csv text',
+      headers: { 'x-export-truncated': 'true' },
+    });
   });
 });

@@ -1,4 +1,7 @@
-import axios, { type AxiosRequestConfig } from 'axios';
+import axios, {
+  type AxiosRequestConfig,
+  type RawAxiosResponseHeaders,
+} from 'axios';
 
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
@@ -107,7 +110,9 @@ export class AuthTokenManager {
 
 export const authTokenManager = new AuthTokenManager();
 
-export async function apiRequest<T>(config: AxiosRequestConfig): Promise<T> {
+async function send<T>(
+  config: AxiosRequestConfig,
+): Promise<{ data: T; headers: RawAxiosResponseHeaders }> {
   const token = await authTokenManager.getValidAccessToken();
   try {
     const response = await axiosClient.request<T>({
@@ -117,7 +122,10 @@ export async function apiRequest<T>(config: AxiosRequestConfig): Promise<T> {
         ...(config.headers ?? {}),
       },
     });
-    return response.data;
+    return {
+      data: response.data,
+      headers: response.headers,
+    };
   } catch (error) {
     const status =
       typeof error === 'object' && error !== null && 'response' in error
@@ -128,6 +136,17 @@ export async function apiRequest<T>(config: AxiosRequestConfig): Promise<T> {
     }
     throw error;
   }
+}
+
+export async function apiRequest<T>(config: AxiosRequestConfig): Promise<T> {
+  const { data } = await send<T>(config);
+  return data;
+}
+
+export async function apiRequestWithHeaders<T>(
+  config: AxiosRequestConfig,
+): Promise<{ data: T; headers: RawAxiosResponseHeaders }> {
+  return send<T>(config);
 }
 
 export function postWithIdempotency<T>(
