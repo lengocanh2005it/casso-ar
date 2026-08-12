@@ -318,6 +318,7 @@ enum ErrorCode {
   TEMPLATE_IN_USE = 'TEMPLATE_IN_USE',
   EMAIL_SEND_FAILED = 'EMAIL_SEND_FAILED',
   IDEMPOTENCY_KEY_REUSED = 'IDEMPOTENCY_KEY_REUSED',
+  INVALID_PLAN_TRANSITION = 'INVALID_PLAN_TRANSITION',
 }
 ```
 
@@ -509,6 +510,7 @@ REDIS_PORT=6379
 | `TEMPLATE_IN_USE` | 409 | Template referenced by rule |
 | `EMAIL_SEND_FAILED` | 500 | Email provider error |
 | `IDEMPOTENCY_KEY_REUSED` | 409 | Duplicate idempotency key |
+| `INVALID_PLAN_TRANSITION` | 400 | Target plan tier is not strictly higher than the current plan |
 
 ### Usage rules
 
