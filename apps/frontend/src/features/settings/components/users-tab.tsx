@@ -129,12 +129,17 @@ export function UsersTab() {
                           aria-label={`Vai trò của ${member.name}`}
                           className="h-9 rounded-md border bg-background px-3 text-sm"
                           value={member.role}
-                          onChange={(event) =>
-                            changeRole.mutate({
-                              userId: member.userId,
-                              role: event.target.value,
-                            })
-                          }
+                          onChange={(event) => {
+                            const nextRole = roles.find(
+                              (item) => item === event.target.value,
+                            );
+                            if (nextRole) {
+                              changeRole.mutate({
+                                userId: member.userId,
+                                role: nextRole,
+                              });
+                            }
+                          }}
                         >
                           {roles.map((item) => (
                             <option key={item} value={item}>

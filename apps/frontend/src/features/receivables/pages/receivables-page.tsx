@@ -1,11 +1,9 @@
 import { Permission } from '@casso-ledger/shared-types';
-import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
-import { downloadCsv } from '@/lib/download-csv';
 import { hasPermission } from '@/lib/rbac';
+import { useCsvExport } from '@/lib/use-csv-export';
 import { exportReceivablesCsv } from '../api/receivables-api';
 import { useReceivables } from '../api/use-receivables';
 import { CreateReceivableDialog } from '../components/create-receivable-dialog';
@@ -17,7 +15,7 @@ import type { ReceivableStatus } from '../types';
 export function ReceivablesPage() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [isExporting, setIsExporting] = useState(false);
+  const { isExporting, exportCsv } = useCsvExport();
   const status =
     (searchParams.get('status') as ReceivableStatus | null) ?? undefined;
   const customerId = searchParams.get('customerId') ?? undefined;
@@ -40,26 +38,6 @@ export function ReceivablesPage() {
     });
   }
 
-  async function exportCsv() {
-    setIsExporting(true);
-    try {
-      const { csv, truncated } = await exportReceivablesCsv({
-        status,
-        customerId,
-      });
-      downloadCsv(csv, 'cong-no.csv');
-      if (truncated) {
-        toast.warning(
-          'Chỉ xuất 10.000 dòng đầu, vui lòng lọc bớt để xuất đầy đủ.',
-        );
-      }
-    } catch {
-      toast.error('Không thể xuất CSV.');
-    } finally {
-      setIsExporting(false);
-    }
-  }
-
   return (
     <div className="space-y-5">
       <div>
@@ -73,7 +51,12 @@ export function ReceivablesPage() {
               <Button
                 variant="outline"
                 disabled={isExporting}
-                onClick={exportCsv}
+                onClick={() =>
+                  exportCsv(
+                    () => exportReceivablesCsv({ status, customerId }),
+                    'cong-no.csv',
+                  )
+                }
               >
                 {isExporting ? 'Đang xuất…' : 'Xuất CSV'}
               </Button>

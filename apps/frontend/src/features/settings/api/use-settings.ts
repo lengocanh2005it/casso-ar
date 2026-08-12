@@ -150,7 +150,12 @@ export function useChangeMemberRole(organizationId: string | undefined) {
       });
     },
     onError: (error) =>
-      toast.error(getResponseErrorMessage(error, 'Không thể đổi vai trò.')),
+      toast.error(
+        getResponseErrorMessage(
+          error,
+          'Không thể xoá/đổi vai trò OWNER cuối cùng.',
+        ),
+      ),
   });
 }
 
@@ -165,7 +170,12 @@ export function useRemoveMember(organizationId: string | undefined) {
       });
     },
     onError: (error) =>
-      toast.error(getResponseErrorMessage(error, 'Không thể xoá thành viên.')),
+      toast.error(
+        getResponseErrorMessage(
+          error,
+          'Không thể xoá/đổi vai trò OWNER cuối cùng.',
+        ),
+      ),
   });
 }
 

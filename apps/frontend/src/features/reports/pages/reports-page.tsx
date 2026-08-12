@@ -1,11 +1,6 @@
-import { Permission } from '@casso-ledger/shared-types';
-import { useState } from 'react';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/contexts/auth-context';
-import { downloadCsv } from '@/lib/download-csv';
-import { hasPermission } from '@/lib/rbac';
+import { useCsvExport } from '@/lib/use-csv-export';
 import { exportAgingReportCsv } from '../api/reports-api';
 import { useAgingReport, useDashboardSummary } from '../api/use-reports';
 import { AgingChart } from '../components/aging-chart';
@@ -13,23 +8,9 @@ import { AgingTable } from '../components/aging-table';
 import { DashboardSummary } from '../components/dashboard-summary';
 
 export function ReportsPage() {
-  const { user } = useAuth();
-  const [isExporting, setIsExporting] = useState(false);
+  const { isExporting, exportCsv } = useCsvExport();
   const summaryQuery = useDashboardSummary();
   const agingQuery = useAgingReport();
-  const canExport = hasPermission(user?.role ?? null, Permission.REPORT_READ);
-
-  async function exportCsv() {
-    setIsExporting(true);
-    try {
-      const csv = await exportAgingReportCsv();
-      downloadCsv(csv, 'bao-cao-tuoi-no.csv');
-    } catch {
-      toast.error('Không thể xuất CSV.');
-    } finally {
-      setIsExporting(false);
-    }
-  }
 
   if (summaryQuery.isPending || agingQuery.isPending) {
     return <p>Đang tải báo cáo…</p>;
@@ -53,11 +34,18 @@ export function ReportsPage() {
             Theo dõi công nợ, tuổi nợ và khả năng thu tiền.
           </p>
         </div>
-        {canExport && (
-          <Button variant="outline" disabled={isExporting} onClick={exportCsv}>
-            {isExporting ? 'Đang xuất…' : 'Xuất CSV'}
-          </Button>
-        )}
+        <Button
+          variant="outline"
+          disabled={isExporting}
+          onClick={() =>
+            exportCsv(
+              () => exportAgingReportCsv().then((csv) => ({ csv })),
+              'bao-cao-tuoi-no.csv',
+            )
+          }
+        >
+          {isExporting ? 'Đang xuất…' : 'Xuất CSV'}
+        </Button>
       </div>
       <DashboardSummary summary={summaryQuery.data} />
       <div className="grid gap-4 lg:grid-cols-2">
