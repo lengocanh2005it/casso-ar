@@ -14,3 +14,11 @@ export function fetchDashboardSummary(): Promise<DashboardSummary> {
     method: 'GET',
   });
 }
+
+export function exportAgingReportCsv(): Promise<string> {
+  return apiRequest<string>({
+    url: '/api/v1/reports/aging/export',
+    method: 'GET',
+    responseType: 'text',
+  });
+}
