@@ -134,4 +134,68 @@ describe('Subscription', () => {
 
     expect(result).toBe(subscription);
   });
+
+  describe('changeToPlan', () => {
+    it('moves to a strictly higher tier and applies the new plan limits', () => {
+      const subscription = Subscription.createFree(
+        'sub-1',
+        'org-1',
+        new Date('2026-08-15T00:00:00.000Z'),
+      );
+
+      const upgraded = subscription.changeToPlan(
+        PlanId.STARTER,
+        new Date('2026-08-16T00:00:00.000Z'),
+      );
+
+      expect(upgraded.planId).toBe(PlanId.STARTER);
+      expect(upgraded.receivableMonthlyLimit).toBe(500);
+      expect(upgraded.bankConnectionLimit).toBe(2);
+      expect(upgraded.copilotChatMonthlyLimit).toBe(100);
+      expect(upgraded.canUseCustomSmtp).toBe(false);
+    });
+
+    it('keeps the current billing period unchanged on an upgrade', () => {
+      const subscription = Subscription.createFree(
+        'sub-1',
+        'org-1',
+        new Date('2026-08-15T00:00:00.000Z'),
+      );
+
+      const upgraded = subscription.changeToPlan(
+        PlanId.BUSINESS,
+        new Date('2026-08-16T00:00:00.000Z'),
+      );
+
+      expect(upgraded.currentPeriodStart).toEqual(
+        subscription.currentPeriodStart,
+      );
+      expect(upgraded.currentPeriodEnd).toEqual(subscription.currentPeriodEnd);
+    });
+
+    it('rejects a same-tier or lower-tier target', () => {
+      const subscription = Subscription.createBusiness(
+        'sub-1',
+        'org-1',
+        new Date('2026-08-15T00:00:00.000Z'),
+      );
+
+      expect(() =>
+        subscription.changeToPlan(
+          PlanId.BUSINESS,
+          new Date('2026-08-16T00:00:00.000Z'),
+        ),
+      ).toThrow(
+        'Cannot change plan from BUSINESS (tier 2) to BUSINESS (tier 2)',
+      );
+      expect(() =>
+        subscription.changeToPlan(
+          PlanId.STARTER,
+          new Date('2026-08-16T00:00:00.000Z'),
+        ),
+      ).toThrow(
+        'Cannot change plan from BUSINESS (tier 2) to STARTER (tier 1)',
+      );
+    });
+  });
 });
