@@ -4,7 +4,7 @@ Date: 2026-08-11
 
 ## Status
 
-Accepted. Point 7 (no general plan catalog) is being revisited by issue #90 (in progress, 2026-08-12) — see that issue for the current state; this record is left as-is to document the reasoning at the time.
+Accepted. Point 7 (no general plan catalog) was superseded by issue #90 (PR #151, shipped 2026-08-12), which added `PLAN_CATALOG` and the STARTER/BUSINESS/ENTERPRISE factories — this record is left as-is to document the reasoning at the time.
 
 ## Context
 
