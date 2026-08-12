@@ -15,14 +15,38 @@ export interface SubscriptionProps {
   version: number;
 }
 
-// ponytail: FREE only — matches the spec's worked example (50/1). No
-// upgrade/downgrade path reads STARTER/BUSINESS/ENTERPRISE limits yet; add
-// them back (from a real Plan catalog, spec section 10) when one does.
-const FREE_PLAN_LIMITS = {
-  receivableMonthlyLimit: 50,
-  bankConnectionLimit: 1,
-  copilotChatMonthlyLimit: 50,
-  canUseCustomSmtp: false,
+interface PlanConfig {
+  receivableMonthlyLimit: number;
+  bankConnectionLimit: number;
+  copilotChatMonthlyLimit: number;
+  canUseCustomSmtp: boolean;
+}
+
+const PLAN_CATALOG: Record<PlanId, PlanConfig> = {
+  [PlanId.FREE]: {
+    receivableMonthlyLimit: 50,
+    bankConnectionLimit: 1,
+    copilotChatMonthlyLimit: 50,
+    canUseCustomSmtp: false,
+  },
+  [PlanId.STARTER]: {
+    receivableMonthlyLimit: 500,
+    bankConnectionLimit: 2,
+    copilotChatMonthlyLimit: 100,
+    canUseCustomSmtp: false,
+  },
+  [PlanId.BUSINESS]: {
+    receivableMonthlyLimit: 5000,
+    bankConnectionLimit: 5,
+    copilotChatMonthlyLimit: 1000,
+    canUseCustomSmtp: true,
+  },
+  [PlanId.ENTERPRISE]: {
+    receivableMonthlyLimit: 15000,
+    bankConnectionLimit: 10,
+    copilotChatMonthlyLimit: 10000,
+    canUseCustomSmtp: true,
+  },
 };
 
 function startOfMonth(date: Date): Date {
@@ -67,14 +91,39 @@ export class Subscription {
     organizationId: string,
     now: Date,
   ): Subscription {
+    const plan = PLAN_CATALOG[PlanId.FREE];
+
     return new Subscription({
       id,
       organizationId,
       planId: PlanId.FREE,
-      receivableMonthlyLimit: FREE_PLAN_LIMITS.receivableMonthlyLimit,
-      bankConnectionLimit: FREE_PLAN_LIMITS.bankConnectionLimit,
-      copilotChatMonthlyLimit: FREE_PLAN_LIMITS.copilotChatMonthlyLimit,
-      canUseCustomSmtp: FREE_PLAN_LIMITS.canUseCustomSmtp,
+      receivableMonthlyLimit: plan.receivableMonthlyLimit,
+      bankConnectionLimit: plan.bankConnectionLimit,
+      copilotChatMonthlyLimit: plan.copilotChatMonthlyLimit,
+      canUseCustomSmtp: plan.canUseCustomSmtp,
+      status: SubscriptionStatus.ACTIVE,
+      currentPeriodStart: startOfMonth(now),
+      currentPeriodEnd: startOfNextMonth(now),
+      createdAt: now,
+      version: 1,
+    });
+  }
+
+  static createStarter(
+    id: string,
+    organizationId: string,
+    now: Date,
+  ): Subscription {
+    const plan = PLAN_CATALOG[PlanId.STARTER];
+
+    return new Subscription({
+      id,
+      organizationId,
+      planId: PlanId.STARTER,
+      receivableMonthlyLimit: plan.receivableMonthlyLimit,
+      bankConnectionLimit: plan.bankConnectionLimit,
+      copilotChatMonthlyLimit: plan.copilotChatMonthlyLimit,
+      canUseCustomSmtp: plan.canUseCustomSmtp,
       status: SubscriptionStatus.ACTIVE,
       currentPeriodStart: startOfMonth(now),
       currentPeriodEnd: startOfNextMonth(now),

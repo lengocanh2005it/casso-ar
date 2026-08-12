@@ -18,6 +18,26 @@ describe('Subscription', () => {
     );
   });
 
+  it('creates a STARTER subscription with its catalog limits', () => {
+    const now = new Date('2026-08-15T10:00:00.000Z');
+    const subscription = Subscription.createStarter('sub-1', 'org-1', now);
+
+    expect(subscription.planId).toBe(PlanId.STARTER);
+    expect(subscription.status).toBe(SubscriptionStatus.ACTIVE);
+    expect(subscription.receivableMonthlyLimit).toBe(500);
+    expect(subscription.bankConnectionLimit).toBe(2);
+    expect(subscription.copilotChatMonthlyLimit).toBe(100);
+    expect(subscription.canUseCustomSmtp).toBe(false);
+    expect(subscription.currentPeriodStart).toEqual(
+      new Date('2026-08-01T00:00:00.000Z'),
+    );
+    expect(subscription.currentPeriodEnd).toEqual(
+      new Date('2026-09-01T00:00:00.000Z'),
+    );
+    expect(subscription.createdAt).toBe(now);
+    expect(subscription.version).toBe(1);
+  });
+
   it('reports the limit reached once usage meets the monthly cap', () => {
     const subscription = Subscription.createFree(
       'sub-1',
