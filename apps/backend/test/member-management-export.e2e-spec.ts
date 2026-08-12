@@ -267,6 +267,17 @@ describe('Member management + CSV export (integration)', () => {
     expect(freshInvite?.tokenHash).not.toBe('hash-invite');
   });
 
+  it('lists pending invites, excluding accepted ones', async () => {
+    const response = await request(app.getHttpServer())
+      .get(`/api/v1/organizations/${orgA}/invites`)
+      .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .expect(200);
+
+    expect(response.body.items).toHaveLength(1);
+    expect(response.body.items[0].email).toBe('invitee@example.com');
+    expect(response.body.items[0]).not.toHaveProperty('tokenHash');
+  });
+
   it('exports receivables as an attachment CSV', async () => {
     const response = await request(app.getHttpServer())
       .get('/api/v1/receivables/export')
