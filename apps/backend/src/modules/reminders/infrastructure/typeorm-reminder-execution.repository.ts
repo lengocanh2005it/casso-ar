@@ -27,22 +27,32 @@ export class TypeOrmReminderExecutionRepository
     return execution?.status ?? null;
   }
 
-  async findLatestSent(receivableId: string): Promise<{ sentAt: Date } | null> {
+  async findLatestSentByReceivableIds(
+    receivableIds: string[],
+  ): Promise<Map<string, { sentAt: Date }>> {
+    const result = new Map<string, { sentAt: Date }>();
+    if (receivableIds.length === 0) return result;
     const organizationId = this.tenantContext.getOrganizationId();
-    const row = await this.dataSource
+    const rows: { receivableId: string; sentAt: Date }[] = await this.dataSource
       .getRepository(ReminderExecutionOrmEntity)
       .createQueryBuilder('e')
-      .select(['e.id', 'e.sentAt'])
-      .where('e."receivableId" = :receivableId', { receivableId })
-      .andWhere('e."organizationId" = :organizationId', { organizationId })
+      .select('e."receivableId"', 'receivableId')
+      .addSelect('MAX(e."sentAt")', 'sentAt')
+      .where('e."organizationId" = :organizationId', { organizationId })
+      .andWhere('e."receivableId" IN (:...receivableIds)', {
+        receivableIds,
+      })
       .andWhere('e.status = :status', {
         status: ReminderExecutionStatus.SENT,
       })
-      .orderBy('e."sentAt"', 'DESC')
-      .limit(1)
-      .getOne();
-    if (!row?.sentAt) return null;
-    return { sentAt: row.sentAt };
+      .groupBy('e."receivableId"')
+      .getRawMany();
+    for (const row of rows) {
+      if (row.sentAt) {
+        result.set(row.receivableId, { sentAt: new Date(row.sentAt) });
+      }
+    }
+    return result;
   }
 
   async findByKey(

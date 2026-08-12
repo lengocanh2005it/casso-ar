@@ -30,6 +30,7 @@ import {
   type AuthEmailJob,
   EMAIL_QUEUE_PORT,
   type IEmailQueue,
+  type OwnerAlertEmailJob,
   type ReminderEmailJob,
 } from '../application/email-queue.port';
 import { EMAIL_QUEUE } from './email-queue.constants';
@@ -67,8 +68,32 @@ export class EmailQueueProcessor extends WorkerHost {
       if (job.name === 'send-auth-email') {
         return this.processAuthEmail(job as Job<AuthEmailJob>);
       }
+      if (job.name === 'send-owner-alert') {
+        return this.processOwnerAlertEmail(job as Job<OwnerAlertEmailJob>);
+      }
       return this.processReminderEmail(job as Job<ReminderEmailJob>);
     });
+  }
+
+  // Owner alerts (e.g. bank connection lost ACTIVE) always go through Resend:
+  // the org's own SMTP may be exactly what's failing, and this alert must not
+  // depend on it.
+  private async processOwnerAlertEmail(
+    job: Job<OwnerAlertEmailJob>,
+  ): Promise<void> {
+    const { organizationId, to, subject, html } = job.data;
+    await this.tenantContext.run(
+      { userId: 'system', organizationId, role: Role.OWNER },
+      async () => {
+        const resendAdapter = await this.resolver.resolve(
+          organizationId,
+          'RESEND',
+        );
+        await resendAdapter.send(to, subject, html, {
+          emailType: 'OWNER_ALERT',
+        });
+      },
+    );
   }
 
   private async processAuthEmail(job: Job<AuthEmailJob>): Promise<void> {
@@ -156,6 +181,17 @@ export class EmailQueueProcessor extends WorkerHost {
         this.logger.error(
           `Auth email job ${job.id ?? 'unknown'} failed permanently after ${job.attemptsMade} attempts`,
         );
+        return;
+      }
+
+      if (job.name === 'send-owner-alert') {
+        const alertData = job.data as OwnerAlertEmailJob;
+        this.logger.error({
+          message: `Owner alert job ${job.id ?? 'unknown'} failed permanently after ${job.attemptsMade} attempts`,
+          organizationId: alertData.organizationId,
+          userId: 'system',
+          requestId: getJobRequestId(job),
+        });
         return;
       }
 
