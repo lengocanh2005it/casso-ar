@@ -107,7 +107,9 @@ export class AuthTokenManager {
 
 export const authTokenManager = new AuthTokenManager();
 
-export async function apiRequest<T>(config: AxiosRequestConfig): Promise<T> {
+async function send<T>(
+  config: AxiosRequestConfig,
+): Promise<{ data: T; headers: Record<string, string> }> {
   const token = await authTokenManager.getValidAccessToken();
   try {
     const response = await axiosClient.request<T>({
@@ -117,7 +119,10 @@ export async function apiRequest<T>(config: AxiosRequestConfig): Promise<T> {
         ...(config.headers ?? {}),
       },
     });
-    return response.data;
+    return {
+      data: response.data,
+      headers: response.headers as Record<string, string>,
+    };
   } catch (error) {
     const status =
       typeof error === 'object' && error !== null && 'response' in error
@@ -128,6 +133,17 @@ export async function apiRequest<T>(config: AxiosRequestConfig): Promise<T> {
     }
     throw error;
   }
+}
+
+export async function apiRequest<T>(config: AxiosRequestConfig): Promise<T> {
+  const { data } = await send<T>(config);
+  return data;
+}
+
+export async function apiRequestWithHeaders<T>(
+  config: AxiosRequestConfig,
+): Promise<{ data: T; headers: Record<string, string> }> {
+  return send<T>(config);
 }
 
 export function postWithIdempotency<T>(
