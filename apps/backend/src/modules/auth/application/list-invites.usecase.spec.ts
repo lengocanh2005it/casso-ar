@@ -1,22 +1,18 @@
 import { Role } from '../../organizations/domain/membership';
-import { MembershipInvite } from '../domain/membership-invite';
+import type { PendingInviteSummary } from '../domain/membership-invite';
 import { ListInvitesUseCase } from './list-invites.usecase';
 
 function buildInvite(
-  overrides: Partial<ConstructorParameters<typeof MembershipInvite>[0]> = {},
-) {
-  return new MembershipInvite({
+  overrides: Partial<PendingInviteSummary> = {},
+): PendingInviteSummary {
+  return {
     id: 'inv-1',
-    organizationId: 'org-1',
     email: 'moi@congtyb.vn',
     role: Role.VIEWER,
-    invitedByUserId: 'user-1',
-    tokenHash: 'hash',
     expiresAt: new Date('2026-08-20'),
-    acceptedAt: null,
     createdAt: new Date('2026-08-12'),
     ...overrides,
-  });
+  };
 }
 
 describe('ListInvitesUseCase', () => {

@@ -37,3 +37,14 @@ export class MembershipInvite {
     return new MembershipInvite({ ...this, acceptedAt: new Date() });
   }
 }
+
+// Read-only projection for listing pending invites — deliberately excludes
+// tokenHash (never leaves the auth module) and other fields the list view
+// doesn't need, so callers can't accidentally rehydrate a fake MembershipInvite.
+export interface PendingInviteSummary {
+  id: string;
+  email: string;
+  role: Role;
+  createdAt: Date;
+  expiresAt: Date;
+}

@@ -3,7 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, Repository } from 'typeorm';
 import { IsNull } from 'typeorm';
 import type { IMembershipInviteRepository } from '../application/membership-invite-repository.port';
-import { MembershipInvite } from '../domain/membership-invite';
+import {
+  MembershipInvite,
+  type PendingInviteSummary,
+} from '../domain/membership-invite';
 import { MembershipInviteOrmEntity } from './membership-invite.orm-entity';
 
 @Injectable()
@@ -50,37 +53,27 @@ export class TypeOrmMembershipInviteRepository
     organizationId: string,
     page: number,
     limit: number,
-  ): Promise<MembershipInvite[]> {
+  ): Promise<PendingInviteSummary[]> {
     const rows = await this.repo.find({
       where: { organizationId, acceptedAt: IsNull() },
       select: {
         id: true,
-        organizationId: true,
         email: true,
         role: true,
-        invitedByUserId: true,
-        expiresAt: true,
-        acceptedAt: true,
         createdAt: true,
+        expiresAt: true,
       },
       order: { createdAt: 'ASC' },
       skip: (page - 1) * limit,
       take: limit,
     });
-    return rows.map(
-      (row) =>
-        new MembershipInvite({
-          id: row.id,
-          organizationId: row.organizationId,
-          email: row.email,
-          role: row.role,
-          invitedByUserId: row.invitedByUserId,
-          tokenHash: '',
-          expiresAt: row.expiresAt,
-          acceptedAt: row.acceptedAt,
-          createdAt: row.createdAt,
-        }),
-    );
+    return rows.map((row) => ({
+      id: row.id,
+      email: row.email,
+      role: row.role,
+      createdAt: row.createdAt,
+      expiresAt: row.expiresAt,
+    }));
   }
 
   async countPendingByOrganization(organizationId: string): Promise<number> {

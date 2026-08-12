@@ -1,5 +1,5 @@
 import type { Role } from '../../../organizations/domain/membership';
-import type { MembershipInvite } from '../../domain/membership-invite';
+import type { PendingInviteSummary } from '../../domain/membership-invite';
 
 export interface InviteResponseDto {
   id: string;
@@ -9,7 +9,9 @@ export interface InviteResponseDto {
   expiresAt: Date;
 }
 
-export function toInviteResponse(invite: MembershipInvite): InviteResponseDto {
+export function toInviteResponse(
+  invite: PendingInviteSummary,
+): InviteResponseDto {
   return {
     id: invite.id,
     email: invite.email,

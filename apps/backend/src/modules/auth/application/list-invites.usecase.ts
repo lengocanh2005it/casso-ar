@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import type { MembershipInvite } from '../domain/membership-invite';
+import type { PendingInviteSummary } from '../domain/membership-invite';
 import {
   type IMembershipInviteRepository,
   MEMBERSHIP_INVITE_REPOSITORY,
@@ -12,7 +12,7 @@ export interface ListInvitesInput {
 }
 
 export interface ListInvitesOutput {
-  items: MembershipInvite[];
+  items: PendingInviteSummary[];
   total: number;
   page: number;
   limit: number;
