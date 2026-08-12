@@ -1,17 +1,6 @@
-import { QueryFailedError } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { CustomerBankAccount } from '../domain/customer-bank-account';
-
-function buildUniqueViolation(): QueryFailedError {
-  const error = new QueryFailedError(
-    'INSERT ...',
-    [],
-    new Error('duplicate key'),
-  );
-  (error as unknown as { code: string }).code = '23505';
-  return error;
-}
 
 import { CreateCustomerBankAccountUseCase } from './create-customer-bank-account.usecase';
 import { DeactivateCustomerBankAccountUseCase } from './deactivate-customer-bank-account.usecase';
@@ -147,10 +136,14 @@ describe('customer bank account use cases', () => {
     ).rejects.toMatchObject({ errorCode: ErrorCode.CONFLICT });
   });
 
-  it('maps a concurrent unique violation to a conflict error', async () => {
+  it('propagates a conflict AppError raised by the repository on save', async () => {
+    const conflictError = new AppError(
+      ErrorCode.CONFLICT,
+      'Số tài khoản ngân hàng đã được liên kết.',
+    );
     const bankAccountRepo = {
       findByAccountNumber: jest.fn().mockResolvedValue(null),
-      save: jest.fn().mockRejectedValue(buildUniqueViolation()),
+      save: jest.fn().mockRejectedValue(conflictError),
     };
     const useCase = buildCreateUseCase(
       { findById: jest.fn().mockResolvedValue({ id: 'cust-1' }) },
@@ -159,7 +152,7 @@ describe('customer bank account use cases', () => {
 
     await expect(
       useCase.execute({ customerId: 'cust-1', accountNumber: '0011002233' }),
-    ).rejects.toMatchObject({ errorCode: ErrorCode.CONFLICT });
+    ).rejects.toBe(conflictError);
   });
 
   it('rejects a missing or cross-tenant customer without saving', async () => {

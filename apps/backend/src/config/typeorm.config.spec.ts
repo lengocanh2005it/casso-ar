@@ -33,7 +33,7 @@ describe('getTypeOrmConfig', () => {
     });
   });
 
-  it('defaults DB_PASSWORD to empty string when unset', () => {
+  it('fails fast when DB_PASSWORD is unset', () => {
     const config = buildConfig({
       DB_HOST: 'db',
       DB_PORT: '5433',
@@ -41,9 +41,19 @@ describe('getTypeOrmConfig', () => {
       DB_DATABASE: 'ledger',
     });
 
-    expect(getTypeOrmConfig(config as never)).toMatchObject({
-      password: '',
+    expect(() => getTypeOrmConfig(config as never)).toThrow(/DB_PASSWORD/);
+  });
+
+  it('fails fast when DB_PASSWORD is set but empty', () => {
+    const config = buildConfig({
+      DB_HOST: 'db',
+      DB_PORT: '5433',
+      DB_USERNAME: 'user',
+      DB_PASSWORD: '',
+      DB_DATABASE: 'ledger',
     });
+
+    expect(() => getTypeOrmConfig(config as never)).toThrow(/DB_PASSWORD/);
   });
 
   it('disables synchronize when NODE_ENV is production', () => {

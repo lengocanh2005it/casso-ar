@@ -10,10 +10,7 @@ import {
   type ICustomerRepository,
 } from '../../customers/application/customer-repository.port';
 import { CustomerBankAccount } from '../domain/customer-bank-account';
-import {
-  isUniqueViolation,
-  normalizeOrThrow,
-} from './account-number-normalizer';
+import { normalizeOrThrow } from './account-number-normalizer';
 import {
   CUSTOMER_BANK_ACCOUNT_REPOSITORY,
   type ICustomerBankAccountRepository,
@@ -75,17 +72,7 @@ export class CreateCustomerBankAccountUseCase {
       updatedAt: new Date(),
     });
 
-    try {
-      await this.bankAccountRepo.save(account, manager);
-    } catch (error) {
-      if (isUniqueViolation(error)) {
-        throw new AppError(
-          ErrorCode.CONFLICT,
-          'Số tài khoản ngân hàng đã được liên kết.',
-        );
-      }
-      throw error;
-    }
+    await this.bankAccountRepo.save(account, manager);
     return account;
   }
 }

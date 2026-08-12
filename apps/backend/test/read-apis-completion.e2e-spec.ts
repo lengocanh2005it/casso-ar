@@ -48,6 +48,7 @@ describe('Read APIs completion (Plan #17, integration)', () => {
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
+    process.env.RESEND_API_KEY = 'read-apis-e2e-resend-key';
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     })

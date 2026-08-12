@@ -88,10 +88,16 @@ describe('ResendEmailAdapter', () => {
     );
   });
 
-  it('does not throw when RESEND_API_KEY is not set', () => {
+  it('fails fast when RESEND_API_KEY is not set', () => {
     delete process.env.RESEND_API_KEY;
 
-    expect(() => new ResendEmailAdapter()).not.toThrow();
+    expect(() => new ResendEmailAdapter()).toThrow(/RESEND_API_KEY/);
+  });
+
+  it('fails fast when RESEND_API_KEY is set but empty', () => {
+    process.env.RESEND_API_KEY = '';
+
+    expect(() => new ResendEmailAdapter()).toThrow(/RESEND_API_KEY/);
   });
 
   it('throws when Resend returns an error', async () => {

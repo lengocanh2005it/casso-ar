@@ -51,6 +51,7 @@ describe('TypeOrmReceivableRepository.findOpenTopNByOrganization (e2e)', () => {
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
+    process.env.RESEND_API_KEY = 'receivable-repo-e2e-resend-key';
     const moduleRef = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRoot({

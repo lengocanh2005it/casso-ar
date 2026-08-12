@@ -6,7 +6,6 @@ import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import type { CustomerBankAccount } from '../domain/customer-bank-account';
 import {
-  isUniqueViolation,
   normalizeOrThrow,
   toAuditedBankAccount,
 } from './account-number-normalizer';
@@ -77,17 +76,7 @@ export class UpdateCustomerBankAccountUseCase {
       next = next.setActive(input.isActive);
     }
 
-    try {
-      await this.bankAccountRepo.save(next, manager);
-    } catch (error) {
-      if (isUniqueViolation(error)) {
-        throw new AppError(
-          ErrorCode.CONFLICT,
-          'Số tài khoản ngân hàng đã được liên kết.',
-        );
-      }
-      throw error;
-    }
+    await this.bankAccountRepo.save(next, manager);
     return next;
   }
 }

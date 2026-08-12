@@ -21,7 +21,10 @@ export class ResendEmailAdapter implements IEmailProviderAdapter {
   private readonly fromAddress: string;
 
   constructor() {
-    const apiKey = process.env.RESEND_API_KEY ?? 're_missing_key';
+    const apiKey = process.env.RESEND_API_KEY ?? '';
+    if (apiKey.trim() === '') {
+      throw new Error('RESEND_API_KEY must be set and non-empty');
+    }
     this.client = new Resend(apiKey);
     this.fromAddress =
       process.env.RESEND_FROM_ADDRESS ?? 'no-reply@casso-ledger.vn';

@@ -44,6 +44,7 @@ describe('Tenant isolation and RBAC (integration)', () => {
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
+    process.env.RESEND_API_KEY = 'tenant-isolation-e2e-resend-key';
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     })

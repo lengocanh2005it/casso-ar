@@ -18,4 +18,10 @@ describe('token encryption', () => {
       '64-character hex string',
     );
   });
+
+  it('rejects a truncated or corrupt ciphertext', () => {
+    expect(() => decryptToken('bm90LWVuZ3RwX3VzZXJ0b3BhZ2U=', key)).toThrow(
+      'Invalid encrypted token',
+    );
+  });
 });
