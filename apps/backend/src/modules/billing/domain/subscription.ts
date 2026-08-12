@@ -132,6 +132,29 @@ export class Subscription {
     });
   }
 
+  static createBusiness(
+    id: string,
+    organizationId: string,
+    now: Date,
+  ): Subscription {
+    const plan = PLAN_CATALOG[PlanId.BUSINESS];
+
+    return new Subscription({
+      id,
+      organizationId,
+      planId: PlanId.BUSINESS,
+      receivableMonthlyLimit: plan.receivableMonthlyLimit,
+      bankConnectionLimit: plan.bankConnectionLimit,
+      copilotChatMonthlyLimit: plan.copilotChatMonthlyLimit,
+      canUseCustomSmtp: plan.canUseCustomSmtp,
+      status: SubscriptionStatus.ACTIVE,
+      currentPeriodStart: startOfMonth(now),
+      currentPeriodEnd: startOfNextMonth(now),
+      createdAt: now,
+      version: 1,
+    });
+  }
+
   isReceivableLimitReached(receivablesThisMonth: number): boolean {
     return receivablesThisMonth >= this.receivableMonthlyLimit;
   }
