@@ -18,6 +18,66 @@ describe('Subscription', () => {
     );
   });
 
+  it('creates a STARTER subscription with its catalog limits', () => {
+    const now = new Date('2026-08-15T10:00:00.000Z');
+    const subscription = Subscription.createStarter('sub-1', 'org-1', now);
+
+    expect(subscription.planId).toBe(PlanId.STARTER);
+    expect(subscription.status).toBe(SubscriptionStatus.ACTIVE);
+    expect(subscription.receivableMonthlyLimit).toBe(500);
+    expect(subscription.bankConnectionLimit).toBe(2);
+    expect(subscription.copilotChatMonthlyLimit).toBe(100);
+    expect(subscription.canUseCustomSmtp).toBe(false);
+    expect(subscription.currentPeriodStart).toEqual(
+      new Date('2026-08-01T00:00:00.000Z'),
+    );
+    expect(subscription.currentPeriodEnd).toEqual(
+      new Date('2026-09-01T00:00:00.000Z'),
+    );
+    expect(subscription.createdAt).toBe(now);
+    expect(subscription.version).toBe(1);
+  });
+
+  it('creates a BUSINESS subscription with its catalog limits', () => {
+    const now = new Date('2026-08-15T10:00:00.000Z');
+    const subscription = Subscription.createBusiness('sub-1', 'org-1', now);
+
+    expect(subscription.planId).toBe(PlanId.BUSINESS);
+    expect(subscription.status).toBe(SubscriptionStatus.ACTIVE);
+    expect(subscription.receivableMonthlyLimit).toBe(5000);
+    expect(subscription.bankConnectionLimit).toBe(5);
+    expect(subscription.copilotChatMonthlyLimit).toBe(1000);
+    expect(subscription.canUseCustomSmtp).toBe(true);
+    expect(subscription.currentPeriodStart).toEqual(
+      new Date('2026-08-01T00:00:00.000Z'),
+    );
+    expect(subscription.currentPeriodEnd).toEqual(
+      new Date('2026-09-01T00:00:00.000Z'),
+    );
+    expect(subscription.createdAt).toBe(now);
+    expect(subscription.version).toBe(1);
+  });
+
+  it('creates an ENTERPRISE subscription with its catalog limits', () => {
+    const now = new Date('2026-08-15T10:00:00.000Z');
+    const subscription = Subscription.createEnterprise('sub-1', 'org-1', now);
+
+    expect(subscription.planId).toBe(PlanId.ENTERPRISE);
+    expect(subscription.status).toBe(SubscriptionStatus.ACTIVE);
+    expect(subscription.receivableMonthlyLimit).toBe(15000);
+    expect(subscription.bankConnectionLimit).toBe(10);
+    expect(subscription.copilotChatMonthlyLimit).toBe(10000);
+    expect(subscription.canUseCustomSmtp).toBe(true);
+    expect(subscription.currentPeriodStart).toEqual(
+      new Date('2026-08-01T00:00:00.000Z'),
+    );
+    expect(subscription.currentPeriodEnd).toEqual(
+      new Date('2026-09-01T00:00:00.000Z'),
+    );
+    expect(subscription.createdAt).toBe(now);
+    expect(subscription.version).toBe(1);
+  });
+
   it('reports the limit reached once usage meets the monthly cap', () => {
     const subscription = Subscription.createFree(
       'sub-1',

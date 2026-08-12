@@ -143,16 +143,16 @@ activeBankConnections = COUNT(BankConnection WHERE organizationId=? AND status='
 
 - Count **at write time from source tables** (`receivables`, `bank_connections`) — there is **no usage-tracking table** (`UsageRecord`/`UsageAggregate`).
 - Hard-block in the same create transaction: over the limit → `402 "Plan limit {planName} reached; upgrade to continue"` (applies to `POST /receivables` and `POST /bank-connections/cas-id/sessions/:id/exchange`).
-- `Subscription` snapshots both limits; there is no `Plan` catalog table in the MVP; signup always creates `Subscription(ACTIVE, FREE)` in the same transaction.
+- `Subscription` snapshots all limits/flags; there is no `Plan` catalog **table** in the MVP — `PLAN_CATALOG` (issue #90) is an in-code `Record<PlanId, PlanConfig>` that `Subscription.createXxx()` reads at construction time, not a persisted entity. Signup always creates `Subscription(ACTIVE, FREE)` in the same transaction.
 
-**Reference plans (brainstorm pricing, not official):**
+**Plan limits:**
 
-| Plan | Receivable/month | Bank connection | Notes |
-|---|---|---|---|
-| FREE | 50 | 1 | Basic dashboard, Excel import |
-| STARTER | 500 | 2 | Automatic reminders, basic matching, partial payments |
-| BUSINESS | 5.000 | Many | Custom reminder policies, Exception Queue, advanced reporting |
-| ENTERPRISE | Custom | Custom | SSO, multiple legal entities, SLA, custom email sending domain (out of MVP) |
+| Plan | Receivable/month | Bank connection | Copilot chat/month | Custom SMTP | Notes |
+|---|---|---|---|---|---|
+| FREE | 50 | 1 | 50 | No | Basic dashboard, Excel import |
+| STARTER | 500 | 2 | 100 | No | Automatic reminders, basic matching, partial payments |
+| BUSINESS | 5.000 | 5 | 1.000 | Yes | Custom reminder policies, Exception Queue, advanced reporting |
+| ENTERPRISE | 15.000 | 10 | 10.000 | Yes | SSO, multiple legal entities, SLA, custom email sending domain (out of MVP) |
 
 Custom email sending domain: FREE/STARTER/BUSINESS all send reminder emails from Casso's own verified domain (`Reply-To` is set to the organization's OWNER email so customer replies still reach the right inbox — see [email-notification-service spec](docs/superpowers/specs/2026-08-03-email-notification-service-design.md) section 1). Per-organization sending domain (`from: ...@congty-a.com`, needs DNS verification) is an ENTERPRISE-only upgrade, not built in the MVP.
 

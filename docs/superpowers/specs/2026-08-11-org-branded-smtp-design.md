@@ -1,6 +1,6 @@
 # Org-Branded Reminder Emails via Custom SMTP (BYO-SMTP) Design
 
-> Child spec of [docs/overview.md](../../../docs/overview.md) §9 (Pricing & Billing Model, ENTERPRISE tier note), supersedes the Resend-managed-domain design originally scoped in issue #43. Extends [2026-08-03-email-notification-service-design.md](2026-08-03-email-notification-service-design.md) (`IEmailProviderAdapter`, `EmailService`, `email-queue`). See [ADR-0006](../../adr/0006-byo-smtp-for-org-branded-reminder-emails.md) for the Resend-domain-vs-BYO-SMTP trade-off. See issue #90 for the deferred general plan-catalog this spec deliberately does not build.
+> Child spec of [docs/overview.md](../../../docs/overview.md) §9 (Pricing & Billing Model, ENTERPRISE tier note), supersedes the Resend-managed-domain design originally scoped in issue #43. Extends [2026-08-03-email-notification-service-design.md](2026-08-03-email-notification-service-design.md) (`IEmailProviderAdapter`, `EmailService`, `email-queue`). See [ADR-0006](../../adr/0006-byo-smtp-for-org-branded-reminder-emails.md) for the Resend-domain-vs-BYO-SMTP trade-off. See issue #90 for the general plan-catalog this spec deliberately did not build (that catalog later read this spec's flat `canUseCustomSmtp` field as-is, rather than replacing it).
 
 ## 0. Problem & non-goals
 
@@ -11,7 +11,7 @@ Every reminder email today sends `from` Casso's own verified domain (`RESEND_FRO
 **Out of scope (unaffected by this spec):**
 - Auth emails (invite, password reset, email verification) — always send via Casso's own Resend domain, unconditionally. `ResendAuthEmailSenderAdapter`/`IAuthEmailSender` are untouched.
 - Display-name-only customization (`From: "Công ty ABC (qua Casso)" <noreply@casso-ledger.vn>`, all tiers, no SMTP/DNS) — a separate, still-unshipped ticket referenced in issue #43's interim-solution comment. Not built here, but §5 below reserves the field so it composes with this feature once it exists.
-- A general plan-catalog / feature-flag mechanism (issue #90) — this spec adds one flat boolean to `Subscription`, matching the existing `copilotChatMonthlyLimit`-style convention.
+- A general plan-catalog / feature-flag mechanism (issue #90, later built) — this spec adds one flat boolean to `Subscription`, matching the existing `copilotChatMonthlyLimit`-style convention; #90's `PLAN_CATALOG` reads that same field per plan rather than reworking it.
 - DNS records, domain verification polling/webhooks, stale-verification detection — none of that exists in this model. There is no DNS propagation delay to wait out; see §2.
 
 ## 1. Domain model
@@ -125,13 +125,13 @@ No dedicated health-check cron polls `CONNECTED` configs. Detection is entirely 
 
 ## 6. Plan-tier gating
 
-`Subscription` gains one flat boolean field, following the existing `copilotChatMonthlyLimit`-style convention (a per-plan value hard-coded in the relevant `Subscription.createXxx()` factory) rather than a general plan-catalog (issue #90, deliberately deferred):
+`Subscription` gains one flat boolean field, following the existing `copilotChatMonthlyLimit`-style convention (a per-plan value hard-coded in the relevant `Subscription.createXxx()` factory) rather than a general plan-catalog (issue #90, built afterward — see below):
 
 ```
 Subscription.canUseCustomSmtp: boolean   // false for FREE/STARTER, true for BUSINESS/ENTERPRISE
 ```
 
-`Subscription.createFree()` sets `canUseCustomSmtp: false`. There is no `createBusiness()`/`createEnterprise()` factory yet (only FREE is implemented today, per the existing `ponytail:` comment in `subscription.ts`) — this spec does not add one; it only adds the field so that whichever future work adds those factories (or issue #90's catalog) has the field to set. `TestAndSaveSmtpConfigUseCase` checks `subscription.canUseCustomSmtp` before attempting the test-send, throwing `AppError(FORBIDDEN)` otherwise.
+`Subscription.createFree()` sets `canUseCustomSmtp: false`. At the time this spec was written there was no `createBusiness()`/`createEnterprise()` factory yet (only FREE was implemented, per the then-existing `ponytail:` comment in `subscription.ts`) — this spec deliberately did not add one; it only added the field so that whichever future work added those factories would have the field to set. Issue #90's `PLAN_CATALOG` later added `createBusiness()`/`createEnterprise()` and set `canUseCustomSmtp: true` for both from the catalog, matching the comment above. `TestAndSaveSmtpConfigUseCase` checks `subscription.canUseCustomSmtp` before attempting the test-send, throwing `AppError(FORBIDDEN)` otherwise.
 
 On downgrade, an existing `OrganizationSmtpConfig` row is left untouched — the gate is enforced at read/send time (`canUseCustomSmtp` false ⇒ `EmailProviderResolver` never even reaches the org's config lookup), not by deleting data. Re-upgrading restores custom-domain sending immediately with no re-entry of credentials.
 
