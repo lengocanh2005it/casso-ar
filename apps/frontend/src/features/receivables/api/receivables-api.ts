@@ -1,4 +1,8 @@
-import { apiRequest, postWithIdempotency } from '@/lib/api-client';
+import {
+  apiRequest,
+  apiRequestWithHeaders,
+  postWithIdempotency,
+} from '@/lib/api-client';
 import type {
   InternalTask,
   Receivable,
@@ -43,6 +47,20 @@ export function fetchReceivable(id: string): Promise<Receivable> {
     url: `/api/v1/receivables/${id}`,
     method: 'GET',
   });
+}
+
+export function exportReceivablesCsv(
+  filters: ReceivableFilters,
+): Promise<{ csv: string; truncated: boolean }> {
+  return apiRequestWithHeaders<string>({
+    url: '/api/v1/receivables/export',
+    method: 'GET',
+    params: filters,
+    responseType: 'text',
+  }).then(({ data, headers }) => ({
+    csv: data,
+    truncated: headers['x-export-truncated'] === 'true',
+  }));
 }
 
 export function createReceivable(

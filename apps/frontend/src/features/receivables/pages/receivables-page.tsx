@@ -1,5 +1,12 @@
+import { Permission } from '@casso-ledger/shared-types';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/auth-context';
+import { downloadCsv } from '@/lib/download-csv';
+import { hasPermission } from '@/lib/rbac';
+import { exportReceivablesCsv } from '../api/receivables-api';
 import { useReceivables } from '../api/use-receivables';
 import { CreateReceivableDialog } from '../components/create-receivable-dialog';
 import { ImportInvoicesDialog } from '../components/import-invoices-dialog';
@@ -8,7 +15,9 @@ import { ReceivableTable } from '../components/receivable-table';
 import type { ReceivableStatus } from '../types';
 
 export function ReceivablesPage() {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [isExporting, setIsExporting] = useState(false);
   const status =
     (searchParams.get('status') as ReceivableStatus | null) ?? undefined;
   const customerId = searchParams.get('customerId') ?? undefined;
@@ -18,6 +27,10 @@ export function ReceivablesPage() {
     page,
   );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
+  const canExport = hasPermission(
+    user?.role ?? null,
+    Permission.RECEIVABLE_READ,
+  );
 
   function setPage(nextPage: number) {
     setSearchParams((current) => {
@@ -25,6 +38,26 @@ export function ReceivablesPage() {
       next.set('page', String(nextPage));
       return next;
     });
+  }
+
+  async function exportCsv() {
+    setIsExporting(true);
+    try {
+      const { csv, truncated } = await exportReceivablesCsv({
+        status,
+        customerId,
+      });
+      downloadCsv(csv, 'cong-no.csv');
+      if (truncated) {
+        toast.warning(
+          'Chỉ xuất 10.000 dòng đầu, vui lòng lọc bớt để xuất đầy đủ.',
+        );
+      }
+    } catch {
+      toast.error('Không thể xuất CSV.');
+    } finally {
+      setIsExporting(false);
+    }
   }
 
   return (
@@ -36,6 +69,15 @@ export function ReceivablesPage() {
             Công nợ
           </h1>
           <div className="flex flex-wrap gap-2">
+            {canExport && (
+              <Button
+                variant="outline"
+                disabled={isExporting}
+                onClick={exportCsv}
+              >
+                {isExporting ? 'Đang xuất…' : 'Xuất CSV'}
+              </Button>
+            )}
             <ImportInvoicesDialog />
             <CreateReceivableDialog />
           </div>
