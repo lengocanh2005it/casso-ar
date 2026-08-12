@@ -15,14 +15,16 @@ export class ExportReceivablesUseCase {
     private readonly listReceivablesUseCase: ListReceivablesUseCase,
   ) {}
 
-  async execute(input: ExportReceivablesInput): Promise<string> {
-    const { items } = await this.listReceivablesUseCase.execute({
+  async execute(
+    input: ExportReceivablesInput,
+  ): Promise<{ csv: string; truncated: boolean }> {
+    const { items, total } = await this.listReceivablesUseCase.execute({
       filters: input.filters,
       page: 1,
       limit: EXPORT_ROW_LIMIT,
     });
 
-    return toCsv(
+    const csv = toCsv(
       [
         'Mã hóa đơn',
         'Khách hàng',
@@ -44,5 +46,7 @@ export class ExportReceivablesUseCase {
         item.isOverdue ? 'Có' : 'Không',
       ]),
     );
+
+    return { csv, truncated: total > EXPORT_ROW_LIMIT };
   }
 }

@@ -30,7 +30,9 @@ describe('ExportReceivablesUseCase', () => {
       listReceivablesUseCase as never,
     );
 
-    const csv = await useCase.execute({ filters: { status: 'OPEN' } });
+    const { csv, truncated } = await useCase.execute({
+      filters: { status: 'OPEN' },
+    });
 
     expect(listReceivablesUseCase.execute).toHaveBeenCalledWith({
       filters: { status: 'OPEN' },
@@ -41,6 +43,22 @@ describe('ExportReceivablesUseCase', () => {
     expect(csv).toContain('Công ty A');
     expect(csv).toContain('1000000');
     expect(csv).toContain('600000'); // remaining
+    expect(truncated).toBe(false);
+  });
+
+  it('signals truncation when the org has more matching receivables than the row cap', async () => {
+    const listReceivablesUseCase = {
+      execute: jest
+        .fn()
+        .mockResolvedValue({ items: [item as never], total: 10_001 }),
+    };
+    const useCase = new ExportReceivablesUseCase(
+      listReceivablesUseCase as never,
+    );
+
+    const { truncated } = await useCase.execute({ filters: {} });
+
+    expect(truncated).toBe(true);
   });
 
   it('neutralizes formula injection in exported cells', async () => {
@@ -57,7 +75,7 @@ describe('ExportReceivablesUseCase', () => {
       listReceivablesUseCase as never,
     );
 
-    const csv = await useCase.execute({ filters: {} });
+    const { csv } = await useCase.execute({ filters: {} });
 
     expect(csv).toContain("'=HYPERLINK");
   });

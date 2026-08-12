@@ -3,7 +3,7 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
+  Headers,
   HttpCode,
   Inject,
   NotFoundException,
@@ -13,10 +13,14 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import type { Request } from 'express';
+import {
+  type AuthRequest,
+  assertOrgMatches,
+} from '../../../common/auth/assert-org-matches';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../../../common/auth/optional-jwt-auth.guard';
 import { Public } from '../../../common/auth/public.decorator';
+import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import {
@@ -31,10 +35,6 @@ import { ResendInviteUseCase } from '../application/resend-invite.usecase';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { InviteMemberDto } from './dto/invite-member.dto';
 
-interface AuthRequest extends Request {
-  user?: { userId: string; organizationId: string };
-}
-
 @Controller()
 export class InvitesController {
   constructor(
@@ -45,6 +45,7 @@ export class InvitesController {
     private readonly removeMemberUseCase: RemoveMemberUseCase,
     @Inject(ORGANIZATION_REPOSITORY)
     private readonly organizationRepo: IOrganizationRepository,
+    private readonly idempotency: IdempotencyService,
   ) {}
 
   @Post('organizations/:id/invites')
@@ -55,9 +56,7 @@ export class InvitesController {
     @Body() dto: InviteMemberDto,
     @Req() request: AuthRequest,
   ) {
-    if (request.user?.organizationId !== organizationId) {
-      throw new ForbiddenException('Organization mismatch');
-    }
+    assertOrgMatches(request, organizationId);
     const organization = await this.organizationRepo.findById(organizationId);
     if (!organization) throw new NotFoundException('Organization not found');
 
@@ -87,16 +86,20 @@ export class InvitesController {
   @Delete('organizations/:id/invites/:inviteId')
   @HttpCode(204)
   @UseGuards(JwtAuthGuard, PermissionGuard)
-  @RequirePermission(Permission.USER_MANAGE)
+  @RequirePermission(Permission.ORGANIZATION_MANAGE)
   async revokeInvite(
     @Param('id') organizationId: string,
     @Param('inviteId', ParseUUIDPipe) inviteId: string,
     @Req() request: AuthRequest,
+    @Headers('idempotency-key') key: string | undefined,
   ) {
-    if (request.user?.organizationId !== organizationId) {
-      throw new ForbiddenException('Organization mismatch');
-    }
-    await this.deleteInviteUseCase.execute(inviteId);
+    assertOrgMatches(request, organizationId);
+    await this.idempotency.execute(
+      `DELETE /organizations/${organizationId}/invites/${inviteId}`,
+      key,
+      { inviteId },
+      () => this.deleteInviteUseCase.execute(inviteId),
+    );
   }
 
   @Delete('organizations/:id/members/:userId')
@@ -107,26 +110,36 @@ export class InvitesController {
     @Param('id') organizationId: string,
     @Param('userId', ParseUUIDPipe) userId: string,
     @Req() request: AuthRequest,
+    @Headers('idempotency-key') key: string | undefined,
   ) {
-    if (request.user?.organizationId !== organizationId) {
-      throw new ForbiddenException('Organization mismatch');
-    }
-    await this.removeMemberUseCase.execute({ userId });
+    assertOrgMatches(request, organizationId);
+    await this.idempotency.execute(
+      `DELETE /organizations/${organizationId}/members/${userId}`,
+      key,
+      { userId },
+      () => this.removeMemberUseCase.execute({ userId }),
+    );
   }
 
   @Post('organizations/:id/invites/:inviteId/resend')
   @HttpCode(200)
   @UseGuards(JwtAuthGuard, PermissionGuard)
-  @RequirePermission(Permission.USER_MANAGE)
+  @RequirePermission(Permission.ORGANIZATION_MANAGE)
   async resendInvite(
     @Param('id') organizationId: string,
     @Param('inviteId', ParseUUIDPipe) inviteId: string,
     @Req() request: AuthRequest,
+    @Headers('idempotency-key') key: string | undefined,
   ) {
-    if (request.user?.organizationId !== organizationId) {
-      throw new ForbiddenException('Organization mismatch');
-    }
-    await this.resendInviteUseCase.execute(inviteId);
-    return { success: true };
+    assertOrgMatches(request, organizationId);
+    return this.idempotency.execute(
+      `POST /organizations/${organizationId}/invites/${inviteId}/resend`,
+      key,
+      { inviteId },
+      async () => {
+        await this.resendInviteUseCase.execute(inviteId);
+        return { success: true };
+      },
+    );
   }
 }

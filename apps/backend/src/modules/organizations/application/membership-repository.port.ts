@@ -24,7 +24,11 @@ export interface IMembershipRepository {
     limit: number,
   ): Promise<Membership[]>;
   countByOrganization(organizationId: string): Promise<number>;
-  countActiveByRole(organizationId: string, role: Role): Promise<number>;
+  countActiveByRole(
+    organizationId: string,
+    role: Role,
+    manager?: EntityManager,
+  ): Promise<number>;
 }
 
 export const MEMBERSHIP_REPOSITORY = Symbol('MEMBERSHIP_REPOSITORY');

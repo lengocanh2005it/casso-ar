@@ -57,9 +57,12 @@ export class ReceivablesController {
     @Query('salesRepresentativeId') salesRepresentativeId?: string,
     @Query('customerId') customerId?: string,
   ) {
-    const csv = await this.exportReceivablesUseCase.execute({
+    const { csv, truncated } = await this.exportReceivablesUseCase.execute({
       filters: { status, salesRepresentativeId, customerId },
     });
+    if (truncated) {
+      response.setHeader('X-Export-Truncated', 'true');
+    }
     response.send(csv);
   }
 

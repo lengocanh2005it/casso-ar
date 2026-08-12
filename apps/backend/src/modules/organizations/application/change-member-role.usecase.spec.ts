@@ -86,7 +86,11 @@ describe('ChangeMemberRoleUseCase', () => {
       useCase.execute({ userId: 'user-1', role: Role.VIEWER }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.CONFLICT });
     expect(repo.save).not.toHaveBeenCalled();
-    expect(repo.countActiveByRole).toHaveBeenCalledWith('org-1', Role.OWNER);
+    expect(repo.countActiveByRole).toHaveBeenCalledWith(
+      'org-1',
+      Role.OWNER,
+      manager,
+    );
   });
 
   it('allows demoting an OWNER when another active OWNER exists', async () => {

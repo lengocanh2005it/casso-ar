@@ -49,6 +49,7 @@ export class ChangeMemberRoleUseCase {
           this.membershipRepo,
           organizationId,
           membership,
+          manager,
         );
       }
       const updated = membership.withRole(input.role);

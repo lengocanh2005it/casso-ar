@@ -42,7 +42,12 @@ export class RemoveMemberUseCase {
     }
 
     await this.dataSource.transaction(async (manager) => {
-      await assertNotLastOwner(this.membershipRepo, organizationId, membership);
+      await assertNotLastOwner(
+        this.membershipRepo,
+        organizationId,
+        membership,
+        manager,
+      );
       await this.membershipRepo.deleteByUserAndOrganization(
         input.userId,
         organizationId,

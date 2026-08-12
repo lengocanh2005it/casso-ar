@@ -163,6 +163,7 @@ describe('Member management + CSV export (integration)', () => {
     const response = await request(app.getHttpServer())
       .patch(`/api/v1/organizations/${orgA}/members/${accountantA}`)
       .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .set('Idempotency-Key', randomUUID())
       .send({ role: 'VIEWER' })
       .expect(200);
 
@@ -173,6 +174,7 @@ describe('Member management + CSV export (integration)', () => {
     await request(app.getHttpServer())
       .patch(`/api/v1/organizations/${orgA}/members/${ownerA}`)
       .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .set('Idempotency-Key', randomUUID())
       .send({ role: 'VIEWER' })
       .expect(409);
   });
@@ -200,6 +202,7 @@ describe('Member management + CSV export (integration)', () => {
     await request(app.getHttpServer())
       .delete(`/api/v1/organizations/${orgA}/members/${accountantA}`)
       .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .set('Idempotency-Key', randomUUID())
       .expect(204);
 
     const membership = await dataSource
@@ -217,6 +220,7 @@ describe('Member management + CSV export (integration)', () => {
     await request(app.getHttpServer())
       .delete(`/api/v1/organizations/${orgA}/invites/${inviteId}`)
       .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .set('Idempotency-Key', randomUUID())
       .expect(204);
 
     const invite = await dataSource
@@ -229,6 +233,7 @@ describe('Member management + CSV export (integration)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/organizations/${orgA}/invites/${inviteId}/resend`)
       .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .set('Idempotency-Key', randomUUID())
       .expect(404); // deleted in the previous test
 
     await dataSource.getRepository(MembershipInviteOrmEntity).save({
@@ -246,6 +251,7 @@ describe('Member management + CSV export (integration)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/organizations/${orgA}/invites/${inviteId}/resend`)
       .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .set('Idempotency-Key', randomUUID())
       .expect(200);
 
     const oldInvite = await dataSource
