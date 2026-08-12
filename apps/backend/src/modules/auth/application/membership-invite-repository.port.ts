@@ -13,6 +13,12 @@ export interface IMembershipInviteRepository {
     organizationId: string,
     manager?: EntityManager,
   ): Promise<void>;
+  findPendingPageByOrganization(
+    organizationId: string,
+    page: number,
+    limit: number,
+  ): Promise<MembershipInvite[]>;
+  countPendingByOrganization(organizationId: string): Promise<number>;
 }
 
 export const MEMBERSHIP_INVITE_REPOSITORY = Symbol(

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, Repository } from 'typeorm';
+import { IsNull } from 'typeorm';
 import type { IMembershipInviteRepository } from '../application/membership-invite-repository.port';
 import { MembershipInvite } from '../domain/membership-invite';
 import { MembershipInviteOrmEntity } from './membership-invite.orm-entity';
@@ -43,5 +44,23 @@ export class TypeOrmMembershipInviteRepository
       ? manager.getRepository(MembershipInviteOrmEntity)
       : this.repo
     ).delete({ id, organizationId });
+  }
+
+  async findPendingPageByOrganization(
+    organizationId: string,
+    page: number,
+    limit: number,
+  ): Promise<MembershipInvite[]> {
+    const rows = await this.repo.find({
+      where: { organizationId, acceptedAt: IsNull() },
+      order: { createdAt: 'ASC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return rows.map((row) => new MembershipInvite(row));
+  }
+
+  async countPendingByOrganization(organizationId: string): Promise<number> {
+    return this.repo.count({ where: { organizationId, acceptedAt: IsNull() } });
   }
 }
