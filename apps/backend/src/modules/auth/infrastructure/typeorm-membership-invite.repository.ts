@@ -53,11 +53,34 @@ export class TypeOrmMembershipInviteRepository
   ): Promise<MembershipInvite[]> {
     const rows = await this.repo.find({
       where: { organizationId, acceptedAt: IsNull() },
+      select: {
+        id: true,
+        organizationId: true,
+        email: true,
+        role: true,
+        invitedByUserId: true,
+        expiresAt: true,
+        acceptedAt: true,
+        createdAt: true,
+      },
       order: { createdAt: 'ASC' },
       skip: (page - 1) * limit,
       take: limit,
     });
-    return rows.map((row) => new MembershipInvite(row));
+    return rows.map(
+      (row) =>
+        new MembershipInvite({
+          id: row.id,
+          organizationId: row.organizationId,
+          email: row.email,
+          role: row.role,
+          invitedByUserId: row.invitedByUserId,
+          tokenHash: '',
+          expiresAt: row.expiresAt,
+          acceptedAt: row.acceptedAt,
+          createdAt: row.createdAt,
+        }),
+    );
   }
 
   async countPendingByOrganization(organizationId: string): Promise<number> {
