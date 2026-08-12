@@ -143,10 +143,7 @@ describe('Subscription', () => {
         new Date('2026-08-15T00:00:00.000Z'),
       );
 
-      const upgraded = subscription.changeToPlan(
-        PlanId.STARTER,
-        new Date('2026-08-16T00:00:00.000Z'),
-      );
+      const upgraded = subscription.changeToPlan(PlanId.STARTER);
 
       expect(upgraded.planId).toBe(PlanId.STARTER);
       expect(upgraded.receivableMonthlyLimit).toBe(500);
@@ -162,10 +159,7 @@ describe('Subscription', () => {
         new Date('2026-08-15T00:00:00.000Z'),
       );
 
-      const upgraded = subscription.changeToPlan(
-        PlanId.BUSINESS,
-        new Date('2026-08-16T00:00:00.000Z'),
-      );
+      const upgraded = subscription.changeToPlan(PlanId.BUSINESS);
 
       expect(upgraded.currentPeriodStart).toEqual(
         subscription.currentPeriodStart,
@@ -180,20 +174,10 @@ describe('Subscription', () => {
         new Date('2026-08-15T00:00:00.000Z'),
       );
 
-      expect(() =>
-        subscription.changeToPlan(
-          PlanId.BUSINESS,
-          new Date('2026-08-16T00:00:00.000Z'),
-        ),
-      ).toThrow(
+      expect(() => subscription.changeToPlan(PlanId.BUSINESS)).toThrow(
         'Cannot change plan from BUSINESS (tier 2) to BUSINESS (tier 2)',
       );
-      expect(() =>
-        subscription.changeToPlan(
-          PlanId.STARTER,
-          new Date('2026-08-16T00:00:00.000Z'),
-        ),
-      ).toThrow(
+      expect(() => subscription.changeToPlan(PlanId.STARTER)).toThrow(
         'Cannot change plan from BUSINESS (tier 2) to STARTER (tier 1)',
       );
     });

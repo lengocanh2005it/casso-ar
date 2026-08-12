@@ -35,11 +35,13 @@ export class ChangeSubscriptionPlanUseCase {
 
       let updated: Subscription;
       try {
-        updated = subscription.changeToPlan(newPlanId, new Date());
-      } catch {
+        updated = subscription.changeToPlan(newPlanId);
+      } catch (error) {
         throw new AppError(
           ErrorCode.INVALID_PLAN_TRANSITION,
-          `Không thể chuyển sang gói ${newPlanId} từ gói hiện tại.`,
+          error instanceof Error
+            ? error.message
+            : `Không thể chuyển sang gói ${newPlanId} từ gói hiện tại.`,
         );
       }
 
