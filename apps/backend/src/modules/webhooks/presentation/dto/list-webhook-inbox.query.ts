@@ -1,22 +1,16 @@
-import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
-import type { WebhookInboxStatus } from '../../domain/webhook-inbox';
+import { IsIn, IsOptional, IsString } from 'class-validator';
+import { PaginationDto } from '../../../../common/dto/pagination.dto';
+import {
+  WEBHOOK_INBOX_STATUSES,
+  type WebhookInboxStatus,
+} from '../../domain/webhook-inbox';
 
-const WEBHOOK_INBOX_STATUSES = ['RECEIVED', 'PROCESSED', 'FAILED'] as const;
-
-export class ListWebhookInboxQuery {
+export class ListWebhookInboxQuery extends PaginationDto {
   @IsOptional()
   @IsIn(WEBHOOK_INBOX_STATUSES)
   status?: WebhookInboxStatus;
 
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page: number = 1;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit: number = 20;
+  @IsOptional()
+  @IsString()
+  providerTransactionId?: string;
 }

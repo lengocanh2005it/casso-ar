@@ -10,6 +10,7 @@ export class DuplicateWebhookError extends Error {
 export interface WebhookInboxPageQuery {
   organizationId: string;
   status?: WebhookInboxStatus;
+  providerTransactionId?: string;
   page: number;
   limit: number;
 }

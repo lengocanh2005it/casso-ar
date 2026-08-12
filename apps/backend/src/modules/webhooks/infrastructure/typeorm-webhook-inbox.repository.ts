@@ -66,6 +66,9 @@ export class TypeOrmWebhookInboxRepository implements IWebhookInboxRepository {
     const where: FindOptionsWhere<WebhookInboxOrmEntity> = {
       organizationId: query.organizationId,
       ...(query.status ? { status: query.status } : {}),
+      ...(query.providerTransactionId
+        ? { providerTransactionId: query.providerTransactionId }
+        : {}),
     };
     const [rows, total] = await this.repo.findAndCount({
       select: WEBHOOK_INBOX_SELECT,

@@ -56,6 +56,9 @@ const AUDIT_LOG_SELECT = {
   createdAt: true,
 } as const;
 
+const MIN_DATE = new Date(0);
+const MAX_DATE = new Date(8640000000000000);
+
 @Injectable()
 export class TypeOrmAuditLogRepository implements IAuditLogRepository {
   constructor(
@@ -79,10 +82,7 @@ export class TypeOrmAuditLogRepository implements IAuditLogRepository {
       ...(query.actorUserId ? { userId: query.actorUserId } : {}),
       ...(query.from || query.to
         ? {
-            createdAt: Between(
-              query.from ?? new Date(0),
-              query.to ?? new Date(8640000000000000),
-            ),
+            createdAt: Between(query.from ?? MIN_DATE, query.to ?? MAX_DATE),
           }
         : {}),
     };

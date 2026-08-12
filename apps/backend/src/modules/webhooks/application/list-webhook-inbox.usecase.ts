@@ -11,6 +11,7 @@ export interface ListWebhookInboxInput {
   page: number;
   limit: number;
   status?: WebhookInboxStatus;
+  providerTransactionId?: string;
 }
 
 @Injectable()
@@ -29,6 +30,9 @@ export class ListWebhookInboxUseCase {
       page: input.page,
       limit: input.limit,
       ...(input.status ? { status: input.status } : {}),
+      ...(input.providerTransactionId
+        ? { providerTransactionId: input.providerTransactionId }
+        : {}),
     });
   }
 }

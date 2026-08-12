@@ -1,19 +1,11 @@
-import { Type } from 'class-transformer';
-import {
-  IsDateString,
-  IsEnum,
-  IsInt,
-  IsOptional,
-  IsUUID,
-  Max,
-  Min,
-} from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, IsUUID } from 'class-validator';
 import {
   AuditActionType,
   AuditEntityType,
 } from '../../../../common/audit/audit.enums';
+import { PaginationDto } from '../../../../common/dto/pagination.dto';
 
-export class ListAuditLogsQuery {
+export class ListAuditLogsQuery extends PaginationDto {
   @IsOptional()
   @IsEnum(AuditEntityType)
   entityType?: AuditEntityType;
@@ -33,15 +25,4 @@ export class ListAuditLogsQuery {
   @IsOptional()
   @IsDateString()
   to?: string;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page: number = 1;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit: number = 20;
 }

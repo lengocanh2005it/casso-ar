@@ -240,6 +240,16 @@ describe('Audit logs + webhook inbox admin APIs (integration)', () => {
     expect(response.body.items[0].organizationId).toBeUndefined();
   });
 
+  it('GET /webhooks/inbox filters by providerTransactionId', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/webhooks/inbox?providerTransactionId=txn-2')
+      .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .expect(200);
+
+    expect(response.body.total).toBe(1);
+    expect(response.body.items[0].providerTransactionId).toBe('txn-2');
+  });
+
   it('reprocesses a FAILED webhook idempotently', async () => {
     const response = await request(app.getHttpServer())
       .post(`/api/v1/webhooks/inbox/${inboxId}/reprocess`)

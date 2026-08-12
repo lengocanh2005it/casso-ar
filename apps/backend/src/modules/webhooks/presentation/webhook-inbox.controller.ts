@@ -45,6 +45,9 @@ export class WebhookInboxController {
       page: query.page,
       limit: query.limit,
       ...(query.status ? { status: query.status } : {}),
+      ...(query.providerTransactionId
+        ? { providerTransactionId: query.providerTransactionId }
+        : {}),
     });
     return {
       items: result.items.map(toWebhookInboxResponse),

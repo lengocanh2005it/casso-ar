@@ -76,17 +76,15 @@ export class ExchangeTokenUseCase {
     const accountIdentity = await this.adapter.getAccountIdentity(accessToken);
 
     return this.dataSource.transaction(async (manager) => {
-      // Active bank-connection plan gate (issue #101): count inside this
-      // transaction and enforce against the subscription limit before
-      // creating or reactivating an ACTIVE connection.
-      const activeCount =
-        await this.bankConnectionRepo.countActiveByOrganization(
+      // Active bank-connection plan gate (issue #101): the count is deferred
+      // so it runs AFTER PlanLimitService acquires the org subscription lock —
+      // counting first would let concurrent exchanges both pass on a limit-1
+      // plan. The count itself is manager-scoped (same transaction).
+      await this.planLimitService.enforceBankConnectionLimit(manager, () =>
+        this.bankConnectionRepo.countActiveByOrganization(
           session.organizationId,
           manager,
-        );
-      await this.planLimitService.enforceBankConnectionLimit(
-        manager,
-        activeCount,
+        ),
       );
 
       const existing = session.bankConnectionId

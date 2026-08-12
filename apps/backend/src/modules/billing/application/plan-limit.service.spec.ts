@@ -141,7 +141,7 @@ describe('PlanLimitService', () => {
     const service = new PlanLimitService(repo as any, tenant as any);
 
     await expect(
-      service.enforceBankConnectionLimit(manager, 1),
+      service.enforceBankConnectionLimit(manager, () => Promise.resolve(1)),
     ).rejects.toMatchObject({ errorCode: 'PLAN_LIMIT_EXCEEDED' });
   });
 
@@ -154,7 +154,23 @@ describe('PlanLimitService', () => {
     const service = new PlanLimitService(repo as any, tenant as any);
 
     await expect(
-      service.enforceBankConnectionLimit(manager, 0),
+      service.enforceBankConnectionLimit(manager, () => Promise.resolve(0)),
     ).resolves.toBeUndefined();
+  });
+
+  it('counts only after the subscription lock is held', async () => {
+    const subscription = activeSubscription();
+    const repo = {
+      lockAndFindByOrganizationId: jest.fn().mockResolvedValue(subscription),
+      save: jest.fn(),
+    };
+    const service = new PlanLimitService(repo as any, tenant as any);
+    const countActive = jest.fn().mockResolvedValue(0);
+
+    await service.enforceBankConnectionLimit(manager, countActive);
+
+    expect(
+      repo.lockAndFindByOrganizationId.mock.invocationCallOrder[0],
+    ).toBeLessThan(countActive.mock.invocationCallOrder[0]);
   });
 });

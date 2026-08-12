@@ -54,14 +54,16 @@ export class PlanLimitService {
     }
   }
 
-  // Caller counts ACTIVE connections inside the same transaction (issue #101)
-  // and passes the count here; the subscription lock serializes concurrent
-  // exchanges per organization.
+  // Caller passes a deferred count so the ACTIVE-connection count is taken
+  // AFTER the subscription lock is held — counting first would let two
+  // concurrent exchanges both see 0 and both pass on a limit-1 plan
+  // (issue #101). The count closure runs inside the caller's transaction.
   async enforceBankConnectionLimit(
     manager: EntityManager,
-    activeCount: number,
+    countActive: () => Promise<number>,
   ): Promise<void> {
     const subscription = await this.lockActiveSubscription(manager);
+    const activeCount = await countActive();
     if (activeCount >= subscription.bankConnectionLimit) {
       this.throwPlanLimitExceeded(
         `Đã đạt giới hạn gói ${subscription.planId}; vui lòng nâng cấp để tiếp tục.`,
