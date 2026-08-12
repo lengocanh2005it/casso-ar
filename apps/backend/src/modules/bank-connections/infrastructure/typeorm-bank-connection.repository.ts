@@ -72,4 +72,15 @@ export class TypeOrmBankConnectionRepository
   async count(organizationId: string): Promise<number> {
     return this.ormRepo.count({ where: { organizationId } });
   }
+
+  async countActiveByOrganization(
+    organizationId: string,
+    manager: EntityManager,
+  ): Promise<number> {
+    const rows: Array<{ count: string }> = await manager.query(
+      'SELECT COUNT(*) as count FROM bank_connections WHERE "organizationId" = $1 AND status = $2',
+      [organizationId, 'ACTIVE'],
+    );
+    return Number(rows[0]?.count ?? 0);
+  }
 }

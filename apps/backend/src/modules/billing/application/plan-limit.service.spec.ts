@@ -131,4 +131,30 @@ describe('PlanLimitService', () => {
       manager,
     );
   });
+
+  it('throws 402 PLAN_LIMIT_EXCEEDED when the ACTIVE connection count meets the plan limit', async () => {
+    const subscription = activeSubscription(); // FREE: bankConnectionLimit = 1
+    const repo = {
+      lockAndFindByOrganizationId: jest.fn().mockResolvedValue(subscription),
+      save: jest.fn(),
+    };
+    const service = new PlanLimitService(repo as any, tenant as any);
+
+    await expect(
+      service.enforceBankConnectionLimit(manager, 1),
+    ).rejects.toMatchObject({ errorCode: 'PLAN_LIMIT_EXCEEDED' });
+  });
+
+  it('passes when the ACTIVE connection count is under the plan limit', async () => {
+    const subscription = activeSubscription(); // FREE: bankConnectionLimit = 1
+    const repo = {
+      lockAndFindByOrganizationId: jest.fn().mockResolvedValue(subscription),
+      save: jest.fn(),
+    };
+    const service = new PlanLimitService(repo as any, tenant as any);
+
+    await expect(
+      service.enforceBankConnectionLimit(manager, 0),
+    ).resolves.toBeUndefined();
+  });
 });

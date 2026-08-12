@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EVENT_PUBLISHER } from '../../common/events/event-publisher.port';
 import { NestEventPublisherAdapter } from '../../common/events/nest-event-publisher.adapter';
+import { BillingModule } from '../billing/billing.module';
 import { BANK_CONNECTION_REPOSITORY } from './application/bank-connection-repository.port';
 import { CAS_ID_CONNECTION_SESSION_REPOSITORY } from './application/cas-id-connection-session-repository.port';
 import { CAS_ID_INTEGRATION_ADAPTER } from './application/cas-id-integration-adapter.port';
@@ -30,6 +31,7 @@ import { BankConnectionsController } from './presentation/bank-connections.contr
       BankConnectionOrmEntity,
       ConnectionAuditEventOrmEntity,
     ]),
+    BillingModule,
   ],
   controllers: [BankConnectionsController],
   providers: [

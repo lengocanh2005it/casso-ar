@@ -54,6 +54,21 @@ export class PlanLimitService {
     }
   }
 
+  // Caller counts ACTIVE connections inside the same transaction (issue #101)
+  // and passes the count here; the subscription lock serializes concurrent
+  // exchanges per organization.
+  async enforceBankConnectionLimit(
+    manager: EntityManager,
+    activeCount: number,
+  ): Promise<void> {
+    const subscription = await this.lockActiveSubscription(manager);
+    if (activeCount >= subscription.bankConnectionLimit) {
+      this.throwPlanLimitExceeded(
+        `Đã đạt giới hạn gói ${subscription.planId}; vui lòng nâng cấp để tiếp tục.`,
+      );
+    }
+  }
+
   // Read-side view of the Copilot usage gate (issue #132): same advisory-lock
   // + period-roll semantics as the enforcing path, but never throws — a
   // non-ACTIVE subscription still reports its usage/limits.

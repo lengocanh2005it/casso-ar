@@ -3,6 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { PlanLimitService } from '../../billing/application/plan-limit.service';
 import { BankConnection } from '../domain/bank-connection';
 import { ConnectionAuditEvent } from '../domain/connection-audit-event';
 import { assertReauthorizable } from './assert-reauthorizable';
@@ -44,6 +45,7 @@ export class ExchangeTokenUseCase {
     private readonly dataSource: DataSource,
     @Inject(ACCESS_TOKEN_ENCRYPTION_KEY)
     private readonly encryptionKey: string,
+    private readonly planLimitService: PlanLimitService,
   ) {}
 
   async execute(input: ExchangeTokenInput): Promise<BankConnection> {
@@ -74,6 +76,19 @@ export class ExchangeTokenUseCase {
     const accountIdentity = await this.adapter.getAccountIdentity(accessToken);
 
     return this.dataSource.transaction(async (manager) => {
+      // Active bank-connection plan gate (issue #101): count inside this
+      // transaction and enforce against the subscription limit before
+      // creating or reactivating an ACTIVE connection.
+      const activeCount =
+        await this.bankConnectionRepo.countActiveByOrganization(
+          session.organizationId,
+          manager,
+        );
+      await this.planLimitService.enforceBankConnectionLimit(
+        manager,
+        activeCount,
+      );
+
       const existing = session.bankConnectionId
         ? await this.bankConnectionRepo.findByIdForUpdate(
             session.bankConnectionId,

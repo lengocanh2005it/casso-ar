@@ -1,3 +1,4 @@
+import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { CasIdConnectionSession } from '../domain/cas-id-connection-session';
 import { ExchangeTokenUseCase } from './exchange-token.usecase';
@@ -123,7 +124,11 @@ describe('bank connection use cases', () => {
       expiresAt: new Date(Date.now() + 60_000),
       createdAt: new Date(),
     });
-    const bankRepo = { findByIdForUpdate: jest.fn(), save: jest.fn() };
+    const bankRepo = {
+      findByIdForUpdate: jest.fn(),
+      save: jest.fn(),
+      countActiveByOrganization: jest.fn().mockResolvedValue(0),
+    };
     const sessionRepo = {
       findById: jest.fn().mockResolvedValue(session),
       save: jest.fn(),
@@ -143,6 +148,7 @@ describe('bank connection use cases', () => {
       auditRepo as never,
       dataSource as never,
       encryptionKey,
+      { enforceBankConnectionLimit: jest.fn() } as never,
     );
 
     const result = await useCase.execute({
@@ -192,6 +198,7 @@ describe('bank connection use cases', () => {
       auditRepo as never,
       dataSource as never,
       encryptionKey,
+      { enforceBankConnectionLimit: jest.fn() } as never,
     );
 
     await expect(
@@ -201,6 +208,117 @@ describe('bank connection use cases', () => {
     expect(sessionRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'EXPIRED' }),
       expect.anything(),
+    );
+  });
+
+  it('rejects a new connection when the org is at its ACTIVE bank-connection limit', async () => {
+    const session = new CasIdConnectionSession({
+      id: 'session-1',
+      organizationId: 'org-1',
+      initiatedByUserId: 'user-1',
+      bankConnectionId: null,
+      grantToken: 'grant',
+      scopes: ['identity'],
+      redirectUri: 'http://localhost/callback',
+      status: 'PENDING_AUTHORIZATION',
+      expiresAt: new Date(Date.now() + 60_000),
+      createdAt: new Date(),
+    });
+    const planLimitError = new AppError(
+      ErrorCode.PLAN_LIMIT_EXCEEDED,
+      'Đã đạt giới hạn gói FREE; vui lòng nâng cấp để tiếp tục.',
+    );
+    const bankRepo = {
+      findByIdForUpdate: jest.fn(),
+      save: jest.fn(),
+      countActiveByOrganization: jest.fn().mockResolvedValue(1),
+    };
+    const sessionRepo = {
+      findById: jest.fn().mockResolvedValue(session),
+      save: jest.fn(),
+    };
+    const auditRepo = { save: jest.fn() };
+    const useCase = new ExchangeTokenUseCase(
+      sessionRepo as never,
+      {
+        exchangeToken: jest
+          .fn()
+          .mockResolvedValue({ accessToken: 'raw-secret' }),
+        getAccountIdentity: jest
+          .fn()
+          .mockResolvedValue({ accountNumber: '1234', bankName: 'Mock' }),
+      } as never,
+      bankRepo as never,
+      auditRepo as never,
+      dataSource as never,
+      encryptionKey,
+      {
+        enforceBankConnectionLimit: jest.fn().mockRejectedValue(planLimitError),
+      } as never,
+    );
+
+    await expect(
+      useCase.execute({ sessionId: 'session-1', publicToken: 'public' }),
+    ).rejects.toBe(planLimitError);
+
+    expect(bankRepo.countActiveByOrganization).toHaveBeenCalledWith(
+      'org-1',
+      expect.anything(),
+    );
+    expect(bankRepo.save).not.toHaveBeenCalled();
+    expect(sessionRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('enforces the ACTIVE limit inside the same transaction as the exchange', async () => {
+    const session = new CasIdConnectionSession({
+      id: 'session-1',
+      organizationId: 'org-1',
+      initiatedByUserId: 'user-1',
+      bankConnectionId: null,
+      grantToken: 'grant',
+      scopes: ['identity'],
+      redirectUri: 'http://localhost/callback',
+      status: 'PENDING_AUTHORIZATION',
+      expiresAt: new Date(Date.now() + 60_000),
+      createdAt: new Date(),
+    });
+    const bankRepo = {
+      findByIdForUpdate: jest.fn(),
+      save: jest.fn(),
+      countActiveByOrganization: jest.fn().mockResolvedValue(0),
+    };
+    const sessionRepo = {
+      findById: jest.fn().mockResolvedValue(session),
+      save: jest.fn(),
+    };
+    const auditRepo = { save: jest.fn() };
+    const enforceBankConnectionLimit = jest.fn().mockResolvedValue(undefined);
+    const useCase = new ExchangeTokenUseCase(
+      sessionRepo as never,
+      {
+        exchangeToken: jest
+          .fn()
+          .mockResolvedValue({ accessToken: 'raw-secret' }),
+        getAccountIdentity: jest
+          .fn()
+          .mockResolvedValue({ accountNumber: '1234', bankName: 'Mock' }),
+      } as never,
+      bankRepo as never,
+      auditRepo as never,
+      dataSource as never,
+      encryptionKey,
+      { enforceBankConnectionLimit } as never,
+    );
+
+    const result = await useCase.execute({
+      sessionId: 'session-1',
+      publicToken: 'public',
+    });
+
+    expect(result.status).toBe('ACTIVE');
+    expect(enforceBankConnectionLimit).toHaveBeenCalledWith(
+      expect.anything(),
+      0,
     );
   });
 });
