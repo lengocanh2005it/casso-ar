@@ -78,4 +78,21 @@ export class TypeOrmMembershipRepository implements IMembershipRepository {
       .where('membership.organizationId = :organizationId', { organizationId })
       .getCount();
   }
+
+  async countActiveByRole(organizationId: string, role: Role): Promise<number> {
+    return this.repo.count({
+      where: { organizationId, role, joinedAt: Not(IsNull()) },
+    });
+  }
+
+  async deleteByUserAndOrganization(
+    userId: string,
+    organizationId: string,
+    manager?: EntityManager,
+  ): Promise<void> {
+    await (manager?.getRepository(MembershipOrmEntity) ?? this.repo).delete({
+      userId,
+      organizationId,
+    });
+  }
 }

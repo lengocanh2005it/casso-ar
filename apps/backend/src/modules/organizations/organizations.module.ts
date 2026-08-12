@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from '../users/users.module';
+import { ChangeMemberRoleUseCase } from './application/change-member-role.usecase';
 import { ListMembersUseCase } from './application/list-members.usecase';
 import { MEMBERSHIP_REPOSITORY } from './application/membership-repository.port';
 import { ORGANIZATION_REPOSITORY } from './application/organization-repository.port';
@@ -23,6 +24,7 @@ import { OrganizationsController } from './presentation/organizations.controller
       useClass: TypeOrmOrganizationRepository,
     },
     ListMembersUseCase,
+    ChangeMemberRoleUseCase,
   ],
   exports: [MEMBERSHIP_REPOSITORY, ORGANIZATION_REPOSITORY],
 })

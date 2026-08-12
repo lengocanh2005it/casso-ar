@@ -2,10 +2,13 @@ import { Permission } from '@casso-ledger/shared-types';
 import {
   Body,
   Controller,
+  Delete,
   ForbiddenException,
+  HttpCode,
   Inject,
   NotFoundException,
   Param,
+  ParseUUIDPipe,
   Post,
   Req,
   UseGuards,
@@ -21,7 +24,10 @@ import {
   ORGANIZATION_REPOSITORY,
 } from '../../organizations/application/organization-repository.port';
 import { AcceptInviteUseCase } from '../application/accept-invite.usecase';
+import { DeleteInviteUseCase } from '../application/delete-invite.usecase';
 import { InviteMemberUseCase } from '../application/invite-member.usecase';
+import { RemoveMemberUseCase } from '../application/remove-member.usecase';
+import { ResendInviteUseCase } from '../application/resend-invite.usecase';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { InviteMemberDto } from './dto/invite-member.dto';
 
@@ -34,6 +40,9 @@ export class InvitesController {
   constructor(
     private readonly inviteMemberUseCase: InviteMemberUseCase,
     private readonly acceptInviteUseCase: AcceptInviteUseCase,
+    private readonly deleteInviteUseCase: DeleteInviteUseCase,
+    private readonly resendInviteUseCase: ResendInviteUseCase,
+    private readonly removeMemberUseCase: RemoveMemberUseCase,
     @Inject(ORGANIZATION_REPOSITORY)
     private readonly organizationRepo: IOrganizationRepository,
   ) {}
@@ -72,6 +81,31 @@ export class InvitesController {
       password: dto.password,
       authenticatedUserId: request.user?.userId,
     });
+    return { success: true };
+  }
+
+  @Delete('organizations/:id/invites/:inviteId')
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard, PermissionGuard)
+  @RequirePermission(Permission.USER_MANAGE)
+  async revokeInvite(@Param('inviteId', ParseUUIDPipe) inviteId: string) {
+    await this.deleteInviteUseCase.execute(inviteId);
+  }
+
+  @Delete('organizations/:id/members/:userId')
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard, PermissionGuard)
+  @RequirePermission(Permission.ORGANIZATION_MANAGE)
+  async removeMember(@Param('userId', ParseUUIDPipe) userId: string) {
+    await this.removeMemberUseCase.execute({ userId });
+  }
+
+  @Post('organizations/:id/invites/:inviteId/resend')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, PermissionGuard)
+  @RequirePermission(Permission.USER_MANAGE)
+  async resendInvite(@Param('inviteId', ParseUUIDPipe) inviteId: string) {
+    await this.resendInviteUseCase.execute(inviteId);
     return { success: true };
   }
 }
