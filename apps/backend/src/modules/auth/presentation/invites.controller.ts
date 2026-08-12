@@ -88,7 +88,14 @@ export class InvitesController {
   @HttpCode(204)
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @RequirePermission(Permission.USER_MANAGE)
-  async revokeInvite(@Param('inviteId', ParseUUIDPipe) inviteId: string) {
+  async revokeInvite(
+    @Param('id') organizationId: string,
+    @Param('inviteId', ParseUUIDPipe) inviteId: string,
+    @Req() request: AuthRequest,
+  ) {
+    if (request.user?.organizationId !== organizationId) {
+      throw new ForbiddenException('Organization mismatch');
+    }
     await this.deleteInviteUseCase.execute(inviteId);
   }
 
@@ -96,7 +103,14 @@ export class InvitesController {
   @HttpCode(204)
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @RequirePermission(Permission.ORGANIZATION_MANAGE)
-  async removeMember(@Param('userId', ParseUUIDPipe) userId: string) {
+  async removeMember(
+    @Param('id') organizationId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Req() request: AuthRequest,
+  ) {
+    if (request.user?.organizationId !== organizationId) {
+      throw new ForbiddenException('Organization mismatch');
+    }
     await this.removeMemberUseCase.execute({ userId });
   }
 
@@ -104,7 +118,14 @@ export class InvitesController {
   @HttpCode(200)
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @RequirePermission(Permission.USER_MANAGE)
-  async resendInvite(@Param('inviteId', ParseUUIDPipe) inviteId: string) {
+  async resendInvite(
+    @Param('id') organizationId: string,
+    @Param('inviteId', ParseUUIDPipe) inviteId: string,
+    @Req() request: AuthRequest,
+  ) {
+    if (request.user?.organizationId !== organizationId) {
+      throw new ForbiddenException('Organization mismatch');
+    }
     await this.resendInviteUseCase.execute(inviteId);
     return { success: true };
   }

@@ -17,6 +17,26 @@ function buildMembership(
   });
 }
 
+const manager = { name: 'transaction-manager' };
+
+const dataSource = {
+  transaction: jest.fn(
+    async (callback: (value: typeof manager) => Promise<unknown>) =>
+      callback(manager),
+  ),
+};
+
+function buildUseCase(
+  repo: Record<string, jest.Mock>,
+  tenantContext = { getOrganizationId: jest.fn().mockReturnValue('org-1') },
+) {
+  return new ChangeMemberRoleUseCase(
+    repo as never,
+    tenantContext as never,
+    dataSource as never,
+  );
+}
+
 describe('ChangeMemberRoleUseCase', () => {
   it('changes the role of an active member in the caller organization', async () => {
     const membership = buildMembership();
@@ -25,13 +45,7 @@ describe('ChangeMemberRoleUseCase', () => {
       countActiveByRole: jest.fn().mockResolvedValue(2),
       save: jest.fn(),
     };
-    const tenantContext = {
-      getOrganizationId: jest.fn().mockReturnValue('org-1'),
-    };
-    const useCase = new ChangeMemberRoleUseCase(
-      repo as never,
-      tenantContext as never,
-    );
+    const useCase = buildUseCase(repo);
 
     const result = await useCase.execute({
       userId: 'user-1',
@@ -41,6 +55,7 @@ describe('ChangeMemberRoleUseCase', () => {
     expect(result.role).toBe(Role.VIEWER);
     expect(repo.save).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'mem-1', role: Role.VIEWER }),
+      manager,
     );
   });
 
@@ -50,13 +65,7 @@ describe('ChangeMemberRoleUseCase', () => {
       countActiveByRole: jest.fn(),
       save: jest.fn(),
     };
-    const tenantContext = {
-      getOrganizationId: jest.fn().mockReturnValue('org-1'),
-    };
-    const useCase = new ChangeMemberRoleUseCase(
-      repo as never,
-      tenantContext as never,
-    );
+    const useCase = buildUseCase(repo);
 
     await expect(
       useCase.execute({ userId: 'user-9', role: Role.VIEWER }),
@@ -71,13 +80,7 @@ describe('ChangeMemberRoleUseCase', () => {
       countActiveByRole: jest.fn().mockResolvedValue(1),
       save: jest.fn(),
     };
-    const tenantContext = {
-      getOrganizationId: jest.fn().mockReturnValue('org-1'),
-    };
-    const useCase = new ChangeMemberRoleUseCase(
-      repo as never,
-      tenantContext as never,
-    );
+    const useCase = buildUseCase(repo);
 
     await expect(
       useCase.execute({ userId: 'user-1', role: Role.VIEWER }),
@@ -93,13 +96,7 @@ describe('ChangeMemberRoleUseCase', () => {
       countActiveByRole: jest.fn().mockResolvedValue(2),
       save: jest.fn(),
     };
-    const tenantContext = {
-      getOrganizationId: jest.fn().mockReturnValue('org-1'),
-    };
-    const useCase = new ChangeMemberRoleUseCase(
-      repo as never,
-      tenantContext as never,
-    );
+    const useCase = buildUseCase(repo);
 
     await expect(
       useCase.execute({ userId: 'user-1', role: Role.VIEWER }),
@@ -113,13 +110,7 @@ describe('ChangeMemberRoleUseCase', () => {
       countActiveByRole: jest.fn().mockResolvedValue(2),
       save: jest.fn(),
     };
-    const tenantContext = {
-      getOrganizationId: jest.fn().mockReturnValue('org-1'),
-    };
-    const useCase = new ChangeMemberRoleUseCase(
-      repo as never,
-      tenantContext as never,
-    );
+    const useCase = buildUseCase(repo);
 
     await expect(
       useCase.execute({ userId: 'user-1', role: Role.VIEWER }),

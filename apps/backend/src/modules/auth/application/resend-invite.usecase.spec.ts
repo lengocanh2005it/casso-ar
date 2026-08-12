@@ -20,6 +20,30 @@ function buildInvite(
   });
 }
 
+const manager = { name: 'transaction-manager' };
+
+const dataSource = {
+  transaction: jest.fn(
+    async (callback: (value: typeof manager) => Promise<unknown>) =>
+      callback(manager),
+  ),
+};
+
+function buildUseCase(
+  inviteRepo: Record<string, jest.Mock>,
+  organizationRepo: Record<string, jest.Mock>,
+  inviteMemberUseCase: Record<string, jest.Mock>,
+  tenantContext = { getOrganizationId: jest.fn().mockReturnValue('org-1') },
+) {
+  return new ResendInviteUseCase(
+    inviteRepo as never,
+    organizationRepo as never,
+    inviteMemberUseCase as never,
+    tenantContext as never,
+    dataSource as never,
+  );
+}
+
 describe('ResendInviteUseCase', () => {
   it('deletes the old invite and re-invites the same email with the same role', async () => {
     const inviteRepo = {
@@ -34,20 +58,20 @@ describe('ResendInviteUseCase', () => {
     const inviteMemberUseCase = {
       execute: jest.fn().mockResolvedValue(undefined),
     };
-    const tenantContext = {
-      getOrganizationId: jest.fn().mockReturnValue('org-1'),
-    };
-    const useCase = new ResendInviteUseCase(
-      inviteRepo as never,
-      organizationRepo as never,
-      inviteMemberUseCase as never,
-      tenantContext as never,
+    const useCase = buildUseCase(
+      inviteRepo,
+      organizationRepo,
+      inviteMemberUseCase,
     );
 
     await useCase.execute('invite-1');
 
     expect(inviteRepo.findById).toHaveBeenCalledWith('invite-1', 'org-1');
-    expect(inviteRepo.delete).toHaveBeenCalledWith('invite-1', 'org-1');
+    expect(inviteRepo.delete).toHaveBeenCalledWith(
+      'invite-1',
+      'org-1',
+      manager,
+    );
     expect(inviteMemberUseCase.execute).toHaveBeenCalledWith({
       organizationId: 'org-1',
       organizationName: 'Công ty A',
@@ -66,14 +90,10 @@ describe('ResendInviteUseCase', () => {
     };
     const organizationRepo = { findById: jest.fn() };
     const inviteMemberUseCase = { execute: jest.fn() };
-    const tenantContext = {
-      getOrganizationId: jest.fn().mockReturnValue('org-1'),
-    };
-    const useCase = new ResendInviteUseCase(
-      inviteRepo as never,
-      organizationRepo as never,
-      inviteMemberUseCase as never,
-      tenantContext as never,
+    const useCase = buildUseCase(
+      inviteRepo,
+      organizationRepo,
+      inviteMemberUseCase,
     );
 
     await expect(useCase.execute('invite-9')).rejects.toMatchObject({
@@ -93,14 +113,10 @@ describe('ResendInviteUseCase', () => {
     };
     const organizationRepo = { findById: jest.fn() };
     const inviteMemberUseCase = { execute: jest.fn() };
-    const tenantContext = {
-      getOrganizationId: jest.fn().mockReturnValue('org-1'),
-    };
-    const useCase = new ResendInviteUseCase(
-      inviteRepo as never,
-      organizationRepo as never,
-      inviteMemberUseCase as never,
-      tenantContext as never,
+    const useCase = buildUseCase(
+      inviteRepo,
+      organizationRepo,
+      inviteMemberUseCase,
     );
 
     await expect(useCase.execute('invite-1')).rejects.toMatchObject({

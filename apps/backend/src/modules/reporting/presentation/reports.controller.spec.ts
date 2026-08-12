@@ -18,6 +18,7 @@ describe('ReportsController', () => {
     const controller = new ReportsController(
       agingReportQueryService as never,
       dashboardSummaryQueryService as never,
+      { execute: jest.fn() } as never,
     );
 
     await expect(controller.getAgingReport()).resolves.toEqual({
@@ -33,6 +34,7 @@ describe('ReportsController', () => {
     const controller = new ReportsController(
       agingReportQueryService as never,
       dashboardSummaryQueryService as never,
+      { execute: jest.fn() } as never,
     );
 
     await controller.getDashboardSummary({

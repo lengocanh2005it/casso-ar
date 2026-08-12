@@ -3,11 +3,11 @@ import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { assertNotLastOwner } from '../../organizations/application/assert-not-last-owner';
 import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
 } from '../../organizations/application/membership-repository.port';
-import { Role } from '../../organizations/domain/membership';
 import {
   type IRefreshTokenRepository,
   REFRESH_TOKEN_REPOSITORY,
@@ -40,20 +40,9 @@ export class RemoveMemberUseCase {
         'Không tìm thấy thành viên trong tổ chức.',
       );
     }
-    if (membership.role === Role.OWNER) {
-      const ownerCount = await this.membershipRepo.countActiveByRole(
-        organizationId,
-        Role.OWNER,
-      );
-      if (ownerCount <= 1) {
-        throw new AppError(
-          ErrorCode.CONFLICT,
-          'Không thể gỡ OWNER cuối cùng của tổ chức.',
-        );
-      }
-    }
 
     await this.dataSource.transaction(async (manager) => {
+      await assertNotLastOwner(this.membershipRepo, organizationId, membership);
       await this.membershipRepo.deleteByUserAndOrganization(
         input.userId,
         organizationId,

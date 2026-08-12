@@ -1,8 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { Role } from '../domain/membership';
+import { assertNotLastOwner } from './assert-not-last-owner';
 import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
@@ -19,6 +21,7 @@ export class ChangeMemberRoleUseCase {
     @Inject(MEMBERSHIP_REPOSITORY)
     private readonly membershipRepo: IMembershipRepository,
     private readonly tenantContext: TenantContextService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async execute(input: ChangeMemberRoleInput) {
@@ -39,21 +42,18 @@ export class ChangeMemberRoleUseCase {
         'Thành viên chưa tham gia tổ chức, không thể đổi vai trò.',
       );
     }
-    if (membership.role === Role.OWNER && input.role !== Role.OWNER) {
-      const ownerCount = await this.membershipRepo.countActiveByRole(
-        organizationId,
-        Role.OWNER,
-      );
-      if (ownerCount <= 1) {
-        throw new AppError(
-          ErrorCode.CONFLICT,
-          'Không thể hạ quyền OWNER cuối cùng của tổ chức.',
+
+    return this.dataSource.transaction(async (manager) => {
+      if (membership.role === Role.OWNER && input.role !== Role.OWNER) {
+        await assertNotLastOwner(
+          this.membershipRepo,
+          organizationId,
+          membership,
         );
       }
-    }
-
-    const updated = membership.withRole(input.role);
-    await this.membershipRepo.save(updated);
-    return updated;
+      const updated = membership.withRole(input.role);
+      await this.membershipRepo.save(updated, manager);
+      return updated;
+    });
   }
 }

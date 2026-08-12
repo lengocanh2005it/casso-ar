@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
@@ -21,6 +22,7 @@ export class ResendInviteUseCase {
     private readonly organizationRepo: IOrganizationRepository,
     private readonly inviteMemberUseCase: InviteMemberUseCase,
     private readonly tenantContext: TenantContextService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async execute(inviteId: string): Promise<void> {
@@ -40,15 +42,19 @@ export class ResendInviteUseCase {
       throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy tổ chức.');
     }
 
-    // Replace the old invite with a fresh token (same email + role) — the
-    // invite use case generates the new token and sends the email.
-    await this.inviteRepo.delete(inviteId, organizationId);
-    await this.inviteMemberUseCase.execute({
-      organizationId,
-      organizationName: organization.name,
-      email: invite.email,
-      role: invite.role,
-      invitedByUserId: invite.invitedByUserId,
+    // Replace the old invite with a fresh token atomically — deleting first
+    // outside a transaction could lose the invite if the re-invite fails.
+    // The invite use case generates the new token; its email send runs
+    // after this transaction commits.
+    await this.dataSource.transaction(async (manager) => {
+      await this.inviteRepo.delete(inviteId, organizationId, manager);
+      await this.inviteMemberUseCase.execute({
+        organizationId,
+        organizationName: organization.name,
+        email: invite.email,
+        role: invite.role,
+        invitedByUserId: invite.invitedByUserId,
+      });
     });
   }
 }
