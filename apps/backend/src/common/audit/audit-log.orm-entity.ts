@@ -1,4 +1,5 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import type { AuditActionType, AuditEntityType } from './audit.enums';
 
 @Entity({ name: 'audit_logs' })
 @Index(['organizationId', 'createdAt'])
@@ -13,10 +14,10 @@ export class AuditLogOrmEntity {
   userId: string;
 
   @Column({ type: 'varchar' })
-  actionType: string;
+  actionType: AuditActionType;
 
   @Column({ type: 'varchar' })
-  entityType: string;
+  entityType: AuditEntityType;
 
   @Column({ type: 'varchar' })
   entityId: string;

@@ -26,6 +26,7 @@ import { CollectionActivityModule } from './modules/collection-activity/collecti
 import { CopilotModule } from './modules/copilot/copilot.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { DisputesModule } from './modules/disputes/disputes.module';
+import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { EmailTemplatesModule } from './modules/email-templates/email-templates.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
@@ -66,6 +67,7 @@ import { SmtpConfigModule } from './modules/smtp-config/smtp-config.module';
     CommonTokensModule,
     IdempotencyModule,
     AuditModule,
+    AuditLogsModule,
     OrganizationsModule,
     BillingModule,
     BankConnectionsModule,

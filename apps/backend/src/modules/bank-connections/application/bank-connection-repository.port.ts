@@ -18,6 +18,10 @@ export interface IBankConnectionRepository {
     limit: number,
   ): Promise<BankConnection[]>;
   count(organizationId: string): Promise<number>;
+  countActiveByOrganization(
+    organizationId: string,
+    manager: EntityManager,
+  ): Promise<number>;
   save(connection: BankConnection, manager?: EntityManager): Promise<void>;
 }
 

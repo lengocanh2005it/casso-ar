@@ -1,4 +1,10 @@
-export type WebhookInboxStatus = 'RECEIVED' | 'PROCESSED' | 'FAILED';
+export const WEBHOOK_INBOX_STATUSES = [
+  'RECEIVED',
+  'PROCESSED',
+  'FAILED',
+] as const;
+
+export type WebhookInboxStatus = (typeof WEBHOOK_INBOX_STATUSES)[number];
 
 export interface WebhookInboxProps {
   id: string;

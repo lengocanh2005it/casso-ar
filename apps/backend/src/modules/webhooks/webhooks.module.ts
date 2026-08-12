@@ -8,10 +8,12 @@ import { InvoicesModule } from '../invoices/invoices.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { ReceivablesModule } from '../receivables/receivables.module';
 import { BANK_TRANSACTION_REPOSITORY } from './application/bank-transaction-repository.port';
+import { ListWebhookInboxUseCase } from './application/list-webhook-inbox.usecase';
 import { MATCHING_CANDIDATE_REPOSITORY } from './application/matching-candidate-repository.port';
 import { MatchingEngineService } from './application/matching-engine.service';
 import { ProcessWebhookUseCase } from './application/process-webhook.usecase';
 import { ReceiveWebhookUseCase } from './application/receive-webhook.usecase';
+import { ReprocessWebhookUseCase } from './application/reprocess-webhook.usecase';
 import { WEBHOOK_INBOX_REPOSITORY } from './application/webhook-inbox-repository.port';
 import { WEBHOOK_JOB_QUEUE } from './application/webhook-job-queue.port';
 import { BankTransactionOrmEntity } from './infrastructure/bank-transaction.orm-entity';
@@ -23,6 +25,7 @@ import { TypeOrmWebhookInboxRepository } from './infrastructure/typeorm-webhook-
 import { WebhookProcessor } from './infrastructure/webhook.processor';
 import { WebhookInboxOrmEntity } from './infrastructure/webhook-inbox.orm-entity';
 import { WEBHOOK_PROCESSING_QUEUE } from './infrastructure/webhooks-queue.constants';
+import { WebhookInboxController } from './presentation/webhook-inbox.controller';
 import { WebhooksController } from './presentation/webhooks.controller';
 
 @Module({
@@ -40,7 +43,7 @@ import { WebhooksController } from './presentation/webhooks.controller';
     ReceivablesModule,
     PaymentsModule,
   ],
-  controllers: [WebhooksController],
+  controllers: [WebhooksController, WebhookInboxController],
   providers: [
     {
       provide: WEBHOOK_INBOX_REPOSITORY,
@@ -58,6 +61,8 @@ import { WebhooksController } from './presentation/webhooks.controller';
     MatchingEngineService,
     ProcessWebhookUseCase,
     ReceiveWebhookUseCase,
+    ListWebhookInboxUseCase,
+    ReprocessWebhookUseCase,
     WebhookProcessor,
   ],
   exports: [

@@ -3,6 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { PlanLimitService } from '../../billing/application/plan-limit.service';
 import { BankConnection } from '../domain/bank-connection';
 import { ConnectionAuditEvent } from '../domain/connection-audit-event';
 import { assertReauthorizable } from './assert-reauthorizable';
@@ -44,6 +45,7 @@ export class ExchangeTokenUseCase {
     private readonly dataSource: DataSource,
     @Inject(ACCESS_TOKEN_ENCRYPTION_KEY)
     private readonly encryptionKey: string,
+    private readonly planLimitService: PlanLimitService,
   ) {}
 
   async execute(input: ExchangeTokenInput): Promise<BankConnection> {
@@ -74,6 +76,17 @@ export class ExchangeTokenUseCase {
     const accountIdentity = await this.adapter.getAccountIdentity(accessToken);
 
     return this.dataSource.transaction(async (manager) => {
+      // Active bank-connection plan gate (issue #101): the count is deferred
+      // so it runs AFTER PlanLimitService acquires the org subscription lock —
+      // counting first would let concurrent exchanges both pass on a limit-1
+      // plan. The count itself is manager-scoped (same transaction).
+      await this.planLimitService.enforceBankConnectionLimit(manager, () =>
+        this.bankConnectionRepo.countActiveByOrganization(
+          session.organizationId,
+          manager,
+        ),
+      );
+
       const existing = session.bankConnectionId
         ? await this.bankConnectionRepo.findByIdForUpdate(
             session.bankConnectionId,
