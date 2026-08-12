@@ -7,6 +7,9 @@ import type {
 export interface IReminderExecutionRepository {
   getStatus(id: string): Promise<ReminderExecutionStatus | null>;
   findLatestSent(receivableId: string): Promise<{ sentAt: Date } | null>;
+  findLatestSentByReceivableIds(
+    receivableIds: string[],
+  ): Promise<Map<string, { sentAt: Date }>>;
   findByKey(
     receivableId: string,
     reminderRuleId: string | null,

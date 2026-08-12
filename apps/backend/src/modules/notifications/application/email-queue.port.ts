@@ -17,6 +17,13 @@ export interface AuthEmailJob {
   emailType: 'AUTH_VERIFICATION' | 'AUTH_PASSWORD_RESET' | 'AUTH_INVITE';
 }
 
+export interface OwnerAlertEmailJob {
+  organizationId: string;
+  to: string;
+  subject: string;
+  html: string;
+}
+
 export interface IEmailQueue {
   add(
     name: 'send-reminder-email',
@@ -31,6 +38,15 @@ export interface IEmailQueue {
     name: 'send-auth-email',
     data: AuthEmailJob,
     options?: {
+      attempts: number;
+      backoff: { type: 'exponential'; delay: number };
+    },
+  ): Promise<void>;
+  add(
+    name: 'send-owner-alert',
+    data: OwnerAlertEmailJob,
+    options?: {
+      jobId?: string;
       attempts: number;
       backoff: { type: 'exponential'; delay: number };
     },

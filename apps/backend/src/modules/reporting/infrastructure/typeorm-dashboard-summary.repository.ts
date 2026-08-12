@@ -152,34 +152,46 @@ export class TypeOrmDashboardSummaryRepository
     organizationId: string,
     period: DashboardPeriod,
   ): Promise<ReminderEffectivenessStats> {
+    // Range scans on (organizationId, status, sentAt): the period window and
+    // the global latest-sent-per-receivable group are both index-served,
+    // replacing the old per-row correlated NOT EXISTS subquery.
     const [row]: ReminderEffectivenessStatsRow[] = await this.dataSource.query(
       `
+          WITH period_sent AS (
+            SELECT re."receivableId", re."sentAt"
+            FROM reminder_executions re
+            WHERE re."organizationId" = $1::uuid
+              AND re.status = 'SENT'
+              AND re."sentAt" BETWEEN $2 AND $3
+          ),
+          latest_sent AS (
+            SELECT re."receivableId", MAX(re."sentAt") AS "sentAt"
+            FROM reminder_executions re
+            WHERE re."organizationId" = $1::uuid
+              AND re.status = 'SENT'
+            GROUP BY re."receivableId"
+          )
           SELECT
             COUNT(*) FILTER (
-              WHERE NOT EXISTS (
+              WHERE EXISTS (
                 SELECT 1
-                FROM reminder_executions latest
-                WHERE latest."organizationId" = re."organizationId"
-                  AND latest."receivableId" = re."receivableId"
-                  AND latest.status = 'SENT'
-                  AND latest."sentAt" > re."sentAt"
+                FROM latest_sent ls
+                WHERE ls."receivableId" = ps."receivableId"
+                  AND ls."sentAt" = ps."sentAt"
               )
               AND EXISTS (
                 SELECT 1
                 FROM receivables rec
-                WHERE rec.id = re."receivableId"
-                  AND rec."organizationId" = $1
+                WHERE rec.id = ps."receivableId"
+                  AND rec."organizationId" = $1::text
                   AND rec.status = 'PAID'
                   AND rec."closedAt" IS NOT NULL
-                  AND rec."closedAt" >= re."sentAt"
-                  AND rec."closedAt" <= re."sentAt" + INTERVAL '7 day'
+                  AND rec."closedAt" >= ps."sentAt"
+                  AND rec."closedAt" <= ps."sentAt" + INTERVAL '7 day'
               )
             ) AS "paidWithin7dCount",
             COUNT(*) AS "sentCount"
-          FROM reminder_executions re
-          WHERE re."organizationId" = $1::uuid
-            AND re.status = 'SENT'
-            AND re."sentAt" BETWEEN $2 AND $3
+          FROM period_sent ps
         `,
       [organizationId, period.from, period.to],
     );

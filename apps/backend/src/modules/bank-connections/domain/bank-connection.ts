@@ -59,13 +59,22 @@ export class BankConnection {
     return new BankConnection({ ...this, status: 'REQUIRES_REAUTHORIZATION' });
   }
 
+  markError(): BankConnection {
+    if (this.status !== 'ACTIVE') {
+      throw new Error(
+        `Cannot mark connection as ERROR from status ${this.status}`,
+      );
+    }
+    return new BankConnection({ ...this, status: 'ERROR' });
+  }
+
   reactivate(input: {
     casIdConnectionSessionId: string;
     encryptedAccessToken: string;
     accountIdentity: AccountIdentity;
     scopes: string[];
   }): BankConnection {
-    if (this.status !== 'REQUIRES_REAUTHORIZATION') {
+    if (this.status !== 'REQUIRES_REAUTHORIZATION' && this.status !== 'ERROR') {
       throw new Error(
         `Cannot reactivate a connection in status ${this.status}`,
       );

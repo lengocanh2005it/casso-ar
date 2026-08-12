@@ -43,20 +43,23 @@ function makeCandidate(
   };
 }
 
+function buildPolicyRepoMock() {
+  return {
+    findAllOrganizationIdsForScheduler: jest.fn(),
+    findByCustomerGroup: jest.fn(),
+    findAll: jest.fn().mockResolvedValue([policy]),
+  };
+}
+
 describe('ReminderSchedulerService', () => {
   it('enqueues the exact offset rule for an eligible candidate', async () => {
     const candidate = makeCandidate();
     const queueAdd = jest.fn();
     const scheduler = new ReminderSchedulerService(
-      {
-        findAllOrganizationIdsForScheduler: jest
-          .fn()
-          .mockResolvedValue(['org-1']),
-        findByCustomerGroup: jest.fn().mockResolvedValue(policy),
-      } as any,
+      buildPolicyRepoMock() as any,
       { findByPolicyId: jest.fn().mockResolvedValue([rule]) } as any,
       {
-        findLatestSent: jest.fn().mockResolvedValue(null),
+        findLatestSentByReceivableIds: jest.fn().mockResolvedValue(new Map()),
         insertIfAbsent: jest.fn().mockResolvedValue(true),
         save: jest.fn(),
       } as any,
@@ -88,15 +91,10 @@ describe('ReminderSchedulerService', () => {
   it('does not enqueue a disputed candidate', async () => {
     const queueAdd = jest.fn();
     const scheduler = new ReminderSchedulerService(
-      {
-        findAllOrganizationIdsForScheduler: jest
-          .fn()
-          .mockResolvedValue(['org-1']),
-        findByCustomerGroup: jest.fn().mockResolvedValue(policy),
-      } as any,
+      buildPolicyRepoMock() as any,
       { findByPolicyId: jest.fn().mockResolvedValue([rule]) } as any,
       {
-        findLatestSent: jest.fn().mockResolvedValue(null),
+        findLatestSentByReceivableIds: jest.fn().mockResolvedValue(new Map()),
         insertIfAbsent: jest.fn().mockResolvedValue(true),
         save: jest.fn(),
       } as any,
@@ -121,15 +119,10 @@ describe('ReminderSchedulerService', () => {
     const eventEmitter = { emitAsync: jest.fn().mockResolvedValue([]) };
     const queueAdd = jest.fn();
     const scheduler = new ReminderSchedulerService(
-      {
-        findAllOrganizationIdsForScheduler: jest
-          .fn()
-          .mockResolvedValue(['org-1']),
-        findByCustomerGroup: jest.fn().mockResolvedValue(policy),
-      } as any,
+      buildPolicyRepoMock() as any,
       { findByPolicyId: jest.fn().mockResolvedValue([rule]) } as any,
       {
-        findLatestSent: jest.fn().mockResolvedValue(null),
+        findLatestSentByReceivableIds: jest.fn().mockResolvedValue(new Map()),
         insertIfAbsent: jest.fn().mockResolvedValue(true),
         save: jest.fn(),
       } as any,
@@ -154,20 +147,17 @@ describe('ReminderSchedulerService', () => {
 
   it('records RATE_LIMITED when recent SENT execution exists within minIntervalDays', async () => {
     const executionRepo = {
-      findLatestSent: jest.fn().mockResolvedValue({
-        sentAt: new Date('2026-08-01'),
-      }),
+      findLatestSentByReceivableIds: jest
+        .fn()
+        .mockResolvedValue(
+          new Map([['rec-1', { sentAt: new Date('2026-08-01') }]]),
+        ),
       insertIfAbsent: jest.fn().mockResolvedValue(true),
       save: jest.fn(),
     };
     const queueAdd = jest.fn();
     const scheduler = new ReminderSchedulerService(
-      {
-        findAllOrganizationIdsForScheduler: jest
-          .fn()
-          .mockResolvedValue(['org-1']),
-        findByCustomerGroup: jest.fn().mockResolvedValue(policy),
-      } as any,
+      buildPolicyRepoMock() as any,
       { findByPolicyId: jest.fn().mockResolvedValue([rule]) } as any,
       executionRepo as any,
       {
@@ -194,5 +184,53 @@ describe('ReminderSchedulerService', () => {
       }),
     );
     expect(queueAdd).not.toHaveBeenCalled();
+  });
+
+  it('batches policy, rule, and latest-sent lookups instead of querying per candidate', async () => {
+    const candidates = [
+      makeCandidate({ receivableId: 'rec-1' }),
+      makeCandidate({ receivableId: 'rec-2' }),
+    ];
+    const policyRepo = {
+      findAll: jest.fn().mockResolvedValue([policy]),
+      findByCustomerGroup: jest.fn(),
+    };
+    const ruleRepo = { findByPolicyId: jest.fn().mockResolvedValue([rule]) };
+    const executionRepo = {
+      findLatestSentByReceivableIds: jest
+        .fn()
+        .mockResolvedValue(new Map<string, { sentAt: Date }>()),
+      findLatestSent: jest.fn(),
+      insertIfAbsent: jest.fn().mockResolvedValue(true),
+      save: jest.fn(),
+    };
+    const queueAdd = jest.fn();
+    const scheduler = new ReminderSchedulerService(
+      policyRepo as any,
+      ruleRepo as any,
+      executionRepo as any,
+      { findOpenCandidates: jest.fn().mockResolvedValue(candidates) } as any,
+      { add: queueAdd } as any,
+      {
+        run: async (_user: unknown, cb: () => Promise<void>) => await cb(),
+      } as any,
+      { emitAsync: jest.fn().mockResolvedValue([]) } as any,
+      { findAllIds: jest.fn().mockResolvedValue(['org-1']) } as any,
+    );
+
+    await scheduler.scan(new Date('2026-08-03'));
+
+    expect(policyRepo.findByCustomerGroup).not.toHaveBeenCalled();
+    expect(policyRepo.findAll).toHaveBeenCalledTimes(1);
+    expect(ruleRepo.findByPolicyId).toHaveBeenCalledTimes(1);
+    expect(executionRepo.findLatestSent).not.toHaveBeenCalled();
+    expect(executionRepo.findLatestSentByReceivableIds).toHaveBeenCalledTimes(
+      1,
+    );
+    expect(executionRepo.findLatestSentByReceivableIds).toHaveBeenCalledWith([
+      'rec-1',
+      'rec-2',
+    ]);
+    expect(queueAdd).toHaveBeenCalledTimes(2);
   });
 });

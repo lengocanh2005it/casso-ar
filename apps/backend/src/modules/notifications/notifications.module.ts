@@ -14,6 +14,7 @@ import { EmailService } from './application/email.service';
 import { EMAIL_PROVIDER_ADAPTER } from './application/email-provider-adapter.port';
 import { EMAIL_PROVIDER_RESOLVER } from './application/email-provider-resolver.port';
 import { EMAIL_QUEUE_PORT } from './application/email-queue.port';
+import { BankConnectionStatusListener } from './infrastructure/bank-connection-status.listener';
 import { EmailProviderResolver } from './infrastructure/email-provider-resolver';
 import { BullMqEmailQueue } from './infrastructure/email-queue.adapter';
 import { EMAIL_QUEUE } from './infrastructure/email-queue.constants';
@@ -40,6 +41,7 @@ import { ResendEmailAdapter } from './infrastructure/resend-email.adapter';
     { provide: EMAIL_QUEUE_PORT, useClass: BullMqEmailQueue },
     EmailService,
     EmailQueueProcessor,
+    BankConnectionStatusListener,
   ],
   exports: [EMAIL_PROVIDER_ADAPTER, EMAIL_QUEUE_PORT, EmailService],
 })

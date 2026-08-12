@@ -2,7 +2,9 @@ export type ConnectionAuditEventType =
   | 'SESSION_CREATED'
   | 'TOKEN_EXCHANGED'
   | 'API_CALL_FAILED_401'
+  | 'API_CALL_FAILED'
   | 'MARKED_REQUIRES_REAUTH'
+  | 'MARKED_ERROR'
   | 'RECONNECTED'
   | 'DISCONNECTED';
 

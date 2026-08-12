@@ -4,6 +4,7 @@ import type { Queue } from 'bullmq';
 import type {
   AuthEmailJob,
   IEmailQueue,
+  OwnerAlertEmailJob,
   ReminderEmailJob,
 } from '../application/email-queue.port';
 import { EMAIL_QUEUE } from './email-queue.constants';
@@ -30,8 +31,17 @@ export class BullMqEmailQueue implements IEmailQueue {
     },
   ): Promise<void>;
   async add(
+    name: 'send-owner-alert',
+    data: OwnerAlertEmailJob,
+    options?: {
+      jobId?: string;
+      attempts: number;
+      backoff: { type: 'exponential'; delay: number };
+    },
+  ): Promise<void>;
+  async add(
     name: string,
-    data: ReminderEmailJob | AuthEmailJob,
+    data: ReminderEmailJob | AuthEmailJob | OwnerAlertEmailJob,
     options?: {
       jobId?: string;
       attempts?: number;

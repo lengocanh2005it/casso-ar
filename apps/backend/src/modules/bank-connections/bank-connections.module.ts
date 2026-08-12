@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { EVENT_PUBLISHER } from '../../common/events/event-publisher.port';
+import { NestEventPublisherAdapter } from '../../common/events/nest-event-publisher.adapter';
 import { BANK_CONNECTION_REPOSITORY } from './application/bank-connection-repository.port';
 import { CAS_ID_CONNECTION_SESSION_REPOSITORY } from './application/cas-id-connection-session-repository.port';
 import { CAS_ID_INTEGRATION_ADAPTER } from './application/cas-id-integration-adapter.port';
@@ -44,6 +46,7 @@ import { BankConnectionsController } from './presentation/bank-connections.contr
       useClass: TypeOrmConnectionAuditEventRepository,
     },
     { provide: CAS_ID_INTEGRATION_ADAPTER, useClass: MockCasIdAdapter },
+    { provide: EVENT_PUBLISHER, useClass: NestEventPublisherAdapter },
     {
       provide: ACCESS_TOKEN_ENCRYPTION_KEY,
       inject: [ConfigService],

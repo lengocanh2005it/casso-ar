@@ -19,6 +19,7 @@ import {
   ReminderExecutionStatus,
   ReminderSkipReason,
 } from '../domain/reminder-execution';
+import type { ReminderRule } from '../domain/reminder-rule';
 import type { IReminderCandidateReader } from './reminder-candidate-reader.port';
 import type { IReminderExecutionRepository } from './reminder-execution-repository.port';
 import type { IReminderPolicyRepository } from './reminder-policy-repository.port';
@@ -93,23 +94,46 @@ export class ReminderSchedulerService {
   ): Promise<void> {
     const candidates = await this.candidateReader.findOpenCandidates();
     const executionDate = calendarDate(today);
+    const eligible = candidates.filter((candidate) => !candidate.isDisputed);
+    if (eligible.length === 0) {
+      await this.eventEmitter.emitAsync('reminder.scan.completed', {
+        organizationId,
+        scanDate: executionDate,
+      });
+      return;
+    }
 
-    for (const candidate of candidates) {
-      if (candidate.isDisputed) continue;
-
-      const policy = await this.policyRepo.findByCustomerGroup(
-        candidate.customerGroup,
+    // Load the org's policies and rules once (at most a handful per org) and
+    // batch the latest-sent lookup — the old loop did 3 sequential queries
+    // per open receivable (~30k queries/night at 10k receivables).
+    const policies = await this.policyRepo.findAll();
+    const policyByGroup = new Map(
+      policies
+        .filter((policy) => policy.isActive)
+        .map((policy) => [policy.customerGroup, policy]),
+    );
+    const rulesByPolicyId = new Map<string, ReminderRule[]>();
+    for (const policy of policyByGroup.values()) {
+      rulesByPolicyId.set(
+        policy.id,
+        await this.ruleRepo.findByPolicyId(policy.id),
       );
-      if (!policy?.isActive) continue;
+    }
+    const latestSentByReceivable =
+      await this.executionRepo.findLatestSentByReceivableIds(
+        eligible.map((candidate) => candidate.receivableId),
+      );
 
-      const rules = await this.ruleRepo.findByPolicyId(policy.id);
+    for (const candidate of eligible) {
+      const policy = policyByGroup.get(candidate.customerGroup);
+      if (!policy) continue;
+
+      const rules = rulesByPolicyId.get(policy.id) ?? [];
       const offsetDays = calculateOffsetDays(candidate.dueDate, today);
       const matchingRule = findMatchingRule(rules, offsetDays);
       if (!matchingRule) continue;
 
-      const latestSent = await this.executionRepo.findLatestSent(
-        candidate.receivableId,
-      );
+      const latestSent = latestSentByReceivable.get(candidate.receivableId);
       if (latestSent) {
         const daysSinceLastSend = Math.round(
           (today.getTime() - latestSent.sentAt.getTime()) /

@@ -62,4 +62,28 @@ describe('BankConnection', () => {
       }),
     ).toThrow('Cannot reactivate a connection in status ACTIVE');
   });
+
+  it('marks an ACTIVE connection as ERROR on a non-authentication failure', () => {
+    const errored = activeConnection().markError();
+    expect(errored.status).toBe('ERROR');
+    expect(errored.isUsable()).toBe(false);
+  });
+
+  it('rejects marking a non-ACTIVE connection as ERROR', () => {
+    const errored = activeConnection().markError();
+    expect(() => errored.markError()).toThrow(
+      'Cannot mark connection as ERROR from status ERROR',
+    );
+  });
+
+  it('reactivates a connection that was marked ERROR', () => {
+    const errored = activeConnection().markError();
+    const reconnected = errored.reactivate({
+      casIdConnectionSessionId: 'session-2',
+      encryptedAccessToken: 'encrypted-2',
+      accountIdentity: { accountNumber: '0044005566', bankName: 'New Bank' },
+      scopes: ['identity', 'transaction'],
+    });
+    expect(reconnected.status).toBe('ACTIVE');
+  });
 });
