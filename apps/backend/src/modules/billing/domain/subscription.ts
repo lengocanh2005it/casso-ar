@@ -86,17 +86,18 @@ export class Subscription {
     this.version = props.version;
   }
 
-  static createFree(
+  private static createFromPlan(
     id: string,
     organizationId: string,
     now: Date,
+    planId: PlanId,
   ): Subscription {
-    const plan = PLAN_CATALOG[PlanId.FREE];
+    const plan = PLAN_CATALOG[planId];
 
     return new Subscription({
       id,
       organizationId,
-      planId: PlanId.FREE,
+      planId,
       receivableMonthlyLimit: plan.receivableMonthlyLimit,
       bankConnectionLimit: plan.bankConnectionLimit,
       copilotChatMonthlyLimit: plan.copilotChatMonthlyLimit,
@@ -107,6 +108,14 @@ export class Subscription {
       createdAt: now,
       version: 1,
     });
+  }
+
+  static createFree(
+    id: string,
+    organizationId: string,
+    now: Date,
+  ): Subscription {
+    return Subscription.createFromPlan(id, organizationId, now, PlanId.FREE);
   }
 
   static createStarter(
@@ -114,22 +123,7 @@ export class Subscription {
     organizationId: string,
     now: Date,
   ): Subscription {
-    const plan = PLAN_CATALOG[PlanId.STARTER];
-
-    return new Subscription({
-      id,
-      organizationId,
-      planId: PlanId.STARTER,
-      receivableMonthlyLimit: plan.receivableMonthlyLimit,
-      bankConnectionLimit: plan.bankConnectionLimit,
-      copilotChatMonthlyLimit: plan.copilotChatMonthlyLimit,
-      canUseCustomSmtp: plan.canUseCustomSmtp,
-      status: SubscriptionStatus.ACTIVE,
-      currentPeriodStart: startOfMonth(now),
-      currentPeriodEnd: startOfNextMonth(now),
-      createdAt: now,
-      version: 1,
-    });
+    return Subscription.createFromPlan(id, organizationId, now, PlanId.STARTER);
   }
 
   static createBusiness(
@@ -137,22 +131,12 @@ export class Subscription {
     organizationId: string,
     now: Date,
   ): Subscription {
-    const plan = PLAN_CATALOG[PlanId.BUSINESS];
-
-    return new Subscription({
+    return Subscription.createFromPlan(
       id,
       organizationId,
-      planId: PlanId.BUSINESS,
-      receivableMonthlyLimit: plan.receivableMonthlyLimit,
-      bankConnectionLimit: plan.bankConnectionLimit,
-      copilotChatMonthlyLimit: plan.copilotChatMonthlyLimit,
-      canUseCustomSmtp: plan.canUseCustomSmtp,
-      status: SubscriptionStatus.ACTIVE,
-      currentPeriodStart: startOfMonth(now),
-      currentPeriodEnd: startOfNextMonth(now),
-      createdAt: now,
-      version: 1,
-    });
+      now,
+      PlanId.BUSINESS,
+    );
   }
 
   static createEnterprise(
@@ -160,22 +144,12 @@ export class Subscription {
     organizationId: string,
     now: Date,
   ): Subscription {
-    const plan = PLAN_CATALOG[PlanId.ENTERPRISE];
-
-    return new Subscription({
+    return Subscription.createFromPlan(
       id,
       organizationId,
-      planId: PlanId.ENTERPRISE,
-      receivableMonthlyLimit: plan.receivableMonthlyLimit,
-      bankConnectionLimit: plan.bankConnectionLimit,
-      copilotChatMonthlyLimit: plan.copilotChatMonthlyLimit,
-      canUseCustomSmtp: plan.canUseCustomSmtp,
-      status: SubscriptionStatus.ACTIVE,
-      currentPeriodStart: startOfMonth(now),
-      currentPeriodEnd: startOfNextMonth(now),
-      createdAt: now,
-      version: 1,
-    });
+      now,
+      PlanId.ENTERPRISE,
+    );
   }
 
   isReceivableLimitReached(receivablesThisMonth: number): boolean {
