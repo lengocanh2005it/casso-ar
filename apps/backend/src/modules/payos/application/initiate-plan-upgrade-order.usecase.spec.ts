@@ -35,6 +35,7 @@ describe('InitiatePlanUpgradeOrderUseCase', () => {
       ),
       lockAndFindByOrderCode: jest.fn(),
       save: jest.fn(),
+      existsPaidWithinRange: jest.fn(),
     };
     const adapter: jest.Mocked<IPayosPaymentAdapter> = {
       createPaymentLink: jest.fn().mockResolvedValue({

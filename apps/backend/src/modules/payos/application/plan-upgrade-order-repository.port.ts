@@ -18,6 +18,14 @@ export interface IPlanUpgradeOrderRepository {
     manager?: EntityManager,
     organizationId?: string,
   ): Promise<void>;
+  // Used by PeriodPaymentStatusService: a PAID PlanUpgradeOrder that landed
+  // inside the current billing period counts as that period's payment (the
+  // org doesn't also need a separate PeriodCharge for the period it upgraded in).
+  existsPaidWithinRange(
+    organizationId: string,
+    periodStart: Date,
+    periodEnd: Date,
+  ): Promise<boolean>;
 }
 
 export const PLAN_UPGRADE_ORDER_REPOSITORY = Symbol(
