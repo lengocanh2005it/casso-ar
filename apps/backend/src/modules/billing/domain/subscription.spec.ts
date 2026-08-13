@@ -182,4 +182,35 @@ describe('Subscription', () => {
       );
     });
   });
+
+  describe('revertToFreeForNonRenewal', () => {
+    it('moves a paid-tier subscription to FREE regardless of tier direction', () => {
+      const subscription = Subscription.createBusiness(
+        'sub-1',
+        'org-1',
+        new Date('2026-08-01T00:00:00Z'),
+      );
+      const reverted = subscription.revertToFreeForNonRenewal(
+        new Date('2026-09-04T00:00:00Z'),
+      );
+      expect(reverted.planId).toBe(PlanId.FREE);
+      expect(reverted.receivableMonthlyLimit).toBe(50);
+      expect(reverted.bankConnectionLimit).toBe(1);
+      expect(reverted.copilotChatMonthlyLimit).toBe(50);
+      expect(reverted.canUseCustomSmtp).toBe(false);
+    });
+
+    it('is a no-op tier check bypass — does not throw even though FREE is a lower tier', () => {
+      const subscription = Subscription.createStarter(
+        'sub-1',
+        'org-1',
+        new Date('2026-08-01T00:00:00Z'),
+      );
+      expect(() =>
+        subscription.revertToFreeForNonRenewal(
+          new Date('2026-09-04T00:00:00Z'),
+        ),
+      ).not.toThrow();
+    });
+  });
 });
