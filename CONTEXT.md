@@ -22,6 +22,7 @@ A B2B SaaS platform for automating accounts receivable management and collection
 | **PaymentAllocation** | Payment → receivable allocation | `id`, `paymentId`, `receivableId`, `allocatedAmount`, `deletedAt` |
 | **BankTransaction** | Normalized transaction | `id`, `organizationId`, `status`, `amount`, `referenceCode` |
 | **WebhookInbox** | Raw webhook payload | `id`, `providerTransactionId`, `status`, `payload` |
+| **IdempotencyKey** | Dedup record for a POST request carrying an `Idempotency-Key` header. `status: PENDING` normally means "another request is executing this key, reject duplicates" — but a `PENDING` row older than 5 minutes is reclaimed as stale (see ADR-0015): deleted and re-executed rather than rejected forever | `id`, `organizationId`, `endpoint`, `key`, `requestHash`, `status`, `createdAt` |
 | **Dispute** | Dispute | `id`, `receivableId`, `status` |
 | **ReminderPolicy** | Reminder policy by customer group | `id`, `customerGroup`, `escalationThresholdDays` |
 | **ReminderExecution** | Reminder sending history | `id`, `reminderRuleId`, `status`, `sentAt` |
@@ -76,7 +77,8 @@ A B2B SaaS platform for automating accounts receivable management and collection
 6. **Allocation:** `Payment.customerId` MUST exist and match `Receivable.customerId`
 7. **Undo:** soft-delete + audit; do not physically delete
 8. **Terminal statuses:** PAID, WRITTEN_OFF, CANCELLED — cannot transition further
-9. **Plan tiers:** FREE < STARTER < BUSINESS < ENTERPRISE (strict order). A `Subscription` may only move to a strictly higher tier via `PlanUpgradeOrder` (self-service upgrade); there is no downgrade or cancel action — an org on a paid tier must pay a `PeriodCharge` for the current billing period to keep that tier. If unpaid by the end of a 3-day grace window after period end, the `Subscription` automatically drops to FREE (not a user-triggered downgrade). During the grace window `status` stays `ACTIVE` (see ADR-0012) — `PAST_DUE` keeps its existing meaning of an immediate hard block (`plan-limit.service.ts`), it is not used for renewal grace
+9. **Retention Policy:** INSERT-only, unbounded-growth tables are pruned by a daily cutoff-based delete, not query-time filtering. Windows (see issue #118): `webhook_inbox` 90d, `idempotency_keys` 90d post-COMPLETED, `ai_usage_logs` 12mo, `audit_logs`/`collection_activities`/`reminder_executions` 24mo, `alerts` 90d after `readAt` (unread rows are never auto-pruned)
+10. **Plan tiers:** FREE < STARTER < BUSINESS < ENTERPRISE (strict order). A `Subscription` may only move to a strictly higher tier via `PlanUpgradeOrder` (self-service upgrade); there is no downgrade or cancel action — an org on a paid tier must pay a `PeriodCharge` for the current billing period to keep that tier. If unpaid by the end of a 3-day grace window after period end, the `Subscription` automatically drops to FREE (not a user-triggered downgrade). During the grace window `status` stays `ACTIVE` (see ADR-0012) — `PAST_DUE` keeps its existing meaning of an immediate hard block (`plan-limit.service.ts`), it is not used for renewal grace
 
 ## RBAC
 
@@ -130,6 +132,7 @@ Score components:
 | 0012 | PeriodCharge + renewal-reminder cron | PayOS has no auto-charge, so renewal is a self-serve repeat payment; a reminder cron is needed since ADR-0010's "no cron" premise assumed no recurring payment obligation existed |
 | 0013 | Alert module separate from `notifications` (email queue) | New `alerts/` module owns the in-app, read/unread concept; `notifications/` keeps meaning "email queue" only — avoids overloading "Notification" |
 | 0014 | Alert SSE via in-process EventEmitter2, no cross-instance relay | Single-instance `backend` today; breaks silently if horizontally scaled — a future replica needs a Redis-relay upgrade before the bell stays live |
+| 0015 | Idempotency-Key PENDING rows reclaimed as stale after 5 minutes | Prevents permanent PENDING leak on process crash (issue #118), trading strict idempotency for a rare >5min-running request against bounded leak otherwise |
 
 ## Constraints
 
