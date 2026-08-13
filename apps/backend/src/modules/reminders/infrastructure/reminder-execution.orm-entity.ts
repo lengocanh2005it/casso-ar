@@ -14,6 +14,7 @@ import {
 @Index(['organizationId', 'receivableId'])
 @Index(['receivableId', 'reminderRuleId', 'executionDate'], { unique: true })
 @Index(['organizationId', 'status', 'sentAt'])
+@Index('IDX_reminder_executions_created_at', ['createdAt'])
 export class ReminderExecutionOrmEntity {
   @PrimaryColumn('uuid')
   id: string;

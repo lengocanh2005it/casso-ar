@@ -2,6 +2,10 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity({ name: 'idempotency_keys' })
 @Index(['organizationId', 'endpoint', 'key'], { unique: true })
+@Index('IDX_idempotency_keys_created_at', ['createdAt'])
+@Index('IDX_idempotency_keys_pending_created_at', ['status', 'createdAt'], {
+  where: `"status" = 'PENDING'`,
+})
 export class IdempotencyKeyOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;

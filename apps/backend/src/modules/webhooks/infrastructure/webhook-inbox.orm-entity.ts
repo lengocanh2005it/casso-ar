@@ -3,6 +3,7 @@ import type { WebhookInboxStatus } from '../domain/webhook-inbox';
 
 @Entity({ name: 'webhook_inbox' })
 @Index(['organizationId', 'providerTransactionId'], { unique: true })
+@Index('IDX_webhook_inbox_received_at', ['receivedAt'])
 export class WebhookInboxOrmEntity {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column({ type: 'varchar' }) organizationId: string;

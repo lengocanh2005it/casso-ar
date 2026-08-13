@@ -4,6 +4,7 @@ import { CollectionActivityType } from '../common/collection-activity-types';
 @Entity({ name: 'collection_activities' })
 @Index(['receivableId', 'createdAt'])
 @Index(['customerId', 'createdAt'])
+@Index('IDX_collection_activities_created_at', ['createdAt'])
 export class CollectionActivityOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
