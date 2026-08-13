@@ -11,6 +11,7 @@ export interface AIUsageLogEntry {
 
 export interface IAIUsageLogRepository {
   log(entry: AIUsageLogEntry): Promise<void>;
+  deleteOlderThan(cutoff: Date): Promise<number>;
 }
 
 export const AI_USAGE_LOG_REPOSITORY = Symbol('AI_USAGE_LOG_REPOSITORY');
