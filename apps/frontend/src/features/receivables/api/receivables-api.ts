@@ -21,6 +21,7 @@ export interface ReceivableFilters {
   status?: ReceivableStatus;
   salesRepresentativeId?: string;
   customerId?: string;
+  search?: string;
 }
 
 export interface CreateReceivableInput {

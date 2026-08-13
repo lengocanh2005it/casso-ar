@@ -44,11 +44,13 @@ describe('ListReceivablesUseCase', () => {
         .mockResolvedValue(
           new Map([['invoice-1', { invoiceNumber: 'INV-001' }]]),
         ),
+      findIdsByInvoiceNumberSearch: jest.fn().mockResolvedValue([]),
     };
     const customerRepo = {
       findByIds: jest
         .fn()
         .mockResolvedValue(new Map([['customer-1', { name: 'Acme Co' }]])),
+      findIdsBySearch: jest.fn().mockResolvedValue([]),
     };
     const tenantContext = {
       getOrganizationId: jest.fn().mockReturnValue('org-1'),
@@ -187,6 +189,75 @@ describe('ListReceivablesUseCase', () => {
     const result = await useCase.execute({ filters: {}, page: 1, limit: 20 });
 
     expect(result.items[0].isOverdue).toBe(false);
+  });
+
+  it('resolves a search term into customerIdIn/invoiceIdIn filters before querying receivables', async () => {
+    const {
+      receivableRepo,
+      disputeRepo,
+      invoiceRepo,
+      customerRepo,
+      tenantContext,
+    } = buildDeps();
+    customerRepo.findIdsBySearch.mockResolvedValue(['customer-1']);
+    invoiceRepo.findIdsByInvoiceNumberSearch.mockResolvedValue(['invoice-1']);
+    const useCase = new ListReceivablesUseCase(
+      receivableRepo as any,
+      disputeRepo as any,
+      invoiceRepo as any,
+      customerRepo as any,
+      tenantContext as any,
+    );
+
+    await useCase.execute({
+      filters: {},
+      search: 'acme',
+      page: 1,
+      limit: 20,
+    });
+
+    expect(customerRepo.findIdsBySearch).toHaveBeenCalledWith(
+      'org-1',
+      'acme',
+      500,
+    );
+    expect(invoiceRepo.findIdsByInvoiceNumberSearch).toHaveBeenCalledWith(
+      'org-1',
+      'acme',
+      500,
+    );
+    expect(receivableRepo.findPage).toHaveBeenCalledWith(
+      'org-1',
+      { customerIdIn: ['customer-1'], invoiceIdIn: ['invoice-1'] },
+      1,
+      20,
+    );
+    expect(receivableRepo.count).toHaveBeenCalledWith('org-1', {
+      customerIdIn: ['customer-1'],
+      invoiceIdIn: ['invoice-1'],
+    });
+  });
+
+  it('does not resolve search filters when no search term is given', async () => {
+    const {
+      receivableRepo,
+      disputeRepo,
+      invoiceRepo,
+      customerRepo,
+      tenantContext,
+    } = buildDeps();
+    const useCase = new ListReceivablesUseCase(
+      receivableRepo as any,
+      disputeRepo as any,
+      invoiceRepo as any,
+      customerRepo as any,
+      tenantContext as any,
+    );
+
+    await useCase.execute({ filters: {}, page: 1, limit: 20 });
+
+    expect(customerRepo.findIdsBySearch).not.toHaveBeenCalled();
+    expect(invoiceRepo.findIdsByInvoiceNumberSearch).not.toHaveBeenCalled();
   });
 
   it('can be resolved through the real NestJS DI container', async () => {

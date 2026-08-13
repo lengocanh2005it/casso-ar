@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -18,8 +19,12 @@ import type { BankTransaction } from '../types';
 export function ExceptionsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const page = Number(searchParams.get('page') ?? '1');
+  const search = searchParams.get('search') ?? '';
   const [selected, setSelected] = useState<BankTransaction | null>(null);
-  const { data, isPending, isError } = usePendingReview(page);
+  const { data, isPending, isError } = usePendingReview(
+    page,
+    search || undefined,
+  );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
 
   function setPage(nextPage: number) {
@@ -38,6 +43,25 @@ export function ExceptionsPage() {
           Hàng chờ xử lý ngoại lệ
         </h1>
       </div>
+      <Input
+        aria-label="Tìm kiếm giao dịch"
+        placeholder="Tìm theo tên, số tài khoản hoặc nội dung chuyển khoản"
+        value={search}
+        onChange={(event) => {
+          const value = event.target.value;
+          setSearchParams((current) => {
+            const next = new URLSearchParams(current);
+            if (value) {
+              next.set('search', value);
+            } else {
+              next.delete('search');
+            }
+            next.set('page', '1');
+            return next;
+          });
+        }}
+        className="max-w-lg"
+      />
       {isPending && <p>Đang tải…</p>}
       {isError && (
         <p className="text-destructive">

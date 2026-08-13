@@ -13,9 +13,12 @@ export interface IBankTransactionRepository {
   ): Promise<BankTransaction | null>;
   findManyByStatus(
     status: BankTransactionStatus,
-    options?: { skip?: number; take?: number },
+    options?: { skip?: number; take?: number; search?: string },
   ): Promise<BankTransaction[]>;
-  countByStatus(status: BankTransactionStatus): Promise<number>;
+  countByStatus(
+    status: BankTransactionStatus,
+    search?: string,
+  ): Promise<number>;
 }
 
 export const BANK_TRANSACTION_REPOSITORY = Symbol(

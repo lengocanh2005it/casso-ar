@@ -206,18 +206,8 @@ export class TypeOrmReceivableRepository
     page: number,
     limit: number,
   ): Promise<Receivable[]> {
-    const where: FindOptionsWhere<ReceivableOrmEntity> = { organizationId };
-    if (filters.status) {
-      where.status = filters.status as ReceivableStatus;
-    }
-    if (filters.salesRepresentativeId) {
-      where.salesRepresentativeId = filters.salesRepresentativeId;
-    }
-    if (filters.customerId) {
-      where.customerId = filters.customerId;
-    }
     const rows = await this.ormRepo.find({
-      where,
+      where: buildWhere(organizationId, filters),
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -229,16 +219,42 @@ export class TypeOrmReceivableRepository
     organizationId: string,
     filters: ReceivableListFilters,
   ): Promise<number> {
-    const where: FindOptionsWhere<ReceivableOrmEntity> = { organizationId };
-    if (filters.status) {
-      where.status = filters.status as ReceivableStatus;
-    }
-    if (filters.salesRepresentativeId) {
-      where.salesRepresentativeId = filters.salesRepresentativeId;
-    }
-    if (filters.customerId) {
-      where.customerId = filters.customerId;
-    }
-    return this.ormRepo.count({ where });
+    return this.ormRepo.count({ where: buildWhere(organizationId, filters) });
   }
+}
+
+// A search term resolves to matching customerIds/invoiceIds upstream (see
+// ListReceivablesUseCase); here they become OR branches (TypeORM: an array
+// of where-objects is OR'd) each still AND'd with the scalar filters below.
+function buildWhere(
+  organizationId: string,
+  filters: ReceivableListFilters,
+):
+  | FindOptionsWhere<ReceivableOrmEntity>
+  | FindOptionsWhere<ReceivableOrmEntity>[] {
+  const base: FindOptionsWhere<ReceivableOrmEntity> = { organizationId };
+  if (filters.status) {
+    base.status = filters.status as ReceivableStatus;
+  }
+  if (filters.salesRepresentativeId) {
+    base.salesRepresentativeId = filters.salesRepresentativeId;
+  }
+  if (filters.customerId) {
+    base.customerId = filters.customerId;
+  }
+
+  if (filters.customerIdIn === undefined && filters.invoiceIdIn === undefined) {
+    return base;
+  }
+
+  const branches: FindOptionsWhere<ReceivableOrmEntity>[] = [];
+  if (filters.customerIdIn?.length) {
+    branches.push({ ...base, customerId: In(filters.customerIdIn) });
+  }
+  if (filters.invoiceIdIn?.length) {
+    branches.push({ ...base, invoiceId: In(filters.invoiceIdIn) });
+  }
+  // Search matched nothing: force a no-result query instead of falling
+  // through to the unfiltered `base` where, which would return every row.
+  return branches.length > 0 ? branches : [{ ...base, id: In([]) }];
 }

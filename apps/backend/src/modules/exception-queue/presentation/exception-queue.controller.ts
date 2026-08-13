@@ -50,7 +50,7 @@ export class ExceptionQueueController {
   @RequirePermission(Permission.PAYMENT_ALLOCATE)
   async unmatched(@Query() query: ExceptionQueuePaginationDto) {
     return toUnmatchedResponse(
-      await this.unmatchedQuery.execute(query.page, query.limit),
+      await this.unmatchedQuery.execute(query.page, query.limit, query.search),
     );
   }
 

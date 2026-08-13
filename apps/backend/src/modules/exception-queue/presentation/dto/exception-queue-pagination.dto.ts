@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class ExceptionQueuePaginationDto {
   @Type(() => Number)
@@ -12,4 +12,8 @@ export class ExceptionQueuePaginationDto {
   @Min(1)
   @Max(100)
   limit = 20;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
 }

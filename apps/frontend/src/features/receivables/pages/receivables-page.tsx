@@ -1,6 +1,7 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
 import { useCsvExport } from '@/lib/use-csv-export';
@@ -19,9 +20,10 @@ export function ReceivablesPage() {
   const status =
     (searchParams.get('status') as ReceivableStatus | null) ?? undefined;
   const customerId = searchParams.get('customerId') ?? undefined;
+  const search = searchParams.get('search') ?? '';
   const page = Number(searchParams.get('page') ?? '1');
   const { data, isPending, isError } = useReceivables(
-    { status, customerId },
+    { status, customerId, search: search || undefined },
     page,
   );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
@@ -66,6 +68,25 @@ export function ReceivablesPage() {
           </div>
         </div>
       </div>
+      <Input
+        aria-label="Tìm kiếm công nợ"
+        placeholder="Tìm theo số hóa đơn hoặc khách hàng"
+        value={search}
+        onChange={(event) => {
+          const value = event.target.value;
+          setSearchParams((current) => {
+            const next = new URLSearchParams(current);
+            if (value) {
+              next.set('search', value);
+            } else {
+              next.delete('search');
+            }
+            next.set('page', '1');
+            return next;
+          });
+        }}
+        className="max-w-lg"
+      />
       <ReceivableFilters
         status={status}
         onStatusChange={(value) => {

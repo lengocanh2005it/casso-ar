@@ -33,13 +33,18 @@ export class UnmatchedBankTransactionsQueryService {
     private readonly matchingCandidateRepo: IMatchingCandidateRepository,
   ) {}
 
-  async execute(page = 1, limit = 20): Promise<UnmatchedBankTransactionPage> {
+  async execute(
+    page = 1,
+    limit = 20,
+    search?: string,
+  ): Promise<UnmatchedBankTransactionPage> {
     const [pageTransactions, total] = await Promise.all([
       this.bankTransactionRepo.findManyByStatus('PENDING_REVIEW', {
         skip: (page - 1) * limit,
         take: limit,
+        ...(search ? { search } : {}),
       }),
-      this.bankTransactionRepo.countByStatus('PENDING_REVIEW'),
+      this.bankTransactionRepo.countByStatus('PENDING_REVIEW', search),
     ]);
     const topCandidates =
       await this.matchingCandidateRepo.findTopByBankTransactionIds(

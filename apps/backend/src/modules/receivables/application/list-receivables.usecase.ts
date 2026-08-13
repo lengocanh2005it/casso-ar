@@ -20,6 +20,10 @@ import {
 } from '../application/receivable-repository.port';
 import type { Receivable } from '../domain/receivable';
 
+// Caps the id-fan-out for a search term so an org with a huge customer/
+// invoice base can't produce an unbounded IN clause on the receivables query.
+const SEARCH_ID_LIMIT = 500;
+
 export interface ReceivableListItem {
   receivable: Receivable;
   isOverdue: boolean;
@@ -45,6 +49,7 @@ export class ListReceivablesUseCase {
 
   async execute(input: {
     filters: ReceivableListFilters;
+    search?: string;
     page: number;
     limit: number;
   }): Promise<{
@@ -61,6 +66,19 @@ export class ListReceivablesUseCase {
     // SALES_REP role: auto-scope to own receivables
     if (user?.role === Role.SALES_REP) {
       filters.salesRepresentativeId = user.userId;
+    }
+
+    if (input.search) {
+      const [customerIdIn, invoiceIdIn] = await Promise.all([
+        this.customerRepo.findIdsBySearch(orgId, input.search, SEARCH_ID_LIMIT),
+        this.invoiceRepo.findIdsByInvoiceNumberSearch(
+          orgId,
+          input.search,
+          SEARCH_ID_LIMIT,
+        ),
+      ]);
+      filters.customerIdIn = customerIdIn;
+      filters.invoiceIdIn = invoiceIdIn;
     }
 
     const [receivables, total] = await Promise.all([

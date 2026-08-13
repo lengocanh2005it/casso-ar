@@ -14,6 +14,11 @@ export interface IInvoiceRepository {
     manager?: EntityManager,
   ): Promise<Invoice | null>;
   findByIds(ids: string[]): Promise<Map<string, Invoice>>;
+  findIdsByInvoiceNumberSearch(
+    organizationId: string,
+    search: string,
+    limit: number,
+  ): Promise<string[]>;
   save(invoice: Invoice, manager?: EntityManager): Promise<void>;
 }
 

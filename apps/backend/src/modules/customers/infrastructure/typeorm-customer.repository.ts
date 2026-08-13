@@ -129,6 +129,24 @@ export class TypeOrmCustomerRepository
     return customer?.name ?? null;
   }
 
+  async findIdsBySearch(
+    organizationId: string,
+    search: string,
+    limit: number,
+  ): Promise<string[]> {
+    const rows = await this.ormRepo
+      .createQueryBuilder('c')
+      .select('c.id', 'id')
+      .where('c.organizationId = :organizationId', { organizationId })
+      .andWhere(
+        '(c.name ILIKE :search OR c.taxCode ILIKE :search OR c.phone ILIKE :search)',
+        { search: `%${search}%` },
+      )
+      .limit(limit)
+      .getRawMany<{ id: string }>();
+    return rows.map((row) => row.id);
+  }
+
   async findPage(
     organizationId: string,
     search: string | undefined,

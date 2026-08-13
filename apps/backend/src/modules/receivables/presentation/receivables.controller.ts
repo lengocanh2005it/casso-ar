@@ -73,9 +73,11 @@ export class ReceivablesController {
     @Query('status') status?: string,
     @Query('salesRepresentativeId') salesRepresentativeId?: string,
     @Query('customerId') customerId?: string,
+    @Query('search') search?: string,
   ) {
     const result = await this.listReceivablesUseCase.execute({
       filters: { status, salesRepresentativeId, customerId },
+      search,
       page: pagination.page,
       limit: pagination.limit,
     });
