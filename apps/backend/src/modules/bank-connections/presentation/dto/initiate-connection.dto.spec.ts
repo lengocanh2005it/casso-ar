@@ -27,7 +27,7 @@ describe('InitiateConnectionDto', () => {
         expect.objectContaining({
           property: 'redirectUri',
           constraints: expect.objectContaining({
-            isAllowedCasRedirectUri: expect.any(String),
+            isAllowedRedirectUri: expect.any(String),
           }),
         }),
       ]),
@@ -60,7 +60,7 @@ describe('InitiateConnectionDto', () => {
         expect.objectContaining({
           property: 'redirectUri',
           constraints: expect.objectContaining({
-            isAllowedCasRedirectUri: expect.any(String),
+            isAllowedRedirectUri: expect.any(String),
           }),
         }),
       ]),

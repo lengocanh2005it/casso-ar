@@ -1,41 +1,11 @@
-import {
-  IsOptional,
-  IsUrl,
-  IsUUID,
-  registerDecorator,
-  type ValidationOptions,
-} from 'class-validator';
-import {
-  isRedirectUriAllowed,
-  parseRedirectUriAllowlist,
-} from '../../../../common/redirect-uri/allowlist';
+import { IsOptional, IsUrl, IsUUID } from 'class-validator';
+import { IsAllowedRedirectUri } from '../../../../common/validation/redirect-uri.decorator';
 
-function IsAllowedCasRedirectUri(validationOptions?: ValidationOptions) {
-  return (object: object, propertyName: string): void => {
-    registerDecorator({
-      name: 'isAllowedCasRedirectUri',
-      target: object.constructor,
-      propertyName,
-      options: validationOptions,
-      validator: {
-        validate(value: unknown): boolean {
-          if (typeof value !== 'string') return true;
-          return isRedirectUriAllowed(
-            value,
-            parseRedirectUriAllowlist(
-              process.env.CAS_ID_REDIRECT_URI_ALLOWLIST,
-            ),
-          );
-        },
-        defaultMessage: () => 'Địa chỉ chuyển hướng không được phép.',
-      },
-    });
-  };
-}
+const CAS_ID_REDIRECT_ALLOWLIST_ENV = 'CAS_ID_REDIRECT_URI_ALLOWLIST';
 
 export class InitiateConnectionDto {
   @IsUrl({ require_tld: false })
-  @IsAllowedCasRedirectUri()
+  @IsAllowedRedirectUri(CAS_ID_REDIRECT_ALLOWLIST_ENV)
   redirectUri: string;
 
   @IsOptional()

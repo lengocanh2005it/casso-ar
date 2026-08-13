@@ -1,45 +1,18 @@
 import { PlanId } from '@casso-ledger/shared-types';
-import {
-  IsEnum,
-  IsUrl,
-  registerDecorator,
-  type ValidationOptions,
-} from 'class-validator';
-import {
-  isRedirectUriAllowed,
-  parseRedirectUriAllowlist,
-} from '../../../../common/redirect-uri/allowlist';
+import { IsEnum, IsUrl } from 'class-validator';
+import { IsAllowedRedirectUri } from '../../../../common/validation/redirect-uri.decorator';
 
-function IsAllowedPayosRedirectUri(validationOptions?: ValidationOptions) {
-  return (object: object, propertyName: string): void => {
-    registerDecorator({
-      name: 'isAllowedPayosRedirectUri',
-      target: object.constructor,
-      propertyName,
-      options: validationOptions,
-      validator: {
-        validate(value: unknown): boolean {
-          if (typeof value !== 'string') return true;
-          return isRedirectUriAllowed(
-            value,
-            parseRedirectUriAllowlist(process.env.PAYOS_RETURN_URL_ALLOWLIST),
-          );
-        },
-        defaultMessage: () => 'Địa chỉ chuyển hướng không được phép.',
-      },
-    });
-  };
-}
+const PAYOS_RETURN_URL_ALLOWLIST_ENV = 'PAYOS_RETURN_URL_ALLOWLIST';
 
 export class InitiatePlanUpgradeOrderDto {
   @IsEnum(PlanId)
   targetPlanId: PlanId;
 
   @IsUrl({ require_tld: false })
-  @IsAllowedPayosRedirectUri()
+  @IsAllowedRedirectUri(PAYOS_RETURN_URL_ALLOWLIST_ENV)
   returnUrl: string;
 
   @IsUrl({ require_tld: false })
-  @IsAllowedPayosRedirectUri()
+  @IsAllowedRedirectUri(PAYOS_RETURN_URL_ALLOWLIST_ENV)
   cancelUrl: string;
 }
