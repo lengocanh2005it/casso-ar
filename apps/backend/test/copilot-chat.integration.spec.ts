@@ -24,6 +24,7 @@ import {
   type AIToolCall,
   type IAIChatProvider,
 } from '../src/modules/copilot/application/ai-chat-provider.port';
+import { CopilotRateLimitGuard } from '../src/modules/copilot/presentation/copilot-rate-limit.guard';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
 import { EMAIL_PROVIDER_ADAPTER } from '../src/modules/notifications/application/email-provider-adapter.port';
 import { Role } from '../src/modules/organizations/domain/membership';
@@ -107,6 +108,8 @@ describe('Copilot chat (integration)', () => {
       .useValue(mockAiProvider)
       .overrideProvider(EMAIL_PROVIDER_ADAPTER)
       .useValue(mockEmailProvider)
+      .overrideGuard(CopilotRateLimitGuard)
+      .useValue({ canActivate: () => true })
       .compile();
     app = moduleRef.createNestApplication();
     configureApp(app);
