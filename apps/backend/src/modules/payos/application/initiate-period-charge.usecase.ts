@@ -10,28 +10,27 @@ import {
   type IPayosPaymentAdapter,
   PAYOS_PAYMENT_ADAPTER,
 } from './payos-payment-adapter.port';
-import { PLAN_PRICE_VND } from './plan-price';
 import {
-  type IPlanUpgradeOrderRepository,
-  PLAN_UPGRADE_ORDER_REPOSITORY,
-} from './plan-upgrade-order-repository.port';
+  type IPeriodChargeRepository,
+  PERIOD_CHARGE_REPOSITORY,
+} from './period-charge-repository.port';
+import { PLAN_PRICE_VND } from './plan-price';
 
-export interface InitiatePlanUpgradeOrderInput {
+export interface InitiatePeriodChargeInput {
   organizationId: string;
-  targetPlanId: PlanId;
   returnUrl: string;
   cancelUrl: string;
 }
 
-export interface InitiatePlanUpgradeOrderResult {
+export interface InitiatePeriodChargeResult {
   checkoutUrl: string;
 }
 
 @Injectable()
-export class InitiatePlanUpgradeOrderUseCase {
+export class InitiatePeriodChargeUseCase {
   constructor(
-    @Inject(PLAN_UPGRADE_ORDER_REPOSITORY)
-    private readonly orderRepo: IPlanUpgradeOrderRepository,
+    @Inject(PERIOD_CHARGE_REPOSITORY)
+    private readonly chargeRepo: IPeriodChargeRepository,
     @Inject(SUBSCRIPTION_REPOSITORY)
     private readonly subscriptionRepo: ISubscriptionRepository,
     @Inject(PAYOS_PAYMENT_ADAPTER)
@@ -39,8 +38,8 @@ export class InitiatePlanUpgradeOrderUseCase {
   ) {}
 
   async execute(
-    input: InitiatePlanUpgradeOrderInput,
-  ): Promise<InitiatePlanUpgradeOrderResult> {
+    input: InitiatePeriodChargeInput,
+  ): Promise<InitiatePeriodChargeResult> {
     const subscription = await this.subscriptionRepo.findByOrganizationId(
       input.organizationId,
     );
@@ -50,22 +49,24 @@ export class InitiatePlanUpgradeOrderUseCase {
         'Không tìm thấy gói đăng ký của tổ chức.',
       );
     }
-    if (!subscription.isUpgradeTo(input.targetPlanId)) {
+    if (subscription.planId === PlanId.FREE) {
       throw new AppError(
         ErrorCode.INVALID_PLAN_TRANSITION,
-        `Không thể nâng cấp sang gói ${input.targetPlanId} từ gói hiện tại.`,
+        'Gói FREE không cần gia hạn.',
       );
     }
 
-    const order = await this.orderRepo.create({
+    const charge = await this.chargeRepo.create({
       organizationId: input.organizationId,
-      targetPlanId: input.targetPlanId,
+      planId: subscription.planId,
+      periodStart: subscription.currentPeriodStart,
+      periodEnd: subscription.currentPeriodEnd,
     });
 
     const link = await this.payosAdapter.createPaymentLink({
-      orderCode: order.orderCode,
-      amount: PLAN_PRICE_VND[input.targetPlanId],
-      description: `Nang cap goi ${input.targetPlanId}`,
+      orderCode: charge.orderCode,
+      amount: PLAN_PRICE_VND[subscription.planId],
+      description: `Gia han goi ${subscription.planId}`,
       returnUrl: input.returnUrl,
       cancelUrl: input.cancelUrl,
     });

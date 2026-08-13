@@ -14,6 +14,7 @@ describe('InitiatePlanUpgradeOrderUseCase', () => {
       new Date('2026-08-01T00:00:00Z'),
     );
     const subscriptionRepo: jest.Mocked<ISubscriptionRepository> = {
+      findAllPaidTierActive: jest.fn(),
       findByOrganizationId: jest.fn().mockResolvedValue(subscription),
       lockAndFindByOrganizationId: jest.fn(),
       countReceivablesInPeriod: jest.fn(),
@@ -34,6 +35,7 @@ describe('InitiatePlanUpgradeOrderUseCase', () => {
       ),
       lockAndFindByOrderCode: jest.fn(),
       save: jest.fn(),
+      existsPaidWithinRange: jest.fn(),
     };
     const adapter: jest.Mocked<IPayosPaymentAdapter> = {
       createPaymentLink: jest.fn().mockResolvedValue({

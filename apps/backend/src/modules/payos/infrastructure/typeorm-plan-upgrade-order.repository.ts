@@ -1,7 +1,7 @@
 import { PlanUpgradeOrderStatus } from '@casso-ledger/shared-types';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { EntityManager, Repository } from 'typeorm';
+import { Between, type EntityManager, type Repository } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type {
@@ -85,5 +85,20 @@ export class TypeOrmPlanUpgradeOrderRepository
     organizationId?: string,
   ): Promise<void> {
     await this.scopedSaveWithManager(toOrm(order), manager, organizationId);
+  }
+
+  async existsPaidWithinRange(
+    organizationId: string,
+    periodStart: Date,
+    periodEnd: Date,
+  ): Promise<boolean> {
+    const count = await this.ormRepo.count({
+      where: {
+        organizationId,
+        status: PlanUpgradeOrderStatus.PAID,
+        updatedAt: Between(periodStart, periodEnd),
+      },
+    });
+    return count > 0;
   }
 }
