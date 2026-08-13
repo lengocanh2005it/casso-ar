@@ -1,19 +1,10 @@
-import { timingSafeEqual } from 'node:crypto';
 import {
   CanActivate,
   ExecutionContext,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-
-function equalsConstantTime(actual: string, expected: string): boolean {
-  const actualBytes = Buffer.from(actual);
-  const expectedBytes = Buffer.from(expected);
-  return (
-    actualBytes.length === expectedBytes.length &&
-    timingSafeEqual(actualBytes, expectedBytes)
-  );
-}
+import { equalsConstantTime } from '../../../common/security/constant-time-compare';
 
 @Injectable()
 export class WebhookAuthGuard implements CanActivate {
