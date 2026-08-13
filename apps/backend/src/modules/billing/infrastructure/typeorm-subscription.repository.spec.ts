@@ -44,4 +44,31 @@ describe('TypeOrmSubscriptionRepository', () => {
     const saved = ormRepo.save.mock.calls[0][0];
     expect(saved).not.toBeInstanceOf(Subscription);
   });
+
+  it('findAllPaidTierActive returns only ACTIVE, non-FREE subscriptions', async () => {
+    const ormRepo = {
+      find: jest.fn().mockResolvedValue([
+        {
+          ...PROPS,
+          id: 'paid-1',
+          organizationId: 'org-paid-active',
+          planId: PlanId.STARTER,
+        },
+      ]),
+    };
+    const tenantContext = new TenantContextService();
+    const repository = new TypeOrmSubscriptionRepository(
+      ormRepo as any,
+      tenantContext,
+    );
+
+    const result = await repository.findAllPaidTierActive();
+
+    expect(ormRepo.find).toHaveBeenCalledWith({
+      where: { planId: expect.anything(), status: SubscriptionStatus.ACTIVE },
+    });
+    expect(result.map((subscription) => subscription.organizationId)).toEqual([
+      'org-paid-active',
+    ]);
+  });
 });

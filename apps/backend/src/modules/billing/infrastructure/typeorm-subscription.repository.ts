@@ -1,6 +1,7 @@
+import { PlanId, SubscriptionStatus } from '@casso-ledger/shared-types';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { EntityManager, Repository } from 'typeorm';
+import { type EntityManager, Not, type Repository } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { ISubscriptionRepository } from '../application/subscription-repository.port';
@@ -37,6 +38,13 @@ export class TypeOrmSubscriptionRepository
     tenantContext: TenantContextService,
   ) {
     super(repo, tenantContext);
+  }
+
+  async findAllPaidTierActive(): Promise<Subscription[]> {
+    const rows = await this.ormRepo.find({
+      where: { planId: Not(PlanId.FREE), status: SubscriptionStatus.ACTIVE },
+    });
+    return rows.map((row) => new Subscription(row));
   }
 
   async findByOrganizationId(

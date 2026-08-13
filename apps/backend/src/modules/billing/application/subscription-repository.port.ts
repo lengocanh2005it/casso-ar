@@ -2,6 +2,9 @@ import type { EntityManager } from 'typeorm';
 import type { Subscription } from '../domain/subscription';
 
 export interface ISubscriptionRepository {
+  // System-wide, cross-tenant read for the renewal-reminder and non-renewal
+  // downgrade crons (payos module) — mirrors IOrganizationRepository.findAllIds().
+  findAllPaidTierActive(): Promise<Subscription[]>;
   // Acquires a pg_advisory_xact_lock keyed by organizationId, then reads the
   // row — serializes concurrent transactions for the same org even when no
   // Subscription row exists yet, where a plain SELECT ... FOR UPDATE can't

@@ -9,6 +9,7 @@ import type { IPeriodChargeRepository } from './period-charge-repository.port';
 describe('InitiatePeriodChargeUseCase', () => {
   function buildDeps(subscription: Subscription | null) {
     const subscriptionRepo: jest.Mocked<ISubscriptionRepository> = {
+      findAllPaidTierActive: jest.fn(),
       findByOrganizationId: jest.fn().mockResolvedValue(subscription),
       lockAndFindByOrganizationId: jest.fn(),
       countReceivablesInPeriod: jest.fn(),
