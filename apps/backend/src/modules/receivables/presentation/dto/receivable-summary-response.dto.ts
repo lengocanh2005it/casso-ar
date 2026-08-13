@@ -1,6 +1,6 @@
 import type { ReceivableStatus } from '@casso-ledger/shared-types';
 
-export interface ReceivableSummaryResponseDto {
+export class ReceivableSummaryResponseDto {
   id: string;
   customerId: string;
   customerName: string | null;
