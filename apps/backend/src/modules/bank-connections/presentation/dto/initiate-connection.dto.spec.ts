@@ -27,7 +27,7 @@ describe('InitiateConnectionDto', () => {
         expect.objectContaining({
           property: 'redirectUri',
           constraints: expect.objectContaining({
-            isAllowedCasRedirectUri: expect.any(String),
+            isAllowedRedirectUri: expect.any(String),
           }),
         }),
       ]),
@@ -46,7 +46,7 @@ describe('InitiateConnectionDto', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('keeps accepting any valid URL when the allowlist is empty', async () => {
+  it('rejects every redirect URI when the allowlist is empty (fail closed)', async () => {
     delete process.env.CAS_ID_REDIRECT_URI_ALLOWLIST;
 
     const errors = await validate(
@@ -55,6 +55,15 @@ describe('InitiateConnectionDto', () => {
       }),
     );
 
-    expect(errors).toHaveLength(0);
+    expect(errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          property: 'redirectUri',
+          constraints: expect.objectContaining({
+            isAllowedRedirectUri: expect.any(String),
+          }),
+        }),
+      ]),
+    );
   });
 });
