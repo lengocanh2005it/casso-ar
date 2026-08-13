@@ -202,7 +202,7 @@ describe('Collection Activity Timeline (integration)', () => {
       .set('Authorization', authHeader())
       .expect(200);
 
-    expect(timelineRes.body).toHaveLength(3);
+    expect(timelineRes.body.items).toHaveLength(3);
   });
 
   describe('webhook auto-match path', () => {
@@ -324,7 +324,7 @@ describe('Collection Activity Timeline (integration)', () => {
           .get(`/api/v1/receivables/${webhookReceivableId}/timeline`)
           .set('Authorization', `Bearer ${webhookToken}`)
           .expect(200);
-        activityTypes = receivableTimelineRes.body.map(
+        activityTypes = receivableTimelineRes.body.items.map(
           (a: { activityType: string }) => a.activityType,
         );
         if (
