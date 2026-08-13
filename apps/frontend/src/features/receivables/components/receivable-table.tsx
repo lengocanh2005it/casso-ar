@@ -51,8 +51,10 @@ export function ReceivableTable({
             <TableCell>
               {receivable.customerName ?? receivable.customerId}
             </TableCell>
-            <TableCell>{formatVND(receivable.originalAmount)}</TableCell>
-            <TableCell className="font-medium">
+            <TableCell className="tabular-nums">
+              {formatVND(receivable.originalAmount)}
+            </TableCell>
+            <TableCell className="tabular-nums font-medium">
               {formatVND(receivable.remainingAmount)}
             </TableCell>
             <TableCell>

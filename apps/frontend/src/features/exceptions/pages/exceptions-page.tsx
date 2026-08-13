@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TableSkeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -47,6 +48,7 @@ export function ExceptionsPage() {
       </div>
       <Input
         name="search"
+        type="search"
         autoComplete="off"
         aria-label="Tìm kiếm giao dịch"
         placeholder="Tìm theo tên, số tài khoản hoặc nội dung chuyển khoản"
@@ -69,11 +71,7 @@ export function ExceptionsPage() {
         }}
         className="max-w-lg"
       />
-      {isPending && (
-        <p role="status" aria-live="polite">
-          Đang tải…
-        </p>
-      )}
+      {isPending && <TableSkeleton rows={5} />}
       {isError && (
         <p role="status" aria-live="polite" className="text-destructive">
           Không thể tải danh sách giao dịch cần xử lý.
@@ -104,7 +102,7 @@ export function ExceptionsPage() {
             {data.items.map((row) => (
               <TableRow
                 key={row.transaction.id}
-                className="cursor-pointer"
+                className="cursor-pointer active:bg-accent"
                 role="button"
                 tabIndex={0}
                 onClick={() => setSelected(row.transaction)}

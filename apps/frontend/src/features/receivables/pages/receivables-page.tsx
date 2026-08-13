@@ -2,6 +2,8 @@ import { Permission } from '@casso-ledger/shared-types';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TableSkeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
 import { useCsvExport } from '@/lib/use-csv-export';
@@ -55,6 +57,7 @@ export function ReceivablesPage() {
               <Button
                 variant="outline"
                 disabled={isExporting}
+                className="min-w-24"
                 onClick={() =>
                   exportCsv(
                     () =>
@@ -67,7 +70,14 @@ export function ReceivablesPage() {
                   )
                 }
               >
-                {isExporting ? 'Đang xuất…' : 'Xuất CSV'}
+                {isExporting ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Spinner />
+                    Đang xuất…
+                  </span>
+                ) : (
+                  'Xuất CSV'
+                )}
               </Button>
             )}
             <ImportInvoicesDialog />
@@ -77,6 +87,7 @@ export function ReceivablesPage() {
       </div>
       <Input
         name="search"
+        type="search"
         autoComplete="off"
         aria-label="Tìm kiếm công nợ"
         placeholder="Tìm theo số hóa đơn hoặc khách hàng"
@@ -114,11 +125,7 @@ export function ReceivablesPage() {
           });
         }}
       />
-      {isPending && (
-        <p role="status" aria-live="polite">
-          Đang tải danh sách công nợ…
-        </p>
-      )}
+      {isPending && <TableSkeleton rows={5} />}
       {isError && (
         <p role="status" aria-live="polite" className="text-destructive">
           Không thể tải danh sách công nợ.
