@@ -99,4 +99,33 @@ describe('ReceivablesPage', () => {
     );
     expect(downloadCsv).toHaveBeenCalledWith('a,b\n1,2', 'cong-no.csv');
   });
+
+  it('sends the search box value as a search filter', async () => {
+    apiRequest.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ReceivablesPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.change(
+      await screen.findByPlaceholderText('Tìm theo số hóa đơn hoặc khách hàng'),
+      { target: { value: 'acme' } },
+    );
+
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: '/api/v1/receivables',
+          params: expect.objectContaining({ search: 'acme' }),
+        }),
+      ),
+    );
+  });
 });

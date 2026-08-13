@@ -1,11 +1,11 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { GetCustomerUseCase } from '../application/get-customer.usecase';
 import { ListCustomersUseCase } from '../application/list-customers.usecase';
 import { toCustomerResponse } from './dto/customer-response.dto';
+import { ListCustomersQueryDto } from './dto/list-customers-query.dto';
 
 @Controller('customers')
 @UseGuards(PermissionGuard)
@@ -17,14 +17,11 @@ export class CustomersController {
 
   @Get()
   @RequirePermission(Permission.CUSTOMER_READ)
-  async list(
-    @Query() pagination: PaginationDto,
-    @Query('search') search?: string,
-  ) {
+  async list(@Query() query: ListCustomersQueryDto) {
     const result = await this.listCustomers.execute({
-      search,
-      page: pagination.page,
-      limit: pagination.limit,
+      search: query.search,
+      page: query.page,
+      limit: query.limit,
     });
     return {
       items: result.items.map(toCustomerResponse),

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { TableSkeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -11,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDate, formatVND } from '@/lib/format';
+import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { usePendingReview } from '../api/use-exceptions';
 import { SplitMatchDialog } from '../components/split-match-dialog';
 import type { BankTransaction } from '../types';
@@ -18,8 +21,13 @@ import type { BankTransaction } from '../types';
 export function ExceptionsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const page = Number(searchParams.get('page') ?? '1');
+  const search = searchParams.get('search') ?? '';
+  const debouncedSearch = useDebouncedValue(search, 250);
   const [selected, setSelected] = useState<BankTransaction | null>(null);
-  const { data, isPending, isError } = usePendingReview(page);
+  const { data, isPending, isError } = usePendingReview(
+    page,
+    debouncedSearch || undefined,
+  );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
 
   function setPage(nextPage: number) {
@@ -38,15 +46,46 @@ export function ExceptionsPage() {
           Hàng chờ xử lý ngoại lệ
         </h1>
       </div>
-      {isPending && <p>Đang tải…</p>}
+      <Input
+        name="search"
+        type="search"
+        autoComplete="off"
+        aria-label="Tìm kiếm giao dịch"
+        placeholder="Tìm theo tên, số tài khoản hoặc nội dung chuyển khoản"
+        value={search}
+        onChange={(event) => {
+          const value = event.target.value;
+          setSearchParams(
+            (current) => {
+              const next = new URLSearchParams(current);
+              if (value) {
+                next.set('search', value);
+              } else {
+                next.delete('search');
+              }
+              next.set('page', '1');
+              return next;
+            },
+            { replace: true },
+          );
+        }}
+        className="max-w-lg"
+      />
+      {isPending && <TableSkeleton rows={5} />}
       {isError && (
-        <p className="text-destructive">
+        <p role="status" aria-live="polite" className="text-destructive">
           Không thể tải danh sách giao dịch cần xử lý.
         </p>
       )}
       {data && data.items.length === 0 && (
-        <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Không có giao dịch cần xử lý.
+        <p
+          role="status"
+          aria-live="polite"
+          className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
+        >
+          {search
+            ? 'Không tìm thấy giao dịch phù hợp.'
+            : 'Không có giao dịch cần xử lý.'}
         </p>
       )}
       {data && data.items.length > 0 && (
@@ -63,7 +102,7 @@ export function ExceptionsPage() {
             {data.items.map((row) => (
               <TableRow
                 key={row.transaction.id}
-                className="cursor-pointer"
+                className="cursor-pointer active:bg-accent"
                 role="button"
                 tabIndex={0}
                 onClick={() => setSelected(row.transaction)}

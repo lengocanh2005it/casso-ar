@@ -8,11 +8,14 @@ export interface PendingReviewPage {
   limit: number;
 }
 
-export function fetchPendingReview(page: number): Promise<PendingReviewPage> {
+export function fetchPendingReview(
+  page: number,
+  search?: string,
+): Promise<PendingReviewPage> {
   return apiRequest<PendingReviewPage>({
     url: '/api/v1/bank-transactions/unmatched',
     method: 'GET',
-    params: { page, limit: 20 },
+    params: { page, limit: 20, ...(search ? { search } : {}) },
   });
 }
 

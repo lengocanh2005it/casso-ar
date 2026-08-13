@@ -1,9 +1,13 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { TableSkeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
 import { useCsvExport } from '@/lib/use-csv-export';
+import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { exportReceivablesCsv } from '../api/receivables-api';
 import { useReceivables } from '../api/use-receivables';
 import { CreateReceivableDialog } from '../components/create-receivable-dialog';
@@ -19,9 +23,11 @@ export function ReceivablesPage() {
   const status =
     (searchParams.get('status') as ReceivableStatus | null) ?? undefined;
   const customerId = searchParams.get('customerId') ?? undefined;
+  const search = searchParams.get('search') ?? '';
+  const debouncedSearch = useDebouncedValue(search, 250);
   const page = Number(searchParams.get('page') ?? '1');
   const { data, isPending, isError } = useReceivables(
-    { status, customerId },
+    { status, customerId, search: debouncedSearch || undefined },
     page,
   );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
@@ -51,14 +57,27 @@ export function ReceivablesPage() {
               <Button
                 variant="outline"
                 disabled={isExporting}
+                className="min-w-24"
                 onClick={() =>
                   exportCsv(
-                    () => exportReceivablesCsv({ status, customerId }),
+                    () =>
+                      exportReceivablesCsv({
+                        status,
+                        customerId,
+                        search: search || undefined,
+                      }),
                     'cong-no.csv',
                   )
                 }
               >
-                {isExporting ? 'Đang xuất…' : 'Xuất CSV'}
+                {isExporting ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Spinner />
+                    Đang xuất…
+                  </span>
+                ) : (
+                  'Xuất CSV'
+                )}
               </Button>
             )}
             <ImportInvoicesDialog />
@@ -66,6 +85,31 @@ export function ReceivablesPage() {
           </div>
         </div>
       </div>
+      <Input
+        name="search"
+        type="search"
+        autoComplete="off"
+        aria-label="Tìm kiếm công nợ"
+        placeholder="Tìm theo số hóa đơn hoặc khách hàng"
+        value={search}
+        onChange={(event) => {
+          const value = event.target.value;
+          setSearchParams(
+            (current) => {
+              const next = new URLSearchParams(current);
+              if (value) {
+                next.set('search', value);
+              } else {
+                next.delete('search');
+              }
+              next.set('page', '1');
+              return next;
+            },
+            { replace: true },
+          );
+        }}
+        className="max-w-lg"
+      />
       <ReceivableFilters
         status={status}
         onStatusChange={(value) => {
@@ -81,9 +125,11 @@ export function ReceivablesPage() {
           });
         }}
       />
-      {isPending && <p>Đang tải danh sách công nợ…</p>}
+      {isPending && <TableSkeleton rows={5} />}
       {isError && (
-        <p className="text-destructive">Không thể tải danh sách công nợ.</p>
+        <p role="status" aria-live="polite" className="text-destructive">
+          Không thể tải danh sách công nợ.
+        </p>
       )}
       {data && <ReceivableTable receivables={data.items} />}
       {data && data.total > 0 && (

@@ -2,6 +2,7 @@
 @plugin "tailwindcss-animate";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant pointer-hover (@media (hover: hover) and (pointer: fine));
 
 :root {
   color-scheme: light;

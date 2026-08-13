@@ -20,6 +20,10 @@ import {
 } from '../application/receivable-repository.port';
 import type { Receivable } from '../domain/receivable';
 
+// Caps the id-fan-out for a search term so an org with a huge customer/
+// invoice base can't produce an unbounded IN clause on the receivables query.
+const SEARCH_ID_LIMIT = 500;
+
 export interface ReceivableListItem {
   receivable: Receivable;
   isOverdue: boolean;
@@ -45,6 +49,7 @@ export class ListReceivablesUseCase {
 
   async execute(input: {
     filters: ReceivableListFilters;
+    search?: string;
     page: number;
     limit: number;
   }): Promise<{
@@ -57,14 +62,32 @@ export class ListReceivablesUseCase {
     const user = this.tenantContext.getCurrentUser();
 
     const filters = { ...input.filters };
+    let listFilters = filters;
 
     // SALES_REP role: auto-scope to own receivables
     if (user?.role === Role.SALES_REP) {
       filters.salesRepresentativeId = user.userId;
     }
 
+    if (input.search) {
+      const [customerIds, invoiceIds] = await Promise.all([
+        this.customerRepo.findIdsBySearch(orgId, input.search),
+        this.invoiceRepo.findIdsByInvoiceNumberSearch(orgId, input.search),
+      ]);
+      filters.customerIdIn = customerIds;
+      filters.invoiceIdIn = invoiceIds;
+      // Cap the id fan-out for the per-page list query while the count runs
+      // on the full match set, so pagination totals stay correct even when a
+      // search matches more than SEARCH_ID_LIMIT customers/invoices.
+      listFilters = {
+        ...filters,
+        customerIdIn: customerIds.slice(0, SEARCH_ID_LIMIT),
+        invoiceIdIn: invoiceIds.slice(0, SEARCH_ID_LIMIT),
+      };
+    }
+
     const [receivables, total] = await Promise.all([
-      this.receivableRepo.findPage(orgId, filters, input.page, input.limit),
+      this.receivableRepo.findPage(orgId, listFilters, input.page, input.limit),
       this.receivableRepo.count(orgId, filters),
     ]);
 

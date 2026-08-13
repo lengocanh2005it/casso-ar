@@ -5,6 +5,10 @@ export interface ReceivableListFilters {
   status?: string;
   salesRepresentativeId?: string;
   customerId?: string;
+  // Resolved from a free-text search term (customer name/taxCode, invoice
+  // number) before reaching the repository — see ListReceivablesUseCase.
+  customerIdIn?: string[];
+  invoiceIdIn?: string[];
 }
 
 export interface IReceivableRepository {

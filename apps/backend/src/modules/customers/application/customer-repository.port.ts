@@ -10,6 +10,7 @@ export interface ICustomerRepository {
   ): Promise<Customer | null>;
   findByEmail(email: string, manager?: EntityManager): Promise<Customer | null>;
   findNameById(id: string): Promise<string | null>;
+  findIdsBySearch(organizationId: string, search: string): Promise<string[]>;
   findPage(
     organizationId: string,
     search: string | undefined,

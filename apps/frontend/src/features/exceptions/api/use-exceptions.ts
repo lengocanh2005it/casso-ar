@@ -8,10 +8,10 @@ import {
   splitMatch,
 } from './exceptions-api';
 
-export function usePendingReview(page = 1) {
+export function usePendingReview(page = 1, search?: string) {
   return useQuery({
-    queryKey: ['bank-transactions', page],
-    queryFn: () => fetchPendingReview(page),
+    queryKey: ['bank-transactions', page, search],
+    queryFn: () => fetchPendingReview(page, search),
   });
 }
 

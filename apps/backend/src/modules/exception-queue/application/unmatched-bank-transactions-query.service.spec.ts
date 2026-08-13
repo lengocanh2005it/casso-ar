@@ -57,4 +57,30 @@ describe('UnmatchedBankTransactionsQueryService', () => {
     );
     expect(result.total).toBe(45);
   });
+
+  it('forwards a search term to the repository for both the page and the count', async () => {
+    const bankTransactionRepo = {
+      findManyByStatus: jest.fn().mockResolvedValue([]),
+      countByStatus: jest.fn().mockResolvedValue(0),
+    };
+    const matchingCandidateRepo = {
+      findTopByBankTransactionIds: jest.fn().mockResolvedValue(new Map()),
+    };
+
+    const service = new UnmatchedBankTransactionsQueryService(
+      bankTransactionRepo as never,
+      matchingCandidateRepo as never,
+    );
+
+    await service.execute(1, 20, 'nguyen van a');
+
+    expect(bankTransactionRepo.findManyByStatus).toHaveBeenCalledWith(
+      'PENDING_REVIEW',
+      { skip: 0, take: 20, search: 'nguyen van a' },
+    );
+    expect(bankTransactionRepo.countByStatus).toHaveBeenCalledWith(
+      'PENDING_REVIEW',
+      'nguyen van a',
+    );
+  });
 });
