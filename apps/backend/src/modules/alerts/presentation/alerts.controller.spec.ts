@@ -5,12 +5,23 @@ function buildController() {
   const listAlerts = { execute: jest.fn() };
   const markAlertRead = { execute: jest.fn().mockResolvedValue(undefined) };
   const markAllAlertsRead = { execute: jest.fn().mockResolvedValue(undefined) };
+  const deleteAlert = { execute: jest.fn().mockResolvedValue(undefined) };
+  const deleteAllAlerts = { execute: jest.fn().mockResolvedValue(undefined) };
   const controller = new AlertsController(
     listAlerts as any,
     markAlertRead as any,
     markAllAlertsRead as any,
+    deleteAlert as any,
+    deleteAllAlerts as any,
   );
-  return { controller, listAlerts, markAlertRead, markAllAlertsRead };
+  return {
+    controller,
+    listAlerts,
+    markAlertRead,
+    markAllAlertsRead,
+    deleteAlert,
+    deleteAllAlerts,
+  };
 }
 
 describe('AlertsController', () => {
@@ -74,6 +85,28 @@ describe('AlertsController', () => {
       const result = await controller.readAll();
 
       expect(markAllAlertsRead.execute).toHaveBeenCalled();
+      expect(result).toEqual({ success: true });
+    });
+  });
+
+  describe('DELETE /alerts/:id', () => {
+    it('delegates to DeleteAlertUseCase', async () => {
+      const { controller, deleteAlert } = buildController();
+
+      const result = await controller.remove('alert-1');
+
+      expect(deleteAlert.execute).toHaveBeenCalledWith('alert-1');
+      expect(result).toEqual({ success: true });
+    });
+  });
+
+  describe('DELETE /alerts', () => {
+    it('delegates to DeleteAllAlertsUseCase', async () => {
+      const { controller, deleteAllAlerts } = buildController();
+
+      const result = await controller.removeAll();
+
+      expect(deleteAllAlerts.execute).toHaveBeenCalled();
       expect(result).toEqual({ success: true });
     });
   });
