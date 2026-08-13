@@ -129,7 +129,18 @@ describe('DashboardPage', () => {
     const statuses = screen.getAllByRole('status');
     expect(statuses.length).toBeGreaterThanOrEqual(1);
     for (const status of statuses) {
-      expect(status).toHaveTextContent('Đang tải…');
+      expect(status).toHaveAccessibleName('Đang tải dữ liệu');
     }
+  });
+
+  it('shows skeleton placeholders instead of raw text while data is pending', () => {
+    apiRequest.mockImplementation(() => new Promise(() => {}));
+
+    const { container } = renderPage();
+
+    expect(
+      container.querySelectorAll('[data-slot="skeleton"]').length,
+    ).toBeGreaterThanOrEqual(6);
+    expect(screen.queryByText('Đang tải…')).toBeNull();
   });
 });

@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useReviewCount } from '@/features/exceptions/api/use-review-count';
 import { useDashboardSummary } from '@/features/reports/api/use-reports';
 import { formatVND } from '@/lib/format';
@@ -16,9 +17,17 @@ function formatRate(value: number | null): string {
   return value === null ? '—' : percentFormatter.format(value);
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function MetricCard({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: string;
+  className?: string;
+}) {
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {label}
@@ -28,6 +37,28 @@ function MetricCard({ label, value }: { label: string; value: string }) {
         <p className="text-xl font-semibold tabular-nums">{value}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function SummarySkeleton() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label="Đang tải dữ liệu"
+      className="space-y-4"
+    >
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton grid never reorders
+          <Skeleton key={index} className="h-24 w-full" />
+        ))}
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Skeleton className="h-72 w-full" />
+        <Skeleton className="h-72 w-full" />
+      </div>
+    </div>
   );
 }
 
@@ -59,7 +90,7 @@ export function DashboardPage() {
       )}
 
       {summaryQuery.isPending ? (
-        <p role="status">Đang tải…</p>
+        <SummarySkeleton />
       ) : summaryQuery.isError || !summaryQuery.data ? (
         <div className="flex items-center gap-3">
           <p role="status" className="text-sm text-destructive">
@@ -79,28 +110,43 @@ export function DashboardPage() {
             <MetricCard
               label="Tổng công nợ còn lại"
               value={formatVND(summaryQuery.data.totalOutstanding)}
+              className="animate-fade-up motion-reduce:animate-none"
             />
             <MetricCard
               label="Công nợ quá hạn"
               value={formatVND(summaryQuery.data.totalOverdue)}
+              className="animate-fade-up motion-reduce:animate-none [animation-delay:40ms]"
             />
             <MetricCard
               label="Tỷ lệ quá hạn"
               value={formatRate(summaryQuery.data.overdueRate)}
+              className="animate-fade-up motion-reduce:animate-none [animation-delay:80ms]"
             />
-            <MetricCard label="Cần đối soát" value={String(pendingCount)} />
+            <MetricCard
+              label="Cần đối soát"
+              value={String(pendingCount)}
+              className="animate-fade-up motion-reduce:animate-none [animation-delay:120ms]"
+            />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
+            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:160ms]">
               <CardHeader>
                 <CardTitle>Hoạt động gần đây</CardTitle>
               </CardHeader>
               <CardContent>
                 {activityQuery.isPending ? (
-                  <p role="status" className="text-sm text-muted-foreground">
-                    Đang tải…
-                  </p>
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    aria-label="Đang tải dữ liệu"
+                    className="space-y-3"
+                  >
+                    {Array.from({ length: 5 }, (_, index) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows never reorder
+                      <Skeleton key={index} className="h-10 w-full" />
+                    ))}
+                  </div>
                 ) : activityQuery.isError || !activityQuery.data ? (
                   <div className="flex items-center gap-3">
                     <p role="status" className="text-sm text-destructive">
@@ -120,7 +166,7 @@ export function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:200ms]">
               <CardHeader>
                 <CardTitle>Khách hàng quá hạn nhiều nhất</CardTitle>
               </CardHeader>
