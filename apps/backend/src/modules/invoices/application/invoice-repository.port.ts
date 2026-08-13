@@ -17,7 +17,6 @@ export interface IInvoiceRepository {
   findIdsByInvoiceNumberSearch(
     organizationId: string,
     search: string,
-    limit: number,
   ): Promise<string[]>;
   save(invoice: Invoice, manager?: EntityManager): Promise<void>;
 }

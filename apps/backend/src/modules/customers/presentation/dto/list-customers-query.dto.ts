@@ -9,7 +9,7 @@ import {
 } from 'class-validator';
 import { MAX_SEARCH_LENGTH } from '../../../../common/validation/search-length';
 
-export class ExceptionQueuePaginationDto {
+export class ListCustomersQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)

@@ -7,6 +7,7 @@ import type {
   Repository,
 } from 'typeorm';
 import { In } from 'typeorm';
+import { toLikePattern } from '../../../common/database/like-pattern';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { ICustomerRepository } from '../application/customer-repository.port';
@@ -132,7 +133,6 @@ export class TypeOrmCustomerRepository
   async findIdsBySearch(
     organizationId: string,
     search: string,
-    limit: number,
   ): Promise<string[]> {
     const rows = await this.ormRepo
       .createQueryBuilder('c')
@@ -140,9 +140,8 @@ export class TypeOrmCustomerRepository
       .where('c.organizationId = :organizationId', { organizationId })
       .andWhere(
         '(c.name ILIKE :search OR c.taxCode ILIKE :search OR c.phone ILIKE :search)',
-        { search: `%${search}%` },
+        { search: toLikePattern(search) },
       )
-      .limit(limit)
       .getRawMany<{ id: string }>();
     return rows.map((row) => row.id);
   }
@@ -160,7 +159,7 @@ export class TypeOrmCustomerRepository
     if (search) {
       qb.andWhere(
         '(c.name ILIKE :search OR c.taxCode ILIKE :search OR c.phone ILIKE :search)',
-        { search: `%${search}%` },
+        { search: toLikePattern(search) },
       );
     }
 
@@ -184,7 +183,7 @@ export class TypeOrmCustomerRepository
     if (search) {
       qb.andWhere(
         '(c.name ILIKE :search OR c.taxCode ILIKE :search OR c.phone ILIKE :search)',
-        { search: `%${search}%` },
+        { search: toLikePattern(search) },
       );
     }
 

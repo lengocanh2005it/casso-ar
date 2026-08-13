@@ -216,15 +216,10 @@ describe('ListReceivablesUseCase', () => {
       limit: 20,
     });
 
-    expect(customerRepo.findIdsBySearch).toHaveBeenCalledWith(
-      'org-1',
-      'acme',
-      500,
-    );
+    expect(customerRepo.findIdsBySearch).toHaveBeenCalledWith('org-1', 'acme');
     expect(invoiceRepo.findIdsByInvoiceNumberSearch).toHaveBeenCalledWith(
       'org-1',
       'acme',
-      500,
     );
     expect(receivableRepo.findPage).toHaveBeenCalledWith(
       'org-1',
@@ -236,6 +231,38 @@ describe('ListReceivablesUseCase', () => {
       customerIdIn: ['customer-1'],
       invoiceIdIn: ['invoice-1'],
     });
+  });
+
+  it('caps the id fan-out for the list query but counts on the full match set', async () => {
+    const {
+      receivableRepo,
+      disputeRepo,
+      invoiceRepo,
+      customerRepo,
+      tenantContext,
+    } = buildDeps();
+    const manyIds = Array.from({ length: 600 }, (_, i) => `customer-${i}`);
+    customerRepo.findIdsBySearch.mockResolvedValue(manyIds);
+    invoiceRepo.findIdsByInvoiceNumberSearch.mockResolvedValue([]);
+    const useCase = new ListReceivablesUseCase(
+      receivableRepo as any,
+      disputeRepo as any,
+      invoiceRepo as any,
+      customerRepo as any,
+      tenantContext as any,
+    );
+
+    await useCase.execute({
+      filters: {},
+      search: 'acme',
+      page: 1,
+      limit: 20,
+    });
+
+    const pageFilters = receivableRepo.findPage.mock.calls[0][1];
+    const countFilters = receivableRepo.count.mock.calls[0][1];
+    expect(pageFilters.customerIdIn).toHaveLength(500);
+    expect(countFilters.customerIdIn).toHaveLength(600);
   });
 
   it('does not resolve search filters when no search term is given', async () => {

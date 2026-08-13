@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, FindOptionsSelect, Repository } from 'typeorm';
 import { ILike, In, QueryFailedError } from 'typeorm';
+import { toLikePattern } from '../../../common/database/like-pattern';
 import { isUniqueViolation } from '../../../common/database/unique-violation';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
@@ -124,15 +125,13 @@ export class TypeOrmInvoiceRepository implements IInvoiceRepository {
   async findIdsByInvoiceNumberSearch(
     organizationId: string,
     search: string,
-    limit: number,
   ): Promise<string[]> {
     const rows = await this.repo.find({
       select: { id: true },
       where: {
         organizationId,
-        invoiceNumber: ILike(`%${search}%`),
+        invoiceNumber: ILike(toLikePattern(search)),
       },
-      take: limit,
     });
     return rows.map((row) => row.id);
   }

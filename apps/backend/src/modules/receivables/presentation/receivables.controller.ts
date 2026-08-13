@@ -17,7 +17,6 @@ import {
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
@@ -28,6 +27,7 @@ import { GetReceivableUseCase } from '../application/get-receivable.usecase';
 import { ListReceivablesUseCase } from '../application/list-receivables.usecase';
 import { WriteOffReceivableUseCase } from '../application/write-off-receivable.usecase';
 import { CreateReceivableDto } from './dto/create-receivable.dto';
+import { ListReceivablesQueryDto } from './dto/list-receivables-query.dto';
 import {
   toReceivableDetailResponse,
   toReceivableResponse,
@@ -53,14 +53,15 @@ export class ReceivablesController {
   @RequirePermission(Permission.RECEIVABLE_READ)
   async exportCsv(
     @Res() response: Response,
-    @Query('status') status?: string,
-    @Query('salesRepresentativeId') salesRepresentativeId?: string,
-    @Query('customerId') customerId?: string,
-    @Query('search') search?: string,
+    @Query() query: ListReceivablesQueryDto,
   ) {
     const { csv, truncated } = await this.exportReceivablesUseCase.execute({
-      filters: { status, salesRepresentativeId, customerId },
-      search,
+      filters: {
+        status: query.status,
+        salesRepresentativeId: query.salesRepresentativeId,
+        customerId: query.customerId,
+      },
+      search: query.search,
     });
     if (truncated) {
       response.setHeader('X-Export-Truncated', 'true');
@@ -70,18 +71,16 @@ export class ReceivablesController {
 
   @Get()
   @RequirePermission(Permission.RECEIVABLE_READ)
-  async findMany(
-    @Query() pagination: PaginationDto,
-    @Query('status') status?: string,
-    @Query('salesRepresentativeId') salesRepresentativeId?: string,
-    @Query('customerId') customerId?: string,
-    @Query('search') search?: string,
-  ) {
+  async findMany(@Query() query: ListReceivablesQueryDto) {
     const result = await this.listReceivablesUseCase.execute({
-      filters: { status, salesRepresentativeId, customerId },
-      search,
-      page: pagination.page,
-      limit: pagination.limit,
+      filters: {
+        status: query.status,
+        salesRepresentativeId: query.salesRepresentativeId,
+        customerId: query.customerId,
+      },
+      search: query.search,
+      page: query.page,
+      limit: query.limit,
     });
     return {
       items: result.items.map((x) =>

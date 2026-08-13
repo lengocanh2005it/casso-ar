@@ -9,7 +9,7 @@ import {
 } from 'class-validator';
 import { MAX_SEARCH_LENGTH } from '../../../../common/validation/search-length';
 
-export class ExceptionQueuePaginationDto {
+export class ListReceivablesQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -20,6 +20,21 @@ export class ExceptionQueuePaginationDto {
   @Min(1)
   @Max(100)
   limit = 20;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_SEARCH_LENGTH)
+  status?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_SEARCH_LENGTH)
+  salesRepresentativeId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_SEARCH_LENGTH)
+  customerId?: string;
 
   @IsOptional()
   @IsString()

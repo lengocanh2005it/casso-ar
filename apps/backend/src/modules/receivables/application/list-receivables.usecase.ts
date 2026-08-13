@@ -62,6 +62,7 @@ export class ListReceivablesUseCase {
     const user = this.tenantContext.getCurrentUser();
 
     const filters = { ...input.filters };
+    let listFilters = filters;
 
     // SALES_REP role: auto-scope to own receivables
     if (user?.role === Role.SALES_REP) {
@@ -69,20 +70,24 @@ export class ListReceivablesUseCase {
     }
 
     if (input.search) {
-      const [customerIdIn, invoiceIdIn] = await Promise.all([
-        this.customerRepo.findIdsBySearch(orgId, input.search, SEARCH_ID_LIMIT),
-        this.invoiceRepo.findIdsByInvoiceNumberSearch(
-          orgId,
-          input.search,
-          SEARCH_ID_LIMIT,
-        ),
+      const [customerIds, invoiceIds] = await Promise.all([
+        this.customerRepo.findIdsBySearch(orgId, input.search),
+        this.invoiceRepo.findIdsByInvoiceNumberSearch(orgId, input.search),
       ]);
-      filters.customerIdIn = customerIdIn;
-      filters.invoiceIdIn = invoiceIdIn;
+      filters.customerIdIn = customerIds;
+      filters.invoiceIdIn = invoiceIds;
+      // Cap the id fan-out for the per-page list query while the count runs
+      // on the full match set, so pagination totals stay correct even when a
+      // search matches more than SEARCH_ID_LIMIT customers/invoices.
+      listFilters = {
+        ...filters,
+        customerIdIn: customerIds.slice(0, SEARCH_ID_LIMIT),
+        invoiceIdIn: invoiceIds.slice(0, SEARCH_ID_LIMIT),
+      };
     }
 
     const [receivables, total] = await Promise.all([
-      this.receivableRepo.findPage(orgId, filters, input.page, input.limit),
+      this.receivableRepo.findPage(orgId, listFilters, input.page, input.limit),
       this.receivableRepo.count(orgId, filters),
     ]);
 

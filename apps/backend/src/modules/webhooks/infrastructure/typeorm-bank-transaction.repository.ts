@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
 import { ILike } from 'typeorm';
+import { toLikePattern } from '../../../common/database/like-pattern';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { IBankTransactionRepository } from '../application/bank-transaction-repository.port';
@@ -106,7 +107,7 @@ function searchWhere(
     status,
   };
   if (!search) return base;
-  const term = ILike(`%${search}%`);
+  const term = ILike(toLikePattern(search));
   return [
     { ...base, counterpartyName: term },
     { ...base, counterpartyAccountNumber: term },
