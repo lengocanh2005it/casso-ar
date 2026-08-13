@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AlertBell } from './alert-bell';
@@ -72,5 +72,29 @@ describe('AlertBell', () => {
     renderBell();
 
     expect(await screen.findByText('99+')).toBeInTheDocument();
+  });
+
+  it('uses responsive, origin-aware popover motion and press feedback', async () => {
+    useAuth.mockReturnValue({ user: { role: 'OWNER' } });
+    apiRequest.mockResolvedValue({ items: [], total: 0, unreadCount: 0 });
+
+    renderBell();
+
+    const trigger = await screen.findByRole('button', { name: 'Thông báo' });
+    expect(trigger).toHaveClass(
+      'pointer-hover:hover:bg-sidebar-accent',
+      'active:scale-[0.97]',
+    );
+
+    fireEvent.click(trigger);
+
+    await waitFor(() => {
+      const content = document.querySelector('[data-slot="popover-content"]');
+      expect(content).toHaveClass(
+        'w-[calc(100vw-2rem)]',
+        'max-w-80',
+        'origin-(--radix-popover-content-transform-origin)',
+      );
+    });
   });
 });

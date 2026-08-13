@@ -31,7 +31,7 @@ export function AlertBell() {
           <button
             type="button"
             aria-label={ariaLabel}
-            className="relative rounded-md p-1.5 hover:bg-sidebar-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="relative rounded-md p-1.5 transition-[background-color,transform] duration-150 ease-out pointer-hover:hover:bg-sidebar-accent active:scale-[0.97] focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
           >
             <Bell aria-hidden="true" className="size-4" />
             {unreadCount > 0 && (

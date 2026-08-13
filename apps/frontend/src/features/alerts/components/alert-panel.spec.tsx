@@ -58,7 +58,10 @@ describe('AlertPanel', () => {
     expect(
       await screen.findByText('Máy chủ email của bạn gửi thất bại'),
     ).toBeInTheDocument();
-    expect(screen.getByText('Đánh dấu đã đọc tất cả')).toBeInTheDocument();
+    expect(screen.getByText('Đánh dấu đã đọc tất cả')).toHaveClass(
+      'pointer-hover:hover:underline',
+      'active:scale-[0.98]',
+    );
   });
 
   it('hides "Đánh dấu đã đọc tất cả" when unreadCount is 0', async () => {
@@ -111,6 +114,10 @@ describe('AlertPanel', () => {
       name: /Máy chủ email của bạn gửi thất bại/,
     });
     expect(row).toHaveAttribute('href', '/settings?tab=smtp');
+    expect(row).toHaveClass(
+      'pointer-hover:hover:bg-accent',
+      'active:scale-[0.99]',
+    );
     fireEvent.click(row);
 
     await waitFor(() =>
@@ -144,13 +151,22 @@ describe('AlertPanel', () => {
 
     renderPanel();
     await screen.findByText('Máy chủ email của bạn gửi thất bại');
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: 'Xoá thông báo: Máy chủ email của bạn gửi thất bại',
-      }),
+    const deleteTrigger = screen.getByRole('button', {
+      name: 'Xoá thông báo: Máy chủ email của bạn gửi thất bại',
+    });
+    expect(deleteTrigger).toHaveClass(
+      'pointer-hover:hover:bg-muted',
+      'active:scale-[0.97]',
     );
+    fireEvent.click(deleteTrigger);
 
     expect(await screen.findByText('Xoá thông báo này?')).toBeInTheDocument();
+    expect(
+      document.querySelector('[data-slot="alert-dialog-overlay"]'),
+    ).toHaveClass('motion-reduce:animate-none');
+    expect(
+      document.querySelector('[data-slot="alert-dialog-content"]'),
+    ).toHaveClass('motion-reduce:animate-none');
     expect(apiRequest).not.toHaveBeenCalledWith(
       expect.objectContaining({
         url: '/api/v1/alerts/alert-1',
