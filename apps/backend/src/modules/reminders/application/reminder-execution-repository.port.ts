@@ -28,4 +28,5 @@ export interface IReminderExecutionRepository {
     status: 'SENT' | 'FAILED',
     providerMessageId: string | null,
   ): Promise<void>;
+  deleteOlderThan(cutoff: Date): Promise<number>;
 }
