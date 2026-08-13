@@ -6,6 +6,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtStrategy } from './common/auth/jwt.strategy';
@@ -58,6 +59,7 @@ import { SmtpConfigModule } from './modules/smtp-config/smtp-config.module';
       useFactory: getBullMqConfig,
     }),
     EventEmitterModule.forRoot(),
+    ScheduleModule.forRoot(),
     PassportModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
