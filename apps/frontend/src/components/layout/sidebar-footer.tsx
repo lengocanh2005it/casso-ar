@@ -2,6 +2,7 @@ import { LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
+import { AlertBell } from '@/features/alerts/components/alert-bell';
 import { ThemeToggle } from './theme-toggle';
 
 function getInitials(name: string): string {
@@ -44,6 +45,7 @@ export function SidebarFooter({ collapsed }: { collapsed: boolean }) {
           <p className="truncate text-xs text-muted-foreground">{user.role}</p>
         </div>
       )}
+      <AlertBell />
       <ThemeToggle />
       <button
         type="button"
