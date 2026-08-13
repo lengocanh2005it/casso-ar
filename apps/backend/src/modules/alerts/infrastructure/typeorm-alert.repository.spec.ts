@@ -298,3 +298,23 @@ describe('TypeOrmAlertRepository', () => {
     });
   });
 });
+
+describe('TypeOrmAlertRepository.deleteReadOlderThan', () => {
+  it('deletes read rows older than the cutoff and returns the deleted count', async () => {
+    const deleteMock = jest.fn().mockResolvedValue({ affected: 4 });
+    const ormRepo = { delete: deleteMock } as any;
+    const repo = new TypeOrmAlertRepository(
+      ormRepo,
+      { transaction: jest.fn() } as any,
+      buildTenantContext(),
+    );
+    const cutoff = new Date('2026-01-01T00:00:00Z');
+
+    const result = await repo.deleteReadOlderThan(cutoff);
+
+    expect(deleteMock).toHaveBeenCalledWith({
+      readAt: expect.objectContaining({ _type: 'lessThan', _value: cutoff }),
+    });
+    expect(result).toBe(4);
+  });
+});

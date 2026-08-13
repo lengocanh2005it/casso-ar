@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { DataSource, IsNull, LessThan, Repository } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
@@ -155,5 +155,10 @@ export class TypeOrmAlertRepository
         userId,
       });
     });
+  }
+
+  async deleteReadOlderThan(cutoff: Date): Promise<number> {
+    const result = await this.ormRepo.delete({ readAt: LessThan(cutoff) });
+    return result.affected ?? 0;
   }
 }

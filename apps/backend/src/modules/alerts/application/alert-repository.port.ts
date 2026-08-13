@@ -27,6 +27,8 @@ export interface IAlertRepository {
   markAllRead(userId: string): Promise<void>;
   delete(id: string, userId: string): Promise<void>;
   deleteAll(userId: string): Promise<void>;
+  /** Prunes read alerts (`readAt` set) older than cutoff; never touches unread rows. */
+  deleteReadOlderThan(cutoff: Date): Promise<number>;
 }
 
 export const ALERT_REPOSITORY = Symbol('ALERT_REPOSITORY');
