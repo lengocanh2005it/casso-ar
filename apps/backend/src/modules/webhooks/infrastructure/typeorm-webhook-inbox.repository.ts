@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
+import { LessThan } from 'typeorm';
 import { isUniqueViolation } from '../../../common/database/unique-violation';
 import type {
   IWebhookInboxRepository,
@@ -78,5 +79,10 @@ export class TypeOrmWebhookInboxRepository implements IWebhookInboxRepository {
       take: query.limit,
     });
     return { items: rows.map((row) => new WebhookInbox(row)), total };
+  }
+
+  async deleteOlderThan(cutoff: Date): Promise<number> {
+    const result = await this.repo.delete({ receivedAt: LessThan(cutoff) });
+    return result.affected ?? 0;
   }
 }

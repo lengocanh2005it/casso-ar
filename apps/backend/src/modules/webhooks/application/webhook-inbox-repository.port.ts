@@ -22,6 +22,7 @@ export interface IWebhookInboxRepository {
   findPage(
     query: WebhookInboxPageQuery,
   ): Promise<{ items: WebhookInbox[]; total: number }>;
+  deleteOlderThan(cutoff: Date): Promise<number>;
 }
 
 export const WEBHOOK_INBOX_REPOSITORY = Symbol('WEBHOOK_INBOX_REPOSITORY');
