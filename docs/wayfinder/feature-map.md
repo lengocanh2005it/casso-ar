@@ -103,8 +103,8 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Ticket Index
 
-**29 plans** | status snapshot (2026-08-12):
-- 🟢 done (29): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management, Spec-Plan Reconciliation, Org-Branded Reminder Emails via Custom SMTP (BYO-SMTP), SMTP Settings UI (Frontend)
+**30 tracked tickets** | status snapshot (2026-08-13):
+- 🟢 done (30): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management, Spec-Plan Reconciliation, Org-Branded Reminder Emails via Custom SMTP (BYO-SMTP), SMTP Settings UI (Frontend), In-App Alerts (#137)
 - 🟡 in-progress (0): none
 - 🔴 open/not started (0): none
 
@@ -685,7 +685,27 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ---
 
+#### Plan: In-App Alerts (#137)
+- **Type**: task
+- **Status**: done ✅
+- **Owner**: BE + FE
+- **Plan**: `plans/2026-08-13-in-app-alerts.md`
+- **ADR**: `docs/adr/0013-alert-module-separate-from-notifications-email-queue.md`
+- **Blockers**: none
+- **Shipped**: 2026-08-13 — PR not opened per task instruction; branch `lengocanh2005it/feat-137-in-app-alerts`
+- **Key rules**:
+  - OWNER-only persisted alerts for bank-connection status changes, SMTP failure transitions, and reminder scan summaries
+  - Tenant- and user-scoped CRUD API plus JWT query-token SSE for native `EventSource`
+  - Unread deduplication through the partial unique index; all alert writes run in transactions
+  - Frontend bell/popover with Vietnamese messages, mark-read/delete actions, route mapping, and live SSE invalidation
+- **Creates**: `alerts/` Clean Architecture module, `ALERT_READ` permission, alerts migration/API/SSE, three event listeners, and frontend `features/alerts/` UI/data layer
+- **Implementation note**: Implemented in 25 task commits with RED → GREEN → REFACTOR checkpoints. Fresh verification passed backend unit tests (218 suites/771 tests), frontend tests (51 files/136 tests), the alerts e2e slice (2 tests), and type-checks for backend/frontend/shared-types. The repository `pnpm verify` gate reached all unit/type/lint checks but remains non-zero at the existing cross-module infrastructure checker because the plan's locked event-contract imports point from `alerts/infrastructure/` to `notifications/infrastructure/` and `internal-tasks/infrastructure/`; no silent design change was made. Three unrelated e2e failures are intentionally out of scope for this ticket; propose a separate issue if they need fixing.
+
+---
+
 ## Frontier
+
+**Current status (2026-08-13):** In-App Alerts (#137) is done; the map now tracks 30 completed tickets. PR creation remains intentionally deferred for review. Three unrelated e2e failures are deferred to a separate issue.
 
 **In progress:**
 - None
