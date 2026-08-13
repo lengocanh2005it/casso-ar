@@ -22,6 +22,7 @@ import { getTypeOrmConfig } from './config/typeorm.config';
 import { BankAccountsModule } from './modules/bank-accounts/bank-accounts.module';
 import { BankConnectionsModule } from './modules/bank-connections/bank-connections.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { PayosModule } from './modules/payos/payos.module';
 import { CollectionActivityModule } from './modules/collection-activity/collection-activity.module';
 import { CopilotModule } from './modules/copilot/copilot.module';
 import { CustomersModule } from './modules/customers/customers.module';
@@ -70,6 +71,7 @@ import { SmtpConfigModule } from './modules/smtp-config/smtp-config.module';
     AuditLogsModule,
     OrganizationsModule,
     BillingModule,
+    PayosModule,
     BankConnectionsModule,
     BankAccountsModule,
     AuthModule,
