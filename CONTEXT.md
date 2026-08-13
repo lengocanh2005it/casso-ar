@@ -79,6 +79,7 @@ A B2B SaaS platform for automating accounts receivable management and collection
 8. **Terminal statuses:** PAID, WRITTEN_OFF, CANCELLED — cannot transition further
 9. **Retention Policy:** INSERT-only, unbounded-growth tables are pruned by a daily cutoff-based delete, not query-time filtering. Windows (see issue #118): `webhook_inbox` 90d, `idempotency_keys` 90d post-COMPLETED, `ai_usage_logs` 12mo, `audit_logs`/`collection_activities`/`reminder_executions` 24mo, `alerts` 90d after `readAt` (unread rows are never auto-pruned)
 10. **Plan tiers:** FREE < STARTER < BUSINESS < ENTERPRISE (strict order). A `Subscription` may only move to a strictly higher tier via `PlanUpgradeOrder` (self-service upgrade); there is no downgrade or cancel action — an org on a paid tier must pay a `PeriodCharge` for the current billing period to keep that tier. If unpaid by the end of a 3-day grace window after period end, the `Subscription` automatically drops to FREE (not a user-triggered downgrade). During the grace window `status` stays `ACTIVE` (see ADR-0012) — `PAST_DUE` keeps its existing meaning of an immediate hard block (`plan-limit.service.ts`), it is not used for renewal grace
+11. **Batch operations:** a `Batch operation` (API request with multiple items) processes each item independently — one item's failure does not roll back or block the others. Never wrap a batch in a single all-or-nothing transaction; that is a distinct, rejected design (see ADR-0016)
 
 ## RBAC
 
@@ -117,6 +118,14 @@ Score components:
   + payerNameScore (0-5) + timingScore (0-5)
 ```
 
+## Batch Operations
+
+`Batch operation` (backend) vs `Bulk selection`/`Bulk action bar` (frontend): a batch operation is one API request carrying multiple items (e.g. `POST /bank-transactions/batch-skip`), each processed independently with a per-item result (see Business Rule 11). A bulk action bar is the UI surface a user drives to trigger one.
+
+- Batch size: max 50 items per request
+- Every batch item's transaction/tenant scoping and permission checks are identical to the single-item endpoint it reuses — a batch endpoint is never a separate authorization path
+- **Bulk approve match:** an Exception Queue row is eligible for one-click bulk approval only when its `topCandidate.totalScore ≥ 80` (`BULK_APPROVE_THRESHOLD`) — distinct from and lower than `AUTO_MATCH_THRESHOLD` (90, webhook auto-match), because every Exception Queue row is by definition already below 90. The full bank transaction amount is submitted as the allocation; if it exceeds the receivable's `remainingAmount` the item fails with `ALLOCATION_EXCEEDS_REMAINING` in its per-item result rather than blocking the rest of the batch.
+
 ## Architecture Decisions (ADR)
 
 | ADR | Decision | Rationale |
@@ -133,6 +142,7 @@ Score components:
 | 0013 | Alert module separate from `notifications` (email queue) | New `alerts/` module owns the in-app, read/unread concept; `notifications/` keeps meaning "email queue" only — avoids overloading "Notification" |
 | 0014 | Alert SSE via in-process EventEmitter2, no cross-instance relay | Single-instance `backend` today; breaks silently if horizontally scaled — a future replica needs a Redis-relay upgrade before the bell stays live |
 | 0015 | Idempotency-Key PENDING rows reclaimed as stale after 5 minutes | Prevents permanent PENDING leak on process crash (issue #118), trading strict idempotency for a rare >5min-running request against bounded leak otherwise |
+| 0016 | Batch endpoints process items independently, never as one all-or-nothing transaction | Issue #134 requires per-item failure reporting; an all-or-nothing transaction would also hold row locks across up to 50 items, violating the short-transaction-scope rule |
 
 ## Constraints
 
