@@ -13,7 +13,11 @@ export interface IPlanUpgradeOrderRepository {
     orderCode: number,
     manager: EntityManager,
   ): Promise<PlanUpgradeOrder | null>;
-  save(order: PlanUpgradeOrder, manager?: EntityManager): Promise<void>;
+  save(
+    order: PlanUpgradeOrder,
+    manager?: EntityManager,
+    organizationId?: string,
+  ): Promise<void>;
 }
 
 export const PLAN_UPGRADE_ORDER_REPOSITORY = Symbol(

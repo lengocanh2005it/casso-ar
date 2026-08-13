@@ -15,13 +15,8 @@ import {
   PLAN_UPGRADE_ORDER_REPOSITORY,
 } from './plan-upgrade-order-repository.port';
 
-const PLAN_TIER: Record<PlanId, number> = {
-  [PlanId.FREE]: 0,
-  [PlanId.STARTER]: 1,
-  [PlanId.BUSINESS]: 2,
-  [PlanId.ENTERPRISE]: 3,
-};
-
+// PayOS checkout amount per plan — distinct from Subscription's PLAN_CATALOG,
+// which tracks usage limits, not price.
 const PLAN_PRICE_VND: Record<PlanId, number> = {
   [PlanId.FREE]: 0,
   [PlanId.STARTER]: 299_000,
@@ -63,7 +58,7 @@ export class InitiatePlanUpgradeOrderUseCase {
         'Không tìm thấy gói đăng ký của tổ chức.',
       );
     }
-    if (PLAN_TIER[input.targetPlanId] <= PLAN_TIER[subscription.planId]) {
+    if (!subscription.isUpgradeTo(input.targetPlanId)) {
       throw new AppError(
         ErrorCode.INVALID_PLAN_TRANSITION,
         `Không thể nâng cấp sang gói ${input.targetPlanId} từ gói hiện tại.`,

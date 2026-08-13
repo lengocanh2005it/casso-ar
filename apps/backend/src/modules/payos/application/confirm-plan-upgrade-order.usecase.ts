@@ -40,7 +40,11 @@ export class ConfirmPlanUpgradeOrderUseCase {
       if (!order || order.isTerminal()) return;
 
       if (!input.paymentSucceeded) {
-        await this.orderRepo.save(order.markFailed(), manager);
+        await this.orderRepo.save(
+          order.markFailed(),
+          manager,
+          order.organizationId,
+        );
         return;
       }
 
@@ -50,11 +54,11 @@ export class ConfirmPlanUpgradeOrderUseCase {
         manager,
       );
       const paidOrder = order.markPaid();
-      await this.orderRepo.save(paidOrder, manager);
+      await this.orderRepo.save(paidOrder, manager, order.organizationId);
       await this.auditLogRepo.create(
         new AuditLog({
           organizationId: order.organizationId,
-          userId: '00000000-0000-0000-0000-000000000000',
+          userId: 'system',
           actionType: AuditActionType.SUBSCRIPTION_CHANGE_PLAN,
           entityType: AuditEntityType.SUBSCRIPTION,
           entityId: order.organizationId,
@@ -70,4 +74,8 @@ export class ConfirmPlanUpgradeOrderUseCase {
       );
     });
   }
+
+  // ponytail: no reconciliation/polling job for orders stuck in PENDING
+  // (e.g. webhook lost in transit) — add a scheduled job that re-queries
+  // PayOS by orderCode if stuck orders become a real support burden.
 }

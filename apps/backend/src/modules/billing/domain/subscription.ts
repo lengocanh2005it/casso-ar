@@ -177,6 +177,10 @@ export class Subscription {
     });
   }
 
+  isUpgradeTo(newPlanId: PlanId): boolean {
+    return PLAN_CATALOG[newPlanId].tier > PLAN_CATALOG[this.planId].tier;
+  }
+
   changeToPlan(newPlanId: PlanId): Subscription {
     const currentTier = PLAN_CATALOG[this.planId].tier;
     const newTier = PLAN_CATALOG[newPlanId].tier;

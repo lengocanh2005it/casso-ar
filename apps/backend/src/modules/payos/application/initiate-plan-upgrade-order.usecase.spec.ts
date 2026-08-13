@@ -36,12 +36,10 @@ describe('InitiatePlanUpgradeOrderUseCase', () => {
       save: jest.fn(),
     };
     const adapter: jest.Mocked<IPayosPaymentAdapter> = {
-      createPaymentLink: jest
-        .fn()
-        .mockResolvedValue({
-          checkoutUrl: 'https://pay.payos.vn/x',
-          orderCode: 1001,
-        }),
+      createPaymentLink: jest.fn().mockResolvedValue({
+        checkoutUrl: 'https://pay.payos.vn/x',
+        orderCode: 1001,
+      }),
     };
     const useCase = new InitiatePlanUpgradeOrderUseCase(
       orderRepo,
