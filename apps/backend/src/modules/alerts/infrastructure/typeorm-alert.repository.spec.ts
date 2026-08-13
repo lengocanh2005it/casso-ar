@@ -97,4 +97,204 @@ describe('TypeOrmAlertRepository', () => {
       });
     });
   });
+
+  describe('findPage', () => {
+    it('paginates, filters unreadOnly, and returns total + unreadCount', async () => {
+      const rows = [
+        {
+          id: 'alert-1',
+          organizationId: 'org-1',
+          userId: 'user-1',
+          type: 'SMTP_FAILED',
+          entityType: 'smtp_config',
+          entityId: 'smtp-1',
+          readAt: null,
+          createdAt: new Date('2026-08-13T00:00:00Z'),
+        },
+      ];
+      const qb = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([rows, 1]),
+      };
+      const ormRepo = {
+        createQueryBuilder: jest.fn().mockReturnValue(qb),
+        count: jest.fn().mockResolvedValue(1),
+      };
+      const repo = new TypeOrmAlertRepository(
+        ormRepo as any,
+        { transaction: jest.fn() } as any,
+        buildTenantContext(),
+      );
+
+      const page = await repo.findPage('user-1', 2, 10, true);
+
+      expect(qb.where).toHaveBeenCalledWith(
+        'alert.organizationId = :organizationId',
+        { organizationId: 'org-1' },
+      );
+      expect(qb.andWhere).toHaveBeenCalledWith('alert.userId = :userId', {
+        userId: 'user-1',
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith('alert.readAt IS NULL');
+      expect(qb.skip).toHaveBeenCalledWith(10);
+      expect(qb.take).toHaveBeenCalledWith(10);
+      expect(page.total).toBe(1);
+      expect(page.unreadCount).toBe(1);
+      expect(page.items[0]?.id).toBe('alert-1');
+    });
+  });
+
+  describe('findByIdForUser', () => {
+    it('scopes by organizationId and userId', async () => {
+      const ormRepo = {
+        findOne: jest.fn().mockResolvedValue({
+          id: 'alert-1',
+          organizationId: 'org-1',
+          userId: 'user-1',
+          type: 'SMTP_FAILED',
+          entityType: 'smtp_config',
+          entityId: 'smtp-1',
+          readAt: null,
+          createdAt: new Date('2026-08-13T00:00:00Z'),
+        }),
+      };
+      const repo = new TypeOrmAlertRepository(
+        ormRepo as any,
+        { transaction: jest.fn() } as any,
+        buildTenantContext(),
+      );
+
+      const alert = await repo.findByIdForUser('alert-1', 'user-1');
+
+      expect(ormRepo.findOne).toHaveBeenCalledWith({
+        where: { id: 'alert-1', organizationId: 'org-1', userId: 'user-1' },
+      });
+      expect(alert?.id).toBe('alert-1');
+    });
+
+    it('returns null when no row matches', async () => {
+      const ormRepo = { findOne: jest.fn().mockResolvedValue(null) };
+      const repo = new TypeOrmAlertRepository(
+        ormRepo as any,
+        { transaction: jest.fn() } as any,
+        buildTenantContext(),
+      );
+
+      expect(await repo.findByIdForUser('missing', 'user-1')).toBeNull();
+    });
+  });
+
+  describe('markRead', () => {
+    it('sets readAt only when currently unread, scoped by org/user', async () => {
+      const qb = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected: 1 }),
+      };
+      const ormRepo = { createQueryBuilder: jest.fn().mockReturnValue(qb) };
+      const dataSource = {
+        transaction: jest.fn((cb) => cb({ getRepository: () => ormRepo })),
+      };
+      const repo = new TypeOrmAlertRepository(
+        ormRepo as any,
+        dataSource as any,
+        buildTenantContext(),
+      );
+
+      await repo.markRead('alert-1', 'user-1');
+
+      expect(qb.where).toHaveBeenCalledWith('id = :id', { id: 'alert-1' });
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'organizationId = :organizationId AND userId = :userId',
+        { organizationId: 'org-1', userId: 'user-1' },
+      );
+      expect(qb.andWhere).toHaveBeenCalledWith('"readAt" IS NULL');
+    });
+  });
+
+  describe('markAllRead', () => {
+    it('bulk-updates every unread row for the user in one statement', async () => {
+      const qb = {
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected: 4 }),
+      };
+      const ormRepo = { createQueryBuilder: jest.fn().mockReturnValue(qb) };
+      const dataSource = {
+        transaction: jest.fn((cb) => cb({ getRepository: () => ormRepo })),
+      };
+      const repo = new TypeOrmAlertRepository(
+        ormRepo as any,
+        dataSource as any,
+        buildTenantContext(),
+      );
+
+      await repo.markAllRead('user-1');
+
+      expect(qb.where).toHaveBeenCalledWith(
+        'organizationId = :organizationId AND userId = :userId',
+        { organizationId: 'org-1', userId: 'user-1' },
+      );
+      expect(qb.andWhere).toHaveBeenCalledWith('"readAt" IS NULL');
+    });
+  });
+
+  describe('delete', () => {
+    it('deletes one row scoped by id/org/user', async () => {
+      const ormDeleteRepo = {
+        delete: jest.fn().mockResolvedValue({ affected: 1 }),
+      };
+      const dataSource = {
+        transaction: jest.fn((cb) =>
+          cb({ getRepository: () => ormDeleteRepo }),
+        ),
+      };
+      const repo = new TypeOrmAlertRepository(
+        {} as any,
+        dataSource as any,
+        buildTenantContext(),
+      );
+
+      await repo.delete('alert-1', 'user-1');
+
+      expect(ormDeleteRepo.delete).toHaveBeenCalledWith({
+        id: 'alert-1',
+        organizationId: 'org-1',
+        userId: 'user-1',
+      });
+    });
+  });
+
+  describe('deleteAll', () => {
+    it('deletes every row for the user scoped by org', async () => {
+      const ormDeleteRepo = {
+        delete: jest.fn().mockResolvedValue({ affected: 4 }),
+      };
+      const dataSource = {
+        transaction: jest.fn((cb) =>
+          cb({ getRepository: () => ormDeleteRepo }),
+        ),
+      };
+      const repo = new TypeOrmAlertRepository(
+        {} as any,
+        dataSource as any,
+        buildTenantContext(),
+      );
+
+      await repo.deleteAll('user-1');
+
+      expect(ormDeleteRepo.delete).toHaveBeenCalledWith({
+        organizationId: 'org-1',
+        userId: 'user-1',
+      });
+    });
+  });
 });
