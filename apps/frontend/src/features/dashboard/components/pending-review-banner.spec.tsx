@@ -25,4 +25,13 @@ describe('PendingReviewBanner', () => {
       '/exceptions',
     );
   });
+
+  it('announces itself as a live region when it appears', () => {
+    render(
+      <MemoryRouter>
+        <PendingReviewBanner pendingCount={2} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('2');
+  });
 });

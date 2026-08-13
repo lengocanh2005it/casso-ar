@@ -16,11 +16,16 @@ export function RecentActivityFeed({
         <li key={item.id} className="text-sm">
           <div className="flex items-center justify-between gap-4">
             <span className="font-medium">{item.activityType}</span>
-            <time className="shrink-0 text-xs text-muted-foreground">
+            <time
+              dateTime={item.createdAt}
+              className="shrink-0 text-xs text-muted-foreground"
+            >
               {formatDate(item.createdAt)}
             </time>
           </div>
-          <p className="mt-0.5 text-muted-foreground">{item.description}</p>
+          <p className="mt-0.5 break-words text-muted-foreground">
+            {item.description}
+          </p>
         </li>
       ))}
     </ol>

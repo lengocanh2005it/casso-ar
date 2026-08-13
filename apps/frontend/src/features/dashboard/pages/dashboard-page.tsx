@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useReviewCount } from '@/features/exceptions/api/use-review-count';
 import { useDashboardSummary } from '@/features/reports/api/use-reports';
@@ -6,8 +7,13 @@ import { useOrganizationActivity } from '../api/use-organization-activity';
 import { PendingReviewBanner } from '../components/pending-review-banner';
 import { RecentActivityFeed } from '../components/recent-activity-feed';
 
+const percentFormatter = new Intl.NumberFormat('vi-VN', {
+  style: 'percent',
+  maximumFractionDigits: 0,
+});
+
 function formatRate(value: number | null): string {
-  return value === null ? '—' : `${Math.round(value * 100)}%`;
+  return value === null ? '—' : percentFormatter.format(value);
 }
 
 function MetricCard({ label, value }: { label: string; value: string }) {
@@ -44,12 +50,29 @@ export function DashboardPage() {
         </p>
       </div>
 
-      <PendingReviewBanner pendingCount={pendingCount} />
+      {reviewCountQuery.isError ? (
+        <p role="status" className="text-sm text-destructive">
+          Không thể tải số lượng cần đối soát.
+        </p>
+      ) : (
+        <PendingReviewBanner pendingCount={pendingCount} />
+      )}
 
       {summaryQuery.isPending ? (
-        <p>Đang tải…</p>
+        <p role="status">Đang tải…</p>
       ) : summaryQuery.isError || !summaryQuery.data ? (
-        <p className="text-destructive">Không thể tải dữ liệu tổng quan.</p>
+        <div className="flex items-center gap-3">
+          <p role="status" className="text-sm text-destructive">
+            Không thể tải dữ liệu tổng quan.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void summaryQuery.refetch()}
+          >
+            Thử lại
+          </Button>
+        </div>
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -75,11 +98,22 @@ export function DashboardPage() {
               </CardHeader>
               <CardContent>
                 {activityQuery.isPending ? (
-                  <p className="text-sm text-muted-foreground">Đang tải…</p>
-                ) : activityQuery.isError || !activityQuery.data ? (
-                  <p className="text-sm text-destructive">
-                    Không thể tải hoạt động.
+                  <p role="status" className="text-sm text-muted-foreground">
+                    Đang tải…
                   </p>
+                ) : activityQuery.isError || !activityQuery.data ? (
+                  <div className="flex items-center gap-3">
+                    <p role="status" className="text-sm text-destructive">
+                      Không thể tải hoạt động.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void activityQuery.refetch()}
+                    >
+                      Thử lại
+                    </Button>
+                  </div>
                 ) : (
                   <RecentActivityFeed items={activityQuery.data.items} />
                 )}

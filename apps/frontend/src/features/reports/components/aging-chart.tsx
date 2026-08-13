@@ -24,7 +24,7 @@ export function AgingChart({ report }: { report: AgingReport }) {
             tickLine={false}
             axisLine={false}
             tickFormatter={(value: number) =>
-              formatVND(value).replace(' ₫', '')
+              formatVND(value).replace(/\s₫$/u, '')
             }
           />
           <Tooltip formatter={(value) => formatVND(Number(value))} />
