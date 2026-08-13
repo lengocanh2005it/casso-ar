@@ -1,20 +1,17 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import type { ReminderScanCompletedPayload } from '../../internal-tasks/infrastructure/reminder-scan-completed.listener';
 import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
 } from '../../organizations/application/membership-repository.port';
 import { Role } from '../../organizations/domain/membership';
+import {
+  REMINDER_SCAN_COMPLETED,
+  type ReminderScanCompletedEvent,
+} from '../../reminders/application/reminder-scheduler.service';
 import { CreateAlertUseCase } from '../application/create-alert.usecase';
 import { AlertType } from '../domain/alert';
-
-interface ReminderScanCompletedWithCountsPayload
-  extends ReminderScanCompletedPayload {
-  queuedCount: number;
-  skippedCount: number;
-}
 
 @Injectable()
 export class ReminderScanAlertListener {
@@ -27,8 +24,8 @@ export class ReminderScanAlertListener {
     private readonly tenantContext: TenantContextService,
   ) {}
 
-  @OnEvent('reminder.scan.completed')
-  async handle(payload: ReminderScanCompletedWithCountsPayload): Promise<void> {
+  @OnEvent(REMINDER_SCAN_COMPLETED)
+  async handle(payload: ReminderScanCompletedEvent): Promise<void> {
     if (payload.queuedCount <= 0) return;
     try {
       await this.tenantContext.run(

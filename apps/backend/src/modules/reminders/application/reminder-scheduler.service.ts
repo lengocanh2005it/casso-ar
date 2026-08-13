@@ -36,6 +36,15 @@ export interface ReminderSendJob {
   executionDate: string;
 }
 
+export const REMINDER_SCAN_COMPLETED = 'reminder.scan.completed';
+
+export interface ReminderScanCompletedEvent {
+  organizationId: string;
+  scanDate: string;
+  queuedCount: number;
+  skippedCount: number;
+}
+
 function calendarDate(date: Date): string {
   return formatInTimeZone(date, REMINDER_TIMEZONE, 'yyyy-MM-dd');
 }
@@ -98,12 +107,12 @@ export class ReminderSchedulerService {
     let queuedCount = 0;
     let skippedCount = 0;
     const emitScanCompleted = () =>
-      this.eventEmitter.emitAsync('reminder.scan.completed', {
+      this.eventEmitter.emitAsync(REMINDER_SCAN_COMPLETED, {
         organizationId,
         scanDate: executionDate,
         queuedCount,
         skippedCount,
-      });
+      } satisfies ReminderScanCompletedEvent);
     if (eligible.length === 0) {
       await emitScanCompleted();
       return;

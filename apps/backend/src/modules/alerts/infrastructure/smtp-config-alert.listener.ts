@@ -4,7 +4,7 @@ import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import {
   SMTP_CONFIG_FAILED,
   type SmtpConfigFailedEvent,
-} from '../../notifications/infrastructure/email-queue.processor';
+} from '../../notifications/application/smtp-config-failed.event';
 import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,

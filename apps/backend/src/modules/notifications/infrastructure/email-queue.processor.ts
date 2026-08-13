@@ -33,14 +33,8 @@ import {
   type OwnerAlertEmailJob,
   type ReminderEmailJob,
 } from '../application/email-queue.port';
+import { SMTP_CONFIG_FAILED } from '../application/smtp-config-failed.event';
 import { EMAIL_QUEUE } from './email-queue.constants';
-
-export const SMTP_CONFIG_FAILED = 'smtp-config.failed';
-
-export interface SmtpConfigFailedEvent {
-  organizationId: string;
-  smtpConfigId: string;
-}
 
 function getJobRequestId(job: Job): string {
   return `bullmq:${job.id ?? randomUUID()}`;
