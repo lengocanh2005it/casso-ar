@@ -95,10 +95,14 @@ export class ReminderSchedulerService {
     const candidates = await this.candidateReader.findOpenCandidates();
     const executionDate = calendarDate(today);
     const eligible = candidates.filter((candidate) => !candidate.isDisputed);
+    let queuedCount = 0;
+    let skippedCount = 0;
     const emitScanCompleted = () =>
       this.eventEmitter.emitAsync('reminder.scan.completed', {
         organizationId,
         scanDate: executionDate,
+        queuedCount,
+        skippedCount,
       });
     if (eligible.length === 0) {
       await emitScanCompleted();
@@ -155,6 +159,7 @@ export class ReminderSchedulerService {
             failureReason: null,
             createdAt: new Date(),
           });
+          skippedCount += 1;
           continue;
         }
       }
@@ -173,6 +178,7 @@ export class ReminderSchedulerService {
           backoff: { type: 'exponential', delay: 5000 },
         },
       );
+      queuedCount += 1;
     }
 
     await emitScanCompleted();
