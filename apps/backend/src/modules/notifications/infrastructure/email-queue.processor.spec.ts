@@ -247,6 +247,29 @@ describe('EmailQueueProcessor — provider resolution', () => {
     );
   });
 
+  it('emits SMTP_CONFIG_FAILED with the org and config id when the SMTP config transitions to FAILED', async () => {
+    const deps = buildDeps();
+    deps.smtpConfigRepo.findByOrganizationId.mockResolvedValue({
+      id: 'smtp-1',
+      organizationId: 'org-1',
+      isConnected: () => true,
+      markFailed: () => ({
+        id: 'smtp-1',
+        organizationId: 'org-1',
+        status: 'FAILED',
+      }),
+    });
+    deps.smtpConfigRepo.markFailedIfVersionMatches.mockResolvedValue(true);
+    const processor = buildProcessor(deps);
+
+    await processor.onFailed(buildJob({ attemptsMade: 3, attempts: 3 }));
+
+    expect(deps.eventEmitter.emit).toHaveBeenCalledWith('smtp-config.failed', {
+      organizationId: 'org-1',
+      smtpConfigId: 'smtp-1',
+    });
+  });
+
   it('still rescues the reminder via the Resend fallback (but skips the warning) when another concurrent job already won the SMTP transition', async () => {
     // Regression test: two reminder jobs for the same org exhausting SMTP
     // retries at the same time must never both silently drop their reminder.

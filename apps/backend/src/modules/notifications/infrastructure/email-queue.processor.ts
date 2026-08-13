@@ -35,6 +35,13 @@ import {
 } from '../application/email-queue.port';
 import { EMAIL_QUEUE } from './email-queue.constants';
 
+export const SMTP_CONFIG_FAILED = 'smtp-config.failed';
+
+export interface SmtpConfigFailedEvent {
+  organizationId: string;
+  smtpConfigId: string;
+}
+
 function getJobRequestId(job: Job): string {
   return `bullmq:${job.id ?? randomUUID()}`;
 }
@@ -251,6 +258,11 @@ export class EmailQueueProcessor extends WorkerHost {
                   });
                 }
               }
+
+              this.eventEmitter.emit(SMTP_CONFIG_FAILED, {
+                organizationId,
+                smtpConfigId: config.id,
+              });
             }
 
             await this.emailQueue.add(
