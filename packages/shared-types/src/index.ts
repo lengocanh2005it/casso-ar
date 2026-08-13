@@ -1,6 +1,7 @@
 export { type InvoiceSourceType, InvoiceStatus } from './invoice-status';
 export { Permission } from './permission';
 export { PlanId } from './plan-id';
+export { PlanUpgradeOrderStatus } from './plan-upgrade-order-status';
 export { ReceivableStatus } from './receivable-status';
 export { Role } from './role';
 export { ROLE_PERMISSIONS } from './role-permissions';
