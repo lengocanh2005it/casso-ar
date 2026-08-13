@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BillingModule } from '../billing/billing.module';
+import { WebhooksModule } from '../webhooks/webhooks.module';
 import { ConfirmPlanUpgradeOrderUseCase } from './application/confirm-plan-upgrade-order.usecase';
 import { InitiatePlanUpgradeOrderUseCase } from './application/initiate-plan-upgrade-order.usecase';
 import { PAYOS_PAYMENT_ADAPTER } from './application/payos-payment-adapter.port';
@@ -14,6 +15,7 @@ import { PayosController } from './presentation/payos.controller';
   imports: [
     TypeOrmModule.forFeature([PlanUpgradeOrderOrmEntity]),
     BillingModule,
+    WebhooksModule,
   ],
   providers: [
     {

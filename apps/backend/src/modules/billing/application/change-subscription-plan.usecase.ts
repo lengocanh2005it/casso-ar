@@ -1,6 +1,6 @@
 import type { PlanId } from '@casso-ledger/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, type EntityManager } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import type { Subscription } from '../domain/subscription';
@@ -20,8 +20,9 @@ export class ChangeSubscriptionPlanUseCase {
   async execute(
     organizationId: string,
     newPlanId: PlanId,
+    existingManager?: EntityManager,
   ): Promise<Subscription> {
-    return this.dataSource.transaction(async (manager) => {
+    const run = async (manager: EntityManager) => {
       const subscription = await this.repo.lockAndFindByOrganizationId(
         organizationId,
         manager,
@@ -47,6 +48,12 @@ export class ChangeSubscriptionPlanUseCase {
 
       await this.repo.save(updated, manager, organizationId);
       return updated;
-    });
+    };
+
+    if (existingManager) {
+      return run(existingManager);
+    }
+
+    return this.dataSource.transaction(run);
   }
 }

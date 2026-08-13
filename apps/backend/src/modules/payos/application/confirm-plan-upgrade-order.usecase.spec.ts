@@ -53,13 +53,16 @@ describe('ConfirmPlanUpgradeOrderUseCase', () => {
     expect(changePlanUseCase.execute).toHaveBeenCalledWith(
       'org-1',
       PlanId.STARTER,
+      expect.anything(),
     );
     expect(orderRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ status: PlanUpgradeOrderStatus.PAID }),
       expect.anything(),
     );
     expect(auditLogRepo.create).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'system' }),
+      expect.objectContaining({
+        userId: '00000000-0000-0000-0000-000000000000',
+      }),
       expect.anything(),
     );
   });

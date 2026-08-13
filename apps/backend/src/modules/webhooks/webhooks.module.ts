@@ -26,6 +26,7 @@ import { WebhookProcessor } from './infrastructure/webhook.processor';
 import { WebhookInboxOrmEntity } from './infrastructure/webhook-inbox.orm-entity';
 import { WEBHOOK_PROCESSING_QUEUE } from './infrastructure/webhooks-queue.constants';
 import { WebhookInboxController } from './presentation/webhook-inbox.controller';
+import { WebhookRateLimitGuard } from './presentation/webhook-rate-limit.guard';
 import { WebhooksController } from './presentation/webhooks.controller';
 
 @Module({
@@ -64,11 +65,13 @@ import { WebhooksController } from './presentation/webhooks.controller';
     ListWebhookInboxUseCase,
     ReprocessWebhookUseCase,
     WebhookProcessor,
+    WebhookRateLimitGuard,
   ],
   exports: [
     WEBHOOK_INBOX_REPOSITORY,
     BANK_TRANSACTION_REPOSITORY,
     MATCHING_CANDIDATE_REPOSITORY,
+    WebhookRateLimitGuard,
   ],
 })
 export class WebhooksModule {}

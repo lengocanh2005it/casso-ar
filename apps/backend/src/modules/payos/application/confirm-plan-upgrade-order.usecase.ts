@@ -47,13 +47,14 @@ export class ConfirmPlanUpgradeOrderUseCase {
       await this.changePlanUseCase.execute(
         order.organizationId,
         order.targetPlanId,
+        manager,
       );
       const paidOrder = order.markPaid();
       await this.orderRepo.save(paidOrder, manager);
       await this.auditLogRepo.create(
         new AuditLog({
           organizationId: order.organizationId,
-          userId: 'system',
+          userId: '00000000-0000-0000-0000-000000000000',
           actionType: AuditActionType.SUBSCRIPTION_CHANGE_PLAN,
           entityType: AuditEntityType.SUBSCRIPTION,
           entityId: order.organizationId,
