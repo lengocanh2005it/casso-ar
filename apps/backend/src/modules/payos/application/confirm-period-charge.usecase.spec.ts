@@ -30,6 +30,7 @@ describe('ConfirmPeriodChargeUseCase', () => {
     const auditLogRepo: jest.Mocked<IAuditLogRepository> = {
       create: jest.fn(),
       findPage: jest.fn(),
+      deleteOlderThan: jest.fn(),
     };
     const dataSource = {
       transaction: jest.fn((cb: (manager: unknown) => unknown) => cb({})),

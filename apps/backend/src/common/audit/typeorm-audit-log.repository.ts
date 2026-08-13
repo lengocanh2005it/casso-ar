@@ -4,6 +4,7 @@ import {
   Between,
   type EntityManager,
   type FindOptionsWhere,
+  LessThan,
   type Repository,
 } from 'typeorm';
 import { AuditLog } from './audit-log';
@@ -95,5 +96,10 @@ export class TypeOrmAuditLogRepository implements IAuditLogRepository {
       take: query.limit,
     });
     return { items: rows.map(toDomain), total };
+  }
+
+  async deleteOlderThan(cutoff: Date): Promise<number> {
+    const result = await this.repo.delete({ createdAt: LessThan(cutoff) });
+    return result.affected ?? 0;
   }
 }
