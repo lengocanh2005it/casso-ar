@@ -1,8 +1,8 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import { AlertType } from '../domain/alert';
 
-// ponytail: no retention/cleanup job for this INSERT-heavy table yet — see
-// issue #118 (no retention job for INSERT-only tables) for the follow-up.
+// Retention: read alerts older than 90 days are pruned by
+// RetentionSchedulerService (common/retention/) — see issue #118, ADR-0015.
 @Entity({ name: 'alerts' })
 @Index('IDX_alerts_organization_user_read', [
   'organizationId',
@@ -14,6 +14,7 @@ import { AlertType } from '../domain/alert';
   ['userId', 'entityType', 'entityId', 'type'],
   { unique: true, where: '"readAt" IS NULL' },
 )
+@Index('IDX_alerts_read_at', ['readAt'], { where: '"readAt" IS NOT NULL' })
 export class AlertOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;

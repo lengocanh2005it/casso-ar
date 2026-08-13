@@ -3,6 +3,7 @@ import type { AuditActionType, AuditEntityType } from './audit.enums';
 
 @Entity({ name: 'audit_logs' })
 @Index(['organizationId', 'createdAt'])
+@Index('IDX_audit_logs_created_at', ['createdAt'])
 export class AuditLogOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
