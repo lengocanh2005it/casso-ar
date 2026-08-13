@@ -24,6 +24,7 @@ describe('ConfirmPlanUpgradeOrderUseCase', () => {
       create: jest.fn(),
       lockAndFindByOrderCode: jest.fn().mockResolvedValue(existingOrder),
       save: jest.fn(),
+      existsPaidWithinRange: jest.fn(),
     };
     const changePlanUseCase = {
       execute: jest.fn().mockResolvedValue(undefined),

@@ -182,4 +182,64 @@ describe('Subscription', () => {
       );
     });
   });
+
+  describe('revertToFreeForNonRenewal', () => {
+    it('moves a paid-tier subscription to FREE regardless of tier direction', () => {
+      const subscription = Subscription.createBusiness(
+        'sub-1',
+        'org-1',
+        new Date('2026-08-01T00:00:00Z'),
+      );
+      const reverted = subscription.revertToFreeForNonRenewal(
+        new Date('2026-09-04T00:00:00Z'),
+      );
+      expect(reverted.planId).toBe(PlanId.FREE);
+      expect(reverted.receivableMonthlyLimit).toBe(50);
+      expect(reverted.bankConnectionLimit).toBe(1);
+      expect(reverted.copilotChatMonthlyLimit).toBe(50);
+      expect(reverted.canUseCustomSmtp).toBe(false);
+    });
+
+    it('is a no-op tier check bypass — does not throw even though FREE is a lower tier', () => {
+      const subscription = Subscription.createStarter(
+        'sub-1',
+        'org-1',
+        new Date('2026-08-01T00:00:00Z'),
+      );
+      expect(() =>
+        subscription.revertToFreeForNonRenewal(
+          new Date('2026-09-04T00:00:00Z'),
+        ),
+      ).not.toThrow();
+    });
+
+    it('rolls the billing period to the calendar month containing now, instead of leaving the ended paid period in place', () => {
+      const subscription = Subscription.createStarter(
+        'sub-1',
+        'org-1',
+        new Date('2026-08-01T00:00:00Z'),
+      );
+      const reverted = subscription.revertToFreeForNonRenewal(
+        new Date('2026-09-04T00:00:00Z'),
+      );
+      expect(reverted.currentPeriodStart).toEqual(
+        new Date('2026-09-01T00:00:00.000Z'),
+      );
+      expect(reverted.currentPeriodEnd).toEqual(
+        new Date('2026-10-01T00:00:00.000Z'),
+      );
+    });
+
+    it('leaves status ACTIVE — non-renewal downgrade must never produce a PAST_DUE/blocked subscription', () => {
+      const subscription = Subscription.createStarter(
+        'sub-1',
+        'org-1',
+        new Date('2026-08-01T00:00:00Z'),
+      );
+      const reverted = subscription.revertToFreeForNonRenewal(
+        new Date('2026-09-04T00:00:00Z'),
+      );
+      expect(reverted.status).toBe(SubscriptionStatus.ACTIVE);
+    });
+  });
 });

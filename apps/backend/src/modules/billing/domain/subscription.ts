@@ -198,4 +198,23 @@ export class Subscription {
       canUseCustomSmtp: plan.canUseCustomSmtp,
     });
   }
+
+  // The only method allowed to move a Subscription to a LOWER tier — used
+  // exclusively by the non-renewal downgrade path (#153, ADR-0012).
+  // changeToPlan() enforces upgrade-only (ADR-0011); this deliberately
+  // bypasses that check because FREE is always the target, never a
+  // user-triggered downgrade.
+  revertToFreeForNonRenewal(now: Date): Subscription {
+    const plan = PLAN_CATALOG[PlanId.FREE];
+    return new Subscription({
+      ...this,
+      planId: PlanId.FREE,
+      currentPeriodStart: startOfMonth(now),
+      currentPeriodEnd: startOfNextMonth(now),
+      receivableMonthlyLimit: plan.receivableMonthlyLimit,
+      bankConnectionLimit: plan.bankConnectionLimit,
+      copilotChatMonthlyLimit: plan.copilotChatMonthlyLimit,
+      canUseCustomSmtp: plan.canUseCustomSmtp,
+    });
+  }
 }
