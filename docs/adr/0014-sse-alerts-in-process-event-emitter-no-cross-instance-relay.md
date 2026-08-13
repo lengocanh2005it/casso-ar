@@ -16,7 +16,7 @@ Issue #137 needed a real-time delivery mechanism for the new `Alert` bell/dropdo
 
 `GET /alerts/stream` is implemented as a per-user SSE endpoint backed directly by the existing in-process `EventEmitter2` — the `alerts` module's listeners `emit()` a new event on the same in-process bus when an `Alert` row is created, and the SSE controller subscribes to that bus filtered by the connected user's ID. No message broker (Redis pub/sub, etc.) sits between them.
 
-- Auth: `EventSource` cannot send custom headers, so the stream relies on the existing httpOnly access-token cookie (same-origin), not a query-string token.
+- Auth: this codebase's access token is a Bearer JWT (`JwtStrategy` uses `ExtractJwt.fromAuthHeaderAsBearerToken()`), not a cookie — only the refresh token is an httpOnly cookie (`auth.controller.ts`). Native `EventSource` cannot send a custom `Authorization` header, so `GET /alerts/stream` accepts the same short-lived (15-minute) access token as a `?token=` query parameter, validated by the same `JwtStrategy`. This is a deliberate, narrow exception to "tokens never go in a URL": it's the existing 15-minute access token (not the long-lived refresh token), sent only over HTTPS to same-origin, and its exposure surface (server access logs, browser history) is judged acceptable for the alert stream given the short TTL — do not reuse this query-token path for any other endpoint.
 - Explicitly rejected: relaying alert-created events through Redis (already in the stack for BullMQ) to support multiple backend instances. There is no current requirement for horizontal scaling, and adding a pub/sub hop for a single-instance deployment is complexity with no present payoff.
 
 ## Consequences
