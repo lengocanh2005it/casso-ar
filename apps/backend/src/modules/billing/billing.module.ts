@@ -18,6 +18,11 @@ import { BillingController } from './presentation/billing.controller';
     PlanLimitService,
     ChangeSubscriptionPlanUseCase,
   ],
-  exports: [PlanLimitService, SUBSCRIPTION_REPOSITORY, TypeOrmModule],
+  exports: [
+    PlanLimitService,
+    SUBSCRIPTION_REPOSITORY,
+    ChangeSubscriptionPlanUseCase,
+    TypeOrmModule,
+  ],
 })
 export class BillingModule {}
