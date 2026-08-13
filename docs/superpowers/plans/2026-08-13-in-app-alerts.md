@@ -3186,7 +3186,7 @@ git commit -m "feat: add Popover shadcn primitive (no new dependency — radix-u
 
 **Interfaces:**
 - Consumes: `apiRequest`, `postWithIdempotency` (`@/lib/api-client`) — note: `PATCH`/`DELETE` calls use plain `apiRequest` (no idempotency key needed, per Global Constraints interpretation #6, so this feature does NOT use `postWithIdempotency`).
-- Produces: `AlertDto` type (`{ id: string, type: AlertType, entityType: string, entityId: string, isRead: boolean, createdAt: string }`), `AlertType` string union (`'BANK_CONNECTION_NEEDS_REAUTH' | 'BANK_CONNECTION_ERROR' | 'SMTP_FAILED' | 'REMINDER_SCAN_SUMMARY'`), `AlertsPage` type (`{ items: AlertDto[], total: number, unreadCount: number }`); `fetchAlerts(page, limit, unreadOnly): Promise<AlertsPage>`, `markAlertRead(id): Promise<void>`, `markAllAlertsRead(): Promise<void>`, `deleteAlert(id): Promise<void>`, `deleteAllAlerts(): Promise<void>`; `useAlerts(page?, unreadOnly?)`, `useMarkAlertRead()`, `useMarkAllAlertsRead()`, `useDeleteAlert()`, `useDeleteAllAlerts()` — every hook invalidates `queryKey: ['alerts']`. Task 21/22/23 import these hook names exactly.
+- Produces: `AlertDto` type (`{ id: string, type: AlertType, entityType: string, entityId: string, isRead: boolean, createdAt: string }`), `AlertType` string union (`'BANK_CONNECTION_NEEDS_REAUTH' | 'BANK_CONNECTION_ERROR' | 'SMTP_FAILED' | 'REMINDER_SCAN_SUMMARY'`), `AlertsPage` type (`{ items: AlertDto[], total: number, unreadCount: number }`); `fetchAlerts(page, limit, unreadOnly): Promise<AlertsPage>`, `markAlertRead(id): Promise<void>`, `markAllAlertsRead(): Promise<void>`, `deleteAlert(id): Promise<void>`, `deleteAllAlerts(): Promise<void>`; `useAlerts(page?, unreadOnly?, enabled?)` — `enabled` defaults to `true` and is forwarded to TanStack Query's own `enabled` option, so a caller that isn't OWNER can pass `enabled: false` and the query never fires (no network call, no 403) — `useMarkAlertRead()`, `useMarkAllAlertsRead()`, `useDeleteAlert()`, `useDeleteAllAlerts()` — every hook invalidates `queryKey: ['alerts']`. Task 21/22/23 import these hook names exactly.
 
 - [ ] **Step 1: Write `types.ts` (no test — pure type declarations)**
 
@@ -3307,6 +3307,13 @@ describe('useAlerts', () => {
       }),
     );
   });
+
+  it('does not call the API when enabled is false', async () => {
+    renderHook(() => useAlerts(1, false, false), { wrapper });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(apiRequest).not.toHaveBeenCalled();
+  });
 });
 
 describe('useMarkAlertRead', () => {
@@ -3392,10 +3399,11 @@ import {
   markAllAlertsRead,
 } from './alerts-api';
 
-export function useAlerts(page = 1, unreadOnly = false) {
+export function useAlerts(page = 1, unreadOnly = false, enabled = true) {
   return useQuery({
     queryKey: ['alerts', page, unreadOnly],
     queryFn: () => fetchAlerts(page, 20, unreadOnly),
+    enabled,
   });
 }
 
@@ -4057,7 +4065,7 @@ git commit -m "feat: add AlertPanel dropdown (list, mark-all, per-row/all delete
 
 **Interfaces:**
 - Consumes: `Popover`, `PopoverTrigger`, `PopoverContent` (Task 17); `AlertPanel` (Task 21); `useAlerts` (Task 18); `useAuth` (`@/contexts/auth-context`); `Bell` from `lucide-react`.
-- Produces: `AlertBell` component (no props — renders `null` when `user.role !== 'OWNER'`). Task 24 renders `<AlertBell />` in the sidebar footer and mobile header.
+- Produces: `AlertBell` component (no props — renders `null` when `user.role !== 'OWNER'`, and passes `enabled: false` to `useAlerts` for a non-OWNER so `GET /alerts` is never called for a role that lacks the `ALERT_READ` permission — calling it unconditionally would fire the request and get a 403 before the role check even has a chance to hide the UI). Task 24 renders `<AlertBell />` in the sidebar footer and mobile header.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -4091,12 +4099,14 @@ function renderBell() {
 }
 
 describe('AlertBell', () => {
-  it('renders nothing when the current user is not OWNER', () => {
+  it('renders nothing when the current user is not OWNER, and never calls GET /alerts', async () => {
     useAuth.mockReturnValue({ user: { role: 'FINANCE_MANAGER' } });
 
     const { container } = renderBell();
 
     expect(container).toBeEmptyDOMElement();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(apiRequest).not.toHaveBeenCalled();
   });
 
   it('renders the bell with an aria-label including the unread count for OWNER', async () => {
@@ -4149,10 +4159,11 @@ import { AlertPanel } from './alert-panel';
 
 export function AlertBell() {
   const { user } = useAuth();
-  const { data } = useAlerts(1, false);
+  const isOwner = user?.role === 'OWNER';
+  const { data } = useAlerts(1, false, isOwner);
   const unreadCount = data?.unreadCount ?? 0;
 
-  if (user?.role !== 'OWNER') return null;
+  if (!isOwner) return null;
 
   const ariaLabel = `Thông báo${unreadCount > 0 ? `, ${unreadCount} chưa đọc` : ''}`;
 
@@ -4202,7 +4213,7 @@ git commit -m "feat: add AlertBell (badge, OWNER-only, Popover-driven dropdown)"
 
 **Interfaces:**
 - Consumes: `authTokenManager` (`@/lib/api-client`, already exported — `getValidAccessToken()`); `API_BASE_URL` (`@/lib/api-client`); `useQueryClient` (`@tanstack/react-query`).
-- Produces: `useAlertsStream(): void` — opens one `EventSource` per mount to `GET /api/v1/alerts/stream?token=<accessToken>` and calls `queryClient.invalidateQueries({ queryKey: ['alerts'] })` on every message; closes the connection on unmount. Task 24 calls this hook once at the app shell level (in `AppLayout`, gated to when `AlertBell` would render — i.e. only for an authenticated OWNER, avoiding an open SSE connection for users who can never see the bell).
+- Produces: `useAlertsStream(enabled: boolean): void` — when `enabled` is `true`, opens one `EventSource` per mount to `GET /api/v1/alerts/stream?token=<accessToken>` and calls `queryClient.invalidateQueries({ queryKey: ['alerts'] })` on every message, closing the connection on unmount; when `enabled` is `false`, it never opens a connection (and closes/skips reconnecting if `enabled` flips to `false` after having connected). Task 24 calls this hook once at the app shell level (in `AppLayout`) passing `enabled: user?.role === 'OWNER'` — the hook itself enforces the gate rather than relying on the caller to remember to skip the call, since React's rules of hooks mean `AppLayout` must call `useAlertsStream` unconditionally on every render regardless of role.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -4252,8 +4263,8 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 describe('useAlertsStream', () => {
-  it('opens an EventSource to /api/v1/alerts/stream with the access token as a query param', async () => {
-    renderHook(() => useAlertsStream(), { wrapper });
+  it('opens an EventSource to /api/v1/alerts/stream with the access token as a query param when enabled', async () => {
+    renderHook(() => useAlertsStream(true), { wrapper });
 
     await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
     expect(FakeEventSource.instances[0]?.url).toBe(
@@ -4261,10 +4272,17 @@ describe('useAlertsStream', () => {
     );
   });
 
+  it('does not open an EventSource when enabled is false', async () => {
+    renderHook(() => useAlertsStream(false), { wrapper });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(FakeEventSource.instances).toHaveLength(0);
+  });
+
   it('invalidates the alerts query cache on every message', async () => {
     const queryClient = new QueryClient();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
-    renderHook(() => useAlertsStream(), {
+    renderHook(() => useAlertsStream(true), {
       wrapper: ({ children }) => (
         <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
       ),
@@ -4279,7 +4297,7 @@ describe('useAlertsStream', () => {
   });
 
   it('closes the EventSource on unmount', async () => {
-    const { unmount } = renderHook(() => useAlertsStream(), { wrapper });
+    const { unmount } = renderHook(() => useAlertsStream(true), { wrapper });
 
     await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
     unmount();
@@ -4302,10 +4320,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { API_BASE_URL, authTokenManager } from '@/lib/api-client';
 
-export function useAlertsStream(): void {
+export function useAlertsStream(enabled: boolean): void {
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    if (!enabled) return;
+
     let source: EventSource | undefined;
     let cancelled = false;
 
@@ -4326,7 +4346,7 @@ export function useAlertsStream(): void {
       cancelled = true;
       source?.close();
     };
-  }, [queryClient]);
+  }, [queryClient, enabled]);
 }
 ```
 
@@ -4353,8 +4373,8 @@ git commit -m "feat: add useAlertsStream (SSE, invalidates alerts cache on new e
 - Test: `apps/frontend/src/components/layout/app-layout.spec.tsx` (new)
 
 **Interfaces:**
-- Consumes: `AlertBell` (Task 22), `useAlertsStream` (Task 23).
-- Produces: `AlertBell` rendered next to `ThemeToggle` in both the desktop sidebar footer and the mobile header; `useAlertsStream()` called once in `AppLayout` (the shared shell both desktop and mobile render inside).
+- Consumes: `AlertBell` (Task 22), `useAlertsStream(enabled)` (Task 23), `useAuth` (`@/contexts/auth-context`).
+- Produces: `AlertBell` rendered next to `ThemeToggle` in both the desktop sidebar footer and the mobile header; `useAlertsStream(user?.role === 'OWNER')` called once in `AppLayout` (the shared shell both desktop and mobile render inside) — the hook is always called (rules of hooks), but only opens a connection when the current user is OWNER, so non-OWNER sessions never open an SSE connection for a stream they have no permission to read.
 
 - [ ] **Step 1: Write the failing test for `sidebar-footer.tsx`**
 
@@ -4533,6 +4553,53 @@ describe('AppLayout', () => {
       (await screen.findAllByRole('button', { name: 'Thông báo' })).length,
     ).toBeGreaterThan(0);
   });
+
+  it('does not render AlertBell or open an alerts SSE connection for a non-OWNER', async () => {
+    class FakeEventSource {
+      static instances: FakeEventSource[] = [];
+      constructor(public url: string) {
+        FakeEventSource.instances.push(this);
+      }
+      close() {}
+    }
+    FakeEventSource.instances = [];
+    vi.stubGlobal('EventSource', FakeEventSource);
+
+    useAuth.mockReturnValue({
+      user: {
+        name: 'Kế toán',
+        email: 'accountant@congtyb.vn',
+        organizationName: 'Công ty B',
+        subscriptionPlan: 'BUSINESS',
+        role: 'ACCOUNTANT',
+      },
+      logout: vi.fn(),
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <QueryClientProvider client={queryClient}>
+          <Routes>
+            <Route element={<AppLayout />}>
+              <Route path="dashboard" element={<div>Dashboard</div>} />
+            </Route>
+          </Routes>
+        </QueryClientProvider>
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.queryByRole('button', { name: 'Thông báo' }),
+    ).not.toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(apiRequest).not.toHaveBeenCalled();
+    expect(FakeEventSource.instances).toHaveLength(0);
+
+    vi.unstubAllGlobals();
+  });
 });
 ```
 
@@ -4547,6 +4614,7 @@ Expected: FAIL — no element with `aria-label="Thông báo"` found in the mobil
 // apps/frontend/src/components/layout/app-layout.tsx
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
+import { useAuth } from '@/contexts/auth-context';
 import { AlertBell } from '@/features/alerts/components/alert-bell';
 import { useAlertsStream } from '@/features/alerts/api/use-alerts-stream';
 import { MobileSidebarWrapper } from './mobile-sidebar';
@@ -4555,7 +4623,8 @@ import { ThemeToggle } from './theme-toggle';
 
 export function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
-  useAlertsStream();
+  const { user } = useAuth();
+  useAlertsStream(user?.role === 'OWNER');
 
   return (
     <>
