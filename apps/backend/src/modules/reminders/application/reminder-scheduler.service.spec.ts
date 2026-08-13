@@ -115,18 +115,29 @@ describe('ReminderSchedulerService', () => {
     expect(queueAdd).not.toHaveBeenCalled();
   });
 
-  it('emits reminder.scan.completed after organization evaluation', async () => {
+  it('emits reminder.scan.completed with queuedCount and skippedCount', async () => {
     const eventEmitter = { emitAsync: jest.fn().mockResolvedValue([]) };
     const queueAdd = jest.fn();
     const scheduler = new ReminderSchedulerService(
       buildPolicyRepoMock() as any,
       { findByPolicyId: jest.fn().mockResolvedValue([rule]) } as any,
       {
-        findLatestSentByReceivableIds: jest.fn().mockResolvedValue(new Map()),
+        findLatestSentByReceivableIds: jest
+          .fn()
+          .mockResolvedValue(
+            new Map([['rec-1', { sentAt: new Date('2026-08-02') }]]),
+          ),
         insertIfAbsent: jest.fn().mockResolvedValue(true),
         save: jest.fn(),
       } as any,
-      { findOpenCandidates: jest.fn().mockResolvedValue([]) } as any,
+      {
+        findOpenCandidates: jest
+          .fn()
+          .mockResolvedValue([
+            makeCandidate(),
+            makeCandidate({ receivableId: 'rec-2' }),
+          ]),
+      } as any,
       { add: queueAdd } as any,
       {
         run: async (_user: unknown, cb: () => Promise<void>) => await cb(),
@@ -140,7 +151,9 @@ describe('ReminderSchedulerService', () => {
       'reminder.scan.completed',
       {
         organizationId: 'org-1',
-        scanDate: expect.any(String),
+        scanDate: '2026-08-03',
+        queuedCount: 1,
+        skippedCount: 1,
       },
     );
   });

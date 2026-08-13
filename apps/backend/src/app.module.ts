@@ -45,6 +45,7 @@ import { InvoiceImportModule } from './modules/invoice-import/invoice-import.mod
 import { InternalTasksModule } from './modules/internal-tasks/internal-tasks.module';
 import { ReportingModule } from './modules/reporting/reporting.module';
 import { SmtpConfigModule } from './modules/smtp-config/smtp-config.module';
+import { AlertsModule } from './modules/alerts/alerts.module';
 
 @Module({
   imports: [
@@ -94,6 +95,7 @@ import { SmtpConfigModule } from './modules/smtp-config/smtp-config.module';
     InternalTasksModule,
     ReportingModule,
     SmtpConfigModule,
+    AlertsModule,
   ],
   providers: [
     JwtStrategy,

@@ -9,7 +9,12 @@ describe('ReminderScanCompletedListener', () => {
       runEscalationScan as any,
     );
 
-    await listener.handle({ organizationId: 'org-1', scanDate: '2026-08-09' });
+    await listener.handle({
+      organizationId: 'org-1',
+      scanDate: '2026-08-09',
+      queuedCount: 1,
+      skippedCount: 0,
+    });
 
     expect(runEscalationScan.scanOrganization).toHaveBeenCalledWith('org-1');
   });

@@ -36,6 +36,7 @@ A B2B SaaS platform for automating accounts receivable management and collection
 | **OrganizationSmtpConfig** | Org's own SMTP server for sending org-branded reminder emails (BUSINESS+ only). One per org; only ever exists as `CONNECTED` or `FAILED` — a failed test-send is never persisted | `id`, `organizationId`, `host`, `port`, `username`, `encryptedPassword`, `fromAddress`, `status` |
 | **CopilotConversation** | Chat conversation with AI | `id`, `organizationId` |
 | **CopilotPendingAction** | Action awaiting user confirmation | `id`, `conversationId`, `status` |
+| **Alert** | Owner-facing, in-app, actionable event (bank connection needs reauth/errored, SMTP FAILED, reminder scan summary). Not the same as `notifications/` (the email queue) — see ADR-0013. `readAt: null` = UNREAD, non-null = READ (one-way transition, not a full state machine). One unread `Alert` per `(userId, entityType, entityId, type)` — a repeat event refreshes `createdAt` instead of inserting a duplicate row | `id`, `organizationId`, `userId`, `type`, `entityType`, `entityId`, `readAt`, `createdAt` |
 
 ## Receivable State Machine
 
@@ -127,6 +128,8 @@ Score components:
 | 0010 | Billing gates on persisted Subscription | Advisory-locked checks in-transaction, lazy calendar-month periods |
 | 0011 | Plan changes are upgrade-only | No downgrade/cancel action; non-renewal is the only path back to FREE |
 | 0012 | PeriodCharge + renewal-reminder cron | PayOS has no auto-charge, so renewal is a self-serve repeat payment; a reminder cron is needed since ADR-0010's "no cron" premise assumed no recurring payment obligation existed |
+| 0013 | Alert module separate from `notifications` (email queue) | New `alerts/` module owns the in-app, read/unread concept; `notifications/` keeps meaning "email queue" only — avoids overloading "Notification" |
+| 0014 | Alert SSE via in-process EventEmitter2, no cross-instance relay | Single-instance `backend` today; breaks silently if horizontally scaled — a future replica needs a Redis-relay upgrade before the bell stays live |
 
 ## Constraints
 

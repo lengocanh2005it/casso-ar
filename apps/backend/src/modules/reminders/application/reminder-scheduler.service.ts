@@ -36,6 +36,15 @@ export interface ReminderSendJob {
   executionDate: string;
 }
 
+export const REMINDER_SCAN_COMPLETED = 'reminder.scan.completed';
+
+export interface ReminderScanCompletedEvent {
+  organizationId: string;
+  scanDate: string;
+  queuedCount: number;
+  skippedCount: number;
+}
+
 function calendarDate(date: Date): string {
   return formatInTimeZone(date, REMINDER_TIMEZONE, 'yyyy-MM-dd');
 }
@@ -95,11 +104,15 @@ export class ReminderSchedulerService {
     const candidates = await this.candidateReader.findOpenCandidates();
     const executionDate = calendarDate(today);
     const eligible = candidates.filter((candidate) => !candidate.isDisputed);
+    let queuedCount = 0;
+    let skippedCount = 0;
     const emitScanCompleted = () =>
-      this.eventEmitter.emitAsync('reminder.scan.completed', {
+      this.eventEmitter.emitAsync(REMINDER_SCAN_COMPLETED, {
         organizationId,
         scanDate: executionDate,
-      });
+        queuedCount,
+        skippedCount,
+      } satisfies ReminderScanCompletedEvent);
     if (eligible.length === 0) {
       await emitScanCompleted();
       return;
@@ -155,6 +168,7 @@ export class ReminderSchedulerService {
             failureReason: null,
             createdAt: new Date(),
           });
+          skippedCount += 1;
           continue;
         }
       }
@@ -173,6 +187,7 @@ export class ReminderSchedulerService {
           backoff: { type: 'exponential', delay: 5000 },
         },
       );
+      queuedCount += 1;
     }
 
     await emitScanCompleted();

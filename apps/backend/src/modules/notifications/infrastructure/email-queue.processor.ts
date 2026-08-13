@@ -33,6 +33,7 @@ import {
   type OwnerAlertEmailJob,
   type ReminderEmailJob,
 } from '../application/email-queue.port';
+import { SMTP_CONFIG_FAILED } from '../application/smtp-config-failed.event';
 import { EMAIL_QUEUE } from './email-queue.constants';
 
 function getJobRequestId(job: Job): string {
@@ -251,6 +252,11 @@ export class EmailQueueProcessor extends WorkerHost {
                   });
                 }
               }
+
+              this.eventEmitter.emit(SMTP_CONFIG_FAILED, {
+                organizationId,
+                smtpConfigId: config.id,
+              });
             }
 
             await this.emailQueue.add(
