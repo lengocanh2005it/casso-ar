@@ -204,11 +204,13 @@ export class Subscription {
   // changeToPlan() enforces upgrade-only (ADR-0011); this deliberately
   // bypasses that check because FREE is always the target, never a
   // user-triggered downgrade.
-  revertToFreeForNonRenewal(_now: Date): Subscription {
+  revertToFreeForNonRenewal(now: Date): Subscription {
     const plan = PLAN_CATALOG[PlanId.FREE];
     return new Subscription({
       ...this,
       planId: PlanId.FREE,
+      currentPeriodStart: startOfMonth(now),
+      currentPeriodEnd: startOfNextMonth(now),
       receivableMonthlyLimit: plan.receivableMonthlyLimit,
       bankConnectionLimit: plan.bankConnectionLimit,
       copilotChatMonthlyLimit: plan.copilotChatMonthlyLimit,

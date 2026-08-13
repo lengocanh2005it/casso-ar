@@ -76,6 +76,13 @@ export class RenewalReminderScannerService {
       await this.paymentStatus.hasPaidCurrentPeriod(subscription);
     if (alreadyPaid) return;
 
+    // ponytail: this fires exactly once per period (the exact-day check
+    // above), and the PeriodCharge is created before the email is enqueued —
+    // if emailQueue.add throws (Redis blip, etc.), the org gets no checkout
+    // link and no second reminder until next period (the charge itself is
+    // still payable via the billing page, just without a proactive nudge).
+    // Add a retry/dead-letter path here if silent missed reminders become a
+    // real support burden.
     await this.tenantContext.run(
       {
         userId: 'system',
