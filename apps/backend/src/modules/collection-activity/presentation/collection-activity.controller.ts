@@ -17,6 +17,7 @@ import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { GetCustomerTimelineUseCase } from '../application/get-customer-timeline.usecase';
+import { GetOrganizationTimelineUseCase } from '../application/get-organization-timeline.usecase';
 import { GetReceivableTimelineUseCase } from '../application/get-receivable-timeline.usecase';
 import { RecordManualActivityUseCase } from '../application/record-manual-activity.usecase';
 import { toCollectionActivityResponse } from './dto/collection-activity-response.dto';
@@ -29,6 +30,7 @@ export class CollectionActivityController {
     private readonly recordManualActivityUseCase: RecordManualActivityUseCase,
     private readonly getReceivableTimelineUseCase: GetReceivableTimelineUseCase,
     private readonly getCustomerTimelineUseCase: GetCustomerTimelineUseCase,
+    private readonly getOrganizationTimelineUseCase: GetOrganizationTimelineUseCase,
     private readonly tenantContext: TenantContextService,
     private readonly idempotency: IdempotencyService,
   ) {}
@@ -84,6 +86,21 @@ export class CollectionActivityController {
   ) {
     const result = await this.getCustomerTimelineUseCase.execute(
       customerId,
+      pagination.page,
+      pagination.limit,
+    );
+    return {
+      items: result.items.map(toCollectionActivityResponse),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+    };
+  }
+
+  @Get('activity')
+  @RequirePermission(Permission.RECEIVABLE_READ)
+  async organizationTimeline(@Query() pagination: PaginationDto) {
+    const result = await this.getOrganizationTimelineUseCase.execute(
       pagination.page,
       pagination.limit,
     );

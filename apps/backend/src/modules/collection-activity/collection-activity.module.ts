@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReceivablesModule } from '../receivables/receivables.module';
 import { COLLECTION_ACTIVITY_REPOSITORY } from './application/collection-activity-repository.port';
 import { GetCustomerTimelineUseCase } from './application/get-customer-timeline.usecase';
+import { GetOrganizationTimelineUseCase } from './application/get-organization-timeline.usecase';
 import { GetReceivableTimelineUseCase } from './application/get-receivable-timeline.usecase';
 import { RecordManualActivityUseCase } from './application/record-manual-activity.usecase';
 import { CollectionActivityListener } from './infrastructure/collection-activity.listener';
@@ -23,6 +24,7 @@ import { CollectionActivityController } from './presentation/collection-activity
     RecordManualActivityUseCase,
     GetReceivableTimelineUseCase,
     GetCustomerTimelineUseCase,
+    GetOrganizationTimelineUseCase,
     CollectionActivityListener,
   ],
   controllers: [CollectionActivityController],
