@@ -46,6 +46,24 @@ describe('ExportReceivablesUseCase', () => {
     expect(truncated).toBe(false);
   });
 
+  it('forwards a search term to the list use case so exports respect the active search', async () => {
+    const listReceivablesUseCase = {
+      execute: jest.fn().mockResolvedValue({ items: [], total: 0 }),
+    };
+    const useCase = new ExportReceivablesUseCase(
+      listReceivablesUseCase as never,
+    );
+
+    await useCase.execute({ filters: {}, search: 'acme' });
+
+    expect(listReceivablesUseCase.execute).toHaveBeenCalledWith({
+      filters: {},
+      search: 'acme',
+      page: 1,
+      limit: 10000,
+    });
+  });
+
   it('signals truncation when the org has more matching receivables than the row cap', async () => {
     const listReceivablesUseCase = {
       execute: jest

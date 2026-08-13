@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
 import { useCsvExport } from '@/lib/use-csv-export';
+import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { exportReceivablesCsv } from '../api/receivables-api';
 import { useReceivables } from '../api/use-receivables';
 import { CreateReceivableDialog } from '../components/create-receivable-dialog';
@@ -21,9 +22,10 @@ export function ReceivablesPage() {
     (searchParams.get('status') as ReceivableStatus | null) ?? undefined;
   const customerId = searchParams.get('customerId') ?? undefined;
   const search = searchParams.get('search') ?? '';
+  const debouncedSearch = useDebouncedValue(search, 250);
   const page = Number(searchParams.get('page') ?? '1');
   const { data, isPending, isError } = useReceivables(
-    { status, customerId, search: search || undefined },
+    { status, customerId, search: debouncedSearch || undefined },
     page,
   );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
@@ -55,7 +57,12 @@ export function ReceivablesPage() {
                 disabled={isExporting}
                 onClick={() =>
                   exportCsv(
-                    () => exportReceivablesCsv({ status, customerId }),
+                    () =>
+                      exportReceivablesCsv({
+                        status,
+                        customerId,
+                        search: search || undefined,
+                      }),
                     'cong-no.csv',
                   )
                 }
@@ -69,21 +76,26 @@ export function ReceivablesPage() {
         </div>
       </div>
       <Input
+        name="search"
+        autoComplete="off"
         aria-label="Tìm kiếm công nợ"
         placeholder="Tìm theo số hóa đơn hoặc khách hàng"
         value={search}
         onChange={(event) => {
           const value = event.target.value;
-          setSearchParams((current) => {
-            const next = new URLSearchParams(current);
-            if (value) {
-              next.set('search', value);
-            } else {
-              next.delete('search');
-            }
-            next.set('page', '1');
-            return next;
-          });
+          setSearchParams(
+            (current) => {
+              const next = new URLSearchParams(current);
+              if (value) {
+                next.set('search', value);
+              } else {
+                next.delete('search');
+              }
+              next.set('page', '1');
+              return next;
+            },
+            { replace: true },
+          );
         }}
         className="max-w-lg"
       />
@@ -102,9 +114,15 @@ export function ReceivablesPage() {
           });
         }}
       />
-      {isPending && <p>Đang tải danh sách công nợ…</p>}
+      {isPending && (
+        <p role="status" aria-live="polite">
+          Đang tải danh sách công nợ…
+        </p>
+      )}
       {isError && (
-        <p className="text-destructive">Không thể tải danh sách công nợ.</p>
+        <p role="status" aria-live="polite" className="text-destructive">
+          Không thể tải danh sách công nợ.
+        </p>
       )}
       {data && <ReceivableTable receivables={data.items} />}
       {data && data.total > 0 && (

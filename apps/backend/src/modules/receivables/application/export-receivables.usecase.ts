@@ -5,6 +5,7 @@ import type { ReceivableListFilters } from './receivable-repository.port';
 
 export interface ExportReceivablesInput {
   filters: ReceivableListFilters;
+  search?: string;
 }
 
 export const EXPORT_ROW_LIMIT = 10_000;
@@ -20,6 +21,7 @@ export class ExportReceivablesUseCase {
   ): Promise<{ csv: string; truncated: boolean }> {
     const { items, total } = await this.listReceivablesUseCase.execute({
       filters: input.filters,
+      ...(input.search ? { search: input.search } : {}),
       page: 1,
       limit: EXPORT_ROW_LIMIT,
     });
