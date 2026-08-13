@@ -3,8 +3,14 @@ import { AlertsController } from './alerts.controller';
 
 function buildController() {
   const listAlerts = { execute: jest.fn() };
-  const controller = new AlertsController(listAlerts as any);
-  return { controller, listAlerts };
+  const markAlertRead = { execute: jest.fn().mockResolvedValue(undefined) };
+  const markAllAlertsRead = { execute: jest.fn().mockResolvedValue(undefined) };
+  const controller = new AlertsController(
+    listAlerts as any,
+    markAlertRead as any,
+    markAllAlertsRead as any,
+  );
+  return { controller, listAlerts, markAlertRead, markAllAlertsRead };
 }
 
 describe('AlertsController', () => {
@@ -47,6 +53,28 @@ describe('AlertsController', () => {
         total: 1,
         unreadCount: 1,
       });
+    });
+  });
+
+  describe('PATCH /alerts/:id/read', () => {
+    it('delegates to MarkAlertReadUseCase', async () => {
+      const { controller, markAlertRead } = buildController();
+
+      const result = await controller.read('alert-1');
+
+      expect(markAlertRead.execute).toHaveBeenCalledWith('alert-1');
+      expect(result).toEqual({ success: true });
+    });
+  });
+
+  describe('PATCH /alerts/read-all', () => {
+    it('delegates to MarkAllAlertsReadUseCase', async () => {
+      const { controller, markAllAlertsRead } = buildController();
+
+      const result = await controller.readAll();
+
+      expect(markAllAlertsRead.execute).toHaveBeenCalled();
+      expect(result).toEqual({ success: true });
     });
   });
 });
