@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, QueryDeepPartialEntity } from 'typeorm';
-import { LessThan, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
+import { deleteOlderThan } from '../../../common/database/delete-older-than';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import {
@@ -113,7 +114,6 @@ export class TypeOrmCollectionActivityRepository
   }
 
   async deleteOlderThan(cutoff: Date): Promise<number> {
-    const result = await this.ormRepo.delete({ createdAt: LessThan(cutoff) });
-    return result.affected ?? 0;
+    return deleteOlderThan(this.ormRepo, 'createdAt', cutoff);
   }
 }

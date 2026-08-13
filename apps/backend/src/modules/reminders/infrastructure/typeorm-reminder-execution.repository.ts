@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { type DataSource, type EntityManager, LessThan } from 'typeorm';
+import { type DataSource, type EntityManager } from 'typeorm';
+import { deleteOlderThan } from '../../../common/database/delete-older-than';
 import { isUniqueViolation } from '../../../common/database/unique-violation';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { IReminderExecutionRepository } from '../application/reminder-execution-repository.port';
@@ -191,9 +192,10 @@ export class TypeOrmReminderExecutionRepository
   }
 
   async deleteOlderThan(cutoff: Date): Promise<number> {
-    const result = await this.dataSource
-      .getRepository(ReminderExecutionOrmEntity)
-      .delete({ createdAt: LessThan(cutoff) });
-    return result.affected ?? 0;
+    return deleteOlderThan(
+      this.dataSource.getRepository(ReminderExecutionOrmEntity),
+      'createdAt',
+      cutoff,
+    );
   }
 }

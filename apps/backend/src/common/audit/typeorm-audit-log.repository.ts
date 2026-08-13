@@ -4,9 +4,9 @@ import {
   Between,
   type EntityManager,
   type FindOptionsWhere,
-  LessThan,
   type Repository,
 } from 'typeorm';
+import { deleteOlderThan } from '../database/delete-older-than';
 import { AuditLog } from './audit-log';
 import { AuditLogOrmEntity } from './audit-log.orm-entity';
 import type {
@@ -99,7 +99,6 @@ export class TypeOrmAuditLogRepository implements IAuditLogRepository {
   }
 
   async deleteOlderThan(cutoff: Date): Promise<number> {
-    const result = await this.repo.delete({ createdAt: LessThan(cutoff) });
-    return result.affected ?? 0;
+    return deleteOlderThan(this.repo, 'createdAt', cutoff);
   }
 }

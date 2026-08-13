@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { ConflictException, Injectable } from '@nestjs/common';
-import { DataSource, LessThan } from 'typeorm';
+import { DataSource } from 'typeorm';
+import { deleteOlderThan } from '../database/delete-older-than';
 import { isUniqueViolation } from '../database/unique-violation';
 import { ErrorCode } from '../errors/error-code';
 import { TenantContextService } from '../tenancy/tenant-context';
@@ -114,17 +115,21 @@ export class IdempotencyService {
   }
 
   async deleteCompletedOlderThan(cutoff: Date): Promise<number> {
-    const result = await this.dataSource
-      .getRepository(IdempotencyKeyOrmEntity)
-      .delete({ status: 'COMPLETED', createdAt: LessThan(cutoff) });
-    return result.affected ?? 0;
+    return deleteOlderThan(
+      this.dataSource.getRepository(IdempotencyKeyOrmEntity),
+      'createdAt',
+      cutoff,
+      { status: 'COMPLETED' },
+    );
   }
 
   async sweepStalePending(): Promise<number> {
     const cutoff = new Date(Date.now() - IDEMPOTENCY_STALE_PENDING_MS);
-    const result = await this.dataSource
-      .getRepository(IdempotencyKeyOrmEntity)
-      .delete({ status: 'PENDING', createdAt: LessThan(cutoff) });
-    return result.affected ?? 0;
+    return deleteOlderThan(
+      this.dataSource.getRepository(IdempotencyKeyOrmEntity),
+      'createdAt',
+      cutoff,
+      { status: 'PENDING' },
+    );
   }
 }
