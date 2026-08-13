@@ -17,6 +17,20 @@ interface JwtPayload {
   role: string;
 }
 
+/**
+ * Bearer header first (the normal path — every axios request in the
+ * frontend sends it). Falls back to `?token=` on the query string only
+ * because native `EventSource` (used by GET /alerts/stream) cannot set
+ * custom headers — there is no cookie-based session in this codebase to
+ * fall back to instead.
+ */
+export function extractJwtFromRequest(request: Request): string | null {
+  const header = ExtractJwt.fromAuthHeaderAsBearerToken()(request);
+  if (header) return header;
+  const token = request.query?.token;
+  return typeof token === 'string' && token.length > 0 ? token : null;
+}
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
@@ -25,7 +39,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     config: ConfigService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: extractJwtFromRequest,
       ignoreExpiration: false,
       passReqToCallback: true,
       secretOrKey: getJwtSecret(config),
