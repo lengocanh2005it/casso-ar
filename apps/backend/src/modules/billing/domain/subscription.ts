@@ -182,12 +182,9 @@ export class Subscription {
   }
 
   changeToPlan(newPlanId: PlanId): Subscription {
-    const currentTier = PLAN_CATALOG[this.planId].tier;
-    const newTier = PLAN_CATALOG[newPlanId].tier;
-
-    if (newTier <= currentTier) {
+    if (!this.isUpgradeTo(newPlanId)) {
       throw new Error(
-        `Cannot change plan from ${this.planId} (tier ${currentTier}) to ${newPlanId} (tier ${newTier}): target tier must be strictly higher`,
+        `Cannot change plan from ${this.planId} (tier ${PLAN_CATALOG[this.planId].tier}) to ${newPlanId} (tier ${PLAN_CATALOG[newPlanId].tier}): target tier must be strictly higher`,
       );
     }
 
