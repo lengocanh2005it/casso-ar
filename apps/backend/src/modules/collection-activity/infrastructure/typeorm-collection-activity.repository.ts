@@ -97,4 +97,18 @@ export class TypeOrmCollectionActivityRepository
     });
     return { items: rows.map(toDomain), total };
   }
+
+  async findByOrganizationId(
+    page: number,
+    limit: number,
+  ): Promise<CollectionActivityPage> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const [rows, total] = await this.ormRepo.findAndCount({
+      where: { organizationId },
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { items: rows.map(toDomain), total };
+  }
 }

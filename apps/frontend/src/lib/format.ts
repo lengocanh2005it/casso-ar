@@ -1,5 +1,10 @@
+const vndFormatter = new Intl.NumberFormat('vi-VN', {
+  style: 'currency',
+  currency: 'VND',
+});
+
 export function formatVND(amount: number): string {
-  return `${amount.toLocaleString('vi-VN')} ₫`;
+  return vndFormatter.format(amount);
 }
 
 export function formatDate(iso: string | Date): string {

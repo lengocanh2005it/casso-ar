@@ -18,6 +18,10 @@ export interface ICollectionActivityRepository {
     page: number,
     limit: number,
   ): Promise<CollectionActivityPage>;
+  findByOrganizationId(
+    page: number,
+    limit: number,
+  ): Promise<CollectionActivityPage>;
 }
 
 export const COLLECTION_ACTIVITY_REPOSITORY = Symbol(
