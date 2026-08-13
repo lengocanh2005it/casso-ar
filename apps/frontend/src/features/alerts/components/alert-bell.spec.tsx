@@ -49,6 +49,9 @@ describe('AlertBell', () => {
     expect(
       await screen.findByRole('button', { name: 'Thông báo, 3 chưa đọc' }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('status', { name: '3 thông báo chưa đọc' }),
+    ).toBeInTheDocument();
   });
 
   it('renders the bell without an unread suffix when unreadCount is 0', async () => {

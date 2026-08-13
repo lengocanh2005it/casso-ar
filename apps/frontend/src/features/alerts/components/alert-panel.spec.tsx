@@ -5,16 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AlertPanel } from './alert-panel';
 
 const apiRequest = vi.fn();
-const navigate = vi.fn();
 
 vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
 }));
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
-  return { ...actual, useNavigate: () => navigate };
-});
-
 function renderPanel() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -91,7 +85,7 @@ describe('AlertPanel', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('clicking a row body marks it read and navigates to its mapped route', async () => {
+  it('renders a navigation link and marks an unread row as read when clicked', async () => {
     apiRequest.mockImplementation(({ method }) => {
       if (method === 'GET') {
         return Promise.resolve({
@@ -113,7 +107,10 @@ describe('AlertPanel', () => {
     });
 
     renderPanel();
-    const row = await screen.findByText('Máy chủ email của bạn gửi thất bại');
+    const row = await screen.findByRole('link', {
+      name: /Máy chủ email của bạn gửi thất bại/,
+    });
+    expect(row).toHaveAttribute('href', '/settings?tab=smtp');
     fireEvent.click(row);
 
     await waitFor(() =>
@@ -122,10 +119,9 @@ describe('AlertPanel', () => {
         method: 'PATCH',
       }),
     );
-    expect(navigate).toHaveBeenCalledWith('/settings?tab=smtp');
   });
 
-  it('clicking the per-row [x] deletes it without a confirmation dialog', async () => {
+  it('requires confirmation before deleting one alert', async () => {
     apiRequest.mockImplementation(({ method }) => {
       if (method === 'GET') {
         return Promise.resolve({
@@ -148,6 +144,20 @@ describe('AlertPanel', () => {
 
     renderPanel();
     await screen.findByText('Máy chủ email của bạn gửi thất bại');
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Xoá thông báo: Máy chủ email của bạn gửi thất bại',
+      }),
+    );
+
+    expect(await screen.findByText('Xoá thông báo này?')).toBeInTheDocument();
+    expect(apiRequest).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: '/api/v1/alerts/alert-1',
+        method: 'DELETE',
+      }),
+    );
+
     fireEvent.click(screen.getByRole('button', { name: 'Xoá thông báo' }));
 
     await waitFor(() =>

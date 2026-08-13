@@ -1,6 +1,6 @@
 import { BellOff, X } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -28,58 +28,82 @@ import { formatRelativeTime } from '../lib/format-relative-time';
 import type { AlertDto } from '../types';
 
 function AlertRow({ alert }: { alert: AlertDto }) {
-  const navigate = useNavigate();
   const markRead = useMarkAlertRead();
   const deleteAlert = useDeleteAlert();
+  const route = alertRoute(alert.entityType);
 
   function handleRowClick() {
     if (!alert.isRead) markRead.mutate(alert.id);
-    const route = alertRoute(alert.entityType);
-    if (route) {
-      navigate(route);
-    } else {
+    if (!route) {
       toast.error('Không tìm thấy trang cho thông báo này.');
     }
   }
 
+  const rowClassName = cn(
+    'flex min-w-0 flex-1 animate-banner-in items-start gap-2 rounded-md p-3 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:animate-none',
+    !alert.isRead && 'bg-primary/5',
+  );
+  const rowContent = (
+    <>
+      {!alert.isRead && (
+        <span
+          aria-hidden="true"
+          className="mt-1.5 size-2 shrink-0 rounded-full bg-primary"
+        />
+      )}
+      <span className={cn('min-w-0 flex-1', alert.isRead && 'ml-4')}>
+        <span
+          className={cn(
+            'block',
+            !alert.isRead ? 'font-medium' : 'text-muted-foreground',
+          )}
+        >
+          {alertMessage(alert.type)}
+        </span>
+        <span className="block text-xs text-muted-foreground">
+          {formatRelativeTime(alert.createdAt)}
+        </span>
+      </span>
+    </>
+  );
+
   return (
     <div className="flex items-start gap-1">
-      <button
-        type="button"
-        onClick={handleRowClick}
-        className={cn(
-          'flex min-w-0 flex-1 animate-banner-in items-start gap-2 rounded-md p-3 text-left text-sm hover:bg-accent',
-          !alert.isRead && 'bg-primary/5',
-        )}
-      >
-        {!alert.isRead && (
-          <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />
-        )}
-        <span className={cn('min-w-0 flex-1', alert.isRead && 'ml-4')}>
-          <span
-            className={cn(
-              'block',
-              !alert.isRead ? 'font-medium' : 'text-muted-foreground',
-            )}
+      {route ? (
+        <Link to={route} onClick={handleRowClick} className={rowClassName}>
+          {rowContent}
+        </Link>
+      ) : (
+        <button type="button" onClick={handleRowClick} className={rowClassName}>
+          {rowContent}
+        </button>
+      )}
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <button
+            type="button"
+            aria-label={`Xoá thông báo: ${alertMessage(alert.type)}`}
+            onClick={(event) => event.stopPropagation()}
+            className="mt-2 shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {alertMessage(alert.type)}
-          </span>
-          <span className="block text-xs text-muted-foreground">
-            {formatRelativeTime(alert.createdAt)}
-          </span>
-        </span>
-      </button>
-      <button
-        type="button"
-        aria-label="Xoá thông báo"
-        onClick={(event) => {
-          event.stopPropagation();
-          deleteAlert.mutate(alert.id);
-        }}
-        className="mt-2 shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-      >
-        <X className="size-3.5" />
-      </button>
+            <X aria-hidden="true" className="size-3.5" />
+          </button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xoá thông báo này?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {alertMessage(alert.type)}. Hành động này không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Huỷ</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteAlert.mutate(alert.id)}>
+              Xoá thông báo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -101,7 +125,7 @@ export function AlertPanel() {
           <button
             type="button"
             onClick={() => markAllRead.mutate()}
-            className="text-xs font-medium text-primary hover:underline"
+            className="rounded-sm text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Đánh dấu đã đọc tất cả
           </button>
@@ -117,7 +141,10 @@ export function AlertPanel() {
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-10 text-center">
-            <BellOff className="size-8 text-muted-foreground" />
+            <BellOff
+              aria-hidden="true"
+              className="size-8 text-muted-foreground"
+            />
             <p className="text-sm text-muted-foreground">
               Không có thông báo mới.
             </p>
@@ -133,7 +160,7 @@ export function AlertPanel() {
             <AlertDialogTrigger asChild>
               <button
                 type="button"
-                className="w-full rounded-md p-1.5 text-center text-xs font-medium text-destructive hover:bg-destructive/10"
+                className="w-full rounded-md p-1.5 text-center text-xs font-medium text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Xoá tất cả
               </button>
