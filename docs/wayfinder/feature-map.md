@@ -700,4 +700,4 @@ Success = a single document a new developer can read and know exactly what to pi
 
 - #98 — research Casso Admin Platform
 - #153 — auto-downgrade to FREE on non-renewal (blocked by #150 and #152, both now done — still needs a real renewal-status signal from PayOS)
-- #157 — redirect-URI allowlist fails open when unconfigured (CAS ID + PayOS) — `ready-for-human`
+- #157 — redirect-URI allowlist fails open when unconfigured (CAS ID + PayOS) — `ready-for-human` → `in-progress` (2026-08-13, worktree `fix/157-redirect-uri-fail-closed`)

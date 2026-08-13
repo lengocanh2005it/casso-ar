@@ -6,9 +6,9 @@ import {
   type ValidationOptions,
 } from 'class-validator';
 import {
-  isCasRedirectUriAllowed,
-  parseCasRedirectUriAllowlist,
-} from '../../application/validate-cas-redirect-uri';
+  isRedirectUriAllowed,
+  parseRedirectUriAllowlist,
+} from '../../../../common/redirect-uri/allowlist';
 
 function IsAllowedCasRedirectUri(validationOptions?: ValidationOptions) {
   return (object: object, propertyName: string): void => {
@@ -20,9 +20,9 @@ function IsAllowedCasRedirectUri(validationOptions?: ValidationOptions) {
       validator: {
         validate(value: unknown): boolean {
           if (typeof value !== 'string') return true;
-          return isCasRedirectUriAllowed(
+          return isRedirectUriAllowed(
             value,
-            parseCasRedirectUriAllowlist(
+            parseRedirectUriAllowlist(
               process.env.CAS_ID_REDIRECT_URI_ALLOWLIST,
             ),
           );

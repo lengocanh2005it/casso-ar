@@ -1,3 +1,9 @@
+// Origin-only matching for redirect-URI allowlists (CAS ID OAuth + PayOS
+// checkout return URLs). Each allowlist entry is compared by origin (scheme
+// + host + port), so paths/query params on either side are ignored.
+//
+// The allowlist FAILS CLOSED: an empty list (unconfigured env var) denies
+// every redirect instead of accepting any origin — an open-redirect vector.
 function originOf(value: string): string | null {
   try {
     const origin = new URL(value).origin;
@@ -7,20 +13,18 @@ function originOf(value: string): string | null {
   }
 }
 
-export function parsePayosRedirectUriAllowlist(
-  value: string | undefined,
-): string[] {
+export function parseRedirectUriAllowlist(value: string | undefined): string[] {
   return (value ?? '')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
 }
 
-export function isPayosRedirectUriAllowed(
+export function isRedirectUriAllowed(
   redirectUri: string,
   allowlist: readonly string[],
 ): boolean {
-  if (allowlist.length === 0) return true;
+  if (allowlist.length === 0) return false;
   const redirectOrigin = originOf(redirectUri);
   return (
     redirectOrigin !== null &&

@@ -16,6 +16,8 @@ describe('bank connection use cases', () => {
   };
 
   it('initiates a first connection session for the current tenant', async () => {
+    const previousAllowlist = process.env.CAS_ID_REDIRECT_URI_ALLOWLIST;
+    process.env.CAS_ID_REDIRECT_URI_ALLOWLIST = 'http://localhost';
     const sessionRepo = { save: jest.fn() };
     const auditRepo = { save: jest.fn() };
     const useCase = new InitiateConnectionUseCase(
@@ -32,19 +34,27 @@ describe('bank connection use cases', () => {
       dataSource as never,
     );
 
-    const result = await useCase.execute({
-      userId: 'user-1',
-      redirectUri: 'http://localhost/callback',
-    });
-    expect(result.grantToken).toBe('grant');
-    expect(sessionRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        organizationId: 'org-1',
-        status: 'PENDING_AUTHORIZATION',
-      }),
-      expect.anything(),
-    );
-    expect(auditRepo.save).not.toHaveBeenCalled();
+    try {
+      const result = await useCase.execute({
+        userId: 'user-1',
+        redirectUri: 'http://localhost/callback',
+      });
+      expect(result.grantToken).toBe('grant');
+      expect(sessionRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: 'org-1',
+          status: 'PENDING_AUTHORIZATION',
+        }),
+        expect.anything(),
+      );
+      expect(auditRepo.save).not.toHaveBeenCalled();
+    } finally {
+      if (previousAllowlist === undefined) {
+        delete process.env.CAS_ID_REDIRECT_URI_ALLOWLIST;
+      } else {
+        process.env.CAS_ID_REDIRECT_URI_ALLOWLIST = previousAllowlist;
+      }
+    }
   });
 
   it('rejects a redirect URI outside the configured allowlist before Cas ID', async () => {

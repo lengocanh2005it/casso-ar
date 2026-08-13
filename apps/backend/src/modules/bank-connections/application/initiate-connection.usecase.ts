@@ -3,6 +3,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import {
+  isRedirectUriAllowed,
+  parseRedirectUriAllowlist,
+} from '../../../common/redirect-uri/allowlist';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { CasIdConnectionSession } from '../domain/cas-id-connection-session';
 import { ConnectionAuditEvent } from '../domain/connection-audit-event';
@@ -23,10 +27,6 @@ import {
   CONNECTION_AUDIT_EVENT_REPOSITORY,
   type IConnectionAuditEventRepository,
 } from './connection-audit-event-repository.port';
-import {
-  isCasRedirectUriAllowed,
-  parseCasRedirectUriAllowlist,
-} from './validate-cas-redirect-uri';
 
 const DEFAULT_SCOPES = ['identity', 'transaction'];
 
@@ -59,10 +59,10 @@ export class InitiateConnectionUseCase {
   async execute(
     input: InitiateConnectionInput,
   ): Promise<InitiateConnectionResult> {
-    const allowlist = parseCasRedirectUriAllowlist(
+    const allowlist = parseRedirectUriAllowlist(
       process.env.CAS_ID_REDIRECT_URI_ALLOWLIST,
     );
-    if (!isCasRedirectUriAllowed(input.redirectUri, allowlist)) {
+    if (!isRedirectUriAllowed(input.redirectUri, allowlist)) {
       throw new AppError(
         ErrorCode.FORBIDDEN,
         'Địa chỉ chuyển hướng không được phép.',

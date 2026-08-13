@@ -6,9 +6,9 @@ import {
   type ValidationOptions,
 } from 'class-validator';
 import {
-  isPayosRedirectUriAllowed,
-  parsePayosRedirectUriAllowlist,
-} from '../../application/validate-payos-redirect-uri';
+  isRedirectUriAllowed,
+  parseRedirectUriAllowlist,
+} from '../../../../common/redirect-uri/allowlist';
 
 function IsAllowedPayosRedirectUri(validationOptions?: ValidationOptions) {
   return (object: object, propertyName: string): void => {
@@ -20,11 +20,9 @@ function IsAllowedPayosRedirectUri(validationOptions?: ValidationOptions) {
       validator: {
         validate(value: unknown): boolean {
           if (typeof value !== 'string') return true;
-          return isPayosRedirectUriAllowed(
+          return isRedirectUriAllowed(
             value,
-            parsePayosRedirectUriAllowlist(
-              process.env.PAYOS_RETURN_URL_ALLOWLIST,
-            ),
+            parseRedirectUriAllowlist(process.env.PAYOS_RETURN_URL_ALLOWLIST),
           );
         },
         defaultMessage: () => 'Địa chỉ chuyển hướng không được phép.',
