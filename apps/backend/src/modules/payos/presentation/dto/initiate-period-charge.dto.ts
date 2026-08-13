@@ -1,11 +1,7 @@
-import { PlanId } from '@casso-ledger/shared-types';
-import { IsEnum, IsUrl } from 'class-validator';
+import { IsUrl } from 'class-validator';
 import { IsAllowedPayosRedirectUri } from './is-allowed-payos-redirect-uri.decorator';
 
-export class InitiatePlanUpgradeOrderDto {
-  @IsEnum(PlanId)
-  targetPlanId: PlanId;
-
+export class InitiatePeriodChargeDto {
   @IsUrl({ require_tld: false })
   @IsAllowedPayosRedirectUri()
   returnUrl: string;
