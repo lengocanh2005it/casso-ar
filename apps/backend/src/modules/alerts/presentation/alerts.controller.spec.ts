@@ -1,3 +1,5 @@
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { firstValueFrom } from 'rxjs';
 import { AlertType } from '../domain/alert';
 import { AlertsController } from './alerts.controller';
 
@@ -7,12 +9,18 @@ function buildController() {
   const markAllAlertsRead = { execute: jest.fn().mockResolvedValue(undefined) };
   const deleteAlert = { execute: jest.fn().mockResolvedValue(undefined) };
   const deleteAllAlerts = { execute: jest.fn().mockResolvedValue(undefined) };
+  const eventEmitter = new EventEmitter2();
+  const tenantContext = {
+    getCurrentUser: jest.fn().mockReturnValue({ userId: 'user-1' }),
+  };
   const controller = new AlertsController(
     listAlerts as any,
     markAlertRead as any,
     markAllAlertsRead as any,
     deleteAlert as any,
     deleteAllAlerts as any,
+    eventEmitter,
+    tenantContext as any,
   );
   return {
     controller,
@@ -21,6 +29,8 @@ function buildController() {
     markAllAlertsRead,
     deleteAlert,
     deleteAllAlerts,
+    eventEmitter,
+    tenantContext,
   };
 }
 
@@ -108,6 +118,28 @@ describe('AlertsController', () => {
 
       expect(deleteAllAlerts.execute).toHaveBeenCalled();
       expect(result).toEqual({ success: true });
+    });
+  });
+
+  describe('GET /alerts/stream', () => {
+    it('emits an SSE message only for ALERT_CREATED_FOR_USER events matching the connected userId', async () => {
+      const { controller, eventEmitter } = buildController();
+
+      const messagePromise = firstValueFrom(controller.stream());
+      eventEmitter.emit('alert.created-for-user', {
+        userId: 'someone-else',
+        unreadCount: 9,
+      });
+      eventEmitter.emit('alert.created-for-user', {
+        userId: 'user-1',
+        unreadCount: 3,
+      });
+
+      const message = await messagePromise;
+
+      expect(message).toEqual({
+        data: { type: 'alert.created', unreadCount: 3 },
+      });
     });
   });
 });
