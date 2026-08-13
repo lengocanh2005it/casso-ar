@@ -19,7 +19,7 @@
 - Error shape: `{ statusCode, errorCode, message, details? }` via `AppError` + `HttpExceptionFilter`; alert-not-found reuses the existing generic `ErrorCode.NOT_FOUND` (no new `ALERT_NOT_FOUND` code — mirrors `SmtpConfigController.get()`, which also has no dedicated not-found error code for its single-row-per-org resource).
 - Domain/application layers never import NestJS/TypeORM concretes; `CreateAlertUseCase` (application) emits via the `IEventPublisher` port, never raw `EventEmitter2` — the raw `EventEmitter2` injection stays confined to the presentation-layer SSE controller and to `EmailQueueProcessor` (infrastructure), mirroring the codebase's existing split.
 - Biome: single quotes, semicolons always, 2-space indent, no trailing commas — run `npx biome check --write .` before each commit if the file was hand-typed outside an editor with format-on-save.
-- Backend unit tests: `npx jest --testPathPattern <name>` (from `apps/backend`). Backend e2e: `pnpm --filter @casso-ledger/backend test:e2e` (Docker required). Frontend tests: `pnpm --filter frontend test` runs `vitest run` (from `apps/frontend/package.json`). Type check: `npx tsc --noEmit`.
+- Backend unit tests: `npx jest --testPathPatterns <name>` (from `apps/backend`). Backend e2e: `pnpm --filter @casso-ledger/backend test:e2e` (Docker required). Frontend tests: `pnpm --filter frontend test` runs `vitest run` (from `apps/frontend/package.json`). Type check: `npx tsc --noEmit`.
 - After any backend code change in this plan, run the `domain-check` skill and fix violations before moving to the next task's commit.
 
 ### Interpretations made because the exact codebase detail wasn't fully pinned down
@@ -45,6 +45,71 @@ These are called out again in the Self-Review section, but are recorded here sin
 **Interfaces:**
 - Consumes: nothing (first task).
 - Produces: `Permission.ALERT_READ` (string enum member `'ALERT_READ'`), automatically included in `ROLE_PERMISSIONS[Role.OWNER]` because that entry is `Object.values(Permission)` — no edit to `role-permissions.ts` needed, and no other role's array includes it, so it stays OWNER-only.
+
+- [ ] **Step 0: One-time test infra setup for `packages/shared-types` (config-only — AGENTS.md's TDD exception for configuration-only changes applies; this package has never had a test before, so there is no existing infra to reuse)**
+
+`packages/shared-types/package.json` has no `jest`/`@types/jest`/`test` script today, and its `tsconfig.json`'s `include: ["src"]` picks up any `.spec.ts` file for `tsc --noEmit` (the `type-check` script) — without `@types/jest`, `describe`/`it`/`expect` are unresolved globals and `type-check` fails. Fix both, mirroring `apps/backend`'s existing Jest setup exactly (same versions, same `@swc/jest` transform):
+
+```json
+// packages/shared-types/package.json — add to "scripts" and "devDependencies"
+"scripts": {
+  "build": "tsc -p tsconfig.json",
+  "type-check": "tsc --noEmit",
+  "test": "jest"
+},
+"devDependencies": {
+  "@swc/core": "^1.15.47",
+  "@swc/jest": "^0.2.39",
+  "@types/jest": "29.5.14",
+  "jest": "30.4.2",
+  "typescript": "6.0.3"
+}
+```
+
+```javascript
+// packages/shared-types/jest.config.js (new file)
+module.exports = {
+  moduleFileExtensions: ['js', 'json', 'ts'],
+  rootDir: 'src',
+  testRegex: '.spec.ts$',
+  transform: {
+    '^.+\\.(t|j)s$': '@swc/jest',
+  },
+  testEnvironment: 'node',
+};
+```
+
+```json
+// packages/shared-types/tsconfig.json — add "types": ["jest"] to compilerOptions
+// (TypeScript 6's automatic @types/* inclusion did not pick up @types/jest in
+// this package's tsconfig even after installing it — verified by running
+// `npx tsc --noEmit --listFiles` and seeing no @types/jest entry; the
+// explicit "types" field, which is literally what TS's own TS2593 error
+// message suggests, fixes it. Confirmed safe: this package has no
+// process/Buffer/other @types/node usage that "types": ["jest"] would break
+// by narrowing automatic inclusion.)
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "declaration": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["jest"]
+  },
+  "include": ["src"]
+}
+```
+
+Then run `pnpm install` from the repo root (updates `pnpm-lock.yaml`, links the new devDependencies), and commit this config-only change on its own before starting the RED step below:
+
+```bash
+git add packages/shared-types/package.json packages/shared-types/jest.config.js packages/shared-types/tsconfig.json pnpm-lock.yaml
+git commit -m "chore: add Jest test infra to shared-types (first test in this package)"
+```
 
 - [ ] **Step 1: Write the failing test**
 
@@ -73,8 +138,8 @@ describe('ROLE_PERMISSIONS', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx jest --testPathPattern role-permissions` (from `packages/shared-types`)
-Expected: FAIL — `Property 'ALERT_READ' does not exist on type 'typeof Permission'` (TypeScript compile error surfaced by ts-jest).
+Run: `npx jest --testPathPatterns role-permissions` (from `packages/shared-types`)
+Expected: FAIL — `expect(received).toContain(expected)` with `received` not containing `undefined` (the transform is `@swc/jest`, which strips types without type-checking, so `Permission.ALERT_READ` is `undefined` at runtime rather than a compile error; `npx tsc --noEmit` run separately would additionally report `Property 'ALERT_READ' does not exist on type 'typeof Permission'`).
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -111,7 +176,7 @@ export enum Permission {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx jest --testPathPattern role-permissions` (from `packages/shared-types`)
+Run: `npx jest --testPathPatterns role-permissions` (from `packages/shared-types`)
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -188,7 +253,7 @@ describe('Alert', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx jest --testPathPattern alerts/domain/alert` (from `apps/backend`)
+Run: `npx jest --testPathPatterns alerts/domain/alert` (from `apps/backend`)
 Expected: FAIL — `Cannot find module './alert'`
 
 - [ ] **Step 3: Write minimal implementation**
@@ -248,7 +313,7 @@ export class Alert {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx jest --testPathPattern alerts/domain/alert` (from `apps/backend`)
+Run: `npx jest --testPathPatterns alerts/domain/alert` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -554,7 +619,7 @@ Note: TypeORM's `IsNull()` FindOperator serializes to `readAt: null` when compar
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx jest --testPathPattern typeorm-alert.repository` (from `apps/backend`)
+Run: `npx jest --testPathPatterns typeorm-alert.repository` (from `apps/backend`)
 Expected: FAIL — `Cannot find module './typeorm-alert.repository'`
 
 - [ ] **Step 3: Write minimal implementation**
@@ -625,7 +690,7 @@ export class TypeOrmAlertRepository
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx jest --testPathPattern typeorm-alert.repository` (from `apps/backend`)
+Run: `npx jest --testPathPatterns typeorm-alert.repository` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -847,7 +912,7 @@ describe('deleteAll', () => {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `npx jest --testPathPattern typeorm-alert.repository` (from `apps/backend`)
+Run: `npx jest --testPathPatterns typeorm-alert.repository` (from `apps/backend`)
 Expected: FAIL — `repo.findPage is not a function` (and similarly for the other new methods).
 
 - [ ] **Step 3: Write minimal implementation (append to the `TypeOrmAlertRepository` class body, replacing the `// Task 6 adds ...` comment)**
@@ -951,7 +1016,7 @@ Expected: FAIL — `repo.findPage is not a function` (and similarly for the othe
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `npx jest --testPathPattern typeorm-alert.repository` (from `apps/backend`)
+Run: `npx jest --testPathPatterns typeorm-alert.repository` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -1021,7 +1086,7 @@ describe('CreateAlertUseCase', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx jest --testPathPattern create-alert.usecase` (from `apps/backend`)
+Run: `npx jest --testPathPatterns create-alert.usecase` (from `apps/backend`)
 Expected: FAIL — `Cannot find module './create-alert.usecase'`
 
 - [ ] **Step 3: Write minimal implementation**
@@ -1082,7 +1147,7 @@ export class CreateAlertUseCase {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx jest --testPathPattern create-alert.usecase` (from `apps/backend`)
+Run: `npx jest --testPathPatterns create-alert.usecase` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -1206,7 +1271,7 @@ describe('BankConnectionAlertListener', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx jest --testPathPattern bank-connection-alert.listener` (from `apps/backend`)
+Run: `npx jest --testPathPatterns bank-connection-alert.listener` (from `apps/backend`)
 Expected: FAIL — `Cannot find module './bank-connection-alert.listener'`
 
 - [ ] **Step 3: Write minimal implementation**
@@ -1278,7 +1343,7 @@ export class BankConnectionAlertListener {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx jest --testPathPattern bank-connection-alert.listener` (from `apps/backend`)
+Run: `npx jest --testPathPatterns bank-connection-alert.listener` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -1333,7 +1398,7 @@ it('emits SMTP_CONFIG_FAILED with the org and config id when the SMTP config tra
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx jest --testPathPattern email-queue.processor` (from `apps/backend`)
+Run: `npx jest --testPathPatterns email-queue.processor` (from `apps/backend`)
 Expected: FAIL — `expect(jest.fn()).toHaveBeenCalledWith(...)` received 0 calls with `'smtp-config.failed'`.
 
 - [ ] **Step 3: Write the minimal implementation — modify `email-queue.processor.ts`**
@@ -1366,7 +1431,7 @@ Inside `onFailed()`, right after the existing `if (transitioned) { ... }` block 
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx jest --testPathPattern email-queue.processor` (from `apps/backend`)
+Run: `npx jest --testPathPatterns email-queue.processor` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 5: Commit the emit point**
@@ -1431,7 +1496,7 @@ describe('SmtpConfigAlertListener', () => {
 
 - [ ] **Step 7: Run test to verify it fails**
 
-Run: `npx jest --testPathPattern smtp-config-alert.listener` (from `apps/backend`)
+Run: `npx jest --testPathPatterns smtp-config-alert.listener` (from `apps/backend`)
 Expected: FAIL — `Cannot find module './smtp-config-alert.listener'`
 
 - [ ] **Step 8: Write minimal implementation**
@@ -1499,7 +1564,7 @@ export class SmtpConfigAlertListener {
 
 - [ ] **Step 9: Run test to verify it passes**
 
-Run: `npx jest --testPathPattern smtp-config-alert.listener` (from `apps/backend`)
+Run: `npx jest --testPathPatterns smtp-config-alert.listener` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 10: Commit**
@@ -1568,7 +1633,7 @@ it('emits reminder.scan.completed with queuedCount and skippedCount', async () =
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx jest --testPathPattern reminder-scheduler.service` (from `apps/backend`)
+Run: `npx jest --testPathPatterns reminder-scheduler.service` (from `apps/backend`)
 Expected: FAIL — received `{ organizationId: 'org-1', scanDate: '2026-08-03' }`, missing `queuedCount`/`skippedCount`.
 
 - [ ] **Step 3: Write minimal implementation — modify `scanOrganization()` in `reminder-scheduler.service.ts`**
@@ -1670,7 +1735,7 @@ Expected: FAIL — received `{ organizationId: 'org-1', scanDate: '2026-08-03' }
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx jest --testPathPattern reminder-scheduler.service` (from `apps/backend`)
+Run: `npx jest --testPathPatterns reminder-scheduler.service` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 5: Commit the payload extension**
@@ -1744,7 +1809,7 @@ describe('ReminderScanAlertListener', () => {
 
 - [ ] **Step 7: Run test to verify it fails**
 
-Run: `npx jest --testPathPattern reminder-scan-alert.listener` (from `apps/backend`)
+Run: `npx jest --testPathPatterns reminder-scan-alert.listener` (from `apps/backend`)
 Expected: FAIL — `Cannot find module './reminder-scan-alert.listener'`
 
 - [ ] **Step 8: Write minimal implementation**
@@ -1814,7 +1879,7 @@ export class ReminderScanAlertListener {
 
 - [ ] **Step 9: Run test to verify it passes**
 
-Run: `npx jest --testPathPattern reminder-scan-alert.listener` (from `apps/backend`)
+Run: `npx jest --testPathPatterns reminder-scan-alert.listener` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 10: Commit**
@@ -1877,7 +1942,7 @@ describe('ListAlertsUseCase', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx jest --testPathPattern list-alerts.usecase` (from `apps/backend`)
+Run: `npx jest --testPathPatterns list-alerts.usecase` (from `apps/backend`)
 Expected: FAIL — `Cannot find module './list-alerts.usecase'`
 
 - [ ] **Step 3: Write minimal implementation**
@@ -1909,7 +1974,7 @@ export class ListAlertsUseCase {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx jest --testPathPattern list-alerts.usecase` (from `apps/backend`)
+Run: `npx jest --testPathPatterns list-alerts.usecase` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 5: Write the DTOs (no test — pure data shape + validation, exercised by the controller test in Step 6)**
@@ -2034,7 +2099,7 @@ describe('AlertsController', () => {
 
 - [ ] **Step 7: Run test to verify it fails**
 
-Run: `npx jest --testPathPattern alerts.controller` (from `apps/backend`)
+Run: `npx jest --testPathPatterns alerts.controller` (from `apps/backend`)
 Expected: FAIL — `Cannot find module './alerts.controller'`
 
 - [ ] **Step 8: Write minimal implementation**
@@ -2066,7 +2131,7 @@ export class AlertsController {
 
 - [ ] **Step 9: Run test to verify it passes**
 
-Run: `npx jest --testPathPattern alerts.controller` (from `apps/backend`)
+Run: `npx jest --testPathPatterns alerts.controller` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 10: Commit**
@@ -2147,7 +2212,7 @@ describe('MarkAlertReadUseCase', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx jest --testPathPattern mark-alert-read.usecase` (from `apps/backend`)
+Run: `npx jest --testPathPatterns mark-alert-read.usecase` (from `apps/backend`)
 Expected: FAIL — `Cannot find module './mark-alert-read.usecase'`
 
 - [ ] **Step 3: Write minimal implementation**
@@ -2183,7 +2248,7 @@ export class MarkAlertReadUseCase {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx jest --testPathPattern mark-alert-read.usecase` (from `apps/backend`)
+Run: `npx jest --testPathPatterns mark-alert-read.usecase` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 5: Write the failing test for `MarkAllAlertsReadUseCase`**
@@ -2207,7 +2272,7 @@ describe('MarkAllAlertsReadUseCase', () => {
 
 - [ ] **Step 6: Run test to verify it fails**
 
-Run: `npx jest --testPathPattern mark-all-alerts-read.usecase` (from `apps/backend`)
+Run: `npx jest --testPathPatterns mark-all-alerts-read.usecase` (from `apps/backend`)
 Expected: FAIL — `Cannot find module './mark-all-alerts-read.usecase'`
 
 - [ ] **Step 7: Write minimal implementation**
@@ -2239,7 +2304,7 @@ export class MarkAllAlertsReadUseCase {
 
 - [ ] **Step 8: Run test to verify it passes**
 
-Run: `npx jest --testPathPattern mark-all-alerts-read.usecase` (from `apps/backend`)
+Run: `npx jest --testPathPatterns mark-all-alerts-read.usecase` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 9: Write the failing controller tests (append to `alerts.controller.spec.ts`, update `buildController()` to pass the two new use cases)**
@@ -2287,7 +2352,7 @@ describe('PATCH /alerts/read-all', () => {
 
 - [ ] **Step 10: Run tests to verify they fail**
 
-Run: `npx jest --testPathPattern alerts.controller` (from `apps/backend`)
+Run: `npx jest --testPathPatterns alerts.controller` (from `apps/backend`)
 Expected: FAIL — `controller.read is not a function`
 
 - [ ] **Step 11: Write minimal implementation — modify `alerts.controller.ts`**
@@ -2339,7 +2404,7 @@ export class AlertsController {
 
 - [ ] **Step 12: Run tests to verify they pass**
 
-Run: `npx jest --testPathPattern alerts.controller` (from `apps/backend`)
+Run: `npx jest --testPathPatterns alerts.controller` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 13: Commit**
@@ -2419,7 +2484,7 @@ describe('DeleteAlertUseCase', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx jest --testPathPattern delete-alert.usecase` (from `apps/backend`)
+Run: `npx jest --testPathPatterns delete-alert.usecase` (from `apps/backend`)
 Expected: FAIL — `Cannot find module './delete-alert.usecase'`
 
 - [ ] **Step 3: Write minimal implementation**
@@ -2455,7 +2520,7 @@ export class DeleteAlertUseCase {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx jest --testPathPattern delete-alert.usecase` (from `apps/backend`)
+Run: `npx jest --testPathPatterns delete-alert.usecase` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 5: Write the failing test for `DeleteAllAlertsUseCase`**
@@ -2479,7 +2544,7 @@ describe('DeleteAllAlertsUseCase', () => {
 
 - [ ] **Step 6: Run test to verify it fails**
 
-Run: `npx jest --testPathPattern delete-all-alerts.usecase` (from `apps/backend`)
+Run: `npx jest --testPathPatterns delete-all-alerts.usecase` (from `apps/backend`)
 Expected: FAIL — `Cannot find module './delete-all-alerts.usecase'`
 
 - [ ] **Step 7: Write minimal implementation**
@@ -2511,7 +2576,7 @@ export class DeleteAllAlertsUseCase {
 
 - [ ] **Step 8: Run test to verify it passes**
 
-Run: `npx jest --testPathPattern delete-all-alerts.usecase` (from `apps/backend`)
+Run: `npx jest --testPathPatterns delete-all-alerts.usecase` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 9: Write the failing controller tests (append to `alerts.controller.spec.ts`, extend `buildController()` again)**
@@ -2568,7 +2633,7 @@ describe('DELETE /alerts', () => {
 
 - [ ] **Step 10: Run tests to verify they fail**
 
-Run: `npx jest --testPathPattern alerts.controller` (from `apps/backend`)
+Run: `npx jest --testPathPatterns alerts.controller` (from `apps/backend`)
 Expected: FAIL — `controller.remove is not a function`
 
 - [ ] **Step 11: Write minimal implementation — modify `alerts.controller.ts`**
@@ -2646,7 +2711,7 @@ export class AlertsController {
 
 - [ ] **Step 12: Run tests to verify they pass**
 
-Run: `npx jest --testPathPattern alerts.controller` (from `apps/backend`)
+Run: `npx jest --testPathPatterns alerts.controller` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 13: Commit**
@@ -2721,7 +2786,7 @@ describe('extractJwtFromRequest', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx jest --testPathPattern jwt.strategy` (from `apps/backend`)
+Run: `npx jest --testPathPatterns jwt.strategy` (from `apps/backend`)
 Expected: FAIL — `extractJwtFromRequest is not exported` / `Cannot find export`
 
 - [ ] **Step 3: Write minimal implementation**
@@ -2804,12 +2869,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx jest --testPathPattern jwt.strategy` (from `apps/backend`)
+Run: `npx jest --testPathPatterns jwt.strategy` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 5: Run the full auth test suite to confirm the header path still works for every existing route**
 
-Run: `npx jest --testPathPattern "jwt-auth|auth-flow"` (from `apps/backend`)
+Run: `npx jest --testPathPatterns "jwt-auth|auth-flow"` (from `apps/backend`)
 Expected: PASS (no regression — the Bearer-header branch is unchanged, just extracted into a named function)
 
 - [ ] **Step 6: Commit**
@@ -2890,7 +2955,7 @@ describe('GET /alerts/stream', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx jest --testPathPattern alerts.controller` (from `apps/backend`)
+Run: `npx jest --testPathPatterns alerts.controller` (from `apps/backend`)
 Expected: FAIL — `controller.stream is not a function`
 
 - [ ] **Step 3: Write minimal implementation — modify `alerts.controller.ts`**
@@ -3002,7 +3067,7 @@ export class AlertsController {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx jest --testPathPattern alerts.controller` (from `apps/backend`)
+Run: `npx jest --testPathPatterns alerts.controller` (from `apps/backend`)
 Expected: PASS
 
 - [ ] **Step 5: Commit**
