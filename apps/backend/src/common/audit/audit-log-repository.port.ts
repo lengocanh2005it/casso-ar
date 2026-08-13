@@ -18,6 +18,7 @@ export interface IAuditLogRepository {
   findPage(
     query: AuditLogPageQuery,
   ): Promise<{ items: AuditLog[]; total: number }>;
+  deleteOlderThan(cutoff: Date): Promise<number>;
 }
 
 export const AUDIT_LOG_REPOSITORY = Symbol('AUDIT_LOG_REPOSITORY');

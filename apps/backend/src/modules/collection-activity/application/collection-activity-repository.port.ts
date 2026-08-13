@@ -22,6 +22,7 @@ export interface ICollectionActivityRepository {
     page: number,
     limit: number,
   ): Promise<CollectionActivityPage>;
+  deleteOlderThan(cutoff: Date): Promise<number>;
 }
 
 export const COLLECTION_ACTIVITY_REPOSITORY = Symbol(

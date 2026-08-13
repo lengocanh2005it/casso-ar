@@ -1,10 +1,17 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { deleteOlderThan } from '../database/delete-older-than';
 import { isUniqueViolation } from '../database/unique-violation';
 import { ErrorCode } from '../errors/error-code';
 import { TenantContextService } from '../tenancy/tenant-context';
 import { IdempotencyKeyOrmEntity } from './idempotency-key.orm-entity';
+
+// ADR-0015: a PENDING row older than this is presumed abandoned (crashed
+// process) and is reclaimed instead of blocking retries forever. Reused by
+// both the request-time reclaim in execute() and the retention job's
+// sweepStalePending() backstop — do not introduce a second threshold.
+export const IDEMPOTENCY_STALE_PENDING_MS = 5 * 60 * 1000;
 
 function canonicalize(obj: unknown): string {
   if (obj === undefined) return 'undefined';
@@ -54,10 +61,17 @@ export class IdempotencyService {
             });
           }
           if (found.status === 'COMPLETED') return found.response as T;
-          throw new ConflictException({
-            errorCode: ErrorCode.CONFLICT,
-            message: 'Yêu cầu với Idempotency-Key này đang được xử lý.',
-          });
+          const ageMs = Date.now() - found.createdAt.getTime();
+          if (ageMs < IDEMPOTENCY_STALE_PENDING_MS) {
+            throw new ConflictException({
+              errorCode: ErrorCode.CONFLICT,
+              message: 'Yêu cầu với Idempotency-Key này đang được xử lý.',
+            });
+          }
+          // PENDING row is stale (ADR-0015): the process that created it is
+          // presumed dead. Reclaim by deleting it and falling through to
+          // insert a fresh PENDING row below.
+          await repo.delete({ id: found.id });
         }
         await repo.save({
           id: randomUUID(),
@@ -98,5 +112,24 @@ export class IdempotencyService {
       });
       throw error;
     }
+  }
+
+  async deleteCompletedOlderThan(cutoff: Date): Promise<number> {
+    return deleteOlderThan(
+      this.dataSource.getRepository(IdempotencyKeyOrmEntity),
+      'createdAt',
+      cutoff,
+      { status: 'COMPLETED' },
+    );
+  }
+
+  async sweepStalePending(): Promise<number> {
+    const cutoff = new Date(Date.now() - IDEMPOTENCY_STALE_PENDING_MS);
+    return deleteOlderThan(
+      this.dataSource.getRepository(IdempotencyKeyOrmEntity),
+      'createdAt',
+      cutoff,
+      { status: 'PENDING' },
+    );
   }
 }

@@ -15,6 +15,7 @@ import { AuditModule } from './common/audit/audit.module';
 import { IdempotencyModule } from './common/idempotency/idempotency.module';
 import { TenancyModule } from './common/tenancy/tenancy.module';
 import { CommonTokensModule } from './common/tokens/common-tokens.module';
+import { RetentionModule } from './common/retention/retention.module';
 import { TenantContextInterceptor } from './common/tenancy/tenant-context.interceptor';
 import { ObservabilityModule } from './common/observability/observability.module';
 import { getBullMqConfig } from './config/bullmq.config';
@@ -70,6 +71,7 @@ import { AlertsModule } from './modules/alerts/alerts.module';
     ObservabilityModule,
     CommonTokensModule,
     IdempotencyModule,
+    RetentionModule,
     AuditModule,
     AuditLogsModule,
     OrganizationsModule,

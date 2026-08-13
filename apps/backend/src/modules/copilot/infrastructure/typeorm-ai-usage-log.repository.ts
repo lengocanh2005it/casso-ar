@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { deleteOlderThan } from '../../../common/database/delete-older-than';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type {
   AIUsageLogEntry,
@@ -31,5 +32,9 @@ export class TypeOrmAIUsageLogRepository implements IAIUsageLogRepository {
       isError: entry.isError,
       createdAt: new Date(),
     });
+  }
+
+  async deleteOlderThan(cutoff: Date): Promise<number> {
+    return deleteOlderThan(this.ormRepo, 'createdAt', cutoff);
   }
 }

@@ -6,6 +6,7 @@ import {
   type FindOptionsWhere,
   type Repository,
 } from 'typeorm';
+import { deleteOlderThan } from '../database/delete-older-than';
 import { AuditLog } from './audit-log';
 import { AuditLogOrmEntity } from './audit-log.orm-entity';
 import type {
@@ -95,5 +96,9 @@ export class TypeOrmAuditLogRepository implements IAuditLogRepository {
       take: query.limit,
     });
     return { items: rows.map(toDomain), total };
+  }
+
+  async deleteOlderThan(cutoff: Date): Promise<number> {
+    return deleteOlderThan(this.repo, 'createdAt', cutoff);
   }
 }

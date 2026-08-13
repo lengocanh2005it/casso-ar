@@ -149,5 +149,6 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     CancelPendingActionUseCase,
     GetCopilotUsageUseCase,
   ],
+  exports: [AI_USAGE_LOG_REPOSITORY],
 })
 export class CopilotModule {}

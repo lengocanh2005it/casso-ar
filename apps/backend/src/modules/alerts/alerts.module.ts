@@ -33,5 +33,6 @@ import { AlertsController } from './presentation/alerts.controller';
     SmtpConfigAlertListener,
     ReminderScanAlertListener,
   ],
+  exports: [ALERT_REPOSITORY],
 })
 export class AlertsModule {}
