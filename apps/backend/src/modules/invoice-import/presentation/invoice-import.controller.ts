@@ -9,6 +9,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags } from '@nestjs/swagger';
 import { memoryStorage } from 'multer';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
@@ -19,6 +20,7 @@ import {
 } from '../application/import-invoices.usecase';
 import { getImportRequestFingerprint } from '../application/import-request-fingerprint';
 
+@ApiTags('invoice-import')
 @Controller('invoices')
 @UseGuards(PermissionGuard)
 export class InvoiceImportController {

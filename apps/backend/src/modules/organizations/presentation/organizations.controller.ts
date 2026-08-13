@@ -11,6 +11,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import {
   type AuthRequest,
   assertOrgMatches,
@@ -24,6 +25,7 @@ import { ListMembersUseCase } from '../application/list-members.usecase';
 import { toMemberResponse } from './dto/member-response.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 
+@ApiTags('organizations')
 @Controller('organizations')
 @UseGuards(PermissionGuard)
 export class OrganizationsController {

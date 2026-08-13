@@ -15,6 +15,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import {
   type AuthRequest,
   assertOrgMatches,
@@ -40,6 +41,7 @@ import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { InviteMemberDto } from './dto/invite-member.dto';
 import { toInviteResponse } from './dto/invite-response.dto';
 
+@ApiTags('auth-invites')
 @Controller()
 export class InvitesController {
   constructor(

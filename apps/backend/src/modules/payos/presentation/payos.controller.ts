@@ -7,6 +7,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import {
   AuditActionType,
@@ -30,6 +31,7 @@ import type { PeriodChargeResponseDto } from './dto/period-charge-response.dto';
 import type { PlanUpgradeOrderResponseDto } from './dto/plan-upgrade-order-response.dto';
 import { PayosWebhookAuthGuard } from './payos-webhook-auth.guard';
 
+@ApiTags('payos')
 @Controller('payos')
 @UseGuards(PermissionGuard)
 export class PayosController {

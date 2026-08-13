@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
@@ -23,6 +24,7 @@ import { RecordManualActivityUseCase } from '../application/record-manual-activi
 import { toCollectionActivityResponse } from './dto/collection-activity-response.dto';
 import { CreateManualActivityDto } from './dto/create-manual-activity.dto';
 
+@ApiTags('collection-activity')
 @Controller()
 @UseGuards(PermissionGuard)
 export class CollectionActivityController {

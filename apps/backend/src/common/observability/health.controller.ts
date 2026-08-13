@@ -1,5 +1,6 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Controller, Get, Inject, Res } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Queue } from 'bullmq';
 import type { Response } from 'express';
 import { DataSource } from 'typeorm';
@@ -17,6 +18,7 @@ interface HealthResult {
   body: { status: 'ok' | 'degraded'; checks: HealthChecks };
 }
 
+@ApiTags('health')
 @Public()
 @Controller('health')
 export class HealthController {
@@ -41,6 +43,24 @@ export class HealthController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'Health check (Postgres, Redis, BullMQ)' })
+  @ApiOkResponse({
+    description: 'ok or degraded with per-check booleans',
+    schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', example: 'ok' },
+        checks: {
+          type: 'object',
+          properties: {
+            postgres: { type: 'boolean', example: true },
+            redis: { type: 'boolean', example: true },
+            bullmq: { type: 'boolean', example: true },
+          },
+        },
+      },
+    },
+  })
   async handle(@Res() res: Response): Promise<void> {
     const { httpStatus, body } = await this.check();
     res.status(httpStatus).json(body);

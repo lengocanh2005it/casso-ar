@@ -1,5 +1,6 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { Controller, Get, Header, Query, Res, UseGuards } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
@@ -9,6 +10,7 @@ import { DashboardSummaryQueryService } from '../application/dashboard-summary-q
 import { ExportAgingReportUseCase } from '../application/export-aging-report.usecase';
 import { GetDashboardSummaryQueryDto } from './dto/get-dashboard-summary-query.dto';
 
+@ApiTags('reports')
 @Controller('reports')
 @UseGuards(JwtAuthGuard, PermissionGuard)
 export class ReportsController {

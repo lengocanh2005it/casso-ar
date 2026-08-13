@@ -6,11 +6,13 @@ import {
   ParseUUIDPipe,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import type { CustomerCreditsResult } from '../application/get-customer-credits.usecase';
 import { GetCustomerCreditsUseCase } from '../application/get-customer-credits.usecase';
 
+@ApiTags('customer-credits')
 @Controller('customers/:customerId/credits')
 @UseGuards(PermissionGuard)
 export class CustomerCreditsController {

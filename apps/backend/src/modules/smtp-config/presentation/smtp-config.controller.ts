@@ -9,6 +9,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import {
   AuditActionType,
@@ -25,6 +26,7 @@ import { SaveSmtpConfigDto } from './dto/save-smtp-config.dto';
 import { toSmtpConfigResponse } from './dto/smtp-config-response.dto';
 import { SmtpConfigRateLimitGuard } from './smtp-config-rate-limit.guard';
 
+@ApiTags('smtp-config')
 @Controller('smtp-config')
 @UseGuards(PermissionGuard)
 export class SmtpConfigController {

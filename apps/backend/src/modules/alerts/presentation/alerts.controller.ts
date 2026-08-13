@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ApiTags } from '@nestjs/swagger';
 import { filter, fromEvent, map, type Observable } from 'rxjs';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
@@ -29,6 +30,7 @@ import { MarkAllAlertsReadUseCase } from '../application/mark-all-alerts-read.us
 import { toAlertsPageResponse } from './dto/alert-response.dto';
 import { AlertsPaginationDto } from './dto/alerts-pagination.dto';
 
+@ApiTags('alerts')
 @Controller('alerts')
 @UseGuards(PermissionGuard)
 export class AlertsController {
