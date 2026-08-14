@@ -3,6 +3,7 @@ import type { BatchItemResult } from '@/lib/batch-types';
 import type {
   BankTransaction,
   MatchingCandidate,
+  Payment,
   PendingReviewItem,
 } from '../types';
 
@@ -71,7 +72,12 @@ export function batchSkip(
 export function batchMarkPrepaid(
   bankTransactionIds: string[],
   customerId: string,
-): Promise<{ results: BatchItemResult<{ transaction: BankTransaction }>[] }> {
+): Promise<{
+  results: BatchItemResult<{
+    transaction: BankTransaction;
+    payment: Payment;
+  }>[];
+}> {
   return postWithIdempotency('/api/v1/bank-transactions/batch-mark-prepaid', {
     bankTransactionIds,
     customerId,
