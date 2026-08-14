@@ -20,6 +20,7 @@ import { COPILOT_DRAFT_REPOSITORY } from './application/draft-repository.port';
 import { GetCopilotUsageUseCase } from './application/get-copilot-usage.usecase';
 import { ListCopilotDraftsUseCase } from './application/list-copilot-drafts.usecase';
 import { COPILOT_PENDING_ACTION_REPOSITORY } from './application/pending-action-repository.port';
+import { ReopenCopilotDraftUseCase } from './application/reopen-copilot-draft.usecase';
 import { DraftReminderEmailTool } from './application/tools/draft-reminder-email.tool';
 import { GetCollectionActivityTimelineTool } from './application/tools/get-collection-activity-timeline.tool';
 import { GetPaymentHistoryTool } from './application/tools/get-payment-history.tool';
@@ -150,6 +151,7 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     CancelPendingActionUseCase,
     GetCopilotUsageUseCase,
     ListCopilotDraftsUseCase,
+    ReopenCopilotDraftUseCase,
   ],
   exports: [AI_USAGE_LOG_REPOSITORY],
 })

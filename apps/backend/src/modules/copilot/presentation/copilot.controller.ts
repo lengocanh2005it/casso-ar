@@ -23,6 +23,7 @@ import { ConfirmPendingActionUseCase } from '../application/confirm-pending-acti
 import { CopilotChatUseCase } from '../application/copilot-chat.usecase';
 import { GetCopilotUsageUseCase } from '../application/get-copilot-usage.usecase';
 import { ListCopilotDraftsUseCase } from '../application/list-copilot-drafts.usecase';
+import { ReopenCopilotDraftUseCase } from '../application/reopen-copilot-draft.usecase';
 import { CopilotRateLimitGuard } from './copilot-rate-limit.guard';
 import { CopilotDraftsQueryDto } from './dto/copilot-drafts-query.dto';
 import {
@@ -43,6 +44,7 @@ export class CopilotController {
     private readonly cancelPendingActionUseCase: CancelPendingActionUseCase,
     private readonly getCopilotUsageUseCase: GetCopilotUsageUseCase,
     private readonly listCopilotDraftsUseCase: ListCopilotDraftsUseCase,
+    private readonly reopenCopilotDraftUseCase: ReopenCopilotDraftUseCase,
     private readonly idempotency: IdempotencyService,
   ) {}
 
@@ -61,6 +63,26 @@ export class CopilotController {
       query.status,
     );
     return toCopilotDraftsPageResponse(page);
+  }
+
+  @Post('drafts/:id/reopen')
+  @RequirePermission(Permission.REMINDER_SEND_MANUAL)
+  async reopenDraft(
+    @Param('id') id: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+  ) {
+    return this.idempotency.execute(
+      'POST /copilot/drafts/:id/reopen',
+      idempotencyKey,
+      { id },
+      async () => {
+        const result = await this.reopenCopilotDraftUseCase.execute(id);
+        return {
+          conversationId: result.conversationId,
+          pendingAction: toCopilotPendingActionDto(result.pendingAction),
+        };
+      },
+    );
   }
 
   @Post('conversations/:id/messages')

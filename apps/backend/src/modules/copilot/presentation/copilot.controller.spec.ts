@@ -9,6 +9,7 @@ function buildController() {
   const cancelPendingActionUseCase = { execute: jest.fn() };
   const getCopilotUsageUseCase = { execute: jest.fn() };
   const listCopilotDraftsUseCase = { execute: jest.fn() };
+  const reopenCopilotDraftUseCase = { execute: jest.fn() };
   const idempotency = {
     execute: jest.fn((_endpoint, _key, _input, operation) => operation()),
   };
@@ -19,6 +20,7 @@ function buildController() {
       cancelPendingActionUseCase as any,
       getCopilotUsageUseCase as any,
       listCopilotDraftsUseCase as any,
+      reopenCopilotDraftUseCase as any,
       idempotency as any,
     ),
     copilotChatUseCase,
@@ -26,6 +28,7 @@ function buildController() {
     cancelPendingActionUseCase,
     getCopilotUsageUseCase,
     listCopilotDraftsUseCase,
+    reopenCopilotDraftUseCase,
     idempotency,
   };
 }
@@ -167,6 +170,41 @@ describe('CopilotController', () => {
       1,
       20,
       undefined,
+    );
+  });
+
+  it('wraps reopen and returns the new conversation and pending action', async () => {
+    const deps = buildController();
+    deps.reopenCopilotDraftUseCase.execute.mockResolvedValue({
+      conversationId: 'new-conv-1',
+      pendingAction: {
+        id: 'new-action-1',
+        organizationId: 'org-1',
+        conversationId: 'new-conv-1',
+        actionType: 'SEND_REMINDER_EMAIL',
+        status: 'PENDING',
+        payload: { draftId: 'draft-1', receivableId: 'receivable-1' },
+        createdAt: new Date('2026-08-14T10:00:00Z'),
+        resolvedAt: null,
+        resolvedByUserId: null,
+      },
+    });
+
+    await expect(
+      deps.controller.reopenDraft('draft-1', 'reopen-key'),
+    ).resolves.toEqual({
+      conversationId: 'new-conv-1',
+      pendingAction: {
+        id: 'new-action-1',
+        actionType: 'SEND_REMINDER_EMAIL',
+        status: 'PENDING',
+        payload: { draftId: 'draft-1', receivableId: 'receivable-1' },
+        createdAt: '2026-08-14T10:00:00.000Z',
+        resolvedAt: null,
+      },
+    });
+    expect(deps.reopenCopilotDraftUseCase.execute).toHaveBeenCalledWith(
+      'draft-1',
     );
   });
 });
