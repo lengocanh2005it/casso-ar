@@ -17,6 +17,9 @@ import { configureApp } from '../src/configure-app';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
+import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment.orm-entity';
+import { BalanceHistoryChangeSource } from '../src/modules/receivable-balance-history/domain/balance-history-change-source';
+import { ReceivableBalanceHistoryOrmEntity } from '../src/modules/receivable-balance-history/infrastructure/receivable-balance-history.orm-entity';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { ReminderExecutionStatus } from '../src/modules/reminders/domain/reminder-execution';
 import { ReminderExecutionOrmEntity } from '../src/modules/reminders/infrastructure/reminder-execution.orm-entity';
@@ -47,6 +50,25 @@ function addDays(date: Date, days: number): Date {
 function monthStart(): Date {
   const month = formatInTimeZone(new Date(), REPORTING_TIMEZONE, 'yyyy-MM');
   return fromZonedTime(`${month}-01T00:00:00`, REPORTING_TIMEZONE);
+}
+
+function monthKeyOffset(offset: number): string {
+  const [year, month] = formatInTimeZone(
+    new Date(),
+    REPORTING_TIMEZONE,
+    'yyyy-MM',
+  )
+    .split('-')
+    .map(Number);
+  const index = year * 12 + (month - 1) - offset;
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
+}
+
+function localDateTime(monthKey: string, day: number, hour = 10): Date {
+  return fromZonedTime(
+    `${monthKey}-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:00:00`,
+    REPORTING_TIMEZONE,
+  );
 }
 
 describe('Aging dashboard reporting (integration)', () => {
@@ -343,6 +365,93 @@ describe('Aging dashboard reporting (integration)', () => {
       organizationId: otherOrgId,
       role: Role.OWNER,
     });
+
+    const twoMonthsAgo = monthKeyOffset(2);
+    const oneMonthAgo = monthKeyOffset(1);
+    const currentMonth = monthKeyOffset(0);
+    const trendReceivableOne = randomUUID();
+    const trendReceivableTwo = randomUUID();
+    await dataSource.getRepository(PaymentOrmEntity).save([
+      {
+        id: randomUUID(),
+        organizationId,
+        customerId,
+        bankTransactionId: null,
+        totalAmount: 12_000_000,
+        allocatedAmount: 0,
+        payerName: 'Trend Payer A',
+        receivedAt: localDateTime(twoMonthsAgo, 3),
+        createdAt: new Date(),
+      },
+      {
+        id: randomUUID(),
+        organizationId,
+        customerId,
+        bankTransactionId: null,
+        totalAmount: 8_000_000,
+        allocatedAmount: 0,
+        payerName: 'Trend Payer B',
+        receivedAt: localDateTime(twoMonthsAgo, 15),
+        createdAt: new Date(),
+      },
+      {
+        id: randomUUID(),
+        organizationId,
+        customerId,
+        bankTransactionId: null,
+        totalAmount: 5_000_000,
+        allocatedAmount: 0,
+        payerName: 'Trend Payer C',
+        receivedAt: new Date(),
+        createdAt: new Date(),
+      },
+    ]);
+    await dataSource.getRepository(ReceivableBalanceHistoryOrmEntity).save([
+      {
+        id: randomUUID(),
+        organizationId,
+        receivableId: trendReceivableOne,
+        status: ReceivableStatus.OPEN,
+        remainingAmount: 10_000_000,
+        effectiveAt: localDateTime(twoMonthsAgo, 10),
+        changeSource: BalanceHistoryChangeSource.CREATE,
+        changeReason: null,
+        createdAt: localDateTime(twoMonthsAgo, 10),
+      },
+      {
+        id: randomUUID(),
+        organizationId,
+        receivableId: trendReceivableOne,
+        status: ReceivableStatus.PARTIALLY_PAID,
+        remainingAmount: 4_000_000,
+        effectiveAt: localDateTime(oneMonthAgo, 10),
+        changeSource: BalanceHistoryChangeSource.ALLOCATE,
+        changeReason: 'trend-alloc-1',
+        createdAt: localDateTime(oneMonthAgo, 10),
+      },
+      {
+        id: randomUUID(),
+        organizationId,
+        receivableId: trendReceivableOne,
+        status: ReceivableStatus.PAID,
+        remainingAmount: 0,
+        effectiveAt: localDateTime(currentMonth, 2),
+        changeSource: BalanceHistoryChangeSource.ALLOCATE,
+        changeReason: 'trend-alloc-2',
+        createdAt: localDateTime(currentMonth, 2),
+      },
+      {
+        id: randomUUID(),
+        organizationId,
+        receivableId: trendReceivableTwo,
+        status: ReceivableStatus.OPEN,
+        remainingAmount: 7_000_000,
+        effectiveAt: localDateTime(currentMonth, 3),
+        changeSource: BalanceHistoryChangeSource.CREATE,
+        changeReason: null,
+        createdAt: localDateTime(currentMonth, 3),
+      },
+    ]);
   }, 60_000);
 
   afterAll(async () => {
@@ -591,5 +700,115 @@ describe('Aging dashboard reporting (integration)', () => {
       page: 1,
       limit: 20,
     });
+  });
+
+  it('rejects unauthenticated trend requests', async () => {
+    await request(app?.getHttpServer())
+      .get('/api/v1/reports/trend')
+      .expect(401);
+  });
+
+  it('returns the collected and outstanding trend for 3 months', async () => {
+    const response = await request(app?.getHttpServer())
+      .get('/api/v1/reports/trend')
+      .set('Authorization', `Bearer ${token}`)
+      .query({ months: 3 })
+      .expect(200);
+
+    const twoMonthsAgo = monthKeyOffset(2);
+    const oneMonthAgo = monthKeyOffset(1);
+    const currentMonth = monthKeyOffset(0);
+    expect(response.body.months).toBe(3);
+    expect(response.body.items).toEqual([
+      {
+        month: twoMonthsAgo,
+        outstanding: 10_000_000,
+        collected: 20_000_000,
+      },
+      {
+        month: oneMonthAgo,
+        outstanding: 4_000_000,
+        collected: 0,
+      },
+      {
+        month: currentMonth,
+        outstanding: 7_000_000,
+        collected: 5_000_000,
+      },
+    ]);
+  });
+
+  it('returns exactly 6 points with null outstanding before history coverage', async () => {
+    const response = await request(app?.getHttpServer())
+      .get('/api/v1/reports/trend')
+      .set('Authorization', `Bearer ${token}`)
+      .query({ months: 6 })
+      .expect(200);
+
+    expect(response.body.months).toBe(6);
+    expect(response.body.items).toHaveLength(6);
+    const preHistory = response.body.items.slice(0, 3);
+    expect(preHistory).toEqual([
+      { month: monthKeyOffset(5), outstanding: null, collected: 0 },
+      { month: monthKeyOffset(4), outstanding: null, collected: 0 },
+      { month: monthKeyOffset(3), outstanding: null, collected: 0 },
+    ]);
+    expect(response.body.items[3]).toMatchObject({
+      month: monthKeyOffset(2),
+      outstanding: 10_000_000,
+      collected: 20_000_000,
+    });
+  });
+
+  it('returns exactly 12 points, oldest to newest', async () => {
+    const response = await request(app?.getHttpServer())
+      .get('/api/v1/reports/trend')
+      .set('Authorization', `Bearer ${token}`)
+      .query({ months: 12 })
+      .expect(200);
+
+    expect(response.body.months).toBe(12);
+    expect(response.body.items).toHaveLength(12);
+    const keys = response.body.items.map(
+      (point: { month: string }) => point.month,
+    );
+    expect([...keys].sort()).toEqual(keys);
+    expect(response.body.items[0]).toEqual({
+      month: monthKeyOffset(11),
+      outstanding: null,
+      collected: 0,
+    });
+    expect(response.body.items[11]).toMatchObject({
+      month: monthKeyOffset(0),
+      outstanding: 7_000_000,
+      collected: 5_000_000,
+    });
+  });
+
+  it('rejects an invalid months value with VALIDATION_ERROR', async () => {
+    const response = await request(app?.getHttpServer())
+      .get('/api/v1/reports/trend')
+      .set('Authorization', `Bearer ${token}`)
+      .query({ months: 5 })
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      statusCode: 400,
+      errorCode: ErrorCode.VALIDATION_ERROR,
+    });
+  });
+
+  it('isolates trend data by organization', async () => {
+    const response = await request(app?.getHttpServer())
+      .get('/api/v1/reports/trend')
+      .set('Authorization', `Bearer ${otherOrgToken}`)
+      .query({ months: 3 })
+      .expect(200);
+
+    expect(response.body.items).toEqual([
+      { month: monthKeyOffset(2), outstanding: null, collected: 0 },
+      { month: monthKeyOffset(1), outstanding: null, collected: 0 },
+      { month: monthKeyOffset(0), outstanding: null, collected: 0 },
+    ]);
   });
 });

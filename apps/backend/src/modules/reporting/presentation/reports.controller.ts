@@ -11,9 +11,12 @@ import { AgingReportQueryService } from '../application/aging-report-query.servi
 import { CustomerAgingReportQueryService } from '../application/customer-aging-report-query.service';
 import { DashboardSummaryQueryService } from '../application/dashboard-summary-query.service';
 import { ExportAgingReportUseCase } from '../application/export-aging-report.usecase';
+import { TrendReportQueryService } from '../application/trend-report-query.service';
 import { CustomerAgingResponseDto } from './dto/customer-aging-response.dto';
 import { GetCustomerAgingQueryDto } from './dto/get-customer-aging-query.dto';
 import { GetDashboardSummaryQueryDto } from './dto/get-dashboard-summary-query.dto';
+import { GetReportsTrendQueryDto } from './dto/get-reports-trend-query.dto';
+import { ReportsTrendResponseDto } from './dto/reports-trend-response.dto';
 
 @ApiTags('reports')
 @Controller('reports')
@@ -24,6 +27,7 @@ export class ReportsController {
     private readonly dashboardSummaryQueryService: DashboardSummaryQueryService,
     private readonly exportAgingReportUseCase: ExportAgingReportUseCase,
     private readonly customerAgingReportQueryService: CustomerAgingReportQueryService,
+    private readonly trendReportQueryService: TrendReportQueryService,
   ) {}
 
   @Get('aging')
@@ -56,6 +60,19 @@ export class ReportsController {
   @RequirePermission(Permission.REPORT_READ)
   async exportAgingReport(@Res() response: Response) {
     response.send(await this.exportAgingReportUseCase.execute());
+  }
+
+  @Get('trend')
+  @ApiOperation({ summary: 'Get monthly collected and outstanding trend' })
+  @ApiOkResponse({ type: ReportsTrendResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+  )
+  @RequirePermission(Permission.REPORT_READ)
+  async getReportsTrend(@Query() query: GetReportsTrendQueryDto) {
+    return this.trendReportQueryService.getTrend(query.months);
   }
 
   @Get('dashboard-summary')

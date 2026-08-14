@@ -20,6 +20,7 @@ describe('ReportsController', () => {
       dashboardSummaryQueryService as never,
       { execute: jest.fn() } as never,
       { getCustomerAging: jest.fn() } as never,
+      { getTrend: jest.fn() } as never,
     );
 
     await expect(controller.getAgingReport()).resolves.toEqual({
@@ -37,6 +38,7 @@ describe('ReportsController', () => {
       dashboardSummaryQueryService as never,
       { execute: jest.fn() } as never,
       { getCustomerAging: jest.fn() } as never,
+      { getTrend: jest.fn() } as never,
     );
 
     await controller.getDashboardSummary({
@@ -50,8 +52,7 @@ describe('ReportsController', () => {
     });
   });
 
-  it('delegates customer aging filters to the query service', async () => {
-    const customerAgingReportQueryService = {
+  it('delegates customer aging filters to the query service', async () => {    const customerAgingReportQueryService = {
       getCustomerAging: jest.fn().mockResolvedValue({
         items: [],
         total: 0,
@@ -64,6 +65,7 @@ describe('ReportsController', () => {
       { getSummary: jest.fn() } as never,
       { execute: jest.fn() } as never,
       customerAgingReportQueryService as never,
+      { getTrend: jest.fn() } as never,
     );
 
     const result = await controller.getCustomerAging({
@@ -82,6 +84,27 @@ describe('ReportsController', () => {
       bucket: 'NOT_DUE',
     });
     expect(result).toEqual({ items: [], total: 0, page: 2, limit: 20 });
+  });
+
+  it('delegates the validated months value to the trend query service', async () => {
+    const trendReportQueryService = {
+      getTrend: jest.fn().mockResolvedValue({
+        months: 6,
+        items: [],
+      }),
+    };
+    const controller = new ReportsController(
+      { getAgingBuckets: jest.fn() } as never,
+      { getSummary: jest.fn() } as never,
+      { execute: jest.fn() } as never,
+      { getCustomerAging: jest.fn() } as never,
+      trendReportQueryService as never,
+    );
+
+    const result = await controller.getReportsTrend({ months: 6 });
+
+    expect(trendReportQueryService.getTrend).toHaveBeenCalledWith(6);
+    expect(result).toEqual({ months: 6, items: [] });
   });
 
   it('requires authentication and report read permission', () => {
@@ -105,6 +128,12 @@ describe('ReportsController', () => {
       Reflect.getMetadata(
         REQUIRED_PERMISSION_KEY,
         ReportsController.prototype.getCustomerAging,
+      ),
+    ).toBe(Permission.REPORT_READ);
+    expect(
+      Reflect.getMetadata(
+        REQUIRED_PERMISSION_KEY,
+        ReportsController.prototype.getReportsTrend,
       ),
     ).toBe(Permission.REPORT_READ);
   });
