@@ -1,6 +1,7 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { EntityManager } from 'typeorm';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import { Receivable } from '../domain/receivable';
 import { CancelReceivableUseCase } from './cancel-receivable.usecase';
 
@@ -40,18 +41,24 @@ function buildDeps(receivable: Receivable | null) {
     },
     auditContext: { setBefore: jest.fn() },
     eventPublisher: { emitAsync: jest.fn() },
+    recorder: { record: jest.fn() },
   };
+}
+
+function buildUseCase(deps: ReturnType<typeof buildDeps>) {
+  return new CancelReceivableUseCase(
+    deps.receivableRepo as any,
+    deps.dataSource as any,
+    deps.auditContext as any,
+    deps.eventPublisher as any,
+    deps.recorder as any,
+  );
 }
 
 describe('CancelReceivableUseCase', () => {
   it('cancels an unpaid receivable and emits status-closed after commit', async () => {
     const deps = buildDeps(buildReceivable());
-    const useCase = new CancelReceivableUseCase(
-      deps.receivableRepo as any,
-      deps.dataSource as any,
-      deps.auditContext as any,
-      deps.eventPublisher as any,
-    );
+    const useCase = buildUseCase(deps);
 
     const result = await useCase.execute('rec-1');
 
@@ -66,29 +73,36 @@ describe('CancelReceivableUseCase', () => {
     );
   });
 
+  it('records the cancelled receivable balance history', async () => {
+    const deps = buildDeps(buildReceivable());
+    const useCase = buildUseCase(deps);
+
+    await useCase.execute('rec-1');
+
+    expect(deps.recorder.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'rec-1',
+        status: ReceivableStatus.CANCELLED,
+      }),
+      BalanceHistoryChangeSource.CANCEL,
+      deps.manager,
+    );
+  });
+
   it('rejects a receivable that has received a payment', async () => {
     const deps = buildDeps(buildReceivable(10_000_000));
-    const useCase = new CancelReceivableUseCase(
-      deps.receivableRepo as any,
-      deps.dataSource as any,
-      deps.auditContext as any,
-      deps.eventPublisher as any,
-    );
+    const useCase = buildUseCase(deps);
 
     await expect(useCase.execute('rec-1')).rejects.toMatchObject({
       errorCode: ErrorCode.RECEIVABLE_HAS_PAYMENTS,
     });
     expect(deps.receivableRepo.save).not.toHaveBeenCalled();
+    expect(deps.recorder.record).not.toHaveBeenCalled();
   });
 
   it('rejects a missing receivable', async () => {
     const deps = buildDeps(null);
-    const useCase = new CancelReceivableUseCase(
-      deps.receivableRepo as any,
-      deps.dataSource as any,
-      deps.auditContext as any,
-      deps.eventPublisher as any,
-    );
+    const useCase = buildUseCase(deps);
 
     await expect(useCase.execute('missing')).rejects.toMatchObject({
       errorCode: ErrorCode.RECEIVABLE_NOT_FOUND,
@@ -97,16 +111,12 @@ describe('CancelReceivableUseCase', () => {
 
   it('rejects a receivable that is already closed', async () => {
     const deps = buildDeps(buildReceivable(0, ReceivableStatus.WRITTEN_OFF));
-    const useCase = new CancelReceivableUseCase(
-      deps.receivableRepo as any,
-      deps.dataSource as any,
-      deps.auditContext as any,
-      deps.eventPublisher as any,
-    );
+    const useCase = buildUseCase(deps);
 
     await expect(useCase.execute('rec-1')).rejects.toMatchObject({
       errorCode: ErrorCode.CONFLICT,
     });
     expect(deps.receivableRepo.save).not.toHaveBeenCalled();
+    expect(deps.recorder.record).not.toHaveBeenCalled();
   });
 });
