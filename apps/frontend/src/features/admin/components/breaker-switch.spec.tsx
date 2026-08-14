@@ -41,4 +41,20 @@ describe('BreakerSwitch', () => {
       'true',
     );
   });
+
+  it('provides touch and hover feedback and supports a pending state', () => {
+    render(
+      <BreakerSwitch
+        checked={false}
+        onCheckedChange={() => {}}
+        label="Lock Acme"
+        disabled
+      />,
+    );
+
+    const element = screen.getByRole('switch', { name: 'Lock Acme' });
+    expect(element).toBeDisabled();
+    expect(element).toHaveClass('touch-manipulation');
+    expect(element).toHaveClass('pointer-hover:hover:bg-accent');
+  });
 });
