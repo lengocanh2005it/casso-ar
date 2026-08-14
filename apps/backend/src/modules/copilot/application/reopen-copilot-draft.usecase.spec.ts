@@ -150,7 +150,10 @@ describe('ReopenCopilotDraftUseCase', () => {
 
   it('rejects reopening a still-PENDING draft with CONFLICT', async () => {
     const deps = buildDeps({
-      latestAction: buildAction('PENDING', '2026-08-14T09:58:00Z'),
+      latestAction: buildAction(
+        'PENDING',
+        new Date(Date.now() - 2 * 60_000).toISOString(),
+      ),
     });
     const useCase = new ReopenCopilotDraftUseCase(
       deps.draftRepo as never,
