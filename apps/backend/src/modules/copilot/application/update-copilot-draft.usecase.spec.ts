@@ -88,7 +88,7 @@ describe('UpdateCopilotDraftUseCase', () => {
         actionType: 'SEND_REMINDER_EMAIL',
         payload: { draftId: 'draft-1', receivableId: 'rec-1' },
         status: 'PENDING',
-        createdAt: new Date('2026-08-14T09:58:00Z'),
+        createdAt: new Date(Date.now() - 60_000),
         resolvedAt: null,
         resolvedByUserId: null,
       },

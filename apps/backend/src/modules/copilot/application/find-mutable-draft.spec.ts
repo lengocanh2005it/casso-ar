@@ -83,7 +83,13 @@ describe('findMutableDraft', () => {
         .fn()
         .mockResolvedValue(
           new Map([
-            ['draft-1', buildAction('PENDING', '2026-08-14T09:58:00Z')],
+            [
+              'draft-1',
+              buildAction(
+                'PENDING',
+                new Date(Date.now() - 60_000).toISOString(),
+              ),
+            ],
           ]),
         ),
     };
