@@ -43,7 +43,7 @@ export function BreakerSwitch({
       disabled={disabled}
       onClick={handleClick}
       className={cn(
-        'relative h-8 w-14 touch-manipulation rounded-full border-2 transition-colors duration-200 motion-reduce:transition-none pointer-hover:hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60',
+        'relative h-8 w-14 touch-manipulation rounded-full border-2 transition-[background-color,border-color,transform] duration-150 ease-out motion-reduce:transition-none active:scale-[0.97] pointer-hover:hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60',
         'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
         checked
           ? 'border-destructive bg-destructive/20 shadow-[0_0_10px] shadow-destructive/60'
@@ -52,7 +52,7 @@ export function BreakerSwitch({
     >
       <span
         className={cn(
-          'absolute top-0.5 size-6 rounded-full shadow transition-transform duration-200 motion-reduce:transition-none',
+          'absolute top-0.5 size-6 rounded-full shadow transition-transform duration-150 ease-out motion-reduce:transition-none',
           checked
             ? 'translate-x-6 bg-destructive'
             : 'translate-x-0.5 bg-primary',

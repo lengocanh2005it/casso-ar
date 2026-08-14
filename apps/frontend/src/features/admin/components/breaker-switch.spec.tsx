@@ -56,5 +56,13 @@ describe('BreakerSwitch', () => {
     expect(element).toBeDisabled();
     expect(element).toHaveClass('touch-manipulation');
     expect(element).toHaveClass('pointer-hover:hover:bg-accent');
+    expect(element).toHaveClass(
+      'transition-[background-color,border-color,transform]',
+    );
+    expect(element).toHaveClass(
+      'duration-150',
+      'ease-out',
+      'active:scale-[0.97]',
+    );
   });
 });
