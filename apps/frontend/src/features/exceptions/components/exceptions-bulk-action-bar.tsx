@@ -96,6 +96,7 @@ export function ExceptionsBulkActionBar({
       <Button
         variant="outline"
         size="sm"
+        className="min-w-24"
         disabled={skip.isPending}
         onClick={() =>
           skip.mutate(selectedIds, {
@@ -166,6 +167,7 @@ export function ExceptionsBulkActionBar({
           )}
           <div className="flex justify-end gap-2">
             <Button
+              className="min-w-48"
               disabled={!customerId || markPrepaid.isPending}
               onClick={() =>
                 markPrepaid.mutate(

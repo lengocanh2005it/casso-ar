@@ -36,6 +36,7 @@ export function BulkConfirmDialog({
         <div className="flex justify-end gap-2">
           <Button
             variant={confirmVariant}
+            className="min-w-48"
             disabled={isPending}
             onClick={onConfirm}
           >

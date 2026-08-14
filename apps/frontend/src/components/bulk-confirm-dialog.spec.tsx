@@ -34,6 +34,8 @@ describe('BulkConfirmDialog', () => {
         onConfirm={onConfirm}
       />,
     );
-    expect(screen.getByText('Đang xử lý…')).toBeInTheDocument();
+    const pendingButton = screen.getByRole('button', { name: 'Đang xử lý…' });
+    expect(pendingButton).toBeInTheDocument();
+    expect(pendingButton).toHaveClass('min-w-48');
   });
 });

@@ -103,9 +103,11 @@ describe('ExceptionsBulkActionBar', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Bỏ qua' }));
 
-    expect(
-      await screen.findByRole('button', { name: 'Đang xử lý…' }),
-    ).toBeDisabled();
+    const pendingButton = await screen.findByRole('button', {
+      name: 'Đang xử lý…',
+    });
+    expect(pendingButton).toBeDisabled();
+    expect(pendingButton).toHaveClass('min-w-24');
     resolveRequest({ results: [{ id: 'tx-1', status: 'success' }] });
   });
 
