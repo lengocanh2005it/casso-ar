@@ -104,6 +104,15 @@ await this.repo.findOne({ where: { id } }); // missing organizationId
 - Use Symbols for DI tokens (`export const X_REPOSITORY = Symbol('X_REPOSITORY')`)
 - Global prefix: `/api/v1`
 
+### API Docs (Swagger)
+
+- Every controller MUST carry `@ApiTags('<tag>')` — enforced by `scripts/check-controller-docs.mjs` in `pnpm verify` (arch-check)
+- New endpoints MUST add `@ApiOperation(...)` + response decorators (`@ApiOkResponse`/`@ApiCreatedResponse`) and list their error codes via `@ApiErrorResponse(ErrorCode.X)` from `src/common/swagger/api-error-response.decorator.ts`
+- HTTP status ↔ ErrorCode mapping lives in ONE place: `src/common/errors/status-by-error-code.ts` (consumed by `HttpExceptionFilter` and the docs decorator) — update it when adding a code
+- Response DTOs exposed over HTTP MUST be `class` (not `interface`) so the swagger CLI plugin (see `nest-cli.json`) documents them; files must end in `.dto.ts`
+- Docs UI: `/api/docs` (OpenAPI JSON at `/api/docs-json`) — open in dev/test, HTTP Basic Auth via `SWAGGER_USER`/`SWAGGER_PASSWORD` in production
+- File-download endpoints (CSV export) use `@ApiOkResponse({ content: { '<mime>': ... } })` — NOT `@ApiProduces`, which corrupts error-response content types
+
 ### TypeORM
 
 - Entity classes are named `XOrmEntity` (infrastructure layer)

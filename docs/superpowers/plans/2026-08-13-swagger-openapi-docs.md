@@ -1514,3 +1514,16 @@ git commit -m "docs: AGENTS.md API docs rules for Swagger"
 - **Placeholder scan:** no TBD/TODO; every code step carries real code. The one contingency (Task 5 Step 5 "missing schema") names the exact cause and fix.
 - **Type consistency:** `SWAGGER_PATH` defined in Task 3, consumed in Task 9; `STATUS_BY_ERROR_CODE` defined in Task 2, consumed in Tasks 2 and 4; `errorResponseSchema`/`ApiErrorResponse` defined in Task 4, consumed in Tasks 5–6 and 10; class DTO names consistent between Tasks 5 and 9.
 - **Known constraint surfaced:** e2e (`@swc/jest`) never sees plugin metadata — property-schema verification is manual (Task 5 Step 5); e2e asserts runtime decorators only. If the team later wants property assertions in CI, the SWC path requires `SwaggerModule.loadPluginMetadata` with a generated metadata file — explicitly out of scope here.
+
+## Execution Deviations (2026-08-14)
+
+Recorded while executing this plan; the shipped code is the source of truth where it differs:
+
+1. **`@types/express-basic-auth` does not exist on npm** — `express-basic-auth@1.2.1` ships its own `express-basic-auth.d.ts` (`users`/`challenge`/`safeCompare` covered). Nothing extra to install.
+2. **`tsconfig.build.json` (new) + Dockerfile CMD change** — the plugin's generated deep-imports (`require('../../../../../../../packages/shared-types/dist/plan-id')`) were off by one because `nest build` emitted `dist/src/...` while the plugin computes paths from `src/...`. Added the standard NestJS `tsconfig.build.json` (`include: ["src"]`, `rootDir: "src"` — explicit `rootDir` required by TS 6) so `dist/` mirrors `src/`; Dockerfile CMD updated to `apps/backend/dist/main.js`. Without this the app crashes at boot with MODULE_NOT_FOUND on every enum-typed DTO.
+3. **`@ApiProduces` corrupts error responses** — with `@ApiProduces('text/csv')` the 400 error response rendered as `content: text/csv`. Replaced with explicit `@ApiOkResponse({ content: { 'text/csv': { schema: { type: 'string', format: 'binary' } } } })`. Same guidance recorded in AGENTS.md.
+4. **`@Type(() => Number)` query params rendered as `$ref Object`** by the plugin — fixed with explicit `@ApiProperty({ type: Number, ... })` on `ListReceivablesQueryDto.page/limit` (and same pattern for any future query DTO).
+5. **Top-level OpenAPI `tags` array stays empty** — `@ApiTags` populates operation-level tags only (Swagger UI still groups correctly); e2e asserts operation tags, not the top-level array.
+6. **`pnpm-workspace.yaml`** — fixed the invalid `'@scarf/scarf': set this to true or false` placeholder (caused `ERR_PNPM_IGNORED_BUILDS`, exit 1, on every fresh-worktree install).
+7. **E2e must call `setupSwagger()` itself** — `main.ts` wiring is not visible to e2e bootstraps; `swagger-docs.e2e-spec.ts` mirrors `main.ts` (`configureApp` + `setupSwagger`). Also added `jest.setTimeout(60_000)` per repo convention (`alerts.e2e-spec.ts`).
+8. **Schema assertions read `content['application/json'].schema`** — the envelope schema nests under `content`, not at response top level.
