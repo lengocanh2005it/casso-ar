@@ -58,11 +58,10 @@ export class TypeOrmCopilotDraftRepository
   }
 
   async findAllForUser(userId: string): Promise<CopilotDraft[]> {
-    const organizationId = this.tenantContext.getOrganizationId();
-    const rows = await this.ormRepo.find({
-      where: { organizationId, userId },
-      order: { createdAt: 'DESC' },
-    });
+    const rows = await this.scopedFindMany(
+      { userId },
+      { order: { createdAt: 'DESC' } },
+    );
     return rows.map(toDomain);
   }
 }

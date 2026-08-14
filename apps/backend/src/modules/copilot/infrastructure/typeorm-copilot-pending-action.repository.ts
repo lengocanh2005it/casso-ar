@@ -119,6 +119,9 @@ export class TypeOrmCopilotPendingActionRepository
     const map = new Map<string, CopilotPendingAction>();
     if (draftIds.length === 0) return map;
 
+    // Filters on a JSONB path (payload->>'draftId'), which FindOptionsWhere
+    // can't express — BaseRepository's scopedFindMany/scopedFindOne don't
+    // apply here, so organizationId is added manually below instead.
     const organizationId = this.tenantContext.getOrganizationId();
     const rows = await this.ormRepo
       .createQueryBuilder('action')
