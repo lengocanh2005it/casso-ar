@@ -113,7 +113,8 @@ await this.repo.findOne({ where: { id } }); // missing organizationId
 - Every controller MUST carry `@ApiTags('<tag>')` — enforced by `scripts/check-controller-docs.mjs` in `pnpm verify` (arch-check)
 - New endpoints MUST add `@ApiOperation(...)` + response decorators (`@ApiOkResponse`/`@ApiCreatedResponse`) and list their error codes via `@ApiErrorResponse(ErrorCode.X)` from `src/common/swagger/api-error-response.decorator.ts`
 - HTTP status ↔ ErrorCode mapping lives in ONE place: `src/common/errors/status-by-error-code.ts` (consumed by `HttpExceptionFilter` and the docs decorator) — update it when adding a code
-- Response DTOs exposed over HTTP MUST be `class` (not `interface`) so the swagger CLI plugin (see `nest-cli.json`) documents them; files must end in `.dto.ts`
+- Response DTOs exposed over HTTP MUST be `class` (not `interface`) so the swagger CLI plugin (see `nest-cli.json`) documents them; files must end in `.dto.ts` (this includes query-param DTOs — a `.query.ts` suffix is invisible to the plugin)
+- Query DTO fields using `@Type(() => Number)` render as a broken `$ref: Object` schema — add explicit `@ApiProperty({ type: Number, ... })` alongside it
 - Docs UI: `/api/docs` (OpenAPI JSON at `/api/docs-json`) — open in dev/test, HTTP Basic Auth via `SWAGGER_USER`/`SWAGGER_PASSWORD` in production
 - File-download endpoints (CSV export) use `@ApiOkResponse({ content: { '<mime>': ... } })` — NOT `@ApiProduces`, which corrupts error-response content types
 
