@@ -72,6 +72,7 @@ export class DraftReminderEmailTool {
   async execute(
     input: { receivableId: string; tone?: 'polite' | 'urgent' },
     organizationId: string,
+    userId: string,
   ): Promise<DraftReminderEmailResult> {
     const receivable = await this.receivableRepo.findById(input.receivableId);
     if (!receivable) {
@@ -118,6 +119,7 @@ export class DraftReminderEmailTool {
     await this.draftRepo.save({
       id: draftId,
       organizationId,
+      userId,
       receivableId: receivable.id,
       recipientEmail: customer.email,
       subject,
