@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,11 +36,13 @@ function isAgingBucket(value: string | null): value is AgingBucket {
   return AGING_BUCKET_ORDER.some((bucket) => bucket === value);
 }
 
+function isTrendMonths(value: number): value is TrendMonths {
+  return TREND_MONTHS.some((months) => months === value);
+}
+
 function parseTrendMonths(value: string | null): TrendMonths {
   const parsed = Number(value ?? '12');
-  return TREND_MONTHS.includes(parsed as TrendMonths)
-    ? (parsed as TrendMonths)
-    : 12;
+  return isTrendMonths(parsed) ? parsed : 12;
 }
 
 export function ReportsPage() {
@@ -108,6 +111,22 @@ export function ReportsPage() {
       next.set('agingPage', String(nextPage));
     });
   }
+
+  useEffect(() => {
+    if (
+      !customerAgingQuery.data ||
+      customerAgingQuery.data.total === 0 ||
+      agingPage <= agingTotalPages
+    ) {
+      return;
+    }
+
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.set('agingPage', String(agingTotalPages));
+      return next;
+    });
+  }, [agingPage, agingTotalPages, customerAgingQuery.data, setSearchParams]);
 
   function setTrendMonths(months: TrendMonths) {
     updateAgingParams((next) => {
@@ -190,6 +209,7 @@ export function ReportsPage() {
             </p>
           )}
           {customerAgingQuery.data &&
+            customerAgingQuery.data.total === 0 &&
             customerAgingQuery.data.items.length === 0 && (
               <p className="text-muted-foreground">
                 Không có khách hàng nào có công nợ hiện tại.
@@ -231,9 +251,12 @@ export function ReportsPage() {
           <CardTitle>Xu hướng công nợ và thu hồi</CardTitle>
           <Select
             value={String(trendMonths)}
-            onValueChange={(value) =>
-              setTrendMonths(Number(value) as TrendMonths)
-            }
+            onValueChange={(value) => {
+              const months = Number(value);
+              if (isTrendMonths(months)) {
+                setTrendMonths(months);
+              }
+            }}
           >
             <SelectTrigger aria-label="Khoảng thời gian" className="w-40">
               <SelectValue placeholder="12 tháng" />

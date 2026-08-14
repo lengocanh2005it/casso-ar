@@ -26,6 +26,15 @@ export const AGING_BUCKET_LABELS: Record<AgingBucket, string> = {
 
 export type AgingBucketFilter = AgingBucket | 'ALL';
 
+const AGING_BUCKET_FILTER_VALUES = new Set<string>([
+  'ALL',
+  ...AGING_BUCKET_ORDER,
+]);
+
+function isAgingBucketFilter(value: string): value is AgingBucketFilter {
+  return AGING_BUCKET_FILTER_VALUES.has(value);
+}
+
 interface CustomerAgingFiltersProps {
   search: string;
   bucket: AgingBucketFilter;
@@ -50,7 +59,9 @@ export function CustomerAgingFilters({
       />
       <Select
         value={bucket}
-        onValueChange={(value) => onBucketChange(value as AgingBucketFilter)}
+        onValueChange={(value) => {
+          if (isAgingBucketFilter(value)) onBucketChange(value);
+        }}
       >
         <SelectTrigger aria-label="Bộ lọc tuổi nợ" className="w-56">
           <SelectValue placeholder="Tất cả" />

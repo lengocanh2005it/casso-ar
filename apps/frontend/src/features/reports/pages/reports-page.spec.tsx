@@ -315,4 +315,30 @@ describe('ReportsPage', () => {
       ).toBeTruthy(),
     );
   });
+
+  it('resets an out-of-range customer aging page instead of showing a false empty state', async () => {
+    mockReports();
+    const defaultImplementation = apiRequest.getMockImplementation();
+    apiRequest.mockImplementation(
+      ({ url, params }: { url: string; params?: { page?: number } }) => {
+        if (url === '/api/v1/reports/aging/customers' && params?.page === 3) {
+          return Promise.resolve({ items: [], total: 2, page: 3, limit: 20 });
+        }
+        return defaultImplementation?.({ url, params });
+      },
+    );
+    renderPage(['/reports?agingPage=3']);
+
+    await waitFor(() => {
+      expect(
+        customerAgingCalls().some(
+          ([options]) =>
+            (options as { params: { page: number } }).params.page === 1,
+        ),
+      ).toBe(true);
+    });
+    expect(
+      screen.queryByText('Không có khách hàng nào có công nợ hiện tại.'),
+    ).toBeNull();
+  });
 });

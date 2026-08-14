@@ -10,12 +10,13 @@ import {
 import { formatVND } from '@/lib/format';
 import type { ReportsTrend } from '../types';
 
-function monthLabel(key: string): string {
+export function formatTrendMonthLabel(key: string, isCurrent = false): string {
   const [year, month] = key.split('-');
-  return `Tháng ${Number(month)}/${year}`;
+  return `Tháng ${Number(month)}/${year}${isCurrent ? ' (tạm tính)' : ''}`;
 }
 
 export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {
+  const currentMonth = trend.items.at(-1)?.month;
   const hasUnavailablePoints = trend.items.some(
     (point) => point.outstanding === null,
   );
@@ -37,7 +38,9 @@ export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {
               dataKey="month"
               tickLine={false}
               axisLine={false}
-              tickFormatter={(value: string) => monthLabel(value)}
+              tickFormatter={(value: string) =>
+                formatTrendMonthLabel(value, value === currentMonth)
+              }
             />
             <YAxis
               tickLine={false}
@@ -47,7 +50,10 @@ export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {
               }
             />
             <Tooltip
-              labelFormatter={(label) => monthLabel(String(label))}
+              labelFormatter={(label) => {
+                const month = String(label);
+                return formatTrendMonthLabel(month, month === currentMonth);
+              }}
               formatter={(value) =>
                 value === null || value === undefined
                   ? 'Chưa có dữ liệu'
