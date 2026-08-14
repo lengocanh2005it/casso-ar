@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import * as adminApi from '../api/admin-api';
 import { AdminOrganizationsPage } from './admin-organizations-page';
 

@@ -89,6 +89,29 @@ const SettingsPage = lazy(() =>
     default: m.SettingsPage,
   })),
 );
+const AdminLoginPage = lazy(() =>
+  import('@/features/admin/pages/admin-login-page').then((m) => ({
+    default: m.AdminLoginPage,
+  })),
+);
+const AdminDashboardPage = lazy(() =>
+  import('@/features/admin/pages/admin-dashboard-page').then((m) => ({
+    default: m.AdminDashboardPage,
+  })),
+);
+const AdminOrganizationsPage = lazy(() =>
+  import('@/features/admin/pages/admin-organizations-page').then((m) => ({
+    default: m.AdminOrganizationsPage,
+  })),
+);
+const AdminAiUsagePage = lazy(() =>
+  import('@/features/admin/pages/admin-ai-usage-page').then((m) => ({
+    default: m.AdminAiUsagePage,
+  })),
+);
+
+import { AdminLayout } from '@/components/layout/admin-layout';
+import { AdminRoute } from './admin-route';
 
 function withPageSuspense(element: ReactNode): ReactNode {
   return (
@@ -130,6 +153,35 @@ export const authRoutes: RouteObject[] = [
   {
     path: 'invite-accept',
     element: <GuestRoute>{withPageSuspense(<InviteAcceptPage />)}</GuestRoute>,
+  },
+];
+
+export const adminRoutes: RouteObject[] = [
+  {
+    path: 'admin/login',
+    element: withPageSuspense(<AdminLoginPage />),
+  },
+  {
+    path: 'admin',
+    element: (
+      <AdminRoute>
+        <AdminLayout />
+      </AdminRoute>
+    ),
+    children: [
+      {
+        path: 'dashboard',
+        element: withPageSuspense(<AdminDashboardPage />),
+      },
+      {
+        path: 'organizations',
+        element: withPageSuspense(<AdminOrganizationsPage />),
+      },
+      {
+        path: 'ai-usage',
+        element: withPageSuspense(<AdminAiUsagePage />),
+      },
+    ],
   },
 ];
 
