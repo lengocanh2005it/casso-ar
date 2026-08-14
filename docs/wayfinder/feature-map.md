@@ -89,7 +89,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - Cas ID OAuth flow details (grant → link → publicToken → accessToken)
 - Resend email provider configuration
 - Frontend design tokens (oklch colors, "Be Vietnam Pro" font)
-- **Casso Admin Platform** (2026-08-09): a cross-organization admin panel for Casso's own operators — not an org-scoped feature like the Reports dashboard (Plan #15/#21). Needs a new superadmin role/concept (outside the existing 5-role RBAC, which is scoped per-organization) and queries that intentionally cross tenant isolation. Mentioned use cases so far: locking/unlocking organizations, and — once built — surfacing `AIUsageLog` (Plan #16) for cross-org AI cost/usage monitoring; `AIUsageLog` already captures everything this would need (model, tokens, latency, errors, per organizationId), no schema change required to support it later. No spec/plan/brainstorming session yet — needs `domain-modeling` before any implementation starts.
+- **Casso Admin Platform (#98)**: cross-organization operator console; implementation is in progress on draft PR #177 (branch `lengocanh2005it/issue-98-operator-domain-model`).
 
 ## Out of scope
 
@@ -723,10 +723,10 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Frontier
 
-**Current status (2026-08-14):** Copilot Draft Library (#136) and its edit/delete follow-up (#171) are done; the map now tracks 32 completed tickets. Three unrelated e2e failures are deferred to a separate issue.
+**Current status (2026-08-15):** Casso Admin Platform (#98) is in progress on draft PR #177; Copilot Draft Library (#136) and its edit/delete follow-up (#171) are done. Three unrelated e2e failures are deferred to a separate issue.
 
 **In progress:**
-- None
+- Casso Admin Platform (#98) — draft PR #177, branch `lengocanh2005it/issue-98-operator-domain-model`
 
 **Next available tickets** (all blockers resolved):
 - None — every tracked ticket is done.
