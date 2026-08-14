@@ -4,7 +4,7 @@ import type {
   InternalTaskType,
 } from '../../domain/internal-task';
 
-export interface InternalTaskResponseDto {
+export class InternalTaskResponseDto {
   id: string;
   receivableId: string;
   assignedToUserId: string;
@@ -16,6 +16,13 @@ export interface InternalTaskResponseDto {
   status: InternalTaskStatus;
   createdAt: Date;
   resolvedAt: Date | null;
+}
+
+export class ListInternalTasksResponseDto {
+  items: InternalTaskResponseDto[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export function toInternalTaskResponse(
