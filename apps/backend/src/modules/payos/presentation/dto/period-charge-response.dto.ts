@@ -1,3 +1,3 @@
-export interface PeriodChargeResponseDto {
+export class PeriodChargeResponseDto {
   checkoutUrl: string;
 }
