@@ -1,6 +1,7 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { BulkConfirmDialog } from '@/components/bulk-confirm-dialog';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -21,8 +22,14 @@ import { useAuth } from '@/contexts/auth-context';
 import { useCustomers } from '@/features/customers/api/use-customers';
 import type { BatchItemResult } from '@/lib/batch-types';
 import { summarizeBatchResults } from '@/lib/batch-types';
+import { formatVND } from '@/lib/format';
 import { hasPermission } from '@/lib/rbac';
-import { useBatchMarkPrepaid, useBatchSkip } from '../api/use-exceptions';
+import {
+  useBatchApproveMatch,
+  useBatchMarkPrepaid,
+  useBatchSkip,
+} from '../api/use-exceptions';
+import { BULK_APPROVE_THRESHOLD } from '../constants';
 import type { BankTransaction, PendingReviewItem } from '../types';
 
 function reportResults(
@@ -50,17 +57,30 @@ export function ExceptionsBulkActionBar({
   selectedIds: string[];
   onResult: (succeeded: string[], failed: string[]) => void;
 }) {
-  void items;
   const { user } = useAuth();
   const skip = useBatchSkip();
   const markPrepaid = useBatchMarkPrepaid();
+  const approveMatch = useBatchApproveMatch();
   const [prepaidOpen, setPrepaidOpen] = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerId, setCustomerId] = useState('');
   const { data: customerPage } = useCustomers(
     customerSearch,
     1,
     prepaidOpen && customerSearch.trim().length > 0,
+  );
+  const selectedItems = items.filter((item) =>
+    selectedIds.includes(item.transaction.id),
+  );
+  const approvableItems = selectedItems.filter(
+    (item) =>
+      item.topCandidate &&
+      item.topCandidate.totalScore >= BULK_APPROVE_THRESHOLD,
+  );
+  const approveTotal = approvableItems.reduce(
+    (sum, item) => sum + item.transaction.amount,
+    0,
   );
 
   if (!hasPermission(user?.role ?? null, Permission.PAYMENT_ALLOCATE)) {
@@ -87,6 +107,14 @@ export function ExceptionsBulkActionBar({
       </Button>
       <Button variant="outline" size="sm" onClick={() => setPrepaidOpen(true)}>
         Ghi nhận công nợ
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={approvableItems.length === 0}
+        onClick={() => setApproveOpen(true)}
+      >
+        Khớp giao dịch được gợi ý ({approvableItems.length})
       </Button>
 
       <Dialog open={prepaidOpen} onOpenChange={setPrepaidOpen}>
@@ -157,6 +185,36 @@ export function ExceptionsBulkActionBar({
           </div>
         </DialogContent>
       </Dialog>
+      <BulkConfirmDialog
+        open={approveOpen}
+        onOpenChange={setApproveOpen}
+        title={`Khớp giao dịch được gợi ý cho ${approvableItems.length} giao dịch`}
+        description={`Tổng số tiền sẽ được phân bổ: ${formatVND(approveTotal)}. Chỉ áp dụng cho giao dịch có gợi ý khớp với độ tin cậy ≥ ${BULK_APPROVE_THRESHOLD}/100.`}
+        confirmLabel="Xác nhận khớp giao dịch"
+        isPending={approveMatch.isPending}
+        onConfirm={() =>
+          approveMatch.mutate(
+            approvableItems.map((item) => ({
+              bankTransactionId: item.transaction.id,
+              allocations: [
+                {
+                  receivableId: item.topCandidate?.receivableId ?? '',
+                  amount: item.transaction.amount,
+                },
+              ],
+              version: item.transaction.version,
+            })),
+            {
+              onSuccess: (data: {
+                results: BatchItemResult<BankTransaction>[];
+              }) => {
+                reportResults('giao dịch', data.results, onResult);
+                setApproveOpen(false);
+              },
+            },
+          )
+        }
+      />
     </div>
   );
 }

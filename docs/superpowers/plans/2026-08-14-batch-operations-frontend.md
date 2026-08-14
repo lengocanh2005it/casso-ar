@@ -862,7 +862,7 @@ git commit -m "feat: add Skip and Ghi nhận công nợ to exceptions bulk actio
 **Interfaces:**
 - Consumes: `useBatchApproveMatch` (Task 4), `BulkConfirmDialog` (Task 3), `BULK_APPROVE_THRESHOLD` (Task 4), `formatVND` (existing, `@/lib/format`).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `apps/frontend/src/features/exceptions/components/exceptions-bulk-action-bar.spec.tsx`:
 
@@ -950,12 +950,12 @@ it('only enables approve-match for rows at or above the confidence threshold, an
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @casso-ledger/frontend test -- exceptions-bulk-action-bar`
 Expected: FAIL — no button named "Khớp giao dịch được gợi ý (1)" exists yet
 
-- [ ] **Step 3: Extend the implementation**
+- [x] **Step 3: Extend the implementation**
 
 Modify `apps/frontend/src/features/exceptions/components/exceptions-bulk-action-bar.tsx`:
 
@@ -1028,17 +1028,17 @@ import { BULK_APPROVE_THRESHOLD } from '../constants';
       />
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm --filter @casso-ledger/frontend test -- exceptions-bulk-action-bar`
 Expected: PASS (2 tests)
 
-- [ ] **Step 5: Type-check**
+- [x] **Step 5: Type-check**
 
 Run: `pnpm --filter @casso-ledger/frontend type-check`
 Expected: PASS, no type errors
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/frontend/src/features/exceptions/components/exceptions-bulk-action-bar.tsx apps/frontend/src/features/exceptions/components/exceptions-bulk-action-bar.spec.tsx
