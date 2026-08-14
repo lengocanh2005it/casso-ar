@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CopilotPage } from './copilot-page';
 
 const { apiRequest, mockUseAuth } = vi.hoisted(() => ({
@@ -37,6 +37,13 @@ const USAGE = {
 };
 
 describe('CopilotPage', () => {
+  beforeEach(() => {
+    apiRequest.mockReset();
+    mockUseAuth.mockReturnValue({
+      user: { role: 'FINANCE_MANAGER', subscriptionPlan: 'STARTER' },
+    });
+  });
+
   it('shows a pending action card and confirms it via the pure-code endpoint', async () => {
     apiRequest.mockResolvedValueOnce(USAGE).mockResolvedValueOnce({
       message: {
@@ -146,6 +153,11 @@ describe('CopilotPage', () => {
         screen.getByText(/nhắc thanh toán abc company/i),
       ).toBeInTheDocument(),
     );
+    expect(screen.getByText(/nhắc thanh toán abc company/i)).toHaveClass(
+      'min-w-0',
+      'break-words',
+    );
+    expect(screen.getByText('ap@abc.vn')).toHaveClass('break-words');
     expect(apiRequest).toHaveBeenCalledWith(
       expect.objectContaining({ url: '/api/v1/copilot/drafts' }),
     );
@@ -208,7 +220,14 @@ describe('CopilotPage', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /sửa|edit/i }));
+    expect(screen.getByRole('dialog')).toHaveClass('overscroll-contain');
     const subjectInput = await screen.findByLabelText(/tiêu đề/i);
+    expect(subjectInput).toHaveAttribute('name', 'subject');
+    expect(subjectInput).toHaveAttribute('autocomplete', 'off');
+    expect(screen.getByLabelText(/nội dung html/i)).toHaveAttribute(
+      'name',
+      'bodyHtml',
+    );
     fireEvent.change(subjectInput, {
       target: { value: 'Tiêu đề đã sửa' },
     });
@@ -221,6 +240,93 @@ describe('CopilotPage', () => {
           method: 'PATCH',
         }),
       ),
+    );
+  });
+
+  it('shows inline validation and focuses the missing subject', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { role: 'FINANCE_MANAGER', subscriptionPlan: 'STARTER' },
+    });
+    apiRequest.mockResolvedValueOnce(USAGE).mockResolvedValueOnce({
+      items: [
+        {
+          id: 'draft-1',
+          receivableId: 'rec-1',
+          recipientEmail: 'ap@abc.vn',
+          subject: 'Nhắc thanh toán ABC Company',
+          bodyHtml: '<p>...</p>',
+          status: 'CANCELLED',
+          pendingActionId: null,
+          createdAt: '2026-08-14T08:00:00Z',
+        },
+      ],
+      total: 1,
+    });
+
+    renderPage();
+
+    fireEvent.mouseDown(screen.getByRole('tab', { name: /drafts/i }));
+    await waitFor(() =>
+      expect(
+        screen.getByText(/nhắc thanh toán abc company/i),
+      ).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /sửa|edit/i }));
+    const subjectInput = await screen.findByLabelText(/tiêu đề/i);
+    fireEvent.change(subjectInput, { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /lưu/i }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/tiêu đề/i);
+    expect(document.activeElement).toBe(subjectInput);
+  });
+
+  it('keeps the delete confirmation pending until the request resolves', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { role: 'FINANCE_MANAGER', subscriptionPlan: 'STARTER' },
+    });
+    let resolveDelete: (value: { success: boolean }) => void = () => {};
+    const deleteResponse = new Promise<{ success: boolean }>((resolve) => {
+      resolveDelete = resolve;
+    });
+    apiRequest
+      .mockResolvedValueOnce(USAGE)
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: 'draft-1',
+            receivableId: 'rec-1',
+            recipientEmail: 'ap@abc.vn',
+            subject: 'Nhắc thanh toán ABC Company',
+            bodyHtml: '<p>...</p>',
+            status: 'CANCELLED',
+            pendingActionId: null,
+            createdAt: '2026-08-14T08:00:00Z',
+          },
+        ],
+        total: 1,
+      })
+      .mockReturnValueOnce(deleteResponse)
+      .mockResolvedValueOnce({ items: [], total: 0 });
+
+    renderPage();
+
+    fireEvent.mouseDown(screen.getByRole('tab', { name: /drafts/i }));
+    await waitFor(() =>
+      expect(
+        screen.getByText(/nhắc thanh toán abc company/i),
+      ).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa' }));
+    expect(screen.getByRole('alertdialog')).toHaveClass('overscroll-contain');
+    fireEvent.click(screen.getByRole('button', { name: /xác nhận/i }));
+
+    expect(screen.getByRole('button', { name: /đang xóa/i })).toBeDisabled();
+
+    resolveDelete({ success: true });
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /đang xóa/i })).toBeNull(),
     );
   });
 });
