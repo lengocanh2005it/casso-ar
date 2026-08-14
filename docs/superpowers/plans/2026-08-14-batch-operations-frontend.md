@@ -33,7 +33,7 @@
 
 **Context:** `radix-ui` (unified package, version 1.1.1) is already a dependency — see `apps/frontend/src/components/ui/select.tsx` and `dialog.tsx` for the exact import style (`import { X as XPrimitive } from 'radix-ui'`). No new dependency needed. This file is a straight shadcn-CLI-style primitive copy; per `.claude/rules/frontend.md` ("shadcn/ui primitives (copy from CLI, don't modify)") and the fact that no other `components/ui/*.tsx` file in this repo has a matching `.spec.tsx`, this task has no test step.
 
-- [ ] **Step 1: Write the component**
+- [x] **Step 1: Write the component**
 
 ```tsx
 // apps/frontend/src/components/ui/checkbox.tsx
@@ -70,12 +70,12 @@ function Checkbox({
 export { Checkbox };
 ```
 
-- [ ] **Step 2: Type-check**
+- [x] **Step 2: Type-check**
 
 Run: `pnpm --filter @casso-ledger/frontend type-check`
 Expected: PASS, no type errors
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add apps/frontend/src/components/ui/checkbox.tsx
