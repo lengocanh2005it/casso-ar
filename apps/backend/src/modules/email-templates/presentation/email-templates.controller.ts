@@ -11,22 +11,33 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  ApiCreatedResponse,
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   AuditActionType,
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
+import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { CreateEmailTemplateUseCase } from '../application/create-email-template.usecase';
 import { DeleteEmailTemplateUseCase } from '../application/delete-email-template.usecase';
 import { ListEmailTemplatesUseCase } from '../application/list-email-templates.usecase';
 import { PreviewEmailTemplateUseCase } from '../application/preview-email-template.usecase';
 import { UpdateEmailTemplateUseCase } from '../application/update-email-template.usecase';
 import { CreateEmailTemplateDto } from './dto/create-email-template.dto';
-import { toEmailTemplateResponse } from './dto/email-template-response.dto';
+import {
+  EmailTemplateResponseDto,
+  toEmailTemplateResponse,
+} from './dto/email-template-response.dto';
 import { UpdateEmailTemplateDto } from './dto/update-email-template.dto';
 
 @ApiTags('email-templates')
@@ -43,6 +54,8 @@ export class EmailTemplatesController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: 'List email templates' })
+  @ApiOkResponse({ type: [EmailTemplateResponseDto] })
   @RequirePermission(Permission.EMAIL_TEMPLATE_READ)
   async list(@Query('page') page?: string, @Query('limit') limit?: string) {
     const templates = await this.listEmailTemplatesUseCase.execute({
@@ -53,6 +66,13 @@ export class EmailTemplatesController {
   }
 
   @Post()
+  @ApiOperation({ summary: 'Create an email template' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: EmailTemplateResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @Audited(
     AuditActionType.EMAIL_TEMPLATE_CREATE,
     AuditEntityType.EMAIL_TEMPLATE,
@@ -79,6 +99,14 @@ export class EmailTemplatesController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Update an email template' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiOkResponse({ type: EmailTemplateResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @Audited(
     AuditActionType.EMAIL_TEMPLATE_UPDATE,
     AuditEntityType.EMAIL_TEMPLATE,
@@ -105,6 +133,22 @@ export class EmailTemplatesController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Delete an email template' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiOkResponse({
+    description: 'Template deleted',
+    schema: {
+      type: 'object',
+      properties: { success: { type: 'boolean', example: true } },
+    },
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+    ErrorCode.TEMPLATE_IN_USE,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @Audited(
     AuditActionType.EMAIL_TEMPLATE_DELETE,
     AuditEntityType.EMAIL_TEMPLATE,
@@ -126,6 +170,19 @@ export class EmailTemplatesController {
   }
 
   @Post(':id/preview')
+  @ApiOperation({ summary: 'Render an email template preview' })
+  @ApiCreatedResponse({
+    description: 'Rendered subject and body',
+    schema: {
+      type: 'object',
+      required: ['subject', 'bodyHtml'],
+      properties: {
+        subject: { type: 'string' },
+        bodyHtml: { type: 'string' },
+      },
+    },
+  })
+  @ApiErrorResponse(ErrorCode.NOT_FOUND)
   @RequirePermission(Permission.EMAIL_TEMPLATE_READ)
   async preview(@Param('id') id: string) {
     return this.previewEmailTemplateUseCase.execute(id);

@@ -1,6 +1,6 @@
 import type { EmailTemplate } from '../../domain/email-template';
 
-export interface EmailTemplateResponseDto {
+export class EmailTemplateResponseDto {
   id: string;
   name: string;
   subject: string;
