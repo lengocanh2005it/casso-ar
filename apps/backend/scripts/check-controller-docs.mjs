@@ -3,7 +3,11 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const API_TAGS_IMPORT = /import\s*\{[^}]*ApiTags[^}]*\}\s*from\s*['"]@nestjs\/swagger['"]/;
-const API_TAGS_DECORATOR = /@ApiTags\(\s*['"][^'"]+['"]\s*\)/;
+// @ApiTags must sit above the controller class decorator — a tag buried in a
+// comment or on a method does not satisfy the requirement. Other decorators
+// (e.g. @Public()) may sit between @ApiTags and @Controller.
+const API_TAGS_ON_CONTROLLER =
+  /@ApiTags\(\s*['"][^'"]+['"]\s*\)(?:\s*\n\s*@\w+(?:\([^)]*\))?)*\s*\n\s*@Controller\(/;
 
 function collectControllerFiles(dir) {
   const files = [];
@@ -30,7 +34,7 @@ export function findControllerDocsViolations(sourceRoot) {
       const content = readFileSync(file, 'utf8');
       if (
         !API_TAGS_IMPORT.test(content) ||
-        !API_TAGS_DECORATOR.test(content)
+        !API_TAGS_ON_CONTROLLER.test(content)
       ) {
         violations.push(file);
       }

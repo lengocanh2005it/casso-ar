@@ -30,6 +30,18 @@ test('flags controllers without @ApiTags', (t) => {
   ]);
 });
 
+test('flags controllers whose @ApiTags is not directly above @Controller', (t) => {
+  const sourceRoot = createFixture({
+    'modules/customers/presentation/customers.controller.ts':
+      "import { ApiTags } from '@nestjs/swagger';\nimport { Controller, Get } from '@nestjs/common';\n@Controller('customers')\nexport class CustomersController {\n  @Get()\n  @ApiTags('customers')\n  list() {}\n}\n",
+  });
+  t.after(() => rmSync(sourceRoot, { recursive: true, force: true }));
+
+  assert.deepEqual(findControllerDocsViolations(sourceRoot), [
+    join(sourceRoot, 'modules/customers/presentation/customers.controller.ts'),
+  ]);
+});
+
 test('ignores spec files and non-controller files', (t) => {
   const sourceRoot = createFixture({
     'modules/customers/presentation/customers.controller.spec.ts':

@@ -22,7 +22,7 @@ describe('errorResponseSchema', () => {
 });
 
 describe('ApiErrorResponse', () => {
-  it('attaches one @ApiResponse per unique HTTP status', () => {
+  it('attaches one @ApiResponse per HTTP status, listing all codes', () => {
     class TestController {
       @ApiErrorResponse(
         ErrorCode.NOT_FOUND,
@@ -38,11 +38,15 @@ describe('ApiErrorResponse', () => {
     );
 
     expect(Object.keys(responses).sort()).toEqual(['400', '404']);
+    expect(responses['400'].description).toBe('VALIDATION_ERROR');
     expect(responses['400'].schema.properties.errorCode.example).toBe(
       ErrorCode.VALIDATION_ERROR,
     );
+    expect(responses['404'].description).toBe(
+      'NOT_FOUND | RECEIVABLE_NOT_FOUND',
+    );
     expect(responses['404'].schema.properties.errorCode.example).toBe(
-      ErrorCode.RECEIVABLE_NOT_FOUND,
+      ErrorCode.NOT_FOUND,
     );
   });
 

@@ -22,16 +22,22 @@ export function errorResponseSchema(errorCode: ErrorCode) {
 export function ApiErrorResponse(...errorCodes: ErrorCode[]): MethodDecorator {
   const statusFor = (code: ErrorCode): number =>
     STATUS_BY_ERROR_CODE[code] ?? 500;
-  const deduped = [
-    ...new Map(errorCodes.map((code) => [statusFor(code), code])).values(),
-  ];
+
+  // One @ApiResponse per HTTP status (OpenAPI allows a single response per
+  // status). All codes that map to the same status are listed in the
+  // description; the schema example uses the first code of the group.
+  const byStatus = new Map<number, ErrorCode[]>();
+  for (const code of errorCodes) {
+    const status = statusFor(code);
+    byStatus.set(status, [...(byStatus.get(status) ?? []), code]);
+  }
 
   return applyDecorators(
-    ...deduped.map((code) =>
+    ...[...byStatus.entries()].map(([status, codes]) =>
       ApiResponse({
-        status: statusFor(code),
-        description: code,
-        schema: errorResponseSchema(code),
+        status,
+        description: codes.join(' | '),
+        schema: errorResponseSchema(codes[0]),
       }),
     ),
   );

@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { RequestHandler } from 'express';
 import expressBasicAuth from 'express-basic-auth';
 import {
   getSwaggerBasicAuthUsers,
@@ -9,18 +10,27 @@ import {
 
 export const SWAGGER_PATH = '/api/docs';
 
+/**
+ * Protects both /api/docs (UI) and /api/docs-json (spec) — with
+ * express/path-to-regexp v8 a '/api/docs' prefix mount does NOT match
+ * '/api/docs-json', so both paths must be mounted explicitly.
+ * express-basic-auth compares credentials in constant time.
+ */
+export function buildSwaggerAuthMiddleware(
+  config: ConfigService,
+): RequestHandler {
+  const { user, password } = getSwaggerBasicAuthUsers(config);
+  return expressBasicAuth({ challenge: true, users: { [user]: password } });
+}
+
 export function setupSwagger(
   app: INestApplication,
   config: ConfigService,
 ): void {
   if (shouldProtectSwagger(config.get<string>('NODE_ENV', 'development'))) {
-    const { user, password } = getSwaggerBasicAuthUsers(config);
-    // Path-prefix mount: protects both /api/docs and /api/docs-json.
-    // express-basic-auth compares credentials in constant time.
-    app.use(
-      SWAGGER_PATH,
-      expressBasicAuth({ challenge: true, users: { [user]: password } }),
-    );
+    const middleware = buildSwaggerAuthMiddleware(config);
+    app.use(SWAGGER_PATH, middleware);
+    app.use(`${SWAGGER_PATH}-json`, middleware);
   }
 
   const document = SwaggerModule.createDocument(
