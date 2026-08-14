@@ -47,7 +47,7 @@ export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {
               }
             />
             <Tooltip
-              labelFormatter={(label: string) => monthLabel(label)}
+              labelFormatter={(label) => monthLabel(String(label))}
               formatter={(value) =>
                 value === null || value === undefined
                   ? 'Chưa có dữ liệu'
