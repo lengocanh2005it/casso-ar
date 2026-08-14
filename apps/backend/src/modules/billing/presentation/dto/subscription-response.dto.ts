@@ -1,7 +1,7 @@
 import type { PlanId, SubscriptionStatus } from '@casso-ledger/shared-types';
 import type { Subscription } from '../../domain/subscription';
 
-export interface SubscriptionResponseDto {
+export class SubscriptionResponseDto {
   id: string;
   planId: PlanId;
   receivableMonthlyLimit: number;
