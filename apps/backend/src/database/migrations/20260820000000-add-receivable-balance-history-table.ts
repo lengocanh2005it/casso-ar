@@ -24,7 +24,7 @@ export class AddReceivableBalanceHistoryTable20260820000000
       CREATE TABLE IF NOT EXISTS "receivable_balance_history" (
         "id" uuid NOT NULL,
         "organizationId" character varying NOT NULL,
-        "receivableId" character varying NOT NULL,
+        "receivableId" uuid NOT NULL,
         "status" "receivable_balance_history_status_enum" NOT NULL,
         "remainingAmount" bigint NOT NULL,
         "effectiveAt" TIMESTAMP WITH TIME ZONE NOT NULL,

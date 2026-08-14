@@ -213,6 +213,15 @@ describe('Receivable balance history (integration)', () => {
   });
 
   describe('write path', () => {
+    it('stores receivableId as uuid to match receivables.id', async () => {
+      const rows = await dataSource.query(
+        `SELECT data_type FROM information_schema.columns
+         WHERE table_name = 'receivable_balance_history'
+           AND column_name = 'receivableId'`,
+      );
+      expect(rows[0]?.data_type).toBe('uuid');
+    });
+
     it('records an OPEN create with the full original amount', async () => {
       const receivable = await asTenant(organizationId, () =>
         createReceivable.execute({

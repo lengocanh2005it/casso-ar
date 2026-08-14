@@ -13,7 +13,7 @@ export class ReceivableBalanceHistoryOrmEntity {
   @Column({ type: 'varchar' })
   organizationId: string;
 
-  @Column({ type: 'varchar' })
+  @Column({ type: 'uuid' })
   receivableId: string;
 
   @Column({ type: 'enum', enum: ReceivableStatus })
