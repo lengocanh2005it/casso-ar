@@ -28,6 +28,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import { CancelPendingActionUseCase } from '../application/cancel-pending-action.usecase';
 import { ConfirmPendingActionUseCase } from '../application/confirm-pending-action.usecase';
 import { CopilotChatUseCase } from '../application/copilot-chat.usecase';
@@ -164,11 +165,7 @@ export class CopilotController {
   @ApiHeader({ name: 'idempotency-key', required: false })
   @ApiOkResponse({
     description: 'The Copilot email draft was deleted.',
-    schema: {
-      type: 'object',
-      required: ['success'],
-      properties: { success: { type: 'boolean', example: true } },
-    },
+    schema: { ...successResponseSchema(), required: ['success'] },
   })
   @ApiErrorResponse(
     ErrorCode.UNAUTHORIZED,
@@ -201,7 +198,7 @@ export class CopilotController {
     ErrorCode.VALIDATION_ERROR,
     ErrorCode.UNAUTHORIZED,
     ErrorCode.FORBIDDEN,
-    ErrorCode.CONFLICT,
+    ErrorCode.INTERNAL_SERVER_ERROR,
     ErrorCode.RATE_LIMIT_EXCEEDED,
     ErrorCode.IDEMPOTENCY_KEY_REUSED,
   )

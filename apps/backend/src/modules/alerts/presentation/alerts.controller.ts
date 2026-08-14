@@ -18,6 +18,7 @@ import { ErrorCode } from '../../../common/errors/error-code';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import {
   ALERT_CREATED_FOR_USER,
@@ -63,10 +64,7 @@ export class AlertsController {
   @ApiOperation({ summary: 'Mark an alert as read' })
   @ApiOkResponse({
     description: 'Alert marked as read',
-    schema: {
-      type: 'object',
-      properties: { success: { type: 'boolean', example: true } },
-    },
+    schema: successResponseSchema(),
   })
   @ApiErrorResponse(ErrorCode.UNAUTHORIZED, ErrorCode.NOT_FOUND)
   @RequirePermission(Permission.ALERT_READ)
@@ -79,10 +77,7 @@ export class AlertsController {
   @ApiOperation({ summary: 'Mark all alerts as read' })
   @ApiOkResponse({
     description: 'All alerts marked as read',
-    schema: {
-      type: 'object',
-      properties: { success: { type: 'boolean', example: true } },
-    },
+    schema: successResponseSchema(),
   })
   @ApiErrorResponse(ErrorCode.UNAUTHORIZED)
   @RequirePermission(Permission.ALERT_READ)
@@ -95,10 +90,7 @@ export class AlertsController {
   @ApiOperation({ summary: 'Delete an alert' })
   @ApiOkResponse({
     description: 'Alert deleted',
-    schema: {
-      type: 'object',
-      properties: { success: { type: 'boolean', example: true } },
-    },
+    schema: successResponseSchema(),
   })
   @ApiErrorResponse(ErrorCode.UNAUTHORIZED, ErrorCode.NOT_FOUND)
   @RequirePermission(Permission.ALERT_READ)
@@ -111,10 +103,7 @@ export class AlertsController {
   @ApiOperation({ summary: 'Delete all alerts' })
   @ApiOkResponse({
     description: 'All alerts deleted',
-    schema: {
-      type: 'object',
-      properties: { success: { type: 'boolean', example: true } },
-    },
+    schema: successResponseSchema(),
   })
   @ApiErrorResponse(ErrorCode.UNAUTHORIZED)
   @RequirePermission(Permission.ALERT_READ)

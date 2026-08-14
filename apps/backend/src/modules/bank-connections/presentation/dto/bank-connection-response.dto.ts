@@ -10,6 +10,13 @@ export class BankConnectionResponseDto {
   createdAt: Date;
 }
 
+export class ListBankConnectionsResponseDto {
+  items: BankConnectionResponseDto[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export function toBankConnectionResponse(
   connection: BankConnection,
 ): BankConnectionResponseDto {

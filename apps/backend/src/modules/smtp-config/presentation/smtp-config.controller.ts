@@ -27,6 +27,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import { DeleteSmtpConfigUseCase } from '../application/delete-smtp-config.usecase';
 import { GetSmtpConfigUseCase } from '../application/get-smtp-config.usecase';
 import { TestAndSaveSmtpConfigUseCase } from '../application/test-and-save-smtp-config.usecase';
@@ -90,10 +91,7 @@ export class SmtpConfigController {
   @ApiHeader({ name: 'idempotency-key', required: false })
   @ApiOkResponse({
     description: 'SMTP config deleted',
-    schema: {
-      type: 'object',
-      properties: { success: { type: 'boolean', example: true } },
-    },
+    schema: successResponseSchema(),
   })
   @ApiErrorResponse(ErrorCode.IDEMPOTENCY_KEY_REUSED)
   @Audited(AuditActionType.SMTP_CONFIG_DELETE, AuditEntityType.SMTP_CONFIG)

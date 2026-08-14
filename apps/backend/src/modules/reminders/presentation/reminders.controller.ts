@@ -47,11 +47,7 @@ export class RemindersController {
   @Post()
   @ApiOperation({ summary: 'Create a reminder policy' })
   @ApiCreatedResponse({ type: ReminderPolicyResponseDto })
-  @ApiErrorResponse(
-    ErrorCode.VALIDATION_ERROR,
-    ErrorCode.NOT_FOUND,
-    ErrorCode.CONFLICT,
-  )
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.CONFLICT)
   @RequirePermission(Permission.REMINDER_POLICY_WRITE)
   async create(@Body() dto: CreateReminderPolicyDto) {
     return toReminderPolicyResponse(await this.policyService.create(dto));

@@ -36,6 +36,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import {
   type IOrganizationRepository,
   ORGANIZATION_REPOSITORY,
@@ -72,10 +73,7 @@ export class InvitesController {
   @ApiOperation({ summary: 'Invite a member to an organization' })
   @ApiCreatedResponse({
     description: 'Invitation sent',
-    schema: {
-      type: 'object',
-      properties: { success: { type: 'boolean', example: true } },
-    },
+    schema: successResponseSchema(),
   })
   @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.NOT_FOUND)
   @UseGuards(JwtAuthGuard, PermissionGuard)
@@ -128,10 +126,7 @@ export class InvitesController {
   @ApiOperation({ summary: 'Accept an invitation with a token' })
   @ApiCreatedResponse({
     description: 'Invitation accepted',
-    schema: {
-      type: 'object',
-      properties: { success: { type: 'boolean', example: true } },
-    },
+    schema: successResponseSchema(),
   })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -209,10 +204,7 @@ export class InvitesController {
   @ApiHeader({ name: 'idempotency-key', required: false })
   @ApiOkResponse({
     description: 'Invite resent',
-    schema: {
-      type: 'object',
-      properties: { success: { type: 'boolean', example: true } },
-    },
+    schema: successResponseSchema(),
   })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,

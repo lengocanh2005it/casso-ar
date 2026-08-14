@@ -30,11 +30,15 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import { DisconnectConnectionUseCase } from '../application/disconnect-connection.usecase';
 import { ExchangeTokenUseCase } from '../application/exchange-token.usecase';
 import { InitiateConnectionUseCase } from '../application/initiate-connection.usecase';
 import { ListBankConnectionsUseCase } from '../application/list-bank-connections.usecase';
-import { toBankConnectionResponse } from './dto/bank-connection-response.dto';
+import {
+  ListBankConnectionsResponseDto,
+  toBankConnectionResponse,
+} from './dto/bank-connection-response.dto';
 import { ExchangeTokenDto } from './dto/exchange-token.dto';
 import { InitiateConnectionDto } from './dto/initiate-connection.dto';
 import { InitiateConnectionResponseDto } from './dto/initiate-connection-response.dto';
@@ -57,18 +61,7 @@ export class BankConnectionsController {
 
   @Get()
   @ApiOperation({ summary: 'List bank connections with pagination' })
-  @ApiOkResponse({
-    description: 'Paginated bank connections',
-    schema: {
-      type: 'object',
-      properties: {
-        items: { type: 'array' },
-        total: { type: 'number' },
-        page: { type: 'number' },
-        limit: { type: 'number' },
-      },
-    },
-  })
+  @ApiOkResponse({ type: ListBankConnectionsResponseDto })
   @ApiErrorResponse(ErrorCode.VALIDATION_ERROR)
   @RequirePermission(Permission.BANK_CONNECTION_READ)
   async findAll(@Query() query: PaginationDto) {
@@ -167,10 +160,7 @@ export class BankConnectionsController {
   @ApiHeader({ name: 'idempotency-key', required: false })
   @ApiCreatedResponse({
     description: 'Connection disconnected',
-    schema: {
-      type: 'object',
-      properties: { success: { type: 'boolean', example: true } },
-    },
+    schema: successResponseSchema(),
   })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,

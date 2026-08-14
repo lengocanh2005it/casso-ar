@@ -28,6 +28,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import { CreateEmailTemplateUseCase } from '../application/create-email-template.usecase';
 import { DeleteEmailTemplateUseCase } from '../application/delete-email-template.usecase';
 import { ListEmailTemplatesUseCase } from '../application/list-email-templates.usecase';
@@ -137,10 +138,7 @@ export class EmailTemplatesController {
   @ApiHeader({ name: 'idempotency-key', required: false })
   @ApiOkResponse({
     description: 'Template deleted',
-    schema: {
-      type: 'object',
-      properties: { success: { type: 'boolean', example: true } },
-    },
+    schema: successResponseSchema(),
   })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
