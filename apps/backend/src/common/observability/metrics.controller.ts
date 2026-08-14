@@ -1,6 +1,8 @@
 import { Controller, Get, Header, UseGuards } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/public.decorator';
+import { ErrorCode } from '../errors/error-code';
+import { ApiErrorResponse } from '../swagger/api-error-response.decorator';
 import { MetricsService } from './metrics.service';
 import { MetricsTokenGuard } from './metrics-token.guard';
 
@@ -11,6 +13,14 @@ export class MetricsController {
   constructor(private readonly metrics: MetricsService) {}
 
   @Get()
+  @ApiOperation({ summary: 'Prometheus metrics scrape endpoint' })
+  @ApiOkResponse({
+    description: 'Prometheus text exposition format',
+    content: {
+      'text/plain': { schema: { type: 'string' } },
+    },
+  })
+  @ApiErrorResponse(ErrorCode.UNAUTHORIZED)
   @UseGuards(MetricsTokenGuard)
   @Header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8')
   async getMetrics(): Promise<string> {
