@@ -10,6 +10,9 @@ vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
   postWithIdempotency: vi.fn(),
 }));
+vi.mock('@/contexts/auth-context', () => ({
+  useAuth: () => ({ user: { role: 'ACCOUNTANT' } }),
+}));
 
 describe('ExceptionsPage', () => {
   it('sends the search box value as a search filter', async () => {
@@ -41,5 +44,45 @@ describe('ExceptionsPage', () => {
         }),
       ),
     );
+  });
+
+  it('renders a checkbox per row and shows the bulk action bar once a row is selected', async () => {
+    apiRequest.mockResolvedValue({
+      items: [
+        {
+          transaction: {
+            id: 'tx-1',
+            providerTransactionId: 'TX-1',
+            amount: 10_000,
+            transactionDateTime: '2026-08-01',
+            counterpartyAccountNumber: '001',
+            counterpartyName: 'A',
+            transferContent: 'note',
+            status: 'PENDING_REVIEW',
+            version: 1,
+          },
+          topCandidate: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const rowCheckbox = (await screen.findAllByRole('checkbox'))[1];
+    fireEvent.click(rowCheckbox);
+
+    expect(await screen.findByText('Đã chọn 1')).toBeInTheDocument();
   });
 });

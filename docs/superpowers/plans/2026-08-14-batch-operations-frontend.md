@@ -1345,7 +1345,7 @@ git commit -m "feat: add receivables batch API, hooks, and bulk action bar"
 
 **Context:** Only `OPEN`/`PARTIALLY_PAID` receivables are write-off/cancel-eligible per the state machine (`CONTEXT.md` §Receivable State Machine — `PAID`/`WRITTEN_OFF`/`CANCELLED` are terminal, `DRAFT` has no write-off/cancel use case). `ReceivableTable` gets a checkbox column gated on that status check; `ExceptionsPage`'s inline table (it has no separate table component) gets the same treatment directly. Both pages' `useBulkSelection` is driven by the *eligible* ids on the current page, not every rendered row, so `toggleAll`/`allSelected` never silently includes a row that has no valid bulk action.
 
-- [ ] **Step 1: Write the failing test for `ReceivableTable`**
+- [x] **Step 1: Write the failing test for `ReceivableTable`**
 
 ```tsx
 // apps/frontend/src/features/receivables/components/receivable-table.spec.tsx
@@ -1403,12 +1403,12 @@ describe('ReceivableTable', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @casso-ledger/frontend test -- receivable-table`
 Expected: FAIL — `ReceivableTable` does not accept `selectedIds`/`onToggle`/`onToggleAll`/`allSelected` yet, no checkboxes rendered
 
-- [ ] **Step 3: Add checkboxes to `ReceivableTable`**
+- [x] **Step 3: Add checkboxes to `ReceivableTable`**
 
 Modify `apps/frontend/src/features/receivables/components/receivable-table.tsx`:
 
@@ -1460,12 +1460,12 @@ export function ReceivableTable({
             </TableCell>
 ```
 
-- [ ] **Step 4: Run the `ReceivableTable` test to verify it passes**
+- [x] **Step 4: Run the `ReceivableTable` test to verify it passes**
 
 Run: `pnpm --filter @casso-ledger/frontend test -- receivable-table`
 Expected: PASS (1 test)
 
-- [ ] **Step 5: Wire `receivables-page.tsx`**
+- [x] **Step 5: Wire `receivables-page.tsx`**
 
 Modify `apps/frontend/src/features/receivables/pages/receivables-page.tsx`:
 
@@ -1501,7 +1501,7 @@ import { ReceivablesBulkActionBar } from '../components/receivables-bulk-action-
       />
 ```
 
-- [ ] **Step 6: Write the failing test for `ExceptionsPage`**
+- [x] **Step 6: Write the failing test for `ExceptionsPage`**
 
 Add to `apps/frontend/src/features/exceptions/pages/exceptions-page.spec.tsx`:
 
@@ -1547,12 +1547,12 @@ it('renders a checkbox per row and shows the bulk action bar once a row is selec
 });
 ```
 
-- [ ] **Step 7: Run test to verify it fails**
+- [x] **Step 7: Run test to verify it fails**
 
 Run: `pnpm --filter @casso-ledger/frontend test -- exceptions-page`
 Expected: FAIL — no checkboxes rendered, "Đã chọn 1" never appears
 
-- [ ] **Step 8: Wire `exceptions-page.tsx`**
+- [x] **Step 8: Wire `exceptions-page.tsx`**
 
 Modify `apps/frontend/src/features/exceptions/pages/exceptions-page.tsx`:
 
@@ -1598,17 +1598,17 @@ import { ExceptionsBulkActionBar } from '../components/exceptions-bulk-action-ba
       )}
 ```
 
-- [ ] **Step 9: Run all frontend tests to verify they pass**
+- [x] **Step 9: Run all frontend tests to verify they pass**
 
 Run: `pnpm --filter @casso-ledger/frontend test`
 Expected: PASS, full suite green
 
-- [ ] **Step 10: Type-check**
+- [x] **Step 10: Type-check**
 
 Run: `pnpm --filter @casso-ledger/frontend type-check`
 Expected: PASS, no type errors
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add apps/frontend/src/features/exceptions/pages apps/frontend/src/features/receivables/components/receivable-table.tsx apps/frontend/src/features/receivables/components/receivable-table.spec.tsx apps/frontend/src/features/receivables/pages/receivables-page.tsx
