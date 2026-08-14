@@ -1,6 +1,6 @@
 import type { ReceivableStatus } from '@casso-ledger/shared-types';
 
-export interface PaymentAllocationResponseDto {
+export class PaymentAllocationResponseDto {
   id: string;
   paymentId: string;
   allocatedAmount: number;
@@ -8,7 +8,7 @@ export interface PaymentAllocationResponseDto {
   allocatedByUserId: string | null;
 }
 
-export interface ReceivableResponseDto {
+export class ReceivableResponseDto {
   id: string;
   customerId: string;
   invoiceId: string | null;
@@ -22,7 +22,7 @@ export interface ReceivableResponseDto {
   closedAt: Date | null;
 }
 
-export interface ReceivableDetailResponseDto extends ReceivableResponseDto {
+export class ReceivableDetailResponseDto extends ReceivableResponseDto {
   invoiceNumber: string | null;
   isOverdue: boolean;
   isDisputed: boolean;

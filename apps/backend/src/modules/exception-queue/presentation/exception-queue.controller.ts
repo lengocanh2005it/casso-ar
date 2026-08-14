@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import {
   AuditActionType,
   AuditEntityType,
@@ -40,6 +41,7 @@ import {
 import { MarkPrepaidBankTransactionDto } from './dto/mark-prepaid-bank-transaction.dto';
 import { MatchBankTransactionDto } from './dto/match-bank-transaction.dto';
 
+@ApiTags('exception-queue')
 @Controller('bank-transactions')
 @UseGuards(PermissionGuard)
 export class ExceptionQueueController {

@@ -1,5 +1,6 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import {
   AuditActionType,
   AuditEntityType,
@@ -12,6 +13,7 @@ import { ChangeSubscriptionPlanUseCase } from '../application/change-subscriptio
 import { ChangeSubscriptionPlanDto } from './dto/change-subscription-plan.dto';
 import { toSubscriptionResponse } from './dto/subscription-response.dto';
 
+@ApiTags('billing')
 @Controller('subscriptions')
 @UseGuards(PermissionGuard)
 export class BillingController {

@@ -11,6 +11,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import {
   AuditActionType,
   AuditEntityType,
@@ -28,6 +29,7 @@ import { CreateEmailTemplateDto } from './dto/create-email-template.dto';
 import { toEmailTemplateResponse } from './dto/email-template-response.dto';
 import { UpdateEmailTemplateDto } from './dto/update-email-template.dto';
 
+@ApiTags('email-templates')
 @Controller('email-templates')
 @UseGuards(PermissionGuard)
 export class EmailTemplatesController {

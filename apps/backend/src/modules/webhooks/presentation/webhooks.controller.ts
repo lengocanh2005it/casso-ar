@@ -1,4 +1,5 @@
 import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../../../common/auth/public.decorator';
 import {
@@ -9,6 +10,7 @@ import { BalanceHookDto } from './dto/balance-hook.dto';
 import { WebhookAuthGuard } from './webhook-auth.guard';
 import { WebhookRateLimitGuard } from './webhook-rate-limit.guard';
 
+@ApiTags('webhooks')
 @Controller('webhooks')
 export class WebhooksController {
   constructor(private readonly receiveWebhook: ReceiveWebhookUseCase) {}

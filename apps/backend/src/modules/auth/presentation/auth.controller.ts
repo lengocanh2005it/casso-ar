@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import {
   AuditActionType,
@@ -56,6 +57,7 @@ interface RefreshCookieOptions {
   maxAge: number;
 }
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(

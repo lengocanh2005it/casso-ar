@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import {
   AuditActionType,
   AuditEntityType,
@@ -22,6 +23,7 @@ import { CreateReminderPolicyDto } from './dto/create-reminder-policy.dto';
 import { ListReminderExecutionsQuery } from './dto/list-reminder-executions.query';
 import { UpdateReminderPolicyDto } from './dto/update-reminder-policy.dto';
 
+@ApiTags('reminders')
 @Controller('reminder-policies')
 @UseGuards(PermissionGuard)
 export class RemindersController {
@@ -50,6 +52,7 @@ export class RemindersController {
   }
 }
 
+@ApiTags('reminders')
 @Controller('reminder-executions')
 @UseGuards(PermissionGuard)
 export class ReminderExecutionsController {

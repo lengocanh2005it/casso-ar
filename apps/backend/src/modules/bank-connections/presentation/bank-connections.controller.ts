@@ -11,6 +11,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import {
   AuditActionType,
@@ -33,6 +34,7 @@ interface AuthenticatedRequest extends Request {
   user?: { userId: string };
 }
 
+@ApiTags('bank-connections')
 @Controller('bank-connections')
 @UseGuards(PermissionGuard)
 export class BankConnectionsController {

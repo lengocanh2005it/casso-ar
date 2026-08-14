@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ListWebhookInboxUseCase } from '../application/list-webhook-inbox.usecase';
@@ -30,6 +31,7 @@ function toWebhookInboxResponse(inbox: WebhookInbox) {
   };
 }
 
+@ApiTags('webhooks-inbox')
 @Controller('webhooks/inbox')
 @UseGuards(PermissionGuard)
 export class WebhookInboxController {

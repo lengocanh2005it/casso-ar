@@ -13,6 +13,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import {
   AuditActionType,
   AuditEntityType,
@@ -31,6 +32,7 @@ import {
 } from './customer-bank-account.dto';
 import { toCustomerBankAccountResponse } from './customer-bank-account.mapper';
 
+@ApiTags('customer-bank-accounts')
 @Controller('customers/:customerId/bank-accounts')
 @UseGuards(PermissionGuard)
 export class CustomerBankAccountsController {

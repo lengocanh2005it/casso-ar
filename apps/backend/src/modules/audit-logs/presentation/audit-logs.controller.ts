@@ -1,5 +1,6 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { AuditLog } from '../../../common/audit/audit-log';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
@@ -32,6 +33,7 @@ function toAuditLogItemResponse(log: AuditLog): AuditLogItemResponse {
   };
 }
 
+@ApiTags('audit-logs')
 @Controller('audit-logs')
 @UseGuards(PermissionGuard)
 export class AuditLogsController {

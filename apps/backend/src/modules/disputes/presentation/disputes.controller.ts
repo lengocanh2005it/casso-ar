@@ -7,6 +7,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import {
   AuditActionType,
   AuditEntityType,
@@ -23,6 +24,7 @@ import { ResolveDisputeUseCase } from '../application/resolve-dispute.usecase';
 import { toDisputeResponse } from './dto/dispute-response.dto';
 import { OpenDisputeDto } from './dto/open-dispute.dto';
 
+@ApiTags('disputes')
 @Controller()
 @UseGuards(PermissionGuard)
 export class DisputesController {

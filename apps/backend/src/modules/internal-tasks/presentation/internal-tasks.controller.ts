@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
@@ -23,6 +24,7 @@ import { ResolveTaskUseCase } from '../application/resolve-task.usecase';
 import { CreateManualTaskDto } from './dto/create-manual-task.dto';
 import { toInternalTaskResponse } from './dto/internal-task-response.dto';
 
+@ApiTags('internal-tasks')
 @Controller()
 @UseGuards(PermissionGuard)
 export class InternalTasksController {

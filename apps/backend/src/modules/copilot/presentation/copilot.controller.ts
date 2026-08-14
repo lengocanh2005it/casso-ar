@@ -9,6 +9,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import type { AuthenticatedUser } from '../../../common/auth/authenticated-user';
@@ -28,6 +29,7 @@ import {
 } from './dto/copilot-response.dto';
 import { PostCopilotMessageDto } from './dto/post-copilot-message.dto';
 
+@ApiTags('copilot')
 @Controller('copilot')
 @UseGuards(JwtAuthGuard, PermissionGuard)
 export class CopilotController {
