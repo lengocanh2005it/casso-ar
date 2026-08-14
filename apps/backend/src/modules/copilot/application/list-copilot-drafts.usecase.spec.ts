@@ -1,4 +1,3 @@
-import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { CopilotDraft } from './draft-repository.port';
