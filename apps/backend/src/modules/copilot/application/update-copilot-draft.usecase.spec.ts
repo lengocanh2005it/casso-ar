@@ -28,6 +28,11 @@ function buildDeps(overrides: {
       .mockResolvedValue(
         overrides.draft === undefined ? buildDraft() : overrides.draft,
       ),
+    findByIdForUpdate: jest
+      .fn()
+      .mockResolvedValue(
+        overrides.draft === undefined ? buildDraft() : overrides.draft,
+      ),
     save: jest.fn(),
   };
   const pendingActionRepo = {
@@ -46,7 +51,12 @@ function buildDeps(overrides: {
       role: 'ACCOUNTANT',
     }),
   } as unknown as TenantContextService;
-  return { draftRepo, pendingActionRepo, tenantContext };
+  const dataSource = {
+    transaction: jest.fn((callback: (manager: object) => unknown) =>
+      callback({}),
+    ),
+  };
+  return { draftRepo, pendingActionRepo, tenantContext, dataSource };
 }
 
 describe('UpdateCopilotDraftUseCase', () => {
@@ -56,6 +66,7 @@ describe('UpdateCopilotDraftUseCase', () => {
       deps.draftRepo as never,
       deps.pendingActionRepo as never,
       deps.tenantContext,
+      deps.dataSource as never,
     );
 
     const result = await useCase.execute({
@@ -69,6 +80,7 @@ describe('UpdateCopilotDraftUseCase', () => {
         subject: 'Tiêu đề mới',
         bodyHtml: '<p>cũ</p>',
       }),
+      {},
     );
     expect(result).toMatchObject({
       id: 'draft-1',
@@ -97,6 +109,7 @@ describe('UpdateCopilotDraftUseCase', () => {
       deps.draftRepo as never,
       deps.pendingActionRepo as never,
       deps.tenantContext,
+      deps.dataSource as never,
     );
 
     await expect(
@@ -111,6 +124,7 @@ describe('UpdateCopilotDraftUseCase', () => {
       deps.draftRepo as never,
       deps.pendingActionRepo as never,
       deps.tenantContext,
+      deps.dataSource as never,
     );
 
     await expect(

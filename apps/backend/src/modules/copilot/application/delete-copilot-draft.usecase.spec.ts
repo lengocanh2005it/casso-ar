@@ -18,9 +18,49 @@ function buildDraft(overrides: Partial<CopilotDraft> = {}): CopilotDraft {
 }
 
 describe('DeleteCopilotDraftUseCase', () => {
+  it('locks the draft before checking mutability and deletes with that transaction manager', async () => {
+    const manager = {};
+    const draftRepo = {
+      findById: jest.fn().mockResolvedValue(buildDraft()),
+      findByIdForUpdate: jest.fn().mockResolvedValue(buildDraft()),
+      delete: jest.fn(),
+    };
+    const pendingActionRepo = {
+      findLatestForDraftIds: jest.fn().mockResolvedValue(new Map()),
+    };
+    const tenantContext = {
+      getCurrentUser: () => ({
+        userId: 'user-1',
+        organizationId: 'org-1',
+        role: 'ACCOUNTANT',
+      }),
+    } as unknown as TenantContextService;
+    const dataSource = {
+      transaction: jest.fn((callback: (manager: object) => unknown) =>
+        callback(manager),
+      ),
+    };
+
+    const useCase = new DeleteCopilotDraftUseCase(
+      draftRepo as never,
+      pendingActionRepo as never,
+      tenantContext,
+      dataSource as never,
+    );
+
+    await useCase.execute('draft-1');
+
+    expect(draftRepo.findByIdForUpdate).toHaveBeenCalledWith(
+      'draft-1',
+      manager,
+    );
+    expect(draftRepo.delete).toHaveBeenCalledWith('draft-1', manager);
+  });
+
   it('deletes a DRAFTED (orphan) draft', async () => {
     const draftRepo = {
       findById: jest.fn().mockResolvedValue(buildDraft()),
+      findByIdForUpdate: jest.fn().mockResolvedValue(buildDraft()),
       delete: jest.fn(),
     };
     const pendingActionRepo = {
@@ -37,16 +77,20 @@ describe('DeleteCopilotDraftUseCase', () => {
       draftRepo as never,
       pendingActionRepo as never,
       tenantContext,
+      {
+        transaction: (callback: (manager: object) => unknown) => callback({}),
+      } as never,
     );
 
     await useCase.execute('draft-1');
 
-    expect(draftRepo.delete).toHaveBeenCalledWith('draft-1');
+    expect(draftRepo.delete).toHaveBeenCalledWith('draft-1', {});
   });
 
   it('rejects deleting a CONFIRMED draft with CONFLICT and does not delete', async () => {
     const draftRepo = {
       findById: jest.fn().mockResolvedValue(buildDraft()),
+      findByIdForUpdate: jest.fn().mockResolvedValue(buildDraft()),
       delete: jest.fn(),
     };
     const pendingActionRepo = {
@@ -80,6 +124,9 @@ describe('DeleteCopilotDraftUseCase', () => {
       draftRepo as never,
       pendingActionRepo as never,
       tenantContext,
+      {
+        transaction: (callback: (manager: object) => unknown) => callback({}),
+      } as never,
     );
 
     await expect(useCase.execute('draft-1')).rejects.toMatchObject({
@@ -91,6 +138,7 @@ describe('DeleteCopilotDraftUseCase', () => {
   it('throws NOT_FOUND when the draft does not exist', async () => {
     const draftRepo = {
       findById: jest.fn().mockResolvedValue(null),
+      findByIdForUpdate: jest.fn().mockResolvedValue(null),
       delete: jest.fn(),
     };
     const pendingActionRepo = { findLatestForDraftIds: jest.fn() };
@@ -105,6 +153,9 @@ describe('DeleteCopilotDraftUseCase', () => {
       draftRepo as never,
       pendingActionRepo as never,
       tenantContext,
+      {
+        transaction: (callback: (manager: object) => unknown) => callback({}),
+      } as never,
     );
 
     await expect(useCase.execute('draft-1')).rejects.toMatchObject({

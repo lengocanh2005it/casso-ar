@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
+import type { EntityManager } from 'typeorm';
 import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
@@ -41,14 +42,14 @@ export class ReopenCopilotDraftUseCase {
       throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
     }
 
-    const { draft } = await findMutableDraft(
-      draftId,
-      user.userId,
-      this.draftRepo,
-      this.pendingActionRepo,
-    );
-
-    return this.dataSource.transaction(async (manager) => {
+    return this.dataSource.transaction(async (manager: EntityManager) => {
+      const { draft } = await findMutableDraft(
+        draftId,
+        user.userId,
+        this.draftRepo,
+        this.pendingActionRepo,
+        manager,
+      );
       const conversation = await this.conversationRepo.findOrCreate(
         randomUUID(),
         user.userId,

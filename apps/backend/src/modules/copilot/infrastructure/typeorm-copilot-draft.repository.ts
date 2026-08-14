@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import type { EntityManager } from 'typeorm';
 import { Repository } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
@@ -48,12 +49,24 @@ export class TypeOrmCopilotDraftRepository
     super(repo, tenantContext);
   }
 
-  async save(draft: CopilotDraft): Promise<void> {
-    await this.scopedSaveWithManager(toOrm(draft));
+  async save(draft: CopilotDraft, manager?: EntityManager): Promise<void> {
+    await this.scopedSaveWithManager(toOrm(draft), manager);
   }
 
   async findById(id: string): Promise<CopilotDraft | null> {
     const row = await this.scopedFindOne({ id });
+    return row ? toDomain(row) : null;
+  }
+
+  async findByIdForUpdate(
+    id: string,
+    manager: EntityManager,
+  ): Promise<CopilotDraft | null> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const row = await manager.findOne(CopilotDraftOrmEntity, {
+      where: { id, organizationId },
+      lock: { mode: 'pessimistic_write' },
+    });
     return row ? toDomain(row) : null;
   }
 
@@ -65,7 +78,11 @@ export class TypeOrmCopilotDraftRepository
     return rows.map(toDomain);
   }
 
-  async delete(id: string): Promise<void> {
-    await this.scopedDelete({ id });
+  async delete(id: string, manager?: EntityManager): Promise<void> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const repo = manager
+      ? manager.getRepository(CopilotDraftOrmEntity)
+      : this.ormRepo;
+    await repo.delete({ id, organizationId });
   }
 }

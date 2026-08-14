@@ -1,4 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
+import type { EntityManager } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
@@ -20,6 +23,7 @@ export class DeleteCopilotDraftUseCase {
     @Inject(COPILOT_PENDING_ACTION_REPOSITORY)
     private readonly pendingActionRepo: ICopilotPendingActionRepository,
     private readonly tenantContext: TenantContextService,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   async execute(id: string): Promise<void> {
@@ -28,12 +32,15 @@ export class DeleteCopilotDraftUseCase {
       throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
     }
 
-    await findMutableDraft(
-      id,
-      user.userId,
-      this.draftRepo,
-      this.pendingActionRepo,
-    );
-    await this.draftRepo.delete(id);
+    await this.dataSource.transaction(async (manager: EntityManager) => {
+      await findMutableDraft(
+        id,
+        user.userId,
+        this.draftRepo,
+        this.pendingActionRepo,
+        manager,
+      );
+      await this.draftRepo.delete(id, manager);
+    });
   }
 }

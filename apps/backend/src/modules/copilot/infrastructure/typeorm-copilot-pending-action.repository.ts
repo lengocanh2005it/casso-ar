@@ -115,6 +115,7 @@ export class TypeOrmCopilotPendingActionRepository
 
   async findLatestForDraftIds(
     draftIds: string[],
+    manager?: EntityManager,
   ): Promise<Map<string, CopilotPendingAction>> {
     const map = new Map<string, CopilotPendingAction>();
     if (draftIds.length === 0) return map;
@@ -123,7 +124,10 @@ export class TypeOrmCopilotPendingActionRepository
     // can't express — BaseRepository's scopedFindMany/scopedFindOne don't
     // apply here, so organizationId is added manually below instead.
     const organizationId = this.tenantContext.getOrganizationId();
-    const rows = await this.ormRepo
+    const repo = manager
+      ? manager.getRepository(CopilotPendingActionOrmEntity)
+      : this.ormRepo;
+    const rows = await repo
       .createQueryBuilder('action')
       .where('action.organizationId = :organizationId', { organizationId })
       .andWhere(`action.payload ->> 'draftId' IN (:...draftIds)`, {

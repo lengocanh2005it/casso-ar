@@ -1,3 +1,4 @@
+import type { EntityManager } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
@@ -21,15 +22,19 @@ export async function findMutableDraft(
   userId: string,
   draftRepo: ICopilotDraftRepository,
   pendingActionRepo: ICopilotPendingActionRepository,
+  manager?: EntityManager,
 ): Promise<MutableDraft> {
-  const draft = await draftRepo.findById(draftId);
+  const draft = manager
+    ? await draftRepo.findByIdForUpdate(draftId, manager)
+    : await draftRepo.findById(draftId);
   if (!draft || draft.userId !== userId) {
     throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy bản nháp email.');
   }
 
-  const latestActions = await pendingActionRepo.findLatestForDraftIds([
-    draftId,
-  ]);
+  const latestActions = await pendingActionRepo.findLatestForDraftIds(
+    [draftId],
+    manager,
+  );
   const latest = latestActions.get(draftId) ?? null;
   const status = deriveCopilotDraftStatus(latest, new Date());
   if (status === 'PENDING' || status === 'CONFIRMED') {
