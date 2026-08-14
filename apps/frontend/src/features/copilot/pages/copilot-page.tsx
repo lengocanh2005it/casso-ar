@@ -3,10 +3,12 @@ import { Lock } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPlanAccess } from '@/lib/plan-access';
 import { hasPermission } from '@/lib/rbac';
 import { useCopilotChat } from '../api/use-copilot';
+import { DraftsList } from '../components/drafts-list';
 import { MessageList } from '../components/message-list';
 import { PendingActionCard } from '../components/pending-action-card';
 import { UsageIndicator } from '../components/usage-indicator';
@@ -53,32 +55,43 @@ export function CopilotPage() {
         <h1 className="text-xl font-semibold sm:text-2xl">Copilot</h1>
         <UsageIndicator />
       </div>
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-lg border p-4">
-        <MessageList messages={messages} />
-        {pendingAction && canSendManual && (
-          <PendingActionCard
-            action={pendingAction}
-            busy={busy}
-            onConfirm={() => void confirm()}
-            onCancel={() => void cancel()}
-          />
-        )}
-      </div>
-      <form onSubmit={onSubmit} className="mt-3 flex gap-2">
-        <Input
-          aria-label="Enter question"
-          placeholder="Hỏi về công nợ…"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          disabled={isSending || blockedByPendingAction}
-        />
-        <Button
-          type="submit"
-          disabled={isSending || blockedByPendingAction || !draft.trim()}
-        >
-          {isSending ? 'Đang suy nghĩ…' : 'Send'}
-        </Button>
-      </form>
+      <Tabs defaultValue="chat" className="min-h-0 flex-1">
+        <TabsList>
+          <TabsTrigger value="chat">Chat</TabsTrigger>
+          <TabsTrigger value="drafts">Drafts</TabsTrigger>
+        </TabsList>
+        <TabsContent value="chat" className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-lg border p-4">
+            <MessageList messages={messages} />
+            {pendingAction && canSendManual && (
+              <PendingActionCard
+                action={pendingAction}
+                busy={busy}
+                onConfirm={() => void confirm()}
+                onCancel={() => void cancel()}
+              />
+            )}
+          </div>
+          <form onSubmit={onSubmit} className="mt-3 flex gap-2">
+            <Input
+              aria-label="Enter question"
+              placeholder="Hỏi về công nợ…"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              disabled={isSending || blockedByPendingAction}
+            />
+            <Button
+              type="submit"
+              disabled={isSending || blockedByPendingAction || !draft.trim()}
+            >
+              {isSending ? 'Đang suy nghĩ…' : 'Send'}
+            </Button>
+          </form>
+        </TabsContent>
+        <TabsContent value="drafts" className="overflow-y-auto">
+          <DraftsList canSendManual={canSendManual} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
