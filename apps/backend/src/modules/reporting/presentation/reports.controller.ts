@@ -6,8 +6,10 @@ import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { AgingReportQueryService } from '../application/aging-report-query.service';
+import { CustomerAgingReportQueryService } from '../application/customer-aging-report-query.service';
 import { DashboardSummaryQueryService } from '../application/dashboard-summary-query.service';
 import { ExportAgingReportUseCase } from '../application/export-aging-report.usecase';
+import { GetCustomerAgingQueryDto } from './dto/get-customer-aging-query.dto';
 import { GetDashboardSummaryQueryDto } from './dto/get-dashboard-summary-query.dto';
 
 @ApiTags('reports')
@@ -18,12 +20,24 @@ export class ReportsController {
     private readonly agingReportQueryService: AgingReportQueryService,
     private readonly dashboardSummaryQueryService: DashboardSummaryQueryService,
     private readonly exportAgingReportUseCase: ExportAgingReportUseCase,
+    private readonly customerAgingReportQueryService: CustomerAgingReportQueryService,
   ) {}
 
   @Get('aging')
   @RequirePermission(Permission.REPORT_READ)
   async getAgingReport() {
     return { buckets: await this.agingReportQueryService.getAgingBuckets() };
+  }
+
+  @Get('aging/customers')
+  @RequirePermission(Permission.REPORT_READ)
+  async getCustomerAging(@Query() query: GetCustomerAgingQueryDto) {
+    return this.customerAgingReportQueryService.getCustomerAging({
+      page: query.page,
+      limit: query.limit,
+      search: query.search,
+      bucket: query.bucket,
+    });
   }
 
   @Get('aging/export')

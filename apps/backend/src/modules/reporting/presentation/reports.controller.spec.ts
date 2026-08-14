@@ -19,6 +19,7 @@ describe('ReportsController', () => {
       agingReportQueryService as never,
       dashboardSummaryQueryService as never,
       { execute: jest.fn() } as never,
+      { getCustomerAging: jest.fn() } as never,
     );
 
     await expect(controller.getAgingReport()).resolves.toEqual({
@@ -35,6 +36,7 @@ describe('ReportsController', () => {
       agingReportQueryService as never,
       dashboardSummaryQueryService as never,
       { execute: jest.fn() } as never,
+      { getCustomerAging: jest.fn() } as never,
     );
 
     await controller.getDashboardSummary({
@@ -46,6 +48,40 @@ describe('ReportsController', () => {
       from: new Date('2026-08-01'),
       to: new Date('2026-08-09'),
     });
+  });
+
+  it('delegates customer aging filters to the query service', async () => {
+    const customerAgingReportQueryService = {
+      getCustomerAging: jest.fn().mockResolvedValue({
+        items: [],
+        total: 0,
+        page: 2,
+        limit: 20,
+      }),
+    };
+    const controller = new ReportsController(
+      { getAgingBuckets: jest.fn() } as never,
+      { getSummary: jest.fn() } as never,
+      { execute: jest.fn() } as never,
+      customerAgingReportQueryService as never,
+    );
+
+    const result = await controller.getCustomerAging({
+      page: 2,
+      limit: 20,
+      search: 'ACME',
+      bucket: 'NOT_DUE',
+    });
+
+    expect(
+      customerAgingReportQueryService.getCustomerAging,
+    ).toHaveBeenCalledWith({
+      page: 2,
+      limit: 20,
+      search: 'ACME',
+      bucket: 'NOT_DUE',
+    });
+    expect(result).toEqual({ items: [], total: 0, page: 2, limit: 20 });
   });
 
   it('requires authentication and report read permission', () => {
@@ -63,6 +99,12 @@ describe('ReportsController', () => {
       Reflect.getMetadata(
         REQUIRED_PERMISSION_KEY,
         ReportsController.prototype.getDashboardSummary,
+      ),
+    ).toBe(Permission.REPORT_READ);
+    expect(
+      Reflect.getMetadata(
+        REQUIRED_PERMISSION_KEY,
+        ReportsController.prototype.getCustomerAging,
       ),
     ).toBe(Permission.REPORT_READ);
   });

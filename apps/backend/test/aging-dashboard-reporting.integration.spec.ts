@@ -33,6 +33,10 @@ const overdueEightToThirtyId = '00000000-0000-4000-8000-000000000156';
 const overdueThirtyOneToSixtyId = '00000000-0000-4000-8000-000000000157';
 const overdueSixtyPlusId = '00000000-0000-4000-8000-000000000158';
 const paidReceivableId = '00000000-0000-4000-8000-000000000159';
+const customer2Id = '00000000-0000-4000-8000-000000000160';
+const customer2ReceivableId = '00000000-0000-4000-8000-000000000161';
+const otherOrgId = '00000000-0000-4000-8000-000000000162';
+const otherOrgUserId = '00000000-0000-4000-8000-000000000163';
 
 function addDays(date: Date, days: number): Date {
   const result = new Date(date);
@@ -52,6 +56,7 @@ describe('Aging dashboard reporting (integration)', () => {
   let jwtService: JwtService;
   let today: string;
   let token: string;
+  let otherOrgToken: string;
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16').start();
@@ -115,16 +120,47 @@ describe('Aging dashboard reporting (integration)', () => {
       joinedAt: new Date(),
       createdAt: new Date(),
     });
-    await dataSource.getRepository(CustomerOrmEntity).save({
-      id: customerId,
-      organizationId,
-      name: 'Reporting Customer',
-      taxCode: 'REPORTING-001',
-      email: 'reporting-customer@example.com',
-      phone: '0900000000',
-      defaultPaymentTermDays: 30,
-      creditLimit: 100_000_000,
-      priority: 1,
+    await dataSource.getRepository(CustomerOrmEntity).save([
+      {
+        id: customerId,
+        organizationId,
+        name: 'Reporting Customer',
+        taxCode: 'REPORTING-001',
+        email: 'reporting-customer@example.com',
+        phone: '0900000000',
+        defaultPaymentTermDays: 30,
+        creditLimit: 100_000_000,
+        priority: 1,
+        createdAt: new Date(),
+      },
+      {
+        id: customer2Id,
+        organizationId,
+        name: 'Beta Trading',
+        taxCode: 'BETA-002',
+        email: 'beta-trading@example.com',
+        phone: '0911111111',
+        defaultPaymentTermDays: 30,
+        creditLimit: 50_000_000,
+        priority: 2,
+        createdAt: new Date(),
+      },
+    ]);
+
+    await dataSource.getRepository(UserOrmEntity).save({
+      id: otherOrgUserId,
+      name: 'Other Org Owner',
+      email: 'other-org-owner@example.com',
+      passwordHash: 'test-hash',
+      emailVerifiedAt: new Date(),
+      createdAt: new Date(),
+    });
+    await dataSource.getRepository(MembershipOrmEntity).save({
+      organizationId: otherOrgId,
+      userId: otherOrgUserId,
+      role: Role.OWNER,
+      invitedAt: new Date(),
+      joinedAt: new Date(),
       createdAt: new Date(),
     });
 
@@ -216,6 +252,20 @@ describe('Aging dashboard reporting (integration)', () => {
         closedAt: addDays(monthStart(), 4),
         version: 1,
       },
+      {
+        id: customer2ReceivableId,
+        organizationId,
+        customerId: customer2Id,
+        invoiceId: null,
+        originalAmount: 8_000,
+        paidAmount: 0,
+        dueDate: dateAt(90),
+        status: ReceivableStatus.OPEN,
+        salesRepresentativeId: null,
+        createdAt,
+        closedAt: null,
+        version: 1,
+      },
     ]);
 
     const periodStart = monthStart();
@@ -288,6 +338,11 @@ describe('Aging dashboard reporting (integration)', () => {
       organizationId,
       role: Role.OWNER,
     });
+    otherOrgToken = jwtService.sign({
+      userId: otherOrgUserId,
+      organizationId: otherOrgId,
+      role: Role.OWNER,
+    });
   }, 60_000);
 
   afterAll(async () => {
@@ -315,7 +370,7 @@ describe('Aging dashboard reporting (integration)', () => {
 
     expect(response.body).toEqual({
       buckets: [
-        { bucket: 'NOT_DUE', count: 1, totalRemaining: 900 },
+        { bucket: 'NOT_DUE', count: 2, totalRemaining: 8_900 },
         { bucket: 'OVERDUE_1_7', count: 1, totalRemaining: 1_500 },
         { bucket: 'OVERDUE_8_30', count: 1, totalRemaining: 2_000 },
         { bucket: 'OVERDUE_31_60', count: 1, totalRemaining: 3_000 },
@@ -331,7 +386,7 @@ describe('Aging dashboard reporting (integration)', () => {
       .expect(200);
 
     expect(response.body).toMatchObject({
-      totalOutstanding: 11_400,
+      totalOutstanding: 19_400,
       totalOverdue: 10_500,
       cashForecast: { forecast7d: 900, forecast14d: 900, forecast30d: 900 },
       topOverdueCustomers: [
@@ -345,7 +400,7 @@ describe('Aging dashboard reporting (integration)', () => {
       manualHandlingRate: 0.5,
       reminderEffectiveness: 0.5,
     });
-    expect(response.body.overdueRate).toBeCloseTo(10_500 / 11_400);
+    expect(response.body.overdueRate).toBeCloseTo(10_500 / 19_400);
   });
 
   it('rejects a reversed dashboard date range with VALIDATION_ERROR', async () => {
@@ -384,6 +439,142 @@ describe('Aging dashboard reporting (integration)', () => {
     expect(response.body).toMatchObject({
       statusCode: 400,
       errorCode: ErrorCode.VALIDATION_ERROR,
+    });
+  });
+
+  it('rejects unauthenticated customer aging requests', async () => {
+    await request(app?.getHttpServer())
+      .get('/api/v1/reports/aging/customers')
+      .expect(401);
+  });
+
+  it('returns customer aging rows ordered by total remaining then name', async () => {
+    const response = await request(app?.getHttpServer())
+      .get('/api/v1/reports/aging/customers')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.body).toEqual({
+      items: [
+        {
+          customerId,
+          customerName: 'Reporting Customer',
+          taxCode: 'REPORTING-001',
+          buckets: [
+            { bucket: 'NOT_DUE', totalRemaining: 900 },
+            { bucket: 'OVERDUE_1_7', totalRemaining: 1_500 },
+            { bucket: 'OVERDUE_8_30', totalRemaining: 2_000 },
+            { bucket: 'OVERDUE_31_60', totalRemaining: 3_000 },
+            { bucket: 'OVERDUE_60_PLUS', totalRemaining: 4_000 },
+          ],
+          totalRemaining: 11_400,
+        },
+        {
+          customerId: customer2Id,
+          customerName: 'Beta Trading',
+          taxCode: 'BETA-002',
+          buckets: [
+            { bucket: 'NOT_DUE', totalRemaining: 8_000 },
+            { bucket: 'OVERDUE_1_7', totalRemaining: 0 },
+            { bucket: 'OVERDUE_8_30', totalRemaining: 0 },
+            { bucket: 'OVERDUE_31_60', totalRemaining: 0 },
+            { bucket: 'OVERDUE_60_PLUS', totalRemaining: 0 },
+          ],
+          totalRemaining: 8_000,
+        },
+      ],
+      total: 2,
+      page: 1,
+      limit: 20,
+    });
+  });
+
+  it('searches customer aging by name, tax code, and phone', async () => {
+    const byName = await request(app?.getHttpServer())
+      .get('/api/v1/reports/aging/customers')
+      .set('Authorization', `Bearer ${token}`)
+      .query({ search: 'beta' })
+      .expect(200);
+    expect(byName.body.total).toBe(1);
+    expect(byName.body.items[0]).toMatchObject({
+      customerName: 'Beta Trading',
+    });
+
+    const byTaxCode = await request(app?.getHttpServer())
+      .get('/api/v1/reports/aging/customers')
+      .set('Authorization', `Bearer ${token}`)
+      .query({ search: 'REPORTING-001' })
+      .expect(200);
+    expect(byTaxCode.body.total).toBe(1);
+    expect(byTaxCode.body.items[0]).toMatchObject({
+      customerName: 'Reporting Customer',
+    });
+
+    const byPhone = await request(app?.getHttpServer())
+      .get('/api/v1/reports/aging/customers')
+      .set('Authorization', `Bearer ${token}`)
+      .query({ search: '0911111111' })
+      .expect(200);
+    expect(byPhone.body.total).toBe(1);
+    expect(byPhone.body.items[0]).toMatchObject({
+      customerName: 'Beta Trading',
+    });
+  });
+
+  it('filters customer aging to buckets with a positive amount', async () => {
+    const overdue = await request(app?.getHttpServer())
+      .get('/api/v1/reports/aging/customers')
+      .set('Authorization', `Bearer ${token}`)
+      .query({ bucket: 'OVERDUE_1_7' })
+      .expect(200);
+    expect(overdue.body.total).toBe(1);
+    expect(overdue.body.items[0]).toMatchObject({
+      customerName: 'Reporting Customer',
+    });
+
+    const notDue = await request(app?.getHttpServer())
+      .get('/api/v1/reports/aging/customers')
+      .set('Authorization', `Bearer ${token}`)
+      .query({ bucket: 'NOT_DUE' })
+      .expect(200);
+    expect(notDue.body.total).toBe(2);
+  });
+
+  it('paginates customer aging with stable total-remaining ordering', async () => {
+    const firstPage = await request(app?.getHttpServer())
+      .get('/api/v1/reports/aging/customers')
+      .set('Authorization', `Bearer ${token}`)
+      .query({ page: 1, limit: 1 })
+      .expect(200);
+    expect(firstPage.body.total).toBe(2);
+    expect(firstPage.body.items).toHaveLength(1);
+    expect(firstPage.body.items[0]).toMatchObject({
+      customerName: 'Reporting Customer',
+    });
+
+    const secondPage = await request(app?.getHttpServer())
+      .get('/api/v1/reports/aging/customers')
+      .set('Authorization', `Bearer ${token}`)
+      .query({ page: 2, limit: 1 })
+      .expect(200);
+    expect(secondPage.body.total).toBe(2);
+    expect(secondPage.body.items).toHaveLength(1);
+    expect(secondPage.body.items[0]).toMatchObject({
+      customerName: 'Beta Trading',
+    });
+  });
+
+  it('isolates customer aging rows by organization', async () => {
+    const response = await request(app?.getHttpServer())
+      .get('/api/v1/reports/aging/customers')
+      .set('Authorization', `Bearer ${otherOrgToken}`)
+      .expect(200);
+
+    expect(response.body).toEqual({
+      items: [],
+      total: 0,
+      page: 1,
+      limit: 20,
     });
   });
 });
