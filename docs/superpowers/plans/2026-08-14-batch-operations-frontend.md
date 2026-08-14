@@ -1061,7 +1061,7 @@ git commit -m "feat: add Khớp giao dịch được gợi ý to exceptions bulk
 - Consumes: `postWithIdempotency` (existing), `BatchItemResult`/`summarizeBatchResults` (Task 3), `BulkConfirmDialog` (Task 3), `hasPermission` (existing).
 - Produces: `batchWriteOffReceivables`, `batchCancelReceivables` API functions; `useBatchWriteOffReceivables`, `useBatchCancelReceivables` hooks; `<ReceivablesBulkActionBar selectedIds onResult />` — Task 8's page wiring renders this.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 // apps/frontend/src/features/receivables/components/receivables-bulk-action-bar.spec.tsx
@@ -1147,12 +1147,12 @@ describe('ReceivablesBulkActionBar', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @casso-ledger/frontend test -- receivables-bulk-action-bar`
 Expected: FAIL with "Cannot find module './receivables-bulk-action-bar'"
 
-- [ ] **Step 3: Add the API functions**
+- [x] **Step 3: Add the API functions**
 
 Modify `apps/frontend/src/features/receivables/api/receivables-api.ts` — add at the end of the file:
 
@@ -1172,7 +1172,7 @@ export function batchCancelReceivables(
 }
 ```
 
-- [ ] **Step 4: Widen `useReceivableMutation`'s generic to preserve the resolved type**
+- [x] **Step 4: Widen `useReceivableMutation`'s generic to preserve the resolved type**
 
 Same issue as Task 4 Step 5 for `useExceptionMutation`: `useReceivableMutation<TInput>(mutationFn: (input: TInput) => Promise<unknown>)` currently erases the resolved value to `unknown`. `useCreateReceivable`/`useWriteOffReceivable`/`useCancelReceivable` never read the resolved value at their call sites, so this went unnoticed — the new batch hooks need `data.results`.
 
@@ -1190,7 +1190,7 @@ function useReceivableMutation<TInput, TResult = unknown>(
 ) {
 ```
 
-- [ ] **Step 5: Add the batch API-calling hooks**
+- [x] **Step 5: Add the batch API-calling hooks**
 
 Modify `apps/frontend/src/features/receivables/api/use-receivables.ts`:
 
@@ -1211,7 +1211,7 @@ export function useBatchCancelReceivables() {
 
 Note: `useReceivableMutation`'s existing `onSuccess` does `if (typeof input === 'string')` to invalidate the single-receivable cache key — an array input skips that branch harmlessly and still invalidates the `['receivables']` list, which is all the bulk case needs.
 
-- [ ] **Step 6: Write the bulk action bar**
+- [x] **Step 6: Write the bulk action bar**
 
 ```tsx
 // apps/frontend/src/features/receivables/components/receivables-bulk-action-bar.tsx
@@ -1315,17 +1315,17 @@ export function ReceivablesBulkActionBar({
 }
 ```
 
-- [ ] **Step 7: Run test to verify it passes**
+- [x] **Step 7: Run test to verify it passes**
 
 Run: `pnpm --filter @casso-ledger/frontend test -- receivables-bulk-action-bar`
 Expected: PASS (2 tests)
 
-- [ ] **Step 8: Type-check**
+- [x] **Step 8: Type-check**
 
 Run: `pnpm --filter @casso-ledger/frontend type-check`
 Expected: PASS, no type errors
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add apps/frontend/src/features/receivables/api apps/frontend/src/features/receivables/components/receivables-bulk-action-bar.tsx apps/frontend/src/features/receivables/components/receivables-bulk-action-bar.spec.tsx
