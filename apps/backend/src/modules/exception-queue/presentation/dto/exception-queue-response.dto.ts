@@ -1,12 +1,15 @@
 import type { Payment } from '../../../payments/domain/payment';
-import type { BankTransaction } from '../../../webhooks/domain/bank-transaction';
+import type {
+  BankTransaction,
+  BankTransactionStatus,
+} from '../../../webhooks/domain/bank-transaction';
 import type { MatchingCandidate } from '../../../webhooks/domain/matching-candidate';
 import type {
   UnmatchedBankTransactionPage,
   UnmatchedBankTransactionView,
 } from '../../application/unmatched-bank-transactions-query.service';
 
-export interface BankTransactionResponseDto {
+export class BankTransactionResponseDto {
   id: string;
   providerTransactionId: string;
   amount: number;
@@ -14,7 +17,7 @@ export interface BankTransactionResponseDto {
   counterpartyAccountNumber: string;
   counterpartyName: string;
   transferContent: string;
-  status: BankTransaction['status'];
+  status: BankTransactionStatus;
   createdAt: Date;
   // Exception Queue spec §1: the accountant must round-trip this value in
   // POST /bank-transactions/:id/match to prove they're acting on the
@@ -22,7 +25,7 @@ export interface BankTransactionResponseDto {
   version: number;
 }
 
-export interface MatchingCandidateResponseDto {
+export class MatchingCandidateResponseDto {
   id: string;
   receivableId: string;
   customerId: string;
@@ -35,7 +38,7 @@ export interface MatchingCandidateResponseDto {
   createdAt: Date;
 }
 
-export interface PaymentResponseDto {
+export class PaymentResponseDto {
   id: string;
   customerId: string | null;
   bankTransactionId: string | null;
@@ -47,12 +50,12 @@ export interface PaymentResponseDto {
   createdAt: Date;
 }
 
-export interface UnmatchedBankTransactionResponseDto {
+export class UnmatchedBankTransactionResponseDto {
   transaction: BankTransactionResponseDto;
   topCandidate: MatchingCandidateResponseDto | null;
 }
 
-export interface UnmatchedBankTransactionPageResponseDto {
+export class UnmatchedBankTransactionPageResponseDto {
   items: UnmatchedBankTransactionResponseDto[];
   total: number;
   page: number;
