@@ -1,0 +1,55 @@
+import type { MigrationInterface, QueryRunner } from 'typeorm';
+
+export class AddReceivableBalanceHistoryRolloutBaseline20260822000000
+  implements MigrationInterface
+{
+  name = 'AddReceivableBalanceHistoryRolloutBaseline20260822000000';
+
+  async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "UQ_receivable_balance_history_rollout_baseline"
+       ON "receivable_balance_history" ("organizationId", "receivableId")
+       WHERE "changeSource" = 'ROLLOUT_BASELINE'`,
+    );
+
+    await queryRunner.query(`
+      INSERT INTO "receivable_balance_history" (
+        "id",
+        "organizationId",
+        "receivableId",
+        "status",
+        "remainingAmount",
+        "effectiveAt",
+        "changeSource",
+        "changeReason",
+        "createdAt"
+      )
+      SELECT
+        gen_random_uuid(),
+        r."organizationId",
+        r."id",
+        r."status"::text::"receivable_balance_history_status_enum",
+        r."originalAmount" - r."paidAmount",
+        CURRENT_TIMESTAMP,
+        'ROLLOUT_BASELINE',
+        NULL,
+        CURRENT_TIMESTAMP
+      FROM "receivables" r
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM "receivable_balance_history" h
+        WHERE h."organizationId" = r."organizationId"
+          AND h."receivableId" = r."id"
+          AND h."changeSource" = 'ROLLOUT_BASELINE'
+      )
+    `);
+  }
+
+  async down(queryRunner: QueryRunner): Promise<void> {
+    // Balance history is immutable financial data; rollback removes only the
+    // idempotency constraint and never deletes snapshots.
+    await queryRunner.query(
+      'DROP INDEX IF EXISTS "UQ_receivable_balance_history_rollout_baseline"',
+    );
+  }
+}

@@ -1,13 +1,31 @@
 import type { DataSource } from 'typeorm';
+import { ErrorCode } from '../../../common/errors/error-code';
+import type { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { TypeOrmReceivableBalanceHistoryQuery } from './typeorm-receivable-balance-history-query';
 
 describe('TypeOrmReceivableBalanceHistoryQuery', () => {
-  function buildQuery(rows: unknown[] = []) {
+  function buildQuery(rows: unknown[] = [], tenantId = 'org-1') {
     const queryMock = jest.fn().mockResolvedValue(rows);
     const dataSource = { query: queryMock } as never as DataSource;
-    const queryService = new TypeOrmReceivableBalanceHistoryQuery(dataSource);
+    const tenantContext = {
+      getOrganizationId: jest.fn().mockReturnValue(tenantId),
+    } as never as TenantContextService;
+    const queryService = new TypeOrmReceivableBalanceHistoryQuery(
+      dataSource,
+      tenantContext,
+    );
     return { queryService, queryMock };
   }
+
+  it('rejects a cross-tenant query before touching the database', async () => {
+    const { queryService, queryMock } = buildQuery([], 'org-2');
+
+    await expect(
+      queryService.findOutstandingByMonthEnds('org-1', []),
+    ).rejects.toMatchObject({ errorCode: ErrorCode.TENANT_MISMATCH });
+
+    expect(queryMock).not.toHaveBeenCalled();
+  });
 
   it('passes the organization and month-end instants as parameters', async () => {
     const { queryService, queryMock } = buildQuery();

@@ -24,8 +24,9 @@ trend service consumes.
 
 ## Non-goals
 
-- No backfill of periods before rollout; months before history coverage return
-  `outstanding: null`, never a reconstructed value.
+- No reconstruction of periods before rollout; a one-time rollout baseline snapshots
+  the current state of existing receivables, while months before that baseline return
+  `outstanding: null`.
 - No frontend or reporting endpoint in this issue.
 - No change to the receivable state machine or to payment/allocation semantics.
 - No runtime `SUM(payment_allocations)` anywhere.
@@ -73,7 +74,7 @@ Month keys are derived in SQL with the same timezone so they always match the ca
 | `status` | enum `ReceivableStatus` | status after the transition |
 | `remainingAmount` | bigint | immutable historical snapshot of `originalAmount - paidAmount` at the transition instant (integer VND) — not a current derived field; never updated after insert |
 | `effectiveAt` | timestamptz | when the balance became effective (transition time) |
-| `changeSource` | enum/varchar | `CREATE`, `ALLOCATE`, `UNDO`, `CANCEL`, `WRITE_OFF` |
+| `changeSource` | enum/varchar | `CREATE`, `ALLOCATE`, `UNDO`, `CANCEL`, `WRITE_OFF`, `ROLLOUT_BASELINE` |
 | `changeReason` | varchar nullable | e.g. the payment-allocation id for `ALLOCATE`/`UNDO` |
 | `createdAt` | timestamptz | insert time |
 
@@ -81,6 +82,8 @@ Indexes:
 
 - `(organizationId, effectiveAt)` — month-end time-range scans.
 - `(organizationId, receivableId, effectiveAt)` — per-receivable history walks.
+- unique partial `(organizationId, receivableId)` where `changeSource = 'ROLLOUT_BASELINE'`
+  — one baseline snapshot per receivable for the rollout epoch.
 
 Check constraint: `"remainingAmount" >= 0`.
 
@@ -134,6 +137,13 @@ Batch cancel/write-off and the webhook/exception-queue allocation flows delegate
 use cases, so they are covered without extra wiring. Payment creation without allocation
 does not change a receivable balance and records nothing.
 
+The rollout producer is a TypeORM migration that runs during the maintenance-window
+cutover. It inserts one `ROLLOUT_BASELINE` row for every existing receivable, including
+closed and draft statuses, with the current `remainingAmount` and one shared
+`CURRENT_TIMESTAMP`. The migration is one transaction, guarded by the partial unique
+index and `NOT EXISTS` check so a retry is idempotent; a failure rolls back the entire
+baseline. It does not reconstruct any period before the baseline.
+
 Atomicity: the history row participates in the same DB transaction as the receivable
 mutation — if the use case later throws (or the transaction rolls back), the history row
 rolls back with it. No external API is called inside any of these transactions.
@@ -184,6 +194,8 @@ Unit (RED → GREEN per behavior):
   bigint strings, `null` for uncovered months, covered-zero for paid-out months.
 - Use-case hooks: create/cancel/write-off/allocate/undo each append one history entry
   inside the transaction with the post-transition receivable state.
+- Rollout migration: existing receivables receive one baseline row, and rerunning it
+  does not duplicate that row.
 
 Postgres integration (new `receivable-balance-history.integration.spec.ts`):
 
@@ -201,5 +213,7 @@ Postgres integration (new `receivable-balance-history.integration.spec.ts`):
 ## Rollout
 
 The table ships as a TypeORM migration for production plus the entity for
-`synchronize` in dev/test. History coverage begins at the first write after rollout;
-#135 renders pre-coverage months as a data gap (`outstanding: null`).
+`synchronize` in dev/test. A follow-up production migration performs the one-time
+baseline during the maintenance window. History coverage begins at that baseline;
+months before it remain a data gap (`outstanding: null`), while later transitions append
+normal snapshots.

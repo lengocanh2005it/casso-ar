@@ -5,6 +5,11 @@ import type { BalanceHistoryChangeSource } from '../domain/balance-history-chang
 @Entity({ name: 'receivable_balance_history' })
 @Index(['organizationId', 'effectiveAt'])
 @Index(['organizationId', 'receivableId', 'effectiveAt'])
+@Index(
+  'UQ_receivable_balance_history_rollout_baseline',
+  ['organizationId', 'receivableId'],
+  { unique: true, where: `"changeSource" = 'ROLLOUT_BASELINE'` },
+)
 @Check('"remainingAmount" >= 0')
 export class ReceivableBalanceHistoryOrmEntity {
   @PrimaryGeneratedColumn('uuid')

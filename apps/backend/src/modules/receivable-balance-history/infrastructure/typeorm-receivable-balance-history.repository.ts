@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, Repository } from 'typeorm';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { IReceivableBalanceHistoryRepository } from '../application/receivable-balance-history.repository.port';
 import type { ReceivableBalanceHistoryEntry } from '../domain/receivable-balance-history-entry';
@@ -40,7 +42,10 @@ export class TypeOrmReceivableBalanceHistoryRepository
     manager?: EntityManager,
   ): Promise<void> {
     if (entry.organizationId !== this.tenantContext.getOrganizationId()) {
-      throw new Error('TENANT_MISMATCH');
+      throw new AppError(
+        ErrorCode.TENANT_MISMATCH,
+        'Không thể ghi dữ liệu cho tổ chức khác',
+      );
     }
 
     // insert() (not save()) keeps the ledger append-only: a duplicate id

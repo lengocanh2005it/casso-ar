@@ -4,4 +4,5 @@ export enum BalanceHistoryChangeSource {
   UNDO = 'UNDO',
   CANCEL = 'CANCEL',
   WRITE_OFF = 'WRITE_OFF',
+  ROLLOUT_BASELINE = 'ROLLOUT_BASELINE',
 }

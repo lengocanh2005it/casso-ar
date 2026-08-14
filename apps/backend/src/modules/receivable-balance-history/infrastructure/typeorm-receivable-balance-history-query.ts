@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type {
   HistoricalOutstandingPoint,
   IReceivableBalanceHistoryQuery,
@@ -60,12 +63,22 @@ const MONTH_END_OUTSTANDING_SQL = `
 export class TypeOrmReceivableBalanceHistoryQuery
   implements IReceivableBalanceHistoryQuery
 {
-  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly tenantContext: TenantContextService,
+  ) {}
 
   async findOutstandingByMonthEnds(
     organizationId: string,
     monthEnds: Date[],
   ): Promise<HistoricalOutstandingPoint[]> {
+    if (this.tenantContext.getOrganizationId() !== organizationId) {
+      throw new AppError(
+        ErrorCode.TENANT_MISMATCH,
+        'Không thể truy cập dữ liệu của tổ chức khác',
+      );
+    }
+
     const rows = await this.dataSource.query<OutstandingRow[]>(
       MONTH_END_OUTSTANDING_SQL,
       [organizationId, monthEnds.map((date) => date.toISOString())],

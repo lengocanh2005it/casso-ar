@@ -1,5 +1,6 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { EntityManager, Repository } from 'typeorm';
+import { ErrorCode } from '../../../common/errors/error-code';
 import type { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { BalanceHistoryChangeSource } from '../domain/balance-history-change-source';
 import type { ReceivableBalanceHistoryEntry } from '../domain/receivable-balance-history-entry';
@@ -96,8 +97,8 @@ describe('TypeOrmReceivableBalanceHistoryRepository', () => {
   it('rejects an entry for a different tenant', async () => {
     const { repository } = buildRepository('org-2');
 
-    await expect(repository.append(buildEntry())).rejects.toThrow(
-      'TENANT_MISMATCH',
-    );
+    await expect(repository.append(buildEntry())).rejects.toMatchObject({
+      errorCode: ErrorCode.TENANT_MISMATCH,
+    });
   });
 });
