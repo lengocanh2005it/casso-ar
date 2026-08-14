@@ -585,7 +585,7 @@ git commit -m "feat: add exceptions batch API functions and hooks"
 - Consumes: `useBatchSkip`, `useBatchMarkPrepaid` (Task 4), `summarizeBatchResults` (Task 3), `useCustomers` (existing, `@/features/customers/api/use-customers`), `hasPermission` (existing, `@/lib/rbac`).
 - Produces: `<ExceptionsBulkActionBar selectedIds onResult />` — Task 8's page wiring renders this.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 // apps/frontend/src/features/exceptions/components/exceptions-bulk-action-bar.spec.tsx
@@ -657,12 +657,12 @@ describe('ExceptionsBulkActionBar', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @casso-ledger/frontend test -- exceptions-bulk-action-bar`
 Expected: FAIL with "Cannot find module './exceptions-bulk-action-bar'"
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```tsx
 // apps/frontend/src/features/exceptions/components/exceptions-bulk-action-bar.tsx
@@ -832,17 +832,17 @@ export function ExceptionsBulkActionBar({
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm --filter @casso-ledger/frontend test -- exceptions-bulk-action-bar`
 Expected: PASS (1 test)
 
-- [ ] **Step 5: Type-check**
+- [x] **Step 5: Type-check**
 
 Run: `pnpm --filter @casso-ledger/frontend type-check`
 Expected: PASS, no type errors
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/frontend/src/features/exceptions/components/exceptions-bulk-action-bar.tsx apps/frontend/src/features/exceptions/components/exceptions-bulk-action-bar.spec.tsx

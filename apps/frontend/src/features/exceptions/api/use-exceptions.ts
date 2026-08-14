@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
-  type BatchMatchItemInput,
   batchApproveMatch,
   batchMarkPrepaid,
   batchSkip,
@@ -81,15 +80,16 @@ export function useMarkPrepaid() {
 }
 
 export function useBatchSkip() {
-  return useExceptionMutation<string[]>(batchSkip);
+  return useExceptionMutation(batchSkip);
 }
 
 export function useBatchMarkPrepaid() {
-  return useExceptionMutation<{ ids: string[]; customerId: string }>(
-    ({ ids, customerId }) => batchMarkPrepaid(ids, customerId),
-  );
+  return useExceptionMutation<
+    { ids: string[]; customerId: string },
+    Awaited<ReturnType<typeof batchMarkPrepaid>>
+  >(({ ids, customerId }) => batchMarkPrepaid(ids, customerId));
 }
 
 export function useBatchApproveMatch() {
-  return useExceptionMutation<BatchMatchItemInput[]>(batchApproveMatch);
+  return useExceptionMutation(batchApproveMatch);
 }
