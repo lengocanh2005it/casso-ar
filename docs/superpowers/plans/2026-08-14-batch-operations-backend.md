@@ -164,7 +164,7 @@ git commit -m "feat: add shared runBatch iterator for batch endpoints"
 - Consumes: nothing new.
 - Produces: `BATCH_MAX_ITEMS = 50` and `BatchIdsDto { ids: string[] }` — reused as the request body for `batch-skip`, `batch-write-off`, `batch-cancel` (Tasks 3, 6, 7).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // apps/backend/src/common/dto/batch-ids.dto.spec.ts
@@ -199,12 +199,12 @@ describe('BatchIdsDto', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx jest --testPathPattern common/dto/batch-ids.dto`
 Expected: FAIL with "Cannot find module './batch-ids.dto'"
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```typescript
 // apps/backend/src/common/dto/batch-ids.dto.ts
@@ -221,12 +221,12 @@ export class BatchIdsDto {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx jest --testPathPattern common/dto/batch-ids.dto`
 Expected: PASS (3 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/backend/src/common/dto/batch-ids.dto.ts apps/backend/src/common/dto/batch-ids.dto.spec.ts
