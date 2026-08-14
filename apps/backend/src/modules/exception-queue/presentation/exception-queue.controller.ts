@@ -22,12 +22,14 @@ import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { BatchMarkPrepaidBankTransactionUseCase } from '../application/batch-mark-prepaid-bank-transaction.usecase';
+import { BatchMatchBankTransactionUseCase } from '../application/batch-match-bank-transaction.usecase';
 import { BatchSkipBankTransactionUseCase } from '../application/batch-skip-bank-transaction.usecase';
 import { MarkPrepaidBankTransactionUseCase } from '../application/mark-prepaid-bank-transaction.usecase';
 import { MatchBankTransactionUseCase } from '../application/match-bank-transaction.usecase';
 import { SkipBankTransactionUseCase } from '../application/skip-bank-transaction.usecase';
 import { UnmatchedBankTransactionsQueryService } from '../application/unmatched-bank-transactions-query.service';
 import { BatchMarkPrepaidBankTransactionDto } from './dto/batch-mark-prepaid-bank-transaction.dto';
+import { BatchMatchBankTransactionDto } from './dto/batch-match-bank-transaction.dto';
 import { ExceptionQueuePaginationDto } from './dto/exception-queue-pagination.dto';
 import {
   toBankTransactionResponse,
@@ -44,6 +46,7 @@ export class ExceptionQueueController {
   constructor(
     private readonly unmatchedQuery: UnmatchedBankTransactionsQueryService,
     private readonly matchUseCase: MatchBankTransactionUseCase,
+    private readonly batchMatchUseCase: BatchMatchBankTransactionUseCase,
     private readonly skipUseCase: SkipBankTransactionUseCase,
     private readonly batchSkipUseCase: BatchSkipBankTransactionUseCase,
     private readonly markPrepaidUseCase: MarkPrepaidBankTransactionUseCase,
@@ -98,6 +101,29 @@ export class ExceptionQueueController {
             allocatedByUserId: user.userId,
           }),
         ),
+    );
+  }
+
+  @Post('batch-match')
+  @RequirePermission(Permission.PAYMENT_ALLOCATE)
+  async batchMatch(
+    @Body() dto: BatchMatchBankTransactionDto,
+    @Headers('idempotency-key') key: string | undefined,
+  ) {
+    return this.idempotency.execute(
+      'POST /bank-transactions/batch-match',
+      key,
+      dto,
+      async () => {
+        const results = await this.batchMatchUseCase.execute(dto.items);
+        return {
+          results: results.map((result) =>
+            result.status === 'success' && result.data
+              ? { ...result, data: toBankTransactionResponse(result.data) }
+              : result,
+          ),
+        };
+      },
     );
   }
 

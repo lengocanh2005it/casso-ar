@@ -4,6 +4,7 @@ import { PaymentsModule } from '../payments/payments.module';
 import { ReceivablesModule } from '../receivables/receivables.module';
 import { WebhooksModule } from '../webhooks/webhooks.module';
 import { BatchMarkPrepaidBankTransactionUseCase } from './application/batch-mark-prepaid-bank-transaction.usecase';
+import { BatchMatchBankTransactionUseCase } from './application/batch-match-bank-transaction.usecase';
 import { BatchSkipBankTransactionUseCase } from './application/batch-skip-bank-transaction.usecase';
 import { MarkPrepaidBankTransactionUseCase } from './application/mark-prepaid-bank-transaction.usecase';
 import { MatchBankTransactionUseCase } from './application/match-bank-transaction.usecase';
@@ -15,6 +16,7 @@ import { ExceptionQueueController } from './presentation/exception-queue.control
   imports: [WebhooksModule, ReceivablesModule, PaymentsModule, CustomersModule],
   providers: [
     MatchBankTransactionUseCase,
+    BatchMatchBankTransactionUseCase,
     SkipBankTransactionUseCase,
     BatchSkipBankTransactionUseCase,
     MarkPrepaidBankTransactionUseCase,

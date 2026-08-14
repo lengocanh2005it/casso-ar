@@ -699,7 +699,7 @@ git commit -m "feat: add POST /bank-transactions/batch-mark-prepaid"
 - Consumes: `runBatch` (Task 1), `MatchBankTransactionUseCase.execute` (existing), `MatchAllocationItemDto` (existing, `./match-bank-transaction.dto.ts`).
 - Produces: `BatchMatchBankTransactionDto { items: BatchMatchItemDto[] }`, `BatchMatchItemDto { bankTransactionId: string; allocations: MatchAllocationItemDto[]; version: number }`, `BatchMatchBankTransactionUseCase.execute(items: BatchMatchItem[], allocatedByUserId: string): Promise<BatchItemResult<BankTransaction>[]>`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // apps/backend/src/modules/exception-queue/application/batch-match-bank-transaction.usecase.spec.ts
@@ -768,12 +768,12 @@ describe('BatchMatchBankTransactionUseCase', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx jest --testPathPattern batch-match-bank-transaction.usecase`
 Expected: FAIL with "Cannot find module './batch-match-bank-transaction.usecase'"
 
-- [ ] **Step 3: Write the DTO**
+- [x] **Step 3: Write the DTO**
 
 ```typescript
 // apps/backend/src/modules/exception-queue/presentation/dto/batch-match-bank-transaction.dto.ts
@@ -815,7 +815,7 @@ export class BatchMatchBankTransactionDto {
 }
 ```
 
-- [ ] **Step 4: Write minimal implementation**
+- [x] **Step 4: Write minimal implementation**
 
 ```typescript
 // apps/backend/src/modules/exception-queue/application/batch-match-bank-transaction.usecase.ts
@@ -886,12 +886,12 @@ export class BatchMatchBankTransactionUseCase {
 }
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `npx jest --testPathPattern batch-match-bank-transaction.usecase`
 Expected: PASS (1 test)
 
-- [ ] **Step 6: Wire the controller endpoint**
+- [x] **Step 6: Wire the controller endpoint**
 
 Modify `apps/backend/src/modules/exception-queue/presentation/exception-queue.controller.ts`:
 
@@ -928,16 +928,16 @@ import { BatchMatchBankTransactionUseCase } from '../application/batch-match-ban
   }
 ```
 
-- [ ] **Step 7: Wire the module provider**
+- [x] **Step 7: Wire the module provider**
 
 Modify `apps/backend/src/modules/exception-queue/exception-queue.module.ts` — add `BatchMatchBankTransactionUseCase` to the `providers` array.
 
-- [ ] **Step 8: Type-check and run the full exception-queue test suite**
+- [x] **Step 8: Type-check and run the full exception-queue test suite**
 
 Run: `npx tsc --noEmit && npx jest --testPathPattern exception-queue`
 Expected: PASS, no type errors
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add apps/backend/src/modules/exception-queue
