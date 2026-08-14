@@ -17,9 +17,11 @@ import {
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
+import { BatchIdsDto } from '../../../common/dto/batch-ids.dto';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
+import { BatchWriteOffReceivableUseCase } from '../application/batch-write-off-receivable.usecase';
 import { CancelReceivableUseCase } from '../application/cancel-receivable.usecase';
 import { CreateReceivableUseCase } from '../application/create-receivable.usecase';
 import { ExportReceivablesUseCase } from '../application/export-receivables.usecase';
@@ -41,6 +43,7 @@ export class ReceivablesController {
     private readonly createReceivableUseCase: CreateReceivableUseCase,
     private readonly cancelReceivableUseCase: CancelReceivableUseCase,
     private readonly writeOffReceivableUseCase: WriteOffReceivableUseCase,
+    private readonly batchWriteOffReceivableUseCase: BatchWriteOffReceivableUseCase,
     private readonly getReceivableUseCase: GetReceivableUseCase,
     private readonly listReceivablesUseCase: ListReceivablesUseCase,
     private readonly exportReceivablesUseCase: ExportReceivablesUseCase,
@@ -146,6 +149,31 @@ export class ReceivablesController {
       async () => {
         const receivable = await this.writeOffReceivableUseCase.execute(id);
         return toReceivableResponse(receivable);
+      },
+    );
+  }
+
+  @Post('batch-write-off')
+  @RequirePermission(Permission.RECEIVABLE_WRITE_OFF)
+  async batchWriteOff(
+    @Body() dto: BatchIdsDto,
+    @Headers('idempotency-key') key: string | undefined,
+  ) {
+    return this.idempotency.execute(
+      'POST /receivables/batch-write-off',
+      key,
+      dto,
+      async () => {
+        const results = await this.batchWriteOffReceivableUseCase.execute(
+          dto.ids,
+        );
+        return {
+          results: results.map((result) =>
+            result.status === 'success' && result.data
+              ? { ...result, data: toReceivableResponse(result.data) }
+              : result,
+          ),
+        };
       },
     );
   }
