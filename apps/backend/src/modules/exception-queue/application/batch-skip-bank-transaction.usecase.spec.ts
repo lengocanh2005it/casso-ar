@@ -33,7 +33,8 @@ describe('BatchSkipBankTransactionUseCase', () => {
         return buildTransaction(id);
       }),
     } as unknown as SkipBankTransactionUseCase;
-    const auditLogRepo = { create: jest.fn() };
+    const auditLogRepo = { create: jest.fn().mockResolvedValue(undefined) };
+    const logger = { error: jest.fn() };
     const tenantContext = {
       getCurrentUser: () => ({
         userId: 'user-1',
@@ -46,6 +47,7 @@ describe('BatchSkipBankTransactionUseCase', () => {
       skipUseCase,
       auditLogRepo as never,
       tenantContext,
+      logger as never,
     );
 
     const results = await useCase.execute(['tx-ok', 'tx-fail']);
@@ -65,5 +67,33 @@ describe('BatchSkipBankTransactionUseCase', () => {
       organizationId: 'org-1',
       userId: 'user-1',
     });
+  });
+
+  it('keeps the transaction successful when audit persistence fails', async () => {
+    const skipUseCase = {
+      execute: jest.fn(async (id: string) => buildTransaction(id)),
+    } as unknown as SkipBankTransactionUseCase;
+    const auditLogRepo = {
+      create: jest.fn().mockRejectedValue(new Error('audit unavailable')),
+    };
+    const logger = { error: jest.fn() };
+    const tenantContext = {
+      getCurrentUser: () => ({
+        userId: 'user-1',
+        organizationId: 'org-1',
+        role: 'ACCOUNTANT',
+      }),
+    } as unknown as TenantContextService;
+
+    const useCase = new BatchSkipBankTransactionUseCase(
+      skipUseCase,
+      auditLogRepo as never,
+      tenantContext,
+      logger as never,
+    );
+
+    await expect(useCase.execute(['tx-ok'])).resolves.toEqual([
+      { id: 'tx-ok', status: 'success', data: buildTransaction('tx-ok') },
+    ]);
   });
 });

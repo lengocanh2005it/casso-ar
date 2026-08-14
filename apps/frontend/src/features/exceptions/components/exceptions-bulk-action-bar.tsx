@@ -82,6 +82,8 @@ export function ExceptionsBulkActionBar({
     (sum, item) => sum + item.transaction.amount,
     0,
   );
+  const reportError = () =>
+    toast.error('Không thể xử lý thao tác hàng loạt. Vui lòng thử lại.');
 
   if (!hasPermission(user?.role ?? null, Permission.PAYMENT_ALLOCATE)) {
     return null;
@@ -100,6 +102,7 @@ export function ExceptionsBulkActionBar({
             onSuccess: (data: {
               results: BatchItemResult<BankTransaction>[];
             }) => reportResults('giao dịch', data.results, onResult),
+            onError: reportError,
           })
         }
       >
@@ -174,6 +177,7 @@ export function ExceptionsBulkActionBar({
                       setCustomerSearch('');
                       setCustomerId('');
                     },
+                    onError: reportError,
                   },
                 )
               }
@@ -211,6 +215,7 @@ export function ExceptionsBulkActionBar({
                 reportResults('giao dịch', data.results, onResult);
                 setApproveOpen(false);
               },
+              onError: reportError,
             },
           )
         }

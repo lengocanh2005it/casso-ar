@@ -1,10 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PendingReviewItem } from '../types';
 import { ExceptionsBulkActionBar } from './exceptions-bulk-action-bar';
 
-const apiRequest = vi.fn();
+const { apiRequest, toastError, toastSuccess } = vi.hoisted(() => ({
+  apiRequest: vi.fn(),
+  toastError: vi.fn(),
+  toastSuccess: vi.fn(),
+}));
 
 vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
@@ -14,6 +18,15 @@ vi.mock('@/lib/api-client', () => ({
 vi.mock('@/contexts/auth-context', () => ({
   useAuth: () => ({ user: { role: 'ACCOUNTANT' } }),
 }));
+vi.mock('sonner', () => ({
+  toast: { error: toastError, success: toastSuccess },
+}));
+
+beforeEach(() => {
+  apiRequest.mockReset();
+  toastError.mockReset();
+  toastSuccess.mockReset();
+});
 
 function renderBar(items: PendingReviewItem[], onResult = vi.fn()) {
   const queryClient = new QueryClient({
@@ -142,6 +155,34 @@ describe('ExceptionsBulkActionBar', () => {
             ],
           },
         }),
+      ),
+    );
+  });
+
+  it('reports a transport failure when skipping selected transactions fails', async () => {
+    apiRequest.mockRejectedValue(new Error('network'));
+    renderBar([
+      {
+        transaction: {
+          id: 'tx-1',
+          providerTransactionId: 'TX-1',
+          amount: 10_000,
+          transactionDateTime: '2026-08-01',
+          counterpartyAccountNumber: '001',
+          counterpartyName: 'A',
+          transferContent: 'note',
+          status: 'PENDING_REVIEW',
+          version: 1,
+        },
+        topCandidate: null,
+      },
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ qua' }));
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'Không thể xử lý thao tác hàng loạt. Vui lòng thử lại.',
       ),
     );
   });

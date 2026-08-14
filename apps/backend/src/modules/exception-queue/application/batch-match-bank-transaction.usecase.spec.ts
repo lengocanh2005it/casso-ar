@@ -17,7 +17,8 @@ describe('BatchMatchBankTransactionUseCase', () => {
         return { id: bankTransactionId, status: 'MATCHED' };
       }),
     } as unknown as MatchBankTransactionUseCase;
-    const auditLogRepo = { create: jest.fn() };
+    const auditLogRepo = { create: jest.fn().mockResolvedValue(undefined) };
+    const logger = { error: jest.fn() };
     const tenantContext = {
       getCurrentUser: () => ({
         userId: 'user-1',
@@ -30,6 +31,7 @@ describe('BatchMatchBankTransactionUseCase', () => {
       matchUseCase,
       auditLogRepo as never,
       tenantContext,
+      logger as never,
     );
 
     const results = await useCase.execute([

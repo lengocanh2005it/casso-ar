@@ -15,6 +15,7 @@ import {
 } from '../../../common/batch/run-batch';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { JsonLogger } from '../../../common/observability/json-logger.service';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { BankTransaction } from '../../webhooks/domain/bank-transaction';
 import type { MatchAllocationItem } from './match-bank-transaction.usecase';
@@ -33,6 +34,7 @@ export class BatchMatchBankTransactionUseCase {
     @Inject(AUDIT_LOG_REPOSITORY)
     private readonly auditLogRepo: IAuditLogRepository,
     private readonly tenantContext: TenantContextService,
+    private readonly logger: JsonLogger,
   ) {}
 
   async execute(
@@ -53,19 +55,30 @@ export class BatchMatchBankTransactionUseCase {
           version: item.version,
           allocatedByUserId: user.userId,
         });
-        await this.auditLogRepo.create(
-          new AuditLog({
-            organizationId: user.organizationId,
-            userId: user.userId,
-            actionType: AuditActionType.PAYMENT_ALLOCATE,
-            entityType: AuditEntityType.BANK_TRANSACTION,
-            entityId: item.bankTransactionId,
-            beforeState: null,
-            afterState: sanitizeAuditPayload(transaction),
-            ipAddress: null,
-            createdAt: new Date(),
-          }),
-        );
+        void this.auditLogRepo
+          .create(
+            new AuditLog({
+              organizationId: user.organizationId,
+              userId: user.userId,
+              actionType: AuditActionType.PAYMENT_ALLOCATE,
+              entityType: AuditEntityType.BANK_TRANSACTION,
+              entityId: item.bankTransactionId,
+              beforeState: null,
+              afterState: sanitizeAuditPayload(transaction),
+              ipAddress: null,
+              createdAt: new Date(),
+            }),
+          )
+          .catch((error: unknown) => {
+            this.logger.error({
+              message: 'Failed to write batch audit log',
+              actionType: AuditActionType.PAYMENT_ALLOCATE,
+              entityId: item.bankTransactionId,
+              organizationId: user.organizationId,
+              userId: user.userId,
+              error,
+            });
+          });
         return transaction;
       },
     );

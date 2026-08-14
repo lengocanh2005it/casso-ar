@@ -126,7 +126,10 @@ export function ExceptionsPage() {
                   }
                 }}
               >
-                <TableCell onClick={(event) => event.stopPropagation()}>
+                <TableCell
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
                   <Checkbox
                     aria-label={`Chọn giao dịch ${row.transaction.providerTransactionId}`}
                     checked={bulkSelection.isSelected(row.transaction.id)}

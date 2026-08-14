@@ -17,7 +17,8 @@ describe('BatchCancelReceivableUseCase', () => {
         return { id, status: 'CANCELLED' };
       }),
     } as unknown as CancelReceivableUseCase;
-    const auditLogRepo = { create: jest.fn() };
+    const auditLogRepo = { create: jest.fn().mockResolvedValue(undefined) };
+    const logger = { error: jest.fn() };
     const tenantContext = {
       getCurrentUser: () => ({
         userId: 'user-1',
@@ -30,6 +31,7 @@ describe('BatchCancelReceivableUseCase', () => {
       cancelUseCase,
       auditLogRepo as never,
       tenantContext,
+      logger as never,
     );
 
     const results = await useCase.execute(['rec-ok', 'rec-has-payments']);

@@ -15,6 +15,7 @@ import {
 } from '../../../common/batch/run-batch';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { JsonLogger } from '../../../common/observability/json-logger.service';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { Receivable } from '../domain/receivable';
 import { WriteOffReceivableUseCase } from './write-off-receivable.usecase';
@@ -26,6 +27,7 @@ export class BatchWriteOffReceivableUseCase {
     @Inject(AUDIT_LOG_REPOSITORY)
     private readonly auditLogRepo: IAuditLogRepository,
     private readonly tenantContext: TenantContextService,
+    private readonly logger: JsonLogger,
   ) {}
 
   async execute(ids: string[]): Promise<BatchItemResult<Receivable>[]> {
@@ -39,19 +41,30 @@ export class BatchWriteOffReceivableUseCase {
       (id) => id,
       async (id) => {
         const receivable = await this.writeOffUseCase.execute(id);
-        await this.auditLogRepo.create(
-          new AuditLog({
-            organizationId: user.organizationId,
-            userId: user.userId,
-            actionType: AuditActionType.RECEIVABLE_WRITE_OFF,
-            entityType: AuditEntityType.RECEIVABLE,
-            entityId: id,
-            beforeState: null,
-            afterState: sanitizeAuditPayload(receivable),
-            ipAddress: null,
-            createdAt: new Date(),
-          }),
-        );
+        void this.auditLogRepo
+          .create(
+            new AuditLog({
+              organizationId: user.organizationId,
+              userId: user.userId,
+              actionType: AuditActionType.RECEIVABLE_WRITE_OFF,
+              entityType: AuditEntityType.RECEIVABLE,
+              entityId: id,
+              beforeState: null,
+              afterState: sanitizeAuditPayload(receivable),
+              ipAddress: null,
+              createdAt: new Date(),
+            }),
+          )
+          .catch((error: unknown) => {
+            this.logger.error({
+              message: 'Failed to write batch audit log',
+              actionType: AuditActionType.RECEIVABLE_WRITE_OFF,
+              entityId: id,
+              organizationId: user.organizationId,
+              userId: user.userId,
+              error,
+            });
+          });
         return receivable;
       },
     );

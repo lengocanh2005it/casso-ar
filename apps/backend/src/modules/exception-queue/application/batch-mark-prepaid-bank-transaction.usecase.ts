@@ -15,6 +15,7 @@ import {
 } from '../../../common/batch/run-batch';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { JsonLogger } from '../../../common/observability/json-logger.service';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { Payment } from '../../payments/domain/payment';
 import type { BankTransaction } from '../../webhooks/domain/bank-transaction';
@@ -27,6 +28,7 @@ export class BatchMarkPrepaidBankTransactionUseCase {
     @Inject(AUDIT_LOG_REPOSITORY)
     private readonly auditLogRepo: IAuditLogRepository,
     private readonly tenantContext: TenantContextService,
+    private readonly logger: JsonLogger,
   ) {}
 
   async execute(
@@ -48,19 +50,30 @@ export class BatchMarkPrepaidBankTransactionUseCase {
           bankTransactionId,
           customerId,
         });
-        await this.auditLogRepo.create(
-          new AuditLog({
-            organizationId: user.organizationId,
-            userId: user.userId,
-            actionType: AuditActionType.BANK_TRANSACTION_MARK_PREPAID,
-            entityType: AuditEntityType.BANK_TRANSACTION,
-            entityId: bankTransactionId,
-            beforeState: null,
-            afterState: sanitizeAuditPayload(result),
-            ipAddress: null,
-            createdAt: new Date(),
-          }),
-        );
+        void this.auditLogRepo
+          .create(
+            new AuditLog({
+              organizationId: user.organizationId,
+              userId: user.userId,
+              actionType: AuditActionType.BANK_TRANSACTION_MARK_PREPAID,
+              entityType: AuditEntityType.BANK_TRANSACTION,
+              entityId: bankTransactionId,
+              beforeState: null,
+              afterState: sanitizeAuditPayload(result),
+              ipAddress: null,
+              createdAt: new Date(),
+            }),
+          )
+          .catch((error: unknown) => {
+            this.logger.error({
+              message: 'Failed to write batch audit log',
+              actionType: AuditActionType.BANK_TRANSACTION_MARK_PREPAID,
+              entityId: bankTransactionId,
+              organizationId: user.organizationId,
+              userId: user.userId,
+              error,
+            });
+          });
         return result;
       },
     );

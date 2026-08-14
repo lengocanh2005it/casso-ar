@@ -85,4 +85,44 @@ describe('ExceptionsPage', () => {
 
     expect(await screen.findByText('Đã chọn 1')).toBeInTheDocument();
   });
+
+  it('does not open the split dialog when a row checkbox receives keyboard input', async () => {
+    apiRequest.mockResolvedValue({
+      items: [
+        {
+          transaction: {
+            id: 'tx-1',
+            providerTransactionId: 'TX-1',
+            amount: 10_000,
+            transactionDateTime: '2026-08-01',
+            counterpartyAccountNumber: '001',
+            counterpartyName: 'A',
+            transferContent: 'note',
+            status: 'PENDING_REVIEW',
+            version: 1,
+          },
+          topCandidate: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const rowCheckbox = (await screen.findAllByRole('checkbox'))[1];
+    fireEvent.keyDown(rowCheckbox, { key: ' ' });
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 });

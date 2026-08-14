@@ -1,9 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReceivablesBulkActionBar } from './receivables-bulk-action-bar';
 
-const apiRequest = vi.fn();
+const { apiRequest, toastError, toastSuccess } = vi.hoisted(() => ({
+  apiRequest: vi.fn(),
+  toastError: vi.fn(),
+  toastSuccess: vi.fn(),
+}));
 
 vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
@@ -13,6 +17,15 @@ vi.mock('@/lib/api-client', () => ({
 vi.mock('@/contexts/auth-context', () => ({
   useAuth: () => ({ user: { role: 'OWNER' } }),
 }));
+vi.mock('sonner', () => ({
+  toast: { error: toastError, success: toastSuccess },
+}));
+
+beforeEach(() => {
+  apiRequest.mockReset();
+  toastError.mockReset();
+  toastSuccess.mockReset();
+});
 
 function renderBar(onResult = vi.fn()) {
   const queryClient = new QueryClient({
@@ -70,6 +83,20 @@ describe('ReceivablesBulkActionBar', () => {
           url: '/api/v1/receivables/batch-cancel',
           data: { ids: ['rec-1', 'rec-2'] },
         }),
+      ),
+    );
+  });
+
+  it('reports a transport failure when bulk write-off fails', async () => {
+    apiRequest.mockRejectedValue(new Error('network'));
+    renderBar();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa nợ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận xóa nợ' }));
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'Không thể xử lý thao tác hàng loạt. Vui lòng thử lại.',
       ),
     );
   });

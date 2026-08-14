@@ -17,7 +17,8 @@ describe('BatchWriteOffReceivableUseCase', () => {
         return { id, status: 'WRITTEN_OFF' };
       }),
     } as unknown as WriteOffReceivableUseCase;
-    const auditLogRepo = { create: jest.fn() };
+    const auditLogRepo = { create: jest.fn().mockResolvedValue(undefined) };
+    const logger = { error: jest.fn() };
     const tenantContext = {
       getCurrentUser: () => ({
         userId: 'user-1',
@@ -30,6 +31,7 @@ describe('BatchWriteOffReceivableUseCase', () => {
       writeOffUseCase,
       auditLogRepo as never,
       tenantContext,
+      logger as never,
     );
 
     const results = await useCase.execute(['rec-ok', 'rec-missing']);

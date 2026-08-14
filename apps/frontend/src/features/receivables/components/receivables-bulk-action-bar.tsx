@@ -45,6 +45,10 @@ export function ReceivablesBulkActionBar({
     onResult(succeeded, failed);
   }
 
+  function reportError() {
+    toast.error('Không thể xử lý thao tác hàng loạt. Vui lòng thử lại.');
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-3">
       <span className="text-sm font-medium">Đã chọn {selectedIds.length}</span>
@@ -73,6 +77,7 @@ export function ReceivablesBulkActionBar({
               report(data.results);
               setWriteOffOpen(false);
             },
+            onError: reportError,
           })
         }
       />
@@ -90,6 +95,7 @@ export function ReceivablesBulkActionBar({
               report(data.results);
               setCancelOpen(false);
             },
+            onError: reportError,
           })
         }
       />
