@@ -33,7 +33,7 @@
 **Interfaces:**
 - Produces: `BatchItemResult<T>` (`{ id: string; status: 'success' | 'error'; data?: T; errorCode?: string; message?: string }`) and `runBatch<TInput, TResult>(items: TInput[], getId: (item: TInput) => string, handle: (item: TInput) => Promise<TResult>): Promise<BatchItemResult<TResult>[]>` — every later task's batch use case calls this.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // apps/backend/src/common/batch/run-batch.spec.ts
@@ -87,12 +87,12 @@ describe('runBatch', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx jest --testPathPattern common/batch/run-batch`
 Expected: FAIL with "Cannot find module './run-batch'"
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```typescript
 // apps/backend/src/common/batch/run-batch.ts
@@ -140,12 +140,12 @@ export async function runBatch<TInput, TResult>(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx jest --testPathPattern common/batch/run-batch`
 Expected: PASS (2 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/backend/src/common/batch/run-batch.ts apps/backend/src/common/batch/run-batch.spec.ts
