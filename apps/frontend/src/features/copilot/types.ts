@@ -13,3 +13,26 @@ export interface CopilotPendingAction {
   createdAt: string;
   resolvedAt: string | null;
 }
+
+export type CopilotDraftStatus =
+  | 'DRAFTED'
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'CANCELLED'
+  | 'EXPIRED';
+
+export interface CopilotDraft {
+  id: string;
+  receivableId: string;
+  recipientEmail: string;
+  subject: string;
+  bodyHtml: string;
+  status: CopilotDraftStatus;
+  pendingActionId: string | null;
+  createdAt: string;
+}
+
+export interface CopilotDraftsPage {
+  items: CopilotDraft[];
+  total: number;
+}

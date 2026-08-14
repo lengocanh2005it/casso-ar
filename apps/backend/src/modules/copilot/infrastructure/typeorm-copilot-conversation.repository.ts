@@ -56,9 +56,13 @@ export class TypeOrmCopilotConversationRepository
   async findOrCreate(
     conversationId: string,
     userId: string,
+    manager?: EntityManager,
   ): Promise<CopilotConversation> {
     const organizationId = this.tenantContext.getOrganizationId();
-    const existing = await this.ormRepo.findOne({
+    const repo = manager
+      ? manager.getRepository(CopilotConversationOrmEntity)
+      : this.ormRepo;
+    const existing = await repo.findOne({
       select: {
         id: true,
         organizationId: true,
@@ -70,7 +74,7 @@ export class TypeOrmCopilotConversationRepository
     });
     if (existing) return toConversation(existing);
 
-    const ownedByAnotherUser = await this.ormRepo.findOne({
+    const ownedByAnotherUser = await repo.findOne({
       select: {
         id: true,
         organizationId: true,
@@ -82,7 +86,7 @@ export class TypeOrmCopilotConversationRepository
     });
     if (ownedByAnotherUser) return toConversation(ownedByAnotherUser);
 
-    const row = await this.ormRepo.save({
+    const row = await repo.save({
       id: conversationId,
       organizationId,
       userId,

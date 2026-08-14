@@ -11,6 +11,8 @@ import {
   type IEventPublisher,
 } from '../../../common/events/event-publisher.port';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { ReceivableBalanceHistoryRecorderService } from '../../receivable-balance-history/application/receivable-balance-history-recorder.service';
+import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import {
   type IReceivableRepository,
   RECEIVABLE_REPOSITORY,
@@ -46,6 +48,7 @@ export class AllocatePaymentUseCase {
     private readonly auditContext: AuditContextService,
     @Inject(EVENT_PUBLISHER)
     private readonly eventPublisher: IEventPublisher,
+    private readonly historyRecorder: ReceivableBalanceHistoryRecorderService,
   ) {}
 
   async execute(input: AllocatePaymentInput): Promise<void> {
@@ -187,21 +190,25 @@ export class AllocatePaymentUseCase {
 
     await this.receivableRepo.save(updatedReceivable, manager);
     await this.paymentRepo.save(updatedPayment, manager);
-    await this.allocationRepo.save(
-      new PaymentAllocation({
-        id: randomUUID(),
-        organizationId: this.tenantContext.getOrganizationId(),
-        paymentId: input.paymentId,
-        receivableId: input.receivableId,
-        allocatedAmount: input.amount,
-        allocatedAt: new Date(),
-        allocatedByUserId: input.allocatedByUserId,
-        deletedAt: null,
-        deletedByUserId: null,
-        undoReason: null,
-        createdAt: new Date(),
-      }),
+    const allocation = new PaymentAllocation({
+      id: randomUUID(),
+      organizationId: this.tenantContext.getOrganizationId(),
+      paymentId: input.paymentId,
+      receivableId: input.receivableId,
+      allocatedAmount: input.amount,
+      allocatedAt: new Date(),
+      allocatedByUserId: input.allocatedByUserId,
+      deletedAt: null,
+      deletedByUserId: null,
+      undoReason: null,
+      createdAt: new Date(),
+    });
+    await this.allocationRepo.save(allocation, manager);
+    await this.historyRecorder.record(
+      updatedReceivable,
+      BalanceHistoryChangeSource.ALLOCATE,
       manager,
+      allocation.id,
     );
 
     return { customerId: receivable.customerId, becameClosed };

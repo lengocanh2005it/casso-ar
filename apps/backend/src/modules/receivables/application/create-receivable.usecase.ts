@@ -11,6 +11,8 @@ import {
   CUSTOMER_REPOSITORY,
   type ICustomerRepository,
 } from '../../customers/application/customer-repository.port';
+import { ReceivableBalanceHistoryRecorderService } from '../../receivable-balance-history/application/receivable-balance-history-recorder.service';
+import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import { Receivable } from '../domain/receivable';
 import {
   type IReceivableRepository,
@@ -34,6 +36,7 @@ export class CreateReceivableUseCase {
     private readonly tenant: TenantContextService,
     private readonly planLimit: PlanLimitService,
     private readonly dataSource: DataSource,
+    private readonly historyRecorder: ReceivableBalanceHistoryRecorderService,
   ) {}
 
   async execute(
@@ -77,6 +80,11 @@ export class CreateReceivableUseCase {
       version: 0,
     });
     await this.repo.save(receivable, manager);
+    await this.historyRecorder.record(
+      receivable,
+      BalanceHistoryChangeSource.CREATE,
+      manager,
+    );
     return receivable;
   }
 }
