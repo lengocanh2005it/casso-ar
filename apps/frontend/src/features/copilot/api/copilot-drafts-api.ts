@@ -1,5 +1,6 @@
 import { apiRequest } from '@/lib/api-client';
 import type {
+  CopilotDraft,
   CopilotDraftStatus,
   CopilotDraftsPage,
   CopilotPendingAction,
@@ -26,6 +27,26 @@ export function reopenCopilotDraft(
   }>({
     url: `/api/v1/copilot/drafts/${id}/reopen`,
     method: 'POST',
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}
+
+export function updateCopilotDraft(
+  id: string,
+  input: { subject?: string; bodyHtml?: string },
+): Promise<CopilotDraft> {
+  return apiRequest<CopilotDraft>({
+    url: `/api/v1/copilot/drafts/${id}`,
+    method: 'PATCH',
+    data: input,
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}
+
+export function deleteCopilotDraft(id: string): Promise<{ success: boolean }> {
+  return apiRequest<{ success: boolean }>({
+    url: `/api/v1/copilot/drafts/${id}`,
+    method: 'DELETE',
     headers: { 'Idempotency-Key': crypto.randomUUID() },
   });
 }
