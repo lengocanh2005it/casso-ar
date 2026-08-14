@@ -294,11 +294,12 @@ git commit -m "feat: query month-end receivable outstanding"
 
 Migration: raw SQL `CREATE TABLE` matching the entity (columns, enum, check, both indexes) and a symmetric `DROP` in `down`, following the existing `YYYYMMDDHHMMSS-add-*.ts` style.
 
-The rollout migration creates the unique partial baseline index and, in the same
-transaction, inserts one `ROLLOUT_BASELINE` snapshot for every existing receivable using
-the current status and `originalAmount - paidAmount`. `NOT EXISTS` plus the unique index
-makes a retry idempotent. Its `down` removes only the index; immutable financial
-snapshots are never deleted.
+The rollout migration explicitly runs in one TypeORM transaction, first taking a
+`SHARE` lock on `receivables` so transitions cannot interleave with the baseline. It
+creates the unique partial baseline index and inserts one `ROLLOUT_BASELINE` snapshot
+for every existing receivable using the current status and `originalAmount - paidAmount`.
+`NOT EXISTS` plus the unique index makes a retry idempotent. Its `down` removes only the
+index; immutable financial snapshots are never deleted.
 
 Integration suite (testcontainers Postgres, `AppModule`): seed a user, membership, customer, and receivables, then assert:
 

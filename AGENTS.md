@@ -73,12 +73,21 @@ amount: number;
   snapshot recorded inside the transition transaction — append-only, never updated after
   insert, and never reconstructed with a runtime `SUM(payment_allocations)`. It is not a
   current derived field.
+- **Rollout exception:** the one-time `ROLLOUT_BASELINE` maintenance migration may snapshot
+  current receivable rollups in its own atomic migration transaction. It is a cutover
+  operation, not a runtime transition, and must not be reused for request-time writes.
 
 ### Tenant Isolation
 
 - Every query/write MUST be scoped by `organizationId`
 - Use `TenantContextService.getOrganizationId()`
 - Never hardcode organizationId
+
+**System migration exception:** a database migration or maintenance backfill
+that intentionally processes every organization has no request tenant context
+and may operate across organizations. It MUST still select and persist the
+explicit `organizationId` for every row, remain atomic, and never be reused by
+application/request code.
 
 ```typescript
 // ✅ Correct

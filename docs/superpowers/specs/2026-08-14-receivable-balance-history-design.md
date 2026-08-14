@@ -140,9 +140,12 @@ does not change a receivable balance and records nothing.
 The rollout producer is a TypeORM migration that runs during the maintenance-window
 cutover. It inserts one `ROLLOUT_BASELINE` row for every existing receivable, including
 closed and draft statuses, with the current `remainingAmount` and one shared
-`CURRENT_TIMESTAMP`. The migration is one transaction, guarded by the partial unique
-index and `NOT EXISTS` check so a retry is idempotent; a failure rolls back the entire
-baseline. It does not reconstruct any period before the baseline.
+`CURRENT_TIMESTAMP`. It explicitly opts into a TypeORM transaction and takes a
+`SHARE` table lock on `receivables` before reading, so in-flight transitions finish
+first and new amount/status writes wait until the cutover commits. The migration is
+guarded by the partial unique index and `NOT EXISTS` check so a retry is idempotent;
+a failure rolls back the entire baseline. It does not reconstruct any period before
+the baseline.
 
 Atomicity: the history row participates in the same DB transaction as the receivable
 mutation — if the use case later throws (or the transaction rolls back), the history row
@@ -198,6 +201,10 @@ Unit (RED → GREEN per behavior):
   does not duplicate that row.
 
 Postgres integration (new `receivable-balance-history.integration.spec.ts`):
+
+The suite boots the full `AppModule`, whose BullMQ workers require Redis during
+Nest application initialization. It starts an ephemeral Redis container only as
+that bootstrap dependency; no Redis behavior is under test.
 
 - create → `OPEN` row with `remainingAmount = originalAmount`;
 - allocate → decreased remaining; full allocation → `PAID` row; `closedAt` recorded;

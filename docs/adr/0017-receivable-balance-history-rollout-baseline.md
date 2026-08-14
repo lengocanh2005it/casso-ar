@@ -9,7 +9,9 @@ snapshots afterward. This prevents partial historical outstanding totals without
 adding a zero-downtime cutover mechanism; archival is a separate future decision.
 The baseline is idempotent per receivable and rollout so an interrupted run can resume
 without duplicating snapshots.
-For the MVP, the baseline is one atomic transaction: failure rolls back the full
-baseline and does not establish coverage.
+For the MVP, the migration explicitly runs as one atomic transaction and takes a
+`SHARE` lock on `receivables` before reading. In-flight transitions finish first;
+new amount/status writes wait until the cutover commits. Failure rolls back the
+full baseline and does not establish coverage.
 The current model has one history coverage epoch per organization; any future
 re-baseline would require an explicit new epoch.

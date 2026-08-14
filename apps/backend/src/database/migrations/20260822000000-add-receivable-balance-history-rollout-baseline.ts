@@ -4,8 +4,12 @@ export class AddReceivableBalanceHistoryRolloutBaseline20260822000000
   implements MigrationInterface
 {
   name = 'AddReceivableBalanceHistoryRolloutBaseline20260822000000';
+  transaction = true;
 
   async up(queryRunner: QueryRunner): Promise<void> {
+    // The share lock waits for in-flight receivable transitions, then blocks
+    // new amount/status writes until the baseline transaction commits.
+    await queryRunner.query('LOCK TABLE "receivables" IN SHARE MODE');
     await queryRunner.query(
       `CREATE UNIQUE INDEX IF NOT EXISTS "UQ_receivable_balance_history_rollout_baseline"
        ON "receivable_balance_history" ("organizationId", "receivableId")
