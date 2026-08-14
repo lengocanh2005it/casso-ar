@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  batchCancelReceivables,
+  batchWriteOffReceivables,
   type CreateReceivableInput,
   cancelReceivable,
   createReceivable,
@@ -24,8 +26,8 @@ export function useReceivable(id: string) {
   });
 }
 
-function useReceivableMutation<TInput>(
-  mutationFn: (input: TInput) => Promise<unknown>,
+function useReceivableMutation<TInput, TResult = unknown>(
+  mutationFn: (input: TInput) => Promise<TResult>,
 ) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -49,4 +51,12 @@ export function useWriteOffReceivable() {
 
 export function useCancelReceivable() {
   return useReceivableMutation<string>(cancelReceivable);
+}
+
+export function useBatchWriteOffReceivables() {
+  return useReceivableMutation(batchWriteOffReceivables);
+}
+
+export function useBatchCancelReceivables() {
+  return useReceivableMutation(batchCancelReceivables);
 }

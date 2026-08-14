@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import {
@@ -13,8 +14,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDate, formatVND } from '@/lib/format';
+import { useBulkSelection } from '@/lib/use-bulk-selection';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { usePendingReview } from '../api/use-exceptions';
+import { ExceptionsBulkActionBar } from '../components/exceptions-bulk-action-bar';
 import { SplitMatchDialog } from '../components/split-match-dialog';
 import type { BankTransaction } from '../types';
 
@@ -27,6 +30,9 @@ export function ExceptionsPage() {
   const { data, isPending, isError } = usePendingReview(
     page,
     debouncedSearch || undefined,
+  );
+  const bulkSelection = useBulkSelection(
+    (data?.items ?? []).map((item) => item.transaction.id),
   );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
 
@@ -42,7 +48,7 @@ export function ExceptionsPage() {
     <div className="space-y-5">
       <div>
         <p className="text-sm font-medium text-primary">CẦN XỬ LÝ</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+        <h1 className="mt-1 text-balance text-2xl font-semibold tracking-tight">
           Hàng chờ xử lý ngoại lệ
         </h1>
       </div>
@@ -51,7 +57,7 @@ export function ExceptionsPage() {
         type="search"
         autoComplete="off"
         aria-label="Tìm kiếm giao dịch"
-        placeholder="Tìm theo tên, số tài khoản hoặc nội dung chuyển khoản"
+        placeholder="Tìm theo tên, số tài khoản hoặc nội dung chuyển khoản…"
         value={search}
         onChange={(event) => {
           const value = event.target.value;
@@ -74,7 +80,7 @@ export function ExceptionsPage() {
       {isPending && <TableSkeleton rows={5} />}
       {isError && (
         <p role="status" aria-live="polite" className="text-destructive">
-          Không thể tải danh sách giao dịch cần xử lý.
+          Không thể tải danh sách giao dịch cần xử lý. Vui lòng thử lại.
         </p>
       )}
       {data && data.items.length === 0 && (
@@ -92,6 +98,13 @@ export function ExceptionsPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  aria-label="Chọn tất cả"
+                  checked={bulkSelection.allSelected}
+                  onCheckedChange={bulkSelection.toggleAll}
+                />
+              </TableHead>
               <TableHead>Ngày giờ</TableHead>
               <TableHead>Đối tác</TableHead>
               <TableHead>Số tiền</TableHead>
@@ -113,6 +126,18 @@ export function ExceptionsPage() {
                   }
                 }}
               >
+                <TableCell
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
+                  <Checkbox
+                    aria-label={`Chọn giao dịch ${row.transaction.providerTransactionId}`}
+                    checked={bulkSelection.isSelected(row.transaction.id)}
+                    onCheckedChange={() =>
+                      bulkSelection.toggle(row.transaction.id)
+                    }
+                  />
+                </TableCell>
                 <TableCell>
                   {formatDate(row.transaction.transactionDateTime)}
                 </TableCell>
@@ -133,6 +158,13 @@ export function ExceptionsPage() {
             ))}
           </TableBody>
         </Table>
+      )}
+      {data && (
+        <ExceptionsBulkActionBar
+          items={data.items}
+          selectedIds={bulkSelection.selectedIds}
+          onResult={(succeeded) => bulkSelection.drop(succeeded)}
+        />
       )}
       {data && data.total > 0 && (
         <div className="flex items-center justify-between text-sm text-muted-foreground">

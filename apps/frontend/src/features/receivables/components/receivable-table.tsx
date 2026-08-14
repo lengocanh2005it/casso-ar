@@ -1,6 +1,8 @@
+import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Link } from 'react-router-dom';
 import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -14,9 +16,24 @@ import type { Receivable } from '../types';
 
 export function ReceivableTable({
   receivables,
+  selectedIds,
+  onToggle,
+  onToggleAll,
+  allSelected,
 }: {
   receivables: Receivable[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+  onToggleAll: () => void;
+  allSelected: boolean;
 }) {
+  function isBulkEligible(status: Receivable['status']): boolean {
+    return (
+      status === ReceivableStatus.OPEN ||
+      status === ReceivableStatus.PARTIALLY_PAID
+    );
+  }
+
   if (receivables.length === 0) {
     return (
       <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
@@ -29,6 +46,13 @@ export function ReceivableTable({
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead className="w-10">
+            <Checkbox
+              aria-label="Chọn tất cả"
+              checked={allSelected}
+              onCheckedChange={onToggleAll}
+            />
+          </TableHead>
           <TableHead>Hóa đơn</TableHead>
           <TableHead>Khách hàng</TableHead>
           <TableHead>Phải thu</TableHead>
@@ -40,6 +64,14 @@ export function ReceivableTable({
       <TableBody>
         {receivables.map((receivable) => (
           <TableRow key={receivable.id}>
+            <TableCell>
+              <Checkbox
+                aria-label={`Chọn ${receivable.invoiceNumber ?? receivable.id}`}
+                checked={selectedIds.includes(receivable.id)}
+                disabled={!isBulkEligible(receivable.status)}
+                onCheckedChange={() => onToggle(receivable.id)}
+              />
+            </TableCell>
             <TableCell>
               <Link
                 to={`/receivables/${receivable.id}`}

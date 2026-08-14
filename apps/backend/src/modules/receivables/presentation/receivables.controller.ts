@@ -17,9 +17,12 @@ import {
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
+import { BatchIdsDto } from '../../../common/dto/batch-ids.dto';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
+import { BatchCancelReceivableUseCase } from '../application/batch-cancel-receivable.usecase';
+import { BatchWriteOffReceivableUseCase } from '../application/batch-write-off-receivable.usecase';
 import { CancelReceivableUseCase } from '../application/cancel-receivable.usecase';
 import { CreateReceivableUseCase } from '../application/create-receivable.usecase';
 import { ExportReceivablesUseCase } from '../application/export-receivables.usecase';
@@ -40,7 +43,9 @@ export class ReceivablesController {
   constructor(
     private readonly createReceivableUseCase: CreateReceivableUseCase,
     private readonly cancelReceivableUseCase: CancelReceivableUseCase,
+    private readonly batchCancelReceivableUseCase: BatchCancelReceivableUseCase,
     private readonly writeOffReceivableUseCase: WriteOffReceivableUseCase,
+    private readonly batchWriteOffReceivableUseCase: BatchWriteOffReceivableUseCase,
     private readonly getReceivableUseCase: GetReceivableUseCase,
     private readonly listReceivablesUseCase: ListReceivablesUseCase,
     private readonly exportReceivablesUseCase: ExportReceivablesUseCase,
@@ -150,6 +155,31 @@ export class ReceivablesController {
     );
   }
 
+  @Post('batch-write-off')
+  @RequirePermission(Permission.RECEIVABLE_WRITE_OFF)
+  async batchWriteOff(
+    @Body() dto: BatchIdsDto,
+    @Headers('idempotency-key') key: string | undefined,
+  ) {
+    return this.idempotency.execute(
+      'POST /receivables/batch-write-off',
+      key,
+      dto,
+      async () => {
+        const results = await this.batchWriteOffReceivableUseCase.execute(
+          dto.ids,
+        );
+        return {
+          results: results.map((result) =>
+            result.status === 'success' && result.data
+              ? { ...result, data: toReceivableResponse(result.data) }
+              : result,
+          ),
+        };
+      },
+    );
+  }
+
   @Post(':id/cancel')
   @RequirePermission(Permission.RECEIVABLE_WRITE_OFF)
   @Audited(AuditActionType.RECEIVABLE_CANCEL, AuditEntityType.RECEIVABLE)
@@ -164,6 +194,31 @@ export class ReceivablesController {
       async () => {
         const receivable = await this.cancelReceivableUseCase.execute(id);
         return toReceivableResponse(receivable);
+      },
+    );
+  }
+
+  @Post('batch-cancel')
+  @RequirePermission(Permission.RECEIVABLE_WRITE_OFF)
+  async batchCancel(
+    @Body() dto: BatchIdsDto,
+    @Headers('idempotency-key') key: string | undefined,
+  ) {
+    return this.idempotency.execute(
+      'POST /receivables/batch-cancel',
+      key,
+      dto,
+      async () => {
+        const results = await this.batchCancelReceivableUseCase.execute(
+          dto.ids,
+        );
+        return {
+          results: results.map((result) =>
+            result.status === 'success' && result.data
+              ? { ...result, data: toReceivableResponse(result.data) }
+              : result,
+          ),
+        };
       },
     );
   }

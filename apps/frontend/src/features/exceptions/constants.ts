@@ -1,0 +1,1 @@
+export const BULK_APPROVE_THRESHOLD = 80;

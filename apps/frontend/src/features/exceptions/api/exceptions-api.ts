@@ -1,5 +1,11 @@
 import { apiRequest, postWithIdempotency } from '@/lib/api-client';
-import type { MatchingCandidate, PendingReviewItem } from '../types';
+import type { BatchItemResult } from '@/lib/batch-types';
+import type {
+  BankTransaction,
+  MatchingCandidate,
+  Payment,
+  PendingReviewItem,
+} from '../types';
 
 export interface PendingReviewPage {
   items: PendingReviewItem[];
@@ -55,4 +61,39 @@ export function markPrepaid(
     `/api/v1/bank-transactions/${bankTransactionId}/mark-prepaid`,
     { customerId },
   );
+}
+
+export function batchSkip(
+  ids: string[],
+): Promise<{ results: BatchItemResult<BankTransaction>[] }> {
+  return postWithIdempotency('/api/v1/bank-transactions/batch-skip', { ids });
+}
+
+export function batchMarkPrepaid(
+  bankTransactionIds: string[],
+  customerId: string,
+): Promise<{
+  results: BatchItemResult<{
+    transaction: BankTransaction;
+    payment: Payment;
+  }>[];
+}> {
+  return postWithIdempotency('/api/v1/bank-transactions/batch-mark-prepaid', {
+    bankTransactionIds,
+    customerId,
+  });
+}
+
+export interface BatchMatchItemInput {
+  bankTransactionId: string;
+  allocations: Array<{ receivableId: string; amount: number }>;
+  version: number;
+}
+
+export function batchApproveMatch(
+  items: BatchMatchItemInput[],
+): Promise<{ results: BatchItemResult<BankTransaction>[] }> {
+  return postWithIdempotency('/api/v1/bank-transactions/batch-match', {
+    items,
+  });
 }
