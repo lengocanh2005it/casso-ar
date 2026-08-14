@@ -26,6 +26,7 @@ import { GetCollectionActivityTimelineTool } from './application/tools/get-colle
 import { GetPaymentHistoryTool } from './application/tools/get-payment-history.tool';
 import { GetReceivableSummaryTool } from './application/tools/get-receivable-summary.tool';
 import { SendReminderEmailTool } from './application/tools/send-reminder-email.tool';
+import { UpdateCopilotDraftUseCase } from './application/update-copilot-draft.usecase';
 import { AIUsageLogOrmEntity } from './infrastructure/ai-usage-log.orm-entity';
 import { CopilotConversationOrmEntity } from './infrastructure/copilot-conversation.orm-entity';
 import { CopilotDraftOrmEntity } from './infrastructure/copilot-draft.orm-entity';
@@ -152,6 +153,7 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     GetCopilotUsageUseCase,
     ListCopilotDraftsUseCase,
     ReopenCopilotDraftUseCase,
+    UpdateCopilotDraftUseCase,
   ],
   exports: [AI_USAGE_LOG_REPOSITORY],
 })
