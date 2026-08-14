@@ -115,7 +115,9 @@ describe('ReceivablesPage', () => {
     );
 
     fireEvent.change(
-      await screen.findByPlaceholderText('Tìm theo số hóa đơn hoặc khách hàng'),
+      await screen.findByPlaceholderText(
+        'Tìm theo số hóa đơn hoặc khách hàng…',
+      ),
       { target: { value: 'acme' } },
     );
 
@@ -127,5 +129,26 @@ describe('ReceivablesPage', () => {
         }),
       ),
     );
+  });
+
+  it('explains how to recover when loading receivables fails', async () => {
+    apiRequest.mockRejectedValue(new Error('network'));
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ReceivablesPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByText(
+        'Không thể tải danh sách công nợ. Vui lòng thử lại.',
+      ),
+    ).toBeInTheDocument();
   });
 });

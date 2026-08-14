@@ -24,11 +24,14 @@ import {
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
+import { BatchIdsDto } from '../../../common/dto/batch-ids.dto';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { BatchCancelReceivableUseCase } from '../application/batch-cancel-receivable.usecase';
+import { BatchWriteOffReceivableUseCase } from '../application/batch-write-off-receivable.usecase';
 import { CancelReceivableUseCase } from '../application/cancel-receivable.usecase';
 import { CreateReceivableUseCase } from '../application/create-receivable.usecase';
 import { ExportReceivablesUseCase } from '../application/export-receivables.usecase';
@@ -53,7 +56,9 @@ export class ReceivablesController {
   constructor(
     private readonly createReceivableUseCase: CreateReceivableUseCase,
     private readonly cancelReceivableUseCase: CancelReceivableUseCase,
+    private readonly batchCancelReceivableUseCase: BatchCancelReceivableUseCase,
     private readonly writeOffReceivableUseCase: WriteOffReceivableUseCase,
+    private readonly batchWriteOffReceivableUseCase: BatchWriteOffReceivableUseCase,
     private readonly getReceivableUseCase: GetReceivableUseCase,
     private readonly listReceivablesUseCase: ListReceivablesUseCase,
     private readonly exportReceivablesUseCase: ExportReceivablesUseCase,
@@ -192,6 +197,41 @@ export class ReceivablesController {
     );
   }
 
+  @Post('batch-write-off')
+  @ApiOperation({ summary: 'Write off multiple receivables' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({
+    description: 'Per-item results (success items include the receivable)',
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
+  @RequirePermission(Permission.RECEIVABLE_WRITE_OFF)
+  async batchWriteOff(
+    @Body() dto: BatchIdsDto,
+    @Headers('idempotency-key') key: string | undefined,
+  ) {
+    return this.idempotency.execute(
+      'POST /receivables/batch-write-off',
+      key,
+      dto,
+      async () => {
+        const results = await this.batchWriteOffReceivableUseCase.execute(
+          dto.ids,
+        );
+        return {
+          results: results.map((result) =>
+            result.status === 'success' && result.data
+              ? { ...result, data: toReceivableResponse(result.data) }
+              : result,
+          ),
+        };
+      },
+    );
+  }
+
   @Post(':id/cancel')
   @ApiOperation({ summary: 'Cancel a receivable' })
   @ApiHeader({ name: 'idempotency-key', required: false })
@@ -215,6 +255,41 @@ export class ReceivablesController {
       async () => {
         const receivable = await this.cancelReceivableUseCase.execute(id);
         return toReceivableResponse(receivable);
+      },
+    );
+  }
+
+  @Post('batch-cancel')
+  @ApiOperation({ summary: 'Cancel multiple receivables' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({
+    description: 'Per-item results (success items include the receivable)',
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
+  @RequirePermission(Permission.RECEIVABLE_WRITE_OFF)
+  async batchCancel(
+    @Body() dto: BatchIdsDto,
+    @Headers('idempotency-key') key: string | undefined,
+  ) {
+    return this.idempotency.execute(
+      'POST /receivables/batch-cancel',
+      key,
+      dto,
+      async () => {
+        const results = await this.batchCancelReceivableUseCase.execute(
+          dto.ids,
+        );
+        return {
+          results: results.map((result) =>
+            result.status === 'success' && result.data
+              ? { ...result, data: toReceivableResponse(result.data) }
+              : result,
+          ),
+        };
       },
     );
   }

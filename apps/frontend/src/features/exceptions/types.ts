@@ -37,3 +37,15 @@ export interface PendingReviewItem {
   transaction: BankTransaction;
   topCandidate: MatchingCandidate | null;
 }
+
+export interface Payment {
+  id: string;
+  customerId: string | null;
+  bankTransactionId: string | null;
+  totalAmount: number;
+  allocatedAmount: number;
+  unallocatedAmount: number;
+  payerName: string;
+  receivedAt: string;
+  createdAt: string;
+}

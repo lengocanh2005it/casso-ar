@@ -7,6 +7,8 @@ import { CustomersModule } from '../customers/customers.module';
 import { DisputesModule } from '../disputes/disputes.module';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { PaymentsModule } from '../payments/payments.module';
+import { BatchCancelReceivableUseCase } from './application/batch-cancel-receivable.usecase';
+import { BatchWriteOffReceivableUseCase } from './application/batch-write-off-receivable.usecase';
 import { CancelReceivableUseCase } from './application/cancel-receivable.usecase';
 import { CreateReceivableUseCase } from './application/create-receivable.usecase';
 import { ExportReceivablesUseCase } from './application/export-receivables.usecase';
@@ -32,7 +34,9 @@ import { ReceivablesController } from './presentation/receivables.controller';
     { provide: EVENT_PUBLISHER, useClass: NestEventPublisherAdapter },
     CreateReceivableUseCase,
     CancelReceivableUseCase,
+    BatchCancelReceivableUseCase,
     WriteOffReceivableUseCase,
+    BatchWriteOffReceivableUseCase,
     GetReceivableUseCase,
     ListReceivablesUseCase,
     ExportReceivablesUseCase,

@@ -3,6 +3,7 @@ import {
   apiRequestWithHeaders,
   postWithIdempotency,
 } from '@/lib/api-client';
+import type { BatchItemResult } from '@/lib/batch-types';
 import type {
   InternalTask,
   Receivable,
@@ -157,4 +158,16 @@ export function resolveTask(taskId: string): Promise<InternalTask> {
 
 export function dismissTask(taskId: string): Promise<InternalTask> {
   return postWithIdempotency<InternalTask>(`/api/v1/tasks/${taskId}/dismiss`);
+}
+
+export function batchWriteOffReceivables(
+  ids: string[],
+): Promise<{ results: BatchItemResult<Receivable>[] }> {
+  return postWithIdempotency('/api/v1/receivables/batch-write-off', { ids });
+}
+
+export function batchCancelReceivables(
+  ids: string[],
+): Promise<{ results: BatchItemResult<Receivable>[] }> {
+  return postWithIdempotency('/api/v1/receivables/batch-cancel', { ids });
 }
