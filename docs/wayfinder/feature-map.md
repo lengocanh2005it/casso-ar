@@ -723,7 +723,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Frontier
 
-**Current status (2026-08-14):** Copilot Draft Library (#136) is done; the map now tracks 31 completed tickets. Three unrelated e2e failures are deferred to a separate issue.
+**Current status (2026-08-14):** Copilot Draft Library (#136) and its edit/delete follow-up (#171) are done; the map now tracks 32 completed tickets. Three unrelated e2e failures are deferred to a separate issue.
 
 **In progress:**
 - None
@@ -738,4 +738,4 @@ Success = a single document a new developer can read and know exactly what to pi
 
 - **2026-08-14**: PR #174 merged into `main`, closing #135 (customer aging + monthly trend) and shipping #172 (receivable balance history prerequisite). Verified with `pnpm verify` 9/9, CI `verify` pass.
 - #98 — research Casso Admin Platform
-- #171 — Copilot draft library: support edit/delete draft (split from #136)
+- **2026-08-14**: PR #175 merged, closing #171 — Copilot draft library edit/delete support (split from #136).
