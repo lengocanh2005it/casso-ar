@@ -13,15 +13,24 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  ApiCreatedResponse,
+  ApiHeader,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   AuditActionType,
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
+import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { CreateCustomerBankAccountUseCase } from '../application/create-customer-bank-account.usecase';
 import { DeactivateCustomerBankAccountUseCase } from '../application/deactivate-customer-bank-account.usecase';
 import { ListCustomerBankAccountsUseCase } from '../application/list-customer-bank-accounts.usecase';
@@ -30,7 +39,11 @@ import {
   CreateCustomerBankAccountDto,
   UpdateCustomerBankAccountDto,
 } from './customer-bank-account.dto';
-import { toCustomerBankAccountResponse } from './customer-bank-account.mapper';
+import {
+  CustomerBankAccountResponseDto,
+  ListCustomerBankAccountsResponseDto,
+  toCustomerBankAccountResponse,
+} from './customer-bank-account-response.dto';
 
 @ApiTags('customer-bank-accounts')
 @Controller('customers/:customerId/bank-accounts')
@@ -45,6 +58,9 @@ export class CustomerBankAccountsController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: 'List bank accounts of a customer' })
+  @ApiOkResponse({ type: ListCustomerBankAccountsResponseDto })
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.NOT_FOUND)
   @RequirePermission(Permission.RECEIVABLE_READ)
   async list(@Param('customerId', ParseUUIDPipe) customerId: string) {
     const result = await this.listUseCase.execute({ customerId });
@@ -55,6 +71,15 @@ export class CustomerBankAccountsController {
   }
 
   @Post()
+  @ApiOperation({ summary: 'Create a bank account for a customer' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: CustomerBankAccountResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @RequirePermission(Permission.CUSTOMER_BANK_ACCOUNT_MANAGE)
   @Audited(
     AuditActionType.CUSTOMER_BANK_ACCOUNT_CREATE,
@@ -80,6 +105,15 @@ export class CustomerBankAccountsController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Update a customer bank account' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiOkResponse({ type: CustomerBankAccountResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @RequirePermission(Permission.CUSTOMER_BANK_ACCOUNT_MANAGE)
   @Audited(
     AuditActionType.CUSTOMER_BANK_ACCOUNT_UPDATE,
@@ -103,6 +137,14 @@ export class CustomerBankAccountsController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Deactivate a customer bank account' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiNoContentResponse({ description: 'Bank account deactivated' })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequirePermission(Permission.CUSTOMER_BANK_ACCOUNT_MANAGE)
   @Audited(
