@@ -3,7 +3,7 @@ import type {
   CollectionActivityType,
 } from '../../domain/collection-activity';
 
-export interface CollectionActivityResponseDto {
+export class CollectionActivityResponseDto {
   id: string;
   receivableId: string;
   customerId: string;
@@ -12,6 +12,13 @@ export interface CollectionActivityResponseDto {
   metadata: Record<string, unknown>;
   createdByUserId: string | null;
   createdAt: Date;
+}
+
+export class CollectionActivityPageResponseDto {
+  items: CollectionActivityResponseDto[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export function toCollectionActivityResponse(

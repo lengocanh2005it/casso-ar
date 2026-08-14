@@ -1,12 +1,19 @@
 import type { Membership } from '../../domain/membership';
 
-export interface MemberResponseDto {
+export class MemberResponseDto {
   id: string;
   userId: string;
   email: string;
   name: string;
   role: string;
   joinedAt: Date | null;
+}
+
+export class ListMembersResponseDto {
+  items: MemberResponseDto[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export function toMemberResponse(
