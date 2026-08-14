@@ -93,7 +93,7 @@ git commit -m "feat: add Checkbox UI primitive"
 **Interfaces:**
 - Produces: `useBulkSelection(ids: string[]): { selectedIds: string[]; isSelected: (id: string) => boolean; allSelected: boolean; toggle: (id: string) => void; toggleAll: () => void; clear: () => void; drop: (ids: string[]) => void }` — every bulk action bar (Tasks 4, 8) and the pages that render checkboxes (Tasks 5, 8) consume this.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // apps/frontend/src/lib/use-bulk-selection.spec.ts
@@ -145,12 +145,12 @@ describe('useBulkSelection', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @casso-ledger/frontend test -- use-bulk-selection`
 Expected: FAIL with "Cannot find module './use-bulk-selection'"
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```typescript
 // apps/frontend/src/lib/use-bulk-selection.ts
@@ -209,12 +209,12 @@ export function useBulkSelection(ids: string[]) {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm --filter @casso-ledger/frontend test -- use-bulk-selection`
 Expected: PASS (4 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/frontend/src/lib/use-bulk-selection.ts apps/frontend/src/lib/use-bulk-selection.spec.ts
