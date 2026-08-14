@@ -14,12 +14,14 @@ import {
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
+import { BatchIdsDto } from '../../../common/dto/batch-ids.dto';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { BatchSkipBankTransactionUseCase } from '../application/batch-skip-bank-transaction.usecase';
 import { MarkPrepaidBankTransactionUseCase } from '../application/mark-prepaid-bank-transaction.usecase';
 import { MatchBankTransactionUseCase } from '../application/match-bank-transaction.usecase';
 import { SkipBankTransactionUseCase } from '../application/skip-bank-transaction.usecase';
@@ -41,6 +43,7 @@ export class ExceptionQueueController {
     private readonly unmatchedQuery: UnmatchedBankTransactionsQueryService,
     private readonly matchUseCase: MatchBankTransactionUseCase,
     private readonly skipUseCase: SkipBankTransactionUseCase,
+    private readonly batchSkipUseCase: BatchSkipBankTransactionUseCase,
     private readonly markPrepaidUseCase: MarkPrepaidBankTransactionUseCase,
     private readonly tenantContext: TenantContextService,
     private readonly idempotency: IdempotencyService,
@@ -110,6 +113,29 @@ export class ExceptionQueueController {
       key,
       { id },
       async () => toBankTransactionResponse(await this.skipUseCase.execute(id)),
+    );
+  }
+
+  @Post('batch-skip')
+  @RequirePermission(Permission.PAYMENT_ALLOCATE)
+  async batchSkip(
+    @Body() dto: BatchIdsDto,
+    @Headers('idempotency-key') key: string | undefined,
+  ) {
+    return this.idempotency.execute(
+      'POST /bank-transactions/batch-skip',
+      key,
+      dto,
+      async () => {
+        const results = await this.batchSkipUseCase.execute(dto.ids);
+        return {
+          results: results.map((result) =>
+            result.status === 'success' && result.data
+              ? { ...result, data: toBankTransactionResponse(result.data) }
+              : result,
+          ),
+        };
+      },
     );
   }
 

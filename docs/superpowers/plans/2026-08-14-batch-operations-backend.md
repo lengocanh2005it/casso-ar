@@ -249,7 +249,7 @@ git commit -m "feat: add shared BatchIdsDto for id-list batch endpoints"
 - Consumes: `runBatch` (Task 1), `SkipBankTransactionUseCase.execute` (existing), `AUDIT_LOG_REPOSITORY`/`IAuditLogRepository.create` (existing), `TenantContextService.getCurrentUser` (existing), `sanitizeAuditPayload` (existing, `common/audit/sanitize-audit-payload.ts`).
 - Produces: `BatchSkipBankTransactionUseCase.execute(ids: string[]): Promise<BatchItemResult<BankTransaction>[]>` — Task 8's e2e test calls it indirectly through the HTTP endpoint.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // apps/backend/src/modules/exception-queue/application/batch-skip-bank-transaction.usecase.spec.ts
@@ -324,12 +324,12 @@ describe('BatchSkipBankTransactionUseCase', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx jest --testPathPattern batch-skip-bank-transaction.usecase`
 Expected: FAIL with "Cannot find module './batch-skip-bank-transaction.usecase'"
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```typescript
 // apps/backend/src/modules/exception-queue/application/batch-skip-bank-transaction.usecase.ts
@@ -384,12 +384,12 @@ export class BatchSkipBankTransactionUseCase {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx jest --testPathPattern batch-skip-bank-transaction.usecase`
 Expected: PASS (1 test)
 
-- [ ] **Step 5: Wire the controller endpoint**
+- [x] **Step 5: Wire the controller endpoint**
 
 Modify `apps/backend/src/modules/exception-queue/presentation/exception-queue.controller.ts`:
 
@@ -426,7 +426,7 @@ import { BatchSkipBankTransactionUseCase } from '../application/batch-skip-bank-
   }
 ```
 
-- [ ] **Step 6: Wire the module provider**
+- [x] **Step 6: Wire the module provider**
 
 Modify `apps/backend/src/modules/exception-queue/exception-queue.module.ts`:
 
@@ -438,12 +438,12 @@ import { BatchSkipBankTransactionUseCase } from './application/batch-skip-bank-t
     BatchSkipBankTransactionUseCase,
 ```
 
-- [ ] **Step 7: Type-check and run the full exception-queue test suite**
+- [x] **Step 7: Type-check and run the full exception-queue test suite**
 
 Run: `npx tsc --noEmit && npx jest --testPathPattern exception-queue`
 Expected: PASS, no type errors
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add apps/backend/src/modules/exception-queue
