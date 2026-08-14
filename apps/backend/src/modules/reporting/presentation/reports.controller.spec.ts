@@ -52,7 +52,8 @@ describe('ReportsController', () => {
     });
   });
 
-  it('delegates customer aging filters to the query service', async () => {    const customerAgingReportQueryService = {
+  it('delegates customer aging filters to the query service', async () => {
+    const customerAgingReportQueryService = {
       getCustomerAging: jest.fn().mockResolvedValue({
         items: [],
         total: 0,

@@ -25,6 +25,8 @@ describe('GetReportsTrendQueryDto', () => {
   });
 
   it('rejects a non-numeric months value', async () => {
-    await expect(validationErrors({ months: 'abc' })).resolves.not.toHaveLength(0);
+    await expect(validationErrors({ months: 'abc' })).resolves.not.toHaveLength(
+      0,
+    );
   });
 });

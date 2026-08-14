@@ -43,6 +43,7 @@ export interface ICopilotPendingActionRepository {
   ): Promise<CopilotPendingAction | null>;
   findLatestForDraftIds(
     draftIds: string[],
+    manager?: EntityManager,
   ): Promise<Map<string, CopilotPendingAction>>;
 }
 

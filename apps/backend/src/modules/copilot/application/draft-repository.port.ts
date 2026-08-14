@@ -1,3 +1,5 @@
+import type { EntityManager } from 'typeorm';
+
 export interface CopilotDraft {
   id: string;
   organizationId: string;
@@ -10,9 +12,14 @@ export interface CopilotDraft {
 }
 
 export interface ICopilotDraftRepository {
-  save(draft: CopilotDraft): Promise<void>;
+  save(draft: CopilotDraft, manager?: EntityManager): Promise<void>;
   findById(id: string): Promise<CopilotDraft | null>;
+  findByIdForUpdate(
+    id: string,
+    manager: EntityManager,
+  ): Promise<CopilotDraft | null>;
   findAllForUser(userId: string): Promise<CopilotDraft[]>;
+  delete(id: string, manager?: EntityManager): Promise<void>;
 }
 
 export const COPILOT_DRAFT_REPOSITORY = Symbol('COPILOT_DRAFT_REPOSITORY');

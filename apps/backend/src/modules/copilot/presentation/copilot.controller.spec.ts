@@ -10,6 +10,8 @@ function buildController() {
   const getCopilotUsageUseCase = { execute: jest.fn() };
   const listCopilotDraftsUseCase = { execute: jest.fn() };
   const reopenCopilotDraftUseCase = { execute: jest.fn() };
+  const updateCopilotDraftUseCase = { execute: jest.fn() };
+  const deleteCopilotDraftUseCase = { execute: jest.fn() };
   const idempotency = {
     execute: jest.fn((_endpoint, _key, _input, operation) => operation()),
   };
@@ -21,6 +23,8 @@ function buildController() {
       getCopilotUsageUseCase as any,
       listCopilotDraftsUseCase as any,
       reopenCopilotDraftUseCase as any,
+      updateCopilotDraftUseCase as any,
+      deleteCopilotDraftUseCase as any,
       idempotency as any,
     ),
     copilotChatUseCase,
@@ -29,6 +33,8 @@ function buildController() {
     getCopilotUsageUseCase,
     listCopilotDraftsUseCase,
     reopenCopilotDraftUseCase,
+    updateCopilotDraftUseCase,
+    deleteCopilotDraftUseCase,
     idempotency,
   };
 }
@@ -204,6 +210,56 @@ describe('CopilotController', () => {
       },
     });
     expect(deps.reopenCopilotDraftUseCase.execute).toHaveBeenCalledWith(
+      'draft-1',
+    );
+  });
+
+  it('wraps update and returns the updated draft', async () => {
+    const deps = buildController();
+    deps.updateCopilotDraftUseCase.execute.mockResolvedValue({
+      id: 'draft-1',
+      organizationId: 'org-1',
+      userId: 'user-1',
+      receivableId: 'receivable-1',
+      recipientEmail: 'ap@abc.vn',
+      subject: 'Tiêu đề mới',
+      bodyHtml: '<p>mới</p>',
+      createdAt: new Date('2026-08-14T10:00:00Z'),
+      status: 'DRAFTED',
+      pendingActionId: null,
+    });
+
+    await expect(
+      deps.controller.updateDraft(
+        'draft-1',
+        { subject: 'Tiêu đề mới', bodyHtml: '<p>mới</p>' },
+        'update-key',
+      ),
+    ).resolves.toEqual({
+      id: 'draft-1',
+      receivableId: 'receivable-1',
+      recipientEmail: 'ap@abc.vn',
+      subject: 'Tiêu đề mới',
+      bodyHtml: '<p>mới</p>',
+      status: 'DRAFTED',
+      pendingActionId: null,
+      createdAt: '2026-08-14T10:00:00.000Z',
+    });
+    expect(deps.updateCopilotDraftUseCase.execute).toHaveBeenCalledWith({
+      id: 'draft-1',
+      subject: 'Tiêu đề mới',
+      bodyHtml: '<p>mới</p>',
+    });
+  });
+
+  it('wraps delete and returns success', async () => {
+    const deps = buildController();
+    deps.deleteCopilotDraftUseCase.execute.mockResolvedValue(undefined);
+
+    await expect(
+      deps.controller.deleteDraft('draft-1', 'delete-key'),
+    ).resolves.toEqual({ success: true });
+    expect(deps.deleteCopilotDraftUseCase.execute).toHaveBeenCalledWith(
       'draft-1',
     );
   });

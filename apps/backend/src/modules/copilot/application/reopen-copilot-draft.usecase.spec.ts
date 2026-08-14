@@ -48,6 +48,11 @@ function buildDeps(overrides: {
       .mockResolvedValue(
         overrides.draft === undefined ? buildDraft() : overrides.draft,
       ),
+    findByIdForUpdate: jest
+      .fn()
+      .mockResolvedValue(
+        overrides.draft === undefined ? buildDraft() : overrides.draft,
+      ),
   };
   const pendingActionRepo = {
     findLatestForDraftIds: jest
@@ -167,7 +172,7 @@ describe('ReopenCopilotDraftUseCase', () => {
       errorCode: ErrorCode.CONFLICT,
     });
     expect(deps.pendingActionRepo.create).not.toHaveBeenCalled();
-    expect(deps.dataSource.transaction).not.toHaveBeenCalled();
+    expect(deps.dataSource.transaction).toHaveBeenCalledTimes(1);
   });
 
   it('rejects reopening an already-CONFIRMED draft with CONFLICT', async () => {

@@ -16,6 +16,7 @@ import { ConfirmPendingActionUseCase } from './application/confirm-pending-actio
 import { COPILOT_CONVERSATION_REPOSITORY } from './application/conversation-repository.port';
 import { CopilotChatUseCase } from './application/copilot-chat.usecase';
 import { CopilotToolRegistry } from './application/copilot-tool-registry';
+import { DeleteCopilotDraftUseCase } from './application/delete-copilot-draft.usecase';
 import { COPILOT_DRAFT_REPOSITORY } from './application/draft-repository.port';
 import { GetCopilotUsageUseCase } from './application/get-copilot-usage.usecase';
 import { ListCopilotDraftsUseCase } from './application/list-copilot-drafts.usecase';
@@ -26,6 +27,7 @@ import { GetCollectionActivityTimelineTool } from './application/tools/get-colle
 import { GetPaymentHistoryTool } from './application/tools/get-payment-history.tool';
 import { GetReceivableSummaryTool } from './application/tools/get-receivable-summary.tool';
 import { SendReminderEmailTool } from './application/tools/send-reminder-email.tool';
+import { UpdateCopilotDraftUseCase } from './application/update-copilot-draft.usecase';
 import { AIUsageLogOrmEntity } from './infrastructure/ai-usage-log.orm-entity';
 import { CopilotConversationOrmEntity } from './infrastructure/copilot-conversation.orm-entity';
 import { CopilotDraftOrmEntity } from './infrastructure/copilot-draft.orm-entity';
@@ -152,6 +154,8 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     GetCopilotUsageUseCase,
     ListCopilotDraftsUseCase,
     ReopenCopilotDraftUseCase,
+    UpdateCopilotDraftUseCase,
+    DeleteCopilotDraftUseCase,
   ],
   exports: [AI_USAGE_LOG_REPOSITORY],
 })
