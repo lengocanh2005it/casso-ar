@@ -8,7 +8,10 @@ import {
 } from '@/components/ui/table';
 import { formatVND } from '@/lib/format';
 import type { CustomerAgingPage } from '../types';
-import { AGING_BUCKET_LABELS, AGING_BUCKET_ORDER } from './customer-aging-filters';
+import {
+  AGING_BUCKET_LABELS,
+  AGING_BUCKET_ORDER,
+} from './customer-aging-filters';
 
 export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
   return (

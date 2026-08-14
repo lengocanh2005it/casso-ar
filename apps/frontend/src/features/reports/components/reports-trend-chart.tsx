@@ -74,8 +74,7 @@ export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {
       </div>
       {hasUnavailablePoints && (
         <p className="text-sm text-muted-foreground">
-          Một số tháng trước thời điểm theo dõi lịch sử chưa có dữ liệu công
-          nợ.
+          Một số tháng trước thời điểm theo dõi lịch sử chưa có dữ liệu công nợ.
         </p>
       )}
       <p className="text-sm text-muted-foreground">

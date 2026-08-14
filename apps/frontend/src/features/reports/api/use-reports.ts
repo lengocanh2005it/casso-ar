@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
+import type { TrendMonths } from '../types';
 import {
+  type CustomerAgingFilters,
   fetchAging,
   fetchCustomerAging,
   fetchDashboardSummary,
   fetchReportsTrend,
-  type CustomerAgingFilters,
 } from './reports-api';
-import type { TrendMonths } from '../types';
 
 export function useAgingReport() {
   return useQuery({

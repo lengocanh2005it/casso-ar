@@ -167,9 +167,10 @@ describe('ReportsPage', () => {
 
     await waitFor(() => {
       expect(customerAgingCalls().length).toBeGreaterThanOrEqual(1);
-      expect(
-        (customerAgingCalls().at(-1)?.[0] as { params: object }).params,
-      ).toMatchObject({ page: 3 });
+      const last = customerAgingCalls().at(-1)?.[0] as
+        | { params: object }
+        | undefined;
+      expect(last?.params).toMatchObject({ page: 3 });
     });
 
     const searchInput = screen.getByRole('textbox', { name: 'Tìm khách hàng' });
@@ -200,19 +201,21 @@ describe('ReportsPage', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText('Một số tháng trước thời điểm theo dõi lịch sử chưa có dữ liệu công nợ.'),
+        screen.getByText(
+          'Một số tháng trước thời điểm theo dõi lịch sử chưa có dữ liệu công nợ.',
+        ),
       ).toBeTruthy(),
     );
     expect(
       screen.getByRole('img', { name: 'Biểu đồ xu hướng công nợ và thu hồi' }),
     ).toBeTruthy();
     expect(
-      screen.getByText('Tháng hiện tại là số liệu tạm thời đến thời điểm hiện tại.'),
+      screen.getByText(
+        'Tháng hiện tại là số liệu tạm thời đến thời điểm hiện tại.',
+      ),
     ).toBeTruthy();
 
-    fireEvent.click(
-      screen.getByRole('combobox', { name: 'Khoảng thời gian' }),
-    );
+    fireEvent.click(screen.getByRole('combobox', { name: 'Khoảng thời gian' }));
     expect(await screen.findByRole('option', { name: '3 tháng' })).toBeTruthy();
     expect(screen.getByRole('option', { name: '6 tháng' })).toBeTruthy();
     expect(screen.getByRole('option', { name: '12 tháng' })).toBeTruthy();
@@ -224,7 +227,9 @@ describe('ReportsPage', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText('Một số tháng trước thời điểm theo dõi lịch sử chưa có dữ liệu công nợ.'),
+        screen.getByText(
+          'Một số tháng trước thời điểm theo dõi lịch sử chưa có dữ liệu công nợ.',
+        ),
       ).toBeTruthy(),
     );
     expect(
@@ -251,7 +256,8 @@ describe('ReportsPage', () => {
     });
   });
 
-  it('renders empty and error states for customer aging', async () => {    apiRequest.mockImplementation(({ url }: { url: string }) => {
+  it('renders empty and error states for customer aging', async () => {
+    apiRequest.mockImplementation(({ url }: { url: string }) => {
       if (url === '/api/v1/reports/aging/customers') {
         return Promise.resolve({ items: [], total: 0, page: 1, limit: 20 });
       }

@@ -10,18 +10,23 @@ import {
 } from '@/components/ui/select';
 import { useCsvExport } from '@/lib/use-csv-export';
 import { exportAgingReportCsv } from '../api/reports-api';
-import { useAgingReport, useCustomerAging, useDashboardSummary, useReportsTrend } from '../api/use-reports';
-import type { AgingBucket, TrendMonths } from '../types';
+import {
+  useAgingReport,
+  useCustomerAging,
+  useDashboardSummary,
+  useReportsTrend,
+} from '../api/use-reports';
 import { AgingChart } from '../components/aging-chart';
 import { AgingTable } from '../components/aging-table';
 import {
   AGING_BUCKET_ORDER,
-  CustomerAgingFilters,
   type AgingBucketFilter,
+  CustomerAgingFilters,
 } from '../components/customer-aging-filters';
 import { CustomerAgingTable } from '../components/customer-aging-table';
 import { DashboardSummary } from '../components/dashboard-summary';
 import { ReportsTrendChart } from '../components/reports-trend-chart';
+import type { AgingBucket, TrendMonths } from '../types';
 
 const CUSTOMER_AGING_LIMIT = 20;
 const TREND_MONTHS: TrendMonths[] = [3, 6, 12];
@@ -32,7 +37,9 @@ function isAgingBucket(value: string | null): value is AgingBucket {
 
 function parseTrendMonths(value: string | null): TrendMonths {
   const parsed = Number(value ?? '12');
-  return TREND_MONTHS.includes(parsed as TrendMonths) ? (parsed as TrendMonths) : 12;
+  return TREND_MONTHS.includes(parsed as TrendMonths)
+    ? (parsed as TrendMonths)
+    : 12;
 }
 
 export function ReportsPage() {
@@ -60,7 +67,9 @@ export function ReportsPage() {
   const agingTotalPages = customerAgingQuery.data
     ? Math.max(
         1,
-        Math.ceil(customerAgingQuery.data.total / customerAgingQuery.data.limit),
+        Math.ceil(
+          customerAgingQuery.data.total / customerAgingQuery.data.limit,
+        ),
       )
     : 1;
 
@@ -190,32 +199,31 @@ export function ReportsPage() {
             customerAgingQuery.data.items.length > 0 && (
               <CustomerAgingTable page={customerAgingQuery.data} />
             )}
-          {customerAgingQuery.data &&
-            customerAgingQuery.data.total > 0 && (
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>
-                  Trang {customerAgingQuery.data.page} / {agingTotalPages}
-                </span>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={agingPage === 1}
-                    onClick={() => setAgingPage(agingPage - 1)}
-                  >
-                    Trước
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={agingPage >= agingTotalPages}
-                    onClick={() => setAgingPage(agingPage + 1)}
-                  >
-                    Sau
-                  </Button>
-                </div>
+          {customerAgingQuery.data && customerAgingQuery.data.total > 0 && (
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>
+                Trang {customerAgingQuery.data.page} / {agingTotalPages}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={agingPage === 1}
+                  onClick={() => setAgingPage(agingPage - 1)}
+                >
+                  Trước
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={agingPage >= agingTotalPages}
+                  onClick={() => setAgingPage(agingPage + 1)}
+                >
+                  Sau
+                </Button>
               </div>
-            )}
+            </div>
+          )}
         </CardContent>
       </Card>
       <Card>
@@ -242,9 +250,7 @@ export function ReportsPage() {
         <CardContent>
           {trendQuery.isPending && <p>Đang tải xu hướng…</p>}
           {trendQuery.isError && (
-            <p className="text-destructive">
-              Không thể tải dữ liệu xu hướng.
-            </p>
+            <p className="text-destructive">Không thể tải dữ liệu xu hướng.</p>
           )}
           {trendQuery.data && <ReportsTrendChart trend={trendQuery.data} />}
         </CardContent>

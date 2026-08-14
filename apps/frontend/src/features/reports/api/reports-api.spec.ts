@@ -6,7 +6,11 @@ vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
 }));
 
-import { exportAgingReportCsv, fetchCustomerAging, fetchReportsTrend } from './reports-api';
+import {
+  exportAgingReportCsv,
+  fetchCustomerAging,
+  fetchReportsTrend,
+} from './reports-api';
 
 describe('exportAgingReportCsv', () => {
   it('fetches the aging report CSV as plain text', async () => {
@@ -27,7 +31,12 @@ describe('exportAgingReportCsv', () => {
 
 describe('fetchCustomerAging', () => {
   it('fetches customer aging with page, limit, search, and bucket parameters', async () => {
-    apiRequest.mockResolvedValueOnce({ items: [], total: 0, page: 2, limit: 20 });
+    apiRequest.mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 2,
+      limit: 20,
+    });
 
     await fetchCustomerAging({
       page: 2,
@@ -51,7 +60,12 @@ describe('fetchCustomerAging', () => {
   });
 
   it('omits empty search and bucket parameters', async () => {
-    apiRequest.mockResolvedValueOnce({ items: [], total: 0, page: 1, limit: 20 });
+    apiRequest.mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 1,
+      limit: 20,
+    });
 
     await fetchCustomerAging({ page: 1, limit: 20 });
 
