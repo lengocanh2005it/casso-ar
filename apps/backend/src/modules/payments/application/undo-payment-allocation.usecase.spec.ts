@@ -2,6 +2,7 @@ import { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { EntityManager } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import { Receivable } from '../../receivables/domain/receivable';
 import { Payment } from '../domain/payment';
 import { PaymentAllocation } from '../domain/payment-allocation';
@@ -64,6 +65,7 @@ describe('UndoPaymentAllocationUseCase', () => {
       save: jest.fn(),
     };
     const auditLogRepo = { create: jest.fn() };
+    const recorder = { record: jest.fn() };
     const dataSource = {
       transaction: jest.fn((callback) => callback(manager)),
     };
@@ -73,6 +75,7 @@ describe('UndoPaymentAllocationUseCase', () => {
       receivableRepo as any,
       auditLogRepo as any,
       dataSource as any,
+      recorder as any,
     );
 
     await useCase.execute({
@@ -92,6 +95,16 @@ describe('UndoPaymentAllocationUseCase', () => {
       expect.objectContaining({ actionType: 'PAYMENT_ALLOCATE_UNDO' }),
       manager,
     );
+    expect(recorder.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'rec-1',
+        paidAmount: 0,
+        status: ReceivableStatus.OPEN,
+      }),
+      BalanceHistoryChangeSource.UNDO,
+      manager,
+      'alloc-1',
+    );
     await expect(
       useCase.execute({
         allocationId: 'alloc-1',
@@ -102,5 +115,6 @@ describe('UndoPaymentAllocationUseCase', () => {
       errorCode: ErrorCode.ALLOCATION_ALREADY_UNDONE,
     });
     expect(auditLogRepo.create).toHaveBeenCalledTimes(1);
+    expect(recorder.record).toHaveBeenCalledTimes(1);
   });
 });
