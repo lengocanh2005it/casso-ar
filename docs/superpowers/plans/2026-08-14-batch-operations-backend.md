@@ -1143,7 +1143,7 @@ git commit -m "feat: add POST /receivables/batch-write-off"
 - Consumes: `runBatch` (Task 1), `BatchIdsDto` (Task 2), `CancelReceivableUseCase.execute` (existing).
 - Produces: `BatchCancelReceivableUseCase.execute(ids: string[]): Promise<BatchItemResult<Receivable>[]>`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // apps/backend/src/modules/receivables/application/batch-cancel-receivable.usecase.spec.ts
@@ -1195,12 +1195,12 @@ describe('BatchCancelReceivableUseCase', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx jest --testPathPattern batch-cancel-receivable.usecase`
 Expected: FAIL with "Cannot find module './batch-cancel-receivable.usecase'"
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```typescript
 // apps/backend/src/modules/receivables/application/batch-cancel-receivable.usecase.ts
@@ -1255,12 +1255,12 @@ export class BatchCancelReceivableUseCase {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx jest --testPathPattern batch-cancel-receivable.usecase`
 Expected: PASS (1 test)
 
-- [ ] **Step 5: Wire the controller endpoint**
+- [x] **Step 5: Wire the controller endpoint**
 
 Modify `apps/backend/src/modules/receivables/presentation/receivables.controller.ts`:
 
@@ -1296,16 +1296,16 @@ import { BatchCancelReceivableUseCase } from '../application/batch-cancel-receiv
   }
 ```
 
-- [ ] **Step 6: Wire the module provider**
+- [x] **Step 6: Wire the module provider**
 
 Modify `apps/backend/src/modules/receivables/receivables.module.ts` — add `BatchCancelReceivableUseCase` to the `providers` array.
 
-- [ ] **Step 7: Type-check and run the full receivables test suite**
+- [x] **Step 7: Type-check and run the full receivables test suite**
 
 Run: `npx tsc --noEmit && npx jest --testPathPattern receivables`
 Expected: PASS, no type errors
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add apps/backend/src/modules/receivables
