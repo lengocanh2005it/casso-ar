@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -56,6 +57,9 @@ export function DraftEditDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Sửa bản nháp email</DialogTitle>
+          <DialogDescription>
+            Chỉnh sửa tiêu đề và nội dung của bản nháp email nhắc thanh toán.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <Label className="space-y-1">
