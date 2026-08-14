@@ -150,4 +150,77 @@ describe('CopilotPage', () => {
       expect.objectContaining({ url: '/api/v1/copilot/drafts' }),
     );
   });
+
+  it('edits a draft from the Drafts tab', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { role: 'FINANCE_MANAGER', subscriptionPlan: 'STARTER' },
+    });
+    apiRequest
+      .mockResolvedValueOnce(USAGE)
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: 'draft-1',
+            receivableId: 'rec-1',
+            recipientEmail: 'ap@abc.vn',
+            subject: 'Nhắc thanh toán ABC Company',
+            bodyHtml: '<p>...</p>',
+            status: 'CANCELLED',
+            pendingActionId: null,
+            createdAt: '2026-08-14T08:00:00Z',
+          },
+        ],
+        total: 1,
+      })
+      .mockResolvedValueOnce({
+        id: 'draft-1',
+        receivableId: 'rec-1',
+        recipientEmail: 'ap@abc.vn',
+        subject: 'Tiêu đề đã sửa',
+        bodyHtml: '<p>...</p>',
+        status: 'CANCELLED',
+        pendingActionId: null,
+        createdAt: '2026-08-14T08:00:00Z',
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: 'draft-1',
+            receivableId: 'rec-1',
+            recipientEmail: 'ap@abc.vn',
+            subject: 'Tiêu đề đã sửa',
+            bodyHtml: '<p>...</p>',
+            status: 'CANCELLED',
+            pendingActionId: null,
+            createdAt: '2026-08-14T08:00:00Z',
+          },
+        ],
+        total: 1,
+      });
+
+    renderPage();
+
+    fireEvent.mouseDown(screen.getByRole('tab', { name: /drafts/i }));
+    await waitFor(() =>
+      expect(
+        screen.getByText(/nhắc thanh toán abc company/i),
+      ).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /sửa|edit/i }));
+    const subjectInput = await screen.findByLabelText(/tiêu đề/i);
+    fireEvent.change(subjectInput, {
+      target: { value: 'Tiêu đề đã sửa' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /lưu/i }));
+
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: '/api/v1/copilot/drafts/draft-1',
+          method: 'PATCH',
+        }),
+      ),
+    );
+  });
 });

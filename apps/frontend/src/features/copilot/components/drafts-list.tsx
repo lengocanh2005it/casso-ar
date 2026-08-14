@@ -1,13 +1,27 @@
+import { useState } from 'react';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   useConfirmCopilotDraft,
   useCopilotDrafts,
+  useDeleteCopilotDraft,
   useReopenCopilotDraft,
 } from '../api/use-copilot-drafts';
-import type { CopilotDraftStatus } from '../types';
+import type { CopilotDraft, CopilotDraftStatus } from '../types';
+import { DraftEditDialog } from './draft-edit-dialog';
 
 const STATUS_LABEL: Record<CopilotDraftStatus, string> = {
   DRAFTED: 'Chưa gửi đề xuất',
@@ -17,12 +31,21 @@ const STATUS_LABEL: Record<CopilotDraftStatus, string> = {
   EXPIRED: 'Đã hết hạn',
 };
 
-const REOPENABLE: CopilotDraftStatus[] = ['DRAFTED', 'CANCELLED', 'EXPIRED'];
+// Reopen, edit, and delete share the same eligibility rule (#171):
+// a draft is mutable only when it has no live/sent pending action.
+const MUTABLE_STATUSES: CopilotDraftStatus[] = [
+  'DRAFTED',
+  'CANCELLED',
+  'EXPIRED',
+];
 
 export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
   const { data, isLoading } = useCopilotDrafts(1);
   const reopen = useReopenCopilotDraft();
   const confirm = useConfirmCopilotDraft();
+  const deleteDraft = useDeleteCopilotDraft();
+  const [editingDraft, setEditingDraft] = useState<CopilotDraft | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Đang tải…</p>;
@@ -66,7 +89,7 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
                     Confirm
                   </Button>
                 )}
-                {REOPENABLE.includes(draft.status) && (
+                {MUTABLE_STATUSES.includes(draft.status) && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -81,11 +104,60 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
                     Reopen
                   </Button>
                 )}
+                {MUTABLE_STATUSES.includes(draft.status) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setEditingDraft(draft);
+                      setEditDialogOpen(true);
+                    }}
+                  >
+                    Sửa
+                  </Button>
+                )}
+                {MUTABLE_STATUSES.includes(draft.status) && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button size="sm" variant="destructive">
+                        Xóa
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Xóa bản nháp?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Thao tác này không thể hoàn tác.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Hủy</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => {
+                            deleteDraft.mutate(draft.id, {
+                              onSuccess: () =>
+                                toast.success('Đã xóa bản nháp.'),
+                              onError: () =>
+                                toast.error('Không thể xóa bản nháp.'),
+                            });
+                          }}
+                        >
+                          Xác nhận
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </div>
             )}
           </CardContent>
         </Card>
       ))}
+      <DraftEditDialog
+        draft={editingDraft}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+      />
     </div>
   );
 }
