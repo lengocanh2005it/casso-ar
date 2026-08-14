@@ -54,7 +54,7 @@ const ACTIVE_RECEIVABLES_CTE = `
       END AS bucket
     FROM receivables r
     INNER JOIN customers c
-      ON c.id = r."customerId"
+      ON c.id::text = r."customerId"
       AND c."organizationId" = r."organizationId"
     WHERE r."organizationId" = $1
       AND r.status IN ('OPEN', 'PARTIALLY_PAID')
@@ -115,7 +115,7 @@ export class TypeOrmCustomerAgingReportRepository
       params.push(filters.bucket);
       const bucketIndex = params.length;
       bucketPredicate = `
-        AND CASE $${bucketIndex}
+        WHERE CASE $${bucketIndex}
           WHEN 'NOT_DUE' THEN "notDue"
           WHEN 'OVERDUE_1_7' THEN "overdue1To7"
           WHEN 'OVERDUE_8_30' THEN "overdue8To30"
@@ -127,7 +127,7 @@ export class TypeOrmCustomerAgingReportRepository
     params.push(filters.limit, (filters.page - 1) * filters.limit);
     const limitIndex = params.length - 1;
 
-    const sql = `WITH ${ACTIVE_RECEIVABLES_CTE}${searchPredicate},
+    const sql = `WITH ${ACTIVE_RECEIVABLES_CTE}${searchPredicate}),
 ${GROUPED_CTE}
 ${SELECT_PIVOT}
 ${bucketPredicate}

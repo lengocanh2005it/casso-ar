@@ -28,6 +28,9 @@ describe('TypeOrmCustomerAgingReportRepository', () => {
     expect(params).toEqual(['org-1', '%ACME%', 'OVERDUE_60_PLUS', 20, 20]);
     expect(sql).toContain('LIMIT $4');
     expect(sql).toContain('OFFSET $5');
+    expect(sql).toContain('),\n\n  grouped AS (');
+    expect(sql).toContain('WHERE CASE $3');
+    expect(sql).toContain('WHEN \'OVERDUE_60_PLUS\' THEN "overdue60Plus"');
   });
 
   it('omits search and bucket parameters when not provided', async () => {
