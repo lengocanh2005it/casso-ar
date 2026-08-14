@@ -235,7 +235,7 @@ git commit -m "feat: add shared useBulkSelection hook"
 **Interfaces:**
 - Produces: `BatchItemResult<T> { id: string; status: 'success' | 'error'; data?: T; errorCode?: string; message?: string }` (Tasks 4, 6, 7, 8 use this as the batch mutation return type) and `<BulkConfirmDialog open onOpenChange title description confirmLabel confirmVariant? isPending onConfirm />` (Tasks 5, 6, 7).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 // apps/frontend/src/components/bulk-confirm-dialog.spec.tsx
@@ -280,12 +280,12 @@ describe('BulkConfirmDialog', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @casso-ledger/frontend test -- bulk-confirm-dialog`
 Expected: FAIL with "Cannot find module './bulk-confirm-dialog'"
 
-- [ ] **Step 3: Write the shared type**
+- [x] **Step 3: Write the shared type**
 
 ```typescript
 // apps/frontend/src/lib/batch-types.ts
@@ -307,7 +307,7 @@ export function summarizeBatchResults<T>(
 }
 ```
 
-- [ ] **Step 4: Write minimal implementation**
+- [x] **Step 4: Write minimal implementation**
 
 ```tsx
 // apps/frontend/src/components/bulk-confirm-dialog.tsx
@@ -361,12 +361,12 @@ export function BulkConfirmDialog({
 }
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `pnpm --filter @casso-ledger/frontend test -- bulk-confirm-dialog`
 Expected: PASS (1 test)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/frontend/src/lib/batch-types.ts apps/frontend/src/components/bulk-confirm-dialog.tsx apps/frontend/src/components/bulk-confirm-dialog.spec.tsx
