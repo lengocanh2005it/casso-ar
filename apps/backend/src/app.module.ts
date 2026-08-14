@@ -34,6 +34,7 @@ import { EmailTemplatesModule } from './modules/email-templates/email-templates.
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { OrganizationLockGuard } from './modules/organizations/presentation/organization-lock.guard';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { ReceivablesModule } from './modules/receivables/receivables.module';
 import { ReceivableBalanceHistoryModule } from './modules/receivable-balance-history/receivable-balance-history.module';
@@ -105,6 +106,7 @@ import { AlertsModule } from './modules/alerts/alerts.module';
     JwtStrategy,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: EmailVerifiedGuard },
+    { provide: APP_GUARD, useClass: OrganizationLockGuard },
     { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
   ],
 })
