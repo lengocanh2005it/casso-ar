@@ -1321,7 +1321,7 @@ git commit -m "feat: add POST /receivables/batch-cancel"
 
 **Context:** Tasks 3–7 already unit-test every batch use case's per-item independence with mocked single-item use cases. This task proves the same behavior through the real HTTP + Postgres stack for one bank-transaction batch endpoint and one receivables batch endpoint, following the existing e2e pattern in `apps/backend/test/exception-queue.e2e-spec.ts` (testcontainers Postgres, JWT via `JwtService.sign`, `configureApp(app)`).
 
-- [ ] **Step 1: Write the failing e2e test**
+- [x] **Step 1: Write the failing e2e test**
 
 ```typescript
 // apps/backend/test/batch-operations.e2e-spec.ts
@@ -1516,17 +1516,17 @@ describe('Batch Operations (e2e)', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @casso-ledger/backend test:e2e -- batch-operations`
 Expected: FAIL (endpoints don't exist yet if run before Tasks 3–7; if run after, this step should already PASS — in that case skip straight to Step 3 and note the exception, since Tasks 3–7 already drove the RED→GREEN cycle for this behavior at the unit level)
 
-- [ ] **Step 3: Run test to verify it passes**
+- [x] **Step 3: Run test to verify it passes**
 
 Run: `pnpm --filter @casso-ledger/backend test:e2e -- batch-operations`
 Expected: PASS (2 tests) — requires Docker running
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/backend/test/batch-operations.e2e-spec.ts
