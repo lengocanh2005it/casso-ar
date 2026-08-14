@@ -64,4 +64,8 @@ export class TypeOrmCopilotDraftRepository
     );
     return rows.map(toDomain);
   }
+
+  async delete(id: string): Promise<void> {
+    await this.scopedDelete({ id });
+  }
 }
