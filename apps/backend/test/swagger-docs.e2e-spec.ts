@@ -140,4 +140,78 @@ describe('Swagger / OpenAPI docs (integration)', () => {
       .expect(200);
     expect(res.headers['www-authenticate']).toBeUndefined();
   });
+
+  it('documents every endpoint with a summary and error responses', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`${SWAGGER_PATH}-json`)
+      .expect(200);
+
+    // Operations that legitimately cannot fail with a business error
+    // (no validation DTO, no use-case throws, no guard).
+    const NO_ERROR_RESPONSE_ALLOWLIST = new Set([
+      'POST /api/v1/auth/logout',
+      'GET /api/v1/email-templates',
+      'GET /api/v1/reminder-policies',
+      'GET /api/v1/bank-transactions/pending-review-count',
+    ]);
+
+    interface Operation {
+      method: string;
+      path: string;
+      operation: {
+        summary?: string;
+        responses?: Record<
+          string,
+          {
+            content?: Record<
+              string,
+              {
+                schema?: {
+                  properties?: Record<string, unknown>;
+                  required?: string[];
+                };
+              }
+            >;
+          }
+        >;
+      };
+    }
+
+    const operations: Operation[] = [];
+    for (const [path, methods] of Object.entries(
+      res.body.paths as Record<string, Record<string, unknown>>,
+    )) {
+      if (path === '/health') continue;
+      for (const [method, operation] of Object.entries(methods)) {
+        if (method === 'parameters') continue;
+        operations.push({
+          method,
+          path,
+          operation: operation as Operation['operation'],
+        });
+      }
+    }
+    expect(operations.length).toBeGreaterThan(50);
+
+    for (const { method, path, operation } of operations) {
+      expect(operation.summary).toBeDefined();
+
+      const key = `${method.toUpperCase()} ${path}`;
+      if (NO_ERROR_RESPONSE_ALLOWLIST.has(key)) continue;
+
+      const errorResponses = Object.entries(operation.responses ?? {}).filter(
+        ([status]) => status.startsWith('4') || status.startsWith('5'),
+      );
+      expect(errorResponses.length).toBeGreaterThan(0);
+
+      for (const response of errorResponses.map(([, r]) => r)) {
+        const schema = response.content?.['application/json']?.schema;
+        expect(schema).toBeDefined();
+        expect(schema?.properties?.errorCode).toBeDefined();
+        expect(schema?.required).toEqual(
+          expect.arrayContaining(['statusCode', 'errorCode', 'message']),
+        );
+      }
+    }
+  });
 });

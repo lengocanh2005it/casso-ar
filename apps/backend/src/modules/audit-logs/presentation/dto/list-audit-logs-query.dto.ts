@@ -5,7 +5,7 @@ import {
 } from '../../../../common/audit/audit.enums';
 import { PaginationDto } from '../../../../common/dto/pagination.dto';
 
-export class ListAuditLogsQuery extends PaginationDto {
+export class ListAuditLogsQueryDto extends PaginationDto {
   @IsOptional()
   @IsEnum(AuditEntityType)
   entityType?: AuditEntityType;

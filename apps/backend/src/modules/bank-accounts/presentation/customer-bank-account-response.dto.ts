@@ -1,7 +1,7 @@
 import { maskAccountNumber } from '../application/account-number-normalizer';
 import type { CustomerBankAccount } from '../domain/customer-bank-account';
 
-export interface CustomerBankAccountResponse {
+export class CustomerBankAccountResponseDto {
   id: string;
   customerId: string;
   accountNumberMasked: string;
@@ -10,9 +10,14 @@ export interface CustomerBankAccountResponse {
   updatedAt: Date;
 }
 
+export class ListCustomerBankAccountsResponseDto {
+  items: CustomerBankAccountResponseDto[];
+  total: number;
+}
+
 export function toCustomerBankAccountResponse(
   account: CustomerBankAccount,
-): CustomerBankAccountResponse {
+): CustomerBankAccountResponseDto {
   return {
     id: account.id,
     customerId: account.customerId,

@@ -6,11 +6,13 @@ import {
   ParseUUIDPipe,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
-import type { CustomerCreditsResult } from '../application/get-customer-credits.usecase';
+import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { GetCustomerCreditsUseCase } from '../application/get-customer-credits.usecase';
+import { CustomerCreditsResponseDto } from './dto/customer-credits-response.dto';
 
 @ApiTags('customer-credits')
 @Controller('customers/:customerId/credits')
@@ -21,10 +23,13 @@ export class CustomerCreditsController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: 'List unallocated payment credits for a customer' })
+  @ApiOkResponse({ type: CustomerCreditsResponseDto })
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.NOT_FOUND)
   @RequirePermission(Permission.RECEIVABLE_READ)
   async list(
     @Param('customerId', ParseUUIDPipe) customerId: string,
-  ): Promise<CustomerCreditsResult> {
+  ): Promise<CustomerCreditsResponseDto> {
     return this.getCustomerCreditsUseCase.execute({ customerId });
   }
 }

@@ -23,6 +23,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { AllocatePaymentUseCase } from '../application/allocate-payment.usecase';
 import { UndoPaymentAllocationUseCase } from '../application/undo-payment-allocation.usecase';
@@ -44,10 +45,7 @@ export class PaymentsController {
   @ApiHeader({ name: 'idempotency-key', required: false })
   @ApiCreatedResponse({
     description: 'Allocation succeeded',
-    schema: {
-      type: 'object',
-      properties: { success: { type: 'boolean', example: true } },
-    },
+    schema: successResponseSchema(),
   })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -90,10 +88,7 @@ export class PaymentsController {
   @ApiHeader({ name: 'idempotency-key', required: false })
   @ApiCreatedResponse({
     description: 'Allocation undone',
-    schema: {
-      type: 'object',
-      properties: { success: { type: 'boolean', example: true } },
-    },
+    schema: successResponseSchema(),
   })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,

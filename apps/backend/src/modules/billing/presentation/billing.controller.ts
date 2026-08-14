@@ -1,17 +1,22 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   AuditActionType,
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
+import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { ChangeSubscriptionPlanUseCase } from '../application/change-subscription-plan.usecase';
 import { ChangeSubscriptionPlanDto } from './dto/change-subscription-plan.dto';
-import { toSubscriptionResponse } from './dto/subscription-response.dto';
+import {
+  SubscriptionResponseDto,
+  toSubscriptionResponse,
+} from './dto/subscription-response.dto';
 
 @ApiTags('billing')
 @Controller('subscriptions')
@@ -23,6 +28,13 @@ export class BillingController {
   ) {}
 
   @Post('change-plan')
+  @ApiOperation({ summary: 'Change the organization subscription plan' })
+  @ApiCreatedResponse({ type: SubscriptionResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.INVALID_PLAN_TRANSITION,
+  )
   @Audited(
     AuditActionType.SUBSCRIPTION_CHANGE_PLAN,
     AuditEntityType.SUBSCRIPTION,

@@ -1,11 +1,10 @@
 import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../../../common/auth/public.decorator';
-import {
-  type ReceiveWebhookResult,
-  ReceiveWebhookUseCase,
-} from '../application/receive-webhook.usecase';
+import { ErrorCode } from '../../../common/errors/error-code';
+import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ReceiveWebhookUseCase } from '../application/receive-webhook.usecase';
 import { BalanceHookDto } from './dto/balance-hook.dto';
 import { WebhookAuthGuard } from './webhook-auth.guard';
 import { WebhookRateLimitGuard } from './webhook-rate-limit.guard';
@@ -17,12 +16,32 @@ export class WebhooksController {
 
   @Post('casso-balance-hook')
   @Public()
+  @ApiOperation({
+    summary: 'Receive a Casso balance-hook notification',
+    description:
+      'Signed by Casso (X-Casso-Signature header); returns received/duplicate/ignored status',
+  })
+  @ApiOkResponse({
+    description: 'Webhook accepted for processing',
+    schema: {
+      type: 'object',
+      properties: {
+        received: { type: 'boolean', example: true },
+        duplicate: { type: 'boolean', example: false },
+        ignored: { type: 'boolean', example: false },
+      },
+    },
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.TENANT_MISMATCH,
+    ErrorCode.RATE_LIMIT_EXCEEDED,
+  )
   @UseGuards(WebhookAuthGuard, WebhookRateLimitGuard)
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @HttpCode(200)
-  async receiveBalanceHook(
-    @Body() payload: BalanceHookDto,
-  ): Promise<ReceiveWebhookResult> {
+  async receiveBalanceHook(@Body() payload: BalanceHookDto) {
     return this.receiveWebhook.execute({
       bankConnectionId: payload.bankConnectionId,
       organizationId: payload.organizationId,

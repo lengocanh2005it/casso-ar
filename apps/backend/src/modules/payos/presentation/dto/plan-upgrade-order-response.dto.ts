@@ -1,3 +1,3 @@
-export interface PlanUpgradeOrderResponseDto {
+export class PlanUpgradeOrderResponseDto {
   checkoutUrl: string;
 }

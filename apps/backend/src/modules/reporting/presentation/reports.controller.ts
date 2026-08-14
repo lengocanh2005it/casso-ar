@@ -31,6 +31,33 @@ export class ReportsController {
   ) {}
 
   @Get('aging')
+  @ApiOperation({ summary: 'Get receivable aging bucket summary' })
+  @ApiOkResponse({
+    description: 'Count and total remaining per aging bucket',
+    schema: {
+      type: 'object',
+      required: ['buckets'],
+      properties: {
+        buckets: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['bucket', 'count', 'totalRemaining'],
+            properties: {
+              bucket: { type: 'string' },
+              count: { type: 'number' },
+              totalRemaining: { type: 'number' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+  )
   @RequirePermission(Permission.REPORT_READ)
   async getAgingReport() {
     return { buckets: await this.agingReportQueryService.getAgingBuckets() };
@@ -55,6 +82,18 @@ export class ReportsController {
   }
 
   @Get('aging/export')
+  @ApiOperation({ summary: 'Export the aging report as CSV' })
+  @ApiOkResponse({
+    description: 'CSV download',
+    content: {
+      'text/csv': { schema: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+  )
   @Header('Content-Type', 'text/csv; charset=utf-8')
   @Header('Content-Disposition', 'attachment; filename="aging-report.csv"')
   @RequirePermission(Permission.REPORT_READ)
@@ -76,6 +115,37 @@ export class ReportsController {
   }
 
   @Get('dashboard-summary')
+  @ApiOperation({
+    summary: 'Get the dashboard summary (optionally date-ranged)',
+  })
+  @ApiOkResponse({
+    description: 'Outstanding, overdue, forecast and effectiveness metrics',
+    schema: {
+      type: 'object',
+      required: [
+        'totalOutstanding',
+        'totalOverdue',
+        'overdueRate',
+        'cashForecast',
+        'topOverdueCustomers',
+      ],
+      properties: {
+        totalOutstanding: { type: 'number' },
+        totalOverdue: { type: 'number' },
+        overdueRate: { type: 'number' },
+        cashForecast: { type: 'object' },
+        topOverdueCustomers: { type: 'array' },
+        autoMatchRate: { type: 'number', nullable: true },
+        manualHandlingRate: { type: 'number', nullable: true },
+        reminderEffectiveness: { type: 'number', nullable: true },
+      },
+    },
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+  )
   @RequirePermission(Permission.REPORT_READ)
   async getDashboardSummary(@Query() query: GetDashboardSummaryQueryDto) {
     const period =

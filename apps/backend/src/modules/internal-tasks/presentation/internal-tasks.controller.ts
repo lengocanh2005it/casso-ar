@@ -9,20 +9,31 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  ApiCreatedResponse,
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
+import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { CreateManualTaskUseCase } from '../application/create-manual-task.usecase';
 import { DismissTaskUseCase } from '../application/dismiss-task.usecase';
 import { ListReceivableTasksUseCase } from '../application/list-receivable-tasks.usecase';
 import { ResolveTaskUseCase } from '../application/resolve-task.usecase';
 import { CreateManualTaskDto } from './dto/create-manual-task.dto';
-import { toInternalTaskResponse } from './dto/internal-task-response.dto';
+import {
+  InternalTaskResponseDto,
+  ListInternalTasksResponseDto,
+  toInternalTaskResponse,
+} from './dto/internal-task-response.dto';
 
 @ApiTags('internal-tasks')
 @Controller()
@@ -38,6 +49,9 @@ export class InternalTasksController {
   ) {}
 
   @Get('receivables/:id/tasks')
+  @ApiOperation({ summary: 'List internal tasks of a receivable' })
+  @ApiOkResponse({ type: ListInternalTasksResponseDto })
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR)
   @RequirePermission(Permission.RECEIVABLE_READ)
   async list(
     @Param('id') receivableId: string,
@@ -57,6 +71,16 @@ export class InternalTasksController {
   }
 
   @Post('receivables/:id/tasks')
+  @ApiOperation({ summary: 'Create a manual internal task on a receivable' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: InternalTaskResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.RECEIVABLE_NOT_FOUND,
+    ErrorCode.TENANT_MISMATCH,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @RequirePermission(Permission.INTERNAL_TASK_MANAGE)
   async createManualTask(
     @Param('id') receivableId: string,
@@ -83,6 +107,17 @@ export class InternalTasksController {
   }
 
   @Post('tasks/:id/resolve')
+  @ApiOperation({ summary: 'Resolve an internal task' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: InternalTaskResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.CONFLICT,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @RequirePermission(Permission.INTERNAL_TASK_MANAGE)
   async resolve(
     @Param('id') id: string,
@@ -104,6 +139,17 @@ export class InternalTasksController {
   }
 
   @Post('tasks/:id/dismiss')
+  @ApiOperation({ summary: 'Dismiss an internal task' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: InternalTaskResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.CONFLICT,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @RequirePermission(Permission.INTERNAL_TASK_MANAGE)
   async dismiss(
     @Param('id') id: string,

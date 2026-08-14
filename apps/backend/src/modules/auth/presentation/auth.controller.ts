@@ -12,7 +12,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import {
   AuditActionType,
@@ -21,8 +26,11 @@ import {
 import { Audited } from '../../../common/audit/audited.decorator';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { Public } from '../../../common/auth/public.decorator';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
+import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import { ForgotPasswordUseCase } from '../application/forgot-password.usecase';
 import { GetUserProfileUseCase } from '../application/get-user-profile.usecase';
 import { LoginUseCase } from '../application/login.usecase';
@@ -85,6 +93,25 @@ export class AuthController {
   @Public()
   @UseGuards(AuthCompositeRateLimitGuard)
   @Post('signup')
+  @ApiOperation({ summary: 'Sign up a new user and organization' })
+  @ApiCreatedResponse({
+    description:
+      'Account created; refresh token set as an httpOnly cookie (refreshToken)',
+    schema: {
+      type: 'object',
+      required: ['userId', 'organizationId', 'accessToken'],
+      properties: {
+        userId: { type: 'string', format: 'uuid' },
+        organizationId: { type: 'string', format: 'uuid' },
+        accessToken: { type: 'string' },
+      },
+    },
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.CONFLICT,
+    ErrorCode.RATE_LIMIT_EXCEEDED,
+  )
   async signup(
     @Body() dto: SignupDto,
     @Res({ passthrough: true }) response: Response,
@@ -105,6 +132,16 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('verify-email')
+  @ApiOperation({ summary: 'Verify an email with a token' })
+  @ApiOkResponse({
+    description: 'Email verified',
+    schema: {
+      type: 'object',
+      required: ['verified'],
+      properties: { verified: { type: 'boolean', example: true } },
+    },
+  })
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.NOT_FOUND)
   async verifyEmail(@Body() dto: VerifyEmailDto) {
     await this.verifyEmailUseCase.execute(dto.token);
     return { verified: true };
@@ -114,6 +151,22 @@ export class AuthController {
   @UseGuards(AuthCompositeRateLimitGuard)
   @Audited(AuditActionType.AUTH_LOGIN, AuditEntityType.AUTH)
   @Post('login')
+  @ApiOperation({ summary: 'Log in with email and password' })
+  @ApiCreatedResponse({
+    description:
+      'Access token returned; refresh token set as an httpOnly cookie (refreshToken)',
+    schema: {
+      type: 'object',
+      required: ['accessToken'],
+      properties: { accessToken: { type: 'string' } },
+    },
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.RATE_LIMIT_EXCEEDED,
+  )
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) response: Response,
@@ -130,6 +183,23 @@ export class AuthController {
   @Public()
   @UseGuards(AuthCompositeRateLimitGuard)
   @Post('refresh')
+  @ApiOperation({
+    summary: 'Refresh the access token using the refresh cookie',
+  })
+  @ApiCreatedResponse({
+    description:
+      'New access token returned; refresh token rotated as an httpOnly cookie',
+    schema: {
+      type: 'object',
+      required: ['accessToken'],
+      properties: { accessToken: { type: 'string' } },
+    },
+  })
+  @ApiErrorResponse(
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.RATE_LIMIT_EXCEEDED,
+  )
   async refresh(
     @Req() request: AuthRequest,
     @Res({ passthrough: true }) response: Response,
@@ -149,6 +219,11 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Audited(AuditActionType.AUTH_LOGOUT, AuditEntityType.AUTH)
   @Post('logout')
+  @ApiOperation({ summary: 'Log out and clear the refresh cookie' })
+  @ApiOkResponse({
+    description: 'Logged out; refresh cookie cleared',
+    schema: successResponseSchema(),
+  })
   async logout(
     @Req() request: AuthRequest,
     @Res({ passthrough: true }) response: Response,
@@ -159,6 +234,20 @@ export class AuthController {
   }
 
   @Post('switch-organization')
+  @ApiOperation({ summary: 'Switch the active organization' })
+  @ApiCreatedResponse({
+    description: 'New access token for the target organization',
+    schema: {
+      type: 'object',
+      required: ['accessToken'],
+      properties: { accessToken: { type: 'string' } },
+    },
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+  )
   @Audited(AuditActionType.AUTH_SWITCH_ORGANIZATION, AuditEntityType.AUTH)
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @RequirePermission(Permission.SWITCH_ORGANIZATION)
@@ -174,6 +263,13 @@ export class AuthController {
   }
 
   @Get('me')
+  @ApiOperation({ summary: 'Get the current user profile' })
+  @ApiOkResponse({ type: UserProfileResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.NOT_FOUND,
+  )
   @UseGuards(JwtAuthGuard)
   async getMe(@Req() request: AuthRequest): Promise<UserProfileResponseDto> {
     const userId = request.user?.userId;
@@ -189,6 +285,12 @@ export class AuthController {
   @Audited(AuditActionType.AUTH_FORGOT_PASSWORD, AuditEntityType.AUTH)
   @HttpCode(HttpStatus.OK)
   @Post('forgot-password')
+  @ApiOperation({ summary: 'Request a password reset email' })
+  @ApiOkResponse({
+    description: 'Reset email sent if the address exists',
+    schema: successResponseSchema(),
+  })
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.RATE_LIMIT_EXCEEDED)
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     await this.forgotPasswordUseCase.execute(dto.email);
     return { success: true };
@@ -198,6 +300,16 @@ export class AuthController {
   @UseGuards(AuthCompositeRateLimitGuard)
   @Audited(AuditActionType.AUTH_RESET_PASSWORD, AuditEntityType.AUTH)
   @Post('reset-password')
+  @ApiOperation({ summary: 'Reset the password with a token' })
+  @ApiCreatedResponse({
+    description: 'Password reset',
+    schema: successResponseSchema(),
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.RATE_LIMIT_EXCEEDED,
+  )
   async resetPassword(@Body() dto: ResetPasswordDto) {
     await this.resetPasswordUseCase.execute(dto);
     return { success: true };

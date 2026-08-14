@@ -9,19 +9,30 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  ApiCreatedResponse,
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
+import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { GetCustomerTimelineUseCase } from '../application/get-customer-timeline.usecase';
 import { GetOrganizationTimelineUseCase } from '../application/get-organization-timeline.usecase';
 import { GetReceivableTimelineUseCase } from '../application/get-receivable-timeline.usecase';
 import { RecordManualActivityUseCase } from '../application/record-manual-activity.usecase';
-import { toCollectionActivityResponse } from './dto/collection-activity-response.dto';
+import {
+  CollectionActivityPageResponseDto,
+  CollectionActivityResponseDto,
+  toCollectionActivityResponse,
+} from './dto/collection-activity-response.dto';
 import { CreateManualActivityDto } from './dto/create-manual-activity.dto';
 
 @ApiTags('collection-activity')
@@ -38,6 +49,15 @@ export class CollectionActivityController {
   ) {}
 
   @Post('receivables/:id/activities')
+  @ApiOperation({ summary: 'Record a manual collection activity' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: CollectionActivityResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.RECEIVABLE_NOT_FOUND,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @RequirePermission(Permission.RECEIVABLE_WRITE)
   async createManual(
     @Param('id') receivableId: string,
@@ -62,6 +82,11 @@ export class CollectionActivityController {
   }
 
   @Get('receivables/:id/timeline')
+  @ApiOperation({
+    summary: 'Get the collection activity timeline of a receivable',
+  })
+  @ApiOkResponse({ type: CollectionActivityPageResponseDto })
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR)
   @RequirePermission(Permission.RECEIVABLE_READ)
   async receivableTimeline(
     @Param('id') receivableId: string,
@@ -81,6 +106,11 @@ export class CollectionActivityController {
   }
 
   @Get('customers/:id/timeline')
+  @ApiOperation({
+    summary: 'Get the collection activity timeline of a customer',
+  })
+  @ApiOkResponse({ type: CollectionActivityPageResponseDto })
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR)
   @RequirePermission(Permission.RECEIVABLE_READ)
   async customerTimeline(
     @Param('id') customerId: string,
@@ -100,6 +130,11 @@ export class CollectionActivityController {
   }
 
   @Get('activity')
+  @ApiOperation({
+    summary: 'Get the organization-wide collection activity feed',
+  })
+  @ApiOkResponse({ type: CollectionActivityPageResponseDto })
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR)
   @RequirePermission(Permission.RECEIVABLE_READ)
   async organizationTimeline(@Query() pagination: PaginationDto) {
     const result = await this.getOrganizationTimelineUseCase.execute(
