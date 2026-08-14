@@ -9,11 +9,11 @@ import {
   COPILOT_CONVERSATION_REPOSITORY,
   type ICopilotConversationRepository,
 } from './conversation-repository.port';
-import { deriveCopilotDraftStatus } from './derive-draft-status';
 import {
   COPILOT_DRAFT_REPOSITORY,
   type ICopilotDraftRepository,
 } from './draft-repository.port';
+import { findMutableDraft } from './find-mutable-draft';
 import {
   COPILOT_PENDING_ACTION_REPOSITORY,
   type CopilotPendingAction,
@@ -41,26 +41,12 @@ export class ReopenCopilotDraftUseCase {
       throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
     }
 
-    const draft = await this.draftRepo.findById(draftId);
-    if (!draft || draft.userId !== user.userId) {
-      throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy bản nháp email.');
-    }
-
-    const latestActions = await this.pendingActionRepo.findLatestForDraftIds([
+    const { draft } = await findMutableDraft(
       draftId,
-    ]);
-    const status = deriveCopilotDraftStatus(
-      latestActions.get(draftId) ?? null,
-      new Date(),
+      user.userId,
+      this.draftRepo,
+      this.pendingActionRepo,
     );
-    if (status === 'PENDING' || status === 'CONFIRMED') {
-      throw new AppError(
-        ErrorCode.CONFLICT,
-        status === 'PENDING'
-          ? 'Bản nháp đang có đề xuất gửi email chờ xử lý.'
-          : 'Bản nháp email này đã được gửi.',
-      );
-    }
 
     return this.dataSource.transaction(async (manager) => {
       const conversation = await this.conversationRepo.findOrCreate(
