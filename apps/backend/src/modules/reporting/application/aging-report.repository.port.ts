@@ -5,6 +5,14 @@ export type AgingBucket =
   | 'OVERDUE_31_60'
   | 'OVERDUE_60_PLUS';
 
+export const AGING_BUCKETS: AgingBucket[] = [
+  'NOT_DUE',
+  'OVERDUE_1_7',
+  'OVERDUE_8_30',
+  'OVERDUE_31_60',
+  'OVERDUE_60_PLUS',
+];
+
 export interface AgingBucketCount {
   bucket: AgingBucket;
   count: number;

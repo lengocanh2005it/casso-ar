@@ -1,6 +1,7 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { EntityManager } from 'typeorm';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import { Receivable } from '../../receivables/domain/receivable';
 import { Payment } from '../domain/payment';
 import { AllocatePaymentUseCase } from './allocate-payment.usecase';
@@ -59,6 +60,7 @@ describe('AllocatePaymentUseCase', () => {
     };
     const auditContext = { setBefore: jest.fn(), setAfter: jest.fn() };
     const eventEmitter = { emit: jest.fn(), emitAsync: jest.fn() };
+    const recorder = { record: jest.fn() };
 
     const useCase = new AllocatePaymentUseCase(
       receivableRepo as any,
@@ -68,6 +70,7 @@ describe('AllocatePaymentUseCase', () => {
       tenantContext as any,
       auditContext as any,
       eventEmitter as any,
+      recorder as any,
     );
 
     await useCase.execute({
@@ -89,6 +92,15 @@ describe('AllocatePaymentUseCase', () => {
       expect.anything(),
     );
     expect(allocationRepo.save).toHaveBeenCalled();
+    expect(recorder.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paidAmount: 30_000_000,
+        status: ReceivableStatus.PARTIALLY_PAID,
+      }),
+      BalanceHistoryChangeSource.ALLOCATE,
+      expect.anything(),
+      expect.any(String),
+    );
     expect(auditContext.setBefore).toHaveBeenCalledWith({
       payment,
       receivable,
@@ -152,6 +164,7 @@ describe('AllocatePaymentUseCase', () => {
       tenantContext as any,
       auditContext as any,
       eventEmitter as any,
+      { record: jest.fn() } as any,
     );
 
     await useCase.execute({
@@ -198,6 +211,7 @@ describe('AllocatePaymentUseCase', () => {
         tenantContext as any,
         auditContext as any,
         eventEmitter as any,
+        { record: jest.fn() } as any,
       );
 
       await expect(
@@ -239,6 +253,7 @@ describe('AllocatePaymentUseCase', () => {
       { getOrganizationId: () => 'org-1' } as any,
       { setBefore: jest.fn(), setAfter: jest.fn() } as any,
       eventEmitter as any,
+      { record: jest.fn() } as any,
     );
 
     await expect(
@@ -277,6 +292,7 @@ describe('AllocatePaymentUseCase', () => {
       { getOrganizationId: () => 'org-1' } as any,
       { setBefore: jest.fn(), setAfter: jest.fn() } as any,
       { emit: jest.fn(), emitAsync: jest.fn() } as any,
+      { record: jest.fn() } as any,
     );
 
     await expect(
@@ -316,6 +332,7 @@ describe('AllocatePaymentUseCase', () => {
       { getOrganizationId: () => 'org-1' } as any,
       { setBefore: jest.fn(), setAfter: jest.fn() } as any,
       { emit: jest.fn(), emitAsync: jest.fn() } as any,
+      { record: jest.fn() } as any,
     );
 
     await expect(
@@ -346,6 +363,7 @@ describe('AllocatePaymentUseCase', () => {
       save: jest.fn(),
     };
     const allocationRepo = { save: jest.fn() };
+    const recorder = { record: jest.fn() };
     const dataSource = {
       transaction: jest.fn((cb: (m: EntityManager) => Promise<void>) =>
         cb({} as EntityManager),
@@ -359,6 +377,7 @@ describe('AllocatePaymentUseCase', () => {
       { getOrganizationId: () => 'org-1' } as any,
       { setBefore: jest.fn(), setAfter: jest.fn() } as any,
       { emit: jest.fn(), emitAsync: jest.fn() } as any,
+      recorder as any,
     );
 
     await expect(
@@ -373,6 +392,7 @@ describe('AllocatePaymentUseCase', () => {
     });
     expect(receivableRepo.save).not.toHaveBeenCalled();
     expect(paymentRepo.save).not.toHaveBeenCalled();
+    expect(recorder.record).not.toHaveBeenCalled();
   });
 
   it('maps allocation against a closed receivable to CONFLICT, not ALLOCATION_EXCEEDS_REMAINING', async () => {
@@ -404,6 +424,7 @@ describe('AllocatePaymentUseCase', () => {
       { getOrganizationId: () => 'org-1' } as any,
       { setBefore: jest.fn(), setAfter: jest.fn() } as any,
       { emit: jest.fn(), emitAsync: jest.fn() } as any,
+      { record: jest.fn() } as any,
     );
 
     await expect(
@@ -443,6 +464,7 @@ describe('AllocatePaymentUseCase', () => {
       { getOrganizationId: () => 'org-1' } as any,
       { setBefore: jest.fn(), setAfter: jest.fn() } as any,
       { emit: jest.fn(), emitAsync: jest.fn() } as any,
+      { record: jest.fn() } as any,
     );
 
     await expect(

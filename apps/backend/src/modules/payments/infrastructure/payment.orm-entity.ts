@@ -2,6 +2,10 @@ import { Check, Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity({ name: 'payments' })
 @Index(['organizationId'])
+@Index('IDX_payments_organization_received_at', [
+  'organizationId',
+  'receivedAt',
+])
 @Check('"allocatedAmount" >= 0 AND "allocatedAmount" <= "totalAmount"')
 export class PaymentOrmEntity {
   @PrimaryGeneratedColumn('uuid')

@@ -1,5 +1,6 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { EntityManager } from 'typeorm';
+import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import { Receivable } from '../domain/receivable';
 import { WriteOffReceivableUseCase } from './write-off-receivable.usecase';
 
@@ -32,12 +33,14 @@ describe('WriteOffReceivableUseCase', () => {
     };
     const auditContext = { setBefore: jest.fn() };
     const eventPublisher = { emitAsync: jest.fn() };
+    const recorder = { record: jest.fn() };
 
     const useCase = new WriteOffReceivableUseCase(
       receivableRepo as any,
       dataSource as any,
       auditContext as any,
       eventPublisher as any,
+      recorder as any,
     );
     const result = await useCase.execute('rec-1');
 
@@ -50,6 +53,14 @@ describe('WriteOffReceivableUseCase', () => {
     expect(eventPublisher.emitAsync).toHaveBeenCalledWith(
       'receivable.status-closed',
       { receivableId: 'rec-1', organizationId: 'org-1' },
+    );
+    expect(recorder.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'rec-1',
+        status: ReceivableStatus.WRITTEN_OFF,
+      }),
+      BalanceHistoryChangeSource.WRITE_OFF,
+      manager,
     );
   });
 
@@ -65,15 +76,18 @@ describe('WriteOffReceivableUseCase', () => {
     };
     const auditContext = { setBefore: jest.fn() };
     const eventPublisher = { emitAsync: jest.fn() };
+    const recorder = { record: jest.fn() };
     const useCase = new WriteOffReceivableUseCase(
       receivableRepo as any,
       dataSource as any,
       auditContext as any,
       eventPublisher as any,
+      recorder as any,
     );
 
     await expect(useCase.execute('missing')).rejects.toThrow(
       'Không tìm thấy khoản phải thu.',
     );
+    expect(recorder.record).not.toHaveBeenCalled();
   });
 });

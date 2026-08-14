@@ -5,11 +5,35 @@ export type AgingBucket =
   | 'OVERDUE_31_60'
   | 'OVERDUE_60_PLUS';
 
+export type TrendMonths = 3 | 6 | 12;
+
 export interface AgingReport {
   buckets: Array<{
     bucket: AgingBucket;
     count: number;
     totalRemaining: number;
+  }>;
+}
+
+export interface CustomerAgingPage {
+  items: Array<{
+    customerId: string;
+    customerName: string;
+    taxCode: string;
+    buckets: Array<{ bucket: AgingBucket; totalRemaining: number }>;
+    totalRemaining: number;
+  }>;
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface ReportsTrend {
+  months: TrendMonths;
+  items: Array<{
+    month: string;
+    outstanding: number | null;
+    collected: number;
   }>;
 }
 

@@ -12,6 +12,8 @@ import {
 } from '../../../common/audit/audit-log-repository.port';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { ReceivableBalanceHistoryRecorderService } from '../../receivable-balance-history/application/receivable-balance-history-recorder.service';
+import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import {
   type IReceivableRepository,
   RECEIVABLE_REPOSITORY,
@@ -43,6 +45,7 @@ export class UndoPaymentAllocationUseCase {
     @Inject(AUDIT_LOG_REPOSITORY)
     private readonly auditLogRepo: IAuditLogRepository,
     private readonly dataSource: DataSource,
+    private readonly historyRecorder: ReceivableBalanceHistoryRecorderService,
   ) {}
 
   async execute(input: UndoPaymentAllocationInput): Promise<void> {
@@ -99,6 +102,12 @@ export class UndoPaymentAllocationUseCase {
       await this.allocationRepo.save(undoneAllocation, manager);
       await this.paymentRepo.save(updatedPayment, manager);
       await this.receivableRepo.save(updatedReceivable, manager);
+      await this.historyRecorder.record(
+        updatedReceivable,
+        BalanceHistoryChangeSource.UNDO,
+        manager,
+        allocation.id,
+      );
       await this.auditLogRepo.create(
         new AuditLog({
           organizationId: allocation.organizationId,

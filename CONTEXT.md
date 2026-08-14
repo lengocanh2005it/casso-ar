@@ -61,7 +61,7 @@ A B2B SaaS platform for automating accounts receivable management and collection
             │   allocate│ (remaining = 0)
             │           ▼
             │    ┌──────────┐
-            └───▶│   PAID   │ (terminal)
+            └───▶│   PAID   │ (closed; undo allocation may reopen)
                  └──────────┘
 
     CANCELLED: only from OPEN/PARTIALLY_PAID when paidAmount = 0
@@ -76,7 +76,7 @@ A B2B SaaS platform for automating accounts receivable management and collection
 5. **Tenant isolation:** every query/write must be scoped by `organizationId`
 6. **Allocation:** `Payment.customerId` MUST exist and match `Receivable.customerId`
 7. **Undo:** soft-delete + audit; do not physically delete
-8. **Terminal statuses:** PAID, WRITTEN_OFF, CANCELLED — cannot transition further
+8. **Terminal statuses:** WRITTEN_OFF and CANCELLED cannot transition further. PAID is closed normally, but undoing a payment allocation may transition it back to OPEN or PARTIALLY_PAID.
 9. **Retention Policy:** INSERT-only, unbounded-growth tables are pruned by a daily cutoff-based delete, not query-time filtering. Windows (see issue #118): `webhook_inbox` 90d, `idempotency_keys` 90d post-COMPLETED, `ai_usage_logs` 12mo, `audit_logs`/`collection_activities`/`reminder_executions` 24mo, `alerts` 90d after `readAt` (unread rows are never auto-pruned)
 10. **Plan tiers:** FREE < STARTER < BUSINESS < ENTERPRISE (strict order). A `Subscription` may only move to a strictly higher tier via `PlanUpgradeOrder` (self-service upgrade); there is no downgrade or cancel action — an org on a paid tier must pay a `PeriodCharge` for the current billing period to keep that tier. If unpaid by the end of a 3-day grace window after period end, the `Subscription` automatically drops to FREE (not a user-triggered downgrade). During the grace window `status` stays `ACTIVE` (see ADR-0012) — `PAST_DUE` keeps its existing meaning of an immediate hard block (`plan-limit.service.ts`), it is not used for renewal grace
 11. **Batch operations:** a `Batch operation` (API request with multiple items) processes each item independently — one item's failure does not roll back or block the others. Never wrap a batch in a single all-or-nothing transaction; that is a distinct, rejected design (see ADR-0016)
