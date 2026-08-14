@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
@@ -28,6 +30,7 @@ export class ReopenCopilotDraftUseCase {
     @Inject(COPILOT_CONVERSATION_REPOSITORY)
     private readonly conversationRepo: ICopilotConversationRepository,
     private readonly tenantContext: TenantContextService,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   async execute(
@@ -59,14 +62,18 @@ export class ReopenCopilotDraftUseCase {
       );
     }
 
-    const conversation = await this.conversationRepo.findOrCreate(
-      randomUUID(),
-      user.userId,
-    );
-    const pendingAction = await this.pendingActionRepo.create(conversation.id, {
-      draftId: draft.id,
-      receivableId: draft.receivableId,
+    return this.dataSource.transaction(async (manager) => {
+      const conversation = await this.conversationRepo.findOrCreate(
+        randomUUID(),
+        user.userId,
+        manager,
+      );
+      const pendingAction = await this.pendingActionRepo.create(
+        conversation.id,
+        { draftId: draft.id, receivableId: draft.receivableId },
+        manager,
+      );
+      return { conversationId: conversation.id, pendingAction };
     });
-    return { conversationId: conversation.id, pendingAction };
   }
 }

@@ -85,7 +85,16 @@ function buildDeps(overrides: {
       role: 'ACCOUNTANT',
     }),
   } as unknown as TenantContextService;
-  return { draftRepo, pendingActionRepo, conversationRepo, tenantContext };
+  const dataSource = {
+    transaction: jest.fn().mockImplementation((callback) => callback({})),
+  };
+  return {
+    draftRepo,
+    pendingActionRepo,
+    conversationRepo,
+    tenantContext,
+    dataSource,
+  };
 }
 
 describe('ReopenCopilotDraftUseCase', () => {
@@ -102,18 +111,22 @@ describe('ReopenCopilotDraftUseCase', () => {
       deps.pendingActionRepo as never,
       deps.conversationRepo as never,
       deps.tenantContext,
+      deps.dataSource as never,
     );
 
     const result = await useCase.execute('draft-1');
 
+    expect(deps.dataSource.transaction).toHaveBeenCalledTimes(1);
     expect(deps.conversationRepo.findOrCreate).toHaveBeenCalledWith(
       'new-conv-1',
       'user-1',
+      {},
     );
-    expect(deps.pendingActionRepo.create).toHaveBeenCalledWith('new-conv-1', {
-      draftId: 'draft-1',
-      receivableId: 'rec-1',
-    });
+    expect(deps.pendingActionRepo.create).toHaveBeenCalledWith(
+      'new-conv-1',
+      { draftId: 'draft-1', receivableId: 'rec-1' },
+      {},
+    );
     expect(result).toEqual({
       conversationId: 'new-conv-1',
       pendingAction: expect.objectContaining({ id: 'new-action-1' }),
@@ -127,6 +140,7 @@ describe('ReopenCopilotDraftUseCase', () => {
       deps.pendingActionRepo as never,
       deps.conversationRepo as never,
       deps.tenantContext,
+      deps.dataSource as never,
     );
 
     await expect(useCase.execute('draft-1')).resolves.toMatchObject({
@@ -143,12 +157,14 @@ describe('ReopenCopilotDraftUseCase', () => {
       deps.pendingActionRepo as never,
       deps.conversationRepo as never,
       deps.tenantContext,
+      deps.dataSource as never,
     );
 
     await expect(useCase.execute('draft-1')).rejects.toMatchObject({
       errorCode: ErrorCode.CONFLICT,
     });
     expect(deps.pendingActionRepo.create).not.toHaveBeenCalled();
+    expect(deps.dataSource.transaction).not.toHaveBeenCalled();
   });
 
   it('rejects reopening an already-CONFIRMED draft with CONFLICT', async () => {
@@ -160,6 +176,7 @@ describe('ReopenCopilotDraftUseCase', () => {
       deps.pendingActionRepo as never,
       deps.conversationRepo as never,
       deps.tenantContext,
+      deps.dataSource as never,
     );
 
     await expect(useCase.execute('draft-1')).rejects.toMatchObject({
@@ -179,6 +196,7 @@ describe('ReopenCopilotDraftUseCase', () => {
       deps.pendingActionRepo as never,
       deps.conversationRepo as never,
       deps.tenantContext,
+      deps.dataSource as never,
     );
 
     await expect(useCase.execute('draft-1')).resolves.toMatchObject({
@@ -193,6 +211,7 @@ describe('ReopenCopilotDraftUseCase', () => {
       deps.pendingActionRepo as never,
       deps.conversationRepo as never,
       deps.tenantContext,
+      deps.dataSource as never,
     );
 
     await expect(useCase.execute('draft-1')).rejects.toMatchObject({
@@ -207,6 +226,7 @@ describe('ReopenCopilotDraftUseCase', () => {
       deps.pendingActionRepo as never,
       deps.conversationRepo as never,
       deps.tenantContext,
+      deps.dataSource as never,
     );
 
     await expect(useCase.execute('draft-1')).rejects.toMatchObject({
