@@ -12,10 +12,7 @@ import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { GetCustomerCreditsUseCase } from '../application/get-customer-credits.usecase';
-import {
-  CustomerCreditsResponseDto,
-  toCustomerCreditsResponse,
-} from './dto/customer-credits-response.dto';
+import { CustomerCreditsResponseDto } from './dto/customer-credits-response.dto';
 
 @ApiTags('customer-credits')
 @Controller('customers/:customerId/credits')
@@ -33,7 +30,6 @@ export class CustomerCreditsController {
   async list(
     @Param('customerId', ParseUUIDPipe) customerId: string,
   ): Promise<CustomerCreditsResponseDto> {
-    const result = await this.getCustomerCreditsUseCase.execute({ customerId });
-    return toCustomerCreditsResponse(result);
+    return this.getCustomerCreditsUseCase.execute({ customerId });
   }
 }
