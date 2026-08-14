@@ -6,6 +6,7 @@ import {
   Headers,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -21,9 +22,12 @@ import { CancelPendingActionUseCase } from '../application/cancel-pending-action
 import { ConfirmPendingActionUseCase } from '../application/confirm-pending-action.usecase';
 import { CopilotChatUseCase } from '../application/copilot-chat.usecase';
 import { GetCopilotUsageUseCase } from '../application/get-copilot-usage.usecase';
+import { ListCopilotDraftsUseCase } from '../application/list-copilot-drafts.usecase';
 import { CopilotRateLimitGuard } from './copilot-rate-limit.guard';
+import { CopilotDraftsQueryDto } from './dto/copilot-drafts-query.dto';
 import {
   type CopilotChatResponseDto,
+  toCopilotDraftsPageResponse,
   toCopilotMessageDto,
   toCopilotPendingActionDto,
 } from './dto/copilot-response.dto';
@@ -38,6 +42,7 @@ export class CopilotController {
     private readonly confirmPendingActionUseCase: ConfirmPendingActionUseCase,
     private readonly cancelPendingActionUseCase: CancelPendingActionUseCase,
     private readonly getCopilotUsageUseCase: GetCopilotUsageUseCase,
+    private readonly listCopilotDraftsUseCase: ListCopilotDraftsUseCase,
     private readonly idempotency: IdempotencyService,
   ) {}
 
@@ -45,6 +50,17 @@ export class CopilotController {
   @RequirePermission(Permission.RECEIVABLE_READ)
   async usage() {
     return this.getCopilotUsageUseCase.execute();
+  }
+
+  @Get('drafts')
+  @RequirePermission(Permission.RECEIVABLE_READ)
+  async listDrafts(@Query() query: CopilotDraftsQueryDto) {
+    const page = await this.listCopilotDraftsUseCase.execute(
+      query.page,
+      query.limit,
+      query.status,
+    );
+    return toCopilotDraftsPageResponse(page);
   }
 
   @Post('conversations/:id/messages')

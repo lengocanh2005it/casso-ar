@@ -8,6 +8,7 @@ function buildController() {
   const confirmPendingActionUseCase = { execute: jest.fn() };
   const cancelPendingActionUseCase = { execute: jest.fn() };
   const getCopilotUsageUseCase = { execute: jest.fn() };
+  const listCopilotDraftsUseCase = { execute: jest.fn() };
   const idempotency = {
     execute: jest.fn((_endpoint, _key, _input, operation) => operation()),
   };
@@ -17,12 +18,14 @@ function buildController() {
       confirmPendingActionUseCase as any,
       cancelPendingActionUseCase as any,
       getCopilotUsageUseCase as any,
+      listCopilotDraftsUseCase as any,
       idempotency as any,
     ),
     copilotChatUseCase,
     confirmPendingActionUseCase,
     cancelPendingActionUseCase,
     getCopilotUsageUseCase,
+    listCopilotDraftsUseCase,
     idempotency,
   };
 }
@@ -120,6 +123,50 @@ describe('CopilotController', () => {
     expect(deps.cancelPendingActionUseCase.execute).toHaveBeenCalledWith(
       'action-1',
       'user-1',
+    );
+  });
+
+  it('lists drafts through the query DTO', async () => {
+    const deps = buildController();
+    deps.listCopilotDraftsUseCase.execute.mockResolvedValue({
+      items: [
+        {
+          id: 'draft-1',
+          organizationId: 'org-1',
+          userId: 'user-1',
+          receivableId: 'receivable-1',
+          recipientEmail: 'ap@abc.vn',
+          subject: 'Nhắc thanh toán',
+          bodyHtml: '<p>...</p>',
+          createdAt: new Date('2026-08-14T10:00:00Z'),
+          status: 'DRAFTED',
+          pendingActionId: null,
+        },
+      ],
+      total: 1,
+    });
+
+    await expect(
+      deps.controller.listDrafts({ page: 1, limit: 20 }),
+    ).resolves.toEqual({
+      items: [
+        {
+          id: 'draft-1',
+          receivableId: 'receivable-1',
+          recipientEmail: 'ap@abc.vn',
+          subject: 'Nhắc thanh toán',
+          bodyHtml: '<p>...</p>',
+          createdAt: '2026-08-14T10:00:00.000Z',
+          status: 'DRAFTED',
+          pendingActionId: null,
+        },
+      ],
+      total: 1,
+    });
+    expect(deps.listCopilotDraftsUseCase.execute).toHaveBeenCalledWith(
+      1,
+      20,
+      undefined,
     );
   });
 });
