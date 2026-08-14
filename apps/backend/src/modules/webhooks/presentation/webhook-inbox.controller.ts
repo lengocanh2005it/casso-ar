@@ -9,15 +9,21 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
+import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { ListWebhookInboxUseCase } from '../application/list-webhook-inbox.usecase';
 import { ReprocessWebhookUseCase } from '../application/reprocess-webhook.usecase';
 import { WebhookInbox } from '../domain/webhook-inbox';
-import { ListWebhookInboxQuery } from './dto/list-webhook-inbox.query';
+import { ListWebhookInboxQueryDto } from './dto/list-webhook-inbox-query.dto';
+import {
+  ListWebhookInboxResponseDto,
+  WebhookInboxItemResponse,
+} from './dto/webhook-inbox-response.dto';
 
-function toWebhookInboxResponse(inbox: WebhookInbox) {
+function toWebhookInboxResponse(inbox: WebhookInbox): WebhookInboxItemResponse {
   return {
     id: inbox.id,
     bankConnectionId: inbox.bankConnectionId,
@@ -41,8 +47,11 @@ export class WebhookInboxController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: 'List received webhook notifications' })
+  @ApiOkResponse({ type: ListWebhookInboxResponseDto })
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR)
   @RequirePermission(Permission.WEBHOOK_INBOX_READ)
-  async findMany(@Query() query: ListWebhookInboxQuery) {
+  async findMany(@Query() query: ListWebhookInboxQueryDto) {
     const result = await this.listWebhookInboxUseCase.execute({
       page: query.page,
       limit: query.limit,
@@ -58,6 +67,13 @@ export class WebhookInboxController {
   }
 
   @Post(':id/reprocess')
+  @ApiOperation({ summary: 'Reprocess a failed webhook notification' })
+  @ApiOkResponse({ type: WebhookInboxItemResponse })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+  )
   @HttpCode(200)
   @RequirePermission(Permission.WEBHOOK_INBOX_READ)
   async reprocess(@Param('id', ParseUUIDPipe) id: string) {

@@ -5,7 +5,7 @@ import {
   type WebhookInboxStatus,
 } from '../../domain/webhook-inbox';
 
-export class ListWebhookInboxQuery extends PaginationDto {
+export class ListWebhookInboxQueryDto extends PaginationDto {
   @IsOptional()
   @IsIn(WEBHOOK_INBOX_STATUSES)
   status?: WebhookInboxStatus;
