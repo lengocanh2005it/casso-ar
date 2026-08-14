@@ -49,6 +49,7 @@ import { InternalTasksModule } from './modules/internal-tasks/internal-tasks.mod
 import { ReportingModule } from './modules/reporting/reporting.module';
 import { SmtpConfigModule } from './modules/smtp-config/smtp-config.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -101,6 +102,7 @@ import { AlertsModule } from './modules/alerts/alerts.module';
     ReportingModule,
     SmtpConfigModule,
     AlertsModule,
+    AdminModule,
   ],
   providers: [
     JwtStrategy,
