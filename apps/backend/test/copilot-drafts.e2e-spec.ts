@@ -200,4 +200,65 @@ describe('Copilot drafts list + reopen (e2e)', () => {
       .set('Idempotency-Key', randomUUID())
       .expect(409);
   });
+
+  it('edits a DRAFTED draft, and blocks editing a PENDING one', async () => {
+    const draftId = randomUUID();
+    await seedDraft(draftId, new Date('2026-08-14T05:00:00Z'));
+
+    const updateResponse = await request(app?.getHttpServer())
+      .patch(`/api/v1/copilot/drafts/${draftId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', randomUUID())
+      .send({ subject: 'Tiêu đề đã sửa' })
+      .expect(200);
+
+    expect(updateResponse.body.subject).toBe('Tiêu đề đã sửa');
+    expect(updateResponse.body.bodyHtml).toBe('<p>body</p>');
+
+    const pendingDraftId = randomUUID();
+    await seedDraft(pendingDraftId, new Date('2026-08-14T04:00:00Z'));
+    await seedAction(pendingDraftId, 'PENDING', new Date());
+
+    await request(app?.getHttpServer())
+      .patch(`/api/v1/copilot/drafts/${pendingDraftId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', randomUUID())
+      .send({ subject: 'x' })
+      .expect(409);
+  });
+
+  it('deletes a CANCELLED draft, and blocks deleting a CONFIRMED one', async () => {
+    const cancelledDraftId = randomUUID();
+    await seedDraft(cancelledDraftId, new Date('2026-08-14T03:00:00Z'));
+    await seedAction(
+      cancelledDraftId,
+      'CANCELLED',
+      new Date('2026-08-14T03:01:00Z'),
+    );
+
+    await request(app?.getHttpServer())
+      .delete(`/api/v1/copilot/drafts/${cancelledDraftId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', randomUUID())
+      .expect(200);
+
+    const remaining = await dataSource
+      .getRepository(CopilotDraftOrmEntity)
+      .findOne({ where: { id: cancelledDraftId } });
+    expect(remaining).toBeNull();
+
+    const confirmedDraftId = randomUUID();
+    await seedDraft(confirmedDraftId, new Date('2026-08-14T02:00:00Z'));
+    await seedAction(
+      confirmedDraftId,
+      'CONFIRMED',
+      new Date('2026-08-14T02:01:00Z'),
+    );
+
+    await request(app?.getHttpServer())
+      .delete(`/api/v1/copilot/drafts/${confirmedDraftId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', randomUUID())
+      .expect(409);
+  });
 });
