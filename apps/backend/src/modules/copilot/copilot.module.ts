@@ -16,6 +16,7 @@ import { ConfirmPendingActionUseCase } from './application/confirm-pending-actio
 import { COPILOT_CONVERSATION_REPOSITORY } from './application/conversation-repository.port';
 import { CopilotChatUseCase } from './application/copilot-chat.usecase';
 import { CopilotToolRegistry } from './application/copilot-tool-registry';
+import { DeleteCopilotDraftUseCase } from './application/delete-copilot-draft.usecase';
 import { COPILOT_DRAFT_REPOSITORY } from './application/draft-repository.port';
 import { GetCopilotUsageUseCase } from './application/get-copilot-usage.usecase';
 import { ListCopilotDraftsUseCase } from './application/list-copilot-drafts.usecase';
@@ -154,6 +155,7 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     ListCopilotDraftsUseCase,
     ReopenCopilotDraftUseCase,
     UpdateCopilotDraftUseCase,
+    DeleteCopilotDraftUseCase,
   ],
   exports: [AI_USAGE_LOG_REPOSITORY],
 })

@@ -2,6 +2,7 @@ import { Permission } from '@casso-ledger/shared-types';
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Param,
@@ -29,6 +30,7 @@ import { ApiErrorResponse } from '../../../common/swagger/api-error-response.dec
 import { CancelPendingActionUseCase } from '../application/cancel-pending-action.usecase';
 import { ConfirmPendingActionUseCase } from '../application/confirm-pending-action.usecase';
 import { CopilotChatUseCase } from '../application/copilot-chat.usecase';
+import { DeleteCopilotDraftUseCase } from '../application/delete-copilot-draft.usecase';
 import { GetCopilotUsageUseCase } from '../application/get-copilot-usage.usecase';
 import { ListCopilotDraftsUseCase } from '../application/list-copilot-drafts.usecase';
 import { ReopenCopilotDraftUseCase } from '../application/reopen-copilot-draft.usecase';
@@ -57,6 +59,7 @@ export class CopilotController {
     private readonly listCopilotDraftsUseCase: ListCopilotDraftsUseCase,
     private readonly reopenCopilotDraftUseCase: ReopenCopilotDraftUseCase,
     private readonly updateCopilotDraftUseCase: UpdateCopilotDraftUseCase,
+    private readonly deleteCopilotDraftUseCase: DeleteCopilotDraftUseCase,
     private readonly idempotency: IdempotencyService,
   ) {}
 
@@ -127,6 +130,40 @@ export class CopilotController {
             bodyHtml: dto.bodyHtml,
           }),
         ),
+    );
+  }
+
+  @Delete('drafts/:id')
+  @ApiOperation({ summary: 'Delete a Copilot email draft' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiOkResponse({
+    description: 'The Copilot email draft was deleted.',
+    schema: {
+      type: 'object',
+      required: ['success'],
+      properties: { success: { type: 'boolean', example: true } },
+    },
+  })
+  @ApiErrorResponse(
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
+  @RequirePermission(Permission.REMINDER_SEND_MANUAL)
+  async deleteDraft(
+    @Param('id') id: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+  ) {
+    return this.idempotency.execute(
+      'DELETE /copilot/drafts/:id',
+      idempotencyKey,
+      { id },
+      async () => {
+        await this.deleteCopilotDraftUseCase.execute(id);
+        return { success: true };
+      },
     );
   }
 

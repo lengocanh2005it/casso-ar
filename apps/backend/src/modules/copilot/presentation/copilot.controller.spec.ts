@@ -11,6 +11,7 @@ function buildController() {
   const listCopilotDraftsUseCase = { execute: jest.fn() };
   const reopenCopilotDraftUseCase = { execute: jest.fn() };
   const updateCopilotDraftUseCase = { execute: jest.fn() };
+  const deleteCopilotDraftUseCase = { execute: jest.fn() };
   const idempotency = {
     execute: jest.fn((_endpoint, _key, _input, operation) => operation()),
   };
@@ -23,6 +24,7 @@ function buildController() {
       listCopilotDraftsUseCase as any,
       reopenCopilotDraftUseCase as any,
       updateCopilotDraftUseCase as any,
+      deleteCopilotDraftUseCase as any,
       idempotency as any,
     ),
     copilotChatUseCase,
@@ -32,6 +34,7 @@ function buildController() {
     listCopilotDraftsUseCase,
     reopenCopilotDraftUseCase,
     updateCopilotDraftUseCase,
+    deleteCopilotDraftUseCase,
     idempotency,
   };
 }
@@ -247,5 +250,17 @@ describe('CopilotController', () => {
       subject: 'Tiêu đề mới',
       bodyHtml: '<p>mới</p>',
     });
+  });
+
+  it('wraps delete and returns success', async () => {
+    const deps = buildController();
+    deps.deleteCopilotDraftUseCase.execute.mockResolvedValue(undefined);
+
+    await expect(
+      deps.controller.deleteDraft('draft-1', 'delete-key'),
+    ).resolves.toEqual({ success: true });
+    expect(deps.deleteCopilotDraftUseCase.execute).toHaveBeenCalledWith(
+      'draft-1',
+    );
   });
 });
