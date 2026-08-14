@@ -4,6 +4,7 @@ export interface UserProps {
   email: string;
   passwordHash: string;
   emailVerifiedAt: Date | null;
+  isOperator?: boolean;
   createdAt: Date;
 }
 
@@ -13,10 +14,11 @@ export class User {
   declare readonly email: string;
   declare readonly passwordHash: string;
   declare readonly emailVerifiedAt: Date | null;
+  declare readonly isOperator: boolean;
   declare readonly createdAt: Date;
 
   constructor(props: UserProps) {
-    Object.assign(this, props);
+    Object.assign(this, { ...props, isOperator: props.isOperator ?? false });
   }
 
   isEmailVerified(): boolean {
