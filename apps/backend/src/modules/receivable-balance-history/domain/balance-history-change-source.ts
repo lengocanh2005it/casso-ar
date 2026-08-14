@@ -1,0 +1,7 @@
+export enum BalanceHistoryChangeSource {
+  CREATE = 'CREATE',
+  ALLOCATE = 'ALLOCATE',
+  UNDO = 'UNDO',
+  CANCEL = 'CANCEL',
+  WRITE_OFF = 'WRITE_OFF',
+}
