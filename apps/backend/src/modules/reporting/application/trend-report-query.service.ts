@@ -19,8 +19,8 @@ function padMonth(month: number): string {
   return String(month).padStart(2, '0');
 }
 
-// Last instant of the given calendar month in Asia/Ho_Chi_Minh (start of the
-// next local month minus 1ms).
+// Last representable JavaScript millisecond of the given calendar month in
+// Asia/Ho_Chi_Minh. Queries use endExclusive to retain PostgreSQL precision.
 function monthEndInTimeZone(year: number, month: number): Date {
   const nextMonth = month === 12 ? 1 : month + 1;
   const nextYear = month === 12 ? year + 1 : year;
@@ -46,10 +46,14 @@ export function buildTrendMonthWindows(
     const month = (index % 12) + 1;
     const key = `${year}-${padMonth(month)}`;
     const isCurrent = offset === 0;
+    const start = fromZonedTime(`${key}-01T00:00:00`, REPORTING_TIMEZONE);
+    const end = isCurrent ? now : monthEndInTimeZone(year, month);
+
     windows.push({
       key,
-      start: fromZonedTime(`${key}-01T00:00:00`, REPORTING_TIMEZONE),
-      end: isCurrent ? now : monthEndInTimeZone(year, month),
+      start,
+      end,
+      endExclusive: new Date(end.getTime() + 1),
       isCurrent,
     });
   }

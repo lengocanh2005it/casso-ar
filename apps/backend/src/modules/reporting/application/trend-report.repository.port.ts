@@ -4,6 +4,7 @@ export interface ReportingMonth {
   key: string; // YYYY-MM in Asia/Ho_Chi_Minh
   start: Date;
   end: Date;
+  endExclusive: Date;
   isCurrent: boolean;
 }
 

@@ -598,6 +598,30 @@ describe('Receivable balance history (integration)', () => {
       ]);
     });
 
+    it('includes snapshots stored in PostgreSQL microseconds at month end', async () => {
+      await clearHistoryRows();
+      const receivableId = randomUUID();
+      const historyId = randomUUID();
+      const monthEnd = monthEndInTimeZone(2026, 6);
+
+      await dataSource.query(
+        `INSERT INTO receivable_balance_history
+          ("id", "organizationId", "receivableId", "status", "remainingAmount", "effectiveAt", "changeSource", "changeReason", "createdAt")
+         VALUES ($1, $2, $3, 'OPEN', $4, $5::timestamptz, 'CREATE', NULL, $5::timestamptz)`,
+        [
+          historyId,
+          historyQueryOrgId,
+          receivableId,
+          1_000_000,
+          '2026-06-30T16:59:59.999999Z',
+        ],
+      );
+
+      await expect(
+        historyQuery.findOutstandingByMonthEnds(historyQueryOrgId, [monthEnd]),
+      ).resolves.toEqual([{ month: '2026-06', outstanding: 1_000_000 }]);
+    });
+
     it('returns zero, not null, for a covered month with no open balances', async () => {
       await clearHistoryRows();
       const receivableId = randomUUID();

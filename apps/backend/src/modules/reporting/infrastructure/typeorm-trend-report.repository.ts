@@ -12,8 +12,6 @@ interface CollectedRow {
   collected: string | null;
 }
 
-const REPORTING_TIMEZONE = 'Asia/Ho_Chi_Minh';
-
 const COLLECTED_BY_MONTH_SQL = `
   SELECT
     to_char("receivedAt" AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM') AS month,
@@ -21,7 +19,7 @@ const COLLECTED_BY_MONTH_SQL = `
   FROM payments
   WHERE "organizationId" = $1
     AND "receivedAt" >= $2
-    AND "receivedAt" <= $3
+    AND "receivedAt" < $3
   GROUP BY month
 `;
 
@@ -39,7 +37,7 @@ export class TypeOrmTrendReportRepository implements ITrendReportRepository {
 
     const rows = await this.dataSource.query<CollectedRow[]>(
       COLLECTED_BY_MONTH_SQL,
-      [organizationId, first.start, last.end],
+      [organizationId, first.start, last.endExclusive],
     );
 
     return rows.map((row) => ({

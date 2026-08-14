@@ -11,8 +11,6 @@ interface OutstandingRow {
   outstanding: string | null;
 }
 
-const REPORTING_TIMEZONE = 'Asia/Ho_Chi_Minh';
-
 const MONTH_END_OUTSTANDING_SQL = `
   WITH requested_months AS (
     SELECT
@@ -27,7 +25,8 @@ const MONTH_END_OUTSTANDING_SQL = `
       h."remainingAmount"
     FROM requested_months m
     JOIN receivable_balance_history h
-      ON h."organizationId" = $1 AND h."effectiveAt" <= m.month_end
+          ON h."organizationId" = $1
+          AND h."effectiveAt" < m.month_end + INTERVAL '1 millisecond'
     ORDER BY h."receivableId", m.month_key, h."effectiveAt" DESC, h.sequence DESC
   ),
   covered_months AS (
@@ -36,7 +35,8 @@ const MONTH_END_OUTSTANDING_SQL = `
     WHERE EXISTS (
       SELECT 1
       FROM receivable_balance_history h
-      WHERE h."organizationId" = $1 AND h."effectiveAt" <= m.month_end
+      WHERE h."organizationId" = $1
+        AND h."effectiveAt" < m.month_end + INTERVAL '1 millisecond'
     )
   )
   SELECT

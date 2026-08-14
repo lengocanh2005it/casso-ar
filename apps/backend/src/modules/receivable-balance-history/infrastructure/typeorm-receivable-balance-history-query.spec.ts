@@ -29,7 +29,9 @@ describe('TypeOrmReceivableBalanceHistoryQuery', () => {
       ['2026-07-31T17:00:00.000Z', '2026-08-31T17:00:00.000Z'],
     ]);
     expect(sql).toContain('Asia/Ho_Chi_Minh');
-    expect(sql).toContain('"effectiveAt" <= m.month_end');
+    expect(sql).toContain(
+      '"effectiveAt" < m.month_end + INTERVAL \'1 millisecond\'',
+    );
     expect(sql).not.toContain('payment_allocations');
   });
 

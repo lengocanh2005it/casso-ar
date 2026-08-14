@@ -4,7 +4,6 @@ import type {
   ITrendReportRepository,
   ReportingMonth,
   ReportsTrendPoint,
-  TrendMonths,
 } from './trend-report.repository.port';
 import { TrendReportQueryService } from './trend-report-query.service';
 
@@ -68,6 +67,7 @@ describe('TrendReportQueryService', () => {
         key: '2026-08',
         isCurrent: true,
         end: new Date('2026-08-14T09:00:00.000Z'),
+        endExclusive: new Date('2026-08-14T09:00:00.001Z'),
       });
       expect(findOutstandingMock).toHaveBeenCalledWith(
         'org-1',
@@ -95,8 +95,14 @@ describe('TrendReportQueryService', () => {
     const windows = findCollectedMock.mock.calls[0]?.[1] as ReportingMonth[];
     expect(windows[0].start).toEqual(new Date('2026-05-31T17:00:00.000Z'));
     expect(windows[0].end).toEqual(new Date('2026-06-30T16:59:59.999Z'));
+    expect(windows[0].endExclusive).toEqual(
+      new Date('2026-06-30T17:00:00.000Z'),
+    );
     expect(windows[1].start).toEqual(new Date('2026-06-30T17:00:00.000Z'));
     expect(windows[1].end).toEqual(new Date('2026-07-31T16:59:59.999Z'));
+    expect(windows[1].endExclusive).toEqual(
+      new Date('2026-07-31T17:00:00.000Z'),
+    );
   });
 
   it('keeps null outstanding and zero-fills missing collected months', async () => {

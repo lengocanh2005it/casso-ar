@@ -15,12 +15,14 @@ describe('TypeOrmTrendReportRepository', () => {
       key: '2026-06',
       start: new Date('2026-05-31T17:00:00.000Z'),
       end: new Date('2026-06-30T16:59:59.999Z'),
+      endExclusive: new Date('2026-06-30T17:00:00.000Z'),
       isCurrent: false,
     },
     {
       key: '2026-07',
       start: new Date('2026-06-30T17:00:00.000Z'),
       end: new Date('2026-07-31T16:59:59.999Z'),
+      endExclusive: new Date('2026-07-31T17:00:00.000Z'),
       isCurrent: false,
     },
   ];
@@ -38,10 +40,11 @@ describe('TypeOrmTrendReportRepository', () => {
     expect(params).toEqual([
       'org-1',
       new Date('2026-05-31T17:00:00.000Z'),
-      new Date('2026-07-31T16:59:59.999Z'),
+      new Date('2026-07-31T17:00:00.000Z'),
     ]);
     expect(sql).toContain('Asia/Ho_Chi_Minh');
     expect(sql).toContain('"receivedAt"');
+    expect(sql).toContain('"receivedAt" < $3');
     expect(sql).toContain('"totalAmount"');
     expect(sql).not.toContain('payment_allocations');
   });
