@@ -146,7 +146,7 @@ describe('Copilot drafts list + reopen (e2e)', () => {
       new Date('2026-08-14T08:01:00Z'),
     );
 
-    const listResponse = await request(app!.getHttpServer())
+    const listResponse = await request(app?.getHttpServer())
       .get('/api/v1/copilot/drafts')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -159,7 +159,7 @@ describe('Copilot drafts list + reopen (e2e)', () => {
     expect(byId.get(orphanId)).toBe('DRAFTED');
     expect(byId.get(cancelledId)).toBe('CANCELLED');
 
-    const filteredResponse = await request(app!.getHttpServer())
+    const filteredResponse = await request(app?.getHttpServer())
       .get('/api/v1/copilot/drafts')
       .query({ status: 'CANCELLED' })
       .set('Authorization', `Bearer ${token}`)
@@ -181,7 +181,7 @@ describe('Copilot drafts list + reopen (e2e)', () => {
       new Date('2026-08-14T07:01:00Z'),
     );
 
-    const reopenResponse = await request(app!.getHttpServer())
+    const reopenResponse = await request(app?.getHttpServer())
       .post(`/api/v1/copilot/drafts/${cancelledDraftId}/reopen`)
       .set('Authorization', `Bearer ${token}`)
       .set('Idempotency-Key', randomUUID())
@@ -194,7 +194,7 @@ describe('Copilot drafts list + reopen (e2e)', () => {
     await seedDraft(pendingDraftId, new Date('2026-08-14T06:00:00Z'));
     await seedAction(pendingDraftId, 'PENDING', new Date());
 
-    await request(app!.getHttpServer())
+    await request(app?.getHttpServer())
       .post(`/api/v1/copilot/drafts/${pendingDraftId}/reopen`)
       .set('Authorization', `Bearer ${token}`)
       .set('Idempotency-Key', randomUUID())
