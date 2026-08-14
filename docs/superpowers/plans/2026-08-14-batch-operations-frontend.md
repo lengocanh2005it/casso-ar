@@ -389,7 +389,7 @@ git commit -m "feat: add shared BulkConfirmDialog and BatchItemResult type"
 - Consumes: `postWithIdempotency` (existing), `BatchItemResult` (Task 3), `BankTransaction` (existing, `../types.ts`).
 - Produces: `BULK_APPROVE_THRESHOLD = 80`; `batchSkip`, `batchMarkPrepaid`, `batchApproveMatch` API functions; `useBatchSkip`, `useBatchMarkPrepaid`, `useBatchApproveMatch` hooks — Tasks 5 and 6 (the bulk action bar) call these hooks.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // apps/frontend/src/features/exceptions/api/use-exceptions.spec.ts
@@ -455,19 +455,19 @@ describe('useBatchMarkPrepaid', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @casso-ledger/frontend test -- use-exceptions`
 Expected: FAIL — `useBatchSkip`/`useBatchMarkPrepaid` not exported from `./use-exceptions`
 
-- [ ] **Step 3: Write the constants file**
+- [x] **Step 3: Write the constants file**
 
 ```typescript
 // apps/frontend/src/features/exceptions/constants.ts
 export const BULK_APPROVE_THRESHOLD = 80;
 ```
 
-- [ ] **Step 4: Add the API functions**
+- [x] **Step 4: Add the API functions**
 
 Modify `apps/frontend/src/features/exceptions/api/exceptions-api.ts` — add at the end of the file:
 
@@ -507,7 +507,7 @@ export function batchApproveMatch(
 
 Note: `BankTransaction` is already imported at the top of this file via `import type { MatchingCandidate, PendingReviewItem } from '../types';` — extend that import to also bring in `BankTransaction`.
 
-- [ ] **Step 5: Widen `useExceptionMutation`'s generic to preserve the resolved type**
+- [x] **Step 5: Widen `useExceptionMutation`'s generic to preserve the resolved type**
 
 `useExceptionMutation<TInput>(mutationFn: (input: TInput) => Promise<unknown>, ...)` currently erases the mutation's resolved value to `unknown` — every existing caller (`useSkipTransaction`, `useMarkPrepaid`, `useSplitMatch`) only ever used `onSuccess: () => ...` at the call site and never read the resolved value, so this went unnoticed. The new batch hooks need `data.results` at the call site (Task 5), which will not type-check against `unknown`. Add a second generic parameter that defaults to `unknown` so every existing call site keeps compiling unchanged while new callers get their real type back.
 
@@ -527,7 +527,7 @@ function useExceptionMutation<TInput, TResult = unknown>(
 ) {
 ```
 
-- [ ] **Step 6: Add the batch API-calling hooks**
+- [x] **Step 6: Add the batch API-calling hooks**
 
 Modify `apps/frontend/src/features/exceptions/api/use-exceptions.ts` — add to the imports and at the end of the file:
 
@@ -554,17 +554,17 @@ export function useBatchApproveMatch() {
 }
 ```
 
-- [ ] **Step 7: Run test to verify it passes**
+- [x] **Step 7: Run test to verify it passes**
 
 Run: `pnpm --filter @casso-ledger/frontend test -- use-exceptions`
 Expected: PASS (2 tests)
 
-- [ ] **Step 8: Type-check**
+- [x] **Step 8: Type-check**
 
 Run: `pnpm --filter @casso-ledger/frontend type-check`
 Expected: PASS, no type errors
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add apps/frontend/src/features/exceptions/constants.ts apps/frontend/src/features/exceptions/api
