@@ -738,3 +738,4 @@ Success = a single document a new developer can read and know exactly what to pi
 
 - #98 — research Casso Admin Platform
 - #171 — Copilot draft library: support edit/delete draft (split from #136)
+- #172 — receivable balance history (prerequisite of #135) — `in-progress` on branch `lengocanh2005it/feat-receivable-balance-history`, spec + plan at `docs/superpowers/specs/2026-08-14-receivable-balance-history-design.md` / `docs/superpowers/plans/2026-08-14-receivable-balance-history.md`; blocks #135 Task 4–9
