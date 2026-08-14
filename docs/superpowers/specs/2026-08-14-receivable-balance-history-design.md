@@ -71,7 +71,7 @@ Month keys are derived in SQL with the same timezone so they always match the ca
 | `organizationId` | varchar | tenant scoping |
 | `receivableId` | uuid | the receivable whose balance changed |
 | `status` | enum `ReceivableStatus` | status after the transition |
-| `remainingAmount` | bigint | `originalAmount - paidAmount` after the transition (integer VND) |
+| `remainingAmount` | bigint | immutable historical snapshot of `originalAmount - paidAmount` at the transition instant (integer VND) — not a current derived field; never updated after insert |
 | `effectiveAt` | timestamptz | when the balance became effective (transition time) |
 | `changeSource` | enum/varchar | `CREATE`, `ALLOCATE`, `UNDO`, `CANCEL`, `WRITE_OFF` |
 | `changeReason` | varchar nullable | e.g. the payment-allocation id for `ALLOCATE`/`UNDO` |

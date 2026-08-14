@@ -16,6 +16,8 @@
 - Every query/write is tenant-scoped by `TenantContextService.getOrganizationId()` / `organizationId`.
 - Never reconstruct historical balances with `SUM(payment_allocations)` at runtime.
 - History rows are append-only: never updated or deleted.
+- `remainingAmount` in a history row is an immutable historical snapshot at the transition
+  instant (AGENTS.md "Derived Fields" exception), never a current derived field.
 - No external API calls inside transactions.
 - No `any` / unsafe casts in production code; explicit mappers only.
 - The #135 query contract (`HistoricalOutstandingPoint`, `IReceivableBalanceHistoryQuery`, `RECEIVABLE_BALANCE_HISTORY_QUERY`) is defined verbatim in `application/receivable-balance-history-query.port.ts`.
