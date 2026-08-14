@@ -1,4 +1,5 @@
 import type { CopilotMessageRecord } from '../../application/conversation-repository.port';
+import type { CopilotDraftListItem } from '../../application/list-copilot-drafts.usecase';
 import type { CopilotPendingAction } from '../../application/pending-action-repository.port';
 
 export interface CopilotMessageDto {
@@ -6,6 +7,22 @@ export interface CopilotMessageDto {
   role: 'USER' | 'ASSISTANT';
   content: string;
   createdAt: string;
+}
+
+export interface CopilotDraftDto {
+  id: string;
+  receivableId: string;
+  recipientEmail: string;
+  subject: string;
+  bodyHtml: string;
+  status: CopilotDraftListItem['status'];
+  pendingActionId: string | null;
+  createdAt: string;
+}
+
+export interface CopilotDraftsPageDto {
+  items: CopilotDraftDto[];
+  total: number;
 }
 
 export interface CopilotPendingActionDto {
@@ -40,4 +57,25 @@ export const toCopilotPendingActionDto = (
   payload: action.payload,
   createdAt: action.createdAt.toISOString(),
   resolvedAt: action.resolvedAt?.toISOString() ?? null,
+});
+
+export const toCopilotDraftDto = (
+  draft: CopilotDraftListItem,
+): CopilotDraftDto => ({
+  id: draft.id,
+  receivableId: draft.receivableId,
+  recipientEmail: draft.recipientEmail,
+  subject: draft.subject,
+  bodyHtml: draft.bodyHtml,
+  status: draft.status,
+  pendingActionId: draft.pendingActionId,
+  createdAt: draft.createdAt.toISOString(),
+});
+
+export const toCopilotDraftsPageResponse = (page: {
+  items: CopilotDraftListItem[];
+  total: number;
+}): CopilotDraftsPageDto => ({
+  items: page.items.map(toCopilotDraftDto),
+  total: page.total,
 });

@@ -112,4 +112,31 @@ export class TypeOrmCopilotPendingActionRepository
     const row = result.raw[0] as CopilotPendingActionOrmEntity | undefined;
     return row ? toDomain(row) : null;
   }
+
+  async findLatestForDraftIds(
+    draftIds: string[],
+  ): Promise<Map<string, CopilotPendingAction>> {
+    const map = new Map<string, CopilotPendingAction>();
+    if (draftIds.length === 0) return map;
+
+    // Filters on a JSONB path (payload->>'draftId'), which FindOptionsWhere
+    // can't express — BaseRepository's scopedFindMany/scopedFindOne don't
+    // apply here, so organizationId is added manually below instead.
+    const organizationId = this.tenantContext.getOrganizationId();
+    const rows = await this.ormRepo
+      .createQueryBuilder('action')
+      .where('action.organizationId = :organizationId', { organizationId })
+      .andWhere(`action.payload ->> 'draftId' IN (:...draftIds)`, {
+        draftIds,
+      })
+      .orderBy('action.createdAt', 'ASC')
+      .getMany();
+
+    // Ascending order means each later row for the same draftId overwrites
+    // the earlier one, leaving the latest action per draft in the map.
+    for (const row of rows) {
+      map.set(row.payload.draftId, toDomain(row));
+    }
+    return map;
+  }
 }

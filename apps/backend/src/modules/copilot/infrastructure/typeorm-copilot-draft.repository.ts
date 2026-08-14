@@ -13,6 +13,7 @@ function toOrm(draft: CopilotDraft): CopilotDraftOrmEntity {
   return {
     id: draft.id,
     organizationId: draft.organizationId,
+    userId: draft.userId,
     receivableId: draft.receivableId,
     recipientEmail: draft.recipientEmail,
     subject: draft.subject,
@@ -25,6 +26,7 @@ function toDomain(row: CopilotDraftOrmEntity): CopilotDraft {
   return {
     id: row.id,
     organizationId: row.organizationId,
+    userId: row.userId,
     receivableId: row.receivableId,
     recipientEmail: row.recipientEmail,
     subject: row.subject,
@@ -53,5 +55,13 @@ export class TypeOrmCopilotDraftRepository
   async findById(id: string): Promise<CopilotDraft | null> {
     const row = await this.scopedFindOne({ id });
     return row ? toDomain(row) : null;
+  }
+
+  async findAllForUser(userId: string): Promise<CopilotDraft[]> {
+    const rows = await this.scopedFindMany(
+      { userId },
+      { order: { createdAt: 'DESC' } },
+    );
+    return rows.map(toDomain);
   }
 }

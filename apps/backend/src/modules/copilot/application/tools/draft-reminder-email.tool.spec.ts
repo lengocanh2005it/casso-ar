@@ -56,6 +56,7 @@ describe('DraftReminderEmailTool', () => {
     const result = await tool.execute(
       { receivableId: 'rec-1', tone: 'urgent' },
       'org-1',
+      'user-1',
     );
 
     expect(result.recipientEmail).toBe('ap@abc.vn');
@@ -65,6 +66,7 @@ describe('DraftReminderEmailTool', () => {
       expect.objectContaining({
         id: result.draftId,
         organizationId: 'org-1',
+        userId: 'user-1',
         receivableId: 'rec-1',
         recipientEmail: 'ap@abc.vn',
       }),
@@ -79,7 +81,7 @@ describe('DraftReminderEmailTool', () => {
     );
 
     await expect(
-      tool.execute({ receivableId: 'missing' }, 'org-1'),
+      tool.execute({ receivableId: 'missing' }, 'org-1', 'user-1'),
     ).rejects.toMatchObject({ errorCode: ErrorCode.RECEIVABLE_NOT_FOUND });
   });
 
@@ -91,7 +93,7 @@ describe('DraftReminderEmailTool', () => {
     );
 
     await expect(
-      tool.execute({ receivableId: 'rec-1' }, 'org-1'),
+      tool.execute({ receivableId: 'rec-1' }, 'org-1', 'user-1'),
     ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
   });
 
@@ -113,7 +115,11 @@ describe('DraftReminderEmailTool', () => {
       draftRepo as any,
     );
 
-    const result = await tool.execute({ receivableId: 'rec-1' }, 'org-1');
+    const result = await tool.execute(
+      { receivableId: 'rec-1' },
+      'org-1',
+      'user-1',
+    );
 
     expect(result.subject).not.toContain('<img');
     expect(result.subject).toContain('&lt;img src=x onerror=alert(1)&gt;');

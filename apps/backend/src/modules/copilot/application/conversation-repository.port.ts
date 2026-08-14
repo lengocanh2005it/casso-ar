@@ -24,6 +24,7 @@ export interface ICopilotConversationRepository {
   findOrCreate(
     conversationId: string,
     userId: string,
+    manager?: EntityManager,
   ): Promise<CopilotConversation>;
   listMessages(conversationId: string): Promise<CopilotMessageRecord[]>;
   appendMessage(

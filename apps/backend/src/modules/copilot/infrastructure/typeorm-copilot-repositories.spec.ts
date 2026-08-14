@@ -182,6 +182,7 @@ describe('Copilot TypeORM repositories', () => {
       repository.save({
         id: 'draft-1',
         organizationId: 'org-1',
+        userId: 'user-1',
         receivableId: 'receivable-1',
         recipientEmail: 'ap@example.com',
         subject: 'Reminder',

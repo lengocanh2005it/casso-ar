@@ -169,6 +169,7 @@ export class CopilotChatUseCase {
     name: string,
     input: Record<string, unknown>,
     organizationId: string,
+    userId: string,
   ): Promise<unknown> {
     switch (name) {
       case GetReceivableSummaryTool.NAME:
@@ -192,6 +193,7 @@ export class CopilotChatUseCase {
             tone: input.tone === 'urgent' ? 'urgent' : 'polite',
           },
           organizationId,
+          userId,
         );
       case SendReminderEmailTool.NAME:
         throw new AppError(
@@ -287,7 +289,12 @@ export class CopilotChatUseCase {
           response.toolCalls
             .filter((call) => call.name !== SendReminderEmailTool.NAME)
             .map((call) =>
-              this.executeTool(call.name, call.arguments, user.organizationId),
+              this.executeTool(
+                call.name,
+                call.arguments,
+                user.organizationId,
+                user.userId,
+              ),
             ),
         );
         const { pendingAction, saved } = await this.dataSource.transaction(
@@ -335,6 +342,7 @@ export class CopilotChatUseCase {
             call.name,
             call.arguments,
             user.organizationId,
+            user.userId,
           ),
         })),
       );

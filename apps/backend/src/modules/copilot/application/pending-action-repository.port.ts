@@ -41,6 +41,9 @@ export interface ICopilotPendingActionRepository {
     id: string,
     resolvedByUserId: string,
   ): Promise<CopilotPendingAction | null>;
+  findLatestForDraftIds(
+    draftIds: string[],
+  ): Promise<Map<string, CopilotPendingAction>>;
 }
 
 export const COPILOT_PENDING_ACTION_REPOSITORY = Symbol(
