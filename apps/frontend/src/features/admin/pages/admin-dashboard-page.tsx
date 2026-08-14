@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -13,12 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
-import {
-  type AiUsageAggregateItem,
-  type AiUsageTrendPoint,
-  getAiUsage,
-  getAiUsageTrend,
-} from '../api/admin-api';
+import { useAdminAiUsage, useAdminAiUsageTrend } from '../api/use-admin';
 
 function last7DayRange(): { from: string; to: string } {
   const to = new Date();
@@ -45,32 +40,17 @@ function formatNumber(value: number): string {
 }
 
 export function AdminDashboardPage() {
-  const [topOrgs, setTopOrgs] = useState<AiUsageAggregateItem[]>([]);
-  const [trend, setTrend] = useState<AiUsageTrendPoint[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [dateRange] = useState(() => last7DayRange());
+  const usageQuery = useAdminAiUsage(dateRange.from, dateRange.to);
+  const trendQuery = useAdminAiUsageTrend(dateRange.from, dateRange.to);
+  const topOrgs = usageQuery.data?.items ?? [];
+  const trend = trendQuery.data?.items ?? [];
+  const isLoading = usageQuery.isPending || trendQuery.isPending;
+  const error = usageQuery.isError || trendQuery.isError;
 
-  const loadData = useCallback(async () => {
-    const { from, to } = last7DayRange();
-    setIsLoading(true);
-    setError(false);
-    try {
-      const [usage, usageTrend] = await Promise.all([
-        getAiUsage(from, to),
-        getAiUsageTrend(from, to),
-      ]);
-      setTopOrgs(usage.items);
-      setTrend(usageTrend.items);
-    } catch {
-      setError(true);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
+  function handleRetry() {
+    void Promise.all([usageQuery.refetch(), trendQuery.refetch()]);
+  }
 
   if (isLoading) {
     return (
@@ -91,7 +71,7 @@ export function AdminDashboardPage() {
         <p role="alert" aria-live="polite" className="text-sm text-destructive">
           Không thể tải dữ liệu usage. Vui lòng thử lại.
         </p>
-        <Button variant="outline" size="sm" onClick={() => void loadData()}>
+        <Button variant="outline" size="sm" onClick={handleRetry}>
           Thử lại
         </Button>
       </div>

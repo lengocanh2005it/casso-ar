@@ -1,9 +1,22 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as adminApi from '../api/admin-api';
 import { AdminAiUsagePage } from './admin-ai-usage-page';
 
 vi.mock('../api/admin-api');
+
+function renderPage() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AdminAiUsagePage />
+    </QueryClientProvider>,
+  );
+}
 
 describe('AdminAiUsagePage', () => {
   beforeEach(() => {
@@ -24,7 +37,7 @@ describe('AdminAiUsagePage', () => {
       ],
     });
 
-    render(<AdminAiUsagePage />);
+    renderPage();
 
     fireEvent.change(screen.getByLabelText(/từ ngày/i), {
       target: { value: '2026-08-01' },
@@ -45,7 +58,7 @@ describe('AdminAiUsagePage', () => {
   });
 
   it('shows named date fields and an empty state before results exist', () => {
-    render(<AdminAiUsagePage />);
+    renderPage();
 
     expect(screen.getByLabelText(/từ ngày/i)).toHaveAttribute('name', 'from');
     expect(screen.getByLabelText(/đến ngày/i)).toHaveAttribute('name', 'to');
@@ -55,7 +68,7 @@ describe('AdminAiUsagePage', () => {
   it('announces a failed query with a next step', async () => {
     vi.mocked(adminApi.getAiUsage).mockRejectedValue(new Error('network'));
 
-    render(<AdminAiUsagePage />);
+    renderPage();
     fireEvent.change(screen.getByLabelText(/từ ngày/i), {
       target: { value: '2026-08-01' },
     });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AlertDialog,
@@ -20,45 +20,27 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  listOrganizations,
-  lockOrganization,
-  type OrganizationListItem,
-  unlockOrganization,
-} from '../api/admin-api';
+import type { OrganizationListItem } from '../api/admin-api';
+import { useAdminOrganizations, useToggleOrganization } from '../api/use-admin';
 import { BreakerSwitch } from '../components/breaker-switch';
+
+const ORGANIZATION_PAGE_SIZE = 50;
+const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
+  dateStyle: 'medium',
+});
 
 export function AdminOrganizationsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
-  const limit = 50;
-  const [items, setItems] = useState<OrganizationListItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const organizationsQuery = useAdminOrganizations(
+    page,
+    ORGANIZATION_PAGE_SIZE,
+  );
+  const toggleOrganization = useToggleOrganization();
+  const items = organizationsQuery.data?.items ?? [];
+  const total = organizationsQuery.data?.total ?? 0;
   const [pendingId, setPendingId] = useState<string | null>(null);
-
-  const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
-    dateStyle: 'medium',
-  });
-
-  const reload = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const result = await listOrganizations(page, limit);
-      setItems(result.items);
-      setTotal(result.total);
-    } catch {
-      setError('Không thể tải danh sách tổ chức. Vui lòng thử lại.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [page]);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   function setPage(nextPage: number) {
     setSearchParams((current) => {
@@ -70,22 +52,22 @@ export function AdminOrganizationsPage() {
 
   async function handleToggle(org: OrganizationListItem) {
     setPendingId(org.id);
-    setError(null);
+    setActionError(null);
     try {
-      if (org.status === 'ACTIVE') {
-        await lockOrganization(org.id);
-      } else {
-        await unlockOrganization(org.id);
-      }
-      await reload();
+      await toggleOrganization.mutateAsync({
+        id: org.id,
+        action: org.status === 'ACTIVE' ? 'lock' : 'unlock',
+      });
     } catch {
-      setError('Không thể cập nhật trạng thái tổ chức. Vui lòng thử lại.');
+      setActionError(
+        'Không thể cập nhật trạng thái tổ chức. Vui lòng thử lại.',
+      );
     } finally {
       setPendingId(null);
     }
   }
 
-  if (isLoading) {
+  if (organizationsQuery.isPending) {
     return (
       <p role="status" aria-live="polite">
         Đang tải tổ chức…
@@ -93,13 +75,17 @@ export function AdminOrganizationsPage() {
     );
   }
 
-  if (error) {
+  if (organizationsQuery.isError) {
     return (
       <div className="flex items-center gap-3">
         <p role="alert" aria-live="polite" className="text-sm text-destructive">
-          {error}
+          Không thể tải danh sách tổ chức. Vui lòng thử lại.
         </p>
-        <Button variant="outline" size="sm" onClick={() => void reload()}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void organizationsQuery.refetch()}
+        >
           Thử lại
         </Button>
       </div>
@@ -200,7 +186,8 @@ export function AdminOrganizationsPage() {
       {total > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
           <span>
-            Trang {page} / {Math.max(1, Math.ceil(total / limit))}
+            Trang {page} /{' '}
+            {Math.max(1, Math.ceil(total / ORGANIZATION_PAGE_SIZE))}
           </span>
           <div className="flex gap-2">
             <Button
@@ -214,13 +201,18 @@ export function AdminOrganizationsPage() {
             <Button
               variant="outline"
               size="sm"
-              disabled={page >= Math.ceil(total / limit)}
+              disabled={page >= Math.ceil(total / ORGANIZATION_PAGE_SIZE)}
               onClick={() => setPage(page + 1)}
             >
               Sau
             </Button>
           </div>
         </div>
+      )}
+      {actionError && (
+        <p role="alert" aria-live="polite" className="text-sm text-destructive">
+          {actionError}
+        </p>
       )}
     </div>
   );

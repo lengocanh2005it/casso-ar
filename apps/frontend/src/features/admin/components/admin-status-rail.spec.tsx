@@ -1,9 +1,22 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as adminApi from '../api/admin-api';
 import { AdminStatusRail } from './admin-status-rail';
 
 vi.mock('../api/admin-api');
+
+function renderRail() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AdminStatusRail />
+    </QueryClientProvider>,
+  );
+}
 
 describe('AdminStatusRail', () => {
   beforeEach(() => {
@@ -31,7 +44,7 @@ describe('AdminStatusRail', () => {
       limit: 100,
     });
 
-    render(<AdminStatusRail />);
+    renderRail();
 
     expect(await screen.findByText('2')).toBeInTheDocument();
     expect(await screen.findByText('1')).toBeInTheDocument();
@@ -42,7 +55,7 @@ describe('AdminStatusRail', () => {
       new Error('network'),
     );
 
-    render(<AdminStatusRail />);
+    renderRail();
 
     expect(await screen.findByRole('status')).toHaveAttribute(
       'aria-live',

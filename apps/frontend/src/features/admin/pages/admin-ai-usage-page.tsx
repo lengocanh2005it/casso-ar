@@ -11,31 +11,27 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { type AiUsageAggregateItem, getAiUsage } from '../api/admin-api';
+import { useAdminAiUsage } from '../api/use-admin';
 
 const numberFormatter = new Intl.NumberFormat('vi-VN');
 
 export function AdminAiUsagePage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [items, setItems] = useState<AiUsageAggregateItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [submittedRange, setSubmittedRange] = useState<{
+    from: string;
+    to: string;
+  } | null>(null);
+  const usageQuery = useAdminAiUsage(
+    submittedRange?.from ?? '',
+    submittedRange?.to ?? '',
+    submittedRange !== null,
+  );
+  const items = usageQuery.data?.items ?? [];
 
-  async function handleSubmit(event: FormEvent) {
+  function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    try {
-      const result = await getAiUsage(from, to);
-      setItems(result.items);
-    } catch {
-      setError(
-        'Không thể tải dữ liệu usage. Kiểm tra khoảng thời gian và thử lại.',
-      );
-    } finally {
-      setIsLoading(false);
-    }
+    setSubmittedRange({ from, to });
   }
 
   return (
@@ -71,8 +67,8 @@ export function AdminAiUsagePage() {
             required
           />
         </div>
-        <Button type="submit" disabled={isLoading}>
-          {isLoading ? (
+        <Button type="submit" disabled={usageQuery.isFetching}>
+          {usageQuery.isFetching ? (
             <>
               <Spinner className="size-4" />
               Đang tải…
@@ -82,9 +78,9 @@ export function AdminAiUsagePage() {
           )}
         </Button>
       </form>
-      {error && (
+      {usageQuery.isError && (
         <p role="alert" aria-live="polite" className="text-sm text-destructive">
-          {error}
+          Không thể tải dữ liệu usage. Kiểm tra khoảng thời gian và thử lại.
         </p>
       )}
       <Table>
