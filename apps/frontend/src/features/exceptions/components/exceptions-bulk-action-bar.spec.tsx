@@ -77,6 +77,64 @@ describe('ExceptionsBulkActionBar', () => {
     );
   });
 
+  it('shows a loading label while skipping selected transactions', async () => {
+    let resolveRequest: (value: unknown) => void = () => undefined;
+    apiRequest.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRequest = resolve;
+      }),
+    );
+    renderBar([
+      {
+        transaction: {
+          id: 'tx-1',
+          providerTransactionId: 'TX-1',
+          amount: 10_000,
+          transactionDateTime: '2026-08-01',
+          counterpartyAccountNumber: '001',
+          counterpartyName: 'A',
+          transferContent: 'note',
+          status: 'PENDING_REVIEW',
+          version: 1,
+        },
+        topCandidate: null,
+      },
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ qua' }));
+
+    expect(
+      await screen.findByRole('button', { name: 'Đang xử lý…' }),
+    ).toBeDisabled();
+    resolveRequest({ results: [{ id: 'tx-1', status: 'success' }] });
+  });
+
+  it('adds autocomplete metadata to the prepaid customer search', () => {
+    apiRequest.mockResolvedValue({ results: [] });
+    renderBar([
+      {
+        transaction: {
+          id: 'tx-1',
+          providerTransactionId: 'TX-1',
+          amount: 10_000,
+          transactionDateTime: '2026-08-01',
+          counterpartyAccountNumber: '001',
+          counterpartyName: 'A',
+          transferContent: 'note',
+          status: 'PENDING_REVIEW',
+          version: 1,
+        },
+        topCandidate: null,
+      },
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận công nợ' }));
+
+    const input = screen.getByLabelText('Tìm khách hàng');
+    expect(input).toHaveAttribute('name', 'customerSearch');
+    expect(input).toHaveAttribute('autocomplete', 'off');
+  });
+
   it('only enables approve-match for rows at or above the confidence threshold, and confirms before sending', async () => {
     apiRequest.mockResolvedValue({
       results: [{ id: 'tx-high', status: 'success' }],

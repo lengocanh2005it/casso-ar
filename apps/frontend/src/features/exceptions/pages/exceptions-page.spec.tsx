@@ -31,7 +31,7 @@ describe('ExceptionsPage', () => {
 
     fireEvent.change(
       await screen.findByPlaceholderText(
-        'Tìm theo tên, số tài khoản hoặc nội dung chuyển khoản',
+        'Tìm theo tên, số tài khoản hoặc nội dung chuyển khoản…',
       ),
       { target: { value: 'nguyen van a' } },
     );
@@ -124,5 +124,26 @@ describe('ExceptionsPage', () => {
     fireEvent.keyDown(rowCheckbox, { key: ' ' });
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('explains how to recover when loading the review queue fails', async () => {
+    apiRequest.mockRejectedValue(new Error('network'));
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByText(
+        'Không thể tải danh sách giao dịch cần xử lý. Vui lòng thử lại.',
+      ),
+    ).toBeInTheDocument();
   });
 });

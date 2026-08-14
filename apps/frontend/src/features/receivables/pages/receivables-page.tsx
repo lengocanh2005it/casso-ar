@@ -58,7 +58,7 @@ export function ReceivablesPage() {
       <div>
         <p className="text-sm font-medium text-primary">QUẢN LÝ CÔNG NỢ</p>
         <div className="flex items-center justify-between gap-4">
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+          <h1 className="mt-1 text-balance text-2xl font-semibold tracking-tight">
             Công nợ
           </h1>
           <div className="flex flex-wrap gap-2">
@@ -99,7 +99,7 @@ export function ReceivablesPage() {
         type="search"
         autoComplete="off"
         aria-label="Tìm kiếm công nợ"
-        placeholder="Tìm theo số hóa đơn hoặc khách hàng"
+        placeholder="Tìm theo số hóa đơn hoặc khách hàng…"
         value={search}
         onChange={(event) => {
           const value = event.target.value;
@@ -137,7 +137,7 @@ export function ReceivablesPage() {
       {isPending && <TableSkeleton rows={5} />}
       {isError && (
         <p role="status" aria-live="polite" className="text-destructive">
-          Không thể tải danh sách công nợ.
+          Không thể tải danh sách công nợ. Vui lòng thử lại.
         </p>
       )}
       {data && (

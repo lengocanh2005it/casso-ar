@@ -106,7 +106,7 @@ export function ExceptionsBulkActionBar({
           })
         }
       >
-        Bỏ qua
+        {skip.isPending ? 'Đang xử lý…' : 'Bỏ qua'}
       </Button>
       <Button variant="outline" size="sm" onClick={() => setPrepaidOpen(true)}>
         Ghi nhận công nợ
@@ -137,12 +137,14 @@ export function ExceptionsBulkActionBar({
             Tìm khách hàng
             <Input
               id="bulk-prepaid-customer-search"
+              name="customerSearch"
+              autoComplete="off"
               value={customerSearch}
               onChange={(event) => {
                 setCustomerSearch(event.target.value);
                 setCustomerId('');
               }}
-              placeholder="Tên khách hàng, mã số thuế hoặc số điện thoại"
+              placeholder="Tên khách hàng, mã số thuế hoặc số điện thoại…"
             />
           </label>
           {customerPage && customerPage.items.length > 0 && (
@@ -151,7 +153,7 @@ export function ExceptionsBulkActionBar({
                 aria-label="Khách hàng để ghi nhận công nợ"
                 className="w-full"
               >
-                <SelectValue placeholder="Chọn khách hàng" />
+                <SelectValue placeholder="Chọn khách hàng…" />
               </SelectTrigger>
               <SelectContent>
                 {customerPage.items.map((customer) => (

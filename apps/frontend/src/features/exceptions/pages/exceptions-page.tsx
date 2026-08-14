@@ -48,7 +48,7 @@ export function ExceptionsPage() {
     <div className="space-y-5">
       <div>
         <p className="text-sm font-medium text-primary">CẦN XỬ LÝ</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+        <h1 className="mt-1 text-balance text-2xl font-semibold tracking-tight">
           Hàng chờ xử lý ngoại lệ
         </h1>
       </div>
@@ -57,7 +57,7 @@ export function ExceptionsPage() {
         type="search"
         autoComplete="off"
         aria-label="Tìm kiếm giao dịch"
-        placeholder="Tìm theo tên, số tài khoản hoặc nội dung chuyển khoản"
+        placeholder="Tìm theo tên, số tài khoản hoặc nội dung chuyển khoản…"
         value={search}
         onChange={(event) => {
           const value = event.target.value;
@@ -80,7 +80,7 @@ export function ExceptionsPage() {
       {isPending && <TableSkeleton rows={5} />}
       {isError && (
         <p role="status" aria-live="polite" className="text-destructive">
-          Không thể tải danh sách giao dịch cần xử lý.
+          Không thể tải danh sách giao dịch cần xử lý. Vui lòng thử lại.
         </p>
       )}
       {data && data.items.length === 0 && (
