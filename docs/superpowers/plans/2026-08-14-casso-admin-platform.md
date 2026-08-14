@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-14-casso-admin-platform-design.md`
 
+> **Superseded:** Tasks 11-14 (frontend) below are superseded by `docs/superpowers/plans/2026-08-14-casso-admin-platform-fe.md`, which implements the same 4 pages against the visual design in `docs/superpowers/specs/2026-08-14-casso-admin-platform-fe-design.md`. Execute Tasks 1-10 and 15 from this file for the backend; use the FE-specific plan for the frontend instead of Tasks 11-14 here.
+
 ## Global Constraints
 
 - Money/amounts: not applicable to this feature (no money fields).
