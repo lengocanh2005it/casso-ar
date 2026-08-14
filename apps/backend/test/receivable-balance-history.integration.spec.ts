@@ -19,6 +19,10 @@ import { AllocatePaymentUseCase } from '../src/modules/payments/application/allo
 import { UndoPaymentAllocationUseCase } from '../src/modules/payments/application/undo-payment-allocation.usecase';
 import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment.orm-entity';
 import {
+  type IReceivableBalanceHistoryRepository,
+  RECEIVABLE_BALANCE_HISTORY_REPOSITORY,
+} from '../src/modules/receivable-balance-history/application/receivable-balance-history.repository.port';
+import {
   type IReceivableBalanceHistoryQuery,
   RECEIVABLE_BALANCE_HISTORY_QUERY,
 } from '../src/modules/receivable-balance-history/application/receivable-balance-history-query.port';
@@ -57,6 +61,7 @@ describe('Receivable balance history (integration)', () => {
   let allocatePayment: AllocatePaymentUseCase;
   let undoPaymentAllocation: UndoPaymentAllocationUseCase;
   let historyQuery: IReceivableBalanceHistoryQuery;
+  let historyRepo: IReceivableBalanceHistoryRepository;
 
   async function asTenant<T>(
     orgId: string,
@@ -162,6 +167,7 @@ describe('Receivable balance history (integration)', () => {
     allocatePayment = moduleRef.get(AllocatePaymentUseCase);
     undoPaymentAllocation = moduleRef.get(UndoPaymentAllocationUseCase);
     historyQuery = moduleRef.get(RECEIVABLE_BALANCE_HISTORY_QUERY);
+    historyRepo = moduleRef.get(RECEIVABLE_BALANCE_HISTORY_REPOSITORY);
 
     await dataSource.getRepository(UserOrmEntity).save({
       id: userId,
@@ -474,6 +480,36 @@ describe('Receivable balance history (integration)', () => {
         [otherOrgId],
       );
       expect(Number(otherRows[0]?.count ?? 0)).toBe(1);
+    });
+
+    it('is append-only: re-appending an existing id cannot overwrite the row', async () => {
+      const id = randomUUID();
+      const entry = {
+        id,
+        organizationId,
+        receivableId: randomUUID(),
+        status: ReceivableStatus.OPEN,
+        remainingAmount: 5_000_000,
+        effectiveAt: new Date('2026-08-14T02:00:00.000Z'),
+        changeSource: BalanceHistoryChangeSource.CREATE,
+        changeReason: null,
+        createdAt: new Date('2026-08-14T02:00:00.000Z'),
+      };
+      await asTenant(organizationId, () => historyRepo.append(entry));
+
+      await expect(
+        asTenant(organizationId, () =>
+          historyRepo.append({ ...entry, remainingAmount: 9_000_000 }),
+        ),
+      ).rejects.toThrow();
+
+      const rows = await dataSource.query(
+        `SELECT "remainingAmount"::text AS "remainingAmount"
+         FROM receivable_balance_history WHERE id = $1`,
+        [id],
+      );
+      expect(rows).toHaveLength(1);
+      expect(Number(rows[0]?.remainingAmount)).toBe(5_000_000);
     });
   });
 

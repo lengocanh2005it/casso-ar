@@ -25,8 +25,11 @@ function buildEntry(
 
 describe('TypeOrmReceivableBalanceHistoryRepository', () => {
   function buildRepository(tenantId = 'org-1') {
+    const insertMock = jest.fn().mockResolvedValue(undefined);
+    const saveMock = jest.fn().mockResolvedValue(undefined);
     const ormRepo = {
-      save: jest.fn().mockResolvedValue(undefined),
+      insert: insertMock,
+      save: saveMock,
     } as never as Repository<ReceivableBalanceHistoryOrmEntity>;
     const manager = {
       getRepository: jest.fn().mockReturnValue(ormRepo),
@@ -38,11 +41,11 @@ describe('TypeOrmReceivableBalanceHistoryRepository', () => {
       ormRepo,
       tenantContext,
     );
-    return { repository, ormRepo, manager };
+    return { repository, ormRepo, insertMock, saveMock, manager };
   }
 
-  it('appends through the passed EntityManager', async () => {
-    const { repository, ormRepo, manager } = buildRepository();
+  it('inserts through the passed EntityManager', async () => {
+    const { repository, ormRepo, insertMock, manager } = buildRepository();
     const entry = buildEntry();
 
     await repository.append(entry, manager);
@@ -50,7 +53,7 @@ describe('TypeOrmReceivableBalanceHistoryRepository', () => {
     expect(manager.getRepository).toHaveBeenCalledWith(
       ReceivableBalanceHistoryOrmEntity,
     );
-    expect(ormRepo.save).toHaveBeenCalledWith(
+    expect(insertMock).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'history-1',
         organizationId: 'org-1',
@@ -61,18 +64,33 @@ describe('TypeOrmReceivableBalanceHistoryRepository', () => {
         changeReason: null,
       }),
     );
+    expect(ormRepo.save).not.toHaveBeenCalled();
   });
 
-  it('appends through the injected repository when no manager is passed', async () => {
-    const { repository, ormRepo } = buildRepository();
-    const saveMock = ormRepo.save as jest.Mock;
+  it('inserts through the injected repository when no manager is passed', async () => {
+    const { repository, insertMock, saveMock } = buildRepository();
 
     await repository.append(buildEntry());
 
-    expect(saveMock).toHaveBeenCalledTimes(1);
-    expect(saveMock.mock.calls[0]?.[0]).toMatchObject({
+    expect(insertMock).toHaveBeenCalledTimes(1);
+    expect(insertMock.mock.calls[0]?.[0]).toMatchObject({
       receivableId: 'rec-1',
     });
+    expect(saveMock).not.toHaveBeenCalled();
+  });
+
+  it('never updates an existing row: a duplicate id surfaces the insert conflict', async () => {
+    const { repository, insertMock } = buildRepository();
+    insertMock.mockRejectedValueOnce(
+      new Error('duplicate key value violates unique constraint'),
+    );
+
+    // The append-only invariant is enforced by INSERT semantics: TypeORM's
+    // save() would upsert an existing id, insert() cannot.
+    await expect(
+      repository.append(buildEntry({ id: 'history-1' })),
+    ).rejects.toThrow('duplicate key value violates unique constraint');
+    expect(insertMock).toHaveBeenCalledTimes(1);
   });
 
   it('rejects an entry for a different tenant', async () => {

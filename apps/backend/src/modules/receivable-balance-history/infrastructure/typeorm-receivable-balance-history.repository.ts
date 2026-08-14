@@ -43,11 +43,15 @@ export class TypeOrmReceivableBalanceHistoryRepository
       throw new Error('TENANT_MISMATCH');
     }
 
+    // insert() (not save()) keeps the ledger append-only: a duplicate id
+    // surfaces the primary-key conflict instead of updating an existing row.
     const row = toOrm(entry);
     if (manager) {
-      await manager.getRepository(ReceivableBalanceHistoryOrmEntity).save(row);
+      await manager
+        .getRepository(ReceivableBalanceHistoryOrmEntity)
+        .insert(row);
       return;
     }
-    await this.ormRepo.save(row);
+    await this.ormRepo.insert(row);
   }
 }
