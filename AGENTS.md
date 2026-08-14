@@ -69,6 +69,10 @@ amount: number;
 
 - `remainingAmount`, `unallocatedAmount`, `isOverdue`, `isDisputed` — calculate at query time
 - Do NOT store derived fields in the database
+- **Exception:** `receivable_balance_history.remainingAmount` is an immutable historical
+  snapshot recorded inside the transition transaction — append-only, never updated after
+  insert, and never reconstructed with a runtime `SUM(payment_allocations)`. It is not a
+  current derived field.
 
 ### Tenant Isolation
 

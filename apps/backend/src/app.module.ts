@@ -36,6 +36,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { ReceivablesModule } from './modules/receivables/receivables.module';
+import { ReceivableBalanceHistoryModule } from './modules/receivable-balance-history/receivable-balance-history.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
 import { UsersModule } from './modules/users/users.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
@@ -74,6 +75,7 @@ import { AlertsModule } from './modules/alerts/alerts.module';
     RetentionModule,
     AuditModule,
     AuditLogsModule,
+    ReceivableBalanceHistoryModule,
     OrganizationsModule,
     BillingModule,
     PayosModule,

@@ -157,7 +157,7 @@ describe('ReopenCopilotDraftUseCase', () => {
     const deps = buildDeps({
       latestAction: buildAction(
         'PENDING',
-        new Date(Date.now() - 60_000).toISOString(),
+        new Date(Date.now() - 2 * 60_000).toISOString(),
       ),
     });
     const useCase = new ReopenCopilotDraftUseCase(

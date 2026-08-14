@@ -19,6 +19,8 @@ describe('ReportsController', () => {
       agingReportQueryService as never,
       dashboardSummaryQueryService as never,
       { execute: jest.fn() } as never,
+      { getCustomerAging: jest.fn() } as never,
+      { getTrend: jest.fn() } as never,
     );
 
     await expect(controller.getAgingReport()).resolves.toEqual({
@@ -35,6 +37,8 @@ describe('ReportsController', () => {
       agingReportQueryService as never,
       dashboardSummaryQueryService as never,
       { execute: jest.fn() } as never,
+      { getCustomerAging: jest.fn() } as never,
+      { getTrend: jest.fn() } as never,
     );
 
     await controller.getDashboardSummary({
@@ -46,6 +50,62 @@ describe('ReportsController', () => {
       from: new Date('2026-08-01'),
       to: new Date('2026-08-09'),
     });
+  });
+
+  it('delegates customer aging filters to the query service', async () => {
+    const customerAgingReportQueryService = {
+      getCustomerAging: jest.fn().mockResolvedValue({
+        items: [],
+        total: 0,
+        page: 2,
+        limit: 20,
+      }),
+    };
+    const controller = new ReportsController(
+      { getAgingBuckets: jest.fn() } as never,
+      { getSummary: jest.fn() } as never,
+      { execute: jest.fn() } as never,
+      customerAgingReportQueryService as never,
+      { getTrend: jest.fn() } as never,
+    );
+
+    const result = await controller.getCustomerAging({
+      page: 2,
+      limit: 20,
+      search: 'ACME',
+      bucket: 'NOT_DUE',
+    });
+
+    expect(
+      customerAgingReportQueryService.getCustomerAging,
+    ).toHaveBeenCalledWith({
+      page: 2,
+      limit: 20,
+      search: 'ACME',
+      bucket: 'NOT_DUE',
+    });
+    expect(result).toEqual({ items: [], total: 0, page: 2, limit: 20 });
+  });
+
+  it('delegates the validated months value to the trend query service', async () => {
+    const trendReportQueryService = {
+      getTrend: jest.fn().mockResolvedValue({
+        months: 6,
+        items: [],
+      }),
+    };
+    const controller = new ReportsController(
+      { getAgingBuckets: jest.fn() } as never,
+      { getSummary: jest.fn() } as never,
+      { execute: jest.fn() } as never,
+      { getCustomerAging: jest.fn() } as never,
+      trendReportQueryService as never,
+    );
+
+    const result = await controller.getReportsTrend({ months: 6 });
+
+    expect(trendReportQueryService.getTrend).toHaveBeenCalledWith(6);
+    expect(result).toEqual({ months: 6, items: [] });
   });
 
   it('requires authentication and report read permission', () => {
@@ -65,5 +125,33 @@ describe('ReportsController', () => {
         ReportsController.prototype.getDashboardSummary,
       ),
     ).toBe(Permission.REPORT_READ);
+    expect(
+      Reflect.getMetadata(
+        REQUIRED_PERMISSION_KEY,
+        ReportsController.prototype.getCustomerAging,
+      ),
+    ).toBe(Permission.REPORT_READ);
+    expect(
+      Reflect.getMetadata(
+        REQUIRED_PERMISSION_KEY,
+        ReportsController.prototype.getReportsTrend,
+      ),
+    ).toBe(Permission.REPORT_READ);
+  });
+
+  it('documents the customer aging response and common errors', () => {
+    const operation = Reflect.getMetadata(
+      'swagger/apiOperation',
+      ReportsController.prototype.getCustomerAging,
+    );
+    const responses = Reflect.getMetadata(
+      'swagger/apiResponse',
+      ReportsController.prototype.getCustomerAging,
+    );
+
+    expect(operation).toEqual(
+      expect.objectContaining({ summary: 'List customer aging report' }),
+    );
+    expect(Object.keys(responses).sort()).toEqual(['200', '400', '401', '403']);
   });
 });

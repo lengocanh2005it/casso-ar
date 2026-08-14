@@ -8,6 +8,8 @@ import {
   EVENT_PUBLISHER,
   type IEventPublisher,
 } from '../../../common/events/event-publisher.port';
+import { ReceivableBalanceHistoryRecorderService } from '../../receivable-balance-history/application/receivable-balance-history-recorder.service';
+import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import type { Receivable } from '../domain/receivable';
 import {
   type IReceivableRepository,
@@ -23,6 +25,7 @@ export class WriteOffReceivableUseCase {
     private readonly auditContext: AuditContextService,
     @Inject(EVENT_PUBLISHER)
     private readonly eventPublisher: IEventPublisher,
+    private readonly historyRecorder: ReceivableBalanceHistoryRecorderService,
   ) {}
 
   async execute(receivableId: string): Promise<Receivable> {
@@ -41,6 +44,11 @@ export class WriteOffReceivableUseCase {
         this.auditContext.setBefore(receivable);
         const updated = receivable.writeOff();
         await this.receivableRepo.save(updated, manager);
+        await this.historyRecorder.record(
+          updated,
+          BalanceHistoryChangeSource.WRITE_OFF,
+          manager,
+        );
         return updated;
       },
     );
