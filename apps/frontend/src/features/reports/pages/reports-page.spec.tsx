@@ -72,6 +72,16 @@ function mockReports() {
     if (url === '/api/v1/reports/aging/export') {
       return Promise.resolve('bucket,count\nNOT_DUE,3');
     }
+    if (url === '/api/v1/reports/trend') {
+      return Promise.resolve({
+        months: 12,
+        items: [
+          { month: '2026-06', outstanding: null, collected: 0 },
+          { month: '2026-07', outstanding: 4_000_000, collected: 3_000_000 },
+          { month: '2026-08', outstanding: 7_000_000, collected: 5_000_000 },
+        ],
+      });
+    }
     return Promise.reject(new Error(`unexpected request: ${url}`));
   });
 }
@@ -184,8 +194,64 @@ describe('ReportsPage', () => {
     });
   });
 
-  it('renders empty and error states for customer aging', async () => {
-    apiRequest.mockImplementation(({ url }: { url: string }) => {
+  it('renders the trend chart, both series, and a 3/6/12 preset selector', async () => {
+    mockReports();
+    renderPage();
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('Một số tháng trước thời điểm theo dõi lịch sử chưa có dữ liệu công nợ.'),
+      ).toBeTruthy(),
+    );
+    expect(
+      screen.getByRole('img', { name: 'Biểu đồ xu hướng công nợ và thu hồi' }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText('Tháng hiện tại là số liệu tạm thời đến thời điểm hiện tại.'),
+    ).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole('combobox', { name: 'Khoảng thời gian' }),
+    );
+    expect(await screen.findByRole('option', { name: '3 tháng' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: '6 tháng' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: '12 tháng' })).toBeTruthy();
+  });
+
+  it('keeps null outstanding points as unavailable rather than zero', async () => {
+    mockReports();
+    renderPage();
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('Một số tháng trước thời điểm theo dõi lịch sử chưa có dữ liệu công nợ.'),
+      ).toBeTruthy(),
+    );
+    expect(
+      screen.getByRole('img', { name: 'Biểu đồ xu hướng công nợ và thu hồi' }),
+    ).toBeTruthy();
+  });
+
+  it('persists the selected trend preset in the URL', async () => {
+    mockReports();
+    renderPage();
+
+    fireEvent.click(
+      await screen.findByRole('combobox', { name: 'Khoảng thời gian' }),
+    );
+    fireEvent.click(await screen.findByRole('option', { name: '3 tháng' }));
+
+    await waitFor(() => {
+      const trendCalls = apiRequest.mock.calls.filter(
+        ([options]) =>
+          (options as { url: string }).url === '/api/v1/reports/trend',
+      );
+      const last = trendCalls.at(-1)?.[0] as { params: object };
+      expect(last.params).toMatchObject({ months: 3 });
+    });
+  });
+
+  it('renders empty and error states for customer aging', async () => {    apiRequest.mockImplementation(({ url }: { url: string }) => {
       if (url === '/api/v1/reports/aging/customers') {
         return Promise.resolve({ items: [], total: 0, page: 1, limit: 20 });
       }
