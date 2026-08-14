@@ -108,4 +108,20 @@ describe('ReportsController', () => {
       ),
     ).toBe(Permission.REPORT_READ);
   });
+
+  it('documents the customer aging response and common errors', () => {
+    const operation = Reflect.getMetadata(
+      'swagger/apiOperation',
+      ReportsController.prototype.getCustomerAging,
+    );
+    const responses = Reflect.getMetadata(
+      'swagger/apiResponse',
+      ReportsController.prototype.getCustomerAging,
+    );
+
+    expect(operation).toEqual(
+      expect.objectContaining({ summary: 'List customer aging report' }),
+    );
+    expect(Object.keys(responses).sort()).toEqual(['200', '400', '401', '403']);
+  });
 });

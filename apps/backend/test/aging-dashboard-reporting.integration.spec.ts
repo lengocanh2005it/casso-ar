@@ -564,6 +564,21 @@ describe('Aging dashboard reporting (integration)', () => {
     });
   });
 
+  it('keeps the matching total when the requested page is empty', async () => {
+    const response = await request(app?.getHttpServer())
+      .get('/api/v1/reports/aging/customers')
+      .set('Authorization', `Bearer ${token}`)
+      .query({ page: 3, limit: 1 })
+      .expect(200);
+
+    expect(response.body).toEqual({
+      items: [],
+      total: 2,
+      page: 3,
+      limit: 1,
+    });
+  });
+
   it('isolates customer aging rows by organization', async () => {
     const response = await request(app?.getHttpServer())
       .get('/api/v1/reports/aging/customers')

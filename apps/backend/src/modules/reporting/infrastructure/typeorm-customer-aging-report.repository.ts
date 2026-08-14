@@ -2,20 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { toLikePattern } from '../../../common/database/like-pattern';
-import type { AgingBucket } from '../application/aging-report.repository.port';
+import {
+  AGING_BUCKETS,
+  type AgingBucket,
+} from '../application/aging-report.repository.port';
 import type {
   CustomerAgingFilters,
   CustomerAgingPage,
   ICustomerAgingReportRepository,
 } from '../application/customer-aging-report.repository.port';
-
-const BUCKET_ORDER: AgingBucket[] = [
-  'NOT_DUE',
-  'OVERDUE_1_7',
-  'OVERDUE_8_30',
-  'OVERDUE_31_60',
-  'OVERDUE_60_PLUS',
-];
 
 const PIVOT_COLUMN: Record<AgingBucket, keyof CustomerAgingPivotRow> = {
   NOT_DUE: 'notDue',
@@ -124,11 +119,13 @@ export class TypeOrmCustomerAgingReportRepository
         END > 0`;
     }
 
+    const countParams = [...params];
     params.push(filters.limit, (filters.page - 1) * filters.limit);
     const limitIndex = params.length - 1;
 
-    const sql = `WITH ${ACTIVE_RECEIVABLES_CTE}${searchPredicate}),
-${GROUPED_CTE}
+    const baseSql = `WITH ${ACTIVE_RECEIVABLES_CTE}${searchPredicate}),
+${GROUPED_CTE}`;
+    const sql = `${baseSql}
 ${SELECT_PIVOT}
 ${bucketPredicate}
 ORDER BY "totalRemaining" DESC, "customerName" ASC, "customerId" ASC
@@ -143,16 +140,28 @@ LIMIT $${limitIndex} OFFSET $${limitIndex + 1}`;
       customerId: row.customerId,
       customerName: row.customerName,
       taxCode: row.taxCode,
-      buckets: BUCKET_ORDER.map((bucket) => ({
+      buckets: AGING_BUCKETS.map((bucket) => ({
         bucket,
         totalRemaining: Number(row[PIVOT_COLUMN[bucket]] ?? 0),
       })),
       totalRemaining: Number(row.totalRemaining ?? 0),
     }));
 
+    let total = rows.length > 0 ? Number(rows[0]?.totalCount ?? 0) : 0;
+    if (rows.length === 0) {
+      const countRows = await this.dataSource.query<{ totalCount: string }[]>(
+        `${baseSql}
+SELECT COUNT(*) AS "totalCount"
+FROM grouped
+${bucketPredicate}`,
+        countParams,
+      );
+      total = Number(countRows[0]?.totalCount ?? 0);
+    }
+
     return {
       items,
-      total: rows.length > 0 ? Number(rows[0]?.totalCount ?? 0) : 0,
+      total,
       page: filters.page,
       limit: filters.limit,
     };

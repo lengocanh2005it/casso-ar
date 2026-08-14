@@ -11,7 +11,7 @@ describe('TypeOrmCustomerAgingReportRepository', () => {
   }
 
   it('passes organization, search, bucket, limit, and offset as parameters', async () => {
-    const { repository, queryMock } = buildRepository();
+    const { repository, queryMock } = buildRepository([{ totalCount: '0' }]);
 
     await repository.findPage('org-1', {
       page: 2,
