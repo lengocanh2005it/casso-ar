@@ -21,11 +21,13 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { BatchMarkPrepaidBankTransactionUseCase } from '../application/batch-mark-prepaid-bank-transaction.usecase';
 import { BatchSkipBankTransactionUseCase } from '../application/batch-skip-bank-transaction.usecase';
 import { MarkPrepaidBankTransactionUseCase } from '../application/mark-prepaid-bank-transaction.usecase';
 import { MatchBankTransactionUseCase } from '../application/match-bank-transaction.usecase';
 import { SkipBankTransactionUseCase } from '../application/skip-bank-transaction.usecase';
 import { UnmatchedBankTransactionsQueryService } from '../application/unmatched-bank-transactions-query.service';
+import { BatchMarkPrepaidBankTransactionDto } from './dto/batch-mark-prepaid-bank-transaction.dto';
 import { ExceptionQueuePaginationDto } from './dto/exception-queue-pagination.dto';
 import {
   toBankTransactionResponse,
@@ -45,6 +47,7 @@ export class ExceptionQueueController {
     private readonly skipUseCase: SkipBankTransactionUseCase,
     private readonly batchSkipUseCase: BatchSkipBankTransactionUseCase,
     private readonly markPrepaidUseCase: MarkPrepaidBankTransactionUseCase,
+    private readonly batchMarkPrepaidUseCase: BatchMarkPrepaidBankTransactionUseCase,
     private readonly tenantContext: TenantContextService,
     private readonly idempotency: IdempotencyService,
   ) {}
@@ -162,6 +165,40 @@ export class ExceptionQueueController {
         return {
           transaction: toBankTransactionResponse(result.transaction),
           payment: toPaymentResponse(result.payment),
+        };
+      },
+    );
+  }
+
+  @Post('batch-mark-prepaid')
+  @RequirePermission(Permission.PAYMENT_ALLOCATE)
+  async batchMarkPrepaid(
+    @Body() dto: BatchMarkPrepaidBankTransactionDto,
+    @Headers('idempotency-key') key: string | undefined,
+  ) {
+    return this.idempotency.execute(
+      'POST /bank-transactions/batch-mark-prepaid',
+      key,
+      dto,
+      async () => {
+        const results = await this.batchMarkPrepaidUseCase.execute(
+          dto.bankTransactionIds,
+          dto.customerId,
+        );
+        return {
+          results: results.map((result) =>
+            result.status === 'success' && result.data
+              ? {
+                  ...result,
+                  data: {
+                    transaction: toBankTransactionResponse(
+                      result.data.transaction,
+                    ),
+                    payment: toPaymentResponse(result.data.payment),
+                  },
+                }
+              : result,
+          ),
         };
       },
     );

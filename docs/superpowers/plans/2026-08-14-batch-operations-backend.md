@@ -467,7 +467,7 @@ git commit -m "feat: add POST /bank-transactions/batch-skip"
 - Consumes: `runBatch` (Task 1), `MarkPrepaidBankTransactionUseCase.execute` (existing).
 - Produces: `BatchMarkPrepaidBankTransactionDto { bankTransactionIds: string[]; customerId: string }`, `BatchMarkPrepaidBankTransactionUseCase.execute(bankTransactionIds: string[], customerId: string): Promise<BatchItemResult<{ transaction: BankTransaction; payment: Payment }>[]>`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // apps/backend/src/modules/exception-queue/application/batch-mark-prepaid-bank-transaction.usecase.spec.ts
@@ -523,12 +523,12 @@ describe('BatchMarkPrepaidBankTransactionUseCase', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx jest --testPathPattern batch-mark-prepaid-bank-transaction.usecase`
 Expected: FAIL with "Cannot find module './batch-mark-prepaid-bank-transaction.usecase'"
 
-- [ ] **Step 3: Write the DTO**
+- [x] **Step 3: Write the DTO**
 
 ```typescript
 // apps/backend/src/modules/exception-queue/presentation/dto/batch-mark-prepaid-bank-transaction.dto.ts
@@ -547,7 +547,7 @@ export class BatchMarkPrepaidBankTransactionDto {
 }
 ```
 
-- [ ] **Step 4: Write minimal implementation**
+- [x] **Step 4: Write minimal implementation**
 
 ```typescript
 // apps/backend/src/modules/exception-queue/application/batch-mark-prepaid-bank-transaction.usecase.ts
@@ -615,12 +615,12 @@ export class BatchMarkPrepaidBankTransactionUseCase {
 
 Note: `Payment` is exported as a type from `payment-repository.port.ts` in this codebase's existing import graph used by `mark-prepaid-bank-transaction.usecase.ts`; if the type-check in Step 6 reports it is not exported from that path, import it from `../../payments/domain/payment` instead (the module `mark-prepaid-bank-transaction.usecase.ts` already imports `Payment` from `../../payments/domain/payment` — mirror that import path exactly).
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `npx jest --testPathPattern batch-mark-prepaid-bank-transaction.usecase`
 Expected: PASS (1 test)
 
-- [ ] **Step 6: Wire the controller endpoint**
+- [x] **Step 6: Wire the controller endpoint**
 
 Modify `apps/backend/src/modules/exception-queue/presentation/exception-queue.controller.ts`:
 
@@ -666,16 +666,16 @@ import { BatchMarkPrepaidBankTransactionUseCase } from '../application/batch-mar
   }
 ```
 
-- [ ] **Step 7: Wire the module provider**
+- [x] **Step 7: Wire the module provider**
 
 Modify `apps/backend/src/modules/exception-queue/exception-queue.module.ts` — add `BatchMarkPrepaidBankTransactionUseCase` to the `providers` array, same as Task 3 Step 6.
 
-- [ ] **Step 8: Type-check and run the full exception-queue test suite**
+- [x] **Step 8: Type-check and run the full exception-queue test suite**
 
 Run: `npx tsc --noEmit && npx jest --testPathPattern exception-queue`
 Expected: PASS, no type errors
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add apps/backend/src/modules/exception-queue
