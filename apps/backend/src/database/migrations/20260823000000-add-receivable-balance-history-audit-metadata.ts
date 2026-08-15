@@ -20,16 +20,35 @@ export class AddReceivableBalanceHistoryAuditMetadata20260823000000
     `);
     // Legacy rows keep all-null audit metadata; new rows must satisfy the
     // actor invariant: USER carries an actor id, SYSTEM/WEBHOOK never does.
+    // Postgres has no ADD CONSTRAINT IF NOT EXISTS, so each constraint is
+    // added conditionally in a DO block.
     await queryRunner.query(`
-      ALTER TABLE "receivable_balance_history"
-        ADD CONSTRAINT IF NOT EXISTS "CHK_receivable_balance_history_actor_type"
-          CHECK ("actorType" IS NULL OR "actorType" IN ('USER', 'SYSTEM', 'WEBHOOK')),
-        ADD CONSTRAINT IF NOT EXISTS "CHK_receivable_balance_history_actor_user_id"
-          CHECK (
-            ("actorType" IS NULL AND "actorUserId" IS NULL)
-            OR ("actorType" = 'USER' AND "actorUserId" IS NOT NULL)
-            OR ("actorType" IN ('SYSTEM', 'WEBHOOK') AND "actorUserId" IS NULL)
-          )
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'CHK_receivable_balance_history_actor_type'
+        ) THEN
+          ALTER TABLE "receivable_balance_history"
+            ADD CONSTRAINT "CHK_receivable_balance_history_actor_type"
+              CHECK ("actorType" IS NULL OR "actorType" IN ('USER', 'SYSTEM', 'WEBHOOK'));
+        END IF;
+      END $$;
+    `);
+    await queryRunner.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'CHK_receivable_balance_history_actor_user_id'
+        ) THEN
+          ALTER TABLE "receivable_balance_history"
+            ADD CONSTRAINT "CHK_receivable_balance_history_actor_user_id"
+              CHECK (
+                ("actorType" IS NULL AND "actorUserId" IS NULL)
+                OR ("actorType" = 'USER' AND "actorUserId" IS NOT NULL)
+                OR ("actorType" IN ('SYSTEM', 'WEBHOOK') AND "actorUserId" IS NULL)
+              );
+        END IF;
+      END $$;
     `);
     // Backfill the legacy reference: copy changeReason into
     // transitionReferenceId only when the source is an allocation flow, the
@@ -38,7 +57,7 @@ export class AddReceivableBalanceHistoryAuditMetadata20260823000000
     await queryRunner.query(
       `
       UPDATE "receivable_balance_history" h
-      SET "transitionReferenceId" = h."changeReason"
+      SET "transitionReferenceId" = h."changeReason"::uuid
       WHERE h."changeSource" IN ('ALLOCATE', 'UNDO')
         AND h."changeReason" ~ '${VALID_UUID_PATTERN}'
         AND EXISTS (

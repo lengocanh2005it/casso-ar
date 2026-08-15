@@ -146,10 +146,10 @@ const LIST_SQL = `
     ON r.id = h."receivableId"
     AND r."organizationId" = h."organizationId"
   LEFT JOIN invoices i
-    ON i.id = r."invoiceId"
+    ON i.id::text = r."invoiceId"
     AND i."organizationId" = r."organizationId"
   LEFT JOIN customers c
-    ON c.id = r."customerId"
+    ON c.id::text = r."customerId"
     AND c."organizationId" = r."organizationId"
   LEFT JOIN users u ON u.id = h."actorUserId"
   WHERE ${FILTER_PREDICATES}

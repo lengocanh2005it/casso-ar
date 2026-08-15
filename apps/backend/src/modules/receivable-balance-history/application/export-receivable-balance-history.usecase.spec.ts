@@ -8,7 +8,7 @@ import {
   EXPORT_ROW_LIMIT,
   ExportReceivableBalanceHistoryUseCase,
 } from './export-receivable-balance-history.usecase';
-import { ListReceivableBalanceHistoryUseCase } from './list-receivable-balance-history.usecase';
+import type { IReceivableBalanceHistoryQuery } from './receivable-balance-history-query.port';
 
 const item = {
   id: 'h-1',
@@ -33,12 +33,12 @@ function buildUseCase(options: {
   items?: unknown[];
   auditCreate?: jest.Mock;
 }) {
-  const listUseCase = {
-    execute: jest.fn().mockResolvedValue({
+  const historyQuery = {
+    list: jest.fn().mockResolvedValue({
       items: options.items ?? [item],
       total: options.total ?? 1,
     }),
-  } as never as ListReceivableBalanceHistoryUseCase;
+  };
   const auditLogRepo = {
     create: options.auditCreate ?? jest.fn().mockResolvedValue(undefined),
   };
@@ -51,24 +51,28 @@ function buildUseCase(options: {
     }),
   };
   const useCase = new ExportReceivableBalanceHistoryUseCase(
-    listUseCase,
+    historyQuery as never,
     auditLogRepo as never,
     tenantContext as never,
   );
-  return { useCase, listUseCase, auditLogRepo };
+  return { useCase, historyQuery, auditLogRepo };
 }
 
 describe('ExportReceivableBalanceHistoryUseCase', () => {
   it('builds an audit-safe CSV with the export row limit', async () => {
-    const { useCase, listUseCase } = buildUseCase({});
+    const { useCase, historyQuery } = buildUseCase({});
 
     const result = await useCase.execute({ filters: {} });
 
-    expect(listUseCase.execute).toHaveBeenCalledWith({
-      filters: {},
-      page: 1,
-      limit: EXPORT_ROW_LIMIT,
-    });
+    expect(historyQuery.list).toHaveBeenCalledWith(
+      'org-1',
+      expect.objectContaining({
+        from: undefined,
+        to: undefined,
+      }),
+      1,
+      EXPORT_ROW_LIMIT,
+    );
     expect(result.csv).toContain(
       'Thời điểm hiệu lực,Mã hóa đơn,Khách hàng,Trạng thái,Số tiền còn lại',
     );
@@ -76,6 +80,20 @@ describe('ExportReceivableBalanceHistoryUseCase', () => {
     expect(result.csv).toContain('Nguyễn Văn A');
     expect(result.csv).not.toContain('organizationId');
     expect(result.csv).not.toContain('@example.com');
+  });
+
+  it('converts local date filters to HCMC day boundaries', async () => {
+    const { useCase, historyQuery } = buildUseCase({});
+
+    await useCase.execute({
+      filters: { from: '2026-08-01', to: '2026-08-31' },
+    });
+
+    const [, filters] = historyQuery.list.mock.calls[0];
+    expect(filters).toMatchObject({
+      from: new Date('2026-07-31T17:00:00.000Z'),
+      to: new Date('2026-08-31T16:59:59.999Z'),
+    });
   });
 
   it('flags the export as truncated when more rows match the limit', async () => {
@@ -135,9 +153,9 @@ describe('ExportReceivableBalanceHistoryUseCase', () => {
 
   it('does not write an audit log when the export fails', async () => {
     const auditCreate = jest.fn().mockResolvedValue(undefined);
-    const listUseCase = {
-      execute: jest.fn().mockRejectedValue(new Error('db down')),
-    } as never as ListReceivableBalanceHistoryUseCase;
+    const historyQuery = {
+      list: jest.fn().mockRejectedValue(new Error('db down')),
+    } as never as IReceivableBalanceHistoryQuery;
     const auditLogRepo = { create: auditCreate };
     const tenantContext = {
       getOrganizationId: () => 'org-1',
@@ -148,7 +166,7 @@ describe('ExportReceivableBalanceHistoryUseCase', () => {
       }),
     };
     const useCase = new ExportReceivableBalanceHistoryUseCase(
-      listUseCase,
+      historyQuery,
       auditLogRepo as never,
       tenantContext as never,
     );

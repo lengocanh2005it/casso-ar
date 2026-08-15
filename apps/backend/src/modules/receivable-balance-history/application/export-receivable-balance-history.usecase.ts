@@ -15,7 +15,12 @@ import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { BalanceHistoryActorType } from '../domain/balance-history-actor-type';
 import type { BalanceHistoryChangeSource } from '../domain/balance-history-change-source';
-import { ListReceivableBalanceHistoryUseCase } from './list-receivable-balance-history.usecase';
+import { localDateToInstant } from './list-receivable-balance-history.usecase';
+import {
+  type IReceivableBalanceHistoryQuery,
+  RECEIVABLE_BALANCE_HISTORY_QUERY,
+  type ReceivableBalanceHistoryListFilters,
+} from './receivable-balance-history-query.port';
 
 export interface ExportReceivableBalanceHistoryInput {
   filters: {
@@ -33,7 +38,8 @@ export const EXPORT_ROW_LIMIT = 10_000;
 @Injectable()
 export class ExportReceivableBalanceHistoryUseCase {
   constructor(
-    private readonly listUseCase: ListReceivableBalanceHistoryUseCase,
+    @Inject(RECEIVABLE_BALANCE_HISTORY_QUERY)
+    private readonly historyQuery: IReceivableBalanceHistoryQuery,
     @Inject(AUDIT_LOG_REPOSITORY)
     private readonly auditLogRepo: IAuditLogRepository,
     private readonly tenantContext: TenantContextService,
@@ -48,11 +54,24 @@ export class ExportReceivableBalanceHistoryUseCase {
       throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
     }
 
-    const { items, total } = await this.listUseCase.execute({
-      filters: input.filters,
-      page: 1,
-      limit: EXPORT_ROW_LIMIT,
-    });
+    const filters: ReceivableBalanceHistoryListFilters = {
+      receivableId: input.filters.receivableId,
+      from: input.filters.from
+        ? localDateToInstant(input.filters.from, false)
+        : undefined,
+      to: input.filters.to
+        ? localDateToInstant(input.filters.to, true)
+        : undefined,
+      status: input.filters.status,
+      changeSource: input.filters.changeSource,
+      actorType: input.filters.actorType,
+    };
+    const { items, total } = await this.historyQuery.list(
+      organizationId,
+      filters,
+      1,
+      EXPORT_ROW_LIMIT,
+    );
     const truncated = total > EXPORT_ROW_LIMIT;
 
     const csv = toCsv(
