@@ -14,6 +14,9 @@ export class OperatorAuditLogOrmEntity {
   @Column({ type: 'varchar' })
   actionType: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  membershipId: string | null;
+
   @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

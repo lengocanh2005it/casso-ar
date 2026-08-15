@@ -362,7 +362,7 @@ git commit -m "feat: add memberships.status/blockedAt columns"
 **Interfaces:**
 - Produces: `OperatorActionType` now includes `'MEMBER_BLOCKED' | 'MEMBER_UNBLOCKED'`; `OperatorAuditLogProps.membershipId?: string | null`. Consumed by Task 11 (`BlockMemberByOperatorUseCase`).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `apps/backend/src/modules/admin/infrastructure/typeorm-operator-audit-log.repository.spec.ts`:
 
@@ -418,12 +418,12 @@ describe('TypeOrmOperatorAuditLogRepository', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx jest --testPathPattern apps/backend/src/modules/admin/infrastructure/typeorm-operator-audit-log.repository.spec.ts`
 Expected: FAIL — TS error, `membershipId` does not exist on `OperatorAuditLogProps`, and/or the assertion on `membershipId: null` fails because the mapper never sets it.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `apps/backend/src/modules/admin/domain/operator-audit-log.ts`:
 
@@ -552,17 +552,17 @@ export class AddOperatorAuditLogsMembershipId20260823010000
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx jest --testPathPattern apps/backend/src/modules/admin/infrastructure/typeorm-operator-audit-log.repository.spec.ts`
 Expected: PASS
 
-- [ ] **Step 5: Run the existing lock/unlock use case tests to confirm no regression**
+- [x] **Step 5: Run the existing lock/unlock use case tests to confirm no regression**
 
 Run: `npx jest --testPathPattern apps/backend/src/modules/admin/application/lock-organization.usecase.spec.ts`
 Expected: PASS unchanged (those tests construct `OperatorAuditLog` without `membershipId`, which is optional and defaults to `null`)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/backend/src/modules/admin/domain/operator-audit-log.ts apps/backend/src/modules/admin/infrastructure/operator-audit-log.orm-entity.ts apps/backend/src/modules/admin/infrastructure/typeorm-operator-audit-log.repository.ts apps/backend/src/modules/admin/infrastructure/typeorm-operator-audit-log.repository.spec.ts apps/backend/src/database/migrations/20260823010000-add-operator-audit-logs-membership-id.ts
