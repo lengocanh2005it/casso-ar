@@ -720,9 +720,21 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ---
 
+#### Plan: Receivable Balance History (#172)
+- **Type**: feature
+- **Status**: done ✅
+- **Owner**: BE
+- **Plan**: `docs/superpowers/plans/2026-08-14-receivable-balance-history.md`
+- **Blockers**: none
+- **Shipped**: 2026-08-15 — PR #180, merge commit `6d5e5098`
+- **Creates**: immutable receivable balance snapshots, rollout baseline and coverage epoch, historical outstanding queries, migration/unit/integration coverage, and ADR-0018 clarifying snapshots versus audit logs
+- **Implementation note**: CI `verify` passed with 9/9 tasks; backend completed 258 suites/912 tests and the receivable balance history E2E slice completed 16/16 tests.
+
+---
+
 ## Frontier
 
-**Current status (2026-08-15):** Casso Admin Platform (#98) shipped via PR #177. Copilot Draft Library (#136) and its edit/delete follow-up (#171) are done. Three unrelated e2e failures are deferred to a separate issue.
+**Current status (2026-08-15):** Casso Admin Platform (#98) shipped via PR #177. Copilot Draft Library (#136), its edit/delete follow-up (#171), and Receivable Balance History (#172) are done. Three unrelated e2e failures are deferred to a separate issue.
 
 **In progress:**
 - None.
@@ -738,3 +750,4 @@ Success = a single document a new developer can read and know exactly what to pi
 - **2026-08-14**: PR #174 merged into `main`, closing #135 (customer aging + monthly trend) and shipping #172 (receivable balance history prerequisite). Verified with `pnpm verify` 9/9, CI `verify` pass.
 - **2026-08-14**: PR #175 merged, closing #171 — Copilot draft library edit/delete support (split from #136).
 - **Shipped 2026-08-15**: PR #177 merged into `main` (merge commit `35808b9`), closing #98 — Casso Admin Platform. Cross-organization operator plane (ADR-0017): `Operator`/`OperatorAuditLog` domain, `AdminAuthGuard` (operator auth without tenant membership, bypasses `PermissionGuard`), `OrganizationLockGuard` (global hard-block on locked orgs), admin use cases (list/lock/unlock organizations, AI usage aggregate/trend), and the full admin console frontend (login, dashboard, organizations, AI usage). A `code-review` pass on the open PR found two Standards/correctness issues, both fixed in a follow-up commit before merge: (1) the AI usage date-range query parsed the date-only `to` string as UTC midnight, silently excluding the entire final day (same-day ranges returned zero rows) — fixed by extending `to` to end-of-day UTC in `AdminController`; (2) `LoginUseCase` was updated to let operator-only accounts (no org membership) log in, but `RefreshAccessTokenUseCase` wasn't updated to match, so every operator session would be force-logged-out on its first token refresh (~15 min) — fixed by mirroring the same `isOperator` exemption in `RefreshAccessTokenUseCase`. `pnpm verify` 9/9 tasks green after the fix.
+- **Shipped 2026-08-15**: PR #180 merged into `main` (merge commit `6d5e5098`), closing #172 — complete receivable balance history rollout with immutable snapshots, rollout coverage boundary, historical outstanding queries, and migration/integration coverage. CI `verify` passed.
