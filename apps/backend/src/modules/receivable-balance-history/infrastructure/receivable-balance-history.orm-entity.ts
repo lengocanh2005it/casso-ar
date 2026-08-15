@@ -53,7 +53,7 @@ export class ReceivableBalanceHistoryOrmEntity {
   @Column({ type: 'varchar', nullable: true })
   reasonCode: BalanceHistoryReasonCode | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: 'text', nullable: true })
   note: string | null;
 
   @Column({ type: 'uuid', nullable: true })

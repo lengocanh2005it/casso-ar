@@ -20,7 +20,6 @@ export function fetchReceivableBalanceHistory(
       ...(query.to ? { to: query.to } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.changeSource ? { changeSource: query.changeSource } : {}),
-      ...(query.actorType ? { actorType: query.actorType } : {}),
     },
   });
 }
@@ -37,7 +36,6 @@ export function fetchReceivableBalanceHistorySummary(
       ...(filters.to ? { to: filters.to } : {}),
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.changeSource ? { changeSource: filters.changeSource } : {}),
-      ...(filters.actorType ? { actorType: filters.actorType } : {}),
     },
   });
 }
@@ -55,7 +53,6 @@ export async function exportReceivableBalanceHistoryCsv(
       ...(filters.to ? { to: filters.to } : {}),
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.changeSource ? { changeSource: filters.changeSource } : {}),
-      ...(filters.actorType ? { actorType: filters.actorType } : {}),
     },
   });
   return { csv: data, truncated: headers['x-export-truncated'] === 'true' };

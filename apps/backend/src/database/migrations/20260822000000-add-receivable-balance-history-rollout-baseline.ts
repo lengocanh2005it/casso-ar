@@ -49,8 +49,6 @@ export class AddReceivableBalanceHistoryRolloutBaseline20260822000000
         "effectiveAt",
         "changeSource",
         "changeReason",
-        "actorType",
-        "reasonCode",
         "createdAt"
       )
       SELECT
@@ -62,8 +60,6 @@ export class AddReceivableBalanceHistoryRolloutBaseline20260822000000
         CURRENT_TIMESTAMP,
         'ROLLOUT_BASELINE',
         'HISTORY_COVERAGE_START',
-        'SYSTEM',
-        'ROLLOUT_BASELINE',
         CURRENT_TIMESTAMP
       FROM "receivables" r
       WHERE NOT EXISTS (

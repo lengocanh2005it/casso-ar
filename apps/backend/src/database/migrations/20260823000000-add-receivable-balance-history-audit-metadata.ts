@@ -15,7 +15,7 @@ export class AddReceivableBalanceHistoryAuditMetadata20260823000000
         ADD COLUMN IF NOT EXISTS "actorType" character varying,
         ADD COLUMN IF NOT EXISTS "actorUserId" uuid,
         ADD COLUMN IF NOT EXISTS "reasonCode" character varying,
-        ADD COLUMN IF NOT EXISTS "note" character varying,
+        ADD COLUMN IF NOT EXISTS "note" text,
         ADD COLUMN IF NOT EXISTS "transitionReferenceId" uuid
     `);
     // Legacy rows keep all-null audit metadata; new rows must satisfy the

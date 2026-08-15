@@ -2,6 +2,7 @@ import type { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { BalanceHistoryActorType } from '../domain/balance-history-actor-type';
 import type { BalanceHistoryChangeSource } from '../domain/balance-history-change-source';
 import type { BalanceHistoryReasonCode } from '../domain/balance-history-reason-code';
+import type { ReceivableBalanceHistoryDateFilterInput } from './receivable-balance-history-date-filters';
 
 export interface HistoricalOutstandingPoint {
   month: string; // YYYY-MM in Asia/Ho_Chi_Minh
@@ -14,7 +15,13 @@ export interface ReceivableBalanceHistoryListFilters {
   to?: Date; // inclusive instant; null means unbounded
   status?: ReceivableStatus;
   changeSource?: BalanceHistoryChangeSource;
-  actorType?: BalanceHistoryActorType;
+}
+
+export interface ReceivableBalanceHistoryFilterInput
+  extends ReceivableBalanceHistoryDateFilterInput {
+  receivableId?: string;
+  status?: ReceivableStatus;
+  changeSource?: BalanceHistoryChangeSource;
 }
 
 export interface ReceivableBalanceHistoryListItem {
@@ -30,6 +37,7 @@ export interface ReceivableBalanceHistoryListItem {
   changeSource: BalanceHistoryChangeSource;
   reasonCode: BalanceHistoryReasonCode | null;
   actorType: BalanceHistoryActorType | null;
+  actorUserId: string | null;
   actorDisplayName: string | null;
   transitionReferenceId: string | null;
   note: string | null;

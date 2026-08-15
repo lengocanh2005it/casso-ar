@@ -32,7 +32,6 @@ describe('fetchReceivableBalanceHistory', () => {
       to: '2026-08-31',
       status: 'PAID' as ReceivableStatus,
       changeSource: 'ALLOCATE',
-      actorType: 'WEBHOOK',
     });
 
     expect(apiRequest).toHaveBeenCalledWith(
@@ -47,7 +46,6 @@ describe('fetchReceivableBalanceHistory', () => {
           to: '2026-08-31',
           status: 'PAID',
           changeSource: 'ALLOCATE',
-          actorType: 'WEBHOOK',
         },
       }),
     );

@@ -49,6 +49,10 @@ function DetailRow({ item }: { item: ReceivableBalanceHistoryListItem }) {
             </dd>
           </div>
           <div>
+            <dt className="text-muted-foreground">Mã người dùng tác động</dt>
+            <dd className="font-mono text-xs">{item.actorUserId ?? '—'}</dd>
+          </div>
+          <div>
             <dt className="text-muted-foreground">Lý do</dt>
             <dd>{item.reasonCode ?? '—'}</dd>
           </div>

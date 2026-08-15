@@ -24,6 +24,7 @@ describe('ReceivableBalanceHistoryController', () => {
             changeSource: 'ALLOCATE',
             reasonCode: 'PAYMENT_ALLOCATED',
             actorType: 'USER',
+            actorUserId: 'user-1',
             actorDisplayName: 'Nguyễn Văn A',
             transitionReferenceId: 'alloc-1',
             note: null,
@@ -73,7 +74,6 @@ describe('ReceivableBalanceHistoryController', () => {
         to: '2026-08-31',
         status: 'PAID',
         changeSource: undefined,
-        actorType: undefined,
       },
       page: 2,
       limit: 50,
@@ -90,7 +90,7 @@ describe('ReceivableBalanceHistoryController', () => {
       ],
     });
     expect(result.items[0]).not.toHaveProperty('organizationId');
-    expect(result.items[0]).not.toHaveProperty('actorUserId');
+    expect(result.items[0].actorUserId).toBe('user-1');
   });
 
   it('defaults page and limit to 1 and 20', async () => {
@@ -118,7 +118,6 @@ describe('ReceivableBalanceHistoryController', () => {
         to: '2026-08-31',
         status: undefined,
         changeSource: undefined,
-        actorType: undefined,
       },
     });
     expect(result).toMatchObject({
@@ -147,7 +146,6 @@ describe('ReceivableBalanceHistoryController', () => {
         to: undefined,
         status: undefined,
         changeSource: undefined,
-        actorType: undefined,
       },
     });
     expect(response.setHeader).toHaveBeenCalledWith(

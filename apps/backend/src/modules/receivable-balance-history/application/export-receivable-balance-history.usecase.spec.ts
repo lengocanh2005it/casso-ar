@@ -23,6 +23,7 @@ const item = {
   changeSource: BalanceHistoryChangeSource.ALLOCATE,
   reasonCode: 'PAYMENT_ALLOCATED',
   actorType: 'USER',
+  actorUserId: 'user-1',
   actorDisplayName: 'Nguyễn Văn A',
   transitionReferenceId: 'alloc-1',
   note: null,
@@ -59,16 +60,39 @@ function buildUseCase(options: {
 }
 
 describe('ExportReceivableBalanceHistoryUseCase', () => {
-  it('builds an audit-safe CSV with the export row limit', async () => {
+  it('defaults to the latest 30 local calendar days', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-08-31T04:00:00.000Z'));
     const { useCase, historyQuery } = buildUseCase({});
 
-    const result = await useCase.execute({ filters: {} });
+    try {
+      await useCase.execute({ filters: {} });
+    } finally {
+      jest.useRealTimers();
+    }
 
     expect(historyQuery.list).toHaveBeenCalledWith(
       'org-1',
       expect.objectContaining({
-        from: undefined,
-        to: undefined,
+        from: new Date('2026-08-01T17:00:00.000Z'),
+        to: new Date('2026-08-31T16:59:59.999Z'),
+      }),
+      1,
+      EXPORT_ROW_LIMIT,
+    );
+  });
+
+  it('builds an audit-safe CSV with the export row limit', async () => {
+    const { useCase, historyQuery } = buildUseCase({});
+
+    const result = await useCase.execute({
+      filters: { from: '2026-08-01', to: '2026-08-31' },
+    });
+
+    expect(historyQuery.list).toHaveBeenCalledWith(
+      'org-1',
+      expect.objectContaining({
+        from: new Date('2026-07-31T17:00:00.000Z'),
+        to: new Date('2026-08-31T16:59:59.999Z'),
       }),
       1,
       EXPORT_ROW_LIMIT,
@@ -143,7 +167,6 @@ describe('ExportReceivableBalanceHistoryUseCase', () => {
           to: '2026-08-31',
           status: 'OPEN',
           changeSource: null,
-          actorType: null,
         },
         truncated: true,
         rowCount: 1,

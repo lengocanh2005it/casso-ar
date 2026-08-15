@@ -50,7 +50,6 @@ export class ReceivableBalanceHistoryController {
         to: query.to,
         status: query.status,
         changeSource: query.changeSource,
-        actorType: query.actorType,
       },
       page: query.page,
       limit: query.limit,
@@ -81,7 +80,6 @@ export class ReceivableBalanceHistoryController {
         to: query.to,
         status: query.status,
         changeSource: query.changeSource,
-        actorType: query.actorType,
       },
     });
     return toReceivableBalanceHistorySummaryDto(summary);
@@ -119,7 +117,6 @@ export class ReceivableBalanceHistoryController {
         to: query.to,
         status: query.status,
         changeSource: query.changeSource,
-        actorType: query.actorType,
       },
     });
     if (truncated) {

@@ -36,6 +36,7 @@ interface ListRow {
   changeSource: string;
   reasonCode: string | null;
   actorType: string | null;
+  actorUserId: string | null;
   actorDisplayName: string | null;
   transitionReferenceId: string | null;
   note: string | null;
@@ -121,7 +122,6 @@ const FILTER_PREDICATES = `
   AND ($4::timestamptz IS NULL OR h."effectiveAt" <= $4)
   AND ($5::text IS NULL OR h.status::text = $5)
   AND ($6::text IS NULL OR h."changeSource" = $6)
-  AND ($7::text IS NULL OR h."actorType" = $7)
 `;
 
 const LIST_SQL = `
@@ -138,6 +138,7 @@ const LIST_SQL = `
     h."changeSource",
     h."reasonCode",
     h."actorType",
+    actor_membership."userId" AS "actorUserId",
     u.name AS "actorDisplayName",
     h."transitionReferenceId",
     h.note
@@ -151,10 +152,13 @@ const LIST_SQL = `
   LEFT JOIN customers c
     ON c.id::text = r."customerId"
     AND c."organizationId" = r."organizationId"
-  LEFT JOIN users u ON u.id = h."actorUserId"
+  LEFT JOIN memberships actor_membership
+    ON actor_membership."userId" = h."actorUserId"::text
+    AND actor_membership."organizationId" = h."organizationId"
+  LEFT JOIN users u ON u.id::text = actor_membership."userId"
   WHERE ${FILTER_PREDICATES}
   ORDER BY h."effectiveAt" DESC, h.sequence DESC
-  LIMIT $8 OFFSET $9
+  LIMIT $7 OFFSET $8
 `;
 
 const COUNT_SQL = `
@@ -258,6 +262,7 @@ export class TypeOrmReceivableBalanceHistoryQuery
           row.reasonCode as ReceivableBalanceHistoryListItem['reasonCode'],
         actorType:
           row.actorType as ReceivableBalanceHistoryListItem['actorType'],
+        actorUserId: row.actorUserId,
         actorDisplayName: row.actorDisplayName,
         transitionReferenceId: row.transitionReferenceId,
         note: row.note,
@@ -312,7 +317,6 @@ export class TypeOrmReceivableBalanceHistoryQuery
       filters.to ? filters.to.toISOString() : null,
       filters.status ?? null,
       filters.changeSource ?? null,
-      filters.actorType ?? null,
     ];
   }
 

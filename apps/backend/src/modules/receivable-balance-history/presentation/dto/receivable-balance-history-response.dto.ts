@@ -48,6 +48,9 @@ export class ReceivableBalanceHistoryListItemDto {
   @ApiProperty({ type: String, nullable: true })
   actorType: BalanceHistoryActorType | null;
 
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  actorUserId: string | null;
+
   @ApiProperty({ type: String, nullable: true })
   actorDisplayName: string | null;
 
@@ -74,6 +77,7 @@ export function toReceivableBalanceHistoryListItemDto(
     changeSource: item.changeSource,
     reasonCode: item.reasonCode,
     actorType: item.actorType,
+    actorUserId: item.actorUserId,
     actorDisplayName: item.actorDisplayName,
     transitionReferenceId: item.transitionReferenceId,
     note: item.note,

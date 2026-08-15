@@ -1,6 +1,5 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Role } from '../../organizations/domain/membership';
-import { BalanceHistoryActorType } from '../domain/balance-history-actor-type';
 import { BalanceHistoryChangeSource } from '../domain/balance-history-change-source';
 import { GetReceivableBalanceHistorySummaryUseCase } from './get-receivable-balance-history-summary.usecase';
 import type { IReceivableBalanceHistoryQuery } from './receivable-balance-history-query.port';
@@ -77,7 +76,6 @@ describe('GetReceivableBalanceHistorySummaryUseCase', () => {
         receivableId: 'rec-1',
         status: ReceivableStatus.OPEN,
         changeSource: BalanceHistoryChangeSource.CREATE,
-        actorType: BalanceHistoryActorType.USER,
       },
     });
 
@@ -85,7 +83,6 @@ describe('GetReceivableBalanceHistorySummaryUseCase', () => {
       receivableId: 'rec-1',
       status: ReceivableStatus.OPEN,
       changeSource: BalanceHistoryChangeSource.CREATE,
-      actorType: BalanceHistoryActorType.USER,
     });
   });
 

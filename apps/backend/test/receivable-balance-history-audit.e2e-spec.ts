@@ -345,7 +345,7 @@ describe('Receivable balance history audit (e2e)', () => {
       ),
     ).toBe(true);
     expect(ownerList.body.items[0]).not.toHaveProperty('organizationId');
-    expect(ownerList.body.items[0]).not.toHaveProperty('actorUserId');
+    expect(ownerList.body.items[0].actorUserId).toBe(ownerA);
     expect(ownerList.body.items[0]).not.toHaveProperty('email');
     expect(ownerList.body.items[0].invoiceNumber).toBe('INV-AUDIT-001');
     expect(ownerList.body.items[0].actorDisplayName).toBe('Owner A');
@@ -412,7 +412,6 @@ describe('Receivable balance history audit (e2e)', () => {
       'to=not-a-date',
       'status=NOPE',
       'changeSource=BOGUS',
-      'actorType=ROBOT',
     ];
     for (const query of cases) {
       const response = await request(app.getHttpServer())
@@ -439,6 +438,7 @@ describe('Receivable balance history audit (e2e)', () => {
       changeSource: string;
       reasonCode: string | null;
       actorType: string | null;
+      actorUserId: string | null;
       actorDisplayName: string | null;
       transitionReferenceId: string | null;
       note: string | null;
@@ -452,6 +452,7 @@ describe('Receivable balance history audit (e2e)', () => {
       changeSource: 'ALLOCATE',
       reasonCode: 'PAYMENT_ALLOCATED',
       actorType: 'WEBHOOK',
+      actorUserId: null,
       actorDisplayName: null,
       status: ReceivableStatus.PAID,
       remainingAmount: 0,
@@ -466,6 +467,7 @@ describe('Receivable balance history audit (e2e)', () => {
       changeSource: 'CREATE',
       reasonCode: null,
       actorType: null,
+      actorUserId: null,
       note: null,
       transitionReferenceId: null,
     });
@@ -494,6 +496,7 @@ describe('Receivable balance history audit (e2e)', () => {
       changeSource: 'UNDO',
       reasonCode: 'PAYMENT_ALLOCATION_UNDONE',
       actorType: 'USER',
+      actorUserId: fmA,
       status: ReceivableStatus.OPEN,
       remainingAmount: 30_000_000,
       transitionReferenceId: allocationId,
@@ -548,6 +551,32 @@ describe('Receivable balance history audit (e2e)', () => {
         { changeSource: 'UNDO', count: 1 },
       ]),
     );
+  });
+
+  it('does not resolve actor metadata from another organization', async () => {
+    await createReceivableA();
+    await dataSource.query(
+      `INSERT INTO receivable_balance_history
+        ("id", "organizationId", "receivableId", "status", "remainingAmount",
+         "effectiveAt", "changeSource", "reasonCode", "actorType", "actorUserId", "createdAt")
+       VALUES (gen_random_uuid(), $1, $2, 'OPEN', 30, now(), 'CANCEL',
+               'RECEIVABLE_CANCELLED', 'USER', $3, now())`,
+      [orgA, receivableAId, ownerB],
+    );
+
+    const response = await request(app.getHttpServer())
+      .get(`/api/v1/receivable-balance-history?receivableId=${receivableAId}`)
+      .set('Authorization', `Bearer ${tokenFor(ownerA, orgA, Role.OWNER)}`)
+      .expect(200);
+    const crossTenantActor = response.body.items.find(
+      (item: { reasonCode: string | null }) =>
+        item.reasonCode === 'RECEIVABLE_CANCELLED',
+    );
+
+    expect(crossTenantActor).toMatchObject({
+      actorUserId: null,
+      actorDisplayName: null,
+    });
   });
 
   it('exports filtered CSV with formula-safe escaping, truncation header, and one audit log', async () => {

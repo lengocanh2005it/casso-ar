@@ -10,7 +10,6 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { BalanceHistoryActorType } from '../../domain/balance-history-actor-type';
 import { BalanceHistoryChangeSource } from '../../domain/balance-history-change-source';
 
 const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -67,15 +66,6 @@ export class ReceivableBalanceHistoryQueryDto {
   @IsOptional()
   @IsEnum(BalanceHistoryChangeSource)
   changeSource?: BalanceHistoryChangeSource;
-
-  @ApiProperty({
-    required: false,
-    enum: BalanceHistoryActorType,
-    description: 'Filter by transition actor type',
-  })
-  @IsOptional()
-  @IsEnum(BalanceHistoryActorType)
-  actorType?: BalanceHistoryActorType;
 
   @ApiProperty({ required: false, type: Number, default: 1, minimum: 1 })
   @IsOptional()

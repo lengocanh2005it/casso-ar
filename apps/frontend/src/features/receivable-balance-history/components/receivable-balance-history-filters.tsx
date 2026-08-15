@@ -8,10 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type {
-  ReceivableBalanceHistoryActorType,
-  ReceivableBalanceHistoryChangeSource,
-} from '../types';
+import type { ReceivableBalanceHistoryChangeSource } from '../types';
 
 export interface ReceivableBalanceHistoryFilterValues {
   from: string;
@@ -19,7 +16,6 @@ export interface ReceivableBalanceHistoryFilterValues {
   receivableId: string;
   status: ReceivableStatus | '';
   changeSource: ReceivableBalanceHistoryChangeSource | '';
-  actorType: ReceivableBalanceHistoryActorType | '';
 }
 
 export const RECEIVABLE_STATUS_OPTIONS: Array<{
@@ -46,15 +42,6 @@ export const CHANGE_SOURCE_OPTIONS: Array<{
   { value: 'ROLLOUT_BASELINE', label: 'Baseline' },
 ];
 
-export const ACTOR_TYPE_OPTIONS: Array<{
-  value: ReceivableBalanceHistoryActorType;
-  label: string;
-}> = [
-  { value: 'USER', label: 'Người dùng' },
-  { value: 'WEBHOOK', label: 'Webhook' },
-  { value: 'SYSTEM', label: 'Hệ thống' },
-];
-
 interface FiltersProps {
   values: ReceivableBalanceHistoryFilterValues;
   onChange: (next: ReceivableBalanceHistoryFilterValues) => void;
@@ -65,7 +52,7 @@ export function ReceivableBalanceHistoryFilters({
   onChange,
 }: FiltersProps) {
   return (
-    <div className="grid gap-4 rounded-xl border bg-card p-4 sm:grid-cols-2 lg:grid-cols-6">
+    <div className="grid gap-4 rounded-xl border bg-card p-4 sm:grid-cols-2 lg:grid-cols-5">
       <div className="space-y-2">
         <Label htmlFor="audit-from">Từ ngày</Label>
         <Input
@@ -142,33 +129,6 @@ export function ReceivableBalanceHistoryFilters({
           </SelectTrigger>
           <SelectContent>
             {CHANGE_SOURCE_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="audit-actor">Tác nhân</Label>
-        <Select
-          value={values.actorType || undefined}
-          onValueChange={(actorType) =>
-            onChange({
-              ...values,
-              actorType: actorType as ReceivableBalanceHistoryActorType,
-            })
-          }
-        >
-          <SelectTrigger
-            id="audit-actor"
-            aria-label="Tác nhân"
-            className="w-full"
-          >
-            <SelectValue placeholder="Tất cả" />
-          </SelectTrigger>
-          <SelectContent>
-            {ACTOR_TYPE_OPTIONS.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
               </SelectItem>

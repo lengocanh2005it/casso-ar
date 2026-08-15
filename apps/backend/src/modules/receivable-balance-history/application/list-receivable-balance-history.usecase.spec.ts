@@ -1,6 +1,5 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Role } from '../../organizations/domain/membership';
-import { BalanceHistoryActorType } from '../domain/balance-history-actor-type';
 import { BalanceHistoryChangeSource } from '../domain/balance-history-change-source';
 import { ListReceivableBalanceHistoryUseCase } from './list-receivable-balance-history.usecase';
 import type { IReceivableBalanceHistoryQuery } from './receivable-balance-history-query.port';
@@ -22,21 +21,25 @@ describe('ListReceivableBalanceHistoryUseCase', () => {
     return useCase;
   }
 
-  it('defaults to page 1 and limit 20 when omitted', async () => {
+  it('defaults to the latest 30 local calendar days, page 1, and limit 20', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-08-31T04:00:00.000Z'));
     const queryMock = jest.fn().mockResolvedValue({ items: [], total: 0 });
     const useCase = buildUseCase(queryMock);
 
-    await useCase.execute({ filters: {} });
+    try {
+      await useCase.execute({ filters: {} });
+    } finally {
+      jest.useRealTimers();
+    }
 
     expect(queryMock).toHaveBeenCalledWith(
       'org-1',
       {
         receivableId: undefined,
-        from: undefined,
-        to: undefined,
+        from: new Date('2026-08-01T17:00:00.000Z'),
+        to: new Date('2026-08-31T16:59:59.999Z'),
         status: undefined,
         changeSource: undefined,
-        actorType: undefined,
       },
       1,
       20,
@@ -74,7 +77,6 @@ describe('ListReceivableBalanceHistoryUseCase', () => {
         receivableId: 'rec-1',
         status: ReceivableStatus.PAID,
         changeSource: BalanceHistoryChangeSource.ALLOCATE,
-        actorType: BalanceHistoryActorType.WEBHOOK,
       },
     });
 
@@ -83,7 +85,6 @@ describe('ListReceivableBalanceHistoryUseCase', () => {
       receivableId: 'rec-1',
       status: ReceivableStatus.PAID,
       changeSource: BalanceHistoryChangeSource.ALLOCATE,
-      actorType: BalanceHistoryActorType.WEBHOOK,
     });
   });
 

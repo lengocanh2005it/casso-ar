@@ -64,6 +64,7 @@ const listItem = {
   changeSource: 'UNDO',
   reasonCode: 'PAYMENT_ALLOCATION_UNDONE',
   actorType: 'USER',
+  actorUserId: 'user-1',
   actorDisplayName: 'FM A',
   transitionReferenceId: 'alloc-1',
   note: 'Nhập sai số tiền',
@@ -219,7 +220,7 @@ describe('ReceivableBalanceHistoryPage', () => {
     );
   });
 
-  it('exports CSV with the current filters', async () => {
+  it('exports CSV without unsupported actor filters', async () => {
     mockLoadedData();
     exportCsvMock.mockResolvedValue({ csv: 'a', truncated: false });
 
@@ -229,7 +230,7 @@ describe('ReceivableBalanceHistoryPage', () => {
 
     await waitFor(() =>
       expect(exportCsvMock).toHaveBeenCalledWith(
-        expect.objectContaining({ actorType: 'WEBHOOK' }),
+        expect.not.objectContaining({ actorType: expect.anything() }),
       ),
     );
     await waitFor(() =>
@@ -258,7 +259,9 @@ describe('ReceivableBalanceHistoryPage', () => {
       </QueryClientProvider>,
     );
 
-    expect(screen.getByText('Không có quyền truy cập')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /403.*không có quyền/i }),
+    ).toBeInTheDocument();
     expect(useListMock).not.toHaveBeenCalled();
   });
 });

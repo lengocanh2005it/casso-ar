@@ -31,6 +31,7 @@ export interface ReceivableBalanceHistoryListItem {
   changeSource: ReceivableBalanceHistoryChangeSource;
   reasonCode: ReceivableBalanceHistoryReasonCode | null;
   actorType: ReceivableBalanceHistoryActorType | null;
+  actorUserId: string | null;
   actorDisplayName: string | null;
   transitionReferenceId: string | null;
   note: string | null;
@@ -67,7 +68,6 @@ export interface ReceivableBalanceHistoryFilters {
   to?: string;
   status?: ReceivableStatus;
   changeSource?: ReceivableBalanceHistoryChangeSource;
-  actorType?: ReceivableBalanceHistoryActorType;
 }
 
 export interface ReceivableBalanceHistoryListQuery

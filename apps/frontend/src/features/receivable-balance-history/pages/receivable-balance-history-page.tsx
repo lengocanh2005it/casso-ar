@@ -22,7 +22,6 @@ import {
 } from '../components/receivable-balance-history-table';
 import type {
   ReceivableBalanceHistoryFilters as Filters,
-  ReceivableBalanceHistoryActorType,
   ReceivableBalanceHistoryChangeSource,
 } from '../types';
 
@@ -76,12 +75,6 @@ function isValidChangeSource(
   );
 }
 
-function isValidActorType(
-  value: string | null,
-): value is ReceivableBalanceHistoryActorType {
-  return value !== null && ['USER', 'SYSTEM', 'WEBHOOK'].includes(value);
-}
-
 export function ReceivableBalanceHistoryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const defaultWindow = useMemo(defaultDateWindow, []);
@@ -95,9 +88,6 @@ export function ReceivableBalanceHistoryPage() {
   const changeSource = isValidChangeSource(searchParams.get('changeSource'))
     ? (searchParams.get('changeSource') as ReceivableBalanceHistoryChangeSource)
     : undefined;
-  const actorType = isValidActorType(searchParams.get('actorType'))
-    ? (searchParams.get('actorType') as ReceivableBalanceHistoryActorType)
-    : undefined;
   const page = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
 
   const filters: Filters = useMemo(
@@ -107,9 +97,8 @@ export function ReceivableBalanceHistoryPage() {
       ...(receivableId ? { receivableId } : {}),
       ...(status ? { status } : {}),
       ...(changeSource ? { changeSource } : {}),
-      ...(actorType ? { actorType } : {}),
     }),
-    [from, to, receivableId, status, changeSource, actorType],
+    [from, to, receivableId, status, changeSource],
   );
 
   const { isExporting, exportCsv } = useCsvExport();
@@ -141,7 +130,6 @@ export function ReceivableBalanceHistoryPage() {
         'receivableId',
         'status',
         'changeSource',
-        'actorType',
       ]) {
         params.delete(key);
       }
@@ -150,7 +138,6 @@ export function ReceivableBalanceHistoryPage() {
       if (values.receivableId) params.set('receivableId', values.receivableId);
       if (values.status) params.set('status', values.status);
       if (values.changeSource) params.set('changeSource', values.changeSource);
-      if (values.actorType) params.set('actorType', values.actorType);
       params.set('page', '1');
       return params;
     });
@@ -219,7 +206,6 @@ export function ReceivableBalanceHistoryPage() {
           receivableId,
           status: status ?? '',
           changeSource: changeSource ?? '',
-          actorType: actorType ?? '',
         }}
         onChange={updateFilterValues}
       />

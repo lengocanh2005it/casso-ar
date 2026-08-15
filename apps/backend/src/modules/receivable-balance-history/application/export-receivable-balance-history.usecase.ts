@@ -1,4 +1,3 @@
-import type { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
 import {
   AuditActionType,
@@ -13,24 +12,16 @@ import { toCsv } from '../../../common/csv/csv-writer';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import type { BalanceHistoryActorType } from '../domain/balance-history-actor-type';
-import type { BalanceHistoryChangeSource } from '../domain/balance-history-change-source';
-import { localDateToInstant } from './list-receivable-balance-history.usecase';
+import { resolveDateFilters } from './receivable-balance-history-date-filters';
 import {
   type IReceivableBalanceHistoryQuery,
   RECEIVABLE_BALANCE_HISTORY_QUERY,
+  type ReceivableBalanceHistoryFilterInput,
   type ReceivableBalanceHistoryListFilters,
 } from './receivable-balance-history-query.port';
 
 export interface ExportReceivableBalanceHistoryInput {
-  filters: {
-    receivableId?: string;
-    from?: string; // YYYY-MM-DD local date, inclusive
-    to?: string; // YYYY-MM-DD local date, inclusive
-    status?: ReceivableStatus;
-    changeSource?: BalanceHistoryChangeSource;
-    actorType?: BalanceHistoryActorType;
-  };
+  filters: ReceivableBalanceHistoryFilterInput;
 }
 
 export const EXPORT_ROW_LIMIT = 10_000;
@@ -54,17 +45,13 @@ export class ExportReceivableBalanceHistoryUseCase {
       throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
     }
 
+    const dates = resolveDateFilters(input.filters);
     const filters: ReceivableBalanceHistoryListFilters = {
       receivableId: input.filters.receivableId,
-      from: input.filters.from
-        ? localDateToInstant(input.filters.from, false)
-        : undefined,
-      to: input.filters.to
-        ? localDateToInstant(input.filters.to, true)
-        : undefined,
+      from: dates.from,
+      to: dates.to,
       status: input.filters.status,
       changeSource: input.filters.changeSource,
-      actorType: input.filters.actorType,
     };
     const { items, total } = await this.historyQuery.list(
       organizationId,
@@ -84,6 +71,7 @@ export class ExportReceivableBalanceHistoryUseCase {
         'Nguồn thay đổi',
         'Lý do',
         'Loại tác nhân',
+        'Mã người dùng tác động',
         'Tác nhân',
         'Tham chiếu',
         'Ghi chú',
@@ -97,6 +85,7 @@ export class ExportReceivableBalanceHistoryUseCase {
         item.changeSource,
         item.reasonCode ?? '',
         item.actorType ?? '',
+        item.actorUserId ?? '',
         item.actorDisplayName ?? '',
         item.transitionReferenceId ?? '',
         item.note ?? '',
@@ -118,7 +107,6 @@ export class ExportReceivableBalanceHistoryUseCase {
             to: input.filters.to ?? null,
             status: input.filters.status ?? null,
             changeSource: input.filters.changeSource ?? null,
-            actorType: input.filters.actorType ?? null,
           },
           truncated,
           rowCount: items.length,

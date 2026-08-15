@@ -1,45 +1,22 @@
-import type { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
-import { fromZonedTime } from 'date-fns-tz';
-import { AppError } from '../../../common/errors/app-error';
-import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import type { BalanceHistoryActorType } from '../domain/balance-history-actor-type';
-import type { BalanceHistoryChangeSource } from '../domain/balance-history-change-source';
+import { resolveDateFilters } from './receivable-balance-history-date-filters';
 import {
   type IReceivableBalanceHistoryQuery,
   RECEIVABLE_BALANCE_HISTORY_QUERY,
+  type ReceivableBalanceHistoryFilterInput,
   type ReceivableBalanceHistoryListFilters,
   type ReceivableBalanceHistoryListPage,
 } from './receivable-balance-history-query.port';
 
-const REPORTING_TIMEZONE = 'Asia/Ho_Chi_Minh';
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
 export interface ListReceivableBalanceHistoryInput {
-  filters: {
-    receivableId?: string;
-    from?: string; // YYYY-MM-DD local date, inclusive
-    to?: string; // YYYY-MM-DD local date, inclusive
-    status?: ReceivableStatus;
-    changeSource?: BalanceHistoryChangeSource;
-    actorType?: BalanceHistoryActorType;
-  };
+  filters: ReceivableBalanceHistoryFilterInput;
   page?: number;
   limit?: number;
-}
-
-export function localDateToInstant(localDate: string, endOfDay: boolean): Date {
-  const instant = fromZonedTime(
-    `${localDate}T${endOfDay ? '23:59:59.999' : '00:00:00'}`,
-    REPORTING_TIMEZONE,
-  );
-  if (Number.isNaN(instant.getTime())) {
-    throw new AppError(ErrorCode.VALIDATION_ERROR, 'Ngày không hợp lệ');
-  }
-  return instant;
 }
 
 @Injectable()
@@ -54,17 +31,13 @@ export class ListReceivableBalanceHistoryUseCase {
     input: ListReceivableBalanceHistoryInput,
   ): Promise<ReceivableBalanceHistoryListPage> {
     const organizationId = this.tenantContext.getOrganizationId();
+    const dates = resolveDateFilters(input.filters);
     const filters: ReceivableBalanceHistoryListFilters = {
       receivableId: input.filters.receivableId,
-      from: input.filters.from
-        ? localDateToInstant(input.filters.from, false)
-        : undefined,
-      to: input.filters.to
-        ? localDateToInstant(input.filters.to, true)
-        : undefined,
+      from: dates.from,
+      to: dates.to,
       status: input.filters.status,
       changeSource: input.filters.changeSource,
-      actorType: input.filters.actorType,
     };
     const page = Math.max(1, input.page ?? DEFAULT_PAGE);
     const limit = Math.min(

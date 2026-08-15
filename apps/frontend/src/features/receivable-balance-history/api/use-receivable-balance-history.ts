@@ -22,7 +22,6 @@ export function useReceivableBalanceHistory(
       query.to ?? '',
       query.status ?? 'ALL',
       query.changeSource ?? 'ALL',
-      query.actorType ?? 'ALL',
     ],
     queryFn: () => fetchReceivableBalanceHistory(query),
   });
@@ -40,7 +39,6 @@ export function useReceivableBalanceHistorySummary(
       filters.to ?? '',
       filters.status ?? 'ALL',
       filters.changeSource ?? 'ALL',
-      filters.actorType ?? 'ALL',
     ],
     queryFn: () => fetchReceivableBalanceHistorySummary(filters),
   });

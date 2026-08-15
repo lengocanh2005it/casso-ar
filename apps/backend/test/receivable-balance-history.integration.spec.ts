@@ -912,8 +912,8 @@ describe('Receivable balance history (integration)', () => {
           remainingAmount: String(originalAmount - paidAmount),
           changeSource: 'ROLLOUT_BASELINE',
           changeReason: 'HISTORY_COVERAGE_START',
-          actorType: 'SYSTEM',
-          reasonCode: 'ROLLOUT_BASELINE',
+          actorType: null,
+          reasonCode: null,
         })),
       ),
     );

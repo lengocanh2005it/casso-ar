@@ -48,7 +48,13 @@ describe('PermissionRoute', () => {
 
   it('shows the forbidden view for a viewer', () => {
     renderPermissionRoute({ role: 'VIEWER' });
-    expect(screen.getByText('Không có quyền truy cập')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /403.*không có quyền/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveAttribute(
+      'data-status-code',
+      '403',
+    );
     expect(screen.queryByText('audit content')).not.toBeInTheDocument();
   });
 
