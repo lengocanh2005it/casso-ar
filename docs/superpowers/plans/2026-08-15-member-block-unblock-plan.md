@@ -2027,9 +2027,9 @@ git commit -m "feat: add BlockMemberByOperatorUseCase/UnblockMemberByOperatorUse
 - Consumes: `BlockMemberByOperatorUseCase`, `UnblockMemberByOperatorUseCase` (Task 10); `AUTH_EMAIL_SENDER` export from `AuthModule` (Task 7); `USER_REPOSITORY` from `UsersModule`.
 - Produces: `POST /admin/organizations/:orgId/members/:userId/block`, `POST /admin/organizations/:orgId/members/:userId/unblock`.
 
-- [ ] **Step 1: No new unit test — DI wiring + thin controller, covered by the e2e test in Task 12**
+- [x] **Step 1: No new unit test — DI wiring + thin controller, covered by the e2e test in Task 12**
 
-- [ ] **Step 2: Modify `admin.module.ts`**
+- [x] **Step 2: Modify `admin.module.ts`**
 
 Add two imports and two entries to the `imports` array:
 
@@ -2070,7 +2070,7 @@ import { UnblockMemberByOperatorUseCase } from './application/unblock-member-by-
     AdminAuthGuard,
 ```
 
-- [ ] **Step 3: Add a response DTO**
+- [x] **Step 3: Add a response DTO**
 
 In `apps/backend/src/modules/admin/presentation/dto/admin-response.dto.ts`, append:
 
@@ -2081,7 +2081,7 @@ export class AdminMemberStatusResponseDto {
 }
 ```
 
-- [ ] **Step 4: Modify `admin.controller.ts`**
+- [x] **Step 4: Modify `admin.controller.ts`**
 
 Add imports:
 
@@ -2172,17 +2172,17 @@ Add two endpoint methods, after `unlock`:
 
 Add `NotFoundException` to the `@nestjs/common` import line if not already present.
 
-- [ ] **Step 5: Verify it compiles**
+- [x] **Step 5: Verify it compiles**
 
 Run: `npx tsc --noEmit -p apps/backend`
 Expected: no new errors.
 
-- [ ] **Step 6: Run the full backend unit suite to confirm no regression**
+- [x] **Step 6: Run the full backend unit suite to confirm no regression**
 
 Run: `pnpm --filter @casso-ledger/backend test`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add apps/backend/src/modules/admin/admin.module.ts apps/backend/src/modules/admin/presentation/admin.controller.ts apps/backend/src/modules/admin/presentation/dto/admin-response.dto.ts

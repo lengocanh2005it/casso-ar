@@ -1,6 +1,8 @@
 import {
   Controller,
   Get,
+  Inject,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Post,
@@ -21,14 +23,21 @@ import { Public } from '../../../common/auth/public.decorator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import {
+  type IOrganizationRepository,
+  ORGANIZATION_REPOSITORY,
+} from '../../organizations/application/organization-repository.port';
+import { BlockMemberByOperatorUseCase } from '../application/block-member-by-operator.usecase';
 import { GetAiUsageAggregateUseCase } from '../application/get-ai-usage-aggregate.usecase';
 import { GetAiUsageTrendUseCase } from '../application/get-ai-usage-trend.usecase';
 import { ListOrganizationsUseCase } from '../application/list-organizations.usecase';
 import { LockOrganizationUseCase } from '../application/lock-organization.usecase';
+import { UnblockMemberByOperatorUseCase } from '../application/unblock-member-by-operator.usecase';
 import { UnlockOrganizationUseCase } from '../application/unlock-organization.usecase';
 import {
   AdminAiUsageResponseDto,
   AdminAiUsageTrendResponseDto,
+  AdminMemberStatusResponseDto,
   AdminOrganizationStatusResponseDto,
   AdminOrganizationsResponseDto,
 } from './dto/admin-response.dto';
@@ -47,8 +56,12 @@ export class AdminController {
     private readonly listOrganizationsUseCase: ListOrganizationsUseCase,
     private readonly lockOrganizationUseCase: LockOrganizationUseCase,
     private readonly unlockOrganizationUseCase: UnlockOrganizationUseCase,
+    private readonly blockMemberByOperatorUseCase: BlockMemberByOperatorUseCase,
+    private readonly unblockMemberByOperatorUseCase: UnblockMemberByOperatorUseCase,
     private readonly getAiUsageAggregateUseCase: GetAiUsageAggregateUseCase,
     private readonly getAiUsageTrendUseCase: GetAiUsageTrendUseCase,
+    @Inject(ORGANIZATION_REPOSITORY)
+    private readonly organizationRepo: IOrganizationRepository,
   ) {}
 
   @Get('organizations')
@@ -101,6 +114,60 @@ export class AdminController {
   ) {
     await this.unlockOrganizationUseCase.execute({
       organizationId: id,
+      operatorId: request.user.operatorId,
+    });
+    return { status: 'ACTIVE' as const };
+  }
+
+  @Post('organizations/:orgId/members/:userId/block')
+  @ApiOperation({ summary: 'Block a member of any organization' })
+  @ApiCreatedResponse({ type: AdminMemberStatusResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.NOT_FOUND,
+  )
+  async blockMember(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Req() request: AdminRequest,
+  ) {
+    const organization = await this.organizationRepo.findById(orgId);
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+    await this.blockMemberByOperatorUseCase.execute({
+      organizationId: orgId,
+      organizationName: organization.name,
+      userId,
+      operatorId: request.user.operatorId,
+    });
+    return { status: 'BLOCKED' as const };
+  }
+
+  @Post('organizations/:orgId/members/:userId/unblock')
+  @ApiOperation({ summary: 'Unblock a member of any organization' })
+  @ApiCreatedResponse({ type: AdminMemberStatusResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.NOT_FOUND,
+  )
+  async unblockMember(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Req() request: AdminRequest,
+  ) {
+    const organization = await this.organizationRepo.findById(orgId);
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+    await this.unblockMemberByOperatorUseCase.execute({
+      organizationId: orgId,
+      organizationName: organization.name,
+      userId,
       operatorId: request.user.operatorId,
     });
     return { status: 'ACTIVE' as const };
