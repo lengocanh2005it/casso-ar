@@ -255,7 +255,7 @@ git commit -m "feat: add Membership block/unblock state"
 - Consumes: `Membership.status`/`blockedAt` from Task 2 (must match column names/types exactly — `TypeOrmMembershipRepository.save()` passes the domain `Membership` instance straight to `repo.save()` with no explicit mapper, relying on the two shapes matching structurally; do not break that).
 - Produces: `memberships.status` (`varchar`, default `'ACTIVE'`), `memberships.blockedAt` (`timestamptz`, nullable) at the DB layer.
 
-- [ ] **Step 1: Modify the ORM entity**
+- [x] **Step 1: Modify the ORM entity**
 
 In `apps/backend/src/modules/organizations/infrastructure/membership.orm-entity.ts`, add two columns after `joinedAt`:
 
@@ -297,7 +297,7 @@ export class MembershipOrmEntity {
 
 (Column order in the class does not need to match declaration order elsewhere — placed before `createdAt` to mirror where `status ` sits in `OrganizationOrmEntity` relative to `createdAt`.)
 
-- [ ] **Step 2: Write the migration**
+- [x] **Step 2: Write the migration**
 
 Create `apps/backend/src/database/migrations/20260823000000-add-memberships-status.ts`:
 
@@ -331,17 +331,17 @@ export class AddMembershipsStatus20260823000000
 
 No manual registration needed — `typeorm.config.ts` globs `database/migrations/!(*.spec){.js,.ts}`.
 
-- [ ] **Step 3: Verify the entity compiles and matches the domain shape**
+- [x] **Step 3: Verify the entity compiles and matches the domain shape**
 
 Run: `npx tsc --noEmit -p apps/backend`
 Expected: no new errors. This also indirectly checks `TypeOrmMembershipRepository.save()` (which does `this.repo.save(membership)` with a domain `Membership` passed where a `MembershipOrmEntity` is expected) still type-checks — it does, because `Membership` and `MembershipOrmEntity` now both have `status: 'ACTIVE' | 'BLOCKED'` and `blockedAt: Date | null` with identical names/types.
 
-- [ ] **Step 4: Run the existing repository test suite to confirm no regression**
+- [x] **Step 4: Run the existing repository test suite to confirm no regression**
 
 Run: `npx jest --testPathPattern apps/backend/src/modules/organizations/infrastructure/typeorm-membership.repository.spec.ts`
 Expected: PASS (unchanged — these tests mock `repo.findOne` and don't touch the new columns)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/backend/src/modules/organizations/infrastructure/membership.orm-entity.ts apps/backend/src/database/migrations/20260823000000-add-memberships-status.ts
