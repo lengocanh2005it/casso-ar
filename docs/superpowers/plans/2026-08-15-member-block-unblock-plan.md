@@ -722,7 +722,7 @@ git commit -m "feat: add member block/unblock notification emails"
 - Consumes: `IMembershipRepository.findByUserAndOrganization`/`save` (existing, `modules/organizations/application/membership-repository.port.ts`); `IAuthEmailSender.sendMemberBlockedEmail`/`sendMemberUnblockedEmail` (Task 5); `IUserRepository.findById` (existing, `modules/users/application/user-repository.port.ts`); `Membership.block()`/`unblock()` (Task 2).
 - Produces: `BlockMemberUseCase.execute(input: BlockMemberInput): Promise<Membership>`, `UnblockMemberUseCase.execute(input: UnblockMemberInput): Promise<Membership>`, where `BlockMemberInput = { organizationId: string; organizationName: string; actorUserId: string; targetUserId: string }` and `UnblockMemberInput` is the same shape without the self/OWNER checks. Consumed by Task 9 (`InvitesController`).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `apps/backend/src/modules/auth/application/block-member.usecase.spec.ts`:
 
@@ -1008,12 +1008,12 @@ describe('UnblockMemberUseCase', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx jest --testPathPattern "apps/backend/src/modules/auth/application/(block|unblock)-member.usecase.spec.ts"`
 Expected: FAIL — `Cannot find module './block-member.usecase'` / `./unblock-member.usecase`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `apps/backend/src/modules/auth/application/block-member.usecase.ts`:
 
@@ -1177,12 +1177,12 @@ export class UnblockMemberUseCase {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx jest --testPathPattern "apps/backend/src/modules/auth/application/(block|unblock)-member.usecase.spec.ts"`
 Expected: PASS (all tests in both files)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/backend/src/modules/auth/application/block-member.usecase.ts apps/backend/src/modules/auth/application/block-member.usecase.spec.ts apps/backend/src/modules/auth/application/unblock-member.usecase.ts apps/backend/src/modules/auth/application/unblock-member.usecase.spec.ts
