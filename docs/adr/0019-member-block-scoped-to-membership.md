@@ -4,7 +4,7 @@ Date: 2026-08-15
 
 ## Status
 
-Accepted (research — issue #178, not yet built)
+Accepted — issue #178, shipped PR #182
 
 ## Context
 
