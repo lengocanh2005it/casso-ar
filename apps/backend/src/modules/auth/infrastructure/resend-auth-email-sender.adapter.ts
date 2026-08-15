@@ -41,4 +41,28 @@ export class ResendAuthEmailSenderAdapter implements IAuthEmailSender {
       emailType: 'AUTH_INVITE',
     });
   }
+
+  async sendMemberBlockedEmail(
+    to: string,
+    organizationName: string,
+  ): Promise<void> {
+    await this.emailQueue.add('send-auth-email', {
+      to,
+      subject: `Quyền truy cập của bạn vào ${organizationName} đã bị chặn`,
+      html: `<p>Quyền truy cập của bạn vào tổ chức ${organizationName} trên Casso đã bị chặn. Liên hệ quản trị viên của tổ chức nếu bạn cho rằng đây là nhầm lẫn.</p>`,
+      emailType: 'MEMBER_BLOCKED',
+    });
+  }
+
+  async sendMemberUnblockedEmail(
+    to: string,
+    organizationName: string,
+  ): Promise<void> {
+    await this.emailQueue.add('send-auth-email', {
+      to,
+      subject: `Quyền truy cập của bạn vào ${organizationName} đã được khôi phục`,
+      html: `<p>Quyền truy cập của bạn vào tổ chức ${organizationName} trên Casso đã được khôi phục.</p>`,
+      emailType: 'MEMBER_UNBLOCKED',
+    });
+  }
 }

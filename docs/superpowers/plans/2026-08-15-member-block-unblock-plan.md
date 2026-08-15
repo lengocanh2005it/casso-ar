@@ -582,7 +582,7 @@ git commit -m "feat: extend OperatorAuditLog for member block/unblock actions"
 **Interfaces:**
 - Produces: `IAuthEmailSender.sendMemberBlockedEmail(to: string, organizationName: string): Promise<void>`, `IAuthEmailSender.sendMemberUnblockedEmail(to: string, organizationName: string): Promise<void>`. Consumed by Task 6 (`BlockMemberUseCase`) and Task 11 (`BlockMemberByOperatorUseCase`).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `apps/backend/src/modules/auth/infrastructure/resend-auth-email-sender.adapter.spec.ts`:
 
@@ -615,12 +615,12 @@ Append to `apps/backend/src/modules/auth/infrastructure/resend-auth-email-sender
   });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx jest --testPathPattern apps/backend/src/modules/auth/infrastructure/resend-auth-email-sender.adapter.spec.ts`
 Expected: FAIL — `adapter.sendMemberBlockedEmail is not a function`
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `apps/backend/src/modules/notifications/application/email-queue.port.ts`, widen `AuthEmailJob.emailType`:
 
@@ -691,17 +691,17 @@ In `apps/backend/src/modules/auth/infrastructure/resend-auth-email-sender.adapte
 
 No change needed in `EmailQueueProcessor` — `processAuthEmail` already forwards any `AuthEmailJob` (any `emailType`) to Resend generically.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx jest --testPathPattern apps/backend/src/modules/auth/infrastructure/resend-auth-email-sender.adapter.spec.ts`
 Expected: PASS (all tests in the file)
 
-- [ ] **Step 5: Run the email queue processor test suite to confirm no regression**
+- [x] **Step 5: Run the email queue processor test suite to confirm no regression**
 
 Run: `npx jest --testPathPattern apps/backend/src/modules/notifications/infrastructure/email-queue.processor.spec.ts`
 Expected: PASS unchanged
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/backend/src/modules/notifications/application/email-queue.port.ts apps/backend/src/modules/auth/application/auth-email-sender.port.ts apps/backend/src/modules/auth/infrastructure/resend-auth-email-sender.adapter.ts apps/backend/src/modules/auth/infrastructure/resend-auth-email-sender.adapter.spec.ts
