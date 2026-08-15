@@ -119,7 +119,7 @@ const FILTER_PREDICATES = `
   h."organizationId" = $1
   AND ($2::uuid IS NULL OR h."receivableId" = $2)
   AND ($3::timestamptz IS NULL OR h."effectiveAt" >= $3)
-  AND ($4::timestamptz IS NULL OR h."effectiveAt" <= $4)
+  AND ($4::timestamptz IS NULL OR h."effectiveAt" < $4)
   AND ($5::text IS NULL OR h.status::text = $5)
   AND ($6::text IS NULL OR h."changeSource" = $6)
 `;
@@ -330,8 +330,11 @@ export class TypeOrmReceivableBalanceHistoryQuery
     let start: string | null = filters.from
       ? formatInTimeZone(filters.from, REPORTING_TIMEZONE, 'yyyy-MM-dd')
       : null;
-    let end: string | null = filters.to
-      ? formatInTimeZone(filters.to, REPORTING_TIMEZONE, 'yyyy-MM-dd')
+    const lastIncludedInstant = filters.to
+      ? new Date(filters.to.getTime() - 1)
+      : undefined;
+    let end: string | null = lastIncludedInstant
+      ? formatInTimeZone(lastIncludedInstant, REPORTING_TIMEZONE, 'yyyy-MM-dd')
       : null;
     if (!start && rows.length > 0) start = rows[0].date;
     if (!end && rows.length > 0) end = rows[rows.length - 1].date;

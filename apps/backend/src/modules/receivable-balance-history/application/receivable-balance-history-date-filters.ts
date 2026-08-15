@@ -10,12 +10,21 @@ export interface ReceivableBalanceHistoryDateFilterInput {
   to?: string;
 }
 
-export function localDateToInstant(localDate: string, endOfDay: boolean): Date {
-  const localTime = endOfDay ? '23:59:59.999' : '00:00:00';
-  const instant = fromZonedTime(
-    `${localDate}T${localTime}`,
-    REPORTING_TIMEZONE,
-  );
+export function localDateToInstant(
+  localDate: string,
+  exclusiveEnd: boolean,
+): Date {
+  const localDateAtNoon = new Date(`${localDate}T12:00:00.000Z`);
+  if (Number.isNaN(localDateAtNoon.getTime())) {
+    throw new AppError(ErrorCode.VALIDATION_ERROR, 'Ngày không hợp lệ');
+  }
+  if (exclusiveEnd) {
+    localDateAtNoon.setUTCDate(localDateAtNoon.getUTCDate() + 1);
+  }
+  const datePart = exclusiveEnd
+    ? formatInTimeZone(localDateAtNoon, 'UTC', 'yyyy-MM-dd')
+    : localDate;
+  const instant = fromZonedTime(`${datePart}T00:00:00`, REPORTING_TIMEZONE);
   if (Number.isNaN(instant.getTime())) {
     throw new AppError(ErrorCode.VALIDATION_ERROR, 'Ngày không hợp lệ');
   }

@@ -66,6 +66,24 @@ describe('TypeOrmReceivableBalanceHistoryQuery', () => {
     expect(sql).toContain('h."effectiveAt" >= c.covered_from');
   });
 
+  it('uses an exclusive upper bound for date filters', async () => {
+    const { queryService, queryMock } = buildQuery();
+
+    await queryService.list(
+      'org-1',
+      {
+        from: new Date('2026-08-01T17:00:00.000Z'),
+        to: new Date('2026-09-01T17:00:00.000Z'),
+      },
+      1,
+      20,
+    );
+
+    const [sql] = queryMock.mock.calls[0] as unknown as [string, unknown[]];
+    expect(sql).toContain('h."effectiveAt" < $4');
+    expect(sql).not.toContain('h."effectiveAt" <= $4');
+  });
+
   it('maps bigint outstanding to numbers and keeps null for uncovered months', async () => {
     const { queryService } = buildQuery([
       { month: '2026-06', outstanding: null },

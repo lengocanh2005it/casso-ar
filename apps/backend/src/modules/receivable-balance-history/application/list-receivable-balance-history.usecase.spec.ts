@@ -37,7 +37,7 @@ describe('ListReceivableBalanceHistoryUseCase', () => {
       {
         receivableId: undefined,
         from: new Date('2026-08-01T17:00:00.000Z'),
-        to: new Date('2026-08-31T16:59:59.999Z'),
+        to: new Date('2026-08-31T17:00:00.000Z'),
         status: undefined,
         changeSource: undefined,
       },
@@ -65,7 +65,7 @@ describe('ListReceivableBalanceHistoryUseCase', () => {
 
     const [, filters] = queryMock.mock.calls[0];
     expect(filters.from).toEqual(new Date('2026-07-31T17:00:00.000Z'));
-    expect(filters.to).toEqual(new Date('2026-08-10T16:59:59.999Z'));
+    expect(filters.to).toEqual(new Date('2026-08-10T17:00:00.000Z'));
   });
 
   it('passes enum filters through to the query port', async () => {

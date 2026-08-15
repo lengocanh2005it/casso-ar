@@ -34,10 +34,10 @@ describe('GetReceivableBalanceHistorySummaryUseCase', () => {
 
     const [, filters] = queryMock.mock.calls[0];
     expect(filters.from).toEqual(new Date('2026-07-16T17:00:00.000Z'));
-    expect(filters.to).toEqual(new Date('2026-08-15T16:59:59.999Z'));
+    expect(filters.to).toEqual(new Date('2026-08-15T17:00:00.000Z'));
   });
 
-  it('uses explicit inclusive HCMC day boundaries when both dates are given', async () => {
+  it('uses explicit exclusive HCMC day boundaries when both dates are given', async () => {
     const queryMock = jest.fn().mockResolvedValue({});
     const useCase = buildUseCase(queryMock);
 
@@ -47,7 +47,7 @@ describe('GetReceivableBalanceHistorySummaryUseCase', () => {
 
     const [, filters] = queryMock.mock.calls[0];
     expect(filters.from).toEqual(new Date('2026-07-31T17:00:00.000Z'));
-    expect(filters.to).toEqual(new Date('2026-08-31T16:59:59.999Z'));
+    expect(filters.to).toEqual(new Date('2026-08-31T17:00:00.000Z'));
   });
 
   it('keeps an unbounded edge when only one date is supplied', async () => {
@@ -63,7 +63,7 @@ describe('GetReceivableBalanceHistorySummaryUseCase', () => {
     await useCase.execute({ filters: { to: '2026-08-31' } });
     expect(queryMock.mock.calls[1][1]).toMatchObject({
       from: undefined,
-      to: new Date('2026-08-31T16:59:59.999Z'),
+      to: new Date('2026-08-31T17:00:00.000Z'),
     });
   });
 

@@ -74,7 +74,7 @@ describe('ExportReceivableBalanceHistoryUseCase', () => {
       'org-1',
       expect.objectContaining({
         from: new Date('2026-08-01T17:00:00.000Z'),
-        to: new Date('2026-08-31T16:59:59.999Z'),
+        to: new Date('2026-08-31T17:00:00.000Z'),
       }),
       1,
       EXPORT_ROW_LIMIT,
@@ -92,7 +92,7 @@ describe('ExportReceivableBalanceHistoryUseCase', () => {
       'org-1',
       expect.objectContaining({
         from: new Date('2026-07-31T17:00:00.000Z'),
-        to: new Date('2026-08-31T16:59:59.999Z'),
+        to: new Date('2026-08-31T17:00:00.000Z'),
       }),
       1,
       EXPORT_ROW_LIMIT,
@@ -116,7 +116,7 @@ describe('ExportReceivableBalanceHistoryUseCase', () => {
     const [, filters] = historyQuery.list.mock.calls[0];
     expect(filters).toMatchObject({
       from: new Date('2026-07-31T17:00:00.000Z'),
-      to: new Date('2026-08-31T16:59:59.999Z'),
+      to: new Date('2026-08-31T17:00:00.000Z'),
     });
   });
 
