@@ -1200,9 +1200,9 @@ git commit -m "feat: add BlockMemberUseCase/UnblockMemberUseCase for org OWNER"
 - Consumes: `BlockMemberUseCase`, `UnblockMemberUseCase` (Task 6).
 - Produces: `AuthModule` now exports `AUTH_EMAIL_SENDER`, consumed by Task 12 (`AdminModule`).
 
-- [ ] **Step 1: No new test — this is DI wiring only, verified by the compile check and the controller test in Task 9**
+- [x] **Step 1: No new test — this is DI wiring only, verified by the compile check and the controller test in Task 9**
 
-- [ ] **Step 2: Modify `auth.module.ts`**
+- [x] **Step 2: Modify `auth.module.ts`**
 
 Add the two new imports and register the two new providers, and add an `exports` array (none currently exists):
 
@@ -1222,17 +1222,17 @@ After the `controllers: [...]` line, add:
 
 (`AUTH_EMAIL_SENDER` is already imported at the top of the file.)
 
-- [ ] **Step 3: Verify it compiles**
+- [x] **Step 3: Verify it compiles**
 
 Run: `npx tsc --noEmit -p apps/backend`
 Expected: no new errors.
 
-- [ ] **Step 4: Run the full backend unit suite to confirm no regression**
+- [x] **Step 4: Run the full backend unit suite to confirm no regression**
 
 Run: `pnpm --filter @casso-ledger/backend test`
 Expected: PASS, same or higher total test count than before this task.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/backend/src/modules/auth/auth.module.ts

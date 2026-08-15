@@ -11,6 +11,7 @@ import { RemindersModule } from '../reminders/reminders.module';
 import { UsersModule } from '../users/users.module';
 import { AcceptInviteUseCase } from './application/accept-invite.usecase';
 import { AUTH_EMAIL_SENDER } from './application/auth-email-sender.port';
+import { BlockMemberUseCase } from './application/block-member.usecase';
 import { DeleteInviteUseCase } from './application/delete-invite.usecase';
 import { EMAIL_VERIFICATION_TOKEN_REPOSITORY } from './application/email-verification-token-repository.port';
 import { ForgotPasswordUseCase } from './application/forgot-password.usecase';
@@ -30,6 +31,7 @@ import { ResetPasswordUseCase } from './application/reset-password.usecase';
 import { SignupUseCase } from './application/signup.usecase';
 import { SwitchOrganizationUseCase } from './application/switch-organization.usecase';
 import { TOKEN_SIGNER } from './application/token-signer.port';
+import { UnblockMemberUseCase } from './application/unblock-member.usecase';
 import { VerifyEmailUseCase } from './application/verify-email.usecase';
 import { DefaultOrganizationBootstrap } from './infrastructure/default-organization-bootstrap.adapter';
 import { EmailVerificationTokenOrmEntity } from './infrastructure/email-verification-token.orm-entity';
@@ -76,6 +78,8 @@ import { InvitesController } from './presentation/invites.controller';
     DeleteInviteUseCase,
     ResendInviteUseCase,
     RemoveMemberUseCase,
+    BlockMemberUseCase,
+    UnblockMemberUseCase,
     LogoutUseCase,
     RefreshAccessTokenUseCase,
     ResetPasswordUseCase,
@@ -104,5 +108,6 @@ import { InvitesController } from './presentation/invites.controller';
     { provide: TOKEN_SIGNER, useClass: JwtTokenSigner },
   ],
   controllers: [AuthController, InvitesController],
+  exports: [AUTH_EMAIL_SENDER],
 })
 export class AuthModule {}
