@@ -1,4 +1,6 @@
-import type { Role } from '@casso-ledger/shared-types';
+import type { MembershipStatus, Role } from '@casso-ledger/shared-types';
+
+export type { MembershipStatus };
 
 export interface EmailTemplate {
   id: string;
@@ -39,8 +41,6 @@ export interface SmtpConfigInput {
   password: string;
   fromAddress: string;
 }
-
-export type MembershipStatus = 'ACTIVE' | 'BLOCKED';
 
 export interface OrganizationMember {
   id: string;
