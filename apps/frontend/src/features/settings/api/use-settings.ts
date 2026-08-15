@@ -244,7 +244,9 @@ function useMemberStatusMutation(
       );
     },
     onSettled: (_data, _error, _userId, context) => {
-      void queryClient.invalidateQueries({ queryKey: context.queryKey });
+      void queryClient.invalidateQueries({
+        queryKey: context?.queryKey ?? queryKey,
+      });
     },
   });
 }
