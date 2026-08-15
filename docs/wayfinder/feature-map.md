@@ -722,10 +722,11 @@ Success = a single document a new developer can read and know exactly what to pi
 
 #### Plan: Receivable Balance History Audit Dashboard (#176)
 - **Type**: feature
-- **Status**: in-progress
+- **Status**: done ✅
 - **Owner**: BE + FE
 - **Plan**: `docs/superpowers/plans/2026-08-15-receivable-balance-history-audit-dashboard.md`
 - **Blockers**: none
+- **Shipped**: 2026-08-15 — PR #184, merge commit `5539632`
 - **Creates**: provenance-aware balance snapshots (actor type/reason/reference), audit metadata migration with legacy reference backfill, tenant-scoped list/summary/export APIs behind `RECEIVABLE_AUDIT_READ` (OWNER + FINANCE_MANAGER only), synchronous CSV export with rate limiting and export audit logs, and the organization audit dashboard (KPIs, charts, filters, pagination, CSV) with permission-gated navigation
 
 ---
@@ -744,13 +745,13 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Frontier
 
-**Current status (2026-08-15):** Casso Admin Platform (#98) shipped via PR #177. Copilot Draft Library (#136), its edit/delete follow-up (#171), Receivable Balance History (#172), and member-level block/unblock (#178) are done. Receivable Balance History Audit Dashboard (#176) is in progress on branch `lengocanh2005it/feat-issue-176-receivable-audit`. Three unrelated e2e failures are deferred to a separate issue.
+**Current status (2026-08-15):** Casso Admin Platform (#98) shipped via PR #177. Copilot Draft Library (#136), its edit/delete follow-up (#171), Receivable Balance History (#172), member-level block/unblock (#178), and Receivable Balance History Audit Dashboard (#176) are done. Three unrelated e2e failures are deferred to a separate issue.
 
 **In progress:**
-- Receivable Balance History Audit Dashboard (#176) — backend contract/API and frontend dashboard implemented; pending PR and merge.
+- None.
 
 **Next available tickets** (all blockers resolved):
-- None — every tracked ticket is done or in progress.
+- None — every tracked ticket is done.
 
 **Blocked tickets waiting:**
 - None.
