@@ -36,13 +36,16 @@ import { BlockMemberByOperatorUseCase } from '../application/block-member-by-ope
 import { GetAiUsageAggregateUseCase } from '../application/get-ai-usage-aggregate.usecase';
 import { GetAiUsageTrendUseCase } from '../application/get-ai-usage-trend.usecase';
 import { GetOrganizationUseCase } from '../application/get-organization.usecase';
+import { ListOrganizationMembersUseCase } from '../application/list-organization-members.usecase';
 import { ListOrganizationsUseCase } from '../application/list-organizations.usecase';
 import { LockOrganizationUseCase } from '../application/lock-organization.usecase';
 import { UnblockMemberByOperatorUseCase } from '../application/unblock-member-by-operator.usecase';
 import { UnlockOrganizationUseCase } from '../application/unlock-organization.usecase';
+import { AdminMembersQueryDto } from './dto/admin-members-query.dto';
 import {
   AdminAiUsageResponseDto,
   AdminAiUsageTrendResponseDto,
+  AdminMembersResponseDto,
   AdminOrganizationItemResponseDto,
   AdminOrganizationStatusResponseDto,
   AdminOrganizationsResponseDto,
@@ -67,6 +70,7 @@ export class AdminController {
     private readonly getAiUsageAggregateUseCase: GetAiUsageAggregateUseCase,
     private readonly getAiUsageTrendUseCase: GetAiUsageTrendUseCase,
     private readonly getOrganizationUseCase: GetOrganizationUseCase,
+    private readonly listOrganizationMembersUseCase: ListOrganizationMembersUseCase,
     @Inject(ORGANIZATION_REPOSITORY)
     private readonly organizationRepo: IOrganizationRepository,
   ) {}
@@ -137,6 +141,30 @@ export class AdminController {
       operatorId: request.user.operatorId,
     });
     return { status: 'ACTIVE' as const };
+  }
+
+  @Get('organizations/:orgId/members')
+  @ApiOperation({
+    summary: 'List members and pending invites of an organization',
+  })
+  @ApiOkResponse({ type: AdminMembersResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.NOT_FOUND,
+  )
+  async listOrganizationMembers(
+    @Param('orgId', ParseUUIDPipe) orgId: string,
+    @Query() query: AdminMembersQueryDto,
+  ) {
+    return this.listOrganizationMembersUseCase.execute({
+      organizationId: orgId,
+      page: query.page,
+      limit: query.limit,
+      status: query.status,
+      search: query.search,
+    });
   }
 
   @Post('organizations/:orgId/members/:userId/block')
