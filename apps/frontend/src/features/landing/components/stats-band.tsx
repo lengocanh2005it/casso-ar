@@ -13,7 +13,7 @@ export function StatsBand() {
             key={highlight.label}
             className="flex flex-col items-center gap-2 px-2 text-center"
           >
-            <Sparkles className="size-5 text-primary" />
+            <Sparkles className="size-5 text-primary" aria-hidden="true" />
             <p className="max-w-[16rem] text-base text-muted-foreground">
               {highlight.label}
             </p>

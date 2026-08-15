@@ -10,6 +10,18 @@ function scrollToSection(href: string) {
   document
     .getElementById(id)
     ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  window.history.replaceState(null, '', href);
+}
+
+function handleAnchorClick(
+  event: React.MouseEvent<HTMLAnchorElement>,
+  href: string,
+) {
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) {
+    return;
+  }
+  event.preventDefault();
+  scrollToSection(href);
 }
 
 export function HeroSection() {
@@ -27,13 +39,18 @@ export function HeroSection() {
               </span>
             ) : (
               <span className="text-primary">
-                <Typewriter
-                  options={{
-                    strings: [...LANDING_HEADLINE_PHRASES],
-                    autoStart: true,
-                    loop: true,
-                  }}
-                />
+                <span aria-hidden="true">
+                  <Typewriter
+                    options={{
+                      strings: [...LANDING_HEADLINE_PHRASES],
+                      autoStart: true,
+                      loop: true,
+                    }}
+                  />
+                </span>
+                <span className="sr-only">
+                  {LANDING_HEADLINE_PHRASES.join(', ')}
+                </span>
               </span>
             )}
           </h1>
@@ -49,9 +66,15 @@ export function HeroSection() {
               size="lg"
               variant="outline"
               className="h-12 w-full sm:w-auto"
-              onClick={() => scrollToSection('#cach-hoat-dong')}
+              asChild
             >
-              Xem cách hoạt động
+              {/* biome-ignore lint/a11y/useValidAnchor: real in-page anchor (href points at an existing #id) preserving Cmd/Ctrl/middle-click, not a fake "#" button */}
+              <a
+                href="#cach-hoat-dong"
+                onClick={(event) => handleAnchorClick(event, '#cach-hoat-dong')}
+              >
+                Xem cách hoạt động
+              </a>
             </Button>
           </div>
         </div>

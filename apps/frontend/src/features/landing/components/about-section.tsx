@@ -14,7 +14,10 @@ export function AboutSection() {
               key={pillar.label}
               className="flex items-center gap-2 text-sm font-medium"
             >
-              <CheckCircle2 className="size-4 text-primary" />
+              <CheckCircle2
+                className="size-4 text-primary"
+                aria-hidden="true"
+              />
               {pillar.label}
             </div>
           ))}

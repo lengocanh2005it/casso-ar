@@ -14,6 +14,18 @@ function scrollToSection(href: string) {
   document
     .getElementById(id)
     ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  window.history.replaceState(null, '', href);
+}
+
+function handleAnchorClick(
+  event: React.MouseEvent<HTMLAnchorElement>,
+  href: string,
+) {
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) {
+    return;
+  }
+  event.preventDefault();
+  scrollToSection(href);
 }
 
 export function LandingNavbar() {
@@ -40,6 +52,7 @@ export function LandingNavbar() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link
           to="/"
+          aria-label="Casso Ledger — Trang chủ"
           className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Logo className="hidden h-9 sm:block" />
@@ -53,9 +66,14 @@ export function LandingNavbar() {
               variant="ghost"
               size="sm"
               className="min-h-11 text-muted-foreground hover:text-foreground"
-              onClick={() => scrollToSection(link.href)}
+              asChild
             >
-              {link.label}
+              <a
+                href={link.href}
+                onClick={(event) => handleAnchorClick(event, link.href)}
+              >
+                {link.label}
+              </a>
             </Button>
           ))}
         </nav>
@@ -85,7 +103,7 @@ export function LandingNavbar() {
                 <Menu className="size-4" />
               </Button>
             </SheetTrigger>
-            <SheetContent className="w-[min(100vw-2rem,20rem)]">
+            <SheetContent className="w-[min(100vw-2rem,20rem)] overscroll-contain">
               <AnimatePresence>
                 {mobileOpen ? (
                   <motion.div
@@ -104,12 +122,25 @@ export function LandingNavbar() {
                           key={link.href}
                           variant="ghost"
                           className="min-h-11 justify-start"
-                          onClick={() => {
-                            setMobileOpen(false);
-                            scrollToSection(link.href);
-                          }}
+                          asChild
                         >
-                          {link.label}
+                          <a
+                            href={link.href}
+                            onClick={(event) => {
+                              if (
+                                event.metaKey ||
+                                event.ctrlKey ||
+                                event.shiftKey ||
+                                event.button !== 0
+                              ) {
+                                return;
+                              }
+                              setMobileOpen(false);
+                              handleAnchorClick(event, link.href);
+                            }}
+                          >
+                            {link.label}
+                          </a>
                         </Button>
                       ))}
                       <div className="my-2 border-t" />

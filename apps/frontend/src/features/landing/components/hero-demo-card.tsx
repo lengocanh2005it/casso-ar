@@ -25,10 +25,10 @@ export function HeroDemoCard() {
       <CardHeader className="pb-3">
         <p className="text-xs text-muted-foreground">Giao dịch gần đây</p>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3" aria-hidden="true">
         <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="font-medium">{transaction.customer}</p>
+          <div className="min-w-0">
+            <p className="truncate font-medium">{transaction.customer}</p>
             <p className="text-lg font-semibold tabular-nums">
               {formatVND(transaction.amountVnd)}
             </p>
