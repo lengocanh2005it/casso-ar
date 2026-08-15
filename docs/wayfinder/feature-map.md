@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Last reviewed**: 2026-08-13
+**Last reviewed**: 2026-08-15
 **Map mode**: chart — Plans #1–#23 complete; follow-up issues are listed in Frontier
 
 ---
@@ -102,8 +102,8 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Ticket Index
 
-**30 tracked tickets** | status snapshot (2026-08-13):
-- 🟢 done (30): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management, Spec-Plan Reconciliation, Org-Branded Reminder Emails via Custom SMTP (BYO-SMTP), SMTP Settings UI (Frontend), In-App Alerts (#137)
+**31 tracked tickets** | status snapshot (2026-08-15):
+- 🟢 done (31): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management, Spec-Plan Reconciliation, Org-Branded Reminder Emails via Custom SMTP (BYO-SMTP), SMTP Settings UI (Frontend), In-App Alerts (#137), Public Landing Page (#143)
 - 🟡 in-progress (0): none
 - 🔴 open/not started (0): none
 
@@ -702,6 +702,23 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ---
 
+#### Public Landing Page (#143)
+- **Type**: task
+- **Status**: done ✅
+- **Owner**: BE + FE
+- **Spec**: `specs/2026-08-15-public-landing-page-design.md`
+- **Plan**: `plans/2026-08-15-public-landing-page.md`
+- **Blockers**: none
+- **Shipped**: 2026-08-15 — PR not opened per task instruction; branch `feat/issue-143-landing-page` awaiting review
+- **Key rules**:
+  - Public `GET /api/v1/plans` sources pricing from the billing domain catalog; the landing page does not duplicate plan prices
+  - Guest visitors see the landing page at `/`; authenticated visitors redirect to `/dashboard`
+  - Marketing copy uses qualitative highlights only and avoids fabricated customer/financial metrics
+- **Creates**: responsive public landing page sections, shared logo lockup/icon component, public plans API client/usePlans hook, and public billing catalog endpoint
+- **Implementation note**: Implemented in 19 task commits with RED → GREEN → REFACTOR checkpoints. `pnpm verify` passed 9/9 tasks; backend unit tests passed 270 suites/983 tests and frontend tests passed 84 suites/248 tests. A code-review pass (Standards + Spec axes) found the manual responsive/quality-bar check (plan Task 19 Step 7) had not actually been performed, and a prior status note here falsely claimed it was skipped "per the task owner's instruction" — no such instruction was given; that claim has been corrected. A follow-up pass added the scroll-reveal motion the spec required on `StepsSection`/`PricingSection` and `AnimatePresence` on the mobile nav (both were missing), and verified the page in-browser: loads correctly, dark mode, typewriter headline, and hero ticker cycling with correct status badges confirmed at desktop width. Narrow-viewport (375/768px) rendering could not be visually confirmed — the browser automation tool's window-resize did not affect the captured viewport in this environment — but every section's grid uses standard mobile-first Tailwind breakpoints (verified by reading the source: `grid-cols-2 lg:grid-cols-4`, `md:grid-cols-3`, `sm:grid-cols-2 lg:grid-cols-4`, `lg:grid-cols-2`, `sm:hidden`/`md:hidden` nav toggles), consistent with the rest of this codebase. A manual phone-width check in a real browser is still recommended before this is treated as fully verified.
+
+---
+
 #### Plan: Copilot Draft Library (#136)
 - **Type**: task
 - **Status**: done ✅
@@ -745,7 +762,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Frontier
 
-**Current status (2026-08-15):** Casso Admin Platform (#98) shipped via PR #177. Copilot Draft Library (#136), its edit/delete follow-up (#171), Receivable Balance History (#172), member-level block/unblock (#178), Receivable Balance History Audit Dashboard (#176), and the org-facing half of #181 (member block/unblock UI) via PR #185 are done. Its Admin Platform half is tracked in #186. Three unrelated e2e failures are deferred to a separate issue.
+**Current status (2026-08-15):** Casso Admin Platform (#98) shipped via PR #177. Copilot Draft Library (#136), its edit/delete follow-up (#171), Receivable Balance History (#172), member-level block/unblock (#178), Receivable Balance History Audit Dashboard (#176), and the org-facing half of #181 (member block/unblock UI) via PR #185 are done. Its Admin Platform half is tracked in #186. Public Landing Page (#143) is shipped on branch `feat/issue-143-landing-page` and awaiting review. Three unrelated e2e failures are deferred to a separate issue.
 
 **In progress:**
 - None.

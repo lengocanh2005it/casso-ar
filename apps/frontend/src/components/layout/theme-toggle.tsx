@@ -21,7 +21,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       title={`Giao diện: ${LABELS[theme]} — chuyển sang ${LABELS[next]}`}
       onClick={() => setTheme(next)}
       className={cn(
-        'rounded-md p-1.5 transition-transform duration-150 hover:bg-sidebar-accent active:scale-95 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+        'inline-flex items-center justify-center rounded-md p-1.5 transition-transform duration-150 hover:bg-sidebar-accent active:scale-95 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
         className,
       )}
     >

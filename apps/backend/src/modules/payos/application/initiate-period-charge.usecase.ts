@@ -6,6 +6,7 @@ import {
   type ISubscriptionRepository,
   SUBSCRIPTION_REPOSITORY,
 } from '../../billing/application/subscription-repository.port';
+import { getPlanCatalog } from '../../billing/domain/subscription';
 import {
   type IPayosPaymentAdapter,
   PAYOS_PAYMENT_ADAPTER,
@@ -14,7 +15,6 @@ import {
   type IPeriodChargeRepository,
   PERIOD_CHARGE_REPOSITORY,
 } from './period-charge-repository.port';
-import { PLAN_PRICE_VND } from './plan-price';
 
 export interface InitiatePeriodChargeInput {
   organizationId: string;
@@ -65,7 +65,8 @@ export class InitiatePeriodChargeUseCase {
 
     const link = await this.payosAdapter.createPaymentLink({
       orderCode: charge.orderCode,
-      amount: PLAN_PRICE_VND[subscription.planId],
+      amount: getPlanCatalog().find((p) => p.planId === subscription.planId)!
+        .priceVnd,
       description: `Gia han goi ${subscription.planId}`,
       returnUrl: input.returnUrl,
       cancelUrl: input.cancelUrl,
