@@ -1,8 +1,9 @@
+import { Permission } from '@casso-ledger/shared-types';
 import { lazy, type ReactNode, Suspense } from 'react';
 import type { RouteObject } from 'react-router-dom';
 import { Navigate } from 'react-router-dom';
 import { Spinner } from '@/components/ui/spinner';
-import { GuestRoute } from './protected-route';
+import { GuestRoute, PermissionRoute } from './protected-route';
 
 const ForgotPasswordPage = lazy(() =>
   import('@/features/auth/pages/forgot-password-page').then((m) => ({
@@ -83,6 +84,11 @@ const ReportsPage = lazy(() =>
   import('@/features/reports/pages/reports-page').then((m) => ({
     default: m.ReportsPage,
   })),
+);
+const ReceivableBalanceHistoryPage = lazy(() =>
+  import(
+    '@/features/receivable-balance-history/pages/receivable-balance-history-page'
+  ).then((m) => ({ default: m.ReceivableBalanceHistoryPage })),
 );
 const SettingsPage = lazy(() =>
   import('@/features/settings/pages/settings-page').then((m) => ({
@@ -203,5 +209,13 @@ export const appRoutes: RouteObject[] = [
   { path: 'reminders', element: withPageSuspense(<RemindersPage />) },
   { path: 'copilot', element: withPageSuspense(<CopilotPage />) },
   { path: 'reports', element: withPageSuspense(<ReportsPage />) },
+  {
+    path: 'receivable-balance-history',
+    element: (
+      <PermissionRoute permission={Permission.RECEIVABLE_AUDIT_READ}>
+        {withPageSuspense(<ReceivableBalanceHistoryPage />)}
+      </PermissionRoute>
+    ),
+  },
   { path: 'settings', element: withPageSuspense(<SettingsPage />) },
 ];
