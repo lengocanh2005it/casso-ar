@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -22,7 +22,8 @@ function createFixture(files) {
 
 test('reports only cross-module production infrastructure imports', (t) => {
   const sourceRoot = createFixture({
-    'customers/customers.module.ts': "import './infrastructure/typeorm-customer.repository';\n",
+    'customers/customers.module.ts':
+      "import './infrastructure/typeorm-customer.repository';\n",
     'payments/application/create-payment.usecase.ts':
       "import '../../customers/infrastructure/typeorm-customer.repository';\n",
     'payments/application/create-payment-from-base-url.usecase.ts':
@@ -36,9 +37,13 @@ test('reports only cross-module production infrastructure imports', (t) => {
 
   assert.deepEqual(findCrossModuleInfrastructureViolations(sourceRoot), [
     {
-      file: join(sourceRoot, 'payments/application/create-payment-from-base-url.usecase.ts'),
+      file: join(
+        sourceRoot,
+        'payments/application/create-payment-from-base-url.usecase.ts',
+      ),
       line: 1,
-      importPath: 'modules/customers/infrastructure/typeorm-customer.repository',
+      importPath:
+        'modules/customers/infrastructure/typeorm-customer.repository',
     },
     {
       file: join(sourceRoot, 'payments/application/create-payment.usecase.ts'),

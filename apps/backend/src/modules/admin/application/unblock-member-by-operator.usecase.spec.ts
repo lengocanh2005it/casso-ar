@@ -74,6 +74,60 @@ describe('UnblockMemberByOperatorUseCase', () => {
     );
   });
 
+  it('loads the membership inside the transaction before changing it', async () => {
+    const membership = buildMembership();
+    const { membershipRepo, userRepo, auditRepo, authEmailSender, dataSource } =
+      buildDeps(membership);
+    const manager = {};
+    dataSource.transaction.mockImplementationOnce(
+      async (callback: (value: unknown) => unknown) => callback(manager),
+    );
+    const useCase = new UnblockMemberByOperatorUseCase(
+      dataSource as any,
+      membershipRepo as any,
+      userRepo as any,
+      auditRepo as any,
+      authEmailSender as any,
+    );
+
+    await useCase.execute({
+      organizationId: 'org-1',
+      organizationName: 'Acme',
+      userId: 'user-1',
+      operatorId: 'op-1',
+    });
+
+    expect(membershipRepo.findByUserAndOrganization).toHaveBeenCalledWith(
+      'user-1',
+      'org-1',
+      manager,
+    );
+  });
+
+  it('keeps the membership change successful when notification enqueue fails', async () => {
+    const { membershipRepo, userRepo, auditRepo, authEmailSender, dataSource } =
+      buildDeps(buildMembership());
+    authEmailSender.sendMemberUnblockedEmail.mockRejectedValue(
+      new Error('queue unavailable'),
+    );
+    const useCase = new UnblockMemberByOperatorUseCase(
+      dataSource as any,
+      membershipRepo as any,
+      userRepo as any,
+      auditRepo as any,
+      authEmailSender as any,
+    );
+
+    await expect(
+      useCase.execute({
+        organizationId: 'org-1',
+        organizationName: 'Acme',
+        userId: 'user-1',
+        operatorId: 'op-1',
+      }),
+    ).resolves.toMatchObject({ status: 'ACTIVE' });
+  });
+
   it('is a no-op when the membership is already ACTIVE', async () => {
     const { membershipRepo, userRepo, auditRepo, authEmailSender, dataSource } =
       buildDeps(buildMembership({ status: 'ACTIVE', blockedAt: null }));

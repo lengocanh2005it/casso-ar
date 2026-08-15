@@ -70,6 +70,29 @@ describe('UnblockMemberUseCase', () => {
     );
   });
 
+  it('keeps the membership change successful when notification enqueue fails', async () => {
+    const { membershipRepo, userRepo, authEmailSender } = buildDeps(
+      buildMembership(),
+    );
+    authEmailSender.sendMemberUnblockedEmail.mockRejectedValue(
+      new Error('queue unavailable'),
+    );
+    const useCase = new UnblockMemberUseCase(
+      membershipRepo as never,
+      userRepo as never,
+      authEmailSender as never,
+      dataSource as never,
+    );
+
+    await expect(
+      useCase.execute({
+        organizationId: 'org-1',
+        organizationName: 'Acme',
+        targetUserId: 'user-2',
+      }),
+    ).resolves.toMatchObject({ status: 'ACTIVE' });
+  });
+
   it('is a no-op when the membership is already ACTIVE', async () => {
     const { membershipRepo, userRepo, authEmailSender } = buildDeps(
       buildMembership({ status: 'ACTIVE', blockedAt: null }),

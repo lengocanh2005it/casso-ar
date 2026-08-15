@@ -20,6 +20,7 @@ import { InviteMemberUseCase } from './application/invite-member.usecase';
 import { ListInvitesUseCase } from './application/list-invites.usecase';
 import { LoginUseCase } from './application/login.usecase';
 import { LogoutUseCase } from './application/logout.usecase';
+import { MEMBER_NOTIFICATION_SENDER } from './application/member-notification.port';
 import { MEMBERSHIP_INVITE_REPOSITORY } from './application/membership-invite-repository.port';
 import { DEFAULT_ORGANIZATION_BOOTSTRAP } from './application/organization-bootstrap.port';
 import { PASSWORD_RESET_TOKEN_REPOSITORY } from './application/password-reset-token-repository.port';
@@ -102,12 +103,16 @@ import { InvitesController } from './presentation/invites.controller';
     },
     { provide: AUTH_EMAIL_SENDER, useClass: ResendAuthEmailSenderAdapter },
     {
+      provide: MEMBER_NOTIFICATION_SENDER,
+      useClass: ResendAuthEmailSenderAdapter,
+    },
+    {
       provide: DEFAULT_ORGANIZATION_BOOTSTRAP,
       useClass: DefaultOrganizationBootstrap,
     },
     { provide: TOKEN_SIGNER, useClass: JwtTokenSigner },
   ],
   controllers: [AuthController, InvitesController],
-  exports: [AUTH_EMAIL_SENDER],
+  exports: [AUTH_EMAIL_SENDER, MEMBER_NOTIFICATION_SENDER],
 })
 export class AuthModule {}

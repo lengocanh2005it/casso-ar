@@ -737,7 +737,7 @@ Success = a single document a new developer can read and know exactly what to pi
 **Current status (2026-08-15):** Casso Admin Platform (#98) shipped via PR #177. Copilot Draft Library (#136), its edit/delete follow-up (#171), and Receivable Balance History (#172) are done. Three unrelated e2e failures are deferred to a separate issue.
 
 **In progress:**
-- None.
+- Issue #178 — member block/unblock scoped to membership (ADR-0019) — implementation and local verification complete; awaiting review on branch `lengocanh2005it/lengocanh2005it-issue-178-member-block-unblock`.
 
 **Next available tickets** (all blockers resolved):
 - None — every tracked ticket is done.

@@ -33,11 +33,6 @@ export class AdminOrganizationStatusResponseDto {
   status: 'ACTIVE' | 'LOCKED';
 }
 
-export class AdminMemberStatusResponseDto {
-  @ApiProperty({ enum: ['ACTIVE', 'BLOCKED'] })
-  status: 'ACTIVE' | 'BLOCKED';
-}
-
 export class AdminAiUsageItemResponseDto {
   @ApiProperty()
   organizationId: string;

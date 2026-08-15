@@ -28,12 +28,20 @@ function buildDeps(membership: Membership | null) {
   };
   const auditRepo = { save: jest.fn() };
   const authEmailSender = { sendMemberBlockedEmail: jest.fn() };
+  const logger = { error: jest.fn() };
   const dataSource = {
     transaction: jest.fn((callback: (manager: unknown) => unknown) =>
       callback({}),
     ),
   };
-  return { membershipRepo, userRepo, auditRepo, authEmailSender, dataSource };
+  return {
+    membershipRepo,
+    userRepo,
+    auditRepo,
+    authEmailSender,
+    dataSource,
+    logger,
+  };
 }
 
 describe('BlockMemberByOperatorUseCase', () => {
@@ -72,6 +80,60 @@ describe('BlockMemberByOperatorUseCase', () => {
       'owner@example.com',
       'Acme',
     );
+  });
+
+  it('loads the membership inside the transaction before changing it', async () => {
+    const membership = buildMembership();
+    const { membershipRepo, userRepo, auditRepo, authEmailSender, dataSource } =
+      buildDeps(membership);
+    const manager = {};
+    dataSource.transaction.mockImplementationOnce(
+      async (callback: (value: unknown) => unknown) => callback(manager),
+    );
+    const useCase = new BlockMemberByOperatorUseCase(
+      dataSource as any,
+      membershipRepo as any,
+      userRepo as any,
+      auditRepo as any,
+      authEmailSender as any,
+    );
+
+    await useCase.execute({
+      organizationId: 'org-1',
+      organizationName: 'Acme',
+      userId: 'user-1',
+      operatorId: 'op-1',
+    });
+
+    expect(membershipRepo.findByUserAndOrganization).toHaveBeenCalledWith(
+      'user-1',
+      'org-1',
+      manager,
+    );
+  });
+
+  it('keeps the membership change successful when notification enqueue fails', async () => {
+    const { membershipRepo, userRepo, auditRepo, authEmailSender, dataSource } =
+      buildDeps(buildMembership());
+    authEmailSender.sendMemberBlockedEmail.mockRejectedValue(
+      new Error('queue unavailable'),
+    );
+    const useCase = new BlockMemberByOperatorUseCase(
+      dataSource as any,
+      membershipRepo as any,
+      userRepo as any,
+      auditRepo as any,
+      authEmailSender as any,
+    );
+
+    await expect(
+      useCase.execute({
+        organizationId: 'org-1',
+        organizationName: 'Acme',
+        userId: 'user-1',
+        operatorId: 'op-1',
+      }),
+    ).resolves.toMatchObject({ status: 'BLOCKED' });
   });
 
   it('is a no-op when the membership is already BLOCKED', async () => {

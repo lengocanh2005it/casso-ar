@@ -324,6 +324,7 @@ enum ErrorCode {
   NOT_FOUND = 'NOT_FOUND',
   UNAUTHORIZED = 'UNAUTHORIZED',
   FORBIDDEN = 'FORBIDDEN',
+  MEMBER_BLOCKED = 'MEMBER_BLOCKED',
   CONFLICT = 'CONFLICT',
   PLAN_LIMIT_EXCEEDED = 'PLAN_LIMIT_EXCEEDED',
   ALLOCATION_EXCEEDS_REMAINING = 'ALLOCATION_EXCEEDS_REMAINING',
@@ -516,6 +517,7 @@ REDIS_PORT=6379
 | `NOT_FOUND` | 404 | Resource not found |
 | `UNAUTHORIZED` | 401 | Missing or invalid auth |
 | `FORBIDDEN` | 403 | Insufficient permissions |
+| `MEMBER_BLOCKED` | 403 | Member access is blocked for this organization |
 | `CONFLICT` | 409 | Resource conflict (duplicate, etc.) |
 | `PLAN_LIMIT_EXCEEDED` | 402 | Billing quota exceeded |
 | `ALLOCATION_EXCEEDS_REMAINING` | 400 | Allocation > remaining amount |

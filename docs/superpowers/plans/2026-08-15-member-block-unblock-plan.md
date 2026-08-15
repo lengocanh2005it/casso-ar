@@ -2445,33 +2445,33 @@ git commit -m "test: add e2e coverage for member block/unblock, both actors"
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Run the full unit suite**
+- [x] **Step 1: Run the full unit suite**
 
 Run: `pnpm --filter @casso-ledger/backend test`
 Expected: PASS, 0 failures
 
-- [ ] **Step 2: Run e2e (if Docker is available)**
+- [x] **Step 2: Run e2e (if Docker is available)**
 
 Run: `pnpm --filter @casso-ledger/backend test:e2e`
 Expected: PASS, 0 failures. If Docker is unavailable, state this exception explicitly instead of claiming e2e passed.
 
-- [ ] **Step 3: Type-check**
+- [x] **Step 3: Type-check**
 
 Run: `npx tsc --noEmit`
 Expected: 0 errors
 
-- [ ] **Step 4: Lint/format**
+- [x] **Step 4: Lint/format**
 
 Run: `npx biome check --write .`
 Expected: 0 remaining issues after auto-fix; review the diff for anything unexpected
 
-- [ ] **Step 5: Full verify + domain-check**
+- [x] **Step 5: Full verify + domain-check**
 
 Run: `pnpm verify`
 Expected: all tasks (lint, type-check, test, arch-check) green
 
 Run the `domain-check` skill (`/domain-check`) per `AGENTS.md`'s "after any backend code change" rule, and fix any violations before treating this plan as complete.
 
-- [ ] **Step 6: Update `docs/wayfinder/feature-map.md`**
+- [x] **Step 6: Update `docs/wayfinder/feature-map.md`**
 
 Change issue #178's status entry to `in-progress` (or `done` with a `Shipped:` date + PR reference once merged, per `AGENTS.md`'s worktree workflow). Read the current entry for #178 in that file first to match its existing format before editing.

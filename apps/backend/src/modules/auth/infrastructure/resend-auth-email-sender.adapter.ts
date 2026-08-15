@@ -4,9 +4,12 @@ import {
   type IEmailQueue,
 } from '../../notifications/application/email-queue.port';
 import type { IAuthEmailSender } from '../application/auth-email-sender.port';
+import type { IMemberNotificationSender } from '../application/member-notification.port';
 
 @Injectable()
-export class ResendAuthEmailSenderAdapter implements IAuthEmailSender {
+export class ResendAuthEmailSenderAdapter
+  implements IAuthEmailSender, IMemberNotificationSender
+{
   constructor(
     @Inject(EMAIL_QUEUE_PORT) private readonly emailQueue: IEmailQueue,
   ) {}

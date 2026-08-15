@@ -9,6 +9,7 @@ import {
 } from '@testcontainers/postgresql';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
+import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
@@ -19,9 +20,12 @@ import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-enti
 
 describe('Membership block/unblock (e2e)', () => {
   let container: StartedPostgreSqlContainer;
+  let redisContainer: StartedTestContainer;
   let app: INestApplication;
   let dataSource: DataSource;
   let jwtService: JwtService;
+  const previousRedisHost = process.env.REDIS_HOST;
+  const previousRedisPort = process.env.REDIS_PORT;
 
   const organizationId = '55555555-5555-5555-5555-555555555555';
   const ownerId = '66666666-6666-6666-6666-666666666666';
@@ -33,13 +37,16 @@ describe('Membership block/unblock (e2e)', () => {
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16').start();
+    redisContainer = await new GenericContainer('redis:7-alpine')
+      .withExposedPorts(6379)
+      .start();
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
-    process.env.REDIS_HOST = 'localhost';
-    process.env.REDIS_PORT = '6379';
+    process.env.REDIS_HOST = redisContainer.getHost();
+    process.env.REDIS_PORT = String(redisContainer.getMappedPort(6379));
     process.env.JWT_SECRET = 'membership-block-e2e-jwt-secret';
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -123,16 +130,27 @@ describe('Membership block/unblock (e2e)', () => {
   afterAll(async () => {
     await app.close();
     await container.stop();
+    await redisContainer.stop();
+    if (previousRedisHost === undefined) delete process.env.REDIS_HOST;
+    else process.env.REDIS_HOST = previousRedisHost;
+    if (previousRedisPort === undefined) delete process.env.REDIS_PORT;
+    else process.env.REDIS_PORT = previousRedisPort;
   }, 20_000);
 
   it('OWNER blocks a member; the member is rejected with MEMBER_BLOCKED on the next request; OWNER unblocks and access returns', async () => {
     const ownerToken = token(ownerId, Role.OWNER);
 
-    await request(app.getHttpServer())
+    const blocked = await request(app.getHttpServer())
       .post(`/api/v1/organizations/${organizationId}/members/${memberId}/block`)
       .set('Authorization', `Bearer ${ownerToken}`)
       .set('Idempotency-Key', randomUUID())
       .expect(200);
+    expect(blocked.body).toMatchObject({
+      id: expect.any(String),
+      userId: memberId,
+      status: 'BLOCKED',
+    });
+    expect(blocked.body.blockedAt).not.toBeNull();
 
     const blockedMemberToken = token(memberId, Role.ACCOUNTANT);
     const rejected = await request(app.getHttpServer())
@@ -141,13 +159,19 @@ describe('Membership block/unblock (e2e)', () => {
       .expect(403);
     expect(rejected.body.errorCode).toBe('MEMBER_BLOCKED');
 
-    await request(app.getHttpServer())
+    const unblocked = await request(app.getHttpServer())
       .post(
         `/api/v1/organizations/${organizationId}/members/${memberId}/unblock`,
       )
       .set('Authorization', `Bearer ${ownerToken}`)
       .set('Idempotency-Key', randomUUID())
       .expect(200);
+    expect(unblocked.body).toEqual({
+      id: expect.any(String),
+      userId: memberId,
+      status: 'ACTIVE',
+      blockedAt: null,
+    });
 
     const unblockedMemberToken = token(memberId, Role.ACCOUNTANT);
     await request(app.getHttpServer())

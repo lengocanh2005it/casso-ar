@@ -1,16 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { AppError } from '../../../common/errors/app-error';
-import { ErrorCode } from '../../../common/errors/error-code';
+import { JsonLogger } from '../../../common/observability/json-logger.service';
 import {
-  AUTH_EMAIL_SENDER,
-  type IAuthEmailSender,
-} from '../../auth/application/auth-email-sender.port';
+  type IMemberNotificationSender,
+  MEMBER_NOTIFICATION_SENDER,
+} from '../../auth/application/member-notification.port';
 import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
 } from '../../organizations/application/membership-repository.port';
+import { transitionMembershipStatus } from '../../organizations/application/transition-membership-status';
+import type { Membership } from '../../organizations/domain/membership';
 import {
   type IUserRepository,
   USER_REPOSITORY,
@@ -38,41 +39,57 @@ export class UnblockMemberByOperatorUseCase {
     private readonly userRepo: IUserRepository,
     @Inject(OPERATOR_AUDIT_LOG_REPOSITORY)
     private readonly auditRepo: IOperatorAuditLogRepository,
-    @Inject(AUTH_EMAIL_SENDER)
-    private readonly authEmailSender: IAuthEmailSender,
+    @Inject(MEMBER_NOTIFICATION_SENDER)
+    private readonly memberNotificationSender: IMemberNotificationSender,
+    @Optional() private readonly logger?: JsonLogger,
   ) {}
 
-  async execute(input: UnblockMemberByOperatorInput): Promise<void> {
-    const membership = await this.membershipRepo.findByUserAndOrganization(
-      input.userId,
-      input.organizationId,
-    );
-    if (!membership) {
-      throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy thành viên.');
-    }
-    if (!membership.isBlocked()) return;
-
-    await this.dataSource.transaction(async (manager) => {
-      await this.membershipRepo.save(membership.unblock(), manager);
-      await this.auditRepo.save(
-        new OperatorAuditLog({
-          id: randomUUID(),
-          operatorId: input.operatorId,
-          organizationId: input.organizationId,
-          actionType: 'MEMBER_UNBLOCKED',
-          membershipId: membership.id,
-          createdAt: new Date(),
-        }),
-        manager,
-      );
+  async execute(input: UnblockMemberByOperatorInput): Promise<Membership> {
+    const { membership, changed } = await transitionMembershipStatus({
+      dataSource: this.dataSource,
+      membershipRepo: this.membershipRepo,
+      userId: input.userId,
+      organizationId: input.organizationId,
+      targetStatus: 'ACTIVE',
+      notFoundMessage: 'Không tìm thấy thành viên.',
+      onChanged: async (unblocked, manager) => {
+        await this.auditRepo.save(
+          new OperatorAuditLog({
+            id: randomUUID(),
+            operatorId: input.operatorId,
+            organizationId: input.organizationId,
+            actionType: 'MEMBER_UNBLOCKED',
+            membershipId: unblocked.id,
+            createdAt: new Date(),
+          }),
+          manager,
+        );
+      },
     });
 
-    const user = await this.userRepo.findById(input.userId);
-    if (user) {
-      await this.authEmailSender.sendMemberUnblockedEmail(
+    if (changed) await this.sendNotification(input, 'MEMBER_UNBLOCKED');
+    return membership;
+  }
+
+  private async sendNotification(
+    input: UnblockMemberByOperatorInput,
+    emailType: 'MEMBER_UNBLOCKED',
+  ): Promise<void> {
+    try {
+      const user = await this.userRepo.findById(input.userId);
+      if (!user) return;
+      await this.memberNotificationSender.sendMemberUnblockedEmail(
         user.email,
         input.organizationName,
       );
+    } catch (error) {
+      this.logger?.error({
+        message: 'Member unblock notification enqueue failed',
+        emailType,
+        organizationId: input.organizationId,
+        userId: input.userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 }

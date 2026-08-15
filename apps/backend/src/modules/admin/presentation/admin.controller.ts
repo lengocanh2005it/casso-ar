@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  HttpCode,
   Inject,
   NotFoundException,
   Param,
@@ -20,6 +21,7 @@ import type { Request } from 'express';
 import { AdminAuthGuard } from '../../../common/admin/admin-auth.guard';
 import type { AuthenticatedOperator } from '../../../common/admin/authenticated-operator';
 import { Public } from '../../../common/auth/public.decorator';
+import { MemberStatusResponseDto } from '../../../common/dto/member-status-response.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
@@ -37,7 +39,6 @@ import { UnlockOrganizationUseCase } from '../application/unlock-organization.us
 import {
   AdminAiUsageResponseDto,
   AdminAiUsageTrendResponseDto,
-  AdminMemberStatusResponseDto,
   AdminOrganizationStatusResponseDto,
   AdminOrganizationsResponseDto,
 } from './dto/admin-response.dto';
@@ -121,13 +122,14 @@ export class AdminController {
 
   @Post('organizations/:orgId/members/:userId/block')
   @ApiOperation({ summary: 'Block a member of any organization' })
-  @ApiCreatedResponse({ type: AdminMemberStatusResponseDto })
+  @ApiOkResponse({ type: MemberStatusResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
     ErrorCode.UNAUTHORIZED,
     ErrorCode.FORBIDDEN,
     ErrorCode.NOT_FOUND,
   )
+  @HttpCode(200)
   async blockMember(
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Param('userId', ParseUUIDPipe) userId: string,
@@ -137,24 +139,30 @@ export class AdminController {
     if (!organization) {
       throw new NotFoundException('Organization not found');
     }
-    await this.blockMemberByOperatorUseCase.execute({
+    const membership = await this.blockMemberByOperatorUseCase.execute({
       organizationId: orgId,
       organizationName: organization.name,
       userId,
       operatorId: request.user.operatorId,
     });
-    return { status: 'BLOCKED' as const };
+    return {
+      id: membership.id,
+      userId: membership.userId,
+      status: membership.status,
+      blockedAt: membership.blockedAt,
+    };
   }
 
   @Post('organizations/:orgId/members/:userId/unblock')
   @ApiOperation({ summary: 'Unblock a member of any organization' })
-  @ApiCreatedResponse({ type: AdminMemberStatusResponseDto })
+  @ApiOkResponse({ type: MemberStatusResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
     ErrorCode.UNAUTHORIZED,
     ErrorCode.FORBIDDEN,
     ErrorCode.NOT_FOUND,
   )
+  @HttpCode(200)
   async unblockMember(
     @Param('orgId', ParseUUIDPipe) orgId: string,
     @Param('userId', ParseUUIDPipe) userId: string,
@@ -164,13 +172,18 @@ export class AdminController {
     if (!organization) {
       throw new NotFoundException('Organization not found');
     }
-    await this.unblockMemberByOperatorUseCase.execute({
+    const membership = await this.unblockMemberByOperatorUseCase.execute({
       organizationId: orgId,
       organizationName: organization.name,
       userId,
       operatorId: request.user.operatorId,
     });
-    return { status: 'ACTIVE' as const };
+    return {
+      id: membership.id,
+      userId: membership.userId,
+      status: membership.status,
+      blockedAt: membership.blockedAt,
+    };
   }
 
   @Get('ai-usage')

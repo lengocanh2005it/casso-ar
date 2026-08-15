@@ -6,6 +6,34 @@ import type { IMembershipRepository } from '../application/membership-repository
 import { Membership, Role } from '../domain/membership';
 import { MembershipOrmEntity } from './membership.orm-entity';
 
+function toDomain(row: MembershipOrmEntity): Membership {
+  return new Membership({
+    id: row.id,
+    organizationId: row.organizationId,
+    userId: row.userId,
+    role: row.role,
+    invitedAt: row.invitedAt,
+    joinedAt: row.joinedAt,
+    status: row.status,
+    blockedAt: row.blockedAt,
+    createdAt: row.createdAt,
+  });
+}
+
+function toOrm(membership: Membership): MembershipOrmEntity {
+  const row = new MembershipOrmEntity();
+  row.id = membership.id;
+  row.organizationId = membership.organizationId;
+  row.userId = membership.userId;
+  row.role = membership.role;
+  row.invitedAt = membership.invitedAt;
+  row.joinedAt = membership.joinedAt;
+  row.status = membership.status;
+  row.blockedAt = membership.blockedAt;
+  row.createdAt = membership.createdAt;
+  return row;
+}
+
 @Injectable()
 export class TypeOrmMembershipRepository implements IMembershipRepository {
   constructor(
@@ -16,9 +44,22 @@ export class TypeOrmMembershipRepository implements IMembershipRepository {
   async findByUserAndOrganization(
     userId: string,
     organizationId: string,
+    manager?: EntityManager,
   ): Promise<Membership | null> {
-    const row = await this.repo.findOne({ where: { userId, organizationId } });
-    return row ? new Membership(row) : null;
+    const repository = manager
+      ? manager.getRepository(MembershipOrmEntity)
+      : this.repo;
+    const row = manager
+      ? await repository
+          .createQueryBuilder('membership')
+          .setLock('pessimistic_write')
+          .where('membership.userId = :userId', { userId })
+          .andWhere('membership.organizationId = :organizationId', {
+            organizationId,
+          })
+          .getOne()
+      : await repository.findOne({ where: { userId, organizationId } });
+    return row ? toDomain(row) : null;
   }
 
   async findFirstActiveByUserId(userId: string): Promise<Membership | null> {
@@ -26,7 +67,7 @@ export class TypeOrmMembershipRepository implements IMembershipRepository {
       where: { userId, joinedAt: Not(IsNull()) },
       order: { createdAt: 'ASC' },
     });
-    return row ? new Membership(row) : null;
+    return row ? toDomain(row) : null;
   }
 
   async findOwnerByOrganization(
@@ -36,7 +77,7 @@ export class TypeOrmMembershipRepository implements IMembershipRepository {
       where: { organizationId, role: Role.OWNER, joinedAt: Not(IsNull()) },
       order: { createdAt: 'ASC' },
     });
-    return row ? new Membership(row) : null;
+    return row ? toDomain(row) : null;
   }
 
   async findFirstByRole(
@@ -47,14 +88,14 @@ export class TypeOrmMembershipRepository implements IMembershipRepository {
       where: { organizationId, role, joinedAt: Not(IsNull()) },
       order: { createdAt: 'ASC' },
     });
-    return row ? new Membership(row) : null;
+    return row ? toDomain(row) : null;
   }
 
   async save(membership: Membership, manager?: EntityManager): Promise<void> {
     await (manager
       ? manager.getRepository(MembershipOrmEntity)
       : this.repo
-    ).save(membership);
+    ).save(toOrm(membership));
   }
 
   async findPageByOrganization(
@@ -69,7 +110,7 @@ export class TypeOrmMembershipRepository implements IMembershipRepository {
       take: limit,
     });
 
-    return rows.map((row) => new Membership(row));
+    return rows.map(toDomain);
   }
 
   async countByOrganization(organizationId: string): Promise<number> {

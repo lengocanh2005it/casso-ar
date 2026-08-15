@@ -75,6 +75,30 @@ describe('BlockMemberUseCase', () => {
     );
   });
 
+  it('keeps the membership change successful when notification enqueue fails', async () => {
+    const { membershipRepo, userRepo, authEmailSender } = buildDeps(
+      buildMembership(),
+    );
+    authEmailSender.sendMemberBlockedEmail.mockRejectedValue(
+      new Error('queue unavailable'),
+    );
+    const useCase = new BlockMemberUseCase(
+      membershipRepo as never,
+      userRepo as never,
+      authEmailSender as never,
+      dataSource as never,
+    );
+
+    await expect(
+      useCase.execute({
+        organizationId: 'org-1',
+        organizationName: 'Acme',
+        actorUserId: 'user-1',
+        targetUserId: 'user-2',
+      }),
+    ).resolves.toMatchObject({ status: 'BLOCKED' });
+  });
+
   it('rejects blocking your own membership', async () => {
     const { membershipRepo, userRepo, authEmailSender } = buildDeps(
       buildMembership({ userId: 'user-1' }),

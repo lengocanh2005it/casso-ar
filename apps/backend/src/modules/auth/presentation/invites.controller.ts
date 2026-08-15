@@ -30,6 +30,7 @@ import {
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../../../common/auth/optional-jwt-auth.guard';
 import { Public } from '../../../common/auth/public.decorator';
+import { MemberStatusResponseDto } from '../../../common/dto/member-status-response.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
@@ -208,15 +209,7 @@ export class InvitesController {
   @ApiHeader({ name: 'idempotency-key', required: false })
   @ApiOkResponse({
     description: 'Membership blocked',
-    schema: {
-      type: 'object',
-      required: ['id', 'userId', 'status'],
-      properties: {
-        id: { type: 'string', format: 'uuid' },
-        userId: { type: 'string', format: 'uuid' },
-        status: { type: 'string', enum: ['ACTIVE', 'BLOCKED'] },
-      },
-    },
+    type: MemberStatusResponseDto,
   })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -252,6 +245,7 @@ export class InvitesController {
           id: membership.id,
           userId: membership.userId,
           status: membership.status,
+          blockedAt: membership.blockedAt,
         };
       },
     );
@@ -262,15 +256,7 @@ export class InvitesController {
   @ApiHeader({ name: 'idempotency-key', required: false })
   @ApiOkResponse({
     description: 'Membership unblocked',
-    schema: {
-      type: 'object',
-      required: ['id', 'userId', 'status'],
-      properties: {
-        id: { type: 'string', format: 'uuid' },
-        userId: { type: 'string', format: 'uuid' },
-        status: { type: 'string', enum: ['ACTIVE', 'BLOCKED'] },
-      },
-    },
+    type: MemberStatusResponseDto,
   })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -305,6 +291,7 @@ export class InvitesController {
           id: membership.id,
           userId: membership.userId,
           status: membership.status,
+          blockedAt: membership.blockedAt,
         };
       },
     );
