@@ -3,6 +3,7 @@ import type {
   EmailTemplate,
   EmailTemplateInput,
   EmailTemplatePreview,
+  MembershipStatus,
   OrganizationInviteList,
   OrganizationMemberList,
   SmtpConfig,
@@ -179,4 +180,32 @@ export function resendInvite(
     method: 'POST',
     headers: { 'Idempotency-Key': crypto.randomUUID() },
   });
+}
+
+export function blockMember(
+  organizationId: string,
+  userId: string,
+): Promise<{
+  id: string;
+  userId: string;
+  status: MembershipStatus;
+  blockedAt: string | null;
+}> {
+  return postWithIdempotency(
+    `/api/v1/organizations/${organizationId}/members/${userId}/block`,
+  );
+}
+
+export function unblockMember(
+  organizationId: string,
+  userId: string,
+): Promise<{
+  id: string;
+  userId: string;
+  status: MembershipStatus;
+  blockedAt: string | null;
+}> {
+  return postWithIdempotency(
+    `/api/v1/organizations/${organizationId}/members/${userId}/unblock`,
+  );
 }

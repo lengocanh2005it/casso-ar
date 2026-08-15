@@ -40,6 +40,8 @@ export interface SmtpConfigInput {
   fromAddress: string;
 }
 
+export type MembershipStatus = 'ACTIVE' | 'BLOCKED';
+
 export interface OrganizationMember {
   id: string;
   userId: string;
@@ -47,6 +49,8 @@ export interface OrganizationMember {
   name: string;
   role: Role;
   joinedAt: string | null;
+  status: MembershipStatus;
+  blockedAt: string | null;
 }
 
 export interface OrganizationMemberList {
