@@ -27,14 +27,16 @@ const ACTOR_LABELS: Record<string, string> = {
   SYSTEM: 'Hệ thống',
 };
 
+const EFFECTIVE_TIME_FORMATTER = new Intl.DateTimeFormat('vi-VN', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
 function formatEffectiveTime(iso: string): string {
-  return new Intl.DateTimeFormat('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(iso));
+  return EFFECTIVE_TIME_FORMATTER.format(new Date(iso));
 }
 
 function DetailRow({ item }: { item: ReceivableBalanceHistoryListItem }) {

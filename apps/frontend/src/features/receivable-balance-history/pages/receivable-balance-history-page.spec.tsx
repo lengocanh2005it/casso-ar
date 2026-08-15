@@ -151,13 +151,22 @@ describe('ReceivableBalanceHistoryPage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/không thể tải/i);
   });
 
-  it('uses semantic headings and accessible filter metadata', () => {
+  it('shows a loading placeholder while the chart bundle loads', async () => {
+    mockLoadedData();
+
+    renderPage();
+
+    expect(screen.getByLabelText('Đang tải biểu đồ')).toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'Thay đổi theo ngày' });
+  });
+
+  it('uses semantic headings and accessible filter metadata', async () => {
     mockLoadedData();
 
     renderPage();
 
     expect(
-      screen.getByRole('heading', { name: 'Thay đổi theo ngày' }),
+      await screen.findByRole('heading', { name: 'Thay đổi theo ngày' }),
     ).toBeInTheDocument();
     expect(screen.getByText('4')).toHaveClass('tabular-nums');
 

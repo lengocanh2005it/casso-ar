@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/ui/skeleton';
@@ -10,7 +10,6 @@ import {
   useReceivableBalanceHistory,
   useReceivableBalanceHistorySummary,
 } from '../api/use-receivable-balance-history';
-import { ReceivableBalanceHistoryCharts } from '../components/receivable-balance-history-charts';
 import {
   ReceivableBalanceHistoryFilters,
   type ReceivableBalanceHistoryFilterValues,
@@ -26,6 +25,26 @@ import type {
 } from '../types';
 
 const DEFAULT_LIMIT = 20;
+
+const ReceivableBalanceHistoryCharts = lazy(() =>
+  import('../components/receivable-balance-history-charts').then((module) => ({
+    default: module.ReceivableBalanceHistoryCharts,
+  })),
+);
+
+function ChartLoadingFallback() {
+  return (
+    <div
+      aria-busy="true"
+      aria-label="Đang tải biểu đồ"
+      className="grid gap-4 lg:grid-cols-2"
+      role="status"
+    >
+      <div className="h-72 rounded-xl border bg-card" />
+      <div className="h-72 rounded-xl border bg-card" />
+    </div>
+  );
+}
 
 function defaultDateWindow(): { from: string; to: string } {
   const now = new Date();
@@ -204,10 +223,12 @@ export function ReceivableBalanceHistoryPage() {
         summary={summaryQuery.data}
         isLoading={false}
       />
-      <ReceivableBalanceHistoryCharts
-        dailySeries={summaryQuery.data?.dailySeries ?? []}
-        sourceDistribution={summaryQuery.data?.sourceDistribution ?? []}
-      />
+      <Suspense fallback={<ChartLoadingFallback />}>
+        <ReceivableBalanceHistoryCharts
+          dailySeries={summaryQuery.data?.dailySeries ?? []}
+          sourceDistribution={summaryQuery.data?.sourceDistribution ?? []}
+        />
+      </Suspense>
       <ReceivableBalanceHistoryFilters
         values={{
           from,
