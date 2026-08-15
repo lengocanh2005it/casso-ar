@@ -26,6 +26,10 @@ product/copy/visual treatment.
 - No blog, docs, or changelog pages — landing page only.
 - No A/B testing or analytics wiring — out of scope, not requested.
 - No new design tokens — reuses the repo's existing OKLCH theme (`index.css`) as-is.
+- No i18n / language switcher (Vietnamese ↔ English) — this landing page ships
+  Vietnamese-only, matching the rest of the app today. i18n is a cross-cutting
+  concern (would touch every page, not just landing), tracked separately in
+  issue #187 rather than folded into this scope.
 
 ## Design System (reused, not invented)
 
