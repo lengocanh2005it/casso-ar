@@ -1,5 +1,5 @@
 import { Permission, Role } from '@casso-ledger/shared-types';
-import { useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   AlertDialog,
@@ -34,16 +34,197 @@ import {
   useRemoveMember,
   useUnblockMember,
 } from '../api/use-settings';
-import type { MembershipStatus } from '../types';
+import type { MembershipStatus, OrganizationMember } from '../types';
 import { PendingInvitesTable } from './pending-invites-table';
 
 const roles = Object.values(Role);
 
 type StatusFilter = 'ALL' | MembershipStatus;
 
+const roleOptions = roles.map((item) => (
+  <option key={item} value={item}>
+    {item}
+  </option>
+));
+
+const statusFilterOptions = (
+  <>
+    <option value="ALL">Tất cả</option>
+    <option value="ACTIVE">Đang hoạt động</option>
+    <option value="BLOCKED">Đã chặn</option>
+  </>
+);
+
+const membersLoadingMessage = <p aria-live="polite">Đang tải thành viên…</p>;
+
+const membersErrorMessage = (
+  <p aria-live="polite" className="text-destructive">
+    Không thể tải thành viên.
+  </p>
+);
+
 function parseStatusFilter(value: string | null): StatusFilter {
   return value === 'ACTIVE' || value === 'BLOCKED' ? value : 'ALL';
 }
+
+interface MembersTableProps {
+  members: OrganizationMember[];
+  emptyMessage: string;
+  canManage: boolean;
+  canBlock: boolean;
+  currentUserId: string | null | undefined;
+  onRoleChange: (userId: string, role: Role) => void;
+  onRemove: (userId: string) => void;
+  onBlock: (userId: string) => void;
+  onUnblock: (userId: string) => void;
+}
+
+const MembersTable = memo(function MembersTable({
+  members,
+  emptyMessage,
+  canManage,
+  canBlock,
+  currentUserId,
+  onRoleChange,
+  onRemove,
+  onBlock,
+  onUnblock,
+}: MembersTableProps) {
+  const showActions = canManage || canBlock;
+  const colSpan = showActions ? 5 : 4;
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Tên</TableHead>
+          <TableHead>Email</TableHead>
+          <TableHead>Vai trò</TableHead>
+          <TableHead>Trạng thái</TableHead>
+          {showActions && <TableHead>Thao tác</TableHead>}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {members.length === 0 && (
+          <TableRow>
+            <TableCell
+              colSpan={colSpan}
+              className="text-center text-muted-foreground"
+            >
+              {emptyMessage}
+            </TableCell>
+          </TableRow>
+        )}
+        {members.map((member) => {
+          const isSelf = member.userId === currentUserId;
+          const isBlocked = member.status === 'BLOCKED';
+          return (
+            <TableRow key={member.id}>
+              <TableCell className="break-words">{member.name}</TableCell>
+              <TableCell className="break-words">{member.email}</TableCell>
+              <TableCell>
+                {canManage && !isSelf ? (
+                  <select
+                    aria-label={`Vai trò của ${member.name}`}
+                    className="h-9 rounded-md border bg-background px-3 text-sm"
+                    value={member.role}
+                    onChange={(event) => {
+                      const nextRole = roles.find(
+                        (item) => item === event.target.value,
+                      );
+                      if (nextRole) onRoleChange(member.userId, nextRole);
+                    }}
+                  >
+                    {roleOptions}
+                  </select>
+                ) : (
+                  member.role
+                )}
+              </TableCell>
+              <TableCell>
+                {isBlocked && (
+                  <Badge
+                    variant="destructive"
+                    className="animate-in fade-in zoom-in duration-150 ease-out motion-reduce:animate-none"
+                  >
+                    Đã chặn
+                  </Badge>
+                )}
+              </TableCell>
+              {showActions && (
+                <TableCell className="space-x-2">
+                  {canManage && !isSelf && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm">
+                          Xoá {member.name}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            Xoá {member.name} khỏi tổ chức?
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Người này sẽ mất quyền truy cập ngay lập tức. Thao
+                            tác này không thể hoàn tác.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Hủy</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => onRemove(member.userId)}
+                          >
+                            Xác nhận
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                  {canBlock && !isSelf && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          {isBlocked ? 'Bỏ chặn' : 'Chặn'} {member.name}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>
+                            {isBlocked
+                              ? `Bỏ chặn ${member.name}?`
+                              : `Chặn quyền truy cập của ${member.name}?`}
+                          </AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {isBlocked
+                              ? 'Người này sẽ được khôi phục quyền truy cập vào tổ chức.'
+                              : 'Người này sẽ mất quyền truy cập ngay lập tức. Bạn có thể bỏ chặn lại bất cứ lúc nào.'}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Hủy</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() =>
+                              isBlocked
+                                ? onUnblock(member.userId)
+                                : onBlock(member.userId)
+                            }
+                          >
+                            Xác nhận
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </TableCell>
+              )}
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+});
 
 export function UsersTab() {
   const { user } = useAuth();
@@ -68,6 +249,34 @@ export function UsersTab() {
   const blockMember = useBlockMember(user?.organizationId);
   const unblockMember = useUnblockMember(user?.organizationId);
 
+  const handleRoleChange = useCallback(
+    (userId: string, nextRole: Role) => {
+      changeRole.mutate({ userId, role: nextRole });
+    },
+    [changeRole],
+  );
+
+  const handleRemove = useCallback(
+    (userId: string) => {
+      removeMember.mutate(userId);
+    },
+    [removeMember],
+  );
+
+  const handleBlock = useCallback(
+    (userId: string) => {
+      blockMember.mutate(userId);
+    },
+    [blockMember],
+  );
+
+  const handleUnblock = useCallback(
+    (userId: string) => {
+      unblockMember.mutate(userId);
+    },
+    [unblockMember],
+  );
+
   if (!canView) return null;
 
   function submit() {
@@ -90,8 +299,10 @@ export function UsersTab() {
     statusFilter === 'ALL'
       ? members
       : members.filter((member) => member.status === statusFilter);
-
-  const colSpan = canManage || canBlock ? 5 : 4;
+  const emptyMessage =
+    members.length === 0
+      ? 'Chưa có thành viên nào.'
+      : 'Không có thành viên nào phù hợp với bộ lọc.';
 
   return (
     <div className="space-y-6">
@@ -123,11 +334,7 @@ export function UsersTab() {
                 if (nextRole) setRole(nextRole);
               }}
             >
-              {roles.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
+              {roleOptions}
             </select>
           </label>
           <Button disabled={!email.trim() || invite.isPending} onClick={submit}>
@@ -147,164 +354,23 @@ export function UsersTab() {
               changeStatusFilter(event.target.value as StatusFilter)
             }
           >
-            <option value="ALL">Tất cả</option>
-            <option value="ACTIVE">Đang hoạt động</option>
-            <option value="BLOCKED">Đã chặn</option>
+            {statusFilterOptions}
           </select>
         </div>
-        {membersQuery.isPending && (
-          <p aria-live="polite">Đang tải thành viên…</p>
-        )}
-        {membersQuery.isError && (
-          <p aria-live="polite" className="text-destructive">
-            Không thể tải thành viên.
-          </p>
-        )}
+        {membersQuery.isPending && membersLoadingMessage}
+        {membersQuery.isError && membersErrorMessage}
         {membersQuery.data && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tên</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Vai trò</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                {(canManage || canBlock) && <TableHead>Thao tác</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredMembers.length === 0 && (
-                <TableRow>
-                  <TableCell
-                    colSpan={colSpan}
-                    className="text-center text-muted-foreground"
-                  >
-                    {members.length === 0
-                      ? 'Chưa có thành viên nào.'
-                      : 'Không có thành viên nào phù hợp với bộ lọc.'}
-                  </TableCell>
-                </TableRow>
-              )}
-              {filteredMembers.map((member) => {
-                const isSelf = member.userId === user?.id;
-                const isBlocked = member.status === 'BLOCKED';
-                return (
-                  <TableRow key={member.id}>
-                    <TableCell className="break-words">{member.name}</TableCell>
-                    <TableCell className="break-words">
-                      {member.email}
-                    </TableCell>
-                    <TableCell>
-                      {canManage && !isSelf ? (
-                        <select
-                          aria-label={`Vai trò của ${member.name}`}
-                          className="h-9 rounded-md border bg-background px-3 text-sm"
-                          value={member.role}
-                          onChange={(event) => {
-                            const nextRole = roles.find(
-                              (item) => item === event.target.value,
-                            );
-                            if (nextRole) {
-                              changeRole.mutate({
-                                userId: member.userId,
-                                role: nextRole,
-                              });
-                            }
-                          }}
-                        >
-                          {roles.map((item) => (
-                            <option key={item} value={item}>
-                              {item}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        member.role
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {isBlocked && (
-                        <Badge
-                          variant="destructive"
-                          className="animate-in fade-in zoom-in duration-150 ease-out motion-reduce:animate-none"
-                        >
-                          Đã chặn
-                        </Badge>
-                      )}
-                    </TableCell>
-                    {(canManage || canBlock) && (
-                      <TableCell className="space-x-2">
-                        {canManage && !isSelf && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="destructive" size="sm">
-                                Xoá {member.name}
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Xoá {member.name} khỏi tổ chức?
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Người này sẽ mất quyền truy cập ngay lập tức.
-                                  Thao tác này không thể hoàn tác.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Hủy</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() =>
-                                    removeMember.mutate(member.userId)
-                                  }
-                                >
-                                  Xác nhận
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                        {canBlock && !isSelf && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="outline" size="sm">
-                                {isBlocked ? 'Bỏ chặn' : 'Chặn'} {member.name}
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  {isBlocked
-                                    ? `Bỏ chặn ${member.name}?`
-                                    : `Chặn quyền truy cập của ${member.name}?`}
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  {isBlocked
-                                    ? 'Người này sẽ được khôi phục quyền truy cập vào tổ chức.'
-                                    : 'Người này sẽ mất quyền truy cập ngay lập tức. Bạn có thể bỏ chặn lại bất cứ lúc nào.'}
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Hủy</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() =>
-                                    isBlocked
-                                      ? unblockMember.mutate(member.userId)
-                                      : blockMember.mutate(member.userId)
-                                  }
-                                >
-                                  Xác nhận
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </TableCell>
-                    )}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+          <MembersTable
+            members={filteredMembers}
+            emptyMessage={emptyMessage}
+            canManage={canManage}
+            canBlock={canBlock}
+            currentUserId={user?.id}
+            onRoleChange={handleRoleChange}
+            onRemove={handleRemove}
+            onBlock={handleBlock}
+            onUnblock={handleUnblock}
+          />
         )}
       </div>
       {canManage && (
