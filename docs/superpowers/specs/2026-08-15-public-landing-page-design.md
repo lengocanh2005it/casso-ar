@@ -96,13 +96,31 @@ interface LogoProps {
 ## Copy voice
 
 Plain, active, specific — describe what the user does, not what the product "is."
-Avoid stock SaaS phrasing ("giải pháp toàn diện", "chuyển đổi số"). Example
-headline direction: "Thu tiền [cycling: không cần nhắc lại / không cần Excel /
-không cần đoán]" with a fixed sub-line explaining the Casso bank-hook mechanism in
-one concrete sentence. CTA buttons use the same verb the destination page uses
-("Dùng thử miễn phí" → signup page itself says "Đăng ký", so button says
-"Dùng thử miễn phí" consistently across hero/CTA, never mixed with "Bắt đầu ngay"
-elsewhere).
+Avoid stock SaaS phrasing ("giải pháp toàn diện", "chuyển đổi số").
+
+**No technical/system jargon in any user-facing copy** — this is a business
+audience (finance/accounting decision-makers), not a technical one. Every string
+in `landing-data.ts` and every section's hardcoded copy must be phrased in
+business/operational language, never implementation or integration terms:
+
+| Avoid (technical) | Use instead (business) |
+|---|---|
+| "Cas ID/CASSO Balance Hook", "webhook", "API" | "kết nối trực tiếp với ngân hàng", "đồng bộ giao dịch tự động" |
+| "RBAC", "phân quyền RBAC" | "phân quyền theo vai trò trong công ty" / "mỗi nhân sự chỉ thấy đúng phần việc của mình" |
+| "SMTP riêng" | "gửi email nhắc nợ từ chính địa chỉ công ty bạn" |
+| "webhook nhận giao dịch" | "giao dịch ngân hàng báo về ngay khi phát sinh" |
+
+(This table governs display copy only — internal spec/code sections below still
+name the real technical mechanism, e.g. `AboutSection`'s content brief, where
+precision matters for implementation.)
+
+Example headline direction: "Thu tiền [cycling: không cần nhắc lại / không cần
+Excel / không cần đoán]" with a fixed sub-line explaining the bank connection in
+plain terms ("Giao dịch ngân hàng về tới đâu, đối chiếu công nợ tới đó — không
+cần đợi kế toán nhập tay"), not by naming the integration mechanism. CTA buttons
+use the same verb the destination page uses ("Dùng thử miễn phí" → signup page
+itself says "Đăng ký", so button says "Dùng thử miễn phí" consistently across
+hero/CTA, never mixed with "Bắt đầu ngay" elsewhere).
 
 ## Backend: public plan catalog endpoint
 
@@ -220,10 +238,12 @@ features/landing/
     hero-demo-card.tsx      cycling receivable ticker (setInterval, matches
                              xcash-ai's HeroDemoCard timing/fade pattern)
     about-section.tsx       short "what is Casso Ledger" intro — 2–3 sentence
-                             paragraph (product + audience + Cas ID/CASSO
-                             Balance Hook mechanism) plus 3 value pillars
-                             (icon + short label: "Tự động đối chiếu" /
-                             "Nhắc nợ đúng lúc" / "Báo cáo minh bạch").
+                             paragraph in plain business language (product +
+                             audience + "giao dịch ngân hàng về tới đâu, đối
+                             chiếu công nợ tới đó" — no "Cas ID"/"CASSO Balance
+                             Hook"/"webhook" naming in the displayed copy) plus
+                             3 value pillars (icon + short label: "Tự động đối
+                             chiếu" / "Nhắc nợ đúng lúc" / "Báo cáo minh bạch").
                              Deliberately not a card grid — distinct from
                              `FeaturesSection`'s detailed capability list, kept
                              short to match the "credible B2B tool" pacing bar
@@ -234,8 +254,12 @@ features/landing/
                              e.g. "500+ doanh nghiệp") plus qualitative
                              feature-highlight badges alongside them (both, not
                              either/or)
-    features-section.tsx    3-col card grid (receivables tracking, payment
-                             allocation, reminders, aging reports, RBAC)
+    features-section.tsx    3-col card grid (capability areas: receivables
+                             tracking, payment allocation, reminders, aging
+                             reports, role-based access) — card copy phrased in
+                             business language per the jargon table (e.g. the
+                             role-based-access card says "Phân quyền theo vai
+                             trò trong công ty", never "RBAC")
     steps-section.tsx       3-step: connect bank → receive transactions →
                              auto-reconcile
     pricing-section.tsx     fetches GET /api/v1/plans via useQuery; BUSINESS
@@ -259,13 +283,15 @@ features/landing/
                                 a backend limit change reflects automatically.
                              2. Static qualitative features from
                                 `landing-data.ts` (`PLAN_FEATURE_COPY: Record<
-                                PlanId, string[]>`) — e.g. "RBAC 5 vai trò",
-                                "Báo cáo công nợ theo tuổi nợ (aging)", "SMTP
-                                riêng" (BUSINESS+/ENTERPRISE only, matches
-                                `canUseCustomSmtp` but expressed as marketing
-                                copy, not fetched — this list has no backend
-                                equivalent, purely presentational, same as
-                                xcash-ai's hardcoded `features` array).
+                                PlanId, string[]>`), phrased in business
+                                language per the Copy voice jargon table —
+                                e.g. "Phân quyền theo vai trò trong công ty",
+                                "Báo cáo công nợ theo tuổi nợ", "Gửi email nhắc
+                                nợ từ địa chỉ công ty bạn" (BUSINESS+/ENTERPRISE
+                                only, matches `canUseCustomSmtp` but expressed
+                                as plain business copy, not fetched — this list
+                                has no backend equivalent, purely presentational,
+                                same as xcash-ai's hardcoded `features` array).
     cta-section.tsx         final CTA block
     landing-footer.tsx      logo + copyright + login/signup links
   api/
