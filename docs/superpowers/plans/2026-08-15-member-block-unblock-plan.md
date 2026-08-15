@@ -1450,9 +1450,9 @@ git commit -m "feat: enforce blocked membership via MembershipBlockGuard"
 - Consumes: `BlockMemberUseCase`, `UnblockMemberUseCase` (Task 6); `IOrganizationRepository` (already injected in this controller); `IdempotencyService` (already injected); `assertOrgMatches` (existing helper).
 - Produces: `POST /api/v1/organizations/:id/members/:userId/block`, `POST /api/v1/organizations/:id/members/:userId/unblock`.
 
-- [ ] **Step 1: No new unit test file — this controller has no existing `*.spec.ts` (verified: only e2e coverage exists for `InvitesController` today). Coverage for these two endpoints is added at the e2e layer in Task 13.**
+- [x] **Step 1: No new unit test file — this controller has no existing `*.spec.ts` (verified: only e2e coverage exists for `InvitesController` today). Coverage for these two endpoints is added at the e2e layer in Task 13.**
 
-- [ ] **Step 2: Modify the controller**
+- [x] **Step 2: Modify the controller**
 
 In `apps/backend/src/modules/auth/presentation/invites.controller.ts`, add two imports:
 
@@ -1572,17 +1572,17 @@ Add two new endpoint methods, after `removeMember`:
   }
 ```
 
-- [ ] **Step 3: Verify it compiles**
+- [x] **Step 3: Verify it compiles**
 
 Run: `npx tsc --noEmit -p apps/backend`
 Expected: no new errors.
 
-- [ ] **Step 4: Run the full backend unit suite to confirm no regression**
+- [x] **Step 4: Run the full backend unit suite to confirm no regression**
 
 Run: `pnpm --filter @casso-ledger/backend test`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/backend/src/modules/auth/presentation/invites.controller.ts

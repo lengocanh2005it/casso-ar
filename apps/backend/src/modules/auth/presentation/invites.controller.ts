@@ -42,11 +42,13 @@ import {
   ORGANIZATION_REPOSITORY,
 } from '../../organizations/application/organization-repository.port';
 import { AcceptInviteUseCase } from '../application/accept-invite.usecase';
+import { BlockMemberUseCase } from '../application/block-member.usecase';
 import { DeleteInviteUseCase } from '../application/delete-invite.usecase';
 import { InviteMemberUseCase } from '../application/invite-member.usecase';
 import { ListInvitesUseCase } from '../application/list-invites.usecase';
 import { RemoveMemberUseCase } from '../application/remove-member.usecase';
 import { ResendInviteUseCase } from '../application/resend-invite.usecase';
+import { UnblockMemberUseCase } from '../application/unblock-member.usecase';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { InviteMemberDto } from './dto/invite-member.dto';
 import {
@@ -63,6 +65,8 @@ export class InvitesController {
     private readonly deleteInviteUseCase: DeleteInviteUseCase,
     private readonly resendInviteUseCase: ResendInviteUseCase,
     private readonly removeMemberUseCase: RemoveMemberUseCase,
+    private readonly blockMemberUseCase: BlockMemberUseCase,
+    private readonly unblockMemberUseCase: UnblockMemberUseCase,
     private readonly listInvitesUseCase: ListInvitesUseCase,
     @Inject(ORGANIZATION_REPOSITORY)
     private readonly organizationRepo: IOrganizationRepository,
@@ -196,6 +200,113 @@ export class InvitesController {
       key,
       { userId },
       () => this.removeMemberUseCase.execute({ userId }),
+    );
+  }
+
+  @Post('organizations/:id/members/:userId/block')
+  @ApiOperation({ summary: 'Block a member’s access to an organization' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiOkResponse({
+    description: 'Membership blocked',
+    schema: {
+      type: 'object',
+      required: ['id', 'userId', 'status'],
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        userId: { type: 'string', format: 'uuid' },
+        status: { type: 'string', enum: ['ACTIVE', 'BLOCKED'] },
+      },
+    },
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, PermissionGuard)
+  @RequirePermission(Permission.MEMBER_BLOCK)
+  async blockMember(
+    @Param('id') organizationId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Req() request: AuthRequest,
+    @Headers('idempotency-key') key: string | undefined,
+  ) {
+    assertOrgMatches(request, organizationId);
+    const organization = await this.organizationRepo.findById(organizationId);
+    if (!organization) throw new NotFoundException('Organization not found');
+
+    return this.idempotency.execute(
+      `POST /organizations/${organizationId}/members/${userId}/block`,
+      key,
+      { userId },
+      async () => {
+        const membership = await this.blockMemberUseCase.execute({
+          organizationId,
+          organizationName: organization.name,
+          actorUserId: request.user?.userId ?? '',
+          targetUserId: userId,
+        });
+        return {
+          id: membership.id,
+          userId: membership.userId,
+          status: membership.status,
+        };
+      },
+    );
+  }
+
+  @Post('organizations/:id/members/:userId/unblock')
+  @ApiOperation({ summary: 'Unblock a member’s access to an organization' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiOkResponse({
+    description: 'Membership unblocked',
+    schema: {
+      type: 'object',
+      required: ['id', 'userId', 'status'],
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        userId: { type: 'string', format: 'uuid' },
+        status: { type: 'string', enum: ['ACTIVE', 'BLOCKED'] },
+      },
+    },
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, PermissionGuard)
+  @RequirePermission(Permission.MEMBER_BLOCK)
+  async unblockMember(
+    @Param('id') organizationId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Req() request: AuthRequest,
+    @Headers('idempotency-key') key: string | undefined,
+  ) {
+    assertOrgMatches(request, organizationId);
+    const organization = await this.organizationRepo.findById(organizationId);
+    if (!organization) throw new NotFoundException('Organization not found');
+
+    return this.idempotency.execute(
+      `POST /organizations/${organizationId}/members/${userId}/unblock`,
+      key,
+      { userId },
+      async () => {
+        const membership = await this.unblockMemberUseCase.execute({
+          organizationId,
+          organizationName: organization.name,
+          targetUserId: userId,
+        });
+        return {
+          id: membership.id,
+          userId: membership.userId,
+          status: membership.status,
+        };
+      },
     );
   }
 
