@@ -1,5 +1,10 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { LANDING_STEPS } from '../landing-data';
+import {
+  FADE_UP_ITEM_VARIANTS,
+  STAGGER_CONTAINER_VARIANTS,
+  VIEWPORT_ONCE,
+} from '../motion-variants';
 
 export function StepsSection() {
   const reducedMotion = useReducedMotion();
@@ -20,20 +25,15 @@ export function StepsSection() {
           className="relative mt-14 grid gap-8 md:grid-cols-3"
           initial={reducedMotion ? false : 'hidden'}
           whileInView={reducedMotion ? undefined : 'visible'}
-          viewport={{ once: true }}
-          variants={{
-            visible: { transition: { staggerChildren: 0.05 } },
-          }}
+          viewport={VIEWPORT_ONCE}
+          variants={STAGGER_CONTAINER_VARIANTS}
         >
           <div className="pointer-events-none absolute top-7 right-[16%] left-[16%] hidden h-px bg-border md:block" />
           {LANDING_STEPS.map((step) => (
             <motion.div
               key={step.step}
               className="relative text-center md:text-left"
-              variants={{
-                hidden: { opacity: 0, y: 12 },
-                visible: { opacity: 1, y: 0 },
-              }}
+              variants={FADE_UP_ITEM_VARIANTS}
             >
               <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl border-2 border-primary/30 bg-background text-lg font-bold text-primary md:mx-0">
                 {step.step}

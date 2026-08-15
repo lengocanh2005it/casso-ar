@@ -6,6 +6,13 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { LANDING_FEATURES } from '../landing-data';
+import {
+  FADE_UP_ITEM_VARIANTS,
+  HOVER_SCALE,
+  STAGGER_CONTAINER_VARIANTS,
+  TAP_SCALE,
+  VIEWPORT_ONCE,
+} from '../motion-variants';
 
 export function FeaturesSection() {
   const reducedMotion = useReducedMotion();
@@ -23,20 +30,15 @@ export function FeaturesSection() {
           className="mt-12 grid gap-4 md:grid-cols-3"
           initial={reducedMotion ? false : 'hidden'}
           whileInView={reducedMotion ? undefined : 'visible'}
-          viewport={{ once: true }}
-          variants={{
-            visible: { transition: { staggerChildren: 0.05 } },
-          }}
+          viewport={VIEWPORT_ONCE}
+          variants={STAGGER_CONTAINER_VARIANTS}
         >
           {LANDING_FEATURES.map((feature) => (
             <motion.div
               key={feature.title}
-              variants={{
-                hidden: { opacity: 0, y: 12 },
-                visible: { opacity: 1, y: 0 },
-              }}
-              whileHover={reducedMotion ? undefined : { scale: 1.02 }}
-              whileTap={reducedMotion ? undefined : { scale: 0.98 }}
+              variants={FADE_UP_ITEM_VARIANTS}
+              whileHover={reducedMotion ? undefined : HOVER_SCALE}
+              whileTap={reducedMotion ? undefined : TAP_SCALE}
             >
               <Card className="h-full border-border/70">
                 <CardHeader>

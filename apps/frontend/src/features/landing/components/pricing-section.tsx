@@ -9,6 +9,13 @@ import { formatVND } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { usePlans } from '../hooks/use-plans';
 import { PLAN_FEATURE_COPY, PLAN_LABELS } from '../landing-data';
+import {
+  FADE_UP_ITEM_VARIANTS,
+  HOVER_SCALE,
+  STAGGER_CONTAINER_VARIANTS,
+  TAP_SCALE,
+  VIEWPORT_ONCE,
+} from '../motion-variants';
 
 export function PricingSection() {
   const { data: plans, isError, isLoading } = usePlans();
@@ -37,10 +44,8 @@ export function PricingSection() {
               className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4"
               initial={reducedMotion ? false : 'hidden'}
               whileInView={reducedMotion ? undefined : 'visible'}
-              viewport={{ once: true }}
-              variants={{
-                visible: { transition: { staggerChildren: 0.05 } },
-              }}
+              viewport={VIEWPORT_ONCE}
+              variants={STAGGER_CONTAINER_VARIANTS}
             >
               {plans?.map((plan) => {
                 const isHighlighted = plan.planId === PlanId.BUSINESS;
@@ -57,12 +62,9 @@ export function PricingSection() {
                 return (
                   <motion.div
                     key={plan.planId}
-                    variants={{
-                      hidden: { opacity: 0, y: 12 },
-                      visible: { opacity: 1, y: 0 },
-                    }}
-                    whileHover={reducedMotion ? undefined : { scale: 1.02 }}
-                    whileTap={reducedMotion ? undefined : { scale: 0.98 }}
+                    variants={FADE_UP_ITEM_VARIANTS}
+                    whileHover={reducedMotion ? undefined : HOVER_SCALE}
+                    whileTap={reducedMotion ? undefined : TAP_SCALE}
                   >
                     <Card
                       className={cn(

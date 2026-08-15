@@ -5,6 +5,12 @@ import { Button } from '@/components/ui/button';
 import { LANDING_HEADLINE_PHRASES } from '../landing-data';
 import { HeroDemoCard } from './hero-demo-card';
 
+const TYPEWRITER_OPTIONS = {
+  strings: [...LANDING_HEADLINE_PHRASES],
+  autoStart: true,
+  loop: true,
+};
+
 function scrollToSection(href: string) {
   const id = href.replace('#', '');
   document
@@ -40,13 +46,7 @@ export function HeroSection() {
             ) : (
               <span className="text-primary">
                 <span aria-hidden="true">
-                  <Typewriter
-                    options={{
-                      strings: [...LANDING_HEADLINE_PHRASES],
-                      autoStart: true,
-                      loop: true,
-                    }}
-                  />
+                  <Typewriter options={TYPEWRITER_OPTIONS} />
                 </span>
                 <span className="sr-only">
                   {LANDING_HEADLINE_PHRASES.join(', ')}
