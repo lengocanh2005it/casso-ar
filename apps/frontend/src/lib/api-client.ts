@@ -119,6 +119,17 @@ export class AuthTokenManager {
 
 export const authTokenManager = new AuthTokenManager();
 
+function getErrorCode(error: unknown): string | undefined {
+  const response =
+    typeof error === 'object' && error !== null && 'response' in error
+      ? (error as { response?: { data?: unknown } }).response
+      : undefined;
+  const data = response?.data;
+  return typeof data === 'object' && data !== null && 'errorCode' in data
+    ? String((data as { errorCode?: unknown }).errorCode)
+    : undefined;
+}
+
 async function send<T>(
   config: AxiosRequestConfig,
 ): Promise<{ data: T; headers: RawAxiosResponseHeaders }> {
@@ -142,6 +153,9 @@ async function send<T>(
         : undefined;
     if (status === 402) {
       window.dispatchEvent(new CustomEvent('casso:plan-limit'));
+    }
+    if (getErrorCode(error) === 'MEMBER_BLOCKED') {
+      window.dispatchEvent(new CustomEvent('casso:member-blocked'));
     }
     throw error;
   }

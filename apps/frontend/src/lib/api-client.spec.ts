@@ -99,6 +99,22 @@ describe('AuthTokenManager', () => {
     window.removeEventListener('casso:plan-limit', handler);
   });
 
+  it('dispatches the member-blocked event for MEMBER_BLOCKED errors', async () => {
+    const handler = vi.fn();
+    window.addEventListener('casso:member-blocked', handler);
+    const error = {
+      response: { status: 403, data: { errorCode: 'MEMBER_BLOCKED' } },
+    };
+    requestMock.mockRejectedValue(error);
+
+    await expect(
+      apiRequest({ url: '/api/v1/receivables', method: 'GET' }),
+    ).rejects.toBe(error);
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    window.removeEventListener('casso:member-blocked', handler);
+  });
+
   it('revokes the refresh session during logout', async () => {
     postMock.mockResolvedValue({ data: {} });
 

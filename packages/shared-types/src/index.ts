@@ -1,4 +1,5 @@
 export { type InvoiceSourceType, InvoiceStatus } from './invoice-status';
+export type { MembershipStatus } from './membership-status';
 export { PeriodChargeStatus } from './period-charge-status';
 export { Permission } from './permission';
 export { PlanId } from './plan-id';

@@ -3,6 +3,7 @@ import type { RouteObject } from 'react-router-dom';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AppLayout } from '@/components/layout/app-layout';
+import { MemberBlockedWatcher } from '@/contexts/member-blocked-watcher';
 import { useTheme } from '@/contexts/theme-context';
 import {
   UpgradeDialog,
@@ -51,6 +52,7 @@ export function App() {
     <BrowserRouter>
       <Toaster richColors position="top-right" theme={resolvedTheme} />
       <AppRoutes />
+      <MemberBlockedWatcher />
       <UpgradeDialog
         open={planLimitDialog.open}
         onOpenChange={planLimitDialog.setOpen}
