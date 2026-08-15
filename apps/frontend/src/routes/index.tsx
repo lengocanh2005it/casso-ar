@@ -110,6 +110,11 @@ const AdminOrganizationsPage = lazy(() =>
     default: m.AdminOrganizationsPage,
   })),
 );
+const AdminOrganizationMembersPage = lazy(() =>
+  import('@/features/admin/pages/admin-organization-members-page').then(
+    (m) => ({ default: m.AdminOrganizationMembersPage }),
+  ),
+);
 const AdminAiUsagePage = lazy(() =>
   import('@/features/admin/pages/admin-ai-usage-page').then((m) => ({
     default: m.AdminAiUsagePage,
@@ -182,6 +187,10 @@ export const adminRoutes: RouteObject[] = [
       {
         path: 'organizations',
         element: withPageSuspense(<AdminOrganizationsPage />),
+      },
+      {
+        path: 'organizations/:organizationId/members',
+        element: withPageSuspense(<AdminOrganizationMembersPage />),
       },
       {
         path: 'ai-usage',

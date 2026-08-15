@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -126,6 +126,12 @@ export function AdminOrganizationsPage() {
                     >
                       {org.name || 'Không có tên tổ chức'}
                     </span>
+                    <Link
+                      to={`/admin/organizations/${org.id}/members`}
+                      className="text-sm font-medium text-primary hover:underline"
+                    >
+                      Thành viên
+                    </Link>
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     <span
