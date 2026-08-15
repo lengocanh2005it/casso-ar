@@ -13,6 +13,7 @@ import {
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { ReceivableBalanceHistoryRecorderService } from '../../receivable-balance-history/application/receivable-balance-history-recorder.service';
+import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import {
   type IReceivableRepository,
@@ -102,12 +103,17 @@ export class UndoPaymentAllocationUseCase {
       await this.allocationRepo.save(undoneAllocation, manager);
       await this.paymentRepo.save(updatedPayment, manager);
       await this.receivableRepo.save(updatedReceivable, manager);
-      await this.historyRecorder.record(
-        updatedReceivable,
-        BalanceHistoryChangeSource.UNDO,
+      await this.historyRecorder.record({
+        receivable: updatedReceivable,
+        changeSource: BalanceHistoryChangeSource.UNDO,
+        provenance: {
+          actorType: BalanceHistoryActorType.USER,
+          actorUserId: input.deletedByUserId,
+        },
+        note: input.undoReason,
+        transitionReferenceId: allocation.id,
         manager,
-        allocation.id,
-      );
+      });
       await this.auditLogRepo.create(
         new AuditLog({
           organizationId: allocation.organizationId,

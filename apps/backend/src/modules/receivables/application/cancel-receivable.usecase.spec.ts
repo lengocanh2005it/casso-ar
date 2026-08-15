@@ -1,6 +1,8 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { EntityManager } from 'typeorm';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { Role } from '../../organizations/domain/membership';
+import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import { Receivable } from '../domain/receivable';
 import { CancelReceivableUseCase } from './cancel-receivable.usecase';
@@ -42,6 +44,13 @@ function buildDeps(receivable: Receivable | null) {
     auditContext: { setBefore: jest.fn() },
     eventPublisher: { emitAsync: jest.fn() },
     recorder: { record: jest.fn() },
+    tenantContext: {
+      getCurrentUser: () => ({
+        userId: 'user-1',
+        organizationId: 'org-1',
+        role: Role.OWNER,
+      }),
+    },
   };
 }
 
@@ -52,6 +61,7 @@ function buildUseCase(deps: ReturnType<typeof buildDeps>) {
     deps.auditContext as any,
     deps.eventPublisher as any,
     deps.recorder as any,
+    deps.tenantContext as any,
   );
 }
 
@@ -79,14 +89,18 @@ describe('CancelReceivableUseCase', () => {
 
     await useCase.execute('rec-1');
 
-    expect(deps.recorder.record).toHaveBeenCalledWith(
-      expect.objectContaining({
+    expect(deps.recorder.record).toHaveBeenCalledWith({
+      receivable: expect.objectContaining({
         id: 'rec-1',
         status: ReceivableStatus.CANCELLED,
       }),
-      BalanceHistoryChangeSource.CANCEL,
-      deps.manager,
-    );
+      changeSource: BalanceHistoryChangeSource.CANCEL,
+      provenance: {
+        actorType: BalanceHistoryActorType.USER,
+        actorUserId: 'user-1',
+      },
+      manager: deps.manager,
+    });
   });
 
   it('rejects a receivable that has received a payment', async () => {

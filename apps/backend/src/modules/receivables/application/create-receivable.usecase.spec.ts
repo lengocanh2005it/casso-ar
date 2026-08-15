@@ -1,6 +1,7 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { Role } from '../../organizations/domain/membership';
+import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import { CreateReceivableUseCase } from './create-receivable.usecase';
 
@@ -82,15 +83,19 @@ describe('CreateReceivableUseCase', () => {
       salesRepresentativeId: null,
     });
 
-    expect(recorder.record).toHaveBeenCalledWith(
-      expect.objectContaining({
+    expect(recorder.record).toHaveBeenCalledWith({
+      receivable: expect.objectContaining({
         organizationId: 'org-1',
         status: ReceivableStatus.OPEN,
         paidAmount: 0,
       }),
-      BalanceHistoryChangeSource.CREATE,
+      changeSource: BalanceHistoryChangeSource.CREATE,
+      provenance: {
+        actorType: BalanceHistoryActorType.USER,
+        actorUserId: 'user-1',
+      },
       manager,
-    );
+    });
   });
 
   it('rejects creating a receivable against a customer from another organization', async () => {
@@ -204,11 +209,15 @@ describe('CreateReceivableUseCase', () => {
       expect.objectContaining({ customerId: 'cust-1' }),
       transactionManager,
     );
-    expect(transactionalRecorder.record).toHaveBeenCalledWith(
-      expect.objectContaining({ customerId: 'cust-1' }),
-      BalanceHistoryChangeSource.CREATE,
-      transactionManager,
-    );
+    expect(transactionalRecorder.record).toHaveBeenCalledWith({
+      receivable: expect.objectContaining({ customerId: 'cust-1' }),
+      changeSource: BalanceHistoryChangeSource.CREATE,
+      provenance: {
+        actorType: BalanceHistoryActorType.USER,
+        actorUserId: 'user-1',
+      },
+      manager: transactionManager,
+    });
 
     const suppliedRepo = { save: jest.fn() };
     const suppliedCustomerRepo = {
@@ -242,10 +251,14 @@ describe('CreateReceivableUseCase', () => {
       expect.objectContaining({ customerId: 'cust-1' }),
       suppliedManager,
     );
-    expect(suppliedRecorder.record).toHaveBeenCalledWith(
-      expect.objectContaining({ customerId: 'cust-1' }),
-      BalanceHistoryChangeSource.CREATE,
-      suppliedManager,
-    );
+    expect(suppliedRecorder.record).toHaveBeenCalledWith({
+      receivable: expect.objectContaining({ customerId: 'cust-1' }),
+      changeSource: BalanceHistoryChangeSource.CREATE,
+      provenance: {
+        actorType: BalanceHistoryActorType.USER,
+        actorUserId: 'user-1',
+      },
+      manager: suppliedManager,
+    });
   });
 });

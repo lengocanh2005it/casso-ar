@@ -1,5 +1,7 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { EntityManager } from 'typeorm';
+import { Role } from '../../organizations/domain/membership';
+import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import { Receivable } from '../domain/receivable';
 import { WriteOffReceivableUseCase } from './write-off-receivable.usecase';
@@ -34,6 +36,13 @@ describe('WriteOffReceivableUseCase', () => {
     const auditContext = { setBefore: jest.fn() };
     const eventPublisher = { emitAsync: jest.fn() };
     const recorder = { record: jest.fn() };
+    const tenantContext = {
+      getCurrentUser: () => ({
+        userId: 'user-1',
+        organizationId: 'org-1',
+        role: Role.OWNER,
+      }),
+    };
 
     const useCase = new WriteOffReceivableUseCase(
       receivableRepo as any,
@@ -41,6 +50,7 @@ describe('WriteOffReceivableUseCase', () => {
       auditContext as any,
       eventPublisher as any,
       recorder as any,
+      tenantContext as any,
     );
     const result = await useCase.execute('rec-1');
 
@@ -54,14 +64,18 @@ describe('WriteOffReceivableUseCase', () => {
       'receivable.status-closed',
       { receivableId: 'rec-1', organizationId: 'org-1' },
     );
-    expect(recorder.record).toHaveBeenCalledWith(
-      expect.objectContaining({
+    expect(recorder.record).toHaveBeenCalledWith({
+      receivable: expect.objectContaining({
         id: 'rec-1',
         status: ReceivableStatus.WRITTEN_OFF,
       }),
-      BalanceHistoryChangeSource.WRITE_OFF,
+      changeSource: BalanceHistoryChangeSource.WRITE_OFF,
+      provenance: {
+        actorType: BalanceHistoryActorType.USER,
+        actorUserId: 'user-1',
+      },
       manager,
-    );
+    });
   });
 
   it('throws if receivable not found', async () => {
@@ -83,6 +97,7 @@ describe('WriteOffReceivableUseCase', () => {
       auditContext as any,
       eventPublisher as any,
       recorder as any,
+      { getCurrentUser: () => undefined } as any,
     );
 
     await expect(useCase.execute('missing')).rejects.toThrow(

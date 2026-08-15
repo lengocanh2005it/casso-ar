@@ -2,6 +2,7 @@ import { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { EntityManager } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { Receivable } from '../../receivables/domain/receivable';
 import { BankTransaction } from '../../webhooks/domain/bank-transaction';
 import { MatchBankTransactionUseCase } from './match-bank-transaction.usecase';
@@ -187,6 +188,20 @@ describe('MatchBankTransactionUseCase', () => {
     expect(
       allocatePaymentUseCase.allocateWithinTransaction,
     ).toHaveBeenCalledTimes(2);
+    expect(
+      allocatePaymentUseCase.allocateWithinTransaction,
+    ).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        receivableId: 'rec-1',
+        amount: 15_000_000,
+        allocatedByUserId: 'user-1',
+        provenance: {
+          actorType: BalanceHistoryActorType.USER,
+          actorUserId: 'user-1',
+        },
+      }),
+    );
     expect(bankTransactionRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'MATCHED' }),
       expect.anything(),

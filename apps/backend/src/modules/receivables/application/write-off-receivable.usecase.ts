@@ -8,7 +8,9 @@ import {
   EVENT_PUBLISHER,
   type IEventPublisher,
 } from '../../../common/events/event-publisher.port';
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { ReceivableBalanceHistoryRecorderService } from '../../receivable-balance-history/application/receivable-balance-history-recorder.service';
+import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import type { Receivable } from '../domain/receivable';
 import {
@@ -26,6 +28,7 @@ export class WriteOffReceivableUseCase {
     @Inject(EVENT_PUBLISHER)
     private readonly eventPublisher: IEventPublisher,
     private readonly historyRecorder: ReceivableBalanceHistoryRecorderService,
+    private readonly tenantContext: TenantContextService,
   ) {}
 
   async execute(receivableId: string): Promise<Receivable> {
@@ -44,11 +47,19 @@ export class WriteOffReceivableUseCase {
         this.auditContext.setBefore(receivable);
         const updated = receivable.writeOff();
         await this.receivableRepo.save(updated, manager);
-        await this.historyRecorder.record(
-          updated,
-          BalanceHistoryChangeSource.WRITE_OFF,
+        const user = this.tenantContext.getCurrentUser();
+        if (!user) {
+          throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
+        }
+        await this.historyRecorder.record({
+          receivable: updated,
+          changeSource: BalanceHistoryChangeSource.WRITE_OFF,
+          provenance: {
+            actorType: BalanceHistoryActorType.USER,
+            actorUserId: user.userId,
+          },
           manager,
-        );
+        });
         return updated;
       },
     );

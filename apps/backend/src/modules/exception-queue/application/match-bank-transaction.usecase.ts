@@ -12,6 +12,7 @@ import {
   PAYMENT_REPOSITORY,
 } from '../../payments/application/payment-repository.port';
 import { Payment } from '../../payments/domain/payment';
+import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import {
   type IReceivableRepository,
   RECEIVABLE_REPOSITORY,
@@ -193,6 +194,10 @@ export class MatchBankTransactionUseCase {
                 receivableId: allocation.receivableId,
                 amount: allocation.amount,
                 allocatedByUserId: input.allocatedByUserId,
+                provenance: {
+                  actorType: BalanceHistoryActorType.USER,
+                  actorUserId: input.allocatedByUserId,
+                },
               },
             );
           allocationResults.push({

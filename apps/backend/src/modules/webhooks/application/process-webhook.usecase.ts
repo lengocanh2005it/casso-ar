@@ -9,6 +9,7 @@ import { AllocatePaymentUseCase } from '../../payments/application/allocate-paym
 import type { IPaymentRepository } from '../../payments/application/payment-repository.port';
 import { PAYMENT_REPOSITORY } from '../../payments/application/payment-repository.port';
 import { Payment } from '../../payments/domain/payment';
+import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { BankTransaction } from '../domain/bank-transaction';
 import type { IBankTransactionRepository } from './bank-transaction-repository.port';
 import { BANK_TRANSACTION_REPOSITORY } from './bank-transaction-repository.port';
@@ -114,6 +115,10 @@ export class ProcessWebhookUseCase {
                   receivableId: top.receivableId,
                   amount: transaction.amount,
                   allocatedByUserId: null,
+                  provenance: {
+                    actorType: BalanceHistoryActorType.WEBHOOK,
+                    actorUserId: null,
+                  },
                 });
               autoMatchResult = {
                 paymentId: payment.id,

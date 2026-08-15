@@ -1,3 +1,4 @@
+import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { WebhookInbox } from '../domain/webhook-inbox';
 import { ProcessWebhookUseCase } from './process-webhook.usecase';
 
@@ -76,6 +77,10 @@ describe('ProcessWebhookUseCase', () => {
         receivableId: 'rec-1',
         amount: 30_000_000,
         allocatedByUserId: null,
+        provenance: {
+          actorType: BalanceHistoryActorType.WEBHOOK,
+          actorUserId: null,
+        },
       }),
     );
     expect(inboxRepo.save).toHaveBeenCalled();
