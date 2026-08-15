@@ -8,6 +8,7 @@ import { DEMO_TRANSACTIONS } from '../landing-data';
 
 export function HeroDemoCard() {
   const [index, setIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
   const reducedMotion = useReducedMotion();
   const transaction = DEMO_TRANSACTIONS[index];
 
@@ -15,7 +16,11 @@ export function HeroDemoCard() {
     if (reducedMotion) return;
 
     const interval = window.setInterval(() => {
-      setIndex((current) => (current + 1) % DEMO_TRANSACTIONS.length);
+      setVisible(false);
+      window.setTimeout(() => {
+        setIndex((current) => (current + 1) % DEMO_TRANSACTIONS.length);
+        setVisible(true);
+      }, 200);
     }, 3200);
     return () => window.clearInterval(interval);
   }, [reducedMotion]);
@@ -25,7 +30,13 @@ export function HeroDemoCard() {
       <CardHeader className="pb-3">
         <p className="text-xs text-muted-foreground">Giao dịch gần đây</p>
       </CardHeader>
-      <CardContent className="space-y-3" aria-hidden="true">
+      <CardContent
+        className={cn(
+          'space-y-3 transition-opacity duration-200 ease-out',
+          visible ? 'opacity-100' : 'opacity-0',
+        )}
+        aria-hidden="true"
+      >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="truncate font-medium">{transaction.customer}</p>

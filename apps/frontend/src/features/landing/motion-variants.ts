@@ -4,12 +4,18 @@ export const STAGGER_CONTAINER_VARIANTS = {
   visible: { transition: { staggerChildren: 0.05 } },
 };
 
+// transform as a raw string (not the x/y/scale shorthand) so this animates
+// via the hardware-accelerated transform property instead of Motion's
+// main-thread requestAnimationFrame interpolation for shorthand props.
 export const FADE_UP_ITEM_VARIANTS = {
-  hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0 },
+  hidden: { opacity: 0, transform: 'translateY(12px)' },
+  visible: { opacity: 1, transform: 'translateY(0px)' },
 };
 
 export const VIEWPORT_ONCE = { once: true };
 
 export const HOVER_SCALE = { scale: 1.02 };
 export const TAP_SCALE = { scale: 0.98 };
+
+// Stronger ease-out than the CSS/Motion default — used for UI entrances.
+export const EASE_OUT = [0.23, 1, 0.32, 1] as const;

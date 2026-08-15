@@ -11,7 +11,7 @@ describe('HeroDemoCard', () => {
 
     expect(screen.getByText('Công ty TNHH Minh Phát')).toBeInTheDocument();
 
-    act(() => vi.advanceTimersByTime(3200));
+    act(() => vi.advanceTimersByTime(3200 + 200));
 
     expect(screen.getByText('Cửa hàng Thanh Tâm')).toBeInTheDocument();
   });

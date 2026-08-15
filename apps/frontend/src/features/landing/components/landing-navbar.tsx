@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { LANDING_NAV_LINKS } from '../landing-data';
+import { EASE_OUT } from '../motion-variants';
 
 function scrollToSection(href: string) {
   const id = href.replace('#', '');
@@ -43,7 +44,7 @@ export function LandingNavbar() {
   return (
     <header
       className={cn(
-        'fixed inset-x-0 top-0 z-50 transition-all duration-300',
+        'fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300',
         scrolled
           ? 'border-b border-border/60 bg-background/85 shadow-sm backdrop-blur-xl'
           : 'bg-transparent',
@@ -110,7 +111,7 @@ export function LandingNavbar() {
                     initial={reducedMotion ? false : { opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: 0.2, ease: EASE_OUT }}
                   >
                     <div className="flex items-center gap-2 text-left text-lg font-semibold">
                       <Logo variant="icon" className="h-7" />
