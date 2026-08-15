@@ -8,6 +8,9 @@ export class OrganizationOrmEntity {
   @Column({ type: 'varchar' })
   name: string;
 
+  @Column({ type: 'varchar', default: 'ACTIVE' })
+  status: 'ACTIVE' | 'LOCKED';
+
   @Column({ type: 'timestamptz' })
   createdAt: Date;
 }
