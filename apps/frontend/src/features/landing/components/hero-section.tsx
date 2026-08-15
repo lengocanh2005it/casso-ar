@@ -1,0 +1,63 @@
+import { useReducedMotion } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import Typewriter from 'typewriter-effect';
+import { Button } from '@/components/ui/button';
+import { LANDING_HEADLINE_PHRASES } from '../landing-data';
+import { HeroDemoCard } from './hero-demo-card';
+
+function scrollToSection(href: string) {
+  const id = href.replace('#', '');
+  document
+    .getElementById(id)
+    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+export function HeroSection() {
+  const reducedMotion = useReducedMotion();
+
+  return (
+    <section className="pb-16 pt-28 sm:pb-24 sm:pt-32">
+      <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16">
+        <div className="text-center lg:text-left">
+          <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
+            Thu tiền{' '}
+            {reducedMotion ? (
+              <span className="text-primary">
+                {LANDING_HEADLINE_PHRASES[0]}
+              </span>
+            ) : (
+              <span className="text-primary">
+                <Typewriter
+                  options={{
+                    strings: [...LANDING_HEADLINE_PHRASES],
+                    autoStart: true,
+                    loop: true,
+                  }}
+                />
+              </span>
+            )}
+          </h1>
+          <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground text-pretty lg:mx-0">
+            Giao dịch ngân hàng về tới đâu, đối chiếu công nợ tới đó — không cần
+            đợi kế toán nhập tay từng dòng.
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
+            <Button size="lg" className="h-12 w-full px-8 sm:w-auto" asChild>
+              <Link to="/signup">Dùng thử miễn phí</Link>
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="h-12 w-full sm:w-auto"
+              onClick={() => scrollToSection('#cach-hoat-dong')}
+            >
+              Xem cách hoạt động
+            </Button>
+          </div>
+        </div>
+
+        <HeroDemoCard />
+      </div>
+    </section>
+  );
+}
