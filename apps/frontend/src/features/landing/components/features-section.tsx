@@ -33,23 +33,32 @@ export function FeaturesSection() {
           viewport={VIEWPORT_ONCE}
           variants={STAGGER_CONTAINER_VARIANTS}
         >
-          {LANDING_FEATURES.map((feature) => (
-            <motion.div
-              key={feature.title}
-              variants={FADE_UP_ITEM_VARIANTS}
-              whileHover={reducedMotion ? undefined : HOVER_SCALE}
-              whileTap={reducedMotion ? undefined : TAP_SCALE}
-            >
-              <Card className="h-full border-border/70">
-                <CardHeader>
-                  <CardTitle className="text-lg">{feature.title}</CardTitle>
-                  <CardDescription className="text-base">
-                    {feature.description}
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </motion.div>
-          ))}
+          {LANDING_FEATURES.map((feature) => {
+            const Icon = feature.icon;
+            return (
+              <motion.div
+                key={feature.title}
+                variants={FADE_UP_ITEM_VARIANTS}
+                whileHover={reducedMotion ? undefined : HOVER_SCALE}
+                whileTap={reducedMotion ? undefined : TAP_SCALE}
+              >
+                <Card className="h-full border-border/70">
+                  <CardHeader>
+                    <div className="mb-2 flex size-10 items-center justify-center rounded-lg bg-primary/10">
+                      <Icon
+                        className="size-5 text-primary"
+                        aria-hidden="true"
+                      />
+                    </div>
+                    <CardTitle className="text-lg">{feature.title}</CardTitle>
+                    <CardDescription className="text-base">
+                      {feature.description}
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              </motion.div>
+            );
+          })}
         </motion.div>
       </div>
     </section>

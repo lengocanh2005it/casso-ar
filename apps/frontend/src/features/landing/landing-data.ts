@@ -1,4 +1,12 @@
 import { PlanId, ReceivableStatus } from '@casso-ledger/shared-types';
+import {
+  ArrowLeftRight,
+  BellRing,
+  Clock3,
+  History,
+  ListChecks,
+  ShieldCheck,
+} from 'lucide-react';
 
 export const LANDING_NAV_LINKS = [
   { href: '#gioi-thieu', label: 'Giới thiệu' },
@@ -35,26 +43,37 @@ export const LANDING_FEATURES = [
     title: 'Theo dõi công nợ',
     description:
       'Xem toàn bộ khoản phải thu, trạng thái và hạn thanh toán ở một nơi.',
+    icon: ListChecks,
   },
   {
     title: 'Đối chiếu thanh toán',
     description:
       'Khớp từng khoản tiền về với đúng công nợ, không cần kiểm tra thủ công.',
+    icon: ArrowLeftRight,
   },
   {
     title: 'Nhắc nợ tự động',
     description:
       'Hệ thống tự gửi nhắc nhở đúng thời điểm, không cần bạn nhớ hẹn.',
+    icon: BellRing,
   },
   {
     title: 'Báo cáo tuổi nợ',
     description:
       'Biết ngay khoản nào sắp quá hạn, khoản nào đã quá hạn bao lâu.',
+    icon: Clock3,
   },
   {
     title: 'Phân quyền theo vai trò',
     description:
       'Mỗi nhân sự chỉ thấy và thao tác đúng phần việc của mình trong công ty.',
+    icon: ShieldCheck,
+  },
+  {
+    title: 'Lịch sử xử lý',
+    description:
+      'Mọi thao tác trên một khoản công nợ đều được ghi lại theo dòng thời gian.',
+    icon: History,
   },
 ] as const;
 
