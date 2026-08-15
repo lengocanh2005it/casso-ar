@@ -1,26 +1,10 @@
-import { Type } from 'class-transformer';
-import {
-  IsInt,
-  IsOptional,
-  IsString,
-  Max,
-  MaxLength,
-  Min,
-} from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { PaginationDto } from '../../../../common/dto/pagination.dto';
 import { MAX_SEARCH_LENGTH } from '../../../../common/validation/search-length';
 
-export class ListCustomersQueryDto {
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page = 1;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit = 20;
-
+export class ListCustomersQueryDto extends PaginationDto {
+  @ApiProperty({ type: String, required: false })
   @IsOptional()
   @IsString()
   @MaxLength(MAX_SEARCH_LENGTH)

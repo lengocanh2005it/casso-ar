@@ -3,7 +3,7 @@ import type {
   SmtpConfigStatus,
 } from '../../domain/organization-smtp-config';
 
-export interface SmtpConfigResponseDto {
+export class SmtpConfigResponseDto {
   host: string;
   port: number;
   username: string;

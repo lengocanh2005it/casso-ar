@@ -59,4 +59,20 @@ describe('application routes', () => {
     );
     expect(screen.queryByText('Casso Ledger')).not.toBeInTheDocument();
   });
+
+  it('exposes the standalone admin login route', async () => {
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/admin/login']}>
+          <AppRoutes />
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: /casso admin/i }),
+      ).toBeVisible(),
+    );
+  });
 });

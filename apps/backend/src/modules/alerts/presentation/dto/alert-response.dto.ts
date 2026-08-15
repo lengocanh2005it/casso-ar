@@ -1,7 +1,7 @@
 import type { AlertPage } from '../../application/alert-repository.port';
 import type { Alert, AlertType } from '../../domain/alert';
 
-export interface AlertResponseDto {
+export class AlertResponseDto {
   id: string;
   type: AlertType;
   entityType: string;
@@ -10,7 +10,7 @@ export interface AlertResponseDto {
   createdAt: string;
 }
 
-export interface AlertsPageResponseDto {
+export class AlertsPageResponseDto {
   items: AlertResponseDto[];
   total: number;
   unreadCount: number;

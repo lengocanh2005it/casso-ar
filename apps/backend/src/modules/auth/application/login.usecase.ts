@@ -54,18 +54,23 @@ export class LoginUseCase {
     const membership = await this.membershipRepo.findFirstActiveByUserId(
       user.id,
     );
-    if (!membership) {
+    if (!membership && !user.isOperator) {
       throw new AppError(
         ErrorCode.FORBIDDEN,
         'Tài khoản chưa thuộc tổ chức nào.',
       );
     }
 
-    const accessToken = this.tokenSigner.sign({
-      userId: user.id,
-      organizationId: membership.organizationId,
-      role: membership.role,
-    });
+    const accessToken = this.tokenSigner.sign(
+      membership
+        ? {
+            userId: user.id,
+            organizationId: membership.organizationId,
+            role: membership.role,
+            isOperator: user.isOperator,
+          }
+        : { userId: user.id, isOperator: true },
+    );
     const { token: refreshToken, hash } = generateToken();
 
     await this.refreshTokenRepo.save(

@@ -9,16 +9,23 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiCreatedResponse,
+  ApiHeader,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { memoryStorage } from 'multer';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
-import {
-  type ImportInvoicesResult,
-  ImportInvoicesUseCase,
-} from '../application/import-invoices.usecase';
+import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ImportInvoicesUseCase } from '../application/import-invoices.usecase';
 import { getImportRequestFingerprint } from '../application/import-request-fingerprint';
+import { ImportInvoicesResponseDto } from './dto/import-invoices-response.dto';
 
 @ApiTags('invoice-import')
 @Controller('invoices')
@@ -30,6 +37,28 @@ export class InvoiceImportController {
   ) {}
 
   @Post('import')
+  @ApiOperation({ summary: 'Import receivables from an uploaded CSV file' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'CSV file (multipart field "file", max 5 MB)',
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: ImportInvoicesResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.CUSTOMER_MISMATCH,
+    ErrorCode.CONFLICT,
+    ErrorCode.FILE_TOO_LARGE,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @RequirePermission(Permission.RECEIVABLE_IMPORT)
   @UseInterceptors(
     FileInterceptor('file', {
@@ -40,7 +69,7 @@ export class InvoiceImportController {
   async import(
     @Headers('idempotency-key') key: string | undefined,
     @UploadedFile() file: Express.Multer.File | undefined,
-  ): Promise<ImportInvoicesResult> {
+  ): Promise<ImportInvoicesResponseDto> {
     if (!file) throw new BadRequestException('File là bắt buộc.');
 
     const fileSha256 = getImportRequestFingerprint(

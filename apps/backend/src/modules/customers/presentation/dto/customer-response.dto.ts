@@ -1,6 +1,6 @@
 import type { Customer } from '../../domain/customer';
 
-export interface CustomerResponseDto {
+export class CustomerResponseDto {
   id: string;
   name: string;
   taxCode: string;
@@ -10,6 +10,13 @@ export interface CustomerResponseDto {
   creditLimit: number;
   priority: number;
   createdAt: Date;
+}
+
+export class ListCustomersResponseDto {
+  items: CustomerResponseDto[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export function toCustomerResponse(customer: Customer): CustomerResponseDto {

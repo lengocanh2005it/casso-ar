@@ -17,6 +17,9 @@ export class UserOrmEntity {
   @Column({ type: 'timestamp', nullable: true })
   emailVerifiedAt: Date | null;
 
+  @Column({ type: 'boolean', default: false })
+  isOperator: boolean;
+
   @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

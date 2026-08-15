@@ -13,9 +13,10 @@ const axiosClient = axios.create({
 
 interface JwtPayload {
   exp?: unknown;
+  isOperator?: unknown;
 }
 
-function getTokenExpiry(token: string): number | null {
+function decodeJwtPayload(token: string): JwtPayload | null {
   const encodedPayload = token.split('.')[1];
   if (!encodedPayload) return null;
 
@@ -27,11 +28,19 @@ function getTokenExpiry(token: string): number | null {
       Math.ceil(normalizedPayload.length / 4) * 4,
       '=',
     );
-    const payload = JSON.parse(atob(paddedPayload)) as JwtPayload;
-    return typeof payload.exp === 'number' ? payload.exp * 1000 : null;
+    return JSON.parse(atob(paddedPayload)) as JwtPayload;
   } catch {
     return null;
   }
+}
+
+function getTokenExpiry(token: string): number | null {
+  const payload = decodeJwtPayload(token);
+  return payload && typeof payload.exp === 'number' ? payload.exp * 1000 : null;
+}
+
+export function isOperatorToken(token: string): boolean {
+  return decodeJwtPayload(token)?.isOperator === true;
 }
 
 export class AuthTokenManager {

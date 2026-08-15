@@ -9,7 +9,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  ApiCreatedResponse,
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   AuditActionType,
   AuditEntityType,
@@ -21,6 +27,7 @@ import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
+import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { BatchMarkPrepaidBankTransactionUseCase } from '../application/batch-mark-prepaid-bank-transaction.usecase';
 import { BatchMatchBankTransactionUseCase } from '../application/batch-match-bank-transaction.usecase';
@@ -33,10 +40,13 @@ import { BatchMarkPrepaidBankTransactionDto } from './dto/batch-mark-prepaid-ban
 import { BatchMatchBankTransactionDto } from './dto/batch-match-bank-transaction.dto';
 import { ExceptionQueuePaginationDto } from './dto/exception-queue-pagination.dto';
 import {
+  BankTransactionResponseDto,
+  MatchingCandidateResponseDto,
   toBankTransactionResponse,
   toMatchingCandidateResponse,
   toPaymentResponse,
   toUnmatchedResponse,
+  UnmatchedBankTransactionPageResponseDto,
 } from './dto/exception-queue-response.dto';
 import { MarkPrepaidBankTransactionDto } from './dto/mark-prepaid-bank-transaction.dto';
 import { MatchBankTransactionDto } from './dto/match-bank-transaction.dto';
@@ -58,6 +68,11 @@ export class ExceptionQueueController {
   ) {}
 
   @Get('unmatched')
+  @ApiOperation({
+    summary: 'List unmatched bank transactions (exception queue)',
+  })
+  @ApiOkResponse({ type: UnmatchedBankTransactionPageResponseDto })
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR)
   @RequirePermission(Permission.PAYMENT_ALLOCATE)
   async unmatched(@Query() query: ExceptionQueuePaginationDto) {
     return toUnmatchedResponse(
@@ -66,12 +81,24 @@ export class ExceptionQueueController {
   }
 
   @Get('pending-review-count')
+  @ApiOperation({ summary: 'Count bank transactions pending review' })
+  @ApiOkResponse({
+    description: 'Number of pending-review transactions',
+    schema: {
+      type: 'object',
+      required: ['count'],
+      properties: { count: { type: 'number' } },
+    },
+  })
   @RequirePermission(Permission.PAYMENT_ALLOCATE)
   async pendingReviewCount() {
     return { count: await this.unmatchedQuery.countPendingReview() };
   }
 
   @Get(':id/candidates')
+  @ApiOperation({ summary: 'List matching candidates for a transaction' })
+  @ApiOkResponse({ type: [MatchingCandidateResponseDto] })
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.NOT_FOUND)
   @RequirePermission(Permission.PAYMENT_ALLOCATE)
   async candidates(@Param('id') id: string) {
     const candidates = await this.unmatchedQuery.candidates(id);
@@ -79,6 +106,19 @@ export class ExceptionQueueController {
   }
 
   @Post(':id/match')
+  @ApiOperation({ summary: 'Match a bank transaction to receivables' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: BankTransactionResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.RECEIVABLE_NOT_FOUND,
+    ErrorCode.CUSTOMER_MISMATCH,
+    ErrorCode.ALLOCATION_EXCEEDS_REMAINING,
+    ErrorCode.OPTIMISTIC_LOCK_CONFLICT,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @RequirePermission(Permission.PAYMENT_ALLOCATE)
   @Audited(AuditActionType.PAYMENT_ALLOCATE, AuditEntityType.BANK_TRANSACTION)
   async match(
@@ -107,6 +147,16 @@ export class ExceptionQueueController {
   }
 
   @Post('batch-match')
+  @ApiOperation({ summary: 'Match multiple bank transactions' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({
+    description: 'Per-item results (success items include the transaction)',
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @RequirePermission(Permission.PAYMENT_ALLOCATE)
   async batchMatch(
     @Body() dto: BatchMatchBankTransactionDto,
@@ -130,6 +180,15 @@ export class ExceptionQueueController {
   }
 
   @Post(':id/skip')
+  @ApiOperation({ summary: 'Skip a bank transaction' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: BankTransactionResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @RequirePermission(Permission.PAYMENT_ALLOCATE)
   @Audited(
     AuditActionType.BANK_TRANSACTION_SKIP,
@@ -148,6 +207,16 @@ export class ExceptionQueueController {
   }
 
   @Post('batch-skip')
+  @ApiOperation({ summary: 'Skip multiple bank transactions' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({
+    description: 'Per-item results (success items include the transaction)',
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @RequirePermission(Permission.PAYMENT_ALLOCATE)
   async batchSkip(
     @Body() dto: BatchIdsDto,
@@ -171,6 +240,27 @@ export class ExceptionQueueController {
   }
 
   @Post(':id/mark-prepaid')
+  @ApiOperation({ summary: 'Mark a bank transaction as prepaid' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({
+    description: 'Updated transaction and the created credit payment',
+    schema: {
+      type: 'object',
+      required: ['transaction', 'payment'],
+      properties: {
+        transaction: {
+          $ref: '#/components/schemas/BankTransactionResponseDto',
+        },
+        payment: { $ref: '#/components/schemas/PaymentResponseDto' },
+      },
+    },
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @RequirePermission(Permission.PAYMENT_ALLOCATE)
   @Audited(
     AuditActionType.BANK_TRANSACTION_MARK_PREPAID,
@@ -199,6 +289,17 @@ export class ExceptionQueueController {
   }
 
   @Post('batch-mark-prepaid')
+  @ApiOperation({ summary: 'Mark multiple bank transactions as prepaid' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({
+    description:
+      'Per-item results (success items include transaction and payment)',
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @RequirePermission(Permission.PAYMENT_ALLOCATE)
   async batchMarkPrepaid(
     @Body() dto: BatchMarkPrepaidBankTransactionDto,

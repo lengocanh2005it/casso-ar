@@ -12,8 +12,10 @@ A B2B SaaS platform for automating accounts receivable management and collection
 
 | Entity | Description | Key Fields |
 |--------|-------------|------------|
-| **Organization** | Tenant boundary, organization unit | `id`, `name` |
+| **Organization** | Tenant boundary, organization unit | `id`, `name`, `status` |
 | **User** | Login account belonging to 1+ organization | `id`, `email`, `name` |
+| **Operator** | Casso's own staff who manage the platform across all organizations — not scoped to any single organization, not a `Membership`/`Role`. Identified by a flag on `User`, authorized through a guard separate from `PermissionGuard` (research, not yet built — issue #98) | `id` (= `User.id`) |
+| **OperatorAuditLog** | Audit trail for `Operator` actions (e.g. locking an organization), separate from `AuditLog` because an `Operator` action may target one organization or span all of them, unlike `AuditLog` where `organizationId` is always a single required tenant (research, not yet built — issue #98) | `id`, `operatorId`, `organizationId` (nullable), `actionType` |
 | **Membership** | User ↔ Organization link with a role | `userId`, `organizationId`, `role` |
 | **Customer** | Customer who owes money | `id`, `organizationId`, `name`, `taxCode`, `creditLimit`, `defaultPaymentTermDays` |
 | **Invoice** | Invoice | `id`, `organizationId`, `customerId`, `invoiceNumber`, `totalAmount`, `sourceType` |
@@ -135,6 +137,7 @@ they never rewrite an earlier snapshot.
 9. **Retention Policy:** INSERT-only, unbounded-growth tables are pruned by a daily cutoff-based delete, not query-time filtering. Windows (see issue #118): `webhook_inbox` 90d, `idempotency_keys` 90d post-COMPLETED, `ai_usage_logs` 12mo, `audit_logs`/`collection_activities`/`reminder_executions` 24mo, `alerts` 90d after `readAt` (unread rows are never auto-pruned). `ReceivableBalanceHistory` is an exception: retain it with the receivable data because it is the source for historical outstanding; archival requires an explicit policy first.
 10. **Plan tiers:** FREE < STARTER < BUSINESS < ENTERPRISE (strict order). A `Subscription` may only move to a strictly higher tier via `PlanUpgradeOrder` (self-service upgrade); there is no downgrade or cancel action — an org on a paid tier must pay a `PeriodCharge` for the current billing period to keep that tier. If unpaid by the end of a 3-day grace window after period end, the `Subscription` automatically drops to FREE (not a user-triggered downgrade). During the grace window `status` stays `ACTIVE` (see ADR-0012) — `PAST_DUE` keeps its existing meaning of an immediate hard block (`plan-limit.service.ts`), it is not used for renewal grace
 11. **Batch operations:** a `Batch operation` (API request with multiple items) processes each item independently — one item's failure does not roll back or block the others. Every successful per-item receivable transition has its own balance snapshot; a failed item has none. Never wrap a batch in a single all-or-nothing transaction; that is a distinct, rejected design (see ADR-0016)
+12. **Organization lock (research, not yet built — issue #98):** an `Operator` locking an `Organization` (`status: LOCKED`) is a hard block — every request scoped to that organization is rejected, not a soft warning restricted to specific actions
 
 ## RBAC
 
@@ -198,6 +201,7 @@ Score components:
 | 0014 | Alert SSE via in-process EventEmitter2, no cross-instance relay | Single-instance `backend` today; breaks silently if horizontally scaled — a future replica needs a Redis-relay upgrade before the bell stays live |
 | 0015 | Idempotency-Key PENDING rows reclaimed as stale after 5 minutes | Prevents permanent PENDING leak on process crash (issue #118), trading strict idempotency for a rare >5min-running request against bounded leak otherwise |
 | 0016 | Batch endpoints process items independently, never as one all-or-nothing transaction | Issue #134 requires per-item failure reporting; an all-or-nothing transaction would also hold row locks across up to 50 items, violating the short-transaction-scope rule |
+| 0017 | Cross-org Operator plane is separate from tenant RBAC (proposed) | `Operator` is a flag on `User` with its own `AdminGuard`/`OperatorAuditLog`, never touching `TenantContextService`/`PermissionGuard`/`AuditLog` — those are the cross-cutting foundation every business module depends on; research for issue #98, not yet built |
 
 ## Constraints
 

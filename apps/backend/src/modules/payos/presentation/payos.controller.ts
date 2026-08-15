@@ -7,7 +7,13 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  ApiCreatedResponse,
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import {
   AuditActionType,
@@ -15,9 +21,11 @@ import {
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
 import { Public } from '../../../common/auth/public.decorator';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
+import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { WebhookRateLimitGuard } from '../../webhooks/presentation/webhook-rate-limit.guard';
 import { ConfirmPeriodChargeUseCase } from '../application/confirm-period-charge.usecase';
@@ -27,8 +35,8 @@ import { InitiatePlanUpgradeOrderUseCase } from '../application/initiate-plan-up
 import { InitiatePeriodChargeDto } from './dto/initiate-period-charge.dto';
 import { InitiatePlanUpgradeOrderDto } from './dto/initiate-plan-upgrade-order.dto';
 import { PayosWebhookDto } from './dto/payos-webhook.dto';
-import type { PeriodChargeResponseDto } from './dto/period-charge-response.dto';
-import type { PlanUpgradeOrderResponseDto } from './dto/plan-upgrade-order-response.dto';
+import { PeriodChargeResponseDto } from './dto/period-charge-response.dto';
+import { PlanUpgradeOrderResponseDto } from './dto/plan-upgrade-order-response.dto';
 import { PayosWebhookAuthGuard } from './payos-webhook-auth.guard';
 
 @ApiTags('payos')
@@ -45,6 +53,15 @@ export class PayosController {
   ) {}
 
   @Post('plan-upgrade-orders')
+  @ApiOperation({ summary: 'Create a PayOS checkout order for a plan upgrade' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: PlanUpgradeOrderResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.INVALID_PLAN_TRANSITION,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @Audited(
     AuditActionType.PLAN_UPGRADE_ORDER_CREATE,
     AuditEntityType.PLAN_UPGRADE_ORDER,
@@ -70,6 +87,17 @@ export class PayosController {
   }
 
   @Post('period-charges')
+  @ApiOperation({
+    summary: 'Create a PayOS checkout order for the period charge',
+  })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: PeriodChargeResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.INVALID_PLAN_TRANSITION,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @Audited(AuditActionType.PERIOD_CHARGE_CREATE, AuditEntityType.PERIOD_CHARGE)
   @RequirePermission(Permission.SUBSCRIPTION_MANAGE)
   async initiatePeriodCharge(
@@ -92,6 +120,20 @@ export class PayosController {
 
   @Post('webhook')
   @Public()
+  @ApiOperation({ summary: 'Receive a PayOS payment webhook' })
+  @ApiOkResponse({
+    description: 'Webhook acknowledged',
+    schema: {
+      type: 'object',
+      required: ['received'],
+      properties: { received: { type: 'boolean', example: true } },
+    },
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.RATE_LIMIT_EXCEEDED,
+  )
   @UseGuards(PayosWebhookAuthGuard, WebhookRateLimitGuard)
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @HttpCode(200)

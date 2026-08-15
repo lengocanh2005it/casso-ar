@@ -1,4 +1,5 @@
 import { Membership, Role } from '../../organizations/domain/membership';
+import { User } from '../../users/domain/user';
 import { RefreshToken } from '../domain/refresh-token';
 import { RefreshAccessTokenUseCase } from './refresh-access-token.usecase';
 import { hashToken } from './token-hasher';
@@ -31,6 +32,19 @@ describe('RefreshAccessTokenUseCase', () => {
         }),
       ),
     };
+    const userRepo = {
+      findById: jest.fn().mockResolvedValue(
+        new User({
+          id: 'user-1',
+          name: 'An',
+          email: 'ap@congtyb.vn',
+          passwordHash: 'hash',
+          emailVerifiedAt: new Date(),
+          isOperator: false,
+          createdAt: new Date(),
+        }),
+      ),
+    };
     const jwtService = { sign: jest.fn().mockReturnValue('access') };
     const dataSource = {
       transaction: jest.fn(
@@ -40,6 +54,7 @@ describe('RefreshAccessTokenUseCase', () => {
     const useCase = new RefreshAccessTokenUseCase(
       refreshTokenRepo as any,
       membershipRepo as any,
+      userRepo as any,
       jwtService as any,
       dataSource as any,
     );
@@ -75,6 +90,7 @@ describe('RefreshAccessTokenUseCase', () => {
       revokeAllForUser: jest.fn(),
     };
     const membershipRepo = { findFirstActiveByUserId: jest.fn() };
+    const userRepo = { findById: jest.fn() };
     const jwtService = { sign: jest.fn() };
     const dataSource = {
       transaction: jest.fn(
@@ -84,6 +100,7 @@ describe('RefreshAccessTokenUseCase', () => {
     const useCase = new RefreshAccessTokenUseCase(
       refreshTokenRepo as any,
       membershipRepo as any,
+      userRepo as any,
       jwtService as any,
       dataSource as any,
     );
@@ -115,6 +132,7 @@ describe('RefreshAccessTokenUseCase', () => {
       revokeAllForUser: jest.fn(),
     };
     const membershipRepo = { findFirstActiveByUserId: jest.fn() };
+    const userRepo = { findById: jest.fn() };
     const jwtService = { sign: jest.fn() };
     const dataSource = {
       transaction: jest.fn(
@@ -124,6 +142,7 @@ describe('RefreshAccessTokenUseCase', () => {
     const useCase = new RefreshAccessTokenUseCase(
       refreshTokenRepo as any,
       membershipRepo as any,
+      userRepo as any,
       jwtService as any,
       dataSource as any,
     );
@@ -133,5 +152,58 @@ describe('RefreshAccessTokenUseCase', () => {
     );
 
     expect(refreshTokenRepo.revokeAllForUser).not.toHaveBeenCalled();
+  });
+
+  it('refreshes an operator-only session (no membership) instead of forcing logout', async () => {
+    const raw = 'r'.repeat(64);
+    const existing = new RefreshToken({
+      id: 'refresh-1',
+      userId: 'operator-1',
+      tokenHash: hashToken(raw),
+      expiresAt: new Date(Date.now() + 60_000),
+      revokedAt: null,
+      createdAt: new Date(),
+    });
+    const refreshTokenRepo = {
+      findByTokenHash: jest.fn().mockResolvedValue(existing),
+      save: jest.fn(),
+    };
+    const membershipRepo = {
+      findFirstActiveByUserId: jest.fn().mockResolvedValue(null),
+    };
+    const userRepo = {
+      findById: jest.fn().mockResolvedValue(
+        new User({
+          id: 'operator-1',
+          name: 'Operator',
+          email: 'operator@casso.vn',
+          passwordHash: 'hash',
+          emailVerifiedAt: new Date(),
+          isOperator: true,
+          createdAt: new Date(),
+        }),
+      ),
+    };
+    const tokenSigner = { sign: jest.fn().mockReturnValue('access') };
+    const dataSource = {
+      transaction: jest.fn(
+        async (callback: (manager: object) => Promise<unknown>) => callback({}),
+      ),
+    };
+    const useCase = new RefreshAccessTokenUseCase(
+      refreshTokenRepo as any,
+      membershipRepo as any,
+      userRepo as any,
+      tokenSigner as any,
+      dataSource as any,
+    );
+
+    const result = await useCase.execute(raw);
+
+    expect(result.accessToken).toBe('access');
+    expect(tokenSigner.sign).toHaveBeenCalledWith({
+      userId: 'operator-1',
+      isOperator: true,
+    });
   });
 });

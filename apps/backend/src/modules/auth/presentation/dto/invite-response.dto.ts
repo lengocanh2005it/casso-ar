@@ -1,12 +1,19 @@
 import type { Role } from '../../../organizations/domain/membership';
 import type { PendingInviteSummary } from '../../domain/membership-invite';
 
-export interface InviteResponseDto {
+export class InviteResponseDto {
   id: string;
   email: string;
   role: Role;
   invitedAt: Date;
   expiresAt: Date;
+}
+
+export class ListInvitesResponseDto {
+  items: InviteResponseDto[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export function toInviteResponse(

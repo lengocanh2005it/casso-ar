@@ -15,7 +15,14 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  ApiCreatedResponse,
+  ApiHeader,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   type AuthRequest,
   assertOrgMatches,
@@ -24,9 +31,12 @@ import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../../../common/auth/optional-jwt-auth.guard';
 import { Public } from '../../../common/auth/public.decorator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
+import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import {
   type IOrganizationRepository,
   ORGANIZATION_REPOSITORY,
@@ -39,7 +49,10 @@ import { RemoveMemberUseCase } from '../application/remove-member.usecase';
 import { ResendInviteUseCase } from '../application/resend-invite.usecase';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { InviteMemberDto } from './dto/invite-member.dto';
-import { toInviteResponse } from './dto/invite-response.dto';
+import {
+  ListInvitesResponseDto,
+  toInviteResponse,
+} from './dto/invite-response.dto';
 
 @ApiTags('auth-invites')
 @Controller()
@@ -57,6 +70,12 @@ export class InvitesController {
   ) {}
 
   @Post('organizations/:id/invites')
+  @ApiOperation({ summary: 'Invite a member to an organization' })
+  @ApiCreatedResponse({
+    description: 'Invitation sent',
+    schema: successResponseSchema(),
+  })
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.NOT_FOUND)
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @RequirePermission(Permission.USER_MANAGE)
   async invite(
@@ -79,6 +98,9 @@ export class InvitesController {
   }
 
   @Get('organizations/:id/invites')
+  @ApiOperation({ summary: 'List pending invites for an organization' })
+  @ApiOkResponse({ type: ListInvitesResponseDto })
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR)
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @RequirePermission(Permission.ORGANIZATION_MANAGE)
   async listInvites(
@@ -101,6 +123,16 @@ export class InvitesController {
 
   @Public()
   @Post('invites/accept')
+  @ApiOperation({ summary: 'Accept an invitation with a token' })
+  @ApiCreatedResponse({
+    description: 'Invitation accepted',
+    schema: successResponseSchema(),
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.CONFLICT,
+  )
   @UseGuards(OptionalJwtAuthGuard)
   async accept(@Body() dto: AcceptInviteDto, @Req() request: AuthRequest) {
     await this.acceptInviteUseCase.execute({
@@ -113,6 +145,15 @@ export class InvitesController {
   }
 
   @Delete('organizations/:id/invites/:inviteId')
+  @ApiOperation({ summary: 'Revoke a pending invite' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiNoContentResponse({ description: 'Invite revoked' })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @HttpCode(204)
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @RequirePermission(Permission.ORGANIZATION_MANAGE)
@@ -132,6 +173,14 @@ export class InvitesController {
   }
 
   @Delete('organizations/:id/members/:userId')
+  @ApiOperation({ summary: 'Remove a member from an organization' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiNoContentResponse({ description: 'Member removed' })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @HttpCode(204)
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @RequirePermission(Permission.ORGANIZATION_MANAGE)
@@ -151,6 +200,18 @@ export class InvitesController {
   }
 
   @Post('organizations/:id/invites/:inviteId/resend')
+  @ApiOperation({ summary: 'Resend a pending invite email' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiOkResponse({
+    description: 'Invite resent',
+    schema: successResponseSchema(),
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @HttpCode(200)
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @RequirePermission(Permission.ORGANIZATION_MANAGE)

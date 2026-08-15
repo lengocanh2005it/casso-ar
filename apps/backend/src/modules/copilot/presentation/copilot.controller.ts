@@ -13,6 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiCreatedResponse,
   ApiHeader,
   ApiOkResponse,
   ApiOperation,
@@ -27,6 +28,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import { CancelPendingActionUseCase } from '../application/cancel-pending-action.usecase';
 import { ConfirmPendingActionUseCase } from '../application/confirm-pending-action.usecase';
 import { CopilotChatUseCase } from '../application/copilot-chat.usecase';
@@ -38,7 +40,12 @@ import { UpdateCopilotDraftUseCase } from '../application/update-copilot-draft.u
 import { CopilotRateLimitGuard } from './copilot-rate-limit.guard';
 import { CopilotDraftsQueryDto } from './dto/copilot-drafts-query.dto';
 import {
-  type CopilotChatResponseDto,
+  CopilotChatResponseDto,
+  CopilotDraftDto,
+  CopilotDraftsPageDto,
+  CopilotPendingActionDto,
+  CopilotUsageResponseDto,
+  ReopenCopilotDraftResponseDto,
   toCopilotDraftDto,
   toCopilotDraftsPageResponse,
   toCopilotMessageDto,
@@ -64,12 +71,22 @@ export class CopilotController {
   ) {}
 
   @Get('usage')
+  @ApiOperation({ summary: 'Get Copilot usage against the plan limit' })
+  @ApiOkResponse({ type: CopilotUsageResponseDto })
+  @ApiErrorResponse(ErrorCode.UNAUTHORIZED, ErrorCode.FORBIDDEN)
   @RequirePermission(Permission.RECEIVABLE_READ)
   async usage() {
     return this.getCopilotUsageUseCase.execute();
   }
 
   @Get('drafts')
+  @ApiOperation({ summary: 'List Copilot email drafts' })
+  @ApiOkResponse({ type: CopilotDraftsPageDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+  )
   @RequirePermission(Permission.RECEIVABLE_READ)
   async listDrafts(@Query() query: CopilotDraftsQueryDto) {
     const page = await this.listCopilotDraftsUseCase.execute(
@@ -81,6 +98,16 @@ export class CopilotController {
   }
 
   @Post('drafts/:id/reopen')
+  @ApiOperation({ summary: 'Reopen a Copilot draft into a conversation' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: ReopenCopilotDraftResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @RequirePermission(Permission.REMINDER_SEND_MANUAL)
   async reopenDraft(
     @Param('id') id: string,
@@ -103,7 +130,7 @@ export class CopilotController {
   @Patch('drafts/:id')
   @ApiOperation({ summary: 'Update a Copilot email draft' })
   @ApiHeader({ name: 'idempotency-key', required: false })
-  @ApiOkResponse({ description: 'The updated Copilot email draft.' })
+  @ApiOkResponse({ type: CopilotDraftDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
     ErrorCode.UNAUTHORIZED,
@@ -138,11 +165,7 @@ export class CopilotController {
   @ApiHeader({ name: 'idempotency-key', required: false })
   @ApiOkResponse({
     description: 'The Copilot email draft was deleted.',
-    schema: {
-      type: 'object',
-      required: ['success'],
-      properties: { success: { type: 'boolean', example: true } },
-    },
+    schema: { ...successResponseSchema(), required: ['success'] },
   })
   @ApiErrorResponse(
     ErrorCode.UNAUTHORIZED,
@@ -168,6 +191,17 @@ export class CopilotController {
   }
 
   @Post('conversations/:id/messages')
+  @ApiOperation({ summary: 'Send a message to a Copilot conversation' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: CopilotChatResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.INTERNAL_SERVER_ERROR,
+    ErrorCode.RATE_LIMIT_EXCEEDED,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @UseGuards(CopilotRateLimitGuard)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @RequirePermission(Permission.RECEIVABLE_READ)
@@ -196,6 +230,17 @@ export class CopilotController {
   }
 
   @Post('actions/:actionId/confirm')
+  @ApiOperation({ summary: 'Confirm a pending Copilot action' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: CopilotPendingActionDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @RequirePermission(Permission.REMINDER_SEND_MANUAL)
   async confirm(
     @Param('actionId') actionId: string,
@@ -212,6 +257,16 @@ export class CopilotController {
   }
 
   @Post('actions/:actionId/cancel')
+  @ApiOperation({ summary: 'Cancel a pending Copilot action' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: CopilotPendingActionDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.CONFLICT,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @RequirePermission(Permission.REMINDER_SEND_MANUAL)
   async cancel(
     @Param('actionId') actionId: string,

@@ -7,7 +7,12 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  ApiCreatedResponse,
+  ApiHeader,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   AuditActionType,
   AuditEntityType,
@@ -18,10 +23,14 @@ import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
+import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { OpenDisputeUseCase } from '../application/open-dispute.usecase';
 import { ResolveDisputeUseCase } from '../application/resolve-dispute.usecase';
-import { toDisputeResponse } from './dto/dispute-response.dto';
+import {
+  DisputeResponseDto,
+  toDisputeResponse,
+} from './dto/dispute-response.dto';
 import { OpenDisputeDto } from './dto/open-dispute.dto';
 
 @ApiTags('disputes')
@@ -36,6 +45,16 @@ export class DisputesController {
   ) {}
 
   @Post('receivables/:receivableId/disputes')
+  @ApiOperation({ summary: 'Open a dispute on a receivable' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: DisputeResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.RECEIVABLE_NOT_FOUND,
+    ErrorCode.DISPUTE_ALREADY_OPEN,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @Audited(AuditActionType.DISPUTE_OPEN, AuditEntityType.DISPUTE)
   @RequirePermission(Permission.RECEIVABLE_DISPUTE)
   async open(
@@ -60,6 +79,16 @@ export class DisputesController {
   }
 
   @Post('disputes/:id/resolve')
+  @ApiOperation({ summary: 'Resolve a dispute' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: DisputeResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
   @Audited(AuditActionType.DISPUTE_RESOLVE, AuditEntityType.DISPUTE)
   @RequirePermission(Permission.RECEIVABLE_DISPUTE)
   async resolve(

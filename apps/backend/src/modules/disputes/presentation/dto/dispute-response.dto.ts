@@ -1,10 +1,10 @@
-import type { Dispute } from '../../domain/dispute';
+import type { Dispute, DisputeStatus } from '../../domain/dispute';
 
-export interface DisputeResponseDto {
+export class DisputeResponseDto {
   id: string;
   receivableId: string;
   reason: string;
-  status: Dispute['status'];
+  status: DisputeStatus;
   createdAt: Date;
   resolvedAt: Date | null;
 }

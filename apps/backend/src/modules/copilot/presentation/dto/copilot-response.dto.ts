@@ -2,14 +2,14 @@ import type { CopilotMessageRecord } from '../../application/conversation-reposi
 import type { CopilotDraftListItem } from '../../application/list-copilot-drafts.usecase';
 import type { CopilotPendingAction } from '../../application/pending-action-repository.port';
 
-export interface CopilotMessageDto {
+export class CopilotMessageDto {
   id: string;
   role: 'USER' | 'ASSISTANT';
   content: string;
   createdAt: string;
 }
 
-export interface CopilotDraftDto {
+export class CopilotDraftDto {
   id: string;
   receivableId: string;
   recipientEmail: string;
@@ -20,12 +20,12 @@ export interface CopilotDraftDto {
   createdAt: string;
 }
 
-export interface CopilotDraftsPageDto {
+export class CopilotDraftsPageDto {
   items: CopilotDraftDto[];
   total: number;
 }
 
-export interface CopilotPendingActionDto {
+export class CopilotPendingActionDto {
   id: string;
   actionType: 'SEND_REMINDER_EMAIL';
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED';
@@ -34,9 +34,21 @@ export interface CopilotPendingActionDto {
   resolvedAt: string | null;
 }
 
-export interface CopilotChatResponseDto {
+export class CopilotChatResponseDto {
   message: CopilotMessageDto;
   pendingAction: CopilotPendingActionDto | null;
+}
+
+export class CopilotUsageResponseDto {
+  turnsUsed: number;
+  turnsLimit: number;
+  periodStart: Date;
+  periodEnd: Date;
+}
+
+export class ReopenCopilotDraftResponseDto {
+  conversationId: string;
+  pendingAction: CopilotPendingActionDto;
 }
 
 export const toCopilotMessageDto = (
