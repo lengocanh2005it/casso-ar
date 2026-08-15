@@ -49,7 +49,6 @@ const customerE = '00000000-0000-4000-8000-0000000000e3';
 
 const bankConnectionId = '00000000-0000-4000-8000-0000000000a8';
 const receivableB = '00000000-0000-4000-8000-0000000000ba';
-const receivableE = '00000000-0000-4000-8000-0000000000ea';
 const invoiceA = '00000000-0000-4000-8000-0000000000aa';
 
 const webhookPayload = {
@@ -283,16 +282,6 @@ describe('Receivable balance history audit (e2e)', () => {
       await delay(100);
     }
     expect(Number(receivable?.paidAmount ?? 0)).toBe(30_000_000);
-  }
-
-  async function allocationIdFor(receivableId: string): Promise<string> {
-    const rows = (await dataSource.query(
-      `SELECT id FROM payment_allocations
-       WHERE "organizationId" = $1 AND "receivableId" = $2
-       ORDER BY "createdAt" DESC LIMIT 1`,
-      [orgA, receivableId],
-    )) as Array<{ id: string }>;
-    return rows[0]?.id ?? '';
   }
 
   async function insertLegacyRow(options: {
