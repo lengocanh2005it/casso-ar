@@ -1,6 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../../../common/auth/public.decorator';
+import { ErrorCode } from '../../../common/errors/error-code';
+import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { GetPublicPlansUseCase } from '../application/get-public-plans.usecase';
 import {
   PlanCatalogEntryDto,
@@ -18,6 +20,7 @@ export class PublicPlansController {
     summary: 'List the public plan catalog (pricing and usage limits)',
   })
   @ApiOkResponse({ type: PlanCatalogEntryDto, isArray: true })
+  @ApiErrorResponse(ErrorCode.INTERNAL_SERVER_ERROR)
   list(): PlanCatalogEntryDto[] {
     return this.getPublicPlans.execute().map(toPlanCatalogEntryDto);
   }

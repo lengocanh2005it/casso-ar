@@ -1,5 +1,4 @@
-import { PlanId } from '@casso-ledger/shared-types';
-import type { ReceivableStatus } from '@/features/receivables/types';
+import { PlanId, ReceivableStatus } from '@casso-ledger/shared-types';
 
 export const LANDING_NAV_LINKS = [
   { href: '#gioi-thieu', label: 'Giới thiệu' },
@@ -112,11 +111,19 @@ export interface DemoTransaction {
 }
 
 export const DEMO_TRANSACTIONS: DemoTransaction[] = [
-  { customer: 'Công ty TNHH Minh Phát', amountVnd: 12_500_000, status: 'OPEN' },
+  {
+    customer: 'Công ty TNHH Minh Phát',
+    amountVnd: 12_500_000,
+    status: ReceivableStatus.OPEN,
+  },
   {
     customer: 'Cửa hàng Thanh Tâm',
     amountVnd: 3_200_000,
-    status: 'PARTIALLY_PAID',
+    status: ReceivableStatus.PARTIALLY_PAID,
   },
-  { customer: 'Công ty CP Đại Dương', amountVnd: 8_900_000, status: 'PAID' },
+  {
+    customer: 'Công ty CP Đại Dương',
+    amountVnd: 8_900_000,
+    status: ReceivableStatus.PAID,
+  },
 ];

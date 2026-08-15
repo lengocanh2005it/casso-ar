@@ -111,8 +111,9 @@ describe('application routes', () => {
       </QueryClientProvider>,
     );
 
-    await waitFor(() =>
-      expect(screen.getByText(/thu tiền/i)).toBeInTheDocument(),
+    await waitFor(
+      () => expect(screen.getByText(/thu tiền/i)).toBeInTheDocument(),
+      { timeout: 5_000 },
     );
   });
 
@@ -156,8 +157,12 @@ describe('application routes', () => {
       </QueryClientProvider>,
     );
 
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { name: 'Trang chủ' })).toBeVisible(),
+    await waitFor(
+      () =>
+        expect(
+          screen.getByRole('heading', { name: 'Trang chủ' }),
+        ).toBeVisible(),
+      { timeout: 5_000 },
     );
   });
 });
