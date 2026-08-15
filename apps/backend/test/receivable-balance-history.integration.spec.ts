@@ -8,10 +8,12 @@ import {
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
 import { fromZonedTime } from 'date-fns-tz';
+import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { ErrorCode } from '../src/common/errors/error-code';
 import { TenantContextService } from '../src/common/tenancy/tenant-context';
+import { AddReceivableBalanceHistoryRolloutBaseline20260822000000 } from '../src/database/migrations/20260822000000-add-receivable-balance-history-rollout-baseline';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
@@ -23,6 +25,7 @@ import {
   RECEIVABLE_BALANCE_HISTORY_REPOSITORY,
 } from '../src/modules/receivable-balance-history/application/receivable-balance-history.repository.port';
 import {
+  type HistoricalOutstandingPoint,
   type IReceivableBalanceHistoryQuery,
   RECEIVABLE_BALANCE_HISTORY_QUERY,
 } from '../src/modules/receivable-balance-history/application/receivable-balance-history-query.port';
@@ -31,6 +34,7 @@ import { ReceivableBalanceHistoryOrmEntity } from '../src/modules/receivable-bal
 import { CancelReceivableUseCase } from '../src/modules/receivables/application/cancel-receivable.usecase';
 import { CreateReceivableUseCase } from '../src/modules/receivables/application/create-receivable.usecase';
 import { WriteOffReceivableUseCase } from '../src/modules/receivables/application/write-off-receivable.usecase';
+import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 
 const REPORTING_TIMEZONE = 'Asia/Ho_Chi_Minh';
@@ -52,6 +56,7 @@ function monthEndInTimeZone(year: number, month: number): Date {
 
 describe('Receivable balance history (integration)', () => {
   let container: StartedPostgreSqlContainer | undefined;
+  let redis: StartedTestContainer | undefined;
   let app: INestApplication | undefined;
   let dataSource: DataSource;
   let tenantContext: TenantContextService;
@@ -70,6 +75,15 @@ describe('Receivable balance history (integration)', () => {
     return tenantContext.run(
       { userId, organizationId: orgId, role: Role.OWNER },
       callback,
+    );
+  }
+
+  async function findOutstandingByMonthEnds(
+    orgId: string,
+    monthEnds: Date[],
+  ): Promise<HistoricalOutstandingPoint[]> {
+    return asTenant(orgId, () =>
+      historyQuery.findOutstandingByMonthEnds(orgId, monthEnds),
     );
   }
 
@@ -121,14 +135,17 @@ describe('Receivable balance history (integration)', () => {
   }
 
   beforeAll(async () => {
-    container = await new PostgreSqlContainer('postgres:16').start();
+    [container, redis] = await Promise.all([
+      new PostgreSqlContainer('postgres:16').start(),
+      new GenericContainer('redis:7-alpine').withExposedPorts(6379).start(),
+    ]);
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
-    process.env.REDIS_HOST = 'localhost';
-    process.env.REDIS_PORT = '6379';
+    process.env.REDIS_HOST = redis.getHost();
+    process.env.REDIS_PORT = String(redis.getMappedPort(6379));
     process.env.JWT_SECRET = 'e2e-jwt-secret';
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -209,8 +226,8 @@ describe('Receivable balance history (integration)', () => {
 
   afterAll(async () => {
     await app?.close();
-    await container?.stop();
-  });
+    await Promise.all([redis?.stop(), container?.stop()]);
+  }, 60_000);
 
   describe('write path', () => {
     it('stores receivableId as uuid to match receivables.id', async () => {
@@ -523,10 +540,21 @@ describe('Receivable balance history (integration)', () => {
   });
 
   describe('month-end outstanding query', () => {
-    async function clearHistoryRows(): Promise<void> {
+    async function clearHistoryRows(
+      coveredFrom = new Date('2026-07-01T00:00:00.000Z'),
+    ): Promise<void> {
       await dataSource.query(
         'DELETE FROM receivable_balance_history WHERE "organizationId" = $1',
         [historyQueryOrgId],
+      );
+      await dataSource.query(
+        `INSERT INTO receivable_balance_history_coverage
+           ("organizationId", "coveredFrom", "reason")
+         VALUES ($1, $2, 'HISTORY_COVERAGE_START')
+         ON CONFLICT ("organizationId") DO UPDATE SET
+           "coveredFrom" = EXCLUDED."coveredFrom",
+           "reason" = EXCLUDED."reason"`,
+        [historyQueryOrgId, coveredFrom],
       );
     }
 
@@ -534,6 +562,17 @@ describe('Receivable balance history (integration)', () => {
       await clearHistoryRows();
       const receivableId = randomUUID();
       await dataSource.getRepository(ReceivableBalanceHistoryOrmEntity).save([
+        {
+          id: randomUUID(),
+          organizationId: historyQueryOrgId,
+          receivableId: randomUUID(),
+          status: ReceivableStatus.OPEN,
+          remainingAmount: 12_000_000,
+          effectiveAt: new Date('2026-06-15T02:00:00.000Z'),
+          changeSource: BalanceHistoryChangeSource.CREATE,
+          changeReason: null,
+          createdAt: new Date('2026-06-15T02:00:00.000Z'),
+        },
         {
           id: randomUUID(),
           organizationId: historyQueryOrgId,
@@ -580,15 +619,12 @@ describe('Receivable balance history (integration)', () => {
         },
       ]);
 
-      const result = await historyQuery.findOutstandingByMonthEnds(
-        historyQueryOrgId,
-        [
-          monthEndInTimeZone(2026, 5),
-          monthEndInTimeZone(2026, 6),
-          monthEndInTimeZone(2026, 7),
-          monthEndInTimeZone(2026, 8),
-        ],
-      );
+      const result = await findOutstandingByMonthEnds(historyQueryOrgId, [
+        monthEndInTimeZone(2026, 5),
+        monthEndInTimeZone(2026, 6),
+        monthEndInTimeZone(2026, 7),
+        monthEndInTimeZone(2026, 8),
+      ]);
 
       expect(result).toEqual([
         { month: '2026-05', outstanding: null },
@@ -599,7 +635,7 @@ describe('Receivable balance history (integration)', () => {
     });
 
     it('includes snapshots stored in PostgreSQL microseconds at month end', async () => {
-      await clearHistoryRows();
+      await clearHistoryRows(new Date('2026-06-01T00:00:00.000Z'));
       const receivableId = randomUUID();
       const historyId = randomUUID();
       const monthEnd = monthEndInTimeZone(2026, 6);
@@ -618,7 +654,7 @@ describe('Receivable balance history (integration)', () => {
       );
 
       await expect(
-        historyQuery.findOutstandingByMonthEnds(historyQueryOrgId, [monthEnd]),
+        findOutstandingByMonthEnds(historyQueryOrgId, [monthEnd]),
       ).resolves.toEqual([{ month: '2026-06', outstanding: 1_000_000 }]);
     });
 
@@ -650,10 +686,9 @@ describe('Receivable balance history (integration)', () => {
         },
       ]);
 
-      const result = await historyQuery.findOutstandingByMonthEnds(
-        historyQueryOrgId,
-        [monthEndInTimeZone(2026, 9)],
-      );
+      const result = await findOutstandingByMonthEnds(historyQueryOrgId, [
+        monthEndInTimeZone(2026, 9),
+      ]);
 
       expect(result).toEqual([{ month: '2026-09', outstanding: 0 }]);
     });
@@ -698,12 +733,164 @@ describe('Receivable balance history (integration)', () => {
         },
       ]);
 
-      const result = await historyQuery.findOutstandingByMonthEnds(
-        historyQueryOrgId,
-        [monthEndInTimeZone(2026, 10)],
-      );
+      const result = await findOutstandingByMonthEnds(historyQueryOrgId, [
+        monthEndInTimeZone(2026, 10),
+      ]);
 
       expect(result).toEqual([{ month: '2026-10', outstanding: 7_000_000 }]);
     });
+  });
+
+  it('creates one rollout baseline snapshot per existing receivable and is idempotent', async () => {
+    const baselineReceivables = [
+      {
+        status: ReceivableStatus.DRAFT,
+        originalAmount: 1_000_000,
+        paidAmount: 0,
+      },
+      {
+        status: ReceivableStatus.OPEN,
+        originalAmount: 2_000_000,
+        paidAmount: 0,
+      },
+      {
+        status: ReceivableStatus.PARTIALLY_PAID,
+        originalAmount: 7_000_000,
+        paidAmount: 2_000_000,
+      },
+      {
+        status: ReceivableStatus.PAID,
+        originalAmount: 4_000_000,
+        paidAmount: 4_000_000,
+      },
+      {
+        status: ReceivableStatus.WRITTEN_OFF,
+        originalAmount: 5_000_000,
+        paidAmount: 1_000_000,
+      },
+      {
+        status: ReceivableStatus.CANCELLED,
+        originalAmount: 6_000_000,
+        paidAmount: 0,
+      },
+    ].map(({ status, originalAmount, paidAmount }) => ({
+      id: randomUUID(),
+      organizationId: otherOrgId,
+      customerId,
+      invoiceId: null,
+      originalAmount,
+      paidAmount,
+      dueDate: new Date('2026-09-01'),
+      status,
+      salesRepresentativeId: null,
+      createdAt: new Date('2026-08-01T00:00:00.000Z'),
+      closedAt: status === ReceivableStatus.PAID ? new Date() : null,
+      version: 1,
+    }));
+    await dataSource
+      .getRepository(ReceivableOrmEntity)
+      .save(baselineReceivables);
+
+    const queryRunner = dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      await queryRunner.startTransaction();
+      await new AddReceivableBalanceHistoryRolloutBaseline20260822000000().up(
+        queryRunner,
+      );
+      await queryRunner.commitTransaction();
+
+      await queryRunner.startTransaction();
+      try {
+        await new AddReceivableBalanceHistoryRolloutBaseline20260822000000().up(
+          queryRunner,
+        );
+        await queryRunner.commitTransaction();
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        throw error;
+      }
+    } finally {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+      await queryRunner.release();
+    }
+
+    const rows = await dataSource.query(
+      `SELECT status, "remainingAmount", "changeSource", "changeReason"
+       FROM receivable_balance_history
+       WHERE "receivableId" = ANY($1::uuid[])
+         AND "changeSource" = 'ROLLOUT_BASELINE'`,
+      [baselineReceivables.map(({ id }) => id)],
+    );
+
+    expect(rows).toHaveLength(baselineReceivables.length);
+    expect(rows).toEqual(
+      expect.arrayContaining(
+        baselineReceivables.map(({ status, originalAmount, paidAmount }) => ({
+          status,
+          remainingAmount: String(originalAmount - paidAmount),
+          changeSource: 'ROLLOUT_BASELINE',
+          changeReason: 'HISTORY_COVERAGE_START',
+        })),
+      ),
+    );
+
+    const coverageRows = await dataSource.query(
+      `SELECT "reason"
+       FROM receivable_balance_history_coverage
+       WHERE "organizationId" = $1`,
+      [otherOrgId],
+    );
+    expect(coverageRows).toEqual([{ reason: 'HISTORY_COVERAGE_START' }]);
+  });
+
+  it('rolls back the complete baseline when the cutover transaction fails', async () => {
+    const receivableId = randomUUID();
+    await dataSource.getRepository(ReceivableOrmEntity).save({
+      id: receivableId,
+      organizationId: otherOrgId,
+      customerId,
+      invoiceId: null,
+      originalAmount: 8_000_000,
+      paidAmount: 3_000_000,
+      dueDate: new Date('2026-09-01'),
+      status: ReceivableStatus.PARTIALLY_PAID,
+      salesRepresentativeId: null,
+      createdAt: new Date('2026-08-01T00:00:00.000Z'),
+      closedAt: null,
+      version: 1,
+    });
+
+    const queryRunner = dataSource.createQueryRunner();
+    await queryRunner.connect();
+    try {
+      await queryRunner.startTransaction();
+      await new AddReceivableBalanceHistoryRolloutBaseline20260822000000().up(
+        queryRunner,
+      );
+      await expect(
+        queryRunner.query(
+          'SELECT "missing_column" FROM "receivable_balance_history"',
+        ),
+      ).rejects.toThrow();
+      await queryRunner.rollbackTransaction();
+    } finally {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+      await queryRunner.release();
+    }
+
+    const rows = await dataSource.query(
+      `SELECT 1
+       FROM receivable_balance_history
+       WHERE "organizationId" = $1 AND "receivableId" = $2
+         AND "changeSource" = 'ROLLOUT_BASELINE'`,
+      [otherOrgId, receivableId],
+    );
+
+    expect(rows).toEqual([]);
   });
 });

@@ -83,6 +83,17 @@ describe('getTypeOrmConfig', () => {
     });
   });
 
+  it('does not load migration test files as production migrations', () => {
+    const config = buildConfig({
+      DB_PASSWORD: 'password',
+      NODE_ENV: 'production',
+    });
+
+    expect(getTypeOrmConfig(config as never).migrations).toEqual([
+      expect.stringContaining('!(*.spec)'),
+    ]);
+  });
+
   it('keeps synchronize on outside production', () => {
     const config = buildConfig({
       DB_HOST: 'db',

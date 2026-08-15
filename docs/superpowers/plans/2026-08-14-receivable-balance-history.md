@@ -15,6 +15,10 @@
 - All money stays integer VND (`bigint` columns, `Number()` coercion for pg bigint strings).
 - Every query/write is tenant-scoped by `TenantContextService.getOrganizationId()` / `organizationId`.
 - Never reconstruct historical balances with `SUM(payment_allocations)` at runtime.
+- Rollout baseline snapshots current receivable state once; it does not reconstruct
+  periods before the rollout boundary.
+- A per-organization coverage epoch records that rollout boundary for historical
+  queries; its reason is `HISTORY_COVERAGE_START`.
 - History rows are append-only: never updated or deleted.
 - `remainingAmount` in a history row is an immutable historical snapshot at the transition
   instant (AGENTS.md "Derived Fields" exception), never a current derived field.
@@ -281,6 +285,7 @@ git commit -m "feat: query month-end receivable outstanding"
 
 **Files:**
 - Create: `apps/backend/src/database/migrations/20260820000000-add-receivable-balance-history.ts`
+- Create: `apps/backend/src/database/migrations/20260822000000-add-receivable-balance-history-rollout-baseline.ts`
 - Create: `apps/backend/test/receivable-balance-history.integration.spec.ts`
 - Modify (only if verification finds a defect): files from Tasks 1–4.
 - Modify: `docs/wayfinder/feature-map.md` (status → done after merge, or in-progress while open)
@@ -290,6 +295,15 @@ git commit -m "feat: query month-end receivable outstanding"
 - Produces: production migration + end-to-end Postgres evidence for every acceptance criterion.
 
 Migration: raw SQL `CREATE TABLE` matching the entity (columns, enum, check, both indexes) and a symmetric `DROP` in `down`, following the existing `YYYYMMDDHHMMSS-add-*.ts` style.
+
+The rollout migration explicitly runs in one TypeORM transaction, first taking a
+`SHARE` lock on `receivables` so transitions cannot interleave with the baseline. It
+creates one coverage epoch per organization before inserting snapshots, with reason
+`HISTORY_COVERAGE_START`. The query ignores history rows before that epoch. It
+creates the unique partial baseline index and inserts one `ROLLOUT_BASELINE` snapshot
+for every existing receivable using the current status and `originalAmount - paidAmount`.
+`NOT EXISTS` plus the unique index makes a retry idempotent. Its `down` removes only the
+index; immutable financial snapshots are never deleted.
 
 Integration suite (testcontainers Postgres, `AppModule`): seed a user, membership, customer, and receivables, then assert:
 
@@ -302,6 +316,8 @@ Integration suite (testcontainers Postgres, `AppModule`): seed a user, membershi
 - a failing allocation (amount exceeds remaining) leaves no history row (atomicity);
 - tenant isolation: a second organization's requests never see the fixture rows;
 - `findOutstandingByMonthEnds` (injected from the app): month keys in `Asia/Ho_Chi_Minh`, `null` for pre-rollout months, exact sums across cutoffs, zero for all-paid months, all requested months returned in order.
+- rollout baseline: every existing receivable gets one current-state snapshot, including
+  terminal/draft statuses, and rerunning the migration creates no duplicate snapshot.
 
 - [ ] **Step 1: Run the focused unit suites**
 

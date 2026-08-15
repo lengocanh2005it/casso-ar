@@ -16,7 +16,7 @@ export function getTypeOrmConfig(config: ConfigService): TypeOrmModuleOptions {
     database: config.get<string>('DB_DATABASE', 'casso_ledger'),
     autoLoadEntities: true,
     synchronize: config.get<string>('NODE_ENV', 'development') !== 'production',
-    migrations: [join(__dirname, '../database/migrations/*{.js,.ts}')],
+    migrations: [join(__dirname, '../database/migrations/!(*.spec){.js,.ts}')],
     migrationsRun:
       config.get<string>('NODE_ENV', 'development') === 'production',
   };

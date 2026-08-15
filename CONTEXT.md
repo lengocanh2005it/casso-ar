@@ -31,7 +31,8 @@ A B2B SaaS platform for automating accounts receivable management and collection
 | **EmailTemplate** | HTML + Handlebars email template | `id`, `bodyHtml`, `isDefault` |
 | **CollectionActivity** | Denormalized, INSERT-only timeline | `id`, `receivableId`, `eventType` |
 | **InternalTask** | Internal ESCALATION/MANUAL task | `id`, `receivableId`, `assignedToUserId`, `status` |
-| **AuditLog** | Change history, INSERT-only | `id`, `entityType`, `entityId`, `beforeState`, `afterState` |
+| **ReceivableBalanceHistory** | Immutable snapshots of a receivable's balance and status at each balance/status transition; the source for historical outstanding balances, not an audit log or event-sourced ledger. A payment without an allocation is not a balance transition. A snapshot may carry transition provenance. It follows the receivable's lifecycle and is not independently hard-deleted. `effectiveAt` is when the transition became effective in the domain, not when the bank transaction originally occurred. Receivables/Payments own transitions; balance history owns snapshots and historical queries; reporting only reads them. It is an immutable record, not an aggregate root | `id`, `receivableId`, `status`, `remainingAmount`, `effectiveAt` |
+| **AuditLog** | Actor-oriented record of who performed an action and what changed; general audit history, not the source for historical receivable balances | `id`, `entityType`, `entityId`, `beforeState`, `afterState` |
 | **BankConnection** | Bank connection through Cas ID | `id`, `organizationId`, `status`, `accessToken` |
 | **Subscription** | Subscription plan | `id`, `organizationId`, `plan`, `status` |
 | **PlanUpgradeOrder** | One-off PayOS payment to move a `Subscription` to a strictly higher tier | `id`, `orderCode`, `organizationId`, `targetPlanId`, `status` |
@@ -69,6 +70,60 @@ A B2B SaaS platform for automating accounts receivable management and collection
     CANCELLED: only from OPEN/PARTIALLY_PAID when paidAmount = 0
 ```
 
+**Historical outstanding** means the sum of the latest balance snapshots at a cutoff
+for receivables whose snapshot status is `OPEN` or `PARTIALLY_PAID`. It excludes
+`PAID`, `CANCELLED`, and `WRITTEN_OFF`; it is not the invoice total or the amount
+collected. Cutoff month boundaries are interpreted in `Asia/Ho_Chi_Minh`; stored
+timestamps remain absolute instants. When transitions share an instant, a stable
+append order determines which snapshot is latest.
+The balance snapshot intentionally carries `remainingAmount` and `status`, not a second
+historical copy of `originalAmount`. `null` historical outstanding means coverage is
+unknown; `0` means coverage exists and no open balance remains. A new organization
+without any balance snapshot is not yet covered and returns `null`, not zero. Dispute
+changes and other non-balance field updates are not balance transitions and do not
+create balance snapshots. A status-only transition still creates a snapshot because
+status controls whether the balance contributes to historical outstanding. Completed
+periods use balance history; the incomplete current period uses the current receivable
+rollup.
+
+**Transition provenance** is the minimal actor and reason context attached to a balance
+snapshot to explain how that transition occurred. New snapshots require a `reasonCode`;
+`USER` provenance requires an actor user, while `SYSTEM` and `WEBHOOK` provenance does
+not. `USER` means direct human action, `WEBHOOK` means an external webhook-triggered
+transition, and `SYSTEM` means an internal job or baseline. Batch actions remain `USER`.
+A human-readable note is optional. Legacy snapshots may have unknown provenance. It is
+not the full `AuditLog` record.
+
+**Rollout baseline snapshot** is the first balance snapshot for each existing receivable
+when balance history coverage begins. It establishes complete coverage from rollout
+onward; it does not reconstruct months before rollout. The baseline is a single cutover
+performed while receivable mutations are paused briefly, so no transition is interleaved
+with the baseline. It includes every existing receivable, regardless of status, so
+closed and draft records also establish coverage. Cutoffs before the baseline are
+unknown; the baseline instant is the boundary from which historical outstanding is
+complete. The baseline is idempotent per receivable and rollout, so an interrupted
+baseline can be retried without duplicating snapshots. The MVP baseline is one atomic
+transaction: failure rolls back the full baseline and does not establish coverage. The
+current domain has one coverage epoch per organization; a later re-baseline would
+require an explicit new epoch. It is a coverage event, not a receivable business
+transition, so it does not emit ordinary audit, collection, or notification events.
+`DRAFT` remains a declared but currently unused receivable status; its future
+transition into `OPEN` must be defined explicitly when a real draft workflow exists.
+
+**Change source** names the lifecycle transition (`CREATE`, `ALLOCATE`, `UNDO`,
+`CANCEL`, `WRITE_OFF`, or `ROLLOUT_BASELINE`). **Reason code** names the business
+justification for that transition; the two terms are not interchangeable. Manual
+actions choose from a controlled reason vocabulary; automated flows derive the reason
+from their flow. `ROLLOUT_BASELINE` uses system provenance and represents the start of
+history coverage, not receivable creation. The concrete reason vocabulary is defined
+with the first real manual transition workflows; speculative codes are not part of the
+domain.
+**Transition reference ID** identifies a related object such as an allocation or undo
+operation; it is not a reason. Balance history records only committed transitions;
+failed attempts and rolled-back webhook deliveries do not create snapshots.
+Corrections such as an allocation undo append a new snapshot at the correction time;
+they never rewrite an earlier snapshot.
+
 ## Business Rules (CRITICAL — violation is a bug)
 
 1. **Money:** integers in VND units, do NOT freely use float/decimal
@@ -79,9 +134,9 @@ A B2B SaaS platform for automating accounts receivable management and collection
 6. **Allocation:** `Payment.customerId` MUST exist and match `Receivable.customerId`
 7. **Undo:** soft-delete + audit; do not physically delete
 8. **Terminal statuses:** WRITTEN_OFF and CANCELLED cannot transition further. PAID is closed normally, but undoing a payment allocation may transition it back to OPEN or PARTIALLY_PAID.
-9. **Retention Policy:** INSERT-only, unbounded-growth tables are pruned by a daily cutoff-based delete, not query-time filtering. Windows (see issue #118): `webhook_inbox` 90d, `idempotency_keys` 90d post-COMPLETED, `ai_usage_logs` 12mo, `audit_logs`/`collection_activities`/`reminder_executions` 24mo, `alerts` 90d after `readAt` (unread rows are never auto-pruned)
+9. **Retention Policy:** INSERT-only, unbounded-growth tables are pruned by a daily cutoff-based delete, not query-time filtering. Windows (see issue #118): `webhook_inbox` 90d, `idempotency_keys` 90d post-COMPLETED, `ai_usage_logs` 12mo, `audit_logs`/`collection_activities`/`reminder_executions` 24mo, `alerts` 90d after `readAt` (unread rows are never auto-pruned). `ReceivableBalanceHistory` is an exception: retain it with the receivable data because it is the source for historical outstanding; archival requires an explicit policy first.
 10. **Plan tiers:** FREE < STARTER < BUSINESS < ENTERPRISE (strict order). A `Subscription` may only move to a strictly higher tier via `PlanUpgradeOrder` (self-service upgrade); there is no downgrade or cancel action — an org on a paid tier must pay a `PeriodCharge` for the current billing period to keep that tier. If unpaid by the end of a 3-day grace window after period end, the `Subscription` automatically drops to FREE (not a user-triggered downgrade). During the grace window `status` stays `ACTIVE` (see ADR-0012) — `PAST_DUE` keeps its existing meaning of an immediate hard block (`plan-limit.service.ts`), it is not used for renewal grace
-11. **Batch operations:** a `Batch operation` (API request with multiple items) processes each item independently — one item's failure does not roll back or block the others. Never wrap a batch in a single all-or-nothing transaction; that is a distinct, rejected design (see ADR-0016)
+11. **Batch operations:** a `Batch operation` (API request with multiple items) processes each item independently — one item's failure does not roll back or block the others. Every successful per-item receivable transition has its own balance snapshot; a failed item has none. Never wrap a batch in a single all-or-nothing transaction; that is a distinct, rejected design (see ADR-0016)
 12. **Organization lock (research, not yet built — issue #98):** an `Operator` locking an `Organization` (`status: LOCKED`) is a hard block — every request scoped to that organization is rejected, not a soft warning restricted to specific actions
 
 ## RBAC
