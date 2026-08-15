@@ -11,6 +11,8 @@ Distinct from #98's `Organization.status` (`ACTIVE`/`LOCKED`), which hard-blocks
 
 Terminology: **block / unblock member** (not "suspend" — matches issue #178's own wording).
 
+Block state is scoped to `Membership`, not `User` — see ADR-0019 for why (a `User` belongs to 1+ orgs; blocking must not leak into orgs neither actor was asked to touch).
+
 ## Data Model
 
 ```typescript
@@ -26,6 +28,8 @@ membershipId: string | null; // set for MEMBER_BLOCKED/MEMBER_UNBLOCKED, null fo
 `Membership` domain gains `block(): Membership` / `unblock(): Membership` (pure transitions, mirroring `Organization.lock()/unlock()`) and `isBlocked(): boolean`. `isActive()` keeps its current meaning (invite accepted, `joinedAt !== null`) — accept-state and block-state are separate concepts, not merged into one flag.
 
 `User` is untouched — no account-wide block flag (per issue's own framing: a `User` can belong to 1+ orgs, and blocking must not leak across orgs the Operator wasn't asked to touch).
+
+Block applies uniformly regardless of `joinedAt` — a pending-invite `Membership` (`joinedAt: null`) can be blocked the same as a joined one; `status`/`isBlocked()` don't branch on invite-acceptance.
 
 ## Authorization
 
