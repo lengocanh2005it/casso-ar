@@ -2,6 +2,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -22,6 +23,15 @@ const SOURCE_LABELS: Record<string, string> = {
   CANCEL: 'Hủy',
   WRITE_OFF: 'Xóa nợ',
   ROLLOUT_BASELINE: 'Baseline',
+};
+
+const SOURCE_COLORS: Record<string, string> = {
+  CREATE: 'var(--chart-1)',
+  ALLOCATE: 'var(--chart-2)',
+  UNDO: 'var(--chart-3)',
+  CANCEL: 'var(--chart-4)',
+  WRITE_OFF: 'var(--chart-5)',
+  ROLLOUT_BASELINE: 'var(--chart-1)',
 };
 
 const CHART_DATE_FORMATTER = new Intl.DateTimeFormat('vi-VN', {
@@ -49,6 +59,7 @@ export function ReceivableBalanceHistoryCharts({
   const chartData = sourceDistribution.map((point) => ({
     name: SOURCE_LABELS[point.changeSource] ?? point.changeSource,
     value: point.count,
+    color: SOURCE_COLORS[point.changeSource] ?? 'var(--chart-5)',
   }));
 
   return (
@@ -118,11 +129,35 @@ export function ReceivableBalanceHistoryCharts({
                     innerRadius={48}
                     outerRadius={80}
                     paddingAngle={2}
-                  />
+                    stroke="var(--card)"
+                    strokeWidth={2}
+                  >
+                    {chartData.map((point) => (
+                      <Cell key={point.name} fill={point.color} />
+                    ))}
+                  </Pie>
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
             </div>
+          )}
+          {chartData.length > 0 && (
+            <ul
+              aria-label="Chú giải nguồn thay đổi"
+              className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground"
+            >
+              {chartData.map((point) => (
+                <li key={point.name} className="flex items-center gap-1.5">
+                  <span
+                    aria-hidden="true"
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: point.color }}
+                  />
+                  <span>{point.name}</span>
+                  <span className="tabular-nums">({point.value})</span>
+                </li>
+              ))}
+            </ul>
           )}
         </CardContent>
       </Card>

@@ -185,6 +185,15 @@ describe('ReceivableBalanceHistoryPage', () => {
     );
   });
 
+  it('shows a visible legend for source distribution', async () => {
+    mockLoadedData();
+
+    renderPage();
+
+    expect(await screen.findByText('Tạo mới')).toBeInTheDocument();
+    expect(screen.getByText('(2)')).toBeInTheDocument();
+  });
+
   it('formats chart dates for Vietnamese readers', () => {
     expect(formatChartDate('2026-08-13')).toBe('13/08');
   });

@@ -51,10 +51,10 @@ function SheetContent({
   };
   return (
     <Dialog.Portal>
-      <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+      <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 motion-reduce:animate-none" />
       <Dialog.Content
         className={cn(
-          'fixed z-50 flex flex-col gap-4 bg-sidebar text-sidebar-foreground shadow-lg duration-200 data-[state=closed]:animate-out data-[state=open]:animate-in',
+          'fixed z-50 flex flex-col gap-4 bg-sidebar text-sidebar-foreground shadow-lg duration-200 data-[state=closed]:animate-out data-[state=open]:animate-in motion-reduce:animate-none',
           sideClasses[side],
           className,
         )}

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { TableSkeleton } from '@/components/ui/skeleton';
+import { Skeleton, TableSkeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import type { ReceivableStatus } from '@/features/receivables/types';
 import { useCsvExport } from '@/lib/use-csv-export';
@@ -40,8 +40,14 @@ function ChartLoadingFallback() {
       className="grid gap-4 lg:grid-cols-2"
       role="status"
     >
-      <div className="h-72 rounded-xl border bg-card" />
-      <div className="h-72 rounded-xl border bg-card" />
+      <div className="rounded-xl border bg-card p-6">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="mt-5 h-52 w-full rounded-lg" />
+      </div>
+      <div className="rounded-xl border bg-card p-6">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="mt-5 h-52 w-full rounded-lg" />
+      </div>
     </div>
   );
 }
