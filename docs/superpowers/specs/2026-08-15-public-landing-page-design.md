@@ -227,7 +227,15 @@ features/landing/
                              allocation, reminders, aging reports, RBAC)
     steps-section.tsx       3-step: connect bank → receive transactions →
                              auto-reconcile
-    pricing-section.tsx     fetches GET /api/v1/plans via useQuery
+    pricing-section.tsx     fetches GET /api/v1/plans via useQuery; BUSINESS
+                             tier renders with a "Phổ biến nhất" badge and
+                             primary-border/ring highlight (mirrors xcash-ai's
+                             `highlight` treatment on its upper-mid PRO tier —
+                             BUSINESS is the equivalent position, tier 3 of 4).
+                             `highlight` is a frontend-only display flag keyed
+                             off `planId === PlanId.BUSINESS`, not a backend
+                             field — the public API returns plain catalog data,
+                             no "featured" concept in the domain.
     cta-section.tsx         final CTA block
     landing-footer.tsx      logo + copyright + login/signup links
   api/
