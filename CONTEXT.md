@@ -31,7 +31,7 @@ A B2B SaaS platform for automating accounts receivable management and collection
 | **EmailTemplate** | HTML + Handlebars email template | `id`, `bodyHtml`, `isDefault` |
 | **CollectionActivity** | Denormalized, INSERT-only timeline | `id`, `receivableId`, `eventType` |
 | **InternalTask** | Internal ESCALATION/MANUAL task | `id`, `receivableId`, `assignedToUserId`, `status` |
-| **ReceivableBalanceHistory** | Immutable snapshots of a receivable's balance and status at each balance/status transition; the source for historical outstanding balances, not an audit log or event-sourced ledger. A payment without an allocation is not a balance transition. A snapshot may carry transition provenance. It follows the receivable's lifecycle and is not independently hard-deleted. `effectiveAt` is when the transition became effective in the domain, not when the bank transaction originally occurred. Receivables/Payments own transitions; balance history owns snapshots and historical queries; reporting only reads them. It is an immutable record, not an aggregate root | `id`, `receivableId`, `status`, `remainingAmount`, `effectiveAt` |
+| **ReceivableBalanceHistory** | Immutable snapshots of a receivable's balance and status at each balance/status transition; the source for historical outstanding balances, not an audit log or event-sourced ledger. A payment without an allocation is not a balance transition. A snapshot may carry transition provenance. It follows the receivable's lifecycle and is not independently hard-deleted. `effectiveAt` is when the transition became effective in the domain, not when the bank transaction originally occurred. Receivables/Payments own transitions; balance history owns snapshots and historical queries; reporting only reads them. It is an immutable record, not an aggregate root | `id`, `receivableId`, `status`, `remainingAmount`, `effectiveAt`, `changeSource`, `actorType`, `actorUserId`, `reasonCode`, `note`, `transitionReferenceId` |
 | **AuditLog** | Actor-oriented record of who performed an action and what changed; general audit history, not the source for historical receivable balances | `id`, `entityType`, `entityId`, `beforeState`, `afterState` |
 | **BankConnection** | Bank connection through Cas ID | `id`, `organizationId`, `status`, `accessToken` |
 | **Subscription** | Subscription plan | `id`, `organizationId`, `plan`, `status` |
@@ -112,15 +112,18 @@ transition into `OPEN` must be defined explicitly when a real draft workflow exi
 
 **Change source** names the lifecycle transition (`CREATE`, `ALLOCATE`, `UNDO`,
 `CANCEL`, `WRITE_OFF`, or `ROLLOUT_BASELINE`). **Reason code** names the business
-justification for that transition; the two terms are not interchangeable. Manual
-actions choose from a controlled reason vocabulary; automated flows derive the reason
-from their flow. `ROLLOUT_BASELINE` uses system provenance and represents the start of
-history coverage, not receivable creation. The concrete reason vocabulary is defined
-with the first real manual transition workflows; speculative codes are not part of the
-domain.
-**Transition reference ID** identifies a related object such as an allocation or undo
-operation; it is not a reason. Balance history records only committed transitions;
-failed attempts and rolled-back webhook deliveries do not create snapshots.
+justification for that transition; the two terms are not interchangeable. The stable
+reason vocabulary is `RECEIVABLE_CREATED`, `PAYMENT_ALLOCATED`,
+`PAYMENT_ALLOCATION_UNDONE`, `RECEIVABLE_CANCELLED`, `RECEIVABLE_WRITTEN_OFF`, and
+`ROLLOUT_BASELINE`. `ROLLOUT_BASELINE` uses system provenance and represents the start
+of history coverage, not receivable creation. **Transition reference ID** identifies a
+related object such as an allocation or undo operation; it is not a reason. Balance
+history records only committed transitions; failed attempts and rolled-back webhook
+deliveries do not create snapshots.
+Each change source has one corresponding reason code: `CREATE` →
+`RECEIVABLE_CREATED`, `ALLOCATE` → `PAYMENT_ALLOCATED`, `UNDO` →
+`PAYMENT_ALLOCATION_UNDONE`, `CANCEL` → `RECEIVABLE_CANCELLED`, `WRITE_OFF` →
+`RECEIVABLE_WRITTEN_OFF`, and `ROLLOUT_BASELINE` → `ROLLOUT_BASELINE`.
 Corrections such as an allocation undo append a new snapshot at the correction time;
 they never rewrite an earlier snapshot.
 
@@ -146,6 +149,7 @@ they never rewrite an earlier snapshot.
 | Permission | OWNER | FINANCE_MGR | ACCOUNTANT | SALES_REP | VIEWER |
 |-----------|-------|-------------|------------|-----------|--------|
 | RECEIVABLE_READ | ✓ | ✓ | ✓ | ✓ (own) | ✓ |
+| RECEIVABLE_AUDIT_READ | ✓ | ✓ | — | — | — |
 | RECEIVABLE_WRITE | ✓ | ✓ | ✓ | — | — |
 | RECEIVABLE_WRITE_OFF | ✓ | ✓ | — | — | — |
 | PAYMENT_ALLOCATE | ✓ | ✓ | ✓ | — | — |
