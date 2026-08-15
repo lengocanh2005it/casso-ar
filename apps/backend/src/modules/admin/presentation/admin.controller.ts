@@ -35,6 +35,7 @@ import {
 import { BlockMemberByOperatorUseCase } from '../application/block-member-by-operator.usecase';
 import { GetAiUsageAggregateUseCase } from '../application/get-ai-usage-aggregate.usecase';
 import { GetAiUsageTrendUseCase } from '../application/get-ai-usage-trend.usecase';
+import { GetOrganizationUseCase } from '../application/get-organization.usecase';
 import { ListOrganizationsUseCase } from '../application/list-organizations.usecase';
 import { LockOrganizationUseCase } from '../application/lock-organization.usecase';
 import { UnblockMemberByOperatorUseCase } from '../application/unblock-member-by-operator.usecase';
@@ -42,6 +43,7 @@ import { UnlockOrganizationUseCase } from '../application/unlock-organization.us
 import {
   AdminAiUsageResponseDto,
   AdminAiUsageTrendResponseDto,
+  AdminOrganizationItemResponseDto,
   AdminOrganizationStatusResponseDto,
   AdminOrganizationsResponseDto,
 } from './dto/admin-response.dto';
@@ -64,6 +66,7 @@ export class AdminController {
     private readonly unblockMemberByOperatorUseCase: UnblockMemberByOperatorUseCase,
     private readonly getAiUsageAggregateUseCase: GetAiUsageAggregateUseCase,
     private readonly getAiUsageTrendUseCase: GetAiUsageTrendUseCase,
+    private readonly getOrganizationUseCase: GetOrganizationUseCase,
     @Inject(ORGANIZATION_REPOSITORY)
     private readonly organizationRepo: IOrganizationRepository,
   ) {}
@@ -81,6 +84,19 @@ export class AdminController {
       page: pagination.page,
       limit: pagination.limit,
     });
+  }
+
+  @Get('organizations/:id')
+  @ApiOperation({ summary: 'Get an organization for Operators' })
+  @ApiOkResponse({ type: AdminOrganizationItemResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.NOT_FOUND,
+  )
+  async getOrganization(@Param('id', ParseUUIDPipe) id: string) {
+    return this.getOrganizationUseCase.execute({ organizationId: id });
   }
 
   @Post('organizations/:id/lock')

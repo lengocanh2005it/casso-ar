@@ -15,6 +15,7 @@ describe('AdminController', () => {
       getAiUsageAggregateUseCase as never,
       getAiUsageTrendUseCase as never,
       {} as never,
+      {} as never,
     );
 
     afterEach(() => jest.clearAllMocks());
