@@ -252,12 +252,17 @@ features/landing/
                              `FeaturesSection`'s detailed capability list, kept
                              short to match the "credible B2B tool" pacing bar
                              (no redundant restating of features here).
-    stats-band.tsx          4-stat grid: hardcoded illustrative numbers
-                             (including customer/org counts — explicitly
-                             approved as fabricated placeholder data pre-launch,
-                             e.g. "500+ doanh nghiệp") plus qualitative
-                             feature-highlight badges alongside them (both, not
-                             either/or)
+    stats-band.tsx          4-tile grid of qualitative feature-highlight badges
+                             (icon + short label, e.g. "Đối chiếu ngân hàng
+                             theo thời gian thực", "Không giới hạn số khách
+                             hàng ở gói Free") — no customer/org-count or
+                             usage-volume numbers. Revisited: fabricated
+                             traction numbers ("500+ doanh nghiệp") were
+                             rejected mid-brainstorm as a B2B trust risk (a
+                             prospect asking for references would expose a
+                             fabricated claim) — capability claims about the
+                             product itself carry no such risk and are what
+                             this band shows instead.
     features-section.tsx    3-col card grid (capability areas: receivables
                              tracking, payment allocation, reminders, aging
                              reports, role-based access) — card copy phrased in
@@ -360,9 +365,10 @@ page-load choreography, no parallax, no decorative background animation.
 
 - Pricing: real prices exist in the backend (`PLAN_PRICE_VND`), just never
   exposed publicly — new endpoint resolves this, no placeholder pricing.
-- Stats band: no real customer metrics exist yet (pre-launch); resolved as
-  hardcoded illustrative numbers (fabricated placeholder metrics allowed,
-  including customer/org counts) plus qualitative feature-highlight badges,
-  per product owner's explicit direction.
+- Stats band: no real customer metrics exist yet (pre-launch). Initially
+  considered fabricated traction numbers (customer/org counts), then rejected
+  during brainstorming as a B2B trust risk — a prospect asking for references
+  would expose a fabricated claim. Resolved as qualitative product-capability
+  badges only, no numbers claiming customer traction.
 - Logo: two SVGs (full lockup, icon-only) provided directly by the user, saved
   under `apps/frontend/src/assets/`.
