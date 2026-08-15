@@ -1,4 +1,6 @@
-import type { Role } from '@casso-ledger/shared-types';
+import type { MembershipStatus, Role } from '@casso-ledger/shared-types';
+
+export type { MembershipStatus };
 
 export interface EmailTemplate {
   id: string;
@@ -47,6 +49,8 @@ export interface OrganizationMember {
   name: string;
   role: Role;
   joinedAt: string | null;
+  status: MembershipStatus;
+  blockedAt: string | null;
 }
 
 export interface OrganizationMemberList {
@@ -54,6 +58,13 @@ export interface OrganizationMemberList {
   total: number;
   page: number;
   limit: number;
+}
+
+export interface MemberStatusResponse {
+  id: string;
+  userId: string;
+  status: MembershipStatus;
+  blockedAt: string | null;
 }
 
 export interface Invite {

@@ -1,7 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import type { EmailTemplateInput, SmtpConfigInput } from '../types';
+import type {
+  EmailTemplateInput,
+  OrganizationMemberList,
+  SmtpConfigInput,
+} from '../types';
 import {
+  blockMember,
   changeMemberRole,
   createEmailTemplate,
   deleteEmailTemplate,
@@ -17,6 +22,7 @@ import {
   resendInvite,
   revokeInvite,
   saveSmtpConfig,
+  unblockMember,
   updateEmailTemplate,
 } from './settings-api';
 
@@ -177,6 +183,80 @@ export function useRemoveMember(organizationId: string | undefined) {
         ),
       ),
   });
+}
+
+type MemberStatusAction = 'block' | 'unblock';
+
+function useMemberStatusMutation(
+  organizationId: string | undefined,
+  action: MemberStatusAction,
+) {
+  const queryClient = useQueryClient();
+  const isBlock = action === 'block';
+  const queryKey = ['organization-members', organizationId];
+  return useMutation({
+    mutationFn: (userId: string) =>
+      isBlock
+        ? blockMember(organizationId ?? '', userId)
+        : unblockMember(organizationId ?? '', userId),
+    onMutate: async (userId: string) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous =
+        queryClient.getQueryData<OrganizationMemberList>(queryKey);
+      queryClient.setQueryData<OrganizationMemberList>(queryKey, (current) =>
+        current
+          ? {
+              ...current,
+              items: current.items.map((member) =>
+                member.userId === userId
+                  ? isBlock
+                    ? {
+                        ...member,
+                        status: 'BLOCKED',
+                        blockedAt: new Date().toISOString(),
+                      }
+                    : { ...member, status: 'ACTIVE', blockedAt: null }
+                  : member,
+              ),
+            }
+          : current,
+      );
+      return { previous, queryKey };
+    },
+    onSuccess: () => {
+      toast.success(
+        isBlock
+          ? 'Đã chặn quyền truy cập của thành viên.'
+          : 'Đã bỏ chặn thành viên.',
+      );
+    },
+    onError: (error, _userId, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(context.queryKey, context.previous);
+      }
+      toast.error(
+        getResponseErrorMessage(
+          error,
+          isBlock
+            ? 'Không thể chặn thành viên này. Vui lòng thử lại.'
+            : 'Không thể bỏ chặn thành viên này. Vui lòng thử lại.',
+        ),
+      );
+    },
+    onSettled: (_data, _error, _userId, context) => {
+      void queryClient.invalidateQueries({
+        queryKey: context?.queryKey ?? queryKey,
+      });
+    },
+  });
+}
+
+export function useBlockMember(organizationId: string | undefined) {
+  return useMemberStatusMutation(organizationId, 'block');
+}
+
+export function useUnblockMember(organizationId: string | undefined) {
+  return useMemberStatusMutation(organizationId, 'unblock');
 }
 
 export function useOrganizationInvites(organizationId: string | undefined) {

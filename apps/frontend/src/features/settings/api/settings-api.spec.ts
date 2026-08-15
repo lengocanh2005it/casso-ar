@@ -1,19 +1,24 @@
 import { describe, expect, it, vi } from 'vitest';
 
-const { apiRequest } = vi.hoisted(() => ({ apiRequest: vi.fn() }));
-
-vi.mock('@/lib/api-client', () => ({
-  apiRequest: (...args: unknown[]) => apiRequest(...args),
+const { apiRequest, postWithIdempotency } = vi.hoisted(() => ({
+  apiRequest: vi.fn(),
   postWithIdempotency: vi.fn(),
 }));
 
+vi.mock('@/lib/api-client', () => ({
+  apiRequest: (...args: unknown[]) => apiRequest(...args),
+  postWithIdempotency: (...args: unknown[]) => postWithIdempotency(...args),
+}));
+
 import {
+  blockMember,
   changeMemberRole,
   fetchOrganizationInvites,
   fetchSmtpConfig,
   removeMember,
   resendInvite,
   revokeInvite,
+  unblockMember,
 } from './settings-api';
 
 describe('fetchSmtpConfig', () => {
@@ -120,6 +125,40 @@ describe('resendInvite', () => {
         url: '/api/v1/organizations/org-1/invites/inv-1/resend',
         method: 'POST',
       }),
+    );
+  });
+});
+
+describe('blockMember', () => {
+  it('posts to the block endpoint via postWithIdempotency', async () => {
+    postWithIdempotency.mockResolvedValueOnce({
+      id: 'm1',
+      userId: 'u1',
+      status: 'BLOCKED',
+      blockedAt: '2026-08-15T00:00:00.000Z',
+    });
+
+    await blockMember('org-1', 'u1');
+
+    expect(postWithIdempotency).toHaveBeenCalledWith(
+      '/api/v1/organizations/org-1/members/u1/block',
+    );
+  });
+});
+
+describe('unblockMember', () => {
+  it('posts to the unblock endpoint via postWithIdempotency', async () => {
+    postWithIdempotency.mockResolvedValueOnce({
+      id: 'm1',
+      userId: 'u1',
+      status: 'ACTIVE',
+      blockedAt: null,
+    });
+
+    await unblockMember('org-1', 'u1');
+
+    expect(postWithIdempotency).toHaveBeenCalledWith(
+      '/api/v1/organizations/org-1/members/u1/unblock',
     );
   });
 });

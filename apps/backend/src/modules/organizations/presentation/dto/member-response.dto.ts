@@ -1,4 +1,4 @@
-import type { Membership } from '../../domain/membership';
+import type { Membership, MembershipStatus } from '../../domain/membership';
 
 export class MemberResponseDto {
   id: string;
@@ -7,6 +7,8 @@ export class MemberResponseDto {
   name: string;
   role: string;
   joinedAt: Date | null;
+  status: MembershipStatus;
+  blockedAt: Date | null;
 }
 
 export class ListMembersResponseDto {
@@ -27,5 +29,7 @@ export function toMemberResponse(
     name: user.name,
     role: membership.role,
     joinedAt: membership.joinedAt,
+    status: membership.status,
+    blockedAt: membership.blockedAt,
   };
 }
