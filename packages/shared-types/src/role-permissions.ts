@@ -5,6 +5,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   [Role.OWNER]: Object.values(Permission),
   [Role.FINANCE_MANAGER]: [
     Permission.RECEIVABLE_READ,
+    Permission.RECEIVABLE_AUDIT_READ,
     Permission.RECEIVABLE_WRITE,
     Permission.RECEIVABLE_WRITE_OFF,
     Permission.RECEIVABLE_DISPUTE,

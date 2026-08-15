@@ -13,6 +13,7 @@ import {
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { ReceivableBalanceHistoryRecorderService } from '../../receivable-balance-history/application/receivable-balance-history-recorder.service';
 import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
+import type { TransitionProvenance } from '../../receivable-balance-history/domain/transition-provenance';
 import {
   type IReceivableRepository,
   RECEIVABLE_REPOSITORY,
@@ -32,6 +33,7 @@ export interface AllocatePaymentInput {
   receivableId: string;
   amount: number;
   allocatedByUserId: string | null;
+  provenance: TransitionProvenance;
 }
 
 @Injectable()
@@ -204,12 +206,13 @@ export class AllocatePaymentUseCase {
       createdAt: new Date(),
     });
     await this.allocationRepo.save(allocation, manager);
-    await this.historyRecorder.record(
-      updatedReceivable,
-      BalanceHistoryChangeSource.ALLOCATE,
+    await this.historyRecorder.record({
+      receivable: updatedReceivable,
+      changeSource: BalanceHistoryChangeSource.ALLOCATE,
+      provenance: input.provenance,
+      transitionReferenceId: allocation.id,
       manager,
-      allocation.id,
-    );
+    });
 
     return { customerId: receivable.customerId, becameClosed };
   }

@@ -1,10 +1,11 @@
-import { PlanId } from '@casso-ledger/shared-types';
+import { Permission, PlanId } from '@casso-ledger/shared-types';
 import {
   AlertTriangle,
   BarChart3,
   BellRing,
   Bot,
   FileText,
+  History,
   Landmark,
   LayoutDashboard,
   type LucideIcon,
@@ -17,6 +18,7 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
   minPlan?: PlanId;
+  permission?: Permission;
   badgeCount?: number;
 }
 
@@ -29,5 +31,11 @@ export const navItems: NavItem[] = [
   { to: '/reminders', label: 'Lịch nhắc', icon: BellRing },
   { to: '/copilot', label: 'Copilot', icon: Bot, minPlan: PlanId.STARTER },
   { to: '/reports', label: 'Báo cáo', icon: BarChart3 },
+  {
+    to: '/receivable-balance-history',
+    label: 'Lịch sử công nợ',
+    icon: History,
+    permission: Permission.RECEIVABLE_AUDIT_READ,
+  },
   { to: '/settings', label: 'Cài đặt', icon: Settings },
 ];

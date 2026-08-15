@@ -2,7 +2,9 @@ import { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { EntityManager, Repository } from 'typeorm';
 import { ErrorCode } from '../../../common/errors/error-code';
 import type { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { BalanceHistoryActorType } from '../domain/balance-history-actor-type';
 import { BalanceHistoryChangeSource } from '../domain/balance-history-change-source';
+import { BalanceHistoryReasonCode } from '../domain/balance-history-reason-code';
 import type { ReceivableBalanceHistoryEntry } from '../domain/receivable-balance-history-entry';
 import { ReceivableBalanceHistoryOrmEntity } from './receivable-balance-history.orm-entity';
 import { TypeOrmReceivableBalanceHistoryRepository } from './typeorm-receivable-balance-history.repository';
@@ -18,7 +20,11 @@ function buildEntry(
     remainingAmount: 10_000_000,
     effectiveAt: new Date('2026-08-14T10:00:00.000Z'),
     changeSource: BalanceHistoryChangeSource.CREATE,
-    changeReason: null,
+    reasonCode: null,
+    actorType: null,
+    actorUserId: null,
+    note: null,
+    transitionReferenceId: null,
     createdAt: new Date('2026-08-14T10:00:00.000Z'),
     ...overrides,
   };
@@ -62,7 +68,11 @@ describe('TypeOrmReceivableBalanceHistoryRepository', () => {
         status: ReceivableStatus.OPEN,
         remainingAmount: 10_000_000,
         changeSource: BalanceHistoryChangeSource.CREATE,
-        changeReason: null,
+        actorType: null,
+        actorUserId: null,
+        reasonCode: null,
+        note: null,
+        transitionReferenceId: null,
       }),
     );
     expect(ormRepo.save).not.toHaveBeenCalled();
@@ -78,6 +88,33 @@ describe('TypeOrmReceivableBalanceHistoryRepository', () => {
       receivableId: 'rec-1',
     });
     expect(saveMock).not.toHaveBeenCalled();
+  });
+
+  it('carries the audit metadata through the explicit mapper', async () => {
+    const { repository, insertMock } = buildRepository();
+
+    await repository.append(
+      buildEntry({
+        changeSource: BalanceHistoryChangeSource.ALLOCATE,
+        reasonCode: BalanceHistoryReasonCode.PAYMENT_ALLOCATED,
+        actorType: BalanceHistoryActorType.WEBHOOK,
+        actorUserId: null,
+        note: 'Tự động phân bổ từ webhook',
+        transitionReferenceId: 'alloc-9',
+      }),
+    );
+
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        changeSource: BalanceHistoryChangeSource.ALLOCATE,
+        reasonCode: BalanceHistoryReasonCode.PAYMENT_ALLOCATED,
+        actorType: BalanceHistoryActorType.WEBHOOK,
+        actorUserId: null,
+        note: 'Tự động phân bổ từ webhook',
+        transitionReferenceId: 'alloc-9',
+        changeReason: null,
+      }),
+    );
   });
 
   it('never updates an existing row: a duplicate id surfaces the insert conflict', async () => {

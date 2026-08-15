@@ -18,6 +18,7 @@ import {
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
+import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
@@ -25,6 +26,7 @@ import { RequirePermission } from '../../../common/rbac/require-permission.decor
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { AllocatePaymentUseCase } from '../application/allocate-payment.usecase';
 import { UndoPaymentAllocationUseCase } from '../application/undo-payment-allocation.usecase';
 import { AllocatePaymentDto } from './dto/allocate-payment.dto';
@@ -71,12 +73,19 @@ export class PaymentsController {
       key,
       { paymentId, ...dto },
       async () => {
+        const user = this.tenantContext.getCurrentUser();
+        if (!user) {
+          throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
+        }
         await this.allocatePaymentUseCase.execute({
           paymentId,
           receivableId: dto.receivableId,
           amount: dto.amount,
-          allocatedByUserId:
-            this.tenantContext.getCurrentUser()?.userId ?? null,
+          allocatedByUserId: user.userId,
+          provenance: {
+            actorType: BalanceHistoryActorType.USER,
+            actorUserId: user.userId,
+          },
         });
         return { success: true };
       },
@@ -110,10 +119,13 @@ export class PaymentsController {
       key,
       { allocationId, ...dto },
       async () => {
+        const user = this.tenantContext.getCurrentUser();
+        if (!user) {
+          throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
+        }
         await this.undoPaymentAllocationUseCase.execute({
           allocationId,
-          deletedByUserId:
-            this.tenantContext.getCurrentUser()?.userId ?? 'system',
+          deletedByUserId: user.userId,
           undoReason: dto.undoReason,
         });
         return { success: true };

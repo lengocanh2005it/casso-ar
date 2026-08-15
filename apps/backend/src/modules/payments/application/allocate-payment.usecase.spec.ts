@@ -1,6 +1,7 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { EntityManager } from 'typeorm';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import { Receivable } from '../../receivables/domain/receivable';
 import { Payment } from '../domain/payment';
@@ -78,6 +79,10 @@ describe('AllocatePaymentUseCase', () => {
       receivableId: 'rec-1',
       amount: 30_000_000,
       allocatedByUserId: 'user-1',
+      provenance: {
+        actorType: BalanceHistoryActorType.USER,
+        actorUserId: 'user-1',
+      },
     });
 
     expect(receivableRepo.save).toHaveBeenCalledWith(
@@ -92,15 +97,19 @@ describe('AllocatePaymentUseCase', () => {
       expect.anything(),
     );
     expect(allocationRepo.save).toHaveBeenCalled();
-    expect(recorder.record).toHaveBeenCalledWith(
-      expect.objectContaining({
+    expect(recorder.record).toHaveBeenCalledWith({
+      receivable: expect.objectContaining({
         paidAmount: 30_000_000,
         status: ReceivableStatus.PARTIALLY_PAID,
       }),
-      BalanceHistoryChangeSource.ALLOCATE,
-      expect.anything(),
-      expect.any(String),
-    );
+      changeSource: BalanceHistoryChangeSource.ALLOCATE,
+      provenance: {
+        actorType: BalanceHistoryActorType.USER,
+        actorUserId: 'user-1',
+      },
+      transitionReferenceId: expect.any(String),
+      manager: expect.anything(),
+    });
     expect(auditContext.setBefore).toHaveBeenCalledWith({
       payment,
       receivable,
@@ -172,6 +181,10 @@ describe('AllocatePaymentUseCase', () => {
       receivableId: 'rec-1',
       amount: 30_000_000,
       allocatedByUserId: 'user-1',
+      provenance: {
+        actorType: BalanceHistoryActorType.USER,
+        actorUserId: 'user-1',
+      },
     });
 
     expect(eventEmitter.emitAsync).toHaveBeenCalledWith(
@@ -220,6 +233,10 @@ describe('AllocatePaymentUseCase', () => {
           receivableId: 'rec-1',
           amount,
           allocatedByUserId: 'user-1',
+          provenance: {
+            actorType: BalanceHistoryActorType.USER,
+            actorUserId: 'user-1',
+          },
         }),
       ).rejects.toMatchObject({ errorCode: ErrorCode.VALIDATION_ERROR });
       expect(receivableRepo.findByIdForUpdate).not.toHaveBeenCalled();
@@ -262,6 +279,10 @@ describe('AllocatePaymentUseCase', () => {
         receivableId: 'missing',
         amount: 1000,
         allocatedByUserId: 'user-1',
+        provenance: {
+          actorType: BalanceHistoryActorType.USER,
+          actorUserId: 'user-1',
+        },
       }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.RECEIVABLE_NOT_FOUND });
     expect(eventEmitter.emitAsync).not.toHaveBeenCalled();
@@ -301,6 +322,10 @@ describe('AllocatePaymentUseCase', () => {
         receivableId: receivable.id,
         amount: 1_000_000,
         allocatedByUserId: 'u1',
+        provenance: {
+          actorType: BalanceHistoryActorType.USER,
+          actorUserId: 'u1',
+        },
       }),
     ).rejects.toMatchObject({
       errorCode: ErrorCode.PAYMENT_CUSTOMER_UNRESOLVED,
@@ -341,6 +366,10 @@ describe('AllocatePaymentUseCase', () => {
         receivableId: receivable.id,
         amount: 1_000_000,
         allocatedByUserId: 'u1',
+        provenance: {
+          actorType: BalanceHistoryActorType.USER,
+          actorUserId: 'u1',
+        },
       }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.CUSTOMER_MISMATCH });
   });
@@ -386,6 +415,10 @@ describe('AllocatePaymentUseCase', () => {
         receivableId: smallReceivable.id,
         amount: 20_000_000, // exceeds the 10_000_000 remainingAmount, within payment's 30_000_000 unallocatedAmount
         allocatedByUserId: 'u1',
+        provenance: {
+          actorType: BalanceHistoryActorType.USER,
+          actorUserId: 'u1',
+        },
       }),
     ).rejects.toMatchObject({
       errorCode: ErrorCode.ALLOCATION_EXCEEDS_REMAINING,
@@ -433,6 +466,10 @@ describe('AllocatePaymentUseCase', () => {
         receivableId: closedReceivable.id,
         amount: 1_000_000,
         allocatedByUserId: 'u1',
+        provenance: {
+          actorType: BalanceHistoryActorType.USER,
+          actorUserId: 'u1',
+        },
       }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.CONFLICT });
     expect(receivableRepo.save).not.toHaveBeenCalled();
@@ -473,6 +510,10 @@ describe('AllocatePaymentUseCase', () => {
         receivableId: receivable.id,
         amount: 40_000_000, // within receivable's 50_000_000 remainingAmount, exceeds payment's 30_000_000 unallocatedAmount
         allocatedByUserId: 'u1',
+        provenance: {
+          actorType: BalanceHistoryActorType.USER,
+          actorUserId: 'u1',
+        },
       }),
     ).rejects.toMatchObject({
       errorCode: ErrorCode.ALLOCATION_EXCEEDS_UNALLOCATED,

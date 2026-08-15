@@ -29,7 +29,9 @@ import {
   type IReceivableBalanceHistoryQuery,
   RECEIVABLE_BALANCE_HISTORY_QUERY,
 } from '../src/modules/receivable-balance-history/application/receivable-balance-history-query.port';
+import { BalanceHistoryActorType } from '../src/modules/receivable-balance-history/domain/balance-history-actor-type';
 import { BalanceHistoryChangeSource } from '../src/modules/receivable-balance-history/domain/balance-history-change-source';
+import { BalanceHistoryReasonCode } from '../src/modules/receivable-balance-history/domain/balance-history-reason-code';
 import { ReceivableBalanceHistoryOrmEntity } from '../src/modules/receivable-balance-history/infrastructure/receivable-balance-history.orm-entity';
 import { CancelReceivableUseCase } from '../src/modules/receivables/application/cancel-receivable.usecase';
 import { CreateReceivableUseCase } from '../src/modules/receivables/application/create-receivable.usecase';
@@ -93,12 +95,19 @@ describe('Receivable balance history (integration)', () => {
       status: string;
       remainingAmount: number;
       changeSource: string;
+      reasonCode: string | null;
+      actorType: string | null;
+      actorUserId: string | null;
+      note: string | null;
+      transitionReferenceId: string | null;
       changeReason: string | null;
       effectiveAt: Date;
     }>
   > {
     const rows = await dataSource.query(
-      `SELECT "receivableId", status, "remainingAmount", "changeSource", "changeReason", "effectiveAt"
+      `SELECT "receivableId", status, "remainingAmount", "changeSource",
+              "reasonCode", "actorType", "actorUserId", note,
+              "transitionReferenceId", "changeReason", "effectiveAt"
        FROM receivable_balance_history
        WHERE "organizationId" = $1
        ORDER BY "effectiveAt", sequence`,
@@ -109,6 +118,14 @@ describe('Receivable balance history (integration)', () => {
       status: String(row.status),
       remainingAmount: Number(row.remainingAmount),
       changeSource: String(row.changeSource),
+      reasonCode: row.reasonCode === null ? null : String(row.reasonCode),
+      actorType: row.actorType === null ? null : String(row.actorType),
+      actorUserId: row.actorUserId === null ? null : String(row.actorUserId),
+      note: row.note === null ? null : String(row.note),
+      transitionReferenceId:
+        row.transitionReferenceId === null
+          ? null
+          : String(row.transitionReferenceId),
       changeReason: row.changeReason === null ? null : String(row.changeReason),
       effectiveAt: new Date(String(row.effectiveAt)),
     }));
@@ -257,11 +274,15 @@ describe('Receivable balance history (integration)', () => {
         status: ReceivableStatus.OPEN,
         remainingAmount: 10_000_000,
         changeSource: BalanceHistoryChangeSource.CREATE,
-        changeReason: null,
+        reasonCode: BalanceHistoryReasonCode.RECEIVABLE_CREATED,
+        actorType: BalanceHistoryActorType.USER,
+        actorUserId: userId,
+        note: null,
+        transitionReferenceId: null,
       });
     });
 
-    it('records an allocation with the allocation id as the change reason', async () => {
+    it('records an allocation with the allocation id as the transition reference', async () => {
       const receivable = await asTenant(organizationId, () =>
         createReceivable.execute({
           customerId,
@@ -283,6 +304,10 @@ describe('Receivable balance history (integration)', () => {
           receivableId: receivable.id,
           amount: 12_000_000,
           allocatedByUserId: userId,
+          provenance: {
+            actorType: BalanceHistoryActorType.USER,
+            actorUserId: userId,
+          },
         }),
       );
 
@@ -293,8 +318,11 @@ describe('Receivable balance history (integration)', () => {
         status: ReceivableStatus.PARTIALLY_PAID,
         remainingAmount: 18_000_000,
         changeSource: BalanceHistoryChangeSource.ALLOCATE,
+        reasonCode: 'PAYMENT_ALLOCATED',
+        actorType: BalanceHistoryActorType.USER,
+        actorUserId: userId,
       });
-      expect(allocationRow.changeReason).toBeTruthy();
+      expect(allocationRow.transitionReferenceId).toBeTruthy();
     });
 
     it('records a PAID row when an allocation fully pays off the receivable', async () => {
@@ -319,6 +347,10 @@ describe('Receivable balance history (integration)', () => {
           receivableId: receivable.id,
           amount: 5_000_000,
           allocatedByUserId: userId,
+          provenance: {
+            actorType: BalanceHistoryActorType.USER,
+            actorUserId: userId,
+          },
         }),
       );
 
@@ -353,6 +385,10 @@ describe('Receivable balance history (integration)', () => {
           receivableId: receivable.id,
           amount: 5_000_000,
           allocatedByUserId: userId,
+          provenance: {
+            actorType: BalanceHistoryActorType.USER,
+            actorUserId: userId,
+          },
         }),
       );
 
@@ -380,7 +416,11 @@ describe('Receivable balance history (integration)', () => {
         status: ReceivableStatus.OPEN,
         remainingAmount: 5_000_000,
         changeSource: BalanceHistoryChangeSource.UNDO,
-        changeReason: allocationRow.id,
+        reasonCode: 'PAYMENT_ALLOCATION_UNDONE',
+        actorType: BalanceHistoryActorType.USER,
+        actorUserId: userId,
+        transitionReferenceId: allocationRow.id,
+        note: 'Correction',
       });
       const reopened = (
         await dataSource.query(
@@ -413,6 +453,9 @@ describe('Receivable balance history (integration)', () => {
         receivableId: receivable.id,
         status: ReceivableStatus.CANCELLED,
         changeSource: BalanceHistoryChangeSource.CANCEL,
+        reasonCode: BalanceHistoryReasonCode.RECEIVABLE_CANCELLED,
+        actorType: BalanceHistoryActorType.USER,
+        actorUserId: userId,
       });
     });
 
@@ -437,6 +480,9 @@ describe('Receivable balance history (integration)', () => {
         receivableId: receivable.id,
         status: ReceivableStatus.WRITTEN_OFF,
         changeSource: BalanceHistoryChangeSource.WRITE_OFF,
+        reasonCode: 'RECEIVABLE_WRITTEN_OFF',
+        actorType: BalanceHistoryActorType.USER,
+        actorUserId: userId,
       });
     });
 
@@ -464,6 +510,10 @@ describe('Receivable balance history (integration)', () => {
             receivableId: receivable.id,
             amount: 9_000_000,
             allocatedByUserId: userId,
+            provenance: {
+              actorType: BalanceHistoryActorType.USER,
+              actorUserId: userId,
+            },
           }),
         ),
       ).rejects.toMatchObject({
@@ -518,7 +568,11 @@ describe('Receivable balance history (integration)', () => {
         remainingAmount: 5_000_000,
         effectiveAt: new Date('2026-08-14T02:00:00.000Z'),
         changeSource: BalanceHistoryChangeSource.CREATE,
-        changeReason: null,
+        reasonCode: BalanceHistoryReasonCode.RECEIVABLE_CREATED,
+        actorType: BalanceHistoryActorType.USER,
+        actorUserId: userId,
+        note: null,
+        transitionReferenceId: null,
         createdAt: new Date('2026-08-14T02:00:00.000Z'),
       };
       await asTenant(organizationId, () => historyRepo.append(entry));
@@ -570,7 +624,11 @@ describe('Receivable balance history (integration)', () => {
           remainingAmount: 12_000_000,
           effectiveAt: new Date('2026-06-15T02:00:00.000Z'),
           changeSource: BalanceHistoryChangeSource.CREATE,
-          changeReason: null,
+          reasonCode: BalanceHistoryReasonCode.RECEIVABLE_CREATED,
+          actorType: BalanceHistoryActorType.USER,
+          actorUserId: userId,
+          note: null,
+          transitionReferenceId: null,
           createdAt: new Date('2026-06-15T02:00:00.000Z'),
         },
         {
@@ -581,7 +639,11 @@ describe('Receivable balance history (integration)', () => {
           remainingAmount: 10_000_000,
           effectiveAt: new Date('2026-07-10T02:00:00.000Z'),
           changeSource: BalanceHistoryChangeSource.CREATE,
-          changeReason: null,
+          reasonCode: BalanceHistoryReasonCode.RECEIVABLE_CREATED,
+          actorType: BalanceHistoryActorType.USER,
+          actorUserId: userId,
+          note: null,
+          transitionReferenceId: null,
           createdAt: new Date('2026-07-10T02:00:00.000Z'),
         },
         {
@@ -670,7 +732,11 @@ describe('Receivable balance history (integration)', () => {
           remainingAmount: 9_000_000,
           effectiveAt: new Date('2026-09-02T02:00:00.000Z'),
           changeSource: BalanceHistoryChangeSource.CREATE,
-          changeReason: null,
+          reasonCode: BalanceHistoryReasonCode.RECEIVABLE_CREATED,
+          actorType: BalanceHistoryActorType.USER,
+          actorUserId: userId,
+          note: null,
+          transitionReferenceId: null,
           createdAt: new Date('2026-09-02T02:00:00.000Z'),
         },
         {
@@ -706,7 +772,11 @@ describe('Receivable balance history (integration)', () => {
           remainingAmount: 7_000_000,
           effectiveAt: new Date('2026-10-03T02:00:00.000Z'),
           changeSource: BalanceHistoryChangeSource.CREATE,
-          changeReason: null,
+          reasonCode: BalanceHistoryReasonCode.RECEIVABLE_CREATED,
+          actorType: BalanceHistoryActorType.USER,
+          actorUserId: userId,
+          note: null,
+          transitionReferenceId: null,
           createdAt: new Date('2026-10-03T02:00:00.000Z'),
         },
         {
@@ -717,7 +787,11 @@ describe('Receivable balance history (integration)', () => {
           remainingAmount: 5_000_000,
           effectiveAt: new Date('2026-10-04T02:00:00.000Z'),
           changeSource: BalanceHistoryChangeSource.CREATE,
-          changeReason: null,
+          reasonCode: BalanceHistoryReasonCode.RECEIVABLE_CREATED,
+          actorType: BalanceHistoryActorType.USER,
+          actorUserId: userId,
+          note: null,
+          transitionReferenceId: null,
           createdAt: new Date('2026-10-04T02:00:00.000Z'),
         },
         {
@@ -728,7 +802,11 @@ describe('Receivable balance history (integration)', () => {
           remainingAmount: 5_000_000,
           effectiveAt: new Date('2026-10-20T02:00:00.000Z'),
           changeSource: BalanceHistoryChangeSource.CANCEL,
-          changeReason: null,
+          reasonCode: BalanceHistoryReasonCode.RECEIVABLE_CANCELLED,
+          actorType: BalanceHistoryActorType.USER,
+          actorUserId: userId,
+          note: null,
+          transitionReferenceId: null,
           createdAt: new Date('2026-10-20T02:00:00.000Z'),
         },
       ]);
@@ -818,7 +896,8 @@ describe('Receivable balance history (integration)', () => {
     }
 
     const rows = await dataSource.query(
-      `SELECT status, "remainingAmount", "changeSource", "changeReason"
+      `SELECT status, "remainingAmount", "changeSource", "changeReason",
+              "actorType", "reasonCode"
        FROM receivable_balance_history
        WHERE "receivableId" = ANY($1::uuid[])
          AND "changeSource" = 'ROLLOUT_BASELINE'`,
@@ -833,6 +912,8 @@ describe('Receivable balance history (integration)', () => {
           remainingAmount: String(originalAmount - paidAmount),
           changeSource: 'ROLLOUT_BASELINE',
           changeReason: 'HISTORY_COVERAGE_START',
+          actorType: null,
+          reasonCode: null,
         })),
       ),
     );

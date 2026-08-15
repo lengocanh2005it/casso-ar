@@ -19,5 +19,7 @@ describe('AddReceivableBalanceHistoryRolloutBaseline20260822000000', () => {
       .join('\n');
     expect(sql).toContain('receivable_balance_history_coverage');
     expect(sql).toContain('HISTORY_COVERAGE_START');
+    expect(sql).not.toContain('"actorType"');
+    expect(sql).not.toContain('"reasonCode"');
   });
 });

@@ -2,6 +2,7 @@ import { ReceivableStatus } from '@casso-ledger/shared-types';
 import type { EntityManager } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import { Receivable } from '../../receivables/domain/receivable';
 import { Payment } from '../domain/payment';
@@ -95,16 +96,21 @@ describe('UndoPaymentAllocationUseCase', () => {
       expect.objectContaining({ actionType: 'PAYMENT_ALLOCATE_UNDO' }),
       manager,
     );
-    expect(recorder.record).toHaveBeenCalledWith(
-      expect.objectContaining({
+    expect(recorder.record).toHaveBeenCalledWith({
+      receivable: expect.objectContaining({
         id: 'rec-1',
         paidAmount: 0,
         status: ReceivableStatus.OPEN,
       }),
-      BalanceHistoryChangeSource.UNDO,
+      changeSource: BalanceHistoryChangeSource.UNDO,
+      provenance: {
+        actorType: BalanceHistoryActorType.USER,
+        actorUserId: 'user-2',
+      },
+      transitionReferenceId: 'alloc-1',
+      note: 'Correction',
       manager,
-      'alloc-1',
-    );
+    });
     await expect(
       useCase.execute({
         allocationId: 'alloc-1',

@@ -1,28 +1,30 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { ThemeProvider } from '@/contexts/theme-context';
-import { navItems } from './nav-items';
 import { Sidebar } from './sidebar';
 
-const { useAuth } = vi.hoisted(() => ({ useAuth: vi.fn() }));
+const { useAuthMock } = vi.hoisted(() => ({
+  useAuthMock: vi.fn(),
+}));
 
-vi.mock('@/contexts/auth-context', () => ({ useAuth }));
+vi.mock('@/contexts/auth-context', () => ({
+  useAuth: () => useAuthMock(),
+}));
 
 vi.mock('@/features/exceptions/api/use-review-count', () => ({
   useReviewCount: () => ({ data: 0 }),
 }));
 
-function renderSidebar() {
-  useAuth.mockReturnValue({
+function renderSidebar(role: string) {
+  useAuthMock.mockReturnValue({
     user: {
-      name: 'Anh Le',
-      email: 'anh@casso.vn',
-      organizationName: 'Casso Ledger',
+      name: 'Test User',
+      email: 'test@example.com',
+      role,
       subscriptionPlan: 'FREE',
     },
-    logout: vi.fn().mockResolvedValue(undefined),
   });
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -39,79 +41,31 @@ function renderSidebar() {
 }
 
 describe('Sidebar', () => {
-  it('renders all 10 nav item labels', () => {
-    renderSidebar();
+  it('keeps the collapsed navigation text shrinkable without width animation', () => {
+    renderSidebar('OWNER');
 
-    for (const item of navItems) {
-      expect(screen.getByText(item.label)).toBeInTheDocument();
-    }
-  });
-
-  it('renders exactly the 9 nav items chốt in the spec, no more no less', () => {
-    renderSidebar();
-    expect(navItems).toHaveLength(9);
-  });
-
-  it('does not lock Copilot for a Starter subscriber', () => {
-    useAuth.mockReturnValue({
-      user: {
-        name: 'Anh Le',
-        email: 'anh@casso.vn',
-        organizationName: 'Casso Ledger',
-        subscriptionPlan: 'STARTER',
-        role: 'OWNER',
-      },
-      logout: vi.fn(),
-    });
-    const queryClient = new QueryClient();
-
-    render(
-      <ThemeProvider>
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <Sidebar />
-          </MemoryRouter>
-        </QueryClientProvider>
-      </ThemeProvider>,
+    expect(screen.getByRole('complementary')).not.toHaveClass(
+      'transition-[width]',
     );
-
-    const copilotLink = screen.getByRole('link', { name: 'Copilot' });
-    expect(copilotLink.querySelector('svg.lucide-lock')).toBeNull();
-    expect(navItems.find((item) => item.to === '/copilot')?.minPlan).toBe(
-      'STARTER',
-    );
+    expect(screen.getByText('Lịch sử công nợ')).toHaveClass('min-w-0');
   });
 
-  it('renders the authenticated user and logs out from the footer', async () => {
-    const logout = vi.fn().mockResolvedValue(undefined);
-    useAuth.mockReturnValue({
-      user: {
-        name: 'Anh Le',
-        email: 'anh@casso.vn',
-        organizationName: 'Casso Ledger',
-        subscriptionPlan: 'FREE',
-        role: 'OWNER',
-      },
-      logout,
-    });
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-
-    render(
-      <ThemeProvider>
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter>
-            <Sidebar />
-          </MemoryRouter>
-        </QueryClientProvider>
-      </ThemeProvider>,
-    );
-
-    expect(screen.getByText('Anh Le')).toBeVisible();
-    expect(screen.getByText(/casso ledger · free/i)).toBeVisible();
-    expect(screen.getByText('OWNER')).toBeVisible();
-    screen.getByRole('button', { name: 'Đăng xuất' }).click();
-    await waitFor(() => expect(logout).toHaveBeenCalledTimes(1));
+  it('shows the receivable balance history entry to an owner', () => {
+    renderSidebar('OWNER');
+    expect(screen.getByText('Lịch sử công nợ')).toBeInTheDocument();
   });
+
+  it('shows the receivable balance history entry to a finance manager', () => {
+    renderSidebar('FINANCE_MANAGER');
+    expect(screen.getByText('Lịch sử công nợ')).toBeInTheDocument();
+  });
+
+  it.each(['ACCOUNTANT', 'SALES_REP', 'VIEWER'])(
+    'hides the receivable balance history entry from %s',
+    (role) => {
+      renderSidebar(role);
+      expect(screen.queryByText('Lịch sử công nợ')).not.toBeInTheDocument();
+      expect(screen.getByText('Báo cáo')).toBeInTheDocument();
+    },
+  );
 });

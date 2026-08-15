@@ -16,6 +16,9 @@ describe('Sheet', () => {
     expect(screen.queryByText('Content')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Open' }));
     expect(screen.getByText('Content')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toHaveClass(
+      'motion-reduce:animate-none',
+    );
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByText('Content')).not.toBeInTheDocument();
   });

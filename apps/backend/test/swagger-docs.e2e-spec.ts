@@ -134,6 +134,41 @@ describe('Swagger / OpenAPI docs (integration)', () => {
     expect(undo.responses['201']).toBeDefined();
   });
 
+  it('documents the receivable balance history audit endpoints and CSV export', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`${SWAGGER_PATH}-json`)
+      .expect(200);
+
+    const list = res.body.paths['/api/v1/receivable-balance-history'].get;
+    expect(list).toBeDefined();
+    expect(list.summary).toBeDefined();
+    expect(
+      list.parameters.some((p: { name: string }) => p.name === 'page'),
+    ).toBe(true);
+    expect(
+      list.parameters.some((p: { name: string }) => p.name === 'limit'),
+    ).toBe(true);
+    expect(
+      list.parameters.some((p: { name: string }) => p.name === 'status'),
+    ).toBe(true);
+    expect(list.responses['200']).toBeDefined();
+    expect(list.responses['403']).toBeDefined();
+
+    const summary =
+      res.body.paths['/api/v1/receivable-balance-history/summary'].get;
+    expect(summary).toBeDefined();
+    expect(summary.responses['200'].content['application/json']).toBeDefined();
+
+    const exportOp =
+      res.body.paths['/api/v1/receivable-balance-history/export'].get;
+    expect(exportOp).toBeDefined();
+    expect(exportOp.responses['200'].content['text/csv'].schema).toEqual({
+      type: 'string',
+      format: 'binary',
+    });
+    expect(exportOp.responses['429']).toBeDefined();
+  });
+
   it('serves docs without authentication in non-production environments', async () => {
     const res = await request(app.getHttpServer())
       .get(`${SWAGGER_PATH}-json`)

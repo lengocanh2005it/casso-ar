@@ -12,6 +12,7 @@ import {
   type ICustomerRepository,
 } from '../../customers/application/customer-repository.port';
 import { ReceivableBalanceHistoryRecorderService } from '../../receivable-balance-history/application/receivable-balance-history-recorder.service';
+import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import { Receivable } from '../domain/receivable';
 import {
@@ -80,11 +81,19 @@ export class CreateReceivableUseCase {
       version: 0,
     });
     await this.repo.save(receivable, manager);
-    await this.historyRecorder.record(
+    const user = this.tenant.getCurrentUser();
+    if (!user) {
+      throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
+    }
+    await this.historyRecorder.record({
       receivable,
-      BalanceHistoryChangeSource.CREATE,
+      changeSource: BalanceHistoryChangeSource.CREATE,
+      provenance: {
+        actorType: BalanceHistoryActorType.USER,
+        actorUserId: user.userId,
+      },
       manager,
-    );
+    });
     return receivable;
   }
 }

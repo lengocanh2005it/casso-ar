@@ -21,4 +21,19 @@ describe('hasPermission', () => {
       false,
     );
   });
+
+  it.each([
+    [Role.OWNER, true],
+    [Role.FINANCE_MANAGER, true],
+    [Role.ACCOUNTANT, false],
+    [Role.SALES_REP, false],
+    [Role.VIEWER, false],
+  ])(
+    'grants receivable audit read only to owner and finance manager for %s',
+    (role, expected) => {
+      expect(hasPermission(role, Permission.RECEIVABLE_AUDIT_READ)).toBe(
+        expected,
+      );
+    },
+  );
 });
