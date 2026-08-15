@@ -540,10 +540,21 @@ describe('Receivable balance history (integration)', () => {
   });
 
   describe('month-end outstanding query', () => {
-    async function clearHistoryRows(): Promise<void> {
+    async function clearHistoryRows(
+      coveredFrom = new Date('2026-07-01T00:00:00.000Z'),
+    ): Promise<void> {
       await dataSource.query(
         'DELETE FROM receivable_balance_history WHERE "organizationId" = $1',
         [historyQueryOrgId],
+      );
+      await dataSource.query(
+        `INSERT INTO receivable_balance_history_coverage
+           ("organizationId", "coveredFrom", "reason")
+         VALUES ($1, $2, 'HISTORY_COVERAGE_START')
+         ON CONFLICT ("organizationId") DO UPDATE SET
+           "coveredFrom" = EXCLUDED."coveredFrom",
+           "reason" = EXCLUDED."reason"`,
+        [historyQueryOrgId, coveredFrom],
       );
     }
 
@@ -551,6 +562,17 @@ describe('Receivable balance history (integration)', () => {
       await clearHistoryRows();
       const receivableId = randomUUID();
       await dataSource.getRepository(ReceivableBalanceHistoryOrmEntity).save([
+        {
+          id: randomUUID(),
+          organizationId: historyQueryOrgId,
+          receivableId: randomUUID(),
+          status: ReceivableStatus.OPEN,
+          remainingAmount: 12_000_000,
+          effectiveAt: new Date('2026-06-15T02:00:00.000Z'),
+          changeSource: BalanceHistoryChangeSource.CREATE,
+          changeReason: null,
+          createdAt: new Date('2026-06-15T02:00:00.000Z'),
+        },
         {
           id: randomUUID(),
           organizationId: historyQueryOrgId,
@@ -613,7 +635,7 @@ describe('Receivable balance history (integration)', () => {
     });
 
     it('includes snapshots stored in PostgreSQL microseconds at month end', async () => {
-      await clearHistoryRows();
+      await clearHistoryRows(new Date('2026-06-01T00:00:00.000Z'));
       const receivableId = randomUUID();
       const historyId = randomUUID();
       const monthEnd = monthEndInTimeZone(2026, 6);
@@ -796,7 +818,7 @@ describe('Receivable balance history (integration)', () => {
     }
 
     const rows = await dataSource.query(
-      `SELECT status, "remainingAmount", "changeSource"
+      `SELECT status, "remainingAmount", "changeSource", "changeReason"
        FROM receivable_balance_history
        WHERE "receivableId" = ANY($1::uuid[])
          AND "changeSource" = 'ROLLOUT_BASELINE'`,
@@ -810,9 +832,18 @@ describe('Receivable balance history (integration)', () => {
           status,
           remainingAmount: String(originalAmount - paidAmount),
           changeSource: 'ROLLOUT_BASELINE',
+          changeReason: 'HISTORY_COVERAGE_START',
         })),
       ),
     );
+
+    const coverageRows = await dataSource.query(
+      `SELECT "reason"
+       FROM receivable_balance_history_coverage
+       WHERE "organizationId" = $1`,
+      [otherOrgId],
+    );
+    expect(coverageRows).toEqual([{ reason: 'HISTORY_COVERAGE_START' }]);
   });
 
   it('rolls back the complete baseline when the cutover transaction fails', async () => {

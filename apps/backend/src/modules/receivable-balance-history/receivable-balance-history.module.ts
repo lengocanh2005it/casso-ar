@@ -4,12 +4,18 @@ import { RECEIVABLE_BALANCE_HISTORY_REPOSITORY } from './application/receivable-
 import { RECEIVABLE_BALANCE_HISTORY_QUERY } from './application/receivable-balance-history-query.port';
 import { ReceivableBalanceHistoryRecorderService } from './application/receivable-balance-history-recorder.service';
 import { ReceivableBalanceHistoryOrmEntity } from './infrastructure/receivable-balance-history.orm-entity';
+import { ReceivableBalanceHistoryCoverageOrmEntity } from './infrastructure/receivable-balance-history-coverage.orm-entity';
 import { TypeOrmReceivableBalanceHistoryRepository } from './infrastructure/typeorm-receivable-balance-history.repository';
 import { TypeOrmReceivableBalanceHistoryQuery } from './infrastructure/typeorm-receivable-balance-history-query';
 
 @Global()
 @Module({
-  imports: [TypeOrmModule.forFeature([ReceivableBalanceHistoryOrmEntity])],
+  imports: [
+    TypeOrmModule.forFeature([
+      ReceivableBalanceHistoryOrmEntity,
+      ReceivableBalanceHistoryCoverageOrmEntity,
+    ]),
+  ],
   providers: [
     {
       provide: RECEIVABLE_BALANCE_HISTORY_REPOSITORY,

@@ -1,5 +1,5 @@
 import type { QueryRunner } from 'typeorm';
-import { AddReceivableBalanceHistoryRolloutBaseline20260822000000 } from './migrations/20260822000000-add-receivable-balance-history-rollout-baseline';
+import { AddReceivableBalanceHistoryRolloutBaseline20260822000000 } from './20260822000000-add-receivable-balance-history-rollout-baseline';
 
 describe('AddReceivableBalanceHistoryRolloutBaseline20260822000000', () => {
   it('runs as an atomic cutover and locks receivable mutations first', async () => {
@@ -14,5 +14,10 @@ describe('AddReceivableBalanceHistoryRolloutBaseline20260822000000', () => {
     expect(query.mock.calls[0]?.[0]).toContain(
       'LOCK TABLE "receivables" IN SHARE MODE',
     );
+    const sql = query.mock.calls
+      .map(([statement]) => String(statement))
+      .join('\n');
+    expect(sql).toContain('receivable_balance_history_coverage');
+    expect(sql).toContain('HISTORY_COVERAGE_START');
   });
 });

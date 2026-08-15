@@ -87,6 +87,12 @@ Indexes:
 
 Check constraint: `"remainingAmount" >= 0`.
 
+`receivable_balance_history_coverage` stores the one current coverage epoch per
+organization. Its `coveredFrom` timestamp is the rollout boundary used by the
+historical query; history rows before that instant are ignored, so they cannot
+make pre-rollout months appear covered. The rollout reason is
+`HISTORY_COVERAGE_START`.
+
 ### Transition semantics
 
 | Transition | Recorded status | Recorded remaining | Source |
@@ -157,10 +163,11 @@ One parameterized SQL query over the requested month ends:
 
 1. `unnest($2::timestamptz[])` builds the requested months; the month key is
    `to_char(month_end AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM')`.
-2. For each `(receivable, month)` keep the latest row with `effectiveAt <= month_end`
+2. Load the organization's `coveredFrom` epoch and ignore history rows before it.
+3. For each `(receivable, month)` keep the latest row with `effectiveAt <= month_end`
    (`DISTINCT ON`, ordered by `effectiveAt DESC, sequence DESC`).
-3. Sum `remainingAmount` filtered to `OPEN`/`PARTIALLY_PAID` latest states per month.
-4. Months with no rows at or before the cutoff (coverage has not begun) return
+4. Sum `remainingAmount` filtered to `OPEN`/`PARTIALLY_PAID` latest states per month.
+5. Months before the coverage epoch return
    `outstanding: null`; covered months return the sum (0 when no open balances).
 
 The row mapper converts bigint strings to numbers and `null` stays `null`. The query is

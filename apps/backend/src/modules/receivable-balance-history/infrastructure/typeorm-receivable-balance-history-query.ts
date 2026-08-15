@@ -21,26 +21,30 @@ const MONTH_END_OUTSTANDING_SQL = `
       to_char(t.month_end AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM') AS month_key
     FROM unnest($2::timestamptz[]) AS t(month_end)
   ),
+  coverage_epochs AS (
+    SELECT "organizationId", MIN("coveredFrom") AS covered_from
+    FROM receivable_balance_history_coverage
+    WHERE "organizationId" = $1
+    GROUP BY "organizationId"
+  ),
   latest_per_receivable AS (
     SELECT DISTINCT ON (h."receivableId", m.month_key)
       m.month_key,
       h.status,
       h."remainingAmount"
     FROM requested_months m
+    JOIN coverage_epochs c ON true
     JOIN receivable_balance_history h
-          ON h."organizationId" = $1
+          ON h."organizationId" = c."organizationId"
+          AND h."effectiveAt" >= c.covered_from
           AND h."effectiveAt" < m.month_end + INTERVAL '1 millisecond'
     ORDER BY h."receivableId", m.month_key, h."effectiveAt" DESC, h.sequence DESC
   ),
   covered_months AS (
     SELECT DISTINCT m.month_key
     FROM requested_months m
-    WHERE EXISTS (
-      SELECT 1
-      FROM receivable_balance_history h
-      WHERE h."organizationId" = $1
-        AND h."effectiveAt" < m.month_end + INTERVAL '1 millisecond'
-    )
+    JOIN coverage_epochs c
+      ON c.covered_from < m.month_end + INTERVAL '1 millisecond'
   )
   SELECT
     m.month_key AS month,

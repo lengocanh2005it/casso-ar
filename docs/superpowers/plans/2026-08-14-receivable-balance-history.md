@@ -17,6 +17,8 @@
 - Never reconstruct historical balances with `SUM(payment_allocations)` at runtime.
 - Rollout baseline snapshots current receivable state once; it does not reconstruct
   periods before the rollout boundary.
+- A per-organization coverage epoch records that rollout boundary for historical
+  queries; its reason is `HISTORY_COVERAGE_START`.
 - History rows are append-only: never updated or deleted.
 - `remainingAmount` in a history row is an immutable historical snapshot at the transition
   instant (AGENTS.md "Derived Fields" exception), never a current derived field.
@@ -296,6 +298,8 @@ Migration: raw SQL `CREATE TABLE` matching the entity (columns, enum, check, bot
 
 The rollout migration explicitly runs in one TypeORM transaction, first taking a
 `SHARE` lock on `receivables` so transitions cannot interleave with the baseline. It
+creates one coverage epoch per organization before inserting snapshots, with reason
+`HISTORY_COVERAGE_START`. The query ignores history rows before that epoch. It
 creates the unique partial baseline index and inserts one `ROLLOUT_BASELINE` snapshot
 for every existing receivable using the current status and `originalAmount - paidAmount`.
 `NOT EXISTS` plus the unique index makes a retry idempotent. Its `down` removes only the

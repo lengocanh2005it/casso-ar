@@ -53,6 +53,19 @@ describe('TypeOrmReceivableBalanceHistoryQuery', () => {
     expect(sql).not.toContain('payment_allocations');
   });
 
+  it('only considers history at or after the organization coverage epoch', async () => {
+    const { queryService, queryMock } = buildQuery();
+
+    await queryService.findOutstandingByMonthEnds('org-1', [
+      new Date('2026-07-31T17:00:00.000Z'),
+    ]);
+
+    const [sql] = queryMock.mock.calls[0] as unknown as [string, unknown[]];
+    expect(sql).toContain('receivable_balance_history_coverage');
+    expect(sql).toContain('coveredFrom');
+    expect(sql).toContain('h."effectiveAt" >= c.covered_from');
+  });
+
   it('maps bigint outstanding to numbers and keeps null for uncovered months', async () => {
     const { queryService } = buildQuery([
       { month: '2026-06', outstanding: null },
