@@ -97,6 +97,41 @@ interface LogoProps {
 }
 ```
 
+## Responsive & quality bar
+
+Explicit, testable requirements — not left to "looks fine on my screen":
+
+- **Breakpoints:** verify at 375px (small phone), 768px (tablet), 1024px
+  (small laptop), 1440px (desktop) — matches the repo's existing Tailwind
+  breakpoint usage elsewhere in the app. No horizontal scroll at any width.
+- **Container:** consistent `max-w-6xl` centered container across every
+  section (matches `xcash-ai`'s convention) — sections don't drift to
+  different widths from each other.
+- **Hero 2-column layout** collapses to a single stacked column below `lg:`
+  (copy first, `HeroDemoCard` second) — not squeezed side-by-side on tablet.
+- **Grids:** `FeaturesSection` 3-col → 1-col on mobile, `PricingSection` 4-col
+  → 2-col (tablet) → 1-col (mobile), `StatsBand` 4-col → 2-col on mobile —
+  all via Tailwind responsive grid classes, no JS-based layout switching.
+- **Touch targets:** every interactive element (nav links, CTA buttons, Sheet
+  trigger, pricing card CTAs) ≥44×44px, ≥8px spacing between adjacent targets.
+- **Typography scale:** headline clamps down on mobile (`text-4xl` →
+  `sm:text-5xl` style scaling, not a fixed desktop size that overflows small
+  viewports); body text stays ≥16px on mobile (avoids iOS auto-zoom on any
+  form input the page might add later).
+- **Contrast:** body text ≥4.5:1 against `--background` in both light and dark
+  mode — verified independently per theme, not assumed from light mode alone.
+- **Motion:** every `framer-motion`/`typewriter-effect` animation respects
+  `prefers-reduced-motion` (see Motion section) — checked with the OS setting
+  on, not just visually reviewed with it off.
+- **Focus states:** visible keyboard focus ring on every interactive element
+  (nav links, CTA buttons, pricing card buttons) — landing page is a
+  pre-auth surface, first thing many keyboard/screen-reader users hit.
+
+This list is the acceptance bar for "trang layout vừa vặn, phù hợp mọi thiết
+bị" — the plan's testing step should include a manual pass through this list
+at each breakpoint before requesting review, in addition to the automated
+component tests below.
+
 ## Copy voice
 
 Plain, active, specific — describe what the user does, not what the product "is."
