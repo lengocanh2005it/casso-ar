@@ -1,4 +1,5 @@
 import { PlanId } from '@casso-ledger/shared-types';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,7 @@ import { PLAN_FEATURE_COPY, PLAN_LABELS } from '../landing-data';
 
 export function PricingSection() {
   const { data: plans, isError, isLoading } = usePlans();
+  const reducedMotion = useReducedMotion();
 
   return (
     <section id="bang-gia" className="scroll-mt-24 py-20 sm:py-28">
@@ -30,7 +32,15 @@ export function PricingSection() {
             Không thể tải bảng giá. Vui lòng thử lại sau.
           </p>
         ) : (
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <motion.div
+            className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4"
+            initial={reducedMotion ? false : 'hidden'}
+            whileInView={reducedMotion ? undefined : 'visible'}
+            viewport={{ once: true }}
+            variants={{
+              visible: { transition: { staggerChildren: 0.05 } },
+            }}
+          >
             {plans?.map((plan) => {
               const isHighlighted = plan.planId === PlanId.BUSINESS;
               const quantitativeBullets = [
@@ -44,63 +54,72 @@ export function PricingSection() {
               ];
 
               return (
-                <Card
+                <motion.div
                   key={plan.planId}
-                  className={cn(
-                    'relative flex flex-col',
-                    isHighlighted
-                      ? 'border-primary ring-1 ring-primary/20'
-                      : 'border-border/70',
-                  )}
+                  variants={{
+                    hidden: { opacity: 0, y: 12 },
+                    visible: { opacity: 1, y: 0 },
+                  }}
+                  whileHover={reducedMotion ? undefined : { scale: 1.02 }}
+                  whileTap={reducedMotion ? undefined : { scale: 0.98 }}
                 >
-                  {isHighlighted ? (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <Badge className="bg-primary text-primary-foreground">
-                        Phổ biến nhất
-                      </Badge>
-                    </div>
-                  ) : null}
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-lg">
-                      {PLAN_LABELS[plan.planId]}
-                    </CardTitle>
-                    <div className="mt-2">
-                      <span className="text-[1.75rem] font-bold leading-none tracking-tight tabular-nums">
-                        {plan.priceVnd === 0
-                          ? 'Miễn phí'
-                          : formatVND(plan.priceVnd)}
-                      </span>
-                      {plan.priceVnd > 0 ? (
-                        <span className="text-base text-muted-foreground">
-                          /tháng
+                  <Card
+                    className={cn(
+                      'relative flex h-full flex-col',
+                      isHighlighted
+                        ? 'border-primary ring-1 ring-primary/20'
+                        : 'border-border/70',
+                    )}
+                  >
+                    {isHighlighted ? (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <Badge className="bg-primary text-primary-foreground">
+                          Phổ biến nhất
+                        </Badge>
+                      </div>
+                    ) : null}
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-lg">
+                        {PLAN_LABELS[plan.planId]}
+                      </CardTitle>
+                      <div className="mt-2">
+                        <span className="text-[1.75rem] font-bold leading-none tracking-tight tabular-nums">
+                          {plan.priceVnd === 0
+                            ? 'Miễn phí'
+                            : formatVND(plan.priceVnd)}
                         </span>
-                      ) : null}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-1 flex-col">
-                    <ul className="mb-6 flex-1 space-y-2.5">
-                      {allFeatures.map((feature) => (
-                        <li
-                          key={feature}
-                          className="flex items-start gap-2 text-base"
-                        >
-                          <Check className="mt-1 size-4 shrink-0 text-primary" />
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <Button
-                      variant={isHighlighted ? 'default' : 'outline'}
-                      className="min-h-11 w-full"
-                      asChild
-                    >
-                      <Link to="/signup">Dùng thử miễn phí</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
+                        {plan.priceVnd > 0 ? (
+                          <span className="text-base text-muted-foreground">
+                            /tháng
+                          </span>
+                        ) : null}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="flex flex-1 flex-col">
+                      <ul className="mb-6 flex-1 space-y-2.5">
+                        {allFeatures.map((feature) => (
+                          <li
+                            key={feature}
+                            className="flex items-start gap-2 text-base"
+                          >
+                            <Check className="mt-1 size-4 shrink-0 text-primary" />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <Button
+                        variant={isHighlighted ? 'default' : 'outline'}
+                        className="min-h-11 w-full"
+                        asChild
+                      >
+                        <Link to="/signup">Dùng thử miễn phí</Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
         )}
       </div>
     </section>

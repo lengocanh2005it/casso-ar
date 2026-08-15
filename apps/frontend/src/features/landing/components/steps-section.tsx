@@ -1,6 +1,9 @@
+import { motion, useReducedMotion } from 'framer-motion';
 import { LANDING_STEPS } from '../landing-data';
 
 export function StepsSection() {
+  const reducedMotion = useReducedMotion();
+
   return (
     <section
       id="cach-hoat-dong"
@@ -13,10 +16,25 @@ export function StepsSection() {
           </h2>
         </div>
 
-        <div className="relative mt-14 grid gap-8 md:grid-cols-3">
+        <motion.div
+          className="relative mt-14 grid gap-8 md:grid-cols-3"
+          initial={reducedMotion ? false : 'hidden'}
+          whileInView={reducedMotion ? undefined : 'visible'}
+          viewport={{ once: true }}
+          variants={{
+            visible: { transition: { staggerChildren: 0.05 } },
+          }}
+        >
           <div className="pointer-events-none absolute top-7 right-[16%] left-[16%] hidden h-px bg-border md:block" />
           {LANDING_STEPS.map((step) => (
-            <div key={step.step} className="relative text-center md:text-left">
+            <motion.div
+              key={step.step}
+              className="relative text-center md:text-left"
+              variants={{
+                hidden: { opacity: 0, y: 12 },
+                visible: { opacity: 1, y: 0 },
+              }}
+            >
               <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl border-2 border-primary/30 bg-background text-lg font-bold text-primary md:mx-0">
                 {step.step}
               </div>
@@ -24,9 +42,9 @@ export function StepsSection() {
               <p className="mt-2 text-base leading-relaxed text-muted-foreground">
                 {step.description}
               </p>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

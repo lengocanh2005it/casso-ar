@@ -1,3 +1,4 @@
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Menu } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -18,6 +19,7 @@ function scrollToSection(href: string) {
 export function LandingNavbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -84,41 +86,52 @@ export function LandingNavbar() {
               </Button>
             </SheetTrigger>
             <SheetContent className="w-[min(100vw-2rem,20rem)]">
-              <div className="flex items-center gap-2 text-left text-lg font-semibold">
-                <Logo variant="icon" className="h-7" />
-                Casso Ledger
-              </div>
-              <div className="mt-6 flex flex-col gap-2">
-                {LANDING_NAV_LINKS.map((link) => (
-                  <Button
-                    key={link.href}
-                    variant="ghost"
-                    className="min-h-11 justify-start"
-                    onClick={() => {
-                      setMobileOpen(false);
-                      scrollToSection(link.href);
-                    }}
+              <AnimatePresence>
+                {mobileOpen ? (
+                  <motion.div
+                    initial={reducedMotion ? false : { opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
+                    transition={{ duration: 0.2 }}
                   >
-                    {link.label}
-                  </Button>
-                ))}
-                <div className="my-2 border-t" />
-                <Button
-                  variant="outline"
-                  className="min-h-11"
-                  asChild
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <Link to="/login">Đăng nhập</Link>
-                </Button>
-                <Button
-                  className="min-h-11"
-                  asChild
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <Link to="/signup">Dùng thử miễn phí</Link>
-                </Button>
-              </div>
+                    <div className="flex items-center gap-2 text-left text-lg font-semibold">
+                      <Logo variant="icon" className="h-7" />
+                      Casso Ledger
+                    </div>
+                    <div className="mt-6 flex flex-col gap-2">
+                      {LANDING_NAV_LINKS.map((link) => (
+                        <Button
+                          key={link.href}
+                          variant="ghost"
+                          className="min-h-11 justify-start"
+                          onClick={() => {
+                            setMobileOpen(false);
+                            scrollToSection(link.href);
+                          }}
+                        >
+                          {link.label}
+                        </Button>
+                      ))}
+                      <div className="my-2 border-t" />
+                      <Button
+                        variant="outline"
+                        className="min-h-11"
+                        asChild
+                        onClick={() => setMobileOpen(false)}
+                      >
+                        <Link to="/login">Đăng nhập</Link>
+                      </Button>
+                      <Button
+                        className="min-h-11"
+                        asChild
+                        onClick={() => setMobileOpen(false)}
+                      >
+                        <Link to="/signup">Dùng thử miễn phí</Link>
+                      </Button>
+                    </div>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
             </SheetContent>
           </Sheet>
         </div>
