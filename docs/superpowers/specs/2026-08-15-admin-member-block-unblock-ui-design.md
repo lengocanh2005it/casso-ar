@@ -55,6 +55,54 @@ pending invites) sharing one pager. The signature element is the access-state
 column: active/blocked badges and a clear switch affordance make the risk of
 the action visible without adding a new visual system.
 
+## Frontend design pass
+
+**Subject and audience:** this is an internal operator access desk. Its one
+job is to answer “who can enter this organization right now?” and make a
+deliberate access change when needed. The design should feel inspectable and
+operational, not like a consumer settings page.
+
+**Tokens and type:** inherit the existing `Be Vietnam Pro` family and the
+current oklch token set: green `primary` for active/available states, red
+`destructive` only for blocked/dangerous actions, and muted foreground/border
+tokens for metadata. Organization IDs remain the only monospaced data. No new
+font, color, shadow, or radius token is justified for this page.
+
+**Layout:** use the existing Admin page rhythm rather than adding cards or a
+hero. The header gives context first, controls second, data third:
+
+```text
+← Organizations                                      ADMIN CONSOLE
+Organization name
+<organization id> · Created <date> · <ACTIVE/LOCKED badge>
+
+[ Search name or email                         ] [Status ▾]
+
+Members                                            <count>
+┌ Name ───────────── Email ───── Role ─ Status ─ Action ┐
+│ ...                                                   │
+└───────────────────────────────────────────────────────┘
+
+Pending invites                                     <count>
+┌ Email ───────────── Role ─ Invited ─ Expires ────────┐
+│ ...                                      Đã hết hạn  │
+└──────────────────────────────────────────────────────┘
+
+Trang n / m                              Trước  Sau
+```
+
+**Signature and restraint:** the access-state column is the page's one
+memorable device. A blocked badge and the switch affordance sit together so
+the operator sees state and consequence in one scan. Avoid decorative status
+cards, gradients, avatars, or a new dashboard shell; those would compete with
+the decision the page exists to support.
+
+**Interaction quality:** all actions remain keyboard reachable with visible
+focus rings; switch labels name the target member; dialogs use explicit
+Vietnamese consequences; tables collapse horizontally without hiding the
+action column; loading, empty, error, and reduced-motion states use the
+existing primitives and conventions.
+
 ## Response shapes
 
 ```ts
