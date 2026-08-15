@@ -664,7 +664,7 @@ describe('Receivable balance history audit (e2e)', () => {
          VALUES ($1, $2, $3, $4, 1000, now(), NULL, NULL, NULL, NULL, now())`,
         [allocationOtherOrg, orgB, randomUUID(), randomUUID()],
       );
-      for (const [changeReason, expected] of [
+      for (const [changeReason] of [
         [allocationSameOrg, allocationSameOrg],
         [allocationOtherOrg, null],
         ['not-a-uuid', null],
