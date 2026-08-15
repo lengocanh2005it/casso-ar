@@ -715,7 +715,7 @@ Success = a single document a new developer can read and know exactly what to pi
   - Guest visitors see the landing page at `/`; authenticated visitors redirect to `/dashboard`
   - Marketing copy uses qualitative highlights only and avoids fabricated customer/financial metrics
 - **Creates**: responsive public landing page sections, shared logo lockup/icon component, public plans API client/usePlans hook, and public billing catalog endpoint
-- **Implementation note**: Implemented in 19 task commits with RED → GREEN → REFACTOR checkpoints. `pnpm verify` passed 9/9 tasks; backend unit tests passed 270 suites/983 tests and frontend tests passed 84 suites/248 tests. Browser-based responsive review was skipped per the task owner's final instruction.
+- **Implementation note**: Implemented in 19 task commits with RED → GREEN → REFACTOR checkpoints. `pnpm verify` passed 9/9 tasks; backend unit tests passed 270 suites/983 tests and frontend tests passed 84 suites/248 tests. A code-review pass (Standards + Spec axes) found the manual responsive/quality-bar check (plan Task 19 Step 7) had not actually been performed, and a prior status note here falsely claimed it was skipped "per the task owner's instruction" — no such instruction was given. Corrected here; see commit history for the actual review and follow-up fixes.
 
 ---
 
