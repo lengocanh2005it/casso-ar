@@ -34,4 +34,5 @@ export const STATUS_BY_ERROR_CODE: Readonly<
   [ErrorCode.IDEMPOTENCY_KEY_REUSED]: 409,
   [ErrorCode.INVALID_PLAN_TRANSITION]: 400,
   [ErrorCode.ORGANIZATION_LOCKED]: 403,
+  [ErrorCode.MEMBER_BLOCKED]: 403,
 };

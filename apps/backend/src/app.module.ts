@@ -35,6 +35,7 @@ import { InvoicesModule } from './modules/invoices/invoices.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { OrganizationLockGuard } from './modules/organizations/presentation/organization-lock.guard';
+import { MembershipBlockGuard } from './modules/organizations/presentation/membership-block.guard';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { ReceivablesModule } from './modules/receivables/receivables.module';
 import { ReceivableBalanceHistoryModule } from './modules/receivable-balance-history/receivable-balance-history.module';
@@ -109,6 +110,7 @@ import { AdminModule } from './modules/admin/admin.module';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: EmailVerifiedGuard },
     { provide: APP_GUARD, useClass: OrganizationLockGuard },
+    { provide: APP_GUARD, useClass: MembershipBlockGuard },
     { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
   ],
 })

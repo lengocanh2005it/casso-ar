@@ -6,31 +6,40 @@ import {
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
 import request from 'supertest';
+import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
 import { hashPassword } from '../src/modules/auth/application/password-hasher';
+import { Role } from '../src/modules/organizations/domain/membership';
+import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
 import { OrganizationOrmEntity } from '../src/modules/organizations/infrastructure/organization.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 
 describe('Admin (e2e)', () => {
   let container: StartedPostgreSqlContainer;
+  let redisContainer: StartedTestContainer;
   let app: INestApplication;
   let dataSource: DataSource;
   let operatorToken: string;
+  const previousRedisHost = process.env.REDIS_HOST;
+  const previousRedisPort = process.env.REDIS_PORT;
 
   const organizationId = '11111111-1111-1111-1111-111111111111';
   const operatorId = '22222222-2222-2222-2222-222222222222';
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16').start();
+    redisContainer = await new GenericContainer('redis:7-alpine')
+      .withExposedPorts(6379)
+      .start();
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
-    process.env.REDIS_HOST = 'localhost';
-    process.env.REDIS_PORT = '6379';
+    process.env.REDIS_HOST = redisContainer.getHost();
+    process.env.REDIS_PORT = String(redisContainer.getMappedPort(6379));
     process.env.JWT_SECRET = 'admin-e2e-jwt-secret';
     process.env.RESEND_API_KEY = 'admin-e2e-resend-key';
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
@@ -94,6 +103,14 @@ describe('Admin (e2e)', () => {
       container.stop(),
       new Promise<void>((resolve) => setTimeout(resolve, 5_000)),
     ]);
+    await Promise.race([
+      redisContainer.stop(),
+      new Promise<void>((resolve) => setTimeout(resolve, 5_000)),
+    ]);
+    if (previousRedisHost === undefined) delete process.env.REDIS_HOST;
+    else process.env.REDIS_HOST = previousRedisHost;
+    if (previousRedisPort === undefined) delete process.env.REDIS_PORT;
+    else process.env.REDIS_PORT = previousRedisPort;
   }, 20_000);
 
   it('rejects /admin/organizations without an operator token', async () => {
@@ -132,6 +149,73 @@ describe('Admin (e2e)', () => {
       .post(`/api/v1/admin/organizations/${organizationId}/unlock`)
       .set('Authorization', `Bearer ${operatorToken}`)
       .expect(201, { status: 'ACTIVE' });
+  });
+
+  describe('member block/unblock', () => {
+    const memberId = '33333333-3333-3333-3333-333333333333';
+    const membershipId = '44444444-4444-4444-4444-444444444444';
+
+    beforeAll(async () => {
+      await dataSource.getRepository(UserOrmEntity).save({
+        id: memberId,
+        name: 'Member',
+        email: 'member-admin-e2e@casso.vn',
+        passwordHash: await hashPassword('Password123!'),
+        emailVerifiedAt: new Date(),
+        isOperator: false,
+        createdAt: new Date(),
+      });
+      await dataSource.getRepository(MembershipOrmEntity).save({
+        id: membershipId,
+        organizationId,
+        userId: memberId,
+        role: Role.ACCOUNTANT,
+        invitedAt: new Date(),
+        joinedAt: new Date(),
+        status: 'ACTIVE',
+        createdAt: new Date(),
+      });
+    });
+
+    it('blocks and unblocks a member, idempotently', async () => {
+      const blocked = await request(app.getHttpServer())
+        .post(
+          `/api/v1/admin/organizations/${organizationId}/members/${memberId}/block`,
+        )
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .expect(200);
+      expect(blocked.body).toMatchObject({
+        id: membershipId,
+        userId: memberId,
+        status: 'BLOCKED',
+      });
+      expect(blocked.body.blockedAt).not.toBeNull();
+
+      const blockedAgain = await request(app.getHttpServer())
+        .post(
+          `/api/v1/admin/organizations/${organizationId}/members/${memberId}/block`,
+        )
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .expect(200);
+      expect(blockedAgain.body).toMatchObject({
+        id: membershipId,
+        userId: memberId,
+        status: 'BLOCKED',
+      });
+
+      const unblocked = await request(app.getHttpServer())
+        .post(
+          `/api/v1/admin/organizations/${organizationId}/members/${memberId}/unblock`,
+        )
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .expect(200);
+      expect(unblocked.body).toEqual({
+        id: membershipId,
+        userId: memberId,
+        status: 'ACTIVE',
+        blockedAt: null,
+      });
+    });
   });
 
   it('rejects the aggregate ai-usage endpoint when from/to are missing', async () => {

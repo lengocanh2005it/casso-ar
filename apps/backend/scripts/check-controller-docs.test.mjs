@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -7,7 +7,10 @@ import test from 'node:test';
 import { findControllerDocsViolations } from './check-controller-docs.mjs';
 
 function createFixture(files) {
-  const sourceRoot = join(mkdtempSync(join(tmpdir(), 'controller-docs-')), 'src');
+  const sourceRoot = join(
+    mkdtempSync(join(tmpdir(), 'controller-docs-')),
+    'src',
+  );
   for (const [relativePath, content] of Object.entries(files)) {
     const filePath = join(sourceRoot, relativePath);
     mkdirSync(dirname(filePath), { recursive: true });

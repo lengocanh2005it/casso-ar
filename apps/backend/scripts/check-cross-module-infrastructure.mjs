@@ -15,15 +15,22 @@ export function findCrossModuleInfrastructureViolations(sourceRoot) {
   return collectProductionTsFiles(sourceRoot).flatMap((file) => {
     const sourceModule = relative(sourceRoot, file).split(sep)[0];
     const content = readFileSync(file, 'utf8');
-    const sourceFile = ts.createSourceFile(file, content, ts.ScriptTarget.Latest);
+    const sourceFile = ts.createSourceFile(
+      file,
+      content,
+      ts.ScriptTarget.Latest,
+    );
     const violations = [];
 
     for (const statement of sourceFile.statements) {
       if (
-        !(ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) ||
+        !(
+          ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)
+        ) ||
         !statement.moduleSpecifier ||
         !ts.isStringLiteral(statement.moduleSpecifier)
-      ) continue;
+      )
+        continue;
 
       const importPath = statement.moduleSpecifier.text;
       const target = importPath.startsWith('.')
@@ -36,7 +43,10 @@ export function findCrossModuleInfrastructureViolations(sourceRoot) {
       ) {
         violations.push({
           file,
-          line: sourceFile.getLineAndCharacterOfPosition(statement.getStart(sourceFile)).line + 1,
+          line:
+            sourceFile.getLineAndCharacterOfPosition(
+              statement.getStart(sourceFile),
+            ).line + 1,
           importPath,
         });
       }

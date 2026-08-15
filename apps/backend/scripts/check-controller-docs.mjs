@@ -2,7 +2,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const API_TAGS_IMPORT = /import\s*\{[^}]*ApiTags[^}]*\}\s*from\s*['"]@nestjs\/swagger['"]/;
+const API_TAGS_IMPORT =
+  /import\s*\{[^}]*ApiTags[^}]*\}\s*from\s*['"]@nestjs\/swagger['"]/;
 // @ApiTags must sit above the controller class decorator — a tag buried in a
 // comment or on a method does not satisfy the requirement. Other decorators
 // (e.g. @Public()) may sit between @ApiTags and @Controller.
@@ -15,10 +16,7 @@ function collectControllerFiles(dir) {
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) {
       files.push(...collectControllerFiles(full));
-    } else if (
-      full.endsWith('.controller.ts') &&
-      !full.endsWith('.spec.ts')
-    ) {
+    } else if (full.endsWith('.controller.ts') && !full.endsWith('.spec.ts')) {
       files.push(full);
     }
   }

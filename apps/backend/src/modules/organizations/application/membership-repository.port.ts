@@ -5,6 +5,7 @@ export interface IMembershipRepository {
   findByUserAndOrganization(
     userId: string,
     organizationId: string,
+    manager?: EntityManager,
   ): Promise<Membership | null>;
   findFirstActiveByUserId(userId: string): Promise<Membership | null>;
   findOwnerByOrganization(organizationId: string): Promise<Membership | null>;
