@@ -1083,18 +1083,23 @@ export class BlockMemberUseCase {
       return membership;
     }
 
-    return this.dataSource.transaction(async (manager) => {
-      const blocked = membership.block();
+    const blocked = membership.block();
+    await this.dataSource.transaction(async (manager) => {
       await this.membershipRepo.save(blocked, manager);
-      const user = await this.userRepo.findById(input.targetUserId, manager);
-      if (user) {
-        await this.authEmailSender.sendMemberBlockedEmail(
-          user.email,
-          input.organizationName,
-        );
-      }
-      return blocked;
     });
+
+    // Email is sent only after the transaction commits — the DB write must
+    // never roll back because the queue (Redis/BullMQ) is unavailable
+    // (AGENTS.md: no external calls inside a transaction; hold locks only
+    // inside it, never outside). Mirrors BlockMemberByOperatorUseCase (Task 10).
+    const user = await this.userRepo.findById(input.targetUserId);
+    if (user) {
+      await this.authEmailSender.sendMemberBlockedEmail(
+        user.email,
+        input.organizationName,
+      );
+    }
+    return blocked;
   }
 }
 ```
@@ -1153,18 +1158,21 @@ export class UnblockMemberUseCase {
       return membership;
     }
 
-    return this.dataSource.transaction(async (manager) => {
-      const unblocked = membership.unblock();
+    const unblocked = membership.unblock();
+    await this.dataSource.transaction(async (manager) => {
       await this.membershipRepo.save(unblocked, manager);
-      const user = await this.userRepo.findById(input.targetUserId, manager);
-      if (user) {
-        await this.authEmailSender.sendMemberUnblockedEmail(
-          user.email,
-          input.organizationName,
-        );
-      }
-      return unblocked;
     });
+
+    // Same reasoning as BlockMemberUseCase: email goes out after commit,
+    // never inside the transaction.
+    const user = await this.userRepo.findById(input.targetUserId);
+    if (user) {
+      await this.authEmailSender.sendMemberUnblockedEmail(
+        user.email,
+        input.organizationName,
+      );
+    }
+    return unblocked;
   }
 }
 ```
