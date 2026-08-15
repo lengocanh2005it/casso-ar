@@ -101,7 +101,7 @@ git commit -m "feat: add MEMBER_BLOCK permission, OWNER-exclusive"
 **Interfaces:**
 - Produces: `MembershipStatus = 'ACTIVE' | 'BLOCKED'`; `Membership.status: MembershipStatus`; `Membership.blockedAt: Date | null`; `Membership.block(): Membership`; `Membership.unblock(): Membership`; `Membership.isBlocked(): boolean`. Consumed by Task 3 (ORM entity), Task 5/6 (use cases), Task 10 (guard).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `apps/backend/src/modules/organizations/domain/membership.spec.ts`:
 
@@ -158,12 +158,12 @@ describe('Membership block/unblock', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx jest --testPathPattern apps/backend/src/modules/organizations/domain/membership.spec.ts`
 Expected: FAIL — `Property 'status' does not exist on type 'Membership'` (TS compile error surfaced as a test failure) and/or `membership.block is not a function`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Replace the full contents of `apps/backend/src/modules/organizations/domain/membership.ts`:
 
@@ -231,12 +231,12 @@ export class Membership {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx jest --testPathPattern apps/backend/src/modules/organizations/domain/membership.spec.ts`
 Expected: PASS (all tests in the file, old and new)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/backend/src/modules/organizations/domain/membership.ts apps/backend/src/modules/organizations/domain/membership.spec.ts
