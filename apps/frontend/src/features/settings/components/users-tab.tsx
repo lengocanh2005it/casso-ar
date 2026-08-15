@@ -1,5 +1,6 @@
 import { Permission, Role } from '@casso-ledger/shared-types';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,6 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 import {
   Table,
   TableBody,
@@ -39,6 +41,10 @@ const roles = Object.values(Role);
 
 type StatusFilter = 'ALL' | MembershipStatus;
 
+function parseStatusFilter(value: string | null): StatusFilter {
+  return value === 'ACTIVE' || value === 'BLOCKED' ? value : 'ALL';
+}
+
 export function UsersTab() {
   const { user } = useAuth();
   const canView =
@@ -51,7 +57,8 @@ export function UsersTab() {
   const canBlock = hasPermission(user?.role ?? null, Permission.MEMBER_BLOCK);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>(Role.ACCOUNTANT);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const statusFilter = parseStatusFilter(searchParams.get('status'));
   const membersQuery = useOrganizationMembers(
     canView ? user?.organizationId : undefined,
   );
@@ -71,11 +78,20 @@ export function UsersTab() {
     );
   }
 
+  function changeStatusFilter(value: StatusFilter) {
+    const next = new URLSearchParams(searchParams);
+    if (value === 'ALL') next.delete('status');
+    else next.set('status', value);
+    setSearchParams(next, { replace: true });
+  }
+
   const members = membersQuery.data?.items ?? [];
   const filteredMembers =
     statusFilter === 'ALL'
       ? members
       : members.filter((member) => member.status === statusFilter);
+
+  const colSpan = canManage || canBlock ? 5 : 4;
 
   return (
     <div className="space-y-6">
@@ -85,7 +101,10 @@ export function UsersTab() {
             <span className="block">Email</span>
             <Input
               id="invite-email"
+              name="email"
               type="email"
+              autoComplete="email"
+              spellCheck={false}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="email@example.com"
@@ -112,7 +131,8 @@ export function UsersTab() {
             </select>
           </label>
           <Button disabled={!email.trim() || invite.isPending} onClick={submit}>
-            Mời thành viên
+            {invite.isPending && <Spinner className="size-4" />}
+            {invite.isPending ? 'Đang mời…' : 'Mời thành viên'}
           </Button>
         </div>
       )}
@@ -124,7 +144,7 @@ export function UsersTab() {
             className="h-9 rounded-md border bg-background px-3 text-sm"
             value={statusFilter}
             onChange={(event) =>
-              setStatusFilter(event.target.value as StatusFilter)
+              changeStatusFilter(event.target.value as StatusFilter)
             }
           >
             <option value="ALL">Tất cả</option>
@@ -132,9 +152,13 @@ export function UsersTab() {
             <option value="BLOCKED">Đã chặn</option>
           </select>
         </div>
-        {membersQuery.isPending && <p>Đang tải thành viên…</p>}
+        {membersQuery.isPending && (
+          <p aria-live="polite">Đang tải thành viên…</p>
+        )}
         {membersQuery.isError && (
-          <p className="text-destructive">Không thể tải thành viên.</p>
+          <p aria-live="polite" className="text-destructive">
+            Không thể tải thành viên.
+          </p>
         )}
         {membersQuery.data && (
           <Table>
@@ -148,13 +172,27 @@ export function UsersTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {filteredMembers.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={colSpan}
+                    className="text-center text-muted-foreground"
+                  >
+                    {members.length === 0
+                      ? 'Chưa có thành viên nào.'
+                      : 'Không có thành viên nào phù hợp với bộ lọc.'}
+                  </TableCell>
+                </TableRow>
+              )}
               {filteredMembers.map((member) => {
                 const isSelf = member.userId === user?.id;
                 const isBlocked = member.status === 'BLOCKED';
                 return (
                   <TableRow key={member.id}>
-                    <TableCell>{member.name}</TableCell>
-                    <TableCell>{member.email}</TableCell>
+                    <TableCell className="break-words">{member.name}</TableCell>
+                    <TableCell className="break-words">
+                      {member.email}
+                    </TableCell>
                     <TableCell>
                       {canManage && !isSelf ? (
                         <select
@@ -185,7 +223,12 @@ export function UsersTab() {
                     </TableCell>
                     <TableCell>
                       {isBlocked && (
-                        <Badge variant="destructive">Đã chặn</Badge>
+                        <Badge
+                          variant="destructive"
+                          className="animate-in fade-in zoom-in duration-150 ease-out motion-reduce:animate-none"
+                        >
+                          Đã chặn
+                        </Badge>
                       )}
                     </TableCell>
                     {(canManage || canBlock) && (

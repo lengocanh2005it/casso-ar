@@ -6,6 +6,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { UsersTab } from './users-tab';
 
@@ -77,14 +78,22 @@ function mockApi({
   });
 }
 
-function renderTab() {
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location">{location.search}</div>;
+}
+
+function renderTab(initialEntry = '/') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <UsersTab />
-    </QueryClientProvider>,
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <QueryClientProvider client={queryClient}>
+        <UsersTab />
+        <LocationProbe />
+      </QueryClientProvider>
+    </MemoryRouter>,
   );
 }
 
@@ -222,5 +231,80 @@ describe('UsersTab', () => {
 
     expect(screen.queryByText('Kế toán')).toBeNull();
     expect(screen.getByText('Sales bị chặn')).toBeTruthy();
+  });
+
+  it('syncs the status filter to the URL', async () => {
+    useAuth.mockReturnValue({
+      user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
+    });
+    mockApi({ members: [ownerMember, accountantMember, blockedMember] });
+    renderTab();
+
+    await waitFor(() => expect(screen.getByText('Sales bị chặn')).toBeTruthy());
+    fireEvent.change(screen.getByLabelText('Lọc theo trạng thái'), {
+      target: { value: 'BLOCKED' },
+    });
+
+    expect(screen.getByTestId('location').textContent).toContain(
+      'status=BLOCKED',
+    );
+  });
+
+  it('restores the status filter from the URL query param', async () => {
+    useAuth.mockReturnValue({
+      user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
+    });
+    mockApi({ members: [ownerMember, accountantMember, blockedMember] });
+    renderTab('/?status=BLOCKED');
+
+    await waitFor(() => expect(screen.getByText('Sales bị chặn')).toBeTruthy());
+    expect(screen.queryByText('Kế toán')).toBeNull();
+  });
+
+  it('flips the member to blocked optimistically while the request is pending', async () => {
+    useAuth.mockReturnValue({
+      user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
+    });
+    mockApi();
+    renderTab();
+
+    await waitFor(() => expect(screen.getByText('Kế toán')).toBeTruthy());
+    let resolveBlock!: (value: unknown) => void;
+    apiRequest.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveBlock = resolve;
+        }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Chặn Kế toán' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Bỏ chặn Kế toán' }),
+      ).toBeTruthy(),
+    );
+
+    resolveBlock({
+      id: 'm2',
+      userId: 'user-2',
+      status: 'BLOCKED',
+      blockedAt: null,
+    });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Chặn Kế toán' })).toBeTruthy(),
+    );
+  });
+
+  it('shows an empty state when there are no members', async () => {
+    useAuth.mockReturnValue({
+      user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
+    });
+    mockApi({ members: [] });
+    renderTab();
+
+    await waitFor(() =>
+      expect(screen.getByText('Chưa có thành viên nào.')).toBeTruthy(),
+    );
   });
 });
