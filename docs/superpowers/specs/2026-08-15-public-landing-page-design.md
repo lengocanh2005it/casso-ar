@@ -236,6 +236,25 @@ features/landing/
                              off `planId === PlanId.BUSINESS`, not a backend
                              field — the public API returns plain catalog data,
                              no "featured" concept in the domain.
+
+                             Each card shows a checklist (Check icon, matches
+                             xcash-ai's PricingSection list pattern), combining
+                             two sources per plan:
+                             1. Computed bullets from the fetched API limits —
+                                "{receivableMonthlyLimit} khoản phải thu/tháng",
+                                "{bankConnectionLimit} kết nối ngân hàng",
+                                "{copilotChatMonthlyLimit} lượt chat Copilot" —
+                                formatted client-side, not hardcoded numbers, so
+                                a backend limit change reflects automatically.
+                             2. Static qualitative features from
+                                `landing-data.ts` (`PLAN_FEATURE_COPY: Record<
+                                PlanId, string[]>`) — e.g. "RBAC 5 vai trò",
+                                "Báo cáo công nợ theo tuổi nợ (aging)", "SMTP
+                                riêng" (BUSINESS+/ENTERPRISE only, matches
+                                `canUseCustomSmtp` but expressed as marketing
+                                copy, not fetched — this list has no backend
+                                equivalent, purely presentational, same as
+                                xcash-ai's hardcoded `features` array).
     cta-section.tsx         final CTA block
     landing-footer.tsx      logo + copyright + login/signup links
   api/
