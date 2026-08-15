@@ -15,8 +15,8 @@ export function ReceivableBalanceHistoryKpis({
   if (isLoading) {
     return (
       <div className="grid gap-4 sm:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <Card key={index}>
+        {['total', 'affected', 'remaining'].map((skeletonKey) => (
+          <Card key={skeletonKey}>
             <CardContent className="p-6">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="mt-3 h-8 w-32" />
