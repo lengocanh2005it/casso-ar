@@ -28,4 +28,15 @@ describe('MemberBlockedWatcher', () => {
     await waitFor(() => expect(logout).toHaveBeenCalledTimes(1));
     expect(await screen.findByText('Trang đăng nhập')).toBeTruthy();
   });
+
+  it('still redirects to /login when logout fails', async () => {
+    const logout = vi.fn().mockRejectedValue(new Error('network down'));
+    useAuth.mockReturnValue({ logout });
+    renderWatcher();
+
+    window.dispatchEvent(new CustomEvent('casso:member-blocked'));
+
+    await waitFor(() => expect(logout).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('Trang đăng nhập')).toBeTruthy();
+  });
 });

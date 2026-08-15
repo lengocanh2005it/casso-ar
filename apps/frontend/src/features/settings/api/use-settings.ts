@@ -185,12 +185,21 @@ export function useRemoveMember(organizationId: string | undefined) {
   });
 }
 
-export function useBlockMember(organizationId: string | undefined) {
+type MemberStatusAction = 'block' | 'unblock';
+
+function useMemberStatusMutation(
+  organizationId: string | undefined,
+  action: MemberStatusAction,
+) {
   const queryClient = useQueryClient();
+  const isBlock = action === 'block';
+  const queryKey = ['organization-members', organizationId];
   return useMutation({
-    mutationFn: (userId: string) => blockMember(organizationId ?? '', userId),
+    mutationFn: (userId: string) =>
+      isBlock
+        ? blockMember(organizationId ?? '', userId)
+        : unblockMember(organizationId ?? '', userId),
     onMutate: async (userId: string) => {
-      const queryKey = ['organization-members', organizationId];
       await queryClient.cancelQueries({ queryKey });
       const previous =
         queryClient.getQueryData<OrganizationMemberList>(queryKey);
@@ -200,11 +209,13 @@ export function useBlockMember(organizationId: string | undefined) {
               ...current,
               items: current.items.map((member) =>
                 member.userId === userId
-                  ? {
-                      ...member,
-                      status: 'BLOCKED',
-                      blockedAt: new Date().toISOString(),
-                    }
+                  ? isBlock
+                    ? {
+                        ...member,
+                        status: 'BLOCKED',
+                        blockedAt: new Date().toISOString(),
+                      }
+                    : { ...member, status: 'ACTIVE', blockedAt: null }
                   : member,
               ),
             }
@@ -213,7 +224,11 @@ export function useBlockMember(organizationId: string | undefined) {
       return { previous, queryKey };
     },
     onSuccess: () => {
-      toast.success('Đã chặn quyền truy cập của thành viên.');
+      toast.success(
+        isBlock
+          ? 'Đã chặn quyền truy cập của thành viên.'
+          : 'Đã bỏ chặn thành viên.',
+      );
     },
     onError: (error, _userId, context) => {
       if (context?.previous) {
@@ -222,61 +237,24 @@ export function useBlockMember(organizationId: string | undefined) {
       toast.error(
         getResponseErrorMessage(
           error,
-          'Không thể chặn thành viên này. Vui lòng thử lại.',
+          isBlock
+            ? 'Không thể chặn thành viên này. Vui lòng thử lại.'
+            : 'Không thể bỏ chặn thành viên này. Vui lòng thử lại.',
         ),
       );
     },
     onSettled: (_data, _error, _userId, context) => {
-      void queryClient.invalidateQueries({
-        queryKey: context?.queryKey ?? ['organization-members', organizationId],
-      });
+      void queryClient.invalidateQueries({ queryKey: context.queryKey });
     },
   });
 }
 
+export function useBlockMember(organizationId: string | undefined) {
+  return useMemberStatusMutation(organizationId, 'block');
+}
+
 export function useUnblockMember(organizationId: string | undefined) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (userId: string) => unblockMember(organizationId ?? '', userId),
-    onMutate: async (userId: string) => {
-      const queryKey = ['organization-members', organizationId];
-      await queryClient.cancelQueries({ queryKey });
-      const previous =
-        queryClient.getQueryData<OrganizationMemberList>(queryKey);
-      queryClient.setQueryData<OrganizationMemberList>(queryKey, (current) =>
-        current
-          ? {
-              ...current,
-              items: current.items.map((member) =>
-                member.userId === userId
-                  ? { ...member, status: 'ACTIVE', blockedAt: null }
-                  : member,
-              ),
-            }
-          : current,
-      );
-      return { previous, queryKey };
-    },
-    onSuccess: () => {
-      toast.success('Đã bỏ chặn thành viên.');
-    },
-    onError: (error, _userId, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(context.queryKey, context.previous);
-      }
-      toast.error(
-        getResponseErrorMessage(
-          error,
-          'Không thể bỏ chặn thành viên này. Vui lòng thử lại.',
-        ),
-      );
-    },
-    onSettled: (_data, _error, _userId, context) => {
-      void queryClient.invalidateQueries({
-        queryKey: context?.queryKey ?? ['organization-members', organizationId],
-      });
-    },
-  });
+  return useMemberStatusMutation(organizationId, 'unblock');
 }
 
 export function useOrganizationInvites(organizationId: string | undefined) {

@@ -9,10 +9,12 @@ export function MemberBlockedWatcher() {
 
   useEffect(() => {
     function handleBlocked() {
-      void logout().then(() => {
-        toast.error('Tài khoản của bạn đã bị chặn khỏi tổ chức này.');
-        navigate('/login');
-      });
+      void logout()
+        .then(() => {
+          toast.error('Tài khoản của bạn đã bị chặn khỏi tổ chức này.');
+          navigate('/login');
+        })
+        .catch(() => navigate('/login'));
     }
     window.addEventListener('casso:member-blocked', handleBlocked);
     return () =>

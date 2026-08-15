@@ -60,6 +60,13 @@ export interface OrganizationMemberList {
   limit: number;
 }
 
+export interface MemberStatusResponse {
+  id: string;
+  userId: string;
+  status: MembershipStatus;
+  blockedAt: string | null;
+}
+
 export interface Invite {
   id: string;
   email: string;

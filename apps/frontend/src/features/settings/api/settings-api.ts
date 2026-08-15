@@ -3,7 +3,7 @@ import type {
   EmailTemplate,
   EmailTemplateInput,
   EmailTemplatePreview,
-  MembershipStatus,
+  MemberStatusResponse,
   OrganizationInviteList,
   OrganizationMemberList,
   SmtpConfig,
@@ -185,12 +185,7 @@ export function resendInvite(
 export function blockMember(
   organizationId: string,
   userId: string,
-): Promise<{
-  id: string;
-  userId: string;
-  status: MembershipStatus;
-  blockedAt: string | null;
-}> {
+): Promise<MemberStatusResponse> {
   return postWithIdempotency(
     `/api/v1/organizations/${organizationId}/members/${userId}/block`,
   );
@@ -199,12 +194,7 @@ export function blockMember(
 export function unblockMember(
   organizationId: string,
   userId: string,
-): Promise<{
-  id: string;
-  userId: string;
-  status: MembershipStatus;
-  blockedAt: string | null;
-}> {
+): Promise<MemberStatusResponse> {
   return postWithIdempotency(
     `/api/v1/organizations/${organizationId}/members/${userId}/unblock`,
   );

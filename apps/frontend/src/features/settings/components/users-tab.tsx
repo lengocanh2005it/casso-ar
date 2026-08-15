@@ -1,6 +1,5 @@
 import { Permission, Role } from '@casso-ledger/shared-types';
 import { memo, useCallback, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,10 +61,6 @@ const membersErrorMessage = (
     Không thể tải thành viên.
   </p>
 );
-
-function parseStatusFilter(value: string | null): StatusFilter {
-  return value === 'ACTIVE' || value === 'BLOCKED' ? value : 'ALL';
-}
 
 interface MembersTableProps {
   members: OrganizationMember[];
@@ -238,8 +233,7 @@ export function UsersTab() {
   const canBlock = hasPermission(user?.role ?? null, Permission.MEMBER_BLOCK);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>(Role.ACCOUNTANT);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const statusFilter = parseStatusFilter(searchParams.get('status'));
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const membersQuery = useOrganizationMembers(
     canView ? user?.organizationId : undefined,
   );
@@ -285,13 +279,6 @@ export function UsersTab() {
       { organizationId: user.organizationId, email: email.trim(), role },
       { onSuccess: () => setEmail('') },
     );
-  }
-
-  function changeStatusFilter(value: StatusFilter) {
-    const next = new URLSearchParams(searchParams);
-    if (value === 'ALL') next.delete('status');
-    else next.set('status', value);
-    setSearchParams(next, { replace: true });
   }
 
   const members = membersQuery.data?.items ?? [];
@@ -351,7 +338,7 @@ export function UsersTab() {
             className="h-9 rounded-md border bg-background px-3 text-sm"
             value={statusFilter}
             onChange={(event) =>
-              changeStatusFilter(event.target.value as StatusFilter)
+              setStatusFilter(event.target.value as StatusFilter)
             }
           >
             {statusFilterOptions}
