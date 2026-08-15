@@ -1603,7 +1603,7 @@ git commit -m "feat: add block/unblock member endpoints for org OWNER"
 - Consumes: `IMembershipRepository` (existing); `IUserRepository` (existing); `IOperatorAuditLogRepository` (existing); `IAuthEmailSender` (Task 5, made available to `AdminModule` in Task 12); `OperatorAuditLog` (Task 4); `Membership.block()`/`unblock()` (Task 2).
 - Produces: `BlockMemberByOperatorUseCase.execute(input): Promise<void>`, `UnblockMemberByOperatorUseCase.execute(input): Promise<void>`, where the input shape is `{ organizationId: string; organizationName: string; userId: string; operatorId: string }`. Consumed by Task 12 (`AdminController`).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `apps/backend/src/modules/admin/application/block-member-by-operator.usecase.spec.ts`:
 
@@ -1827,12 +1827,12 @@ describe('UnblockMemberByOperatorUseCase', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx jest --testPathPattern "apps/backend/src/modules/admin/application/(block|unblock)-member-by-operator.usecase.spec.ts"`
 Expected: FAIL — modules don't exist yet.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `unlock-organization.usecase.ts` confirms the exact sibling shape: `dataSource.transaction`, `if (organization.status === 'ACTIVE') return;` as the no-op guard, `actionType: 'ORGANIZATION_UNLOCKED'`. The two use cases below follow that same shape for `Membership`.
 
@@ -2002,12 +2002,12 @@ export class UnblockMemberByOperatorUseCase {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `npx jest --testPathPattern "apps/backend/src/modules/admin/application/(block|unblock)-member-by-operator.usecase.spec.ts"`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/backend/src/modules/admin/application/block-member-by-operator.usecase.ts apps/backend/src/modules/admin/application/block-member-by-operator.usecase.spec.ts apps/backend/src/modules/admin/application/unblock-member-by-operator.usecase.ts apps/backend/src/modules/admin/application/unblock-member-by-operator.usecase.spec.ts
