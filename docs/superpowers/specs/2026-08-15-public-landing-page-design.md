@@ -16,8 +16,10 @@ consumer landing page.
 
 Structural reference: sibling project `xcash-ai`
 (`apps/frontend/src/pages/landing/`) — same section order and componentization
-convention (Navbar → Hero → Stats → Features → Steps → Pricing → CTA → Footer),
-different product/copy/visual treatment.
+convention (Navbar → Hero → About → Stats → Features → Steps → Pricing → CTA →
+Footer; `About` is an addition on top of xcash-ai's own section list, filling a
+gap xcash-ai doesn't have — a short "what is this product" intro), different
+product/copy/visual treatment.
 
 ## Non-goals
 
@@ -217,6 +219,15 @@ features/landing/
     hero-section.tsx        2-col: copy+CTA left, HeroDemoCard right
     hero-demo-card.tsx      cycling receivable ticker (setInterval, matches
                              xcash-ai's HeroDemoCard timing/fade pattern)
+    about-section.tsx       short "what is Casso Ledger" intro — 2–3 sentence
+                             paragraph (product + audience + Cas ID/CASSO
+                             Balance Hook mechanism) plus 3 value pillars
+                             (icon + short label: "Tự động đối chiếu" /
+                             "Nhắc nợ đúng lúc" / "Báo cáo minh bạch").
+                             Deliberately not a card grid — distinct from
+                             `FeaturesSection`'s detailed capability list, kept
+                             short to match the "credible B2B tool" pacing bar
+                             (no redundant restating of features here).
     stats-band.tsx          4-stat grid: hardcoded illustrative numbers
                              (including customer/org counts — explicitly
                              approved as fabricated placeholder data pre-launch,
