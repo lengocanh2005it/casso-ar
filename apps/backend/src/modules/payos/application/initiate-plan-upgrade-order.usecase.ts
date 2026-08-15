@@ -6,11 +6,11 @@ import {
   type ISubscriptionRepository,
   SUBSCRIPTION_REPOSITORY,
 } from '../../billing/application/subscription-repository.port';
+import { getPlanCatalog } from '../../billing/domain/subscription';
 import {
   type IPayosPaymentAdapter,
   PAYOS_PAYMENT_ADAPTER,
 } from './payos-payment-adapter.port';
-import { PLAN_PRICE_VND } from './plan-price';
 import {
   type IPlanUpgradeOrderRepository,
   PLAN_UPGRADE_ORDER_REPOSITORY,
@@ -64,7 +64,8 @@ export class InitiatePlanUpgradeOrderUseCase {
 
     const link = await this.payosAdapter.createPaymentLink({
       orderCode: order.orderCode,
-      amount: PLAN_PRICE_VND[input.targetPlanId],
+      amount: getPlanCatalog().find((p) => p.planId === input.targetPlanId)!
+        .priceVnd,
       description: `Nang cap goi ${input.targetPlanId}`,
       returnUrl: input.returnUrl,
       cancelUrl: input.cancelUrl,
