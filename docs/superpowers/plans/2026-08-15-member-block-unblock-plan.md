@@ -2200,7 +2200,7 @@ git commit -m "feat: add block/unblock member endpoints for cross-org Operator"
 **Interfaces:**
 - Consumes: the full running `AppModule` (existing e2e pattern, `PostgreSqlContainer` + `supertest`).
 
-- [ ] **Step 1: Add Operator block/unblock member cases to `admin.e2e-spec.ts`**
+- [x] **Step 1: Add Operator block/unblock member cases to `admin.e2e-spec.ts`**
 
 `admin.e2e-spec.ts` already seeds `organizationId`/`operatorId` and logs in the operator via `POST /api/v1/auth/login` to get `operatorToken` (see the file's existing `beforeAll`). Append, inside the existing `describe('Admin (e2e)', ...)` block, a new `describe('member block/unblock', ...)` that seeds one additional member row and exercises both endpoints:
 
@@ -2256,7 +2256,7 @@ describe('member block/unblock', () => {
 
 Add `MembershipOrmEntity` and `Role` imports to the top of the file (`'../src/modules/organizations/infrastructure/membership.orm-entity'`, `'../src/modules/organizations/domain/membership'`).
 
-- [ ] **Step 2: Create `membership-block.e2e-spec.ts`**
+- [x] **Step 2: Create `membership-block.e2e-spec.ts`**
 
 Copy the container/app bootstrap from `apps/backend/test/member-management-export.e2e-spec.ts` (own `PostgreSqlContainer`, `app.use(cookieParser())`, `configureApp(app)`, and critically its `jwtService.sign({ userId, organizationId, role })` `token()` helper — mint JWTs directly instead of calling `/auth/login`, since these tests only need a valid token, not to exercise the login flow itself). Seed one `OrganizationOrmEntity`, one `OWNER` `UserOrmEntity`/`MembershipOrmEntity` pair, and one `ACCOUNTANT` `UserOrmEntity`/`MembershipOrmEntity` pair, all with `status: 'ACTIVE'` and `joinedAt` set.
 
@@ -2427,12 +2427,12 @@ describe('Membership block/unblock (e2e)', () => {
 });
 ```
 
-- [ ] **Step 3: Run the new e2e suites**
+- [x] **Step 3: Run the new e2e suites**
 
-Run: `pnpm --filter @casso-ledger/backend test:e2e -- --testPathPattern "(admin|membership-block).e2e-spec.ts"`
+Run: `pnpm --filter @casso-ledger/backend test:e2e -- --testPathPatterns "(admin|membership-block).e2e-spec.ts"`
 Expected: PASS (requires Docker for testcontainers — if Docker is unavailable in this environment, state that exception explicitly per `AGENTS.md`'s e2e note rather than skipping silently)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/backend/test/admin.e2e-spec.ts apps/backend/test/membership-block.e2e-spec.ts

@@ -10,6 +10,8 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
 import { hashPassword } from '../src/modules/auth/application/password-hasher';
+import { Role } from '../src/modules/organizations/domain/membership';
+import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
 import { OrganizationOrmEntity } from '../src/modules/organizations/infrastructure/organization.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 
@@ -132,6 +134,59 @@ describe('Admin (e2e)', () => {
       .post(`/api/v1/admin/organizations/${organizationId}/unlock`)
       .set('Authorization', `Bearer ${operatorToken}`)
       .expect(201, { status: 'ACTIVE' });
+  });
+
+  describe('member block/unblock', () => {
+    const memberId = '33333333-3333-3333-3333-333333333333';
+    const membershipId = '44444444-4444-4444-4444-444444444444';
+
+    beforeAll(async () => {
+      await dataSource.getRepository(UserOrmEntity).save({
+        id: memberId,
+        name: 'Member',
+        email: 'member-admin-e2e@casso.vn',
+        passwordHash: await hashPassword('Password123!'),
+        emailVerifiedAt: new Date(),
+        isOperator: false,
+        createdAt: new Date(),
+      });
+      await dataSource.getRepository(MembershipOrmEntity).save({
+        id: membershipId,
+        organizationId,
+        userId: memberId,
+        role: Role.ACCOUNTANT,
+        invitedAt: new Date(),
+        joinedAt: new Date(),
+        status: 'ACTIVE',
+        createdAt: new Date(),
+      });
+    });
+
+    it('blocks and unblocks a member, idempotently', async () => {
+      await request(app.getHttpServer())
+        .post(
+          `/api/v1/admin/organizations/${organizationId}/members/${memberId}/block`,
+        )
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .expect(201)
+        .expect({ status: 'BLOCKED' });
+
+      await request(app.getHttpServer())
+        .post(
+          `/api/v1/admin/organizations/${organizationId}/members/${memberId}/block`,
+        )
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .expect(201)
+        .expect({ status: 'BLOCKED' });
+
+      await request(app.getHttpServer())
+        .post(
+          `/api/v1/admin/organizations/${organizationId}/members/${memberId}/unblock`,
+        )
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .expect(201)
+        .expect({ status: 'ACTIVE' });
+    });
   });
 
   it('rejects the aggregate ai-usage endpoint when from/to are missing', async () => {
