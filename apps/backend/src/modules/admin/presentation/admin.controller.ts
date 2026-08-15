@@ -21,7 +21,10 @@ import type { Request } from 'express';
 import { AdminAuthGuard } from '../../../common/admin/admin-auth.guard';
 import type { AuthenticatedOperator } from '../../../common/admin/authenticated-operator';
 import { Public } from '../../../common/auth/public.decorator';
-import { MemberStatusResponseDto } from '../../../common/dto/member-status-response.dto';
+import {
+  MemberStatusResponseDto,
+  toMemberStatusResponse,
+} from '../../../common/dto/member-status-response.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
@@ -145,12 +148,7 @@ export class AdminController {
       userId,
       operatorId: request.user.operatorId,
     });
-    return {
-      id: membership.id,
-      userId: membership.userId,
-      status: membership.status,
-      blockedAt: membership.blockedAt,
-    };
+    return toMemberStatusResponse(membership);
   }
 
   @Post('organizations/:orgId/members/:userId/unblock')
@@ -178,12 +176,7 @@ export class AdminController {
       userId,
       operatorId: request.user.operatorId,
     });
-    return {
-      id: membership.id,
-      userId: membership.userId,
-      status: membership.status,
-      blockedAt: membership.blockedAt,
-    };
+    return toMemberStatusResponse(membership);
   }
 
   @Get('ai-usage')

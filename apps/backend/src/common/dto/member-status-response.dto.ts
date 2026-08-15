@@ -1,5 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import type { MembershipStatus } from '../../modules/organizations/domain/membership';
+import type {
+  Membership,
+  MembershipStatus,
+} from '../../modules/organizations/domain/membership';
 
 export class MemberStatusResponseDto {
   @ApiProperty({ format: 'uuid' })
@@ -13,4 +16,15 @@ export class MemberStatusResponseDto {
 
   @ApiProperty({ type: Date, nullable: true })
   blockedAt: Date | null;
+}
+
+export function toMemberStatusResponse(
+  membership: Membership,
+): MemberStatusResponseDto {
+  return {
+    id: membership.id,
+    userId: membership.userId,
+    status: membership.status,
+    blockedAt: membership.blockedAt,
+  };
 }

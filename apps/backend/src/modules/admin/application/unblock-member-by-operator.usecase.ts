@@ -6,6 +6,7 @@ import {
   type IMemberNotificationSender,
   MEMBER_NOTIFICATION_SENDER,
 } from '../../auth/application/member-notification.port';
+import { notifyMemberStatusChange } from '../../auth/application/notify-member-status-change';
 import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
@@ -67,29 +68,17 @@ export class UnblockMemberByOperatorUseCase {
       },
     });
 
-    if (changed) await this.sendNotification(input, 'MEMBER_UNBLOCKED');
-    return membership;
-  }
-
-  private async sendNotification(
-    input: UnblockMemberByOperatorInput,
-    emailType: 'MEMBER_UNBLOCKED',
-  ): Promise<void> {
-    try {
-      const user = await this.userRepo.findById(input.userId);
-      if (!user) return;
-      await this.memberNotificationSender.sendMemberUnblockedEmail(
-        user.email,
-        input.organizationName,
-      );
-    } catch (error) {
-      this.logger?.error({
-        message: 'Member unblock notification enqueue failed',
-        emailType,
+    if (changed) {
+      await notifyMemberStatusChange({
+        userRepo: this.userRepo,
+        memberNotificationSender: this.memberNotificationSender,
+        logger: this.logger,
+        targetUserId: input.userId,
         organizationId: input.organizationId,
-        userId: input.userId,
-        error: error instanceof Error ? error.message : String(error),
+        organizationName: input.organizationName,
+        action: 'UNBLOCKED',
       });
     }
+    return membership;
   }
 }

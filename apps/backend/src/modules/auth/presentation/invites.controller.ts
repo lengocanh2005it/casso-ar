@@ -30,7 +30,10 @@ import {
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../../../common/auth/optional-jwt-auth.guard';
 import { Public } from '../../../common/auth/public.decorator';
-import { MemberStatusResponseDto } from '../../../common/dto/member-status-response.dto';
+import {
+  MemberStatusResponseDto,
+  toMemberStatusResponse,
+} from '../../../common/dto/member-status-response.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
@@ -241,12 +244,7 @@ export class InvitesController {
           actorUserId: request.user?.userId ?? '',
           targetUserId: userId,
         });
-        return {
-          id: membership.id,
-          userId: membership.userId,
-          status: membership.status,
-          blockedAt: membership.blockedAt,
-        };
+        return toMemberStatusResponse(membership);
       },
     );
   }
@@ -287,12 +285,7 @@ export class InvitesController {
           organizationName: organization.name,
           targetUserId: userId,
         });
-        return {
-          id: membership.id,
-          userId: membership.userId,
-          status: membership.status,
-          blockedAt: membership.blockedAt,
-        };
+        return toMemberStatusResponse(membership);
       },
     );
   }

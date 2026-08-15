@@ -15,6 +15,7 @@ import {
   type IMemberNotificationSender,
   MEMBER_NOTIFICATION_SENDER,
 } from './member-notification.port';
+import { notifyMemberStatusChange } from './notify-member-status-change';
 
 export interface UnblockMemberInput {
   organizationId: string;
@@ -45,26 +46,17 @@ export class UnblockMemberUseCase {
       notFoundMessage: 'Không tìm thấy thành viên trong tổ chức.',
     });
 
-    if (changed) await this.sendNotification(input);
-    return membership;
-  }
-
-  private async sendNotification(input: UnblockMemberInput): Promise<void> {
-    try {
-      const user = await this.userRepo.findById(input.targetUserId);
-      if (!user) return;
-      await this.memberNotificationSender.sendMemberUnblockedEmail(
-        user.email,
-        input.organizationName,
-      );
-    } catch (error) {
-      this.logger?.error({
-        message: 'Member unblock notification enqueue failed',
-        emailType: 'MEMBER_UNBLOCKED',
+    if (changed) {
+      await notifyMemberStatusChange({
+        userRepo: this.userRepo,
+        memberNotificationSender: this.memberNotificationSender,
+        logger: this.logger,
+        targetUserId: input.targetUserId,
         organizationId: input.organizationId,
-        userId: input.targetUserId,
-        error: error instanceof Error ? error.message : String(error),
+        organizationName: input.organizationName,
+        action: 'UNBLOCKED',
       });
     }
+    return membership;
   }
 }

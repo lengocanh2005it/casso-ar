@@ -18,6 +18,7 @@ import {
   type IMemberNotificationSender,
   MEMBER_NOTIFICATION_SENDER,
 } from './member-notification.port';
+import { notifyMemberStatusChange } from './notify-member-status-change';
 
 export interface BlockMemberInput {
   organizationId: string;
@@ -64,26 +65,17 @@ export class BlockMemberUseCase {
       },
     });
 
-    if (changed) await this.sendNotification(input);
-    return membership;
-  }
-
-  private async sendNotification(input: BlockMemberInput): Promise<void> {
-    try {
-      const user = await this.userRepo.findById(input.targetUserId);
-      if (!user) return;
-      await this.memberNotificationSender.sendMemberBlockedEmail(
-        user.email,
-        input.organizationName,
-      );
-    } catch (error) {
-      this.logger?.error({
-        message: 'Member block notification enqueue failed',
-        emailType: 'MEMBER_BLOCKED',
+    if (changed) {
+      await notifyMemberStatusChange({
+        userRepo: this.userRepo,
+        memberNotificationSender: this.memberNotificationSender,
+        logger: this.logger,
+        targetUserId: input.targetUserId,
         organizationId: input.organizationId,
-        userId: input.targetUserId,
-        error: error instanceof Error ? error.message : String(error),
+        organizationName: input.organizationName,
+        action: 'BLOCKED',
       });
     }
+    return membership;
   }
 }
