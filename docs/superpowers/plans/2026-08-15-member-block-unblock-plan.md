@@ -32,7 +32,7 @@
 **Interfaces:**
 - Produces: `Permission.MEMBER_BLOCK` (string enum value `'MEMBER_BLOCK'`), consumed by `@RequirePermission(Permission.MEMBER_BLOCK)` in Task 9.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```typescript
 // packages/shared-types/src/role-permissions.spec.ts
@@ -59,12 +59,12 @@ describe('ROLE_PERMISSIONS — MEMBER_BLOCK', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx jest --testPathPattern packages/shared-types/src/role-permissions.spec.ts`
 Expected: FAIL — `Permission.MEMBER_BLOCK` is `undefined` (property does not exist on the enum).
 
-- [ ] **Step 3: Add the permission**
+- [x] **Step 3: Add the permission**
 
 In `packages/shared-types/src/permission.ts`, add one line to the enum (any position; alphabetical grouping is not enforced elsewhere in the file, so append at the end):
 
@@ -78,12 +78,12 @@ export enum Permission {
 
 No change to `role-permissions.ts` is needed: `ROLE_PERMISSIONS[Role.OWNER]` is `Object.values(Permission)`, which picks up the new value automatically, and no other role's explicit list includes it.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx jest --testPathPattern packages/shared-types/src/role-permissions.spec.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/shared-types/src/permission.ts packages/shared-types/src/role-permissions.spec.ts
