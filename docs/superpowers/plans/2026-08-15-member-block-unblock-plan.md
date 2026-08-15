@@ -1254,7 +1254,7 @@ git commit -m "feat: wire BlockMemberUseCase/UnblockMemberUseCase into AuthModul
 - Consumes: `IMembershipRepository.findByUserAndOrganization` (existing); `Membership.isBlocked()` (Task 2); `AuthenticatedUser` (existing, `common/auth/authenticated-user.ts`).
 - Produces: registers as a fourth global `APP_GUARD`, runs after `OrganizationLockGuard`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `apps/backend/src/modules/organizations/presentation/membership-block.guard.spec.ts`:
 
@@ -1335,12 +1335,12 @@ describe('MembershipBlockGuard', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx jest --testPathPattern apps/backend/src/modules/organizations/presentation/membership-block.guard.spec.ts`
 Expected: FAIL — `Cannot find module './membership-block.guard'`
 
-- [ ] **Step 3: Add the `MEMBER_BLOCKED` error code**
+- [x] **Step 3: Add the `MEMBER_BLOCKED` error code**
 
 In `apps/backend/src/common/errors/error-code.ts`, add one line to the enum:
 
@@ -1356,7 +1356,7 @@ In `apps/backend/src/common/errors/status-by-error-code.ts`, add one line to the
   [ErrorCode.MEMBER_BLOCKED]: 403,
 ```
 
-- [ ] **Step 4: Implement the guard**
+- [x] **Step 4: Implement the guard**
 
 Create `apps/backend/src/modules/organizations/presentation/membership-block.guard.ts`:
 
@@ -1410,7 +1410,7 @@ export class MembershipBlockGuard implements CanActivate {
 }
 ```
 
-- [ ] **Step 5: Register the guard globally**
+- [x] **Step 5: Register the guard globally**
 
 In `apps/backend/src/app.module.ts`, add the import:
 
@@ -1427,12 +1427,12 @@ And add a fourth `APP_GUARD` entry, after `OrganizationLockGuard`:
     { provide: APP_GUARD, useClass: MembershipBlockGuard },
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `npx jest --testPathPattern apps/backend/src/modules/organizations/presentation/membership-block.guard.spec.ts`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add apps/backend/src/modules/organizations/presentation/membership-block.guard.ts apps/backend/src/modules/organizations/presentation/membership-block.guard.spec.ts apps/backend/src/common/errors/error-code.ts apps/backend/src/common/errors/status-by-error-code.ts apps/backend/src/app.module.ts
