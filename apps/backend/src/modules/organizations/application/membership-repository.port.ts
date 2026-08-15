@@ -1,5 +1,10 @@
 import type { EntityManager } from 'typeorm';
-import type { Membership, Role } from '../domain/membership';
+import type { Membership, MembershipStatus, Role } from '../domain/membership';
+
+export interface MembershipListFilters {
+  status?: MembershipStatus;
+  userIds?: string[];
+}
 
 export interface IMembershipRepository {
   findByUserAndOrganization(
@@ -23,8 +28,16 @@ export interface IMembershipRepository {
     organizationId: string,
     page: number,
     limit: number,
+    filters?: MembershipListFilters,
   ): Promise<Membership[]>;
-  countByOrganization(organizationId: string): Promise<number>;
+  countByOrganization(
+    organizationId: string,
+    filters?: MembershipListFilters,
+  ): Promise<number>;
+  findUserIdsByOrganizationSearch(
+    organizationId: string,
+    search: string,
+  ): Promise<string[]>;
   countActiveByRole(
     organizationId: string,
     role: Role,

@@ -1,8 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { EntityManager, Repository } from 'typeorm';
+import type { EntityManager, Repository, SelectQueryBuilder } from 'typeorm';
 import { IsNull, Not } from 'typeorm';
-import type { IMembershipRepository } from '../application/membership-repository.port';
+import { toLikePattern } from '../../../common/database/like-pattern';
+import type {
+  IMembershipRepository,
+  MembershipListFilters,
+} from '../application/membership-repository.port';
 import { Membership, Role } from '../domain/membership';
 import { MembershipOrmEntity } from './membership.orm-entity';
 
@@ -102,22 +106,72 @@ export class TypeOrmMembershipRepository implements IMembershipRepository {
     organizationId: string,
     page: number,
     limit: number,
+    filters: MembershipListFilters = {},
   ): Promise<Membership[]> {
-    const rows = await this.repo.find({
-      where: { organizationId },
-      order: { createdAt: 'ASC' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    const qb = this.applyListFilters(
+      this.repo.createQueryBuilder('membership'),
+      organizationId,
+      filters,
+    );
+    const rows = await qb
+      .orderBy('membership.createdAt', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getMany();
 
     return rows.map(toDomain);
   }
 
-  async countByOrganization(organizationId: string): Promise<number> {
-    return this.repo
+  async countByOrganization(
+    organizationId: string,
+    filters: MembershipListFilters = {},
+  ): Promise<number> {
+    const qb = this.applyListFilters(
+      this.repo.createQueryBuilder('membership'),
+      organizationId,
+      filters,
+    );
+    return qb.getCount();
+  }
+
+  async findUserIdsByOrganizationSearch(
+    organizationId: string,
+    search: string,
+  ): Promise<string[]> {
+    const rows = await this.repo
       .createQueryBuilder('membership')
+      .innerJoin('users', 'user', 'user.id = membership.userId')
+      .select('membership.userId', 'userId')
       .where('membership.organizationId = :organizationId', { organizationId })
-      .getCount();
+      .andWhere('membership.joinedAt IS NOT NULL')
+      .andWhere('(user.name ILIKE :pattern OR user.email ILIKE :pattern)', {
+        pattern: toLikePattern(search.trim()),
+      })
+      .getRawMany();
+    return rows.map((row) => row.userId);
+  }
+
+  private applyListFilters(
+    qb: SelectQueryBuilder<MembershipOrmEntity>,
+    organizationId: string,
+    filters: MembershipListFilters,
+  ): SelectQueryBuilder<MembershipOrmEntity> {
+    qb.where('membership.organizationId = :organizationId', {
+      organizationId,
+    }).andWhere('membership.joinedAt IS NOT NULL');
+    if (filters.status) {
+      qb.andWhere('membership.status = :status', { status: filters.status });
+    }
+    if (filters.userIds) {
+      if (filters.userIds.length === 0) {
+        qb.andWhere('1 = 0');
+      } else {
+        qb.andWhere('membership.userId IN (:...userIds)', {
+          userIds: filters.userIds,
+        });
+      }
+    }
+    return qb;
   }
 
   async countActiveByRole(

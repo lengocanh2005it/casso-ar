@@ -20,8 +20,12 @@ export interface IMembershipInviteRepository {
     organizationId: string,
     page: number,
     limit: number,
+    search?: string,
   ): Promise<PendingInviteSummary[]>;
-  countPendingByOrganization(organizationId: string): Promise<number>;
+  countPendingByOrganization(
+    organizationId: string,
+    search?: string,
+  ): Promise<number>;
 }
 
 export const MEMBERSHIP_INVITE_REPOSITORY = Symbol(
