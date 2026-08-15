@@ -10,8 +10,11 @@ describe('AdminController', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
+      {} as never,
       getAiUsageAggregateUseCase as never,
       getAiUsageTrendUseCase as never,
+      {} as never,
     );
 
     afterEach(() => jest.clearAllMocks());

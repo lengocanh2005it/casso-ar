@@ -22,6 +22,12 @@ export class MembershipOrmEntity {
   @Column({ type: 'timestamp', nullable: true })
   joinedAt: Date | null;
 
+  @Column({ type: 'varchar', default: 'ACTIVE' })
+  status: 'ACTIVE' | 'BLOCKED';
+
+  @Column({ type: 'timestamptz', nullable: true })
+  blockedAt: Date | null;
+
   @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

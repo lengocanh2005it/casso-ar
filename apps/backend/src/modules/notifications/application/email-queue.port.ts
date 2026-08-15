@@ -14,7 +14,12 @@ export interface AuthEmailJob {
   to: string;
   subject: string;
   html: string;
-  emailType: 'AUTH_VERIFICATION' | 'AUTH_PASSWORD_RESET' | 'AUTH_INVITE';
+  emailType:
+    | 'AUTH_VERIFICATION'
+    | 'AUTH_PASSWORD_RESET'
+    | 'AUTH_INVITE'
+    | 'MEMBER_BLOCKED'
+    | 'MEMBER_UNBLOCKED';
 }
 
 export interface OwnerAlertEmailJob {

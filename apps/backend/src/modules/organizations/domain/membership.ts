@@ -2,6 +2,8 @@ export { Role } from '@casso-ledger/shared-types';
 
 import type { Role } from '@casso-ledger/shared-types';
 
+export type MembershipStatus = 'ACTIVE' | 'BLOCKED';
+
 export interface MembershipProps {
   id: string;
   organizationId: string;
@@ -10,6 +12,8 @@ export interface MembershipProps {
   invitedAt: Date;
   joinedAt: Date | null;
   createdAt: Date;
+  status?: MembershipStatus;
+  blockedAt?: Date | null;
 }
 
 export class Membership {
@@ -20,6 +24,8 @@ export class Membership {
   readonly invitedAt: Date;
   readonly joinedAt: Date | null;
   readonly createdAt: Date;
+  readonly status: MembershipStatus;
+  readonly blockedAt: Date | null;
 
   constructor(props: MembershipProps) {
     this.id = props.id;
@@ -29,13 +35,31 @@ export class Membership {
     this.invitedAt = props.invitedAt;
     this.joinedAt = props.joinedAt;
     this.createdAt = props.createdAt;
+    this.status = props.status ?? 'ACTIVE';
+    this.blockedAt = props.blockedAt ?? null;
   }
 
   isActive(): boolean {
     return this.joinedAt !== null;
   }
 
+  isBlocked(): boolean {
+    return this.status === 'BLOCKED';
+  }
+
   withRole(role: Role): Membership {
     return new Membership({ ...this, role });
+  }
+
+  block(): Membership {
+    return new Membership({
+      ...this,
+      status: 'BLOCKED',
+      blockedAt: new Date(),
+    });
+  }
+
+  unblock(): Membership {
+    return new Membership({ ...this, status: 'ACTIVE', blockedAt: null });
   }
 }

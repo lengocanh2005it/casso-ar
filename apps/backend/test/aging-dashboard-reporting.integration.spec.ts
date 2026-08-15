@@ -20,6 +20,7 @@ import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure
 import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment.orm-entity';
 import { BalanceHistoryChangeSource } from '../src/modules/receivable-balance-history/domain/balance-history-change-source';
 import { ReceivableBalanceHistoryOrmEntity } from '../src/modules/receivable-balance-history/infrastructure/receivable-balance-history.orm-entity';
+import { ReceivableBalanceHistoryCoverageOrmEntity } from '../src/modules/receivable-balance-history/infrastructure/receivable-balance-history-coverage.orm-entity';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { ReminderExecutionStatus } from '../src/modules/reminders/domain/reminder-execution';
 import { ReminderExecutionOrmEntity } from '../src/modules/reminders/infrastructure/reminder-execution.orm-entity';
@@ -371,6 +372,13 @@ describe('Aging dashboard reporting (integration)', () => {
     const currentMonth = monthKeyOffset(0);
     const trendReceivableOne = randomUUID();
     const trendReceivableTwo = randomUUID();
+    await dataSource
+      .getRepository(ReceivableBalanceHistoryCoverageOrmEntity)
+      .save({
+        organizationId,
+        coveredFrom: localDateTime(twoMonthsAgo, 1),
+        reason: 'HISTORY_COVERAGE_START',
+      });
     await dataSource.getRepository(PaymentOrmEntity).save([
       {
         id: randomUUID(),

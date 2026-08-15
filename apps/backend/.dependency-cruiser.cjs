@@ -3,17 +3,21 @@ module.exports = {
   forbidden: [
     {
       name: 'domain-no-outer-layers',
-      comment: 'domain/ must not depend on application/, infrastructure/, or presentation/.',
+      comment:
+        'domain/ must not depend on application/, infrastructure/, or presentation/.',
       severity: 'error',
       from: {
         path: '^src/modules/[^/]+/domain/',
         pathNot: '\\.spec\\.ts$',
       },
-      to: { path: '^src/modules/[^/]+/(application|infrastructure|presentation)/' },
+      to: {
+        path: '^src/modules/[^/]+/(application|infrastructure|presentation)/',
+      },
     },
     {
       name: 'application-no-outer-layers',
-      comment: 'application/ must not depend on infrastructure/ or presentation/.',
+      comment:
+        'application/ must not depend on infrastructure/ or presentation/.',
       severity: 'error',
       from: {
         path: '^src/modules/[^/]+/application/',

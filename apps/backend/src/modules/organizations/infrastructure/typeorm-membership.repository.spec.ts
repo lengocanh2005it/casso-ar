@@ -1,5 +1,6 @@
 import { IsNull, Not } from 'typeorm';
-import { Role } from '../domain/membership';
+import { Membership, Role } from '../domain/membership';
+import { MembershipOrmEntity } from './membership.orm-entity';
 import { TypeOrmMembershipRepository } from './typeorm-membership.repository';
 
 describe('TypeOrmMembershipRepository', () => {
@@ -35,5 +36,49 @@ describe('TypeOrmMembershipRepository', () => {
         order: { createdAt: 'ASC' },
       });
     });
+  });
+
+  it('maps persisted membership state into the domain entity', async () => {
+    const row = {
+      id: 'mem-1',
+      organizationId: 'org-1',
+      userId: 'user-1',
+      role: Role.ACCOUNTANT,
+      invitedAt: new Date('2026-08-01'),
+      joinedAt: new Date('2026-08-01'),
+      status: 'BLOCKED' as const,
+      blockedAt: new Date('2026-08-02'),
+      createdAt: new Date('2026-08-01'),
+    };
+    const repo = { findOne: jest.fn().mockResolvedValue(row) };
+    const repository = new TypeOrmMembershipRepository(repo as any);
+
+    const membership = await repository.findByUserAndOrganization(
+      'user-1',
+      'org-1',
+    );
+
+    expect(membership).toEqual(new Membership(row));
+  });
+
+  it('maps the domain entity to an ORM entity before saving', async () => {
+    const repo = { save: jest.fn().mockResolvedValue(undefined) };
+    const repository = new TypeOrmMembershipRepository(repo as any);
+    const membership = new Membership({
+      id: 'mem-1',
+      organizationId: 'org-1',
+      userId: 'user-1',
+      role: Role.ACCOUNTANT,
+      invitedAt: new Date('2026-08-01'),
+      joinedAt: new Date('2026-08-01'),
+      status: 'BLOCKED',
+      blockedAt: new Date('2026-08-02'),
+      createdAt: new Date('2026-08-01'),
+    });
+
+    await repository.save(membership);
+
+    expect(repo.save).toHaveBeenCalledWith(expect.any(MembershipOrmEntity));
+    expect(repo.save.mock.calls[0][0]).toMatchObject(membership);
   });
 });

@@ -60,4 +60,31 @@ describe('ResendAuthEmailSenderAdapter', () => {
       ),
     ).rejects.toThrow('Queue full');
   });
+
+  it('queues member blocked and unblocked emails', async () => {
+    const emailQueue = { add: jest.fn().mockResolvedValue(undefined) };
+    const adapter = new ResendAuthEmailSenderAdapter(emailQueue as any);
+
+    await adapter.sendMemberBlockedEmail('member@example.com', 'Acme');
+    await adapter.sendMemberUnblockedEmail('member@example.com', 'Acme');
+
+    expect(emailQueue.add).toHaveBeenNthCalledWith(
+      1,
+      'send-auth-email',
+      expect.objectContaining({
+        to: 'member@example.com',
+        html: expect.stringContaining('Acme'),
+        emailType: 'MEMBER_BLOCKED',
+      }),
+    );
+    expect(emailQueue.add).toHaveBeenNthCalledWith(
+      2,
+      'send-auth-email',
+      expect.objectContaining({
+        to: 'member@example.com',
+        html: expect.stringContaining('Acme'),
+        emailType: 'MEMBER_UNBLOCKED',
+      }),
+    );
+  });
 });

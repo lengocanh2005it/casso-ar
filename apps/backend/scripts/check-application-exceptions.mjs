@@ -5,7 +5,8 @@ import { join } from 'node:path';
 // specifier list, so we can flag ANY imported exception class (not just a
 // hardcoded handful) — per .claude/rules/application.md, application/ must
 // not throw HttpException or any other @nestjs/common exception class.
-const NESTJS_COMMON_IMPORT = /import\s*\{([^}]*)\}\s*from\s*['"]@nestjs\/common['"]/g;
+const NESTJS_COMMON_IMPORT =
+  /import\s*\{([^}]*)\}\s*from\s*['"]@nestjs\/common['"]/g;
 
 function findExceptionImports(content) {
   const found = [];
@@ -51,7 +52,9 @@ for (const moduleName of readdirSync(modulesDir)) {
   for (const file of collectTsFiles(appDir)) {
     const content = readFileSync(file, 'utf8');
     for (const name of findExceptionImports(content)) {
-      violations.push(`${file}: uses ${name} — throw AppError instead (see common/errors/app-error.ts)`);
+      violations.push(
+        `${file}: uses ${name} — throw AppError instead (see common/errors/app-error.ts)`,
+      );
     }
   }
 }
