@@ -22,6 +22,8 @@ const ownerMember = {
   name: 'Chủ sở hữu',
   role: 'OWNER',
   joinedAt: '2026-08-01',
+  status: 'ACTIVE',
+  blockedAt: null,
 };
 const accountantMember = {
   id: 'm2',
@@ -30,6 +32,18 @@ const accountantMember = {
   name: 'Kế toán',
   role: 'ACCOUNTANT',
   joinedAt: '2026-08-01',
+  status: 'ACTIVE',
+  blockedAt: null,
+};
+const blockedMember = {
+  id: 'm3',
+  userId: 'user-3',
+  email: 'sales@congtyb.vn',
+  name: 'Sales bị chặn',
+  role: 'SALES_REP',
+  joinedAt: '2026-08-01',
+  status: 'BLOCKED',
+  blockedAt: '2026-08-10T00:00:00.000Z',
 };
 
 function mockApi({
@@ -138,5 +152,67 @@ describe('UsersTab', () => {
     await waitFor(() => expect(screen.getByText('Kế toán')).toBeTruthy());
     expect(screen.queryByLabelText('Vai trò của Kế toán')).toBeNull();
     expect(screen.queryByRole('button', { name: /Xoá/ })).toBeNull();
+  });
+
+  it('shows a blocked badge and lets an OWNER unblock a blocked member', async () => {
+    useAuth.mockReturnValue({
+      user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
+    });
+    mockApi({ members: [ownerMember, blockedMember] });
+    renderTab();
+
+    await waitFor(() => expect(screen.getByText('Sales bị chặn')).toBeTruthy());
+    expect(screen.getAllByText('Đã chặn').length).toBeGreaterThan(0);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Bỏ chặn Sales bị chặn' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: '/api/v1/organizations/org-1/members/user-3/unblock',
+          method: 'POST',
+        }),
+      ),
+    );
+  });
+
+  it('lets an OWNER block an active member', async () => {
+    useAuth.mockReturnValue({
+      user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
+    });
+    mockApi();
+    renderTab();
+
+    await waitFor(() => expect(screen.getByText('Kế toán')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Chặn Kế toán' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: '/api/v1/organizations/org-1/members/user-2/block',
+          method: 'POST',
+        }),
+      ),
+    );
+  });
+
+  it('filters the member list by status', async () => {
+    useAuth.mockReturnValue({
+      user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
+    });
+    mockApi({ members: [ownerMember, accountantMember, blockedMember] });
+    renderTab();
+
+    await waitFor(() => expect(screen.getByText('Sales bị chặn')).toBeTruthy());
+    fireEvent.change(screen.getByLabelText('Lọc theo trạng thái'), {
+      target: { value: 'BLOCKED' },
+    });
+
+    expect(screen.queryByText('Kế toán')).toBeNull();
+    expect(screen.getByText('Sales bị chặn')).toBeTruthy();
   });
 });

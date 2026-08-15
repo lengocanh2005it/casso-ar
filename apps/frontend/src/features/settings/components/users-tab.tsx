@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -24,14 +25,19 @@ import {
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
 import {
+  useBlockMember,
   useChangeMemberRole,
   useInviteMember,
   useOrganizationMembers,
   useRemoveMember,
+  useUnblockMember,
 } from '../api/use-settings';
+import type { MembershipStatus } from '../types';
 import { PendingInvitesTable } from './pending-invites-table';
 
 const roles = Object.values(Role);
+
+type StatusFilter = 'ALL' | MembershipStatus;
 
 export function UsersTab() {
   const { user } = useAuth();
@@ -42,14 +48,18 @@ export function UsersTab() {
     user?.role ?? null,
     Permission.ORGANIZATION_MANAGE,
   );
+  const canBlock = hasPermission(user?.role ?? null, Permission.MEMBER_BLOCK);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>(Role.ACCOUNTANT);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const membersQuery = useOrganizationMembers(
     canView ? user?.organizationId : undefined,
   );
   const invite = useInviteMember();
   const changeRole = useChangeMemberRole(user?.organizationId);
   const removeMember = useRemoveMember(user?.organizationId);
+  const blockMember = useBlockMember(user?.organizationId);
+  const unblockMember = useUnblockMember(user?.organizationId);
 
   if (!canView) return null;
 
@@ -60,6 +70,12 @@ export function UsersTab() {
       { onSuccess: () => setEmail('') },
     );
   }
+
+  const members = membersQuery.data?.items ?? [];
+  const filteredMembers =
+    statusFilter === 'ALL'
+      ? members
+      : members.filter((member) => member.status === statusFilter);
 
   return (
     <div className="space-y-6">
@@ -101,7 +117,21 @@ export function UsersTab() {
         </div>
       )}
       <div>
-        <h2 className="mb-3 text-lg font-semibold">Thành viên</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold">Thành viên</h2>
+          <select
+            aria-label="Lọc theo trạng thái"
+            className="h-9 rounded-md border bg-background px-3 text-sm"
+            value={statusFilter}
+            onChange={(event) =>
+              setStatusFilter(event.target.value as StatusFilter)
+            }
+          >
+            <option value="ALL">Tất cả</option>
+            <option value="ACTIVE">Đang hoạt động</option>
+            <option value="BLOCKED">Đã chặn</option>
+          </select>
+        </div>
         {membersQuery.isPending && <p>Đang tải thành viên…</p>}
         {membersQuery.isError && (
           <p className="text-destructive">Không thể tải thành viên.</p>
@@ -113,12 +143,14 @@ export function UsersTab() {
                 <TableHead>Tên</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Vai trò</TableHead>
-                {canManage && <TableHead>Thao tác</TableHead>}
+                <TableHead>Trạng thái</TableHead>
+                {(canManage || canBlock) && <TableHead>Thao tác</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {membersQuery.data.items.map((member) => {
+              {filteredMembers.map((member) => {
                 const isSelf = member.userId === user?.id;
+                const isBlocked = member.status === 'BLOCKED';
                 return (
                   <TableRow key={member.id}>
                     <TableCell>{member.name}</TableCell>
@@ -151,9 +183,14 @@ export function UsersTab() {
                         member.role
                       )}
                     </TableCell>
-                    {canManage && (
-                      <TableCell>
-                        {!isSelf && (
+                    <TableCell>
+                      {isBlocked && (
+                        <Badge variant="destructive">Đã chặn</Badge>
+                      )}
+                    </TableCell>
+                    {(canManage || canBlock) && (
+                      <TableCell className="space-x-2">
+                        {canManage && !isSelf && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="destructive" size="sm">
@@ -175,6 +212,41 @@ export function UsersTab() {
                                 <AlertDialogAction
                                   onClick={() =>
                                     removeMember.mutate(member.userId)
+                                  }
+                                >
+                                  Xác nhận
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                        {canBlock && !isSelf && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                {isBlocked ? 'Bỏ chặn' : 'Chặn'} {member.name}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  {isBlocked
+                                    ? `Bỏ chặn ${member.name}?`
+                                    : `Chặn quyền truy cập của ${member.name}?`}
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  {isBlocked
+                                    ? 'Người này sẽ được khôi phục quyền truy cập vào tổ chức.'
+                                    : 'Người này sẽ mất quyền truy cập ngay lập tức. Bạn có thể bỏ chặn lại bất cứ lúc nào.'}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Hủy</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() =>
+                                    isBlocked
+                                      ? unblockMember.mutate(member.userId)
+                                      : blockMember.mutate(member.userId)
                                   }
                                 >
                                   Xác nhận

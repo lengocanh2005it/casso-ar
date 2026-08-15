@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { EmailTemplateInput, SmtpConfigInput } from '../types';
 import {
+  blockMember,
   changeMemberRole,
   createEmailTemplate,
   deleteEmailTemplate,
@@ -17,6 +18,7 @@ import {
   resendInvite,
   revokeInvite,
   saveSmtpConfig,
+  unblockMember,
   updateEmailTemplate,
 } from './settings-api';
 
@@ -175,6 +177,40 @@ export function useRemoveMember(organizationId: string | undefined) {
           error,
           'Không thể xoá/đổi vai trò OWNER cuối cùng.',
         ),
+      ),
+  });
+}
+
+export function useBlockMember(organizationId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => blockMember(organizationId ?? '', userId),
+    onSuccess: () => {
+      toast.success('Đã chặn quyền truy cập của thành viên.');
+      void queryClient.invalidateQueries({
+        queryKey: ['organization-members', organizationId],
+      });
+    },
+    onError: (error) =>
+      toast.error(
+        getResponseErrorMessage(error, 'Không thể chặn thành viên này.'),
+      ),
+  });
+}
+
+export function useUnblockMember(organizationId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => unblockMember(organizationId ?? '', userId),
+    onSuccess: () => {
+      toast.success('Đã bỏ chặn thành viên.');
+      void queryClient.invalidateQueries({
+        queryKey: ['organization-members', organizationId],
+      });
+    },
+    onError: (error) =>
+      toast.error(
+        getResponseErrorMessage(error, 'Không thể bỏ chặn thành viên này.'),
       ),
   });
 }
