@@ -21,6 +21,7 @@ interface PlanConfig {
   copilotChatMonthlyLimit: number;
   canUseCustomSmtp: boolean;
   tier: number;
+  priceVnd: number;
 }
 
 const PLAN_CATALOG: Record<PlanId, PlanConfig> = {
@@ -30,6 +31,7 @@ const PLAN_CATALOG: Record<PlanId, PlanConfig> = {
     copilotChatMonthlyLimit: 50,
     canUseCustomSmtp: false,
     tier: 0,
+    priceVnd: 0,
   },
   [PlanId.STARTER]: {
     receivableMonthlyLimit: 500,
@@ -37,6 +39,7 @@ const PLAN_CATALOG: Record<PlanId, PlanConfig> = {
     copilotChatMonthlyLimit: 100,
     canUseCustomSmtp: false,
     tier: 1,
+    priceVnd: 299_000,
   },
   [PlanId.BUSINESS]: {
     receivableMonthlyLimit: 5000,
@@ -44,6 +47,7 @@ const PLAN_CATALOG: Record<PlanId, PlanConfig> = {
     copilotChatMonthlyLimit: 1000,
     canUseCustomSmtp: true,
     tier: 2,
+    priceVnd: 999_000,
   },
   [PlanId.ENTERPRISE]: {
     receivableMonthlyLimit: 15000,
@@ -51,8 +55,27 @@ const PLAN_CATALOG: Record<PlanId, PlanConfig> = {
     copilotChatMonthlyLimit: 10000,
     canUseCustomSmtp: true,
     tier: 3,
+    priceVnd: 2_999_000,
   },
 };
+
+export interface PlanCatalogEntry {
+  planId: PlanId;
+  priceVnd: number;
+  receivableMonthlyLimit: number;
+  bankConnectionLimit: number;
+  copilotChatMonthlyLimit: number;
+}
+
+export function getPlanCatalog(): PlanCatalogEntry[] {
+  return (Object.keys(PLAN_CATALOG) as PlanId[]).map((planId) => ({
+    planId,
+    priceVnd: PLAN_CATALOG[planId].priceVnd,
+    receivableMonthlyLimit: PLAN_CATALOG[planId].receivableMonthlyLimit,
+    bankConnectionLimit: PLAN_CATALOG[planId].bankConnectionLimit,
+    copilotChatMonthlyLimit: PLAN_CATALOG[planId].copilotChatMonthlyLimit,
+  }));
+}
 
 function startOfMonth(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
