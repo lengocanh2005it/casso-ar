@@ -11,6 +11,8 @@ import { ReceivableBalanceHistoryOrmEntity } from './receivable-balance-history.
 // Explicit entry → ORM translation: the compiler checks every field, so a
 // drift between the two shapes fails here instead of being cast away.
 // `sequence` is a DB-generated bigserial and is omitted from inserts.
+// `changeReason` is a legacy column kept for migration compatibility; new
+// writes leave it null and never classify transitions through it.
 function toOrm(
   entry: ReceivableBalanceHistoryEntry,
 ): Omit<ReceivableBalanceHistoryOrmEntity, 'sequence'> {
@@ -22,7 +24,12 @@ function toOrm(
     remainingAmount: entry.remainingAmount,
     effectiveAt: entry.effectiveAt,
     changeSource: entry.changeSource,
-    changeReason: entry.changeReason,
+    changeReason: null,
+    actorType: entry.actorType,
+    actorUserId: entry.actorUserId,
+    reasonCode: entry.reasonCode,
+    note: entry.note,
+    transitionReferenceId: entry.transitionReferenceId,
     createdAt: entry.createdAt,
   };
 }
