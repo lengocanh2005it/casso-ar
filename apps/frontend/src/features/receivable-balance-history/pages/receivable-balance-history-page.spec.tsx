@@ -5,15 +5,22 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { useAuth } from '@/contexts/auth-context';
 import { PermissionRoute } from '@/routes/protected-route';
+import { formatChartDate } from '../components/receivable-balance-history-charts';
 import { ReceivableBalanceHistoryPage } from './receivable-balance-history-page';
 
-const { useListMock, useSummaryMock, exportCsvMock, exportDownloadMock } =
-  vi.hoisted(() => ({
-    useListMock: vi.fn(),
-    useSummaryMock: vi.fn(),
-    exportCsvMock: vi.fn(),
-    exportDownloadMock: vi.fn(),
-  }));
+const {
+  useListMock,
+  useSummaryMock,
+  exportCsvMock,
+  exportDownloadMock,
+  isExportingMock,
+} = vi.hoisted(() => ({
+  useListMock: vi.fn(),
+  useSummaryMock: vi.fn(),
+  exportCsvMock: vi.fn(),
+  exportDownloadMock: vi.fn(),
+  isExportingMock: vi.fn(() => false),
+}));
 
 vi.mock(
   '@/features/receivable-balance-history/api/use-receivable-balance-history',
@@ -34,7 +41,7 @@ vi.mock(
 
 vi.mock('@/lib/use-csv-export', () => ({
   useCsvExport: () => ({
-    isExporting: false,
+    isExporting: isExportingMock(),
     exportCsv: async (
       fetchCsv: () => Promise<{ csv: string; truncated?: boolean }>,
       filename: string,
@@ -123,6 +130,7 @@ describe('ReceivableBalanceHistoryPage', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    isExportingMock.mockReturnValue(false);
   });
 
   it('shows loading skeletons while queries are pending', () => {
@@ -140,7 +148,57 @@ describe('ReceivableBalanceHistoryPage', () => {
 
     renderPage();
 
-    expect(screen.getByText(/không thể tải/i)).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(/không thể tải/i);
+  });
+
+  it('uses semantic headings and accessible filter metadata', () => {
+    mockLoadedData();
+
+    renderPage();
+
+    expect(
+      screen.getByRole('heading', { name: 'Thay đổi theo ngày' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('4')).toHaveClass('tabular-nums');
+
+    expect(screen.getByLabelText('Từ ngày')).toHaveAttribute('name', 'from');
+    expect(screen.getByLabelText('Từ ngày')).toHaveAttribute(
+      'autocomplete',
+      'off',
+    );
+    expect(screen.getByLabelText('Khoản phải thu')).toHaveAttribute(
+      'name',
+      'receivableId',
+    );
+    expect(screen.getByLabelText('Khoản phải thu')).toHaveAttribute(
+      'placeholder',
+      'Ví dụ: rec_123…',
+    );
+  });
+
+  it('formats chart dates for Vietnamese readers', () => {
+    expect(formatChartDate('2026-08-13')).toBe('13/08');
+  });
+
+  it('announces an export in progress', () => {
+    mockLoadedData();
+    isExportingMock.mockReturnValue(true);
+
+    renderPage();
+
+    expect(screen.getByRole('button', { name: 'Đang xuất…' })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    );
+  });
+
+  it('keeps long table values contained', () => {
+    mockLoadedData();
+
+    renderPage();
+
+    expect(screen.getByText('INV-AUDIT-001')).toHaveClass('truncate');
+    expect(screen.getByText('Công ty A')).toHaveClass('truncate');
   });
 
   it('shows an empty state when there are no transitions', () => {

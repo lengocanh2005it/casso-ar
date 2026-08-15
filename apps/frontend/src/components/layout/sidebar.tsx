@@ -34,7 +34,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        'flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200',
+        'flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground',
         collapsed ? 'w-16' : 'w-64',
       )}
     >
@@ -86,7 +86,9 @@ export function Sidebar({
                 }
               >
                 <Icon className="size-4 shrink-0" />
-                {!collapsed && <span className="truncate">{item.label}</span>}
+                {!collapsed && (
+                  <span className="min-w-0 truncate">{item.label}</span>
+                )}
                 {!collapsed && badgeCount !== undefined && (
                   <Badge count={badgeCount} />
                 )}

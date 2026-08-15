@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatVND } from '@/lib/format';
 import type { ReceivableBalanceHistorySummary } from '../types';
@@ -31,31 +31,31 @@ export function ReceivableBalanceHistoryKpis({
     <div className="grid gap-4 sm:grid-cols-3">
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium text-muted-foreground">
+          <h2 className="text-sm font-medium text-muted-foreground">
             Tổng số thay đổi
-          </CardTitle>
+          </h2>
         </CardHeader>
-        <CardContent className="text-2xl font-semibold">
+        <CardContent className="text-2xl font-semibold tabular-nums">
           {summary?.totalTransitions ?? 0}
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium text-muted-foreground">
+          <h2 className="text-sm font-medium text-muted-foreground">
             Khoản phải thu bị ảnh hưởng
-          </CardTitle>
+          </h2>
         </CardHeader>
-        <CardContent className="text-2xl font-semibold">
+        <CardContent className="text-2xl font-semibold tabular-nums">
           {summary?.affectedReceivables ?? 0}
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium text-muted-foreground">
+          <h2 className="text-sm font-medium text-muted-foreground">
             Số dư còn lại mới nhất
-          </CardTitle>
+          </h2>
         </CardHeader>
-        <CardContent className="text-2xl font-semibold">
+        <CardContent className="text-2xl font-semibold tabular-nums">
           {formatVND(summary?.latestRemainingAmount ?? 0)}
         </CardContent>
       </Card>

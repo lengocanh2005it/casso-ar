@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import type {
   ReceivableBalanceHistoryDailyPoint,
   ReceivableBalanceHistorySourcePoint,
@@ -23,6 +23,19 @@ const SOURCE_LABELS: Record<string, string> = {
   WRITE_OFF: 'Xóa nợ',
   ROLLOUT_BASELINE: 'Baseline',
 };
+
+const CHART_DATE_FORMATTER = new Intl.DateTimeFormat('vi-VN', {
+  day: '2-digit',
+  month: '2-digit',
+  timeZone: 'UTC',
+});
+
+export function formatChartDate(date: string): string {
+  return CHART_DATE_FORMATTER.formatToParts(new Date(`${date}T00:00:00.000Z`))
+    .filter((part) => part.type === 'day' || part.type === 'month')
+    .map((part) => part.value)
+    .join('/');
+}
 
 interface ChartsProps {
   dailySeries: ReceivableBalanceHistoryDailyPoint[];
@@ -42,9 +55,7 @@ export function ReceivableBalanceHistoryCharts({
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">
-            Thay đổi theo ngày
-          </CardTitle>
+          <h2 className="text-sm font-medium">Thay đổi theo ngày</h2>
         </CardHeader>
         <CardContent>
           {dailySeries.length === 0 ? (
@@ -63,7 +74,12 @@ export function ReceivableBalanceHistoryCharts({
                   margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={formatChartDate}
+                    tickLine={false}
+                    axisLine={false}
+                  />
                   <YAxis
                     allowDecimals={false}
                     tickLine={false}
@@ -80,9 +96,7 @@ export function ReceivableBalanceHistoryCharts({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">
-            Phân bố theo nguồn thay đổi
-          </CardTitle>
+          <h2 className="text-sm font-medium">Phân bố theo nguồn thay đổi</h2>
         </CardHeader>
         <CardContent>
           {chartData.length === 0 ? (

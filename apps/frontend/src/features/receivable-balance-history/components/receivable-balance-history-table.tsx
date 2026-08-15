@@ -44,13 +44,15 @@ function DetailRow({ item }: { item: ReceivableBalanceHistoryListItem }) {
         <dl className="grid gap-2 text-sm sm:grid-cols-3">
           <div>
             <dt className="text-muted-foreground">Mã tham chiếu</dt>
-            <dd className="font-mono text-xs">
+            <dd className="break-all font-mono text-xs">
               {item.transitionReferenceId ?? '—'}
             </dd>
           </div>
           <div>
             <dt className="text-muted-foreground">Mã người dùng tác động</dt>
-            <dd className="font-mono text-xs">{item.actorUserId ?? '—'}</dd>
+            <dd className="break-all font-mono text-xs">
+              {item.actorUserId ?? '—'}
+            </dd>
           </div>
           <div>
             <dt className="text-muted-foreground">Lý do</dt>
@@ -58,7 +60,7 @@ function DetailRow({ item }: { item: ReceivableBalanceHistoryListItem }) {
           </div>
           <div>
             <dt className="text-muted-foreground">Ghi chú</dt>
-            <dd>{item.note ?? '—'}</dd>
+            <dd className="break-words">{item.note ?? '—'}</dd>
           </div>
         </dl>
       </TableCell>
@@ -94,16 +96,35 @@ export function ReceivableBalanceHistoryTable({ items }: TableProps) {
             <Fragment key={item.id}>
               <TableRow className="align-middle">
                 <TableCell>{formatEffectiveTime(item.effectiveAt)}</TableCell>
-                <TableCell>{item.invoiceNumber ?? '—'}</TableCell>
-                <TableCell>{item.customerName ?? '—'}</TableCell>
+                <TableCell className="max-w-48">
+                  <span
+                    className="block max-w-48 truncate"
+                    title={item.invoiceNumber ?? undefined}
+                  >
+                    {item.invoiceNumber ?? '—'}
+                  </span>
+                </TableCell>
+                <TableCell className="max-w-48">
+                  <span
+                    className="block max-w-48 truncate"
+                    title={item.customerName ?? undefined}
+                  >
+                    {item.customerName ?? '—'}
+                  </span>
+                </TableCell>
                 <TableCell>
                   <Badge variant="outline">
                     {STATUS_LABELS[item.status] ?? item.status}
                   </Badge>
                 </TableCell>
-                <TableCell>{formatVND(item.remainingAmount)}</TableCell>
+                <TableCell className="tabular-nums">
+                  {formatVND(item.remainingAmount)}
+                </TableCell>
                 <TableCell>
-                  <div className="text-sm">
+                  <div
+                    className="min-w-0 max-w-56 truncate text-sm"
+                    title={item.actorDisplayName ?? undefined}
+                  >
                     <span>{item.changeSource}</span>
                     <span className="text-muted-foreground">
                       {' '}

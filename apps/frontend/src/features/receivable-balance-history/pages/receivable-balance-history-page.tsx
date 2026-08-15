@@ -172,7 +172,10 @@ export function ReceivableBalanceHistoryPage() {
     return (
       <div className="space-y-6 p-6">
         <h1 className="text-2xl font-semibold">Lịch sử công nợ</h1>
-        <div className="rounded-xl border bg-card py-16 text-center text-muted-foreground">
+        <div
+          className="rounded-xl border bg-card py-16 text-center text-muted-foreground"
+          role="alert"
+        >
           Không thể tải dữ liệu lịch sử công nợ. Vui lòng thử lại sau.
         </div>
       </div>
@@ -185,9 +188,15 @@ export function ReceivableBalanceHistoryPage() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Lịch sử công nợ</h1>
-        <Button onClick={handleExport} disabled={isExporting}>
+        <Button
+          onClick={handleExport}
+          disabled={isExporting}
+          aria-busy={isExporting}
+        >
           {isExporting && <Spinner className="size-4" />}
-          Xuất CSV
+          <span aria-live="polite">
+            {isExporting ? 'Đang xuất…' : 'Xuất CSV'}
+          </span>
         </Button>
       </div>
 
@@ -217,7 +226,7 @@ export function ReceivableBalanceHistoryPage() {
       )}
 
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+        <p className="tabular-nums text-sm text-muted-foreground">
           Trang {page} / {totalPages} • {listQuery.data?.total ?? 0} thay đổi
         </p>
         <div className="flex gap-2">

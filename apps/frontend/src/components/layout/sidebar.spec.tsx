@@ -41,6 +41,15 @@ function renderSidebar(role: string) {
 }
 
 describe('Sidebar', () => {
+  it('keeps the collapsed navigation text shrinkable without width animation', () => {
+    renderSidebar('OWNER');
+
+    expect(screen.getByRole('complementary')).not.toHaveClass(
+      'transition-[width]',
+    );
+    expect(screen.getByText('Lịch sử công nợ')).toHaveClass('min-w-0');
+  });
+
   it('shows the receivable balance history entry to an owner', () => {
     renderSidebar('OWNER');
     expect(screen.getByText('Lịch sử công nợ')).toBeInTheDocument();

@@ -57,7 +57,9 @@ export function ReceivableBalanceHistoryFilters({
         <Label htmlFor="audit-from">Từ ngày</Label>
         <Input
           id="audit-from"
+          name="from"
           type="date"
+          autoComplete="off"
           value={values.from}
           onChange={(event) =>
             onChange({ ...values, from: event.target.value })
@@ -68,7 +70,9 @@ export function ReceivableBalanceHistoryFilters({
         <Label htmlFor="audit-to">Đến ngày</Label>
         <Input
           id="audit-to"
+          name="to"
           type="date"
+          autoComplete="off"
           value={values.to}
           onChange={(event) => onChange({ ...values, to: event.target.value })}
         />
@@ -77,7 +81,9 @@ export function ReceivableBalanceHistoryFilters({
         <Label htmlFor="audit-receivable">Khoản phải thu</Label>
         <Input
           id="audit-receivable"
-          placeholder="Mã khoản phải thu"
+          name="receivableId"
+          autoComplete="off"
+          placeholder="Ví dụ: rec_123…"
           value={values.receivableId}
           onChange={(event) =>
             onChange({ ...values, receivableId: event.target.value })
