@@ -7,6 +7,10 @@ import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
 } from '../../organizations/application/membership-repository.port';
+import {
+  type IUserRepository,
+  USER_REPOSITORY,
+} from '../../users/application/user-repository.port';
 import { RefreshToken } from '../domain/refresh-token';
 import { REFRESH_TOKEN_TTL_MS } from '../refresh-token-ttl';
 import {
@@ -28,6 +32,7 @@ export class RefreshAccessTokenUseCase {
     private readonly refreshTokenRepo: IRefreshTokenRepository,
     @Inject(MEMBERSHIP_REPOSITORY)
     private readonly membershipRepo: IMembershipRepository,
+    @Inject(USER_REPOSITORY) private readonly userRepo: IUserRepository,
     @Inject(TOKEN_SIGNER) private readonly tokenSigner: ITokenSigner,
     private readonly dataSource: DataSource,
   ) {}
@@ -68,20 +73,26 @@ export class RefreshAccessTokenUseCase {
           'Refresh token không hợp lệ hoặc đã hết hạn.',
         );
       }
-      const membership = await this.membershipRepo.findFirstActiveByUserId(
-        existing.userId,
-      );
-      if (!membership) {
+      const [membership, user] = await Promise.all([
+        this.membershipRepo.findFirstActiveByUserId(existing.userId),
+        this.userRepo.findById(existing.userId),
+      ]);
+      if (!membership && !user?.isOperator) {
         throw new AppError(
           ErrorCode.FORBIDDEN,
           'Tài khoản chưa thuộc tổ chức nào.',
         );
       }
-      const accessToken = this.tokenSigner.sign({
-        userId: existing.userId,
-        organizationId: membership.organizationId,
-        role: membership.role,
-      });
+      const accessToken = this.tokenSigner.sign(
+        membership
+          ? {
+              userId: existing.userId,
+              organizationId: membership.organizationId,
+              role: membership.role,
+              isOperator: user?.isOperator ?? false,
+            }
+          : { userId: existing.userId, isOperator: true },
+      );
       await this.refreshTokenRepo.save(existing.revoke(), manager);
       await this.refreshTokenRepo.save(
         new RefreshToken({

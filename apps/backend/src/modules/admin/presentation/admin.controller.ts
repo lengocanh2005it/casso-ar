@@ -117,7 +117,7 @@ export class AdminController {
   async getAiUsage(@Query() query: GetAiUsageQueryDto) {
     const items = await this.getAiUsageAggregateUseCase.execute({
       from: new Date(query.from),
-      to: new Date(query.to),
+      to: endOfDayUtc(query.to),
     });
     return { items };
   }
@@ -133,8 +133,16 @@ export class AdminController {
   async getAiUsageTrend(@Query() query: GetAiUsageQueryDto) {
     const items = await this.getAiUsageTrendUseCase.execute({
       from: new Date(query.from),
-      to: new Date(query.to),
+      to: endOfDayUtc(query.to),
     });
     return { items };
   }
+}
+
+// `to` arrives as a date-only string (YYYY-MM-DD); parsing it directly yields
+// UTC midnight, which excludes that entire day from a BETWEEN range.
+function endOfDayUtc(dateOnly: string): Date {
+  const date = new Date(dateOnly);
+  date.setUTCHours(23, 59, 59, 999);
+  return date;
 }
