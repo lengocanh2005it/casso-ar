@@ -909,7 +909,10 @@ describe('Receivable balance history (integration)', () => {
       expect.arrayContaining(
         baselineReceivables.map(({ status, originalAmount, paidAmount }) => ({
           status,
-          remainingAmount: String(originalAmount - paidAmount),
+          // pg's bigint type parser is registered process-wide (see
+          // typeorm.config.ts), so raw reads of bigint money columns return
+          // integers, not strings.
+          remainingAmount: originalAmount - paidAmount,
           changeSource: 'ROLLOUT_BASELINE',
           changeReason: 'HISTORY_COVERAGE_START',
           actorType: null,
