@@ -1,6 +1,5 @@
+import { Permission, ROLE_PERMISSIONS } from '@casso-ledger/shared-types';
 import { Role } from '../../modules/organizations/domain/membership';
-import { Permission } from './permission.enum';
-import { ROLE_PERMISSIONS } from './role-permissions.map';
 
 describe('ROLE_PERMISSIONS', () => {
   it('grants FINANCE_MANAGER read access to organization members, matching its existing USER_MANAGE write scope', () => {

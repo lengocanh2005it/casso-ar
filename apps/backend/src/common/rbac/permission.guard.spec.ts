@@ -1,7 +1,7 @@
+import { Permission } from '@casso-ledger/shared-types';
 import type { ExecutionContext } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
 import { Role } from '../../modules/organizations/domain/membership';
-import { Permission } from './permission.enum';
 import { PermissionGuard } from './permission.guard';
 
 function buildContext(user: unknown): ExecutionContext {

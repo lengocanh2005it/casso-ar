@@ -1,3 +1,4 @@
+import { ROLE_PERMISSIONS } from '@casso-ledger/shared-types';
 import {
   type CanActivate,
   type ExecutionContext,
@@ -8,7 +9,6 @@ import { Reflector } from '@nestjs/core';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 import { ErrorCode } from '../errors/error-code';
 import { REQUIRED_PERMISSION_KEY } from './require-permission.decorator';
-import { ROLE_PERMISSIONS } from './role-permissions.map';
 
 @Injectable()
 export class PermissionGuard implements CanActivate {
