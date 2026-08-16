@@ -1,5 +1,5 @@
 import { PlanId, SubscriptionStatus } from '@casso-ledger/shared-types';
-import { Subscription } from './subscription';
+import { getPlanCatalog, Subscription } from './subscription';
 
 describe('Subscription', () => {
   it('creates a FREE subscription for the calendar month containing now', () => {
@@ -241,5 +241,42 @@ describe('Subscription', () => {
       );
       expect(reverted.status).toBe(SubscriptionStatus.ACTIVE);
     });
+  });
+});
+
+describe('getPlanCatalog', () => {
+  it('returns all four plans with their price and usage limits', () => {
+    const catalog = getPlanCatalog();
+
+    expect(catalog).toEqual([
+      {
+        planId: PlanId.FREE,
+        priceVnd: 0,
+        receivableMonthlyLimit: 50,
+        bankConnectionLimit: 1,
+        copilotChatMonthlyLimit: 50,
+      },
+      {
+        planId: PlanId.STARTER,
+        priceVnd: 299_000,
+        receivableMonthlyLimit: 500,
+        bankConnectionLimit: 2,
+        copilotChatMonthlyLimit: 100,
+      },
+      {
+        planId: PlanId.BUSINESS,
+        priceVnd: 999_000,
+        receivableMonthlyLimit: 5000,
+        bankConnectionLimit: 5,
+        copilotChatMonthlyLimit: 1000,
+      },
+      {
+        planId: PlanId.ENTERPRISE,
+        priceVnd: 2_999_000,
+        receivableMonthlyLimit: 15000,
+        bankConnectionLimit: 10,
+        copilotChatMonthlyLimit: 10000,
+      },
+    ]);
   });
 });

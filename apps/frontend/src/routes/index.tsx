@@ -1,9 +1,12 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { lazy, type ReactNode, Suspense } from 'react';
 import type { RouteObject } from 'react-router-dom';
-import { Navigate } from 'react-router-dom';
 import { Spinner } from '@/components/ui/spinner';
 import { GuestRoute, PermissionRoute } from './protected-route';
+
+const LandingPage = lazy(() =>
+  import('@/features/landing').then((m) => ({ default: m.LandingPage })),
+);
 
 const ForgotPasswordPage = lazy(() =>
   import('@/features/auth/pages/forgot-password-page').then((m) => ({
@@ -140,6 +143,10 @@ function withPageSuspense(element: ReactNode): ReactNode {
 
 export const authRoutes: RouteObject[] = [
   {
+    path: '/',
+    element: <GuestRoute>{withPageSuspense(<LandingPage />)}</GuestRoute>,
+  },
+  {
     path: 'login',
     element: <GuestRoute>{withPageSuspense(<LoginPage />)}</GuestRoute>,
   },
@@ -201,7 +208,6 @@ export const adminRoutes: RouteObject[] = [
 ];
 
 export const appRoutes: RouteObject[] = [
-  { index: true, element: <Navigate to="/dashboard" replace /> },
   { path: 'dashboard', element: withPageSuspense(<DashboardPage />) },
   { path: 'customers', element: withPageSuspense(<CustomersPage />) },
   { path: 'customers/:id', element: withPageSuspense(<CustomerDetailPage />) },
