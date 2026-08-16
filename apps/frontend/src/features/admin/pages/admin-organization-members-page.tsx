@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { TableSkeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -252,9 +253,7 @@ export function AdminOrganizationMembersPage() {
           </span>
         </h2>
         {membersQuery.isPending ? (
-          <p role="status" aria-live="polite">
-            Đang tải thành viên…
-          </p>
+          <TableSkeleton rows={5} />
         ) : membersQuery.isError ? (
           <div className="flex items-center gap-3">
             <p
@@ -372,9 +371,7 @@ export function AdminOrganizationMembersPage() {
           </span>
         </h2>
         {membersQuery.isPending ? (
-          <p role="status" aria-live="polite">
-            Đang tải lời mời…
-          </p>
+          <TableSkeleton rows={3} />
         ) : (pendingInvites?.items.length ?? 0) === 0 ? (
           <p className="text-sm text-muted-foreground">
             Chưa có lời mời đang chờ.

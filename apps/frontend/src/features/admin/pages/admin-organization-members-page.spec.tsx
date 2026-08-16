@@ -443,7 +443,7 @@ describe('AdminOrganizationMembersPage', () => {
   });
 
   describe('async states', () => {
-    it('announces the member loading state', async () => {
+    it('announces the member loading state with skeleton rows', async () => {
       vi.mocked(adminApi.getAdminOrganization).mockResolvedValue(organization);
       vi.mocked(adminApi.listOrganizationMembers).mockImplementation(
         () => new Promise(() => {}),
@@ -451,10 +451,9 @@ describe('AdminOrganizationMembersPage', () => {
 
       renderPage();
 
-      expect(await screen.findByText('Đang tải thành viên…')).toHaveAttribute(
-        'aria-live',
-        'polite',
-      );
+      expect(
+        await screen.findAllByRole('status', { name: /đang tải dữ liệu/i }),
+      ).toHaveLength(2);
     });
 
     it('shows empty states for both collections', async () => {
