@@ -451,6 +451,7 @@ export function AdminOrganizationMembersPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          className="min-w-32"
                           disabled={isActive}
                           aria-busy={isResending}
                           onClick={() => void handleResendInvite(invite.id)}
@@ -462,6 +463,7 @@ export function AdminOrganizationMembersPage() {
                             <Button
                               variant="destructive"
                               size="sm"
+                              className="min-w-32"
                               disabled={isActive}
                               aria-busy={isRevoking}
                             >

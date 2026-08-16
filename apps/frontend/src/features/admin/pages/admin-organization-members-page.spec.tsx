@@ -328,16 +328,18 @@ describe('AdminOrganizationMembersPage', () => {
         .findByText('moi@congtyb.vn')
         .then((element) => element.closest('tr'));
       expect(inviteRow).not.toBeNull();
-      expect(
-        within(inviteRow as HTMLElement).getByRole('button', {
-          name: 'Gửi lại',
-        }),
-      ).toBeInTheDocument();
-      expect(
-        within(inviteRow as HTMLElement).getByRole('button', {
-          name: 'Thu hồi',
-        }),
-      ).toBeInTheDocument();
+      const resendButton = within(inviteRow as HTMLElement).getByRole(
+        'button',
+        { name: 'Gửi lại' },
+      );
+      const revokeButton = within(inviteRow as HTMLElement).getByRole(
+        'button',
+        { name: 'Thu hồi' },
+      );
+      expect(resendButton).toBeInTheDocument();
+      expect(resendButton).toHaveClass('min-w-32');
+      expect(revokeButton).toBeInTheDocument();
+      expect(revokeButton).toHaveClass('min-w-32');
     });
 
     it('confirms before revoking a pending invite', async () => {
