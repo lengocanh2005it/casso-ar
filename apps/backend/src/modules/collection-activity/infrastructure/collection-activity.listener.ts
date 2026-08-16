@@ -195,7 +195,7 @@ export class CollectionActivityListener {
   }
 
   // A denormalized display log must never take down the business flow that
-  // produced it. 4 of the 6 events above are emitted fire-and-forget
+  // produced it. All 6 events above are emitted fire-and-forget
   // (EventEmitter2#emit, not #emitAsync) with no app-wide unhandledRejection
   // handler, so any throw here (repo failure, receivable lookup miss, ...)
   // would otherwise surface as an unhandled rejection. Log and swallow.

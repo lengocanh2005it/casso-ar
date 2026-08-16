@@ -115,7 +115,7 @@ describe('AllocatePaymentUseCase', () => {
       receivable,
     });
     expect(auditContext.setAfter).not.toHaveBeenCalled();
-    expect(eventEmitter.emitAsync).toHaveBeenCalledWith('payment.allocated', {
+    expect(eventEmitter.emit).toHaveBeenCalledWith('payment.allocated', {
       paymentId: 'pay-1',
       receivableId: 'rec-1',
       customerId: 'cust-1',
@@ -123,7 +123,7 @@ describe('AllocatePaymentUseCase', () => {
       amount: 30_000_000,
       allocatedByUserId: 'user-1',
     });
-    expect(eventEmitter.emitAsync).not.toHaveBeenCalledWith(
+    expect(eventEmitter.emit).not.toHaveBeenCalledWith(
       'receivable.closed',
       expect.anything(),
     );
@@ -187,19 +187,19 @@ describe('AllocatePaymentUseCase', () => {
       },
     });
 
-    expect(eventEmitter.emitAsync).toHaveBeenCalledWith(
+    expect(eventEmitter.emit).toHaveBeenCalledWith(
       'payment.allocated',
       expect.objectContaining({ amount: 30_000_000 }),
     );
-    expect(eventEmitter.emitAsync).toHaveBeenCalledWith('receivable.closed', {
+    expect(eventEmitter.emit).toHaveBeenCalledWith('receivable.closed', {
       receivableId: 'rec-1',
       customerId: 'cust-1',
       organizationId: 'org-1',
     });
-    expect(eventEmitter.emitAsync).toHaveBeenCalledWith(
-      'receivable.status-closed',
-      { receivableId: 'rec-1', organizationId: 'org-1' },
-    );
+    expect(eventEmitter.emit).toHaveBeenCalledWith('receivable.status-closed', {
+      receivableId: 'rec-1',
+      organizationId: 'org-1',
+    });
   });
 
   it.each([0, -1, 1.5])(
@@ -285,7 +285,7 @@ describe('AllocatePaymentUseCase', () => {
         },
       }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.RECEIVABLE_NOT_FOUND });
-    expect(eventEmitter.emitAsync).not.toHaveBeenCalled();
+    expect(eventEmitter.emit).not.toHaveBeenCalled();
   });
 
   it('rejects allocation when the payment has no resolved customer', async () => {

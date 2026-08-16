@@ -64,7 +64,7 @@ export class WriteOffReceivableUseCase {
       },
     );
 
-    await this.eventPublisher.emitAsync('receivable.status-closed', {
+    this.eventPublisher.emit('receivable.status-closed', {
       receivableId: updated.id,
       organizationId: updated.organizationId,
     });

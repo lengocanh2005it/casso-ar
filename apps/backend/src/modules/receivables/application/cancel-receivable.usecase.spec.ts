@@ -42,7 +42,7 @@ function buildDeps(receivable: Receivable | null) {
       ),
     },
     auditContext: { setBefore: jest.fn() },
-    eventPublisher: { emitAsync: jest.fn() },
+    eventPublisher: { emit: jest.fn() },
     recorder: { record: jest.fn() },
     tenantContext: {
       getCurrentUser: () => ({
@@ -77,7 +77,7 @@ describe('CancelReceivableUseCase', () => {
       expect.objectContaining({ status: ReceivableStatus.CANCELLED }),
       deps.manager,
     );
-    expect(deps.eventPublisher.emitAsync).toHaveBeenCalledWith(
+    expect(deps.eventPublisher.emit).toHaveBeenCalledWith(
       'receivable.status-closed',
       { receivableId: 'rec-1', organizationId: 'org-1' },
     );
