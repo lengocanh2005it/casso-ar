@@ -166,7 +166,11 @@ export class TestAndSaveSmtpConfigUseCase {
         },
         TestAndSaveSmtpConfigUseCase.name,
       );
-      throw new AppError(ErrorCode.SMTP_CONNECTION_FAILED, GENERIC_SMTP_ERROR);
+      throw AppError.withCause(
+        error,
+        ErrorCode.SMTP_CONNECTION_FAILED,
+        GENERIC_SMTP_ERROR,
+      );
     }
 
     const now = new Date();

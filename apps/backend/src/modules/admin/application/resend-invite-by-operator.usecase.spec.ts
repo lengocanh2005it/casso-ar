@@ -146,9 +146,8 @@ describe('ResendInviteByOperatorUseCase', () => {
     const { useCase, emailSender, inviteRepo, auditRepo } = buildUseCase(
       buildInvite(),
     );
-    emailSender.sendInviteEmail.mockRejectedValue(
-      new Error('queue unavailable'),
-    );
+    const original = new Error('queue unavailable');
+    emailSender.sendInviteEmail.mockRejectedValue(original);
 
     await expect(
       useCase.execute({
@@ -156,7 +155,10 @@ describe('ResendInviteByOperatorUseCase', () => {
         inviteId: 'invite-1',
         operatorId: 'operator-1',
       }),
-    ).rejects.toMatchObject({ errorCode: ErrorCode.EMAIL_SEND_FAILED });
+    ).rejects.toMatchObject({
+      errorCode: ErrorCode.EMAIL_SEND_FAILED,
+      cause: original,
+    });
     expect(inviteRepo.save).toHaveBeenCalled();
     expect(auditRepo.save).toHaveBeenCalled();
   });

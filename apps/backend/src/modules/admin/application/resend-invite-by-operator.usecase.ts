@@ -111,8 +111,12 @@ export class ResendInviteByOperatorUseCase {
         `/invites/accept?token=${token}`,
         organization.name,
       );
-    } catch {
-      throw new AppError(ErrorCode.EMAIL_SEND_FAILED, 'Gửi email thất bại.');
+    } catch (error) {
+      throw AppError.withCause(
+        error,
+        ErrorCode.EMAIL_SEND_FAILED,
+        'Gửi email thất bại.',
+      );
     }
   }
 }

@@ -108,9 +108,13 @@ describe('TestAndSaveSmtpConfigUseCase', () => {
       deps.smtpHostResolver as any,
     );
 
+    const original = new Error('auth rejected');
+    transport.verify.mockRejectedValue(original);
+
     await expect(useCase.execute(input)).rejects.toMatchObject({
       errorCode: ErrorCode.SMTP_CONNECTION_FAILED,
       message: 'Không thể kết nối hoặc gửi email thử.',
+      cause: original,
     });
     expect(deps.smtpConfigRepo.save).not.toHaveBeenCalled();
   });

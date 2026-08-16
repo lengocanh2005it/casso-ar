@@ -1,9 +1,11 @@
 import {
   type ArgumentsHost,
+  BadGatewayException,
   BadRequestException,
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { JsonLogger } from '../observability/json-logger.service';
 import { AppError } from './app-error';
 import { ErrorCode } from './error-code';
 import { HttpExceptionFilter } from './http-exception.filter';
@@ -15,7 +17,19 @@ interface ErrorResponse {
   details?: unknown;
 }
 
-function captureResponse(exception: unknown): ErrorResponse {
+function createFilter(): {
+  filter: HttpExceptionFilter;
+  logger: { error: jest.Mock; warn: jest.Mock };
+} {
+  const logger = { error: jest.fn(), warn: jest.fn() };
+  const filter = new HttpExceptionFilter(logger as unknown as JsonLogger);
+  return { filter, logger };
+}
+
+function captureResponse(exception: unknown): {
+  response: ErrorResponse;
+  logger: { error: jest.Mock; warn: jest.Mock };
+} {
   const response = {
     status: jest.fn().mockReturnThis(),
     json: jest.fn(),
@@ -23,17 +37,19 @@ function captureResponse(exception: unknown): ErrorResponse {
   const host = {
     switchToHttp: () => ({
       getResponse: () => response,
+      getRequest: () => ({ method: 'GET', url: '/api/v1/receivables' }),
     }),
   } as unknown as ArgumentsHost;
 
-  new HttpExceptionFilter().catch(exception, host);
+  const { filter, logger } = createFilter();
+  filter.catch(exception, host);
 
-  return response.json.mock.calls[0][0] as ErrorResponse;
+  return { response: response.json.mock.calls[0][0] as ErrorResponse, logger };
 }
 
 describe('HttpExceptionFilter', () => {
   it('maps unauthorized exceptions to the standard envelope', () => {
-    expect(captureResponse(new UnauthorizedException())).toEqual({
+    expect(captureResponse(new UnauthorizedException()).response).toEqual({
       statusCode: 401,
       errorCode: ErrorCode.UNAUTHORIZED,
       message: 'Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.',
@@ -41,7 +57,7 @@ describe('HttpExceptionFilter', () => {
   });
 
   it('maps forbidden exceptions to the standard envelope', () => {
-    expect(captureResponse(new ForbiddenException())).toEqual({
+    expect(captureResponse(new ForbiddenException()).response).toEqual({
       statusCode: 403,
       errorCode: ErrorCode.FORBIDDEN,
       message: 'Bạn không có quyền thực hiện thao tác này.',
@@ -61,7 +77,7 @@ describe('HttpExceptionFilter', () => {
           message: 'Dữ liệu đầu vào không hợp lệ.',
           details,
         }),
-      ),
+      ).response,
     ).toEqual({
       statusCode: 400,
       errorCode: ErrorCode.VALIDATION_ERROR,
@@ -71,7 +87,9 @@ describe('HttpExceptionFilter', () => {
   });
 
   it('hides unknown error details behind a generic internal response', () => {
-    expect(captureResponse(new Error('database password is invalid'))).toEqual({
+    expect(
+      captureResponse(new Error('database password is invalid')).response,
+    ).toEqual({
       statusCode: 500,
       errorCode: ErrorCode.INTERNAL_SERVER_ERROR,
       message: 'Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.',
@@ -80,7 +98,8 @@ describe('HttpExceptionFilter', () => {
 
   it('maps AppError to the standard envelope using the error code', () => {
     expect(
-      captureResponse(new AppError(ErrorCode.UNAUTHORIZED, 'Sai mật khẩu.')),
+      captureResponse(new AppError(ErrorCode.UNAUTHORIZED, 'Sai mật khẩu.'))
+        .response,
     ).toEqual({
       statusCode: 401,
       errorCode: ErrorCode.UNAUTHORIZED,
@@ -94,7 +113,7 @@ describe('HttpExceptionFilter', () => {
         new AppError(ErrorCode.PLAN_LIMIT_EXCEEDED, 'Đã đạt giới hạn gói.', {
           planId: 'FREE',
         }),
-      ),
+      ).response,
     ).toEqual({
       statusCode: 402,
       errorCode: ErrorCode.PLAN_LIMIT_EXCEEDED,
@@ -107,7 +126,7 @@ describe('HttpExceptionFilter', () => {
     expect(
       captureResponse(
         new AppError(ErrorCode.EMAIL_SEND_FAILED, 'Gửi email thất bại.'),
-      ),
+      ).response,
     ).toEqual({
       statusCode: 500,
       errorCode: ErrorCode.EMAIL_SEND_FAILED,
@@ -127,12 +146,103 @@ describe('HttpExceptionFilter', () => {
     ]);
 
     for (const code of Object.values(ErrorCode)) {
-      const { statusCode } = captureResponse(new AppError(code, 'x'));
+      const { response } = captureResponse(new AppError(code, 'x'));
       if (expectedFiveHundredCodes.has(code)) {
-        expect(statusCode).toBe(500);
+        expect(response.statusCode).toBe(500);
       } else {
-        expect(statusCode).toBeLessThan(500);
+        expect(response.statusCode).toBeLessThan(500);
       }
     }
+  });
+
+  it('logs unexpected exceptions at error level with real message, request path, and stack', () => {
+    const unexpected = new Error('database connection refused');
+    const { logger } = captureResponse(unexpected);
+
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    const [message, trace, context] = logger.error.mock.calls[0];
+    expect(message).toMatchObject({
+      message: 'database connection refused',
+      errorCode: ErrorCode.INTERNAL_SERVER_ERROR,
+      path: 'GET /api/v1/receivables',
+    });
+    expect(trace).toBe(unexpected.stack);
+    expect(context).toBe(HttpExceptionFilter.name);
+  });
+
+  it('logs AppError mapped to a 5xx status at error level with error code', () => {
+    const error = new AppError(
+      ErrorCode.EMAIL_SEND_FAILED,
+      'Gửi email thất bại.',
+    );
+    const { logger } = captureResponse(error);
+
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error.mock.calls[0][0]).toMatchObject({
+      message: 'Gửi email thất bại.',
+      errorCode: ErrorCode.EMAIL_SEND_FAILED,
+    });
+    expect(logger.error.mock.calls[0][1]).toBe(error.stack);
+  });
+
+  it('logs the original cause alongside a 5xx AppError', () => {
+    const original = new Error('resend API rejected the recipient');
+    const { logger } = captureResponse(
+      new AppError(
+        ErrorCode.EMAIL_SEND_FAILED,
+        'Gửi email thất bại.',
+        undefined,
+        { cause: original },
+      ),
+    );
+
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error.mock.calls[0][0]).toMatchObject({
+      errorCode: ErrorCode.EMAIL_SEND_FAILED,
+      cause: original.message,
+      causeName: 'Error',
+    });
+  });
+
+  it('logs the cause of an unexpected exception at error level', () => {
+    const original = new Error('root database failure');
+    const unexpected = new Error('query failed');
+    unexpected.cause = original;
+
+    const { logger } = captureResponse(unexpected);
+
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error.mock.calls[0][0]).toMatchObject({
+      cause: original.message,
+      causeName: 'Error',
+    });
+  });
+
+  it('logs 5xx HttpExceptions at error level', () => {
+    const upstream = new BadGatewayException();
+    const { logger } = captureResponse(upstream);
+
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error.mock.calls[0][0]).toMatchObject({
+      message: 'Bad Gateway',
+      errorCode: ErrorCode.INTERNAL_SERVER_ERROR,
+    });
+    expect(logger.error.mock.calls[0][1]).toBe(upstream.stack);
+  });
+
+  it('does not log AppError mapped to a non-5xx status', () => {
+    const { logger } = captureResponse(
+      new AppError(ErrorCode.UNAUTHORIZED, 'Sai mật khẩu.'),
+    );
+
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('does not log expected HttpExceptions', () => {
+    const { logger } = captureResponse(new UnauthorizedException());
+
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
   });
 });
