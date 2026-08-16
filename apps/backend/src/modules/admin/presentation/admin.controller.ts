@@ -184,7 +184,7 @@ export class AdminController {
 
   @Delete('organizations/:orgId/invites/:inviteId')
   @ApiOperation({ summary: 'Revoke a pending invite as an Operator' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiHeader({ name: 'idempotency-key', required: true })
   @ApiNoContentResponse({ description: 'Invite revoked' })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -217,7 +217,7 @@ export class AdminController {
 
   @Post('organizations/:orgId/invites/:inviteId/resend')
   @ApiOperation({ summary: 'Resend a pending invite email as an Operator' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiHeader({ name: 'idempotency-key', required: true })
   @ApiOkResponse({
     description: 'Invite resent',
     schema: successResponseSchema(),
