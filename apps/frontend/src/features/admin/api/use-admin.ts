@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import {
   type AdminMemberStatusFilter,
   blockOrganizationMember,
@@ -8,6 +9,8 @@ import {
   listOrganizationMembers,
   listOrganizations,
   lockOrganization,
+  resendOrganizationInvite,
+  revokeOrganizationInvite,
   unblockOrganizationMember,
   unlockOrganization,
 } from './admin-api';
@@ -116,5 +119,47 @@ export function useBlockOrganizationMember() {
       queryClient.invalidateQueries({
         queryKey: adminOrganizationMembersQueryKey,
       }),
+  });
+}
+
+export function useResendOrganizationInvite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      organizationId,
+      inviteId,
+    }: {
+      organizationId: string;
+      inviteId: string;
+    }) => resendOrganizationInvite(organizationId, inviteId),
+    onSuccess: () => {
+      toast.success('Đã gửi lại lời mời.');
+      void queryClient.invalidateQueries({
+        queryKey: adminOrganizationMembersQueryKey,
+      });
+    },
+    onError: () => toast.error('Không thể gửi lại lời mời.'),
+  });
+}
+
+export function useRevokeOrganizationInvite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      organizationId,
+      inviteId,
+    }: {
+      organizationId: string;
+      inviteId: string;
+    }) => revokeOrganizationInvite(organizationId, inviteId),
+    onSuccess: () => {
+      toast.success('Đã thu hồi lời mời.');
+      void queryClient.invalidateQueries({
+        queryKey: adminOrganizationMembersQueryKey,
+      });
+    },
+    onError: () => toast.error('Không thể thu hồi lời mời.'),
   });
 }

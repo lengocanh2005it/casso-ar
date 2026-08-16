@@ -111,6 +111,28 @@ export function listOrganizationMembers(
   });
 }
 
+export function resendOrganizationInvite(
+  organizationId: string,
+  inviteId: string,
+): Promise<{ success: boolean }> {
+  return apiRequest({
+    url: `/api/v1/admin/organizations/${organizationId}/invites/${inviteId}/resend`,
+    method: 'POST',
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}
+
+export function revokeOrganizationInvite(
+  organizationId: string,
+  inviteId: string,
+): Promise<void> {
+  return apiRequest({
+    url: `/api/v1/admin/organizations/${organizationId}/invites/${inviteId}`,
+    method: 'DELETE',
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}
+
 export function blockOrganizationMember(
   organizationId: string,
   userId: string,
