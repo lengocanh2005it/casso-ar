@@ -17,8 +17,8 @@ interface ErrorEnvelope {
 }
 
 interface RequestContext {
-  method?: string;
-  url?: string;
+  method: string;
+  url: string;
 }
 
 @Catch()
@@ -40,44 +40,24 @@ export class HttpExceptionFilter implements ExceptionFilter {
   ): void {
     if (statusCode < 500) return;
 
-    const path =
-      request?.method && request?.url
-        ? `${request.method} ${request.url}`
-        : undefined;
+    const isError = exception instanceof Error;
     const fields = {
-      path,
-      ...this.causeFields(this.causeOf(exception)),
+      path: `${request.method} ${request.url}`,
+      ...this.causeFields(isError ? exception.cause : undefined),
     };
-
-    if (exception instanceof AppError) {
-      this.logger.error(
-        {
-          message: exception.message,
-          errorCode: exception.errorCode,
-          ...fields,
-        },
-        undefined,
-        HttpExceptionFilter.name,
-      );
-      return;
-    }
 
     this.logger.error(
       {
-        message:
-          exception instanceof Error
-            ? exception.message
-            : 'Unhandled exception',
-        errorCode: ErrorCode.INTERNAL_SERVER_ERROR,
+        message: isError ? exception.message : 'Unhandled exception',
+        errorCode:
+          exception instanceof AppError
+            ? exception.errorCode
+            : ErrorCode.INTERNAL_SERVER_ERROR,
         ...fields,
       },
-      exception instanceof Error ? exception.stack : undefined,
+      isError ? exception.stack : undefined,
       HttpExceptionFilter.name,
     );
-  }
-
-  private causeOf(exception: unknown): unknown {
-    return exception instanceof Error ? exception.cause : undefined;
   }
 
   private causeFields(cause: unknown): Record<string, unknown> {

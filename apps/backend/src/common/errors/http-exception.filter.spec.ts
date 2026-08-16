@@ -171,15 +171,18 @@ describe('HttpExceptionFilter', () => {
   });
 
   it('logs AppError mapped to a 5xx status at error level with error code', () => {
-    const { logger } = captureResponse(
-      new AppError(ErrorCode.EMAIL_SEND_FAILED, 'Gửi email thất bại.'),
+    const error = new AppError(
+      ErrorCode.EMAIL_SEND_FAILED,
+      'Gửi email thất bại.',
     );
+    const { logger } = captureResponse(error);
 
     expect(logger.error).toHaveBeenCalledTimes(1);
     expect(logger.error.mock.calls[0][0]).toMatchObject({
       message: 'Gửi email thất bại.',
       errorCode: ErrorCode.EMAIL_SEND_FAILED,
     });
+    expect(logger.error.mock.calls[0][1]).toBe(error.stack);
   });
 
   it('logs the original cause alongside a 5xx AppError', () => {
