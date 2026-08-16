@@ -57,7 +57,7 @@ export class IdempotencyService {
     const requestHash = createHash('sha256')
       .update(canonicalize(input))
       .digest('hex');
-    let existing: T | undefined;
+    let existing: { value: T } | undefined;
     try {
       existing = await this.dataSource.transaction(async (manager) => {
         const repo = manager.getRepository(IdempotencyKeyOrmEntity);
@@ -71,7 +71,9 @@ export class IdempotencyService {
               message: 'Idempotency-Key đã được dùng cho dữ liệu khác.',
             });
           }
-          if (found.status === 'COMPLETED') return found.response as T;
+          if (found.status === 'COMPLETED') {
+            return { value: found.response as T };
+          }
           const ageMs = Date.now() - found.createdAt.getTime();
           if (ageMs < IDEMPOTENCY_STALE_PENDING_MS) {
             throw new ConflictException({
@@ -103,7 +105,7 @@ export class IdempotencyService {
         operation,
       );
     }
-    if (existing !== undefined) return existing;
+    if (existing !== undefined) return existing.value;
 
     try {
       const result = await operation();

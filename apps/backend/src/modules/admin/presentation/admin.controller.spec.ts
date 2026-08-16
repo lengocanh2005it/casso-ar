@@ -2,6 +2,99 @@ import { Organization } from '../../organizations/domain/organization';
 import { AdminController } from './admin.controller';
 
 describe('AdminController', () => {
+  describe('operator pending invite actions', () => {
+    function buildController() {
+      const idempotency = {
+        executeForOrganization: jest.fn(
+          async (
+            _organizationId: string,
+            _endpoint: string,
+            _key: string | undefined,
+            _input: unknown,
+            operation: () => Promise<unknown>,
+          ) => operation(),
+        ),
+      };
+      const revokeInviteUseCase = { execute: jest.fn() };
+      const resendInviteUseCase = { execute: jest.fn() };
+      const controller = new AdminController(
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        idempotency as never,
+        revokeInviteUseCase as never,
+        resendInviteUseCase as never,
+      ) as any;
+      return {
+        controller,
+        idempotency,
+        revokeInviteUseCase,
+        resendInviteUseCase,
+      };
+    }
+
+    it('revokes with explicit operator inputs and an endpoint-specific idempotency key', async () => {
+      const { controller, idempotency, revokeInviteUseCase } =
+        buildController();
+
+      await expect(
+        controller.revokeInvite(
+          'org-1',
+          'invite-1',
+          { user: { operatorId: 'operator-1' } },
+          'revoke-key',
+        ),
+      ).resolves.toBeUndefined();
+
+      expect(idempotency.executeForOrganization).toHaveBeenCalledWith(
+        'org-1',
+        'DELETE /admin/organizations/org-1/invites/invite-1',
+        'revoke-key',
+        { inviteId: 'invite-1' },
+        expect.any(Function),
+      );
+      expect(revokeInviteUseCase.execute).toHaveBeenCalledWith({
+        organizationId: 'org-1',
+        inviteId: 'invite-1',
+        operatorId: 'operator-1',
+      });
+    });
+
+    it('resends with explicit operator inputs and returns success', async () => {
+      const { controller, idempotency, resendInviteUseCase } =
+        buildController();
+
+      await expect(
+        controller.resendInvite(
+          'org-1',
+          'invite-1',
+          { user: { operatorId: 'operator-1' } },
+          'resend-key',
+        ),
+      ).resolves.toEqual({ success: true });
+
+      expect(idempotency.executeForOrganization).toHaveBeenCalledWith(
+        'org-1',
+        'POST /admin/organizations/org-1/invites/invite-1/resend',
+        'resend-key',
+        { inviteId: 'invite-1' },
+        expect.any(Function),
+      );
+      expect(resendInviteUseCase.execute).toHaveBeenCalledWith({
+        organizationId: 'org-1',
+        inviteId: 'invite-1',
+        operatorId: 'operator-1',
+      });
+    });
+  });
+
   describe('organization detail endpoint', () => {
     it('maps the domain organization into the response DTO', async () => {
       const getOrganizationUseCase = {
@@ -22,6 +115,9 @@ describe('AdminController', () => {
         {} as never,
         {} as never,
         getOrganizationUseCase as never,
+        {} as never,
+        {} as never,
+        {} as never,
         {} as never,
         {} as never,
       );
@@ -54,6 +150,9 @@ describe('AdminController', () => {
       {} as never,
       getAiUsageAggregateUseCase as never,
       getAiUsageTrendUseCase as never,
+      {} as never,
+      {} as never,
+      {} as never,
       {} as never,
       {} as never,
       {} as never,

@@ -132,6 +132,49 @@ describe('IdempotencyService', () => {
     expect(dataSource.transaction).toHaveBeenCalledTimes(3);
   });
 
+  it('does not rerun a completed void operation for the same key', async () => {
+    let stored: Record<string, unknown> | null = null;
+    const repo = {
+      findOne: jest.fn().mockImplementation(async () => stored),
+      save: jest.fn().mockImplementation(async (value) => {
+        stored = value;
+        return value;
+      }),
+    };
+    const manager = {
+      getRepository: jest.fn().mockReturnValue(repo),
+      update: jest.fn().mockImplementation(async (_entity, _where, update) => {
+        stored = stored ? { ...stored, ...update } : stored;
+      }),
+      delete: jest.fn(),
+    };
+    const dataSource = {
+      transaction: jest
+        .fn()
+        .mockImplementation(async (callback) => callback(manager)),
+    };
+    const tenant = new TenantContextService();
+    const service = new IdempotencyService(dataSource as any, tenant);
+    const operation = jest.fn().mockResolvedValue(undefined);
+
+    await service.executeForOrganization(
+      'org-1',
+      'DELETE /admin/invites/invite-1',
+      'key-1',
+      { inviteId: 'invite-1' },
+      operation,
+    );
+    await service.executeForOrganization(
+      'org-1',
+      'DELETE /admin/invites/invite-1',
+      'key-1',
+      { inviteId: 'invite-1' },
+      operation,
+    );
+
+    expect(operation).toHaveBeenCalledTimes(1);
+  });
+
   it('treats same data with different key order as idempotent', async () => {
     let stored: Record<string, unknown> | null = null;
     const repo = {

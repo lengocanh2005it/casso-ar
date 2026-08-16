@@ -1,6 +1,8 @@
 import {
   Controller,
+  Delete,
   Get,
+  Headers,
   HttpCode,
   Inject,
   NotFoundException,
@@ -13,6 +15,8 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
+  ApiHeader,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -27,7 +31,9 @@ import {
 } from '../../../common/dto/member-status-response.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import {
   type IOrganizationRepository,
   ORGANIZATION_REPOSITORY,
@@ -39,6 +45,8 @@ import { GetOrganizationUseCase } from '../application/get-organization.usecase'
 import { ListOrganizationMembersUseCase } from '../application/list-organization-members.usecase';
 import { ListOrganizationsUseCase } from '../application/list-organizations.usecase';
 import { LockOrganizationUseCase } from '../application/lock-organization.usecase';
+import { ResendInviteByOperatorUseCase } from '../application/resend-invite-by-operator.usecase';
+import { RevokeInviteByOperatorUseCase } from '../application/revoke-invite-by-operator.usecase';
 import { UnblockMemberByOperatorUseCase } from '../application/unblock-member-by-operator.usecase';
 import { UnlockOrganizationUseCase } from '../application/unlock-organization.usecase';
 import { AdminMembersQueryDto } from './dto/admin-members-query.dto';
@@ -74,6 +82,9 @@ export class AdminController {
     private readonly listOrganizationMembersUseCase: ListOrganizationMembersUseCase,
     @Inject(ORGANIZATION_REPOSITORY)
     private readonly organizationRepo: IOrganizationRepository,
+    private readonly idempotency: IdempotencyService,
+    private readonly revokeInviteByOperatorUseCase: RevokeInviteByOperatorUseCase,
+    private readonly resendInviteByOperatorUseCase: ResendInviteByOperatorUseCase,
   ) {}
 
   @Get('organizations')
@@ -169,6 +180,78 @@ export class AdminController {
       status: query.status,
       search: query.search,
     });
+  }
+
+  @Delete('organizations/:orgId/invites/:inviteId')
+  @ApiOperation({ summary: 'Revoke a pending invite as an Operator' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiNoContentResponse({ description: 'Invite revoked' })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
+  @HttpCode(204)
+  async revokeInvite(
+    @Param('orgId', ParseUUIDPipe) organizationId: string,
+    @Param('inviteId', ParseUUIDPipe) inviteId: string,
+    @Req() request: AdminRequest,
+    @Headers('idempotency-key') key: string | undefined,
+  ): Promise<void> {
+    await this.idempotency.executeForOrganization(
+      organizationId,
+      `DELETE /admin/organizations/${organizationId}/invites/${inviteId}`,
+      key,
+      { inviteId },
+      () =>
+        this.revokeInviteByOperatorUseCase.execute({
+          organizationId,
+          inviteId,
+          operatorId: request.user.operatorId,
+        }),
+    );
+  }
+
+  @Post('organizations/:orgId/invites/:inviteId/resend')
+  @ApiOperation({ summary: 'Resend a pending invite email as an Operator' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiOkResponse({
+    description: 'Invite resent',
+    schema: successResponseSchema(),
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+    ErrorCode.EMAIL_SEND_FAILED,
+  )
+  @HttpCode(200)
+  async resendInvite(
+    @Param('orgId', ParseUUIDPipe) organizationId: string,
+    @Param('inviteId', ParseUUIDPipe) inviteId: string,
+    @Req() request: AdminRequest,
+    @Headers('idempotency-key') key: string | undefined,
+  ) {
+    return this.idempotency.executeForOrganization(
+      organizationId,
+      `POST /admin/organizations/${organizationId}/invites/${inviteId}/resend`,
+      key,
+      { inviteId },
+      async () => {
+        await this.resendInviteByOperatorUseCase.execute({
+          organizationId,
+          inviteId,
+          operatorId: request.user.operatorId,
+        });
+        return { success: true };
+      },
+    );
   }
 
   @Post('organizations/:orgId/members/:userId/block')
