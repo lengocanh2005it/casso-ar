@@ -765,10 +765,10 @@ Success = a single document a new developer can read and know exactly what to pi
 **Current status (2026-08-16):** Casso Admin Platform (#98) shipped via PR #177. Copilot Draft Library (#136), its edit/delete follow-up (#171), Receivable Balance History (#172), member-level block/unblock (#178), Receivable Balance History Audit Dashboard (#176), both halves of #181 (member block/unblock UI — org-facing via PR #185, Admin Platform operator workspace via PR #190), and Public Landing Page (#143) via PR #188 are done. Three unrelated e2e failures are deferred to a separate issue.
 
 **In progress:**
-- None.
+- #189 (Admin Platform — pending invite resend/revoke actions from the operator members view, split out of #186 as out of scope).
 
 **Next available tickets** (all blockers resolved):
-- #189 (Admin Platform — pending invite resend/revoke actions from the operator members view, split out of #186 as out of scope).
+- None.
 
 **Blocked tickets waiting:**
 - None.
