@@ -34,7 +34,7 @@ describe('WriteOffReceivableUseCase', () => {
       ),
     };
     const auditContext = { setBefore: jest.fn() };
-    const eventPublisher = { emitAsync: jest.fn() };
+    const eventPublisher = { emit: jest.fn() };
     const recorder = { record: jest.fn() };
     const tenantContext = {
       getCurrentUser: () => ({
@@ -60,7 +60,7 @@ describe('WriteOffReceivableUseCase', () => {
       manager,
     );
     expect(auditContext.setBefore).toHaveBeenCalledWith(receivable);
-    expect(eventPublisher.emitAsync).toHaveBeenCalledWith(
+    expect(eventPublisher.emit).toHaveBeenCalledWith(
       'receivable.status-closed',
       { receivableId: 'rec-1', organizationId: 'org-1' },
     );
@@ -89,7 +89,7 @@ describe('WriteOffReceivableUseCase', () => {
       ),
     };
     const auditContext = { setBefore: jest.fn() };
-    const eventPublisher = { emitAsync: jest.fn() };
+    const eventPublisher = { emit: jest.fn() };
     const recorder = { record: jest.fn() };
     const useCase = new WriteOffReceivableUseCase(
       receivableRepo as any,

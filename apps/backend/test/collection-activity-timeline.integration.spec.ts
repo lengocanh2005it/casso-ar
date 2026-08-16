@@ -137,25 +137,43 @@ describe('Collection Activity Timeline (integration)', () => {
       .send({ receivableId, amount: 30_000_000 })
       .expect(201);
 
-    // 2. GET /receivables/:id/timeline shows BOTH activity rows
-    const receivableTimelineRes = await request(app.getHttpServer())
-      .get(`/api/v1/receivables/${receivableId}/timeline`)
-      .set('Authorization', authHeader())
-      .expect(200);
+    // 2. Poll the timeline endpoint (the actual artifact under test) rather
+    // than transaction/receivable status: CollectionActivity rows are
+    // inserted by the listener AFTER allocate-payment.usecase.ts's
+    // dataSource.transaction(...) commits, via a fire-and-forget
+    // emitAllocationEvents step, so those statuses flip before the rows this
+    // test asserts on exist.
+    const deadline = Date.now() + 10_000;
+    let activityTypes: string[] = [];
+    let receivableTimelineRes: request.Response | undefined;
+    while (Date.now() < deadline) {
+      receivableTimelineRes = await request(app.getHttpServer())
+        .get(`/api/v1/receivables/${receivableId}/timeline`)
+        .set('Authorization', authHeader())
+        .expect(200);
+      activityTypes = receivableTimelineRes.body.items.map(
+        (a: { activityType: string }) => a.activityType,
+      );
+      if (
+        activityTypes.includes('PAYMENT_RECEIVED') &&
+        activityTypes.includes('RECEIVABLE_CLOSED')
+      ) {
+        break;
+      }
+      await delay(100);
+    }
 
-    expect(receivableTimelineRes.body).toMatchObject({
+    expect(receivableTimelineRes).toBeDefined();
+    expect(receivableTimelineRes!.body).toMatchObject({
       total: 2,
       page: 1,
       limit: 20,
     });
-    const receivableActivityTypes = receivableTimelineRes.body.items.map(
-      (a: { activityType: string }) => a.activityType,
-    );
-    expect(receivableActivityTypes).toEqual(
+    expect(activityTypes).toEqual(
       expect.arrayContaining(['PAYMENT_RECEIVED', 'RECEIVABLE_CLOSED']),
     );
-    expect(receivableTimelineRes.body.items).toHaveLength(2);
-    for (const activity of receivableTimelineRes.body.items) {
+    expect(receivableTimelineRes!.body.items).toHaveLength(2);
+    for (const activity of receivableTimelineRes!.body.items) {
       expect(activity.receivableId).toBe(receivableId);
       expect(activity.customerId).toBe(customerId);
       expect(activity.organizationId).toBeUndefined();

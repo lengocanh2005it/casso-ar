@@ -85,7 +85,7 @@ export class AllocatePaymentUseCase {
     customerId: string;
     becameClosed: boolean;
   }): Promise<void> {
-    await this.eventPublisher.emitAsync('payment.allocated', {
+    this.eventPublisher.emit('payment.allocated', {
       paymentId: input.paymentId,
       receivableId: input.receivableId,
       customerId: input.customerId,
@@ -95,12 +95,12 @@ export class AllocatePaymentUseCase {
     });
 
     if (input.becameClosed) {
-      await this.eventPublisher.emitAsync('receivable.closed', {
+      this.eventPublisher.emit('receivable.closed', {
         receivableId: input.receivableId,
         customerId: input.customerId,
         organizationId: input.organizationId,
       });
-      await this.eventPublisher.emitAsync('receivable.status-closed', {
+      this.eventPublisher.emit('receivable.status-closed', {
         receivableId: input.receivableId,
         organizationId: input.organizationId,
       });
