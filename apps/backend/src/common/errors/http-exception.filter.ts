@@ -50,6 +50,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
             message: exception.message,
             errorCode: exception.errorCode,
             path,
+            ...this.causeFields(exception.cause),
           },
           HttpExceptionFilter.name,
         );
@@ -63,11 +64,31 @@ export class HttpExceptionFilter implements ExceptionFilter {
           message: 'Unhandled exception',
           errorCode: ErrorCode.INTERNAL_SERVER_ERROR,
           path,
+          ...this.causeFields(this.underlyingCause(exception)),
         },
         exception instanceof Error ? exception.stack : undefined,
         HttpExceptionFilter.name,
       );
     }
+  }
+
+  private underlyingCause(exception: unknown): unknown {
+    if (exception instanceof Error) {
+      return exception.cause;
+    }
+    return undefined;
+  }
+
+  private causeFields(cause: unknown): Record<string, unknown> {
+    if (cause === undefined) return {};
+    if (cause instanceof Error) {
+      return {
+        cause: cause.message,
+        causeName: cause.name,
+        ...(cause.stack === undefined ? {} : { causeStack: cause.stack }),
+      };
+    }
+    return { cause: String(cause) };
   }
 
   private toEnvelope(exception: unknown): ErrorEnvelope {

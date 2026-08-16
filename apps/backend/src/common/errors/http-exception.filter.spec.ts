@@ -182,6 +182,39 @@ describe('HttpExceptionFilter', () => {
     expect(logger.error).not.toHaveBeenCalled();
   });
 
+  it('logs the original cause alongside a 5xx AppError', () => {
+    const original = new Error('resend API rejected the recipient');
+    const { logger } = captureResponse(
+      new AppError(
+        ErrorCode.EMAIL_SEND_FAILED,
+        'Gửi email thất bại.',
+        undefined,
+        { cause: original },
+      ),
+    );
+
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(logger.warn.mock.calls[0][0]).toMatchObject({
+      errorCode: ErrorCode.EMAIL_SEND_FAILED,
+      cause: original.message,
+      causeName: 'Error',
+    });
+  });
+
+  it('logs the cause of an unexpected exception at error level', () => {
+    const original = new Error('root database failure');
+    const unexpected = new Error('query failed');
+    unexpected.cause = original;
+
+    const { logger } = captureResponse(unexpected);
+
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error.mock.calls[0][0]).toMatchObject({
+      cause: original.message,
+      causeName: 'Error',
+    });
+  });
+
   it('does not log AppError mapped to a non-5xx status', () => {
     const { logger } = captureResponse(
       new AppError(ErrorCode.UNAUTHORIZED, 'Sai mật khẩu.'),
