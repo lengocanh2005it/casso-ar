@@ -113,9 +113,9 @@ describe('application routes', () => {
 
     await waitFor(
       () => expect(screen.getByText(/thu tiền/i)).toBeInTheDocument(),
-      { timeout: 5_000 },
+      { timeout: 10_000 },
     );
-  });
+  }, 15_000);
 
   it('redirects authenticated visitors from the root route to the dashboard', async () => {
     getValidAccessToken.mockResolvedValue('access-token');

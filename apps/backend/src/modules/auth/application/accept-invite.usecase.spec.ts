@@ -19,6 +19,7 @@ describe('AcceptInviteUseCase', () => {
     });
     const inviteRepo = {
       findByTokenHash: jest.fn().mockResolvedValue(invite),
+      findByIdForUpdate: jest.fn().mockResolvedValue(invite),
       save: jest.fn(),
     };
     const userRepo = {
@@ -66,6 +67,66 @@ describe('AcceptInviteUseCase', () => {
       expect.objectContaining({ acceptedAt: expect.any(Date) }),
       expect.anything(),
     );
+  });
+
+  it('rechecks the invite under a write lock before accepting it', async () => {
+    const rawToken = 'e'.repeat(64);
+    const invite = new MembershipInvite({
+      id: 'inv-race',
+      organizationId: 'org-1',
+      email: 'existing@congtyb.vn',
+      role: Role.VIEWER,
+      invitedByUserId: 'owner-1',
+      tokenHash: hashToken(rawToken),
+      expiresAt: new Date(Date.now() + 60_000),
+      acceptedAt: null,
+      createdAt: new Date(),
+    });
+    const inviteRepo = {
+      findByTokenHash: jest.fn().mockResolvedValue(invite),
+      findByIdForUpdate: jest.fn().mockResolvedValue(null),
+      save: jest.fn(),
+    };
+    const userRepo = {
+      findByEmail: jest.fn().mockResolvedValue({
+        id: 'user-1',
+        email: invite.email,
+      }),
+      save: jest.fn(),
+    };
+    const membershipRepo = {
+      save: jest.fn(),
+      findByUserAndOrganization: jest.fn(),
+    };
+    const manager = {};
+    const dataSource = {
+      transaction: jest.fn(
+        async (callback: (value: object) => Promise<unknown>) =>
+          callback(manager),
+      ),
+    };
+
+    const useCase = new AcceptInviteUseCase(
+      inviteRepo as any,
+      userRepo as any,
+      membershipRepo as any,
+      dataSource as any,
+    );
+
+    await expect(
+      useCase.execute({
+        token: rawToken,
+        authenticatedUserId: 'user-1',
+      }),
+    ).rejects.toMatchObject({ errorCode: 'VALIDATION_ERROR' });
+
+    expect(inviteRepo.findByIdForUpdate).toHaveBeenCalledWith(
+      'inv-race',
+      'org-1',
+      manager,
+    );
+    expect(membershipRepo.save).not.toHaveBeenCalled();
+    expect(inviteRepo.save).not.toHaveBeenCalled();
   });
 
   it('throws when the invite is already accepted', async () => {

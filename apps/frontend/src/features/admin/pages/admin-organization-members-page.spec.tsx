@@ -21,15 +21,20 @@ import { AdminOrganizationMembersPage } from './admin-organization-members-page'
 
 vi.mock('../api/admin-api');
 
-const { getAccessToken, isOperatorToken } = vi.hoisted(() => ({
+const { getAccessToken, isOperatorToken, toastError } = vi.hoisted(() => ({
   getAccessToken: vi.fn(),
   isOperatorToken: vi.fn(),
+  toastError: vi.fn(),
 }));
 
 vi.mock('@/lib/api-client', () => ({
   apiRequest: vi.fn(),
   authTokenManager: { getAccessToken, setAccessToken: vi.fn() },
   isOperatorToken,
+}));
+
+vi.mock('sonner', () => ({
+  toast: { error: toastError, success: vi.fn() },
 }));
 
 const organization: OrganizationListItem = {
@@ -312,6 +317,189 @@ describe('AdminOrganizationMembersPage', () => {
       expect(
         within(expiredRow as HTMLElement).getByText('Đã hết hạn'),
       ).toBeInTheDocument();
+    });
+
+    it('shows resend and revoke actions for every pending invite', async () => {
+      mockReads();
+
+      renderPage();
+
+      const inviteRow = await screen
+        .findByText('moi@congtyb.vn')
+        .then((element) => element.closest('tr'));
+      expect(inviteRow).not.toBeNull();
+      const resendButton = within(inviteRow as HTMLElement).getByRole(
+        'button',
+        { name: 'Gửi lại' },
+      );
+      const revokeButton = within(inviteRow as HTMLElement).getByRole(
+        'button',
+        { name: 'Thu hồi' },
+      );
+      expect(resendButton).toBeInTheDocument();
+      expect(resendButton).toHaveClass('min-w-32');
+      expect(revokeButton).toBeInTheDocument();
+      expect(revokeButton).toHaveClass('min-w-32');
+    });
+
+    it('confirms before revoking a pending invite', async () => {
+      mockReads();
+      vi.mocked(adminApi.revokeOrganizationInvite).mockResolvedValue(undefined);
+
+      renderPage();
+
+      const inviteRow = await screen
+        .findByText('moi@congtyb.vn')
+        .then((element) => element.closest('tr'));
+      fireEvent.click(
+        within(inviteRow as HTMLElement).getByRole('button', {
+          name: 'Thu hồi',
+        }),
+      );
+      const dialog = await screen.findByRole('alertdialog');
+      expect(within(dialog).getByText('moi@congtyb.vn')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Xác nhận thu hồi' }));
+
+      await waitFor(() =>
+        expect(adminApi.revokeOrganizationInvite).toHaveBeenCalledWith(
+          'org-1',
+          'inv-1',
+        ),
+      );
+    });
+
+    it('disables only the active invite row while resending', async () => {
+      mockReads();
+      vi.mocked(adminApi.resendOrganizationInvite).mockImplementation(
+        () => new Promise(() => {}),
+      );
+
+      renderPage();
+
+      const inviteRow = await screen
+        .findByText('moi@congtyb.vn')
+        .then((element) => element.closest('tr'));
+      const otherInviteRow = screen
+        .getByText('het-han@congtyb.vn')
+        .closest('tr');
+      fireEvent.click(
+        within(inviteRow as HTMLElement).getByRole('button', {
+          name: 'Gửi lại',
+        }),
+      );
+
+      expect(
+        await within(inviteRow as HTMLElement).findByRole('button', {
+          name: 'Đang gửi lại…',
+        }),
+      ).toBeDisabled();
+      expect(
+        within(otherInviteRow as HTMLElement).getByRole('button', {
+          name: 'Gửi lại',
+        }),
+      ).not.toBeDisabled();
+    });
+
+    it('refreshes pending invites after a successful resend', async () => {
+      mockReads();
+      vi.mocked(adminApi.resendOrganizationInvite).mockResolvedValue({
+        success: true,
+      });
+
+      renderPage();
+
+      const inviteRow = await screen
+        .findByText('moi@congtyb.vn')
+        .then((element) => element.closest('tr'));
+      fireEvent.click(
+        within(inviteRow as HTMLElement).getByRole('button', {
+          name: 'Gửi lại',
+        }),
+      );
+
+      await waitFor(() =>
+        expect(adminApi.listOrganizationMembers).toHaveBeenCalledTimes(2),
+      );
+    });
+
+    it('shows failure feedback when resending fails', async () => {
+      mockReads();
+      vi.mocked(adminApi.resendOrganizationInvite).mockRejectedValue(
+        new Error('network'),
+      );
+
+      renderPage();
+
+      const inviteRow = await screen
+        .findByText('moi@congtyb.vn')
+        .then((element) => element.closest('tr'));
+      fireEvent.click(
+        within(inviteRow as HTMLElement).getByRole('button', {
+          name: 'Gửi lại',
+        }),
+      );
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        /không thể gửi lại lời mời/i,
+      );
+      expect(toastError).toHaveBeenCalledWith(
+        'Không thể gửi lại lời mời. Vui lòng thử lại.',
+      );
+    });
+
+    it('shows revoke loading state while revoking', async () => {
+      mockReads();
+      vi.mocked(adminApi.revokeOrganizationInvite).mockImplementation(
+        () => new Promise(() => {}),
+      );
+
+      renderPage();
+
+      const inviteRow = await screen
+        .findByText('moi@congtyb.vn')
+        .then((element) => element.closest('tr'));
+      fireEvent.click(
+        within(inviteRow as HTMLElement).getByRole('button', {
+          name: 'Thu hồi',
+        }),
+      );
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Xác nhận thu hồi' }),
+      );
+
+      expect(
+        await within(inviteRow as HTMLElement).findByRole('button', {
+          name: 'Đang thu hồi…',
+        }),
+      ).toBeDisabled();
+    });
+
+    it('shows failure feedback when revoking fails', async () => {
+      mockReads();
+      vi.mocked(adminApi.revokeOrganizationInvite).mockRejectedValue(
+        new Error('network'),
+      );
+
+      renderPage();
+
+      const inviteRow = await screen
+        .findByText('moi@congtyb.vn')
+        .then((element) => element.closest('tr'));
+      fireEvent.click(
+        within(inviteRow as HTMLElement).getByRole('button', {
+          name: 'Thu hồi',
+        }),
+      );
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Xác nhận thu hồi' }),
+      );
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        /không thể thu hồi lời mời/i,
+      );
+      expect(toastError).toHaveBeenCalledWith(
+        'Không thể thu hồi lời mời. Vui lòng thử lại.',
+      );
     });
   });
 

@@ -76,35 +76,49 @@ export class AcceptInviteUseCase {
       createdUser = true;
     }
 
-    const existingMembership =
-      await this.membershipRepo.findByUserAndOrganization(
-        user.id,
-        invite.organizationId,
-      );
-    if (existingMembership) {
-      throw new AppError(
-        ErrorCode.CONFLICT,
-        'Người dùng đã là thành viên của tổ chức này.',
-      );
-    }
+    const acceptedUser = user;
 
     await this.dataSource.transaction(async (manager) => {
+      const lockedInvite = await this.inviteRepo.findByIdForUpdate(
+        invite.id,
+        invite.organizationId,
+        manager,
+      );
+      if (!lockedInvite?.isValid(new Date())) {
+        throw new AppError(
+          ErrorCode.VALIDATION_ERROR,
+          'Lời mời đã hết hạn hoặc đã được sử dụng.',
+        );
+      }
+
       if (createdUser) {
-        await this.userRepo.save(user as User, manager);
+        await this.userRepo.save(acceptedUser, manager);
+      }
+      const existingMembership =
+        await this.membershipRepo.findByUserAndOrganization(
+          acceptedUser.id,
+          lockedInvite.organizationId,
+          manager,
+        );
+      if (existingMembership) {
+        throw new AppError(
+          ErrorCode.CONFLICT,
+          'Người dùng đã là thành viên của tổ chức này.',
+        );
       }
       await this.membershipRepo.save(
         new Membership({
           id: randomUUID(),
-          organizationId: invite.organizationId,
-          userId: user.id,
-          role: invite.role,
-          invitedAt: invite.createdAt,
+          organizationId: lockedInvite.organizationId,
+          userId: acceptedUser.id,
+          role: lockedInvite.role,
+          invitedAt: lockedInvite.createdAt,
           joinedAt: now,
           createdAt: now,
         }),
         manager,
       );
-      await this.inviteRepo.save(invite.markAccepted(), manager);
+      await this.inviteRepo.save(lockedInvite.markAccepted(), manager);
     });
   }
 }

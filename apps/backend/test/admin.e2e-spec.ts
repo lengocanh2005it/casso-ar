@@ -11,6 +11,7 @@ import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
+import { OperatorAuditLogOrmEntity } from '../src/modules/admin/infrastructure/operator-audit-log.orm-entity';
 import { hashPassword } from '../src/modules/auth/application/password-hasher';
 import { MembershipInviteOrmEntity } from '../src/modules/auth/infrastructure/membership-invite.orm-entity';
 import { Role } from '../src/modules/organizations/domain/membership';
@@ -357,6 +358,164 @@ describe('Admin (e2e)', () => {
       await request(app.getHttpServer())
         .get(`/api/v1/admin/organizations/${organizationId}/members`)
         .expect(401);
+    });
+  });
+
+  describe('pending invite actions', () => {
+    const expiredInviteId = '88888888-8888-8888-8888-888888888888';
+    const ownerInviteId = '99999999-9999-9999-9999-999999999999';
+    const acceptedInviteId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+
+    beforeAll(async () => {
+      await dataSource.getRepository(MembershipInviteOrmEntity).save([
+        {
+          id: expiredInviteId,
+          organizationId,
+          email: 'expired-action-admin-e2e@casso.vn',
+          role: Role.VIEWER,
+          invitedByUserId: operatorId,
+          tokenHash: `e2e-action-expired-${randomUUID()}`,
+          expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+          acceptedAt: null,
+          createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
+        },
+        {
+          id: ownerInviteId,
+          organizationId,
+          email: 'owner-action-admin-e2e@casso.vn',
+          role: Role.OWNER,
+          invitedByUserId: operatorId,
+          tokenHash: `e2e-action-owner-${randomUUID()}`,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          acceptedAt: null,
+          createdAt: new Date(),
+        },
+        {
+          id: acceptedInviteId,
+          organizationId,
+          email: 'accepted-action-admin-e2e@casso.vn',
+          role: Role.ACCOUNTANT,
+          invitedByUserId: operatorId,
+          tokenHash: `e2e-action-accepted-${randomUUID()}`,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          acceptedAt: new Date(),
+          createdAt: new Date(),
+        },
+      ]);
+    });
+
+    it('resends an expired pending invite once for a repeated idempotency key', async () => {
+      const inviteRepo = dataSource.getRepository(MembershipInviteOrmEntity);
+      const original = await inviteRepo.findOneBy({ id: expiredInviteId });
+      const key = `admin-resend-${randomUUID()}`;
+
+      await request(app.getHttpServer())
+        .post(
+          `/api/v1/admin/organizations/${organizationId}/invites/${expiredInviteId}/resend`,
+        )
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .set('Idempotency-Key', key)
+        .expect(200, { success: true });
+
+      expect(await inviteRepo.findOneBy({ id: expiredInviteId })).toBeNull();
+      const replacement = await inviteRepo.findOneBy({
+        organizationId,
+        email: 'expired-action-admin-e2e@casso.vn',
+      });
+      expect(replacement).toMatchObject({
+        organizationId,
+        email: 'expired-action-admin-e2e@casso.vn',
+        role: Role.VIEWER,
+        acceptedAt: null,
+      });
+      expect(replacement?.id).not.toBe(expiredInviteId);
+      expect(replacement?.tokenHash).not.toBe(original?.tokenHash);
+      expect(replacement?.expiresAt.getTime()).toBeGreaterThan(
+        Date.now() + 6 * 24 * 60 * 60 * 1000,
+      );
+
+      await request(app.getHttpServer())
+        .post(
+          `/api/v1/admin/organizations/${organizationId}/invites/${expiredInviteId}/resend`,
+        )
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .set('Idempotency-Key', key)
+        .expect(200, { success: true });
+
+      expect(
+        await inviteRepo.countBy({
+          organizationId,
+          email: 'expired-action-admin-e2e@casso.vn',
+        }),
+      ).toBe(1);
+      expect(
+        await dataSource.getRepository(OperatorAuditLogOrmEntity).countBy({
+          organizationId,
+          actionType: 'INVITE_RESENT',
+          inviteId: expiredInviteId,
+        }),
+      ).toBe(1);
+    });
+
+    it('revokes an OWNER pending invite once for a repeated idempotency key', async () => {
+      const key = `admin-revoke-${randomUUID()}`;
+
+      await request(app.getHttpServer())
+        .delete(
+          `/api/v1/admin/organizations/${organizationId}/invites/${ownerInviteId}`,
+        )
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .set('Idempotency-Key', key)
+        .expect(204);
+
+      await request(app.getHttpServer())
+        .delete(
+          `/api/v1/admin/organizations/${organizationId}/invites/${ownerInviteId}`,
+        )
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .set('Idempotency-Key', key)
+        .expect(204);
+
+      expect(
+        await dataSource
+          .getRepository(MembershipInviteOrmEntity)
+          .findOneBy({ id: ownerInviteId }),
+      ).toBeNull();
+      expect(
+        await dataSource.getRepository(OperatorAuditLogOrmEntity).countBy({
+          organizationId,
+          actionType: 'INVITE_REVOKED',
+          inviteId: ownerInviteId,
+        }),
+      ).toBe(1);
+    });
+
+    it('requires an operator token and rejects accepted invites', async () => {
+      await request(app.getHttpServer())
+        .post(
+          `/api/v1/admin/organizations/${organizationId}/invites/${acceptedInviteId}/resend`,
+        )
+        .expect(401);
+      await request(app.getHttpServer())
+        .delete(
+          `/api/v1/admin/organizations/${organizationId}/invites/${acceptedInviteId}`,
+        )
+        .expect(401);
+
+      await request(app.getHttpServer())
+        .post(
+          `/api/v1/admin/organizations/${organizationId}/invites/${acceptedInviteId}/resend`,
+        )
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .set('Idempotency-Key', `admin-accepted-resend-${randomUUID()}`)
+        .expect(409);
+      await request(app.getHttpServer())
+        .delete(
+          `/api/v1/admin/organizations/${organizationId}/invites/${acceptedInviteId}`,
+        )
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .set('Idempotency-Key', `admin-accepted-revoke-${randomUUID()}`)
+        .expect(409);
     });
   });
 });

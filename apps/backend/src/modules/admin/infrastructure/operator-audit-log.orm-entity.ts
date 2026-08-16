@@ -17,6 +17,9 @@ export class OperatorAuditLogOrmEntity {
   @Column({ type: 'varchar', nullable: true })
   membershipId: string | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  inviteId: string | null;
+
   @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

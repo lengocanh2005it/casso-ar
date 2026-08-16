@@ -40,6 +40,8 @@ import {
   useAdminOrganization,
   useBlockOrganizationMember,
   useOrganizationMembers,
+  useResendOrganizationInvite,
+  useRevokeOrganizationInvite,
 } from '../api/use-admin';
 import { BreakerSwitch } from '../components/breaker-switch';
 
@@ -85,7 +87,10 @@ export function AdminOrganizationMembersPage() {
     search,
   );
   const blockMember = useBlockOrganizationMember();
+  const resendInvite = useResendOrganizationInvite();
+  const revokeInvite = useRevokeOrganizationInvite();
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  const [activeInviteId, setActiveInviteId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState(search);
   const [committedSearch, setCommittedSearch] = useState(search);
@@ -147,6 +152,30 @@ export function AdminOrganizationMembersPage() {
       );
     } finally {
       setPendingUserId(null);
+    }
+  }
+
+  async function handleResendInvite(inviteId: string) {
+    setActiveInviteId(inviteId);
+    setActionError(null);
+    try {
+      await resendInvite.mutateAsync({ organizationId, inviteId });
+    } catch {
+      setActionError('Không thể gửi lại lời mời. Vui lòng thử lại.');
+    } finally {
+      setActiveInviteId(null);
+    }
+  }
+
+  async function handleRevokeInvite(inviteId: string) {
+    setActiveInviteId(inviteId);
+    setActionError(null);
+    try {
+      await revokeInvite.mutateAsync({ organizationId, inviteId });
+    } catch {
+      setActionError('Không thể thu hồi lời mời. Vui lòng thử lại.');
+    } finally {
+      setActiveInviteId(null);
     }
   }
 
@@ -384,12 +413,16 @@ export function AdminOrganizationMembersPage() {
                 <TableHead>Vai trò</TableHead>
                 <TableHead>Ngày mời</TableHead>
                 <TableHead>Ngày hết hạn</TableHead>
+                <TableHead>Hành động</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {pendingInvites?.items.map((invite) => {
                 const isExpired =
                   new Date(invite.expiresAt).getTime() < Date.now();
+                const isActive = activeInviteId === invite.id;
+                const isResending = isActive && resendInvite.isPending;
+                const isRevoking = isActive && revokeInvite.isPending;
                 return (
                   <TableRow key={invite.id}>
                     <TableCell>
@@ -412,6 +445,56 @@ export function AdminOrganizationMembersPage() {
                           <Badge variant="destructive">Đã hết hạn</Badge>
                         )}
                       </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="min-w-32"
+                          disabled={isActive}
+                          aria-busy={isResending}
+                          onClick={() => void handleResendInvite(invite.id)}
+                        >
+                          {isResending ? 'Đang gửi lại…' : 'Gửi lại'}
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="min-w-32"
+                              disabled={isActive}
+                              aria-busy={isRevoking}
+                            >
+                              {isRevoking ? 'Đang thu hồi…' : 'Thu hồi'}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Thu hồi lời mời tới{' '}
+                                <span translate="no">{invite.email}</span>?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Lời mời sẽ mất hiệu lực và không thể được chấp
+                                nhận.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Hủy</AlertDialogCancel>
+                              <AlertDialogAction
+                                disabled={isActive}
+                                onClick={() =>
+                                  void handleRevokeInvite(invite.id)
+                                }
+                              >
+                                Xác nhận thu hồi
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
