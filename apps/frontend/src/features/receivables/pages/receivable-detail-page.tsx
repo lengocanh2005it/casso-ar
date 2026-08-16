@@ -1,9 +1,10 @@
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDate, formatVND } from '@/lib/format';
+import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { useReceivable } from '../api/use-receivables';
 import { CancelDialog } from '../components/cancel-dialog';
 import { DisputeDialog } from '../components/dispute-dialog';
@@ -14,7 +15,7 @@ import { WriteOffDialog } from '../components/write-off-dialog';
 
 export function ReceivableDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { searchParams, setParam } = useUrlQueryParams();
   const { data: receivable, isPending, isError } = useReceivable(id);
   const activeTab = ['payments', 'activity', 'tasks'].includes(
     searchParams.get('tab') ?? '',
@@ -98,16 +99,7 @@ export function ReceivableDetailPage() {
       <p className="text-sm text-muted-foreground">
         Hạn thanh toán: {formatDate(receivable.dueDate)}
       </p>
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) =>
-          setSearchParams((current) => {
-            const next = new URLSearchParams(current);
-            next.set('tab', value);
-            return next;
-          })
-        }
-      >
+      <Tabs value={activeTab} onValueChange={(value) => setParam('tab', value)}>
         <TabsList>
           <TabsTrigger value="payments">Thanh toán</TabsTrigger>
           <TabsTrigger value="activity">Hoạt động</TabsTrigger>

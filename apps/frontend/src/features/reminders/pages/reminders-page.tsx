@@ -1,10 +1,10 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
+import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import {
   useReminderExecutions,
   useReminderPolicies,
@@ -16,7 +16,7 @@ import type { ReminderPolicy } from '../types';
 
 export function RemindersPage() {
   const { user } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { searchParams, setParam } = useUrlQueryParams();
   const receivableId = searchParams.get('receivableId') ?? '';
   const [editingPolicy, setEditingPolicy] = useState<ReminderPolicy | null>(
     null,
@@ -90,18 +90,7 @@ export function RemindersPage() {
           aria-label="Lọc theo mã khoản phải thu"
           placeholder="Lọc theo mã khoản phải thu…"
           value={receivableId}
-          onChange={(event) => {
-            const value = event.target.value;
-            setSearchParams((current) => {
-              const next = new URLSearchParams(current);
-              if (value) {
-                next.set('receivableId', value);
-              } else {
-                next.delete('receivableId');
-              }
-              return next;
-            });
-          }}
+          onChange={(event) => setParam('receivableId', event.target.value)}
           className="max-w-sm"
         />
         {executionsQuery.isPending && (

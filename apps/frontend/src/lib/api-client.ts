@@ -2,6 +2,7 @@ import axios, {
   type AxiosRequestConfig,
   type RawAxiosResponseHeaders,
 } from 'axios';
+import { dispatchGlobalEvent, GLOBAL_EVENTS } from './global-events';
 
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
@@ -119,12 +120,28 @@ export class AuthTokenManager {
 
 export const authTokenManager = new AuthTokenManager();
 
+interface AxiosErrorResponseShape {
+  data?: unknown;
+  status?: unknown;
+}
+
+// Single `unknown` → axios error response narrowing (the `any` ban makes
+// direct `error.response` access untyped). Both getErrorCode and the 402
+// check in send() use this.
+function getAxiosErrorResponse(
+  error: unknown,
+): AxiosErrorResponseShape | undefined {
+  if (typeof error !== 'object' || error === null || !('response' in error)) {
+    return undefined;
+  }
+  const response = (error as { response?: unknown }).response;
+  if (typeof response !== 'object' || response === null) return undefined;
+  const { data, status } = response as { data?: unknown; status?: unknown };
+  return { data, status };
+}
+
 function getErrorCode(error: unknown): string | undefined {
-  const response =
-    typeof error === 'object' && error !== null && 'response' in error
-      ? (error as { response?: { data?: unknown } }).response
-      : undefined;
-  const data = response?.data;
+  const data = getAxiosErrorResponse(error)?.data;
   return typeof data === 'object' && data !== null && 'errorCode' in data
     ? String((data as { errorCode?: unknown }).errorCode)
     : undefined;
@@ -147,15 +164,12 @@ async function send<T>(
       headers: response.headers,
     };
   } catch (error) {
-    const status =
-      typeof error === 'object' && error !== null && 'response' in error
-        ? (error.response as { status?: unknown }).status
-        : undefined;
-    if (status === 402) {
-      window.dispatchEvent(new CustomEvent('casso:plan-limit'));
+    const response = getAxiosErrorResponse(error);
+    if (response?.status === 402) {
+      dispatchGlobalEvent(GLOBAL_EVENTS.PLAN_LIMIT);
     }
     if (getErrorCode(error) === 'MEMBER_BLOCKED') {
-      window.dispatchEvent(new CustomEvent('casso:member-blocked'));
+      dispatchGlobalEvent(GLOBAL_EVENTS.MEMBER_BLOCKED);
     }
     throw error;
   }

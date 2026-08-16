@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -8,15 +8,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { GLOBAL_EVENTS, useGlobalEvent } from '@/lib/global-events';
 
 export function usePlanLimitDialog() {
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    const handleLimit = () => setOpen(true);
-    window.addEventListener('casso:plan-limit', handleLimit);
-    return () => window.removeEventListener('casso:plan-limit', handleLimit);
-  }, []);
+  useGlobalEvent(GLOBAL_EVENTS.PLAN_LIMIT, () => setOpen(true));
 
   return { open, setOpen };
 }

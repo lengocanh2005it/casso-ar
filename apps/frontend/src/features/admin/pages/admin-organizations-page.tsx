@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import type { OrganizationListItem } from '../api/admin-api';
 import { useAdminOrganizations, useToggleOrganization } from '../api/use-admin';
 import { BreakerSwitch } from '../components/breaker-switch';
@@ -30,7 +31,7 @@ const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
 });
 
 export function AdminOrganizationsPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { searchParams, setPage } = useUrlQueryParams();
   const page = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
   const organizationsQuery = useAdminOrganizations(
     page,
@@ -41,14 +42,6 @@ export function AdminOrganizationsPage() {
   const total = organizationsQuery.data?.total ?? 0;
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-
-  function setPage(nextPage: number) {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.set('page', String(nextPage));
-      return next;
-    });
-  }
 
   async function handleToggle(org: OrganizationListItem) {
     setPendingId(org.id);

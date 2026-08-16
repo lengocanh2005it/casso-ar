@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -16,13 +15,14 @@ import {
 import { formatDate, formatVND } from '@/lib/format';
 import { useBulkSelection } from '@/lib/use-bulk-selection';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
+import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { usePendingReview } from '../api/use-exceptions';
 import { ExceptionsBulkActionBar } from '../components/exceptions-bulk-action-bar';
 import { SplitMatchDialog } from '../components/split-match-dialog';
 import type { BankTransaction } from '../types';
 
 export function ExceptionsPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { searchParams, setParam, setPage } = useUrlQueryParams();
   const page = Number(searchParams.get('page') ?? '1');
   const search = searchParams.get('search') ?? '';
   const debouncedSearch = useDebouncedValue(search, 250);
@@ -35,14 +35,6 @@ export function ExceptionsPage() {
     (data?.items ?? []).map((item) => item.transaction.id),
   );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
-
-  function setPage(nextPage: number) {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.set('page', String(nextPage));
-      return next;
-    });
-  }
 
   return (
     <div className="space-y-5">
@@ -59,22 +51,12 @@ export function ExceptionsPage() {
         aria-label="Tìm kiếm giao dịch"
         placeholder="Tìm theo tên, số tài khoản hoặc nội dung chuyển khoản…"
         value={search}
-        onChange={(event) => {
-          const value = event.target.value;
-          setSearchParams(
-            (current) => {
-              const next = new URLSearchParams(current);
-              if (value) {
-                next.set('search', value);
-              } else {
-                next.delete('search');
-              }
-              next.set('page', '1');
-              return next;
-            },
-            { replace: true },
-          );
-        }}
+        onChange={(event) =>
+          setParam('search', event.target.value, {
+            resetPage: true,
+            replace: true,
+          })
+        }
         className="max-w-lg"
       />
       {isPending && <TableSkeleton rows={5} />}

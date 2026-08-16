@@ -1,23 +1,15 @@
-import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { useCustomers } from '../api/use-customers';
 import { CustomerTable } from '../components/customer-table';
 
 export function CustomersPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { searchParams, setParam, setPage } = useUrlQueryParams();
   const search = searchParams.get('search') ?? '';
   const page = Number(searchParams.get('page') ?? '1');
   const { data, isPending, isError } = useCustomers(search, page);
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
-
-  function setPage(nextPage: number) {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.set('page', String(nextPage));
-      return next;
-    });
-  }
 
   return (
     <div className="space-y-5">
@@ -33,19 +25,9 @@ export function CustomersPage() {
         aria-label="Tìm kiếm khách hàng"
         placeholder="Tìm theo tên, mã số thuế hoặc số điện thoại…"
         value={search}
-        onChange={(event) => {
-          const value = event.target.value;
-          setSearchParams((current) => {
-            const next = new URLSearchParams(current);
-            if (value) {
-              next.set('search', value);
-            } else {
-              next.delete('search');
-            }
-            next.set('page', '1');
-            return next;
-          });
-        }}
+        onChange={(event) =>
+          setParam('search', event.target.value, { resetPage: true })
+        }
         className="max-w-lg"
       />
       {isPending && (

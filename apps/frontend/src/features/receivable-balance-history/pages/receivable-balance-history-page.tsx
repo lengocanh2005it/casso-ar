@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Skeleton, TableSkeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
 import type { ReceivableStatus } from '@/features/receivables/types';
 import { useCsvExport } from '@/lib/use-csv-export';
+import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { exportReceivableBalanceHistoryCsv } from '../api/receivable-balance-history-api';
 import {
   useReceivableBalanceHistory,
@@ -101,7 +101,7 @@ function isValidChangeSource(
 }
 
 export function ReceivableBalanceHistoryPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { searchParams, setPage, patch } = useUrlQueryParams();
   const defaultWindow = useMemo(defaultDateWindow, []);
 
   const from = searchParams.get('from') ?? defaultWindow.from;
@@ -136,19 +136,18 @@ export function ReceivableBalanceHistoryPage() {
 
   useEffect(() => {
     if (!searchParams.get('from') && !searchParams.get('to')) {
-      setSearchParams(
-        (params) => {
-          params.set('from', defaultWindow.from);
-          params.set('to', defaultWindow.to);
-          return params;
+      patch(
+        (next) => {
+          next.set('from', defaultWindow.from);
+          next.set('to', defaultWindow.to);
         },
         { replace: true },
       );
     }
-  }, [searchParams, setSearchParams, defaultWindow]);
+  }, [searchParams, patch, defaultWindow]);
 
   function updateFilterValues(values: ReceivableBalanceHistoryFilterValues) {
-    setSearchParams((params) => {
+    patch((next) => {
       for (const key of [
         'from',
         'to',
@@ -156,15 +155,16 @@ export function ReceivableBalanceHistoryPage() {
         'status',
         'changeSource',
       ]) {
-        params.delete(key);
+        next.delete(key);
       }
-      if (values.from) params.set('from', values.from);
-      if (values.to) params.set('to', values.to);
-      if (values.receivableId) params.set('receivableId', values.receivableId);
-      if (values.status) params.set('status', values.status);
-      if (values.changeSource) params.set('changeSource', values.changeSource);
-      params.set('page', '1');
-      return params;
+      if (values.from) next.set('from', values.from);
+      if (values.to) next.set('to', values.to);
+      if (values.receivableId) next.set('receivableId', values.receivableId);
+      if (values.status) next.set('status', values.status);
+      if (values.changeSource) {
+        next.set('changeSource', values.changeSource);
+      }
+      next.set('page', '1');
     });
   }
 
@@ -261,12 +261,7 @@ export function ReceivableBalanceHistoryPage() {
             variant="outline"
             size="sm"
             disabled={page <= 1}
-            onClick={() =>
-              setSearchParams((params) => {
-                params.set('page', String(Math.max(1, page - 1)));
-                return params;
-              })
-            }
+            onClick={() => setPage(Math.max(1, page - 1))}
           >
             Trước
           </Button>
@@ -274,12 +269,7 @@ export function ReceivableBalanceHistoryPage() {
             variant="outline"
             size="sm"
             disabled={page >= totalPages}
-            onClick={() =>
-              setSearchParams((params) => {
-                params.set('page', String(page + 1));
-                return params;
-              })
-            }
+            onClick={() => setPage(page + 1)}
           >
             Sau
           </Button>

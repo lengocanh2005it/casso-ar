@@ -1,6 +1,6 @@
 import type { Role } from '@casso-ledger/shared-types';
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import type {
   AdminMemberItem,
   AdminMemberStatusFilter,
@@ -71,7 +72,7 @@ function normalizeStatus(value: string | null): AdminMemberStatusFilter {
 
 export function AdminOrganizationMembersPage() {
   const { organizationId = '' } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { searchParams, setPage, patch } = useUrlQueryParams();
 
   const rawPage = Number(searchParams.get('page') ?? '1');
   const page = Number.isInteger(rawPage) && rawPage >= 1 ? rawPage : 1;
@@ -115,8 +116,7 @@ export function AdminOrganizationMembersPage() {
   }
 
   function setFilters(nextStatus: AdminMemberStatusFilter, nextSearch: string) {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
+    patch((next) => {
       next.set('status', nextStatus);
       if (nextSearch) {
         next.set('search', nextSearch);
@@ -124,15 +124,6 @@ export function AdminOrganizationMembersPage() {
         next.delete('search');
       }
       next.delete('page');
-      return next;
-    });
-  }
-
-  function setPage(nextPage: number) {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.set('page', String(nextPage));
-      return next;
     });
   }
 
