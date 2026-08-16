@@ -110,6 +110,18 @@ describe('JwtAuthGuard (e2e)', () => {
       .expect(401);
   });
 
+  it('rejects an access token passed via ?token= query string (CWE-598 regression guard — the SSE client sends the Bearer header)', async () => {
+    const token = jwtService.sign({
+      userId,
+      organizationId,
+      role: 'OWNER',
+    });
+
+    return request(app.getHttpServer())
+      .get(`/api/v1/_test-protected?token=${token}`)
+      .expect(401);
+  });
+
   it('accepts requests with a valid signed JWT', async () => {
     const token = jwtService.sign({
       userId,

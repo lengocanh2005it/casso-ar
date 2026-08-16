@@ -20,6 +20,7 @@ describe('getJwtSecret', () => {
     expect(getJwtModuleOptions(config as never)).toEqual({
       secret: 'secret',
       signOptions: { expiresIn: '15m' },
+      verifyOptions: { algorithms: ['HS256'] },
     });
   });
 });
