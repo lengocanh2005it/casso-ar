@@ -6,10 +6,9 @@ export function useBulkSelection(ids: string[]) {
 
   useEffect(() => {
     const visibleIds = idsKey ? idsKey.split(',') : [];
+    const visibleIdSet = new Set(visibleIds);
     setSelected((current) => {
-      const next = new Set(
-        [...current].filter((id) => visibleIds.includes(id)),
-      );
+      const next = new Set([...current].filter((id) => visibleIdSet.has(id)));
       return next.size === current.size ? current : next;
     });
   }, [idsKey]);

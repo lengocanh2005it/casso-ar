@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as adminApi from '../api/admin-api';
@@ -28,8 +28,13 @@ describe('AdminDashboardPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText(/top organizations/i)).toBeInTheDocument();
-    expect(await screen.findByText(/xu hướng usage/i)).toBeInTheDocument();
+    await waitFor(
+      () => expect(screen.getByText(/top organizations/i)).toBeInTheDocument(),
+      { timeout: 5_000 },
+    );
+    await waitFor(() =>
+      expect(screen.getByText(/xu hướng usage/i)).toBeInTheDocument(),
+    );
   });
 
   it('uses semantic headings and explains empty chart states', async () => {

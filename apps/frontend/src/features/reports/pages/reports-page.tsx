@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +17,6 @@ import {
   useDashboardSummary,
   useReportsTrend,
 } from '../api/use-reports';
-import { AgingChart } from '../components/aging-chart';
 import { AgingTable } from '../components/aging-table';
 import {
   AGING_BUCKET_ORDER,
@@ -26,11 +25,33 @@ import {
 } from '../components/customer-aging-filters';
 import { CustomerAgingTable } from '../components/customer-aging-table';
 import { DashboardSummary } from '../components/dashboard-summary';
-import { ReportsTrendChart } from '../components/reports-trend-chart';
 import type { AgingBucket, TrendMonths } from '../types';
 
 const CUSTOMER_AGING_LIMIT = 20;
 const TREND_MONTHS: TrendMonths[] = [3, 6, 12];
+
+const agingChartImport = import('../components/aging-chart');
+const AgingChart = lazy(() =>
+  agingChartImport.then((module) => ({ default: module.AgingChart })),
+);
+const reportsTrendChartImport = import('../components/reports-trend-chart');
+const ReportsTrendChart = lazy(() =>
+  reportsTrendChartImport.then((module) => ({
+    default: module.ReportsTrendChart,
+  })),
+);
+
+function ChartLoadingFallback() {
+  return (
+    <div
+      role="status"
+      aria-label="Đang tải biểu đồ"
+      className="flex h-80 items-center justify-center text-sm text-muted-foreground"
+    >
+      Đang tải biểu đồ…
+    </div>
+  );
+}
 
 function isAgingBucket(value: string | null): value is AgingBucket {
   return AGING_BUCKET_ORDER.some((bucket) => bucket === value);
@@ -187,7 +208,9 @@ export function ReportsPage() {
             <CardTitle>Biểu đồ tuổi nợ</CardTitle>
           </CardHeader>
           <CardContent>
-            <AgingChart report={agingQuery.data} />
+            <Suspense fallback={<ChartLoadingFallback />}>
+              <AgingChart report={agingQuery.data} />
+            </Suspense>
           </CardContent>
         </Card>
       </div>
@@ -275,7 +298,11 @@ export function ReportsPage() {
           {trendQuery.isError && (
             <p className="text-destructive">Không thể tải dữ liệu xu hướng.</p>
           )}
-          {trendQuery.data && <ReportsTrendChart trend={trendQuery.data} />}
+          {trendQuery.data && (
+            <Suspense fallback={<ChartLoadingFallback />}>
+              <ReportsTrendChart trend={trendQuery.data} />
+            </Suspense>
+          )}
         </CardContent>
       </Card>
     </div>

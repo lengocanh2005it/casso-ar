@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import type { CopilotMessage, CopilotPendingAction } from '../types';
 import {
@@ -8,7 +8,7 @@ import {
 } from './copilot-api';
 
 export function useCopilotChat(canResolvePendingAction: boolean) {
-  const conversationId = useRef(crypto.randomUUID()).current;
+  const [conversationId] = useState(() => crypto.randomUUID());
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
   const [pendingAction, setPendingAction] =
     useState<CopilotPendingAction | null>(null);
