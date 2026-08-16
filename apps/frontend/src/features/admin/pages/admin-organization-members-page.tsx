@@ -87,11 +87,12 @@ export function AdminOrganizationMembersPage() {
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState(search);
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
+  const [committedSearch, setCommittedSearch] = useState(search);
+  if (committedSearch !== search) {
+    setCommittedSearch(search);
     setSearchInput(search);
-  }, [search]);
+  }
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
