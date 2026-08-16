@@ -13,7 +13,7 @@ import {
 } from '../../../common/audit/audit-log-repository.port';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
-import { StructuredLogger } from '../../../common/logging/structured-logger';
+import { JsonLogger } from '../../../common/observability/json-logger.service';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import {
   CUSTOMER_REPOSITORY,
@@ -64,7 +64,7 @@ export class ImportInvoicesUseCase {
     private readonly fileRowParser: ImportFileRowParser,
     @Inject(AUDIT_LOG_REPOSITORY)
     private readonly auditLogRepo: IAuditLogRepository,
-    private readonly logger: StructuredLogger,
+    private readonly logger: JsonLogger,
   ) {}
 
   async execute(

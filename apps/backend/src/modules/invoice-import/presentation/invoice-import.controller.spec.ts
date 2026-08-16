@@ -14,8 +14,8 @@ import { ErrorCode } from '../../../common/errors/error-code';
 import { HttpExceptionFilter } from '../../../common/errors/http-exception.filter';
 import { IdempotencyModule } from '../../../common/idempotency/idempotency.module';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
-import { StructuredLogger } from '../../../common/logging/structured-logger';
 import { JsonLogger } from '../../../common/observability/json-logger.service';
+import { RequestIdStore } from '../../../common/observability/request-id.store';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { REQUIRED_PERMISSION_KEY } from '../../../common/rbac/require-permission.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
@@ -216,7 +216,8 @@ describe('InvoiceImportModule', () => {
         { provide: TenantContextService, useValue: {} },
         { provide: DataSource, useValue: {} },
         { provide: AUDIT_LOG_REPOSITORY, useValue: {} },
-        StructuredLogger,
+        { provide: RequestIdStore, useValue: {} },
+        JsonLogger,
         { provide: IdempotencyService, useValue: {} },
       ],
     }).compile();
