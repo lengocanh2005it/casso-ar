@@ -29,8 +29,12 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
       <TableBody>
         {page.items.map((row) => (
           <TableRow key={row.customerId}>
-            <TableCell>{row.customerName}</TableCell>
-            <TableCell>{row.taxCode}</TableCell>
+            <TableCell className="max-w-64 break-words">
+              {row.customerName}
+            </TableCell>
+            <TableCell className="max-w-48 break-words">
+              {row.taxCode}
+            </TableCell>
             {AGING_BUCKET_ORDER.map((bucket) => (
               <TableCell key={bucket}>
                 {formatVND(

@@ -139,7 +139,7 @@ export function SmtpTab() {
 
   if (smtpQuery.isError) {
     return (
-      <p role="alert" className="text-destructive">
+      <p role="alert" aria-live="polite" className="text-destructive">
         Không thể tải cấu hình SMTP.
       </p>
     );

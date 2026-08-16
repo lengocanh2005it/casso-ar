@@ -163,7 +163,11 @@ export function PolicyDialog({
                 setCustomerGroup(value as CustomerGroup)
               }
             >
-              <SelectTrigger aria-label="Nhóm khách hàng" className="w-full">
+              <SelectTrigger
+                name="customerGroup"
+                aria-label="Nhóm khách hàng"
+                className="w-full"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -174,6 +178,7 @@ export function PolicyDialog({
           </Label>
           <label className="flex items-center gap-2 text-sm">
             <input
+              name="isActive"
               type="checkbox"
               checked={isActive}
               onChange={(event) => setIsActive(event.target.checked)}
@@ -183,6 +188,8 @@ export function PolicyDialog({
           <Label className="block space-y-1">
             <span>Ngưỡng leo thang (ngày, không bắt buộc)</span>
             <Input
+              name="escalationThresholdDays"
+              autoComplete="off"
               type="number"
               min={1}
               step={1}
@@ -212,6 +219,8 @@ export function PolicyDialog({
                 <Label className="space-y-1">
                   <span className="text-xs">Ngày lệch hạn</span>
                   <Input
+                    name={`offsetDays-${index}`}
+                    autoComplete="off"
                     aria-label={`Ngày lệch hạn ${index + 1}`}
                     type="number"
                     step={1}
@@ -224,6 +233,8 @@ export function PolicyDialog({
                 <Label className="space-y-1">
                   <span className="text-xs">Mã email template</span>
                   <Input
+                    name={`emailTemplateId-${index}`}
+                    autoComplete="off"
                     aria-label={`Mã email template ${index + 1}`}
                     required
                     value={rule.emailTemplateId}
@@ -235,6 +246,8 @@ export function PolicyDialog({
                 <Label className="space-y-1">
                   <span className="text-xs">Khoảng cách tối thiểu (ngày)</span>
                   <Input
+                    name={`minIntervalDays-${index}`}
+                    autoComplete="off"
                     aria-label={`Khoảng cách tối thiểu ${index + 1}`}
                     type="number"
                     min={0}

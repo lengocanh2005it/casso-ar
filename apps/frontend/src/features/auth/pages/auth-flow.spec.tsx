@@ -62,6 +62,11 @@ describe('authentication routes', () => {
     );
 
     await waitFor(() => expect(screen.getByLabelText(/email/i)).toBeVisible());
+    expect(screen.getByLabelText(/email/i)).toHaveAttribute('name', 'email');
+    expect(screen.getByLabelText(/mật khẩu/i)).toHaveAttribute(
+      'name',
+      'password',
+    );
     fireEvent.change(screen.getByLabelText(/email/i), {
       target: { value: 'owner@casso.vn' },
     });
@@ -71,6 +76,34 @@ describe('authentication routes', () => {
     fireEvent.click(screen.getByRole('button', { name: /đăng nhập/i }));
 
     await waitFor(() => expect(screen.getByText('dashboard')).toBeVisible());
+  });
+
+  it('shows a spinner while login is pending', async () => {
+    apiRequest.mockImplementation(() => new Promise(() => {}));
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/login']}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByLabelText(/email/i)).toBeVisible());
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: 'owner@casso.vn' },
+    });
+    fireEvent.change(screen.getByLabelText(/mật khẩu/i), {
+      target: { value: 'secret123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /đăng nhập/i }));
+
+    const button = await screen.findByRole('button', {
+      name: /đang xử lý/i,
+    });
+    expect(button.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
   });
 
   it('shows an inline, focused error when login fails', async () => {

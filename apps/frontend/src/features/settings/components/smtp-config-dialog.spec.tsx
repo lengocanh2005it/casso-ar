@@ -38,6 +38,7 @@ describe('SmtpConfigDialog', () => {
     fireEvent.click(screen.getByText('Cấu hình SMTP'));
 
     expect(screen.getByLabelText(/máy chủ/i)).toHaveValue('smtp.congtyb.vn');
+    expect(screen.getByLabelText(/máy chủ/i)).toHaveAttribute('name', 'host');
     expect(screen.getByLabelText(/mật khẩu/i)).toHaveValue('');
   });
 
@@ -99,5 +100,6 @@ describe('SmtpConfigDialog', () => {
     await waitFor(() =>
       expect(screen.getByRole('alert')).toHaveTextContent(/không thể kết nối/i),
     );
+    expect(screen.getByRole('alert')).toHaveAttribute('aria-live', 'polite');
   });
 });

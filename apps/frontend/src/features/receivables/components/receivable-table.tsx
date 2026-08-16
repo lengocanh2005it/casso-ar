@@ -64,7 +64,7 @@ export function ReceivableTable({
       <TableBody>
         {receivables.map((receivable) => (
           <TableRow key={receivable.id}>
-            <TableCell>
+            <TableCell className="max-w-48 break-words">
               <Checkbox
                 aria-label={`Chọn ${receivable.invoiceNumber ?? receivable.id}`}
                 checked={selectedIds.includes(receivable.id)}
@@ -80,7 +80,7 @@ export function ReceivableTable({
                 {receivable.invoiceNumber ?? 'Không có hóa đơn'}
               </Link>
             </TableCell>
-            <TableCell>
+            <TableCell className="max-w-56 break-words">
               {receivable.customerName ?? receivable.customerId}
             </TableCell>
             <TableCell className="tabular-nums">

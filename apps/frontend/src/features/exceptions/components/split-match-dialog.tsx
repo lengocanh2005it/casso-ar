@@ -114,7 +114,9 @@ export function SplitMatchDialog({
           này.
         </DialogDescription>
         <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">{tx.transferContent}</p>
+          <p className="break-words text-xs text-muted-foreground">
+            {tx.transferContent}
+          </p>
           {sortedCandidates.map((candidate) => (
             <div
               key={candidate.receivableId}
@@ -130,6 +132,8 @@ export function SplitMatchDialog({
               >
                 Số tiền phân bổ
                 <Input
+                  name={`allocation-${candidate.receivableId}`}
+                  autoComplete="off"
                   aria-label={`Số tiền phân bổ cho ${candidate.receivableId}`}
                   id={`allocation-${candidate.receivableId}`}
                   type="number"
@@ -154,13 +158,15 @@ export function SplitMatchDialog({
           <label htmlFor="customer-search" className="block text-sm">
             Tìm khách hàng để ghi nhận công nợ
             <Input
+              name="customerSearch"
+              autoComplete="off"
               id="customer-search"
               value={customerSearch}
               onChange={(event) => {
                 setCustomerSearch(event.target.value);
                 setPrepaidCustomerId('');
               }}
-              placeholder="Tên khách hàng, mã số thuế hoặc số điện thoại"
+              placeholder="Tên khách hàng, mã số thuế hoặc số điện thoại…"
             />
           </label>
           {customerPage && customerPage.items.length > 0 && (

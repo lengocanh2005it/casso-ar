@@ -54,10 +54,14 @@ const statusFilterOptions = (
   </>
 );
 
-const membersLoadingMessage = <p aria-live="polite">Đang tải thành viên…</p>;
+const membersLoadingMessage = (
+  <p role="status" aria-live="polite">
+    Đang tải thành viên…
+  </p>
+);
 
 const membersErrorMessage = (
-  <p aria-live="polite" className="text-destructive">
+  <p role="alert" aria-live="polite" className="text-destructive">
     Không thể tải thành viên.
   </p>
 );
@@ -120,8 +124,10 @@ const MembersTable = memo(function MembersTable({
               <TableCell>
                 {canManage && !isSelf ? (
                   <select
+                    name={`role-${member.userId}`}
+                    autoComplete="off"
                     aria-label={`Vai trò của ${member.name}`}
-                    className="h-9 rounded-md border bg-background px-3 text-sm"
+                    className="h-9 rounded-md border bg-background px-3 text-sm text-foreground"
                     value={member.role}
                     onChange={(event) => {
                       const nextRole = roles.find(
@@ -312,7 +318,9 @@ export function UsersTab() {
             <span className="block">Vai trò</span>
             <select
               id="invite-role"
-              className="h-9 rounded-md border bg-background px-3 text-sm"
+              name="role"
+              autoComplete="off"
+              className="h-9 rounded-md border bg-background px-3 text-sm text-foreground"
               value={role}
               onChange={(event) => {
                 const nextRole = roles.find(
@@ -334,8 +342,10 @@ export function UsersTab() {
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold">Thành viên</h2>
           <select
+            name="statusFilter"
+            autoComplete="off"
             aria-label="Lọc theo trạng thái"
-            className="h-9 rounded-md border bg-background px-3 text-sm"
+            className="h-9 rounded-md border bg-background px-3 text-sm text-foreground"
             value={statusFilter}
             onChange={(event) =>
               setStatusFilter(event.target.value as StatusFilter)

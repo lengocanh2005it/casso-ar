@@ -10,9 +10,14 @@ import {
 import { formatVND } from '@/lib/format';
 import type { ReportsTrend } from '../types';
 
+const monthFormatter = new Intl.DateTimeFormat('vi-VN', {
+  month: 'numeric',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
 export function formatTrendMonthLabel(key: string, isCurrent = false): string {
-  const [year, month] = key.split('-');
-  return `Tháng ${Number(month)}/${year}${isCurrent ? ' (tạm tính)' : ''}`;
+  return `Tháng ${monthFormatter.format(new Date(`${key}-01T00:00:00Z`))}${isCurrent ? ' (tạm tính)' : ''}`;
 }
 
 export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {

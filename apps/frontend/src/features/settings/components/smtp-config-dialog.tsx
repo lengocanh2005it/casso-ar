@@ -13,6 +13,7 @@ import {
 import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import { getResponseErrorMessage } from '../api/settings-api';
 import { useSaveSmtpConfig } from '../api/use-settings';
 import type { SmtpConfig, SmtpConfigInput } from '../types';
@@ -108,6 +109,7 @@ export function SmtpConfigDialog({
             <Label htmlFor="smtp-host">Máy chủ (host)</Label>
             <Input
               id="smtp-host"
+              name="host"
               autoComplete="off"
               value={form.host}
               onChange={(event) => updateField('host', event.target.value)}
@@ -118,7 +120,9 @@ export function SmtpConfigDialog({
             <Label htmlFor="smtp-port">Cổng (port)</Label>
             <Input
               id="smtp-port"
+              name="port"
               type="number"
+              autoComplete="off"
               inputMode="numeric"
               min="1"
               max="65535"
@@ -131,6 +135,7 @@ export function SmtpConfigDialog({
             <Label htmlFor="smtp-username">Tên đăng nhập</Label>
             <Input
               id="smtp-username"
+              name="username"
               autoComplete="off"
               spellCheck={false}
               value={form.username}
@@ -146,6 +151,7 @@ export function SmtpConfigDialog({
             </p>
             <Input
               id="smtp-password"
+              name="password"
               type="password"
               autoComplete="new-password"
               value={form.password}
@@ -157,6 +163,7 @@ export function SmtpConfigDialog({
             <Label htmlFor="smtp-from-address">Gửi từ (from-address)</Label>
             <Input
               id="smtp-from-address"
+              name="fromAddress"
               type="email"
               autoComplete="off"
               spellCheck={false}
@@ -176,7 +183,12 @@ export function SmtpConfigDialog({
             >
               Hủy
             </Button>
-            <Button type="submit" disabled={saveMutation.isPending}>
+            <Button
+              type="submit"
+              disabled={saveMutation.isPending}
+              aria-busy={saveMutation.isPending}
+            >
+              {saveMutation.isPending && <Spinner />}
               {saveMutation.isPending
                 ? 'Đang kiểm tra kết nối…'
                 : 'Lưu cấu hình'}

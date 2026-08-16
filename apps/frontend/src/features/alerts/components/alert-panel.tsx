@@ -40,7 +40,7 @@ function AlertRow({ alert }: { alert: AlertDto }) {
   }
 
   const rowClassName = cn(
-    'flex min-w-0 flex-1 motion-safe:animate-banner-in items-start gap-2 rounded-md p-3 text-left text-sm transition-[background-color,transform] duration-150 ease-out pointer-hover:hover:bg-accent active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    'flex min-w-0 flex-1 motion-safe:animate-banner-in items-start gap-2 rounded-md p-3 text-left text-sm transition-[background-color,transform] duration-150 ease-out motion-reduce:transition-none motion-reduce:active:scale-100 pointer-hover:hover:bg-accent active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
     !alert.isRead && 'bg-primary/5',
   );
   const rowContent = (
@@ -84,7 +84,7 @@ function AlertRow({ alert }: { alert: AlertDto }) {
             type="button"
             aria-label={`Xoá thông báo: ${alertMessage(alert.type)}`}
             onClick={(event) => event.stopPropagation()}
-            className="mt-2 shrink-0 rounded-md p-1 text-muted-foreground transition-[background-color,color,transform] duration-150 ease-out pointer-hover:hover:bg-muted pointer-hover:hover:text-foreground active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="mt-2 shrink-0 rounded-md p-1 text-muted-foreground transition-[background-color,color,transform] duration-150 ease-out motion-reduce:transition-none motion-reduce:active:scale-100 pointer-hover:hover:bg-muted pointer-hover:hover:text-foreground active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X aria-hidden="true" className="size-3.5" />
           </button>
@@ -125,7 +125,7 @@ export function AlertPanel() {
           <button
             type="button"
             onClick={() => markAllRead.mutate()}
-            className="rounded-sm text-xs font-medium text-primary transition-[color,transform] duration-150 ease-out pointer-hover:hover:underline active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="rounded-sm text-xs font-medium text-primary transition-[color,transform] duration-150 ease-out motion-reduce:transition-none motion-reduce:active:scale-100 pointer-hover:hover:underline active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Đánh dấu đã đọc tất cả
           </button>
@@ -160,7 +160,7 @@ export function AlertPanel() {
             <AlertDialogTrigger asChild>
               <button
                 type="button"
-                className="w-full rounded-md p-1.5 text-center text-xs font-medium text-destructive transition-[background-color,transform] duration-150 ease-out pointer-hover:hover:bg-destructive/10 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="w-full rounded-md p-1.5 text-center text-xs font-medium text-destructive transition-[background-color,transform] duration-150 ease-out motion-reduce:transition-none motion-reduce:active:scale-100 pointer-hover:hover:bg-destructive/10 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Xoá tất cả
               </button>

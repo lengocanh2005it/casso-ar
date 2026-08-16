@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,11 +14,26 @@ import { WriteOffDialog } from '../components/write-off-dialog';
 
 export function ReceivableDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: receivable, isPending, isError } = useReceivable(id);
+  const activeTab = ['payments', 'activity', 'tasks'].includes(
+    searchParams.get('tab') ?? '',
+  )
+    ? (searchParams.get('tab') as 'payments' | 'activity' | 'tasks')
+    : 'payments';
 
-  if (isPending) return <p>Đang tải…</p>;
+  if (isPending)
+    return (
+      <p role="status" aria-live="polite">
+        Đang tải…
+      </p>
+    );
   if (isError || !receivable) {
-    return <p className="text-destructive">Không tìm thấy khoản phải thu.</p>;
+    return (
+      <p role="alert" aria-live="polite" className="text-destructive">
+        Không tìm thấy khoản phải thu.
+      </p>
+    );
   }
 
   const terminal = ['PAID', 'WRITTEN_OFF', 'CANCELLED'].includes(
@@ -83,7 +98,16 @@ export function ReceivableDetailPage() {
       <p className="text-sm text-muted-foreground">
         Hạn thanh toán: {formatDate(receivable.dueDate)}
       </p>
-      <Tabs defaultValue="payments">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) =>
+          setSearchParams((current) => {
+            const next = new URLSearchParams(current);
+            next.set('tab', value);
+            return next;
+          })
+        }
+      >
         <TabsList>
           <TabsTrigger value="payments">Thanh toán</TabsTrigger>
           <TabsTrigger value="activity">Hoạt động</TabsTrigger>

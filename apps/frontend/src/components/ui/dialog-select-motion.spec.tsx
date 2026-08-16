@@ -45,15 +45,23 @@ describe('dialog and select motion preferences', () => {
     );
     expect(document.querySelector('[data-slot="dialog-content"]')).toHaveClass(
       'motion-reduce:animate-none',
+      'overscroll-contain',
     );
     expect(document.querySelector('[data-slot="dialog-close"]')).toHaveClass(
       'pointer-hover:hover:opacity-100',
+      'focus-visible:ring-2',
     );
+    expect(
+      document.querySelector('[data-slot="dialog-close"] svg'),
+    ).toHaveAttribute('aria-hidden', 'true');
     expect(document.querySelector('[data-slot="select-trigger"]')).toHaveClass(
       'dark:pointer-hover:hover:bg-input/50',
     );
     expect(document.querySelector('[data-slot="select-content"]')).toHaveClass(
       'motion-reduce:animate-none',
     );
+    expect(
+      document.querySelector('[data-slot="select-trigger"] svg'),
+    ).toHaveAttribute('aria-hidden', 'true');
   });
 });

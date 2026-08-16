@@ -18,6 +18,12 @@ const AGING_BUCKETS: AgingBucket[] = [
   'OVERDUE_60_PLUS',
 ];
 
+const percentageFormatter = new Intl.NumberFormat('vi-VN', {
+  style: 'percent',
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
 export function AgingTable({
   report,
   totalOutstanding,
@@ -56,8 +62,10 @@ export function AgingTable({
             </TableCell>
             <TableCell>
               {totalOutstanding > 0
-                ? `${((row.totalRemaining / totalOutstanding) * 100).toFixed(1)}%`
-                : '0.0%'}
+                ? percentageFormatter.format(
+                    row.totalRemaining / totalOutstanding,
+                  )
+                : percentageFormatter.format(0)}
             </TableCell>
           </TableRow>
         ))}
@@ -71,8 +79,8 @@ export function AgingTable({
           </TableCell>
           <TableCell>
             {totalOutstanding > 0
-              ? `${((totalRemaining / totalOutstanding) * 100).toFixed(1)}%`
-              : '0.0%'}
+              ? percentageFormatter.format(totalRemaining / totalOutstanding)
+              : percentageFormatter.format(0)}
           </TableCell>
         </TableRow>
       </TableFooter>

@@ -1,8 +1,10 @@
 import { Permission, PlanId } from '@casso-ledger/shared-types';
 import { Lock } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPlanAccess } from '@/lib/plan-access';
@@ -15,7 +17,9 @@ import { UsageIndicator } from '../components/usage-indicator';
 
 export function CopilotPage() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [draft, setDraft] = useState('');
+  const activeTab = searchParams.get('tab') === 'drafts' ? 'drafts' : 'chat';
   const canSendManual = user
     ? hasPermission(user.role, Permission.REMINDER_SEND_MANUAL)
     : false;
@@ -33,7 +37,7 @@ export function CopilotPage() {
   if (!user || !hasPlanAccess(user.subscriptionPlan, PlanId.STARTER)) {
     return (
       <div className="flex h-[60vh] flex-col items-center justify-center gap-3 p-6">
-        <Lock className="h-8 w-8 text-muted-foreground" />
+        <Lock aria-hidden="true" className="h-8 w-8 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
           Copilot yêu cầu gói Starter hoặc cao hơn.
         </p>
@@ -55,7 +59,11 @@ export function CopilotPage() {
         <h1 className="text-xl font-semibold sm:text-2xl">Copilot</h1>
         <UsageIndicator />
       </div>
-      <Tabs defaultValue="chat" className="min-h-0 flex-1">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setSearchParams({ tab: value })}
+        className="min-h-0 flex-1"
+      >
         <TabsList>
           <TabsTrigger value="chat">Chat</TabsTrigger>
           <TabsTrigger value="drafts">Drafts</TabsTrigger>
@@ -74,6 +82,8 @@ export function CopilotPage() {
           </div>
           <form onSubmit={onSubmit} className="mt-3 flex gap-2">
             <Input
+              name="question"
+              autoComplete="off"
               aria-label="Enter question"
               placeholder="Hỏi về công nợ…"
               value={draft}
@@ -83,7 +93,9 @@ export function CopilotPage() {
             <Button
               type="submit"
               disabled={isSending || blockedByPendingAction || !draft.trim()}
+              aria-busy={isSending}
             >
+              {isSending && <Spinner />}
               {isSending ? 'Đang suy nghĩ…' : 'Send'}
             </Button>
           </form>

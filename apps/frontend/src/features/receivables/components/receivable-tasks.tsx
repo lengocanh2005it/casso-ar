@@ -1,6 +1,17 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
@@ -45,15 +56,28 @@ export function ReceivableTasks({ receivableId }: { receivableId: string }) {
       }),
   });
 
-  if (isPending) return <p>Đang tải…</p>;
+  if (isPending)
+    return (
+      <p role="status" aria-live="polite">
+        Đang tải…
+      </p>
+    );
   if (isError) {
-    return <p className="text-destructive">Không thể tải công việc.</p>;
+    return (
+      <p role="alert" aria-live="polite" className="text-destructive">
+        Không thể tải công việc.
+      </p>
+    );
   }
 
   const canManage = hasPermission(
     user?.role ?? null,
     Permission.INTERNAL_TASK_MANAGE,
   );
+  const mutationError =
+    createMutation.isError ||
+    resolveMutation.isError ||
+    dismissMutation.isError;
 
   return (
     <div className="space-y-4">
@@ -66,8 +90,10 @@ export function ReceivableTasks({ receivableId }: { receivableId: string }) {
           }}
         >
           <Input
+            name="title"
+            autoComplete="off"
             aria-label="Tiêu đề công việc"
-            placeholder="Tiêu đề công việc"
+            placeholder="Tiêu đề công việc…"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
           />
@@ -79,6 +105,11 @@ export function ReceivableTasks({ receivableId }: { receivableId: string }) {
           </Button>
         </form>
       )}
+      {mutationError && (
+        <p role="alert" aria-live="polite" className="text-sm text-destructive">
+          Không thể cập nhật công việc.
+        </p>
+      )}
       {!data || data.length === 0 ? (
         <p className="text-sm text-muted-foreground">Chưa có công việc.</p>
       ) : (
@@ -88,8 +119,8 @@ export function ReceivableTasks({ receivableId }: { receivableId: string }) {
               key={task.id}
               className="flex items-center justify-between gap-4 rounded-lg border p-4"
             >
-              <div>
-                <p className="font-medium">{task.title}</p>
+              <div className="min-w-0">
+                <p className="break-words font-medium">{task.title}</p>
                 <p className="text-sm text-muted-foreground">
                   {task.status}
                   {task.dueDate ? ` · ${formatDate(task.dueDate)}` : ''}
@@ -104,14 +135,35 @@ export function ReceivableTasks({ receivableId }: { receivableId: string }) {
                   >
                     Hoàn thành
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={dismissMutation.isPending}
-                    onClick={() => dismissMutation.mutate(task.id)}
-                  >
-                    Bỏ qua
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={dismissMutation.isPending}
+                      >
+                        Bỏ qua
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Bỏ qua công việc này?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Công việc sẽ được đánh dấu là đã bỏ qua.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Hủy</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => dismissMutation.mutate(task.id)}
+                        >
+                          Xác nhận bỏ qua
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               )}
             </li>

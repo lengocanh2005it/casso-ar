@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
+import { Spinner } from '@/components/ui/spinner';
 import { apiRequest } from '@/lib/api-client';
 
 export function ForgotPasswordPage() {
@@ -62,6 +63,7 @@ export function ForgotPasswordPage() {
           <span className="text-sm font-medium">Email</span>
           <input
             type="email"
+            name="email"
             required
             autoComplete="email"
             spellCheck={false}
@@ -73,7 +75,13 @@ export function ForgotPasswordPage() {
 
         <InlineFormError message={error} />
 
-        <Button type="submit" disabled={submitting} className="w-full">
+        <Button
+          type="submit"
+          disabled={submitting}
+          aria-busy={submitting}
+          className="w-full"
+        >
+          {submitting && <Spinner />}
           {submitting ? 'Đang gửi…' : 'Gửi liên kết'}
         </Button>
 

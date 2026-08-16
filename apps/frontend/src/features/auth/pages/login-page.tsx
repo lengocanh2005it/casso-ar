@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
+import { Spinner } from '@/components/ui/spinner';
 import { useAuth } from '@/contexts/auth-context';
 
 export function LoginPage() {
@@ -47,6 +48,7 @@ export function LoginPage() {
           <span className="text-sm font-medium">Email</span>
           <input
             type="email"
+            name="email"
             required
             autoComplete="email"
             spellCheck={false}
@@ -60,6 +62,7 @@ export function LoginPage() {
           <span className="text-sm font-medium">Mật khẩu</span>
           <input
             type="password"
+            name="password"
             required
             autoComplete="current-password"
             value={password}
@@ -70,7 +73,13 @@ export function LoginPage() {
 
         <InlineFormError message={error} />
 
-        <Button type="submit" disabled={submitting} className="w-full">
+        <Button
+          type="submit"
+          disabled={submitting}
+          aria-busy={submitting}
+          className="w-full"
+        >
+          {submitting && <Spinner />}
           {submitting ? 'Đang xử lý…' : 'Đăng nhập'}
         </Button>
 

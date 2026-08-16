@@ -28,8 +28,10 @@ export function CustomersPage() {
         </h1>
       </div>
       <Input
+        name="search"
+        autoComplete="off"
         aria-label="Tìm kiếm khách hàng"
-        placeholder="Tìm theo tên, mã số thuế hoặc số điện thoại"
+        placeholder="Tìm theo tên, mã số thuế hoặc số điện thoại…"
         value={search}
         onChange={(event) => {
           const value = event.target.value;
@@ -46,9 +48,15 @@ export function CustomersPage() {
         }}
         className="max-w-lg"
       />
-      {isPending && <p>Đang tải danh sách khách hàng…</p>}
+      {isPending && (
+        <p role="status" aria-live="polite">
+          Đang tải danh sách khách hàng…
+        </p>
+      )}
       {isError && (
-        <p className="text-destructive">Không thể tải danh sách khách hàng.</p>
+        <p role="alert" aria-live="polite" className="text-destructive">
+          Không thể tải danh sách khách hàng.
+        </p>
       )}
       {data && <CustomerTable customers={data.items} />}
       {data && data.total > 0 && (

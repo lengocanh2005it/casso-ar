@@ -1,4 +1,5 @@
-import { Fragment, useState } from 'react';
+import { Fragment } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -75,7 +76,20 @@ interface TableProps {
 }
 
 export function ReceivableBalanceHistoryTable({ items }: TableProps) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const expandedId = searchParams.get('expanded');
+
+  function toggleExpanded(id: string) {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (next.get('expanded') === id) {
+        next.delete('expanded');
+      } else {
+        next.set('expanded', id);
+      }
+      return next;
+    });
+  }
 
   return (
     <div className="overflow-x-auto rounded-xl border bg-card">
@@ -146,11 +160,7 @@ export function ReceivableBalanceHistoryTable({ items }: TableProps) {
                     variant="ghost"
                     size="sm"
                     aria-expanded={expandedId === item.id}
-                    onClick={() =>
-                      setExpandedId((current) =>
-                        current === item.id ? null : item.id,
-                      )
-                    }
+                    onClick={() => toggleExpanded(item.id)}
                   >
                     Chi tiết
                   </Button>

@@ -13,8 +13,9 @@ export function InlineFormError({ message }: { message: string | null }) {
     <p
       ref={ref}
       role="alert"
+      aria-live="polite"
       tabIndex={-1}
-      className="text-sm text-destructive outline-none"
+      className="text-sm text-destructive outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {message}
     </p>

@@ -64,9 +64,15 @@ export function RemindersPage() {
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Chính sách nhắc</h2>
-        {policiesPending && <p>Đang tải chính sách…</p>}
+        {policiesPending && (
+          <p role="status" aria-live="polite">
+            Đang tải chính sách…
+          </p>
+        )}
         {policiesError && (
-          <p className="text-destructive">Không thể tải chính sách nhắc.</p>
+          <p role="alert" aria-live="polite" className="text-destructive">
+            Không thể tải chính sách nhắc.
+          </p>
         )}
         {policies && <PolicyTable policies={policies} onEdit={openEdit} />}
       </section>
@@ -79,8 +85,10 @@ export function RemindersPage() {
           </p>
         </div>
         <Input
+          name="receivableId"
+          autoComplete="off"
           aria-label="Lọc theo mã khoản phải thu"
-          placeholder="Lọc theo mã khoản phải thu"
+          placeholder="Lọc theo mã khoản phải thu…"
           value={receivableId}
           onChange={(event) => {
             const value = event.target.value;
@@ -96,9 +104,15 @@ export function RemindersPage() {
           }}
           className="max-w-sm"
         />
-        {executionsQuery.isPending && <p>Đang tải lịch sử thực thi…</p>}
+        {executionsQuery.isPending && (
+          <p role="status" aria-live="polite">
+            Đang tải lịch sử thực thi…
+          </p>
+        )}
         {executionsQuery.isError && (
-          <p className="text-destructive">Không thể tải lịch sử thực thi.</p>
+          <p role="alert" aria-live="polite" className="text-destructive">
+            Không thể tải lịch sử thực thi.
+          </p>
         )}
         {executionsQuery.data && (
           <ExecutionsTable executions={executionsQuery.data.items} />

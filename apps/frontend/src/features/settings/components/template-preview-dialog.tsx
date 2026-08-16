@@ -31,9 +31,15 @@ export function TemplatePreviewDialog({
           <DialogTitle>Xem trước mẫu email</DialogTitle>
           <DialogDescription>{template?.name}</DialogDescription>
         </DialogHeader>
-        {preview.isPending && <p>Đang tạo bản xem trước…</p>}
+        {preview.isPending && (
+          <p role="status" aria-live="polite">
+            Đang tạo bản xem trước…
+          </p>
+        )}
         {preview.isError && (
-          <p className="text-destructive">Không thể xem trước mẫu email.</p>
+          <p role="alert" aria-live="polite" className="text-destructive">
+            Không thể xem trước mẫu email.
+          </p>
         )}
         {preview.data && (
           <div className="space-y-3 rounded-lg border p-4">

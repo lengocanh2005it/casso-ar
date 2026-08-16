@@ -36,9 +36,15 @@ export function PendingInvitesTable({
   return (
     <div>
       <h2 className="mb-3 text-lg font-semibold">Lời mời đang chờ</h2>
-      {invitesQuery.isPending && <p>Đang tải lời mời…</p>}
+      {invitesQuery.isPending && (
+        <p role="status" aria-live="polite">
+          Đang tải lời mời…
+        </p>
+      )}
       {invitesQuery.isError && (
-        <p className="text-destructive">Không thể tải lời mời.</p>
+        <p role="alert" aria-live="polite" className="text-destructive">
+          Không thể tải lời mời.
+        </p>
       )}
       {invitesQuery.data && invitesQuery.data.items.length === 0 && (
         <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
@@ -58,10 +64,14 @@ export function PendingInvitesTable({
           <TableBody>
             {invitesQuery.data.items.map((invite) => (
               <TableRow key={invite.id}>
-                <TableCell>{invite.email}</TableCell>
+                <TableCell className="max-w-64 break-words">
+                  {invite.email}
+                </TableCell>
                 <TableCell>{invite.role}</TableCell>
                 <TableCell>
-                  {new Date(invite.invitedAt).toLocaleDateString('vi-VN')}
+                  {new Intl.DateTimeFormat('vi-VN').format(
+                    new Date(invite.invitedAt),
+                  )}
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-2">

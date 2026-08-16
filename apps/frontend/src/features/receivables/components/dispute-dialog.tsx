@@ -84,6 +84,7 @@ export function DisputeDialog({
             <Label className="block space-y-1">
               <span className="text-sm">Lý do tranh chấp</span>
               <Textarea
+                name="reason"
                 required
                 placeholder="Nhập lý do tranh chấp…"
                 value={reason}

@@ -17,7 +17,11 @@ export function CustomerDetailPage() {
   const receivablesQuery = useReceivables({ customerId: id }, 1);
 
   if (customerQuery.isPending) {
-    return <p>Đang tải thông tin khách hàng…</p>;
+    return (
+      <p role="status" aria-live="polite">
+        Đang tải thông tin khách hàng…
+      </p>
+    );
   }
 
   if (customerQuery.isError || !customerQuery.data) {
@@ -26,7 +30,9 @@ export function CustomerDetailPage() {
         <Link to="/customers" className="text-sm text-primary hover:underline">
           ← Quay lại khách hàng
         </Link>
-        <p className="text-destructive">Không thể tải thông tin khách hàng.</p>
+        <p role="alert" aria-live="polite" className="text-destructive">
+          Không thể tải thông tin khách hàng.
+        </p>
       </div>
     );
   }
@@ -79,9 +85,15 @@ export function CustomerDetailPage() {
           <CardTitle>Lịch sử hoạt động</CardTitle>
         </CardHeader>
         <CardContent>
-          {timelineQuery.isPending && <p>Đang tải hoạt động…</p>}
+          {timelineQuery.isPending && (
+            <p role="status" aria-live="polite">
+              Đang tải hoạt động…
+            </p>
+          )}
           {timelineQuery.isError && (
-            <p className="text-destructive">Không thể tải lịch sử hoạt động.</p>
+            <p role="alert" aria-live="polite" className="text-destructive">
+              Không thể tải lịch sử hoạt động.
+            </p>
           )}
           {timelineQuery.data && (
             <CustomerTimeline items={timelineQuery.data.items} />
@@ -94,9 +106,15 @@ export function CustomerDetailPage() {
             <CardTitle>Số dư tín dụng</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            {creditsQuery.isPending && <p>Đang tải…</p>}
+            {creditsQuery.isPending && (
+              <p role="status" aria-live="polite">
+                Đang tải…
+              </p>
+            )}
             {creditsQuery.isError && (
-              <p className="text-destructive">Không thể tải số dư tín dụng.</p>
+              <p role="alert" aria-live="polite" className="text-destructive">
+                Không thể tải số dư tín dụng.
+              </p>
             )}
             {creditsQuery.data && (
               <>
@@ -118,9 +136,15 @@ export function CustomerDetailPage() {
             <CardTitle>Khoản phải thu</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            {receivablesQuery.isPending && <p>Đang tải…</p>}
+            {receivablesQuery.isPending && (
+              <p role="status" aria-live="polite">
+                Đang tải…
+              </p>
+            )}
             {receivablesQuery.isError && (
-              <p className="text-destructive">Không thể tải khoản phải thu.</p>
+              <p role="alert" aria-live="polite" className="text-destructive">
+                Không thể tải khoản phải thu.
+              </p>
             )}
             {receivablesQuery.data && (
               <>

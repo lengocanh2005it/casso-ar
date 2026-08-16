@@ -21,14 +21,14 @@ export function ThemeToggle({ className }: { className?: string }) {
       title={`Giao diện: ${LABELS[theme]} — chuyển sang ${LABELS[next]}`}
       onClick={() => setTheme(next)}
       className={cn(
-        'inline-flex items-center justify-center rounded-md p-1.5 transition-transform duration-150 hover:bg-sidebar-accent active:scale-95 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+        'inline-flex items-center justify-center rounded-md p-1.5 transition-transform duration-150 motion-reduce:transition-none motion-reduce:active:scale-100 hover:bg-sidebar-accent active:scale-95 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
         className,
       )}
     >
       {resolvedTheme === 'dark' ? (
-        <Moon className="size-4" />
+        <Moon aria-hidden="true" className="size-4" />
       ) : (
-        <Sun className="size-4" />
+        <Sun aria-hidden="true" className="size-4" />
       )}
     </button>
   );

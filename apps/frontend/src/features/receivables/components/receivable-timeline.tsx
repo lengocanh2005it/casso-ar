@@ -8,9 +8,18 @@ export function ReceivableTimeline({ receivableId }: { receivableId: string }) {
     queryFn: () => fetchReceivableTimeline(receivableId),
   });
 
-  if (isPending) return <p>Đang tải…</p>;
+  if (isPending)
+    return (
+      <p role="status" aria-live="polite">
+        Đang tải…
+      </p>
+    );
   if (isError) {
-    return <p className="text-destructive">Không thể tải hoạt động.</p>;
+    return (
+      <p role="alert" aria-live="polite" className="text-destructive">
+        Không thể tải hoạt động.
+      </p>
+    );
   }
   if (!data || data.items.length === 0) {
     return <p className="text-sm text-muted-foreground">Chưa có hoạt động.</p>;

@@ -109,23 +109,12 @@ export function ExceptionsPage() {
               <TableHead>Đối tác</TableHead>
               <TableHead>Số tiền</TableHead>
               <TableHead>Điểm cao nhất</TableHead>
+              <TableHead>Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.items.map((row) => (
-              <TableRow
-                key={row.transaction.id}
-                className="cursor-pointer active:bg-accent"
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelected(row.transaction)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    setSelected(row.transaction);
-                  }
-                }}
-              >
+              <TableRow key={row.transaction.id}>
                 <TableCell
                   onClick={(event) => event.stopPropagation()}
                   onKeyDown={(event) => event.stopPropagation()}
@@ -141,7 +130,9 @@ export function ExceptionsPage() {
                 <TableCell>
                   {formatDate(row.transaction.transactionDateTime)}
                 </TableCell>
-                <TableCell>{row.transaction.counterpartyName || '—'}</TableCell>
+                <TableCell className="max-w-64 break-words">
+                  {row.transaction.counterpartyName || '—'}
+                </TableCell>
                 <TableCell className="tabular-nums">
                   {formatVND(row.transaction.amount)}
                 </TableCell>
@@ -153,6 +144,15 @@ export function ExceptionsPage() {
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => setSelected(row.transaction)}
+                  >
+                    Xử lý
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}

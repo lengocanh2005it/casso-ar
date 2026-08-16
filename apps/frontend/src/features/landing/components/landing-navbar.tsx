@@ -12,9 +12,12 @@ import { EASE_OUT } from '../motion-variants';
 
 function scrollToSection(href: string) {
   const id = href.replace('#', '');
-  document
-    .getElementById(id)
-    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById(id)?.scrollIntoView({
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 'auto'
+      : 'smooth',
+    block: 'start',
+  });
   window.history.replaceState(null, '', href);
 }
 
@@ -44,7 +47,7 @@ export function LandingNavbar() {
   return (
     <header
       className={cn(
-        'fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300',
+        'fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 motion-reduce:transition-none',
         scrolled
           ? 'border-b border-border/60 bg-background/85 shadow-sm backdrop-blur-xl'
           : 'bg-transparent',
@@ -101,7 +104,7 @@ export function LandingNavbar() {
                 className="md:hidden"
                 aria-label="Mở menu"
               >
-                <Menu className="size-4" />
+                <Menu aria-hidden="true" className="size-4" />
               </Button>
             </SheetTrigger>
             <SheetContent className="w-[min(100vw-2rem,20rem)] overscroll-contain">

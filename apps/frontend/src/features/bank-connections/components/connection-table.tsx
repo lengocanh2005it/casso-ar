@@ -71,8 +71,12 @@ export function ConnectionTable({
       <TableBody>
         {connections.map((connection) => (
           <TableRow key={connection.id}>
-            <TableCell className="font-medium">{connection.bankName}</TableCell>
-            <TableCell>{connection.accountNumber}</TableCell>
+            <TableCell className="max-w-48 break-words font-medium">
+              {connection.bankName}
+            </TableCell>
+            <TableCell className="max-w-56 break-all">
+              {connection.accountNumber}
+            </TableCell>
             <TableCell>
               <Badge
                 variant={connection.status === 'ACTIVE' ? 'default' : 'outline'}

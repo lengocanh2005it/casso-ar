@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
+import { Spinner } from '@/components/ui/spinner';
 import { apiRequest } from '@/lib/api-client';
 
 export function InviteAcceptPage() {
@@ -70,6 +71,7 @@ export function InviteAcceptPage() {
         <label className="block space-y-1">
           <span className="text-sm font-medium">Họ và tên</span>
           <input
+            name="name"
             required
             autoComplete="name"
             value={name}
@@ -82,6 +84,7 @@ export function InviteAcceptPage() {
           <span className="text-sm font-medium">Mật khẩu</span>
           <input
             type="password"
+            name="password"
             required
             minLength={8}
             autoComplete="new-password"
@@ -93,7 +96,13 @@ export function InviteAcceptPage() {
 
         <InlineFormError message={error} />
 
-        <Button type="submit" disabled={submitting} className="w-full">
+        <Button
+          type="submit"
+          disabled={submitting}
+          aria-busy={submitting}
+          className="w-full"
+        >
+          {submitting && <Spinner />}
           {submitting ? 'Đang xử lý…' : 'Tham gia'}
         </Button>
       </form>

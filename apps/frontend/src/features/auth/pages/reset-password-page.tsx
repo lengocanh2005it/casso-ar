@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
+import { Spinner } from '@/components/ui/spinner';
 import { apiRequest } from '@/lib/api-client';
 
 export function ResetPasswordPage() {
@@ -67,6 +68,7 @@ export function ResetPasswordPage() {
           <span className="text-sm font-medium">Mật khẩu mới</span>
           <input
             type="password"
+            name="newPassword"
             required
             minLength={8}
             autoComplete="new-password"
@@ -78,7 +80,13 @@ export function ResetPasswordPage() {
 
         <InlineFormError message={error} />
 
-        <Button type="submit" disabled={submitting} className="w-full">
+        <Button
+          type="submit"
+          disabled={submitting}
+          aria-busy={submitting}
+          className="w-full"
+        >
+          {submitting && <Spinner />}
           {submitting ? 'Đang xử lý…' : 'Đặt lại mật khẩu'}
         </Button>
       </form>

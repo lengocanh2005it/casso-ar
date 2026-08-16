@@ -66,9 +66,15 @@ export function EmailTemplatesTab() {
           </Button>
         )}
       </div>
-      {templatesQuery.isPending && <p>Đang tải mẫu email…</p>}
+      {templatesQuery.isPending && (
+        <p role="status" aria-live="polite">
+          Đang tải mẫu email…
+        </p>
+      )}
       {templatesQuery.isError && (
-        <p className="text-destructive">Không thể tải mẫu email.</p>
+        <p role="alert" aria-live="polite" className="text-destructive">
+          Không thể tải mẫu email.
+        </p>
       )}
       {templatesQuery.data && templatesQuery.data.length === 0 && (
         <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
@@ -88,8 +94,12 @@ export function EmailTemplatesTab() {
           <TableBody>
             {templatesQuery.data.map((template) => (
               <TableRow key={template.id}>
-                <TableCell className="font-medium">{template.name}</TableCell>
-                <TableCell>{template.subject}</TableCell>
+                <TableCell className="max-w-56 break-words font-medium">
+                  {template.name}
+                </TableCell>
+                <TableCell className="max-w-72 break-words">
+                  {template.subject}
+                </TableCell>
                 <TableCell>
                   {template.isDefault && <Badge>Mặc định</Badge>}
                 </TableCell>

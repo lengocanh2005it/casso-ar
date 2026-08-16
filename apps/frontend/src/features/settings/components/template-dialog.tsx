@@ -72,6 +72,8 @@ export function TemplateDialog({
           <Label className="space-y-1">
             <span>Tên mẫu</span>
             <Input
+              name="name"
+              autoComplete="off"
               value={name}
               disabled={Boolean(template)}
               onChange={(event) => setName(event.target.value)}
@@ -80,6 +82,8 @@ export function TemplateDialog({
           <Label className="space-y-1">
             <span>Tiêu đề</span>
             <Input
+              name="subject"
+              autoComplete="off"
               value={subject}
               onChange={(event) => setSubject(event.target.value)}
             />
@@ -87,6 +91,7 @@ export function TemplateDialog({
           <Label className="space-y-1">
             <span>Nội dung HTML</span>
             <Textarea
+              name="bodyHtml"
               rows={8}
               value={bodyHtml}
               onChange={(event) => setBodyHtml(event.target.value)}

@@ -50,15 +50,15 @@ export function Sidebar({
             aria-label={collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}
           >
             {collapsed ? (
-              <ChevronRight className="size-4" />
+              <ChevronRight aria-hidden="true" className="size-4" />
             ) : (
-              <ChevronLeft className="size-4" />
+              <ChevronLeft aria-hidden="true" className="size-4" />
             )}
           </button>
         )}
       </div>
 
-      <nav className="flex-1 space-y-1 px-2">
+      <nav aria-label="Điều hướng chính" className="flex-1 space-y-1 px-2">
         {navItems
           .filter(
             (item) =>
@@ -85,7 +85,7 @@ export function Sidebar({
                   )
                 }
               >
-                <Icon className="size-4 shrink-0" />
+                <Icon aria-hidden="true" className="size-4 shrink-0" />
                 {!collapsed && (
                   <span className="min-w-0 truncate">{item.label}</span>
                 )}
@@ -93,7 +93,10 @@ export function Sidebar({
                   <Badge count={badgeCount} />
                 )}
                 {!collapsed && locked && (
-                  <Lock className="ml-auto size-3.5 text-muted-foreground" />
+                  <Lock
+                    aria-hidden="true"
+                    className="ml-auto size-3.5 text-muted-foreground"
+                  />
                 )}
               </NavLink>
             );

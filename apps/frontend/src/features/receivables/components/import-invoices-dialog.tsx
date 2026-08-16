@@ -85,6 +85,7 @@ export function ImportInvoicesDialog() {
         {!result ? (
           <div className="space-y-3">
             <input
+              name="invoiceFile"
               aria-label="File hóa đơn"
               type="file"
               accept=".xlsx,.csv"

@@ -32,10 +32,12 @@ export function ReceivablePayments({ receivableId }: { receivableId: string }) {
       <TableBody>
         {allocations.map((allocation) => (
           <TableRow key={allocation.id}>
-            <TableCell>{allocation.paymentId}</TableCell>
+            <TableCell className="max-w-56 break-all">
+              {allocation.paymentId}
+            </TableCell>
             <TableCell>{formatVND(allocation.allocatedAmount)}</TableCell>
             <TableCell>{formatDate(allocation.allocatedAt)}</TableCell>
-            <TableCell>
+            <TableCell className="max-w-56 break-all">
               {allocation.allocatedByUserId === null
                 ? 'Tự động khớp'
                 : allocation.allocatedByUserId}

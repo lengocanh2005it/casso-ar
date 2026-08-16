@@ -17,6 +17,8 @@ import {
   VIEWPORT_ONCE,
 } from '../motion-variants';
 
+const numberFormatter = new Intl.NumberFormat('vi-VN');
+
 export function PricingSection() {
   const { data: plans, isError, isLoading } = usePlans();
   const reducedMotion = useReducedMotion();
@@ -50,9 +52,9 @@ export function PricingSection() {
               {plans?.map((plan) => {
                 const isHighlighted = plan.planId === PlanId.BUSINESS;
                 const quantitativeBullets = [
-                  `${plan.receivableMonthlyLimit.toLocaleString('vi-VN')} khoản phải thu/tháng`,
+                  `${numberFormatter.format(plan.receivableMonthlyLimit)} khoản phải thu/tháng`,
                   `${plan.bankConnectionLimit} kết nối ngân hàng`,
-                  `${plan.copilotChatMonthlyLimit.toLocaleString('vi-VN')} lượt hỏi đáp/tháng`,
+                  `${numberFormatter.format(plan.copilotChatMonthlyLimit)} lượt hỏi đáp/tháng`,
                 ];
                 const allFeatures = [
                   ...quantitativeBullets,

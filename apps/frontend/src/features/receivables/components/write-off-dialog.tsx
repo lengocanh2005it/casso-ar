@@ -36,7 +36,11 @@ export function WriteOffDialog({ receivableId }: { receivableId: string }) {
           thao tác này.
         </DialogDescription>
         {mutation.isError && (
-          <p className="text-sm text-destructive">
+          <p
+            role="alert"
+            aria-live="polite"
+            className="text-sm text-destructive"
+          >
             Không thể xóa nợ khoản phải thu.
           </p>
         )}

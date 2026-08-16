@@ -51,8 +51,10 @@ export function CustomerAgingFilters({
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Input
+        name="search"
+        autoComplete="off"
         aria-label="Tìm khách hàng"
-        placeholder="Tìm theo tên, mã số thuế hoặc số điện thoại"
+        placeholder="Tìm theo tên, mã số thuế hoặc số điện thoại…"
         value={search}
         onChange={(event) => onSearchChange(event.target.value)}
         className="max-w-lg"

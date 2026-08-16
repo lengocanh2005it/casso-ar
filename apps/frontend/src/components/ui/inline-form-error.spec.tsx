@@ -12,6 +12,7 @@ describe('InlineFormError', () => {
     render(<InlineFormError message="Email hoặc mật khẩu không đúng." />);
     const alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent('Email hoặc mật khẩu không đúng.');
+    expect(alert).toHaveAttribute('aria-live', 'polite');
     expect(alert).toHaveFocus();
   });
 });

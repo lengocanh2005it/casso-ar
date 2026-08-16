@@ -84,8 +84,10 @@ export function ConnectDialog() {
               Sau khi quét, nhập public token do Cas ID trả về.
             </p>
             <Input
+              name="publicToken"
+              autoComplete="off"
               aria-label="Public token"
-              placeholder="Public token"
+              placeholder="Public token…"
               value={publicToken}
               onChange={(event) => setPublicToken(event.target.value)}
             />

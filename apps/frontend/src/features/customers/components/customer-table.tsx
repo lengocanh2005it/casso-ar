@@ -32,7 +32,7 @@ export function CustomerTable({ customers }: { customers: Customer[] }) {
       <TableBody>
         {customers.map((customer) => (
           <TableRow key={customer.id}>
-            <TableCell>
+            <TableCell className="max-w-64 break-words">
               <Link
                 to={`/customers/${customer.id}`}
                 className="font-medium text-primary hover:underline"
@@ -40,7 +40,9 @@ export function CustomerTable({ customers }: { customers: Customer[] }) {
                 {customer.name}
               </Link>
             </TableCell>
-            <TableCell>{customer.taxCode ?? '—'}</TableCell>
+            <TableCell className="max-w-48 break-words">
+              {customer.taxCode ?? '—'}
+            </TableCell>
             <TableCell>{customer.defaultPaymentTermDays} ngày</TableCell>
             <TableCell>{formatDate(customer.createdAt)}</TableCell>
           </TableRow>

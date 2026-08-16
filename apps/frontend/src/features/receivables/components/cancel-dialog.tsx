@@ -36,7 +36,11 @@ export function CancelDialog({ receivableId }: { receivableId: string }) {
           chức năng Xóa nợ thay thế.
         </DialogDescription>
         {mutation.isError && (
-          <p className="text-sm text-destructive">
+          <p
+            role="alert"
+            aria-live="polite"
+            className="text-sm text-destructive"
+          >
             Không thể hủy khoản phải thu.
           </p>
         )}

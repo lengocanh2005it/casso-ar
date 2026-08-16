@@ -156,11 +156,19 @@ export function ReportsPage() {
   }
 
   if (summaryQuery.isPending || agingQuery.isPending) {
-    return <p>Đang tải báo cáo…</p>;
+    return (
+      <p role="status" aria-live="polite">
+        Đang tải báo cáo…
+      </p>
+    );
   }
 
   if (summaryQuery.isError || agingQuery.isError) {
-    return <p className="text-destructive">Không thể tải dữ liệu báo cáo.</p>;
+    return (
+      <p role="alert" aria-live="polite" className="text-destructive">
+        Không thể tải dữ liệu báo cáo.
+      </p>
+    );
   }
 
   if (!summaryQuery.data || !agingQuery.data) return null;
@@ -225,9 +233,13 @@ export function ReportsPage() {
             onSearchChange={setAgingSearch}
             onBucketChange={setAgingBucket}
           />
-          {customerAgingQuery.isPending && <p>Đang tải công nợ khách hàng…</p>}
+          {customerAgingQuery.isPending && (
+            <p role="status" aria-live="polite">
+              Đang tải công nợ khách hàng…
+            </p>
+          )}
           {customerAgingQuery.isError && (
-            <p className="text-destructive">
+            <p role="alert" aria-live="polite" className="text-destructive">
               Không thể tải báo cáo công nợ khách hàng.
             </p>
           )}
@@ -294,9 +306,15 @@ export function ReportsPage() {
           </Select>
         </CardHeader>
         <CardContent>
-          {trendQuery.isPending && <p>Đang tải xu hướng…</p>}
+          {trendQuery.isPending && (
+            <p role="status" aria-live="polite">
+              Đang tải xu hướng…
+            </p>
+          )}
           {trendQuery.isError && (
-            <p className="text-destructive">Không thể tải dữ liệu xu hướng.</p>
+            <p role="alert" aria-live="polite" className="text-destructive">
+              Không thể tải dữ liệu xu hướng.
+            </p>
           )}
           {trendQuery.data && (
             <Suspense fallback={<ChartLoadingFallback />}>

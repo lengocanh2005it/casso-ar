@@ -15,7 +15,10 @@ export function PendingReviewBanner({
       className="animate-banner-in motion-reduce:animate-none flex items-center justify-between gap-4 rounded-lg border border-primary/30 bg-accent px-4 py-3"
     >
       <div className="flex items-center gap-3">
-        <AlertTriangle className="size-5 shrink-0 text-primary" />
+        <AlertTriangle
+          aria-hidden="true"
+          className="size-5 shrink-0 text-primary"
+        />
         <p className="text-sm text-accent-foreground">
           <span className="font-semibold tabular-nums">{pendingCount}</span>{' '}
           giao dịch đang chờ đối soát.

@@ -53,7 +53,7 @@ export function SidebarFooter({ collapsed }: { collapsed: boolean }) {
         onClick={() => void handleLogout()}
         className="rounded-md p-1.5 hover:bg-sidebar-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
       >
-        <LogOut className="size-4" />
+        <LogOut aria-hidden="true" className="size-4" />
       </button>
     </div>
   );

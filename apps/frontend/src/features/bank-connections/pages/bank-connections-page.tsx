@@ -19,9 +19,15 @@ export function BankConnectionsPage() {
         </div>
         <ConnectDialog />
       </div>
-      {connectionsQuery.isPending && <p>Đang tải kết nối ngân hàng…</p>}
+      {connectionsQuery.isPending && (
+        <p role="status" aria-live="polite">
+          Đang tải kết nối ngân hàng…
+        </p>
+      )}
       {connectionsQuery.isError && (
-        <p className="text-destructive">Không thể tải kết nối ngân hàng.</p>
+        <p role="alert" aria-live="polite" className="text-destructive">
+          Không thể tải kết nối ngân hàng.
+        </p>
       )}
       {connectionsQuery.data && (
         <ConnectionTable connections={connectionsQuery.data.items} />

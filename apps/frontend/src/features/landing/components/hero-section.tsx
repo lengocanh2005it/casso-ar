@@ -13,9 +13,12 @@ const TYPEWRITER_OPTIONS = {
 
 function scrollToSection(href: string) {
   const id = href.replace('#', '');
-  document
-    .getElementById(id)
-    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById(id)?.scrollIntoView({
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 'auto'
+      : 'smooth',
+    block: 'start',
+  });
   window.history.replaceState(null, '', href);
 }
 

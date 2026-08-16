@@ -69,6 +69,8 @@ export function CreateReceivableDialog() {
           <Label className="block space-y-1">
             <span className="text-sm">Mã khách hàng</span>
             <Input
+              name="customerId"
+              autoComplete="off"
               required
               value={customerId}
               onChange={(event) => setCustomerId(event.target.value)}
@@ -78,6 +80,8 @@ export function CreateReceivableDialog() {
           <Label className="block space-y-1">
             <span className="text-sm">Số tiền (đồng)</span>
             <Input
+              name="originalAmount"
+              autoComplete="off"
               required
               type="number"
               min={1}
@@ -89,6 +93,8 @@ export function CreateReceivableDialog() {
           <Label className="block space-y-1">
             <span className="text-sm">Hạn thanh toán</span>
             <Input
+              name="dueDate"
+              autoComplete="off"
               required
               type="date"
               value={dueDate}
@@ -96,7 +102,11 @@ export function CreateReceivableDialog() {
             />
           </Label>
           {mutation.isError && (
-            <p className="text-sm text-destructive">
+            <p
+              role="alert"
+              aria-live="polite"
+              className="text-sm text-destructive"
+            >
               Không thể tạo khoản phải thu.
             </p>
           )}
