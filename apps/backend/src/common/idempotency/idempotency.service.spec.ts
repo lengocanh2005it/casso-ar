@@ -40,6 +40,45 @@ describe('canonicalize', () => {
 });
 
 describe('IdempotencyService', () => {
+  it('executes for an explicit organization without reading TenantContextService', async () => {
+    const repo = {
+      findOne: jest.fn().mockResolvedValue(null),
+      save: jest.fn(),
+    };
+    const manager = {
+      getRepository: jest.fn().mockReturnValue(repo),
+      update: jest.fn(),
+      delete: jest.fn(),
+    };
+    const dataSource = {
+      transaction: jest
+        .fn()
+        .mockImplementation(async (callback) => callback(manager)),
+    };
+    const tenant = new TenantContextService();
+    const getOrganizationId = jest.spyOn(tenant, 'getOrganizationId');
+    const service = new IdempotencyService(dataSource as any, tenant);
+
+    await expect(
+      service.executeForOrganization(
+        'org-explicit',
+        'POST /admin/invites/resend',
+        'key-1',
+        { inviteId: 'invite-1' },
+        jest.fn().mockResolvedValue({ ok: true }),
+      ),
+    ).resolves.toEqual({ ok: true });
+
+    expect(getOrganizationId).not.toHaveBeenCalled();
+    expect(repo.findOne).toHaveBeenCalledWith({
+      where: {
+        organizationId: 'org-explicit',
+        endpoint: 'POST /admin/invites/resend',
+        key: 'key-1',
+      },
+    });
+  });
+
   it('returns the stored response without running a repeated operation', async () => {
     let stored: Record<string, unknown> | null = null;
     const repo = {

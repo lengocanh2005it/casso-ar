@@ -36,13 +36,24 @@ export class IdempotencyService {
     input: unknown,
     operation: () => Promise<T>,
   ): Promise<T> {
-    if (!key?.trim()) {
-      throw new ConflictException({
-        errorCode: ErrorCode.VALIDATION_ERROR,
-        message: 'Vui lòng cung cấp Idempotency-Key.',
-      });
-    }
-    const organizationId = this.tenantContext.getOrganizationId();
+    this.validateKey(key);
+    return this.executeForOrganization(
+      this.tenantContext.getOrganizationId(),
+      endpoint,
+      key,
+      input,
+      operation,
+    );
+  }
+
+  async executeForOrganization<T>(
+    organizationId: string,
+    endpoint: string,
+    key: string | undefined,
+    input: unknown,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    this.validateKey(key);
     const requestHash = createHash('sha256')
       .update(canonicalize(input))
       .digest('hex');
@@ -68,9 +79,6 @@ export class IdempotencyService {
               message: 'Yêu cầu với Idempotency-Key này đang được xử lý.',
             });
           }
-          // PENDING row is stale (ADR-0015): the process that created it is
-          // presumed dead. Reclaim by deleting it and falling through to
-          // insert a fresh PENDING row below.
           await repo.delete({ id: found.id });
         }
         await repo.save({
@@ -87,7 +95,13 @@ export class IdempotencyService {
       });
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
-      return this.execute(endpoint, key, input, operation);
+      return this.executeForOrganization(
+        organizationId,
+        endpoint,
+        key,
+        input,
+        operation,
+      );
     }
     if (existing !== undefined) return existing;
 
@@ -111,6 +125,15 @@ export class IdempotencyService {
         });
       });
       throw error;
+    }
+  }
+
+  private validateKey(key: string | undefined): asserts key is string {
+    if (!key?.trim()) {
+      throw new ConflictException({
+        errorCode: ErrorCode.VALIDATION_ERROR,
+        message: 'Vui lòng cung cấp Idempotency-Key.',
+      });
     }
   }
 
