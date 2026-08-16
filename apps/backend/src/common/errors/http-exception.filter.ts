@@ -4,6 +4,7 @@ import {
   type ExceptionFilter,
   HttpException,
 } from '@nestjs/common';
+import { JsonLogger } from '../observability/json-logger.service';
 import { AppError } from './app-error';
 import { ErrorCode } from './error-code';
 import { STATUS_BY_ERROR_CODE } from './status-by-error-code';
@@ -15,12 +16,58 @@ interface ErrorEnvelope {
   details?: unknown;
 }
 
+interface RequestContext {
+  method?: string;
+  url?: string;
+}
+
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
+  constructor(private readonly logger: JsonLogger) {}
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse();
+    const request = host.switchToHttp().getRequest<RequestContext>();
     const envelope = this.toEnvelope(exception);
     response.status(envelope.statusCode).json(envelope);
+    this.logException(exception, envelope.statusCode, request);
+  }
+
+  private logException(
+    exception: unknown,
+    statusCode: number,
+    request: RequestContext,
+  ): void {
+    const path =
+      request?.method && request?.url
+        ? `${request.method} ${request.url}`
+        : undefined;
+
+    if (exception instanceof AppError) {
+      if (statusCode >= 500) {
+        this.logger.warn(
+          {
+            message: exception.message,
+            errorCode: exception.errorCode,
+            path,
+          },
+          HttpExceptionFilter.name,
+        );
+      }
+      return;
+    }
+
+    if (!(exception instanceof HttpException)) {
+      this.logger.error(
+        {
+          message: 'Unhandled exception',
+          errorCode: ErrorCode.INTERNAL_SERVER_ERROR,
+          path,
+        },
+        exception instanceof Error ? exception.stack : undefined,
+        HttpExceptionFilter.name,
+      );
+    }
   }
 
   private toEnvelope(exception: unknown): ErrorEnvelope {

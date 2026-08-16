@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { ErrorCode } from './common/errors/error-code';
 import { HttpExceptionFilter } from './common/errors/http-exception.filter';
+import { JsonLogger } from './common/observability/json-logger.service';
 
 /**
  * Global app setup (prefix + validation pipe) shared between the real
@@ -26,5 +27,5 @@ export function configureApp(app: INestApplication): void {
         }),
     }),
   );
-  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalFilters(new HttpExceptionFilter(app.get(JsonLogger)));
 }
