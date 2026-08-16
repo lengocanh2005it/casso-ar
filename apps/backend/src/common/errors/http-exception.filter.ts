@@ -38,45 +38,46 @@ export class HttpExceptionFilter implements ExceptionFilter {
     statusCode: number,
     request: RequestContext,
   ): void {
+    if (statusCode < 500) return;
+
     const path =
       request?.method && request?.url
         ? `${request.method} ${request.url}`
         : undefined;
+    const fields = {
+      path,
+      ...this.causeFields(this.causeOf(exception)),
+    };
 
     if (exception instanceof AppError) {
-      if (statusCode >= 500) {
-        this.logger.warn(
-          {
-            message: exception.message,
-            errorCode: exception.errorCode,
-            path,
-            ...this.causeFields(exception.cause),
-          },
-          HttpExceptionFilter.name,
-        );
-      }
+      this.logger.error(
+        {
+          message: exception.message,
+          errorCode: exception.errorCode,
+          ...fields,
+        },
+        undefined,
+        HttpExceptionFilter.name,
+      );
       return;
     }
 
-    if (!(exception instanceof HttpException)) {
-      this.logger.error(
-        {
-          message: 'Unhandled exception',
-          errorCode: ErrorCode.INTERNAL_SERVER_ERROR,
-          path,
-          ...this.causeFields(this.underlyingCause(exception)),
-        },
-        exception instanceof Error ? exception.stack : undefined,
-        HttpExceptionFilter.name,
-      );
-    }
+    this.logger.error(
+      {
+        message:
+          exception instanceof Error
+            ? exception.message
+            : 'Unhandled exception',
+        errorCode: ErrorCode.INTERNAL_SERVER_ERROR,
+        ...fields,
+      },
+      exception instanceof Error ? exception.stack : undefined,
+      HttpExceptionFilter.name,
+    );
   }
 
-  private underlyingCause(exception: unknown): unknown {
-    if (exception instanceof Error) {
-      return exception.cause;
-    }
-    return undefined;
+  private causeOf(exception: unknown): unknown {
+    return exception instanceof Error ? exception.cause : undefined;
   }
 
   private causeFields(cause: unknown): Record<string, unknown> {

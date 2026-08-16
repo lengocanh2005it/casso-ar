@@ -10,4 +10,13 @@ export class AppError extends Error {
     super(message, options);
     this.name = 'AppError';
   }
+
+  static withCause(
+    cause: unknown,
+    errorCode: ErrorCode,
+    message: string,
+    details?: unknown,
+  ): AppError {
+    return new AppError(errorCode, message, details, { cause });
+  }
 }

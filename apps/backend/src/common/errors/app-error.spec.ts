@@ -29,6 +29,22 @@ describe('AppError', () => {
     expect(error.cause).toBe(original);
   });
 
+  it('withCause builds an AppError carrying the original error and details', () => {
+    const original = new Error('resend API rejected the recipient');
+    const error = AppError.withCause(
+      original,
+      ErrorCode.EMAIL_SEND_FAILED,
+      'Gửi email thất bại.',
+      { recipient: 'a@b.com' },
+    );
+
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.errorCode).toBe(ErrorCode.EMAIL_SEND_FAILED);
+    expect(error.message).toBe('Gửi email thất bại.');
+    expect(error.cause).toBe(original);
+    expect(error.details).toEqual({ recipient: 'a@b.com' });
+  });
+
   it('leaves cause undefined when none is provided', () => {
     const error = new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy.');
 

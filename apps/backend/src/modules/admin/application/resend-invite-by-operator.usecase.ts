@@ -112,11 +112,10 @@ export class ResendInviteByOperatorUseCase {
         organization.name,
       );
     } catch (error) {
-      throw new AppError(
+      throw AppError.withCause(
+        error,
         ErrorCode.EMAIL_SEND_FAILED,
         'Gửi email thất bại.',
-        undefined,
-        { cause: error },
       );
     }
   }

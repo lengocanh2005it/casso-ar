@@ -1,5 +1,6 @@
 import {
   type ArgumentsHost,
+  BadGatewayException,
   BadRequestException,
   ForbiddenException,
   UnauthorizedException,
@@ -154,14 +155,14 @@ describe('HttpExceptionFilter', () => {
     }
   });
 
-  it('logs unexpected exceptions at error level with request path and stack', () => {
+  it('logs unexpected exceptions at error level with real message, request path, and stack', () => {
     const unexpected = new Error('database connection refused');
     const { logger } = captureResponse(unexpected);
 
     expect(logger.error).toHaveBeenCalledTimes(1);
     const [message, trace, context] = logger.error.mock.calls[0];
     expect(message).toMatchObject({
-      message: 'Unhandled exception',
+      message: 'database connection refused',
       errorCode: ErrorCode.INTERNAL_SERVER_ERROR,
       path: 'GET /api/v1/receivables',
     });
@@ -169,17 +170,16 @@ describe('HttpExceptionFilter', () => {
     expect(context).toBe(HttpExceptionFilter.name);
   });
 
-  it('logs AppError mapped to a 5xx status at warn level with error code', () => {
+  it('logs AppError mapped to a 5xx status at error level with error code', () => {
     const { logger } = captureResponse(
       new AppError(ErrorCode.EMAIL_SEND_FAILED, 'Gửi email thất bại.'),
     );
 
-    expect(logger.warn).toHaveBeenCalledTimes(1);
-    expect(logger.warn.mock.calls[0][0]).toMatchObject({
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error.mock.calls[0][0]).toMatchObject({
       message: 'Gửi email thất bại.',
       errorCode: ErrorCode.EMAIL_SEND_FAILED,
     });
-    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it('logs the original cause alongside a 5xx AppError', () => {
@@ -193,8 +193,8 @@ describe('HttpExceptionFilter', () => {
       ),
     );
 
-    expect(logger.warn).toHaveBeenCalledTimes(1);
-    expect(logger.warn.mock.calls[0][0]).toMatchObject({
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error.mock.calls[0][0]).toMatchObject({
       errorCode: ErrorCode.EMAIL_SEND_FAILED,
       cause: original.message,
       causeName: 'Error',
@@ -213,6 +213,18 @@ describe('HttpExceptionFilter', () => {
       cause: original.message,
       causeName: 'Error',
     });
+  });
+
+  it('logs 5xx HttpExceptions at error level', () => {
+    const upstream = new BadGatewayException();
+    const { logger } = captureResponse(upstream);
+
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error.mock.calls[0][0]).toMatchObject({
+      message: 'Bad Gateway',
+      errorCode: ErrorCode.INTERNAL_SERVER_ERROR,
+    });
+    expect(logger.error.mock.calls[0][1]).toBe(upstream.stack);
   });
 
   it('does not log AppError mapped to a non-5xx status', () => {
