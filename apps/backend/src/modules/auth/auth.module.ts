@@ -113,6 +113,10 @@ import { InvitesController } from './presentation/invites.controller';
     { provide: TOKEN_SIGNER, useClass: JwtTokenSigner },
   ],
   controllers: [AuthController, InvitesController],
-  exports: [AUTH_EMAIL_SENDER, MEMBER_NOTIFICATION_SENDER],
+  exports: [
+    AUTH_EMAIL_SENDER,
+    MEMBER_NOTIFICATION_SENDER,
+    MEMBERSHIP_INVITE_REPOSITORY,
+  ],
 })
 export class AuthModule {}

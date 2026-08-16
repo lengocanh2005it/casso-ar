@@ -109,6 +109,28 @@ describe('AdminOrganizationsPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('links each organization row to its members page', async () => {
+    vi.mocked(adminApi.listOrganizations).mockResolvedValue({
+      items: [
+        {
+          id: 'org-1',
+          name: 'Acme',
+          status: 'ACTIVE',
+          createdAt: '2026-08-01T00:00:00.000Z',
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 100,
+    });
+
+    renderPage();
+
+    expect(
+      await screen.findByRole('link', { name: 'Thành viên' }),
+    ).toHaveAttribute('href', '/admin/organizations/org-1/members');
+  });
+
   it('paginates organizations through the URL without loading more than 50 rows', async () => {
     vi.mocked(adminApi.listOrganizations)
       .mockResolvedValueOnce({

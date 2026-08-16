@@ -1,6 +1,46 @@
+import { Organization } from '../../organizations/domain/organization';
 import { AdminController } from './admin.controller';
 
 describe('AdminController', () => {
+  describe('organization detail endpoint', () => {
+    it('maps the domain organization into the response DTO', async () => {
+      const getOrganizationUseCase = {
+        execute: jest.fn().mockResolvedValue(
+          new Organization({
+            id: 'org-1',
+            name: 'Acme',
+            createdAt: new Date('2026-08-01'),
+          }),
+        ),
+      };
+      const controller = new AdminController(
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        {} as never,
+        getOrganizationUseCase as never,
+        {} as never,
+        {} as never,
+      );
+
+      const result = await controller.getOrganization('org-1');
+
+      expect(result).toEqual({
+        id: 'org-1',
+        name: 'Acme',
+        status: 'ACTIVE',
+        createdAt: new Date('2026-08-01'),
+      });
+      expect(result).not.toBeInstanceOf(Organization);
+      expect(getOrganizationUseCase.execute).toHaveBeenCalledWith({
+        organizationId: 'org-1',
+      });
+    });
+  });
+
   describe('date-only "to" range handling', () => {
     const getAiUsageAggregateUseCase = {
       execute: jest.fn().mockResolvedValue([]),
@@ -14,6 +54,8 @@ describe('AdminController', () => {
       {} as never,
       getAiUsageAggregateUseCase as never,
       getAiUsageTrendUseCase as never,
+      {} as never,
+      {} as never,
       {} as never,
     );
 

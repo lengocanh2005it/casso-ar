@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -11,6 +12,7 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
 import { hashPassword } from '../src/modules/auth/application/password-hasher';
+import { MembershipInviteOrmEntity } from '../src/modules/auth/infrastructure/membership-invite.orm-entity';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
 import { OrganizationOrmEntity } from '../src/modules/organizations/infrastructure/organization.orm-entity';
@@ -223,5 +225,138 @@ describe('Admin (e2e)', () => {
       .get('/api/v1/admin/ai-usage')
       .set('Authorization', `Bearer ${operatorToken}`)
       .expect(400);
+  });
+
+  describe('organization member reads', () => {
+    const secondMemberId = '55555555-5555-5555-5555-555555555555';
+    const secondMembershipId = '66666666-6666-6666-6666-666666666666';
+    const inviteId = '77777777-7777-7777-7777-777777777777';
+
+    beforeAll(async () => {
+      await dataSource.getRepository(UserOrmEntity).save({
+        id: secondMemberId,
+        name: 'Second Member',
+        email: 'second-member-admin-e2e@casso.vn',
+        passwordHash: await hashPassword('Password123!'),
+        emailVerifiedAt: new Date(),
+        isOperator: false,
+        createdAt: new Date(),
+      });
+      await dataSource.getRepository(MembershipOrmEntity).save({
+        id: secondMembershipId,
+        organizationId,
+        userId: secondMemberId,
+        role: Role.VIEWER,
+        invitedAt: new Date(),
+        joinedAt: new Date(),
+        status: 'ACTIVE',
+        createdAt: new Date(),
+      });
+      await dataSource.getRepository(MembershipInviteOrmEntity).save({
+        id: inviteId,
+        organizationId,
+        email: 'expired-invite-admin-e2e@casso.vn',
+        role: Role.VIEWER,
+        invitedByUserId: operatorId,
+        tokenHash: `e2e-invite-${randomUUID()}`,
+        expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        acceptedAt: null,
+        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      });
+    });
+
+    it('returns organization detail', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/api/v1/admin/organizations/${organizationId}`)
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .expect(200);
+
+      expect(response.body).toMatchObject({
+        id: organizationId,
+        name: 'Acme',
+        status: 'ACTIVE',
+      });
+      expect(response.body.createdAt).toBeDefined();
+    });
+
+    it('returns members and pending invites for the ALL filter', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/api/v1/admin/organizations/${organizationId}/members`)
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .expect(200);
+
+      expect(response.body.members.total).toBe(2);
+      expect(response.body.members.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            userId: '33333333-3333-3333-3333-333333333333',
+          }),
+          expect.objectContaining({ userId: secondMemberId }),
+        ]),
+      );
+      expect(response.body.pendingInvites.total).toBe(1);
+      expect(response.body.pendingInvites.items[0]).toMatchObject({
+        id: inviteId,
+        email: 'expired-invite-admin-e2e@casso.vn',
+        role: Role.VIEWER,
+      });
+    });
+
+    it('includes an expired pending invite for the PENDING filter', async () => {
+      const response = await request(app.getHttpServer())
+        .get(
+          `/api/v1/admin/organizations/${organizationId}/members?status=PENDING`,
+        )
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .expect(200);
+
+      expect(response.body.members.items).toEqual([]);
+      expect(response.body.pendingInvites.items).toEqual([
+        expect.objectContaining({ id: inviteId }),
+      ]);
+    });
+
+    it('returns only blocked members for the BLOCKED filter', async () => {
+      await request(app.getHttpServer())
+        .post(
+          `/api/v1/admin/organizations/${organizationId}/members/${secondMemberId}/block`,
+        )
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .expect(200);
+
+      const response = await request(app.getHttpServer())
+        .get(
+          `/api/v1/admin/organizations/${organizationId}/members?status=BLOCKED`,
+        )
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .expect(200);
+
+      expect(response.body.members.total).toBe(1);
+      expect(response.body.members.items[0]).toMatchObject({
+        userId: secondMemberId,
+        status: 'BLOCKED',
+      });
+      expect(response.body.pendingInvites.items).toEqual([]);
+    });
+
+    it('returns 404 for a missing organization', async () => {
+      await request(app.getHttpServer())
+        .get(`/api/v1/admin/organizations/${randomUUID()}`)
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .expect(404);
+      await request(app.getHttpServer())
+        .get(`/api/v1/admin/organizations/${randomUUID()}/members`)
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .expect(404);
+    });
+
+    it('rejects detail and member reads without an operator token', async () => {
+      await request(app.getHttpServer())
+        .get(`/api/v1/admin/organizations/${organizationId}`)
+        .expect(401);
+      await request(app.getHttpServer())
+        .get(`/api/v1/admin/organizations/${organizationId}/members`)
+        .expect(401);
+    });
   });
 });

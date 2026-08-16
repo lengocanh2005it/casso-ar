@@ -1,4 +1,5 @@
 import type { Repository } from 'typeorm';
+import { FindOperator, ILike, IsNull } from 'typeorm';
 import { MembershipInviteOrmEntity } from './membership-invite.orm-entity';
 import { TypeOrmMembershipInviteRepository } from './typeorm-membership-invite.repository';
 
@@ -53,5 +54,42 @@ describe('TypeOrmMembershipInviteRepository', () => {
       },
     ]);
     expect(result[0]).not.toHaveProperty('tokenHash');
+  });
+
+  describe('pending invite search', () => {
+    it('searches pending invites by email with an escaped, case-insensitive pattern', async () => {
+      const find = jest.fn().mockResolvedValue([]);
+      const repository = {
+        find,
+      } as unknown as Repository<MembershipInviteOrmEntity>;
+      const sut = new TypeOrmMembershipInviteRepository(repository);
+
+      await sut.findPendingPageByOrganization('org-1', 1, 20, '  a%b  ');
+
+      const { where } = find.mock.calls[0][0];
+      expect(where).toMatchObject({
+        organizationId: 'org-1',
+        acceptedAt: expect.anything(),
+      });
+      expect(where.email).toBeInstanceOf(FindOperator);
+      expect((where.email as FindOperator<string>).value).toBe('%a\\%b%');
+    });
+
+    it('counts pending invites with an optional email search', async () => {
+      const count = jest.fn().mockResolvedValue(0);
+      const repository = {
+        count,
+      } as unknown as Repository<MembershipInviteOrmEntity>;
+      const sut = new TypeOrmMembershipInviteRepository(repository);
+
+      await sut.countPendingByOrganization('org-1', 'acme');
+
+      const { where } = count.mock.calls[0][0];
+      expect(where).toMatchObject({
+        organizationId: 'org-1',
+        acceptedAt: expect.anything(),
+      });
+      expect(where.email).toEqual(ILike('%acme%'));
+    });
   });
 });

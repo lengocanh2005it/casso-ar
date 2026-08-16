@@ -762,13 +762,13 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Frontier
 
-**Current status (2026-08-15):** Casso Admin Platform (#98) shipped via PR #177. Copilot Draft Library (#136), its edit/delete follow-up (#171), Receivable Balance History (#172), member-level block/unblock (#178), Receivable Balance History Audit Dashboard (#176), and the org-facing half of #181 (member block/unblock UI) via PR #185 are done. Its Admin Platform half is tracked in #186. Public Landing Page (#143) shipped via PR #188. Three unrelated e2e failures are deferred to a separate issue.
+**Current status (2026-08-15):** Casso Admin Platform (#98) shipped via PR #177. Copilot Draft Library (#136), its edit/delete follow-up (#171), Receivable Balance History (#172), member-level block/unblock (#178), Receivable Balance History Audit Dashboard (#176), and the org-facing half of #181 (member block/unblock UI) via PR #185 are done. Its Admin Platform half is now in progress in #186. Public Landing Page (#143) shipped via PR #188. Three unrelated e2e failures are deferred to a separate issue.
 
 **In progress:**
-- None.
+- #186 (Admin Platform — Operator block/unblock UI, including organization detail, members/pending invites list, search, and status filtering).
 
 **Next available tickets** (all blockers resolved):
-- #186 (Admin Platform — Operator block/unblock UI, surface 2 of #181, including a members-per-org view that doesn't exist yet).
+- None.
 
 **Blocked tickets waiting:**
 - None.

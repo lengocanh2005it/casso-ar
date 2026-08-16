@@ -1,3 +1,4 @@
+import type { Role } from '@casso-ledger/shared-types';
 import { apiRequest, authTokenManager } from '@/lib/api-client';
 
 export interface OrganizationListItem {
@@ -5,6 +6,41 @@ export interface OrganizationListItem {
   name: string;
   status: 'ACTIVE' | 'LOCKED';
   createdAt: string;
+}
+
+export type AdminMemberStatus = 'ACTIVE' | 'BLOCKED';
+
+export type AdminMemberStatusFilter = 'ALL' | 'ACTIVE' | 'BLOCKED' | 'PENDING';
+
+export interface AdminMemberItem {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  role: Role;
+  joinedAt: string | null;
+  status: AdminMemberStatus;
+  blockedAt: string | null;
+}
+
+export interface AdminPendingInviteItem {
+  id: string;
+  email: string;
+  role: Role;
+  invitedAt: string;
+  expiresAt: string;
+}
+
+export interface AdminMembersPage<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface AdminOrganizationMembersResponse {
+  members: AdminMembersPage<AdminMemberItem>;
+  pendingInvites: AdminMembersPage<AdminPendingInviteItem>;
 }
 
 export interface AiUsageAggregateItem {
@@ -47,6 +83,61 @@ export function listOrganizations(
     url: '/api/v1/admin/organizations',
     method: 'GET',
     params: { page, limit },
+  });
+}
+
+export function getAdminOrganization(
+  id: string,
+): Promise<OrganizationListItem> {
+  return apiRequest({
+    url: `/api/v1/admin/organizations/${id}`,
+    method: 'GET',
+  });
+}
+
+export function listOrganizationMembers(
+  organizationId: string,
+  params: {
+    page: number;
+    limit: number;
+    status: AdminMemberStatusFilter;
+    search: string;
+  },
+): Promise<AdminOrganizationMembersResponse> {
+  return apiRequest({
+    url: `/api/v1/admin/organizations/${organizationId}/members`,
+    method: 'GET',
+    params,
+  });
+}
+
+export function blockOrganizationMember(
+  organizationId: string,
+  userId: string,
+): Promise<{
+  id: string;
+  userId: string;
+  status: AdminMemberStatus;
+  blockedAt: string | null;
+}> {
+  return apiRequest({
+    url: `/api/v1/admin/organizations/${organizationId}/members/${userId}/block`,
+    method: 'POST',
+  });
+}
+
+export function unblockOrganizationMember(
+  organizationId: string,
+  userId: string,
+): Promise<{
+  id: string;
+  userId: string;
+  status: AdminMemberStatus;
+  blockedAt: string | null;
+}> {
+  return apiRequest({
+    url: `/api/v1/admin/organizations/${organizationId}/members/${userId}/unblock`,
+    method: 'POST',
   });
 }
 

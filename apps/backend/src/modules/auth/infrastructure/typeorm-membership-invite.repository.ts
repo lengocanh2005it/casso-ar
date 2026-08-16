@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { EntityManager, Repository } from 'typeorm';
-import { IsNull } from 'typeorm';
+import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
+import { ILike, IsNull } from 'typeorm';
+import { toLikePattern } from '../../../common/database/like-pattern';
 import type { IMembershipInviteRepository } from '../application/membership-invite-repository.port';
 import {
   MembershipInvite,
@@ -53,9 +54,10 @@ export class TypeOrmMembershipInviteRepository
     organizationId: string,
     page: number,
     limit: number,
+    search?: string,
   ): Promise<PendingInviteSummary[]> {
     const rows = await this.repo.find({
-      where: { organizationId, acceptedAt: IsNull() },
+      where: this.buildPendingWhere(organizationId, search),
       select: {
         id: true,
         email: true,
@@ -76,7 +78,24 @@ export class TypeOrmMembershipInviteRepository
     }));
   }
 
-  async countPendingByOrganization(organizationId: string): Promise<number> {
-    return this.repo.count({ where: { organizationId, acceptedAt: IsNull() } });
+  async countPendingByOrganization(
+    organizationId: string,
+    search?: string,
+  ): Promise<number> {
+    return this.repo.count({
+      where: this.buildPendingWhere(organizationId, search),
+    });
+  }
+
+  private buildPendingWhere(
+    organizationId: string,
+    search?: string,
+  ): FindOptionsWhere<MembershipInviteOrmEntity> {
+    const term = search?.trim();
+    return {
+      organizationId,
+      acceptedAt: IsNull(),
+      ...(term ? { email: ILike(toLikePattern(term)) } : {}),
+    };
   }
 }
