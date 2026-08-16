@@ -3,6 +3,7 @@ import type {
   MembershipStatus,
   Role,
 } from '../../../organizations/domain/membership';
+import type { Organization } from '../../../organizations/domain/organization';
 
 export class AdminOrganizationItemResponseDto {
   @ApiProperty()
@@ -16,6 +17,17 @@ export class AdminOrganizationItemResponseDto {
 
   @ApiProperty()
   createdAt: Date;
+}
+
+export function toAdminOrganizationItemResponse(
+  organization: Organization,
+): AdminOrganizationItemResponseDto {
+  return {
+    id: organization.id,
+    name: organization.name,
+    status: organization.status,
+    createdAt: organization.createdAt,
+  };
 }
 
 export class AdminOrganizationsResponseDto {

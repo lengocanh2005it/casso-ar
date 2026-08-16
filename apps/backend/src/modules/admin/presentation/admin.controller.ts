@@ -49,6 +49,7 @@ import {
   AdminOrganizationItemResponseDto,
   AdminOrganizationStatusResponseDto,
   AdminOrganizationsResponseDto,
+  toAdminOrganizationItemResponse,
 } from './dto/admin-response.dto';
 import { GetAiUsageQueryDto } from './dto/get-ai-usage-query.dto';
 
@@ -100,7 +101,10 @@ export class AdminController {
     ErrorCode.NOT_FOUND,
   )
   async getOrganization(@Param('id', ParseUUIDPipe) id: string) {
-    return this.getOrganizationUseCase.execute({ organizationId: id });
+    const organization = await this.getOrganizationUseCase.execute({
+      organizationId: id,
+    });
+    return toAdminOrganizationItemResponse(organization);
   }
 
   @Post('organizations/:id/lock')
