@@ -42,15 +42,38 @@ function buildDeps() {
         new Map([['user-1', { name: 'Nguyen Van A', email: 'a@casso.vn' }]]),
       ),
   };
+  const organizationRepo = {
+    findById: jest.fn().mockResolvedValue({ id: 'org-1' }),
+  };
   const useCase = new ListOrganizationMembersUseCase(
     membershipRepo as never,
     inviteRepo as never,
     userRepo as never,
+    organizationRepo as never,
   );
-  return { membershipRepo, inviteRepo, userRepo, useCase };
+  return { membershipRepo, inviteRepo, userRepo, organizationRepo, useCase };
 }
 
 describe('ListOrganizationMembersUseCase', () => {
+  it('throws NOT_FOUND when the organization does not exist', async () => {
+    const { membershipRepo, inviteRepo, userRepo, organizationRepo, useCase } =
+      buildDeps();
+    organizationRepo.findById.mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({
+        organizationId: 'org-1',
+        page: 1,
+        limit: 20,
+        status: 'ALL',
+      }),
+    ).rejects.toMatchObject({ errorCode: 'NOT_FOUND' });
+
+    expect(membershipRepo.findPageByOrganization).not.toHaveBeenCalled();
+    expect(inviteRepo.findPendingPageByOrganization).not.toHaveBeenCalled();
+    expect(userRepo.findByIds).not.toHaveBeenCalled();
+  });
+
   it('reads members and pending invites for ALL and batches user lookup', async () => {
     const { membershipRepo, inviteRepo, userRepo, useCase } = buildDeps();
 

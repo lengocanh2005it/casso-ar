@@ -344,6 +344,10 @@ describe('Admin (e2e)', () => {
         .get(`/api/v1/admin/organizations/${randomUUID()}`)
         .set('Authorization', `Bearer ${operatorToken}`)
         .expect(404);
+      await request(app.getHttpServer())
+        .get(`/api/v1/admin/organizations/${randomUUID()}/members`)
+        .set('Authorization', `Bearer ${operatorToken}`)
+        .expect(404);
     });
 
     it('rejects detail and member reads without an operator token', async () => {

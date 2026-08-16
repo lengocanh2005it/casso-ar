@@ -1,4 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import {
   type IMembershipInviteRepository,
   MEMBERSHIP_INVITE_REPOSITORY,
@@ -8,6 +10,10 @@ import {
   MEMBERSHIP_REPOSITORY,
   type MembershipListFilters,
 } from '../../organizations/application/membership-repository.port';
+import {
+  type IOrganizationRepository,
+  ORGANIZATION_REPOSITORY,
+} from '../../organizations/application/organization-repository.port';
 import type {
   MembershipStatus,
   Role,
@@ -66,6 +72,8 @@ export class ListOrganizationMembersUseCase {
     private readonly inviteRepo: IMembershipInviteRepository,
     @Inject(USER_REPOSITORY)
     private readonly userRepo: IUserRepository,
+    @Inject(ORGANIZATION_REPOSITORY)
+    private readonly organizationRepo: IOrganizationRepository,
   ) {}
 
   async execute(
@@ -73,6 +81,11 @@ export class ListOrganizationMembersUseCase {
   ): Promise<ListOrganizationMembersResult> {
     const search = input.search?.trim() || undefined;
     const { organizationId, page, limit, status } = input;
+
+    const organization = await this.organizationRepo.findById(organizationId);
+    if (!organization) {
+      throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy tổ chức.');
+    }
 
     const readMembers =
       status === 'ALL' || status === 'ACTIVE' || status === 'BLOCKED';
