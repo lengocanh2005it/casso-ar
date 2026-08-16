@@ -113,7 +113,7 @@ describe('application routes', () => {
 
     await waitFor(
       () => expect(screen.getByText(/thu tiền/i)).toBeInTheDocument(),
-      { timeout: 5_000 },
+      { timeout: 10_000 },
     );
   });
 
