@@ -32,6 +32,18 @@ export class TypeOrmMembershipInviteRepository
     return row ? new MembershipInvite(row) : null;
   }
 
+  async findByIdForUpdate(
+    id: string,
+    organizationId: string,
+    manager: EntityManager,
+  ): Promise<MembershipInvite | null> {
+    const row = await manager.getRepository(MembershipInviteOrmEntity).findOne({
+      where: { id, organizationId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    return row ? new MembershipInvite(row) : null;
+  }
+
   async save(invite: MembershipInvite, manager?: EntityManager): Promise<void> {
     await (manager
       ? manager.getRepository(MembershipInviteOrmEntity)

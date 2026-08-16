@@ -4,6 +4,32 @@ import { MembershipInviteOrmEntity } from './membership-invite.orm-entity';
 import { TypeOrmMembershipInviteRepository } from './typeorm-membership-invite.repository';
 
 describe('TypeOrmMembershipInviteRepository', () => {
+  it('finds an invite by organization with a pessimistic write lock', async () => {
+    const findOne = jest.fn().mockResolvedValue({
+      id: 'invite-1',
+      organizationId: 'org-1',
+      acceptedAt: null,
+    });
+    const managerRepository = { findOne };
+    const manager = {
+      getRepository: jest.fn().mockReturnValue(managerRepository),
+    };
+    const repository = {
+      findOne: jest.fn(),
+    } as unknown as Repository<MembershipInviteOrmEntity>;
+    const sut = new TypeOrmMembershipInviteRepository(repository);
+
+    await sut.findByIdForUpdate('invite-1', 'org-1', manager as any);
+
+    expect(manager.getRepository).toHaveBeenCalledWith(
+      MembershipInviteOrmEntity,
+    );
+    expect(findOne).toHaveBeenCalledWith({
+      where: { id: 'invite-1', organizationId: 'org-1' },
+      lock: { mode: 'pessimistic_write' },
+    });
+  });
+
   it('selects only fields needed for pending invite responses', async () => {
     const find = jest.fn().mockResolvedValue([]);
     const repository = {

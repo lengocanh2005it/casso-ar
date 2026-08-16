@@ -10,6 +10,11 @@ export interface IMembershipInviteRepository {
     id: string,
     organizationId: string,
   ): Promise<MembershipInvite | null>;
+  findByIdForUpdate(
+    id: string,
+    organizationId: string,
+    manager: EntityManager,
+  ): Promise<MembershipInvite | null>;
   save(invite: MembershipInvite, manager?: EntityManager): Promise<void>;
   delete(
     id: string,
