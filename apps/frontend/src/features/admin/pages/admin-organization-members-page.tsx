@@ -420,6 +420,9 @@ export function AdminOrganizationMembersPage() {
               {pendingInvites?.items.map((invite) => {
                 const isExpired =
                   new Date(invite.expiresAt).getTime() < Date.now();
+                const isActive = activeInviteId === invite.id;
+                const isResending = isActive && resendInvite.isPending;
+                const isRevoking = isActive && revokeInvite.isPending;
                 return (
                   <TableRow key={invite.id}>
                     <TableCell>
@@ -448,25 +451,28 @@ export function AdminOrganizationMembersPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          disabled={activeInviteId === invite.id}
+                          disabled={isActive}
+                          aria-busy={isResending}
                           onClick={() => void handleResendInvite(invite.id)}
                         >
-                          Gửi lại
+                          {isResending ? 'Đang gửi lại…' : 'Gửi lại'}
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
                               variant="destructive"
                               size="sm"
-                              disabled={activeInviteId === invite.id}
+                              disabled={isActive}
+                              aria-busy={isRevoking}
                             >
-                              Thu hồi
+                              {isRevoking ? 'Đang thu hồi…' : 'Thu hồi'}
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>
-                                Thu hồi lời mời này?
+                                Thu hồi lời mời tới{' '}
+                                <span translate="no">{invite.email}</span>?
                               </AlertDialogTitle>
                               <AlertDialogDescription>
                                 Lời mời sẽ mất hiệu lực và không thể được chấp
@@ -476,7 +482,7 @@ export function AdminOrganizationMembersPage() {
                             <AlertDialogFooter>
                               <AlertDialogCancel>Hủy</AlertDialogCancel>
                               <AlertDialogAction
-                                disabled={activeInviteId === invite.id}
+                                disabled={isActive}
                                 onClick={() =>
                                   void handleRevokeInvite(invite.id)
                                 }

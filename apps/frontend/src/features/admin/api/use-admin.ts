@@ -139,7 +139,7 @@ export function useResendOrganizationInvite() {
         queryKey: adminOrganizationMembersQueryKey,
       });
     },
-    onError: () => toast.error('Không thể gửi lại lời mời.'),
+    onError: () => toast.error('Không thể gửi lại lời mời. Vui lòng thử lại.'),
   });
 }
 
@@ -160,6 +160,6 @@ export function useRevokeOrganizationInvite() {
         queryKey: adminOrganizationMembersQueryKey,
       });
     },
-    onError: () => toast.error('Không thể thu hồi lời mời.'),
+    onError: () => toast.error('Không thể thu hồi lời mời. Vui lòng thử lại.'),
   });
 }
