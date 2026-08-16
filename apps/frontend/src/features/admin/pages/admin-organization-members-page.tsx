@@ -1,5 +1,5 @@
 import type { Role } from '@casso-ledger/shared-types';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertDialog,
@@ -43,6 +43,7 @@ import {
 import { BreakerSwitch } from '../components/breaker-switch';
 
 const MEMBER_PAGE_SIZE = 50;
+const SEARCH_DEBOUNCE_MS = 300;
 const dateFormatter = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' });
 
 const STATUS_OPTIONS: { value: AdminMemberStatusFilter; label: string }[] = [
@@ -85,6 +86,26 @@ export function AdminOrganizationMembersPage() {
   const blockMember = useBlockOrganizationMember();
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState(search);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, []);
+
+  function handleSearchChange(value: string) {
+    setSearchInput(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setFilters(status, value);
+    }, SEARCH_DEBOUNCE_MS);
+  }
 
   function setFilters(nextStatus: AdminMemberStatusFilter, nextSearch: string) {
     setSearchParams((current) => {
@@ -159,7 +180,7 @@ export function AdminOrganizationMembersPage() {
       <header>
         <Link
           to="/admin/organizations"
-          className="text-sm text-muted-foreground hover:text-foreground"
+          className="rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           ← Organizations
         </Link>
@@ -189,17 +210,21 @@ export function AdminOrganizationMembersPage() {
           <Label htmlFor="member-search">Tìm tên hoặc email</Label>
           <Input
             id="member-search"
-            value={search}
-            placeholder="Tìm tên hoặc email"
+            name="member-search"
+            value={searchInput}
+            autoComplete="off"
+            placeholder="VD: tên hoặc email…"
             className="w-64"
-            onChange={(event) => setFilters(status, event.target.value)}
+            onChange={(event) => handleSearchChange(event.target.value)}
           />
         </div>
         <div>
           <Label>Trạng thái thành viên</Label>
           <Select
             value={status}
-            onValueChange={(next) => setFilters(normalizeStatus(next), search)}
+            onValueChange={(next) =>
+              setFilters(normalizeStatus(next), searchInput)
+            }
           >
             <SelectTrigger aria-label="Trạng thái thành viên">
               <SelectValue>{selectedStatusLabel}</SelectValue>
@@ -264,8 +289,23 @@ export function AdminOrganizationMembersPage() {
                 const isBlocked = member.status === 'BLOCKED';
                 return (
                   <TableRow key={member.id}>
-                    <TableCell>{member.name}</TableCell>
-                    <TableCell>{member.email}</TableCell>
+                    <TableCell>
+                      <span
+                        className="block max-w-[18rem] truncate"
+                        title={member.name}
+                      >
+                        {member.name}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className="block max-w-[18rem] truncate"
+                        title={member.email}
+                        translate="no"
+                      >
+                        {member.email}
+                      </span>
+                    </TableCell>
                     <TableCell>{ROLE_LABELS[member.role]}</TableCell>
                     <TableCell>
                       <Badge variant={isBlocked ? 'destructive' : 'default'}>
@@ -354,7 +394,15 @@ export function AdminOrganizationMembersPage() {
                   new Date(invite.expiresAt).getTime() < Date.now();
                 return (
                   <TableRow key={invite.id}>
-                    <TableCell>{invite.email}</TableCell>
+                    <TableCell>
+                      <span
+                        className="block max-w-[18rem] truncate"
+                        title={invite.email}
+                        translate="no"
+                      >
+                        {invite.email}
+                      </span>
+                    </TableCell>
                     <TableCell>{ROLE_LABELS[invite.role]}</TableCell>
                     <TableCell>
                       {dateFormatter.format(new Date(invite.invitedAt))}
@@ -377,7 +425,7 @@ export function AdminOrganizationMembersPage() {
 
       {overallTotal > 0 && (
         <footer className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-          <span>
+          <span className="tabular-nums">
             Trang {page} / {totalPages}
           </span>
           <div className="flex gap-2">
