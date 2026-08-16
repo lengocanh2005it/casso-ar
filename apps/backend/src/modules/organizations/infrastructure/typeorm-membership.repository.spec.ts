@@ -118,6 +118,17 @@ describe('TypeOrmMembershipRepository', () => {
       const result = await repository.findPageByOrganization('org-1', 2, 20);
 
       expect(repo.createQueryBuilder).toHaveBeenCalledWith('membership');
+      expect(qb.select).toHaveBeenCalledWith([
+        'membership.id',
+        'membership.organizationId',
+        'membership.userId',
+        'membership.role',
+        'membership.invitedAt',
+        'membership.joinedAt',
+        'membership.status',
+        'membership.blockedAt',
+        'membership.createdAt',
+      ]);
       expect(qb.where).toHaveBeenCalledWith(
         'membership.organizationId = :organizationId',
         { organizationId: 'org-1' },

@@ -114,6 +114,17 @@ export class TypeOrmMembershipRepository implements IMembershipRepository {
       filters,
     );
     const rows = await qb
+      .select([
+        'membership.id',
+        'membership.organizationId',
+        'membership.userId',
+        'membership.role',
+        'membership.invitedAt',
+        'membership.joinedAt',
+        'membership.status',
+        'membership.blockedAt',
+        'membership.createdAt',
+      ])
       .orderBy('membership.createdAt', 'ASC')
       .skip((page - 1) * limit)
       .take(limit)
