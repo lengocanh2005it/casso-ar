@@ -75,6 +75,7 @@ export function useOrganizationMembers(
   status: AdminMemberStatusFilter,
   search: string,
 ) {
+  const term = search.trim();
   return useQuery({
     queryKey: [
       ...adminOrganizationMembersQueryKey,
@@ -82,10 +83,15 @@ export function useOrganizationMembers(
       page,
       limit,
       status,
-      search,
+      term,
     ],
     queryFn: () =>
-      listOrganizationMembers(organizationId, { page, limit, status, search }),
+      listOrganizationMembers(organizationId, {
+        page,
+        limit,
+        status,
+        search: term,
+      }),
     enabled: Boolean(organizationId),
   });
 }

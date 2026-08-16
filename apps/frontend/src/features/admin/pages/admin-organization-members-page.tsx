@@ -86,20 +86,12 @@ export function AdminOrganizationMembersPage() {
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  function setStatus(nextStatus: AdminMemberStatusFilter) {
+  function setFilters(nextStatus: AdminMemberStatusFilter, nextSearch: string) {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       next.set('status', nextStatus);
-      next.delete('page');
-      return next;
-    });
-  }
-
-  function setSearchTerm(term: string) {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      if (term) {
-        next.set('search', term);
+      if (nextSearch) {
+        next.set('search', nextSearch);
       } else {
         next.delete('search');
       }
@@ -200,12 +192,15 @@ export function AdminOrganizationMembersPage() {
             value={search}
             placeholder="Tìm tên hoặc email"
             className="w-64"
-            onChange={(event) => setSearchTerm(event.target.value)}
+            onChange={(event) => setFilters(status, event.target.value)}
           />
         </div>
         <div>
           <Label>Trạng thái thành viên</Label>
-          <Select value={status} onValueChange={setStatus}>
+          <Select
+            value={status}
+            onValueChange={(next) => setFilters(normalizeStatus(next), search)}
+          >
             <SelectTrigger aria-label="Trạng thái thành viên">
               <SelectValue>{selectedStatusLabel}</SelectValue>
             </SelectTrigger>

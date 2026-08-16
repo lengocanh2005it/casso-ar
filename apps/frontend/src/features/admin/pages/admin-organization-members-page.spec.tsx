@@ -354,6 +354,25 @@ describe('AdminOrganizationMembersPage', () => {
       );
     });
 
+    it('trims whitespace around the search term before querying', async () => {
+      mockReads();
+
+      renderPage();
+
+      await screen.findByText('Nguyễn Văn A');
+      fireEvent.change(
+        screen.getByRole('textbox', { name: 'Tìm tên hoặc email' }),
+        { target: { value: '  acme  ' } },
+      );
+
+      await waitFor(() =>
+        expect(adminApi.listOrganizationMembers).toHaveBeenLastCalledWith(
+          'org-1',
+          { page: 1, limit: 50, status: 'ALL', search: 'acme' },
+        ),
+      );
+    });
+
     it('normalizes invalid status and page values from the URL', async () => {
       mockReads();
 
