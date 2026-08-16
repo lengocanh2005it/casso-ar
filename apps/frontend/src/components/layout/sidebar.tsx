@@ -12,7 +12,7 @@ import { SidebarFooter } from './sidebar-footer';
 function Badge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
-    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-medium text-white">
+    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-medium text-destructive-foreground">
       {count > 99 ? '99+' : count}
     </span>
   );

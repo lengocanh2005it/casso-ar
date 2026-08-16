@@ -24,6 +24,21 @@ function Probe() {
   return <div>{isAuthenticated ? `hello ${user?.name}` : 'anonymous'}</div>;
 }
 
+type AuthActions = Pick<
+  ReturnType<typeof useAuth>,
+  'refreshUser' | 'login' | 'logout'
+>;
+
+function ActionProbe({
+  onRender,
+}: {
+  onRender: (actions: AuthActions) => void;
+}) {
+  const { refreshUser, login, logout } = useAuth();
+  onRender({ refreshUser, login, logout });
+  return null;
+}
+
 describe('AuthProvider', () => {
   beforeEach(() => {
     getValidAccessToken.mockReset();
@@ -66,5 +81,24 @@ describe('AuthProvider', () => {
 
     await waitFor(() => expect(screen.getByText('anonymous')).toBeVisible());
     expect(apiRequest).not.toHaveBeenCalled();
+  });
+
+  it('keeps auth actions stable when provider state changes', async () => {
+    getValidAccessToken.mockResolvedValue(null);
+    const renders: AuthActions[] = [];
+
+    render(
+      <AuthProvider>
+        <ActionProbe onRender={(actions) => renders.push(actions)} />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(renders.length).toBeGreaterThan(1));
+    const first = renders[0];
+    const last = renders.at(-1);
+
+    expect(last?.refreshUser).toBe(first?.refreshUser);
+    expect(last?.login).toBe(first?.login);
+    expect(last?.logout).toBe(first?.logout);
   });
 });

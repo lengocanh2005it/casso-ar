@@ -8,5 +8,9 @@ describe('ReceivableStatusBadge', () => {
     render(<ReceivableStatusBadge status={ReceivableStatus.PARTIALLY_PAID} />);
 
     expect(screen.getByText('Đã trả một phần')).toBeInTheDocument();
+    expect(screen.getByText('Đã trả một phần')).toHaveClass(
+      'bg-warning/10',
+      'text-warning',
+    );
   });
 });

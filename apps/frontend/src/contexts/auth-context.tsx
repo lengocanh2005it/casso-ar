@@ -1,6 +1,13 @@
 import type { PlanId, Role } from '@casso-ledger/shared-types';
 import type { ReactNode } from 'react';
-import { createContext, useContext, useEffect, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { apiRequest, authTokenManager } from '@/lib/api-client';
 
 export interface AuthenticatedUser {
@@ -54,44 +61,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const refreshUser = async (): Promise<void> => {
+  const refreshUser = useCallback(async (): Promise<void> => {
     const me = await apiRequest<AuthenticatedUser>({
       url: '/api/v1/me',
       method: 'GET',
     });
     setUser(me);
-  };
+  }, []);
 
-  const login = async (email: string, password: string): Promise<void> => {
-    authTokenManager.resetLogoutState();
-    const result = await apiRequest<{ accessToken: string }>({
-      url: '/api/v1/auth/login',
-      method: 'POST',
-      data: { email, password },
-    });
-    authTokenManager.setAccessToken(result.accessToken);
-    await refreshUser();
-  };
+  const login = useCallback(
+    async (email: string, password: string): Promise<void> => {
+      authTokenManager.resetLogoutState();
+      const result = await apiRequest<{ accessToken: string }>({
+        url: '/api/v1/auth/login',
+        method: 'POST',
+        data: { email, password },
+      });
+      authTokenManager.setAccessToken(result.accessToken);
+      await refreshUser();
+    },
+    [refreshUser],
+  );
 
-  const logout = async (): Promise<void> => {
+  const logout = useCallback(async (): Promise<void> => {
     authTokenManager.markLogoutInitiated();
     await authTokenManager.clearStaleRefreshSession();
     setUser(null);
-  };
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({
+      user,
+      isLoading,
+      isAuthenticated: user !== null,
+      refreshUser,
+      login,
+      logout,
+    }),
+    [user, isLoading, refreshUser, login, logout],
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        isAuthenticated: user !== null,
-        refreshUser,
-        login,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 }
 

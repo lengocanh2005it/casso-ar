@@ -12,11 +12,10 @@ const LABELS: Record<ReceivableStatus, string> = {
 
 const STYLES: Record<ReceivableStatus, string> = {
   DRAFT: 'bg-muted text-muted-foreground',
-  OPEN: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
-  PARTIALLY_PAID:
-    'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
-  PAID: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300',
-  WRITTEN_OFF: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
+  OPEN: 'bg-info/10 text-info',
+  PARTIALLY_PAID: 'bg-warning/10 text-warning',
+  PAID: 'bg-success/10 text-success',
+  WRITTEN_OFF: 'bg-destructive/10 text-destructive',
   CANCELLED: 'bg-muted text-muted-foreground',
 };
 

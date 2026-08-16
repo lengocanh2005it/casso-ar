@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAlertsStream } from './use-alerts-stream';
 
 const getValidAccessToken = vi.fn();
+const fetchMock = vi.fn();
 
 vi.mock('@/lib/api-client', () => ({
   API_BASE_URL: 'http://localhost:3000',
@@ -13,24 +14,10 @@ vi.mock('@/lib/api-client', () => ({
   },
 }));
 
-class FakeEventSource {
-  static instances: FakeEventSource[] = [];
-  onmessage: ((event: MessageEvent) => void) | null = null;
-  closed = false;
-
-  constructor(public url: string) {
-    FakeEventSource.instances.push(this);
-  }
-
-  close() {
-    this.closed = true;
-  }
-}
-
 beforeEach(() => {
-  FakeEventSource.instances = [];
   getValidAccessToken.mockResolvedValue('test-token');
-  vi.stubGlobal('EventSource', FakeEventSource);
+  fetchMock.mockReset();
+  vi.stubGlobal('fetch', fetchMock);
 });
 
 afterEach(() => {
@@ -46,23 +33,43 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 describe('useAlertsStream', () => {
-  it('opens an EventSource to /api/v1/alerts/stream with the access token as a query param when enabled', async () => {
+  it('opens an authenticated fetch stream without putting the token in the URL', async () => {
     renderHook(() => useAlertsStream(true), { wrapper });
 
-    await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
-    expect(FakeEventSource.instances[0]?.url).toBe(
-      'http://localhost:3000/api/v1/alerts/stream?token=test-token',
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/api/v1/alerts/stream',
+      expect.objectContaining({
+        headers: {
+          Accept: 'text/event-stream',
+          Authorization: 'Bearer test-token',
+        },
+        signal: expect.any(AbortSignal),
+      }),
     );
   });
 
-  it('does not open an EventSource when enabled is false', async () => {
+  it('does not open a stream when enabled is false', async () => {
     renderHook(() => useAlertsStream(false), { wrapper });
 
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(FakeEventSource.instances).toHaveLength(0);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('invalidates the alerts query cache on every message', async () => {
+    const encoder = new TextEncoder();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(
+            encoder.encode('data: {"type":"alert.created"}\n'),
+          );
+          controller.enqueue(encoder.encode('\n'));
+          controller.close();
+        },
+      }),
+    });
     const queryClient = new QueryClient();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
     renderHook(() => useAlertsStream(true), {
@@ -73,22 +80,28 @@ describe('useAlertsStream', () => {
       ),
     });
 
-    await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
-    FakeEventSource.instances[0]?.onmessage?.(
-      new MessageEvent('message', {
-        data: JSON.stringify({ type: 'alert.created', unreadCount: 2 }),
-      }),
+    await vi.waitFor(() =>
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['alerts'] }),
     );
-
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['alerts'] });
   });
 
-  it('closes the EventSource on unmount', async () => {
+  it('aborts the stream on unmount', async () => {
+    let closeStream: (() => void) | undefined;
+    fetchMock.mockResolvedValue({
+      ok: true,
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          closeStream = () => controller.close();
+        },
+      }),
+    });
     const { unmount } = renderHook(() => useAlertsStream(true), { wrapper });
 
-    await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    const signal = fetchMock.mock.calls[0]?.[1]?.signal as AbortSignal;
     unmount();
+    closeStream?.();
 
-    expect(FakeEventSource.instances[0]?.closed).toBe(true);
+    expect(signal.aborted).toBe(true);
   });
 });
