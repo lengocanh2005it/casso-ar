@@ -16,6 +16,7 @@ import { ListOrganizationMembersUseCase } from './application/list-organization-
 import { ListOrganizationsUseCase } from './application/list-organizations.usecase';
 import { LockOrganizationUseCase } from './application/lock-organization.usecase';
 import { OPERATOR_AUDIT_LOG_REPOSITORY } from './application/operator-audit-log-repository.port';
+import { ResendInviteByOperatorUseCase } from './application/resend-invite-by-operator.usecase';
 import { RevokeInviteByOperatorUseCase } from './application/revoke-invite-by-operator.usecase';
 import { UnblockMemberByOperatorUseCase } from './application/unblock-member-by-operator.usecase';
 import { UnlockOrganizationUseCase } from './application/unlock-organization.usecase';
@@ -50,6 +51,7 @@ import { AdminController } from './presentation/admin.controller';
     GetOrganizationUseCase,
     ListOrganizationMembersUseCase,
     RevokeInviteByOperatorUseCase,
+    ResendInviteByOperatorUseCase,
     AdminAuthGuard,
   ],
   controllers: [AdminController],
