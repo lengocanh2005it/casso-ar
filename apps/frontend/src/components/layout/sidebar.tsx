@@ -46,7 +46,7 @@ export function Sidebar({
           <button
             type="button"
             onClick={onToggleCollapsed}
-            className="rounded-md p-1.5 hover:bg-sidebar-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="rounded-md p-1.5 transition-[background-color,transform] duration-150 ease-out motion-reduce:transition-none motion-reduce:active:scale-100 pointer-hover:hover:bg-sidebar-accent active:scale-[0.97] focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
             aria-label={collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}
           >
             {collapsed ? (
@@ -79,7 +79,7 @@ export function Sidebar({
                 title={collapsed ? item.label : undefined}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-primary/5 hover:text-primary',
+                    'flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 transition-[background-color,color] duration-150 ease-out motion-reduce:transition-none pointer-hover:hover:bg-primary/5 pointer-hover:hover:text-primary',
                     isActive &&
                       'bg-primary/10 font-medium text-primary ring-1 ring-primary/15',
                   )

@@ -27,7 +27,10 @@ export function CustomerDetailPage() {
   if (customerQuery.isError || !customerQuery.data) {
     return (
       <div className="space-y-3">
-        <Link to="/customers" className="text-sm text-primary hover:underline">
+        <Link
+          to="/customers"
+          className="text-sm text-primary pointer-hover:hover:underline"
+        >
           ← Quay lại khách hàng
         </Link>
         <p role="alert" aria-live="polite" className="text-destructive">
@@ -41,7 +44,10 @@ export function CustomerDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link to="/customers" className="text-sm text-primary hover:underline">
+      <Link
+        to="/customers"
+        className="text-sm text-primary pointer-hover:hover:underline"
+      >
         ← Quay lại khách hàng
       </Link>
       <div>
@@ -163,7 +169,7 @@ export function CustomerDetailPage() {
                 {receivablesQuery.data.total > 5 && (
                   <Link
                     to={`/receivables?customerId=${encodeURIComponent(id)}`}
-                    className="text-primary hover:underline"
+                    className="text-primary pointer-hover:hover:underline"
                   >
                     Xem tất cả →
                   </Link>

@@ -51,7 +51,7 @@ export function SidebarFooter({ collapsed }: { collapsed: boolean }) {
         type="button"
         aria-label="Đăng xuất"
         onClick={() => void handleLogout()}
-        className="rounded-md p-1.5 hover:bg-sidebar-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+        className="rounded-md p-1.5 transition-[background-color,transform] duration-150 ease-out motion-reduce:transition-none motion-reduce:active:scale-100 pointer-hover:hover:bg-sidebar-accent active:scale-[0.97] focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
       >
         <LogOut aria-hidden="true" className="size-4" />
       </button>

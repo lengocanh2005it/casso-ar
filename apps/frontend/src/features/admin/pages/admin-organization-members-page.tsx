@@ -211,7 +211,7 @@ export function AdminOrganizationMembersPage() {
       <header>
         <Link
           to="/admin/organizations"
-          className="rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="rounded-md text-sm text-muted-foreground transition-colors duration-150 ease-out motion-reduce:transition-none pointer-hover:hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           ← Organizations
         </Link>

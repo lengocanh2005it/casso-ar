@@ -38,7 +38,10 @@ export function ForgotPasswordPage() {
           <p className="text-sm text-muted-foreground">
             Nếu email tồn tại, bạn sẽ nhận được liên kết đặt lại mật khẩu.
           </p>
-          <Link to="/login" className="text-primary hover:underline">
+          <Link
+            to="/login"
+            className="text-primary pointer-hover:hover:underline"
+          >
             Đến trang đăng nhập
           </Link>
         </div>
@@ -87,7 +90,7 @@ export function ForgotPasswordPage() {
 
         <Link
           to="/login"
-          className="block text-sm text-primary hover:underline"
+          className="block text-sm text-primary pointer-hover:hover:underline"
         >
           ← Quay lại đăng nhập
         </Link>

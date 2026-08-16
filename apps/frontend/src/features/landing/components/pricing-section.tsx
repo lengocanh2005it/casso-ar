@@ -13,7 +13,6 @@ import {
   FADE_UP_ITEM_VARIANTS,
   HOVER_SCALE,
   STAGGER_CONTAINER_VARIANTS,
-  TAP_SCALE,
   VIEWPORT_ONCE,
 } from '../motion-variants';
 
@@ -66,7 +65,6 @@ export function PricingSection() {
                     key={plan.planId}
                     variants={FADE_UP_ITEM_VARIANTS}
                     whileHover={reducedMotion ? undefined : HOVER_SCALE}
-                    whileTap={reducedMotion ? undefined : TAP_SCALE}
                   >
                     <Card
                       className={cn(

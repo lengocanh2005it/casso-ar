@@ -14,8 +14,7 @@ export const FADE_UP_ITEM_VARIANTS = {
 
 export const VIEWPORT_ONCE = { once: true };
 
-export const HOVER_SCALE = { scale: 1.02 };
-export const TAP_SCALE = { scale: 0.98 };
+export const HOVER_SCALE = { transform: 'scale(1.02)' };
 
 // Stronger ease-out than the CSS/Motion default — used for UI entrances.
 export const EASE_OUT = [0.23, 1, 0.32, 1] as const;

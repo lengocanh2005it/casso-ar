@@ -75,7 +75,7 @@ export function ReceivableTable({
             <TableCell>
               <Link
                 to={`/receivables/${receivable.id}`}
-                className="font-medium text-primary hover:underline"
+                className="font-medium text-primary pointer-hover:hover:underline"
               >
                 {receivable.invoiceNumber ?? 'Không có hóa đơn'}
               </Link>

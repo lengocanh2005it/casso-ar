@@ -35,7 +35,7 @@ export function CustomerTable({ customers }: { customers: Customer[] }) {
             <TableCell className="max-w-64 break-words">
               <Link
                 to={`/customers/${customer.id}`}
-                className="font-medium text-primary hover:underline"
+                className="font-medium text-primary pointer-hover:hover:underline"
               >
                 {customer.name}
               </Link>

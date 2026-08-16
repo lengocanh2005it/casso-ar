@@ -31,7 +31,7 @@ export function HeroDemoCard() {
             <div
               key={transaction.customer}
               className={cn(
-                'flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 transition-colors duration-300',
+                'flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 transition-colors duration-200 ease-out motion-reduce:transition-none',
                 i === highlightIndex
                   ? 'border-primary/40 bg-primary/5'
                   : 'border-transparent',

@@ -12,13 +12,13 @@ export function LandingFooter() {
         <div className="flex items-center gap-4 text-base">
           <Link
             to="/login"
-            className="inline-flex min-h-11 items-center rounded-md text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex min-h-11 items-center rounded-md text-muted-foreground pointer-hover:hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Đăng nhập
           </Link>
           <Link
             to="/signup"
-            className="inline-flex min-h-11 items-center rounded-md text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex min-h-11 items-center rounded-md text-muted-foreground pointer-hover:hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Đăng ký
           </Link>

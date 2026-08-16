@@ -34,7 +34,7 @@ export function AppLayout() {
             <span className="text-base font-semibold">Casso Ledger</span>
             <div className="ml-auto flex items-center gap-1">
               <AlertBell />
-              <ThemeToggle className="hover:bg-accent" />
+              <ThemeToggle className="pointer-hover:hover:bg-accent" />
             </div>
           </header>
 

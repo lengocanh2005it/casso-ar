@@ -46,7 +46,7 @@ export function ReceivableDetailPage() {
         <div className="flex flex-wrap items-center gap-3">
           <Link
             to="/receivables"
-            className="text-sm text-primary hover:underline"
+            className="text-sm text-primary pointer-hover:hover:underline"
           >
             ← Công nợ
           </Link>

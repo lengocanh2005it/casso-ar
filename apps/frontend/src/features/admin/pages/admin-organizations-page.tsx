@@ -128,7 +128,7 @@ export function AdminOrganizationsPage() {
                     </span>
                     <Link
                       to={`/admin/organizations/${org.id}/members`}
-                      className="rounded-md text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="rounded-md text-sm font-medium text-primary pointer-hover:hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       Thành viên
                     </Link>

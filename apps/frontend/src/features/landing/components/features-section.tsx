@@ -10,7 +10,6 @@ import {
   FADE_UP_ITEM_VARIANTS,
   HOVER_SCALE,
   STAGGER_CONTAINER_VARIANTS,
-  TAP_SCALE,
   VIEWPORT_ONCE,
 } from '../motion-variants';
 
@@ -40,7 +39,6 @@ export function FeaturesSection() {
                 key={feature.title}
                 variants={FADE_UP_ITEM_VARIANTS}
                 whileHover={reducedMotion ? undefined : HOVER_SCALE}
-                whileTap={reducedMotion ? undefined : TAP_SCALE}
               >
                 <Card className="h-full border-border/70">
                   <CardHeader>

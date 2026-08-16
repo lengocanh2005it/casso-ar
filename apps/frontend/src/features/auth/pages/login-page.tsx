@@ -84,10 +84,16 @@ export function LoginPage() {
         </Button>
 
         <div className="flex justify-between text-sm">
-          <Link to="/signup" className="text-primary hover:underline">
+          <Link
+            to="/signup"
+            className="text-primary pointer-hover:hover:underline"
+          >
             Tạo tài khoản
           </Link>
-          <Link to="/forgot-password" className="text-primary hover:underline">
+          <Link
+            to="/forgot-password"
+            className="text-primary pointer-hover:hover:underline"
+          >
             Quên mật khẩu?
           </Link>
         </div>

@@ -43,7 +43,10 @@ export function ResetPasswordPage() {
       <div className="flex min-h-svh items-center justify-center p-6 text-center">
         <div role="status" className="space-y-2">
           <h1 className="text-xl font-semibold">Mật khẩu đã được đặt lại</h1>
-          <Link to="/login" className="text-primary hover:underline">
+          <Link
+            to="/login"
+            className="text-primary pointer-hover:hover:underline"
+          >
             Đến trang đăng nhập
           </Link>
         </div>

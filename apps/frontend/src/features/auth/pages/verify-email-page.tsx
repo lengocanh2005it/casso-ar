@@ -39,7 +39,10 @@ export function VerifyEmailPage() {
         <p className="text-sm text-muted-foreground">
           Liên kết xác minh đã hết hạn hoặc không tồn tại.
         </p>
-        <Link to="/login" className="text-primary hover:underline">
+        <Link
+          to="/login"
+          className="text-primary pointer-hover:hover:underline"
+        >
           Đến trang đăng nhập
         </Link>
       </div>
@@ -52,7 +55,7 @@ export function VerifyEmailPage() {
       <p className="text-sm text-muted-foreground">
         Bạn có thể đăng nhập để tiếp tục.
       </p>
-      <Link to="/login" className="text-primary hover:underline">
+      <Link to="/login" className="text-primary pointer-hover:hover:underline">
         Đến trang đăng nhập
       </Link>
     </div>

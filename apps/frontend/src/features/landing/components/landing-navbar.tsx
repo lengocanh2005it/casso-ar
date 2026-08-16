@@ -47,7 +47,7 @@ export function LandingNavbar() {
   return (
     <header
       className={cn(
-        'fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 motion-reduce:transition-none',
+        'fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,box-shadow] duration-200 ease-out motion-reduce:transition-none',
         scrolled
           ? 'border-b border-border/60 bg-background/85 shadow-sm backdrop-blur-xl'
           : 'bg-transparent',
@@ -69,7 +69,7 @@ export function LandingNavbar() {
               key={link.href}
               variant="ghost"
               size="sm"
-              className="min-h-11 text-muted-foreground hover:text-foreground"
+              className="min-h-11 text-muted-foreground pointer-hover:hover:text-foreground"
               asChild
             >
               <a
@@ -111,9 +111,17 @@ export function LandingNavbar() {
               <AnimatePresence>
                 {mobileOpen ? (
                   <motion.div
-                    initial={reducedMotion ? false : { opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
+                    initial={
+                      reducedMotion
+                        ? false
+                        : { opacity: 0, transform: 'translateY(-8px)' }
+                    }
+                    animate={{ opacity: 1, transform: 'translateY(0px)' }}
+                    exit={
+                      reducedMotion
+                        ? undefined
+                        : { opacity: 0, transform: 'translateY(-8px)' }
+                    }
                     transition={{ duration: 0.2, ease: EASE_OUT }}
                   >
                     <div className="flex items-center gap-2 text-left text-lg font-semibold">

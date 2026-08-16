@@ -49,6 +49,7 @@ describe('dialog and select motion preferences', () => {
     );
     expect(document.querySelector('[data-slot="dialog-close"]')).toHaveClass(
       'pointer-hover:hover:opacity-100',
+      'active:scale-[0.97]',
       'focus-visible:ring-2',
     );
     expect(

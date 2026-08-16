@@ -120,7 +120,10 @@ export function SignupPage() {
 
         <p className="text-sm">
           Đã có tài khoản?{' '}
-          <Link to="/login" className="text-primary hover:underline">
+          <Link
+            to="/login"
+            className="text-primary pointer-hover:hover:underline"
+          >
             Đăng nhập
           </Link>
         </p>

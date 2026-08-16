@@ -19,6 +19,7 @@ describe('Sheet', () => {
     expect(screen.getByRole('dialog')).toHaveClass(
       'motion-reduce:animate-none',
       'overscroll-contain',
+      'ease-drawer',
     );
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByText('Content')).not.toBeInTheDocument();

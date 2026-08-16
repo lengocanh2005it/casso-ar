@@ -24,7 +24,7 @@ export function CtaSection() {
             <Button
               size="lg"
               variant="outline"
-              className="h-12 w-full border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 sm:w-auto"
+              className="h-12 w-full border-primary-foreground/40 bg-transparent text-primary-foreground pointer-hover:hover:bg-primary-foreground/10 sm:w-auto"
               asChild
             >
               <Link to="/login">Đã có tài khoản</Link>
