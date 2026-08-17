@@ -8,6 +8,9 @@ export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
   },
+  optimizeDeps: {
+    include: ['@casso-ledger/shared-types'],
+  },
   build: {
     // pnpm workspace packages are symlinked, so their resolved real path
     // (packages/shared-types/dist) doesn't match Rollup's default
