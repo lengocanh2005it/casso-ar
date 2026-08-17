@@ -13,5 +13,10 @@ export function getJwtModuleOptions(config: ConfigService): JwtModuleOptions {
   return {
     secret: getJwtSecret(config),
     signOptions: { expiresIn: '15m' },
+    // Pin the algorithm on every JwtService.verify/verifyAsync call (e.g.
+    // AdminAuthGuard), mirroring the explicit pin in JwtStrategy — without
+    // it, a future asymmetric-key flow sharing this verify path would become
+    // an algorithm-confusion (RS256→HS256) attack vector.
+    verifyOptions: { algorithms: ['HS256'] },
   };
 }

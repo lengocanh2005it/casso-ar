@@ -18,13 +18,13 @@ describe('extractJwtFromRequest', () => {
     expect(extractJwtFromRequest(request)).toBe('header-token');
   });
 
-  it('falls back to the ?token= query param when there is no Bearer header (native EventSource cannot set headers)', () => {
+  it('does not accept a ?token= query param — the SSE client sends the Bearer header (fetch-based stream), so the query fallback must stay dead (CWE-598)', () => {
     const request = fakeRequest({ query: { token: 'query-token' } });
 
-    expect(extractJwtFromRequest(request)).toBe('query-token');
+    expect(extractJwtFromRequest(request)).toBeNull();
   });
 
-  it('prefers the Bearer header over the query param when both are present', () => {
+  it('ignores a query token even when the Bearer header is present', () => {
     const request = fakeRequest({
       headers: { authorization: 'Bearer header-token' },
       query: { token: 'query-token' },
@@ -35,11 +35,5 @@ describe('extractJwtFromRequest', () => {
 
   it('returns null when neither is present', () => {
     expect(extractJwtFromRequest(fakeRequest())).toBeNull();
-  });
-
-  it('returns null when the query token is not a string (e.g. ?token[]=a&token[]=b)', () => {
-    const request = fakeRequest({ query: { token: ['a', 'b'] as never } });
-
-    expect(extractJwtFromRequest(request)).toBeNull();
   });
 });

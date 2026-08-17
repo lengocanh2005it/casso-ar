@@ -18,17 +18,14 @@ interface JwtPayload {
 }
 
 /**
- * Bearer header first (the normal path — every axios request in the
- * frontend sends it). Falls back to `?token=` on the query string only
- * because native `EventSource` (used by GET /alerts/stream) cannot set
- * custom headers — there is no cookie-based session in this codebase to
- * fall back to instead.
+ * Bearer header only. The frontend's realtime alert stream (GET /alerts/stream)
+ * is a fetch-based SSE polyfill that sends the Authorization header like any
+ * other request — there is no ?token= fallback because putting a live access
+ * token in the URL would leak it into access logs, browser history and
+ * Referer headers (CWE-598).
  */
 export function extractJwtFromRequest(request: Request): string | null {
-  const header = ExtractJwt.fromAuthHeaderAsBearerToken()(request);
-  if (header) return header;
-  const token = request.query?.token;
-  return typeof token === 'string' && token.length > 0 ? token : null;
+  return ExtractJwt.fromAuthHeaderAsBearerToken()(request);
 }
 
 @Injectable()
