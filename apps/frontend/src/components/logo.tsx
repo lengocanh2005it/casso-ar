@@ -29,9 +29,14 @@ export function Logo({ variant = 'full', className }: LogoProps) {
   }
 
   return (
-    <span className={cn('inline-flex items-center gap-2', className)}>
-      <CassoIcon className="h-full w-auto" />
-      <span className="text-lg font-bold tracking-tight whitespace-nowrap text-foreground">
+    <span
+      className={cn(
+        'inline-flex items-center gap-2 whitespace-nowrap',
+        className,
+      )}
+    >
+      <CassoIcon className="h-8 w-8 shrink-0" />
+      <span className="text-lg font-bold tracking-tight text-foreground">
         Casso Ledger
       </span>
     </span>

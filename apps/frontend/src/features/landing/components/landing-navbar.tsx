@@ -59,7 +59,7 @@ export function LandingNavbar() {
           aria-label="Casso Ledger — Trang chủ"
           className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Logo className="hidden h-9 sm:block" />
+          <Logo className="hidden sm:block" />
           <Logo variant="icon" className="h-9 sm:hidden" />
         </Link>
 
@@ -69,7 +69,7 @@ export function LandingNavbar() {
               key={link.href}
               variant="ghost"
               size="sm"
-              className="min-h-11 text-muted-foreground pointer-hover:hover:text-foreground"
+              className="min-h-11 px-3 text-[15px] text-muted-foreground pointer-hover:hover:text-foreground"
               asChild
             >
               <a
