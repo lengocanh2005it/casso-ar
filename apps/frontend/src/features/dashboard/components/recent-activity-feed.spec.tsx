@@ -23,7 +23,7 @@ describe('RecentActivityFeed', () => {
         ]}
       />,
     );
-    expect(screen.getByText('PAYMENT_RECEIVED')).toBeTruthy();
+    expect(screen.getByText('Nhận thanh toán')).toBeTruthy();
     expect(screen.getByText('Nhận thanh toán 5.000.000 ₫')).toBeTruthy();
   });
 

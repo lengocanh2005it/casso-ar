@@ -6,7 +6,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { UsersTab } from './users-tab';
 
 const { apiRequest, useAuth } = vi.hoisted(() => ({
@@ -89,6 +89,12 @@ function renderTab() {
 }
 
 describe('UsersTab', () => {
+  beforeAll(() => {
+    // jsdom does not implement scrollIntoView; radix Select calls it when
+    // focusing the selected option.
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
   it("lets an OWNER change another member's role", async () => {
     useAuth.mockReturnValue({
       user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
@@ -97,8 +103,10 @@ describe('UsersTab', () => {
     renderTab();
 
     await waitFor(() => expect(screen.getByText('Kế toán')).toBeTruthy());
-    const select = screen.getByLabelText('Vai trò của Kế toán');
-    fireEvent.change(select, { target: { value: 'VIEWER' } });
+    fireEvent.click(
+      screen.getByRole('combobox', { name: 'Vai trò của Kế toán' }),
+    );
+    fireEvent.click(await screen.findByRole('option', { name: 'VIEWER' }));
 
     await waitFor(() =>
       expect(apiRequest).toHaveBeenCalledWith(
@@ -216,9 +224,10 @@ describe('UsersTab', () => {
     renderTab();
 
     await waitFor(() => expect(screen.getByText('Sales bị chặn')).toBeTruthy());
-    fireEvent.change(screen.getByLabelText('Lọc theo trạng thái'), {
-      target: { value: 'BLOCKED' },
-    });
+    fireEvent.click(
+      screen.getByRole('combobox', { name: 'Lọc theo trạng thái' }),
+    );
+    fireEvent.click(await screen.findByRole('option', { name: 'Đã chặn' }));
 
     expect(screen.queryByText('Kế toán')).toBeNull();
     expect(screen.getByText('Sales bị chặn')).toBeTruthy();

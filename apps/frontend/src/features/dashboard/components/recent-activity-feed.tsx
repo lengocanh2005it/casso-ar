@@ -1,3 +1,4 @@
+import { formatActivityType } from '@/lib/collection-activity-labels';
 import { formatDate } from '@/lib/format';
 import type { OrganizationActivityItem } from '../types';
 
@@ -15,7 +16,9 @@ export function RecentActivityFeed({
       {items.map((item) => (
         <li key={item.id} className="text-sm">
           <div className="flex items-center justify-between gap-4">
-            <span className="font-medium">{item.activityType}</span>
+            <span className="font-medium">
+              {formatActivityType(item.activityType)}
+            </span>
             <time
               dateTime={item.createdAt}
               className="shrink-0 text-xs text-muted-foreground"

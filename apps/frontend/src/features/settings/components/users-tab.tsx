@@ -14,6 +14,13 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import {
   Table,
@@ -40,17 +47,17 @@ const roles = Object.values(Role);
 
 type StatusFilter = 'ALL' | MembershipStatus;
 
-const roleOptions = roles.map((item) => (
-  <option key={item} value={item}>
+const roleSelectItems = roles.map((item) => (
+  <SelectItem key={item} value={item}>
     {item}
-  </option>
+  </SelectItem>
 ));
 
-const statusFilterOptions = (
+const statusFilterItems = (
   <>
-    <option value="ALL">Tất cả</option>
-    <option value="ACTIVE">Đang hoạt động</option>
-    <option value="BLOCKED">Đã chặn</option>
+    <SelectItem value="ALL">Tất cả</SelectItem>
+    <SelectItem value="ACTIVE">Đang hoạt động</SelectItem>
+    <SelectItem value="BLOCKED">Đã chặn</SelectItem>
   </>
 );
 
@@ -123,21 +130,18 @@ const MembersTable = memo(function MembersTable({
               <TableCell className="break-words">{member.email}</TableCell>
               <TableCell>
                 {canManage && !isSelf ? (
-                  <select
-                    name={`role-${member.userId}`}
-                    autoComplete="off"
-                    aria-label={`Vai trò của ${member.name}`}
-                    className="h-9 rounded-md border bg-background px-3 text-sm text-foreground"
+                  <Select
                     value={member.role}
-                    onChange={(event) => {
-                      const nextRole = roles.find(
-                        (item) => item === event.target.value,
-                      );
+                    onValueChange={(value) => {
+                      const nextRole = roles.find((item) => item === value);
                       if (nextRole) onRoleChange(member.userId, nextRole);
                     }}
                   >
-                    {roleOptions}
-                  </select>
+                    <SelectTrigger aria-label={`Vai trò của ${member.name}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>{roleSelectItems}</SelectContent>
+                  </Select>
                 ) : (
                   member.role
                 )}
@@ -314,24 +318,21 @@ export function UsersTab() {
               placeholder="email@example.com"
             />
           </label>
-          <label className="space-y-1 text-sm" htmlFor="invite-role">
+          <div className="space-y-1 text-sm">
             <span className="block">Vai trò</span>
-            <select
-              id="invite-role"
-              name="role"
-              autoComplete="off"
-              className="h-9 rounded-md border bg-background px-3 text-sm text-foreground"
+            <Select
               value={role}
-              onChange={(event) => {
-                const nextRole = roles.find(
-                  (item) => item === event.target.value,
-                );
+              onValueChange={(value) => {
+                const nextRole = roles.find((item) => item === value);
                 if (nextRole) setRole(nextRole);
               }}
             >
-              {roleOptions}
-            </select>
-          </label>
+              <SelectTrigger aria-label="Vai trò">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>{roleSelectItems}</SelectContent>
+            </Select>
+          </div>
           <Button disabled={!email.trim() || invite.isPending} onClick={submit}>
             {invite.isPending && <Spinner className="size-4" />}
             {invite.isPending ? 'Đang mời…' : 'Mời thành viên'}
@@ -341,18 +342,15 @@ export function UsersTab() {
       <div>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold">Thành viên</h2>
-          <select
-            name="statusFilter"
-            autoComplete="off"
-            aria-label="Lọc theo trạng thái"
-            className="h-9 rounded-md border bg-background px-3 text-sm text-foreground"
+          <Select
             value={statusFilter}
-            onChange={(event) =>
-              setStatusFilter(event.target.value as StatusFilter)
-            }
+            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
           >
-            {statusFilterOptions}
-          </select>
+            <SelectTrigger aria-label="Lọc theo trạng thái">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>{statusFilterItems}</SelectContent>
+          </Select>
         </div>
         {membersQuery.isPending && membersLoadingMessage}
         {membersQuery.isError && membersErrorMessage}
