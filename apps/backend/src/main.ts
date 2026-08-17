@@ -13,7 +13,7 @@ async function bootstrap() {
   app.useLogger(app.get(JsonLogger));
   app.use(helmet());
   app.use(cookieParser());
-  configureApp(app);
+  configureApp(app, app.get(ConfigService));
   setupSwagger(app, app.get(ConfigService));
   await app.listen(3000);
 }
