@@ -22,8 +22,17 @@ export const LANDING_HEADLINE_PHRASES = [
 ] as const;
 
 export const LANDING_ABOUT = {
-  paragraph:
-    'Casso Ledger là nền tảng quản lý và thu hồi công nợ dành cho doanh nghiệp Việt Nam. Giao dịch ngân hàng về tới đâu, hệ thống tự động đối chiếu với công nợ tới đó — không cần đợi kế toán nhập tay từng dòng.',
+  paragraphSegments: [
+    { text: 'Casso Ledger là nền tảng ' },
+    { text: 'quản lý và thu hồi công nợ', bold: true },
+    {
+      text: ' dành cho doanh nghiệp Việt Nam. Giao dịch ngân hàng về tới đâu, hệ thống ',
+    },
+    { text: 'tự động đối chiếu', bold: true },
+    { text: ' với công nợ tới đó — ' },
+    { text: 'không cần đợi kế toán nhập tay từng dòng', bold: true },
+    { text: '.' },
+  ],
   pillars: [
     { label: 'Tự động đối chiếu' },
     { label: 'Nhắc nợ đúng lúc' },

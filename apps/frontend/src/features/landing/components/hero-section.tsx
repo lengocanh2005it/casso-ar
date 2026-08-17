@@ -1,6 +1,7 @@
 import { useReducedMotion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import Typewriter from 'typewriter-effect';
+import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
 import { LANDING_HEADLINE_PHRASES } from '../landing-data';
 import { HeroDemoCard } from './hero-demo-card';
@@ -40,6 +41,10 @@ export function HeroSection() {
     <section className="pb-16 pt-28 sm:pb-24 sm:pt-32">
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16">
         <div className="text-center lg:text-left">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border/70 bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground">
+            <Logo variant="icon" className="h-4 w-4" />
+            Casso Ledger
+          </div>
           <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
             Thu tiền{' '}
             {reducedMotion ? (

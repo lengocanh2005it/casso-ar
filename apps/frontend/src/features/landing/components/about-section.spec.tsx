@@ -7,7 +7,20 @@ describe('AboutSection', () => {
   it('renders the intro paragraph and all value pillars', () => {
     render(<AboutSection />);
 
-    expect(screen.getByText(LANDING_ABOUT.paragraph)).toBeInTheDocument();
+    const fullParagraph = LANDING_ABOUT.paragraphSegments
+      .map((segment) => segment.text)
+      .join('');
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === 'P' && element.textContent === fullParagraph,
+      ),
+    ).toBeInTheDocument();
+    for (const segment of LANDING_ABOUT.paragraphSegments.filter(
+      (s) => s.bold,
+    )) {
+      expect(screen.getByText(segment.text).tagName).toBe('STRONG');
+    }
     for (const pillar of LANDING_ABOUT.pillars) {
       expect(screen.getByText(pillar.label)).toBeInTheDocument();
     }
