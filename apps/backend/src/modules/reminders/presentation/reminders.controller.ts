@@ -24,8 +24,10 @@ import { ErrorCode } from '../../../common/errors/error-code';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
-import { ReminderExecutionQueryService } from '../application/reminder-execution-query.service';
-import { ReminderPolicyService } from '../application/reminder-policy.service';
+import { CreateReminderPolicyUseCase } from '../application/create-reminder-policy.usecase';
+import { ListReminderExecutionUseCase } from '../application/list-reminder-executions.usecase';
+import { ListReminderPoliciesUseCase } from '../application/list-reminder-policies.usecase';
+import { UpdateReminderPolicyUseCase } from '../application/update-reminder-policy.usecase';
 import { CreateReminderPolicyDto } from './dto/create-reminder-policy.dto';
 import { ListReminderExecutionsQueryDto } from './dto/list-reminder-executions-query.dto';
 import {
@@ -42,7 +44,11 @@ import { UpdateReminderPolicyDto } from './dto/update-reminder-policy.dto';
 @Controller('reminder-policies')
 @UseGuards(PermissionGuard)
 export class RemindersController {
-  constructor(private readonly policyService: ReminderPolicyService) {}
+  constructor(
+    private readonly createPolicyUseCase: CreateReminderPolicyUseCase,
+    private readonly listPoliciesUseCase: ListReminderPoliciesUseCase,
+    private readonly updatePolicyUseCase: UpdateReminderPolicyUseCase,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a reminder policy' })
@@ -50,7 +56,9 @@ export class RemindersController {
   @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.CONFLICT)
   @RequirePermission(Permission.REMINDER_POLICY_WRITE)
   async create(@Body() dto: CreateReminderPolicyDto) {
-    return toReminderPolicyResponse(await this.policyService.create(dto));
+    return toReminderPolicyResponse(
+      await this.createPolicyUseCase.execute(dto),
+    );
   }
 
   @Get()
@@ -58,7 +66,9 @@ export class RemindersController {
   @ApiOkResponse({ type: [ReminderPolicyResponseDto] })
   @RequirePermission(Permission.REPORT_READ)
   async list() {
-    return (await this.policyService.list()).map(toReminderPolicyResponse);
+    return (await this.listPoliciesUseCase.execute()).map(
+      toReminderPolicyResponse,
+    );
   }
 
   @Patch(':id')
@@ -75,7 +85,9 @@ export class RemindersController {
     AuditEntityType.REMINDER_POLICY,
   )
   async update(@Param('id') id: string, @Body() dto: UpdateReminderPolicyDto) {
-    return toReminderPolicyResponse(await this.policyService.update(id, dto));
+    return toReminderPolicyResponse(
+      await this.updatePolicyUseCase.execute(id, dto),
+    );
   }
 }
 
@@ -84,7 +96,7 @@ export class RemindersController {
 @UseGuards(PermissionGuard)
 export class ReminderExecutionsController {
   constructor(
-    private readonly executionQueryService: ReminderExecutionQueryService,
+    private readonly listExecutionsUseCase: ListReminderExecutionUseCase,
   ) {}
 
   @Get()
@@ -93,7 +105,7 @@ export class ReminderExecutionsController {
   @ApiErrorResponse(ErrorCode.VALIDATION_ERROR)
   @RequirePermission(Permission.REPORT_READ)
   async list(@Query() query: ListReminderExecutionsQueryDto) {
-    const result = await this.executionQueryService.list({
+    const result = await this.listExecutionsUseCase.execute({
       receivableId: query.receivableId,
       status: query.status,
       page: query.page,

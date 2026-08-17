@@ -7,14 +7,16 @@ import { CommonTokensModule } from '../../common/tokens/common-tokens.module';
 import { EmailService } from '../notifications/application/email.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
+import { CreateReminderPolicyUseCase } from './application/create-reminder-policy.usecase';
 import { I_EMAIL_SERVICE } from './application/i-email-service.port';
-import { ReminderExecutionQueryService } from './application/reminder-execution-query.service';
-import { ReminderPolicyService } from './application/reminder-policy.service';
+import { ListReminderExecutionUseCase } from './application/list-reminder-executions.usecase';
+import { ListReminderPoliciesUseCase } from './application/list-reminder-policies.usecase';
 import {
   REMINDER_SEND_QUEUE,
   ReminderSchedulerService,
 } from './application/reminder-scheduler.service';
 import { ReminderSenderService } from './application/reminder-sender.service';
+import { UpdateReminderPolicyUseCase } from './application/update-reminder-policy.usecase';
 import { ReminderExecutionListener } from './infrastructure/reminder-execution.listener';
 import { ReminderPolicyOrmEntity } from './infrastructure/reminder-policy.orm-entity';
 import { ReminderRuleOrmEntity } from './infrastructure/reminder-rule.orm-entity';
@@ -51,8 +53,10 @@ import {
       provide: 'IReminderCandidateReader',
       useClass: TypeOrmReminderCandidateReader,
     },
-    ReminderPolicyService,
-    ReminderExecutionQueryService,
+    CreateReminderPolicyUseCase,
+    ListReminderPoliciesUseCase,
+    UpdateReminderPolicyUseCase,
+    ListReminderExecutionUseCase,
     ReminderSenderService,
     ReminderSchedulerService,
     ReminderSendProcessor,
