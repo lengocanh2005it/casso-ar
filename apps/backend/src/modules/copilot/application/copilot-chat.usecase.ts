@@ -77,6 +77,16 @@ function asArguments(input: unknown): Record<string, unknown> {
   return input as Record<string, unknown>;
 }
 
+function toToolErrorPayload(error: unknown): {
+  error: string;
+  errorCode?: ErrorCode;
+} {
+  if (error instanceof AppError) {
+    return { error: error.message, errorCode: error.errorCode };
+  }
+  return { error: error instanceof Error ? error.message : String(error) };
+}
+
 function requiredString(input: Record<string, unknown>, key: string): string {
   const value = input[key];
   if (typeof value !== 'string' || value.length === 0) {
@@ -165,7 +175,7 @@ export class CopilotChatUseCase {
     }
   }
 
-  private executeTool(
+  private async executeTool(
     name: string,
     input: Record<string, unknown>,
     organizationId: string,
@@ -294,7 +304,7 @@ export class CopilotChatUseCase {
                 call.arguments,
                 user.organizationId,
                 user.userId,
-              ),
+              ).catch(() => undefined),
             ),
         );
         const { pendingAction, saved } = await this.dataSource.transaction(
@@ -343,7 +353,7 @@ export class CopilotChatUseCase {
             call.arguments,
             user.organizationId,
             user.userId,
-          ),
+          ).catch((error: unknown) => toToolErrorPayload(error)),
         })),
       );
       messages.push({

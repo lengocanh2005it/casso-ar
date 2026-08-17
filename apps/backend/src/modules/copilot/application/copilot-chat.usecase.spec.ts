@@ -425,9 +425,9 @@ describe('CopilotChatUseCase', () => {
     ).toBe(true);
   });
 
-  it('throws AppError(VALIDATION_ERROR) instead of a bare Error when the model calls a tool name outside the registry', async () => {
+  it('feeds a tool error back to the model as a tool message instead of aborting the turn', async () => {
     const aiProvider = { createChatCompletion: jest.fn() };
-    aiProvider.createChatCompletion.mockResolvedValueOnce({
+    aiProvider.createChatCompletion.mockResolvedValue({
       content: null,
       toolCalls: [
         {
@@ -455,8 +455,113 @@ describe('CopilotChatUseCase', () => {
       deps.tenantContext as any,
     );
 
+    // The model repeats the same invalid tool call every iteration, so the
+    // turn exhausts MAX_TOOL_ITERATIONS instead of aborting on the first
+    // failure — proving the error was fed back rather than thrown.
     await expect(
       useCase.execute({ conversationId: 'conversation-1', userMessage: 'hi' }),
-    ).rejects.toMatchObject({ errorCode: ErrorCode.VALIDATION_ERROR });
+    ).rejects.toMatchObject({ errorCode: ErrorCode.INTERNAL_SERVER_ERROR });
+
+    const secondCallMessages = aiProvider.createChatCompletion.mock.calls[1][0];
+    const toolMessage = secondCallMessages.find(
+      (message: { role: string }) => message.role === 'tool',
+    );
+    expect(JSON.parse(toolMessage.content)).toMatchObject({
+      error: expect.stringContaining('Tool Copilot không xác định'),
+      errorCode: ErrorCode.VALIDATION_ERROR,
+    });
+  });
+
+  it('recovers after a failed tool call once the model retries with a valid one', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion
+      .mockResolvedValueOnce({
+        content: null,
+        toolCalls: [
+          { id: 'tool-1', name: 'getReceivableSummary', arguments: {} },
+        ],
+        inputTokens: 5,
+        outputTokens: 2,
+      })
+      .mockResolvedValueOnce({
+        content: 'Customer cust-1 has 2 overdue invoices.',
+        toolCalls: [],
+        inputTokens: 10,
+        outputTokens: 5,
+      });
+    const deps = buildDeps();
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    const result = await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'How is customer cust-1 doing?',
+    });
+
+    expect(result.message.content).toContain('overdue');
+    expect(deps.summaryTool.execute).not.toHaveBeenCalled();
+    expect(aiProvider.createChatCompletion).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not let a failing batched tool call abort the sendReminderEmail-interception branch', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion.mockResolvedValueOnce({
+      content: 'Here is the summary, and proposing to send.',
+      toolCalls: [
+        { id: 'tool-1', name: 'getReceivableSummary', arguments: {} },
+        {
+          id: 'tool-3',
+          name: 'sendReminderEmail',
+          arguments: { draftId: 'draft-1', receivableId: 'receivable-1' },
+        },
+      ],
+      inputTokens: 40,
+      outputTokens: 12,
+    });
+    const deps = buildDeps();
+    deps.pendingActionRepo.create.mockResolvedValue({
+      id: 'action-1',
+      organizationId: 'org-1',
+      conversationId: 'conversation-1',
+      actionType: 'SEND_REMINDER_EMAIL',
+      status: 'PENDING',
+      payload: { draftId: 'draft-1', receivableId: 'receivable-1' },
+      createdAt: new Date('2026-08-09T10:00:00Z'),
+      resolvedAt: null,
+      resolvedByUserId: null,
+    });
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    const result = await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'How is cust-1 doing, and send the reminder for draft-1',
+    });
+
+    expect(result.pendingAction).toMatchObject({ id: 'action-1' });
   });
 });
