@@ -8,6 +8,7 @@
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "seed": "ts-node src/database/seed/seed.ts",
     "arch-check": "depcruise --config .dependency-cruiser.cjs src && node scripts/check-application-exceptions.mjs && node --test scripts/check-cross-module-infrastructure.test.mjs && node scripts/check-cross-module-infrastructure.mjs && node scripts/check-controller-docs.mjs && node --test scripts/check-controller-docs.test.mjs"
   },
   "dependencies": {
