@@ -6,6 +6,7 @@ import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Spinner } from '@/components/ui/spinner';
 import { useAuth } from '@/contexts/auth-context';
 import { apiRequest, authTokenManager } from '@/lib/api-client';
+import { AuthLogoLink } from '../components/auth-logo-link';
 
 export function SignupPage() {
   const { refreshUser } = useAuth();
@@ -46,8 +47,9 @@ export function SignupPage() {
         onSubmit={onSubmit}
         className="w-full max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm"
       >
+        <AuthLogoLink />
+
         <div className="space-y-1">
-          <p className="text-sm font-medium text-primary">Casso Ledger</p>
           <h1 className="text-2xl font-semibold">Tạo tài khoản</h1>
           <p className="text-sm text-muted-foreground">
             Bắt đầu quản lý công nợ cho doanh nghiệp của bạn.
@@ -60,6 +62,7 @@ export function SignupPage() {
             name="organizationName"
             required
             autoComplete="organization"
+            placeholder="VD: Công ty TNHH ABC"
             value={organizationName}
             onChange={(event) => setOrganizationName(event.target.value)}
             className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -72,6 +75,7 @@ export function SignupPage() {
             name="name"
             required
             autoComplete="name"
+            placeholder="VD: Nguyễn Văn A"
             value={name}
             onChange={(event) => setName(event.target.value)}
             className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -86,6 +90,7 @@ export function SignupPage() {
             required
             autoComplete="email"
             spellCheck={false}
+            placeholder="ban@congty.com"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -100,6 +105,7 @@ export function SignupPage() {
             required
             minLength={8}
             autoComplete="new-password"
+            placeholder="Ít nhất 8 ký tự"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"

@@ -5,7 +5,13 @@ export function LandingFooter() {
   return (
     <footer className="border-t border-border/60 py-10">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">
-        <Logo className="h-7" />
+        <Link
+          to="/"
+          aria-label="Casso Ledger — Trang chủ"
+          className="inline-flex items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Logo className="h-7" />
+        </Link>
         <p className="text-base text-muted-foreground">
           © {new Date().getFullYear()} Casso Ledger. Đã đăng ký bản quyền.
         </p>

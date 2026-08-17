@@ -59,7 +59,10 @@ export function LandingNavbar() {
           aria-label="Casso Ledger — Trang chủ"
           className="inline-flex shrink-0 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Logo className="hidden sm:inline-flex" />
+          <Logo
+            className="hidden sm:inline-flex"
+            wordmarkClassName="text-primary"
+          />
           <Logo variant="icon" className="h-9 sm:hidden" />
         </Link>
 
@@ -107,7 +110,7 @@ export function LandingNavbar() {
                 <Menu aria-hidden="true" className="size-4" />
               </Button>
             </SheetTrigger>
-            <SheetContent className="w-[min(100vw-2rem,20rem)] overscroll-contain">
+            <SheetContent className="w-[min(100vw-2rem,20rem)] overscroll-contain p-6">
               <AnimatePresence>
                 {mobileOpen ? (
                   <motion.div
@@ -124,9 +127,12 @@ export function LandingNavbar() {
                     }
                     transition={{ duration: 0.2, ease: EASE_OUT }}
                   >
-                    <div className="flex items-center gap-2 text-left text-lg font-semibold">
-                      <Logo variant="icon" className="h-7" />
-                      Casso Ledger
+                    <div className="flex items-center justify-between gap-2">
+                      <Logo
+                        iconClassName="h-7 w-7"
+                        wordmarkClassName="text-lg font-semibold"
+                      />
+                      <ThemeToggle className="size-9" />
                     </div>
                     <div className="mt-6 flex flex-col gap-2">
                       {LANDING_NAV_LINKS.map((link) => (
