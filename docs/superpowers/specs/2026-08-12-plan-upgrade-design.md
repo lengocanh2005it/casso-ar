@@ -1,5 +1,7 @@
 # Plan Upgrade Use Case Design
 
+> **Superseded:** `POST /api/v1/subscriptions/change-plan` was removed in issue #205 (2026-08-17) — the unguarded human-click path is gone. The single remaining upgrade path is the PayOS flow: `POST /payos/plan-upgrade-orders` → webhook → `ConfirmPlanUpgradeOrderUseCase` → `ChangeSubscriptionPlanUseCase` (still the internal application-layer entry point). Everything below describing the public HTTP endpoint is historical.
+
 > Child spec of issue #150 (split out of #90 during grilling on 2026-08-12). See [ADR-0011](../../adr/0011-upgrade-only-plan-changes.md) for the upgrade-only-no-downgrade trade-off. Builds on #90's `PLAN_CATALOG`/`Subscription.createXxx()` (PR #151). Does **not** cover payment collection (#152, PayOS) or auto-downgrade-on-non-renewal (#153) — both are separate, later issues.
 
 ## 0. Problem & non-goals
