@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -10,6 +9,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCsvExport } from '@/lib/use-csv-export';
+import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { exportAgingReportCsv } from '../api/reports-api';
 import {
   useAgingReport,
@@ -68,7 +68,7 @@ function parseTrendMonths(value: string | null): TrendMonths {
 
 export function ReportsPage() {
   const { isExporting, exportCsv } = useCsvExport();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { searchParams, patch } = useUrlQueryParams();
   const summaryQuery = useDashboardSummary();
   const agingQuery = useAgingReport();
 
@@ -97,16 +97,8 @@ export function ReportsPage() {
       )
     : 1;
 
-  function updateAgingParams(update: (next: URLSearchParams) => void) {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      update(next);
-      return next;
-    });
-  }
-
   function setAgingSearch(value: string) {
-    updateAgingParams((next) => {
+    patch((next) => {
       if (value) {
         next.set('agingSearch', value);
       } else {
@@ -117,7 +109,7 @@ export function ReportsPage() {
   }
 
   function setAgingBucket(value: AgingBucketFilter) {
-    updateAgingParams((next) => {
+    patch((next) => {
       if (value === 'ALL') {
         next.delete('agingBucket');
       } else {
@@ -128,7 +120,7 @@ export function ReportsPage() {
   }
 
   function setAgingPage(nextPage: number) {
-    updateAgingParams((next) => {
+    patch((next) => {
       next.set('agingPage', String(nextPage));
     });
   }
@@ -142,15 +134,13 @@ export function ReportsPage() {
       return;
     }
 
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
+    patch((next) => {
       next.set('agingPage', String(agingTotalPages));
-      return next;
     });
-  }, [agingPage, agingTotalPages, customerAgingQuery.data, setSearchParams]);
+  }, [agingPage, agingTotalPages, customerAgingQuery.data, patch]);
 
   function setTrendMonths(months: TrendMonths) {
-    updateAgingParams((next) => {
+    patch((next) => {
       next.set('trendMonths', String(months));
     });
   }

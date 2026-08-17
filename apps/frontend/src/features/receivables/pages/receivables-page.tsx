@@ -1,5 +1,4 @@
 import { Permission, ReceivableStatus } from '@casso-ledger/shared-types';
-import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TableSkeleton } from '@/components/ui/skeleton';
@@ -9,6 +8,7 @@ import { hasPermission } from '@/lib/rbac';
 import { useBulkSelection } from '@/lib/use-bulk-selection';
 import { useCsvExport } from '@/lib/use-csv-export';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
+import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { exportReceivablesCsv } from '../api/receivables-api';
 import { useReceivables } from '../api/use-receivables';
 import { CreateReceivableDialog } from '../components/create-receivable-dialog';
@@ -19,7 +19,7 @@ import { ReceivablesBulkActionBar } from '../components/receivables-bulk-action-
 
 export function ReceivablesPage() {
   const { user } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { searchParams, setParam, setPage } = useUrlQueryParams();
   const { isExporting, exportCsv } = useCsvExport();
   const status =
     (searchParams.get('status') as ReceivableStatus | null) ?? undefined;
@@ -44,14 +44,6 @@ export function ReceivablesPage() {
     user?.role ?? null,
     Permission.RECEIVABLE_READ,
   );
-
-  function setPage(nextPage: number) {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.set('page', String(nextPage));
-      return next;
-    });
-  }
 
   return (
     <div className="space-y-5">
@@ -102,37 +94,18 @@ export function ReceivablesPage() {
         placeholder="Tìm theo số hóa đơn hoặc khách hàng…"
         value={search}
         onChange={(event) => {
-          const value = event.target.value;
-          setSearchParams(
-            (current) => {
-              const next = new URLSearchParams(current);
-              if (value) {
-                next.set('search', value);
-              } else {
-                next.delete('search');
-              }
-              next.set('page', '1');
-              return next;
-            },
-            { replace: true },
-          );
+          setParam('search', event.target.value, {
+            resetPage: true,
+            replace: true,
+          });
         }}
         className="max-w-lg"
       />
       <ReceivableFilters
         status={status}
-        onStatusChange={(value) => {
-          setSearchParams((current) => {
-            const next = new URLSearchParams(current);
-            if (value) {
-              next.set('status', value);
-            } else {
-              next.delete('status');
-            }
-            next.set('page', '1');
-            return next;
-          });
-        }}
+        onStatusChange={(value) =>
+          setParam('status', value ?? '', { resetPage: true })
+        }
       />
       {isPending && <TableSkeleton rows={5} />}
       {isError && (

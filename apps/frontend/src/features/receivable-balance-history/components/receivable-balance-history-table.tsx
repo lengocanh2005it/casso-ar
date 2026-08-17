@@ -1,5 +1,4 @@
 import { Fragment } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,6 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatVND } from '@/lib/format';
+import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import type { ReceivableBalanceHistoryListItem } from '../types';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -76,18 +76,16 @@ interface TableProps {
 }
 
 export function ReceivableBalanceHistoryTable({ items }: TableProps) {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { searchParams, patch } = useUrlQueryParams();
   const expandedId = searchParams.get('expanded');
 
   function toggleExpanded(id: string) {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
+    patch((next) => {
       if (next.get('expanded') === id) {
         next.delete('expanded');
       } else {
         next.set('expanded', id);
       }
-      return next;
     });
   }
 
