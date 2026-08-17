@@ -2,14 +2,14 @@ import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { ReminderPolicy } from '../domain/reminder-policy';
+import type { IReminderPolicyRepository } from './reminder-policy-repository.port';
+import type { IReminderRuleRepository } from './reminder-rule-repository.port';
 import {
   assertUniqueOffsetDays,
   buildReminderRules,
-  ReminderPolicy,
   type ReminderRuleInput,
-} from '../domain/reminder-policy';
-import type { IReminderPolicyRepository } from './reminder-policy-repository.port';
-import type { IReminderRuleRepository } from './reminder-rule-repository.port';
+} from './save-reminder-policy-input';
 
 @Injectable()
 export class UpdateReminderPolicyUseCase {

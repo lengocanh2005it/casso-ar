@@ -4,14 +4,14 @@ import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { ReminderPolicy } from '../domain/reminder-policy';
+import type { IReminderPolicyRepository } from './reminder-policy-repository.port';
+import type { IReminderRuleRepository } from './reminder-rule-repository.port';
 import {
   assertUniqueOffsetDays,
   buildReminderRules,
-  ReminderPolicy,
   type SaveReminderPolicyInput,
-} from '../domain/reminder-policy';
-import type { IReminderPolicyRepository } from './reminder-policy-repository.port';
-import type { IReminderRuleRepository } from './reminder-rule-repository.port';
+} from './save-reminder-policy-input';
 
 @Injectable()
 export class CreateReminderPolicyUseCase {
