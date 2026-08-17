@@ -23,7 +23,8 @@ export const LANDING_HEADLINE_PHRASES = [
 
 export const LANDING_ABOUT = {
   paragraphSegments: [
-    { text: 'Casso Ledger là nền tảng ' },
+    { text: 'Casso Ledger', bold: true },
+    { text: ' là nền tảng ' },
     { text: 'quản lý và thu hồi công nợ', bold: true },
     {
       text: ' dành cho doanh nghiệp Việt Nam. Giao dịch ngân hàng về tới đâu, hệ thống ',

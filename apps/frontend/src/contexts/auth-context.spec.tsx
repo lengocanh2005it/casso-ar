@@ -45,7 +45,7 @@ describe('AuthProvider', () => {
     apiRequest.mockReset();
   });
 
-  it('restores a session from /api/v1/me when a token exists', async () => {
+  it('restores a session from /api/v1/auth/me when a token exists', async () => {
     getValidAccessToken.mockResolvedValue('token');
     apiRequest.mockResolvedValue({
       id: 'user-1',
@@ -65,7 +65,7 @@ describe('AuthProvider', () => {
 
     await waitFor(() => expect(screen.getByText('hello Owner')).toBeVisible());
     expect(apiRequest).toHaveBeenCalledWith({
-      url: '/api/v1/me',
+      url: '/api/v1/auth/me',
       method: 'GET',
     });
   });

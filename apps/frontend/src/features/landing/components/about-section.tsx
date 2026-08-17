@@ -10,13 +10,16 @@ export function AboutSection() {
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Giới thiệu
           </h2>
+          <p className="mt-4 text-lg text-muted-foreground text-pretty">
+            Theo dõi toàn bộ dòng tiền và công nợ trên cùng một luồng làm việc.
+          </p>
         </div>
 
-        <div className="mt-12 grid gap-10 lg:grid-cols-2 lg:items-center lg:gap-16">
+        <div className="mt-10 grid gap-10 lg:grid-cols-2 lg:items-center lg:gap-16">
           <div className="space-y-6">
             <p className="text-lg leading-relaxed text-muted-foreground text-pretty">
               {LANDING_ABOUT.paragraphSegments.map((segment) =>
-                segment.bold ? (
+                'bold' in segment && segment.bold ? (
                   <strong
                     key={segment.text}
                     className="font-semibold text-foreground"

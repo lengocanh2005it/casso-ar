@@ -16,8 +16,11 @@ describe('AboutSection', () => {
           element?.tagName === 'P' && element.textContent === fullParagraph,
       ),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText('Casso Ledger', { selector: 'strong' }),
+    ).toBeInTheDocument();
     for (const segment of LANDING_ABOUT.paragraphSegments.filter(
-      (s) => s.bold,
+      (s) => 'bold' in s && s.bold,
     )) {
       expect(screen.getByText(segment.text).tagName).toBe('STRONG');
     }

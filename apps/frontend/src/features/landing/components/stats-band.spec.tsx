@@ -15,9 +15,18 @@ describe('StatsBand', () => {
   it('renders the highlights in a high-contrast branded band', () => {
     render(<StatsBand />);
 
-    expect(
-      screen.getByRole('region', { name: 'Vì sao chọn Casso Ledger?' }),
-    ).toHaveClass('bg-primary', 'text-primary-foreground');
+    const region = screen.getByRole('region', {
+      name: 'Vì sao chọn Casso Ledger?',
+    });
+
+    expect(region).toHaveClass('py-12', 'sm:py-16');
+    expect(region).not.toHaveClass('bg-primary');
+    expect(region.firstElementChild).toHaveClass('max-w-6xl');
+    expect(region.firstElementChild?.firstElementChild).toHaveClass(
+      'rounded-3xl',
+      'bg-primary',
+      'text-primary-foreground',
+    );
     expect(
       screen.getByRole('heading', { name: 'Vì sao chọn Casso Ledger?' }),
     ).toHaveAttribute('id', 'stats-band-title');

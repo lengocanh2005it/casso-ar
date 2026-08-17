@@ -126,11 +126,12 @@ export function ReceivableBalanceHistoryCharts({
                     data={chartData}
                     dataKey="value"
                     nameKey="name"
-                    innerRadius={48}
-                    outerRadius={80}
+                    innerRadius="55%"
+                    outerRadius="90%"
                     paddingAngle={2}
                     stroke="var(--card)"
                     strokeWidth={2}
+                    isAnimationActive={false}
                   >
                     {chartData.map((point) => (
                       <Cell key={point.name} fill={point.color} />

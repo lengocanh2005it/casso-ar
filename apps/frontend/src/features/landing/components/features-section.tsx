@@ -17,16 +17,22 @@ export function FeaturesSection() {
   const reducedMotion = useReducedMotion();
 
   return (
-    <section id="tinh-nang" className="scroll-mt-24 py-20 sm:py-28">
+    <section
+      id="tinh-nang"
+      className="scroll-mt-24 border-b border-border/60 bg-muted/20 py-16 sm:py-24"
+    >
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Mọi thứ bạn cần để quản lý công nợ
           </h2>
+          <p className="mt-4 text-lg text-muted-foreground text-pretty">
+            Từ theo dõi đến nhắc nợ, mọi công cụ cần thiết đều ở một nơi.
+          </p>
         </div>
 
         <motion.div
-          className="mt-12 grid gap-4 md:grid-cols-3"
+          className="mt-10 grid gap-4 md:grid-cols-3"
           initial={reducedMotion ? false : 'hidden'}
           whileInView={reducedMotion ? undefined : 'visible'}
           viewport={VIEWPORT_ONCE}
