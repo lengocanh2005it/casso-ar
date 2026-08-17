@@ -57,7 +57,7 @@ export function LandingNavbar() {
         <Link
           to="/"
           aria-label="Casso Ledger — Trang chủ"
-          className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex shrink-0 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Logo className="hidden sm:block" />
           <Logo variant="icon" className="h-9 sm:hidden" />
