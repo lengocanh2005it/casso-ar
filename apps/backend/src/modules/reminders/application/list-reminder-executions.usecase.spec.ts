@@ -1,8 +1,8 @@
 import { REMINDER_EXECUTION_REPOSITORY } from '../../../common/tokens/reminder-execution.token';
-import { ListReminderExecutionUseCase } from './list-reminder-executions.usecase';
+import { ListReminderExecutionsUseCase } from './list-reminder-executions.usecase';
 import type { IReminderExecutionRepository } from './reminder-execution-repository.port';
 
-describe('ListReminderExecutionUseCase', () => {
+describe('ListReminderExecutionsUseCase', () => {
   it('delegates to the execution repository findPage', async () => {
     const mockItems = [
       { id: 'exec-1', status: 'SENT' },
@@ -11,7 +11,7 @@ describe('ListReminderExecutionUseCase', () => {
     const executionRepo = {
       findPage: jest.fn().mockResolvedValue({ items: mockItems, total: 2 }),
     };
-    const useCase = new ListReminderExecutionUseCase(
+    const useCase = new ListReminderExecutionsUseCase(
       executionRepo as unknown as IReminderExecutionRepository,
     );
 

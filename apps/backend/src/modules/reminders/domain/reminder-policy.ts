@@ -1,7 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { CustomerGroup } from '../../customers/domain/customer-group';
-import type { ReminderRule } from './reminder-rule';
+import { ReminderRule } from './reminder-rule';
 
 export const DEFAULT_ESCALATION_THRESHOLD_DAYS = 30;
 
@@ -65,4 +66,21 @@ export function assertUniqueOffsetDays(rules: ReminderRuleInput[]): void {
       'Duplicate offsetDays values',
     );
   }
+}
+
+export function buildReminderRules(
+  reminderPolicyId: string,
+  rules: ReminderRuleInput[],
+): ReminderRule[] {
+  return rules.map(
+    (r) =>
+      new ReminderRule({
+        id: randomUUID(),
+        reminderPolicyId,
+        offsetDays: r.offsetDays,
+        emailTemplateId: r.emailTemplateId,
+        minIntervalDays: r.minIntervalDays,
+        createdAt: new Date(),
+      }),
+  );
 }

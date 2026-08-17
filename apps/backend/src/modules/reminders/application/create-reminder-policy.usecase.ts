@@ -4,13 +4,12 @@ import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-// biome-ignore lint/style/useImportType: NestJS DI needs the class runtime value
 import {
   assertUniqueOffsetDays,
+  buildReminderRules,
   ReminderPolicy,
   type SaveReminderPolicyInput,
 } from '../domain/reminder-policy';
-import { ReminderRule } from '../domain/reminder-rule';
 import type { IReminderPolicyRepository } from './reminder-policy-repository.port';
 import type { IReminderRuleRepository } from './reminder-rule-repository.port';
 
@@ -50,17 +49,7 @@ export class CreateReminderPolicyUseCase {
 
     await this.dataSource.transaction(async (manager) => {
       await this.policyRepo.save(policy, manager);
-      const rules = input.rules.map(
-        (r) =>
-          new ReminderRule({
-            id: randomUUID(),
-            reminderPolicyId: policy.id,
-            offsetDays: r.offsetDays,
-            emailTemplateId: r.emailTemplateId,
-            minIntervalDays: r.minIntervalDays,
-            createdAt: new Date(),
-          }),
-      );
+      const rules = buildReminderRules(policy.id, input.rules);
       await this.ruleRepo.replaceForPolicy(policy.id, rules, manager);
     });
 

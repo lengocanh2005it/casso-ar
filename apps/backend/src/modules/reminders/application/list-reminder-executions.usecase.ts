@@ -14,7 +14,7 @@ export interface ListReminderExecutionsInput {
 }
 
 @Injectable()
-export class ListReminderExecutionUseCase {
+export class ListReminderExecutionsUseCase {
   constructor(
     @Inject(REMINDER_EXECUTION_REPOSITORY)
     private readonly executionRepo: IReminderExecutionRepository,

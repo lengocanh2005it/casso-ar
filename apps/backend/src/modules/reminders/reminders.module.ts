@@ -9,7 +9,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { CreateReminderPolicyUseCase } from './application/create-reminder-policy.usecase';
 import { I_EMAIL_SERVICE } from './application/i-email-service.port';
-import { ListReminderExecutionUseCase } from './application/list-reminder-executions.usecase';
+import { ListReminderExecutionsUseCase } from './application/list-reminder-executions.usecase';
 import { ListReminderPoliciesUseCase } from './application/list-reminder-policies.usecase';
 import {
   REMINDER_SEND_QUEUE,
@@ -56,7 +56,7 @@ import {
     CreateReminderPolicyUseCase,
     ListReminderPoliciesUseCase,
     UpdateReminderPolicyUseCase,
-    ListReminderExecutionUseCase,
+    ListReminderExecutionsUseCase,
     ReminderSenderService,
     ReminderSchedulerService,
     ReminderSendProcessor,

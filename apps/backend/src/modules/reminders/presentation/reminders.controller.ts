@@ -25,7 +25,7 @@ import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { CreateReminderPolicyUseCase } from '../application/create-reminder-policy.usecase';
-import { ListReminderExecutionUseCase } from '../application/list-reminder-executions.usecase';
+import { ListReminderExecutionsUseCase } from '../application/list-reminder-executions.usecase';
 import { ListReminderPoliciesUseCase } from '../application/list-reminder-policies.usecase';
 import { UpdateReminderPolicyUseCase } from '../application/update-reminder-policy.usecase';
 import { CreateReminderPolicyDto } from './dto/create-reminder-policy.dto';
@@ -96,7 +96,7 @@ export class RemindersController {
 @UseGuards(PermissionGuard)
 export class ReminderExecutionsController {
   constructor(
-    private readonly listExecutionsUseCase: ListReminderExecutionUseCase,
+    private readonly listExecutionsUseCase: ListReminderExecutionsUseCase,
   ) {}
 
   @Get()
