@@ -1,4 +1,9 @@
-import { buildSeedCustomers, buildSeedReceivablePlans } from './seed-dataset';
+import {
+  buildSeedCustomers,
+  buildSeedOperatorUserProps,
+  buildSeedReceivablePlans,
+  SEED_OPERATOR_EMAIL,
+} from './seed-dataset';
 
 describe('buildSeedCustomers', () => {
   it('returns a handful of customers with unique, non-empty tax codes and emails', () => {
@@ -71,5 +76,28 @@ describe('buildSeedReceivablePlans', () => {
       expect(Number.isInteger(plan.originalAmount)).toBe(true);
       expect(plan.originalAmount).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('buildSeedOperatorUserProps', () => {
+  const now = new Date('2026-08-17T00:00:00Z');
+  const props = buildSeedOperatorUserProps(
+    'operator-id',
+    'hashed-password',
+    now,
+  );
+
+  it('is a platform-level operator with no organization/membership fields', () => {
+    expect(props.isOperator).toBe(true);
+    expect(props.email).toBe(SEED_OPERATOR_EMAIL);
+  });
+
+  it('is already email-verified so it is usable immediately', () => {
+    expect(props.emailVerifiedAt).toEqual(now);
+  });
+
+  it('passes the id and password hash through unchanged', () => {
+    expect(props.id).toBe('operator-id');
+    expect(props.passwordHash).toBe('hashed-password');
   });
 });

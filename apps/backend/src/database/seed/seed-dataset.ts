@@ -56,6 +56,35 @@ export function buildSeedCustomers(): SeedCustomerPlan[] {
   ];
 }
 
+export const SEED_OPERATOR_EMAIL = 'operator@seed.local';
+export const SEED_OPERATOR_PASSWORD = 'SeedOperator123!';
+
+export interface SeedOperatorUserProps {
+  id: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+  emailVerifiedAt: Date;
+  isOperator: true;
+  createdAt: Date;
+}
+
+export function buildSeedOperatorUserProps(
+  id: string,
+  passwordHash: string,
+  now: Date,
+): SeedOperatorUserProps {
+  return {
+    id,
+    name: 'Seed Operator',
+    email: SEED_OPERATOR_EMAIL,
+    passwordHash,
+    emailVerifiedAt: now,
+    isOperator: true,
+    createdAt: now,
+  };
+}
+
 export type SeedReceivableOutcome =
   | 'OPEN'
   | 'OPEN_OVERDUE'

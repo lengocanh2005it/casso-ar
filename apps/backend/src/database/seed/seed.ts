@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../../app.module';
 import { TenantContextService } from '../../common/tenancy/tenant-context';
+import { hashPassword } from '../../modules/auth/application/password-hasher';
 import { SignupUseCase } from '../../modules/auth/application/signup.usecase';
 import {
   CUSTOMER_REPOSITORY,
@@ -21,12 +22,38 @@ import {
   type IUserRepository,
   USER_REPOSITORY,
 } from '../../modules/users/application/user-repository.port';
-import { buildSeedCustomers, buildSeedReceivablePlans } from './seed-dataset';
+import { User } from '../../modules/users/domain/user';
+import {
+  buildSeedCustomers,
+  buildSeedOperatorUserProps,
+  buildSeedReceivablePlans,
+  SEED_OPERATOR_EMAIL,
+  SEED_OPERATOR_PASSWORD,
+} from './seed-dataset';
 import { assertNotProduction } from './seed-guard';
 
 export const SEED_OWNER_EMAIL = 'owner@seed.local';
 export const SEED_OWNER_PASSWORD = 'SeedPass123!';
 const SEED_ORGANIZATION_NAME = 'Casso Seed Co';
+
+async function seedOperator(userRepo: IUserRepository): Promise<void> {
+  const existingOperator = await userRepo.findByEmail(SEED_OPERATOR_EMAIL);
+  if (existingOperator) {
+    console.log(
+      `Already seeded (operator ${SEED_OPERATOR_EMAIL} exists) — skipping.`,
+    );
+    return;
+  }
+
+  const passwordHash = await hashPassword(SEED_OPERATOR_PASSWORD);
+  const operator = new User(
+    buildSeedOperatorUserProps(randomUUID(), passwordHash, new Date()),
+  );
+  await userRepo.save(operator);
+  console.log(
+    `Seeded operator — login with ${SEED_OPERATOR_EMAIL} / ${SEED_OPERATOR_PASSWORD}`,
+  );
+}
 
 async function main() {
   assertNotProduction(process.env.NODE_ENV);
@@ -34,6 +61,8 @@ async function main() {
   const app = await NestFactory.createApplicationContext(AppModule);
   try {
     const userRepo = app.get<IUserRepository>(USER_REPOSITORY);
+    await seedOperator(userRepo);
+
     const existing = await userRepo.findByEmail(SEED_OWNER_EMAIL);
     if (existing) {
       console.log(
