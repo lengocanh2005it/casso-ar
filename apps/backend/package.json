@@ -64,6 +64,7 @@
     "@types/node": "22.10.2",
     "@types/nodemailer": "^8.0.1",
     "@types/passport-jwt": "^4.0.1",
+    "@types/pg": "^8.21.0",
     "@types/supertest": "6.0.2",
     "dependency-cruiser": "18.1.1",
     "jest": "30.4.2",
