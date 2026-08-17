@@ -14,13 +14,13 @@ export interface ListReminderExecutionsInput {
 }
 
 @Injectable()
-export class ReminderExecutionQueryService {
+export class ListReminderExecutionsUseCase {
   constructor(
     @Inject(REMINDER_EXECUTION_REPOSITORY)
     private readonly executionRepo: IReminderExecutionRepository,
   ) {}
 
-  list(
+  execute(
     input: ListReminderExecutionsInput,
   ): Promise<{ items: ReminderExecution[]; total: number }> {
     return this.executionRepo.findPage(input);
