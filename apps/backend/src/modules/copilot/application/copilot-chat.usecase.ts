@@ -35,6 +35,7 @@ import { SendReminderEmailTool } from './tools/send-reminder-email.tool';
 
 const PROMPT_VERSION = 'copilot-v1';
 const MODEL_CALL_TIMEOUT_MS = 15_000;
+const MODEL_CALL_RETRY_BACKOFF_MS = 500;
 const MAX_TOOL_ITERATIONS = 5;
 const SYSTEM_PROMPT = [
   'You are an AI assistant for collections accounting (Collection Copilot).',
@@ -53,10 +54,21 @@ export interface CopilotChatResult {
   pendingAction: CopilotPendingAction | null;
 }
 
+class CopilotModelTimeoutError extends Error {
+  constructor() {
+    super('Copilot model call timed out');
+    this.name = 'CopilotModelTimeoutError';
+  }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(
-      () => reject(new Error('Copilot model call timed out')),
+      () => reject(new CopilotModelTimeoutError()),
       timeoutMs,
     );
     promise.then(
@@ -170,7 +182,9 @@ export class CopilotChatUseCase {
   ): Promise<AIChatCompletionResult> {
     try {
       return await this.callModel(messages, tools, conversationId);
-    } catch {
+    } catch (error) {
+      if (!(error instanceof CopilotModelTimeoutError)) throw error;
+      await delay(MODEL_CALL_RETRY_BACKOFF_MS);
       return this.callModel(messages, tools, conversationId);
     }
   }

@@ -392,11 +392,67 @@ describe('CopilotChatUseCase', () => {
     expect(aiProvider.createChatCompletion).not.toHaveBeenCalled();
   });
 
-  it('retries one provider failure and logs both attempts', async () => {
+  it('retries once after a model timeout, with a backoff delay, and logs both attempts', async () => {
+    jest.useFakeTimers();
+    try {
+      const aiProvider = { createChatCompletion: jest.fn() };
+      aiProvider.createChatCompletion
+        .mockImplementationOnce(() => new Promise(() => {}))
+        .mockResolvedValueOnce({
+          content: 'Recovered after timeout.',
+          toolCalls: [],
+          inputTokens: 3,
+          outputTokens: 4,
+        });
+      const deps = buildDeps();
+      const useCase = new CopilotChatUseCase(
+        aiProvider as any,
+        buildRegistry(),
+        deps.summaryTool as any,
+        deps.timelineTool as any,
+        deps.paymentHistoryTool as any,
+        deps.draftTool as any,
+        deps.conversationRepo as any,
+        deps.pendingActionRepo as any,
+        deps.usageLogRepo as any,
+        deps.planLimitService as any,
+        deps.dataSource as any,
+        deps.tenantContext as any,
+      );
+
+      const resultPromise = useCase.execute({
+        conversationId: 'conversation-1',
+        userMessage: 'hi',
+      });
+
+      // MODEL_CALL_TIMEOUT_MS
+      await jest.advanceTimersByTimeAsync(15_000);
+      // The retry must wait for the backoff delay before firing again.
+      expect(aiProvider.createChatCompletion).toHaveBeenCalledTimes(1);
+
+      // retry backoff delay
+      await jest.advanceTimersByTimeAsync(500);
+
+      const result = await resultPromise;
+      expect(result.message.content).toBe('Recovered after timeout.');
+      expect(aiProvider.createChatCompletion).toHaveBeenCalledTimes(2);
+      expect(deps.usageLogRepo.log).toHaveBeenCalledTimes(2);
+      expect(deps.usageLogRepo.log.mock.calls[0][0]).toMatchObject({
+        isError: true,
+      });
+      expect(deps.usageLogRepo.log.mock.calls[1][0]).toMatchObject({
+        isError: false,
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('does not retry a non-timeout provider error and logs a single attempt', async () => {
     const aiProvider = { createChatCompletion: jest.fn() };
-    aiProvider.createChatCompletion
-      .mockRejectedValueOnce(new Error('timeout'))
-      .mockRejectedValueOnce(new Error('timeout again'));
+    aiProvider.createChatCompletion.mockRejectedValueOnce(
+      new Error('invalid request'),
+    );
     const deps = buildDeps();
     const useCase = new CopilotChatUseCase(
       aiProvider as any,
@@ -415,14 +471,9 @@ describe('CopilotChatUseCase', () => {
 
     await expect(
       useCase.execute({ conversationId: 'conversation-1', userMessage: 'hi' }),
-    ).rejects.toThrow('timeout again');
-    expect(aiProvider.createChatCompletion).toHaveBeenCalledTimes(2);
-    expect(deps.usageLogRepo.log).toHaveBeenCalledTimes(2);
-    expect(
-      deps.usageLogRepo.log.mock.calls.every(
-        ([entry]) => entry.isError === true,
-      ),
-    ).toBe(true);
+    ).rejects.toThrow('invalid request');
+    expect(aiProvider.createChatCompletion).toHaveBeenCalledTimes(1);
+    expect(deps.usageLogRepo.log).toHaveBeenCalledTimes(1);
   });
 
   it('feeds a tool error back to the model as a tool message instead of aborting the turn', async () => {
