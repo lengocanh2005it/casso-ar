@@ -15,6 +15,7 @@ import { ExportReceivablesUseCase } from './application/export-receivables.useca
 import { GetReceivableUseCase } from './application/get-receivable.usecase';
 import { ListReceivablesUseCase } from './application/list-receivables.usecase';
 import { RECEIVABLE_REPOSITORY } from './application/receivable-repository.port';
+import { ReceivableTransitionRunnerService } from './application/receivable-transition-runner.service';
 import { WriteOffReceivableUseCase } from './application/write-off-receivable.usecase';
 import { ReceivableOrmEntity } from './infrastructure/receivable.orm-entity';
 import { TypeOrmReceivableRepository } from './infrastructure/typeorm-receivable.repository';
@@ -37,6 +38,7 @@ import { ReceivablesController } from './presentation/receivables.controller';
     BatchCancelReceivableUseCase,
     WriteOffReceivableUseCase,
     BatchWriteOffReceivableUseCase,
+    ReceivableTransitionRunnerService,
     GetReceivableUseCase,
     ListReceivablesUseCase,
     ExportReceivablesUseCase,
