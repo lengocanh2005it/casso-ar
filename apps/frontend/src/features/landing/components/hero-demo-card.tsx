@@ -22,7 +22,7 @@ export function HeroDemoCard() {
 
   return (
     <div className="relative mx-auto w-full max-w-md">
-      <Card className="border-border/70 shadow-lg">
+      <Card className="gap-3 border-border/70 shadow-lg">
         <CardHeader className="pb-3">
           <p className="text-xs text-muted-foreground">Giao dịch gần đây</p>
         </CardHeader>

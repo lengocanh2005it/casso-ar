@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { ThemeProvider, useTheme } from './theme-context';
 
 function Probe() {
@@ -118,6 +119,24 @@ describe('ThemeProvider', () => {
     expect(screen.getByTestId('theme').textContent).toBe('dark');
     expect(screen.getByTestId('resolved').textContent).toBe('dark');
     expect(document.documentElement.classList.contains('dark')).toBe(true);
+  });
+
+  it('switches directly from dark to light on one toggle click', () => {
+    mockMatchMedia(true);
+    localStorage.setItem('casso-ledger:theme', 'dark');
+
+    render(
+      <ThemeProvider>
+        <Probe />
+        <ThemeToggle />
+      </ThemeProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /giao diện/i }));
+
+    expect(screen.getByTestId('theme').textContent).toBe('light');
+    expect(screen.getByTestId('resolved').textContent).toBe('light');
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 
   it('follows OS changes while in system mode', () => {

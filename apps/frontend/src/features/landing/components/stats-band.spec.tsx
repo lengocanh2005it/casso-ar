@@ -26,6 +26,15 @@ describe('StatsBand', () => {
       'rounded-3xl',
       'bg-primary',
       'text-primary-foreground',
+      'dark:text-white',
+    );
+    expect(
+      screen.getByText(
+        'Những công cụ giúp bạn thu tiền đúng hạn và giảm thao tác thủ công.',
+      ),
+    ).toHaveClass('dark:text-white/80');
+    expect(screen.getByText(LANDING_STAT_HIGHLIGHTS[0].label)).toHaveClass(
+      'dark:text-white/90',
     );
     expect(
       screen.getByRole('heading', { name: 'Vì sao chọn Casso Ledger?' }),

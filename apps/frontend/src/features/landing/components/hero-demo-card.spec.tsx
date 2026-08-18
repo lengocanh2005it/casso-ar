@@ -13,4 +13,14 @@ describe('HeroDemoCard', () => {
     expect(screen.getByText('Cửa hàng Thanh Tâm')).toBeInTheDocument();
     expect(screen.getByText('Công ty CP Đại Dương')).toBeInTheDocument();
   });
+
+  it('keeps the transaction list close to its heading', () => {
+    render(<HeroDemoCard />);
+
+    const card = screen
+      .getByText('Giao dịch gần đây')
+      .closest('[data-slot="card"]');
+
+    expect(card).toHaveClass('gap-3');
+  });
 });

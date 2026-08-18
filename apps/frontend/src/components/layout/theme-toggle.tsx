@@ -2,8 +2,6 @@ import { Moon, Sun } from 'lucide-react';
 import { type ThemeMode, useTheme } from '@/contexts/theme-context';
 import { cn } from '@/lib/utils';
 
-const CYCLE: ThemeMode[] = ['system', 'light', 'dark'];
-
 const LABELS: Record<ThemeMode, string> = {
   system: 'theo hệ thống',
   light: 'sáng',
@@ -12,7 +10,7 @@ const LABELS: Record<ThemeMode, string> = {
 
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme, resolvedTheme, setTheme } = useTheme();
-  const next = CYCLE[(CYCLE.indexOf(theme) + 1) % CYCLE.length];
+  const next: ThemeMode = resolvedTheme === 'dark' ? 'light' : 'dark';
 
   return (
     <button
