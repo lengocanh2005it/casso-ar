@@ -130,7 +130,7 @@ export function DashboardPage() {
       </div>
 
       <h2 className="text-xl font-semibold tracking-tight text-primary">
-        Chào mừng {user?.organizationName ?? 'bạn'} đến với Casso Ledger
+        Chào mừng <span className="text-foreground">{user?.organizationName ?? 'bạn'}</span> đến với Casso Ledger!
       </h2>
 
       {reviewCountQuery.isError ? (
