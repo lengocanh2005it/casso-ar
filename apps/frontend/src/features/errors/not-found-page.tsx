@@ -41,14 +41,12 @@ export default function NotFoundPage() {
           <Logo
             className="h-12 sm:h-16"
             iconClassName="h-12 w-12 sm:h-16 sm:w-16"
-            wordmarkClassName="text-2xl sm:text-3xl"
+            wordmarkClassName="text-2xl sm:text-3xl text-primary"
           />
         </Link>
 
         <div className="relative w-full max-w-lg flex-1 flex items-center">
-          <div className="pointer-events-none absolute -inset-3 rounded-[2rem] bg-primary/15 blur-2xl" />
-
-          <Card className="relative overflow-hidden border-border/70 bg-card/90 shadow-2xl shadow-primary/10 backdrop-blur-sm">
+          <Card className="relative overflow-hidden border-border/70 bg-card/90 shadow-lg backdrop-blur-sm">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
 
             <CardContent className="px-6 py-10 text-center sm:px-10 sm:py-12">
@@ -95,18 +93,6 @@ export default function NotFoundPage() {
                   Quay lại trang trước
                 </Button>
               </div>
-
-              {!isAuthenticated && (
-                <p className="mt-6 text-sm text-muted-foreground">
-                  Đã có tài khoản?{' '}
-                  <Link
-                    to="/login"
-                    className="font-medium text-primary hover:underline"
-                  >
-                    Đăng nhập
-                  </Link>
-                </p>
-              )}
             </CardContent>
           </Card>
         </div>
