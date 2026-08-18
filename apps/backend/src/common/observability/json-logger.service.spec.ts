@@ -4,6 +4,7 @@ import { JsonLogger } from './json-logger.service';
 import { RequestIdStore } from './request-id.store';
 
 describe('JsonLogger', () => {
+  const originalLogLevel = process.env.LOG_LEVEL;
   let requestIdStore: RequestIdStore;
   let tenantContext: TenantContextService;
   let logger: JsonLogger;
@@ -19,6 +20,11 @@ describe('JsonLogger', () => {
   });
 
   afterEach(() => {
+    if (originalLogLevel === undefined) {
+      delete process.env.LOG_LEVEL;
+    } else {
+      process.env.LOG_LEVEL = originalLogLevel;
+    }
     writeSpy.mockRestore();
   });
 
@@ -59,5 +65,31 @@ describe('JsonLogger', () => {
     expect(written.level).toBe('error');
     expect(written.organizationId).toBe('org-1');
     expect(written.userId).toBe('user-1');
+  });
+
+  it('filters entries below the configured log level', () => {
+    process.env.LOG_LEVEL = 'warn';
+    logger = new JsonLogger(requestIdStore, tenantContext);
+
+    logger.debug('hidden debug');
+    logger.log('hidden info');
+    logger.warn('visible warning');
+
+    expect(writeSpy).toHaveBeenCalledTimes(1);
+    const written = JSON.parse(writeSpy.mock.calls[0][0] as string);
+    expect(written.level).toBe('warn');
+    expect(written.message).toBe('visible warning');
+  });
+
+  it('falls back to info when the configured log level is invalid', () => {
+    process.env.LOG_LEVEL = 'not-a-level';
+    logger = new JsonLogger(requestIdStore, tenantContext);
+
+    logger.debug('hidden debug');
+    logger.log('visible info');
+
+    expect(writeSpy).toHaveBeenCalledTimes(1);
+    const written = JSON.parse(writeSpy.mock.calls[0][0] as string);
+    expect(written.level).toBe('log');
   });
 });
