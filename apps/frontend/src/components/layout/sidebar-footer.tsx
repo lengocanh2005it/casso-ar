@@ -30,31 +30,52 @@ export function SidebarFooter({ collapsed }: { collapsed: boolean }) {
 
   if (!user) return null;
 
-  return (
-    <div className="flex items-center gap-3 border-t border-sidebar-border px-4 py-3">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
-        {getInitials(user.name)}
+  const logoutButton = (
+    <button
+      type="button"
+      aria-label="Đăng xuất"
+      onClick={() => void handleLogout()}
+      className="shrink-0 rounded-md p-1.5 transition-[background-color,transform] duration-150 ease-out motion-reduce:transition-none motion-reduce:active:scale-100 pointer-hover:hover:bg-sidebar-accent active:scale-[0.97] focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+    >
+      <LogOut aria-hidden="true" className="size-4" />
+    </button>
+  );
+
+  if (collapsed) {
+    return (
+      <div className="flex items-center gap-3 border-t border-sidebar-border px-4 py-3">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
+          {getInitials(user.name)}
+        </div>
+        <AlertBell />
+        <ThemeToggle />
+        {logoutButton}
       </div>
-      {!collapsed && (
+    );
+  }
+
+  return (
+    <div className="space-y-2 border-t border-sidebar-border px-4 py-3">
+      <div className="flex items-center gap-3">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
+          {getInitials(user.name)}
+        </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{user.name}</p>
           <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-          <p className="truncate text-xs text-muted-foreground">
-            {user.organizationName} · {getPlanLabel(user.subscriptionPlan)}
-          </p>
-          <p className="truncate text-xs text-muted-foreground">{user.role}</p>
         </div>
-      )}
-      <AlertBell />
-      <ThemeToggle />
-      <button
-        type="button"
-        aria-label="Đăng xuất"
-        onClick={() => void handleLogout()}
-        className="rounded-md p-1.5 transition-[background-color,transform] duration-150 ease-out motion-reduce:transition-none motion-reduce:active:scale-100 pointer-hover:hover:bg-sidebar-accent active:scale-[0.97] focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-      >
-        <LogOut aria-hidden="true" className="size-4" />
-      </button>
+      </div>
+      <div className="flex items-center gap-2">
+        <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+          {user.organizationName} · {getPlanLabel(user.subscriptionPlan)} ·{' '}
+          {user.role}
+        </p>
+        <div className="flex shrink-0 items-center gap-1">
+          <AlertBell />
+          <ThemeToggle />
+          {logoutButton}
+        </div>
+      </div>
     </div>
   );
 }

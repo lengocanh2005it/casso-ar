@@ -139,6 +139,9 @@ export function useInviteMember() {
       void queryClient.invalidateQueries({
         queryKey: ['organization-members', variables.organizationId],
       });
+      void queryClient.invalidateQueries({
+        queryKey: ['organization-invites', variables.organizationId],
+      });
     },
     onError: () => toast.error('Không thể gửi lời mời.'),
   });

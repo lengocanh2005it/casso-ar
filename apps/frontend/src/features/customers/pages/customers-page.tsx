@@ -26,7 +26,10 @@ export function CustomersPage() {
         placeholder="Tìm theo tên, mã số thuế hoặc số điện thoại…"
         value={search}
         onChange={(event) =>
-          setParam('search', event.target.value, { resetPage: true })
+          setParam('search', event.target.value, {
+            resetPage: true,
+            replace: true,
+          })
         }
         className="max-w-lg"
       />
