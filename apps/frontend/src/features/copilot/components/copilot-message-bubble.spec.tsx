@@ -21,4 +21,22 @@ describe('CopilotMessageBubble', () => {
     expect(container.querySelector('svg')).toBeInTheDocument();
     expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
   });
+
+  it('shows a "Đã dừng" marker for a partial assistant message', () => {
+    render(
+      <CopilotMessageBubble
+        message={{ role: 'ASSISTANT', content: 'Đang trả', isPartial: true }}
+      />,
+    );
+    expect(screen.getByText(/đã dừng/i)).toBeInTheDocument();
+  });
+
+  it('does not show the marker for a complete assistant message', () => {
+    render(
+      <CopilotMessageBubble
+        message={{ role: 'ASSISTANT', content: 'Xin chào', isPartial: false }}
+      />,
+    );
+    expect(screen.queryByText(/đã dừng/i)).not.toBeInTheDocument();
+  });
 });

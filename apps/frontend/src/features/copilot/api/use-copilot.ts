@@ -40,6 +40,7 @@ export function useCopilotChat(
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
+    let streamedText = '';
 
     try {
       await streamCopilotMessage(
@@ -47,24 +48,37 @@ export function useCopilotChat(
         trimmed,
         (event) => {
           if (event.type === 'delta') {
+            streamedText += event.text;
             setStreamingContent((current) => current + event.text);
           } else if (event.type === 'done') {
             setMessages((current) => [...current, event.data.message]);
             setPendingAction(event.data.pendingAction);
-            setStreamingContent('');
             options.onTurnComplete?.();
           } else if (event.type === 'error') {
             toast.error(event.message);
-            setStreamingContent('');
           }
         },
         controller.signal,
       );
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === 'AbortError')) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        if (streamedText) {
+          setMessages((current) => [
+            ...current,
+            {
+              id: crypto.randomUUID(),
+              role: 'ASSISTANT',
+              content: streamedText,
+              createdAt: new Date().toISOString(),
+              isPartial: true,
+            },
+          ]);
+        }
+      } else {
         toast.error('Không thể gửi câu hỏi cho Copilot.');
       }
     } finally {
+      setStreamingContent('');
       setIsSending(false);
       abortControllerRef.current = null;
     }

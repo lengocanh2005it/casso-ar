@@ -470,7 +470,23 @@ export class CopilotChatUseCase {
           }
           if (chunk.toolCalls) toolCalls.push(...chunk.toolCalls);
         }
-        if (isAborted()) return;
+        if (isAborted()) {
+          // The client disconnected mid-answer — persist whatever text was
+          // already produced so the conversation can be resumed later, but
+          // don't bother for an abort that happened before any text arrived.
+          if (content) {
+            const saved = await this.conversationRepo.appendMessage({
+              conversationId: input.conversationId,
+              role: 'ASSISTANT',
+              content,
+              toolCalls: null,
+              createdAt: new Date(),
+              isPartial: true,
+            });
+            yield { type: 'done', message: saved, pendingAction: null };
+          }
+          return;
+        }
 
         const sendCall = toolCalls.find(
           (call) => call.name === SendReminderEmailTool.NAME,

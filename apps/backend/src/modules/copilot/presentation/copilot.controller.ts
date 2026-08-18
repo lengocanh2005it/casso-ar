@@ -25,6 +25,7 @@ import type { Request, Response } from 'express';
 import type { AuthenticatedUser } from '../../../common/auth/authenticated-user';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
@@ -294,17 +295,20 @@ export class CopilotController {
     @Req() req: Request,
     @Res({ passthrough: false }) response: Response,
   ): Promise<void> {
+    const user = req.user as AuthenticatedUser;
+
+    // Tier 1: persist the user's message. Thrown here (validation, plan
+    // limit, forbidden) happens before any header is written, so it still
+    // goes through the normal HttpExceptionFilter → JSON error response.
     await this.idempotency.execute(
       `POST /copilot/conversations/${conversationId}/messages/stream`,
       idempotencyKey,
       dto,
-      () => {
-        const user = req.user as AuthenticatedUser;
-        return this.copilotChatUseCase.persistUserMessage(
+      () =>
+        this.copilotChatUseCase.persistUserMessage(
           { conversationId, userMessage: dto.content },
           { userId: user.userId, organizationId: user.organizationId },
-        );
-      },
+        ),
     );
 
     response.setHeader('Content-Type', 'text/event-stream');
@@ -317,30 +321,63 @@ export class CopilotController {
       aborted = true;
     });
 
-    for await (const event of this.copilotChatUseCase.executeStreaming(
-      { conversationId, userMessage: dto.content },
-      () => aborted,
-    )) {
-      if (event.type === 'done') {
-        const payload: CopilotChatResponseDto = {
-          message: toCopilotMessageDto(event.message),
-          pendingAction: event.pendingAction
-            ? toCopilotPendingActionDto(event.pendingAction)
-            : null,
-        };
-        response.write(`event: done\ndata: ${JSON.stringify(payload)}\n\n`);
-        break;
-      }
-      if (event.type === 'error') {
-        response.write(
-          `event: error\ndata: ${JSON.stringify({ errorCode: event.errorCode, message: event.message })}\n\n`,
-        );
-        break;
-      }
-      response.write(
-        `event: ${event.type}\ndata: ${JSON.stringify({ text: event.text })}\n\n`,
+    const writeEvent = (type: string, data: unknown) => {
+      if (aborted) return;
+      response.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    let payload: CopilotChatResponseDto;
+    try {
+      // Tier 2: consume the model/tool loop and cache its final result under
+      // the SAME idempotency key. A retry with that key skips this operation
+      // entirely — no duplicate model call, no duplicate assistant message or
+      // pending action — instead of re-running the whole turn like a bare
+      // `for await` here would. AppError can't become an HTTP status anymore
+      // once headers are flushed above, so it's caught below and turned into
+      // an SSE `error` event instead of propagating out of the handler.
+      payload = await this.idempotency.execute(
+        `POST /copilot/conversations/${conversationId}/messages/stream:turn`,
+        idempotencyKey,
+        dto,
+        async () => {
+          for await (const event of this.copilotChatUseCase.executeStreaming(
+            { conversationId, userMessage: dto.content },
+            () => aborted,
+          )) {
+            if (event.type === 'done') {
+              return {
+                message: toCopilotMessageDto(event.message),
+                pendingAction: event.pendingAction
+                  ? toCopilotPendingActionDto(event.pendingAction)
+                  : null,
+              };
+            }
+            if (event.type === 'error') {
+              throw new AppError(event.errorCode, event.message);
+            }
+            writeEvent(event.type, { text: event.text });
+          }
+          throw new AppError(
+            ErrorCode.INTERNAL_SERVER_ERROR,
+            'Copilot stream kết thúc mà không có kết quả.',
+          );
+        },
       );
+    } catch (error) {
+      const errorCode =
+        error instanceof AppError
+          ? error.errorCode
+          : ErrorCode.INTERNAL_SERVER_ERROR;
+      const message =
+        error instanceof AppError
+          ? error.message
+          : 'Copilot gặp lỗi không xác định.';
+      writeEvent('error', { errorCode, message });
+      response.end();
+      return;
     }
+
+    writeEvent('done', payload);
     response.end();
   }
 

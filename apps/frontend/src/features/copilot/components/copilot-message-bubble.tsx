@@ -1,11 +1,11 @@
-import { Bot } from 'lucide-react';
+import { Bot, StopCircle } from 'lucide-react';
 import type { CopilotMessage } from '../types';
 
 export function CopilotMessageBubble({
   message,
   isStreaming = false,
 }: {
-  message: Pick<CopilotMessage, 'role' | 'content'>;
+  message: Pick<CopilotMessage, 'role' | 'content' | 'isPartial'>;
   isStreaming?: boolean;
 }) {
   if (message.role === 'USER') {
@@ -23,15 +23,23 @@ export function CopilotMessageBubble({
       <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
         <Bot className="size-3.5" aria-hidden="true" />
       </div>
-      <p className="max-w-[80%] whitespace-pre-wrap rounded-lg bg-muted px-3 py-2 text-sm">
-        {message.content}
-        {isStreaming && (
-          <span
-            aria-hidden="true"
-            className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-foreground/70 align-middle"
-          />
+      <div className="max-w-[80%]">
+        <p className="whitespace-pre-wrap rounded-lg bg-muted px-3 py-2 text-sm">
+          {message.content}
+          {isStreaming && (
+            <span
+              aria-hidden="true"
+              className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-foreground/70 align-middle"
+            />
+          )}
+        </p>
+        {message.isPartial && (
+          <span className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+            <StopCircle className="size-3" aria-hidden="true" />
+            Đã dừng
+          </span>
         )}
-      </p>
+      </div>
     </div>
   );
 }

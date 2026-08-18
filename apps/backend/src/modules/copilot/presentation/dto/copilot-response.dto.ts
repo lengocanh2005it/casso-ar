@@ -10,6 +10,7 @@ export class CopilotMessageDto {
   role: 'USER' | 'ASSISTANT';
   content: string;
   createdAt: string;
+  isPartial: boolean;
 }
 
 export class CopilotDraftDto {
@@ -61,6 +62,7 @@ export const toCopilotMessageDto = (
   role: message.role === 'TOOL' ? 'ASSISTANT' : message.role,
   content: message.content,
   createdAt: message.createdAt.toISOString(),
+  isPartial: message.isPartial ?? false,
 });
 
 export const toCopilotPendingActionDto = (

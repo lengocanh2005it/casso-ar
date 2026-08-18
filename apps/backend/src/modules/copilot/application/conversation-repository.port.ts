@@ -26,6 +26,8 @@ export interface CopilotMessageRecord {
   content: string;
   toolCalls: Array<{ id: string; name: string; input: unknown }> | null;
   createdAt: Date;
+  /** Set when the assistant's answer was cut short by a client-initiated abort mid-stream. */
+  isPartial?: boolean;
 }
 
 export interface ICopilotConversationRepository {

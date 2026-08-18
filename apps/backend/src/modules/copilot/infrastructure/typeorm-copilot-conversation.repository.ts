@@ -37,6 +37,7 @@ function toMessage(row: CopilotMessageOrmEntity): CopilotMessageRecord {
     content: row.content,
     toolCalls: row.toolCalls,
     createdAt: row.createdAt,
+    isPartial: row.isPartial,
   };
 }
 
@@ -112,6 +113,10 @@ export class TypeOrmCopilotConversationRepository
     return row ? toConversation(row) : null;
   }
 
+  // Hand-rolled query builder instead of BaseRepository's scopedFindOne: this
+  // is an aggregate (MAX(message.createdAt) per conversation) that
+  // scopedFindOne doesn't support. organizationId/userId are still both
+  // applied in the WHERE clause below, matching BaseRepository's scoping.
   async listByUser(
     userId: string,
     page: number,
@@ -180,6 +185,7 @@ export class TypeOrmCopilotConversationRepository
         content: true,
         toolCalls: true,
         createdAt: true,
+        isPartial: true,
       },
       where: { conversationId, organizationId },
       order: { createdAt: 'DESC' },

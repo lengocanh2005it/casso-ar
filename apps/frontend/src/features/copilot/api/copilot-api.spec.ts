@@ -92,4 +92,44 @@ describe('copilot-api', () => {
     });
     vi.unstubAllGlobals();
   });
+
+  it('skips a malformed SSE chunk instead of forwarding garbage to onEvent', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          { event: 'delta', data: { notText: 'oops' } },
+          { event: 'delta', data: { text: 'Xin chào' } },
+        ]),
+      ),
+    );
+    const onEvent = vi.fn();
+    const controller = new AbortController();
+
+    await streamCopilotMessage('c1', 'Xin chào', onEvent, controller.signal);
+
+    expect(onEvent).toHaveBeenCalledTimes(1);
+    expect(onEvent).toHaveBeenCalledWith({ type: 'delta', text: 'Xin chào' });
+    vi.unstubAllGlobals();
+  });
+
+  it('skips an unrecognized SSE event type', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          { event: 'ping', data: {} },
+          { event: 'delta', data: { text: 'Xin chào' } },
+        ]),
+      ),
+    );
+    const onEvent = vi.fn();
+    const controller = new AbortController();
+
+    await streamCopilotMessage('c1', 'Xin chào', onEvent, controller.signal);
+
+    expect(onEvent).toHaveBeenCalledTimes(1);
+    expect(onEvent).toHaveBeenCalledWith({ type: 'delta', text: 'Xin chào' });
+    vi.unstubAllGlobals();
+  });
 });

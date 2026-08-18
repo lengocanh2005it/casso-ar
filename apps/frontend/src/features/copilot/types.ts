@@ -3,6 +3,7 @@ export interface CopilotMessage {
   role: 'USER' | 'ASSISTANT';
   content: string;
   createdAt: string;
+  isPartial?: boolean;
 }
 
 export interface CopilotPendingAction {

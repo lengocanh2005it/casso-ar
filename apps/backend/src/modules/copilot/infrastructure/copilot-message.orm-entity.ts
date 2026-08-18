@@ -28,4 +28,7 @@ export class CopilotMessageOrmEntity {
 
   @Column({ type: 'timestamptz' })
   createdAt: Date;
+
+  @Column({ type: 'boolean', default: false })
+  isPartial: boolean;
 }

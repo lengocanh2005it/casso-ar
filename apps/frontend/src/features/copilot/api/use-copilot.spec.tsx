@@ -75,4 +75,66 @@ describe('useCopilotChat', () => {
     });
     expect(result.current.isSending).toBe(false);
   });
+
+  it('keeps the streamed-so-far text as a partial message when aborted mid-stream', async () => {
+    let rejectStream: (reason: unknown) => void = () => {};
+    let capturedOnEvent: ((event: unknown) => void) | null = null;
+    streamCopilotMessage.mockImplementation(
+      (_id: string, _content: string, onEvent: (event: unknown) => void) =>
+        new Promise((_resolve, reject) => {
+          capturedOnEvent = onEvent;
+          rejectStream = reject;
+        }),
+    );
+    const { result } = renderHook(() => useCopilotChat(true, 'conversation-1'));
+
+    let sendPromise: Promise<void>;
+    act(() => {
+      sendPromise = result.current.send('Câu hỏi dài');
+    });
+    act(() => {
+      capturedOnEvent?.({ type: 'delta', text: 'Đang trả lời' });
+    });
+    act(() => {
+      result.current.stop();
+      rejectStream(new DOMException('aborted', 'AbortError'));
+    });
+
+    await act(async () => {
+      await sendPromise;
+    });
+
+    expect(result.current.streamingContent).toBe('');
+    expect(result.current.messages.at(-1)).toMatchObject({
+      role: 'ASSISTANT',
+      content: 'Đang trả lời',
+      isPartial: true,
+    });
+  });
+
+  it('does not add a partial message when aborted before any delta arrived', async () => {
+    let rejectStream: (reason: unknown) => void = () => {};
+    streamCopilotMessage.mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectStream = reject;
+        }),
+    );
+    const { result } = renderHook(() => useCopilotChat(true, 'conversation-1'));
+
+    let sendPromise: Promise<void>;
+    act(() => {
+      sendPromise = result.current.send('Câu hỏi dài');
+    });
+    act(() => {
+      result.current.stop();
+      rejectStream(new DOMException('aborted', 'AbortError'));
+    });
+
+    await act(async () => {
+      await sendPromise;
+    });
+
+    expect(result.current.messages.at(-1)).toMatchObject({ role: 'USER' });
+  });
 });

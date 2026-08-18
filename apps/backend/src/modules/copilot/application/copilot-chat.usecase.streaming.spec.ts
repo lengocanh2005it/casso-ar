@@ -180,7 +180,7 @@ describe('CopilotChatUseCase.executeStreaming', () => {
     expect(deps.summaryTool.execute).toHaveBeenCalledWith({ customerId: 'c1' });
   });
 
-  it('stops yielding once isAborted() becomes true and does not persist a done message', async () => {
+  it('persists the partial content accumulated so far and yields a done event when aborted mid-stream', async () => {
     const { useCase, deps } = buildUseCase();
     let aborted = false;
     deps.aiProvider.streamChatCompletion.mockReturnValue(
@@ -212,7 +212,43 @@ describe('CopilotChatUseCase.executeStreaming', () => {
     expect(events).toEqual([
       { type: 'status', text: 'Đang xử lý…' },
       { type: 'delta', text: 'Đang' },
+      {
+        type: 'done',
+        message: expect.objectContaining({ content: 'Đang', isPartial: true }),
+        pendingAction: null,
+      },
     ]);
+    expect(deps.conversationRepo.appendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: 'ASSISTANT',
+        content: 'Đang',
+        isPartial: true,
+      }),
+    );
+  });
+
+  it('does not persist anything when aborted before any content was streamed', async () => {
+    const { useCase, deps } = buildUseCase();
+    deps.aiProvider.streamChatCompletion.mockReturnValue(
+      stream([
+        {
+          contentDelta: 'Xin chào',
+          toolCalls: null,
+          inputTokens: null,
+          outputTokens: null,
+        },
+      ]),
+    );
+
+    const events = [];
+    for await (const event of useCase.executeStreaming(
+      { conversationId: 'conversation-1', userMessage: 'Câu hỏi' },
+      () => true,
+    )) {
+      events.push(event);
+    }
+
+    expect(events).toEqual([]);
     expect(deps.conversationRepo.appendMessage).not.toHaveBeenCalled();
   });
 

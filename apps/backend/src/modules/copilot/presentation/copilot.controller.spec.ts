@@ -1,4 +1,5 @@
 import { GUARDS_METADATA } from '@nestjs/common/constants';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { Role } from '../../organizations/domain/membership';
 import { CopilotController } from './copilot.controller';
 import { CopilotRateLimitGuard } from './copilot-rate-limit.guard';
@@ -86,6 +87,7 @@ describe('CopilotController', () => {
         role: 'ASSISTANT',
         content: 'Summary',
         createdAt: '2026-08-09T10:00:00.000Z',
+        isPartial: false,
       },
       pendingAction: null,
     });
@@ -350,6 +352,7 @@ describe('CopilotController', () => {
             role: 'USER',
             content: 'Xin chào',
             createdAt: '2026-08-09T00:00:00.000Z',
+            isPartial: false,
           },
         ],
       });
@@ -476,6 +479,119 @@ describe('CopilotController', () => {
       );
       const isAborted = copilotChatUseCase.executeStreaming.mock.calls[0][1];
       expect(isAborted()).toBe(true);
+    });
+
+    it('does not re-run the model or duplicate the assistant message on an idempotent retry with the same key', async () => {
+      const { controller, copilotChatUseCase, idempotency } = buildController();
+      const store = new Map<string, unknown>();
+      idempotency.execute.mockImplementation(
+        async (
+          endpoint: string,
+          key: string,
+          _input: unknown,
+          operation: () => Promise<unknown>,
+        ) => {
+          const cacheKey = `${endpoint}:${key}`;
+          if (store.has(cacheKey)) return store.get(cacheKey);
+          const result = await operation();
+          store.set(cacheKey, result);
+          return result;
+        },
+      );
+      copilotChatUseCase.persistUserMessage.mockResolvedValue(undefined);
+      copilotChatUseCase.executeStreaming.mockReturnValue(
+        (async function* () {
+          yield {
+            type: 'done',
+            message: {
+              id: 'm1',
+              organizationId: 'org-1',
+              conversationId: 'c1',
+              role: 'ASSISTANT',
+              content: 'Xin chào',
+              toolCalls: null,
+              createdAt: new Date('2026-08-09T00:00:00Z'),
+              isPartial: false,
+            },
+            pendingAction: null,
+          };
+        })(),
+      );
+      const req = {
+        on: jest.fn(),
+        user: {
+          userId: 'user-1',
+          organizationId: 'org-1',
+          role: Role.FINANCE_MANAGER,
+        },
+      };
+
+      await controller.streamMessage(
+        'c1',
+        { content: 'Xin chào' },
+        'retry-key',
+        req as any,
+        buildRes() as any,
+      );
+      const res2 = buildRes();
+      await controller.streamMessage(
+        'c1',
+        { content: 'Xin chào' },
+        'retry-key',
+        req as any,
+        res2 as any,
+      );
+
+      expect(copilotChatUseCase.persistUserMessage).toHaveBeenCalledTimes(1);
+      expect(copilotChatUseCase.executeStreaming).toHaveBeenCalledTimes(1);
+      expect(res2.writes.join('')).toContain('event: done');
+      expect(res2.writes.join('')).toContain('"content":"Xin chào"');
+    });
+
+    it('turns a mid-stream error event into an SSE error event instead of throwing out of the handler', async () => {
+      const { controller, copilotChatUseCase, idempotency } = buildController();
+      idempotency.execute.mockImplementation(
+        (
+          _endpoint: string,
+          _key: string,
+          _input: unknown,
+          operation: () => Promise<unknown>,
+        ) => operation(),
+      );
+      copilotChatUseCase.persistUserMessage.mockResolvedValue(undefined);
+      copilotChatUseCase.executeStreaming.mockReturnValue(
+        (async function* () {
+          yield { type: 'status', text: 'Đang xử lý…' };
+          yield {
+            type: 'error',
+            errorCode: ErrorCode.INTERNAL_SERVER_ERROR,
+            message: 'Copilot gặp lỗi không xác định.',
+          };
+        })(),
+      );
+      const res = buildRes();
+      const req = {
+        on: jest.fn(),
+        user: {
+          userId: 'user-1',
+          organizationId: 'org-1',
+          role: Role.FINANCE_MANAGER,
+        },
+      };
+
+      await expect(
+        controller.streamMessage(
+          'c1',
+          { content: 'Xin chào' },
+          'key-err',
+          req as any,
+          res as any,
+        ),
+      ).resolves.toBeUndefined();
+
+      expect(res.writes.join('')).toContain('event: error');
+      expect(res.writes.join('')).toContain('INTERNAL_SERVER_ERROR');
+      expect(res.end).toHaveBeenCalled();
     });
   });
 });

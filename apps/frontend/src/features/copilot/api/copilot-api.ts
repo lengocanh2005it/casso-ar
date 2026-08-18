@@ -139,31 +139,47 @@ export async function streamCopilotMessage(
       const dataLine = lines.find((line) => line.startsWith('data: '));
       if (eventLine && dataLine) {
         const type = eventLine.slice('event: '.length);
-        const data: unknown = JSON.parse(dataLine.slice('data: '.length));
-        onEvent(toCopilotStreamEvent(type, data));
+        const rawData: unknown = JSON.parse(dataLine.slice('data: '.length));
+        const event = toCopilotStreamEvent(type, rawData);
+        if (event) onEvent(event);
       }
       separatorIndex = buffer.indexOf('\n\n');
     }
   }
 }
 
-function toCopilotStreamEvent(type: string, data: unknown): CopilotStreamEvent {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+// SSE chunks cross a network boundary — a truncated or unexpected payload
+// here should be dropped, not forwarded as a garbage event or thrown as an
+// unhandled exception that would kill the whole stream-reading loop.
+function toCopilotStreamEvent(
+  type: string,
+  data: unknown,
+): CopilotStreamEvent | null {
+  if (!isRecord(data)) return null;
+
   if (type === 'status' || type === 'delta') {
-    return { type, text: (data as { text: string }).text };
+    return typeof data.text === 'string' ? { type, text: data.text } : null;
   }
   if (type === 'done') {
-    return {
-      type: 'done',
-      data: data as {
-        message: CopilotMessage;
-        pendingAction: CopilotPendingAction | null;
-      },
-    };
+    return isRecord(data.message) && 'id' in data.message
+      ? {
+          type: 'done',
+          data: data as {
+            message: CopilotMessage;
+            pendingAction: CopilotPendingAction | null;
+          },
+        }
+      : null;
   }
-  const errorPayload = data as { errorCode: string; message: string };
-  return {
-    type: 'error',
-    errorCode: errorPayload.errorCode,
-    message: errorPayload.message,
-  };
+  if (type === 'error') {
+    return typeof data.errorCode === 'string' &&
+      typeof data.message === 'string'
+      ? { type: 'error', errorCode: data.errorCode, message: data.message }
+      : null;
+  }
+  return null;
 }
