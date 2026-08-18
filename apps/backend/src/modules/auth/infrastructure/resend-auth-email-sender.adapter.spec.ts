@@ -1,3 +1,5 @@
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { ResendAuthEmailSenderAdapter } from './resend-auth-email-sender.adapter';
 
 describe('ResendAuthEmailSenderAdapter', () => {
@@ -47,7 +49,7 @@ describe('ResendAuthEmailSenderAdapter', () => {
     );
   });
 
-  it('propagates queue errors', async () => {
+  it('wraps queue errors as AppError with EMAIL_SEND_FAILED', async () => {
     const emailQueue = {
       add: jest.fn().mockRejectedValue(new Error('Queue full')),
     };
@@ -58,7 +60,19 @@ describe('ResendAuthEmailSenderAdapter', () => {
         'user@example.com',
         'https://app.casso.vn/verify?token=abc',
       ),
-    ).rejects.toThrow('Queue full');
+    ).rejects.toThrow(AppError);
+
+    try {
+      await adapter.sendVerificationEmail(
+        'user@example.com',
+        'https://app.casso.vn/verify?token=abc',
+      );
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).errorCode).toBe(ErrorCode.EMAIL_SEND_FAILED);
+      expect((error as AppError).cause).toBeInstanceOf(Error);
+      expect(((error as AppError).cause as Error).message).toBe('Queue full');
+    }
   });
 
   it('queues member blocked and unblocked emails', async () => {
