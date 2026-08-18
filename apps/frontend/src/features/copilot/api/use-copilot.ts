@@ -1,19 +1,24 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { CopilotMessage, CopilotPendingAction } from '../types';
 import {
   cancelCopilotAction,
   confirmCopilotAction,
-  sendCopilotMessage,
+  streamCopilotMessage,
 } from './copilot-api';
 
-export function useCopilotChat(canResolvePendingAction: boolean) {
-  const [conversationId] = useState(() => crypto.randomUUID());
+export function useCopilotChat(
+  canResolvePendingAction: boolean,
+  conversationId: string,
+  options: { onTurnComplete?: () => void } = {},
+) {
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
   const [pendingAction, setPendingAction] =
     useState<CopilotPendingAction | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
   const [busy, setBusy] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const blockedByPendingAction =
     pendingAction !== null && canResolvePendingAction;
 
@@ -22,6 +27,7 @@ export function useCopilotChat(canResolvePendingAction: boolean) {
     if (!trimmed || isSending || blockedByPendingAction) return;
 
     setIsSending(true);
+    setStreamingContent('');
     setMessages((current) => [
       ...current,
       {
@@ -32,15 +38,40 @@ export function useCopilotChat(canResolvePendingAction: boolean) {
       },
     ]);
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
-      const result = await sendCopilotMessage(conversationId, trimmed);
-      setMessages((current) => [...current, result.message]);
-      setPendingAction(result.pendingAction);
-    } catch {
-      toast.error('Không thể gửi câu hỏi cho Copilot.');
+      await streamCopilotMessage(
+        conversationId,
+        trimmed,
+        (event) => {
+          if (event.type === 'delta') {
+            setStreamingContent((current) => current + event.text);
+          } else if (event.type === 'done') {
+            setMessages((current) => [...current, event.data.message]);
+            setPendingAction(event.data.pendingAction);
+            setStreamingContent('');
+            options.onTurnComplete?.();
+          } else if (event.type === 'error') {
+            toast.error(event.message);
+            setStreamingContent('');
+          }
+        },
+        controller.signal,
+      );
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        toast.error('Không thể gửi câu hỏi cho Copilot.');
+      }
     } finally {
       setIsSending(false);
+      abortControllerRef.current = null;
     }
+  }
+
+  function stop() {
+    abortControllerRef.current?.abort();
   }
 
   async function confirm() {
@@ -74,7 +105,9 @@ export function useCopilotChat(canResolvePendingAction: boolean) {
     messages,
     pendingAction,
     send,
+    stop,
     isSending,
+    streamingContent,
     confirm,
     cancel,
     busy,
