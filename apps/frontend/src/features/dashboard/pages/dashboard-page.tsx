@@ -4,9 +4,14 @@ import {
   CircleDollarSign,
   Clock,
   FileSearch,
+  PieChart,
+  TrendingUp,
+  CreditCard,
+  Activity,
+  Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useReviewCount } from '@/features/exceptions/api/use-review-count';
 import {
@@ -183,9 +188,13 @@ export function DashboardPage() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:160ms]">
+            <Card className="border-l-4 border-l-amber-500 animate-fade-up motion-reduce:animate-none [animation-delay:160ms]">
               <CardHeader>
-                <CardTitle>Tỷ lệ quá hạn</CardTitle>
+                <div className="flex items-center gap-2">
+                  <PieChart className="size-4 text-amber-500" />
+                  <CardTitle>Tỷ lệ quá hạn</CardTitle>
+                </div>
+                <CardDescription>Phân tích tỷ lệ công nợ đúng hạn và quá hạn</CardDescription>
               </CardHeader>
               <CardContent>
                 <OverdueDonutChart
@@ -195,9 +204,13 @@ export function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:200ms]">
+            <Card className="border-l-4 border-l-blue-500 animate-fade-up motion-reduce:animate-none [animation-delay:200ms]">
               <CardHeader>
-                <CardTitle>Xu hướng công nợ 6 tháng</CardTitle>
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="size-4 text-blue-500" />
+                  <CardTitle>Xu hướng công nợ 6 tháng</CardTitle>
+                </div>
+                <CardDescription>Biểu đồ xu hướng tăng giảm công nợ theo thời gian</CardDescription>
               </CardHeader>
               <CardContent>
                 {trendQuery.isPending ? (
@@ -214,9 +227,13 @@ export function DashboardPage() {
           </div>
 
           {trendQuery.data && (
-            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:240ms]">
+            <Card className="border-l-4 border-l-violet-500 animate-fade-up motion-reduce:animate-none [animation-delay:240ms]">
               <CardHeader>
-                <CardTitle>Hoạt động thanh toán 6 tháng</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CreditCard className="size-4 text-violet-500" />
+                  <CardTitle>Hoạt động thanh toán 6 tháng</CardTitle>
+                </div>
+                <CardDescription>Tổng hợp tiền thu và hoàn trong 6 tháng gần nhất</CardDescription>
               </CardHeader>
               <CardContent>
                 <PaymentActivityChart trend={trendQuery.data} />
@@ -225,9 +242,13 @@ export function DashboardPage() {
           )}
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:280ms]">
+            <Card className="border-l-4 border-l-emerald-500 animate-fade-up motion-reduce:animate-none [animation-delay:280ms]">
               <CardHeader>
-                <CardTitle>Hoạt động gần đây</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Activity className="size-4 text-emerald-500" />
+                  <CardTitle>Hoạt động gần đây</CardTitle>
+                </div>
+                <CardDescription>Các sự kiện mới nhất trong hệ thống</CardDescription>
               </CardHeader>
               <CardContent>
                 {activityQuery.isPending ? (
@@ -261,9 +282,13 @@ export function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:320ms]">
+            <Card className="border-l-4 border-l-red-500 animate-fade-up motion-reduce:animate-none [animation-delay:320ms]">
               <CardHeader>
-                <CardTitle>Khách hàng quá hạn nhiều nhất</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Users className="size-4 text-red-500" />
+                  <CardTitle>Khách hàng quá hạn nhiều nhất</CardTitle>
+                </div>
+                <CardDescription>Top khách hàng có tổng công nợ quá hạn cao nhất</CardDescription>
               </CardHeader>
               <CardContent>
                 {summaryQuery.data.topOverdueCustomers.length === 0 ? (
