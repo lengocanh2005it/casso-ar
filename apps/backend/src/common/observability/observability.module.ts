@@ -9,6 +9,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { EMAIL_QUEUE } from '../../modules/notifications/infrastructure/email-queue.constants';
 import { WEBHOOK_PROCESSING_QUEUE } from '../../modules/webhooks/infrastructure/webhooks-queue.constants';
 import { HealthController } from './health.controller';
+import { HttpLoggingInterceptor } from './http-logging.interceptor';
 import { HttpMetricsInterceptor } from './http-metrics.interceptor';
 import { JsonLogger } from './json-logger.service';
 import { MetricsController } from './metrics.controller';
@@ -27,6 +28,7 @@ import { RequestIdStore } from './request-id.store';
     RequestIdStore,
     JsonLogger,
     MetricsService,
+    { provide: APP_INTERCEPTOR, useClass: HttpLoggingInterceptor },
     { provide: APP_INTERCEPTOR, useClass: HttpMetricsInterceptor },
   ],
   exports: [RequestIdStore, JsonLogger, MetricsService],

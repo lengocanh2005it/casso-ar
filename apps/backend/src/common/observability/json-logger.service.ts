@@ -6,16 +6,38 @@ interface LogFields {
   [key: string]: unknown;
 }
 
+type ConfiguredLogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+const CONFIGURED_LEVEL_PRIORITIES: Record<ConfiguredLogLevel, number> = {
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3,
+};
+
+const LOGGER_LEVEL_PRIORITIES: Record<LogLevel, number> = {
+  verbose: 0,
+  debug: 0,
+  log: 1,
+  warn: 2,
+  error: 3,
+  fatal: 3,
+};
+
 function isLogFields(value: unknown): value is LogFields {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 @Injectable()
 export class JsonLogger implements LoggerService {
+  private readonly minimumLevel: number;
+
   constructor(
     private readonly requestIdStore: RequestIdStore,
     private readonly tenantContext: TenantContextService,
-  ) {}
+  ) {
+    this.minimumLevel = CONFIGURED_LEVEL_PRIORITIES[this.getConfiguredLevel()];
+  }
 
   log(message: unknown, context?: string): void {
     this.write('log', message, context);
@@ -47,6 +69,8 @@ export class JsonLogger implements LoggerService {
     context?: string,
     trace?: string,
   ): void {
+    if (LOGGER_LEVEL_PRIORITIES[level] < this.minimumLevel) return;
+
     const user = this.tenantContext.getCurrentUser();
     const fields = this.toFields(message);
     const entry = {
@@ -62,6 +86,19 @@ export class JsonLogger implements LoggerService {
     };
 
     process.stdout.write(`${JSON.stringify(entry)}\n`);
+  }
+
+  private getConfiguredLevel(): ConfiguredLogLevel {
+    const configured = (process.env.LOG_LEVEL ?? '').toLowerCase();
+    if (
+      configured === 'debug' ||
+      configured === 'info' ||
+      configured === 'warn' ||
+      configured === 'error'
+    ) {
+      return configured;
+    }
+    return 'info';
   }
 
   private toFields(message: unknown): LogFields {
