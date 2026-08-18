@@ -93,7 +93,7 @@ export class TrendReportQueryService {
 
     const items = windows.map((window) => ({
       month: window.key,
-      outstanding: outstandingByMonth.get(window.key) ?? null,
+      outstanding: outstandingByMonth.get(window.key) ?? 0,
       collected: collectedByMonth.get(window.key) ?? 0,
     }));
 
