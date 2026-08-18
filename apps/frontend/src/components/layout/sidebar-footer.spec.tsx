@@ -16,7 +16,7 @@ vi.mock('@/lib/api-client', () => ({
 vi.mock('@/contexts/auth-context', () => ({ useAuth }));
 
 describe('SidebarFooter', () => {
-  it('renders AlertBell next to ThemeToggle for an OWNER', async () => {
+  it('renders user name, email, avatar button, and logout for an OWNER', async () => {
     useAuth.mockReturnValue({
       user: {
         name: 'Chủ sở hữu',
@@ -43,7 +43,12 @@ describe('SidebarFooter', () => {
     );
 
     expect(
-      await screen.findByRole('button', { name: 'Thông báo' }),
+      screen.getByRole('button', { name: 'Xem thông tin tài khoản' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Chủ sở hữu')).toBeInTheDocument();
+    expect(screen.getByText('owner@congtyb.vn')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Đăng xuất' }),
     ).toBeInTheDocument();
   });
 });

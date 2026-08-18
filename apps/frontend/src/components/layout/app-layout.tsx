@@ -21,7 +21,7 @@ export function AppLayout() {
         Đi tới nội dung
       </a>
       <div className="flex h-dvh w-full overflow-hidden bg-background">
-        <div className="hidden md:block">
+        <div className="hidden h-full md:block">
           <Sidebar
             collapsed={collapsed}
             onToggleCollapsed={() => setCollapsed((v) => !v)}

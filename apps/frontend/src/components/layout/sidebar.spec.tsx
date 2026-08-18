@@ -41,12 +41,10 @@ function renderSidebar(role: string) {
 }
 
 describe('Sidebar', () => {
-  it('keeps the collapsed navigation text shrinkable without width animation', () => {
+  it('has smooth width transition when collapsing', () => {
     renderSidebar('OWNER');
 
-    expect(screen.getByRole('complementary')).not.toHaveClass(
-      'transition-[width]',
-    );
+    expect(screen.getByRole('complementary')).toHaveClass('transition-[width]');
     expect(screen.getByText('Lịch sử công nợ')).toHaveClass('min-w-0');
   });
 
