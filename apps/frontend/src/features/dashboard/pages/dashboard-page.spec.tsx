@@ -2,11 +2,19 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
+import { AuthProvider } from '@/contexts/auth-context';
 import { DashboardPage } from './dashboard-page';
 
 const { apiRequest } = vi.hoisted(() => ({ apiRequest: vi.fn() }));
 vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
+  authTokenManager: {
+    getValidAccessToken: vi.fn().mockResolvedValue(null),
+    setAccessToken: vi.fn(),
+    resetLogoutState: vi.fn(),
+    markLogoutInitiated: vi.fn(),
+    clearStaleRefreshSession: vi.fn(),
+  },
 }));
 
 const summaryData = {
@@ -54,9 +62,11 @@ function renderPage() {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <DashboardPage />
-      </MemoryRouter>
+      <AuthProvider>
+        <MemoryRouter>
+          <DashboardPage />
+        </MemoryRouter>
+      </AuthProvider>
     </QueryClientProvider>,
   );
 }

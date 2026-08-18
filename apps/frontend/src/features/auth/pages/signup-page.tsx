@@ -31,14 +31,21 @@ export function SignupPage() {
         data: { organizationName, name, email, password },
       });
       authTokenManager.setAccessToken(result.accessToken);
-      await refreshUser();
-      toast.success('Tạo tài khoản thành công.');
-      navigate('/dashboard');
     } catch {
       setError('Không thể tạo tài khoản. Vui lòng kiểm tra thông tin.');
-    } finally {
       setSubmitting(false);
+      return;
     }
+
+    try {
+      await refreshUser();
+    } catch {
+      // account was already created; a failed profile load right after
+      // must not be reported back as a failed signup.
+    }
+    toast.success('Tạo tài khoản thành công.');
+    navigate('/dashboard');
+    setSubmitting(false);
   }
 
   return (
