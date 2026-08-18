@@ -25,6 +25,7 @@ describe('AuthTokenManager', () => {
   let manager: AuthTokenManager;
 
   beforeEach(() => {
+    localStorage.clear();
     manager = new AuthTokenManager();
     postMock.mockReset();
     requestMock.mockReset();
@@ -149,6 +150,40 @@ describe('AuthTokenManager', () => {
 
     expect(postMock).toHaveBeenCalledWith('/api/v1/auth/logout');
     await expect(manager.getValidAccessToken()).resolves.toBeNull();
+  });
+
+  it('has no known session before any login has ever happened', () => {
+    expect(manager.hasKnownSession()).toBe(false);
+  });
+
+  it('remembers a session across instances once a token is set', () => {
+    manager.setAccessToken('some-token');
+
+    expect(new AuthTokenManager().hasKnownSession()).toBe(true);
+  });
+
+  it('remembers a session across instances once a refresh succeeds', async () => {
+    postMock.mockResolvedValue({ data: { accessToken: 'new-token' } });
+
+    await manager.getValidAccessToken();
+
+    expect(new AuthTokenManager().hasKnownSession()).toBe(true);
+  });
+
+  it('forgets the session once logout is initiated', () => {
+    manager.setAccessToken('some-token');
+    manager.markLogoutInitiated();
+
+    expect(new AuthTokenManager().hasKnownSession()).toBe(false);
+  });
+
+  it('forgets the session once a refresh attempt fails', async () => {
+    localStorage.setItem('casso:has-session', '1');
+    postMock.mockRejectedValue(new Error('no refresh cookie'));
+
+    await manager.getValidAccessToken();
+
+    expect(new AuthTokenManager().hasKnownSession()).toBe(false);
   });
 });
 

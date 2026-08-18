@@ -12,6 +12,7 @@ const { getValidAccessToken, apiRequest } = vi.hoisted(() => ({
 vi.mock('@/lib/api-client', () => ({
   authTokenManager: {
     getValidAccessToken,
+    hasKnownSession: () => true,
     setAccessToken: vi.fn(),
     resetLogoutState: vi.fn(),
     markLogoutInitiated: vi.fn(),

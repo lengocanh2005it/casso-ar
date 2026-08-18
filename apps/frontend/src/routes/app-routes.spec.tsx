@@ -15,6 +15,7 @@ vi.mock('@/lib/api-client', () => ({
   API_BASE_URL: '',
   authTokenManager: {
     getValidAccessToken,
+    hasKnownSession: () => true,
     setAccessToken: vi.fn(),
     resetLogoutState: vi.fn(),
     markLogoutInitiated: vi.fn(),
