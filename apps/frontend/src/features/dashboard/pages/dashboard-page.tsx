@@ -187,44 +187,42 @@ export function DashboardPage() {
             />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:160ms]">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <PieChart className="size-4 text-amber-500" />
-                  <CardTitle>Tỷ lệ quá hạn</CardTitle>
-                </div>
-                <CardDescription>Phân tích tỷ lệ công nợ đúng hạn và quá hạn</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <OverdueDonutChart
-                  totalOutstanding={summaryQuery.data.totalOutstanding}
-                  totalOverdue={summaryQuery.data.totalOverdue}
-                />
-              </CardContent>
-            </Card>
+          <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:160ms]">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <PieChart className="size-4 text-amber-500" />
+                <CardTitle>Tỷ lệ quá hạn</CardTitle>
+              </div>
+              <CardDescription>Phân tích tỷ lệ công nợ đúng hạn và quá hạn</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <OverdueDonutChart
+                totalOutstanding={summaryQuery.data.totalOutstanding}
+                totalOverdue={summaryQuery.data.totalOverdue}
+              />
+            </CardContent>
+          </Card>
 
-            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:200ms]">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="size-4 text-blue-500" />
-                  <CardTitle>Xu hướng công nợ 6 tháng</CardTitle>
-                </div>
-                <CardDescription>Biểu đồ xu hướng tăng giảm công nợ theo thời gian</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {trendQuery.isPending ? (
-                  <Skeleton className="h-72 w-full" />
-                ) : trendQuery.isError || !trendQuery.data ? (
-                  <p className="text-sm text-muted-foreground">
-                    Không thể tải dữ liệu xu hướng.
-                  </p>
-                ) : (
-                  <ReceivableTrendChart trend={trendQuery.data} />
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:200ms]">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <TrendingUp className="size-4 text-blue-500" />
+                <CardTitle>Xu hướng công nợ 6 tháng</CardTitle>
+              </div>
+              <CardDescription>Biểu đồ xu hướng tăng giảm công nợ theo thời gian</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {trendQuery.isPending ? (
+                <Skeleton className="h-72 w-full" />
+              ) : trendQuery.isError || !trendQuery.data ? (
+                <p className="text-sm text-muted-foreground">
+                  Không thể tải dữ liệu xu hướng.
+                </p>
+              ) : (
+                <ReceivableTrendChart trend={trendQuery.data} />
+              )}
+            </CardContent>
+          </Card>
 
           {trendQuery.data && (
             <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:240ms]">
