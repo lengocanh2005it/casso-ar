@@ -29,6 +29,9 @@ describe('AuthController', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
       { get: jest.fn().mockReturnValue('development') } as never,
     );
 
@@ -47,6 +50,9 @@ describe('AuthController', () => {
       execute: jest.fn(),
     };
     const controller = new AuthController(
+      {} as never,
+      {} as never,
+      {} as never,
       {} as never,
       {} as never,
       {} as never,

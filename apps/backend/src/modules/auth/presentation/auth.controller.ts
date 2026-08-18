@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Req,
   Res,
@@ -31,6 +32,8 @@ import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { successResponseSchema } from '../../../common/swagger/success-response-schema';
+import { ChangePasswordConfirmUseCase } from '../application/change-password-confirm.usecase';
+import { ChangePasswordRequestUseCase } from '../application/change-password-request.usecase';
 import { ForgotPasswordUseCase } from '../application/forgot-password.usecase';
 import { GetUserProfileUseCase } from '../application/get-user-profile.usecase';
 import { LoginUseCase } from '../application/login.usecase';
@@ -40,6 +43,7 @@ import { ResendVerificationEmailUseCase } from '../application/resend-verificati
 import { ResetPasswordUseCase } from '../application/reset-password.usecase';
 import { SignupUseCase } from '../application/signup.usecase';
 import { SwitchOrganizationUseCase } from '../application/switch-organization.usecase';
+import { UpdateProfileUseCase } from '../application/update-profile.usecase';
 import { VerifyEmailUseCase } from '../application/verify-email.usecase';
 import { REFRESH_TOKEN_TTL_MS } from '../refresh-token-ttl';
 import { AuthCompositeRateLimitGuard } from './auth-composite-rate-limit.guard';
@@ -48,6 +52,7 @@ import { LoginDto } from './dto/login.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SignupDto } from './dto/signup.dto';
 import { SwitchOrganizationDto } from './dto/switch-organization.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import {
   toUserProfileResponse,
   UserProfileResponseDto,
@@ -79,6 +84,9 @@ export class AuthController {
     private readonly forgotPasswordUseCase: ForgotPasswordUseCase,
     private readonly resetPasswordUseCase: ResetPasswordUseCase,
     private readonly getUserProfileUseCase: GetUserProfileUseCase,
+    private readonly updateProfileUseCase: UpdateProfileUseCase,
+    private readonly changePasswordRequestUseCase: ChangePasswordRequestUseCase,
+    private readonly changePasswordConfirmUseCase: ChangePasswordConfirmUseCase,
     private readonly resendVerificationEmailUseCase: ResendVerificationEmailUseCase,
     config: ConfigService,
   ) {
@@ -310,6 +318,81 @@ export class AuthController {
     }
     const result = await this.getUserProfileUseCase.execute(userId);
     return toUserProfileResponse(result);
+  }
+
+  @Patch('me')
+  @ApiOperation({ summary: 'Update user profile' })
+  @ApiOkResponse({ type: UserProfileResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+  )
+  @UseGuards(JwtAuthGuard)
+  async updateMe(
+    @Req() request: AuthRequest,
+    @Body() dto: UpdateProfileDto,
+  ): Promise<UserProfileResponseDto> {
+    const userId = request.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
+    const profile = await this.getUserProfileUseCase.execute(userId);
+    await this.updateProfileUseCase.execute({
+      userId,
+      name: dto.name,
+      organizationName: dto.organizationName,
+      role: profile.role,
+    });
+    const updated = await this.getUserProfileUseCase.execute(userId);
+    return toUserProfileResponse(updated);
+  }
+
+  @Post('change-password/request')
+  @ApiOperation({ summary: 'Request OTP for password change' })
+  @ApiCreatedResponse({
+    description: 'OTP sent to email',
+    schema: successResponseSchema(),
+  })
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.UNAUTHORIZED)
+  @UseGuards(JwtAuthGuard)
+  async requestChangePassword(
+    @Req() request: AuthRequest,
+    @Body() body: { currentPassword: string },
+  ) {
+    const userId = request.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
+    await this.changePasswordRequestUseCase.execute(
+      userId,
+      body.currentPassword,
+    );
+    return { success: true };
+  }
+
+  @Post('change-password/confirm')
+  @ApiOperation({ summary: 'Confirm new password with OTP' })
+  @ApiCreatedResponse({
+    description: 'Password changed',
+    schema: successResponseSchema(),
+  })
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.UNAUTHORIZED)
+  @UseGuards(JwtAuthGuard)
+  async confirmChangePassword(
+    @Req() request: AuthRequest,
+    @Body() body: { otp: string; newPassword: string },
+  ) {
+    const userId = request.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
+    await this.changePasswordConfirmUseCase.execute(
+      userId,
+      body.otp,
+      body.newPassword,
+    );
+    return { success: true };
   }
 
   @Public()

@@ -14,6 +14,7 @@ export interface AuthenticatedUser {
   id: string;
   email: string;
   name: string;
+  avatarUrl: string | null;
   role: Role;
   organizationId: string;
   organizationName: string;

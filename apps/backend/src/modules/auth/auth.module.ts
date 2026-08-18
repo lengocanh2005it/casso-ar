@@ -8,11 +8,16 @@ import { BillingModule } from '../billing/billing.module';
 import { EmailTemplatesModule } from '../email-templates/email-templates.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
+import { CHANGE_PASSWORD_OTP_REPOSITORY } from '../profile/application/change-password-otp-repository.port';
+import { ChangePasswordOtpOrmEntity } from '../profile/infrastructure/change-password-otp.orm-entity';
+import { TypeOrmChangePasswordOtpRepository } from '../profile/infrastructure/typeorm-change-password-otp.repository';
 import { RemindersModule } from '../reminders/reminders.module';
 import { UsersModule } from '../users/users.module';
 import { AcceptInviteUseCase } from './application/accept-invite.usecase';
 import { AUTH_EMAIL_SENDER } from './application/auth-email-sender.port';
 import { BlockMemberUseCase } from './application/block-member.usecase';
+import { ChangePasswordConfirmUseCase } from './application/change-password-confirm.usecase';
+import { ChangePasswordRequestUseCase } from './application/change-password-request.usecase';
 import { DeleteInviteUseCase } from './application/delete-invite.usecase';
 import { EMAIL_VERIFICATION_TOKEN_REPOSITORY } from './application/email-verification-token-repository.port';
 import { ForgotPasswordUseCase } from './application/forgot-password.usecase';
@@ -35,6 +40,7 @@ import { SignupUseCase } from './application/signup.usecase';
 import { SwitchOrganizationUseCase } from './application/switch-organization.usecase';
 import { TOKEN_SIGNER } from './application/token-signer.port';
 import { UnblockMemberUseCase } from './application/unblock-member.usecase';
+import { UpdateProfileUseCase } from './application/update-profile.usecase';
 import { VerifyEmailUseCase } from './application/verify-email.usecase';
 import { DefaultOrganizationBootstrap } from './infrastructure/default-organization-bootstrap.adapter';
 import { EmailVerificationTokenOrmEntity } from './infrastructure/email-verification-token.orm-entity';
@@ -61,6 +67,7 @@ import { InvitesController } from './presentation/invites.controller';
       PasswordResetTokenOrmEntity,
       MembershipInviteOrmEntity,
       RefreshTokenOrmEntity,
+      ChangePasswordOtpOrmEntity,
     ]),
     UsersModule,
     OrganizationsModule,
@@ -89,6 +96,9 @@ import { InvitesController } from './presentation/invites.controller';
     ResendVerificationEmailUseCase,
     ResetPasswordUseCase,
     SwitchOrganizationUseCase,
+    UpdateProfileUseCase,
+    ChangePasswordRequestUseCase,
+    ChangePasswordConfirmUseCase,
     {
       provide: EMAIL_VERIFICATION_TOKEN_REPOSITORY,
       useClass: TypeOrmEmailVerificationTokenRepository,
@@ -115,6 +125,10 @@ import { InvitesController } from './presentation/invites.controller';
       useClass: DefaultOrganizationBootstrap,
     },
     { provide: TOKEN_SIGNER, useClass: JwtTokenSigner },
+    {
+      provide: CHANGE_PASSWORD_OTP_REPOSITORY,
+      useClass: TypeOrmChangePasswordOtpRepository,
+    },
   ],
   controllers: [AuthController, InvitesController],
   exports: [
