@@ -33,10 +33,10 @@ export default function NotFoundPage() {
         <ThemeToggle />
       </div>
 
-      <div className="flex min-h-svh flex-col items-center px-4 pt-16 sm:px-6 sm:pt-20">
+      <div className="flex min-h-svh flex-col items-center px-4 pt-12 sm:px-6 sm:pt-16">
         <Link
           to={homeTo}
-          className="mb-10 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:mb-14"
+          className="mb-6 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:mb-8"
         >
           <Logo
             className="h-12 sm:h-16"
