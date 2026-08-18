@@ -55,6 +55,7 @@ describe('AuthProvider', () => {
       organizationId: 'org-1',
       organizationName: 'Casso Ledger',
       subscriptionPlan: 'FREE',
+      bankingLinked: true,
     });
 
     render(

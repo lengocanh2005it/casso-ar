@@ -18,6 +18,7 @@ export interface AuthenticatedUser {
   organizationId: string;
   organizationName: string;
   subscriptionPlan: PlanId;
+  bankingLinked: boolean;
 }
 
 interface AuthContextValue {

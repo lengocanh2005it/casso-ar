@@ -43,6 +43,11 @@ const BankConnectionsPage = lazy(() =>
     (m) => ({ default: m.BankConnectionsPage }),
   ),
 );
+export const OnboardingPage = lazy(() =>
+  import('@/features/onboarding/pages/onboarding-page').then((m) => ({
+    default: m.OnboardingPage,
+  })),
+);
 const CopilotPage = lazy(() =>
   import('@/features/copilot/pages/copilot-page').then((m) => ({
     default: m.CopilotPage,
@@ -128,7 +133,7 @@ const NotFoundPage = lazy(() => import('@/features/errors/not-found-page'));
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { AdminRoute } from './admin-route';
 
-function withPageSuspense(element: ReactNode): ReactNode {
+export function withPageSuspense(element: ReactNode): ReactNode {
   return (
     <Suspense
       fallback={

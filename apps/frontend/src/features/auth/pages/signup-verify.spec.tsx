@@ -30,6 +30,7 @@ const user = {
   organizationId: 'org-1',
   organizationName: 'Casso Ledger',
   subscriptionPlan: 'FREE',
+  bankingLinked: true,
 };
 
 describe('signup and email verification', () => {

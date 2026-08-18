@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { getJwtModuleOptions } from '../../config/jwt.config';
+import { BankConnectionsModule } from '../bank-connections/bank-connections.module';
 import { BillingModule } from '../billing/billing.module';
 import { EmailTemplatesModule } from '../email-templates/email-templates.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -63,6 +64,7 @@ import { InvitesController } from './presentation/invites.controller';
     UsersModule,
     OrganizationsModule,
     BillingModule,
+    BankConnectionsModule,
     EmailTemplatesModule,
     NotificationsModule,
     RemindersModule,

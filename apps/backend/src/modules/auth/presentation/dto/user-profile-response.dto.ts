@@ -8,6 +8,7 @@ export class UserProfileResponseDto {
   organizationId: string;
   organizationName: string;
   subscriptionPlan: string;
+  bankingLinked: boolean;
 }
 
 export function toUserProfileResponse(data: {
@@ -18,6 +19,7 @@ export function toUserProfileResponse(data: {
   organizationName: string;
   role: Role;
   subscriptionPlan: string;
+  bankingLinked: boolean;
 }): UserProfileResponseDto {
   const dto = new UserProfileResponseDto();
   dto.id = data.id;
@@ -27,5 +29,6 @@ export function toUserProfileResponse(data: {
   dto.organizationId = data.organizationId;
   dto.organizationName = data.organizationName;
   dto.subscriptionPlan = data.subscriptionPlan;
+  dto.bankingLinked = data.bankingLinked;
   return dto;
 }

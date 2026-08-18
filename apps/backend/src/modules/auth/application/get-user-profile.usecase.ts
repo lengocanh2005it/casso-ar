@@ -4,6 +4,10 @@ import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import {
+  BANK_CONNECTION_REPOSITORY,
+  type IBankConnectionRepository,
+} from '../../bank-connections/application/bank-connection-repository.port';
+import {
   type ISubscriptionRepository,
   SUBSCRIPTION_REPOSITORY,
 } from '../../billing/application/subscription-repository.port';
@@ -32,6 +36,8 @@ export class GetUserProfileUseCase {
     @Inject(ORGANIZATION_REPOSITORY)
     private readonly organizationRepo: IOrganizationRepository,
     private readonly tenantContext: TenantContextService,
+    @Inject(BANK_CONNECTION_REPOSITORY)
+    private readonly bankConnectionRepo: IBankConnectionRepository,
   ) {}
 
   async execute(userId: string): Promise<{
@@ -42,6 +48,7 @@ export class GetUserProfileUseCase {
     organizationName: string;
     role: Role;
     subscriptionPlan: string;
+    bankingLinked: boolean;
   }> {
     const user = await this.userRepo.findById(userId);
     if (!user) {
@@ -49,11 +56,13 @@ export class GetUserProfileUseCase {
     }
 
     const organizationId = this.tenantContext.getOrganizationId();
-    const [subscription, membership, organization] = await Promise.all([
-      this.subscriptionRepo.findByOrganizationId(organizationId),
-      this.membershipRepo.findByUserAndOrganization(userId, organizationId),
-      this.organizationRepo.findById(organizationId),
-    ]);
+    const [subscription, membership, organization, bankingLinked] =
+      await Promise.all([
+        this.subscriptionRepo.findByOrganizationId(organizationId),
+        this.membershipRepo.findByUserAndOrganization(userId, organizationId),
+        this.organizationRepo.findById(organizationId),
+        this.bankConnectionRepo.hasActiveByOrganization(organizationId),
+      ]);
 
     if (!membership?.isActive() || !organization) {
       throw new AppError(
@@ -70,6 +79,7 @@ export class GetUserProfileUseCase {
       organizationName: organization.name,
       role: membership.role,
       subscriptionPlan: subscription?.planId ?? 'FREE',
+      bankingLinked,
     };
   }
 }
