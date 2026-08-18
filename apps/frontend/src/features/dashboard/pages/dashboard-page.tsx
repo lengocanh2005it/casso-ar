@@ -35,19 +35,36 @@ function MetricCard({
   description,
   value,
   icon: Icon,
+  variant = 'default',
   className,
 }: {
   label: string;
   description: string;
   value: string;
   icon: LucideIcon;
+  variant?: 'default' | 'success' | 'warning' | 'danger';
   className?: string;
 }) {
+  const iconColors = {
+    default: 'text-primary',
+    success: 'text-emerald-500',
+    warning: 'text-amber-500',
+    danger: 'text-red-500',
+  };
+  const borderColors = {
+    default: 'border-l-primary',
+    success: 'border-l-emerald-500',
+    warning: 'border-l-amber-500',
+    danger: 'border-l-red-500',
+  };
+
   return (
-    <Card className={`transition-shadow hover:shadow-md ${className ?? ''}`}>
+    <Card
+      className={`border-l-4 ${borderColors[variant]} transition-shadow hover:shadow-md ${className ?? ''}`}
+    >
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
-          <Icon className="size-4 text-muted-foreground" />
+          <Icon className={`size-4 ${iconColors[variant]}`} />
           <CardTitle className="text-sm font-medium text-primary">
             {label}
           </CardTitle>
@@ -55,7 +72,9 @@ function MetricCard({
         <p className="text-xs text-muted-foreground">{description}</p>
       </CardHeader>
       <CardContent>
-        <p className="text-xl font-semibold tabular-nums">{value}</p>
+        <p className="text-3xl font-bold tabular-nums text-foreground">
+          {value}
+        </p>
       </CardContent>
     </Card>
   );
@@ -134,6 +153,7 @@ export function DashboardPage() {
               description="Tất cả công nợ chưa thanh toán"
               value={formatVND(summaryQuery.data.totalOutstanding)}
               icon={CircleDollarSign}
+              variant="default"
               className="animate-fade-up motion-reduce:animate-none"
             />
             <MetricCard
@@ -141,6 +161,7 @@ export function DashboardPage() {
               description="Công nợ đã vượt ngày đến hạn"
               value={formatVND(summaryQuery.data.totalOverdue)}
               icon={AlertTriangle}
+              variant="danger"
               className="animate-fade-up motion-reduce:animate-none [animation-delay:40ms]"
             />
             <MetricCard
@@ -148,6 +169,7 @@ export function DashboardPage() {
               description="Tỷ lệ công nợ quá hạn trên tổng"
               value={formatRate(summaryQuery.data.overdueRate)}
               icon={Clock}
+              variant="warning"
               className="animate-fade-up motion-reduce:animate-none [animation-delay:80ms]"
             />
             <MetricCard
@@ -155,6 +177,7 @@ export function DashboardPage() {
               description="Giao dịch ngân hàng chờ đối chiếu"
               value={String(pendingCount)}
               icon={FileSearch}
+              variant="success"
               className="animate-fade-up motion-reduce:animate-none [animation-delay:120ms]"
             />
           </div>
