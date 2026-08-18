@@ -28,7 +28,7 @@ export function OverdueDonutChart({
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {bars.map((bar) => (
         <div key={bar.name} className="space-y-2">
           <div className="flex items-center justify-between text-sm">
@@ -38,7 +38,7 @@ export function OverdueDonutChart({
               <span className="ml-1 text-muted-foreground">({bar.pct}%)</span>
             </span>
           </div>
-          <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
+          <div className="h-4 w-full overflow-hidden rounded-full bg-muted">
             <div
               className={`h-full rounded-full ${bar.color} transition-all duration-500`}
               style={{ width: `${bar.pct}%` }}
