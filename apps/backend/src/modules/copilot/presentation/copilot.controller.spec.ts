@@ -12,6 +12,8 @@ function buildController() {
   const reopenCopilotDraftUseCase = { execute: jest.fn() };
   const updateCopilotDraftUseCase = { execute: jest.fn() };
   const deleteCopilotDraftUseCase = { execute: jest.fn() };
+  const listCopilotConversationsUseCase = { execute: jest.fn() };
+  const getCopilotConversationMessagesUseCase = { execute: jest.fn() };
   const idempotency = {
     execute: jest.fn((_endpoint, _key, _input, operation) => operation()),
   };
@@ -25,6 +27,8 @@ function buildController() {
       reopenCopilotDraftUseCase as any,
       updateCopilotDraftUseCase as any,
       deleteCopilotDraftUseCase as any,
+      listCopilotConversationsUseCase as any,
+      getCopilotConversationMessagesUseCase as any,
       idempotency as any,
     ),
     copilotChatUseCase,
@@ -35,6 +39,8 @@ function buildController() {
     reopenCopilotDraftUseCase,
     updateCopilotDraftUseCase,
     deleteCopilotDraftUseCase,
+    listCopilotConversationsUseCase,
+    getCopilotConversationMessagesUseCase,
     idempotency,
   };
 }
@@ -262,5 +268,87 @@ describe('CopilotController', () => {
     expect(deps.deleteCopilotDraftUseCase.execute).toHaveBeenCalledWith(
       'draft-1',
     );
+  });
+
+  describe('listConversations', () => {
+    it('returns the mapped conversations page', async () => {
+      const { controller, listCopilotConversationsUseCase } = buildController();
+      listCopilotConversationsUseCase.execute.mockResolvedValue({
+        items: [
+          {
+            id: 'c1',
+            title: 'Hỏi về công nợ',
+            createdAt: new Date('2026-08-09T00:00:00Z'),
+            lastMessageAt: new Date('2026-08-09T01:00:00Z'),
+          },
+        ],
+        total: 1,
+      });
+
+      const result = await controller.listConversations({ page: 1, limit: 20 });
+
+      expect(result).toEqual({
+        items: [
+          {
+            id: 'c1',
+            title: 'Hỏi về công nợ',
+            createdAt: '2026-08-09T00:00:00.000Z',
+            lastMessageAt: '2026-08-09T01:00:00.000Z',
+          },
+        ],
+        total: 1,
+      });
+    });
+
+    it('falls back to a generated title for untitled conversations', async () => {
+      const { controller, listCopilotConversationsUseCase } = buildController();
+      listCopilotConversationsUseCase.execute.mockResolvedValue({
+        items: [
+          {
+            id: 'c1',
+            title: null,
+            createdAt: new Date('2026-08-09T00:00:00Z'),
+            lastMessageAt: new Date('2026-08-09T00:00:00Z'),
+          },
+        ],
+        total: 1,
+      });
+
+      const result = await controller.listConversations({ page: 1, limit: 20 });
+
+      expect(result.items[0].title).not.toBe('');
+      expect(result.items[0].title).toMatch(/Cuộc trò chuyện/);
+    });
+  });
+
+  describe('getConversationMessages', () => {
+    it('returns mapped messages for the conversation', async () => {
+      const { controller, getCopilotConversationMessagesUseCase } =
+        buildController();
+      getCopilotConversationMessagesUseCase.execute.mockResolvedValue([
+        {
+          id: 'm1',
+          organizationId: 'org-1',
+          conversationId: 'c1',
+          role: 'USER',
+          content: 'Xin chào',
+          toolCalls: null,
+          createdAt: new Date('2026-08-09T00:00:00Z'),
+        },
+      ]);
+
+      const result = await controller.getConversationMessages('c1');
+
+      expect(result).toEqual({
+        items: [
+          {
+            id: 'm1',
+            role: 'USER',
+            content: 'Xin chào',
+            createdAt: '2026-08-09T00:00:00.000Z',
+          },
+        ],
+      });
+    });
   });
 });

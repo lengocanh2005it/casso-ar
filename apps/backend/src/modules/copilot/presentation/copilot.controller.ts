@@ -23,6 +23,7 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import type { AuthenticatedUser } from '../../../common/auth/authenticated-user';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
@@ -33,7 +34,9 @@ import { CancelPendingActionUseCase } from '../application/cancel-pending-action
 import { ConfirmPendingActionUseCase } from '../application/confirm-pending-action.usecase';
 import { CopilotChatUseCase } from '../application/copilot-chat.usecase';
 import { DeleteCopilotDraftUseCase } from '../application/delete-copilot-draft.usecase';
+import { GetCopilotConversationMessagesUseCase } from '../application/get-copilot-conversation-messages.usecase';
 import { GetCopilotUsageUseCase } from '../application/get-copilot-usage.usecase';
+import { ListCopilotConversationsUseCase } from '../application/list-copilot-conversations.usecase';
 import { ListCopilotDraftsUseCase } from '../application/list-copilot-drafts.usecase';
 import { ReopenCopilotDraftUseCase } from '../application/reopen-copilot-draft.usecase';
 import { UpdateCopilotDraftUseCase } from '../application/update-copilot-draft.usecase';
@@ -41,11 +44,15 @@ import { CopilotRateLimitGuard } from './copilot-rate-limit.guard';
 import { CopilotDraftsQueryDto } from './dto/copilot-drafts-query.dto';
 import {
   CopilotChatResponseDto,
+  CopilotConversationMessagesDto,
+  CopilotConversationsPageDto,
   CopilotDraftDto,
   CopilotDraftsPageDto,
   CopilotPendingActionDto,
   CopilotUsageResponseDto,
   ReopenCopilotDraftResponseDto,
+  toCopilotConversationMessagesDto,
+  toCopilotConversationsPageResponse,
   toCopilotDraftDto,
   toCopilotDraftsPageResponse,
   toCopilotMessageDto,
@@ -67,6 +74,8 @@ export class CopilotController {
     private readonly reopenCopilotDraftUseCase: ReopenCopilotDraftUseCase,
     private readonly updateCopilotDraftUseCase: UpdateCopilotDraftUseCase,
     private readonly deleteCopilotDraftUseCase: DeleteCopilotDraftUseCase,
+    private readonly listCopilotConversationsUseCase: ListCopilotConversationsUseCase,
+    private readonly getCopilotConversationMessagesUseCase: GetCopilotConversationMessagesUseCase,
     private readonly idempotency: IdempotencyService,
   ) {}
 
@@ -188,6 +197,38 @@ export class CopilotController {
         return { success: true };
       },
     );
+  }
+
+  @Get('conversations')
+  @ApiOperation({ summary: 'List Copilot conversations for the current user' })
+  @ApiOkResponse({ type: CopilotConversationsPageDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+  )
+  @RequirePermission(Permission.RECEIVABLE_READ)
+  async listConversations(@Query() query: PaginationDto) {
+    const page = await this.listCopilotConversationsUseCase.execute(
+      query.page,
+      query.limit,
+    );
+    return toCopilotConversationsPageResponse(page);
+  }
+
+  @Get('conversations/:id/messages')
+  @ApiOperation({ summary: 'Get message history for a Copilot conversation' })
+  @ApiOkResponse({ type: CopilotConversationMessagesDto })
+  @ApiErrorResponse(
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.NOT_FOUND,
+  )
+  @RequirePermission(Permission.RECEIVABLE_READ)
+  async getConversationMessages(@Param('id') id: string) {
+    const messages =
+      await this.getCopilotConversationMessagesUseCase.execute(id);
+    return toCopilotConversationMessagesDto(messages);
   }
 
   @Post('conversations/:id/messages')
