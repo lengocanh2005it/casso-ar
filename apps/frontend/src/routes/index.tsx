@@ -2,6 +2,12 @@ import { Permission } from '@casso-ledger/shared-types';
 import { lazy, type ReactNode, Suspense } from 'react';
 import type { RouteObject } from 'react-router-dom';
 import { Spinner } from '@/components/ui/spinner';
+import {
+  CardsLoadingSkeleton,
+  DashboardLoadingSkeleton,
+  FormLoadingSkeleton,
+  TableLoadingSkeleton,
+} from './loading-skeletons';
 import { GuestRoute, PermissionRoute } from './protected-route';
 
 const LandingPage = lazy(() =>
@@ -128,18 +134,17 @@ const NotFoundPage = lazy(() => import('@/features/errors/not-found-page'));
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { AdminRoute } from './admin-route';
 
-function withPageSuspense(element: ReactNode): ReactNode {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-svh items-center justify-center">
-          <Spinner className="size-10 text-primary" />
-        </div>
-      }
-    >
-      {element}
-    </Suspense>
-  );
+const defaultFallback = (
+  <div className="flex min-h-svh items-center justify-center">
+    <Spinner className="size-10 text-primary" />
+  </div>
+);
+
+function withPageSuspense(
+  element: ReactNode,
+  fallback: ReactNode = defaultFallback,
+): ReactNode {
+  return <Suspense fallback={fallback}>{element}</Suspense>;
 }
 
 export const authRoutes: RouteObject[] = [
@@ -211,30 +216,63 @@ export const adminRoutes: RouteObject[] = [
 ];
 
 export const appRoutes: RouteObject[] = [
-  { path: 'dashboard', element: withPageSuspense(<DashboardPage />) },
-  { path: 'customers', element: withPageSuspense(<CustomersPage />) },
-  { path: 'customers/:id', element: withPageSuspense(<CustomerDetailPage />) },
-  { path: 'receivables', element: withPageSuspense(<ReceivablesPage />) },
+  {
+    path: 'dashboard',
+    element: withPageSuspense(<DashboardPage />, <DashboardLoadingSkeleton />),
+  },
+  {
+    path: 'customers',
+    element: withPageSuspense(<CustomersPage />, <TableLoadingSkeleton />),
+  },
+  {
+    path: 'customers/:id',
+    element: withPageSuspense(<CustomerDetailPage />, <FormLoadingSkeleton />),
+  },
+  {
+    path: 'receivables',
+    element: withPageSuspense(<ReceivablesPage />, <TableLoadingSkeleton />),
+  },
   {
     path: 'receivables/:id',
-    element: withPageSuspense(<ReceivableDetailPage />),
+    element: withPageSuspense(
+      <ReceivableDetailPage />,
+      <FormLoadingSkeleton />,
+    ),
   },
   {
     path: 'bank-connections',
-    element: withPageSuspense(<BankConnectionsPage />),
+    element: withPageSuspense(
+      <BankConnectionsPage />,
+      <CardsLoadingSkeleton />,
+    ),
   },
-  { path: 'exceptions', element: withPageSuspense(<ExceptionsPage />) },
-  { path: 'reminders', element: withPageSuspense(<RemindersPage />) },
+  {
+    path: 'exceptions',
+    element: withPageSuspense(<ExceptionsPage />, <TableLoadingSkeleton />),
+  },
+  {
+    path: 'reminders',
+    element: withPageSuspense(<RemindersPage />, <TableLoadingSkeleton />),
+  },
   { path: 'copilot', element: withPageSuspense(<CopilotPage />) },
-  { path: 'reports', element: withPageSuspense(<ReportsPage />) },
+  {
+    path: 'reports',
+    element: withPageSuspense(<ReportsPage />, <CardsLoadingSkeleton />),
+  },
   {
     path: 'receivable-balance-history',
     element: (
       <PermissionRoute permission={Permission.RECEIVABLE_AUDIT_READ}>
-        {withPageSuspense(<ReceivableBalanceHistoryPage />)}
+        {withPageSuspense(
+          <ReceivableBalanceHistoryPage />,
+          <TableLoadingSkeleton />,
+        )}
       </PermissionRoute>
     ),
   },
-  { path: 'settings', element: withPageSuspense(<SettingsPage />) },
+  {
+    path: 'settings',
+    element: withPageSuspense(<SettingsPage />, <FormLoadingSkeleton />),
+  },
   { path: '*', element: withPageSuspense(<NotFoundPage />) },
 ];
