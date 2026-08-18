@@ -48,4 +48,23 @@ describe('ReceivableTable', () => {
     expect(checkboxes[1]).not.toBeDisabled();
     expect(checkboxes[2]).toBeDisabled();
   });
+
+  it('keeps the row link navigable but not styled like a real invoice link when there is no invoice', () => {
+    render(
+      <MemoryRouter>
+        <ReceivableTable
+          receivables={[buildReceivable({ id: 'rec-1', invoiceNumber: null })]}
+          selectedIds={[]}
+          onToggle={vi.fn()}
+          onToggleAll={vi.fn()}
+          allSelected={false}
+        />
+      </MemoryRouter>,
+    );
+
+    const link = screen.getByRole('link', { name: 'Không có hóa đơn' });
+    expect(link).toHaveAttribute('href', '/receivables/rec-1');
+    expect(link).not.toHaveClass('text-primary');
+    expect(link).toHaveClass('text-muted-foreground');
+  });
 });

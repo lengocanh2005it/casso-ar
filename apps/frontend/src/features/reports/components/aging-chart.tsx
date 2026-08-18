@@ -21,6 +21,7 @@ export function AgingChart({ report }: { report: AgingReport }) {
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="bucket" tickLine={false} axisLine={false} />
           <YAxis
+            width={96}
             tickLine={false}
             axisLine={false}
             tickFormatter={(value: number) =>

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Spinner } from '@/components/ui/spinner';
 import { apiRequest } from '@/lib/api-client';
+import { AuthLogoLink } from '../components/auth-logo-link';
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -32,7 +33,8 @@ export function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <div className="flex min-h-svh items-center justify-center p-6 text-center">
+      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
+        <AuthLogoLink />
         <div role="status" className="space-y-2">
           <h1 className="text-xl font-semibold">Kiểm tra email</h1>
           <p className="text-sm text-muted-foreground">
@@ -55,6 +57,8 @@ export function ForgotPasswordPage() {
         onSubmit={onSubmit}
         className="w-full max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm"
       >
+        <AuthLogoLink />
+
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">Quên mật khẩu?</h1>
           <p className="text-sm text-muted-foreground">
@@ -70,6 +74,7 @@ export function ForgotPasswordPage() {
             required
             autoComplete="email"
             spellCheck={false}
+            placeholder="ban@congty.com"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"

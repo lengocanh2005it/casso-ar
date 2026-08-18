@@ -3,6 +3,8 @@ import { cn } from '@/lib/utils';
 interface LogoProps {
   variant?: 'full' | 'icon';
   className?: string;
+  iconClassName?: string;
+  wordmarkClassName?: string;
 }
 
 function CassoIcon({ className }: { className?: string }) {
@@ -23,7 +25,12 @@ function CassoIcon({ className }: { className?: string }) {
   );
 }
 
-export function Logo({ variant = 'full', className }: LogoProps) {
+export function Logo({
+  variant = 'full',
+  className,
+  iconClassName,
+  wordmarkClassName,
+}: LogoProps) {
   if (variant === 'icon') {
     return <CassoIcon className={className} />;
   }
@@ -35,8 +42,13 @@ export function Logo({ variant = 'full', className }: LogoProps) {
         className,
       )}
     >
-      <CassoIcon className="h-8 w-8 shrink-0" />
-      <span className="text-lg font-bold tracking-tight text-foreground">
+      <CassoIcon className={cn('h-8 w-8 shrink-0', iconClassName)} />
+      <span
+        className={cn(
+          'text-lg font-bold tracking-tight text-foreground',
+          wordmarkClassName,
+        )}
+      >
         Casso Ledger
       </span>
     </span>

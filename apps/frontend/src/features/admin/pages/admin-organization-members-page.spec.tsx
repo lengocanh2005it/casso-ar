@@ -33,6 +33,10 @@ vi.mock('@/lib/api-client', () => ({
   isOperatorToken,
 }));
 
+vi.mock('@/contexts/auth-context', () => ({
+  useAuth: () => ({ isLoading: false }),
+}));
+
 vi.mock('sonner', () => ({
   toast: { error: toastError, success: vi.fn() },
 }));

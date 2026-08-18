@@ -48,6 +48,7 @@ export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {
               }
             />
             <YAxis
+              width={96}
               tickLine={false}
               axisLine={false}
               tickFormatter={(value: number) =>

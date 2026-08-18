@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!token) return;
 
         const me = await apiRequest<AuthenticatedUser>({
-          url: '/api/v1/me',
+          url: '/api/v1/auth/me',
           method: 'GET',
         });
         if (!cancelled) setUser(me);
@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async (): Promise<void> => {
     const me = await apiRequest<AuthenticatedUser>({
-      url: '/api/v1/me',
+      url: '/api/v1/auth/me',
       method: 'GET',
     });
     setUser(me);

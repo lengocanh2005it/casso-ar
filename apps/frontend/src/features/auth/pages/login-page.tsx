@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Spinner } from '@/components/ui/spinner';
 import { useAuth } from '@/contexts/auth-context';
+import { AuthLogoLink } from '../components/auth-logo-link';
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -36,8 +37,9 @@ export function LoginPage() {
         onSubmit={onSubmit}
         className="w-full max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm"
       >
+        <AuthLogoLink />
+
         <div className="space-y-1">
-          <p className="text-sm font-medium text-primary">Casso Ledger</p>
           <h1 className="text-2xl font-semibold">Đăng nhập</h1>
           <p className="text-sm text-muted-foreground">
             Quản lý công nợ và dòng tiền của doanh nghiệp.
@@ -52,6 +54,7 @@ export function LoginPage() {
             required
             autoComplete="email"
             spellCheck={false}
+            placeholder="ban@congty.com"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -65,6 +68,7 @@ export function LoginPage() {
             name="password"
             required
             autoComplete="current-password"
+            placeholder="Nhập mật khẩu"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"

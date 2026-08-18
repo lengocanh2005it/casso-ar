@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { formatActivityType } from '@/lib/collection-activity-labels';
 import { formatDate } from '@/lib/format';
 import { fetchReceivableTimeline } from '../api/receivables-api';
 
@@ -30,7 +31,9 @@ export function ReceivableTimeline({ receivableId }: { receivableId: string }) {
       {data.items.map((item) => (
         <li key={item.id} className="rounded-lg border p-4">
           <div className="flex items-center justify-between gap-4">
-            <span className="font-medium">{item.activityType}</span>
+            <span className="font-medium">
+              {formatActivityType(item.activityType)}
+            </span>
             <time className="text-sm text-muted-foreground">
               {formatDate(item.createdAt)}
             </time>

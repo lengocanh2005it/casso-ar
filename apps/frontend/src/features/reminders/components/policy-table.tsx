@@ -1,5 +1,6 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import {
   Table,
   TableBody,
@@ -56,14 +57,11 @@ export function PolicyTable({
             </TableCell>
             <TableCell>
               {canWrite ? (
-                <input
-                  type="checkbox"
-                  role="switch"
+                <Switch
                   aria-label={`Bật chính sách ${policy.customerGroup}`}
-                  aria-checked={policy.isActive}
                   checked={policy.isActive}
                   disabled={update.isPending}
-                  onChange={() =>
+                  onCheckedChange={() =>
                     update.mutate({
                       id: policy.id,
                       input: {

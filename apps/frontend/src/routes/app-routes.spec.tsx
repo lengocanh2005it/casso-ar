@@ -112,7 +112,10 @@ describe('application routes', () => {
     );
 
     await waitFor(
-      () => expect(screen.getByText(/thu tiền/i)).toBeInTheDocument(),
+      () =>
+        expect(
+          screen.getByRole('heading', { name: /thu tiền/i }),
+        ).toBeInTheDocument(),
       { timeout: 10_000 },
     );
   }, 15_000);
@@ -127,7 +130,7 @@ describe('application routes', () => {
       },
     );
     apiRequest.mockImplementation(({ url }: { url: string }) => {
-      if (url === '/api/v1/me') {
+      if (url === '/api/v1/auth/me') {
         return Promise.resolve({
           id: 'user-1',
           email: 'owner@example.com',

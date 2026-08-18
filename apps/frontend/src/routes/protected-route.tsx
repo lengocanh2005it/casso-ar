@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
 
-function AuthLoading() {
+export function AuthLoading() {
   return (
     <div className="flex min-h-svh items-center justify-center p-6">
       <div className="w-full max-w-md space-y-3">

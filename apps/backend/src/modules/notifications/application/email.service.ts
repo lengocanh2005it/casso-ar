@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
@@ -43,6 +43,8 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class EmailService {
+  private readonly logger = new Logger(EmailService.name);
+
   constructor(
     @Inject(EMAIL_TEMPLATE_REPOSITORY)
     private readonly templateRepo: IEmailTemplateRepository,
@@ -108,27 +110,40 @@ export class EmailService {
       organizationName: organization?.name ?? '',
     });
 
-    await this.emailQueue.add(
-      'send-reminder-email',
-      {
-        reminderExecutionId: input.reminderExecutionId,
+    try {
+      await this.emailQueue.add(
+        'send-reminder-email',
+        {
+          reminderExecutionId: input.reminderExecutionId,
+          receivableId: input.receivableId,
+          organizationId,
+          to: customer.email,
+          ...(owner?.email ? { replyTo: owner.email } : {}),
+          subject: rendered.subject,
+          html: rendered.bodyHtml,
+          // Display-name-only sender customization (issue #96): the actual
+          // domain stays Casso's, the org's name is the From display identity.
+          fromName: organization?.name
+            ? `${organization.name} (qua Casso)`
+            : undefined,
+        },
+        {
+          jobId: input.reminderExecutionId,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5000 },
+        },
+      );
+    } catch (error) {
+      this.logger.error('Failed to enqueue reminder email', {
         receivableId: input.receivableId,
         organizationId,
-        to: customer.email,
-        ...(owner?.email ? { replyTo: owner.email } : {}),
-        subject: rendered.subject,
-        html: rendered.bodyHtml,
-        // Display-name-only sender customization (issue #96): the actual
-        // domain stays Casso's, the org's name is the From display identity.
-        fromName: organization?.name
-          ? `${organization.name} (qua Casso)`
-          : undefined,
-      },
-      {
-        jobId: input.reminderExecutionId,
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 5000 },
-      },
-    );
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw AppError.withCause(
+        error,
+        ErrorCode.EMAIL_SEND_FAILED,
+        'Không thể gửi email nhắc nhở. Vui lòng thử lại sau.',
+      );
+    }
   }
 }

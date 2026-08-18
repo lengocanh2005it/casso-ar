@@ -23,26 +23,29 @@ export function PricingSection() {
   const reducedMotion = useReducedMotion();
 
   return (
-    <section id="bang-gia" className="scroll-mt-24 py-20 sm:py-28">
+    <section id="bang-gia" className="scroll-mt-24 py-16 sm:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Gói dịch vụ linh hoạt
           </h2>
+          <p className="mt-4 text-lg text-muted-foreground text-pretty">
+            Bắt đầu miễn phí và nâng cấp khi nhu cầu quản lý tăng lên.
+          </p>
         </div>
 
         <div aria-live="polite">
           {isLoading ? (
-            <p className="mt-12 text-center text-base text-muted-foreground">
+            <p className="mt-10 text-center text-base text-muted-foreground">
               Đang tải bảng giá…
             </p>
           ) : isError ? (
-            <p className="mt-12 text-center text-base text-muted-foreground">
+            <p className="mt-10 text-center text-base text-muted-foreground">
               Không thể tải bảng giá. Vui lòng thử lại sau.
             </p>
           ) : (
             <motion.div
-              className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4"
+              className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4"
               initial={reducedMotion ? false : 'hidden'}
               whileInView={reducedMotion ? undefined : 'visible'}
               viewport={VIEWPORT_ONCE}
