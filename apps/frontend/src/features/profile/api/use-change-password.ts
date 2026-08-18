@@ -43,3 +43,20 @@ export function useConfirmChangePassword() {
     },
   });
 }
+
+export function useResendChangePasswordOtp() {
+  return useMutation({
+    mutationFn: async () => {
+      await apiRequest<unknown>({
+        url: '/api/v1/auth/change-password/resend',
+        method: 'POST',
+      });
+    },
+    onSuccess: () => {
+      toast.success('OTP đã gửi lại');
+    },
+    onError: () => {
+      toast.error('Không thể gửi lại OTP');
+    },
+  });
+}

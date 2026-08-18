@@ -34,6 +34,7 @@ import { ApiErrorResponse } from '../../../common/swagger/api-error-response.dec
 import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import { ChangePasswordConfirmUseCase } from '../application/change-password-confirm.usecase';
 import { ChangePasswordRequestUseCase } from '../application/change-password-request.usecase';
+import { ChangePasswordResendUseCase } from '../application/change-password-resend.usecase';
 import { ForgotPasswordUseCase } from '../application/forgot-password.usecase';
 import { GetUserProfileUseCase } from '../application/get-user-profile.usecase';
 import { LoginUseCase } from '../application/login.usecase';
@@ -87,6 +88,7 @@ export class AuthController {
     private readonly updateProfileUseCase: UpdateProfileUseCase,
     private readonly changePasswordRequestUseCase: ChangePasswordRequestUseCase,
     private readonly changePasswordConfirmUseCase: ChangePasswordConfirmUseCase,
+    private readonly changePasswordResendUseCase: ChangePasswordResendUseCase,
     private readonly resendVerificationEmailUseCase: ResendVerificationEmailUseCase,
     config: ConfigService,
   ) {
@@ -392,6 +394,22 @@ export class AuthController {
       body.otp,
       body.newPassword,
     );
+    return { success: true };
+  }
+
+  @Post('change-password/resend')
+  @ApiOperation({ summary: 'Resend change password OTP' })
+  @ApiCreatedResponse({
+    description: 'OTP resent',
+    schema: successResponseSchema(),
+  })
+  @UseGuards(JwtAuthGuard)
+  async resendChangePasswordOtp(@Req() request: AuthRequest) {
+    const userId = request.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
+    await this.changePasswordResendUseCase.execute(userId);
     return { success: true };
   }
 

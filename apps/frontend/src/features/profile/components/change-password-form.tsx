@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import {
   useConfirmChangePassword,
   useRequestChangePasswordOtp,
+  useResendChangePasswordOtp,
 } from '../api/use-change-password';
 
 interface ChangePasswordFormProps {
@@ -26,6 +27,7 @@ export function ChangePasswordForm({
 
   const requestOtp = useRequestChangePasswordOtp();
   const confirmChange = useConfirmChangePassword();
+  const resendOtp = useResendChangePasswordOtp();
 
   function handleRequestOtp() {
     requestOtp.mutate(currentPassword, {
@@ -67,6 +69,14 @@ export function ChangePasswordForm({
           <div className="space-y-2">
             <Label>Mã OTP (6 chữ số)</Label>
             <OtpInput value={otp} onChange={setOtp} />
+            <Button
+              variant="link"
+              className="h-auto p-0 text-sm"
+              onClick={() => resendOtp.mutate()}
+              disabled={resendOtp.isPending}
+            >
+              {resendOtp.isPending ? 'Đang gửi…' : 'Gửi lại OTP'}
+            </Button>
           </div>
           <div className="space-y-2">
             <Label htmlFor="newPassword">Mật khẩu mới</Label>

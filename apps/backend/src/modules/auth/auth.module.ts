@@ -18,6 +18,7 @@ import { AUTH_EMAIL_SENDER } from './application/auth-email-sender.port';
 import { BlockMemberUseCase } from './application/block-member.usecase';
 import { ChangePasswordConfirmUseCase } from './application/change-password-confirm.usecase';
 import { ChangePasswordRequestUseCase } from './application/change-password-request.usecase';
+import { ChangePasswordResendUseCase } from './application/change-password-resend.usecase';
 import { DeleteInviteUseCase } from './application/delete-invite.usecase';
 import { EMAIL_VERIFICATION_TOKEN_REPOSITORY } from './application/email-verification-token-repository.port';
 import { ForgotPasswordUseCase } from './application/forgot-password.usecase';
@@ -99,6 +100,7 @@ import { InvitesController } from './presentation/invites.controller';
     UpdateProfileUseCase,
     ChangePasswordRequestUseCase,
     ChangePasswordConfirmUseCase,
+    ChangePasswordResendUseCase,
     {
       provide: EMAIL_VERIFICATION_TOKEN_REPOSITORY,
       useClass: TypeOrmEmailVerificationTokenRepository,
