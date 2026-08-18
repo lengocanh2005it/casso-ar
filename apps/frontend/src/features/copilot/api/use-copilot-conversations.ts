@@ -6,7 +6,7 @@ export function useCopilotConversations() {
   const [conversations, setConversations] = useState<
     CopilotConversationSummary[]
   >([]);
-  const [activeConversationId, setActiveConversationId] = useState(() =>
+  const [activeConversationId, setActiveConversationId] = useState<string>(() =>
     crypto.randomUUID(),
   );
   const [isLoading, setIsLoading] = useState(false);
