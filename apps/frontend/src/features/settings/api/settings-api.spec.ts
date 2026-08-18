@@ -15,6 +15,7 @@ import {
   changeMemberRole,
   fetchOrganizationInvites,
   fetchSmtpConfig,
+  initiatePlanUpgrade,
   removeMember,
   resendInvite,
   revokeInvite,
@@ -143,6 +144,30 @@ describe('blockMember', () => {
     expect(postWithIdempotency).toHaveBeenCalledWith(
       '/api/v1/organizations/org-1/members/u1/block',
     );
+  });
+});
+
+describe('initiatePlanUpgrade', () => {
+  it('posts the target plan and redirect URLs via postWithIdempotency', async () => {
+    postWithIdempotency.mockResolvedValueOnce({
+      checkoutUrl: 'https://pay.payos.vn/web/abc123',
+    });
+
+    const result = await initiatePlanUpgrade(
+      'STARTER',
+      'http://localhost:5173/settings?tab=billing&status=success',
+      'http://localhost:5173/settings?tab=billing&status=cancel',
+    );
+
+    expect(postWithIdempotency).toHaveBeenCalledWith(
+      '/api/v1/payos/plan-upgrade-orders',
+      {
+        targetPlanId: 'STARTER',
+        returnUrl: 'http://localhost:5173/settings?tab=billing&status=success',
+        cancelUrl: 'http://localhost:5173/settings?tab=billing&status=cancel',
+      },
+    );
+    expect(result).toEqual({ checkoutUrl: 'https://pay.payos.vn/web/abc123' });
   });
 });
 
