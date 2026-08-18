@@ -367,6 +367,70 @@ async function main() {
             reminderRuleRepo.replaceForPolicy(policyId, rules, manager),
           );
         }
+
+        // ── Backfill balance history coverage for trend charts ─────
+        const SIX_MONTHS_AGO = new Date();
+        SIX_MONTHS_AGO.setMonth(SIX_MONTHS_AGO.getMonth() - 6);
+
+        await dataSource.query(
+          `UPDATE "receivable_balance_history_coverage"
+           SET "coveredFrom" = $1
+           WHERE "organizationId" = $2`,
+          [SIX_MONTHS_AGO, organization.id],
+        );
+
+        // Insert monthly outstanding snapshots for each past month
+        const now = new Date();
+        for (let m = 5; m >= 1; m--) {
+          const monthEnd = new Date(now);
+          monthEnd.setMonth(monthEnd.getMonth() - m);
+          monthEnd.setDate(0); // last day of previous month
+          monthEnd.setHours(23, 59, 59, 999);
+
+          const monthKey = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, '0')}`;
+
+          // Sum outstanding for receivables that existed at month-end
+          const outstandingRows = await dataSource.query(
+            `SELECT COALESCE(SUM(r."originalAmount" - r."paidAmount"), 0) AS outstanding
+             FROM "receivables" r
+             WHERE r."organizationId" = $1
+               AND r."createdAt" <= $2
+               AND r."status" NOT IN ('PAID', 'CANCELLED', 'WRITTEN_OFF')`,
+            [organization.id, monthEnd],
+          );
+
+          const outstanding = Number(outstandingRows[0]?.outstanding ?? 0);
+          if (outstanding <= 0) continue;
+
+          // Create a snapshot for each receivable that existed at month-end
+          const receivableRows = await dataSource.query(
+            `SELECT r."id", r."status"::text AS status, r."originalAmount" - r."paidAmount" AS remaining
+             FROM "receivables" r
+             WHERE r."organizationId" = $1
+               AND r."createdAt" <= $2
+               AND r."status" NOT IN ('PAID', 'CANCELLED', 'WRITTEN_OFF')`,
+            [organization.id, monthEnd],
+          );
+
+          for (const row of receivableRows) {
+            await dataSource.query(
+              `INSERT INTO "receivable_balance_history"
+               ("id", "organizationId", "receivableId", "status", "remainingAmount",
+                "effectiveAt", "changeSource", "changeReason", "createdAt")
+               VALUES ($1, $2, $3, $4::receivable_balance_history_status_enum, $5, $6,
+                       'SEED_BACKFILL', 'Trend chart seed data', $6)
+               ON CONFLICT DO NOTHING`,
+              [
+                randomUUID(),
+                organization.id,
+                row.id,
+                row.status,
+                row.remaining,
+                monthEnd,
+              ],
+            );
+          }
+        }
       },
     );
 
