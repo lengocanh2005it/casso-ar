@@ -1,14 +1,35 @@
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
+import { PlanId } from '@casso-ledger/shared-types';
 import { NestFactory } from '@nestjs/core';
+import { DataSource } from 'typeorm';
 import { AppModule } from '../../app.module';
 import { TenantContextService } from '../../common/tenancy/tenant-context';
 import { hashPassword } from '../../modules/auth/application/password-hasher';
 import { SignupUseCase } from '../../modules/auth/application/signup.usecase';
 import {
+  type ISubscriptionRepository,
+  SUBSCRIPTION_REPOSITORY,
+} from '../../modules/billing/application/subscription-repository.port';
+import {
   CUSTOMER_REPOSITORY,
   type ICustomerRepository,
 } from '../../modules/customers/application/customer-repository.port';
+import {
+  DISPUTE_REPOSITORY,
+  type IDisputeRepository,
+} from '../../modules/disputes/application/dispute-repository.port';
+import { Dispute, DisputeStatus } from '../../modules/disputes/domain/dispute';
+import {
+  EMAIL_TEMPLATE_REPOSITORY,
+  type IEmailTemplateRepository,
+} from '../../modules/email-templates/application/email-template-repository.port';
+import { EmailTemplate } from '../../modules/email-templates/domain/email-template';
+import {
+  type IInvoiceRepository,
+  INVOICE_REPOSITORY,
+} from '../../modules/invoices/application/invoice-repository.port';
+import { Invoice } from '../../modules/invoices/domain/invoice';
 import { Role } from '../../modules/organizations/domain/membership';
 import { AllocatePaymentUseCase } from '../../modules/payments/application/allocate-payment.usecase';
 import {
@@ -18,15 +39,34 @@ import {
 import { Payment } from '../../modules/payments/domain/payment';
 import { BalanceHistoryActorType } from '../../modules/receivable-balance-history/domain/balance-history-actor-type';
 import { CreateReceivableUseCase } from '../../modules/receivables/application/create-receivable.usecase';
+import type { IReminderPolicyRepository } from '../../modules/reminders/application/reminder-policy-repository.port';
+import type { IReminderRuleRepository } from '../../modules/reminders/application/reminder-rule-repository.port';
+import { ReminderPolicy } from '../../modules/reminders/domain/reminder-policy';
+import { ReminderRule } from '../../modules/reminders/domain/reminder-rule';
 import {
   type IUserRepository,
   USER_REPOSITORY,
 } from '../../modules/users/application/user-repository.port';
 import { User } from '../../modules/users/domain/user';
 import {
+  BANK_TRANSACTION_REPOSITORY,
+  type IBankTransactionRepository,
+} from '../../modules/webhooks/application/bank-transaction-repository.port';
+import {
+  type IWebhookInboxRepository,
+  WEBHOOK_INBOX_REPOSITORY,
+} from '../../modules/webhooks/application/webhook-inbox-repository.port';
+import { BankTransaction } from '../../modules/webhooks/domain/bank-transaction';
+import { WebhookInbox } from '../../modules/webhooks/domain/webhook-inbox';
+import {
+  buildSeedBankTransactionPlans,
   buildSeedCustomers,
+  buildSeedDisputedReceivablePlans,
+  buildSeedEmailTemplatePlans,
+  buildSeedInvoicePlans,
   buildSeedOperatorUserProps,
   buildSeedReceivablePlans,
+  buildSeedReminderPolicyPlans,
   SEED_OPERATOR_EMAIL,
   SEED_OPERATOR_PASSWORD,
 } from './seed-dataset';
@@ -83,12 +123,45 @@ async function main() {
     const tenantContext = app.get(TenantContextService);
     const customerRepo = app.get<ICustomerRepository>(CUSTOMER_REPOSITORY);
     const paymentRepo = app.get<IPaymentRepository>(PAYMENT_REPOSITORY);
+    const subscriptionRepo = app.get<ISubscriptionRepository>(
+      SUBSCRIPTION_REPOSITORY,
+    );
     const createReceivable = app.get(CreateReceivableUseCase);
     const allocatePayment = app.get(AllocatePaymentUseCase);
+    const dataSource = app.get(DataSource);
+    const invoiceRepo = app.get<IInvoiceRepository>(INVOICE_REPOSITORY);
+    const bankTransactionRepo = app.get<IBankTransactionRepository>(
+      BANK_TRANSACTION_REPOSITORY,
+    );
+    const webhookInboxRepo = app.get<IWebhookInboxRepository>(
+      WEBHOOK_INBOX_REPOSITORY,
+    );
+    const emailTemplateRepo = app.get<IEmailTemplateRepository>(
+      EMAIL_TEMPLATE_REPOSITORY,
+    );
+    const reminderPolicyRepo = app.get<IReminderPolicyRepository>(
+      'IReminderPolicyRepository',
+    );
+    const reminderRuleRepo = app.get<IReminderRuleRepository>(
+      'IReminderRuleRepository',
+    );
+    const disputeRepo = app.get<IDisputeRepository>(DISPUTE_REPOSITORY);
 
     await tenantContext.run(
       { userId: user.id, organizationId: organization.id, role: Role.OWNER },
       async () => {
+        // Upgrade to ENTERPRISE plan so seed data is not limited
+        const subscription = await subscriptionRepo.findByOrganizationId(
+          organization.id,
+        );
+        if (subscription) {
+          await subscriptionRepo.save(
+            subscription.changeToPlan(PlanId.ENTERPRISE),
+            undefined,
+            organization.id,
+          );
+        }
+
         const customerPlans = buildSeedCustomers();
         const customerIds: string[] = [];
         for (const plan of customerPlans) {
@@ -124,8 +197,8 @@ async function main() {
               totalAmount: plan.paymentAmount,
               allocatedAmount: 0,
               payerName: customerPlans[plan.customerIndex].name,
-              receivedAt: new Date(),
-              createdAt: new Date(),
+              receivedAt: plan.dueDate,
+              createdAt: plan.dueDate,
             });
             await paymentRepo.save(payment);
             await allocatePayment.execute({
@@ -139,6 +212,160 @@ async function main() {
               },
             });
           }
+        }
+
+        // ── Disputed receivables ───────────────────────────────────
+        const disputedPlans = buildSeedDisputedReceivablePlans(
+          new Date(),
+          customerIds.length,
+        );
+        const disputedReceivableIds: string[] = [];
+        for (const plan of disputedPlans) {
+          const receivable = await createReceivable.execute({
+            customerId: customerIds[plan.customerIndex],
+            invoiceId: null,
+            originalAmount: plan.originalAmount,
+            dueDate: plan.dueDate,
+            salesRepresentativeId: null,
+          });
+          disputedReceivableIds.push(receivable.id);
+        }
+        for (const receivableId of disputedReceivableIds) {
+          const dispute = new Dispute({
+            id: randomUUID(),
+            organizationId: organization.id,
+            receivableId,
+            reason: 'Khách hàng phản đối số tiền hoặc điều kiện thanh toán',
+            status: DisputeStatus.OPEN,
+            openedByUserId: user.id,
+            resolvedByUserId: null,
+            resolvedAt: null,
+            createdAt: new Date(),
+            version: 1,
+          });
+          await disputeRepo.save(dispute);
+        }
+
+        // ── Invoices ───────────────────────────────────────────────
+        const invoicePlans = buildSeedInvoicePlans(
+          new Date(),
+          disputedReceivableIds.length + receivablePlans.length,
+          customerIds.length,
+        );
+        for (const plan of invoicePlans) {
+          const invoice = new Invoice({
+            id: randomUUID(),
+            organizationId: organization.id,
+            customerId: customerIds[plan.customerIndex],
+            invoiceNumber: plan.invoiceNumber,
+            issueDate: plan.issueDate,
+            totalAmount: plan.totalAmount,
+            taxAmount: plan.taxAmount,
+            sourceType: plan.sourceType,
+            fileUrl: null,
+            status: plan.status,
+            createdAt: plan.issueDate,
+          });
+          await invoiceRepo.save(invoice);
+        }
+
+        // ── Bank transactions ──────────────────────────────────────
+        const bankTransactionPlans = buildSeedBankTransactionPlans(new Date());
+        // Create a fake bank connection and webhook inbox entries
+        const fakeBankConnectionId = randomUUID();
+        for (const plan of bankTransactionPlans) {
+          const inboxId = randomUUID();
+          const inbox = new WebhookInbox({
+            id: inboxId,
+            organizationId: organization.id,
+            bankConnectionId: fakeBankConnectionId,
+            providerTransactionId: `provider-${randomUUID().slice(0, 8)}`,
+            rawPayload: {
+              amount: plan.amount,
+              counterparty: plan.counterpartyName,
+            },
+            receivedAt: plan.transactionDateTime,
+            status: 'PROCESSED',
+            processedAt: plan.transactionDateTime,
+            errorMessage: null,
+            retryCount: 0,
+          });
+          await webhookInboxRepo.save(inbox);
+
+          const tx = new BankTransaction({
+            id: randomUUID(),
+            organizationId: organization.id,
+            bankConnectionId: fakeBankConnectionId,
+            webhookInboxId: inboxId,
+            providerTransactionId: inbox.providerTransactionId,
+            amount: plan.amount,
+            transactionDateTime: plan.transactionDateTime,
+            counterpartyAccountNumber: plan.counterpartyAccountNumber,
+            counterpartyName: plan.counterpartyName,
+            transferContent: plan.transferContent,
+            status: plan.status,
+            version: 1,
+            createdAt: plan.transactionDateTime,
+          });
+          await bankTransactionRepo.save(tx);
+        }
+
+        // ── Email templates ────────────────────────────────────────
+        const emailTemplatePlans = buildSeedEmailTemplatePlans();
+        const emailTemplateIds: string[] = [];
+        for (const plan of emailTemplatePlans) {
+          const templateId = randomUUID();
+          const template = new EmailTemplate({
+            id: templateId,
+            organizationId: organization.id,
+            name: plan.name,
+            subject: plan.subject,
+            bodyHtml: plan.bodyHtml,
+            reminderStage: plan.reminderStage,
+            isDefault: plan.isDefault,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            version: 1,
+          });
+          await emailTemplateRepo.save(template);
+          emailTemplateIds.push(templateId);
+        }
+
+        // ── Reminder policies & rules ──────────────────────────────
+        const policyPlans = buildSeedReminderPolicyPlans();
+        const existingPolicies = await reminderPolicyRepo.findAll();
+        const existingGroups = new Set(
+          existingPolicies.map((p) => p.customerGroup),
+        );
+
+        for (const policyPlan of policyPlans) {
+          if (existingGroups.has(policyPlan.customerGroup)) continue;
+
+          const policyId = randomUUID();
+          const policy = new ReminderPolicy({
+            id: policyId,
+            organizationId: organization.id,
+            customerGroup: policyPlan.customerGroup,
+            isActive: policyPlan.isActive,
+            escalationThresholdDays: policyPlan.escalationThresholdDays,
+            createdAt: new Date(),
+          });
+          await reminderPolicyRepo.save(policy);
+
+          const rules = policyPlan.rules.map(
+            (rulePlan) =>
+              new ReminderRule({
+                id: randomUUID(),
+                reminderPolicyId: policyId,
+                offsetDays: rulePlan.offsetDays,
+                emailTemplateId: emailTemplateIds[rulePlan.emailTemplateIndex],
+                minIntervalDays: rulePlan.minIntervalDays,
+                createdAt: new Date(),
+              }),
+          );
+          await dataSource.transaction((manager) =>
+            reminderRuleRepo.replaceForPolicy(policyId, rules, manager),
+          );
         }
       },
     );

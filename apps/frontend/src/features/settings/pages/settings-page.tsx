@@ -1,3 +1,4 @@
+import { CreditCard, Mail, Palette, Server, Users } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { AppearanceTab } from '../components/appearance-tab';
@@ -6,13 +7,21 @@ import { EmailTemplatesTab } from '../components/email-templates-tab';
 import { SmtpTab } from '../components/smtp-tab';
 import { UsersTab } from '../components/users-tab';
 
-const TABS = ['appearance', 'billing', 'users', 'templates', 'smtp'] as const;
+const TABS = [
+  { value: 'appearance', label: 'Giao diện', icon: Palette },
+  { value: 'billing', label: 'Thanh toán', icon: CreditCard },
+  { value: 'users', label: 'Người dùng', icon: Users },
+  { value: 'templates', label: 'Mẫu email', icon: Mail },
+  { value: 'smtp', label: 'Email riêng', icon: Server },
+] as const;
+
+type TabValue = (typeof TABS)[number]['value'];
 
 export function SettingsPage() {
   const { searchParams, setParam } = useUrlQueryParams();
   const activeTab = searchParams.get('tab');
-  const tab = TABS.includes(activeTab as (typeof TABS)[number])
-    ? (activeTab as (typeof TABS)[number])
+  const tab = TABS.some((t) => t.value === activeTab)
+    ? (activeTab as TabValue)
     : 'appearance';
 
   return (
@@ -22,12 +31,13 @@ export function SettingsPage() {
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">Cài đặt</h1>
       </div>
       <Tabs value={tab} onValueChange={(value) => setParam('tab', value)}>
-        <TabsList>
-          <TabsTrigger value="appearance">Giao diện</TabsTrigger>
-          <TabsTrigger value="billing">Thanh toán</TabsTrigger>
-          <TabsTrigger value="users">Người dùng</TabsTrigger>
-          <TabsTrigger value="templates">Mẫu email</TabsTrigger>
-          <TabsTrigger value="smtp">Email server riêng</TabsTrigger>
+        <TabsList className="w-full justify-start gap-1 overflow-x-auto rounded-lg bg-muted p-1">
+          {TABS.map(({ value, label, icon: Icon }) => (
+            <TabsTrigger key={value} value={value} className="gap-1.5">
+              <Icon className="size-3.5 shrink-0" />
+              <span className="hidden sm:inline">{label}</span>
+            </TabsTrigger>
+          ))}
         </TabsList>
         <TabsContent value="appearance" className="pt-4">
           <AppearanceTab />

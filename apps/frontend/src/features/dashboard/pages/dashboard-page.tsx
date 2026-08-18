@@ -2,10 +2,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useReviewCount } from '@/features/exceptions/api/use-review-count';
-import { useDashboardSummary } from '@/features/reports/api/use-reports';
+import {
+  useDashboardSummary,
+  useReportsTrend,
+} from '@/features/reports/api/use-reports';
 import { formatVND } from '@/lib/format';
 import { useOrganizationActivity } from '../api/use-organization-activity';
+import { OverdueDonutChart } from '../components/overdue-donut-chart';
+import { PaymentActivityChart } from '../components/payment-activity-chart';
 import { PendingReviewBanner } from '../components/pending-review-banner';
+import { ReceivableTrendChart } from '../components/receivable-trend-chart';
 import { RecentActivityFeed } from '../components/recent-activity-feed';
 
 const percentFormatter = new Intl.NumberFormat('vi-VN', {
@@ -66,6 +72,7 @@ export function DashboardPage() {
   const reviewCountQuery = useReviewCount();
   const summaryQuery = useDashboardSummary();
   const activityQuery = useOrganizationActivity();
+  const trendQuery = useReportsTrend(6);
 
   const pendingCount = reviewCountQuery.data ?? 0;
 
@@ -127,6 +134,37 @@ export function DashboardPage() {
               value={String(pendingCount)}
               className="animate-fade-up motion-reduce:animate-none [animation-delay:120ms]"
             />
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:160ms]">
+              <CardHeader>
+                <CardTitle>Tỷ lệ quá hạn</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <OverdueDonutChart
+                  totalOutstanding={summaryQuery.data.totalOutstanding}
+                  totalOverdue={summaryQuery.data.totalOverdue}
+                />
+              </CardContent>
+            </Card>
+
+            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:200ms] lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Xu hướng công nợ 6 tháng</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {trendQuery.isPending ? (
+                  <Skeleton className="h-64 w-full" />
+                ) : trendQuery.isError || !trendQuery.data ? (
+                  <p className="text-sm text-muted-foreground">
+                    Không thể tải dữ liệu xu hướng.
+                  </p>
+                ) : (
+                  <ReceivableTrendChart trend={trendQuery.data} />
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
@@ -195,6 +233,17 @@ export function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          {trendQuery.data && (
+            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:240ms]">
+              <CardHeader>
+                <CardTitle>Hoạt động thanh toán 6 tháng</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PaymentActivityChart trend={trendQuery.data} />
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>
