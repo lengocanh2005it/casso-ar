@@ -104,7 +104,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **31 tracked tickets** | status snapshot (2026-08-15):
 - 🟢 done (31): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management, Spec-Plan Reconciliation, Org-Branded Reminder Emails via Custom SMTP (BYO-SMTP), SMTP Settings UI (Frontend), In-App Alerts (#137), Public Landing Page (#143)
-- 🟡 in-progress (0): none
+- 🟡 in-progress (1): Issue #233 — manual payment allocation UI
 - 🔴 open/not started (0): none
 
 ---
@@ -765,7 +765,7 @@ Success = a single document a new developer can read and know exactly what to pi
 **Current status (2026-08-16):** Casso Admin Platform (#98) shipped via PR #177. Copilot Draft Library (#136), its edit/delete follow-up (#171), Receivable Balance History (#172), member-level block/unblock (#178), Receivable Balance History Audit Dashboard (#176), both halves of #181 (member block/unblock UI — org-facing via PR #185, Admin Platform operator workspace via PR #190), Public Landing Page (#143) via PR #188, and Admin Platform pending invite resend/revoke actions (#189) via PR #191 are done. Three unrelated e2e failures are deferred to a separate issue.
 
 **In progress:**
-- None.
+- Issue #233 — manual payment allocation UI (worktree `feat/233-manual-payment-allocation-ui`).
 
 **Next available tickets** (all blockers resolved):
 - None.
