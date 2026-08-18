@@ -44,7 +44,11 @@ describe('AuthTokenManager', () => {
     postMock.mockResolvedValue({ data: { accessToken: 'new-token' } });
 
     await expect(manager.getValidAccessToken()).resolves.toBe('new-token');
-    expect(postMock).toHaveBeenCalledWith('/api/v1/auth/refresh', {});
+    expect(postMock).toHaveBeenCalledWith(
+      '/api/v1/auth/refresh',
+      {},
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
   });
 
   it('shares one refresh request between concurrent callers', async () => {
@@ -113,6 +117,28 @@ describe('AuthTokenManager', () => {
 
     expect(handler).toHaveBeenCalledTimes(1);
     window.removeEventListener('casso:member-blocked', handler);
+  });
+
+  it('drops a stale refresh result and aborts it once a newer token is set', async () => {
+    let resolveRefresh!: (value: { data: { accessToken: string } }) => void;
+    let capturedSignal: AbortSignal | undefined;
+    postMock.mockImplementation(
+      (_url: string, _data: unknown, config?: { signal?: AbortSignal }) => {
+        capturedSignal = config?.signal;
+        return new Promise((resolve) => {
+          resolveRefresh = resolve;
+        });
+      },
+    );
+
+    const stalePromise = manager.getValidAccessToken();
+    const freshToken = tokenWithExpiry(Math.floor(Date.now() / 1000) + 300);
+    manager.setAccessToken(freshToken);
+    resolveRefresh({ data: { accessToken: 'stale-token' } });
+    await stalePromise;
+
+    expect(manager.getAccessToken()).toBe(freshToken);
+    expect(capturedSignal?.aborted).toBe(true);
   });
 
   it('revokes the refresh session during logout', async () => {

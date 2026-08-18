@@ -49,8 +49,16 @@ export class AuthTokenManager {
   private refreshPromise: Promise<string | null> | null = null;
   private logoutPromise: Promise<void> | null = null;
   private logoutInitiated = false;
+  // ownership generation: bumped on every setAccessToken()/logout, so a
+  // refresh started for a stale session can detect it was superseded and
+  // must not overwrite the newer token last-write-wins style.
+  private generation = 0;
+  private pendingRefreshController: AbortController | null = null;
 
   setAccessToken(token: string | null): void {
+    this.generation++;
+    this.pendingRefreshController?.abort();
+    this.pendingRefreshController = null;
     this.accessToken = token;
   }
 
@@ -69,10 +77,13 @@ export class AuthTokenManager {
     }
 
     if (!this.refreshPromise) {
-      this.refreshPromise = this.refreshAccessToken()
+      const generation = this.generation;
+      this.refreshPromise = this.refreshAccessToken(generation)
         .catch(() => {
-          this.accessToken = null;
-          return null;
+          if (generation === this.generation) {
+            this.accessToken = null;
+          }
+          return this.accessToken;
         })
         .finally(() => {
           this.refreshPromise = null;
@@ -82,16 +93,26 @@ export class AuthTokenManager {
     return this.refreshPromise;
   }
 
-  private async refreshAccessToken(): Promise<string> {
+  private async refreshAccessToken(generation: number): Promise<string | null> {
+    const controller = new AbortController();
+    this.pendingRefreshController = controller;
     const response = await axiosClient.post<{ accessToken: string }>(
       '/api/v1/auth/refresh',
       {},
+      { signal: controller.signal },
     );
+    if (generation !== this.generation) {
+      // superseded by a newer login/signup/refresh while this was in flight
+      return this.accessToken;
+    }
     this.accessToken = response.data.accessToken;
     return this.accessToken;
   }
 
   markLogoutInitiated(): void {
+    this.generation++;
+    this.pendingRefreshController?.abort();
+    this.pendingRefreshController = null;
     this.logoutInitiated = true;
     this.accessToken = null;
   }

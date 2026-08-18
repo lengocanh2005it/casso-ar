@@ -1,19 +1,25 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  Activity,
   AlertTriangle,
   CircleDollarSign,
   Clock,
+  CreditCard,
   FileSearch,
   PieChart,
   TrendingUp,
-  CreditCard,
-  Activity,
   Users,
 } from 'lucide-react';
-import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/contexts/auth-context';
 import { useReviewCount } from '@/features/exceptions/api/use-review-count';
 import {
   useDashboardSummary,
@@ -130,7 +136,11 @@ export function DashboardPage() {
       </div>
 
       <h2 className="text-xl font-semibold tracking-tight text-primary">
-        Chào mừng <span className="text-foreground">{user?.organizationName ?? 'bạn'}</span> đến với Casso Ledger!
+        Chào mừng{' '}
+        <span className="text-foreground">
+          {user?.organizationName ?? 'bạn'}
+        </span>{' '}
+        đến với Casso Ledger!
       </h2>
 
       {reviewCountQuery.isError ? (
@@ -199,7 +209,9 @@ export function DashboardPage() {
                 <TrendingUp className="size-4 text-blue-500" />
                 <CardTitle>Xu hướng công nợ 6 tháng</CardTitle>
               </div>
-              <CardDescription>Biểu đồ xu hướng tăng giảm công nợ theo thời gian</CardDescription>
+              <CardDescription>
+                Biểu đồ xu hướng tăng giảm công nợ theo thời gian
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {trendQuery.isPending ? (
@@ -220,7 +232,9 @@ export function DashboardPage() {
                 <PieChart className="size-4 text-amber-500" />
                 <CardTitle>Tỷ lệ quá hạn</CardTitle>
               </div>
-              <CardDescription>Phân tích tỷ lệ công nợ đúng hạn và quá hạn</CardDescription>
+              <CardDescription>
+                Phân tích tỷ lệ công nợ đúng hạn và quá hạn
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <OverdueDonutChart
@@ -237,7 +251,9 @@ export function DashboardPage() {
                   <CreditCard className="size-4 text-violet-500" />
                   <CardTitle>Hoạt động thanh toán 6 tháng</CardTitle>
                 </div>
-                <CardDescription>Tổng hợp tiền thu và hoàn trong 6 tháng gần nhất</CardDescription>
+                <CardDescription>
+                  Tổng hợp tiền thu và hoàn trong 6 tháng gần nhất
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <PaymentActivityChart trend={trendQuery.data} />
@@ -252,7 +268,9 @@ export function DashboardPage() {
                   <Activity className="size-4 text-emerald-500" />
                   <CardTitle>Hoạt động gần đây</CardTitle>
                 </div>
-                <CardDescription>Các sự kiện mới nhất trong hệ thống</CardDescription>
+                <CardDescription>
+                  Các sự kiện mới nhất trong hệ thống
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {activityQuery.isPending ? (
@@ -292,7 +310,9 @@ export function DashboardPage() {
                   <Users className="size-4 text-red-500" />
                   <CardTitle>Khách hàng quá hạn nhiều nhất</CardTitle>
                 </div>
-                <CardDescription>Top khách hàng có tổng công nợ quá hạn cao nhất</CardDescription>
+                <CardDescription>
+                  Top khách hàng có tổng công nợ quá hạn cao nhất
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {summaryQuery.data.topOverdueCustomers.length === 0 ? (

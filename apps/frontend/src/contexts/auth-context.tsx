@@ -79,7 +79,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         data: { email, password },
       });
       authTokenManager.setAccessToken(result.accessToken);
-      await refreshUser();
+      try {
+        await refreshUser();
+      } catch {
+        // login already succeeded (token issued); a failed profile load
+        // right after must not be reported back as a failed login.
+      }
     },
     [refreshUser],
   );

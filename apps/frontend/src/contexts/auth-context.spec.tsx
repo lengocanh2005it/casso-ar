@@ -2,15 +2,16 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider, useAuth } from './auth-context';
 
-const { getValidAccessToken, apiRequest } = vi.hoisted(() => ({
+const { getValidAccessToken, apiRequest, setAccessToken } = vi.hoisted(() => ({
   getValidAccessToken: vi.fn(),
   apiRequest: vi.fn(),
+  setAccessToken: vi.fn(),
 }));
 
 vi.mock('@/lib/api-client', () => ({
   authTokenManager: {
     getValidAccessToken,
-    setAccessToken: vi.fn(),
+    setAccessToken,
     markLogoutInitiated: vi.fn(),
     clearStaleRefreshSession: vi.fn(),
     resetLogoutState: vi.fn(),
@@ -43,6 +44,7 @@ describe('AuthProvider', () => {
   beforeEach(() => {
     getValidAccessToken.mockReset();
     apiRequest.mockReset();
+    setAccessToken.mockReset();
   });
 
   it('restores a session from /api/v1/auth/me when a token exists', async () => {
@@ -101,5 +103,28 @@ describe('AuthProvider', () => {
     expect(last?.refreshUser).toBe(first?.refreshUser);
     expect(last?.login).toBe(first?.login);
     expect(last?.logout).toBe(first?.logout);
+  });
+
+  it('resolves login() even when the post-login /auth/me call fails', async () => {
+    getValidAccessToken.mockResolvedValue(null);
+    apiRequest.mockImplementation((config: { url: string }) => {
+      if (config.url === '/api/v1/auth/login') {
+        return Promise.resolve({ accessToken: 'fresh-token' });
+      }
+      return Promise.reject(new Error('me failed'));
+    });
+    let actions: AuthActions | undefined;
+
+    render(
+      <AuthProvider>
+        <ActionProbe onRender={(a) => (actions = a)} />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(actions).toBeDefined());
+
+    await expect(
+      actions?.login('owner@casso.vn', 'password'),
+    ).resolves.toBeUndefined();
+    expect(setAccessToken).toHaveBeenCalledWith('fresh-token');
   });
 });
