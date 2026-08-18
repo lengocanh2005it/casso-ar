@@ -29,18 +29,23 @@ export default function NotFoundPage() {
         />
       </div>
 
-      <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-4 py-4 sm:px-6">
+      <div className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
+        <ThemeToggle />
+      </div>
+
+      <div className="flex min-h-svh flex-col items-center px-4 pt-16 sm:px-6 sm:pt-20">
         <Link
           to={homeTo}
-          className="rounded-lg transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="mb-10 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:mb-14"
         >
-          <Logo className="h-7" wordmarkClassName="text-primary" />
+          <Logo
+            className="h-12 sm:h-16"
+            iconClassName="h-12 w-12 sm:h-16 sm:w-16"
+            wordmarkClassName="text-2xl sm:text-3xl"
+          />
         </Link>
-        <ThemeToggle />
-      </header>
 
-      <div className="flex min-h-svh items-center justify-center px-4 py-24 sm:px-6">
-        <div className="relative w-full max-w-lg">
+        <div className="relative w-full max-w-lg flex-1 flex items-center">
           <div className="pointer-events-none absolute -inset-3 rounded-[2rem] bg-primary/15 blur-2xl" />
 
           <Card className="relative overflow-hidden border-border/70 bg-card/90 shadow-2xl shadow-primary/10 backdrop-blur-sm">
