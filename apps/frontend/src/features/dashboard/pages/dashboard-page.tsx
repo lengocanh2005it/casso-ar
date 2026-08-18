@@ -1,3 +1,10 @@
+import type { LucideIcon } from 'lucide-react';
+import {
+  AlertTriangle,
+  CircleDollarSign,
+  Clock,
+  FileSearch,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,19 +32,27 @@ function formatRate(value: number | null): string {
 
 function MetricCard({
   label,
+  description,
   value,
+  icon: Icon,
   className,
 }: {
   label: string;
+  description: string;
   value: string;
+  icon: LucideIcon;
   className?: string;
 }) {
   return (
     <Card className={`transition-shadow hover:shadow-md ${className ?? ''}`}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {label}
-        </CardTitle>
+        <div className="flex items-center gap-2">
+          <Icon className="size-4 text-muted-foreground" />
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            {label}
+          </CardTitle>
+        </div>
+        <p className="text-xs text-muted-foreground">{description}</p>
       </CardHeader>
       <CardContent>
         <p className="text-xl font-semibold tabular-nums">{value}</p>
@@ -116,22 +131,30 @@ export function DashboardPage() {
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               label="Tổng công nợ còn lại"
+              description="Tất cả công nợ chưa thanh toán"
               value={formatVND(summaryQuery.data.totalOutstanding)}
+              icon={CircleDollarSign}
               className="animate-fade-up motion-reduce:animate-none"
             />
             <MetricCard
               label="Công nợ quá hạn"
+              description="Công nợ đã vượt ngày đến hạn"
               value={formatVND(summaryQuery.data.totalOverdue)}
+              icon={AlertTriangle}
               className="animate-fade-up motion-reduce:animate-none [animation-delay:40ms]"
             />
             <MetricCard
               label="Tỷ lệ quá hạn"
+              description="Tỷ lệ công nợ quá hạn trên tổng"
               value={formatRate(summaryQuery.data.overdueRate)}
+              icon={Clock}
               className="animate-fade-up motion-reduce:animate-none [animation-delay:80ms]"
             />
             <MetricCard
               label="Cần đối soát"
+              description="Giao dịch ngân hàng chờ đối chiếu"
               value={String(pendingCount)}
+              icon={FileSearch}
               className="animate-fade-up motion-reduce:animate-none [animation-delay:120ms]"
             />
           </div>
