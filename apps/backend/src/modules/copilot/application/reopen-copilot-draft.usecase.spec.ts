@@ -125,6 +125,7 @@ describe('ReopenCopilotDraftUseCase', () => {
     expect(deps.conversationRepo.findOrCreate).toHaveBeenCalledWith(
       'new-conv-1',
       'user-1',
+      undefined,
       {},
     );
     expect(deps.pendingActionRepo.create).toHaveBeenCalledWith(

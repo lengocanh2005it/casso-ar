@@ -15,6 +15,9 @@ export class CopilotConversationOrmEntity {
   @Column({ type: 'uuid', nullable: true })
   customerId: string | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  title: string | null;
+
   @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

@@ -8,6 +8,7 @@ import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type {
   CopilotConversation,
+  CopilotConversationSummary,
   CopilotMessageRecord,
   ICopilotConversationRepository,
 } from '../application/conversation-repository.port';
@@ -22,6 +23,7 @@ function toConversation(
     organizationId: row.organizationId,
     userId: row.userId,
     customerId: row.customerId,
+    title: row.title,
     createdAt: row.createdAt,
   };
 }
@@ -56,32 +58,29 @@ export class TypeOrmCopilotConversationRepository
   async findOrCreate(
     conversationId: string,
     userId: string,
+    title?: string,
     manager?: EntityManager,
   ): Promise<CopilotConversation> {
     const organizationId = this.tenantContext.getOrganizationId();
     const repo = manager
       ? manager.getRepository(CopilotConversationOrmEntity)
       : this.ormRepo;
+    const select = {
+      id: true,
+      organizationId: true,
+      userId: true,
+      customerId: true,
+      title: true,
+      createdAt: true,
+    } as const;
     const existing = await repo.findOne({
-      select: {
-        id: true,
-        organizationId: true,
-        userId: true,
-        customerId: true,
-        createdAt: true,
-      },
+      select,
       where: { id: conversationId, organizationId, userId },
     });
     if (existing) return toConversation(existing);
 
     const ownedByAnotherUser = await repo.findOne({
-      select: {
-        id: true,
-        organizationId: true,
-        userId: true,
-        customerId: true,
-        createdAt: true,
-      },
+      select,
       where: { id: conversationId, organizationId },
     });
     if (ownedByAnotherUser) return toConversation(ownedByAnotherUser);
@@ -91,9 +90,73 @@ export class TypeOrmCopilotConversationRepository
       organizationId,
       userId,
       customerId: null,
+      title: title ?? null,
       createdAt: new Date(),
     });
     return toConversation(row);
+  }
+
+  async findById(conversationId: string): Promise<CopilotConversation | null> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const row = await this.ormRepo.findOne({
+      select: {
+        id: true,
+        organizationId: true,
+        userId: true,
+        customerId: true,
+        title: true,
+        createdAt: true,
+      },
+      where: { id: conversationId, organizationId },
+    });
+    return row ? toConversation(row) : null;
+  }
+
+  async listByUser(
+    userId: string,
+    page: number,
+    limit: number,
+  ): Promise<{ items: CopilotConversationSummary[]; total: number }> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const rows = await this.ormRepo
+      .createQueryBuilder('conversation')
+      .leftJoin(
+        CopilotMessageOrmEntity,
+        'message',
+        'message.conversationId = conversation.id',
+      )
+      .select('conversation.id', 'id')
+      .addSelect('conversation.title', 'title')
+      .addSelect('conversation.createdAt', 'createdAt')
+      .addSelect('MAX(message.createdAt)', 'lastMessageAt')
+      .where('conversation.organizationId = :organizationId', {
+        organizationId,
+      })
+      .andWhere('conversation.userId = :userId', { userId })
+      .groupBy('conversation.id')
+      .orderBy('"lastMessageAt"', 'DESC', 'NULLS LAST')
+      .limit(limit)
+      .offset((page - 1) * limit)
+      .getRawMany<{
+        id: string;
+        title: string | null;
+        createdAt: Date;
+        lastMessageAt: Date | null;
+      }>();
+
+    const total = await this.ormRepo.count({
+      where: { organizationId, userId },
+    });
+
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        createdAt: row.createdAt,
+        lastMessageAt: row.lastMessageAt ?? row.createdAt,
+      })),
+      total,
+    };
   }
 
   async listMessages(conversationId: string): Promise<CopilotMessageRecord[]> {
