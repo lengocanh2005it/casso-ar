@@ -8,9 +8,7 @@ import { BillingModule } from '../billing/billing.module';
 import { EmailTemplatesModule } from '../email-templates/email-templates.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
-import { CHANGE_PASSWORD_OTP_REPOSITORY } from '../profile/application/change-password-otp-repository.port';
-import { ChangePasswordOtpOrmEntity } from '../profile/infrastructure/change-password-otp.orm-entity';
-import { TypeOrmChangePasswordOtpRepository } from '../profile/infrastructure/typeorm-change-password-otp.repository';
+import { ProfileModule } from '../profile/profile.module';
 import { RemindersModule } from '../reminders/reminders.module';
 import { UsersModule } from '../users/users.module';
 import { AcceptInviteUseCase } from './application/accept-invite.usecase';
@@ -68,12 +66,12 @@ import { InvitesController } from './presentation/invites.controller';
       PasswordResetTokenOrmEntity,
       MembershipInviteOrmEntity,
       RefreshTokenOrmEntity,
-      ChangePasswordOtpOrmEntity,
     ]),
     UsersModule,
     OrganizationsModule,
     BillingModule,
     BankConnectionsModule,
+    ProfileModule,
     EmailTemplatesModule,
     NotificationsModule,
     RemindersModule,
@@ -127,10 +125,6 @@ import { InvitesController } from './presentation/invites.controller';
       useClass: DefaultOrganizationBootstrap,
     },
     { provide: TOKEN_SIGNER, useClass: JwtTokenSigner },
-    {
-      provide: CHANGE_PASSWORD_OTP_REPOSITORY,
-      useClass: TypeOrmChangePasswordOtpRepository,
-    },
   ],
   controllers: [AuthController, InvitesController],
   exports: [

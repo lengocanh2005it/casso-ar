@@ -1,4 +1,4 @@
-import { Camera, KeyRound, LogOut } from 'lucide-react';
+import { Building2, Camera, KeyRound, LogOut, User } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -145,11 +145,13 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
             <Tabs defaultValue="personal">
               <TabsList className="w-full justify-start gap-1 overflow-x-auto rounded-lg bg-muted p-1">
                 <TabsTrigger value="personal" className="gap-1.5">
-                  Cá nhân
+                  <User className="size-3.5 shrink-0" />
+                  <span className="hidden sm:inline">Cá nhân</span>
                 </TabsTrigger>
                 {isOwner && (
                   <TabsTrigger value="business" className="gap-1.5">
-                    Doanh nghiệp
+                    <Building2 className="size-3.5 shrink-0" />
+                    <span className="hidden sm:inline">Doanh nghiệp</span>
                   </TabsTrigger>
                 )}
               </TabsList>
@@ -219,6 +221,9 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
 
               {isOwner && (
                 <TabsContent value="business" className="space-y-4 pt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Chỉ chủ sở hữu mới có thể chỉnh sửa tên doanh nghiệp.
+                  </p>
                   <div className="space-y-2">
                     <Label htmlFor="org-name">Tên doanh nghiệp</Label>
                     <Input
