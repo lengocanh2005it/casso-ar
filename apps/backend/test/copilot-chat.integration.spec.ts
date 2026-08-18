@@ -35,6 +35,7 @@ import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-enti
 
 const mockAiProvider: IAIChatProvider = {
   createChatCompletion: jest.fn(),
+  streamChatCompletion: jest.fn(),
 };
 const mockCreateChatCompletion =
   mockAiProvider.createChatCompletion as jest.Mock;
