@@ -20,7 +20,7 @@ export const VIEWPORT_ONCE = { once: true };
 // spring that overshoots, reading as a snap-shrink-then-grow glitch.
 export const HOVER_SCALE = {
   scale: 1.02,
-  transition: { duration: 0.15, ease: 'easeOut' },
+  transition: { duration: 0.15, ease: 'easeOut' as const },
 };
 
 // Stronger ease-out than the CSS/Motion default — used for UI entrances.
