@@ -190,22 +190,6 @@ export function DashboardPage() {
           <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:160ms]">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <PieChart className="size-4 text-amber-500" />
-                <CardTitle>Tỷ lệ quá hạn</CardTitle>
-              </div>
-              <CardDescription>Phân tích tỷ lệ công nợ đúng hạn và quá hạn</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <OverdueDonutChart
-                totalOutstanding={summaryQuery.data.totalOutstanding}
-                totalOverdue={summaryQuery.data.totalOverdue}
-              />
-            </CardContent>
-          </Card>
-
-          <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:200ms]">
-            <CardHeader>
-              <div className="flex items-center gap-2">
                 <TrendingUp className="size-4 text-blue-500" />
                 <CardTitle>Xu hướng công nợ 6 tháng</CardTitle>
               </div>
@@ -221,6 +205,22 @@ export function DashboardPage() {
               ) : (
                 <ReceivableTrendChart trend={trendQuery.data} />
               )}
+            </CardContent>
+          </Card>
+
+          <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:200ms]">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <PieChart className="size-4 text-amber-500" />
+                <CardTitle>Tỷ lệ quá hạn</CardTitle>
+              </div>
+              <CardDescription>Phân tích tỷ lệ công nợ đúng hạn và quá hạn</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <OverdueDonutChart
+                totalOutstanding={summaryQuery.data.totalOutstanding}
+                totalOverdue={summaryQuery.data.totalOverdue}
+              />
             </CardContent>
           </Card>
 
