@@ -129,7 +129,7 @@ export function DashboardPage() {
         </p>
       </div>
 
-      <h2 className="text-xl font-semibold tracking-tight">
+      <h2 className="text-xl font-semibold tracking-tight text-primary">
         Chào mừng {user?.organizationName ?? 'bạn'} đến với Casso Ledger
       </h2>
 
