@@ -173,21 +173,32 @@ export class ReminderSchedulerService {
         }
       }
 
-      await this.sendQueue.add(
-        'send-reminder',
-        {
+      try {
+        await this.sendQueue.add(
+          'send-reminder',
+          {
+            organizationId,
+            receivableId: candidate.receivableId,
+            reminderRuleId: matchingRule.id,
+            executionDate,
+          },
+          {
+            jobId: `reminder-${candidate.receivableId}-${matchingRule.id}-${executionDate}`,
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 5000 },
+          },
+        );
+        queuedCount += 1;
+      } catch (error) {
+        this.logger.error({
+          message: 'Failed to enqueue reminder send job',
           organizationId,
           receivableId: candidate.receivableId,
           reminderRuleId: matchingRule.id,
-          executionDate,
-        },
-        {
-          jobId: `reminder-${candidate.receivableId}-${matchingRule.id}-${executionDate}`,
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 5000 },
-        },
-      );
-      queuedCount += 1;
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
     }
 
     await emitScanCompleted();
