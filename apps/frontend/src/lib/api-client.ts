@@ -44,6 +44,19 @@ export function isOperatorToken(token: string): boolean {
   return decodeJwtPayload(token)?.isOperator === true;
 }
 
+const SESSION_HINT_KEY = 'casso:has-session';
+
+// Non-sensitive hint only — the real refresh token stays in an httpOnly
+// cookie the client can't read. Lets restoreSession() skip the refresh
+// call entirely when no login/refresh has ever succeeded on this device.
+function setSessionHint(present: boolean): void {
+  if (present) {
+    localStorage.setItem(SESSION_HINT_KEY, '1');
+  } else {
+    localStorage.removeItem(SESSION_HINT_KEY);
+  }
+}
+
 export class AuthTokenManager {
   private accessToken: string | null = null;
   private refreshPromise: Promise<string | null> | null = null;
@@ -60,10 +73,15 @@ export class AuthTokenManager {
     this.pendingRefreshController?.abort();
     this.pendingRefreshController = null;
     this.accessToken = token;
+    setSessionHint(token !== null);
   }
 
   getAccessToken(): string | null {
     return this.accessToken;
+  }
+
+  hasKnownSession(): boolean {
+    return localStorage.getItem(SESSION_HINT_KEY) === '1';
   }
 
   async getValidAccessToken(): Promise<string | null> {
@@ -82,6 +100,7 @@ export class AuthTokenManager {
         .catch(() => {
           if (generation === this.generation) {
             this.accessToken = null;
+            setSessionHint(false);
           }
           return this.accessToken;
         })
@@ -106,6 +125,7 @@ export class AuthTokenManager {
       return this.accessToken;
     }
     this.accessToken = response.data.accessToken;
+    setSessionHint(true);
     return this.accessToken;
   }
 
@@ -115,6 +135,7 @@ export class AuthTokenManager {
     this.pendingRefreshController = null;
     this.logoutInitiated = true;
     this.accessToken = null;
+    setSessionHint(false);
   }
 
   resetLogoutState(): void {

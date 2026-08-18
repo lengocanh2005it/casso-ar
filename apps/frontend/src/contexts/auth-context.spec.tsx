@@ -2,16 +2,19 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider, useAuth } from './auth-context';
 
-const { getValidAccessToken, apiRequest, setAccessToken } = vi.hoisted(() => ({
-  getValidAccessToken: vi.fn(),
-  apiRequest: vi.fn(),
-  setAccessToken: vi.fn(),
-}));
+const { getValidAccessToken, apiRequest, setAccessToken, hasKnownSession } =
+  vi.hoisted(() => ({
+    getValidAccessToken: vi.fn(),
+    apiRequest: vi.fn(),
+    setAccessToken: vi.fn(),
+    hasKnownSession: vi.fn(),
+  }));
 
 vi.mock('@/lib/api-client', () => ({
   authTokenManager: {
     getValidAccessToken,
     setAccessToken,
+    hasKnownSession,
     markLogoutInitiated: vi.fn(),
     clearStaleRefreshSession: vi.fn(),
     resetLogoutState: vi.fn(),
@@ -45,6 +48,21 @@ describe('AuthProvider', () => {
     getValidAccessToken.mockReset();
     apiRequest.mockReset();
     setAccessToken.mockReset();
+    hasKnownSession.mockReset().mockReturnValue(true);
+  });
+
+  it('never calls the refresh endpoint when no session was ever established', async () => {
+    hasKnownSession.mockReturnValue(false);
+
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('anonymous')).toBeVisible());
+    expect(getValidAccessToken).not.toHaveBeenCalled();
+    expect(apiRequest).not.toHaveBeenCalled();
   });
 
   it('restores a session from /api/v1/auth/me when a token exists', async () => {

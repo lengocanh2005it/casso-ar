@@ -10,6 +10,7 @@ vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
   authTokenManager: {
     getValidAccessToken: vi.fn().mockResolvedValue(null),
+    hasKnownSession: () => true,
     setAccessToken: vi.fn(),
     resetLogoutState: vi.fn(),
     markLogoutInitiated: vi.fn(),

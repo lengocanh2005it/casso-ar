@@ -39,6 +39,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     async function restoreSession() {
+      if (!authTokenManager.hasKnownSession()) {
+        if (!cancelled) setIsLoading(false);
+        return;
+      }
+
       try {
         const token = await authTokenManager.getValidAccessToken();
         if (!token) return;
