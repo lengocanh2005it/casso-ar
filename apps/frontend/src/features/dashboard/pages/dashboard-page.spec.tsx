@@ -28,6 +28,8 @@ const summaryData = {
 
 const emptyActivity = { items: [], total: 0, page: 1, limit: 10 };
 
+const emptyTrend = { months: 6, items: [] };
+
 function mockApi() {
   apiRequest.mockImplementation(({ url }: { url: string }) => {
     if (url === '/api/v1/bank-transactions/pending-review-count') {
@@ -35,6 +37,9 @@ function mockApi() {
     }
     if (url === '/api/v1/reports/dashboard-summary') {
       return Promise.resolve(summaryData);
+    }
+    if (url === '/api/v1/reports/trend') {
+      return Promise.resolve(emptyTrend);
     }
     if (url === '/api/v1/activity') {
       return Promise.resolve(emptyActivity);
@@ -73,6 +78,9 @@ describe('DashboardPage', () => {
       if (url === '/api/v1/reports/dashboard-summary') {
         return Promise.reject(new Error('boom'));
       }
+      if (url === '/api/v1/reports/trend') {
+        return Promise.resolve(emptyTrend);
+      }
       if (url === '/api/v1/activity') {
         return Promise.resolve(emptyActivity);
       }
@@ -104,6 +112,9 @@ describe('DashboardPage', () => {
     apiRequest.mockImplementation(({ url }: { url: string }) => {
       if (url === '/api/v1/bank-transactions/pending-review-count') {
         return Promise.reject(new Error('boom'));
+      }
+      if (url === '/api/v1/reports/trend') {
+        return Promise.resolve(emptyTrend);
       }
       if (url === '/api/v1/activity') {
         return Promise.resolve(emptyActivity);

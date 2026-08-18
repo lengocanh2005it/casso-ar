@@ -33,7 +33,7 @@ function MetricCard({
   className?: string;
 }) {
   return (
-    <Card className={className}>
+    <Card className={`transition-shadow hover:shadow-md ${className ?? ''}`}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {label}
@@ -54,7 +54,7 @@ function SummarySkeleton() {
       aria-label="Đang tải dữ liệu"
       className="space-y-4"
     >
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }, (_, index) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton grid never reorders
           <Skeleton key={index} className="h-24 w-full" />
@@ -113,7 +113,7 @@ export function DashboardPage() {
         </div>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               label="Tổng công nợ còn lại"
               value={formatVND(summaryQuery.data.totalOutstanding)}
@@ -136,7 +136,7 @@ export function DashboardPage() {
             />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-2">
             <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:160ms]">
               <CardHeader>
                 <CardTitle>Tỷ lệ quá hạn</CardTitle>
@@ -149,13 +149,13 @@ export function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:200ms] lg:col-span-2">
+            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:200ms]">
               <CardHeader>
                 <CardTitle>Xu hướng công nợ 6 tháng</CardTitle>
               </CardHeader>
               <CardContent>
                 {trendQuery.isPending ? (
-                  <Skeleton className="h-64 w-full" />
+                  <Skeleton className="h-72 w-full" />
                 ) : trendQuery.isError || !trendQuery.data ? (
                   <p className="text-sm text-muted-foreground">
                     Không thể tải dữ liệu xu hướng.
@@ -167,8 +167,19 @@ export function DashboardPage() {
             </Card>
           </div>
 
+          {trendQuery.data && (
+            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:240ms]">
+              <CardHeader>
+                <CardTitle>Hoạt động thanh toán 6 tháng</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PaymentActivityChart trend={trendQuery.data} />
+              </CardContent>
+            </Card>
+          )}
+
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:160ms]">
+            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:280ms]">
               <CardHeader>
                 <CardTitle>Hoạt động gần đây</CardTitle>
               </CardHeader>
@@ -204,7 +215,7 @@ export function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:200ms]">
+            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:320ms]">
               <CardHeader>
                 <CardTitle>Khách hàng quá hạn nhiều nhất</CardTitle>
               </CardHeader>
@@ -233,17 +244,6 @@ export function DashboardPage() {
               </CardContent>
             </Card>
           </div>
-
-          {trendQuery.data && (
-            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:240ms]">
-              <CardHeader>
-                <CardTitle>Hoạt động thanh toán 6 tháng</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <PaymentActivityChart trend={trendQuery.data} />
-              </CardContent>
-            </Card>
-          )}
         </>
       )}
     </div>
