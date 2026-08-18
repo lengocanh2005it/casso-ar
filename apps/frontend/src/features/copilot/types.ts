@@ -36,3 +36,15 @@ export interface CopilotDraftsPage {
   items: CopilotDraft[];
   total: number;
 }
+
+export interface CopilotConversationSummary {
+  id: string;
+  title: string;
+  createdAt: string;
+  lastMessageAt: string;
+}
+
+export interface CopilotConversationsPage {
+  items: CopilotConversationSummary[];
+  total: number;
+}
