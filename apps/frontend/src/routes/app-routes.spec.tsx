@@ -64,7 +64,7 @@ describe('application routes', () => {
         screen.getByRole('heading', { name: /nhận lời mời/i }),
       ).toBeVisible(),
     );
-    expect(screen.queryByText('Casso Ledger')).not.toBeInTheDocument();
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
   });
 
   it('exposes the standalone admin login route', async () => {
