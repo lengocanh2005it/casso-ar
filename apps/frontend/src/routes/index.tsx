@@ -123,6 +123,7 @@ const AdminAiUsagePage = lazy(() =>
     default: m.AdminAiUsagePage,
   })),
 );
+const NotFoundPage = lazy(() => import('@/features/errors/not-found-page'));
 
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { AdminRoute } from './admin-route';
@@ -172,6 +173,7 @@ export const authRoutes: RouteObject[] = [
     path: 'invite-accept',
     element: <GuestRoute>{withPageSuspense(<InviteAcceptPage />)}</GuestRoute>,
   },
+  { path: '*', element: withPageSuspense(<NotFoundPage />) },
 ];
 
 export const adminRoutes: RouteObject[] = [
@@ -203,6 +205,7 @@ export const adminRoutes: RouteObject[] = [
         path: 'ai-usage',
         element: withPageSuspense(<AdminAiUsagePage />),
       },
+      { path: '*', element: withPageSuspense(<NotFoundPage />) },
     ],
   },
 ];
@@ -233,4 +236,5 @@ export const appRoutes: RouteObject[] = [
     ),
   },
   { path: 'settings', element: withPageSuspense(<SettingsPage />) },
+  { path: '*', element: withPageSuspense(<NotFoundPage />) },
 ];
