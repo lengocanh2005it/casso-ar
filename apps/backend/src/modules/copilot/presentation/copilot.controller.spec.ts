@@ -4,7 +4,11 @@ import { CopilotController } from './copilot.controller';
 import { CopilotRateLimitGuard } from './copilot-rate-limit.guard';
 
 function buildController() {
-  const copilotChatUseCase = { execute: jest.fn() };
+  const copilotChatUseCase = {
+    execute: jest.fn(),
+    persistUserMessage: jest.fn(),
+    executeStreaming: jest.fn(),
+  };
   const confirmPendingActionUseCase = { execute: jest.fn() };
   const cancelPendingActionUseCase = { execute: jest.fn() };
   const getCopilotUsageUseCase = { execute: jest.fn() };
@@ -349,6 +353,129 @@ describe('CopilotController', () => {
           },
         ],
       });
+    });
+  });
+
+  describe('streamMessage', () => {
+    function buildRes() {
+      const writes: string[] = [];
+      return {
+        setHeader: jest.fn(),
+        flushHeaders: jest.fn(),
+        write: jest.fn((chunk: string) => writes.push(chunk)),
+        end: jest.fn(),
+        writes,
+      };
+    }
+
+    it('persists the user message once (via idempotency) then streams status/delta/done events', async () => {
+      const { controller, copilotChatUseCase, idempotency } = buildController();
+      copilotChatUseCase.persistUserMessage.mockResolvedValue(undefined);
+      idempotency.execute.mockImplementation(
+        (
+          _endpoint: string,
+          _key: string,
+          _input: unknown,
+          operation: () => Promise<unknown>,
+        ) => operation(),
+      );
+      copilotChatUseCase.executeStreaming.mockReturnValue(
+        (async function* () {
+          yield { type: 'status', text: 'Đang xử lý…' };
+          yield { type: 'delta', text: 'Xin chào' };
+          yield {
+            type: 'done',
+            message: {
+              id: 'm1',
+              organizationId: 'org-1',
+              conversationId: 'c1',
+              role: 'ASSISTANT',
+              content: 'Xin chào',
+              toolCalls: null,
+              createdAt: new Date('2026-08-09T00:00:00Z'),
+            },
+            pendingAction: null,
+          };
+        })(),
+      );
+      const res = buildRes();
+      const req = {
+        on: jest.fn(),
+        user: {
+          userId: 'user-1',
+          organizationId: 'org-1',
+          role: Role.FINANCE_MANAGER,
+        },
+      };
+
+      await controller.streamMessage(
+        'c1',
+        { content: 'Xin chào' },
+        'key-1',
+        req as any,
+        res as any,
+      );
+
+      expect(copilotChatUseCase.persistUserMessage).toHaveBeenCalledWith(
+        { conversationId: 'c1', userMessage: 'Xin chào' },
+        { userId: 'user-1', organizationId: 'org-1' },
+      );
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'Content-Type',
+        'text/event-stream',
+      );
+      expect(res.writes.join('')).toContain('event: status');
+      expect(res.writes.join('')).toContain('event: delta');
+      expect(res.writes.join('')).toContain('event: done');
+      expect(res.writes.join('')).toContain('"content":"Xin chào"');
+      expect(res.writes.join('')).not.toContain('organizationId');
+      expect(res.end).toHaveBeenCalled();
+    });
+
+    it('stops writing once the client disconnects', async () => {
+      const { controller, copilotChatUseCase, idempotency } = buildController();
+      idempotency.execute.mockImplementation(
+        (
+          _endpoint: string,
+          _key: string,
+          _input: unknown,
+          operation: () => Promise<unknown>,
+        ) => operation(),
+      );
+      copilotChatUseCase.persistUserMessage.mockResolvedValue(undefined);
+      let closeHandler: () => void = () => {};
+      const req = {
+        on: jest.fn((event: string, handler: () => void) => {
+          if (event === 'close') closeHandler = handler;
+        }),
+        user: {
+          userId: 'user-1',
+          organizationId: 'org-1',
+          role: Role.FINANCE_MANAGER,
+        },
+      };
+      copilotChatUseCase.executeStreaming.mockImplementation(
+        // biome-ignore lint/correctness/useYield: test double simulating an abort mid-stream
+        async function* () {
+          closeHandler();
+        },
+      );
+      const res = buildRes();
+
+      await controller.streamMessage(
+        'c1',
+        { content: 'Xin chào' },
+        'key-1',
+        req as any,
+        res as any,
+      );
+
+      expect(copilotChatUseCase.executeStreaming).toHaveBeenCalledWith(
+        { conversationId: 'c1', userMessage: 'Xin chào' },
+        expect.any(Function),
+      );
+      const isAborted = copilotChatUseCase.executeStreaming.mock.calls[0][1];
+      expect(isAborted()).toBe(true);
     });
   });
 });

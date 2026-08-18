@@ -18,7 +18,9 @@ import { CopilotChatUseCase } from './application/copilot-chat.usecase';
 import { CopilotToolRegistry } from './application/copilot-tool-registry';
 import { DeleteCopilotDraftUseCase } from './application/delete-copilot-draft.usecase';
 import { COPILOT_DRAFT_REPOSITORY } from './application/draft-repository.port';
+import { GetCopilotConversationMessagesUseCase } from './application/get-copilot-conversation-messages.usecase';
 import { GetCopilotUsageUseCase } from './application/get-copilot-usage.usecase';
+import { ListCopilotConversationsUseCase } from './application/list-copilot-conversations.usecase';
 import { ListCopilotDraftsUseCase } from './application/list-copilot-drafts.usecase';
 import { COPILOT_PENDING_ACTION_REPOSITORY } from './application/pending-action-repository.port';
 import { ReopenCopilotDraftUseCase } from './application/reopen-copilot-draft.usecase';
@@ -149,6 +151,8 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     DraftReminderEmailTool,
     SendReminderEmailTool,
     CopilotChatUseCase,
+    ListCopilotConversationsUseCase,
+    GetCopilotConversationMessagesUseCase,
     ConfirmPendingActionUseCase,
     CancelPendingActionUseCase,
     GetCopilotUsageUseCase,

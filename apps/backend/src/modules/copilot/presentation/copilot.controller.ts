@@ -10,6 +10,7 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -20,7 +21,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import type { AuthenticatedUser } from '../../../common/auth/authenticated-user';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
@@ -268,6 +269,79 @@ export class CopilotController {
         };
       },
     );
+  }
+
+  @Post('conversations/:id/messages/stream')
+  @ApiOperation({
+    summary:
+      'Stream a message to a Copilot conversation over Server-Sent Events',
+  })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.RATE_LIMIT_EXCEEDED,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
+  @UseGuards(CopilotRateLimitGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @RequirePermission(Permission.RECEIVABLE_READ)
+  async streamMessage(
+    @Param('id') conversationId: string,
+    @Body() dto: PostCopilotMessageDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Req() req: Request,
+    @Res({ passthrough: false }) response: Response,
+  ): Promise<void> {
+    await this.idempotency.execute(
+      `POST /copilot/conversations/${conversationId}/messages/stream`,
+      idempotencyKey,
+      dto,
+      () => {
+        const user = req.user as AuthenticatedUser;
+        return this.copilotChatUseCase.persistUserMessage(
+          { conversationId, userMessage: dto.content },
+          { userId: user.userId, organizationId: user.organizationId },
+        );
+      },
+    );
+
+    response.setHeader('Content-Type', 'text/event-stream');
+    response.setHeader('Cache-Control', 'no-cache');
+    response.setHeader('Connection', 'keep-alive');
+    response.flushHeaders();
+
+    let aborted = false;
+    req.on('close', () => {
+      aborted = true;
+    });
+
+    for await (const event of this.copilotChatUseCase.executeStreaming(
+      { conversationId, userMessage: dto.content },
+      () => aborted,
+    )) {
+      if (event.type === 'done') {
+        const payload: CopilotChatResponseDto = {
+          message: toCopilotMessageDto(event.message),
+          pendingAction: event.pendingAction
+            ? toCopilotPendingActionDto(event.pendingAction)
+            : null,
+        };
+        response.write(`event: done\ndata: ${JSON.stringify(payload)}\n\n`);
+        break;
+      }
+      if (event.type === 'error') {
+        response.write(
+          `event: error\ndata: ${JSON.stringify({ errorCode: event.errorCode, message: event.message })}\n\n`,
+        );
+        break;
+      }
+      response.write(
+        `event: ${event.type}\ndata: ${JSON.stringify({ text: event.text })}\n\n`,
+      );
+    }
+    response.end();
   }
 
   @Post('actions/:actionId/confirm')
