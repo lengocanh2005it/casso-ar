@@ -188,7 +188,7 @@ export function DashboardPage() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="border-l-4 border-l-amber-500 animate-fade-up motion-reduce:animate-none [animation-delay:160ms]">
+            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:160ms]">
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <PieChart className="size-4 text-amber-500" />
@@ -204,7 +204,7 @@ export function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-l-4 border-l-blue-500 animate-fade-up motion-reduce:animate-none [animation-delay:200ms]">
+            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:200ms]">
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <TrendingUp className="size-4 text-blue-500" />
@@ -227,7 +227,7 @@ export function DashboardPage() {
           </div>
 
           {trendQuery.data && (
-            <Card className="border-l-4 border-l-violet-500 animate-fade-up motion-reduce:animate-none [animation-delay:240ms]">
+            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:240ms]">
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <CreditCard className="size-4 text-violet-500" />
@@ -242,7 +242,7 @@ export function DashboardPage() {
           )}
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="border-l-4 border-l-emerald-500 animate-fade-up motion-reduce:animate-none [animation-delay:280ms]">
+            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:280ms]">
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Activity className="size-4 text-emerald-500" />
@@ -282,7 +282,7 @@ export function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-l-4 border-l-red-500 animate-fade-up motion-reduce:animate-none [animation-delay:320ms]">
+            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:320ms]">
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Users className="size-4 text-red-500" />
