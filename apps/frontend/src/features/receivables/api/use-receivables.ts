@@ -11,10 +11,14 @@ import {
   writeOffReceivable,
 } from './receivables-api';
 
-export function useReceivables(filters: ReceivableFilters, page = 1) {
+export function useReceivables(
+  filters: ReceivableFilters,
+  page = 1,
+  limit = 20,
+) {
   return useQuery({
-    queryKey: ['receivables', filters, page],
-    queryFn: () => fetchReceivables(filters, page),
+    queryKey: ['receivables', filters, page, limit],
+    queryFn: () => fetchReceivables(filters, page, limit),
   });
 }
 

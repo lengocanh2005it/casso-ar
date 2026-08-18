@@ -1,6 +1,5 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -19,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/contexts/auth-context';
 import { useCustomers } from '@/features/customers/api/use-customers';
+import { getAllocationErrorMessage } from '@/features/payments/allocation-errors';
 import { formatVND } from '@/lib/format';
 import { hasPermission } from '@/lib/rbac';
 import {
@@ -43,6 +43,7 @@ export function SplitMatchDialog({
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [customerSearch, setCustomerSearch] = useState('');
   const [prepaidCustomerId, setPrepaidCustomerId] = useState('');
+  const [allocationError, setAllocationError] = useState<string | null>(null);
   const { data: customerPage } = useCustomers(
     customerSearch,
     1,
@@ -57,6 +58,7 @@ export function SplitMatchDialog({
       setAmounts({});
       setCustomerSearch('');
       setPrepaidCustomerId('');
+      setAllocationError(null);
     }
   }, [open]);
 
@@ -90,14 +92,19 @@ export function SplitMatchDialog({
 
   function onMatch() {
     if (!valid) {
-      toast.error(
-        `Tổng phân bổ ${formatVND(total)} vượt quá số tiền giao dịch ${formatVND(tx.amount)}`,
+      setAllocationError(
+        `Tổng phân bổ ${formatVND(total)} không được vượt quá số tiền giao dịch ${formatVND(tx.amount)}.`,
       );
       return;
     }
+    setAllocationError(null);
     splitMatch.mutate(
       { id: tx.id, allocations, version: tx.version },
-      { onSuccess: () => onOpenChange(false) },
+      {
+        onSuccess: () => onOpenChange(false),
+        onError: (error) =>
+          setAllocationError(getAllocationErrorMessage(error)),
+      },
     );
   }
 
@@ -141,12 +148,13 @@ export function SplitMatchDialog({
                   step={1}
                   className="w-full sm:w-40"
                   value={amounts[candidate.receivableId] ?? ''}
-                  onChange={(event) =>
+                  onChange={(event) => {
                     setAmounts((current) => ({
                       ...current,
                       [candidate.receivableId]: event.target.value,
-                    }))
-                  }
+                    }));
+                    setAllocationError(null);
+                  }}
                 />
               </label>
             </div>
@@ -155,6 +163,15 @@ export function SplitMatchDialog({
             Đã phân bổ: <span className="tabular-nums">{formatVND(total)}</span>{' '}
             / {formatVND(tx.amount)}
           </p>
+          {allocationError && (
+            <p
+              role="alert"
+              aria-live="polite"
+              className="text-sm text-destructive"
+            >
+              {allocationError}
+            </p>
+          )}
           <label htmlFor="customer-search" className="block text-sm">
             Tìm khách hàng để ghi nhận công nợ
             <Input
