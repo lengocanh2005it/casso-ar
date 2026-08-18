@@ -128,4 +128,47 @@ describe('LoginUseCase', () => {
       useCase.execute({ email: 'user@casso.vn', password: 'pw' }),
     ).rejects.toMatchObject({ errorCode: 'FORBIDDEN' });
   });
+
+  it('issues a session for an already verified user', async () => {
+    const user = new User({
+      id: 'user-1',
+      name: 'An',
+      email: 'ap@congtyb.vn',
+      passwordHash: 'unused',
+      emailVerifiedAt: new Date(),
+      createdAt: new Date(),
+    });
+    const membership = new Membership({
+      id: 'mem-1',
+      organizationId: 'org-1',
+      userId: 'user-1',
+      role: Role.OWNER,
+      invitedAt: new Date(),
+      joinedAt: new Date(),
+      createdAt: new Date(),
+    });
+    const userRepo = { findById: jest.fn().mockResolvedValue(user) };
+    const membershipRepo = {
+      findFirstActiveByUserId: jest.fn().mockResolvedValue(membership),
+    };
+    const refreshTokenRepo = { save: jest.fn() };
+    const tokenSigner = { sign: jest.fn().mockReturnValue('signed-token') };
+    const useCase = new LoginUseCase(
+      userRepo as any,
+      membershipRepo as any,
+      refreshTokenRepo as any,
+      tokenSigner as any,
+    );
+
+    const result = await useCase.executeForUser('user-1');
+
+    expect(result.accessToken).toBe('signed-token');
+    expect(result.refreshToken).toHaveLength(64);
+    expect(tokenSigner.sign).toHaveBeenCalledWith({
+      userId: 'user-1',
+      organizationId: 'org-1',
+      role: Role.OWNER,
+      isOperator: false,
+    });
+  });
 });

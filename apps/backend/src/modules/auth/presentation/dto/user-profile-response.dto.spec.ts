@@ -11,6 +11,7 @@ describe('toUserProfileResponse', () => {
       organizationName: 'Casso Ledger',
       role: Role.OWNER,
       subscriptionPlan: 'FREE',
+      bankingLinked: true,
     });
 
     expect(dto).toEqual({
@@ -21,6 +22,7 @@ describe('toUserProfileResponse', () => {
       organizationId: 'org-1',
       organizationName: 'Casso Ledger',
       subscriptionPlan: 'FREE',
+      bankingLinked: true,
     });
   });
 });

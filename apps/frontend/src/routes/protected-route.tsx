@@ -46,6 +46,20 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   return children;
 }
 
+export function OnboardingRoute({ children }: { children: ReactNode }) {
+  const { user, isLoading, isAuthenticated } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) return <AuthLoading />;
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+  if (location.pathname === '/bank-connections' || user.bankingLinked) {
+    return children;
+  }
+  return <Navigate to="/onboarding" replace />;
+}
+
 export function PermissionRoute({
   permission,
   children,

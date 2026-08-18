@@ -43,7 +43,7 @@ describe('SignupPage', () => {
     getValidAccessToken.mockResolvedValue(null);
   });
 
-  it('treats signup as successful even when the post-signup /auth/me call fails', async () => {
+  it('sends the new account to email verification', async () => {
     apiRequest.mockImplementation((config: { url: string }) => {
       if (config.url === '/api/v1/auth/signup') {
         return Promise.resolve({ accessToken: 'access-token' });
@@ -56,7 +56,7 @@ describe('SignupPage', () => {
         <MemoryRouter initialEntries={['/signup']}>
           <Routes>
             <Route path="/signup" element={<SignupPage />} />
-            <Route path="/dashboard" element={<div>dashboard</div>} />
+            <Route path="/verify-email" element={<div>verify email</div>} />
           </Routes>
         </MemoryRouter>
       </AuthProvider>,
@@ -67,7 +67,7 @@ describe('SignupPage', () => {
     );
     fillAndSubmit();
 
-    await waitFor(() => expect(screen.getByText('dashboard')).toBeVisible());
+    await waitFor(() => expect(screen.getByText('verify email')).toBeVisible());
     expect(
       screen.queryByText(/không thể tạo tài khoản/i),
     ).not.toBeInTheDocument();

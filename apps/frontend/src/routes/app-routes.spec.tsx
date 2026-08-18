@@ -139,6 +139,7 @@ describe('application routes', () => {
           organizationId: 'org-1',
           organizationName: 'Org',
           subscriptionPlan: 'FREE',
+          bankingLinked: true,
         });
       }
       return new Promise(() => {});
@@ -167,5 +168,37 @@ describe('application routes', () => {
         ).toBeVisible(),
       { timeout: 5_000 },
     );
-  });
+  }, 15_000);
+
+  it('redirects an authenticated organization without a bank link to onboarding', async () => {
+    getValidAccessToken.mockResolvedValue('access-token');
+    apiRequest.mockImplementation(({ url }: { url: string }) => {
+      if (url === '/api/v1/auth/me') {
+        return Promise.resolve({
+          id: 'user-1',
+          email: 'viewer@example.com',
+          name: 'Viewer',
+          role: 'VIEWER',
+          organizationId: 'org-1',
+          organizationName: 'Org',
+          subscriptionPlan: 'FREE',
+          bankingLinked: false,
+        });
+      }
+      return new Promise(() => {});
+    });
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <AppRoutes />
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    await waitFor(
+      () => expect(screen.getByText('Liên kết ngân hàng')).toBeVisible(),
+      { timeout: 15_000 },
+    );
+  }, 20_000);
 });

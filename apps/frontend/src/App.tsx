@@ -9,8 +9,14 @@ import {
   UpgradeDialog,
   usePlanLimitDialog,
 } from '@/features/settings/components/upgrade-dialog';
-import { adminRoutes, appRoutes, authRoutes } from '@/routes';
-import { ProtectedRoute } from '@/routes/protected-route';
+import {
+  adminRoutes,
+  appRoutes,
+  authRoutes,
+  OnboardingPage,
+  withPageSuspense,
+} from '@/routes';
+import { OnboardingRoute, ProtectedRoute } from '@/routes/protected-route';
 
 function renderRoute(route: RouteObject, routeKey: string): ReactElement {
   if (route.index) {
@@ -32,9 +38,19 @@ export function AppRoutes() {
       {authRoutes.map((route, index) => renderRoute(route, `auth-${index}`))}
       {adminRoutes.map((route, index) => renderRoute(route, `admin-${index}`))}
       <Route
+        path="onboarding"
         element={
           <ProtectedRoute>
-            <AppLayout />
+            {withPageSuspense(<OnboardingPage />)}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        element={
+          <ProtectedRoute>
+            <OnboardingRoute>
+              <AppLayout />
+            </OnboardingRoute>
           </ProtectedRoute>
         }
       >

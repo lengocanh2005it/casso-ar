@@ -36,6 +36,7 @@ import { GetUserProfileUseCase } from '../application/get-user-profile.usecase';
 import { LoginUseCase } from '../application/login.usecase';
 import { LogoutUseCase } from '../application/logout.usecase';
 import { RefreshAccessTokenUseCase } from '../application/refresh-access-token.usecase';
+import { ResendVerificationEmailUseCase } from '../application/resend-verification-email.usecase';
 import { ResetPasswordUseCase } from '../application/reset-password.usecase';
 import { SignupUseCase } from '../application/signup.usecase';
 import { SwitchOrganizationUseCase } from '../application/switch-organization.usecase';
@@ -78,6 +79,7 @@ export class AuthController {
     private readonly forgotPasswordUseCase: ForgotPasswordUseCase,
     private readonly resetPasswordUseCase: ResetPasswordUseCase,
     private readonly getUserProfileUseCase: GetUserProfileUseCase,
+    private readonly resendVerificationEmailUseCase: ResendVerificationEmailUseCase,
     config: ConfigService,
   ) {
     this.refreshCookieOptions = {
@@ -137,14 +139,44 @@ export class AuthController {
     description: 'Email verified',
     schema: {
       type: 'object',
-      required: ['verified'],
-      properties: { verified: { type: 'boolean', example: true } },
+      required: ['verified', 'accessToken'],
+      properties: {
+        verified: { type: 'boolean', example: true },
+        accessToken: { type: 'string' },
+      },
     },
   })
   @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.NOT_FOUND)
-  async verifyEmail(@Body() dto: VerifyEmailDto) {
-    await this.verifyEmailUseCase.execute(dto.token);
-    return { verified: true };
+  async verifyEmail(
+    @Body() dto: VerifyEmailDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.verifyEmailUseCase.execute(dto.token);
+    response.cookie(
+      REFRESH_COOKIE_NAME,
+      result.refreshToken,
+      this.refreshCookieOptions,
+    );
+    return { verified: true, accessToken: result.accessToken };
+  }
+
+  @Public()
+  @UseGuards(AuthCompositeRateLimitGuard)
+  @HttpCode(HttpStatus.OK)
+  @Post('resend-verification')
+  @ApiOperation({ summary: 'Resend the email verification link' })
+  @ApiOkResponse({
+    description: 'Verification email sent if the address requires it',
+    schema: successResponseSchema(),
+  })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.RATE_LIMIT_EXCEEDED,
+    ErrorCode.EMAIL_SEND_FAILED,
+  )
+  async resendVerification(@Body() dto: ForgotPasswordDto) {
+    await this.resendVerificationEmailUseCase.execute(dto.email);
+    return { success: true };
   }
 
   @Public()

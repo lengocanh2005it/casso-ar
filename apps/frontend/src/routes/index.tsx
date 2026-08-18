@@ -49,6 +49,11 @@ const BankConnectionsPage = lazy(() =>
     (m) => ({ default: m.BankConnectionsPage }),
   ),
 );
+export const OnboardingPage = lazy(() =>
+  import('@/features/onboarding/pages/onboarding-page').then((m) => ({
+    default: m.OnboardingPage,
+  })),
+);
 const CopilotPage = lazy(() =>
   import('@/features/copilot/pages/copilot-page').then((m) => ({
     default: m.CopilotPage,
@@ -140,7 +145,7 @@ const defaultFallback = (
   </div>
 );
 
-function withPageSuspense(
+export function withPageSuspense(
   element: ReactNode,
   fallback: ReactNode = defaultFallback,
 ): ReactNode {
@@ -162,7 +167,7 @@ export const authRoutes: RouteObject[] = [
   },
   {
     path: 'verify-email',
-    element: <GuestRoute>{withPageSuspense(<VerifyEmailPage />)}</GuestRoute>,
+    element: withPageSuspense(<VerifyEmailPage />),
   },
   {
     path: 'forgot-password',

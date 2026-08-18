@@ -7,6 +7,7 @@ export interface IEmailVerificationTokenRepository {
     manager?: EntityManager,
   ): Promise<EmailVerificationToken | null>;
   save(token: EmailVerificationToken, manager?: EntityManager): Promise<void>;
+  deleteByUserId(userId: string, manager?: EntityManager): Promise<void>;
   deleteById(id: string, manager?: EntityManager): Promise<void>;
 }
 

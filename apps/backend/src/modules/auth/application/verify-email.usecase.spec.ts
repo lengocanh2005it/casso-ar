@@ -29,6 +29,12 @@ describe('VerifyEmailUseCase', () => {
       findById: jest.fn().mockResolvedValue(user),
       save: jest.fn(),
     };
+    const loginUseCase = {
+      executeForUser: jest.fn().mockResolvedValue({
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      }),
+    };
     const dataSource = {
       transaction: jest.fn(
         async (callback: (manager: object) => Promise<void>) => callback({}),
@@ -39,8 +45,12 @@ describe('VerifyEmailUseCase', () => {
       tokenRepo as any,
       userRepo as any,
       dataSource as any,
+      loginUseCase as any,
     );
-    await useCase.execute(rawToken);
+    await expect(useCase.execute(rawToken)).resolves.toEqual({
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    });
 
     expect(userRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ emailVerifiedAt: expect.any(Date) }),
@@ -50,6 +60,7 @@ describe('VerifyEmailUseCase', () => {
       'tok-1',
       expect.anything(),
     );
+    expect(loginUseCase.executeForUser).toHaveBeenCalledWith('user-1');
   });
 
   it('throws when the token is expired', async () => {
@@ -63,6 +74,7 @@ describe('VerifyEmailUseCase', () => {
     });
     const useCase = new VerifyEmailUseCase(
       { findByTokenHash: jest.fn().mockResolvedValue(token) } as any,
+      {} as any,
       {} as any,
       {} as any,
     );

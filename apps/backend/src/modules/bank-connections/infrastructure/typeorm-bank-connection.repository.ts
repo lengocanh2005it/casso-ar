@@ -73,6 +73,14 @@ export class TypeOrmBankConnectionRepository
     return this.ormRepo.count({ where: { organizationId } });
   }
 
+  async hasActiveByOrganization(organizationId: string): Promise<boolean> {
+    return (
+      (await this.ormRepo.count({
+        where: { organizationId, status: 'ACTIVE' },
+      })) > 0
+    );
+  }
+
   async countActiveByOrganization(
     organizationId: string,
     manager: EntityManager,

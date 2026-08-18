@@ -26,6 +26,9 @@ describe('GetUserProfileUseCase', () => {
         name: 'Casso Ledger',
       }),
     };
+    const bankConnectionRepo = {
+      hasActiveByOrganization: jest.fn().mockResolvedValue(true),
+    };
     const tenantContext = {
       getOrganizationId: jest.fn().mockReturnValue('org-1'),
     };
@@ -34,17 +37,19 @@ describe('GetUserProfileUseCase', () => {
       subscriptionRepo,
       membershipRepo,
       organizationRepo,
+      bankConnectionRepo,
       tenantContext,
     };
   }
 
   function createUseCase(deps: ReturnType<typeof buildDeps>) {
-    return new GetUserProfileUseCase(
+    return new (GetUserProfileUseCase as any)(
       deps.userRepo as any,
       deps.subscriptionRepo as any,
       deps.membershipRepo as any,
       deps.organizationRepo as any,
       deps.tenantContext as any,
+      deps.bankConnectionRepo as any,
     );
   }
 
@@ -60,6 +65,7 @@ describe('GetUserProfileUseCase', () => {
       organizationName: 'Casso Ledger',
       role: Role.OWNER,
       subscriptionPlan: 'STARTER',
+      bankingLinked: true,
     });
   });
 

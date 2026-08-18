@@ -18,6 +18,7 @@ export interface IBankConnectionRepository {
     limit: number,
   ): Promise<BankConnection[]>;
   count(organizationId: string): Promise<number>;
+  hasActiveByOrganization(organizationId: string): Promise<boolean>;
   countActiveByOrganization(
     organizationId: string,
     manager: EntityManager,
