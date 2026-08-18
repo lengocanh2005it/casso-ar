@@ -10,6 +10,7 @@ import {
   Activity,
   Users,
 } from 'lucide-react';
+import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -108,6 +109,7 @@ function SummarySkeleton() {
 }
 
 export function DashboardPage() {
+  const { user } = useAuth();
   const reviewCountQuery = useReviewCount();
   const summaryQuery = useDashboardSummary();
   const activityQuery = useOrganizationActivity();
@@ -123,7 +125,7 @@ export function DashboardPage() {
           Trang chủ
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Tổng quan về công nợ và hoạt động thu hồi của bạn.
+          Chào mừng {user?.organizationName ?? 'bạn'} đến với Casso Ledger.
         </p>
       </div>
 
