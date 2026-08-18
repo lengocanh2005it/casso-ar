@@ -1,6 +1,7 @@
 import { PlanId } from '@casso-ledger/shared-types';
 import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { Logo } from '@/components/logo';
 import { useAuth } from '@/contexts/auth-context';
 import { useReviewCount } from '@/features/exceptions/api/use-review-count';
 import { hasPlanAccess } from '@/lib/plan-access';
@@ -40,7 +41,7 @@ export function Sidebar({
     >
       <div className="flex items-center justify-between px-4 py-4">
         {!collapsed && (
-          <span className="text-lg font-semibold">Casso Ledger</span>
+          <Logo className="h-7" wordmarkClassName="text-primary" />
         )}
         {onToggleCollapsed && (
           <button
