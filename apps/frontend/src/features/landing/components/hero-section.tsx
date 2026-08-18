@@ -38,7 +38,7 @@ export function HeroSection() {
   const reducedMotion = useReducedMotion();
 
   return (
-    <section className="min-h-[90vh] pb-12 pt-24 sm:pb-16 sm:pt-28">
+    <section className="min-h-[80vh] pb-4 pt-32 sm:pb-4 sm:pt-36">
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16">
         <div className="text-center lg:text-left">
           <Logo
