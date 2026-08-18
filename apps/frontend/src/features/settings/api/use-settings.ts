@@ -16,6 +16,7 @@ import {
   fetchOrganizationMembers,
   fetchSmtpConfig,
   getResponseErrorMessage,
+  initiatePlanUpgrade,
   inviteOrganizationMember,
   previewEmailTemplate,
   removeMember,
@@ -282,6 +283,22 @@ export function useRevokeInvite(organizationId: string | undefined) {
       });
     },
     onError: () => toast.error('Không thể thu hồi lời mời.'),
+  });
+}
+
+export function useInitiatePlanUpgrade() {
+  return useMutation({
+    mutationFn: ({
+      targetPlanId,
+      returnUrl,
+      cancelUrl,
+    }: {
+      targetPlanId: string;
+      returnUrl: string;
+      cancelUrl: string;
+    }) => initiatePlanUpgrade(targetPlanId, returnUrl, cancelUrl),
+    onError: () =>
+      toast.error('Không thể tạo đơn thanh toán, vui lòng thử lại.'),
   });
 }
 

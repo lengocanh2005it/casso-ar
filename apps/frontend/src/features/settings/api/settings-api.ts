@@ -191,6 +191,18 @@ export function blockMember(
   );
 }
 
+export function initiatePlanUpgrade(
+  targetPlanId: string,
+  returnUrl: string,
+  cancelUrl: string,
+): Promise<{ checkoutUrl: string }> {
+  return postWithIdempotency('/api/v1/payos/plan-upgrade-orders', {
+    targetPlanId,
+    returnUrl,
+    cancelUrl,
+  });
+}
+
 export function unblockMember(
   organizationId: string,
   userId: string,
