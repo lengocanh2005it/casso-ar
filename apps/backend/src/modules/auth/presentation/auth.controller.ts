@@ -137,14 +137,25 @@ export class AuthController {
     description: 'Email verified',
     schema: {
       type: 'object',
-      required: ['verified'],
-      properties: { verified: { type: 'boolean', example: true } },
+      required: ['verified', 'accessToken'],
+      properties: {
+        verified: { type: 'boolean', example: true },
+        accessToken: { type: 'string' },
+      },
     },
   })
   @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.NOT_FOUND)
-  async verifyEmail(@Body() dto: VerifyEmailDto) {
-    await this.verifyEmailUseCase.execute(dto.token);
-    return { verified: true };
+  async verifyEmail(
+    @Body() dto: VerifyEmailDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.verifyEmailUseCase.execute(dto.token);
+    response.cookie(
+      REFRESH_COOKIE_NAME,
+      result.refreshToken,
+      this.refreshCookieOptions,
+    );
+    return { verified: true, accessToken: result.accessToken };
   }
 
   @Public()

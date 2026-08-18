@@ -6,10 +6,12 @@ import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
 } from '../../organizations/application/membership-repository.port';
+import type { Membership } from '../../organizations/domain/membership';
 import {
   type IUserRepository,
   USER_REPOSITORY,
 } from '../../users/application/user-repository.port';
+import type { User } from '../../users/domain/user';
 import { RefreshToken } from '../domain/refresh-token';
 import { REFRESH_TOKEN_TTL_MS } from '../refresh-token-ttl';
 import { comparePassword } from './password-hasher';
@@ -61,6 +63,35 @@ export class LoginUseCase {
       );
     }
 
+    return this.issueSession(user, membership);
+  }
+
+  async executeForUser(userId: string): Promise<LoginResult> {
+    const user = await this.userRepo.findById(userId);
+    if (!user) {
+      throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy người dùng.');
+    }
+    if (!user.isEmailVerified()) {
+      throw new AppError(ErrorCode.FORBIDDEN, 'Email chưa được xác minh.');
+    }
+
+    const membership = await this.membershipRepo.findFirstActiveByUserId(
+      user.id,
+    );
+    if (!membership && !user.isOperator) {
+      throw new AppError(
+        ErrorCode.FORBIDDEN,
+        'Tài khoản chưa thuộc tổ chức nào.',
+      );
+    }
+
+    return this.issueSession(user, membership);
+  }
+
+  private async issueSession(
+    user: User,
+    membership: Membership | null,
+  ): Promise<LoginResult> {
     const accessToken = this.tokenSigner.sign(
       membership
         ? {

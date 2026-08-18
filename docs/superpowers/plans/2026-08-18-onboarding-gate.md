@@ -83,3 +83,28 @@
 - [ ] Run the repository `domain-check` procedure and resolve any violations.
 - [ ] Run `/code-review` against `main`; fix any actionable Standards or Spec findings.
 - [ ] Inspect `git diff` and `git status`, then commit with `feat: add onboarding gate for bank linking`.
+
+### Task 5: Connect registration to email verification and onboarding
+
+**Files:**
+- Modify: `apps/backend/src/modules/auth/application/verify-email.usecase.ts`
+- Modify: `apps/backend/src/modules/auth/application/login.usecase.ts`
+- Modify: `apps/backend/src/modules/auth/presentation/auth.controller.ts`
+- Modify: `apps/backend/src/modules/auth/application/signup.usecase.ts`
+- Test: `apps/backend/src/modules/auth/application/verify-email.usecase.spec.ts`
+- Test: `apps/backend/src/modules/auth/application/signup.usecase.spec.ts`
+- Modify: `apps/frontend/src/features/auth/pages/signup-page.tsx`
+- Modify: `apps/frontend/src/features/auth/pages/verify-email-page.tsx`
+- Test: `apps/frontend/src/features/auth/pages/signup-verify.spec.tsx`
+
+**Interfaces:**
+- Registration sends the user to a pending verification screen without hydrating an unverified session.
+- Email verification marks the user verified transactionally, issues a normal session, and returns `accessToken` while setting the refresh cookie.
+- The verification link uses the frontend route `/verify-email?token=...`; successful verification refreshes the profile and navigates to `/onboarding`.
+
+- [x] Write failing backend tests for the frontend verification-link path and verified-session response.
+- [x] Run the focused backend tests and confirm the new assertions fail.
+- [x] Write failing frontend tests for the post-registration pending state and verified-link navigation to onboarding.
+- [x] Run the focused frontend auth tests and confirm the new assertions fail.
+- [x] Implement the smallest session handoff by reusing the existing token signer/refresh-token path and preserve `EmailVerifiedGuard`.
+- [x] Run focused backend/frontend tests and both type-checks.

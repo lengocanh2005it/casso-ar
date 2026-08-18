@@ -131,7 +131,7 @@ export class SignupUseCase {
     );
     await this.emailSender.sendVerificationEmail(
       user.email,
-      `/auth/verify-email?token=${token}`,
+      `/verify-email?token=${token}`,
     );
 
     const tokens = await this.loginUseCase.execute({

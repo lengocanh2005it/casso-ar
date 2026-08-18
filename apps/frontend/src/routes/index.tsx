@@ -162,7 +162,7 @@ export const authRoutes: RouteObject[] = [
   },
   {
     path: 'verify-email',
-    element: <GuestRoute>{withPageSuspense(<VerifyEmailPage />)}</GuestRoute>,
+    element: withPageSuspense(<VerifyEmailPage />),
   },
   {
     path: 'forgot-password',

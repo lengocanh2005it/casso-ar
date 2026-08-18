@@ -10,6 +10,7 @@ import {
   EMAIL_VERIFICATION_TOKEN_REPOSITORY,
   type IEmailVerificationTokenRepository,
 } from './email-verification-token-repository.port';
+import { type LoginResult, LoginUseCase } from './login.usecase';
 import { hashToken } from './token-hasher';
 
 @Injectable()
@@ -19,9 +20,10 @@ export class VerifyEmailUseCase {
     private readonly tokenRepo: IEmailVerificationTokenRepository,
     @Inject(USER_REPOSITORY) private readonly userRepo: IUserRepository,
     private readonly dataSource: DataSource,
+    private readonly loginUseCase: LoginUseCase,
   ) {}
 
-  async execute(rawToken: string): Promise<void> {
+  async execute(rawToken: string): Promise<LoginResult> {
     const token = await this.tokenRepo.findByTokenHash(hashToken(rawToken));
     if (!token || token.isExpired(new Date())) {
       throw new AppError(
@@ -38,5 +40,7 @@ export class VerifyEmailUseCase {
       await this.userRepo.save(user.markEmailVerified(), manager);
       await this.tokenRepo.deleteById(token.id, manager);
     });
+
+    return this.loginUseCase.executeForUser(token.userId);
   }
 }

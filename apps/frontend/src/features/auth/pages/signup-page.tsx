@@ -4,12 +4,10 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Spinner } from '@/components/ui/spinner';
-import { useAuth } from '@/contexts/auth-context';
 import { apiRequest, authTokenManager } from '@/lib/api-client';
 import { AuthLogoLink } from '../components/auth-logo-link';
 
 export function SignupPage() {
-  const { refreshUser } = useAuth();
   const navigate = useNavigate();
   const [organizationName, setOrganizationName] = useState('');
   const [name, setName] = useState('');
@@ -25,15 +23,13 @@ export function SignupPage() {
 
     try {
       authTokenManager.resetLogoutState();
-      const result = await apiRequest<{ accessToken: string }>({
+      await apiRequest<{ accessToken: string }>({
         url: '/api/v1/auth/signup',
         method: 'POST',
         data: { organizationName, name, email, password },
       });
-      authTokenManager.setAccessToken(result.accessToken);
-      await refreshUser();
       toast.success('Tạo tài khoản thành công.');
-      navigate('/dashboard');
+      navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`);
     } catch {
       setError('Không thể tạo tài khoản. Vui lòng kiểm tra thông tin.');
     } finally {

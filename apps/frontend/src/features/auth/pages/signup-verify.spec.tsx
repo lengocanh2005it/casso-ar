@@ -40,10 +40,10 @@ describe('signup and email verification', () => {
     getValidAccessToken.mockResolvedValue(null);
   });
 
-  it('creates an account and hydrates the new session', async () => {
-    apiRequest
-      .mockResolvedValueOnce({ accessToken: 'access-token' })
-      .mockResolvedValueOnce(user);
+  it('sends a new account to the email verification screen', async () => {
+    apiRequest.mockResolvedValueOnce({
+      accessToken: 'unused-before-verification',
+    });
 
     render(
       <AuthProvider>
@@ -57,7 +57,7 @@ describe('signup and email verification', () => {
                 </GuestRoute>
               }
             />
-            <Route path="/dashboard" element={<div>dashboard</div>} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
           </Routes>
         </MemoryRouter>
       </AuthProvider>,
@@ -80,7 +80,9 @@ describe('signup and email verification', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /tạo tài khoản/i }));
 
-    await waitFor(() => expect(screen.getByText('dashboard')).toBeVisible());
+    await waitFor(() =>
+      expect(screen.getByText(/kiểm tra email/i)).toBeVisible(),
+    );
     expect(apiRequest).toHaveBeenNthCalledWith(1, {
       url: '/api/v1/auth/signup',
       method: 'POST',
@@ -94,23 +96,43 @@ describe('signup and email verification', () => {
   });
 
   it('verifies an email token from the URL', async () => {
-    apiRequest.mockResolvedValue({ verified: true });
+    apiRequest
+      .mockResolvedValueOnce({ verified: true, accessToken: 'verified-token' })
+      .mockResolvedValueOnce({ ...user, bankingLinked: false });
 
     render(
-      <MemoryRouter initialEntries={['/verify-email?token=verify-token']}>
-        <Routes>
-          <Route path="/verify-email" element={<VerifyEmailPage />} />
-        </Routes>
-      </MemoryRouter>,
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/verify-email?token=verify-token']}>
+          <Routes>
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/onboarding" element={<div>onboarding</div>} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
     );
 
-    await waitFor(() =>
-      expect(screen.getByText(/email đã được xác minh/i)).toBeVisible(),
-    );
+    await waitFor(() => expect(screen.getByText('onboarding')).toBeVisible());
     expect(apiRequest).toHaveBeenCalledWith({
       url: '/api/v1/auth/verify-email',
       method: 'POST',
       data: { token: 'verify-token' },
     });
+  });
+
+  it('shows a pending state when the verification link has not been opened', async () => {
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/verify-email?email=new@casso.vn']}>
+          <Routes>
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText(/kiểm tra email/i)).toBeVisible(),
+    );
+    expect(apiRequest).not.toHaveBeenCalled();
   });
 });
