@@ -48,7 +48,7 @@ function MetricCard({
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
           <Icon className="size-4 text-muted-foreground" />
-          <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardTitle className="text-sm font-medium text-primary">
             {label}
           </CardTitle>
         </div>
