@@ -135,4 +135,33 @@ describe('signup and email verification', () => {
     );
     expect(apiRequest).not.toHaveBeenCalled();
   });
+
+  it('resends the verification email from the pending state', async () => {
+    apiRequest.mockResolvedValueOnce({ success: true });
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/verify-email?email=new@casso.vn']}>
+          <Routes>
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /gửi lại email/i }),
+      ).toBeVisible(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /gửi lại email/i }));
+
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith({
+        url: '/api/v1/auth/resend-verification',
+        method: 'POST',
+        data: { email: 'new@casso.vn' },
+      }),
+    );
+  });
 });

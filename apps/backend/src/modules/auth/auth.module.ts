@@ -29,6 +29,7 @@ import { RefreshAccessTokenUseCase } from './application/refresh-access-token.us
 import { REFRESH_TOKEN_REPOSITORY } from './application/refresh-token-repository.port';
 import { RemoveMemberUseCase } from './application/remove-member.usecase';
 import { ResendInviteUseCase } from './application/resend-invite.usecase';
+import { ResendVerificationEmailUseCase } from './application/resend-verification-email.usecase';
 import { ResetPasswordUseCase } from './application/reset-password.usecase';
 import { SignupUseCase } from './application/signup.usecase';
 import { SwitchOrganizationUseCase } from './application/switch-organization.usecase';
@@ -85,6 +86,7 @@ import { InvitesController } from './presentation/invites.controller';
     UnblockMemberUseCase,
     LogoutUseCase,
     RefreshAccessTokenUseCase,
+    ResendVerificationEmailUseCase,
     ResetPasswordUseCase,
     SwitchOrganizationUseCase,
     {

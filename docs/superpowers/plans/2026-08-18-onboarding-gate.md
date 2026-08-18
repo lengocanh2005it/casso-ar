@@ -108,3 +108,26 @@
 - [x] Run the focused frontend auth tests and confirm the new assertions fail.
 - [x] Implement the smallest session handoff by reusing the existing token signer/refresh-token path and preserve `EmailVerifiedGuard`.
 - [x] Run focused backend/frontend tests and both type-checks.
+
+### Task 6: Resend pending email verification
+
+**Files:**
+- Create: `apps/backend/src/modules/auth/application/resend-verification-email.usecase.ts`
+- Modify: `apps/backend/src/modules/auth/application/email-verification-token-repository.port.ts`
+- Modify: `apps/backend/src/modules/auth/infrastructure/typeorm-email-verification-token.repository.ts`
+- Modify: `apps/backend/src/modules/auth/auth.module.ts`
+- Modify: `apps/backend/src/modules/auth/presentation/auth.controller.ts`
+- Test: `apps/backend/src/modules/auth/application/resend-verification-email.usecase.spec.ts`
+- Test: `apps/backend/src/modules/auth/presentation/auth.controller.spec.ts`
+- Modify: `apps/frontend/src/features/auth/pages/verify-email-page.tsx`
+- Test: `apps/frontend/src/features/auth/pages/signup-verify.spec.tsx`
+
+**Interfaces:**
+- Consume `IUserRepository`, `IEmailVerificationTokenRepository`, and `IAuthEmailSender`.
+- Produce `POST /auth/resend-verification` with a generic `{ success: true }` response and a pending-screen form that calls it.
+
+- [x] Write one failing use-case test for an unverified user and one frontend test for the resend form.
+- [x] Run the focused tests and confirm they fail before implementation.
+- [x] Add the transactional token replacement, rate-limited controller endpoint, and pending-screen form.
+- [x] Run focused tests, type-checks, architecture/domain checks, and `pnpm verify`.
+- [x] Commit and update PR #253 with the validation evidence.

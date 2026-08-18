@@ -35,6 +35,13 @@ export class TypeOrmEmailVerificationTokenRepository
     ).save(token);
   }
 
+  async deleteByUserId(userId: string, manager?: EntityManager): Promise<void> {
+    await (manager
+      ? manager.getRepository(EmailVerificationTokenOrmEntity)
+      : this.repo
+    ).delete({ userId });
+  }
+
   async deleteById(id: string, manager?: EntityManager): Promise<void> {
     await (manager
       ? manager.getRepository(EmailVerificationTokenOrmEntity)

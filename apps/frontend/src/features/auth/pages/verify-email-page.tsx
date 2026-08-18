@@ -1,5 +1,8 @@
-import { useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { InlineFormError } from '@/components/ui/inline-form-error';
+import { Spinner } from '@/components/ui/spinner';
 import { useAuth } from '@/contexts/auth-context';
 import { apiRequest, authTokenManager } from '@/lib/api-client';
 import { AuthLogoLink } from '../components/auth-logo-link';
@@ -11,9 +14,33 @@ export function VerifyEmailPage() {
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
   const token = searchParams.get('token');
+  const [email, setEmail] = useState(searchParams.get('email') ?? '');
+  const [resending, setResending] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
+  const [resendError, setResendError] = useState<string | null>(null);
   const [state, setState] = useState<VerificationState>(
     token ? 'verifying' : 'pending',
   );
+
+  async function onResend(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setResending(true);
+    setResendSent(false);
+    setResendError(null);
+
+    try {
+      await apiRequest({
+        url: '/api/v1/auth/resend-verification',
+        method: 'POST',
+        data: { email },
+      });
+      setResendSent(true);
+    } catch {
+      setResendError('Không thể gửi lại email. Vui lòng thử lại sau.');
+    } finally {
+      setResending(false);
+    }
+  }
 
   useEffect(() => {
     if (!token) {
@@ -50,6 +77,36 @@ export function VerifyEmailPage() {
           <p className="text-sm text-muted-foreground">
             Mở liên kết trong email để xác minh tài khoản và tiếp tục thiết lập.
           </p>
+          <form onSubmit={onResend} className="space-y-2 text-left">
+            <label className="block space-y-1">
+              <span className="text-sm font-medium">Email</span>
+              <input
+                type="email"
+                name="email"
+                required
+                autoComplete="email"
+                spellCheck={false}
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </label>
+            <InlineFormError message={resendError} />
+            {resendSent && (
+              <p className="text-sm text-muted-foreground" role="status">
+                Đã gửi lại email xác thực. Hãy kiểm tra hộp thư của bạn.
+              </p>
+            )}
+            <Button
+              type="submit"
+              disabled={resending}
+              aria-busy={resending}
+              className="w-full"
+            >
+              {resending && <Spinner />}
+              {resending ? 'Đang gửi…' : 'Gửi lại email xác thực'}
+            </Button>
+          </form>
           <Link
             to="/login"
             className="text-primary pointer-hover:hover:underline"

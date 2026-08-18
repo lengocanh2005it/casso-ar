@@ -28,6 +28,7 @@ describe('AuthController', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
       { get: jest.fn().mockReturnValue('development') } as never,
     );
 
@@ -38,6 +39,32 @@ describe('AuthController', () => {
       'refreshToken',
       'refresh-token',
       expect.objectContaining({ httpOnly: true }),
+    );
+  });
+
+  it('resends verification email without exposing account existence', async () => {
+    const resendVerificationEmailUseCase = {
+      execute: jest.fn(),
+    };
+    const controller = new AuthController(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      resendVerificationEmailUseCase as never,
+      { get: jest.fn().mockReturnValue('development') } as never,
+    );
+
+    await expect(
+      controller.resendVerification({ email: 'person@casso.vn' }),
+    ).resolves.toEqual({ success: true });
+    expect(resendVerificationEmailUseCase.execute).toHaveBeenCalledWith(
+      'person@casso.vn',
     );
   });
 });
