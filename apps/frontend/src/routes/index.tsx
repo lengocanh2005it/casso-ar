@@ -132,8 +132,8 @@ function withPageSuspense(element: ReactNode): ReactNode {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">
-          <Spinner className="size-6" />
+        <div className="flex min-h-svh items-center justify-center">
+          <Spinner className="size-10 text-primary" />
         </div>
       }
     >
