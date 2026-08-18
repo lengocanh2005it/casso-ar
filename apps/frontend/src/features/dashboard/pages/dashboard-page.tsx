@@ -123,7 +123,7 @@ export function DashboardPage() {
           Trang chủ
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Việc cần làm hôm nay.
+          Tổng quan về công nợ và hoạt động thu hồi của bạn.
         </p>
       </div>
 
