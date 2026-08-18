@@ -125,9 +125,13 @@ export function DashboardPage() {
           Trang chủ
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Chào mừng {user?.organizationName ?? 'bạn'} đến với Casso Ledger.
+          Tổng quan về công nợ và hoạt động thu hồi của bạn.
         </p>
       </div>
+
+      <h2 className="text-xl font-semibold tracking-tight">
+        Chào mừng {user?.organizationName ?? 'bạn'} đến với Casso Ledger
+      </h2>
 
       {reviewCountQuery.isError ? (
         <p role="status" className="text-sm text-destructive">
