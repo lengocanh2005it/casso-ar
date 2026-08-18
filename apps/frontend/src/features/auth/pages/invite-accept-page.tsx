@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Spinner } from '@/components/ui/spinner';
 import { apiRequest } from '@/lib/api-client';
+import { AuthLogoLink } from '../components/auth-logo-link';
 
 export function InviteAcceptPage() {
   const [searchParams] = useSearchParams();
@@ -41,7 +42,8 @@ export function InviteAcceptPage() {
 
   if (done) {
     return (
-      <div className="flex min-h-svh items-center justify-center p-6 text-center">
+      <div className="flex min-h-svh flex-col items-center justify-center gap-4 p-6 text-center">
+        <AuthLogoLink />
         <div role="status" className="space-y-2">
           <h1 className="text-xl font-semibold">Tham gia tổ chức thành công</h1>
           <p className="text-sm text-muted-foreground">
@@ -64,6 +66,8 @@ export function InviteAcceptPage() {
         onSubmit={onSubmit}
         className="w-full max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm"
       >
+        <AuthLogoLink />
+
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">Nhận lời mời</h1>
           <p className="text-sm text-muted-foreground">

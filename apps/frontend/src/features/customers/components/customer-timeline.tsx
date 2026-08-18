@@ -1,4 +1,5 @@
 import type { CustomerTimelineItem } from '@/features/customers/types';
+import { formatActivityType } from '@/lib/collection-activity-labels';
 import { formatDate } from '@/lib/format';
 
 export function CustomerTimeline({ items }: { items: CustomerTimelineItem[] }) {
@@ -13,7 +14,7 @@ export function CustomerTimeline({ items }: { items: CustomerTimelineItem[] }) {
           <span className="text-muted-foreground">
             {formatDate(item.createdAt)}
           </span>{' '}
-          — {item.description}
+          — <span>{formatActivityType(item.activityType)}</span>
         </li>
       ))}
     </ul>
