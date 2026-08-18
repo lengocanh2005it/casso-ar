@@ -39,25 +39,35 @@ export function Sidebar({
         collapsed ? 'w-16' : 'w-64',
       )}
     >
-      <div className="flex items-center justify-between px-4 py-4">
-        {!collapsed && (
-          <Logo className="h-7" wordmarkClassName="text-primary" />
-        )}
-        {onToggleCollapsed && (
-          <button
-            type="button"
-            onClick={onToggleCollapsed}
-            className="rounded-md p-1.5 transition-[background-color,transform] duration-150 ease-out motion-reduce:transition-none motion-reduce:active:scale-100 pointer-hover:hover:bg-sidebar-accent active:scale-[0.97] focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-            aria-label={collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}
-          >
-            {collapsed ? (
+      {collapsed ? (
+        <div className="flex flex-col items-center gap-1 px-4 py-4">
+          <Logo variant="icon" className="h-7 w-7" />
+          {onToggleCollapsed && (
+            <button
+              type="button"
+              onClick={onToggleCollapsed}
+              className="rounded-md p-1.5 transition-[background-color,transform] duration-150 ease-out motion-reduce:transition-none motion-reduce:active:scale-100 pointer-hover:hover:bg-sidebar-accent active:scale-[0.97] focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+              aria-label="Mở rộng sidebar"
+            >
               <ChevronRight aria-hidden="true" className="size-4" />
-            ) : (
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center justify-between px-4 py-4">
+          <Logo className="h-7" wordmarkClassName="text-primary" />
+          {onToggleCollapsed && (
+            <button
+              type="button"
+              onClick={onToggleCollapsed}
+              className="rounded-md p-1.5 transition-[background-color,transform] duration-150 ease-out motion-reduce:transition-none motion-reduce:active:scale-100 pointer-hover:hover:bg-sidebar-accent active:scale-[0.97] focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+              aria-label="Thu gọn sidebar"
+            >
               <ChevronLeft aria-hidden="true" className="size-4" />
-            )}
-          </button>
-        )}
-      </div>
+            </button>
+          )}
+        </div>
+      )}
 
       <nav aria-label="Điều hướng chính" className="flex-1 space-y-1 px-2">
         {navItems

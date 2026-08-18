@@ -1,18 +1,19 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
+import { AppearanceTab } from '../components/appearance-tab';
 import { BillingTab } from '../components/billing-tab';
 import { EmailTemplatesTab } from '../components/email-templates-tab';
 import { SmtpTab } from '../components/smtp-tab';
 import { UsersTab } from '../components/users-tab';
 
-const TABS = ['billing', 'users', 'templates', 'smtp'] as const;
+const TABS = ['appearance', 'billing', 'users', 'templates', 'smtp'] as const;
 
 export function SettingsPage() {
   const { searchParams, setParam } = useUrlQueryParams();
   const activeTab = searchParams.get('tab');
   const tab = TABS.includes(activeTab as (typeof TABS)[number])
     ? (activeTab as (typeof TABS)[number])
-    : 'billing';
+    : 'appearance';
 
   return (
     <div className="space-y-6">
@@ -22,11 +23,15 @@ export function SettingsPage() {
       </div>
       <Tabs value={tab} onValueChange={(value) => setParam('tab', value)}>
         <TabsList>
+          <TabsTrigger value="appearance">Giao diện</TabsTrigger>
           <TabsTrigger value="billing">Thanh toán</TabsTrigger>
           <TabsTrigger value="users">Người dùng</TabsTrigger>
           <TabsTrigger value="templates">Mẫu email</TabsTrigger>
           <TabsTrigger value="smtp">Email server riêng</TabsTrigger>
         </TabsList>
+        <TabsContent value="appearance" className="pt-4">
+          <AppearanceTab />
+        </TabsContent>
         <TabsContent value="billing" className="pt-4">
           <BillingTab />
         </TabsContent>

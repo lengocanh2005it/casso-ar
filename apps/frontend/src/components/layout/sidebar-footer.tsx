@@ -21,7 +21,7 @@ export function SidebarFooter({ collapsed }: { collapsed: boolean }) {
   if (collapsed) {
     return (
       <>
-        <div className="border-t border-sidebar-border px-2 py-3">
+        <div className="flex flex-col items-center gap-2 border-t border-sidebar-border px-2 py-3">
           <button
             type="button"
             onClick={() => setProfileOpen(true)}
@@ -31,6 +31,14 @@ export function SidebarFooter({ collapsed }: { collapsed: boolean }) {
             <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
               {getInitials(user.name)}
             </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => void logout()}
+            className="flex w-full items-center justify-center rounded-md p-1.5 transition-[background-color,color] duration-150 ease-out motion-reduce:transition-none pointer-hover:hover:bg-destructive/5 pointer-hover:hover:text-destructive focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+            aria-label="Đăng xuất"
+          >
+            <LogOut className="size-4" />
           </button>
         </div>
         <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
