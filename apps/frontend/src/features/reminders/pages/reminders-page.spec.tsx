@@ -1,0 +1,55 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { describe, expect, it, vi } from 'vitest';
+import { RemindersPage } from './reminders-page';
+
+const apiRequest = vi.fn();
+const setParam = vi.fn();
+
+vi.mock('@/lib/api-client', () => ({
+  apiRequest: (...args: unknown[]) => apiRequest(...args),
+}));
+vi.mock('@/contexts/auth-context', () => ({
+  useAuth: () => ({ user: { role: 'ACCOUNTANT' } }),
+}));
+vi.mock('@/lib/use-url-query-params', () => ({
+  useUrlQueryParams: () => ({
+    searchParams: new URLSearchParams(),
+    setParam,
+  }),
+}));
+
+describe('RemindersPage', () => {
+  it('replaces the history entry when the receivableId filter changes, so fast typing does not drop keystrokes', async () => {
+    apiRequest.mockImplementation((config: { url: string }) =>
+      config.url === '/api/v1/reminder-policies'
+        ? Promise.resolve([])
+        : Promise.resolve({ items: [], total: 0, page: 1, limit: 20 }),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <RemindersPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.change(
+      await screen.findByRole('textbox', {
+        name: 'Lọc theo mã khoản phải thu',
+      }),
+      { target: { value: 'a' } },
+    );
+
+    await waitFor(() => expect(setParam).toHaveBeenCalled());
+    expect(setParam).toHaveBeenCalledWith(
+      'receivableId',
+      expect.any(String),
+      expect.objectContaining({ replace: true }),
+    );
+  });
+});

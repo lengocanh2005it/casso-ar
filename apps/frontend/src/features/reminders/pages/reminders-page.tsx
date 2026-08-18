@@ -90,7 +90,9 @@ export function RemindersPage() {
           aria-label="Lọc theo mã khoản phải thu"
           placeholder="Lọc theo mã khoản phải thu…"
           value={receivableId}
-          onChange={(event) => setParam('receivableId', event.target.value)}
+          onChange={(event) =>
+            setParam('receivableId', event.target.value, { replace: true })
+          }
           className="max-w-sm"
         />
         {executionsQuery.isPending && (
