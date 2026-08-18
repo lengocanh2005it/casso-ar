@@ -23,8 +23,18 @@ export function OverdueDonutChart({
   const onTimeRate = 100 - overdueRate;
 
   const bars = [
-    { name: 'Còn hạn', value: onTime, pct: onTimeRate, color: 'bg-emerald-500' },
-    { name: 'Quá hạn', value: totalOverdue, pct: overdueRate, color: 'bg-red-500' },
+    {
+      name: 'Còn hạn',
+      value: onTime,
+      pct: onTimeRate,
+      color: 'bg-emerald-500',
+    },
+    {
+      name: 'Quá hạn',
+      value: totalOverdue,
+      pct: overdueRate,
+      color: 'bg-red-500',
+    },
   ];
 
   return (
