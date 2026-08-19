@@ -12,23 +12,24 @@ const { getValidAccessToken, apiRequest, toastError } = vi.hoisted(() => ({
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: toastError } }));
 
-vi.mock('@/lib/api-client', () => ({
-  authTokenManager: {
-    getValidAccessToken,
-    hasKnownSession: () => true,
-    setAccessToken: vi.fn(),
-    resetLogoutState: vi.fn(),
-    markLogoutInitiated: vi.fn(),
-    clearStaleRefreshSession: vi.fn(),
-  },
-  apiRequest,
-  getApiErrorCode: (error: unknown) =>
-    (error as { response?: { data?: { errorCode?: string } } })?.response?.data
-      ?.errorCode,
-  getApiErrorMessage: (error: unknown) =>
-    (error as { response?: { data?: { message?: string } } })?.response?.data
-      ?.message,
-}));
+vi.mock('@/lib/api-client', async () => {
+  const { getApiErrorCode, getApiErrorMessage } = await import(
+    '@/test/api-error-mock'
+  );
+  return {
+    authTokenManager: {
+      getValidAccessToken,
+      hasKnownSession: () => true,
+      setAccessToken: vi.fn(),
+      resetLogoutState: vi.fn(),
+      markLogoutInitiated: vi.fn(),
+      clearStaleRefreshSession: vi.fn(),
+    },
+    apiRequest,
+    getApiErrorCode,
+    getApiErrorMessage,
+  };
+});
 
 function fillAndSubmit() {
   fireEvent.change(screen.getByLabelText(/email/i), {

@@ -31,12 +31,7 @@ export function SignupPage() {
     setSubmitting(true);
     try {
       authTokenManager.resetLogoutState();
-      await apiRequest<{
-        userId: string;
-        organizationId: string;
-        organizationStatus: 'ACTIVE' | 'PENDING_REVIEW';
-        accessToken?: string;
-      }>({
+      await apiRequest({
         url: '/api/v1/auth/signup',
         method: 'POST',
         data: { organizationName, name, email, password, taxCode },
