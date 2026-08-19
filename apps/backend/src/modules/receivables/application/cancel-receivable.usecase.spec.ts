@@ -1,5 +1,6 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { LedgerEventKind } from '../../ledger/domain/ledger-event-kind';
 import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import { Receivable } from '../domain/receivable';
 import { CancelReceivableUseCase } from './cancel-receivable.usecase';
@@ -36,6 +37,7 @@ describe('CancelReceivableUseCase', () => {
     expect(transitionRunner.run).toHaveBeenCalledWith({
       receivableId: 'rec-1',
       changeSource: BalanceHistoryChangeSource.CANCEL,
+      ledgerKind: LedgerEventKind.RECEIVABLE_CANCELLED,
       assertTransitionAllowed: expect.any(Function),
       transition: expect.any(Function),
     });

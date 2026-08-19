@@ -48,6 +48,7 @@ function buildUseCase(
     dataSource as never,
     { getOrganizationId: () => 'org-1' } as never,
     auditContext as never,
+    { record: jest.fn() } as never,
   );
   return {
     useCase,

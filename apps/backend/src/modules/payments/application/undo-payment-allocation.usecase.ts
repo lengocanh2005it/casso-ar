@@ -12,6 +12,9 @@ import {
 } from '../../../common/audit/audit-log-repository.port';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { LedgerEventRecorderService } from '../../ledger/application/ledger-event-recorder.service';
+import { LedgerEventKind } from '../../ledger/domain/ledger-event-kind';
+import { LedgerEventSubjectType } from '../../ledger/domain/ledger-event-subject-type';
 import { ReceivableBalanceHistoryRecorderService } from '../../receivable-balance-history/application/receivable-balance-history-recorder.service';
 import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
@@ -47,6 +50,7 @@ export class UndoPaymentAllocationUseCase {
     private readonly auditLogRepo: IAuditLogRepository,
     private readonly dataSource: DataSource,
     private readonly historyRecorder: ReceivableBalanceHistoryRecorderService,
+    private readonly ledgerRecorder: LedgerEventRecorderService,
   ) {}
 
   async execute(input: UndoPaymentAllocationInput): Promise<void> {
@@ -111,6 +115,24 @@ export class UndoPaymentAllocationUseCase {
           actorUserId: input.deletedByUserId,
         },
         note: input.undoReason,
+        transitionReferenceId: allocation.id,
+        manager,
+      });
+      await this.ledgerRecorder.record({
+        organizationId: allocation.organizationId,
+        subjectType: LedgerEventSubjectType.RECEIVABLE,
+        subjectId: updatedReceivable.id,
+        kind: LedgerEventKind.RECEIVABLE_ALLOCATION_UNDONE,
+        amount: allocation.allocatedAmount,
+        transitionReferenceId: allocation.id,
+        manager,
+      });
+      await this.ledgerRecorder.record({
+        organizationId: allocation.organizationId,
+        subjectType: LedgerEventSubjectType.PAYMENT,
+        subjectId: updatedPayment.id,
+        kind: LedgerEventKind.PAYMENT_ALLOCATION_UNDONE,
+        amount: allocation.allocatedAmount,
         transitionReferenceId: allocation.id,
         manager,
       });

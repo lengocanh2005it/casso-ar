@@ -11,6 +11,9 @@ import {
   type IEventPublisher,
 } from '../../../common/events/event-publisher.port';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { LedgerEventRecorderService } from '../../ledger/application/ledger-event-recorder.service';
+import { LedgerEventKind } from '../../ledger/domain/ledger-event-kind';
+import { LedgerEventSubjectType } from '../../ledger/domain/ledger-event-subject-type';
 import { ReceivableBalanceHistoryRecorderService } from '../../receivable-balance-history/application/receivable-balance-history-recorder.service';
 import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import type { TransitionProvenance } from '../../receivable-balance-history/domain/transition-provenance';
@@ -51,6 +54,7 @@ export class AllocatePaymentUseCase {
     @Inject(EVENT_PUBLISHER)
     private readonly eventPublisher: IEventPublisher,
     private readonly historyRecorder: ReceivableBalanceHistoryRecorderService,
+    private readonly ledgerRecorder: LedgerEventRecorderService,
   ) {}
 
   async execute(input: AllocatePaymentInput): Promise<void> {
@@ -210,6 +214,24 @@ export class AllocatePaymentUseCase {
       receivable: updatedReceivable,
       changeSource: BalanceHistoryChangeSource.ALLOCATE,
       provenance: input.provenance,
+      transitionReferenceId: allocation.id,
+      manager,
+    });
+    await this.ledgerRecorder.record({
+      organizationId: this.tenantContext.getOrganizationId(),
+      subjectType: LedgerEventSubjectType.RECEIVABLE,
+      subjectId: updatedReceivable.id,
+      kind: LedgerEventKind.RECEIVABLE_ALLOCATED,
+      amount: -input.amount,
+      transitionReferenceId: allocation.id,
+      manager,
+    });
+    await this.ledgerRecorder.record({
+      organizationId: this.tenantContext.getOrganizationId(),
+      subjectType: LedgerEventSubjectType.PAYMENT,
+      subjectId: updatedPayment.id,
+      kind: LedgerEventKind.PAYMENT_ALLOCATED,
+      amount: -input.amount,
       transitionReferenceId: allocation.id,
       manager,
     });

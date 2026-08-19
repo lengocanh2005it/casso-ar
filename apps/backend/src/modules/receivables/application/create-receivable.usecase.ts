@@ -11,6 +11,9 @@ import {
   CUSTOMER_REPOSITORY,
   type ICustomerRepository,
 } from '../../customers/application/customer-repository.port';
+import { LedgerEventRecorderService } from '../../ledger/application/ledger-event-recorder.service';
+import { LedgerEventKind } from '../../ledger/domain/ledger-event-kind';
+import { LedgerEventSubjectType } from '../../ledger/domain/ledger-event-subject-type';
 import { ReceivableBalanceHistoryRecorderService } from '../../receivable-balance-history/application/receivable-balance-history-recorder.service';
 import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
@@ -38,6 +41,7 @@ export class CreateReceivableUseCase {
     private readonly planLimit: PlanLimitService,
     private readonly dataSource: DataSource,
     private readonly historyRecorder: ReceivableBalanceHistoryRecorderService,
+    private readonly ledgerRecorder: LedgerEventRecorderService,
   ) {}
 
   async execute(
@@ -92,6 +96,14 @@ export class CreateReceivableUseCase {
         actorType: BalanceHistoryActorType.USER,
         actorUserId: user.userId,
       },
+      manager,
+    });
+    await this.ledgerRecorder.record({
+      organizationId: receivable.organizationId,
+      subjectType: LedgerEventSubjectType.RECEIVABLE,
+      subjectId: receivable.id,
+      kind: LedgerEventKind.RECEIVABLE_CREATED,
+      amount: receivable.originalAmount,
       manager,
     });
     return receivable;

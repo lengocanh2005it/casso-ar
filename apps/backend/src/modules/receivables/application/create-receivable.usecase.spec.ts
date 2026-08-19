@@ -28,6 +28,7 @@ describe('CreateReceivableUseCase', () => {
     };
     const planLimit = { enforceReceivableLimit: jest.fn() };
     const recorder = { record: jest.fn() };
+    const ledgerRecorder = { record: jest.fn() };
     const useCase = new CreateReceivableUseCase(
       repo as any,
       customerRepo as any,
@@ -35,6 +36,7 @@ describe('CreateReceivableUseCase', () => {
       planLimit as any,
       dataSource as any,
       recorder as any,
+      ledgerRecorder as any,
     );
 
     const receivable = await useCase.execute({
@@ -66,6 +68,7 @@ describe('CreateReceivableUseCase', () => {
     };
     const planLimit = { enforceReceivableLimit: jest.fn() };
     const recorder = { record: jest.fn() };
+    const ledgerRecorder = { record: jest.fn() };
     const useCase = new CreateReceivableUseCase(
       repo as any,
       customerRepo as any,
@@ -73,6 +76,7 @@ describe('CreateReceivableUseCase', () => {
       planLimit as any,
       dataSource as any,
       recorder as any,
+      ledgerRecorder as any,
     );
 
     await useCase.execute({
@@ -98,13 +102,16 @@ describe('CreateReceivableUseCase', () => {
     });
   });
 
-  it('rejects creating a receivable against a customer from another organization', async () => {
+  it('records a RECEIVABLE_CREATED ledger event', async () => {
     const repo = { save: jest.fn() };
-    // Tenant-scoped repository: a customer belonging to a different org
-    // resolves to null, exactly like a missing customer.
-    const customerRepo = { findById: jest.fn().mockResolvedValue(null) };
+    const customerRepo = {
+      findById: jest
+        .fn()
+        .mockResolvedValue({ id: 'cust-1', organizationId: 'org-1' }),
+    };
     const planLimit = { enforceReceivableLimit: jest.fn() };
     const recorder = { record: jest.fn() };
+    const ledgerRecorder = { record: jest.fn() };
     const useCase = new CreateReceivableUseCase(
       repo as any,
       customerRepo as any,
@@ -112,6 +119,43 @@ describe('CreateReceivableUseCase', () => {
       planLimit as any,
       dataSource as any,
       recorder as any,
+      ledgerRecorder as any,
+    );
+
+    await useCase.execute({
+      customerId: 'cust-1',
+      invoiceId: null,
+      originalAmount: 10_000_000,
+      dueDate: new Date('2026-09-01'),
+      salesRepresentativeId: null,
+    });
+
+    expect(ledgerRecorder.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: 'org-1',
+        subjectType: 'RECEIVABLE',
+        kind: 'RECEIVABLE_CREATED',
+        amount: 10_000_000,
+      }),
+    );
+  });
+
+  it('rejects creating a receivable against a customer from another organization', async () => {
+    const repo = { save: jest.fn() };
+    // Tenant-scoped repository: a customer belonging to a different org
+    // resolves to null, exactly like a missing customer.
+    const customerRepo = { findById: jest.fn().mockResolvedValue(null) };
+    const planLimit = { enforceReceivableLimit: jest.fn() };
+    const recorder = { record: jest.fn() };
+    const ledgerRecorder = { record: jest.fn() };
+    const useCase = new CreateReceivableUseCase(
+      repo as any,
+      customerRepo as any,
+      tenantContext as any,
+      planLimit as any,
+      dataSource as any,
+      recorder as any,
+      ledgerRecorder as any,
     );
 
     await expect(
@@ -141,6 +185,7 @@ describe('CreateReceivableUseCase', () => {
         .mockRejectedValue(new Error('PLAN_LIMIT_EXCEEDED')),
     };
     const recorder = { record: jest.fn() };
+    const ledgerRecorder = { record: jest.fn() };
     const useCase = new CreateReceivableUseCase(
       repo as any,
       customerRepo as any,
@@ -148,6 +193,7 @@ describe('CreateReceivableUseCase', () => {
       planLimit as any,
       dataSource as any,
       recorder as any,
+      ledgerRecorder as any,
     );
 
     await expect(
@@ -183,6 +229,7 @@ describe('CreateReceivableUseCase', () => {
     };
     const transactionalPlanLimit = { enforceReceivableLimit: jest.fn() };
     const transactionalRecorder = { record: jest.fn() };
+    const transactionalLedgerRecorder = { record: jest.fn() };
     const transactionalDataSource = {
       transaction: jest.fn((fn: (manager: unknown) => unknown) =>
         fn(transactionManager),
@@ -195,6 +242,7 @@ describe('CreateReceivableUseCase', () => {
       transactionalPlanLimit as any,
       transactionalDataSource as any,
       transactionalRecorder as any,
+      transactionalLedgerRecorder as any,
     ).execute(input);
 
     expect(transactionalDataSource.transaction).toHaveBeenCalledTimes(1);
@@ -227,6 +275,7 @@ describe('CreateReceivableUseCase', () => {
     };
     const suppliedPlanLimit = { enforceReceivableLimit: jest.fn() };
     const suppliedRecorder = { record: jest.fn() };
+    const suppliedLedgerRecorder = { record: jest.fn() };
     const suppliedDataSource = {
       transaction: jest.fn(),
     };
@@ -237,6 +286,7 @@ describe('CreateReceivableUseCase', () => {
       suppliedPlanLimit as any,
       suppliedDataSource as any,
       suppliedRecorder as any,
+      suppliedLedgerRecorder as any,
     ).execute(input, suppliedManager as any);
 
     expect(suppliedDataSource.transaction).not.toHaveBeenCalled();

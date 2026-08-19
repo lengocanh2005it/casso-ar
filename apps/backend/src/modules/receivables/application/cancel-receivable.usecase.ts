@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { LedgerEventKind } from '../../ledger/domain/ledger-event-kind';
 import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import type { Receivable } from '../domain/receivable';
 import { ReceivableTransitionRunnerService } from './receivable-transition-runner.service';
@@ -15,6 +16,7 @@ export class CancelReceivableUseCase {
     return this.transitionRunner.run({
       receivableId,
       changeSource: BalanceHistoryChangeSource.CANCEL,
+      ledgerKind: LedgerEventKind.RECEIVABLE_CANCELLED,
       assertTransitionAllowed: (receivable) => {
         if (receivable.paidAmount > 0) {
           throw new AppError(

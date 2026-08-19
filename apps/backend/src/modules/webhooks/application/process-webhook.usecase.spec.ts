@@ -67,6 +67,7 @@ describe('ProcessWebhookUseCase', () => {
       allocation as any,
       dataSource as any,
       tenant as any,
+      { record: jest.fn() } as any,
     );
 
     await useCase.execute('wh-1', 'org-1');
@@ -137,6 +138,7 @@ describe('ProcessWebhookUseCase', () => {
       allocation as any,
       dataSource as any,
       tenant as any,
+      { record: jest.fn() } as any,
     );
 
     await useCase.execute('wh-1', 'org-1');
@@ -183,6 +185,7 @@ describe('ProcessWebhookUseCase', () => {
       allocation as any,
       dataSource as any,
       tenant as any,
+      { record: jest.fn() } as any,
     );
 
     await useCase.execute('wh-1', 'org-1');
