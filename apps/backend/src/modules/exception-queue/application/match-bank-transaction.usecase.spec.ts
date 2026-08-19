@@ -96,6 +96,7 @@ function buildUseCase(
     dataSource as never,
     tenantContext as never,
     auditContext as never,
+    { record: jest.fn() } as never,
   );
   return {
     useCase,

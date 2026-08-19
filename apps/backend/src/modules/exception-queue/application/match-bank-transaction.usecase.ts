@@ -6,6 +6,9 @@ import { AuditContextService } from '../../../common/audit/audit-context';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { LedgerEventRecorderService } from '../../ledger/application/ledger-event-recorder.service';
+import { LedgerEventKind } from '../../ledger/domain/ledger-event-kind';
+import { LedgerEventSubjectType } from '../../ledger/domain/ledger-event-subject-type';
 import { AllocatePaymentUseCase } from '../../payments/application/allocate-payment.usecase';
 import {
   type IPaymentRepository,
@@ -49,6 +52,7 @@ export class MatchBankTransactionUseCase {
     private readonly dataSource: DataSource,
     private readonly tenantContext: TenantContextService,
     private readonly auditContext: AuditContextService,
+    private readonly ledgerRecorder: LedgerEventRecorderService,
   ) {}
 
   async execute(input: MatchBankTransactionInput): Promise<BankTransaction> {
@@ -184,6 +188,14 @@ export class MatchBankTransactionUseCase {
           createdAt: new Date(),
         });
         await this.paymentRepo.save(payment, manager);
+        await this.ledgerRecorder.record({
+          organizationId: payment.organizationId,
+          subjectType: LedgerEventSubjectType.PAYMENT,
+          subjectId: payment.id,
+          kind: LedgerEventKind.PAYMENT_RECEIVED,
+          amount: payment.totalAmount,
+          manager,
+        });
 
         for (const allocation of input.allocations) {
           const result =

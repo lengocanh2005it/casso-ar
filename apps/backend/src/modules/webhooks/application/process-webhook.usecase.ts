@@ -4,6 +4,9 @@ import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { LedgerEventRecorderService } from '../../ledger/application/ledger-event-recorder.service';
+import { LedgerEventKind } from '../../ledger/domain/ledger-event-kind';
+import { LedgerEventSubjectType } from '../../ledger/domain/ledger-event-subject-type';
 import { Role } from '../../organizations/domain/membership';
 import { AllocatePaymentUseCase } from '../../payments/application/allocate-payment.usecase';
 import type { IPaymentRepository } from '../../payments/application/payment-repository.port';
@@ -38,6 +41,7 @@ export class ProcessWebhookUseCase {
     private readonly allocatePayment: AllocatePaymentUseCase,
     private readonly dataSource: DataSource,
     private readonly tenantContext: TenantContextService,
+    private readonly ledgerRecorder: LedgerEventRecorderService,
   ) {}
 
   async execute(webhookInboxId: string, organizationId: string): Promise<void> {
@@ -108,6 +112,14 @@ export class ProcessWebhookUseCase {
                 createdAt: new Date(),
               });
               await this.paymentRepo.save(payment, manager);
+              await this.ledgerRecorder.record({
+                organizationId: payment.organizationId,
+                subjectType: LedgerEventSubjectType.PAYMENT,
+                subjectId: payment.id,
+                kind: LedgerEventKind.PAYMENT_RECEIVED,
+                amount: payment.totalAmount,
+                manager,
+              });
               await this.transactionRepo.save(transaction, manager);
               const allocationResult =
                 await this.allocatePayment.allocateWithinTransaction(manager, {

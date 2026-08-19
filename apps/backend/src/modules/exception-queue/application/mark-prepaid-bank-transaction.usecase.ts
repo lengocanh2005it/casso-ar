@@ -10,6 +10,9 @@ import {
   CUSTOMER_REPOSITORY,
   type ICustomerRepository,
 } from '../../customers/application/customer-repository.port';
+import { LedgerEventRecorderService } from '../../ledger/application/ledger-event-recorder.service';
+import { LedgerEventKind } from '../../ledger/domain/ledger-event-kind';
+import { LedgerEventSubjectType } from '../../ledger/domain/ledger-event-subject-type';
 import {
   type IPaymentRepository,
   PAYMENT_REPOSITORY,
@@ -43,6 +46,7 @@ export class MarkPrepaidBankTransactionUseCase {
     private readonly dataSource: DataSource,
     private readonly tenantContext: TenantContextService,
     private readonly auditContext: AuditContextService,
+    private readonly ledgerRecorder: LedgerEventRecorderService,
   ) {}
 
   async execute(
@@ -89,6 +93,14 @@ export class MarkPrepaidBankTransactionUseCase {
         createdAt: new Date(),
       });
       await this.paymentRepo.save(payment, manager);
+      await this.ledgerRecorder.record({
+        organizationId: payment.organizationId,
+        subjectType: LedgerEventSubjectType.PAYMENT,
+        subjectId: payment.id,
+        kind: LedgerEventKind.PAYMENT_RECEIVED,
+        amount: payment.totalAmount,
+        manager,
+      });
       await this.bankTransactionRepo.save(prepaid, manager);
       return { transaction: prepaid, payment };
     });
