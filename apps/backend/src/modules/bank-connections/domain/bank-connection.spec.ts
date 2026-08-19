@@ -5,6 +5,7 @@ function activeConnection(): BankConnection {
     id: 'conn-1',
     organizationId: 'org-1',
     casIdConnectionSessionId: 'session-1',
+    grantId: 'grant-1',
     encryptedAccessToken: 'encrypted',
     accountIdentity: { accountNumber: '0011002233', bankName: 'Mock Bank' },
     status: 'ACTIVE',
@@ -24,6 +25,7 @@ describe('BankConnection', () => {
 
     const reconnected = reauth.reactivate({
       casIdConnectionSessionId: 'session-2',
+      grantId: 'grant-2',
       encryptedAccessToken: 'encrypted-2',
       accountIdentity: { accountNumber: '0044005566', bankName: 'New Bank' },
       scopes: ['identity', 'transaction'],
@@ -56,6 +58,7 @@ describe('BankConnection', () => {
     expect(() =>
       active.reactivate({
         casIdConnectionSessionId: 'session-2',
+        grantId: 'grant-2',
         encryptedAccessToken: 'encrypted-2',
         accountIdentity: { accountNumber: '0044005566', bankName: 'New Bank' },
         scopes: ['identity', 'transaction'],
@@ -80,10 +83,23 @@ describe('BankConnection', () => {
     const errored = activeConnection().markError();
     const reconnected = errored.reactivate({
       casIdConnectionSessionId: 'session-2',
+      grantId: 'grant-2',
       encryptedAccessToken: 'encrypted-2',
       accountIdentity: { accountNumber: '0044005566', bankName: 'New Bank' },
       scopes: ['identity', 'transaction'],
     });
     expect(reconnected.status).toBe('ACTIVE');
+  });
+
+  it('overwrites grantId on reactivate — grantId belongs to the current grant session, not the connection', () => {
+    const reauth = activeConnection().markRequiresReauthorization();
+    const reconnected = reauth.reactivate({
+      casIdConnectionSessionId: 'session-2',
+      encryptedAccessToken: 'encrypted-2',
+      accountIdentity: { accountNumber: '0044005566', bankName: 'New Bank' },
+      scopes: ['identity', 'transaction'],
+      grantId: 'grant-2',
+    });
+    expect(reconnected.grantId).toBe('grant-2');
   });
 });

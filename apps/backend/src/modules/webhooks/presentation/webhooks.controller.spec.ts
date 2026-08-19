@@ -1,17 +1,19 @@
 import { WebhooksController } from './webhooks.controller';
 
 const payload = {
-  bankConnectionId: 'conn-1',
-  transactionId: 'TX-1',
-  amount: 1_000,
-  transactionDateTime: '2026-08-01T00:00:00.000Z',
-  counterpartyAccountNumber: '1234',
-  counterpartyName: 'Payer',
-  transferContent: 'Payment',
+  grantId: 'grant-1',
+  transaction: {
+    id: 'TX-1',
+    amount: 1_000,
+    transactionDateTime: '2026-08-01T00:00:00.000Z',
+    description: 'Payment',
+    counterAccountNumber: '1234',
+    counterAccountName: 'Payer',
+  },
 };
 
 describe('WebhooksController', () => {
-  it('delegates to ReceiveWebhookUseCase with the payload mapped to its input', async () => {
+  it('delegates to ReceiveWebhookUseCase with grantId and transaction.id', async () => {
     const receiveWebhook = {
       execute: jest
         .fn()
@@ -19,13 +21,14 @@ describe('WebhooksController', () => {
     };
     const controller = new WebhooksController(receiveWebhook as any);
 
-    await expect(controller.receiveBalanceHook(payload)).resolves.toEqual({
+    await expect(
+      controller.receiveBalanceHook(payload as any),
+    ).resolves.toEqual({
       received: true,
       duplicate: false,
     });
     expect(receiveWebhook.execute).toHaveBeenCalledWith({
-      bankConnectionId: 'conn-1',
-      organizationId: undefined,
+      grantId: 'grant-1',
       transactionId: 'TX-1',
       rawPayload: payload,
     });

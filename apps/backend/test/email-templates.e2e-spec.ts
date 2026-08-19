@@ -13,11 +13,14 @@ import { configureApp } from '../src/configure-app';
 import { EMAIL_PROVIDER_ADAPTER } from '../src/modules/notifications/application/email-provider-adapter.port';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
+import { TAX_CODE_LOOKUP_ADAPTER } from '../src/modules/tax-verification/application/tax-code-lookup.port';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 
 const fakeEmailProvider = {
   send: jest.fn().mockResolvedValue({ providerMessageId: 'fake-msg-id' }),
 };
+
+jest.setTimeout(60_000);
 
 describe('Email Template Management (integration)', () => {
   let container: StartedPostgreSqlContainer;
@@ -65,6 +68,10 @@ describe('Email Template Management (integration)', () => {
       )
       .overrideProvider(EMAIL_PROVIDER_ADAPTER)
       .useValue(fakeEmailProvider)
+      .overrideProvider(TAX_CODE_LOOKUP_ADAPTER)
+      .useValue({
+        lookup: jest.fn().mockResolvedValue({ name: 'Test Company' }),
+      })
       .compile();
     app = moduleRef.createNestApplication();
     configureApp(app);
@@ -86,6 +93,7 @@ describe('Email Template Management (integration)', () => {
         name: 'Owner Name',
         email: 'owner@test-org.vn',
         password: 'S3curePass!',
+        taxCode: '0123456789',
       })
       .expect(201);
 

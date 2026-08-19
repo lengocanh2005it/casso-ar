@@ -44,6 +44,11 @@ export class TypeOrmBankConnectionRepository
     return row ? new BankConnection(row) : null;
   }
 
+  async findByGrantId(grantId: string): Promise<BankConnection | null> {
+    const row = await this.ormRepo.findOne({ where: { grantId } });
+    return row ? new BankConnection(row) : null;
+  }
+
   async save(
     connection: BankConnection,
     manager?: EntityManager,

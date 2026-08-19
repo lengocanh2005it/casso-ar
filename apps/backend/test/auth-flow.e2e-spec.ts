@@ -12,7 +12,10 @@ import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
 import { MembershipInviteOrmEntity } from '../src/modules/auth/infrastructure/membership-invite.orm-entity';
 import { PasswordResetTokenOrmEntity } from '../src/modules/auth/infrastructure/password-reset-token.orm-entity';
+import { TAX_CODE_LOOKUP_ADAPTER } from '../src/modules/tax-verification/application/tax-code-lookup.port';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
+
+jest.setTimeout(60_000);
 
 describe('Auth flow (integration)', () => {
   let container: StartedPostgreSqlContainer;
@@ -45,6 +48,8 @@ describe('Auth flow (integration)', () => {
           retryAttempts: 0,
         }),
       )
+      .overrideProvider(TAX_CODE_LOOKUP_ADAPTER)
+      .useValue({ lookup: jest.fn().mockResolvedValue({ name: 'Company B' }) })
       .compile();
     app = moduleRef.createNestApplication();
     app.use(cookieParser());
@@ -66,6 +71,7 @@ describe('Auth flow (integration)', () => {
         name: 'An',
         email: 'ap@congtyb.vn',
         password: 'S3curePass!',
+        taxCode: '0123456789',
       })
       .expect(201);
 

@@ -17,9 +17,9 @@ export class WebhooksController {
   @Post('casso-balance-hook')
   @Public()
   @ApiOperation({
-    summary: 'Receive a Casso balance-hook notification',
+    summary: 'Receive a Cas ID Balance Hook notification',
     description:
-      'Signed by Casso (X-Casso-Signature header); returns received/duplicate/ignored status',
+      'Authenticated by source-IP allowlist (Cas ID sends no signature header); returns received/duplicate/ignored status',
   })
   @ApiOkResponse({
     description: 'Webhook accepted for processing',
@@ -43,9 +43,8 @@ export class WebhooksController {
   @HttpCode(200)
   async receiveBalanceHook(@Body() payload: BalanceHookDto) {
     return this.receiveWebhook.execute({
-      bankConnectionId: payload.bankConnectionId,
-      organizationId: payload.organizationId,
-      transactionId: payload.transactionId,
+      grantId: payload.grantId,
+      transactionId: payload.transaction.id,
       rawPayload: Object.fromEntries(Object.entries(payload)),
     });
   }

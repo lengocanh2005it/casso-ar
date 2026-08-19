@@ -18,7 +18,7 @@ import { ACCESS_TOKEN_ENCRYPTION_KEY } from './application/token-encryption-key'
 import { BankConnectionOrmEntity } from './infrastructure/bank-connection.orm-entity';
 import { CasIdConnectionSessionOrmEntity } from './infrastructure/cas-id-connection-session.orm-entity';
 import { ConnectionAuditEventOrmEntity } from './infrastructure/connection-audit-event.orm-entity';
-import { MockCasIdAdapter } from './infrastructure/mock-cas-id.adapter';
+import { selectCasIdAdapter } from './infrastructure/select-cas-id-adapter';
 import { TypeOrmBankConnectionRepository } from './infrastructure/typeorm-bank-connection.repository';
 import { TypeOrmCasIdConnectionSessionRepository } from './infrastructure/typeorm-cas-id-connection-session.repository';
 import { TypeOrmConnectionAuditEventRepository } from './infrastructure/typeorm-connection-audit-event.repository';
@@ -47,7 +47,10 @@ import { BankConnectionsController } from './presentation/bank-connections.contr
       provide: CONNECTION_AUDIT_EVENT_REPOSITORY,
       useClass: TypeOrmConnectionAuditEventRepository,
     },
-    { provide: CAS_ID_INTEGRATION_ADAPTER, useClass: MockCasIdAdapter },
+    {
+      provide: CAS_ID_INTEGRATION_ADAPTER,
+      useFactory: () => selectCasIdAdapter(),
+    },
     { provide: EVENT_PUBLISHER, useClass: NestEventPublisherAdapter },
     {
       provide: ACCESS_TOKEN_ENCRYPTION_KEY,

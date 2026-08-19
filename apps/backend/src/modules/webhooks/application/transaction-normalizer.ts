@@ -10,44 +10,65 @@ export interface NormalizedTransaction {
   transferContent: string;
 }
 
-function stringField(payload: Record<string, unknown>, key: string): string {
-  const value = payload[key];
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new AppError(
-      ErrorCode.VALIDATION_ERROR,
-      `Webhook field ${key} is invalid`,
-    );
-  }
-  return value;
+interface BalanceHookTransactionPayload {
+  id?: unknown;
+  amount?: unknown;
+  transactionDateTime?: unknown;
+  description?: unknown;
+  counterAccountNumber?: unknown;
+  counterAccountName?: unknown;
+}
+
+function toStringOrEmpty(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  return String(value);
 }
 
 export function normalizeBalanceHookPayload(
   payload: Record<string, unknown>,
 ): NormalizedTransaction {
-  const amount = payload.amount;
-  const transactionDateTime = stringField(payload, 'transactionDateTime');
+  const transaction = (payload.transaction ??
+    {}) as BalanceHookTransactionPayload;
+
+  const id = transaction.id;
+  if (typeof id !== 'string' || id.length === 0) {
+    throw new AppError(
+      ErrorCode.VALIDATION_ERROR,
+      'Webhook field transaction.id is invalid',
+    );
+  }
+
+  const amount = transaction.amount;
   if (typeof amount !== 'number' || !Number.isInteger(amount)) {
     throw new AppError(
       ErrorCode.VALIDATION_ERROR,
-      'Webhook field amount must be an integer',
+      'Webhook field transaction.amount must be an integer',
     );
   }
-  const date = new Date(transactionDateTime);
-  if (Number.isNaN(date.getTime())) {
+
+  const transactionDateTimeRaw = transaction.transactionDateTime;
+  if (typeof transactionDateTimeRaw !== 'string') {
     throw new AppError(
       ErrorCode.VALIDATION_ERROR,
-      'Webhook field transactionDateTime is invalid',
+      'Webhook field transaction.transactionDateTime is invalid',
     );
   }
+  const transactionDateTime = new Date(transactionDateTimeRaw);
+  if (Number.isNaN(transactionDateTime.getTime())) {
+    throw new AppError(
+      ErrorCode.VALIDATION_ERROR,
+      'Webhook field transaction.transactionDateTime is invalid',
+    );
+  }
+
   return {
-    providerTransactionId: stringField(payload, 'transactionId'),
+    providerTransactionId: id,
     amount,
-    transactionDateTime: date,
-    counterpartyAccountNumber: stringField(
-      payload,
-      'counterpartyAccountNumber',
+    transactionDateTime,
+    counterpartyAccountNumber: toStringOrEmpty(
+      transaction.counterAccountNumber,
     ),
-    counterpartyName: stringField(payload, 'counterpartyName'),
-    transferContent: stringField(payload, 'transferContent'),
+    counterpartyName: toStringOrEmpty(transaction.counterAccountName),
+    transferContent: toStringOrEmpty(transaction.description),
   };
 }

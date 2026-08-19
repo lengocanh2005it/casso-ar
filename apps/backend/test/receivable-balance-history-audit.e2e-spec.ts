@@ -51,15 +51,18 @@ const bankConnectionId = '00000000-0000-4000-8000-0000000000a8';
 const receivableB = '00000000-0000-4000-8000-0000000000ba';
 const invoiceA = '00000000-0000-4000-8000-0000000000aa';
 
+const grantId = '00000000-0000-0000-0000-0000000000f4';
+
 const webhookPayload = {
-  organizationId: orgA,
-  bankConnectionId,
-  transactionId: `audit-tx-${randomUUID()}`,
-  amount: 30_000_000,
-  transactionDateTime: '2026-08-14T10:00:00.000Z',
-  counterpartyAccountNumber: '0011002233',
-  counterpartyName: 'Công ty A',
-  transferContent: 'Thanh toan INV-AUDIT-001',
+  grantId,
+  transaction: {
+    id: `audit-tx-${randomUUID()}`,
+    amount: 30_000_000,
+    transactionDateTime: '2026-08-14T10:00:00.000Z',
+    counterAccountNumber: '0011002233',
+    counterAccountName: 'Công ty A',
+    description: 'Thanh toan INV-AUDIT-001',
+  },
 };
 
 describe('Receivable balance history audit (e2e)', () => {
@@ -149,8 +152,7 @@ describe('Receivable balance history audit (e2e)', () => {
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
     process.env.RESEND_API_KEY = 'e2e-resend-key';
-    process.env.CASSO_WEBHOOK_CLIENT_ID = 'e2e-client';
-    process.env.CASSO_WEBHOOK_SECRET_KEY = 'e2e-secret';
+    process.env.CAS_ID_WEBHOOK_IP_ALLOWLIST = '127.0.0.1,::1,::ffff:127.0.0.1';
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
@@ -208,6 +210,7 @@ describe('Receivable balance history audit (e2e)', () => {
       id: bankConnectionId,
       organizationId: orgA,
       casIdConnectionSessionId: '00000000-0000-0000-0000-0000000000f3',
+      grantId: '00000000-0000-0000-0000-0000000000f4',
       encryptedAccessToken: 'encrypted-test-token',
       accountIdentity: { accountNumber: '99887766', bankName: 'Test Bank' },
       status: 'ACTIVE',
@@ -269,7 +272,6 @@ describe('Receivable balance history audit (e2e)', () => {
   async function allocateViaWebhook(): Promise<void> {
     await request(app.getHttpServer())
       .post('/api/v1/webhooks/casso-balance-hook')
-      .set({ 'x-client-id': 'e2e-client', 'x-secret-key': 'e2e-secret' })
       .send(webhookPayload)
       .expect(200, { received: true, duplicate: false });
 

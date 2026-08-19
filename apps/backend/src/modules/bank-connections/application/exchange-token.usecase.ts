@@ -72,7 +72,9 @@ export class ExchangeTokenUseCase {
 
     // External call stays outside the transaction (AGENTS.md: don't call
     // external APIs inside a transaction) — only the DB writes below are wrapped.
-    const { accessToken } = await this.adapter.exchangeToken(input.publicToken);
+    const { accessToken, grantId } = await this.adapter.exchangeToken(
+      input.publicToken,
+    );
     const accountIdentity = await this.adapter.getAccountIdentity(accessToken);
 
     return this.dataSource.transaction(async (manager) => {
@@ -98,6 +100,7 @@ export class ExchangeTokenUseCase {
       const connection = existing
         ? existing.reactivate({
             casIdConnectionSessionId: session.id,
+            grantId,
             encryptedAccessToken: encryptToken(accessToken, this.encryptionKey),
             accountIdentity,
             scopes: session.scopes,
@@ -106,6 +109,7 @@ export class ExchangeTokenUseCase {
             id: randomUUID(),
             organizationId: session.organizationId,
             casIdConnectionSessionId: session.id,
+            grantId,
             encryptedAccessToken: encryptToken(accessToken, this.encryptionKey),
             accountIdentity,
             status: 'ACTIVE',

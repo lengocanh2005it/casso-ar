@@ -105,6 +105,10 @@ describe('Reminder automation (integration)', () => {
     await container?.stop();
   });
 
+  beforeEach(() => {
+    fakeEmailProvider.send.mockClear();
+  });
+
   async function setUpOrg(organizationId: string) {
     const userId = '00000000-0000-4000-8000-000000000100';
     const customerId = '00000000-0000-4000-8000-000000000101';

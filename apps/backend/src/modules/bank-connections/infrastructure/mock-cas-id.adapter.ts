@@ -22,8 +22,13 @@ export class MockCasIdAdapter implements ICasIdIntegrationAdapter {
     };
   }
 
-  async exchangeToken(_publicToken: string): Promise<{ accessToken: string }> {
-    return { accessToken: `mock-access-token-${randomUUID()}` };
+  async exchangeToken(
+    _publicToken: string,
+  ): Promise<{ accessToken: string; grantId: string }> {
+    return {
+      accessToken: `mock-access-token-${randomUUID()}`,
+      grantId: `mock-grant-id-${randomUUID()}`,
+    };
   }
 
   async invalidateToken(_accessToken: string): Promise<void> {}
