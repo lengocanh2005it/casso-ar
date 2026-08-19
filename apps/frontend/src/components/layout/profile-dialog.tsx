@@ -85,6 +85,8 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
   }
 
   async function handleSave() {
+    if (!user) return;
+
     const promises: Promise<unknown>[] = [];
 
     if (
