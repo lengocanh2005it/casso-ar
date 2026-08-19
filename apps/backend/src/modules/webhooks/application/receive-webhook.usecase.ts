@@ -1,10 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { AppError } from '../../../common/errors/app-error';
-import { ErrorCode } from '../../../common/errors/error-code';
-import type { IBankConnectionRepository } from '../../bank-connections/application/bank-connection-repository.port';
-import { BANK_CONNECTION_REPOSITORY } from '../../bank-connections/application/bank-connection-repository.port';
+import { equalsConstantTime } from '../../../common/security/constant-time-compare';
+import {
+  BANK_CONNECTION_REPOSITORY,
+  type IBankConnectionRepository,
+} from '../../bank-connections/application/bank-connection-repository.port';
+import { decryptToken } from '../../bank-connections/application/token-encryption';
+import { ACCESS_TOKEN_ENCRYPTION_KEY } from '../../bank-connections/application/token-encryption-key';
 import { WebhookInbox } from '../domain/webhook-inbox';
 import type { IWebhookInboxRepository } from './webhook-inbox-repository.port';
 import {
@@ -17,7 +20,8 @@ import {
 } from './webhook-job-queue.port';
 
 export interface ReceiveWebhookInput {
-  grantId: string;
+  accountNumber: string;
+  webhookSecret: string;
   organizationId?: string;
   transactionId: string;
   rawPayload: Record<string, unknown>;
@@ -39,23 +43,32 @@ export class ReceiveWebhookUseCase {
     @Inject(WEBHOOK_JOB_QUEUE)
     private readonly webhookJobQueue: IWebhookJobQueue,
     private readonly dataSource: DataSource,
+    @Inject(ACCESS_TOKEN_ENCRYPTION_KEY)
+    private readonly encryptionKey: string,
   ) {}
 
   async execute(input: ReceiveWebhookInput): Promise<ReceiveWebhookResult> {
-    const connection = await this.bankConnectionRepo.findByGrantId(
-      input.grantId,
+    const connection = await this.bankConnectionRepo.findByAccountNumber(
+      input.accountNumber,
     );
+    if (!connection) return { received: true, ignored: true };
+
+    const expectedSecret = decryptToken(
+      connection.encryptedSecureToken,
+      this.encryptionKey,
+    );
+    if (!equalsConstantTime(input.webhookSecret, expectedSecret)) {
+      return { received: true, ignored: true };
+    }
     if (
       connection &&
       input.organizationId &&
       input.organizationId !== connection.organizationId
     ) {
-      throw new AppError(
-        ErrorCode.TENANT_MISMATCH,
-        'Webhook organization does not match bank connection',
-      );
+      return { received: true, ignored: true };
     }
-    if (!connection?.isUsable()) return { received: true, ignored: true };
+    if (!connection.isUsable()) return { received: true, ignored: true };
+
     const inbox = new WebhookInbox({
       id: randomUUID(),
       organizationId: connection.organizationId,
