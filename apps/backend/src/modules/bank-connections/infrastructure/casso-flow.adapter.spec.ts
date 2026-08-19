@@ -8,6 +8,41 @@ function jsonResponse(status: number, body: unknown) {
   };
 }
 
+// Real response captured from a live GET /v2/userInfo call during
+// implementation (see issue #271 / PR #270 review) — the earlier draft of
+// this adapter assumed a flat { accountNumber, bankName } shape that does
+// not exist on the real API; the account lives under data.bankAccs[].
+function userInfoResponse(bankAccs: unknown[]) {
+  return {
+    error: 0,
+    message: 'success',
+    data: {
+      user: { id: 20841, email: 'test@example.com' },
+      business: { id: 17122, name: 'Test Business' },
+      bankAccs,
+    },
+  };
+}
+
+const realBankAcc = {
+  id: 16608,
+  bank: {
+    id: 172,
+    bin: 970422,
+    swift: '',
+    codeName: 'mbbank',
+    fullName: 'Ngân hàng TMCP Quân đội',
+    bankType: 'personal',
+  },
+  bankAccountName: 'LE NGOC ANH',
+  bankSubAccId: '0393873630',
+  balance: null,
+  memo: '',
+  connectStatus: 1,
+  planStatus: 0,
+  beginDate: '2026-08-19',
+};
+
 describe('CassoFlowAdapter', () => {
   const originalFetch = global.fetch;
   const originalEnv = process.env;
@@ -27,36 +62,32 @@ describe('CassoFlowAdapter', () => {
   });
 
   describe('getAccountInfo', () => {
-    it('fetches account number and bank name with the Apikey header', async () => {
-      const fetchMock = jest.fn().mockResolvedValue(
-        jsonResponse(200, {
-          data: { accountNumber: '867623232', bankName: 'VPBank' },
-        }),
-      );
+    it('reads the account number and bank name from bankAccs[0]', async () => {
+      const fetchMock = jest
+        .fn()
+        .mockResolvedValue(jsonResponse(200, userInfoResponse([realBankAcc])));
       global.fetch = fetchMock as never;
       const adapter = new CassoFlowAdapter();
 
       const result = await adapter.getAccountInfo('test-api-key');
 
       expect(result).toEqual({
-        accountNumber: '867623232',
-        bankName: 'VPBank',
+        accountNumber: '0393873630',
+        bankName: 'Ngân hàng TMCP Quân đội',
       });
       const [url, init] = fetchMock.mock.calls[0];
       expect(url).toBe('https://oauth.casso.vn/v2/userInfo');
       expect(init.headers.Authorization).toBe('Apikey test-api-key');
     });
 
-    it('throws if accountNumber is missing', async () => {
+    it('throws if bankAccs is empty (no bank account linked yet)', async () => {
       global.fetch = jest
         .fn()
-        .mockResolvedValue(
-          jsonResponse(200, { data: { bankName: 'VPBank' } }),
-        ) as never;
+        .mockResolvedValue(jsonResponse(200, userInfoResponse([]))) as never;
       const adapter = new CassoFlowAdapter();
 
       await expect(adapter.getAccountInfo('test-api-key')).rejects.toThrow(
-        'Casso Flow /v2/userInfo response is missing accountNumber',
+        'no linked bank account',
       );
     });
 
@@ -98,7 +129,7 @@ describe('CassoFlowAdapter', () => {
         .fn()
         .mockResolvedValueOnce(jsonResponse(503, {}))
         .mockResolvedValueOnce(
-          jsonResponse(200, { data: { accountNumber: '1', bankName: 'B' } }),
+          jsonResponse(200, userInfoResponse([realBankAcc])),
         );
       global.fetch = fetchMock as never;
       jest.spyOn(globalThis, 'setTimeout').mockImplementation(((
@@ -111,7 +142,7 @@ describe('CassoFlowAdapter', () => {
 
       const result = await adapter.getAccountInfo('test-api-key');
 
-      expect(result.accountNumber).toBe('1');
+      expect(result.accountNumber).toBe('0393873630');
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
   });

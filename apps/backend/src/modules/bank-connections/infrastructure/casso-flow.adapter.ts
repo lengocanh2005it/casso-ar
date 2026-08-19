@@ -41,15 +41,29 @@ export class CassoFlowAdapter implements ICassoFlowIntegrationAdapter {
       apiKey,
     );
     const payload = this.unwrap(data);
-    const accountNumber = payload.accountNumber;
-    const bankName = payload.bankName;
+    const bankAccs = payload.bankAccs;
+    if (!Array.isArray(bankAccs) || bankAccs.length === 0) {
+      throw new Error(
+        'Casso Flow /v2/userInfo response has no linked bank account (bankAccs is empty)',
+      );
+    }
+    // ponytail: takes the first linked account — matches the one-active-
+    // connection-per-org constraint this product already enforces; a
+    // business with multiple bank accounts linked to Casso Flow can only
+    // connect the first one until multi-account support is asked for.
+    const account = bankAccs[0] as Record<string, unknown>;
+    const accountNumber = account.bankSubAccId;
+    const bank = account.bank as Record<string, unknown> | undefined;
+    const bankName = bank?.fullName;
     if (typeof accountNumber !== 'string' || !accountNumber) {
       throw new Error(
-        'Casso Flow /v2/userInfo response is missing accountNumber',
+        'Casso Flow /v2/userInfo response is missing bankAccs[0].bankSubAccId',
       );
     }
     if (typeof bankName !== 'string' || !bankName) {
-      throw new Error('Casso Flow /v2/userInfo response is missing bankName');
+      throw new Error(
+        'Casso Flow /v2/userInfo response is missing bankAccs[0].bank.fullName',
+      );
     }
     return { accountNumber, bankName };
   }
