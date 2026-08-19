@@ -20,6 +20,9 @@ export class UserOrmEntity {
   @Column({ type: 'boolean', default: false })
   isOperator: boolean;
 
+  @Column({ type: 'varchar', nullable: true })
+  avatarUrl: string | null;
+
   @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

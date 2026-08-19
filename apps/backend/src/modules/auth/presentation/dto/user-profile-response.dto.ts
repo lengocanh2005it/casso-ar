@@ -4,6 +4,7 @@ export class UserProfileResponseDto {
   id: string;
   email: string;
   name: string;
+  avatarUrl: string | null;
   role: Role;
   organizationId: string;
   organizationName: string;
@@ -15,6 +16,7 @@ export function toUserProfileResponse(data: {
   id: string;
   email: string;
   name: string;
+  avatarUrl: string | null;
   organizationId: string;
   organizationName: string;
   role: Role;
@@ -25,6 +27,7 @@ export function toUserProfileResponse(data: {
   dto.id = data.id;
   dto.email = data.email;
   dto.name = data.name;
+  dto.avatarUrl = data.avatarUrl;
   dto.role = data.role;
   dto.organizationId = data.organizationId;
   dto.organizationName = data.organizationName;

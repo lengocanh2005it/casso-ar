@@ -44,6 +44,7 @@ export class GetUserProfileUseCase {
     id: string;
     email: string;
     name: string;
+    avatarUrl: string | null;
     organizationId: string;
     organizationName: string;
     role: Role;
@@ -75,6 +76,7 @@ export class GetUserProfileUseCase {
       id: user.id,
       email: user.email,
       name: user.name,
+      avatarUrl: user.avatarUrl,
       organizationId,
       organizationName: organization.name,
       role: membership.role,

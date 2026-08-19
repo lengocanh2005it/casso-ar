@@ -51,6 +51,7 @@ import { ReportingModule } from './modules/reporting/reporting.module';
 import { SmtpConfigModule } from './modules/smtp-config/smtp-config.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { ProfileModule } from './modules/profile/profile.module';
 
 @Module({
   imports: [
@@ -104,6 +105,7 @@ import { AdminModule } from './modules/admin/admin.module';
     SmtpConfigModule,
     AlertsModule,
     AdminModule,
+    ProfileModule,
   ],
   providers: [
     JwtStrategy,

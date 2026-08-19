@@ -1,16 +1,8 @@
 import { LogOut } from 'lucide-react';
 import { useState } from 'react';
+import { UserAvatar } from '@/components/shared/user-avatar';
 import { useAuth } from '@/contexts/auth-context';
 import { ProfileDialog } from './profile-dialog';
-
-function getInitials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
-}
 
 export function SidebarFooter({ collapsed }: { collapsed: boolean }) {
   const { user, logout } = useAuth();
@@ -28,9 +20,7 @@ export function SidebarFooter({ collapsed }: { collapsed: boolean }) {
             className="flex w-full items-center justify-center rounded-md p-1.5 transition-[background-color] duration-150 ease-out motion-reduce:transition-none pointer-hover:hover:bg-sidebar-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
             aria-label="Xem thông tin tài khoản"
           >
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
-              {getInitials(user.name)}
-            </div>
+            <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size="sm" />
           </button>
           <button
             type="button"
@@ -55,9 +45,7 @@ export function SidebarFooter({ collapsed }: { collapsed: boolean }) {
           className="flex w-full items-center gap-3 rounded-md text-left transition-[background-color] duration-150 ease-out motion-reduce:transition-none pointer-hover:hover:bg-sidebar-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
           aria-label="Xem thông tin tài khoản"
         >
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
-            {getInitials(user.name)}
-          </div>
+          <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size="sm" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{user.name}</p>
             <p className="truncate text-xs text-muted-foreground">
