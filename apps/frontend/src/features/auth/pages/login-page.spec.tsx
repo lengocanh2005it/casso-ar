@@ -4,10 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '@/contexts/auth-context';
 import { LoginPage } from './login-page';
 
-const { getValidAccessToken, apiRequest } = vi.hoisted(() => ({
+const { getValidAccessToken, apiRequest, toastError } = vi.hoisted(() => ({
   getValidAccessToken: vi.fn(),
   apiRequest: vi.fn(),
+  toastError: vi.fn(),
 }));
+
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: toastError } }));
 
 vi.mock('@/lib/api-client', () => ({
   authTokenManager: {
@@ -19,6 +22,12 @@ vi.mock('@/lib/api-client', () => ({
     clearStaleRefreshSession: vi.fn(),
   },
   apiRequest,
+  getApiErrorCode: (error: unknown) =>
+    (error as { response?: { data?: { errorCode?: string } } })?.response?.data
+      ?.errorCode,
+  getApiErrorMessage: (error: unknown) =>
+    (error as { response?: { data?: { message?: string } } })?.response?.data
+      ?.message,
 }));
 
 function fillAndSubmit() {
@@ -35,6 +44,7 @@ describe('LoginPage', () => {
   beforeEach(() => {
     getValidAccessToken.mockReset();
     apiRequest.mockReset();
+    toastError.mockReset();
     getValidAccessToken.mockResolvedValue(null);
   });
 
@@ -86,5 +96,40 @@ describe('LoginPage', () => {
     await waitFor(() =>
       expect(screen.getByText(/email hoặc mật khẩu không đúng/i)).toBeVisible(),
     );
+  });
+
+  it('toasts and stays on the page when the organization is pending review', async () => {
+    apiRequest.mockRejectedValue({
+      response: {
+        data: {
+          errorCode: 'ORGANIZATION_PENDING_REVIEW',
+          message: 'Tổ chức của bạn đang chờ được duyệt.',
+        },
+      },
+    });
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/login']}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/dashboard" element={<div>dashboard</div>} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByLabelText(/email/i)).toBeVisible());
+    fillAndSubmit();
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'Tổ chức của bạn đang chờ được duyệt.',
+      ),
+    );
+    expect(screen.queryByText('dashboard')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/email hoặc mật khẩu không đúng/i),
+    ).not.toBeInTheDocument();
   });
 });

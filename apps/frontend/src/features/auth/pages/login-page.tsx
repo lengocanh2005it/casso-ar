@@ -5,7 +5,13 @@ import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Spinner } from '@/components/ui/spinner';
 import { useAuth } from '@/contexts/auth-context';
+import { getApiErrorCode, getApiErrorMessage } from '@/lib/api-client';
 import { AuthLogoLink } from '../components/auth-logo-link';
+
+const ORGANIZATION_STATUS_ERROR_CODES = new Set([
+  'ORGANIZATION_PENDING_REVIEW',
+  'ORGANIZATION_REJECTED',
+]);
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -24,8 +30,16 @@ export function LoginPage() {
       await login(email, password);
       toast.success('Đăng nhập thành công.');
       navigate('/dashboard');
-    } catch {
-      setError('Email hoặc mật khẩu không đúng.');
+    } catch (submitError) {
+      const errorCode = getApiErrorCode(submitError);
+      if (errorCode && ORGANIZATION_STATUS_ERROR_CODES.has(errorCode)) {
+        toast.error(
+          getApiErrorMessage(submitError) ??
+            'Tổ chức của bạn hiện không thể sử dụng dịch vụ.',
+        );
+      } else {
+        setError('Email hoặc mật khẩu không đúng.');
+      }
     } finally {
       setSubmitting(false);
     }
