@@ -2990,13 +2990,46 @@ git commit -m "feat: add CassoFlowCallbackPage, remove CasIdCallbackPage"
 
 ---
 
-## Task 17: Frontend — `CassoFlowConnectionFlow` + wire routes/UI text
+## Task 17: Frontend — `CassoFlowConnectionFlow` + wire routes/UI text + reconnect action
 
 **Files:**
 - Create: `apps/frontend/src/features/bank-connections/components/casso-flow-connection-flow.tsx`
 - Create: `apps/frontend/src/features/bank-connections/components/casso-flow-connection-flow.spec.tsx`
 - Delete: `apps/frontend/src/features/bank-connections/components/cas-id-connection-flow.tsx`, `cas-id-connection-flow.spec.tsx`
-- Modify: `apps/frontend/src/routes/index.tsx`, `apps/frontend/src/App.tsx`, `apps/frontend/src/features/bank-connections/components/connect-dialog.tsx`, `apps/frontend/src/features/onboarding/pages/onboarding-page.tsx`, `apps/frontend/src/features/onboarding/pages/onboarding-page.spec.tsx`
+- Modify: `apps/frontend/src/features/bank-connections/api/bank-connections-api.ts`, `apps/frontend/src/features/bank-connections/types.ts`, `apps/frontend/src/features/bank-connections/api/use-bank-connections.ts` (widen `initiateCassoFlow`/`useInitiateCassoFlow` to take an optional `bankConnectionId`, for the reconnect action below)
+- Modify: `apps/frontend/src/features/bank-connections/components/connection-table.tsx`, `connection-table.spec.tsx` (add the reconnect action for `REQUIRES_REAUTHORIZATION`/`ERROR` connections — found missing during a `frontend-design` pass: the backend's reactivate flow, built in Task 7, had no FE entry point at all)
+- Modify: `apps/frontend/src/routes/index.tsx`, `apps/frontend/src/App.tsx`, `apps/frontend/src/features/bank-connections/components/connect-dialog.tsx`, `apps/frontend/src/features/bank-connections/pages/bank-connections-page.tsx`, `apps/frontend/src/features/onboarding/pages/onboarding-page.tsx`, `apps/frontend/src/features/onboarding/pages/onboarding-page.spec.tsx` (swap component + fix leftover "Cas ID"/"Cas Link" copy)
+
+**Design note (from the `frontend-design` pass):** this is a settings-page control in an established B2B app with its own design system already applied consistently (shadcn/ui primitives, existing `Badge`/`Table`/`AlertDialog` patterns from `connection-table.tsx`) — there is no new visual identity to invent here, and doing so would look inconsistent with the rest of the product. The actual design work is: (1) get the copy right and consistent (a control's label stays the same word through the whole flow — "Kết nối lại" the button, not "kết nối lại" the toast and "tái xác thực" the badge), and (2) make sure every reachable state has a way out, which is what the reconnect action below fixes.
+
+- [ ] **Step 1: Widen `initiateCassoFlow`/`useInitiateCassoFlow` to accept an optional `bankConnectionId`**
+
+Edit `bank-connections-api.ts`:
+
+```ts
+export function initiateCassoFlow(
+  bankConnectionId?: string,
+): Promise<CassoFlowInitiation> {
+  return postWithIdempotency<CassoFlowInitiation>(
+    '/api/v1/bank-connections/casso-flow/initiate',
+    bankConnectionId ? { bankConnectionId } : {},
+  );
+}
+```
+
+Edit `use-bank-connections.ts`:
+
+```ts
+export function useInitiateCassoFlow() {
+  return useMutation({
+    mutationFn: (bankConnectionId?: string) => initiateCassoFlow(bankConnectionId),
+  });
+}
+```
+
+`types.ts`'s `CassoFlowInitiation` is unchanged (still just `{ authorizeUrl: string }`).
+
+- [ ] **Step 2: Write the failing test for the connect/reconnect component**
 
 - [ ] **Step 1: Write the failing test**
 
@@ -3029,11 +3062,11 @@ function fakePopup() {
   return { closed: false, close: vi.fn() } as unknown as Window;
 }
 
-function renderFlow() {
+function renderFlow(props: { bankConnectionId?: string; label?: string } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
-      <CassoFlowConnectionFlow />
+      <CassoFlowConnectionFlow {...props} />
     </QueryClientProvider>,
   );
 }
@@ -3071,24 +3104,48 @@ describe('CassoFlowConnectionFlow', () => {
       expect(toastError).toHaveBeenCalledWith(expect.stringContaining('popup')),
     );
   });
+
+  it('passes bankConnectionId through to initiate and renders a custom label, for the reconnect case', async () => {
+    apiRequest.mockResolvedValue({ authorizeUrl: 'https://oauth.casso.vn/auth/authorize?state=s1' });
+    openCassoFlowPopup.mockReturnValue(fakePopup());
+
+    renderFlow({ bankConnectionId: 'conn-1', label: 'Kết nối lại' });
+    fireEvent.click(screen.getByText('Kết nối lại'));
+
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { bankConnectionId: 'conn-1' } }),
+      ),
+    );
+  });
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 3: Run test to verify it fails**
 
 Run: `cd apps/frontend && npx vitest run src/features/bank-connections/components/casso-flow-connection-flow.spec.tsx`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Write minimal implementation**
+- [ ] **Step 4: Write minimal implementation**
 
 ```tsx
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
+import { Button, type ButtonProps } from '@/components/ui/button';
 import { openCassoFlowPopup } from '@/lib/casso-flow-link';
 import { useInitiateCassoFlow } from '../api/use-bank-connections';
 
-export function CassoFlowConnectionFlow() {
+export function CassoFlowConnectionFlow({
+  bankConnectionId,
+  label = 'Kết nối ngân hàng',
+  variant,
+  size,
+}: {
+  bankConnectionId?: string;
+  label?: string;
+  variant?: ButtonProps['variant'];
+  size?: ButtonProps['size'];
+}) {
   const [isLinking, setIsLinking] = useState(false);
   const popupRef = useRef<Window | null>(null);
   const popupPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -3102,7 +3159,7 @@ export function CassoFlowConnectionFlow() {
 
   function handleConnect() {
     setIsLinking(true);
-    initiateMutation.mutate(undefined, {
+    initiateMutation.mutate(bankConnectionId, {
       onSuccess: (result) => {
         const popup = openCassoFlowPopup(result.authorizeUrl);
         popupRef.current = popup;
@@ -3126,43 +3183,65 @@ export function CassoFlowConnectionFlow() {
   }
 
   return (
-    <Button onClick={handleConnect} disabled={isLinking}>
-      {isLinking ? 'Đang mở Casso Flow…' : 'Kết nối ngân hàng'}
+    <Button onClick={handleConnect} disabled={isLinking} variant={variant} size={size}>
+      {isLinking ? 'Đang mở Casso Flow…' : label}
     </Button>
   );
 }
 ```
 
+`apps/frontend/src/components/ui/button.tsx` already exports `ButtonProps` (confirmed: `export interface ButtonProps ...`, `export { Button, buttonVariants };`) — the import above resolves as-is, no changes needed to that file.
+
 Note this component is simpler than the removed `CasIdConnectionFlow`: it doesn't listen for `window.addEventListener('message', ...)` at all — the callback page (Task 16) does the exchange itself (either via `postMessage`-triggered close, in which case `BankConnection`'s list-refetch on the `/bank-connections` page picks up the new connection via `usePollConnections`'s existing 5s poll, or via its own no-opener fallback navigate). This flow component only needs to open the popup and detect if the user closes it without completing — it does not need to react to the popup's outcome directly the way the Cas ID version did, because the callback page's no-opener path already handles completion+navigation on its own, and the opener path's `postMessage` isn't consumed here at all (no listener). **Confirm this is the intended simplification** (it follows from Task 3/7's design — reactivating/creating a connection no longer needs the popup-opener page to know a `sessionId` to call exchange with, since the callback page has everything it needs from the URL) rather than a dropped feature; if a snappier UX (auto-closing the popup and refreshing the list without waiting for the poll) is wanted, add the `message` listener back here mirroring the removed component — that's a UX call, not a correctness one.
 
 Delete `cas-id-connection-flow.tsx`/spec.
 
-- [ ] **Step 4: Update remaining references**
+- [ ] **Step 5: Update remaining references, fix leftover Cas ID copy, add the reconnect action**
 
-`connect-dialog.tsx`: replace `<CasIdConnectionFlow onCompleted={...} />` with `<CassoFlowConnectionFlow />` (drop the `onCompleted` prop — nothing left to pass it, per Step 3's note; the dialog's `onOpenChange`/polling already handles refresh). Update the import.
+`connect-dialog.tsx`: replace `<CasIdConnectionFlow onCompleted={...} />` with `<CassoFlowConnectionFlow />` (drop the `onCompleted` prop — nothing left to pass it, per Step 4's note; the dialog's `onOpenChange`/polling already handles refresh). Update the import. Also replace the dialog's description text — currently `"Một cửa sổ Cas Link sẽ mở ra để cấp quyền truy cập tài khoản ngân hàng."` — with `"Một cửa sổ Casso Flow sẽ mở ra để cấp quyền truy cập tài khoản ngân hàng."`, and the `DialogTitle` from `"Kết nối qua Cas ID"` to `"Kết nối qua Casso Flow"`.
 
-`onboarding-page.tsx`: same swap.
+`onboarding-page.tsx`: same component swap. Also replace the `CardDescription` text — currently `"Liên kết tài khoản qua Cas ID để bắt đầu đồng bộ giao dịch vào Casso Ledger."` — with `"Liên kết tài khoản qua Casso Flow để bắt đầu đồng bộ giao dịch vào Casso Ledger."` (keep "Casso Ledger" as-is — that's this product's own name, not the third party; see `CONTEXT.md`'s "Casso Flow" glossary entry for why the two must stay visually distinct in copy, not just in code).
 
-`onboarding-page.spec.tsx`: remove the `vi.mock('@/lib/cas-link', ...)` block and the `openCasLinkPopupMock`-based test; replace with an equivalent using `@/lib/casso-flow-link`'s `openCassoFlowPopup`, mirroring the pattern already used in Task 17's own spec above.
+`bank-connections-page.tsx`: replace the page description — currently `"Kết nối Cas ID để tự động đồng bộ giao dịch."` — with `"Kết nối Casso Flow để tự động đồng bộ giao dịch."`
+
+`onboarding-page.spec.tsx`: remove the `vi.mock('@/lib/cas-link', ...)` block and the `openCasLinkPopupMock`-based test; replace with an equivalent using `@/lib/casso-flow-link`'s `openCassoFlowPopup`, mirroring the pattern already used in Task 17's own spec above (Step 2).
 
 `routes/index.tsx`: replace the `CasIdCallbackPage` lazy import with `CassoFlowCallbackPage` from `@/features/bank-connections/pages/casso-flow-callback-page`.
 
 `App.tsx`: update the route path from `bank-connections/cas-id/callback` to `bank-connections/casso-flow/callback`, and the import/usage from `CasIdCallbackPage` to `CassoFlowCallbackPage`.
 
-- [ ] **Step 5: Run test to verify it passes; full frontend suite + type-check**
+**`connection-table.tsx`** — add the reconnect action found missing during the `frontend-design` pass. Currently the "Thao tác" column only renders anything `{connection.status === 'ACTIVE' && (...)}`, leaving `REQUIRES_REAUTHORIZATION`/`ERROR` connections with a badge and no way to act on it. Add a sibling branch:
 
-Run: `cd apps/frontend && npx vitest run src/features/bank-connections/components/casso-flow-connection-flow.spec.tsx`
-Expected: PASS (2 tests).
+```tsx
+                {(connection.status === 'REQUIRES_REAUTHORIZATION' ||
+                  connection.status === 'ERROR') && (
+                  <CassoFlowConnectionFlow
+                    bankConnectionId={connection.id}
+                    label="Kết nối lại"
+                    variant="outline"
+                    size="sm"
+                  />
+                )}
+```
+
+placed as a sibling to the existing `{connection.status === 'ACTIVE' && (<AlertDialog>...)}` block inside the same `<TableCell>` (the two are mutually exclusive by status, so both can sit unconditionally next to each other with no wrapping change needed). Add `import { CassoFlowConnectionFlow } from './casso-flow-connection-flow';` to `connection-table.tsx`'s imports.
+
+In `connection-table.spec.tsx`, add a test: seed a connection with `status: 'REQUIRES_REAUTHORIZATION'`, assert a "Kết nối lại" button renders and the "Ngắt kết nối" button does not (mirror whatever mocking pattern the existing disconnect-button test in that file already uses for `useDisconnectConnection`/`useInitiateCassoFlow`, checking the file's current content first — it wasn't read during this planning pass, so its existing mock setup must be matched exactly, not guessed).
+
+- [ ] **Step 6: Run tests to verify they pass; full frontend suite + type-check**
+
+Run: `cd apps/frontend && npx vitest run src/features/bank-connections/components/casso-flow-connection-flow.spec.tsx src/features/bank-connections/components/connection-table.spec.tsx`
+Expected: PASS (3 tests in the flow spec, plus however many `connection-table.spec.tsx` has after adding the new one).
 
 Run: `cd apps/frontend && npx vitest run && npx tsc --noEmit`
 Expected: full suite PASS, no type errors.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add apps/frontend/src/features/bank-connections/components/casso-flow-connection-flow.tsx apps/frontend/src/features/bank-connections/components/casso-flow-connection-flow.spec.tsx apps/frontend/src/features/bank-connections/components/connect-dialog.tsx apps/frontend/src/features/onboarding/pages/onboarding-page.tsx apps/frontend/src/features/onboarding/pages/onboarding-page.spec.tsx apps/frontend/src/routes/index.tsx apps/frontend/src/App.tsx
+git add apps/frontend/src/features/bank-connections/components/casso-flow-connection-flow.tsx apps/frontend/src/features/bank-connections/components/casso-flow-connection-flow.spec.tsx apps/frontend/src/features/bank-connections/components/connect-dialog.tsx apps/frontend/src/features/bank-connections/components/connection-table.tsx apps/frontend/src/features/bank-connections/components/connection-table.spec.tsx apps/frontend/src/features/bank-connections/pages/bank-connections-page.tsx apps/frontend/src/features/bank-connections/api/bank-connections-api.ts apps/frontend/src/features/bank-connections/api/use-bank-connections.ts apps/frontend/src/features/onboarding/pages/onboarding-page.tsx apps/frontend/src/features/onboarding/pages/onboarding-page.spec.tsx apps/frontend/src/routes/index.tsx apps/frontend/src/App.tsx
 git rm apps/frontend/src/features/bank-connections/components/cas-id-connection-flow.tsx apps/frontend/src/features/bank-connections/components/cas-id-connection-flow.spec.tsx
-git commit -m "feat: wire CassoFlowConnectionFlow into onboarding and connect-dialog"
+git commit -m "feat: wire CassoFlowConnectionFlow, add reconnect action, fix leftover Cas ID copy"
 ```
 
 ---
