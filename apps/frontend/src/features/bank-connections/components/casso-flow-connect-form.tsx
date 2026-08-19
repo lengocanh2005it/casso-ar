@@ -5,8 +5,10 @@ import { Label } from '@/components/ui/label';
 import { useConnectCassoFlow } from '../api/use-bank-connections';
 
 export function CassoFlowConnectForm({
+  bankConnectionId,
   onCompleted,
 }: {
+  bankConnectionId?: string;
   onCompleted?: () => void;
 }) {
   const [apiKey, setApiKey] = useState('');
@@ -18,7 +20,7 @@ export function CassoFlowConnectForm({
     if (!trimmed) return;
 
     connectMutation.mutate(
-      { apiKey: trimmed },
+      { apiKey: trimmed, bankConnectionId },
       {
         onSuccess: () => {
           setApiKey('');
@@ -43,7 +45,16 @@ export function CassoFlowConnectForm({
           required
         />
         <p className="text-xs text-muted-foreground">
-          Lấy API Key trong phần Cài đặt tích hợp tại trang quản trị Casso Flow.
+          Bạn có thể xem cách lấy API Key tại{' '}
+          <a
+            href="https://developer.casso.vn/v1/auth-code/tao-authorization-code-thu-cong"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary font-medium pointer-hover:hover:underline"
+          >
+            đây
+          </a>
+          .
         </p>
       </div>
 
@@ -52,7 +63,11 @@ export function CassoFlowConnectForm({
           type="submit"
           disabled={!apiKey.trim() || connectMutation.isPending}
         >
-          {connectMutation.isPending ? 'Đang kết nối…' : 'Kết nối'}
+          {connectMutation.isPending
+            ? 'Đang kết nối…'
+            : bankConnectionId
+              ? 'Kết nối lại'
+              : 'Kết nối'}
         </Button>
       </div>
     </form>

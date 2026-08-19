@@ -14,6 +14,14 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
   Table,
   TableBody,
   TableCell,
@@ -26,6 +34,12 @@ import { formatDate } from '@/lib/format';
 import { hasPermission } from '@/lib/rbac';
 import { useDisconnectConnection } from '../api/use-bank-connections';
 import type { BankConnection, BankConnectionStatus } from '../types';
+import { CassoFlowConnectForm } from './casso-flow-connect-form';
+
+const RECONNECTABLE_STATUSES: BankConnectionStatus[] = [
+  'REQUIRES_REAUTHORIZATION',
+  'ERROR',
+];
 
 const statusLabels: Record<BankConnectionStatus, string> = {
   PENDING_AUTHORIZATION: 'Chờ cấp quyền',
@@ -47,6 +61,7 @@ export function ConnectionTable({
     Permission.BANK_CONNECTION_MANAGE,
   );
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [reconnectId, setReconnectId] = useState<string | null>(null);
   const disconnectMutation = useDisconnectConnection();
 
   if (connections.length === 0) {
@@ -89,6 +104,36 @@ export function ConnectionTable({
             </TableCell>
             {canManage && (
               <TableCell>
+                {RECONNECTABLE_STATUSES.includes(connection.status) && (
+                  <Dialog
+                    open={reconnectId === connection.id}
+                    onOpenChange={(open) =>
+                      setReconnectId(open ? connection.id : null)
+                    }
+                  >
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        aria-label="Reconnect bank"
+                      >
+                        Kết nối lại
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Kết nối lại Casso Flow</DialogTitle>
+                        <DialogDescription>
+                          Nhập API Key mới từ tài khoản Casso Flow của bạn.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <CassoFlowConnectForm
+                        bankConnectionId={connection.id}
+                        onCompleted={() => setReconnectId(null)}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                )}
                 {connection.status === 'ACTIVE' && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>

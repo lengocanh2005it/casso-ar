@@ -105,6 +105,39 @@ describe('ConnectCassoFlowUseCase', () => {
     );
   });
 
+  it("rejects when bankConnectionId does not match the organization's reconnectable connection", async () => {
+    const bankConnectionRepo = {
+      findActiveOrReauthorizableByOrganizationForUpdate: jest
+        .fn()
+        .mockResolvedValue(null),
+      save: jest.fn(),
+      countActiveByOrganization: jest.fn().mockResolvedValue(0),
+    };
+    const adapter = {
+      getAccountInfo: jest
+        .fn()
+        .mockResolvedValue({ accountNumber: '0011002233', bankName: 'VPBank' }),
+      registerWebhook: jest.fn().mockResolvedValue(undefined),
+    };
+    const useCase = new ConnectCassoFlowUseCase(
+      adapter as never,
+      bankConnectionRepo as never,
+      { save: jest.fn() } as never,
+      dataSource as never,
+      encryptionKey,
+      { enforceBankConnectionLimit: jest.fn() } as never,
+    );
+
+    await expect(
+      useCase.execute({
+        organizationId: 'org-1',
+        apiKey: 'new-api-key',
+        bankConnectionId: 'stale-conn-id',
+      }),
+    ).rejects.toThrow(AppError);
+    expect(bankConnectionRepo.save).not.toHaveBeenCalled();
+  });
+
   it('propagates a CassoFlowUnauthorizedError for an invalid API Key without persisting anything', async () => {
     const bankConnectionRepo = {
       findActiveOrReauthorizableByOrganizationForUpdate: jest.fn(),

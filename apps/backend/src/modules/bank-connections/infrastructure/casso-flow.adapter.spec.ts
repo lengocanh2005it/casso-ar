@@ -28,13 +28,11 @@ describe('CassoFlowAdapter', () => {
 
   describe('getAccountInfo', () => {
     it('fetches account number and bank name with the Apikey header', async () => {
-      const fetchMock = jest
-        .fn()
-        .mockResolvedValue(
-          jsonResponse(200, {
-            data: { accountNumber: '867623232', bankName: 'VPBank' },
-          }),
-        );
+      const fetchMock = jest.fn().mockResolvedValue(
+        jsonResponse(200, {
+          data: { accountNumber: '867623232', bankName: 'VPBank' },
+        }),
+      );
       global.fetch = fetchMock as never;
       const adapter = new CassoFlowAdapter();
 

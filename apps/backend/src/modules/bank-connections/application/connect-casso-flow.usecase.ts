@@ -1,6 +1,8 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { PlanLimitService } from '../../billing/application/plan-limit.service';
 import { BankConnection } from '../domain/bank-connection';
 import { ConnectionAuditEvent } from '../domain/connection-audit-event';
@@ -59,6 +61,15 @@ export class ConnectCassoFlowUseCase {
           input.organizationId,
           manager,
         );
+      // A caller reconnecting a specific row (the reconnect UI) must target
+      // the same connection it saw — guards against a stale bankConnectionId
+      // silently reactivating a different connection than the one shown.
+      if (input.bankConnectionId && existing?.id !== input.bankConnectionId) {
+        throw new AppError(
+          ErrorCode.NOT_FOUND,
+          'Không tìm thấy kết nối ngân hàng cần kết nối lại.',
+        );
+      }
       const props = {
         accountNumber: accountInfo.accountNumber,
         bankName: accountInfo.bankName,

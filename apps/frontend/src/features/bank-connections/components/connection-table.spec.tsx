@@ -8,6 +8,7 @@ const { useAuth } = vi.hoisted(() => ({ useAuth: vi.fn() }));
 vi.mock('@/contexts/auth-context', () => ({ useAuth }));
 vi.mock('../api/use-bank-connections', () => ({
   useDisconnectConnection: () => ({ mutate: vi.fn(), isPending: false }),
+  useConnectCassoFlow: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 const connection: BankConnection = {
@@ -31,5 +32,25 @@ describe('ConnectionTable', () => {
     expect(
       screen.getByRole('button', { name: /disconnect/i }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /reconnect/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows a reconnect action, not disconnect, for a connection requiring reauthorization', () => {
+    useAuth.mockReturnValue({ user: { role: 'OWNER' } });
+
+    render(
+      <ConnectionTable
+        connections={[{ ...connection, status: 'REQUIRES_REAUTHORIZATION' }]}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: /reconnect/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /disconnect/i }),
+    ).not.toBeInTheDocument();
   });
 });

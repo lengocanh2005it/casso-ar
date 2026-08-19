@@ -41,4 +41,31 @@ describe('CassoFlowConnectForm', () => {
       expect(onCompleted).toHaveBeenCalled();
     });
   });
+
+  it('passes bankConnectionId and shows "Kết nối lại" for the reconnect case', async () => {
+    const mockConnect = vi.spyOn(api, 'connectCassoFlow').mockResolvedValue({
+      id: 'conn-1',
+      accountNumber: '88888888',
+      bankName: 'VPBank',
+      status: 'ACTIVE',
+      connectedAt: '2026-08-19T00:00:00.000Z',
+      lastSyncAt: null,
+      createdAt: '2026-08-19T00:00:00.000Z',
+    });
+
+    renderWithQuery(<CassoFlowConnectForm bankConnectionId="conn-1" />);
+
+    const input = screen.getByLabelText(/Casso Flow API Key/i);
+    const submitBtn = screen.getByRole('button', { name: /Kết nối lại/i });
+
+    fireEvent.change(input, { target: { value: 'new-api-key' } });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockConnect).toHaveBeenCalledWith({
+        apiKey: 'new-api-key',
+        bankConnectionId: 'conn-1',
+      });
+    });
+  });
 });
