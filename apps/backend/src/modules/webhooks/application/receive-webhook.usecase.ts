@@ -17,7 +17,7 @@ import {
 } from './webhook-job-queue.port';
 
 export interface ReceiveWebhookInput {
-  bankConnectionId: string;
+  grantId: string;
   organizationId?: string;
   transactionId: string;
   rawPayload: Record<string, unknown>;
@@ -42,8 +42,8 @@ export class ReceiveWebhookUseCase {
   ) {}
 
   async execute(input: ReceiveWebhookInput): Promise<ReceiveWebhookResult> {
-    const connection = await this.bankConnectionRepo.findByIdUnscoped(
-      input.bankConnectionId,
+    const connection = await this.bankConnectionRepo.findByGrantId(
+      input.grantId,
     );
     if (
       connection &&

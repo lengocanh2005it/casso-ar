@@ -1,18 +1,26 @@
+import { Type } from 'class-transformer';
 import {
   IsInt,
   IsISO8601,
   IsNotEmpty,
   IsOptional,
   IsString,
+  ValidateNested,
 } from 'class-validator';
 
-export class BalanceHookDto {
-  @IsOptional() @IsString() organizationId?: string;
-  @IsString() @IsNotEmpty() bankConnectionId: string;
-  @IsString() @IsNotEmpty() transactionId: string;
+export class BalanceHookTransactionDto {
+  @IsString() @IsNotEmpty() id: string;
   @IsInt() amount: number;
   @IsISO8601() transactionDateTime: string;
-  @IsString() @IsNotEmpty() counterpartyAccountNumber: string;
-  @IsString() @IsNotEmpty() counterpartyName: string;
-  @IsString() @IsNotEmpty() transferContent: string;
+  @IsOptional() description?: string | null;
+  @IsOptional() counterAccountNumber?: string | number | null;
+  @IsOptional() counterAccountName?: string | null;
+}
+
+export class BalanceHookDto {
+  @IsString() @IsNotEmpty() grantId: string;
+
+  @ValidateNested()
+  @Type(() => BalanceHookTransactionDto)
+  transaction: BalanceHookTransactionDto;
 }

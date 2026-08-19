@@ -1,10 +1,10 @@
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { type ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { WebhookAuthGuard } from './webhook-auth.guard';
 
-function fakeContext(headers: Record<string, string>): ExecutionContext {
+function fakeContext(ip: string | undefined): ExecutionContext {
   return {
     switchToHttp: () => ({
-      getRequest: () => ({ headers }),
+      getRequest: () => ({ ip }),
     }),
   } as unknown as ExecutionContext;
 }
@@ -13,7 +13,6 @@ describe('WebhookAuthGuard', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    jest.resetModules();
     process.env = { ...originalEnv };
   });
 
@@ -21,67 +20,32 @@ describe('WebhookAuthGuard', () => {
     process.env = originalEnv;
   });
 
-  it('throws if CASSO_WEBHOOK_CLIENT_ID is missing', () => {
-    delete process.env.CASSO_WEBHOOK_CLIENT_ID;
-    process.env.CASSO_WEBHOOK_SECRET_KEY = 'secret';
+  it('passes when the request IP is in the allowlist', () => {
+    process.env.CAS_ID_WEBHOOK_IP_ALLOWLIST = '20.2.69.168';
     const guard = new WebhookAuthGuard();
-    expect(() =>
-      guard.canActivate(
-        fakeContext({ 'x-client-id': 'any', 'x-secret-key': 'any' }),
-      ),
-    ).toThrow(UnauthorizedException);
+    expect(guard.canActivate(fakeContext('20.2.69.168'))).toBe(true);
   });
 
-  it('throws if CASSO_WEBHOOK_SECRET_KEY is missing', () => {
-    process.env.CASSO_WEBHOOK_CLIENT_ID = 'client';
-    delete process.env.CASSO_WEBHOOK_SECRET_KEY;
+  it('rejects when the request IP is not in the allowlist', () => {
+    process.env.CAS_ID_WEBHOOK_IP_ALLOWLIST = '20.2.69.168';
     const guard = new WebhookAuthGuard();
-    expect(() =>
-      guard.canActivate(
-        fakeContext({ 'x-client-id': 'any', 'x-secret-key': 'any' }),
-      ),
-    ).toThrow(UnauthorizedException);
+    expect(() => guard.canActivate(fakeContext('1.2.3.4'))).toThrow(
+      UnauthorizedException,
+    );
   });
 
-  it('throws if both env vars are empty strings', () => {
-    process.env.CASSO_WEBHOOK_CLIENT_ID = '';
-    process.env.CASSO_WEBHOOK_SECRET_KEY = '';
+  it('fails closed when the allowlist env var is unset', () => {
+    delete process.env.CAS_ID_WEBHOOK_IP_ALLOWLIST;
     const guard = new WebhookAuthGuard();
-    expect(() =>
-      guard.canActivate(fakeContext({ 'x-client-id': '', 'x-secret-key': '' })),
-    ).toThrow(UnauthorizedException);
+    expect(() => guard.canActivate(fakeContext('20.2.69.168'))).toThrow(
+      UnauthorizedException,
+    );
   });
 
-  it('rejects wrong credentials even when env vars are set', () => {
-    process.env.CASSO_WEBHOOK_CLIENT_ID = 'real-client';
-    process.env.CASSO_WEBHOOK_SECRET_KEY = 'real-secret';
+  it('rejects when the request has no IP', () => {
+    process.env.CAS_ID_WEBHOOK_IP_ALLOWLIST = '20.2.69.168';
     const guard = new WebhookAuthGuard();
-    expect(() =>
-      guard.canActivate(
-        fakeContext({ 'x-client-id': 'wrong', 'x-secret-key': 'wrong' }),
-      ),
-    ).toThrow(UnauthorizedException);
-  });
-
-  it('passes with correct credentials', () => {
-    process.env.CASSO_WEBHOOK_CLIENT_ID = 'real-client';
-    process.env.CASSO_WEBHOOK_SECRET_KEY = 'real-secret';
-    const guard = new WebhookAuthGuard();
-    expect(
-      guard.canActivate(
-        fakeContext({
-          'x-client-id': 'real-client',
-          'x-secret-key': 'real-secret',
-        }),
-      ),
-    ).toBe(true);
-  });
-
-  it('rejects if headers are missing', () => {
-    process.env.CASSO_WEBHOOK_CLIENT_ID = 'client';
-    process.env.CASSO_WEBHOOK_SECRET_KEY = 'secret';
-    const guard = new WebhookAuthGuard();
-    expect(() => guard.canActivate(fakeContext({}))).toThrow(
+    expect(() => guard.canActivate(fakeContext(undefined))).toThrow(
       UnauthorizedException,
     );
   });
