@@ -93,7 +93,7 @@ export class ReceiveWebhookUseCase {
     await this.webhookJobQueue.enqueue({
       webhookInboxId: inbox.id,
       organizationId: inbox.organizationId,
-      jobId: input.transactionId,
+      jobId: `tx-${input.transactionId}`,
     });
     return { received: true, duplicate: false };
   }

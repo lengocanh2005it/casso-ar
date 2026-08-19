@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
@@ -58,7 +57,6 @@ describe('Casso Flow bank connection flow (integration)', () => {
     configureApp(app);
     await app.init();
     dataSource = moduleRef.get(DataSource);
-    jwtService = moduleRef.get(JwtService);
   }, 60_000);
 
   afterAll(async () => {
