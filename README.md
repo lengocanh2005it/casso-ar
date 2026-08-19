@@ -43,6 +43,44 @@ casso-ledger/
     shared-types/     Shared BE/FE enums/statuses
 ```
 
+## Architecture
+
+Each backend module follows Clean Architecture in 4 layers, dependency flowing one direction only:
+
+```
+presentation/     Controller, DTO, DI wiring
+      ↓
+application/      Use case + repository port (interface)
+      ↓
+domain/           Entity, state machine, domain error — no NestJS/TypeORM imports
+      ↑
+infrastructure/   TypeORM repository, external adapters (Resend, Cas ID) — implements the port
+```
+
+`domain/` has zero framework dependencies; `application/` depends only on ports it defines, never on `infrastructure/`'s concrete classes — external SDKs and TypeORM live behind an adapter/repository implementation, injected at the module boundary.
+
+**Core domain flow** (see [docs/overview.md](docs/overview.md) for the full picture):
+
+```
+Invoice/Receivable created
+        ↓
+Cas ID bank connection → CASSO Balance Hook webhook
+        ↓
+WebhookInbox (idempotent) → Normalizer → Matching Engine
+        ↓
+Auto-allocate (score ≥ 90) / Exception Queue (60–89) / Unmatched (< 60)
+        ↓
+Payment ⇄ Receivable allocation → persisted rollup update (paidAmount/allocatedAmount)
+        ↓
+AR Ledger event appended (dual-write) + Receivable closes when fully paid
+```
+
+**Multi-tenancy:** shared-schema, `organizationId` on every table, enforced by `TenantContextService` — the only runtime source of the current org (ADR-0001).
+
+**Key modules:** `receivables`, `payments`, `invoices`, `customers` (AR core) · `webhooks`, `bank-connections` (Cas ID ingestion + matching) · `receivable-balance-history`, `ledger` (immutable financial history — snapshot log vs. event log, see ADR-0018/ADR-0020) · `reminders`, `email-templates`, `notifications` (collection automation) · `billing`, `payos` (subscription/plan) · `copilot` (AI collection assistant) · `disputes`, `exception-queue`, `collection-activity`, `internal-tasks` (exception handling & audit trail).
+
+Full module map, entities, and business rules: [CONTEXT.md](CONTEXT.md). Architecture decisions with rationale: [docs/adr/](docs/adr/).
+
 ## Documentation
 
 | Document | Path |
