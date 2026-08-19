@@ -25,6 +25,9 @@ function fillAndSubmit() {
   fireEvent.change(screen.getByLabelText(/tên tổ chức/i), {
     target: { value: 'Casso Ledger' },
   });
+  fireEvent.change(screen.getByLabelText(/mã số thuế/i), {
+    target: { value: '0101234567' },
+  });
   fireEvent.change(screen.getByLabelText(/họ và tên/i), {
     target: { value: 'New User' },
   });
@@ -96,5 +99,51 @@ describe('SignupPage', () => {
     await waitFor(() =>
       expect(screen.getByText(/không thể tạo tài khoản/i)).toBeVisible(),
     );
+  });
+
+  it('rejects a malformed tax code before submitting', async () => {
+    apiRequest.mockResolvedValue({
+      userId: 'u1',
+      organizationId: 'o1',
+      organizationStatus: 'ACTIVE',
+    });
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/signup']}>
+          <Routes>
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/verify-email" element={<div>verify email</div>} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
+    );
+    fireEvent.change(screen.getByLabelText(/tên tổ chức/i), {
+      target: { value: 'Casso Ledger' },
+    });
+    fireEvent.change(screen.getByLabelText(/mã số thuế/i), {
+      target: { value: '123' },
+    });
+    fireEvent.change(screen.getByLabelText(/họ và tên/i), {
+      target: { value: 'New User' },
+    });
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: 'new@casso.vn' },
+    });
+    fireEvent.change(screen.getByLabelText(/mật khẩu/i), {
+      target: { value: 'secret123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /tạo tài khoản/i }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/mã số thuế phải gồm 10 hoặc 13 chữ số/i),
+      ).toBeVisible(),
+    );
+    expect(apiRequest).not.toHaveBeenCalled();
   });
 });

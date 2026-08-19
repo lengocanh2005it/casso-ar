@@ -70,6 +70,9 @@ describe('signup and email verification', () => {
     fireEvent.change(screen.getByLabelText(/tên tổ chức/i), {
       target: { value: 'Casso Ledger' },
     });
+    fireEvent.change(screen.getByLabelText(/mã số thuế/i), {
+      target: { value: '0101234567' },
+    });
     fireEvent.change(screen.getByLabelText(/họ và tên/i), {
       target: { value: 'New User' },
     });
@@ -92,6 +95,7 @@ describe('signup and email verification', () => {
         name: 'New User',
         email: 'new@casso.vn',
         password: 'secret123',
+        taxCode: '0101234567',
       },
     });
   });

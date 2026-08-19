@@ -7,9 +7,12 @@ import { Spinner } from '@/components/ui/spinner';
 import { apiRequest, authTokenManager } from '@/lib/api-client';
 import { AuthLogoLink } from '../components/auth-logo-link';
 
+const TAX_CODE_PATTERN = /^\d{10}(\d{3})?$/;
+
 export function SignupPage() {
   const navigate = useNavigate();
   const [organizationName, setOrganizationName] = useState('');
+  const [taxCode, setTaxCode] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,15 +21,25 @@ export function SignupPage() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitting(true);
     setError(null);
 
+    if (!TAX_CODE_PATTERN.test(taxCode.trim())) {
+      setError('Mã số thuế phải gồm 10 hoặc 13 chữ số.');
+      return;
+    }
+
+    setSubmitting(true);
     try {
       authTokenManager.resetLogoutState();
-      await apiRequest<{ accessToken: string }>({
+      await apiRequest<{
+        userId: string;
+        organizationId: string;
+        organizationStatus: 'ACTIVE' | 'PENDING_REVIEW';
+        accessToken?: string;
+      }>({
         url: '/api/v1/auth/signup',
         method: 'POST',
-        data: { organizationName, name, email, password },
+        data: { organizationName, name, email, password, taxCode },
       });
       toast.success('Tạo tài khoản thành công.');
       navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`);
@@ -61,6 +74,20 @@ export function SignupPage() {
             placeholder="VD: Công ty TNHH ABC"
             value={organizationName}
             onChange={(event) => setOrganizationName(event.target.value)}
+            className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        </label>
+
+        <label className="block space-y-1">
+          <span className="text-sm font-medium">Mã số thuế</span>
+          <input
+            name="taxCode"
+            required
+            inputMode="numeric"
+            maxLength={13}
+            placeholder="VD: 0101234567"
+            value={taxCode}
+            onChange={(event) => setTaxCode(event.target.value)}
             className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </label>
