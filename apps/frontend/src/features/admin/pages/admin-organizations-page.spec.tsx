@@ -43,7 +43,7 @@ describe('AdminOrganizationsPage', () => {
     renderPage();
 
     expect(await screen.findByText('Acme')).toBeInTheDocument();
-    expect(adminApi.listOrganizations).toHaveBeenCalledWith(1, 50);
+    expect(adminApi.listOrganizations).toHaveBeenCalledWith(1, 50, 'ALL');
     const toggle = screen.getByRole('switch', { name: /acme/i });
     expect(toggle).toHaveAttribute('aria-checked', 'false');
 
@@ -159,7 +159,80 @@ describe('AdminOrganizationsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sau' }));
 
     await waitFor(() =>
-      expect(adminApi.listOrganizations).toHaveBeenLastCalledWith(2, 50),
+      expect(adminApi.listOrganizations).toHaveBeenLastCalledWith(2, 50, 'ALL'),
+    );
+  });
+
+  it('shows the tax-code match and approve/reject actions for a pending-review organization', async () => {
+    vi.mocked(adminApi.listOrganizations).mockResolvedValue({
+      items: [
+        {
+          id: 'org-1',
+          name: 'Acme',
+          status: 'PENDING_REVIEW',
+          taxCode: '0101234567',
+          taxCodeMatched: false,
+          taxCodeLookupName: 'ACME KHAC',
+          createdAt: '2026-08-01T00:00:00.000Z',
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 100,
+    });
+
+    renderPage();
+
+    expect(await screen.findByText('Acme')).toBeInTheDocument();
+    expect(screen.getByText('0101234567')).toBeInTheDocument();
+    expect(screen.getByText('ACME KHAC')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Duyệt' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Từ chối' })).toBeInTheDocument();
+  });
+
+  it('rejects a pending organization with a required reason', async () => {
+    vi.mocked(adminApi.listOrganizations).mockResolvedValue({
+      items: [
+        {
+          id: 'org-1',
+          name: 'Acme',
+          status: 'PENDING_REVIEW',
+          taxCode: '0101234567',
+          taxCodeMatched: false,
+          taxCodeLookupName: 'ACME KHAC',
+          createdAt: '2026-08-01T00:00:00.000Z',
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 100,
+    });
+    vi.mocked(adminApi.rejectOrganization).mockResolvedValue({
+      status: 'REJECTED',
+    });
+
+    renderPage();
+
+    expect(await screen.findByText('Acme')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Từ chối' }));
+
+    const submitButton = await screen.findByRole('button', {
+      name: 'Xác nhận từ chối',
+    });
+    expect(submitButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText(/lý do từ chối/i), {
+      target: { value: 'MST không khớp' },
+    });
+    expect(submitButton).toBeEnabled();
+
+    fireEvent.click(submitButton);
+
+    await waitFor(() =>
+      expect(adminApi.rejectOrganization).toHaveBeenCalledWith(
+        'org-1',
+        'MST không khớp',
+      ),
     );
   });
 });
