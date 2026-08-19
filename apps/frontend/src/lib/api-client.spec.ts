@@ -16,6 +16,7 @@ import {
   apiRequest,
   apiRequestWithHeaders,
   getApiErrorCode,
+  getApiErrorMessage,
 } from './api-client';
 
 function tokenWithExpiry(expiresAt: number): string {
@@ -224,5 +225,21 @@ describe('getApiErrorCode', () => {
     expect(getApiErrorCode(new Error('plain error'))).toBeUndefined();
     expect(getApiErrorCode({ response: { data: {} } })).toBeUndefined();
     expect(getApiErrorCode(null)).toBeUndefined();
+  });
+});
+
+describe('getApiErrorMessage', () => {
+  it('returns the backend message from an axios-shaped error', () => {
+    expect(
+      getApiErrorMessage({
+        response: { data: { message: 'Tổ chức của bạn đang chờ được duyệt.' } },
+      }),
+    ).toBe('Tổ chức của bạn đang chờ được duyệt.');
+  });
+
+  it('returns undefined for values that are not axios-shaped API errors', () => {
+    expect(getApiErrorMessage(new Error('plain error'))).toBeUndefined();
+    expect(getApiErrorMessage({ response: { data: {} } })).toBeUndefined();
+    expect(getApiErrorMessage(null)).toBeUndefined();
   });
 });
