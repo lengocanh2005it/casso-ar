@@ -6,9 +6,9 @@ import {
   type IBankConnectionRepository,
 } from './bank-connection-repository.port';
 import {
-  CAS_ID_INTEGRATION_ADAPTER,
-  type ICasIdIntegrationAdapter,
-} from './cas-id-integration-adapter.port';
+  CASSO_FLOW_INTEGRATION_ADAPTER,
+  type ICassoFlowIntegrationAdapter,
+} from './casso-flow-integration-adapter.port';
 import { MarkRequiresReauthorizationUseCase } from './mark-requires-reauthorization.usecase';
 import { decryptToken } from './token-encryption';
 import { ACCESS_TOKEN_ENCRYPTION_KEY } from './token-encryption-key';
@@ -16,8 +16,8 @@ import { ACCESS_TOKEN_ENCRYPTION_KEY } from './token-encryption-key';
 @Injectable()
 export class SyncTransactionsUseCase {
   constructor(
-    @Inject(CAS_ID_INTEGRATION_ADAPTER)
-    private readonly adapter: ICasIdIntegrationAdapter,
+    @Inject(CASSO_FLOW_INTEGRATION_ADAPTER)
+    private readonly adapter: ICassoFlowIntegrationAdapter,
     @Inject(BANK_CONNECTION_REPOSITORY)
     private readonly bankConnectionRepo: IBankConnectionRepository,
     private readonly markRequiresReauthorization: MarkRequiresReauthorizationUseCase,
@@ -38,7 +38,7 @@ export class SyncTransactionsUseCase {
       );
     try {
       return await this.adapter.getTransactions(
-        decryptToken(connection.encryptedAccessToken, this.encryptionKey),
+        decryptToken(connection.encryptedCassoApiKey, this.encryptionKey),
       );
     } catch (error) {
       await this.markRequiresReauthorization.handleAdapterError(

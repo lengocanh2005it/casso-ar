@@ -44,8 +44,21 @@ export class TypeOrmBankConnectionRepository
     return row ? new BankConnection(row) : null;
   }
 
-  async findByGrantId(grantId: string): Promise<BankConnection | null> {
-    const row = await this.ormRepo.findOne({ where: { grantId } });
+  async findByAccountNumber(
+    accountNumber: string,
+  ): Promise<BankConnection | null> {
+    const row = await this.ormRepo.findOne({ where: { accountNumber } });
+    return row ? new BankConnection(row) : null;
+  }
+
+  async findActiveOrReauthorizableByOrganizationForUpdate(
+    organizationId: string,
+    manager: EntityManager,
+  ): Promise<BankConnection | null> {
+    const row = await manager.findOne(BankConnectionOrmEntity, {
+      where: { organizationId },
+      lock: { mode: 'pessimistic_write' },
+    });
     return row ? new BankConnection(row) : null;
   }
 

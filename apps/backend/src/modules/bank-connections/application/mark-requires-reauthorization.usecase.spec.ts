@@ -1,5 +1,5 @@
 import { BankConnection } from '../domain/bank-connection';
-import { CasIdUnauthorizedError } from './cas-id-integration-adapter.port';
+import { CassoFlowUnauthorizedError } from './casso-flow-integration-adapter.port';
 import { MarkRequiresReauthorizationUseCase } from './mark-requires-reauthorization.usecase';
 
 function connectionWithStatus(
@@ -119,7 +119,7 @@ describe('MarkRequiresReauthorizationUseCase', () => {
   });
 
   describe('handleAdapterError', () => {
-    it('marks the connection and rethrows on a CasIdUnauthorizedError', async () => {
+    it('marks the connection and rethrows on a CassoFlowUnauthorizedError', async () => {
       const connection = connectionWithStatus('ACTIVE');
       const bankConnectionRepo = {
         findByIdUnscoped: jest.fn().mockResolvedValue(connection),
@@ -130,7 +130,7 @@ describe('MarkRequiresReauthorizationUseCase', () => {
         bankConnectionRepo,
         auditEventRepo,
       );
-      const error = new CasIdUnauthorizedError();
+      const error = new CassoFlowUnauthorizedError();
 
       await expect(
         useCase.handleAdapterError(

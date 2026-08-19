@@ -12,7 +12,7 @@ import {
   BANK_CONNECTION_REPOSITORY,
   type IBankConnectionRepository,
 } from './bank-connection-repository.port';
-import { CasIdUnauthorizedError } from './cas-id-integration-adapter.port';
+import { CassoFlowUnauthorizedError } from './casso-flow-integration-adapter.port';
 import {
   CONNECTION_AUDIT_EVENT_REPOSITORY,
   type IConnectionAuditEventRepository,
@@ -43,7 +43,7 @@ export class MarkRequiresReauthorizationUseCase {
   ) {}
 
   // Shared by every adapter caller (disconnect, sync-transactions): on a
-  // Cas ID 401/403, mark the connection REQUIRES_REAUTHORIZATION; on any
+  // Casso Flow 401/403, mark the connection REQUIRES_REAUTHORIZATION; on any
   // other adapter failure (5xx, network timeout) mark it ERROR — in both
   // cases persist the transition + audit atomically, then rethrow so the
   // caller's own retry/queue policy still applies.
@@ -52,7 +52,7 @@ export class MarkRequiresReauthorizationUseCase {
     reason: string,
     error: unknown,
   ): Promise<never> {
-    if (error instanceof CasIdUnauthorizedError) {
+    if (error instanceof CassoFlowUnauthorizedError) {
       await this.execute(connectionId, reason);
     } else {
       await this.markError(connectionId, reason);
@@ -64,7 +64,7 @@ export class MarkRequiresReauthorizationUseCase {
     await this.markStatus(connectionId, reason, 'ERROR');
   }
 
-  // Called from disconnect/sync-transactions' Cas ID 401/403 handling —
+  // Called from disconnect/sync-transactions' Casso Flow 401/403 handling —
   // findByIdUnscoped is deliberate here, see bank-connection-repository.port.ts.
   async execute(connectionId: string, reason: string): Promise<void> {
     await this.markStatus(connectionId, reason, 'REQUIRES_REAUTHORIZATION');

@@ -1,6 +1,6 @@
 import { AppError } from '../../../common/errors/app-error';
 import { BankConnection } from '../domain/bank-connection';
-import { CasIdUnauthorizedError } from './cas-id-integration-adapter.port';
+import { CassoFlowUnauthorizedError } from './casso-flow-integration-adapter.port';
 import { DisconnectConnectionUseCase } from './disconnect-connection.usecase';
 import { encryptToken } from './token-encryption';
 
@@ -85,7 +85,7 @@ describe('DisconnectConnectionUseCase', () => {
     const adapter = {
       invalidateToken: jest
         .fn()
-        .mockRejectedValue(new CasIdUnauthorizedError()),
+        .mockRejectedValue(new CassoFlowUnauthorizedError()),
     };
     const auditEventRepo = { save: jest.fn() };
     const markRequiresReauthorization = {
@@ -106,12 +106,12 @@ describe('DisconnectConnectionUseCase', () => {
     );
 
     await expect(useCase.execute('conn-1')).rejects.toBeInstanceOf(
-      CasIdUnauthorizedError,
+      CassoFlowUnauthorizedError,
     );
     expect(markRequiresReauthorization.handleAdapterError).toHaveBeenCalledWith(
       'conn-1',
       '401/403 from invalidateToken',
-      expect.any(CasIdUnauthorizedError),
+      expect.any(CassoFlowUnauthorizedError),
     );
     expect(bankConnectionRepo.save).not.toHaveBeenCalled();
     expect(auditEventRepo.save).not.toHaveBeenCalled();

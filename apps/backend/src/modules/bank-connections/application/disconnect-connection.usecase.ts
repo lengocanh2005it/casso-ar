@@ -11,9 +11,9 @@ import {
   type IBankConnectionRepository,
 } from './bank-connection-repository.port';
 import {
-  CAS_ID_INTEGRATION_ADAPTER,
-  type ICasIdIntegrationAdapter,
-} from './cas-id-integration-adapter.port';
+  CASSO_FLOW_INTEGRATION_ADAPTER,
+  type ICassoFlowIntegrationAdapter,
+} from './casso-flow-integration-adapter.port';
 import {
   CONNECTION_AUDIT_EVENT_REPOSITORY,
   type IConnectionAuditEventRepository,
@@ -27,8 +27,8 @@ export class DisconnectConnectionUseCase {
   constructor(
     @Inject(BANK_CONNECTION_REPOSITORY)
     private readonly bankConnectionRepo: IBankConnectionRepository,
-    @Inject(CAS_ID_INTEGRATION_ADAPTER)
-    private readonly adapter: ICasIdIntegrationAdapter,
+    @Inject(CASSO_FLOW_INTEGRATION_ADAPTER)
+    private readonly adapter: ICassoFlowIntegrationAdapter,
     @Inject(CONNECTION_AUDIT_EVENT_REPOSITORY)
     private readonly auditEventRepo: IConnectionAuditEventRepository,
     private readonly markRequiresReauthorization: MarkRequiresReauthorizationUseCase,
@@ -44,7 +44,7 @@ export class DisconnectConnectionUseCase {
     // External call stays outside the transaction — only the DB writes below are wrapped.
     try {
       await this.adapter.invalidateToken(
-        decryptToken(connection.encryptedAccessToken, this.encryptionKey),
+        decryptToken(connection.encryptedCassoApiKey, this.encryptionKey),
       );
     } catch (error) {
       await this.markRequiresReauthorization.handleAdapterError(
