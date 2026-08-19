@@ -19,7 +19,9 @@ export interface AuthEmailJob {
     | 'AUTH_PASSWORD_RESET'
     | 'AUTH_INVITE'
     | 'MEMBER_BLOCKED'
-    | 'MEMBER_UNBLOCKED';
+    | 'MEMBER_UNBLOCKED'
+    | 'ORGANIZATION_APPROVED'
+    | 'ORGANIZATION_REJECTED';
 }
 
 export interface OwnerAlertEmailJob {

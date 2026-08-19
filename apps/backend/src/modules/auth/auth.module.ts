@@ -10,6 +10,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { ProfileModule } from '../profile/profile.module';
 import { RemindersModule } from '../reminders/reminders.module';
+import { TaxVerificationModule } from '../tax-verification/tax-verification.module';
 import { UsersModule } from '../users/users.module';
 import { AcceptInviteUseCase } from './application/accept-invite.usecase';
 import { AUTH_EMAIL_SENDER } from './application/auth-email-sender.port';
@@ -75,6 +76,7 @@ import { InvitesController } from './presentation/invites.controller';
     EmailTemplatesModule,
     NotificationsModule,
     RemindersModule,
+    TaxVerificationModule,
   ],
   providers: [
     LoginUseCase,

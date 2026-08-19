@@ -117,6 +117,7 @@ async function main() {
       name: 'Seed Owner',
       email: SEED_OWNER_EMAIL,
       password: SEED_OWNER_PASSWORD,
+      taxCode: '0000000000',
     });
     await userRepo.save(user.markEmailVerified());
 

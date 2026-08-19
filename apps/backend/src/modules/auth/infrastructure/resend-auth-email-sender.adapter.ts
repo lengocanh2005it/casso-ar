@@ -135,4 +135,54 @@ export class ResendAuthEmailSenderAdapter
       );
     }
   }
+
+  async sendOrganizationApprovedEmail(
+    to: string,
+    organizationName: string,
+  ): Promise<void> {
+    try {
+      await this.emailQueue.add('send-auth-email', {
+        to,
+        subject: `Tổ chức ${organizationName} đã được duyệt`,
+        html: `<p>Tổ chức ${organizationName} của bạn trên Casso đã được duyệt. Bạn có thể đăng nhập để sử dụng dịch vụ.</p>`,
+        emailType: 'ORGANIZATION_APPROVED',
+      });
+    } catch (error) {
+      this.logger.error('Failed to enqueue organization approved email', {
+        to,
+        organizationName,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw AppError.withCause(
+        error,
+        ErrorCode.EMAIL_SEND_FAILED,
+        'Không thể gửi email thông báo duyệt tổ chức.',
+      );
+    }
+  }
+
+  async sendOrganizationRejectedEmail(
+    to: string,
+    organizationName: string,
+  ): Promise<void> {
+    try {
+      await this.emailQueue.add('send-auth-email', {
+        to,
+        subject: `Đăng ký tổ chức ${organizationName} chưa được chấp thuận`,
+        html: `<p>Đăng ký tổ chức ${organizationName} trên Casso chưa được chấp thuận. Vui lòng liên hệ đội ngũ hỗ trợ nếu bạn cho rằng đây là nhầm lẫn.</p>`,
+        emailType: 'ORGANIZATION_REJECTED',
+      });
+    } catch (error) {
+      this.logger.error('Failed to enqueue organization rejected email', {
+        to,
+        organizationName,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw AppError.withCause(
+        error,
+        ErrorCode.EMAIL_SEND_FAILED,
+        'Không thể gửi email thông báo từ chối tổ chức.',
+      );
+    }
+  }
 }
