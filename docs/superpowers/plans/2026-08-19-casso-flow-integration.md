@@ -2,33 +2,34 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Remove the merged Cas ID integration entirely and replace it with a Casso Flow integration matching how that third-party provider actually works: OAuth2-read-only access + self-registered webhook, not an Open-Banking consent popup.
+**Goal:** Remove the merged Cas ID integration entirely and replace it with a Casso Flow integration: a business pastes their own Casso API Key, this product reads their linked account and registers a webhook on their behalf — no popup, no OAuth2 (Casso's partner-app OAuth2 registration is permanently closed).
 
-**Architecture:** `CassoOAuthState` (CSRF-only, replaces `CasIdConnectionSession`) tracks the OAuth2 redirect round-trip. `BankConnection` is redesigned around `accountNumber` (webhook correlation key) and a self-generated `encryptedSecureToken` (webhook verification secret) instead of `grantId`/`encryptedAccessToken`. `CassoFlowAdapter` (replaces `CasIdAdapter`) calls Casso Flow's real OAuth2 + webhook-registration endpoints. Inbound webhooks resolve by `accountNumber` then verify per-connection inside `ReceiveWebhookUseCase` itself — `WebhookAuthGuard` is removed, not repurposed.
+**Architecture:** `BankConnection` is redesigned around `accountNumber` (webhook correlation key), a self-generated `encryptedSecureToken` (webhook verification secret), and `encryptedCassoApiKey` (the organization's own, non-expiring Casso API Key). A single `ConnectCassoFlowUseCase` calls Casso Flow's real `/v2/userInfo` + `/v2/webhooks` endpoints synchronously inside one request — there is no multi-step redirect flow, so no CSRF-state entity is needed. Inbound webhooks resolve by `accountNumber` then verify per-connection inside `ReceiveWebhookUseCase` itself — `WebhookAuthGuard` is removed, not repurposed.
 
 **Tech Stack:** NestJS 11, TypeORM 1.1, React 19, class-validator/class-transformer, Jest 30/Vitest, testcontainers.
 
-**Spec:** `docs/superpowers/specs/2026-08-19-casso-flow-integration-design.md` (supersedes `2026-08-19-cas-id-real-integration-design.md`). Also read `docs/adr/0021-casso-flow-not-cas-id-for-bank-integration.md`.
+**Spec:** `docs/superpowers/specs/2026-08-19-casso-flow-integration-design.md` §3's revision (API Key, not OAuth2 — read this section specifically, it supersedes an earlier version of the same doc). Also read `docs/adr/0021-casso-flow-not-cas-id-for-bank-integration.md`.
 
 ## Global Constraints
 
-- Every write that changes state MUST be inside one DB transaction; tenant isolation via `organizationId` except the documented unscoped exceptions (webhook resolution has no request tenant context).
+- Every write that changes state MUST be inside one DB transaction; tenant isolation via `organizationId` except the documented unscoped exception (webhook resolution has no request tenant context).
 - `application/` layer MUST NOT import concrete SDKs or throw framework exceptions — only `AppError`. `infrastructure/` may use `fetch`/`AbortController`/`@nestjs/common` DI decorators.
 - No `any` in production code. Domain ↔ ORM translation stays structural (no `as`/`as unknown as`), matching this module's existing `TypeOrmBankConnectionRepository` pattern.
 - Webhook secret comparison MUST use `common/security/constant-time-compare.ts` (already exists) — never `===` on a secret.
-- **Do not guess the two items the spec explicitly defers** (§3/§4 of the spec): the OAuth2 `scope` param value, and whether Casso Flow's real webhook delivery uses a `secure-token` header or `X-Casso-Signature`. Task 5 and Task 11 call out exactly where to verify these against real behavior instead of assuming.
+- **Do not guess the one item the spec explicitly defers** (spec §3): whether Casso Flow's real webhook delivery uses a `secure-token` header or `X-Casso-Signature`. Task 10 calls out exactly where to verify this against real behavior instead of assuming.
+- **Do not touch `CASSO_WEBHOOK_CLIENT_ID`/`CASSO_WEBHOOK_SECRET_KEY`** — spec §3 explains these are not Casso Flow API credentials this flow uses (a Casso API Key is one string, not a client_id+secret pair); leave them exactly as they are in `.env`/`.env.example`.
 - TDD: RED → GREEN → REFACTOR for every behavior change. Migrations follow this repo's existing migration-spec convention (`queryRunner.query` assertions), not full TDD against a real DB — stated exception per AGENTS.md.
 - Biome: single quotes, semicolons, 2-space indent — run `npx biome check --write <files>` at the end of each task.
 
 ---
 
-## Task 1: Migration — replace Cas ID columns/tables with Casso Flow's
+## Task 1: Migration — replace Cas ID columns/table with Casso Flow's
 
 **Files:**
 - Create: `apps/backend/src/database/migrations/20260828000000-replace-cas-id-with-casso-flow.ts`
 - Create: `apps/backend/src/database/migrations/20260828000000-replace-cas-id-with-casso-flow.spec.ts`
 
-Per ADR-0021 and the confirmed "no production data" state, this is a clean drop/add — no backfill.
+Per ADR-0021 and the confirmed "no production data" state, this is a clean drop/add — no backfill. No new table needed (no `CassoOAuthState` — the connect flow is a single synchronous request, nothing to persist mid-flow).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -37,7 +38,7 @@ import type { QueryRunner } from 'typeorm';
 import { ReplaceCasIdWithCassoFlow20260828000000 } from './20260828000000-replace-cas-id-with-casso-flow';
 
 describe('ReplaceCasIdWithCassoFlow20260828000000', () => {
-  it('drops Cas ID columns/table and adds Casso Flow columns/table on up', async () => {
+  it('drops Cas ID columns/table and adds Casso Flow columns on up', async () => {
     const migration = new ReplaceCasIdWithCassoFlow20260828000000();
     const query = jest.fn().mockResolvedValue([]);
     const queryRunner = { query } as unknown as QueryRunner;
@@ -69,23 +70,12 @@ describe('ReplaceCasIdWithCassoFlow20260828000000', () => {
       'ALTER TABLE "bank_connections" ADD COLUMN "encryptedSecureToken" text NOT NULL',
     );
     expect(query).toHaveBeenCalledWith(
-      'ALTER TABLE "bank_connections" ADD COLUMN "encryptedCassoAccessToken" text NOT NULL',
-    );
-    expect(query).toHaveBeenCalledWith(
-      'ALTER TABLE "bank_connections" ADD COLUMN "encryptedCassoRefreshToken" text NOT NULL',
+      'ALTER TABLE "bank_connections" ADD COLUMN "encryptedCassoApiKey" text NOT NULL',
     );
     expect(query).toHaveBeenCalledWith(
       'CREATE UNIQUE INDEX "UQ_bank_connections_account_number" ON "bank_connections" ("accountNumber")',
     );
     expect(query).toHaveBeenCalledWith('DROP TABLE IF EXISTS "cas_id_connection_sessions"');
-    expect(query).toHaveBeenCalledWith(
-      'CREATE TABLE "casso_oauth_states" (' +
-        '"id" uuid PRIMARY KEY, ' +
-        '"organizationId" uuid NOT NULL, ' +
-        '"initiatedByUserId" uuid NOT NULL, ' +
-        '"expiresAt" timestamptz NOT NULL, ' +
-        '"createdAt" timestamptz NOT NULL)',
-    );
   });
 
   it('is destructive on down (no Cas ID data to restore)', async () => {
@@ -95,9 +85,11 @@ describe('ReplaceCasIdWithCassoFlow20260828000000', () => {
 
     await migration.down(queryRunner);
 
-    expect(query).toHaveBeenCalledWith('DROP TABLE IF EXISTS "casso_oauth_states"');
     expect(query).toHaveBeenCalledWith(
-      'ALTER TABLE "bank_connections" DROP COLUMN IF EXISTS "accountNumber"',
+      'DROP INDEX IF EXISTS "UQ_bank_connections_account_number"',
+    );
+    expect(query).toHaveBeenCalledWith(
+      'ALTER TABLE "bank_connections" DROP COLUMN IF EXISTS "encryptedCassoApiKey"',
     );
   });
 });
@@ -144,35 +136,20 @@ export class ReplaceCasIdWithCassoFlow20260828000000
       'ALTER TABLE "bank_connections" ADD COLUMN "encryptedSecureToken" text NOT NULL',
     );
     await queryRunner.query(
-      'ALTER TABLE "bank_connections" ADD COLUMN "encryptedCassoAccessToken" text NOT NULL',
-    );
-    await queryRunner.query(
-      'ALTER TABLE "bank_connections" ADD COLUMN "encryptedCassoRefreshToken" text NOT NULL',
+      'ALTER TABLE "bank_connections" ADD COLUMN "encryptedCassoApiKey" text NOT NULL',
     );
     await queryRunner.query(
       'CREATE UNIQUE INDEX "UQ_bank_connections_account_number" ON "bank_connections" ("accountNumber")',
     );
     await queryRunner.query('DROP TABLE IF EXISTS "cas_id_connection_sessions"');
-    await queryRunner.query(
-      'CREATE TABLE "casso_oauth_states" (' +
-        '"id" uuid PRIMARY KEY, ' +
-        '"organizationId" uuid NOT NULL, ' +
-        '"initiatedByUserId" uuid NOT NULL, ' +
-        '"expiresAt" timestamptz NOT NULL, ' +
-        '"createdAt" timestamptz NOT NULL)',
-    );
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query('DROP TABLE IF EXISTS "casso_oauth_states"');
     await queryRunner.query(
       'DROP INDEX IF EXISTS "UQ_bank_connections_account_number"',
     );
     await queryRunner.query(
-      'ALTER TABLE "bank_connections" DROP COLUMN IF EXISTS "encryptedCassoRefreshToken"',
-    );
-    await queryRunner.query(
-      'ALTER TABLE "bank_connections" DROP COLUMN IF EXISTS "encryptedCassoAccessToken"',
+      'ALTER TABLE "bank_connections" DROP COLUMN IF EXISTS "encryptedCassoApiKey"',
     );
     await queryRunner.query(
       'ALTER TABLE "bank_connections" DROP COLUMN IF EXISTS "encryptedSecureToken"',
@@ -192,190 +169,24 @@ export class ReplaceCasIdWithCassoFlow20260828000000
 Run: `cd apps/backend && npx jest --testPathPatterns 20260828000000-replace-cas-id-with-casso-flow`
 Expected: PASS (2 tests).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Delete the now-unused `CasIdConnectionSession` domain/port/ORM/repository files**
+
+```bash
+git rm apps/backend/src/modules/bank-connections/domain/cas-id-connection-session.ts apps/backend/src/modules/bank-connections/application/cas-id-connection-session-repository.port.ts apps/backend/src/modules/bank-connections/infrastructure/cas-id-connection-session.orm-entity.ts apps/backend/src/modules/bank-connections/infrastructure/typeorm-cas-id-connection-session.repository.ts
+```
+
+(This leaves `bank-connections.module.ts`/`initiate-connection.usecase.ts`/`exchange-token.usecase.ts` referencing deleted files broken — expected, fixed in Task 6/7. Do not run the full suite/tsc yet.)
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add apps/backend/src/database/migrations/20260828000000-replace-cas-id-with-casso-flow.ts apps/backend/src/database/migrations/20260828000000-replace-cas-id-with-casso-flow.spec.ts
-git commit -m "feat: migration replacing Cas ID columns/tables with Casso Flow's"
+git commit -m "feat: migration replacing Cas ID columns/table with Casso Flow's; remove CasIdConnectionSession"
 ```
 
 ---
 
-## Task 2: `CassoOAuthState` domain + port + ORM + repository (replaces `CasIdConnectionSession`)
-
-**Files:**
-- Create: `apps/backend/src/modules/bank-connections/domain/casso-oauth-state.ts`
-- Create: `apps/backend/src/modules/bank-connections/domain/casso-oauth-state.spec.ts`
-- Create: `apps/backend/src/modules/bank-connections/application/casso-oauth-state-repository.port.ts`
-- Create: `apps/backend/src/modules/bank-connections/infrastructure/casso-oauth-state.orm-entity.ts`
-- Create: `apps/backend/src/modules/bank-connections/infrastructure/typeorm-casso-oauth-state.repository.ts`
-- Delete: `apps/backend/src/modules/bank-connections/domain/cas-id-connection-session.ts`
-- Delete: `apps/backend/src/modules/bank-connections/application/cas-id-connection-session-repository.port.ts`
-- Delete: `apps/backend/src/modules/bank-connections/infrastructure/cas-id-connection-session.orm-entity.ts`
-- Delete: `apps/backend/src/modules/bank-connections/infrastructure/typeorm-cas-id-connection-session.repository.ts`
-
-**Interfaces:**
-- Produces: `CassoOAuthState { id, organizationId, initiatedByUserId, expiresAt, createdAt }`, `isExpired(now: Date): boolean`; `ICassoOAuthStateRepository { findById, save }`; DI token `CASSO_OAUTH_STATE_REPOSITORY`. Task 6/7 consume these.
-
-- [ ] **Step 1: Write the failing test**
-
-```ts
-import { CassoOAuthState } from './casso-oauth-state';
-
-function buildState(expiresAt: Date): CassoOAuthState {
-  return new CassoOAuthState({
-    id: 'state-1',
-    organizationId: 'org-1',
-    initiatedByUserId: 'user-1',
-    expiresAt,
-    createdAt: new Date(),
-  });
-}
-
-describe('CassoOAuthState', () => {
-  it('is not expired before expiresAt', () => {
-    const state = buildState(new Date(Date.now() + 60_000));
-    expect(state.isExpired(new Date())).toBe(false);
-  });
-
-  it('is expired at or after expiresAt', () => {
-    const state = buildState(new Date(Date.now() - 1));
-    expect(state.isExpired(new Date())).toBe(true);
-  });
-});
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `cd apps/backend && npx jest --testPathPatterns casso-oauth-state.spec.ts`
-Expected: FAIL — module not found.
-
-- [ ] **Step 3: Write minimal implementation**
-
-`apps/backend/src/modules/bank-connections/domain/casso-oauth-state.ts`:
-
-```ts
-export interface CassoOAuthStateProps {
-  id: string;
-  organizationId: string;
-  initiatedByUserId: string;
-  expiresAt: Date;
-  createdAt: Date;
-}
-
-// CSRF-protection record for the Casso Flow OAuth2 redirect round-trip only
-// — not a multi-step "grant session". Casso Flow's OAuth2 is standard
-// authorization-code, so there is nothing between "redirected" and
-// "callback received" that needs its own status/state machine.
-export class CassoOAuthState {
-  readonly id: string;
-  readonly organizationId: string;
-  readonly initiatedByUserId: string;
-  readonly expiresAt: Date;
-  readonly createdAt: Date;
-
-  constructor(props: CassoOAuthStateProps) {
-    Object.assign(this, props);
-  }
-
-  isExpired(now: Date): boolean {
-    return this.expiresAt.getTime() <= now.getTime();
-  }
-}
-```
-
-`apps/backend/src/modules/bank-connections/application/casso-oauth-state-repository.port.ts`:
-
-```ts
-import type { CassoOAuthState } from '../domain/casso-oauth-state';
-
-export interface ICassoOAuthStateRepository {
-  findById(id: string): Promise<CassoOAuthState | null>;
-  save(state: CassoOAuthState): Promise<void>;
-  delete(id: string): Promise<void>;
-}
-
-export const CASSO_OAUTH_STATE_REPOSITORY = Symbol('CASSO_OAUTH_STATE_REPOSITORY');
-```
-
-`apps/backend/src/modules/bank-connections/infrastructure/casso-oauth-state.orm-entity.ts`:
-
-```ts
-import { Column, Entity, PrimaryColumn } from 'typeorm';
-
-@Entity({ name: 'casso_oauth_states' })
-export class CassoOAuthStateOrmEntity {
-  @PrimaryColumn('uuid')
-  id: string;
-
-  @Column({ type: 'uuid' })
-  organizationId: string;
-
-  @Column({ type: 'uuid' })
-  initiatedByUserId: string;
-
-  @Column({ type: 'timestamptz' })
-  expiresAt: Date;
-
-  @Column({ type: 'timestamptz' })
-  createdAt: Date;
-}
-```
-
-`apps/backend/src/modules/bank-connections/infrastructure/typeorm-casso-oauth-state.repository.ts`:
-
-```ts
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import type { Repository } from 'typeorm';
-import type { ICassoOAuthStateRepository } from '../application/casso-oauth-state-repository.port';
-import { CassoOAuthState } from '../domain/casso-oauth-state';
-import { CassoOAuthStateOrmEntity } from './casso-oauth-state.orm-entity';
-
-@Injectable()
-export class TypeOrmCassoOAuthStateRepository
-  implements ICassoOAuthStateRepository
-{
-  constructor(
-    @InjectRepository(CassoOAuthStateOrmEntity)
-    private readonly ormRepo: Repository<CassoOAuthStateOrmEntity>,
-  ) {}
-
-  async findById(id: string): Promise<CassoOAuthState | null> {
-    const row = await this.ormRepo.findOne({ where: { id } });
-    return row ? new CassoOAuthState(row) : null;
-  }
-
-  async save(state: CassoOAuthState): Promise<void> {
-    await this.ormRepo.save(state);
-  }
-
-  async delete(id: string): Promise<void> {
-    await this.ormRepo.delete({ id });
-  }
-}
-```
-
-Delete the 4 Cas ID files listed above.
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `cd apps/backend && npx jest --testPathPatterns casso-oauth-state.spec.ts`
-Expected: PASS (2 tests).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add apps/backend/src/modules/bank-connections/domain/casso-oauth-state.ts apps/backend/src/modules/bank-connections/domain/casso-oauth-state.spec.ts apps/backend/src/modules/bank-connections/application/casso-oauth-state-repository.port.ts apps/backend/src/modules/bank-connections/infrastructure/casso-oauth-state.orm-entity.ts apps/backend/src/modules/bank-connections/infrastructure/typeorm-casso-oauth-state.repository.ts
-git rm apps/backend/src/modules/bank-connections/domain/cas-id-connection-session.ts apps/backend/src/modules/bank-connections/application/cas-id-connection-session-repository.port.ts apps/backend/src/modules/bank-connections/infrastructure/cas-id-connection-session.orm-entity.ts apps/backend/src/modules/bank-connections/infrastructure/typeorm-cas-id-connection-session.repository.ts
-git commit -m "feat: replace CasIdConnectionSession with CassoOAuthState"
-```
-
-(This task leaves `initiate-connection.usecase.ts`/`exchange-token.usecase.ts` and the module wiring referencing the deleted files broken — expected, fixed in Task 6/7/8. Do not run the full suite/tsc yet; that happens at the end of Task 8.)
-
----
-
-## Task 3: Redesign `BankConnection` domain + fix every existing construction call site
+## Task 2: Redesign `BankConnection` domain + fix every existing construction call site
 
 **Files:**
 - Modify: `apps/backend/src/modules/bank-connections/domain/bank-connection.ts`
@@ -386,7 +197,7 @@ git commit -m "feat: replace CasIdConnectionSession with CassoOAuthState"
 - Modify: `apps/backend/src/modules/bank-connections/application/sync-transactions.usecase.spec.ts`
 
 **Interfaces:**
-- Produces: `BankConnectionProps { id, organizationId, accountNumber, bankName, encryptedSecureToken, encryptedCassoAccessToken, encryptedCassoRefreshToken, status, connectedAt, lastSyncAt, revokedAt, createdAt }`, `reactivate(input: { accountNumber, bankName, encryptedSecureToken, encryptedCassoAccessToken, encryptedCassoRefreshToken })`. Task 4 (repository), Task 7 (exchange use case), Task 8 (response DTO) all depend on this exact shape.
+- Produces: `BankConnectionProps { id, organizationId, accountNumber, bankName, encryptedSecureToken, encryptedCassoApiKey, status, connectedAt, lastSyncAt, revokedAt, createdAt }`, `reactivate(input: { accountNumber, bankName, encryptedSecureToken, encryptedCassoApiKey })`. Task 3 (repository), Task 6 (connect use case), Task 7 (response DTO) all depend on this exact shape.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -402,8 +213,7 @@ function activeConnection(): BankConnection {
     accountNumber: '0011002233',
     bankName: 'Mock Bank',
     encryptedSecureToken: 'encrypted-secure-token',
-    encryptedCassoAccessToken: 'encrypted-access-token',
-    encryptedCassoRefreshToken: 'encrypted-refresh-token',
+    encryptedCassoApiKey: 'encrypted-api-key',
     status: 'ACTIVE',
     connectedAt: new Date(),
     lastSyncAt: null,
@@ -422,8 +232,7 @@ describe('BankConnection', () => {
       accountNumber: '0044005566',
       bankName: 'New Bank',
       encryptedSecureToken: 'new-secure-token',
-      encryptedCassoAccessToken: 'new-access-token',
-      encryptedCassoRefreshToken: 'new-refresh-token',
+      encryptedCassoApiKey: 'new-api-key',
     });
     expect(reconnected.status).toBe('ACTIVE');
     expect(reconnected.id).toBe('conn-1');
@@ -456,8 +265,7 @@ describe('BankConnection', () => {
         accountNumber: '0044005566',
         bankName: 'New Bank',
         encryptedSecureToken: 'new-secure-token',
-        encryptedCassoAccessToken: 'new-access-token',
-        encryptedCassoRefreshToken: 'new-refresh-token',
+        encryptedCassoApiKey: 'new-api-key',
       }),
     ).toThrow('Cannot reactivate a connection in status ACTIVE');
   });
@@ -481,8 +289,7 @@ describe('BankConnection', () => {
       accountNumber: '0044005566',
       bankName: 'New Bank',
       encryptedSecureToken: 'new-secure-token',
-      encryptedCassoAccessToken: 'new-access-token',
-      encryptedCassoRefreshToken: 'new-refresh-token',
+      encryptedCassoApiKey: 'new-api-key',
     });
     expect(reconnected.status).toBe('ACTIVE');
   });
@@ -516,8 +323,7 @@ export interface BankConnectionProps {
   accountNumber: string;
   bankName: string;
   encryptedSecureToken: string;
-  encryptedCassoAccessToken: string;
-  encryptedCassoRefreshToken: string;
+  encryptedCassoApiKey: string;
   status: BankConnectionStatus;
   connectedAt: Date | null;
   lastSyncAt: Date | null;
@@ -531,8 +337,7 @@ export class BankConnection {
   readonly accountNumber: string;
   readonly bankName: string;
   readonly encryptedSecureToken: string;
-  readonly encryptedCassoAccessToken: string;
-  readonly encryptedCassoRefreshToken: string;
+  readonly encryptedCassoApiKey: string;
   readonly status: BankConnectionStatus;
   readonly connectedAt: Date | null;
   readonly lastSyncAt: Date | null;
@@ -569,8 +374,7 @@ export class BankConnection {
     accountNumber: string;
     bankName: string;
     encryptedSecureToken: string;
-    encryptedCassoAccessToken: string;
-    encryptedCassoRefreshToken: string;
+    encryptedCassoApiKey: string;
   }): BankConnection {
     if (this.status !== 'REQUIRES_REAUTHORIZATION' && this.status !== 'ERROR') {
       throw new Error(
@@ -601,7 +405,7 @@ export class BankConnection {
 }
 ```
 
-In each of `assert-reauthorizable.spec.ts`, `disconnect-connection.usecase.spec.ts`, `mark-requires-reauthorization.usecase.spec.ts`, `sync-transactions.usecase.spec.ts`: replace the `connectionWithStatus`/`activeConnection` builder function's body — every one currently has this shape:
+In each of `assert-reauthorizable.spec.ts`, `disconnect-connection.usecase.spec.ts`, `mark-requires-reauthorization.usecase.spec.ts`, `sync-transactions.usecase.spec.ts`: every `connectionWithStatus`/`activeConnection` builder function currently has this shape:
 
 ```ts
     casIdConnectionSessionId: 'session-1',
@@ -616,45 +420,42 @@ Replace with:
     accountNumber: '0011002233',
     bankName: 'Mock Bank',
     encryptedSecureToken: 'encrypted-secure-token',
-    encryptedCassoAccessToken: encryptToken('raw-access-token', encryptionKey), // keep encryptToken(...) only in the 2 files that already import/use it (disconnect-connection.usecase.spec.ts, sync-transactions.usecase.spec.ts); the other 2 files use a plain string literal 'encrypted-access-token' since they don't decrypt anything
-    encryptedCassoRefreshToken: 'encrypted-refresh-token',
+    encryptedCassoApiKey: encryptToken('raw-api-key', encryptionKey), // keep encryptToken(...) only in the 2 files that already import/use it (disconnect-connection.usecase.spec.ts, sync-transactions.usecase.spec.ts); the other 2 files use a plain string literal 'encrypted-api-key' since they don't decrypt anything
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `cd apps/backend && npx jest --testPathPatterns "bank-connection.spec|assert-reauthorizable.spec|disconnect-connection.usecase.spec|mark-requires-reauthorization.usecase.spec|sync-transactions.usecase.spec"`
-Expected: these specs still reference `CasIdUnauthorizedError` (deleted in Task 2's port file) — that import will now fail. **This is expected at this point in the plan; Task 4 renames it.** Confirm the failures are ONLY `Cannot find module './cas-id-integration-adapter.port'`-shaped, not shape/field mismatches — that confirms Step 3's domain change itself is correct even though the suite isn't green yet.
+Expected: these specs still reference `CasIdUnauthorizedError` (deleted in Task 3's port file) — that import will fail. **This is expected at this point; Task 3 renames it.** Confirm the failures are ONLY `Cannot find module './cas-id-integration-adapter.port'`-shaped, not shape/field mismatches.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add apps/backend/src/modules/bank-connections/domain/bank-connection.ts apps/backend/src/modules/bank-connections/domain/bank-connection.spec.ts apps/backend/src/modules/bank-connections/application/assert-reauthorizable.spec.ts apps/backend/src/modules/bank-connections/application/disconnect-connection.usecase.spec.ts apps/backend/src/modules/bank-connections/application/mark-requires-reauthorization.usecase.spec.ts apps/backend/src/modules/bank-connections/application/sync-transactions.usecase.spec.ts
-git commit -m "feat: redesign BankConnection domain around Casso Flow's model"
+git commit -m "feat: redesign BankConnection domain around Casso Flow's API Key model"
 ```
 
 ---
 
-## Task 4: `ICassoFlowIntegrationAdapter` port + repository `findByAccountNumber`
+## Task 3: `ICassoFlowIntegrationAdapter` port + repository `findByAccountNumber`
 
 **Files:**
 - Create: `apps/backend/src/modules/bank-connections/application/casso-flow-integration-adapter.port.ts`
 - Delete: `apps/backend/src/modules/bank-connections/application/cas-id-integration-adapter.port.ts`
 - Modify: `apps/backend/src/modules/bank-connections/application/bank-connection-repository.port.ts`
 - Modify: `apps/backend/src/modules/bank-connections/infrastructure/typeorm-bank-connection.repository.ts`
-- Modify (mechanical import rename `CasIdUnauthorizedError` → `CassoFlowUnauthorizedError`, `from './cas-id-integration-adapter.port'` → `from './casso-flow-integration-adapter.port'`): `disconnect-connection.usecase.ts`, `disconnect-connection.usecase.spec.ts`, `mark-requires-reauthorization.usecase.ts`, `mark-requires-reauthorization.usecase.spec.ts`, `sync-transactions.usecase.ts`, `sync-transactions.usecase.spec.ts`
+- Modify (mechanical import rename `CasIdUnauthorizedError` → `CassoFlowUnauthorizedError`, `from './cas-id-integration-adapter.port'` → `from './casso-flow-integration-adapter.port'`, and the adapter type/token in each use case's constructor): `disconnect-connection.usecase.ts`, `disconnect-connection.usecase.spec.ts`, `mark-requires-reauthorization.usecase.ts`, `mark-requires-reauthorization.usecase.spec.ts`, `sync-transactions.usecase.ts`, `sync-transactions.usecase.spec.ts`
 
 **Interfaces:**
-- Produces: `ICassoFlowIntegrationAdapter { exchangeCodeForToken(code): Promise<{accessToken, refreshToken}>; getAccountInfo(accessToken): Promise<{accountNumber, bankName}>; registerWebhook(accessToken, secureToken): Promise<void>; invalidateToken(accessToken): Promise<void>; getTransactions(accessToken): Promise<[]> }`, `CassoFlowUnauthorizedError`, `IBankConnectionRepository.findByAccountNumber(accountNumber): Promise<BankConnection | null>` (replaces `findByGrantId`). Task 5 (adapter impl), Task 7 (exchange use case), Task 11 (receive-webhook use case) all consume these.
+- Produces: `ICassoFlowIntegrationAdapter { getAccountInfo(apiKey): Promise<{accountNumber, bankName}>; registerWebhook(apiKey, secureToken): Promise<void>; invalidateToken(apiKey): Promise<void>; getTransactions(apiKey): Promise<unknown[]> }`, `CassoFlowUnauthorizedError`, `IBankConnectionRepository.findByAccountNumber(accountNumber): Promise<BankConnection | null>`. Task 4 (adapter impl), Task 6 (connect use case), Task 9 (receive-webhook use case) all consume these.
 
-This task is plumbing (port + repository method), no new business logic to unit-test beyond what Task 5's adapter spec and the e2e (Task 14) already cover — same exception reasoning as the prior plan's `findByGrantId` task.
+Note there is no `exchangeCodeForToken` method — no authorization-code exchange exists in this flow at all; the caller already has the API Key directly.
+
+This task is plumbing (port + repository method), no new business logic to unit-test beyond what Task 4's adapter spec and the e2e already cover.
 
 - [ ] **Step 1: Write the port**
 
-```ts
-import type { AccountIdentity } from '../domain/bank-connection';
-```
-
-Wait — `AccountIdentity` no longer exists (removed in Task 3). Create `apps/backend/src/modules/bank-connections/application/casso-flow-integration-adapter.port.ts`:
+Create `apps/backend/src/modules/bank-connections/application/casso-flow-integration-adapter.port.ts`:
 
 ```ts
 export interface CassoFlowAccountInfo {
@@ -663,13 +464,10 @@ export interface CassoFlowAccountInfo {
 }
 
 export interface ICassoFlowIntegrationAdapter {
-  exchangeCodeForToken(
-    code: string,
-  ): Promise<{ accessToken: string; refreshToken: string }>;
-  getAccountInfo(accessToken: string): Promise<CassoFlowAccountInfo>;
-  registerWebhook(accessToken: string, secureToken: string): Promise<void>;
-  invalidateToken(accessToken: string): Promise<void>;
-  getTransactions(accessToken: string): Promise<unknown[]>;
+  getAccountInfo(apiKey: string): Promise<CassoFlowAccountInfo>;
+  registerWebhook(apiKey: string, secureToken: string): Promise<void>;
+  invalidateToken(apiKey: string): Promise<void>;
+  getTransactions(apiKey: string): Promise<unknown[]>;
 }
 
 export const CASSO_FLOW_INTEGRATION_ADAPTER = Symbol(
@@ -679,7 +477,7 @@ export const CASSO_FLOW_INTEGRATION_ADAPTER = Symbol(
 export class CassoFlowUnauthorizedError extends Error {
   constructor() {
     super(
-      'Casso Flow access token rejected (401/403) — connection requires reauthorization',
+      'Casso Flow API Key rejected (401/403) — connection requires reauthorization',
     );
     this.name = 'CassoFlowUnauthorizedError';
   }
@@ -711,14 +509,38 @@ Edit `apps/backend/src/modules/bank-connections/infrastructure/typeorm-bank-conn
   }
 ```
 
+Also add (needed by Task 6, since Casso Flow allows exactly one connection per organization and the reactivate path needs to find "the org's existing connection" under a row lock before its `accountNumber` is known):
+
+```ts
+  findActiveOrReauthorizableByOrganizationForUpdate(
+    organizationId: string,
+    manager: EntityManager,
+  ): Promise<BankConnection | null>;
+```
+
+in the port, and in the repository:
+
+```ts
+  async findActiveOrReauthorizableByOrganizationForUpdate(
+    organizationId: string,
+    manager: EntityManager,
+  ): Promise<BankConnection | null> {
+    const row = await manager.findOne(BankConnectionOrmEntity, {
+      where: { organizationId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    return row ? new BankConnection(row) : null;
+  }
+```
+
 - [ ] **Step 3: Mechanical rename in the 3 use cases + their specs**
 
-In `disconnect-connection.usecase.ts`, `mark-requires-reauthorization.usecase.ts`, `sync-transactions.usecase.ts` and their `.spec.ts` files: change every `import { CasIdUnauthorizedError } from './cas-id-integration-adapter.port'` to `import { CassoFlowUnauthorizedError } from './casso-flow-integration-adapter.port'`, and every use of `CasIdUnauthorizedError` (both the class reference and any `'401/403 from getTransactions'`/`'401/403 from invalidateToken'` string literals stay as-is — those describe the HTTP failure, not the error class name) to `CassoFlowUnauthorizedError`. Also change the `ICasIdIntegrationAdapter`/`CAS_ID_INTEGRATION_ADAPTER` type/token references in these 3 use cases' constructors to `ICassoFlowIntegrationAdapter`/`CASSO_FLOW_INTEGRATION_ADAPTER` from the new port file.
+In `disconnect-connection.usecase.ts`, `mark-requires-reauthorization.usecase.ts`, `sync-transactions.usecase.ts` and their `.spec.ts` files: change every `import { CasIdUnauthorizedError } from './cas-id-integration-adapter.port'` to `import { CassoFlowUnauthorizedError } from './casso-flow-integration-adapter.port'`, and every use of the class to `CassoFlowUnauthorizedError`. Change the `ICasIdIntegrationAdapter`/`CAS_ID_INTEGRATION_ADAPTER` type/token references in these 3 use cases' constructors to `ICassoFlowIntegrationAdapter`/`CASSO_FLOW_INTEGRATION_ADAPTER`.
 
 - [ ] **Step 4: Run tests**
 
 Run: `cd apps/backend && npx jest --testPathPatterns "disconnect-connection.usecase|mark-requires-reauthorization.usecase|sync-transactions.usecase"`
-Expected: PASS, all 3 suites (the domain/field changes from Task 3 plus this rename together make them green).
+Expected: PASS, all 3 suites.
 
 - [ ] **Step 5: Commit**
 
@@ -730,7 +552,7 @@ git commit -m "feat: replace ICasIdIntegrationAdapter with ICassoFlowIntegration
 
 ---
 
-## Task 5: `CassoFlowAdapter` — real HTTP calls to Casso Flow's OAuth2 + webhook APIs
+## Task 4: `CassoFlowAdapter` — real HTTP calls authenticated by API Key
 
 **Files:**
 - Create: `apps/backend/src/modules/bank-connections/infrastructure/casso-flow.adapter.ts`
@@ -738,9 +560,7 @@ git commit -m "feat: replace ICasIdIntegrationAdapter with ICassoFlowIntegration
 - Delete: `apps/backend/src/modules/bank-connections/infrastructure/cas-id.adapter.ts`, `cas-id.adapter.spec.ts`, `mock-cas-id.adapter.ts`, `mock-cas-id.adapter.spec.ts`, `select-cas-id-adapter.ts`, `select-cas-id-adapter.spec.ts`
 
 **Interfaces:**
-- Produces: `CassoFlowAdapter implements ICassoFlowIntegrationAdapter`. No Mock/factory this time — see rationale below.
-
-**No mock adapter this time.** The prior Cas ID work had `MockCasIdAdapter` because real credentials didn't exist yet. Real Casso Flow credentials (`CASSO_WEBHOOK_CLIENT_ID`/`CASSO_WEBHOOK_SECRET_KEY`) already exist (the user provided them). Build `CassoFlowAdapter` as the only implementation; tests mock `fetch`, not the adapter. If a later environment genuinely needs a no-network stand-in (e.g. a fresh contributor with no credentials), that's a new, separately-justified need — do not speculatively rebuild the Mock/factory pattern now.
+- Produces: `CassoFlowAdapter implements ICassoFlowIntegrationAdapter`. No Mock/factory: `getAccountInfo`/`registerWebhook` are called with the *organization's own* API Key (a request-time argument, not a platform-level secret from `process.env`), so there is nothing environment-dependent to swap at DI time the way Cas ID's `MockCasIdAdapter` swapped in for missing platform credentials. Tests mock `fetch`, not the adapter.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -762,9 +582,6 @@ describe('CassoFlowAdapter', () => {
   beforeEach(() => {
     process.env = {
       ...originalEnv,
-      CASSO_WEBHOOK_CLIENT_ID: 'test-client-id',
-      CASSO_WEBHOOK_SECRET_KEY: 'test-secret-key',
-      CASSO_FLOW_REDIRECT_URI: 'http://localhost:5173/bank-connections/casso-flow/callback',
       CASSO_FLOW_WEBHOOK_URL: 'http://localhost:3000/api/v1/webhooks/casso-balance-hook',
     };
   });
@@ -775,47 +592,8 @@ describe('CassoFlowAdapter', () => {
     jest.restoreAllMocks();
   });
 
-  describe('exchangeCodeForToken', () => {
-    it('exchanges an authorization code for an access/refresh token pair', async () => {
-      const fetchMock = jest
-        .fn()
-        .mockResolvedValue(
-          jsonResponse(200, { access_token: 'real-access', refresh_token: 'real-refresh' }),
-        );
-      global.fetch = fetchMock as never;
-      const adapter = new CassoFlowAdapter();
-
-      const result = await adapter.exchangeCodeForToken('auth-code-1');
-
-      expect(result).toEqual({ accessToken: 'real-access', refreshToken: 'real-refresh' });
-      const [url, init] = fetchMock.mock.calls[0];
-      expect(url).toBe('https://oauth.casso.vn/auth/token');
-      expect(init.method).toBe('POST');
-      expect(init.headers.Authorization).toBe(
-        `Basic ${Buffer.from('test-client-id:test-secret-key').toString('base64')}`,
-      );
-      expect(init.headers['Content-Type']).toBe('application/x-www-form-urlencoded');
-      expect(init.body).toBe(
-        new URLSearchParams({
-          grant_type: 'authorization_code',
-          code: 'auth-code-1',
-          redirect_uri: 'http://localhost:5173/bank-connections/casso-flow/callback',
-        }).toString(),
-      );
-    });
-
-    it('throws CassoFlowUnauthorizedError on a 401', async () => {
-      global.fetch = jest.fn().mockResolvedValue(jsonResponse(401, {})) as never;
-      const adapter = new CassoFlowAdapter();
-
-      await expect(adapter.exchangeCodeForToken('bad-code')).rejects.toThrow(
-        'Casso Flow access token rejected',
-      );
-    });
-  });
-
   describe('getAccountInfo', () => {
-    it('fetches account number and bank name with a Bearer token', async () => {
+    it('fetches account number and bank name with the Apikey header', async () => {
       const fetchMock = jest
         .fn()
         .mockResolvedValue(
@@ -824,12 +602,12 @@ describe('CassoFlowAdapter', () => {
       global.fetch = fetchMock as never;
       const adapter = new CassoFlowAdapter();
 
-      const result = await adapter.getAccountInfo('access-token-1');
+      const result = await adapter.getAccountInfo('test-api-key');
 
       expect(result).toEqual({ accountNumber: '867623232', bankName: 'VPBank' });
       const [url, init] = fetchMock.mock.calls[0];
       expect(url).toBe('https://oauth.casso.vn/v2/userInfo');
-      expect(init.headers.Authorization).toBe('Bearer access-token-1');
+      expect(init.headers.Authorization).toBe('Apikey test-api-key');
     });
 
     it('throws if accountNumber is missing', async () => {
@@ -838,24 +616,33 @@ describe('CassoFlowAdapter', () => {
         .mockResolvedValue(jsonResponse(200, { data: { bankName: 'VPBank' } })) as never;
       const adapter = new CassoFlowAdapter();
 
-      await expect(adapter.getAccountInfo('access-token-1')).rejects.toThrow(
+      await expect(adapter.getAccountInfo('test-api-key')).rejects.toThrow(
         'Casso Flow /v2/userInfo response is missing accountNumber',
+      );
+    });
+
+    it('throws CassoFlowUnauthorizedError on a 401', async () => {
+      global.fetch = jest.fn().mockResolvedValue(jsonResponse(401, {})) as never;
+      const adapter = new CassoFlowAdapter();
+
+      await expect(adapter.getAccountInfo('bad-key')).rejects.toThrow(
+        'Casso Flow API Key rejected',
       );
     });
   });
 
   describe('registerWebhook', () => {
-    it('registers this product\'s webhook URL with the generated secure token', async () => {
+    it("registers this product's webhook URL with the generated secure token", async () => {
       const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, {}));
       global.fetch = fetchMock as never;
       const adapter = new CassoFlowAdapter();
 
-      await adapter.registerWebhook('access-token-1', 'secure-token-1');
+      await adapter.registerWebhook('test-api-key', 'secure-token-1');
 
       const [url, init] = fetchMock.mock.calls[0];
       expect(url).toBe('https://oauth.casso.vn/v2/webhooks');
       expect(init.method).toBe('POST');
-      expect(init.headers.Authorization).toBe('Bearer access-token-1');
+      expect(init.headers.Authorization).toBe('Apikey test-api-key');
       expect(JSON.parse(init.body)).toEqual({
         webhook: 'http://localhost:3000/api/v1/webhooks/casso-balance-hook',
         secure_token: 'secure-token-1',
@@ -877,7 +664,7 @@ describe('CassoFlowAdapter', () => {
       }) as never);
       const adapter = new CassoFlowAdapter();
 
-      const result = await adapter.getAccountInfo('access-token-1');
+      const result = await adapter.getAccountInfo('test-api-key');
 
       expect(result.accountNumber).toBe('1');
       expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -918,58 +705,23 @@ class CassoFlowHttpError extends Error {
 }
 
 // ponytail: invalidateToken and getTransactions are stubs (no-op / empty
-// array) — this session's implementation only covers connect+receive
-// (see spec §6 "Out of scope"). Disconnect-side webhook unregistration and
-// the /v2/sync reconciliation call are deliberate follow-ups, not guesses.
+// array) — this session's implementation only covers connect+receive (see
+// spec §6 "Out of scope"). Disconnect-side webhook unregistration and the
+// /v2/sync reconciliation call are deliberate follow-ups, not guesses.
 @Injectable()
 export class CassoFlowAdapter implements ICassoFlowIntegrationAdapter {
   private readonly logger = new Logger(CassoFlowAdapter.name);
-  private readonly clientId: string;
-  private readonly clientSecret: string;
-  private readonly redirectUri: string;
   private readonly webhookUrl: string;
 
   constructor() {
-    this.clientId = process.env.CASSO_WEBHOOK_CLIENT_ID ?? '';
-    this.clientSecret = process.env.CASSO_WEBHOOK_SECRET_KEY ?? '';
-    this.redirectUri = process.env.CASSO_FLOW_REDIRECT_URI ?? '';
     this.webhookUrl = process.env.CASSO_FLOW_WEBHOOK_URL ?? '';
   }
 
-  async exchangeCodeForToken(
-    code: string,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
-    const basicAuth = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString(
-      'base64',
-    );
-    const body = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: this.redirectUri,
-    }).toString();
-    const data = await this.request<Record<string, unknown>>('/auth/token', {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${basicAuth}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body,
-    });
-    const accessToken = data.access_token;
-    const refreshToken = data.refresh_token;
-    if (typeof accessToken !== 'string' || !accessToken) {
-      throw new Error('Casso Flow /auth/token response is missing access_token');
-    }
-    if (typeof refreshToken !== 'string' || !refreshToken) {
-      throw new Error('Casso Flow /auth/token response is missing refresh_token');
-    }
-    return { accessToken, refreshToken };
-  }
-
-  async getAccountInfo(accessToken: string): Promise<CassoFlowAccountInfo> {
+  async getAccountInfo(apiKey: string): Promise<CassoFlowAccountInfo> {
     const data = await this.request<Record<string, unknown>>(
       '/v2/userInfo',
-      { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } },
+      { method: 'GET' },
+      apiKey,
     );
     const payload = this.unwrap(data);
     const accountNumber = payload.accountNumber;
@@ -983,24 +735,25 @@ export class CassoFlowAdapter implements ICassoFlowIntegrationAdapter {
     return { accountNumber, bankName };
   }
 
-  async registerWebhook(accessToken: string, secureToken: string): Promise<void> {
-    await this.request('/v2/webhooks', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
+  async registerWebhook(apiKey: string, secureToken: string): Promise<void> {
+    await this.request(
+      '/v2/webhooks',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          webhook: this.webhookUrl,
+          secure_token: secureToken,
+          income_only: true,
+        }),
       },
-      body: JSON.stringify({
-        webhook: this.webhookUrl,
-        secure_token: secureToken,
-        income_only: true,
-      }),
-    });
+      apiKey,
+    );
   }
 
-  async invalidateToken(_accessToken: string): Promise<void> {}
+  async invalidateToken(_apiKey: string): Promise<void> {}
 
-  async getTransactions(_accessToken: string): Promise<unknown[]> {
+  async getTransactions(_apiKey: string): Promise<unknown[]> {
     return [];
   }
 
@@ -1011,7 +764,11 @@ export class CassoFlowAdapter implements ICassoFlowIntegrationAdapter {
     return data;
   }
 
-  private async request<T>(path: string, init: RequestInit): Promise<T> {
+  private async request<T>(
+    path: string,
+    init: RequestInit,
+    apiKey: string,
+  ): Promise<T> {
     return this.withRetry(async () => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -1020,6 +777,10 @@ export class CassoFlowAdapter implements ICassoFlowIntegrationAdapter {
         response = await fetch(`${OAUTH_BASE_URL}${path}`, {
           ...init,
           signal: controller.signal,
+          headers: {
+            ...init.headers,
+            Authorization: `Apikey ${apiKey}`,
+          },
         });
       } finally {
         clearTimeout(timeout);
@@ -1063,197 +824,40 @@ export class CassoFlowAdapter implements ICassoFlowIntegrationAdapter {
 
 Delete the 6 Cas ID infra files listed above.
 
-**Verify empirically, do not assume further:** once real `CASSO_WEBHOOK_CLIENT_ID`/`CASSO_WEBHOOK_SECRET_KEY` are available in a runnable environment, manually exercise `exchangeCodeForToken`/`getAccountInfo`/`registerWebhook` against the real Casso Flow API (e.g. via a throwaway script or the actual connect flow once Task 6/7/8 exist) before trusting this task's assumed response shapes (`access_token`/`refresh_token` field names, whether `/v2/userInfo`'s response really is wrapped in a top-level `data` key). Adjust `unwrap`/field names if reality differs — this is exactly the kind of assumption that broke the Cas ID work once already.
+**Verify empirically, do not assume further:** once a real Casso API Key is available (create one via Casso's dashboard: Settings → API Keys), manually exercise `getAccountInfo`/`registerWebhook` against the real Casso Flow API before trusting this task's assumed response shapes (whether `/v2/userInfo`'s response really is wrapped in a top-level `data` key, exact field names). This is exactly the kind of assumption that broke the Cas ID work once already — and broke this plan's own first draft (which assumed OAuth2 was available at all).
 
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `cd apps/backend && npx jest --testPathPatterns casso-flow.adapter.spec.ts`
-Expected: PASS (7 tests).
+Expected: PASS (6 tests).
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add apps/backend/src/modules/bank-connections/infrastructure/casso-flow.adapter.ts apps/backend/src/modules/bank-connections/infrastructure/casso-flow.adapter.spec.ts
 git rm apps/backend/src/modules/bank-connections/infrastructure/cas-id.adapter.ts apps/backend/src/modules/bank-connections/infrastructure/cas-id.adapter.spec.ts apps/backend/src/modules/bank-connections/infrastructure/mock-cas-id.adapter.ts apps/backend/src/modules/bank-connections/infrastructure/mock-cas-id.adapter.spec.ts apps/backend/src/modules/bank-connections/infrastructure/select-cas-id-adapter.ts apps/backend/src/modules/bank-connections/infrastructure/select-cas-id-adapter.spec.ts
-git commit -m "feat: add CassoFlowAdapter, remove Cas ID adapters"
+git commit -m "feat: add CassoFlowAdapter (API Key auth), remove Cas ID adapters"
 ```
 
 ---
 
-## Task 6: `InitiateCassoFlowConnectionUseCase`
+## Task 5: `ConnectCassoFlowUseCase`
 
 **Files:**
-- Create: `apps/backend/src/modules/bank-connections/application/initiate-casso-flow-connection.usecase.ts`
-- Create: `apps/backend/src/modules/bank-connections/application/initiate-casso-flow-connection.usecase.spec.ts`
-- Delete: `apps/backend/src/modules/bank-connections/application/initiate-connection.usecase.ts` (and any leftover spec coverage for it inside `connection-usecases.spec.ts` — see Task 7, which replaces that whole file)
+- Create: `apps/backend/src/modules/bank-connections/application/connect-casso-flow.usecase.ts`
+- Create: `apps/backend/src/modules/bank-connections/application/connect-casso-flow.usecase.spec.ts`
+- Delete: `apps/backend/src/modules/bank-connections/application/initiate-connection.usecase.ts`, `exchange-token.usecase.ts`, `connection-usecases.spec.ts` (its `InitiateConnectionUseCase`/`ExchangeTokenUseCase` tests are fully superseded by this task's spec; if the file has nothing else in it, delete it — check first, don't assume)
 
 **Interfaces:**
-- Consumes: `ICassoOAuthStateRepository` (Task 2), `IBankConnectionRepository.findById`/`assertReauthorizable` (unchanged).
-- Produces: `InitiateCassoFlowConnectionUseCase.execute({ userId, bankConnectionId? }): Promise<{ authorizeUrl: string }>`.
-
-- [ ] **Step 1: Write the failing test**
-
-```ts
-import { InitiateCassoFlowConnectionUseCase } from './initiate-casso-flow-connection.usecase';
-
-describe('InitiateCassoFlowConnectionUseCase', () => {
-  const originalEnv = process.env;
-
-  beforeEach(() => {
-    process.env = {
-      ...originalEnv,
-      CASSO_WEBHOOK_CLIENT_ID: 'test-client-id',
-      CASSO_FLOW_REDIRECT_URI: 'http://localhost:5173/bank-connections/casso-flow/callback',
-    };
-  });
-
-  afterEach(() => {
-    process.env = originalEnv;
-  });
-
-  it('creates a CassoOAuthState and returns an authorize URL carrying its id as state', async () => {
-    const stateRepo = { save: jest.fn() };
-    const useCase = new InitiateCassoFlowConnectionUseCase(
-      stateRepo as never,
-      { findById: jest.fn() } as never,
-      { getOrganizationId: () => 'org-1' } as never,
-    );
-
-    const result = await useCase.execute({ userId: 'user-1' });
-
-    expect(stateRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ organizationId: 'org-1', initiatedByUserId: 'user-1' }),
-    );
-    const savedState = stateRepo.save.mock.calls[0][0];
-    expect(result.authorizeUrl).toBe(
-      `https://oauth.casso.vn/auth/authorize?client_id=test-client-id&redirect_uri=${encodeURIComponent('http://localhost:5173/bank-connections/casso-flow/callback')}&response_type=code&state=${savedState.id}`,
-    );
-  });
-
-  it('rejects initiating when the target bankConnectionId is not reauthorizable', async () => {
-    const useCase = new InitiateCassoFlowConnectionUseCase(
-      { save: jest.fn() } as never,
-      { findById: jest.fn().mockResolvedValue({ status: 'ACTIVE' }) } as never,
-      { getOrganizationId: () => 'org-1' } as never,
-    );
-
-    await expect(
-      useCase.execute({ userId: 'user-1', bankConnectionId: 'conn-1' }),
-    ).rejects.toThrow('Cannot reactivate a connection in status ACTIVE');
-  });
-});
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `cd apps/backend && npx jest --testPathPatterns initiate-casso-flow-connection.usecase.spec.ts`
-Expected: FAIL — module not found.
-
-- [ ] **Step 3: Write minimal implementation**
-
-```ts
-import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
-import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import {
-  CASSO_OAUTH_STATE_REPOSITORY,
-  type ICassoOAuthStateRepository,
-} from './casso-oauth-state-repository.port';
-import { CassoOAuthState } from '../domain/casso-oauth-state';
-import { assertReauthorizable } from './assert-reauthorizable';
-import {
-  BANK_CONNECTION_REPOSITORY,
-  type IBankConnectionRepository,
-} from './bank-connection-repository.port';
-
-const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
-
-export interface InitiateCassoFlowConnectionInput {
-  userId: string;
-  bankConnectionId?: string;
-}
-
-export interface InitiateCassoFlowConnectionResult {
-  authorizeUrl: string;
-}
-
-@Injectable()
-export class InitiateCassoFlowConnectionUseCase {
-  constructor(
-    @Inject(CASSO_OAUTH_STATE_REPOSITORY)
-    private readonly stateRepo: ICassoOAuthStateRepository,
-    @Inject(BANK_CONNECTION_REPOSITORY)
-    private readonly bankConnectionRepo: IBankConnectionRepository,
-    private readonly tenantContext: TenantContextService,
-  ) {}
-
-  async execute(
-    input: InitiateCassoFlowConnectionInput,
-  ): Promise<InitiateCassoFlowConnectionResult> {
-    const existing = input.bankConnectionId
-      ? await this.bankConnectionRepo.findById(input.bankConnectionId)
-      : null;
-    assertReauthorizable(input.bankConnectionId, existing);
-
-    const state = new CassoOAuthState({
-      id: randomUUID(),
-      organizationId: this.tenantContext.getOrganizationId(),
-      initiatedByUserId: input.userId,
-      expiresAt: new Date(Date.now() + OAUTH_STATE_TTL_MS),
-      createdAt: new Date(),
-    });
-    await this.stateRepo.save(state);
-
-    const params = new URLSearchParams({
-      client_id: process.env.CASSO_WEBHOOK_CLIENT_ID ?? '',
-      redirect_uri: process.env.CASSO_FLOW_REDIRECT_URI ?? '',
-      response_type: 'code',
-      state: state.id,
-    });
-    return {
-      authorizeUrl: `https://oauth.casso.vn/auth/authorize?${params.toString()}`,
-    };
-  }
-}
-```
-
-Delete `initiate-connection.usecase.ts`.
-
-**Verify empirically:** the spec explicitly defers the OAuth2 `scope` param (spec §3 step 1) — this implementation omits it. Before considering the connect flow production-ready, check Casso Flow's console/docs for whether a `scope` value is required for `/auth/authorize` to succeed, and add it if so.
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `cd apps/backend && npx jest --testPathPatterns initiate-casso-flow-connection.usecase.spec.ts`
-Expected: PASS (2 tests).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add apps/backend/src/modules/bank-connections/application/initiate-casso-flow-connection.usecase.ts apps/backend/src/modules/bank-connections/application/initiate-casso-flow-connection.usecase.spec.ts
-git rm apps/backend/src/modules/bank-connections/application/initiate-connection.usecase.ts
-git commit -m "feat: add InitiateCassoFlowConnectionUseCase"
-```
-
----
-
-## Task 7: `ExchangeCassoFlowConnectionUseCase`
-
-**Files:**
-- Create: `apps/backend/src/modules/bank-connections/application/exchange-casso-flow-connection.usecase.ts`
-- Create: `apps/backend/src/modules/bank-connections/application/exchange-casso-flow-connection.usecase.spec.ts` (replaces `connection-usecases.spec.ts`'s exchange-related tests)
-- Delete: `apps/backend/src/modules/bank-connections/application/exchange-token.usecase.ts`
-- Modify: `apps/backend/src/modules/bank-connections/application/connection-usecases.spec.ts` — remove every `InitiateConnectionUseCase`/`ExchangeTokenUseCase` test (they're superseded by Task 6's and this task's own spec files); keep only what's unrelated if anything remains (check the file after Task 6 — if nothing but exchange-token tests remain, delete the file entirely instead)
-
-**Interfaces:**
-- Consumes: `ICassoOAuthStateRepository`, `ICassoFlowIntegrationAdapter`, `IBankConnectionRepository`, `token-encryption.ts` (unchanged).
-- Produces: `ExchangeCassoFlowConnectionUseCase.execute({ code, state }): Promise<BankConnection>`.
+- Consumes: `ICassoFlowIntegrationAdapter` (Task 3/4), `IBankConnectionRepository` (Task 3), `token-encryption.ts` (unchanged).
+- Produces: `ConnectCassoFlowUseCase.execute({ organizationId, apiKey, bankConnectionId? }): Promise<BankConnection>` — a single use case, replacing both the removed `InitiateConnectionUseCase` and `ExchangeTokenUseCase`, since there is no multi-step round trip left to split across two.
 
 - [ ] **Step 1: Write the failing test**
 
 ```ts
 import { AppError } from '../../../common/errors/app-error';
-import { CassoOAuthState } from '../domain/casso-oauth-state';
-import { ExchangeCassoFlowConnectionUseCase } from './exchange-casso-flow-connection.usecase';
+import { BankConnection } from '../domain/bank-connection';
+import { ConnectCassoFlowUseCase } from './connect-casso-flow.usecase';
 
 const encryptionKey =
   '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -1264,36 +868,21 @@ const dataSource = {
   ),
 };
 
-function pendingState(expiresAt = new Date(Date.now() + 60_000)): CassoOAuthState {
-  return new CassoOAuthState({
-    id: 'state-1',
-    organizationId: 'org-1',
-    initiatedByUserId: 'user-1',
-    expiresAt,
-    createdAt: new Date(),
-  });
-}
-
-describe('ExchangeCassoFlowConnectionUseCase', () => {
-  it('exchanges the code, fetches account info, registers a webhook, and creates the connection', async () => {
-    const stateRepo = { findById: jest.fn().mockResolvedValue(pendingState()), delete: jest.fn() };
+describe('ConnectCassoFlowUseCase', () => {
+  it('reads account info, registers a webhook, and creates the connection', async () => {
     const bankConnectionRepo = {
-      findByIdForUpdate: jest.fn(),
+      findActiveOrReauthorizableByOrganizationForUpdate: jest.fn().mockResolvedValue(null),
       save: jest.fn(),
       countActiveByOrganization: jest.fn().mockResolvedValue(0),
     };
     const auditEventRepo = { save: jest.fn() };
     const adapter = {
-      exchangeCodeForToken: jest
-        .fn()
-        .mockResolvedValue({ accessToken: 'access-1', refreshToken: 'refresh-1' }),
       getAccountInfo: jest
         .fn()
         .mockResolvedValue({ accountNumber: '0011002233', bankName: 'VPBank' }),
       registerWebhook: jest.fn().mockResolvedValue(undefined),
     };
-    const useCase = new ExchangeCassoFlowConnectionUseCase(
-      stateRepo as never,
+    const useCase = new ConnectCassoFlowUseCase(
       adapter as never,
       bankConnectionRepo as never,
       auditEventRepo as never,
@@ -1302,63 +891,95 @@ describe('ExchangeCassoFlowConnectionUseCase', () => {
       { enforceBankConnectionLimit: jest.fn() } as never,
     );
 
-    const result = await useCase.execute({ code: 'auth-code-1', state: 'state-1' });
+    const result = await useCase.execute({ organizationId: 'org-1', apiKey: 'real-api-key' });
 
     expect(result.status).toBe('ACTIVE');
     expect(result.accountNumber).toBe('0011002233');
-    expect(adapter.registerWebhook).toHaveBeenCalledWith(
-      'access-1',
-      expect.any(String),
-    );
-    expect(stateRepo.delete).toHaveBeenCalledWith('state-1');
+    expect(adapter.getAccountInfo).toHaveBeenCalledWith('real-api-key');
+    expect(adapter.registerWebhook).toHaveBeenCalledWith('real-api-key', expect.any(String));
     expect(bankConnectionRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ organizationId: 'org-1', status: 'ACTIVE' }),
       expect.anything(),
     );
   });
 
-  it('rejects an unknown state', async () => {
-    const stateRepo = { findById: jest.fn().mockResolvedValue(null), delete: jest.fn() };
-    const useCase = new ExchangeCassoFlowConnectionUseCase(
-      stateRepo as never,
-      {} as never,
-      {} as never,
-      {} as never,
+  it('reactivates an existing REQUIRES_REAUTHORIZATION connection instead of creating a new one', async () => {
+    const existing = new BankConnection({
+      id: 'conn-1',
+      organizationId: 'org-1',
+      accountNumber: '0011002233',
+      bankName: 'Old Bank',
+      encryptedSecureToken: 'old-secure-token',
+      encryptedCassoApiKey: 'old-api-key',
+      status: 'REQUIRES_REAUTHORIZATION',
+      connectedAt: new Date(),
+      lastSyncAt: null,
+      revokedAt: null,
+      createdAt: new Date(),
+    });
+    const bankConnectionRepo = {
+      findActiveOrReauthorizableByOrganizationForUpdate: jest.fn().mockResolvedValue(existing),
+      save: jest.fn(),
+      countActiveByOrganization: jest.fn().mockResolvedValue(0),
+    };
+    const auditEventRepo = { save: jest.fn() };
+    const adapter = {
+      getAccountInfo: jest
+        .fn()
+        .mockResolvedValue({ accountNumber: '0011002233', bankName: 'VPBank' }),
+      registerWebhook: jest.fn().mockResolvedValue(undefined),
+    };
+    const useCase = new ConnectCassoFlowUseCase(
+      adapter as never,
+      bankConnectionRepo as never,
+      auditEventRepo as never,
       dataSource as never,
       encryptionKey,
-      {} as never,
+      { enforceBankConnectionLimit: jest.fn() } as never,
     );
 
-    await expect(
-      useCase.execute({ code: 'auth-code-1', state: 'unknown' }),
-    ).rejects.toBeInstanceOf(AppError);
+    const result = await useCase.execute({
+      organizationId: 'org-1',
+      apiKey: 'new-api-key',
+      bankConnectionId: 'conn-1',
+    });
+
+    expect(result.id).toBe('conn-1');
+    expect(result.status).toBe('ACTIVE');
+    expect(auditEventRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: 'RECONNECTED' }),
+      expect.anything(),
+    );
   });
 
-  it('rejects an expired state', async () => {
-    const stateRepo = {
-      findById: jest.fn().mockResolvedValue(pendingState(new Date(Date.now() - 1))),
-      delete: jest.fn(),
+  it('propagates a CassoFlowUnauthorizedError for an invalid API Key without persisting anything', async () => {
+    const bankConnectionRepo = {
+      findActiveOrReauthorizableByOrganizationForUpdate: jest.fn(),
+      save: jest.fn(),
     };
-    const useCase = new ExchangeCassoFlowConnectionUseCase(
-      stateRepo as never,
-      {} as never,
-      {} as never,
-      {} as never,
+    const adapter = {
+      getAccountInfo: jest.fn().mockRejectedValue(new Error('Casso Flow API Key rejected')),
+    };
+    const useCase = new ConnectCassoFlowUseCase(
+      adapter as never,
+      bankConnectionRepo as never,
+      { save: jest.fn() } as never,
       dataSource as never,
       encryptionKey,
       {} as never,
     );
 
     await expect(
-      useCase.execute({ code: 'auth-code-1', state: 'state-1' }),
-    ).rejects.toMatchObject({ errorCode: 'CONFLICT' });
+      useCase.execute({ organizationId: 'org-1', apiKey: 'bad-key' }),
+    ).rejects.toThrow('Casso Flow API Key rejected');
+    expect(bankConnectionRepo.save).not.toHaveBeenCalled();
   });
 });
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd apps/backend && npx jest --testPathPatterns exchange-casso-flow-connection.usecase.spec.ts`
+Run: `cd apps/backend && npx jest --testPathPatterns connect-casso-flow.usecase.spec.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -1367,12 +988,9 @@ Expected: FAIL — module not found.
 import { randomBytes, randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { AppError } from '../../../common/errors/app-error';
-import { ErrorCode } from '../../../common/errors/error-code';
 import { PlanLimitService } from '../../billing/application/plan-limit.service';
 import { BankConnection } from '../domain/bank-connection';
 import { ConnectionAuditEvent } from '../domain/connection-audit-event';
-import { assertReauthorizable } from './assert-reauthorizable';
 import {
   BANK_CONNECTION_REPOSITORY,
   type IBankConnectionRepository,
@@ -1382,26 +1000,21 @@ import {
   type ICassoFlowIntegrationAdapter,
 } from './casso-flow-integration-adapter.port';
 import {
-  CASSO_OAUTH_STATE_REPOSITORY,
-  type ICassoOAuthStateRepository,
-} from './casso-oauth-state-repository.port';
-import {
   CONNECTION_AUDIT_EVENT_REPOSITORY,
   type IConnectionAuditEventRepository,
 } from './connection-audit-event-repository.port';
 import { encryptToken } from './token-encryption';
 import { ACCESS_TOKEN_ENCRYPTION_KEY } from './token-encryption-key';
 
-export interface ExchangeCassoFlowConnectionInput {
-  code: string;
-  state: string;
+export interface ConnectCassoFlowInput {
+  organizationId: string;
+  apiKey: string;
+  bankConnectionId?: string;
 }
 
 @Injectable()
-export class ExchangeCassoFlowConnectionUseCase {
+export class ConnectCassoFlowUseCase {
   constructor(
-    @Inject(CASSO_OAUTH_STATE_REPOSITORY)
-    private readonly stateRepo: ICassoOAuthStateRepository,
     @Inject(CASSO_FLOW_INTEGRATION_ADAPTER)
     private readonly adapter: ICassoFlowIntegrationAdapter,
     @Inject(BANK_CONNECTION_REPOSITORY)
@@ -1414,51 +1027,34 @@ export class ExchangeCassoFlowConnectionUseCase {
     private readonly planLimitService: PlanLimitService,
   ) {}
 
-  async execute(input: ExchangeCassoFlowConnectionInput): Promise<BankConnection> {
-    const state = await this.stateRepo.findById(input.state);
-    if (!state) {
-      throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy phiên kết nối.');
-    }
-    if (state.isExpired(new Date())) {
-      throw new AppError(
-        ErrorCode.CONFLICT,
-        'Phiên kết nối đã hết hạn hoặc đã được sử dụng.',
-      );
-    }
-
+  async execute(input: ConnectCassoFlowInput): Promise<BankConnection> {
     // External calls stay outside the transaction — only the DB writes below are wrapped.
-    const { accessToken, refreshToken } = await this.adapter.exchangeCodeForToken(
-      input.code,
-    );
-    const accountInfo = await this.adapter.getAccountInfo(accessToken);
+    const accountInfo = await this.adapter.getAccountInfo(input.apiKey);
     const secureToken = randomBytes(32).toString('hex');
-    await this.adapter.registerWebhook(accessToken, secureToken);
+    await this.adapter.registerWebhook(input.apiKey, secureToken);
 
     return this.dataSource.transaction(async (manager) => {
       await this.planLimitService.enforceBankConnectionLimit(manager, () =>
-        this.bankConnectionRepo.countActiveByOrganization(
-          state.organizationId,
-          manager,
-        ),
+        this.bankConnectionRepo.countActiveByOrganization(input.organizationId, manager),
       );
 
-      const existingConnection = await this.bankConnectionRepo.findByIdForUpdate(
-        state.organizationId,
-        manager,
-      );
+      const existing =
+        await this.bankConnectionRepo.findActiveOrReauthorizableByOrganizationForUpdate(
+          input.organizationId,
+          manager,
+        );
       const props = {
         accountNumber: accountInfo.accountNumber,
         bankName: accountInfo.bankName,
         encryptedSecureToken: encryptToken(secureToken, this.encryptionKey),
-        encryptedCassoAccessToken: encryptToken(accessToken, this.encryptionKey),
-        encryptedCassoRefreshToken: encryptToken(refreshToken, this.encryptionKey),
+        encryptedCassoApiKey: encryptToken(input.apiKey, this.encryptionKey),
       };
       const connection =
-        existingConnection && existingConnection.status !== 'ACTIVE'
-          ? existingConnection.reactivate(props)
+        existing && existing.status !== 'ACTIVE'
+          ? existing.reactivate(props)
           : new BankConnection({
               id: randomUUID(),
-              organizationId: state.organizationId,
+              organizationId: input.organizationId,
               ...props,
               status: 'ACTIVE',
               connectedAt: new Date(),
@@ -1473,46 +1069,42 @@ export class ExchangeCassoFlowConnectionUseCase {
           id: randomUUID(),
           organizationId: connection.organizationId,
           bankConnectionId: connection.id,
-          eventType: existingConnection ? 'RECONNECTED' : 'TOKEN_EXCHANGED',
+          eventType: existing ? 'RECONNECTED' : 'TOKEN_EXCHANGED',
           metadata: { accountNumber: accountInfo.accountNumber },
           createdAt: new Date(),
         }),
         manager,
       );
-      await this.stateRepo.delete(state.id);
       return connection;
     });
   }
 }
 ```
 
-Note: `findByIdForUpdate` is keyed by `state.organizationId` here, not a `bankConnectionId` — since Casso Flow allows exactly one account per organization (§2 of the spec: "one active connection per org"), reactivation targets "the org's existing connection, whatever its id," not a specific id the caller must already know (unlike the Cas ID flow, which threaded a specific `bankConnectionId` through `assertReauthorizable`). `findByIdForUpdate`'s signature takes an id, not an organizationId — **this is a real interface mismatch to resolve in Step 3's actual implementation, not paper over**: either add a new `findByOrganizationIdForUpdate` repository method, or look up via `findByAccountNumber` first (available once known) — since the account number is only known *after* `getAccountInfo` runs, use a new `findActiveOrReauthorizableByOrganizationForUpdate(organizationId, manager)` repository method instead. Add this method to `IBankConnectionRepository`/`TypeOrmBankConnectionRepository` as part of this task (thin `findOne({ where: { organizationId }, lock: ... })` wrapper, same pattern as `findByIdForUpdate`), and use it in place of the `findByIdForUpdate(state.organizationId, ...)` call shown above before finalizing this task's code.
-
-Delete `exchange-token.usecase.ts`. In `connection-usecases.spec.ts`: delete every test for `InitiateConnectionUseCase`/`ExchangeTokenUseCase` (all of them, per Task 6 already covering initiate) — if nothing meaningful remains in the file, delete it entirely (`git rm`) rather than leaving an empty `describe` block.
+Delete `initiate-connection.usecase.ts`, `exchange-token.usecase.ts`. Check `connection-usecases.spec.ts`: if it contains nothing beyond the now-superseded `InitiateConnectionUseCase`/`ExchangeTokenUseCase` tests, `git rm` it entirely rather than leaving an empty file.
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd apps/backend && npx jest --testPathPatterns exchange-casso-flow-connection.usecase.spec.ts`
-Expected: PASS (3 tests) once the `findActiveOrReauthorizableByOrganizationForUpdate` interface mismatch from Step 3 is resolved.
+Run: `cd apps/backend && npx jest --testPathPatterns connect-casso-flow.usecase.spec.ts`
+Expected: PASS (3 tests).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/backend/src/modules/bank-connections/application/exchange-casso-flow-connection.usecase.ts apps/backend/src/modules/bank-connections/application/exchange-casso-flow-connection.usecase.spec.ts apps/backend/src/modules/bank-connections/application/bank-connection-repository.port.ts apps/backend/src/modules/bank-connections/infrastructure/typeorm-bank-connection.repository.ts
-git rm apps/backend/src/modules/bank-connections/application/exchange-token.usecase.ts
-git add apps/backend/src/modules/bank-connections/application/connection-usecases.spec.ts
-git commit -m "feat: add ExchangeCassoFlowConnectionUseCase"
+git add apps/backend/src/modules/bank-connections/application/connect-casso-flow.usecase.ts apps/backend/src/modules/bank-connections/application/connect-casso-flow.usecase.spec.ts
+git rm apps/backend/src/modules/bank-connections/application/initiate-connection.usecase.ts apps/backend/src/modules/bank-connections/application/exchange-token.usecase.ts
+git add -u apps/backend/src/modules/bank-connections/application/connection-usecases.spec.ts
+git commit -m "feat: add ConnectCassoFlowUseCase, replacing initiate+exchange"
 ```
 
 ---
 
-## Task 8: Controller, DTOs, response mapper, module wiring
+## Task 6: Controller, DTOs, response mapper, module wiring
 
 **Files:**
 - Modify: `apps/backend/src/modules/bank-connections/presentation/bank-connections.controller.ts`
 - Modify: `apps/backend/src/modules/bank-connections/presentation/dto/bank-connection-response.dto.ts`
-- Create: `apps/backend/src/modules/bank-connections/presentation/dto/initiate-casso-flow-connection-response.dto.ts`
-- Create: `apps/backend/src/modules/bank-connections/presentation/dto/exchange-casso-flow-connection.dto.ts`
+- Create: `apps/backend/src/modules/bank-connections/presentation/dto/connect-casso-flow.dto.ts`
 - Delete: `apps/backend/src/modules/bank-connections/presentation/dto/exchange-token.dto.ts`, `initiate-connection.dto.ts`, `initiate-connection-response.dto.ts`
 - Modify: `apps/backend/src/modules/bank-connections/bank-connections.module.ts`
 
@@ -1538,74 +1130,33 @@ export function toBankConnectionResponse(
 
 (`BankConnectionResponseDto`'s field declarations are unchanged — already flat.)
 
-- [ ] **Step 2: New DTOs**
+- [ ] **Step 2: New DTO**
 
-`initiate-casso-flow-connection-response.dto.ts`:
+`connect-casso-flow.dto.ts`:
 
 ```ts
-export class InitiateCassoFlowConnectionResponseDto {
-  authorizeUrl: string;
+import { IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+
+export class ConnectCassoFlowDto {
+  @IsString()
+  @MinLength(1)
+  apiKey: string;
+
+  @IsOptional()
+  @IsUUID()
+  bankConnectionId?: string;
 }
 ```
 
-`exchange-casso-flow-connection.dto.ts`:
-
-```ts
-import { IsString, MinLength } from 'class-validator';
-
-export class ExchangeCassoFlowConnectionDto {
-  @IsString()
-  @MinLength(1)
-  code: string;
-
-  @IsString()
-  @MinLength(1)
-  state: string;
-}
-```
-
-`initiate-connection.dto.ts` (kept, unchanged shape — still just an optional `bankConnectionId` for the reauthorize case) is **not** deleted; rename its import site only. Delete `exchange-token.dto.ts` and `initiate-connection-response.dto.ts`.
+Delete `exchange-token.dto.ts`, `initiate-connection.dto.ts`, `initiate-connection-response.dto.ts` — all superseded by this one DTO (there's only one request now, no separate initiate/exchange pair).
 
 - [ ] **Step 3: Controller**
 
-Replace the `cas-id/*` routes in `bank-connections.controller.ts`:
+Replace the `cas-id/*` routes in `bank-connections.controller.ts` with a single route:
 
 ```ts
-  @Post('casso-flow/initiate')
-  @ApiOperation({ summary: 'Initiate a Casso Flow bank connection' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
-  @ApiCreatedResponse({ type: InitiateCassoFlowConnectionResponseDto })
-  @ApiErrorResponse(
-    ErrorCode.VALIDATION_ERROR,
-    ErrorCode.UNAUTHORIZED,
-    ErrorCode.FORBIDDEN,
-    ErrorCode.IDEMPOTENCY_KEY_REUSED,
-  )
-  @RequirePermission(Permission.BANK_CONNECTION_MANAGE)
-  async initiate(
-    @Headers('idempotency-key') key: string | undefined,
-    @Body() dto: InitiateConnectionDto,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return this.idempotency.execute(
-      'POST /bank-connections/casso-flow/initiate',
-      key,
-      dto,
-      () => {
-        const userId = request.user?.userId;
-        if (!userId) {
-          throw new UnauthorizedException();
-        }
-        return this.initiateCassoFlowConnectionUseCase.execute({
-          userId,
-          bankConnectionId: dto.bankConnectionId,
-        });
-      },
-    );
-  }
-
-  @Post('casso-flow/exchange')
-  @ApiOperation({ summary: 'Exchange a Casso Flow OAuth2 code for a connection' })
+  @Post('casso-flow/connect')
+  @ApiOperation({ summary: "Connect this organization's Casso Flow account via a pasted API Key" })
   @ApiHeader({ name: 'idempotency-key', required: false })
   @ApiCreatedResponse({
     description: 'Connection created',
@@ -1620,8 +1171,8 @@ Replace the `cas-id/*` routes in `bank-connections.controller.ts`:
   })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
-    ErrorCode.NOT_FOUND,
-    ErrorCode.CONFLICT,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
     ErrorCode.IDEMPOTENCY_KEY_REUSED,
   )
   @RequirePermission(Permission.BANK_CONNECTION_MANAGE)
@@ -1629,18 +1180,19 @@ Replace the `cas-id/*` routes in `bank-connections.controller.ts`:
     AuditActionType.BANK_CONNECTION_CREATE,
     AuditEntityType.BANK_CONNECTION,
   )
-  async exchange(
+  async connect(
     @Headers('idempotency-key') key: string | undefined,
-    @Body() dto: ExchangeCassoFlowConnectionDto,
+    @Body() dto: ConnectCassoFlowDto,
   ) {
     return this.idempotency.execute(
-      'POST /bank-connections/casso-flow/exchange',
+      'POST /bank-connections/casso-flow/connect',
       key,
       dto,
       async () => {
-        const connection = await this.exchangeCassoFlowConnectionUseCase.execute({
-          code: dto.code,
-          state: dto.state,
+        const connection = await this.connectCassoFlowUseCase.execute({
+          organizationId: this.tenantContext.getOrganizationId(),
+          apiKey: dto.apiKey,
+          bankConnectionId: dto.bankConnectionId,
         });
         return { connectionId: connection.id, status: connection.status };
       },
@@ -1648,27 +1200,27 @@ Replace the `cas-id/*` routes in `bank-connections.controller.ts`:
   }
 ```
 
-Update the constructor to inject `InitiateCassoFlowConnectionUseCase`/`ExchangeCassoFlowConnectionUseCase` in place of `InitiateConnectionUseCase`/`ExchangeTokenUseCase`, and update imports accordingly (drop `ExchangeTokenDto`/`InitiateConnectionResponseDto`, add the two new DTOs).
+`TenantContextService` isn't currently injected into this controller — check the constructor and add `private readonly tenantContext: TenantContextService,` (import from `../../../common/tenancy/tenant-context`) alongside the existing dependencies. Update the constructor to inject `ConnectCassoFlowUseCase` in place of `InitiateConnectionUseCase`/`ExchangeTokenUseCase`, and update imports (drop `ExchangeTokenDto`/`InitiateConnectionDto`/`InitiateConnectionResponseDto`, add `ConnectCassoFlowDto`). Remove the now-unused `AuthenticatedRequest` interface/`@Req()` param if nothing else in the controller uses it (check `findAll`/`disconnect` first — they don't reference `request.user`, so this is likely safe to remove, but confirm before deleting).
 
 - [ ] **Step 4: Module wiring**
 
-Rewrite `bank-connections.module.ts`'s Cas-ID-specific parts: swap `CasIdConnectionSessionOrmEntity` → `CassoOAuthStateOrmEntity` in `TypeOrmModule.forFeature`, `CAS_ID_CONNECTION_SESSION_REPOSITORY`/`TypeOrmCasIdConnectionSessionRepository` → `CASSO_OAUTH_STATE_REPOSITORY`/`TypeOrmCassoOAuthStateRepository`, `CAS_ID_INTEGRATION_ADAPTER` provider from `useFactory: () => selectCasIdAdapter()` to `useClass: CassoFlowAdapter`, `InitiateConnectionUseCase`/`ExchangeTokenUseCase` → `InitiateCassoFlowConnectionUseCase`/`ExchangeCassoFlowConnectionUseCase` in both `providers` and `exports`.
+Rewrite `bank-connections.module.ts`'s Cas-ID-specific parts: remove `CasIdConnectionSessionOrmEntity`/`CAS_ID_CONNECTION_SESSION_REPOSITORY`/`TypeOrmCasIdConnectionSessionRepository` from `TypeOrmModule.forFeature`/providers entirely (no replacement — there is no session entity anymore), `CAS_ID_INTEGRATION_ADAPTER` provider from `useFactory: () => selectCasIdAdapter()` to `useClass: CassoFlowAdapter` under the `CASSO_FLOW_INTEGRATION_ADAPTER` token, `InitiateConnectionUseCase`/`ExchangeTokenUseCase` → `ConnectCassoFlowUseCase` in both `providers` and `exports`.
 
 - [ ] **Step 5: Full module test suite + type-check**
 
 Run: `cd apps/backend && npx jest --testPathPatterns bank-connections && npx tsc --noEmit`
-Expected: PASS, no type errors. This is the first point in the plan where the whole `bank-connections` module should compile clean — if `tsc` surfaces errors outside files this task or Tasks 1–7 touched, they're pre-existing callers this plan hasn't reached yet (webhooks module, Task 9–12) — confirm errors are confined there before moving on.
+Expected: PASS, no type errors. This is the first point in the plan where the whole `bank-connections` module should compile clean.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add apps/backend/src/modules/bank-connections/presentation apps/backend/src/modules/bank-connections/bank-connections.module.ts
-git commit -m "feat: wire Casso Flow controller routes, DTOs, and module providers"
+git commit -m "feat: wire single Casso Flow connect route, DTO, and module providers"
 ```
 
 ---
 
-## Task 9: `BalanceHookDto` — real flat Casso Flow payload shape
+## Task 7: `BalanceHookDto` — real flat Casso Flow payload shape
 
 **Files:**
 - Modify: `apps/backend/src/modules/webhooks/presentation/dto/balance-hook.dto.ts`
@@ -1788,13 +1340,13 @@ git commit -m "fix: rewrite BalanceHookDto to Casso Flow's real flat payload sha
 
 ---
 
-## Task 10: `transaction-normalizer.ts` — Casso Flow field mapping + date parsing
+## Task 8: `transaction-normalizer.ts` — Casso Flow field mapping + date parsing
 
 **Files:**
 - Modify: `apps/backend/src/modules/webhooks/application/transaction-normalizer.ts`
 - Modify: `apps/backend/src/modules/webhooks/application/transaction-normalizer.spec.ts`
 
-**Interfaces:** `NormalizedTransaction` shape is unchanged (`providerTransactionId, amount, transactionDateTime, counterpartyAccountNumber, counterpartyName, transferContent`) — only what it reads from changes.
+**Interfaces:** `NormalizedTransaction` shape is unchanged — only what it reads from changes.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1882,7 +1434,7 @@ describe('normalizeBalanceHookPayload', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cd apps/backend && npx jest --testPathPatterns transaction-normalizer.spec.ts`
-Expected: FAIL — current implementation reads `payload.transaction.*`, not `payload.data.*`, and Casso Flow's `"2026-08-01 10:00:00"` (space-separated, no timezone) format needs explicit `Asia/Ho_Chi_Minh` handling, not `new Date(...)` parsing it directly (that string is not a format `Date` reliably parses across Node versions/locales).
+Expected: FAIL — current implementation reads `payload.transaction.*`, not `payload.data.*`, and Casso Flow's `"2026-08-01 10:00:00"` (space-separated, no timezone) format needs explicit `Asia/Ho_Chi_Minh` handling.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -1985,27 +1537,32 @@ git commit -m "fix: read transaction-normalizer from Casso Flow's real flat payl
 
 ---
 
-## Task 11: `ReceiveWebhookUseCase` — resolve by `accountNumber`, verify per-connection `secureToken` inline
+## Task 9: `ReceiveWebhookUseCase` — resolve by `accountNumber`, verify per-connection `secureToken` inline
 
 **Files:**
 - Modify: `apps/backend/src/modules/webhooks/application/receive-webhook.usecase.ts`
 - Modify: `apps/backend/src/modules/webhooks/application/receive-webhook.usecase.spec.ts`
 
 **Interfaces:**
-- Consumes: `IBankConnectionRepository.findByAccountNumber` (Task 4), `decryptToken` (`bank-connections/application/token-encryption.ts` — already exported, cross-module import same as this module already does for `BANK_CONNECTION_REPOSITORY`), `constant-time-compare.ts` (existing).
+- Consumes: `IBankConnectionRepository.findByAccountNumber` (Task 3), `decryptToken` (`bank-connections/application/token-encryption.ts`), `constant-time-compare.ts` (existing).
 - Produces: `ReceiveWebhookInput { accountNumber: string; webhookSecret: string; organizationId?: string; transactionId: string; rawPayload: Record<string, unknown> }`.
 
-**Verify empirically before finalizing this task's header-name assumption** (per spec §3/§4 and this plan's Global Constraints): the code below assumes the incoming secret arrives via a `secure-token` HTTP header (Casso Flow's "Legacy" scheme, matching AGENTS.md's constant-time-comparison guidance) — confirm this is really what a webhook registered via `POST /v2/webhooks` (Task 5/7) actually sends before trusting it; if it's `X-Casso-Signature` (HMAC) instead, the verification step changes shape entirely (comparing a computed HMAC, not a raw secret) and this task's Step 3 needs revising, not just a header-name swap.
+**Verify empirically before finalizing this task's header-name assumption** (per spec §3/§4 and this plan's Global Constraints): the code below assumes the incoming secret arrives via a `secure-token` HTTP header (Casso Flow's "Legacy" scheme, matching AGENTS.md's constant-time-comparison guidance) — confirm this is really what a webhook registered via `POST /v2/webhooks` (Task 4/5) actually sends before trusting it; if it's `X-Casso-Signature` (HMAC) instead, the verification step changes shape entirely.
 
 - [ ] **Step 1: Write the failing test**
 
 ```ts
+import { encryptToken } from '../../bank-connections/application/token-encryption';
 import { ReceiveWebhookUseCase } from './receive-webhook.usecase';
 import { DuplicateWebhookError } from './webhook-inbox-repository.port';
 
+const encryptionKey =
+  '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+const realSecret = 'the-real-secret';
+
 const input = {
   accountNumber: '0011002233',
-  webhookSecret: 'the-real-secret',
+  webhookSecret: realSecret,
   transactionId: 'TX-1',
   rawPayload: { error: 0, data: { id: 'TX-1', amount: 1_000 } },
 };
@@ -2015,7 +1572,7 @@ function connectionWith(overrides: Record<string, unknown> = {}) {
     organizationId: 'org-1',
     id: 'conn-1',
     isUsable: () => true,
-    encryptedSecureToken: 'encrypted-the-real-secret',
+    encryptedSecureToken: encryptToken(realSecret, encryptionKey),
     ...overrides,
   };
 }
@@ -2035,7 +1592,7 @@ describe('ReceiveWebhookUseCase', () => {
       connectionRepo as never,
       queue as never,
       dataSource as never,
-      'test-encryption-key',
+      encryptionKey,
     );
 
     await expect(useCase.execute(input)).resolves.toEqual({
@@ -2053,7 +1610,7 @@ describe('ReceiveWebhookUseCase', () => {
       connectionRepo as never,
       { enqueue: jest.fn() } as never,
       { transaction: jest.fn() } as never,
-      'test-encryption-key',
+      encryptionKey,
     );
 
     await expect(useCase.execute(input)).resolves.toEqual({
@@ -2066,7 +1623,7 @@ describe('ReceiveWebhookUseCase', () => {
     const connectionRepo = {
       findByAccountNumber: jest
         .fn()
-        .mockResolvedValue(connectionWith({ encryptedSecureToken: 'encrypted-different-secret' })),
+        .mockResolvedValue(connectionWith({ encryptedSecureToken: encryptToken('different-secret', encryptionKey) })),
     };
     const queue = { enqueue: jest.fn() };
     const useCase = new ReceiveWebhookUseCase(
@@ -2074,7 +1631,7 @@ describe('ReceiveWebhookUseCase', () => {
       connectionRepo as never,
       queue as never,
       { transaction: jest.fn() } as never,
-      'test-encryption-key',
+      encryptionKey,
     );
 
     await expect(useCase.execute(input)).resolves.toEqual({
@@ -2098,7 +1655,7 @@ describe('ReceiveWebhookUseCase', () => {
       connectionRepo as never,
       queue as never,
       dataSource as never,
-      'test-encryption-key',
+      encryptionKey,
     );
 
     await expect(useCase.execute(input)).resolves.toEqual({
@@ -2109,8 +1666,6 @@ describe('ReceiveWebhookUseCase', () => {
   });
 });
 ```
-
-Note: the test above encrypts `'the-real-secret'`/`'different-secret'` as opaque literal strings rather than real `encryptToken(...)` output — **fix this in Step 1 for real** by importing `encryptToken` from `../../bank-connections/application/token-encryption` and using it to produce `encryptedSecureToken` in `connectionWith`, with a real 64-hex-char key, so the RED/GREEN cycle exercises actual decryption, not a string that merely looks encrypted.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -2222,7 +1777,7 @@ export class ReceiveWebhookUseCase {
 }
 ```
 
-Note the change from the Cas ID version's behavior: an unmatched `accountNumber` OR a wrong secret both return `{ received: true, ignored: true }` rather than throwing `TENANT_MISMATCH` — there is no "tenant mismatch" concept here since nothing external supplies an `organizationId` to check against (Casso Flow's payload has none); a wrong secret for an otherwise-valid `accountNumber` is the only "someone's lying about which org this is" case, and it's handled as silently-ignored (same fail-quiet posture a webhook receiver should have toward unverified callers) rather than an exception — do not resurrect `ErrorCode.TENANT_MISMATCH` here, it doesn't apply.
+Note the behavior: an unmatched `accountNumber` OR a wrong secret both return `{ received: true, ignored: true }` rather than throwing `TENANT_MISMATCH` — there is no "tenant mismatch" concept here since Casso Flow's payload supplies no `organizationId` to check against; a wrong secret is handled as silently-ignored, not an exception. Do not resurrect `ErrorCode.TENANT_MISMATCH`.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -2238,12 +1793,12 @@ git commit -m "fix: resolve+verify ReceiveWebhookUseCase by accountNumber/secure
 
 ---
 
-## Task 12: `WebhooksController` — drop `WebhookAuthGuard`, wire the new flat DTO; delete the IP-allowlist guard
+## Task 10: `WebhooksController` — drop `WebhookAuthGuard`, wire the flat DTO; delete the IP-allowlist guard
 
 **Files:**
 - Modify: `apps/backend/src/modules/webhooks/presentation/webhooks.controller.ts`
 - Modify: `apps/backend/src/modules/webhooks/presentation/webhooks.controller.spec.ts`
-- Delete: `apps/backend/src/modules/webhooks/presentation/webhook-auth.guard.ts`, `webhook-auth.guard.spec.ts`, `apps/backend/src/common/webhook/ip-allowlist.ts`, `ip-allowlist.spec.ts`
+- Delete: `apps/backend/src/modules/webhooks/presentation/webhook-auth.guard.ts`, `webhook-auth.guard.spec.ts`, `apps/backend/src/common/webhook/ip-allowlist.ts`, `ip-allowlist.spec.ts` (if these exist — they were only ever committed in an earlier iteration of this same plan; check before deleting, they may not exist yet in this codebase's current state)
 - Modify: `apps/backend/src/modules/webhooks/webhooks.module.ts` (remove `WebhookAuthGuard` provider/import if present)
 
 - [ ] **Step 1: Write the failing test**
@@ -2294,10 +1849,9 @@ Expected: FAIL — current controller signature/body doesn't match.
 - [ ] **Step 3: Write minimal implementation**
 
 ```ts
-import { Body, Controller, Headers, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { UseGuards } from '@nestjs/common';
 import { Public } from '../../../common/auth/public.decorator';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
@@ -2346,7 +1900,7 @@ export class WebhooksController {
 }
 ```
 
-Delete `webhook-auth.guard.ts`, its spec, and `common/webhook/ip-allowlist.ts`/spec. In `webhooks.module.ts`, remove any `WebhookAuthGuard` import/provider entry if one exists (check first — it may already only be referenced from the controller, not the module's `providers` array, matching the original Cas ID version's wiring).
+If `webhook-auth.guard.ts`/`common/webhook/ip-allowlist.ts` exist in the codebase at this point (check first — earlier planning iterations for this same feature may or may not have reached the codebase depending on what was actually executed), delete them and their specs, and remove any reference to `WebhookAuthGuard` from `webhooks.module.ts` and the controller's `@UseGuards(...)` list. If the controller currently still checks `x-client-id`/`x-secret-key` headers against `CASSO_WEBHOOK_CLIENT_ID`/`CASSO_WEBHOOK_SECRET_KEY` (the *original*, pre-this-plan scaffold's scheme — check `webhooks.controller.ts`'s current state before assuming which variant exists), remove that too; it's superseded by the per-connection `secure-token` scheme above regardless of which prior scheme is currently in place.
 
 - [ ] **Step 4: Run tests + type-check**
 
@@ -2357,13 +1911,12 @@ Expected: PASS, no type errors anywhere in the `webhooks` module.
 
 ```bash
 git add apps/backend/src/modules/webhooks/presentation/webhooks.controller.ts apps/backend/src/modules/webhooks/presentation/webhooks.controller.spec.ts apps/backend/src/modules/webhooks/webhooks.module.ts
-git rm apps/backend/src/modules/webhooks/presentation/webhook-auth.guard.ts apps/backend/src/modules/webhooks/presentation/webhook-auth.guard.spec.ts apps/backend/src/common/webhook/ip-allowlist.ts apps/backend/src/common/webhook/ip-allowlist.spec.ts
 git commit -m "fix: wire WebhooksController to per-connection secure_token verification"
 ```
 
 ---
 
-## Task 13: `.env.example`
+## Task 11: `.env.example`
 
 **Files:**
 - Modify: `apps/backend/.env.example`
@@ -2372,17 +1925,16 @@ Configuration-only (AGENTS.md TDD exception).
 
 - [ ] **Step 1: Edit**
 
-Remove: `CAS_ID_REDIRECT_BASE_URL`, `CAS_ID_LINK_BASE_URL`, `CAS_ID_CLIENT_ID`, `CAS_ID_CLIENT_SECRET`, `CAS_ID_BASE_URL`, `CAS_ID_WEBHOOK_IP_ALLOWLIST`.
+Remove any of these if present (from earlier planning iterations or the original Cas ID work): `CAS_ID_REDIRECT_BASE_URL`, `CAS_ID_LINK_BASE_URL`, `CAS_ID_CLIENT_ID`, `CAS_ID_CLIENT_SECRET`, `CAS_ID_BASE_URL`, `CAS_ID_WEBHOOK_IP_ALLOWLIST`, `CASSO_FLOW_REDIRECT_URI` (no longer needed — no redirect flow).
 
-Add, near the existing `CASSO_WEBHOOK_CLIENT_ID`/`CASSO_WEBHOOK_SECRET_KEY` lines (keep those two — now correctly documented as this product's Casso Flow OAuth2 client credentials):
+**Do not remove or modify** `CASSO_WEBHOOK_CLIENT_ID`/`CASSO_WEBHOOK_SECRET_KEY` — out of scope for this task, see Global Constraints.
+
+Add, near those two lines:
 
 ```
-# Casso Flow OAuth2 (this product's own client_id/client_secret registered
-# with Casso Flow — see docs/superpowers/specs/2026-08-19-casso-flow-integration-design.md)
-CASSO_WEBHOOK_CLIENT_ID=
-CASSO_WEBHOOK_SECRET_KEY=
-CASSO_FLOW_REDIRECT_URI=http://localhost:5173/bank-connections/casso-flow/callback
 # The webhook URL this product registers with Casso Flow via POST /v2/webhooks
+# on every connect (Task 5). A platform-level constant — the API Key itself is
+# per-organization and supplied through the UI, not read from process.env.
 CASSO_FLOW_WEBHOOK_URL=http://localhost:3000/api/v1/webhooks/casso-balance-hook
 ```
 
@@ -2390,48 +1942,38 @@ CASSO_FLOW_WEBHOOK_URL=http://localhost:3000/api/v1/webhooks/casso-balance-hook
 
 ```bash
 git add apps/backend/.env.example
-git commit -m "chore: document Casso Flow env vars, remove Cas ID's"
+git commit -m "chore: document CASSO_FLOW_WEBHOOK_URL, remove Cas ID env vars"
 ```
 
 ---
 
-## Task 14: Fix the remaining backend e2e/integration test files
+## Task 12: Fix the remaining backend e2e/integration test files
 
 **Files:**
 - Modify: `apps/backend/test/webhook-matching.e2e-spec.ts`
 - Modify: `apps/backend/test/collection-activity-timeline.integration.spec.ts`
 - Modify: `apps/backend/test/receivable-balance-history-audit.e2e-spec.ts`
-- Rename+rewrite: `apps/backend/test/cas-id-bank-connection-flow.e2e-spec.ts` → `apps/backend/test/casso-flow-bank-connection-flow.e2e-spec.ts`
+- Rename+rewrite: `apps/backend/test/cas-id-bank-connection-flow.e2e-spec.ts` → `apps/backend/test/casso-flow-bank-connection-flow.e2e-spec.ts` (if the old file exists at this point — check first)
 
 - [ ] **Step 1: Fix the 2 seed-only files**
 
-In `collection-activity-timeline.integration.spec.ts` and `receivable-balance-history-audit.e2e-spec.ts`: each has one `dataSource.getRepository(BankConnectionOrmEntity).save({...})` block currently shaped like:
-
-```ts
-        casIdConnectionSessionId: randomUUID(), // or a literal UUID
-        grantId: randomUUID(), // or a literal UUID
-        encryptedAccessToken: 'encrypted-test-token',
-        accountIdentity: { accountNumber: '99887766', bankName: 'Test Bank' },
-        status: 'ACTIVE',
-        scopes: ['balances'],
-```
-
-Replace with:
+In `collection-activity-timeline.integration.spec.ts` and `receivable-balance-history-audit.e2e-spec.ts`: each has one `dataSource.getRepository(BankConnectionOrmEntity).save({...})` block. Replace whatever Cas-ID-shaped fields it currently has (`casIdConnectionSessionId`/`grantId`/`encryptedAccessToken`/`accountIdentity`/`scopes`, in whatever form the codebase currently has them) with:
 
 ```ts
         accountNumber: '99887766',
         bankName: 'Test Bank',
         encryptedSecureToken: 'encrypted-test-secure-token',
-        encryptedCassoAccessToken: 'encrypted-test-access-token',
-        encryptedCassoRefreshToken: 'encrypted-test-refresh-token',
+        encryptedCassoApiKey: 'encrypted-test-api-key',
         status: 'ACTIVE',
 ```
 
-(drop the `scopes` line entirely — no longer a field). Neither file's test assertions reference these fields directly (confirmed: they only use the connection as an FK target for other entities), so no further changes needed in either file.
+Neither file's test assertions reference these fields directly (they only use the connection as an FK target for other entities).
 
 - [ ] **Step 2: Rewrite `webhook-matching.e2e-spec.ts`**
 
-This file's 3 tests all `POST /api/v1/webhooks/casso-balance-hook`. Replace the seed's `BankConnectionOrmEntity` fields the same way as Step 1. Replace the module-level `payload` constant:
+This file's 3 tests all `POST /api/v1/webhooks/casso-balance-hook`. Replace the seed's `BankConnectionOrmEntity` fields the same way as Step 1, but generate the secure token for real: import `encryptToken` from `../src/modules/bank-connections/application/token-encryption`, define `const webhookSecret = 'e2e-test-secret';` at module scope, seed `encryptedSecureToken: encryptToken(webhookSecret, /* the same ACCESS_TOKEN_ENCRYPTION_KEY value beforeAll already sets */)`.
+
+Replace the module-level `payload` constant:
 
 ```ts
   const payload = {
@@ -2448,13 +1990,13 @@ This file's 3 tests all `POST /api/v1/webhooks/casso-balance-hook`. Replace the 
   };
 ```
 
-Every `request(app.getHttpServer()).post(endpoint)...` call: add `.set('secure-token', 'encrypted-test-secure-token' /* must equal the DECRYPTED value stored, not the encrypted DB column — see note below */)` — actually generate the real secret via `encryptToken`/store the plaintext in a test constant, matching Task 11's real-encryption requirement: define `const webhookSecret = 'e2e-test-secret';` once at module scope, seed the connection with `encryptedSecureToken: encryptToken(webhookSecret, testEncryptionKey)` (import `encryptToken` from `../src/modules/bank-connections/application/token-encryption`, use the same `ACCESS_TOKEN_ENCRYPTION_KEY` value the `beforeAll` already sets), and `.set('secure-token', webhookSecret)` on every request. Remove the old `.set(auth)`/`x-client-id` header entirely.
+Every `request(app.getHttpServer()).post(endpoint)...` call: replace any existing auth header (`.set(auth)` or similar, whatever scheme the file currently has) with `.set('secure-token', webhookSecret)`.
 
 For the third test (`'processes a high-confidence match through the queue'`), update its body to the same `{ error, data: {...} }` shape with `counterAccountName: 'Company B'`, `description: 'Thanh toan INV-2026-0012'`.
 
 - [ ] **Step 3: Rewrite the round-trip e2e**
 
-Rename `cas-id-bank-connection-flow.e2e-spec.ts` to `casso-flow-bank-connection-flow.e2e-spec.ts`. Rewrite its single existing test plus add the Balance Hook round trip, replacing the old `POST cas-id/initiate` → `POST cas-id/sessions/:id/exchange` calls:
+If `cas-id-bank-connection-flow.e2e-spec.ts` exists, rename it to `casso-flow-bank-connection-flow.e2e-spec.ts`. Rewrite its test(s), replacing whatever old initiate/exchange calls it has with:
 
 ```ts
 import { randomUUID } from 'node:crypto';
@@ -2485,9 +2027,6 @@ describe('Casso Flow bank connection flow (integration)', () => {
   beforeAll(async () => {
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-    process.env.CASSO_WEBHOOK_CLIENT_ID = 'e2e-client-id';
-    process.env.CASSO_WEBHOOK_SECRET_KEY = 'e2e-secret-key';
-    process.env.CASSO_FLOW_REDIRECT_URI = 'http://localhost/callback';
     process.env.CASSO_FLOW_WEBHOOK_URL = 'http://localhost/api/v1/webhooks/casso-balance-hook';
 
     container = await new PostgreSqlContainer('postgres:16').start();
@@ -2527,8 +2066,18 @@ describe('Casso Flow bank connection flow (integration)', () => {
   });
 
   it('resolves an inbound webhook to the right connection via accountNumber + secure_token', async () => {
+    // This test cannot exercise the real /connect endpoint end-to-end without
+    // either real network access to Casso Flow's API (unacceptable for CI)
+    // or a fetch-mocking seam this plan hasn't designed for CassoFlowAdapter.
+    // It instead seeds a BankConnection directly (mirroring what a real
+    // /connect call would have persisted) and exercises only the webhook
+    // resolution + verification path, which is the part this task's own
+    // change actually touches. CassoFlowAdapter's real HTTP behavior is
+    // covered by Task 4's unit tests, not this e2e.
     const organizationId = '00000000-0000-4000-8000-000000000301';
     const userId = '00000000-0000-4000-8000-000000000302';
+    const accountNumber = '00000301';
+    const webhookSecret = 'round-trip-e2e-secret';
 
     await dataSource.getRepository(UserOrmEntity).save({
       id: userId,
@@ -2546,692 +2095,311 @@ describe('Casso Flow bank connection flow (integration)', () => {
       joinedAt: new Date(),
       createdAt: new Date(),
     });
-    const token = jwtService.sign({ userId, organizationId, role: Role.OWNER });
 
-    const initiateRes = await request(app.getHttpServer())
-      .post('/api/v1/bank-connections/casso-flow/initiate')
-      .set('Authorization', `Bearer ${token}`)
-      .set('Idempotency-Key', 'casso-flow-flow-initiate')
-      .send({})
-      .expect(201);
-    expect(initiateRes.body.authorizeUrl).toContain('https://oauth.casso.vn/auth/authorize');
-    const state = new URL(initiateRes.body.authorizeUrl).searchParams.get('state');
+    const { BankConnectionOrmEntity } = await import(
+      '../src/modules/bank-connections/infrastructure/bank-connection.orm-entity'
+    );
+    const { encryptToken } = await import(
+      '../src/modules/bank-connections/application/token-encryption'
+    );
+    const connectionId = randomUUID();
+    await dataSource.getRepository(BankConnectionOrmEntity).save({
+      id: connectionId,
+      organizationId,
+      accountNumber,
+      bankName: 'Round Trip Bank',
+      encryptedSecureToken: encryptToken(
+        webhookSecret,
+        process.env.ACCESS_TOKEN_ENCRYPTION_KEY as string,
+      ),
+      encryptedCassoApiKey: encryptToken(
+        'seeded-api-key',
+        process.env.ACCESS_TOKEN_ENCRYPTION_KEY as string,
+      ),
+      status: 'ACTIVE',
+      connectedAt: new Date(),
+      lastSyncAt: null,
+      revokedAt: null,
+      createdAt: new Date(),
+    });
 
-    // Real Casso Flow API calls happen inside ExchangeCassoFlowConnectionUseCase
-    // (CassoFlowAdapter's fetch calls) — this test does not mock global.fetch,
-    // so it can only exercise this far without real credentials reachable in
-    // CI. Assert the initiate step and stop; extend once CassoFlowAdapter has
-    // an injectable seam or a recorded-fixture test double (a decision for a
-    // follow-up, not this plan — see spec §7).
-    expect(state).toBeTruthy();
-  });
+    const transactionId = `round-trip-tx-${randomUUID()}`;
+    await request(app.getHttpServer())
+      .post('/api/v1/webhooks/casso-balance-hook')
+      .set('secure-token', webhookSecret)
+      .send({
+        error: 0,
+        data: {
+          id: transactionId,
+          amount: 5_000_000,
+          transactionDateTime: '2026-08-19 10:00:00',
+          description: 'test balance hook transaction',
+          accountNumber,
+          counterAccountNumber: '1112223334',
+          counterAccountName: 'Round Trip Payer',
+        },
+      })
+      .expect(200, { received: true, duplicate: false });
+
+    const inboxRepo = dataSource.getRepository(WebhookInboxOrmEntity);
+    const transactionRepo = dataSource.getRepository(BankTransactionOrmEntity);
+    const deadline = Date.now() + 10_000;
+    let inboxCount = 0;
+    let transaction: InstanceType<typeof BankTransactionOrmEntity> | null = null;
+    while (Date.now() < deadline) {
+      inboxCount = await inboxRepo.countBy({ organizationId });
+      transaction = await transactionRepo.findOneBy({
+        providerTransactionId: transactionId,
+      });
+      if (inboxCount === 1 && transaction) break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    expect(inboxCount).toBe(1);
+    expect(transaction).not.toBeNull();
+    expect(transaction?.organizationId).toBe(organizationId);
+    expect(transaction?.bankConnectionId).toBe(connectionId);
+    expect(Number(transaction?.amount)).toBe(5_000_000);
+  }, 15_000);
 });
 ```
 
-Note this test is intentionally smaller than the superseded Cas ID version's round-trip test — it cannot go further without either real network access to Casso Flow (unacceptable for CI) or a fetch-mocking seam this plan hasn't designed (no more `MockCasIdAdapter`-style DI swap exists per Task 5's decision to drop the Mock pattern). **This is a real gap, not an oversight**: flag it explicitly in this task's commit message and the final PR description as a follow-up decision needed (e.g., add a `global.fetch` mock at the e2e level, or accept that `CassoFlowAdapter`'s real-network paths are only covered by Task 5's unit tests, not an end-to-end test).
+Note this test seeds `BankConnection` directly with `dataSource`, unlike the removed Cas ID version's round trip (which called real `initiate`/`exchange` endpoints) — there is no analogous "call the real connect endpoint" step here without mocking `CassoFlowAdapter`'s network calls, and this plan doesn't design that mocking seam (flag in the final PR description per Task 13, same reasoning as before, now for a different reason: not an OAuth-CI problem, but an untested-request-mocking gap).
 
 - [ ] **Step 4: Run e2e suite**
 
 Run: `cd apps/backend && npx jest --config ./test/jest-e2e.json --testPathPatterns "webhook-matching|casso-flow-bank-connection-flow|collection-activity-timeline|receivable-balance-history-audit"`
-Expected: PASS, all 4 files (needs Docker).
+Expected: PASS, all files present (needs Docker).
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add apps/backend/test/webhook-matching.e2e-spec.ts apps/backend/test/collection-activity-timeline.integration.spec.ts apps/backend/test/receivable-balance-history-audit.e2e-spec.ts apps/backend/test/casso-flow-bank-connection-flow.e2e-spec.ts
-git rm apps/backend/test/cas-id-bank-connection-flow.e2e-spec.ts
+git rm --ignore-unmatch apps/backend/test/cas-id-bank-connection-flow.e2e-spec.ts
 git commit -m "test: fix e2e/integration tests for Casso Flow's BankConnection shape"
 ```
 
 ---
 
-## Task 15: Frontend — `lib/casso-flow-link.ts` (replaces `cas-link.ts`)
+## Task 13: Frontend — API Key connect form, reconnect action, copy fixes
 
 **Files:**
-- Create: `apps/frontend/src/lib/casso-flow-link.ts`
-- Create: `apps/frontend/src/lib/casso-flow-link.spec.ts`
-- Delete: `apps/frontend/src/lib/cas-link.ts`, `cas-link.spec.ts`
+- Create: `apps/frontend/src/features/bank-connections/components/casso-flow-connect-form.tsx`
+- Create: `apps/frontend/src/features/bank-connections/components/casso-flow-connect-form.spec.tsx`
+- Delete (if present — check first, may not exist depending on what prior iterations of this plan reached): `apps/frontend/src/lib/cas-link.ts`, `cas-link.spec.ts`, `apps/frontend/src/features/bank-connections/pages/cas-id-callback-page.tsx`, `cas-id-callback-page.spec.tsx`, `apps/frontend/src/features/bank-connections/components/cas-id-connection-flow.tsx`, `cas-id-connection-flow.spec.tsx`
+- Modify: `apps/frontend/src/features/bank-connections/api/bank-connections-api.ts`, `apps/frontend/src/features/bank-connections/types.ts`, `apps/frontend/src/features/bank-connections/api/use-bank-connections.ts`
+- Modify: `apps/frontend/src/features/bank-connections/components/connect-dialog.tsx`, `apps/frontend/src/features/bank-connections/components/connection-table.tsx`, `connection-table.spec.tsx`
+- Modify: `apps/frontend/src/features/bank-connections/pages/bank-connections-page.tsx`, `apps/frontend/src/features/onboarding/pages/onboarding-page.tsx`, `apps/frontend/src/features/onboarding/pages/onboarding-page.spec.tsx`
+- Modify (revert to no callback route — check `App.tsx`/`routes/index.tsx` for any Cas-ID-or-earlier-Casso-Flow-plan callback route and remove it): `apps/frontend/src/routes/index.tsx`, `apps/frontend/src/App.tsx`
 
-**Interfaces:**
-- Produces: `openCassoFlowPopup(authorizeUrl: string): Window | null`, `parseCassoFlowCallback(search: string): CassoFlowCallbackResult`, `postCassoFlowMessageToOpener(result): boolean`, `CASSO_FLOW_FAILED_TOAST`, type `CassoFlowMessage`.
+**Design note:** no popup, no OAuth, no callback page — the whole connect interaction is one form with one text input (the API Key) and a submit button, inside the existing `ConnectDialog`. This is simpler than every earlier iteration of this plan, not just different. Follow this repo's existing form/dialog patterns (`shadcn/ui` `Input`, `Form`/plain controlled input + `Button`, matching how other simple single-field forms in this codebase are built — check an existing one, e.g. a settings form, for the exact primitives/validation-display convention before inventing a new one).
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Update the API/types/hooks layer**
 
-```ts
-import { describe, expect, it, vi } from 'vitest';
-import {
-  parseCassoFlowCallback,
-  postCassoFlowMessageToOpener,
-} from './casso-flow-link';
-
-describe('parseCassoFlowCallback', () => {
-  it('returns success with code and state', () => {
-    expect(parseCassoFlowCallback('?code=abc&state=xyz')).toEqual({
-      status: 'success',
-      code: 'abc',
-      state: 'xyz',
-    });
-  });
-
-  it('returns cancelled for a known cancellation error code', () => {
-    expect(parseCassoFlowCallback('?error=access_denied')).toEqual({
-      status: 'cancelled',
-    });
-  });
-
-  it('returns error with the message for an unrecognized error', () => {
-    expect(
-      parseCassoFlowCallback('?error=server_error&error_description=Boom'),
-    ).toEqual({ status: 'error', message: 'Boom' });
-  });
-
-  it('returns cancelled when nothing is present', () => {
-    expect(parseCassoFlowCallback('')).toEqual({ status: 'cancelled' });
-  });
-});
-
-describe('postCassoFlowMessageToOpener', () => {
-  it('returns false when there is no opener', () => {
-    const originalOpener = window.opener;
-    Object.defineProperty(window, 'opener', { value: null, configurable: true });
-
-    expect(
-      postCassoFlowMessageToOpener({ status: 'success', code: 'abc', state: 'xyz' }),
-    ).toBe(false);
-
-    Object.defineProperty(window, 'opener', { value: originalOpener, configurable: true });
-  });
-
-  it('posts a CASSO_FLOW_SUCCESS message with code and state', () => {
-    const postMessage = vi.fn();
-    const originalOpener = window.opener;
-    Object.defineProperty(window, 'opener', { value: { postMessage }, configurable: true });
-
-    postCassoFlowMessageToOpener({ status: 'success', code: 'abc', state: 'xyz' });
-    expect(postMessage).toHaveBeenCalledWith(
-      { type: 'CASSO_FLOW_SUCCESS', code: 'abc', state: 'xyz' },
-      window.location.origin,
-    );
-
-    Object.defineProperty(window, 'opener', { value: originalOpener, configurable: true });
-  });
-});
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `cd apps/frontend && npx vitest run src/lib/casso-flow-link.spec.ts`
-Expected: FAIL — module not found.
-
-- [ ] **Step 3: Write minimal implementation**
+Replace `bank-connections-api.ts`'s Cas ID (or any earlier-plan Casso Flow OAuth) functions with:
 
 ```ts
-const CANCEL_ERROR_CODES = new Set(['access_denied', 'user_cancelled', 'cancelled']);
-
-export type CassoFlowCallbackResult =
-  | { status: 'success'; code: string; state: string }
-  | { status: 'cancelled' }
-  | { status: 'error'; message: string };
-
-export type CassoFlowMessage =
-  | { type: 'CASSO_FLOW_SUCCESS'; code: string; state: string }
-  | { type: 'CASSO_FLOW_CANCELLED' }
-  | { type: 'CASSO_FLOW_ERROR'; message: string };
-
-export const CASSO_FLOW_FAILED_TOAST =
-  'Liên kết Casso Flow thất bại. Vui lòng thử lại.';
-
-export function openCassoFlowPopup(authorizeUrl: string): Window | null {
-  return window.open(
-    authorizeUrl,
-    'casso-flow',
-    'width=480,height=720,scrollbars=yes,resizable=yes',
-  );
-}
-
-export function parseCassoFlowCallback(search: string): CassoFlowCallbackResult {
-  const params = new URLSearchParams(search);
-  const code = params.get('code');
-  const state = params.get('state');
-  if (code && state) return { status: 'success', code, state };
-
-  const error = params.get('error');
-  if (error && CANCEL_ERROR_CODES.has(error)) return { status: 'cancelled' };
-
-  const errorMessage = params.get('error_description');
-  if (errorMessage) return { status: 'error', message: errorMessage };
-  if (error) return { status: 'error', message: error };
-
-  return { status: 'cancelled' };
-}
-
-export function postCassoFlowMessageToOpener(
-  result: CassoFlowCallbackResult,
-): boolean {
-  if (!window.opener) return false;
-
-  if (result.status === 'success') {
-    window.opener.postMessage(
-      { type: 'CASSO_FLOW_SUCCESS', code: result.code, state: result.state } satisfies CassoFlowMessage,
-      window.location.origin,
-    );
-    return true;
-  }
-  if (result.status === 'cancelled') {
-    window.opener.postMessage(
-      { type: 'CASSO_FLOW_CANCELLED' } satisfies CassoFlowMessage,
-      window.location.origin,
-    );
-    return true;
-  }
-  window.opener.postMessage(
-    { type: 'CASSO_FLOW_ERROR', message: result.message } satisfies CassoFlowMessage,
-    window.location.origin,
-  );
-  return true;
+export function connectCassoFlow(input: {
+  apiKey: string;
+  bankConnectionId?: string;
+}): Promise<{ connectionId: string; status: string }> {
+  return postWithIdempotency('/api/v1/bank-connections/casso-flow/connect', input);
 }
 ```
 
-Delete `cas-link.ts`/`cas-link.spec.ts`.
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `cd apps/frontend && npx vitest run src/lib/casso-flow-link.spec.ts`
-Expected: PASS (6 tests).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add apps/frontend/src/lib/casso-flow-link.ts apps/frontend/src/lib/casso-flow-link.spec.ts
-git rm apps/frontend/src/lib/cas-link.ts apps/frontend/src/lib/cas-link.spec.ts
-git commit -m "feat: add casso-flow-link.ts, remove cas-link.ts"
-```
-
----
-
-## Task 16: Frontend — `casso-flow-callback-page.tsx` (replaces `cas-id-callback-page.tsx`)
-
-**Files:**
-- Create: `apps/frontend/src/features/bank-connections/pages/casso-flow-callback-page.tsx`
-- Create: `apps/frontend/src/features/bank-connections/pages/casso-flow-callback-page.spec.tsx`
-- Delete: `apps/frontend/src/features/bank-connections/pages/cas-id-callback-page.tsx`, `cas-id-callback-page.spec.tsx`
-- Modify: `apps/frontend/src/features/bank-connections/api/bank-connections-api.ts`, `types.ts`, `api/use-bank-connections.ts`
-
-**Interfaces:**
-- Consumes: `parseCassoFlowCallback`/`postCassoFlowMessageToOpener` (Task 15).
-- Produces: `useExchangeCassoFlow(code, state)` mutation hook.
-
-- [ ] **Step 1: Update the API/types/hooks layer first (needed by the callback page and Task 17)**
-
-Replace `bank-connections-api.ts`'s Cas ID functions:
+Replace `types.ts`'s Cas ID/OAuth types — no `CassoFlowInitiation`/`CassoFlowExchangeInput` are needed anymore, just:
 
 ```ts
-export function initiateCassoFlow(): Promise<CassoFlowInitiation> {
-  return postWithIdempotency<CassoFlowInitiation>(
-    '/api/v1/bank-connections/casso-flow/initiate',
-    {},
-  );
-}
-
-export function exchangeCassoFlow(
-  input: CassoFlowExchangeInput,
-): Promise<{ connectionId: string; status: string }> {
-  return postWithIdempotency('/api/v1/bank-connections/casso-flow/exchange', input);
+export interface CassoFlowConnectInput {
+  apiKey: string;
+  bankConnectionId?: string;
 }
 ```
 
-Replace `types.ts`'s Cas ID types:
+Replace `use-bank-connections.ts`'s Cas ID/OAuth hooks with:
 
 ```ts
-export interface CassoFlowInitiation {
-  authorizeUrl: string;
-}
-
-export interface CassoFlowExchangeInput {
-  code: string;
-  state: string;
-}
-```
-
-Replace `use-bank-connections.ts`'s Cas ID hooks:
-
-```ts
-export function useInitiateCassoFlow() {
-  return useMutation({ mutationFn: initiateCassoFlow });
-}
-
-export function useExchangeCassoFlow() {
+export function useConnectCassoFlow() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { code: string; state: string }) => exchangeCassoFlow(input),
+    mutationFn: (input: CassoFlowConnectInput) => connectCassoFlow(input),
     onSuccess: () => {
       toast.success('Đã kết nối Casso Flow.');
       void queryClient.invalidateQueries({ queryKey });
     },
-    onError: () => toast.error('Không thể hoàn tất kết nối Casso Flow.'),
+    onError: () => toast.error('Không thể kết nối Casso Flow. Kiểm tra lại API Key.'),
   });
 }
 ```
 
-(update the `import { ... } from './bank-connections-api'` line at the top of `use-bank-connections.ts` to match the renamed functions.)
+(update the `import { ... } from './bank-connections-api'` and `from '../types'` lines accordingly.)
 
-- [ ] **Step 2: Write the failing test for the callback page**
+- [ ] **Step 2: Write the failing test for the connect form**
 
 ```tsx
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CassoFlowCallbackPage } from './casso-flow-callback-page';
+import { CassoFlowConnectForm } from './casso-flow-connect-form';
 
-const { toastSuccess, toastError, apiRequest } = vi.hoisted(() => ({
-  toastSuccess: vi.fn(),
-  toastError: vi.fn(),
+const { apiRequest, toastError } = vi.hoisted(() => ({
   apiRequest: vi.fn(),
+  toastError: vi.fn(),
 }));
 
-vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: toastError } }));
 vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
   postWithIdempotency: (url: string, data?: unknown) =>
     apiRequest({ url, method: 'POST', data }),
 }));
 
-function renderCallback(path: string) {
+function renderForm(props: { bankConnectionId?: string } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route
-            path="/bank-connections/casso-flow/callback"
-            element={<CassoFlowCallbackPage />}
-          />
-          <Route path="/bank-connections" element={<div>bank-connections</div>} />
-        </Routes>
-      </MemoryRouter>
+      <CassoFlowConnectForm {...props} />
     </QueryClientProvider>,
   );
 }
 
 beforeEach(() => {
-  toastSuccess.mockReset();
-  toastError.mockReset();
   apiRequest.mockReset();
+  toastError.mockReset();
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => vi.clearAllMocks());
 
-describe('CassoFlowCallbackPage', () => {
-  it('forwards a success result to the opener and closes itself', async () => {
-    const postMessage = vi.fn();
-    const close = vi.fn();
-    vi.stubGlobal('opener', { postMessage });
-    vi.stubGlobal('close', close);
-
-    renderCallback('/bank-connections/casso-flow/callback?code=abc&state=xyz');
-
-    await waitFor(() =>
-      expect(postMessage).toHaveBeenCalledWith(
-        { type: 'CASSO_FLOW_SUCCESS', code: 'abc', state: 'xyz' },
-        window.location.origin,
-      ),
-    );
-    expect(close).toHaveBeenCalled();
-    expect(apiRequest).not.toHaveBeenCalled();
-  });
-
-  it('exchanges the code itself and redirects when there is no opener', async () => {
+describe('CassoFlowConnectForm', () => {
+  it('submits the pasted API Key', async () => {
     apiRequest.mockResolvedValue({ connectionId: 'conn-1', status: 'ACTIVE' });
 
-    renderCallback('/bank-connections/casso-flow/callback?code=abc&state=xyz');
+    renderForm();
+    fireEvent.change(screen.getByLabelText('Casso API Key'), {
+      target: { value: 'real-api-key' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Kết nối' }));
 
     await waitFor(() =>
       expect(apiRequest).toHaveBeenCalledWith(
         expect.objectContaining({
-          url: '/api/v1/bank-connections/casso-flow/exchange',
-          data: { code: 'abc', state: 'xyz' },
+          url: '/api/v1/bank-connections/casso-flow/connect',
+          data: { apiKey: 'real-api-key' },
         }),
       ),
     );
+  });
+
+  it('includes bankConnectionId when provided, for the reconnect case', async () => {
+    apiRequest.mockResolvedValue({ connectionId: 'conn-1', status: 'ACTIVE' });
+
+    renderForm({ bankConnectionId: 'conn-1' });
+    fireEvent.change(screen.getByLabelText('Casso API Key'), {
+      target: { value: 'new-api-key' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Kết nối lại' }));
+
     await waitFor(() =>
-      expect(screen.getByText('bank-connections')).toBeInTheDocument(),
+      expect(apiRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { apiKey: 'new-api-key', bankConnectionId: 'conn-1' },
+        }),
+      ),
     );
+  });
+
+  it('disables submit until a key is entered', () => {
+    renderForm();
+    expect(screen.getByRole('button', { name: 'Kết nối' })).toBeDisabled();
   });
 });
 ```
 
 - [ ] **Step 3: Run test to verify it fails**
 
-Run: `cd apps/frontend && npx vitest run src/features/bank-connections/pages/casso-flow-callback-page.spec.tsx`
+Run: `cd apps/frontend && npx vitest run src/features/bank-connections/components/casso-flow-connect-form.spec.tsx`
 Expected: FAIL — module not found.
 
 - [ ] **Step 4: Write minimal implementation**
 
 ```tsx
-import { useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { toast } from 'sonner';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Spinner } from '@/components/ui/spinner';
-import {
-  CASSO_FLOW_FAILED_TOAST,
-  parseCassoFlowCallback,
-  postCassoFlowMessageToOpener,
-} from '@/lib/casso-flow-link';
-import { useExchangeCassoFlow } from '../api/use-bank-connections';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useConnectCassoFlow } from '../api/use-bank-connections';
 
-export function CassoFlowCallbackPage() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const exchangeMutation = useExchangeCassoFlow();
-  const handledRef = useRef(false);
+export function CassoFlowConnectForm({
+  bankConnectionId,
+  onCompleted,
+}: {
+  bankConnectionId?: string;
+  onCompleted?: () => void;
+}) {
+  const [apiKey, setApiKey] = useState('');
+  const connectMutation = useConnectCassoFlow();
 
-  useEffect(() => {
-    if (handledRef.current) return;
-    handledRef.current = true;
-
-    const result = parseCassoFlowCallback(searchParams.toString());
-    if (postCassoFlowMessageToOpener(result)) {
-      window.close();
-      return;
-    }
-
-    const goBack = () => navigate('/bank-connections', { replace: true });
-
-    if (result.status !== 'success') {
-      toast.error(result.status === 'error' ? result.message : CASSO_FLOW_FAILED_TOAST);
-      goBack();
-      return;
-    }
-
-    exchangeMutation.mutate(
-      { code: result.code, state: result.state },
-      { onSettled: goBack },
+  function handleSubmit() {
+    connectMutation.mutate(
+      { apiKey, bankConnectionId },
+      { onSuccess: () => onCompleted?.() },
     );
-  }, [searchParams, navigate, exchangeMutation.mutate]);
+  }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-muted/30 px-4 py-8">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Đang xử lý liên kết Casso Flow</CardTitle>
-          <CardDescription>Vui lòng đợi trong giây lát…</CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Spinner className="size-4" />
-          Hoàn tất callback Casso Flow
-        </CardContent>
-      </Card>
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label htmlFor="casso-api-key">Casso API Key</Label>
+        <Input
+          id="casso-api-key"
+          type="password"
+          autoComplete="off"
+          value={apiKey}
+          onChange={(event) => setApiKey(event.target.value)}
+          placeholder="Dán API Key từ tài khoản Casso của bạn"
+        />
+        <p className="text-xs text-muted-foreground">
+          Lấy API Key tại Casso: Thiết lập → API Keys → Tạo API Key.
+        </p>
+      </div>
+      <Button
+        onClick={handleSubmit}
+        disabled={!apiKey.trim() || connectMutation.isPending}
+      >
+        {connectMutation.isPending
+          ? 'Đang kết nối…'
+          : bankConnectionId
+            ? 'Kết nối lại'
+            : 'Kết nối'}
+      </Button>
     </div>
   );
 }
 ```
 
-Delete `cas-id-callback-page.tsx`/spec.
+Check `apps/frontend/src/components/ui/label.tsx` and `input.tsx` exist as shadcn/ui primitives before importing them (they're standard shadcn components almost certainly already present given this codebase's existing form patterns — confirm rather than assume, and if `Label` doesn't exist, use a plain `<label htmlFor="casso-api-key" className="text-sm font-medium">Casso API Key</label>` instead of introducing a new primitive for one field).
 
-- [ ] **Step 5: Run test to verify it passes**
+Delete the Cas-ID/earlier-Casso-Flow-OAuth files listed at the top of this task if present.
 
-Run: `cd apps/frontend && npx vitest run src/features/bank-connections/pages/casso-flow-callback-page.spec.tsx`
-Expected: PASS (2 tests).
+- [ ] **Step 5: Wire into `ConnectDialog` and `ConnectionTable`, fix leftover copy**
 
-- [ ] **Step 6: Commit**
+`connect-dialog.tsx`: replace whatever connection-flow component it currently renders with `<CassoFlowConnectForm onCompleted={() => setOpen(false)} />`. Update the `DialogTitle` to `"Kết nối Casso Flow"` and the `DialogDescription` to `"Dán API Key từ tài khoản Casso của bạn để bắt đầu đồng bộ giao dịch."`.
 
-```bash
-git add apps/frontend/src/features/bank-connections/pages/casso-flow-callback-page.tsx apps/frontend/src/features/bank-connections/pages/casso-flow-callback-page.spec.tsx apps/frontend/src/features/bank-connections/api/bank-connections-api.ts apps/frontend/src/features/bank-connections/types.ts apps/frontend/src/features/bank-connections/api/use-bank-connections.ts
-git rm apps/frontend/src/features/bank-connections/pages/cas-id-callback-page.tsx apps/frontend/src/features/bank-connections/pages/cas-id-callback-page.spec.tsx
-git commit -m "feat: add CassoFlowCallbackPage, remove CasIdCallbackPage"
-```
+`onboarding-page.tsx`: same component swap. Update the `CardDescription` to `"Liên kết tài khoản qua Casso Flow để bắt đầu đồng bộ giao dịch vào Casso Ledger."` (keep "Casso Ledger" as-is — this product's own name, not the third party; see `CONTEXT.md`'s "Casso Flow" glossary entry).
 
----
+`bank-connections-page.tsx`: update the page description to `"Kết nối Casso Flow để tự động đồng bộ giao dịch."`
 
-## Task 17: Frontend — `CassoFlowConnectionFlow` + wire routes/UI text + reconnect action
+`onboarding-page.spec.tsx`: remove any mock of a popup library (`cas-link`/`casso-flow-link`) and any popup-based test; replace with a form-submission test mirroring Task 13's own spec pattern (fill the API Key input, click submit, assert the mutation was called) — there is no popup to mock anymore.
 
-**Files:**
-- Create: `apps/frontend/src/features/bank-connections/components/casso-flow-connection-flow.tsx`
-- Create: `apps/frontend/src/features/bank-connections/components/casso-flow-connection-flow.spec.tsx`
-- Delete: `apps/frontend/src/features/bank-connections/components/cas-id-connection-flow.tsx`, `cas-id-connection-flow.spec.tsx`
-- Modify: `apps/frontend/src/features/bank-connections/api/bank-connections-api.ts`, `apps/frontend/src/features/bank-connections/types.ts`, `apps/frontend/src/features/bank-connections/api/use-bank-connections.ts` (widen `initiateCassoFlow`/`useInitiateCassoFlow` to take an optional `bankConnectionId`, for the reconnect action below)
-- Modify: `apps/frontend/src/features/bank-connections/components/connection-table.tsx`, `connection-table.spec.tsx` (add the reconnect action for `REQUIRES_REAUTHORIZATION`/`ERROR` connections — found missing during a `frontend-design` pass: the backend's reactivate flow, built in Task 7, had no FE entry point at all)
-- Modify: `apps/frontend/src/routes/index.tsx`, `apps/frontend/src/App.tsx`, `apps/frontend/src/features/bank-connections/components/connect-dialog.tsx`, `apps/frontend/src/features/bank-connections/pages/bank-connections-page.tsx`, `apps/frontend/src/features/onboarding/pages/onboarding-page.tsx`, `apps/frontend/src/features/onboarding/pages/onboarding-page.spec.tsx` (swap component + fix leftover "Cas ID"/"Cas Link" copy)
+**`connection-table.tsx`** — add the reconnect action for `REQUIRES_REAUTHORIZATION`/`ERROR` connections (same gap found during the `frontend-design` pass as in an earlier iteration of this plan, still applicable): render `<CassoFlowConnectForm bankConnectionId={connection.id} />` inside a small popover/dialog trigger (a "Kết nối lại" button that opens a mini form, not a full-page flow) as a sibling to the existing `{connection.status === 'ACTIVE' && (<AlertDialog>...)}` disconnect block in the same `<TableCell>`. Use this codebase's existing `Popover`/`Dialog` primitive (check `components/ui/` for what's already used elsewhere in this file's imports or nearby components) rather than inventing a new interaction pattern — the exact wrapper (`Popover` vs a small `Dialog`) is an implementation choice, not specified further here; pick whichever this codebase already uses for "a small form triggered from a table row action."
 
-**Design note (from the `frontend-design` pass):** this is a settings-page control in an established B2B app with its own design system already applied consistently (shadcn/ui primitives, existing `Badge`/`Table`/`AlertDialog` patterns from `connection-table.tsx`) — there is no new visual identity to invent here, and doing so would look inconsistent with the rest of the product. The actual design work is: (1) get the copy right and consistent (a control's label stays the same word through the whole flow — "Kết nối lại" the button, not "kết nối lại" the toast and "tái xác thực" the badge), and (2) make sure every reachable state has a way out, which is what the reconnect action below fixes.
+`routes/index.tsx`/`App.tsx`: remove any Casso-Flow-callback or Cas-ID-callback route/lazy import if one exists from an earlier iteration of this plan — there is no callback page in this design.
 
-- [ ] **Step 1: Widen `initiateCassoFlow`/`useInitiateCassoFlow` to accept an optional `bankConnectionId`**
+In `connection-table.spec.tsx`, add a test: seed a connection with `status: 'REQUIRES_REAUTHORIZATION'`, assert a "Kết nối lại" trigger renders and the "Ngắt kết nối" button does not (check the file's current mocking pattern for `useConnectCassoFlow`/`useDisconnectConnection` first, matching it exactly rather than guessing).
 
-Edit `bank-connections-api.ts`:
+- [ ] **Step 6: Run tests; full frontend suite + type-check**
 
-```ts
-export function initiateCassoFlow(
-  bankConnectionId?: string,
-): Promise<CassoFlowInitiation> {
-  return postWithIdempotency<CassoFlowInitiation>(
-    '/api/v1/bank-connections/casso-flow/initiate',
-    bankConnectionId ? { bankConnectionId } : {},
-  );
-}
-```
-
-Edit `use-bank-connections.ts`:
-
-```ts
-export function useInitiateCassoFlow() {
-  return useMutation({
-    mutationFn: (bankConnectionId?: string) => initiateCassoFlow(bankConnectionId),
-  });
-}
-```
-
-`types.ts`'s `CassoFlowInitiation` is unchanged (still just `{ authorizeUrl: string }`).
-
-- [ ] **Step 2: Write the failing test for the connect/reconnect component**
-
-- [ ] **Step 1: Write the failing test**
-
-```tsx
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CassoFlowConnectionFlow } from './casso-flow-connection-flow';
-
-const { apiRequest, toastError, openCassoFlowPopup } = vi.hoisted(() => ({
-  apiRequest: vi.fn(),
-  toastError: vi.fn(),
-  openCassoFlowPopup: vi.fn(),
-}));
-
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: toastError } }));
-vi.mock('@/lib/casso-flow-link', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/casso-flow-link')>(
-    '@/lib/casso-flow-link',
-  );
-  return { ...actual, openCassoFlowPopup };
-});
-vi.mock('@/lib/api-client', () => ({
-  apiRequest: (...args: unknown[]) => apiRequest(...args),
-  postWithIdempotency: (url: string, data?: unknown) =>
-    apiRequest({ url, method: 'POST', data }),
-}));
-
-function fakePopup() {
-  return { closed: false, close: vi.fn() } as unknown as Window;
-}
-
-function renderFlow(props: { bankConnectionId?: string; label?: string } = {}) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(
-    <QueryClientProvider client={queryClient}>
-      <CassoFlowConnectionFlow {...props} />
-    </QueryClientProvider>,
-  );
-}
-
-beforeEach(() => {
-  apiRequest.mockReset();
-  toastError.mockReset();
-  openCassoFlowPopup.mockReset();
-});
-afterEach(() => vi.useRealTimers());
-
-describe('CassoFlowConnectionFlow', () => {
-  it('opens the Casso Flow popup with the authorize URL from initiate', async () => {
-    apiRequest.mockResolvedValue({ authorizeUrl: 'https://oauth.casso.vn/auth/authorize?state=s1' });
-    openCassoFlowPopup.mockReturnValue(fakePopup());
-
-    renderFlow();
-    fireEvent.click(screen.getByText('Kết nối ngân hàng'));
-
-    await waitFor(() =>
-      expect(openCassoFlowPopup).toHaveBeenCalledWith(
-        'https://oauth.casso.vn/auth/authorize?state=s1',
-      ),
-    );
-  });
-
-  it('shows an error toast when the popup is blocked', async () => {
-    apiRequest.mockResolvedValue({ authorizeUrl: 'https://oauth.casso.vn/auth/authorize?state=s1' });
-    openCassoFlowPopup.mockReturnValue(null);
-
-    renderFlow();
-    fireEvent.click(screen.getByText('Kết nối ngân hàng'));
-
-    await waitFor(() =>
-      expect(toastError).toHaveBeenCalledWith(expect.stringContaining('popup')),
-    );
-  });
-
-  it('passes bankConnectionId through to initiate and renders a custom label, for the reconnect case', async () => {
-    apiRequest.mockResolvedValue({ authorizeUrl: 'https://oauth.casso.vn/auth/authorize?state=s1' });
-    openCassoFlowPopup.mockReturnValue(fakePopup());
-
-    renderFlow({ bankConnectionId: 'conn-1', label: 'Kết nối lại' });
-    fireEvent.click(screen.getByText('Kết nối lại'));
-
-    await waitFor(() =>
-      expect(apiRequest).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { bankConnectionId: 'conn-1' } }),
-      ),
-    );
-  });
-});
-```
-
-- [ ] **Step 3: Run test to verify it fails**
-
-Run: `cd apps/frontend && npx vitest run src/features/bank-connections/components/casso-flow-connection-flow.spec.tsx`
-Expected: FAIL — module not found.
-
-- [ ] **Step 4: Write minimal implementation**
-
-```tsx
-import { useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
-import { Button, type ButtonProps } from '@/components/ui/button';
-import { openCassoFlowPopup } from '@/lib/casso-flow-link';
-import { useInitiateCassoFlow } from '../api/use-bank-connections';
-
-export function CassoFlowConnectionFlow({
-  bankConnectionId,
-  label = 'Kết nối ngân hàng',
-  variant,
-  size,
-}: {
-  bankConnectionId?: string;
-  label?: string;
-  variant?: ButtonProps['variant'];
-  size?: ButtonProps['size'];
-}) {
-  const [isLinking, setIsLinking] = useState(false);
-  const popupRef = useRef<Window | null>(null);
-  const popupPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const initiateMutation = useInitiateCassoFlow();
-
-  useEffect(() => {
-    return () => {
-      if (popupPollRef.current) clearInterval(popupPollRef.current);
-    };
-  }, []);
-
-  function handleConnect() {
-    setIsLinking(true);
-    initiateMutation.mutate(bankConnectionId, {
-      onSuccess: (result) => {
-        const popup = openCassoFlowPopup(result.authorizeUrl);
-        popupRef.current = popup;
-        if (!popup) {
-          toast.error('Trình duyệt đã chặn popup. Vui lòng cho phép popup và thử lại.');
-          setIsLinking(false);
-          return;
-        }
-        popupPollRef.current = setInterval(() => {
-          if (popup.closed) {
-            if (popupPollRef.current) clearInterval(popupPollRef.current);
-            setIsLinking(false);
-          }
-        }, 500);
-      },
-      onError: () => {
-        toast.error('Không thể tạo liên kết Casso Flow.');
-        setIsLinking(false);
-      },
-    });
-  }
-
-  return (
-    <Button onClick={handleConnect} disabled={isLinking} variant={variant} size={size}>
-      {isLinking ? 'Đang mở Casso Flow…' : label}
-    </Button>
-  );
-}
-```
-
-`apps/frontend/src/components/ui/button.tsx` already exports `ButtonProps` (confirmed: `export interface ButtonProps ...`, `export { Button, buttonVariants };`) — the import above resolves as-is, no changes needed to that file.
-
-Note this component is simpler than the removed `CasIdConnectionFlow`: it doesn't listen for `window.addEventListener('message', ...)` at all — the callback page (Task 16) does the exchange itself (either via `postMessage`-triggered close, in which case `BankConnection`'s list-refetch on the `/bank-connections` page picks up the new connection via `usePollConnections`'s existing 5s poll, or via its own no-opener fallback navigate). This flow component only needs to open the popup and detect if the user closes it without completing — it does not need to react to the popup's outcome directly the way the Cas ID version did, because the callback page's no-opener path already handles completion+navigation on its own, and the opener path's `postMessage` isn't consumed here at all (no listener). **Confirm this is the intended simplification** (it follows from Task 3/7's design — reactivating/creating a connection no longer needs the popup-opener page to know a `sessionId` to call exchange with, since the callback page has everything it needs from the URL) rather than a dropped feature; if a snappier UX (auto-closing the popup and refreshing the list without waiting for the poll) is wanted, add the `message` listener back here mirroring the removed component — that's a UX call, not a correctness one.
-
-Delete `cas-id-connection-flow.tsx`/spec.
-
-- [ ] **Step 5: Update remaining references, fix leftover Cas ID copy, add the reconnect action**
-
-`connect-dialog.tsx`: replace `<CasIdConnectionFlow onCompleted={...} />` with `<CassoFlowConnectionFlow />` (drop the `onCompleted` prop — nothing left to pass it, per Step 4's note; the dialog's `onOpenChange`/polling already handles refresh). Update the import. Also replace the dialog's description text — currently `"Một cửa sổ Cas Link sẽ mở ra để cấp quyền truy cập tài khoản ngân hàng."` — with `"Một cửa sổ Casso Flow sẽ mở ra để cấp quyền truy cập tài khoản ngân hàng."`, and the `DialogTitle` from `"Kết nối qua Cas ID"` to `"Kết nối qua Casso Flow"`.
-
-`onboarding-page.tsx`: same component swap. Also replace the `CardDescription` text — currently `"Liên kết tài khoản qua Cas ID để bắt đầu đồng bộ giao dịch vào Casso Ledger."` — with `"Liên kết tài khoản qua Casso Flow để bắt đầu đồng bộ giao dịch vào Casso Ledger."` (keep "Casso Ledger" as-is — that's this product's own name, not the third party; see `CONTEXT.md`'s "Casso Flow" glossary entry for why the two must stay visually distinct in copy, not just in code).
-
-`bank-connections-page.tsx`: replace the page description — currently `"Kết nối Cas ID để tự động đồng bộ giao dịch."` — with `"Kết nối Casso Flow để tự động đồng bộ giao dịch."`
-
-`onboarding-page.spec.tsx`: remove the `vi.mock('@/lib/cas-link', ...)` block and the `openCasLinkPopupMock`-based test; replace with an equivalent using `@/lib/casso-flow-link`'s `openCassoFlowPopup`, mirroring the pattern already used in Task 17's own spec above (Step 2).
-
-`routes/index.tsx`: replace the `CasIdCallbackPage` lazy import with `CassoFlowCallbackPage` from `@/features/bank-connections/pages/casso-flow-callback-page`.
-
-`App.tsx`: update the route path from `bank-connections/cas-id/callback` to `bank-connections/casso-flow/callback`, and the import/usage from `CasIdCallbackPage` to `CassoFlowCallbackPage`.
-
-**`connection-table.tsx`** — add the reconnect action found missing during the `frontend-design` pass. Currently the "Thao tác" column only renders anything `{connection.status === 'ACTIVE' && (...)}`, leaving `REQUIRES_REAUTHORIZATION`/`ERROR` connections with a badge and no way to act on it. Add a sibling branch:
-
-```tsx
-                {(connection.status === 'REQUIRES_REAUTHORIZATION' ||
-                  connection.status === 'ERROR') && (
-                  <CassoFlowConnectionFlow
-                    bankConnectionId={connection.id}
-                    label="Kết nối lại"
-                    variant="outline"
-                    size="sm"
-                  />
-                )}
-```
-
-placed as a sibling to the existing `{connection.status === 'ACTIVE' && (<AlertDialog>...)}` block inside the same `<TableCell>` (the two are mutually exclusive by status, so both can sit unconditionally next to each other with no wrapping change needed). Add `import { CassoFlowConnectionFlow } from './casso-flow-connection-flow';` to `connection-table.tsx`'s imports.
-
-In `connection-table.spec.tsx`, add a test: seed a connection with `status: 'REQUIRES_REAUTHORIZATION'`, assert a "Kết nối lại" button renders and the "Ngắt kết nối" button does not (mirror whatever mocking pattern the existing disconnect-button test in that file already uses for `useDisconnectConnection`/`useInitiateCassoFlow`, checking the file's current content first — it wasn't read during this planning pass, so its existing mock setup must be matched exactly, not guessed).
-
-- [ ] **Step 6: Run tests to verify they pass; full frontend suite + type-check**
-
-Run: `cd apps/frontend && npx vitest run src/features/bank-connections/components/casso-flow-connection-flow.spec.tsx src/features/bank-connections/components/connection-table.spec.tsx`
-Expected: PASS (3 tests in the flow spec, plus however many `connection-table.spec.tsx` has after adding the new one).
+Run: `cd apps/frontend && npx vitest run src/features/bank-connections/components/casso-flow-connect-form.spec.tsx src/features/bank-connections/components/connection-table.spec.tsx`
+Expected: PASS (3 tests in the form spec, plus `connection-table.spec.tsx`'s existing tests plus the new one).
 
 Run: `cd apps/frontend && npx vitest run && npx tsc --noEmit`
 Expected: full suite PASS, no type errors.
@@ -3239,14 +2407,14 @@ Expected: full suite PASS, no type errors.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add apps/frontend/src/features/bank-connections/components/casso-flow-connection-flow.tsx apps/frontend/src/features/bank-connections/components/casso-flow-connection-flow.spec.tsx apps/frontend/src/features/bank-connections/components/connect-dialog.tsx apps/frontend/src/features/bank-connections/components/connection-table.tsx apps/frontend/src/features/bank-connections/components/connection-table.spec.tsx apps/frontend/src/features/bank-connections/pages/bank-connections-page.tsx apps/frontend/src/features/bank-connections/api/bank-connections-api.ts apps/frontend/src/features/bank-connections/api/use-bank-connections.ts apps/frontend/src/features/onboarding/pages/onboarding-page.tsx apps/frontend/src/features/onboarding/pages/onboarding-page.spec.tsx apps/frontend/src/routes/index.tsx apps/frontend/src/App.tsx
-git rm apps/frontend/src/features/bank-connections/components/cas-id-connection-flow.tsx apps/frontend/src/features/bank-connections/components/cas-id-connection-flow.spec.tsx
-git commit -m "feat: wire CassoFlowConnectionFlow, add reconnect action, fix leftover Cas ID copy"
+git add apps/frontend/src/features/bank-connections apps/frontend/src/features/onboarding/pages/onboarding-page.tsx apps/frontend/src/features/onboarding/pages/onboarding-page.spec.tsx apps/frontend/src/routes/index.tsx apps/frontend/src/App.tsx
+git rm --ignore-unmatch apps/frontend/src/lib/cas-link.ts apps/frontend/src/lib/cas-link.spec.ts apps/frontend/src/features/bank-connections/pages/cas-id-callback-page.tsx apps/frontend/src/features/bank-connections/pages/cas-id-callback-page.spec.tsx apps/frontend/src/features/bank-connections/components/cas-id-connection-flow.tsx apps/frontend/src/features/bank-connections/components/cas-id-connection-flow.spec.tsx
+git commit -m "feat: replace popup connect flow with a pasted-API-Key form"
 ```
 
 ---
 
-## Task 18: Final verification
+## Task 14: Final verification
 
 **Files:** none (verification only).
 
@@ -3258,7 +2426,7 @@ cd apps/backend && npx jest && npx jest --config ./test/jest-e2e.json && npx tsc
 
 Run the `domain-check` skill and fix violations.
 
-Run: `cd apps/backend && npx biome check --write src apps/backend/test .env.example` (adjust path — run from repo root: `npx biome check --write apps/backend/src apps/backend/test apps/backend/.env.example`).
+Run from repo root: `npx biome check --write apps/backend/src apps/backend/test apps/backend/.env.example`
 
 - [ ] **Step 2: Full frontend suite, type-check, biome**
 
@@ -3267,32 +2435,41 @@ cd apps/frontend && npx vitest run && npx tsc --noEmit
 cd D:/casso-ledger && npx biome check --write apps/frontend/src
 ```
 
-- [ ] **Step 3: Grep for leftover Cas ID references**
+- [ ] **Step 3: Grep for leftover Cas ID references AND leftover OAuth2-popup references**
 
-Run: `grep -rln "CasId\|cas-id\|CAS_ID" apps/backend/src apps/frontend/src apps/backend/test --include=*.ts --include=*.tsx 2>/dev/null`
-Expected: no results (or only genuinely unrelated false-positive matches — inspect each). This catches anything the task-by-task removal missed.
+```bash
+grep -rln "CasId\|cas-id\|CAS_ID" apps/backend/src apps/frontend/src apps/backend/test --include=*.ts --include=*.tsx 2>/dev/null
+grep -rln "CassoOAuthState\|authorizeUrl\|casso-flow-link\|casso-flow/callback\|CassoFlowCallbackPage\|exchangeCodeForToken" apps/backend/src apps/frontend/src apps/backend/test --include=*.ts --include=*.tsx 2>/dev/null
+```
+
+Expected: no results for either grep (or only genuinely unrelated false positives — inspect each). The second grep catches leftovers from this plan's own earlier OAuth2-popup draft, in case any file from that draft reached the codebase before this revision and wasn't fully replaced.
 
 - [ ] **Step 4: Push and open a PR — do NOT merge**
 
 ```bash
 git push -u origin <branch-name>
-gh pr create --title "feat: replace Cas ID integration with Casso Flow" --body "$(cat <<'EOF'
+gh pr create --title "feat: replace Cas ID integration with Casso Flow (API Key connect)" --body "$(cat <<'EOF'
 ## Summary
 Removes the Cas ID integration merged in PR #266/#268/#269 (wrong provider —
-see ADR-0021) and replaces it with a Casso Flow integration matching how
-that provider actually works: OAuth2 read-only access + self-registered
-webhook, resolved by accountNumber + a per-connection secure_token instead
-of grantId/IP-allowlist.
+see ADR-0021) and replaces it with a Casso Flow integration: a business
+pastes their own Casso API Key (Casso's OAuth2 partner-app registration is
+permanently closed — confirmed against the actual registration form), this
+product reads their linked account and registers a webhook on their behalf.
+No popup, no redirect flow.
 
-## Known gaps / follow-ups (see spec §6, and Task 5/14's notes)
-- The exact webhook auth header (`secure-token` vs `X-Casso-Signature`) and
-  OAuth2 `scope` param are assumed from incomplete public docs — MUST be
-  verified against real Casso Flow behavior before this is trusted in
-  production (see Task 11's note).
-- No mock/fetch-seam exists for `CassoFlowAdapter`'s real network calls in
-  the round-trip e2e test (Task 14) — it only covers the initiate step.
-- Token refresh, disconnect-side webhook unregistration, and the
-  `/v2/sync` reconciliation call are deliberately out of scope.
+## Known gaps / follow-ups (see spec §6)
+- The exact webhook auth header (`secure-token` vs `X-Casso-Signature`) is
+  assumed from incomplete public docs — MUST be verified against real Casso
+  Flow behavior before this is trusted in production (see Task 9's note).
+- The round-trip e2e test (Task 12) seeds a BankConnection directly rather
+  than exercising the real `/connect` endpoint against Casso Flow's network
+  — `CassoFlowAdapter`'s real HTTP calls are covered only by Task 4's unit
+  tests, not end-to-end.
+- Token refresh doesn't apply (API Keys don't expire per Casso's docs), but
+  key revocation on Casso's side is only detected reactively (a 401 on the
+  next API call), not proactively.
+- Force-sync reconciliation (`/v2/sync`) and disconnect-side webhook
+  unregistration are deliberately out of scope.
 
 ## Test plan
 - [x] Full backend unit suite
@@ -3302,7 +2479,7 @@ of grantId/IP-allowlist.
 - [x] `npm run arch-check`
 - [x] `domain-check` skill
 - [x] `npx biome check --write`
-- [x] No leftover Cas ID references (grep)
+- [x] No leftover Cas ID or OAuth2-popup references (grep)
 
 Spec: docs/superpowers/specs/2026-08-19-casso-flow-integration-design.md
 ADR: docs/adr/0021-casso-flow-not-cas-id-for-bank-integration.md
