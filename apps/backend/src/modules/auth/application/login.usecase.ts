@@ -6,6 +6,10 @@ import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
 } from '../../organizations/application/membership-repository.port';
+import {
+  type IOrganizationRepository,
+  ORGANIZATION_REPOSITORY,
+} from '../../organizations/application/organization-repository.port';
 import type { Membership } from '../../organizations/domain/membership';
 import {
   type IUserRepository,
@@ -41,6 +45,8 @@ export class LoginUseCase {
     @Inject(REFRESH_TOKEN_REPOSITORY)
     private readonly refreshTokenRepo: IRefreshTokenRepository,
     @Inject(TOKEN_SIGNER) private readonly tokenSigner: ITokenSigner,
+    @Inject(ORGANIZATION_REPOSITORY)
+    private readonly organizationRepo: IOrganizationRepository,
   ) {}
 
   async execute(input: LoginInput): Promise<LoginResult> {
@@ -63,6 +69,7 @@ export class LoginUseCase {
       );
     }
 
+    await this.assertOrganizationActive(membership);
     return this.issueSession(user, membership);
   }
 
@@ -85,7 +92,29 @@ export class LoginUseCase {
       );
     }
 
+    await this.assertOrganizationActive(membership);
     return this.issueSession(user, membership);
+  }
+
+  private async assertOrganizationActive(
+    membership: Membership | null,
+  ): Promise<void> {
+    if (!membership) return;
+    const organization = await this.organizationRepo.findById(
+      membership.organizationId,
+    );
+    if (organization?.status === 'PENDING_REVIEW') {
+      throw new AppError(
+        ErrorCode.ORGANIZATION_PENDING_REVIEW,
+        'Tổ chức của bạn đang chờ được duyệt.',
+      );
+    }
+    if (organization?.status === 'REJECTED') {
+      throw new AppError(
+        ErrorCode.ORGANIZATION_REJECTED,
+        'Đăng ký tổ chức của bạn chưa được chấp thuận.',
+      );
+    }
   }
 
   private async issueSession(

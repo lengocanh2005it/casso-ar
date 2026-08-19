@@ -1,9 +1,23 @@
 import { Membership, Role } from '../../organizations/domain/membership';
+import { Organization } from '../../organizations/domain/organization';
 import { User } from '../../users/domain/user';
 import { LoginUseCase } from './login.usecase';
 import { hashPassword } from './password-hasher';
 
 describe('LoginUseCase', () => {
+  function buildOrganizationRepo(status: string) {
+    return {
+      findById: jest.fn().mockResolvedValue(
+        new Organization({
+          id: 'org-1',
+          name: 'Acme',
+          status: status as any,
+          createdAt: new Date(),
+        }),
+      ),
+    };
+  }
+
   it('returns access and refresh tokens for valid credentials', async () => {
     const passwordHash = await hashPassword('S3curePass!');
     const user = new User({
@@ -29,12 +43,14 @@ describe('LoginUseCase', () => {
     };
     const refreshTokenRepo = { save: jest.fn() };
     const jwtService = { sign: jest.fn().mockReturnValue('signed.jwt.token') };
+    const organizationRepo = buildOrganizationRepo('ACTIVE');
 
     const useCase = new LoginUseCase(
       userRepo as any,
       membershipRepo as any,
       refreshTokenRepo as any,
       jwtService as any,
+      organizationRepo as any,
     );
 
     const result = await useCase.execute({
@@ -63,11 +79,13 @@ describe('LoginUseCase', () => {
       emailVerifiedAt: new Date(),
       createdAt: new Date(),
     });
+    const organizationRepo = buildOrganizationRepo('ACTIVE');
     const useCase = new LoginUseCase(
       { findByEmail: jest.fn().mockResolvedValue(user) } as any,
       {} as any,
       {} as any,
       {} as any,
+      organizationRepo as any,
     );
 
     await expect(
@@ -98,6 +116,7 @@ describe('LoginUseCase', () => {
       membershipRepo as any,
       refreshTokenRepo as any,
       tokenSigner as any,
+      {} as any,
     );
 
     await useCase.execute({ email: 'operator@casso.vn', password: 'pw' });
@@ -121,6 +140,7 @@ describe('LoginUseCase', () => {
     const useCase = new LoginUseCase(
       { findByEmail: jest.fn().mockResolvedValue(user) } as any,
       { findFirstActiveByUserId: jest.fn().mockResolvedValue(null) } as any,
+      {} as any,
       {} as any,
       {} as any,
     );
@@ -153,11 +173,13 @@ describe('LoginUseCase', () => {
     };
     const refreshTokenRepo = { save: jest.fn() };
     const tokenSigner = { sign: jest.fn().mockReturnValue('signed-token') };
+    const organizationRepo = buildOrganizationRepo('ACTIVE');
     const useCase = new LoginUseCase(
       userRepo as any,
       membershipRepo as any,
       refreshTokenRepo as any,
       tokenSigner as any,
+      organizationRepo as any,
     );
 
     const result = await useCase.executeForUser('user-1');
@@ -170,5 +192,84 @@ describe('LoginUseCase', () => {
       role: Role.OWNER,
       isOperator: false,
     });
+  });
+
+  it('throws ORGANIZATION_PENDING_REVIEW when the caller organization is pending review', async () => {
+    const passwordHash = await hashPassword('S3curePass!');
+    const user = new User({
+      id: 'user-1',
+      name: 'An',
+      email: 'ap@congtyb.vn',
+      passwordHash,
+      emailVerifiedAt: new Date(),
+      createdAt: new Date(),
+    });
+    const membership = new Membership({
+      id: 'mem-1',
+      organizationId: 'org-1',
+      userId: 'user-1',
+      role: Role.OWNER,
+      invitedAt: new Date(),
+      joinedAt: new Date(),
+      createdAt: new Date(),
+    });
+    const userRepo = { findByEmail: jest.fn().mockResolvedValue(user) };
+    const membershipRepo = {
+      findFirstActiveByUserId: jest.fn().mockResolvedValue(membership),
+    };
+    const refreshTokenRepo = { save: jest.fn() };
+    const jwtService = { sign: jest.fn().mockReturnValue('signed.jwt.token') };
+    const organizationRepo = buildOrganizationRepo('PENDING_REVIEW');
+    const useCase = new LoginUseCase(
+      userRepo as any,
+      membershipRepo as any,
+      refreshTokenRepo as any,
+      jwtService as any,
+      organizationRepo as any,
+    );
+
+    await expect(
+      useCase.execute({ email: 'ap@congtyb.vn', password: 'S3curePass!' }),
+    ).rejects.toMatchObject({ errorCode: 'ORGANIZATION_PENDING_REVIEW' });
+    expect(refreshTokenRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('throws ORGANIZATION_REJECTED when the caller organization was rejected', async () => {
+    const passwordHash = await hashPassword('S3curePass!');
+    const user = new User({
+      id: 'user-1',
+      name: 'An',
+      email: 'ap@congtyb.vn',
+      passwordHash,
+      emailVerifiedAt: new Date(),
+      createdAt: new Date(),
+    });
+    const membership = new Membership({
+      id: 'mem-1',
+      organizationId: 'org-1',
+      userId: 'user-1',
+      role: Role.OWNER,
+      invitedAt: new Date(),
+      joinedAt: new Date(),
+      createdAt: new Date(),
+    });
+    const userRepo = { findByEmail: jest.fn().mockResolvedValue(user) };
+    const membershipRepo = {
+      findFirstActiveByUserId: jest.fn().mockResolvedValue(membership),
+    };
+    const refreshTokenRepo = { save: jest.fn() };
+    const jwtService = { sign: jest.fn().mockReturnValue('signed.jwt.token') };
+    const organizationRepo = buildOrganizationRepo('REJECTED');
+    const useCase = new LoginUseCase(
+      userRepo as any,
+      membershipRepo as any,
+      refreshTokenRepo as any,
+      jwtService as any,
+      organizationRepo as any,
+    );
+
+    await expect(
+      useCase.execute({ email: 'ap@congtyb.vn', password: 'S3curePass!' }),
+    ).rejects.toMatchObject({ errorCode: 'ORGANIZATION_REJECTED' });
   });
 });
