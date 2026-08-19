@@ -1,5 +1,6 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  allocatePayment,
   fetchCustomer,
   fetchCustomerCredits,
   fetchCustomers,
@@ -41,4 +42,27 @@ export function useCustomerCredits(customerId: string) {
 export function useInvalidateCustomers() {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: ['customers'] });
+}
+
+export function useAllocatePayment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: {
+      paymentId: string;
+      receivableId: string;
+      amount: number;
+    }) =>
+      allocatePayment(input.paymentId, {
+        receivableId: input.receivableId,
+        amount: input.amount,
+      }),
+    onSuccess: (_, input) => {
+      void queryClient.invalidateQueries({ queryKey: ['customer-credits'] });
+      void queryClient.invalidateQueries({ queryKey: ['receivables'] });
+      void queryClient.invalidateQueries({
+        queryKey: ['receivable', input.receivableId],
+      });
+    },
+  });
 }

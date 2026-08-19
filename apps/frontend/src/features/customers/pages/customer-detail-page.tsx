@@ -1,12 +1,16 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useReceivables } from '@/features/receivables/api/use-receivables';
 import { formatDate, formatVND } from '@/lib/format';
+import type { CustomerCredits } from '../api/customers-api';
 import {
   useCustomer,
   useCustomerCredits,
   useCustomerTimeline,
 } from '../api/use-customers';
+import { AllocateCreditDialog } from '../components/allocate-credit-dialog';
 import { CustomerTimeline } from '../components/customer-timeline';
 
 export function CustomerDetailPage() {
@@ -14,7 +18,10 @@ export function CustomerDetailPage() {
   const customerQuery = useCustomer(id);
   const timelineQuery = useCustomerTimeline(id);
   const creditsQuery = useCustomerCredits(id);
-  const receivablesQuery = useReceivables({ customerId: id }, 1);
+  const receivablesQuery = useReceivables({ customerId: id }, 1, 100);
+  const [selectedPayment, setSelectedPayment] = useState<
+    CustomerCredits['items'][number] | null
+  >(null);
 
   if (customerQuery.isPending) {
     return (
@@ -133,6 +140,34 @@ export function CustomerDetailPage() {
                 <p className="text-muted-foreground">
                   {creditsQuery.data.items.length} khoản thanh toán chưa phân bổ
                 </p>
+                {creditsQuery.data.items.length > 0 && (
+                  <ul className="space-y-2 pt-2">
+                    {creditsQuery.data.items.map((payment) => (
+                      <li
+                        key={payment.paymentId}
+                        className="flex items-center justify-between gap-3 rounded-md border p-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">
+                            {payment.payerName || 'Khoản thanh toán'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Chưa phân bổ: {formatVND(payment.unallocatedAmount)}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          aria-label={`Phân bổ ${payment.paymentId}`}
+                          onClick={() => setSelectedPayment(payment)}
+                        >
+                          Phân bổ
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </>
             )}
           </CardContent>
@@ -179,6 +214,18 @@ export function CustomerDetailPage() {
           </CardContent>
         </Card>
       </div>
+      {selectedPayment && (
+        <AllocateCreditDialog
+          payment={selectedPayment}
+          receivables={receivablesQuery.data?.items ?? []}
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedPayment(null);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

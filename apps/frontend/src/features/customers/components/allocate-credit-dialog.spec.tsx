@@ -1,0 +1,118 @@
+import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AllocateCreditDialog } from './allocate-credit-dialog';
+
+const postWithIdempotency = vi.fn();
+
+vi.mock('@/lib/api-client', () => ({
+  getApiErrorCode: (error: unknown) => {
+    if (typeof error !== 'object' || error === null || !('response' in error)) {
+      return undefined;
+    }
+    const response = error.response;
+    if (
+      typeof response !== 'object' ||
+      response === null ||
+      !('data' in response)
+    ) {
+      return undefined;
+    }
+    const data = response.data;
+    return typeof data === 'object' && data !== null && 'errorCode' in data
+      ? String(data.errorCode)
+      : undefined;
+  },
+  postWithIdempotency: (...args: unknown[]) => postWithIdempotency(...args),
+}));
+
+const payment = {
+  paymentId: 'payment-1',
+  totalAmount: 1_500_000,
+  allocatedAmount: 0,
+  unallocatedAmount: 1_500_000,
+  payerName: 'Công ty B',
+  receivedAt: '2026-08-01T00:00:00.000Z',
+};
+
+const receivables = [
+  {
+    id: 'receivable-1',
+    customerId: 'customer-1',
+    invoiceId: 'INV-1',
+    invoiceNumber: 'INV-1',
+    originalAmount: 1_000_000,
+    paidAmount: 0,
+    remainingAmount: 1_000_000,
+    dueDate: '2026-08-10',
+    status: ReceivableStatus.OPEN,
+    isDisputed: false,
+    disputeId: null,
+    isOverdue: false,
+    salesRepresentativeId: null,
+    createdAt: '2026-08-01T00:00:00.000Z',
+    closedAt: null,
+  },
+];
+
+function renderDialog() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AllocateCreditDialog
+        payment={payment}
+        receivables={receivables}
+        open
+        onOpenChange={vi.fn()}
+      />
+    </QueryClientProvider>,
+  );
+}
+
+describe('AllocateCreditDialog', () => {
+  beforeEach(() => {
+    postWithIdempotency.mockReset();
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  it('blocks an amount above the smaller payment or receivable balance', async () => {
+    renderDialog();
+
+    fireEvent.click(screen.getByRole('combobox', { name: /khoản phải thu/i }));
+    fireEvent.click(screen.getByRole('option', { name: /INV-1/i }));
+    fireEvent.change(screen.getByLabelText(/số tiền phân bổ/i), {
+      target: { value: '1000001' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Phân bổ' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('không được vượt quá');
+    expect(postWithIdempotency).not.toHaveBeenCalled();
+  });
+
+  it('posts a valid allocation and shows backend allocation errors inline', async () => {
+    postWithIdempotency.mockRejectedValueOnce({
+      response: { data: { errorCode: 'CUSTOMER_MISMATCH' } },
+    });
+    renderDialog();
+
+    fireEvent.click(screen.getByRole('combobox', { name: /khoản phải thu/i }));
+    fireEvent.click(screen.getByRole('option', { name: /INV-1/i }));
+    fireEvent.change(screen.getByLabelText(/số tiền phân bổ/i), {
+      target: { value: '500000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Phân bổ' }));
+
+    await waitFor(() =>
+      expect(postWithIdempotency).toHaveBeenCalledWith(
+        '/api/v1/payments/payment-1/allocate',
+        { receivableId: 'receivable-1', amount: 500_000 },
+      ),
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Khoản phải thu không thuộc cùng khách hàng với khoản thanh toán.',
+    );
+  });
+});

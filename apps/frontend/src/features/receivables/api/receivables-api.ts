@@ -36,11 +36,12 @@ export interface CreateReceivableInput {
 export function fetchReceivables(
   filters: ReceivableFilters,
   page: number,
+  limit = 20,
 ): Promise<ReceivablePage> {
   return apiRequest<ReceivablePage>({
     url: '/api/v1/receivables',
     method: 'GET',
-    params: { ...filters, page, limit: 20 },
+    params: { ...filters, page, limit },
   });
 }
 

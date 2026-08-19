@@ -15,6 +15,7 @@ import {
   AuthTokenManager,
   apiRequest,
   apiRequestWithHeaders,
+  getApiErrorCode,
 } from './api-client';
 
 function tokenWithExpiry(expiresAt: number): string {
@@ -207,5 +208,21 @@ describe('apiRequestWithHeaders', () => {
       data: 'csv text',
       headers: { 'x-export-truncated': 'true' },
     });
+  });
+});
+
+describe('getApiErrorCode', () => {
+  it('returns the backend error code from an axios-shaped error', () => {
+    expect(
+      getApiErrorCode({
+        response: { data: { errorCode: 'ALLOCATION_EXCEEDS_REMAINING' } },
+      }),
+    ).toBe('ALLOCATION_EXCEEDS_REMAINING');
+  });
+
+  it('returns undefined for values that are not axios-shaped API errors', () => {
+    expect(getApiErrorCode(new Error('plain error'))).toBeUndefined();
+    expect(getApiErrorCode({ response: { data: {} } })).toBeUndefined();
+    expect(getApiErrorCode(null)).toBeUndefined();
   });
 });

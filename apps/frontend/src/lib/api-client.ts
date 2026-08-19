@@ -182,7 +182,7 @@ function getAxiosErrorResponse(
   return { data, status };
 }
 
-function getErrorCode(error: unknown): string | undefined {
+export function getApiErrorCode(error: unknown): string | undefined {
   const data = getAxiosErrorResponse(error)?.data;
   return typeof data === 'object' && data !== null && 'errorCode' in data
     ? String((data as { errorCode?: unknown }).errorCode)
@@ -210,7 +210,7 @@ async function send<T>(
     if (response?.status === 402) {
       dispatchGlobalEvent(GLOBAL_EVENTS.PLAN_LIMIT);
     }
-    if (getErrorCode(error) === 'MEMBER_BLOCKED') {
+    if (getApiErrorCode(error) === 'MEMBER_BLOCKED') {
       dispatchGlobalEvent(GLOBAL_EVENTS.MEMBER_BLOCKED);
     }
     throw error;

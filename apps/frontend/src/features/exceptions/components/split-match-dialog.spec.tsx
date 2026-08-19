@@ -7,6 +7,23 @@ const apiRequest = vi.fn();
 
 vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
+  getApiErrorCode: (error: unknown) => {
+    if (typeof error !== 'object' || error === null || !('response' in error)) {
+      return undefined;
+    }
+    const response = error.response;
+    if (
+      typeof response !== 'object' ||
+      response === null ||
+      !('data' in response)
+    ) {
+      return undefined;
+    }
+    const data = response.data;
+    return typeof data === 'object' && data !== null && 'errorCode' in data
+      ? String(data.errorCode)
+      : undefined;
+  },
   postWithIdempotency: (url: string, data?: unknown, headers?: unknown) =>
     apiRequest({
       url,
@@ -122,6 +139,23 @@ describe('SplitMatchDialog', () => {
         url: '/api/v1/bank-transactions/bt9/match',
         method: 'POST',
       }),
+    );
+  });
+
+  it('shows allocation errors from the backend inline', async () => {
+    apiRequest.mockResolvedValueOnce(candidates).mockRejectedValueOnce({
+      response: { data: { errorCode: 'ALLOCATION_EXCEEDS_REMAINING' } },
+    });
+    renderDialog();
+
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
+    fireEvent.change(screen.getAllByLabelText(/số tiền phân bổ/i)[0], {
+      target: { value: '1000000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /khớp giao dịch/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Số tiền vượt quá công nợ còn lại của khoản phải thu.',
     );
   });
 });

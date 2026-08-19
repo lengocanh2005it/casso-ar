@@ -2,7 +2,7 @@ import type {
   Customer,
   CustomerTimelineItem,
 } from '@/features/customers/types';
-import { apiRequest } from '@/lib/api-client';
+import { apiRequest, postWithIdempotency } from '@/lib/api-client';
 
 export interface CustomerPage {
   items: Customer[];
@@ -56,6 +56,16 @@ export function fetchCustomerCredits(
     url: `/api/v1/customers/${customerId}/credits`,
     method: 'GET',
   });
+}
+
+export function allocatePayment(
+  paymentId: string,
+  input: { receivableId: string; amount: number },
+): Promise<{ id: string }> {
+  return postWithIdempotency<{ id: string }>(
+    `/api/v1/payments/${paymentId}/allocate`,
+    input,
+  );
 }
 
 export function fetchCustomerTimeline(

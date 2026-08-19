@@ -1,16 +1,23 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CustomerDetailPage } from './customer-detail-page';
 
 const apiRequest = vi.fn();
+const postWithIdempotency = vi.fn();
 
 vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
+  postWithIdempotency: (...args: unknown[]) => postWithIdempotency(...args),
 }));
 
 describe('CustomerDetailPage', () => {
+  beforeEach(() => {
+    apiRequest.mockReset();
+    postWithIdempotency.mockReset();
+  });
+
   it('loads the customer profile on a direct detail route', async () => {
     apiRequest
       .mockResolvedValueOnce({
@@ -54,5 +61,55 @@ describe('CustomerDetailPage', () => {
       expect(screen.getByText('Công ty B')).toBeInTheDocument(),
     );
     expect(screen.getByText(/b@example\.com/)).toBeInTheDocument();
+  });
+
+  it('shows an allocation action for each unapplied payment', async () => {
+    apiRequest
+      .mockResolvedValueOnce({
+        id: 'customer-1',
+        name: 'Công ty B',
+        taxCode: null,
+        email: null,
+        phone: null,
+        defaultPaymentTermDays: 30,
+        creditLimit: null,
+        priority: null,
+        createdAt: '2026-08-01T00:00:00.000Z',
+      })
+      .mockResolvedValueOnce({ items: [], total: 0, page: 1, limit: 20 })
+      .mockResolvedValueOnce({
+        customerId: 'customer-1',
+        totalAvailableAmount: 500_000,
+        items: [
+          {
+            paymentId: 'payment-1',
+            totalAmount: 500_000,
+            allocatedAmount: 0,
+            unallocatedAmount: 500_000,
+            payerName: 'Công ty B',
+            receivedAt: '2026-08-01T00:00:00.000Z',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ items: [], total: 0, page: 1, limit: 100 });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/customers/customer-1']}>
+          <Routes>
+            <Route path="/customers/:id" element={<CustomerDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Phân bổ payment-1' }),
+      ).toBeInTheDocument(),
+    );
   });
 });
