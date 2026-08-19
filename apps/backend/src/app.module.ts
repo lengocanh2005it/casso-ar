@@ -39,6 +39,7 @@ import { MembershipBlockGuard } from './modules/organizations/presentation/membe
 import { PaymentsModule } from './modules/payments/payments.module';
 import { ReceivablesModule } from './modules/receivables/receivables.module';
 import { ReceivableBalanceHistoryModule } from './modules/receivable-balance-history/receivable-balance-history.module';
+import { LedgerModule } from './modules/ledger/ledger.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
 import { UsersModule } from './modules/users/users.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
@@ -80,6 +81,7 @@ import { ProfileModule } from './modules/profile/profile.module';
     AuditModule,
     AuditLogsModule,
     ReceivableBalanceHistoryModule,
+    LedgerModule,
     OrganizationsModule,
     BillingModule,
     PayosModule,
