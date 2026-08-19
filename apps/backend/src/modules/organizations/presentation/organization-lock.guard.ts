@@ -12,6 +12,13 @@ import {
   type IOrganizationRepository,
   ORGANIZATION_REPOSITORY,
 } from '../application/organization-repository.port';
+import type { OrganizationStatus } from '../domain/organization';
+
+const ERROR_CODE_BY_STATUS: Partial<Record<OrganizationStatus, ErrorCode>> = {
+  LOCKED: ErrorCode.ORGANIZATION_LOCKED,
+  PENDING_REVIEW: ErrorCode.ORGANIZATION_PENDING_REVIEW,
+  REJECTED: ErrorCode.ORGANIZATION_REJECTED,
+};
 
 @Injectable()
 export class OrganizationLockGuard implements CanActivate {
@@ -35,10 +42,11 @@ export class OrganizationLockGuard implements CanActivate {
     const organization = await this.organizationRepo.findById(
       user.organizationId,
     );
-    if (organization?.status === 'LOCKED') {
+    const errorCode = organization && ERROR_CODE_BY_STATUS[organization.status];
+    if (errorCode) {
       throw new ForbiddenException({
-        errorCode: ErrorCode.ORGANIZATION_LOCKED,
-        message: 'Tổ chức của bạn đã bị khóa.',
+        errorCode,
+        message: 'Tổ chức của bạn hiện không thể sử dụng dịch vụ.',
       });
     }
     return true;
