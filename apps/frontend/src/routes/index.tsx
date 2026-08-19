@@ -54,6 +54,11 @@ export const OnboardingPage = lazy(() =>
     default: m.OnboardingPage,
   })),
 );
+export const CasIdCallbackPage = lazy(() =>
+  import('@/features/bank-connections/pages/cas-id-callback-page').then(
+    (m) => ({ default: m.CasIdCallbackPage }),
+  ),
+);
 const CopilotPage = lazy(() =>
   import('@/features/copilot/pages/copilot-page').then((m) => ({
     default: m.CopilotPage,

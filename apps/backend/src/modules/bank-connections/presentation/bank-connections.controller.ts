@@ -104,7 +104,6 @@ export class BankConnectionsController {
         }
         return this.initiateConnectionUseCase.execute({
           userId,
-          redirectUri: dto.redirectUri,
           bankConnectionId: dto.bankConnectionId,
         });
       },

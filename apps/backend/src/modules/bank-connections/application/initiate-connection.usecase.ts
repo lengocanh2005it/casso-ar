@@ -1,12 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { AppError } from '../../../common/errors/app-error';
-import { ErrorCode } from '../../../common/errors/error-code';
-import {
-  isRedirectUriAllowed,
-  parseRedirectUriAllowlist,
-} from '../../../common/redirect-uri/allowlist';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { CasIdConnectionSession } from '../domain/cas-id-connection-session';
 import { ConnectionAuditEvent } from '../domain/connection-audit-event';
@@ -29,16 +23,20 @@ import {
 } from './connection-audit-event-repository.port';
 
 const DEFAULT_SCOPES = ['identity', 'transaction'];
+const DEFAULT_REDIRECT_BASE_URL =
+  'http://localhost:5173/bank-connections/cas-id/callback';
+const DEFAULT_LINK_BASE_URL = 'https://dev.link.cas.so';
 
 export interface InitiateConnectionInput {
   userId: string;
-  redirectUri: string;
   bankConnectionId?: string;
 }
 
 export interface InitiateConnectionResult {
   sessionId: string;
   grantToken: string;
+  redirectUri: string;
+  linkBaseUrl: string;
 }
 
 @Injectable()
@@ -59,34 +57,34 @@ export class InitiateConnectionUseCase {
   async execute(
     input: InitiateConnectionInput,
   ): Promise<InitiateConnectionResult> {
-    const allowlist = parseRedirectUriAllowlist(
-      process.env.CAS_ID_REDIRECT_URI_ALLOWLIST,
-    );
-    if (!isRedirectUriAllowed(input.redirectUri, allowlist)) {
-      throw new AppError(
-        ErrorCode.FORBIDDEN,
-        'Địa chỉ chuyển hướng không được phép.',
-      );
-    }
-
     const existing = input.bankConnectionId
       ? await this.bankConnectionRepo.findById(input.bankConnectionId)
       : null;
     assertReauthorizable(input.bankConnectionId, existing);
 
+    // The session id is embedded in the redirect URI (OAuth "state" pattern)
+    // so the callback page can complete the exchange even if window.opener
+    // is unavailable — it never has to guess which pending session this is.
+    const sessionId = randomUUID();
+    const redirectBaseUrl =
+      process.env.CAS_ID_REDIRECT_BASE_URL ?? DEFAULT_REDIRECT_BASE_URL;
+    const redirectUri = `${redirectBaseUrl}?sessionId=${sessionId}`;
+    const linkBaseUrl =
+      process.env.CAS_ID_LINK_BASE_URL ?? DEFAULT_LINK_BASE_URL;
+
     // External call stays outside the transaction — only the DB writes below are wrapped.
     const { grantToken, expiresAt } = await this.adapter.createGrantToken(
       DEFAULT_SCOPES,
-      input.redirectUri,
+      redirectUri,
     );
     const session = new CasIdConnectionSession({
-      id: randomUUID(),
+      id: sessionId,
       organizationId: this.tenantContext.getOrganizationId(),
       initiatedByUserId: input.userId,
       bankConnectionId: existing?.id ?? null,
       grantToken,
       scopes: DEFAULT_SCOPES,
-      redirectUri: input.redirectUri,
+      redirectUri,
       status: 'PENDING_AUTHORIZATION',
       expiresAt,
       createdAt: new Date(),
@@ -108,6 +106,6 @@ export class InitiateConnectionUseCase {
         );
       }
     });
-    return { sessionId: session.id, grantToken };
+    return { sessionId: session.id, grantToken, redirectUri, linkBaseUrl };
   }
 }

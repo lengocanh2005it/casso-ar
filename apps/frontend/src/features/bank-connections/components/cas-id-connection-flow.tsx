@@ -1,70 +1,135 @@
-import { QRCodeSVG } from 'qrcode.react';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import {
+  CAS_LINK_FAILED_TOAST,
+  type CasLinkMessage,
+  openCasLinkPopup,
+} from '@/lib/cas-link';
 import { useConnectCasId, useExchangeCasId } from '../api/use-bank-connections';
+
+const POPUP_CLOSE_POLL_MS = 500;
 
 export function CasIdConnectionFlow({
   onCompleted,
 }: {
   onCompleted?: () => void;
 }) {
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [grantToken, setGrantToken] = useState<string | null>(null);
-  const [publicToken, setPublicToken] = useState('');
+  const [isLinking, setIsLinking] = useState(false);
+  const popupRef = useRef<Window | null>(null);
+  const popupPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  const settledRef = useRef(false);
   const connectMutation = useConnectCasId();
   const exchangeMutation = useExchangeCasId();
 
+  const clearPopupPoll = useCallback(() => {
+    if (popupPollRef.current) {
+      clearInterval(popupPollRef.current);
+      popupPollRef.current = null;
+    }
+  }, []);
+
+  function watchPopupClose(popup: Window) {
+    clearPopupPoll();
+    popupPollRef.current = setInterval(() => {
+      if (popup.closed) {
+        clearPopupPoll();
+        setIsLinking(false);
+        if (!settledRef.current) {
+          toast.error(CAS_LINK_FAILED_TOAST);
+        }
+        settledRef.current = false;
+      }
+    }, POPUP_CLOSE_POLL_MS);
+  }
+
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      if (event.origin !== window.location.origin) return;
+      const payload = event.data as CasLinkMessage | undefined;
+      if (!payload?.type) return;
+
+      if (payload.type === 'CAS_LINK_CANCELLED') {
+        settledRef.current = true;
+        popupRef.current?.close();
+        clearPopupPoll();
+        setIsLinking(false);
+        toast.error(CAS_LINK_FAILED_TOAST);
+        return;
+      }
+
+      if (payload.type === 'CAS_LINK_ERROR') {
+        settledRef.current = true;
+        popupRef.current?.close();
+        clearPopupPoll();
+        setIsLinking(false);
+        toast.error(payload.message || CAS_LINK_FAILED_TOAST);
+        return;
+      }
+
+      if (
+        payload.type !== 'CAS_LINK_SUCCESS' ||
+        !payload.publicToken ||
+        !sessionIdRef.current
+      ) {
+        return;
+      }
+
+      settledRef.current = true;
+      exchangeMutation.mutate(
+        { sessionId: sessionIdRef.current, publicToken: payload.publicToken },
+        {
+          onSuccess: () => {
+            popupRef.current?.close();
+            onCompleted?.();
+          },
+          onSettled: () => {
+            clearPopupPoll();
+            setIsLinking(false);
+          },
+        },
+      );
+    }
+
+    window.addEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      clearPopupPoll();
+    };
+  }, [onCompleted, exchangeMutation.mutate, clearPopupPoll]);
+
   function handleConnect() {
+    settledRef.current = false;
+    setIsLinking(true);
     connectMutation.mutate(undefined, {
       onSuccess: (result) => {
-        setSessionId(result.sessionId);
-        setGrantToken(result.grantToken);
+        sessionIdRef.current = result.sessionId;
+        const popup = openCasLinkPopup(
+          result.grantToken,
+          result.redirectUri,
+          result.linkBaseUrl,
+        );
+        popupRef.current = popup;
+        if (!popup) {
+          toast.error(
+            'Trình duyệt đã chặn popup. Vui lòng cho phép popup và thử lại.',
+          );
+          setIsLinking(false);
+          return;
+        }
+        watchPopupClose(popup);
       },
-      onError: () => toast.error('Không thể tạo liên kết Cas ID.'),
+      onError: () => {
+        toast.error('Không thể tạo liên kết Cas ID.');
+        setIsLinking(false);
+      },
     });
   }
 
-  function handleExchange() {
-    if (!sessionId || !publicToken.trim()) return;
-    exchangeMutation.mutate(
-      { sessionId, publicToken: publicToken.trim() },
-      { onSuccess: onCompleted },
-    );
-  }
-
-  if (grantToken) {
-    return (
-      <div className="space-y-4">
-        <div className="flex justify-center rounded-lg border p-4">
-          <QRCodeSVG value={grantToken} size={200} />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Sau khi quét, nhập public token do Cas ID trả về.
-        </p>
-        <Input
-          name="publicToken"
-          autoComplete="off"
-          aria-label="Public token"
-          placeholder="Public token…"
-          value={publicToken}
-          onChange={(event) => setPublicToken(event.target.value)}
-        />
-        <Button
-          className="w-full"
-          onClick={handleExchange}
-          disabled={!publicToken.trim() || exchangeMutation.isPending}
-        >
-          Hoàn tất kết nối
-        </Button>
-      </div>
-    );
-  }
-
   return (
-    <Button onClick={handleConnect} disabled={connectMutation.isPending}>
-      Tạo liên kết kết nối
+    <Button onClick={handleConnect} disabled={isLinking}>
+      {isLinking ? 'Đang mở Cas Link…' : 'Kết nối ngân hàng'}
     </Button>
   );
 }

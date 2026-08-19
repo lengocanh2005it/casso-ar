@@ -15,18 +15,15 @@ describe('bank connection use cases', () => {
     ),
   };
 
-  it('initiates a first connection session for the current tenant', async () => {
-    const previousAllowlist = process.env.CAS_ID_REDIRECT_URI_ALLOWLIST;
-    process.env.CAS_ID_REDIRECT_URI_ALLOWLIST = 'http://localhost';
+  it('initiates a first connection session for the current tenant, embedding the session id in the redirect URI', async () => {
     const sessionRepo = { save: jest.fn() };
     const auditRepo = { save: jest.fn() };
+    const createGrantToken = jest.fn().mockResolvedValue({
+      grantToken: 'grant',
+      expiresAt: new Date(Date.now() + 60_000),
+    });
     const useCase = new InitiateConnectionUseCase(
-      {
-        createGrantToken: jest.fn().mockResolvedValue({
-          grantToken: 'grant',
-          expiresAt: new Date(Date.now() + 60_000),
-        }),
-      } as never,
+      { createGrantToken } as never,
       sessionRepo as never,
       { findById: jest.fn() } as never,
       auditRepo as never,
@@ -34,62 +31,33 @@ describe('bank connection use cases', () => {
       dataSource as never,
     );
 
-    try {
-      const result = await useCase.execute({
-        userId: 'user-1',
-        redirectUri: 'http://localhost/callback',
-      });
-      expect(result.grantToken).toBe('grant');
-      expect(sessionRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          organizationId: 'org-1',
-          status: 'PENDING_AUTHORIZATION',
-        }),
-        expect.anything(),
-      );
-      expect(auditRepo.save).not.toHaveBeenCalled();
-    } finally {
-      if (previousAllowlist === undefined) {
-        delete process.env.CAS_ID_REDIRECT_URI_ALLOWLIST;
-      } else {
-        process.env.CAS_ID_REDIRECT_URI_ALLOWLIST = previousAllowlist;
-      }
-    }
-  });
+    const result = await useCase.execute({ userId: 'user-1' });
 
-  it('rejects a redirect URI outside the configured allowlist before Cas ID', async () => {
-    const previousAllowlist = process.env.CAS_ID_REDIRECT_URI_ALLOWLIST;
-    process.env.CAS_ID_REDIRECT_URI_ALLOWLIST = 'https://app.casso.vn';
-    const createGrantToken = jest.fn();
-    const useCase = new InitiateConnectionUseCase(
-      { createGrantToken } as never,
-      { save: jest.fn() } as never,
-      { findById: jest.fn() } as never,
-      { save: jest.fn() } as never,
-      { getOrganizationId: () => 'org-1' } as never,
-      dataSource as never,
+    expect(result.grantToken).toBe('grant');
+    expect(result.sessionId).toBeDefined();
+    expect(result.redirectUri).toContain(`sessionId=${result.sessionId}`);
+    expect(result.linkBaseUrl).toEqual(expect.any(String));
+    expect(createGrantToken).toHaveBeenCalledWith(
+      expect.any(Array),
+      result.redirectUri,
     );
-
-    try {
-      await expect(
-        useCase.execute({
-          userId: 'user-1',
-          redirectUri: 'https://evil.example/callback',
-        }),
-      ).rejects.toMatchObject({ errorCode: ErrorCode.FORBIDDEN });
-      expect(createGrantToken).not.toHaveBeenCalled();
-    } finally {
-      if (previousAllowlist === undefined) {
-        delete process.env.CAS_ID_REDIRECT_URI_ALLOWLIST;
-      } else {
-        process.env.CAS_ID_REDIRECT_URI_ALLOWLIST = previousAllowlist;
-      }
-    }
+    expect(sessionRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: 'org-1',
+        status: 'PENDING_AUTHORIZATION',
+        redirectUri: result.redirectUri,
+      }),
+      expect.anything(),
+    );
+    expect(auditRepo.save).not.toHaveBeenCalled();
   });
 
-  it('accepts a redirect URI on a configured origin', async () => {
-    const previousAllowlist = process.env.CAS_ID_REDIRECT_URI_ALLOWLIST;
-    process.env.CAS_ID_REDIRECT_URI_ALLOWLIST = 'https://app.casso.vn';
+  it('uses CAS_ID_REDIRECT_BASE_URL and CAS_ID_LINK_BASE_URL when configured', async () => {
+    const previousRedirectBase = process.env.CAS_ID_REDIRECT_BASE_URL;
+    const previousLinkBase = process.env.CAS_ID_LINK_BASE_URL;
+    process.env.CAS_ID_REDIRECT_BASE_URL =
+      'https://app.casso.vn/bank-connections/cas-id/callback';
+    process.env.CAS_ID_LINK_BASE_URL = 'https://link.cas.so';
     const sessionRepo = { save: jest.fn() };
     const useCase = new InitiateConnectionUseCase(
       {
@@ -106,18 +74,23 @@ describe('bank connection use cases', () => {
     );
 
     try {
-      await expect(
-        useCase.execute({
-          userId: 'user-1',
-          redirectUri: 'https://app.casso.vn/cas/callback',
-        }),
-      ).resolves.toMatchObject({ grantToken: 'grant' });
-      expect(sessionRepo.save).toHaveBeenCalled();
+      const result = await useCase.execute({ userId: 'user-1' });
+      expect(
+        result.redirectUri.startsWith(
+          'https://app.casso.vn/bank-connections/cas-id/callback?sessionId=',
+        ),
+      ).toBe(true);
+      expect(result.linkBaseUrl).toBe('https://link.cas.so');
     } finally {
-      if (previousAllowlist === undefined) {
-        delete process.env.CAS_ID_REDIRECT_URI_ALLOWLIST;
+      if (previousRedirectBase === undefined) {
+        delete process.env.CAS_ID_REDIRECT_BASE_URL;
       } else {
-        process.env.CAS_ID_REDIRECT_URI_ALLOWLIST = previousAllowlist;
+        process.env.CAS_ID_REDIRECT_BASE_URL = previousRedirectBase;
+      }
+      if (previousLinkBase === undefined) {
+        delete process.env.CAS_ID_LINK_BASE_URL;
+      } else {
+        process.env.CAS_ID_LINK_BASE_URL = previousLinkBase;
       }
     }
   });

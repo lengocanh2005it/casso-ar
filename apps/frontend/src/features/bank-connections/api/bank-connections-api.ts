@@ -15,9 +15,7 @@ export function fetchBankConnections(): Promise<BankConnectionList> {
 export function connectCasId(): Promise<CasIdInitiation> {
   return postWithIdempotency<CasIdInitiation>(
     '/api/v1/bank-connections/cas-id/initiate',
-    {
-      redirectUri: `${window.location.origin}/bank-connections/cas-id/callback`,
-    },
+    {},
   );
 }
 
