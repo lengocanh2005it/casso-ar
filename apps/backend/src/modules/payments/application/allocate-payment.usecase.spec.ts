@@ -62,6 +62,7 @@ describe('AllocatePaymentUseCase', () => {
     const auditContext = { setBefore: jest.fn(), setAfter: jest.fn() };
     const eventEmitter = { emit: jest.fn(), emitAsync: jest.fn() };
     const recorder = { record: jest.fn() };
+    const ledgerRecorder = { record: jest.fn() };
 
     const useCase = new AllocatePaymentUseCase(
       receivableRepo as any,
@@ -72,6 +73,7 @@ describe('AllocatePaymentUseCase', () => {
       auditContext as any,
       eventEmitter as any,
       recorder as any,
+      ledgerRecorder as any,
     );
 
     await useCase.execute({
@@ -174,6 +176,7 @@ describe('AllocatePaymentUseCase', () => {
       auditContext as any,
       eventEmitter as any,
       { record: jest.fn() } as any,
+      { record: jest.fn() } as any,
     );
 
     await useCase.execute({
@@ -225,6 +228,7 @@ describe('AllocatePaymentUseCase', () => {
         auditContext as any,
         eventEmitter as any,
         { record: jest.fn() } as any,
+        { record: jest.fn() } as any,
       );
 
       await expect(
@@ -271,6 +275,7 @@ describe('AllocatePaymentUseCase', () => {
       { setBefore: jest.fn(), setAfter: jest.fn() } as any,
       eventEmitter as any,
       { record: jest.fn() } as any,
+      { record: jest.fn() } as any,
     );
 
     await expect(
@@ -313,6 +318,7 @@ describe('AllocatePaymentUseCase', () => {
       { getOrganizationId: () => 'org-1' } as any,
       { setBefore: jest.fn(), setAfter: jest.fn() } as any,
       { emit: jest.fn(), emitAsync: jest.fn() } as any,
+      { record: jest.fn() } as any,
       { record: jest.fn() } as any,
     );
 
@@ -357,6 +363,7 @@ describe('AllocatePaymentUseCase', () => {
       { getOrganizationId: () => 'org-1' } as any,
       { setBefore: jest.fn(), setAfter: jest.fn() } as any,
       { emit: jest.fn(), emitAsync: jest.fn() } as any,
+      { record: jest.fn() } as any,
       { record: jest.fn() } as any,
     );
 
@@ -406,13 +413,14 @@ describe('AllocatePaymentUseCase', () => {
       { getOrganizationId: () => 'org-1' } as any,
       { setBefore: jest.fn(), setAfter: jest.fn() } as any,
       { emit: jest.fn(), emitAsync: jest.fn() } as any,
-      recorder as any,
+      { record: jest.fn() } as any,
+      { record: jest.fn() } as any,
     );
 
     await expect(
       useCase.execute({
         paymentId: payment.id,
-        receivableId: smallReceivable.id,
+        receivableId: receivable.id,
         amount: 20_000_000, // exceeds the 10_000_000 remainingAmount, within payment's 30_000_000 unallocatedAmount
         allocatedByUserId: 'u1',
         provenance: {
@@ -458,6 +466,7 @@ describe('AllocatePaymentUseCase', () => {
       { setBefore: jest.fn(), setAfter: jest.fn() } as any,
       { emit: jest.fn(), emitAsync: jest.fn() } as any,
       { record: jest.fn() } as any,
+      { record: jest.fn() } as any,
     );
 
     await expect(
@@ -501,6 +510,7 @@ describe('AllocatePaymentUseCase', () => {
       { getOrganizationId: () => 'org-1' } as any,
       { setBefore: jest.fn(), setAfter: jest.fn() } as any,
       { emit: jest.fn(), emitAsync: jest.fn() } as any,
+      { record: jest.fn() } as any,
       { record: jest.fn() } as any,
     );
 
