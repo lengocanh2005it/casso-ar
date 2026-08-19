@@ -48,8 +48,7 @@ describe('Collection Activity Timeline (integration)', () => {
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
     process.env.RESEND_API_KEY = 'e2e-resend-key';
-    process.env.CASSO_WEBHOOK_CLIENT_ID = 'e2e-client';
-    process.env.CASSO_WEBHOOK_SECRET_KEY = 'e2e-secret';
+    process.env.CAS_ID_WEBHOOK_IP_ALLOWLIST = '127.0.0.1,::1,::ffff:127.0.0.1';
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
@@ -232,6 +231,7 @@ describe('Collection Activity Timeline (integration)', () => {
     const webhookBankConnectionId = randomUUID();
     const webhookCustomerId = randomUUID();
     const webhookBankAccountId = randomUUID();
+    const webhookGrantId = randomUUID();
     const webhookInvoiceId = randomUUID();
     const webhookReceivableId = randomUUID();
     const webhookTransactionId = `provider-tx-${randomUUID()}`;
@@ -241,7 +241,7 @@ describe('Collection Activity Timeline (integration)', () => {
         id: webhookBankConnectionId,
         organizationId: webhookOrganizationId,
         casIdConnectionSessionId: randomUUID(),
-        grantId: randomUUID(),
+        grantId: webhookGrantId,
         encryptedAccessToken: 'encrypted-test-token',
         accountIdentity: { accountNumber: '99887766', bankName: 'Test Bank' },
         status: 'ACTIVE',
@@ -302,16 +302,16 @@ describe('Collection Activity Timeline (integration)', () => {
     it('auto-matching a bank transaction that fully closes a Receivable produces PAYMENT_RECEIVED and RECEIVABLE_CLOSED rows in the timeline', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/webhooks/casso-balance-hook')
-        .set({ 'x-client-id': 'e2e-client', 'x-secret-key': 'e2e-secret' })
         .send({
-          organizationId: webhookOrganizationId,
-          bankConnectionId: webhookBankConnectionId,
-          transactionId: webhookTransactionId,
-          amount: 15_000_000,
-          transactionDateTime: '2026-08-05T10:00:00.000Z',
-          counterpartyAccountNumber: '0011002244',
-          counterpartyName: 'Company Webhook',
-          transferContent: 'Thanh toan INV-2026-0099',
+          grantId: webhookGrantId,
+          transaction: {
+            id: webhookTransactionId,
+            amount: 15_000_000,
+            transactionDateTime: '2026-08-05T10:00:00.000Z',
+            description: 'Thanh toan INV-2026-0099',
+            counterAccountNumber: '0011002244',
+            counterAccountName: 'Company Webhook',
+          },
         })
         .expect(200, { received: true, duplicate: false });
 

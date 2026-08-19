@@ -410,6 +410,7 @@ export class AuthController {
     description: 'OTP resent',
     schema: successResponseSchema(),
   })
+  @ApiErrorResponse(ErrorCode.UNAUTHORIZED)
   @UseGuards(JwtAuthGuard)
   async resendChangePasswordOtp(@Req() request: AuthRequest) {
     const userId = request.user?.userId;
