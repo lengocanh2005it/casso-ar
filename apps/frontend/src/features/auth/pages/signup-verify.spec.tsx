@@ -11,17 +11,24 @@ const { getValidAccessToken, apiRequest } = vi.hoisted(() => ({
   apiRequest: vi.fn(),
 }));
 
-vi.mock('@/lib/api-client', () => ({
-  authTokenManager: {
-    getValidAccessToken,
-    hasKnownSession: () => true,
-    setAccessToken: vi.fn(),
-    resetLogoutState: vi.fn(),
-    markLogoutInitiated: vi.fn(),
-    clearStaleRefreshSession: vi.fn(),
-  },
-  apiRequest,
-}));
+vi.mock('@/lib/api-client', async () => {
+  const { getApiErrorCode, getApiErrorMessage } = await import(
+    '@/test/api-error-mock'
+  );
+  return {
+    authTokenManager: {
+      getValidAccessToken,
+      hasKnownSession: () => true,
+      setAccessToken: vi.fn(),
+      resetLogoutState: vi.fn(),
+      markLogoutInitiated: vi.fn(),
+      clearStaleRefreshSession: vi.fn(),
+    },
+    apiRequest,
+    getApiErrorCode,
+    getApiErrorMessage,
+  };
+});
 
 const user = {
   id: 'user-1',
@@ -70,6 +77,9 @@ describe('signup and email verification', () => {
     fireEvent.change(screen.getByLabelText(/tên tổ chức/i), {
       target: { value: 'Casso Ledger' },
     });
+    fireEvent.change(screen.getByLabelText(/mã số thuế/i), {
+      target: { value: '0101234567' },
+    });
     fireEvent.change(screen.getByLabelText(/họ và tên/i), {
       target: { value: 'New User' },
     });
@@ -92,6 +102,7 @@ describe('signup and email verification', () => {
         name: 'New User',
         email: 'new@casso.vn',
         password: 'secret123',
+        taxCode: '0101234567',
       },
     });
   });
@@ -163,6 +174,61 @@ describe('signup and email verification', () => {
         method: 'POST',
         data: { email: 'new@casso.vn' },
       }),
+    );
+  });
+
+  it('shows a pending-review state when the organization is awaiting approval', async () => {
+    apiRequest.mockRejectedValueOnce({
+      response: {
+        data: {
+          errorCode: 'ORGANIZATION_PENDING_REVIEW',
+          message: 'Tổ chức của bạn đang chờ được duyệt.',
+        },
+      },
+    });
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/verify-email?token=verify-token']}>
+          <Routes>
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText(/email đã được xác minh/i)).toBeVisible(),
+    );
+    expect(
+      screen.getByText(/tổ chức của bạn đang chờ được duyệt/i),
+    ).toBeVisible();
+  });
+
+  it('shows a rejected state with the API message when the organization was rejected', async () => {
+    apiRequest.mockRejectedValueOnce({
+      response: {
+        data: {
+          errorCode: 'ORGANIZATION_REJECTED',
+          message: 'Đăng ký tổ chức của bạn chưa được chấp thuận.',
+        },
+      },
+    });
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/verify-email?token=verify-token']}>
+          <Routes>
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/đăng ký tổ chức của bạn chưa được chấp thuận/i),
+      ).toBeVisible(),
     );
   });
 });

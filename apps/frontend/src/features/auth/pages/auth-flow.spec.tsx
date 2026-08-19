@@ -10,17 +10,24 @@ const { getValidAccessToken, apiRequest } = vi.hoisted(() => ({
   apiRequest: vi.fn(),
 }));
 
-vi.mock('@/lib/api-client', () => ({
-  authTokenManager: {
-    getValidAccessToken,
-    hasKnownSession: () => true,
-    setAccessToken: vi.fn(),
-    resetLogoutState: vi.fn(),
-    markLogoutInitiated: vi.fn(),
-    clearStaleRefreshSession: vi.fn(),
-  },
-  apiRequest,
-}));
+vi.mock('@/lib/api-client', async () => {
+  const { getApiErrorCode, getApiErrorMessage } = await import(
+    '@/test/api-error-mock'
+  );
+  return {
+    authTokenManager: {
+      getValidAccessToken,
+      hasKnownSession: () => true,
+      setAccessToken: vi.fn(),
+      resetLogoutState: vi.fn(),
+      markLogoutInitiated: vi.fn(),
+      clearStaleRefreshSession: vi.fn(),
+    },
+    apiRequest,
+    getApiErrorCode,
+    getApiErrorMessage,
+  };
+});
 
 const user = {
   id: 'user-1',

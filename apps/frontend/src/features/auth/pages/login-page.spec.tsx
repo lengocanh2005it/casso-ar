@@ -4,22 +4,32 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '@/contexts/auth-context';
 import { LoginPage } from './login-page';
 
-const { getValidAccessToken, apiRequest } = vi.hoisted(() => ({
+const { getValidAccessToken, apiRequest, toastError } = vi.hoisted(() => ({
   getValidAccessToken: vi.fn(),
   apiRequest: vi.fn(),
+  toastError: vi.fn(),
 }));
 
-vi.mock('@/lib/api-client', () => ({
-  authTokenManager: {
-    getValidAccessToken,
-    hasKnownSession: () => true,
-    setAccessToken: vi.fn(),
-    resetLogoutState: vi.fn(),
-    markLogoutInitiated: vi.fn(),
-    clearStaleRefreshSession: vi.fn(),
-  },
-  apiRequest,
-}));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: toastError } }));
+
+vi.mock('@/lib/api-client', async () => {
+  const { getApiErrorCode, getApiErrorMessage } = await import(
+    '@/test/api-error-mock'
+  );
+  return {
+    authTokenManager: {
+      getValidAccessToken,
+      hasKnownSession: () => true,
+      setAccessToken: vi.fn(),
+      resetLogoutState: vi.fn(),
+      markLogoutInitiated: vi.fn(),
+      clearStaleRefreshSession: vi.fn(),
+    },
+    apiRequest,
+    getApiErrorCode,
+    getApiErrorMessage,
+  };
+});
 
 function fillAndSubmit() {
   fireEvent.change(screen.getByLabelText(/email/i), {
@@ -35,6 +45,7 @@ describe('LoginPage', () => {
   beforeEach(() => {
     getValidAccessToken.mockReset();
     apiRequest.mockReset();
+    toastError.mockReset();
     getValidAccessToken.mockResolvedValue(null);
   });
 
@@ -86,5 +97,40 @@ describe('LoginPage', () => {
     await waitFor(() =>
       expect(screen.getByText(/email hoặc mật khẩu không đúng/i)).toBeVisible(),
     );
+  });
+
+  it('toasts and stays on the page when the organization is pending review', async () => {
+    apiRequest.mockRejectedValue({
+      response: {
+        data: {
+          errorCode: 'ORGANIZATION_PENDING_REVIEW',
+          message: 'Tổ chức của bạn đang chờ được duyệt.',
+        },
+      },
+    });
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/login']}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/dashboard" element={<div>dashboard</div>} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByLabelText(/email/i)).toBeVisible());
+    fillAndSubmit();
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'Tổ chức của bạn đang chờ được duyệt.',
+      ),
+    );
+    expect(screen.queryByText('dashboard')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/email hoặc mật khẩu không đúng/i),
+    ).not.toBeInTheDocument();
   });
 });

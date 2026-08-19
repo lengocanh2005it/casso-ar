@@ -4,10 +4,23 @@ import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Spinner } from '@/components/ui/spinner';
 import { useAuth } from '@/contexts/auth-context';
-import { apiRequest, authTokenManager } from '@/lib/api-client';
+import {
+  apiRequest,
+  authTokenManager,
+  getApiErrorCode,
+  getApiErrorMessage,
+} from '@/lib/api-client';
 import { AuthLogoLink } from '../components/auth-logo-link';
 
-type VerificationState = 'pending' | 'verifying' | 'error';
+type VerificationState =
+  | 'pending'
+  | 'verifying'
+  | 'error'
+  | 'pending-review'
+  | 'rejected';
+
+const DEFAULT_REJECTED_MESSAGE =
+  'Đăng ký tổ chức của bạn chưa được chấp thuận.';
 
 export function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
@@ -18,6 +31,9 @@ export function VerifyEmailPage() {
   const [resending, setResending] = useState(false);
   const [resendSent, setResendSent] = useState(false);
   const [resendError, setResendError] = useState<string | null>(null);
+  const [rejectedMessage, setRejectedMessage] = useState(
+    DEFAULT_REJECTED_MESSAGE,
+  );
   const [state, setState] = useState<VerificationState>(
     token ? 'verifying' : 'pending',
   );
@@ -59,8 +75,21 @@ export function VerifyEmailPage() {
         await refreshUser();
         if (!cancelled) navigate('/onboarding', { replace: true });
       })
-      .catch(() => {
-        if (!cancelled) setState('error');
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        const errorCode = getApiErrorCode(error);
+        if (errorCode === 'ORGANIZATION_PENDING_REVIEW') {
+          setState('pending-review');
+          return;
+        }
+        if (errorCode === 'ORGANIZATION_REJECTED') {
+          setRejectedMessage(
+            getApiErrorMessage(error) ?? DEFAULT_REJECTED_MESSAGE,
+          );
+          setState('rejected');
+          return;
+        }
+        setState('error');
       });
 
     return () => {
@@ -123,6 +152,47 @@ export function VerifyEmailPage() {
       <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
         <AuthLogoLink />
         <div role="status">Đang xác minh email…</div>
+      </div>
+    );
+  }
+
+  if (state === 'pending-review') {
+    return (
+      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
+        <AuthLogoLink />
+        <div role="status" className="space-y-2">
+          <h1 className="text-xl font-semibold">Email đã được xác minh</h1>
+          <p className="text-sm text-muted-foreground">
+            Tổ chức của bạn đang chờ được duyệt — chúng tôi sẽ gửi email khi có
+            kết quả.
+          </p>
+          <Link
+            to="/login"
+            className="text-primary pointer-hover:hover:underline"
+          >
+            Đến trang đăng nhập
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (state === 'rejected') {
+    return (
+      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
+        <AuthLogoLink />
+        <div role="alert" className="space-y-2">
+          <h1 className="text-xl font-semibold">
+            Đăng ký chưa được chấp thuận
+          </h1>
+          <p className="text-sm text-muted-foreground">{rejectedMessage}</p>
+          <Link
+            to="/login"
+            className="text-primary pointer-hover:hover:underline"
+          >
+            Đến trang đăng nhập
+          </Link>
+        </div>
       </div>
     );
   }

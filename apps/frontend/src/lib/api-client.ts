@@ -189,6 +189,13 @@ export function getApiErrorCode(error: unknown): string | undefined {
     : undefined;
 }
 
+export function getApiErrorMessage(error: unknown): string | undefined {
+  const data = getAxiosErrorResponse(error)?.data;
+  return typeof data === 'object' && data !== null && 'message' in data
+    ? String((data as { message?: unknown }).message)
+    : undefined;
+}
+
 async function send<T>(
   config: AxiosRequestConfig,
 ): Promise<{ data: T; headers: RawAxiosResponseHeaders }> {
