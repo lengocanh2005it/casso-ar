@@ -20,6 +20,12 @@ vi.mock('@/lib/api-client', () => ({
     clearStaleRefreshSession: vi.fn(),
   },
   apiRequest,
+  getApiErrorCode: (error: unknown) =>
+    (error as { response?: { data?: { errorCode?: string } } })?.response?.data
+      ?.errorCode,
+  getApiErrorMessage: (error: unknown) =>
+    (error as { response?: { data?: { message?: string } } })?.response?.data
+      ?.message,
 }));
 
 const user = {
