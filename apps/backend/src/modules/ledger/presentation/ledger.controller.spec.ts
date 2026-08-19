@@ -1,6 +1,17 @@
+import { Permission } from '@casso-ledger/shared-types';
+import { REQUIRED_PERMISSION_KEY } from '../../../common/rbac/require-permission.decorator';
 import { LedgerController } from './ledger.controller';
 
 describe('LedgerController', () => {
+  it('requires RECEIVABLE_AUDIT_READ permission on the list endpoint', () => {
+    const requiredPermission = Reflect.getMetadata(
+      REQUIRED_PERMISSION_KEY,
+      LedgerController.prototype.list,
+    );
+
+    expect(requiredPermission).toEqual(Permission.RECEIVABLE_AUDIT_READ);
+  });
+
   it('delegates list to the use case with mapped filters', async () => {
     const listLedgerEvents = {
       execute: jest.fn().mockResolvedValue({ items: [], total: 0 }),
