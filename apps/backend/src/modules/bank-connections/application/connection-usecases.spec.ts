@@ -141,9 +141,10 @@ describe('bank connection use cases', () => {
     const useCase = new ExchangeTokenUseCase(
       sessionRepo as never,
       {
-        exchangeToken: jest
-          .fn()
-          .mockResolvedValue({ accessToken: 'raw-secret' }),
+        exchangeToken: jest.fn().mockResolvedValue({
+          accessToken: 'raw-secret',
+          grantId: 'grant-new',
+        }),
         getAccountIdentity: jest
           .fn()
           .mockResolvedValue({ accountNumber: '1234', bankName: 'Mock' }),
@@ -160,6 +161,7 @@ describe('bank connection use cases', () => {
       publicToken: 'public',
     });
     expect(result.status).toBe('ACTIVE');
+    expect(result.grantId).toBe('grant-new');
     expect(bankRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'ACTIVE' }),
       expect.anything(),
@@ -348,6 +350,7 @@ describe('bank connection use cases', () => {
       id: 'conn-existing',
       organizationId: 'org-1',
       casIdConnectionSessionId: 'session-old',
+      grantId: 'grant-existing',
       encryptedAccessToken: 'encrypted',
       accountIdentity: { accountNumber: '0011002233', bankName: 'Mock Bank' },
       status: 'REQUIRES_REAUTHORIZATION',
@@ -371,9 +374,10 @@ describe('bank connection use cases', () => {
     const useCase = new ExchangeTokenUseCase(
       sessionRepo as never,
       {
-        exchangeToken: jest
-          .fn()
-          .mockResolvedValue({ accessToken: 'raw-secret' }),
+        exchangeToken: jest.fn().mockResolvedValue({
+          accessToken: 'raw-secret',
+          grantId: 'grant-new',
+        }),
         getAccountIdentity: jest
           .fn()
           .mockResolvedValue({ accountNumber: '1234', bankName: 'Mock' }),
@@ -391,6 +395,7 @@ describe('bank connection use cases', () => {
     });
 
     expect(result.status).toBe('ACTIVE');
+    expect(result.grantId).toBe('grant-new');
     expect(bankRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'ACTIVE' }),
       expect.anything(),

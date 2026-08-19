@@ -19,6 +19,7 @@ export interface BankConnectionProps {
   id: string;
   organizationId: string;
   casIdConnectionSessionId: string;
+  grantId: string;
   encryptedAccessToken: string;
   accountIdentity: AccountIdentity;
   status: BankConnectionStatus;
@@ -33,6 +34,7 @@ export class BankConnection {
   readonly id: string;
   readonly organizationId: string;
   readonly casIdConnectionSessionId: string;
+  readonly grantId: string;
   readonly encryptedAccessToken: string;
   readonly accountIdentity: AccountIdentity;
   readonly status: BankConnectionStatus;
@@ -70,6 +72,7 @@ export class BankConnection {
 
   reactivate(input: {
     casIdConnectionSessionId: string;
+    grantId: string;
     encryptedAccessToken: string;
     accountIdentity: AccountIdentity;
     scopes: string[];

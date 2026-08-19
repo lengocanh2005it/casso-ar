@@ -99,6 +99,7 @@ describe('Webhook matching (e2e)', () => {
       id: bankConnectionId,
       organizationId,
       casIdConnectionSessionId: '00000000-0000-0000-0000-0000000000f3',
+      grantId: '00000000-0000-0000-0000-0000000000f4',
       encryptedAccessToken: 'encrypted-test-token',
       accountIdentity: { accountNumber: '99887766', bankName: 'Test Bank' },
       status: 'ACTIVE',

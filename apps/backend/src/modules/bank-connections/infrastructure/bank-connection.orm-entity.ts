@@ -16,6 +16,9 @@ export class BankConnectionOrmEntity {
   @Column({ type: 'uuid' })
   casIdConnectionSessionId: string;
 
+  @Column({ unique: true })
+  grantId: string;
+
   @Column('text')
   encryptedAccessToken: string;
 

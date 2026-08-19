@@ -241,6 +241,7 @@ describe('Collection Activity Timeline (integration)', () => {
         id: webhookBankConnectionId,
         organizationId: webhookOrganizationId,
         casIdConnectionSessionId: randomUUID(),
+        grantId: randomUUID(),
         encryptedAccessToken: 'encrypted-test-token',
         accountIdentity: { accountNumber: '99887766', bankName: 'Test Bank' },
         status: 'ACTIVE',

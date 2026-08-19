@@ -12,6 +12,11 @@ export interface IBankConnectionRepository {
   // background sync / a Cas ID error callback with only a connectionId) —
   // there is no TenantContextService organizationId to scope by at that point.
   findByIdUnscoped(id: string): Promise<BankConnection | null>;
+  // Unscoped on purpose, same reasoning as findByIdUnscoped above: called
+  // from ReceiveWebhookUseCase, which handles an inbound Cas ID Balance Hook
+  // delivery — there is no TenantContextService organizationId at that point,
+  // only the grantId Cas ID's payload carries.
+  findByGrantId(grantId: string): Promise<BankConnection | null>;
   findPage(
     organizationId: string,
     page: number,

@@ -12,6 +12,7 @@ function activeConnection(): BankConnection {
     id: 'conn-1',
     organizationId: 'org-1',
     casIdConnectionSessionId: 'session-1',
+    grantId: 'grant-1',
     encryptedAccessToken: encryptToken('raw-access-token', encryptionKey),
     accountIdentity: { accountNumber: '0011002233', bankName: 'Mock Bank' },
     status: 'ACTIVE',

@@ -10,6 +10,7 @@ function connectionWithStatus(
     id: 'conn-1',
     organizationId: 'org-1',
     casIdConnectionSessionId: 'session-1',
+    grantId: 'grant-1',
     encryptedAccessToken: 'encrypted',
     accountIdentity: { accountNumber: '0011002233', bankName: 'Mock Bank' },
     status,
