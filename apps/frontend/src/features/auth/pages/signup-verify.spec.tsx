@@ -21,6 +21,12 @@ vi.mock('@/lib/api-client', () => ({
     clearStaleRefreshSession: vi.fn(),
   },
   apiRequest,
+  getApiErrorCode: (error: unknown) =>
+    (error as { response?: { data?: { errorCode?: string } } })?.response?.data
+      ?.errorCode,
+  getApiErrorMessage: (error: unknown) =>
+    (error as { response?: { data?: { message?: string } } })?.response?.data
+      ?.message,
 }));
 
 const user = {
@@ -167,6 +173,61 @@ describe('signup and email verification', () => {
         method: 'POST',
         data: { email: 'new@casso.vn' },
       }),
+    );
+  });
+
+  it('shows a pending-review state when the organization is awaiting approval', async () => {
+    apiRequest.mockRejectedValueOnce({
+      response: {
+        data: {
+          errorCode: 'ORGANIZATION_PENDING_REVIEW',
+          message: 'Tổ chức của bạn đang chờ được duyệt.',
+        },
+      },
+    });
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/verify-email?token=verify-token']}>
+          <Routes>
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText(/email đã được xác minh/i)).toBeVisible(),
+    );
+    expect(
+      screen.getByText(/tổ chức của bạn đang chờ được duyệt/i),
+    ).toBeVisible();
+  });
+
+  it('shows a rejected state with the API message when the organization was rejected', async () => {
+    apiRequest.mockRejectedValueOnce({
+      response: {
+        data: {
+          errorCode: 'ORGANIZATION_REJECTED',
+          message: 'Đăng ký tổ chức của bạn chưa được chấp thuận.',
+        },
+      },
+    });
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/verify-email?token=verify-token']}>
+          <Routes>
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/đăng ký tổ chức của bạn chưa được chấp thuận/i),
+      ).toBeVisible(),
     );
   });
 });
