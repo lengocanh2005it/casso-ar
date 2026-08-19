@@ -6,14 +6,27 @@ import type {
   IOrganizationRepository,
   OrganizationListItem,
 } from '../application/organization-repository.port';
-import { Organization } from '../domain/organization';
+import { Organization, type OrganizationStatus } from '../domain/organization';
 import { OrganizationOrmEntity } from './organization.orm-entity';
+
+const SELECT_COLUMNS = {
+  id: true,
+  name: true,
+  status: true,
+  taxCode: true,
+  taxCodeMatched: true,
+  taxCodeLookupName: true,
+  createdAt: true,
+} as const;
 
 function toDomain(row: OrganizationOrmEntity): Organization {
   return new Organization({
     id: row.id,
     name: row.name,
     status: row.status,
+    taxCode: row.taxCode,
+    taxCodeMatched: row.taxCodeMatched,
+    taxCodeLookupName: row.taxCodeLookupName,
     createdAt: row.createdAt,
   });
 }
@@ -23,6 +36,9 @@ function toOrm(organization: Organization): OrganizationOrmEntity {
   row.id = organization.id;
   row.name = organization.name;
   row.status = organization.status;
+  row.taxCode = organization.taxCode;
+  row.taxCodeMatched = organization.taxCodeMatched;
+  row.taxCodeLookupName = organization.taxCodeLookupName;
   row.createdAt = organization.createdAt;
   return row;
 }
@@ -41,10 +57,7 @@ export class TypeOrmOrganizationRepository implements IOrganizationRepository {
     const row = await (manager
       ? manager.getRepository(OrganizationOrmEntity)
       : this.repo
-    ).findOne({
-      select: { id: true, name: true, status: true, createdAt: true },
-      where: { id },
-    });
+    ).findOne({ select: SELECT_COLUMNS, where: { id } });
     return row ? toDomain(row) : null;
   }
 
@@ -56,9 +69,11 @@ export class TypeOrmOrganizationRepository implements IOrganizationRepository {
   async findAllPaginated(
     page: number,
     limit: number,
+    status?: OrganizationStatus,
   ): Promise<{ items: OrganizationListItem[]; total: number }> {
     const [rows, total] = await this.repo.findAndCount({
-      select: { id: true, name: true, status: true, createdAt: true },
+      select: SELECT_COLUMNS,
+      where: status ? { status } : {},
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -68,6 +83,9 @@ export class TypeOrmOrganizationRepository implements IOrganizationRepository {
         id: row.id,
         name: row.name,
         status: row.status,
+        taxCode: row.taxCode,
+        taxCodeMatched: row.taxCodeMatched,
+        taxCodeLookupName: row.taxCodeLookupName,
         createdAt: row.createdAt,
       })),
       total,
@@ -77,7 +95,7 @@ export class TypeOrmOrganizationRepository implements IOrganizationRepository {
   async findByIds(ids: string[]): Promise<Map<string, Organization>> {
     if (ids.length === 0) return new Map();
     const rows = await this.repo.find({
-      select: { id: true, name: true, status: true, createdAt: true },
+      select: SELECT_COLUMNS,
       where: { id: In(ids) },
     });
     return new Map(rows.map((row) => [row.id, toDomain(row)]));

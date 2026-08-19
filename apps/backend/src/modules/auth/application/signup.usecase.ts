@@ -17,7 +17,12 @@ import {
   ORGANIZATION_REPOSITORY,
 } from '../../organizations/application/organization-repository.port';
 import { Membership, Role } from '../../organizations/domain/membership';
+import { matchesTaxCodeName } from '../../organizations/domain/normalize-company-name';
 import { Organization } from '../../organizations/domain/organization';
+import {
+  type ITaxCodeLookupAdapter,
+  TAX_CODE_LOOKUP_ADAPTER,
+} from '../../tax-verification/application/tax-code-lookup.port';
 import {
   type IUserRepository,
   USER_REPOSITORY,
@@ -34,6 +39,10 @@ import {
 } from './email-verification-token-repository.port';
 import { LoginUseCase } from './login.usecase';
 import {
+  type IMemberNotificationSender,
+  MEMBER_NOTIFICATION_SENDER,
+} from './member-notification.port';
+import {
   DEFAULT_ORGANIZATION_BOOTSTRAP,
   type IOrganizationBootstrap,
 } from './organization-bootstrap.port';
@@ -45,14 +54,15 @@ export interface SignupInput {
   name: string;
   email: string;
   password: string;
+  taxCode: string;
 }
 
 export interface SignupResult {
   user: User;
   organization: Organization;
   membership: Membership;
-  accessToken: string;
-  refreshToken: string;
+  accessToken?: string;
+  refreshToken?: string;
 }
 
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -73,6 +83,10 @@ export class SignupUseCase {
     private readonly organizationBootstrap: IOrganizationBootstrap,
     @Inject(AUTH_EMAIL_SENDER)
     private readonly emailSender: IAuthEmailSender,
+    @Inject(TAX_CODE_LOOKUP_ADAPTER)
+    private readonly taxCodeLookup: ITaxCodeLookupAdapter,
+    @Inject(MEMBER_NOTIFICATION_SENDER)
+    private readonly memberNotificationSender: IMemberNotificationSender,
     private readonly loginUseCase: LoginUseCase,
     private readonly dataSource: DataSource,
   ) {}
@@ -82,6 +96,12 @@ export class SignupUseCase {
     if (await this.userRepo.findByEmail(email)) {
       throw new AppError(ErrorCode.CONFLICT, 'Email đã được đăng ký.');
     }
+
+    const organizationName = input.organizationName.trim();
+    const lookupResult = await this.taxCodeLookup.lookup(input.taxCode);
+    const taxCodeMatched =
+      lookupResult !== null &&
+      matchesTaxCodeName(organizationName, lookupResult.name);
 
     const now = new Date();
     const user = new User({
@@ -94,7 +114,11 @@ export class SignupUseCase {
     });
     const organization = new Organization({
       id: randomUUID(),
-      name: input.organizationName.trim(),
+      name: organizationName,
+      status: taxCodeMatched ? 'ACTIVE' : 'PENDING_REVIEW',
+      taxCode: input.taxCode,
+      taxCodeMatched,
+      taxCodeLookupName: lookupResult?.name ?? null,
       createdAt: now,
     });
     const membership = new Membership({
@@ -134,6 +158,14 @@ export class SignupUseCase {
       `/verify-email?token=${token}`,
     );
 
+    if (organization.status !== 'ACTIVE') {
+      return { user, organization, membership };
+    }
+
+    await this.memberNotificationSender.sendOrganizationApprovedEmail(
+      user.email,
+      organization.name,
+    );
     const tokens = await this.loginUseCase.execute({
       email: user.email,
       password: input.password,

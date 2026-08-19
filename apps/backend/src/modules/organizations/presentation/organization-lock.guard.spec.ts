@@ -57,4 +57,44 @@ describe('OrganizationLockGuard', () => {
     const guard = buildGuard(null);
     await expect(guard.canActivate(buildContext({}))).resolves.toBe(true);
   });
+
+  it('rejects with ORGANIZATION_PENDING_REVIEW when the caller organization is pending review', async () => {
+    const guard = buildGuard(
+      new Organization({
+        id: 'org-1',
+        name: 'Acme',
+        status: 'PENDING_REVIEW',
+        createdAt: new Date(),
+      }),
+    );
+    const request = {
+      user: { userId: 'u1', organizationId: 'org-1', role: 'OWNER' },
+    };
+
+    await expect(
+      guard.canActivate(buildContext(request)),
+    ).rejects.toMatchObject({
+      response: { errorCode: 'ORGANIZATION_PENDING_REVIEW' },
+    });
+  });
+
+  it('rejects with ORGANIZATION_REJECTED when the caller organization was rejected', async () => {
+    const guard = buildGuard(
+      new Organization({
+        id: 'org-1',
+        name: 'Acme',
+        status: 'REJECTED',
+        createdAt: new Date(),
+      }),
+    );
+    const request = {
+      user: { userId: 'u1', organizationId: 'org-1', role: 'OWNER' },
+    };
+
+    await expect(
+      guard.canActivate(buildContext(request)),
+    ).rejects.toMatchObject({
+      response: { errorCode: 'ORGANIZATION_REJECTED' },
+    });
+  });
 });

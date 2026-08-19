@@ -5,6 +5,9 @@ export interface OrganizationListItem {
   id: string;
   name: string;
   status: OrganizationStatus;
+  taxCode: string;
+  taxCodeMatched: boolean;
+  taxCodeLookupName: string | null;
   createdAt: Date;
 }
 
@@ -14,6 +17,7 @@ export interface IOrganizationRepository {
   findAllPaginated(
     page: number,
     limit: number,
+    status?: OrganizationStatus,
   ): Promise<{ items: OrganizationListItem[]; total: number }>;
   findByIds(ids: string[]): Promise<Map<string, Organization>>;
   save(organization: Organization, manager?: EntityManager): Promise<void>;

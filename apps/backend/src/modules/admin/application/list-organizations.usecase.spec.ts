@@ -17,9 +17,13 @@ describe('ListOrganizationsUseCase', () => {
     };
     const useCase = new ListOrganizationsUseCase(organizationRepo as any);
 
-    const result = await useCase.execute({ page: 1, limit: 20 });
+    const result = await useCase.execute({ page: 1, limit: 20, status: 'ALL' });
 
-    expect(organizationRepo.findAllPaginated).toHaveBeenCalledWith(1, 20);
+    expect(organizationRepo.findAllPaginated).toHaveBeenCalledWith(
+      1,
+      20,
+      undefined,
+    );
     expect(result).toEqual({
       items: [
         {

@@ -101,4 +101,32 @@ describe('ResendAuthEmailSenderAdapter', () => {
       }),
     );
   });
+
+  it('sendOrganizationApprovedEmail enqueues an approval email', async () => {
+    const emailQueue = { add: jest.fn() };
+    const adapter = new ResendAuthEmailSenderAdapter(emailQueue as any);
+
+    await adapter.sendOrganizationApprovedEmail('owner@acme.vn', 'Acme Co');
+
+    expect(emailQueue.add).toHaveBeenCalledWith('send-auth-email', {
+      to: 'owner@acme.vn',
+      subject: 'Tổ chức Acme Co đã được duyệt',
+      html: expect.stringContaining('Acme Co'),
+      emailType: 'ORGANIZATION_APPROVED',
+    });
+  });
+
+  it('sendOrganizationRejectedEmail enqueues a rejection email without a reason', async () => {
+    const emailQueue = { add: jest.fn() };
+    const adapter = new ResendAuthEmailSenderAdapter(emailQueue as any);
+
+    await adapter.sendOrganizationRejectedEmail('owner@acme.vn', 'Acme Co');
+
+    expect(emailQueue.add).toHaveBeenCalledWith('send-auth-email', {
+      to: 'owner@acme.vn',
+      subject: 'Đăng ký tổ chức Acme Co chưa được chấp thuận',
+      html: expect.stringContaining('liên hệ'),
+      emailType: 'ORGANIZATION_REJECTED',
+    });
+  });
 });

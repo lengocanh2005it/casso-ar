@@ -1,6 +1,8 @@
 export type OperatorActionType =
   | 'ORGANIZATION_LOCKED'
   | 'ORGANIZATION_UNLOCKED'
+  | 'ORGANIZATION_APPROVED'
+  | 'ORGANIZATION_REJECTED'
   | 'MEMBER_BLOCKED'
   | 'MEMBER_UNBLOCKED'
   | 'INVITE_RESENT'
@@ -14,6 +16,7 @@ export interface OperatorAuditLogProps {
   createdAt: Date;
   membershipId?: string | null;
   inviteId?: string | null;
+  reason?: string | null;
 }
 
 export class OperatorAuditLog {
@@ -24,6 +27,7 @@ export class OperatorAuditLog {
   readonly createdAt: Date;
   readonly membershipId: string | null;
   readonly inviteId: string | null;
+  readonly reason: string | null;
 
   constructor(props: OperatorAuditLogProps) {
     this.id = props.id;
@@ -33,5 +37,6 @@ export class OperatorAuditLog {
     this.createdAt = props.createdAt;
     this.membershipId = props.membershipId ?? null;
     this.inviteId = props.inviteId ?? null;
+    this.reason = props.reason ?? null;
   }
 }

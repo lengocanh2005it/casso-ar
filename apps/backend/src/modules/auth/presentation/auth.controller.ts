@@ -108,13 +108,17 @@ export class AuthController {
   @ApiOperation({ summary: 'Sign up a new user and organization' })
   @ApiCreatedResponse({
     description:
-      'Account created; refresh token set as an httpOnly cookie (refreshToken)',
+      'Account created; if the organization is auto-approved, the refresh token is set as an httpOnly cookie (refreshToken) and accessToken is present. If the organization is pending review, no session is issued.',
     schema: {
       type: 'object',
-      required: ['userId', 'organizationId', 'accessToken'],
+      required: ['userId', 'organizationId', 'organizationStatus'],
       properties: {
         userId: { type: 'string', format: 'uuid' },
         organizationId: { type: 'string', format: 'uuid' },
+        organizationStatus: {
+          type: 'string',
+          enum: ['ACTIVE', 'PENDING_REVIEW'],
+        },
         accessToken: { type: 'string' },
       },
     },
@@ -129,15 +133,18 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.signupUseCase.execute(dto);
-    response.cookie(
-      REFRESH_COOKIE_NAME,
-      result.refreshToken,
-      this.refreshCookieOptions,
-    );
+    if (result.refreshToken) {
+      response.cookie(
+        REFRESH_COOKIE_NAME,
+        result.refreshToken,
+        this.refreshCookieOptions,
+      );
+    }
     return {
       userId: result.user.id,
       organizationId: result.organization.id,
-      accessToken: result.accessToken,
+      organizationStatus: result.organization.status,
+      ...(result.accessToken ? { accessToken: result.accessToken } : {}),
     };
   }
 

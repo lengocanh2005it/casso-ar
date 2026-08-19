@@ -12,8 +12,17 @@ export class AdminOrganizationItemResponseDto {
   @ApiProperty()
   name: string;
 
-  @ApiProperty({ enum: ['ACTIVE', 'LOCKED'] })
-  status: 'ACTIVE' | 'LOCKED';
+  @ApiProperty({ enum: ['ACTIVE', 'LOCKED', 'PENDING_REVIEW', 'REJECTED'] })
+  status: 'ACTIVE' | 'LOCKED' | 'PENDING_REVIEW' | 'REJECTED';
+
+  @ApiProperty()
+  taxCode: string;
+
+  @ApiProperty()
+  taxCodeMatched: boolean;
+
+  @ApiProperty({ type: String, nullable: true })
+  taxCodeLookupName: string | null;
 
   @ApiProperty()
   createdAt: Date;
@@ -26,6 +35,9 @@ export function toAdminOrganizationItemResponse(
     id: organization.id,
     name: organization.name,
     status: organization.status,
+    taxCode: organization.taxCode,
+    taxCodeMatched: organization.taxCodeMatched,
+    taxCodeLookupName: organization.taxCodeLookupName,
     createdAt: organization.createdAt,
   };
 }
@@ -45,8 +57,8 @@ export class AdminOrganizationsResponseDto {
 }
 
 export class AdminOrganizationStatusResponseDto {
-  @ApiProperty({ enum: ['ACTIVE', 'LOCKED'] })
-  status: 'ACTIVE' | 'LOCKED';
+  @ApiProperty({ enum: ['ACTIVE', 'LOCKED', 'PENDING_REVIEW', 'REJECTED'] })
+  status: 'ACTIVE' | 'LOCKED' | 'PENDING_REVIEW' | 'REJECTED';
 }
 
 export class AdminAiUsageItemResponseDto {
