@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   type AdminMemberStatusFilter,
+  type AdminOrganizationStatusFilter,
+  approveOrganization,
   blockOrganizationMember,
   getAdminOrganization,
   getAiUsage,
@@ -9,6 +11,7 @@ import {
   listOrganizationMembers,
   listOrganizations,
   lockOrganization,
+  rejectOrganization,
   resendOrganizationInvite,
   revokeOrganizationInvite,
   unblockOrganizationMember,
@@ -21,10 +24,14 @@ const adminOrganizationMembersQueryKey = [
   'members',
 ] as const;
 
-export function useAdminOrganizations(page: number, limit: number) {
+export function useAdminOrganizations(
+  page: number,
+  limit: number,
+  status: AdminOrganizationStatusFilter = 'ALL',
+) {
   return useQuery({
-    queryKey: [...adminOrganizationsQueryKey, page, limit],
-    queryFn: () => listOrganizations(page, limit),
+    queryKey: [...adminOrganizationsQueryKey, page, limit, status],
+    queryFn: () => listOrganizations(page, limit, status),
   });
 }
 
@@ -161,5 +168,36 @@ export function useRevokeOrganizationInvite() {
       });
     },
     onError: () => toast.error('Không thể thu hồi lời mời. Vui lòng thử lại.'),
+  });
+}
+
+export function useApproveOrganization() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => approveOrganization(id),
+    onSuccess: () => {
+      toast.success('Đã duyệt tổ chức.');
+      void queryClient.invalidateQueries({
+        queryKey: adminOrganizationsQueryKey,
+      });
+    },
+    onError: () => toast.error('Không thể duyệt tổ chức. Vui lòng thử lại.'),
+  });
+}
+
+export function useRejectOrganization() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      rejectOrganization(id, reason),
+    onSuccess: () => {
+      toast.success('Đã từ chối tổ chức.');
+      void queryClient.invalidateQueries({
+        queryKey: adminOrganizationsQueryKey,
+      });
+    },
+    onError: () => toast.error('Không thể từ chối tổ chức. Vui lòng thử lại.'),
   });
 }

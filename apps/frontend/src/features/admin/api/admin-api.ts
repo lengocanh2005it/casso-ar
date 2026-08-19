@@ -1,10 +1,20 @@
 import type { Role } from '@casso-ledger/shared-types';
 import { apiRequest, authTokenManager } from '@/lib/api-client';
 
+export type AdminOrganizationStatusFilter =
+  | 'ALL'
+  | 'ACTIVE'
+  | 'LOCKED'
+  | 'PENDING_REVIEW'
+  | 'REJECTED';
+
 export interface OrganizationListItem {
   id: string;
   name: string;
-  status: 'ACTIVE' | 'LOCKED';
+  status: 'ACTIVE' | 'LOCKED' | 'PENDING_REVIEW' | 'REJECTED';
+  taxCode: string;
+  taxCodeMatched: boolean;
+  taxCodeLookupName: string | null;
   createdAt: string;
 }
 
@@ -73,6 +83,7 @@ export async function adminLogin(
 export function listOrganizations(
   page: number,
   limit: number,
+  status: AdminOrganizationStatusFilter = 'ALL',
 ): Promise<{
   items: OrganizationListItem[];
   total: number;
@@ -82,7 +93,7 @@ export function listOrganizations(
   return apiRequest({
     url: '/api/v1/admin/organizations',
     method: 'GET',
-    params: { page, limit },
+    params: { page, limit, status },
   });
 }
 
@@ -174,6 +185,24 @@ export function unlockOrganization(id: string): Promise<{ status: string }> {
   return apiRequest({
     url: `/api/v1/admin/organizations/${id}/unlock`,
     method: 'POST',
+  });
+}
+
+export function approveOrganization(id: string): Promise<{ status: string }> {
+  return apiRequest({
+    url: `/api/v1/admin/organizations/${id}/approve`,
+    method: 'POST',
+  });
+}
+
+export function rejectOrganization(
+  id: string,
+  reason: string,
+): Promise<{ status: string }> {
+  return apiRequest({
+    url: `/api/v1/admin/organizations/${id}/reject`,
+    method: 'POST',
+    data: { reason },
   });
 }
 
