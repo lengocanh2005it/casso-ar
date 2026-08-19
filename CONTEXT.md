@@ -33,6 +33,7 @@ A B2B SaaS platform for automating accounts receivable management and collection
 | **CollectionActivity** | Denormalized, INSERT-only timeline | `id`, `receivableId`, `eventType` |
 | **InternalTask** | Internal ESCALATION/MANUAL task | `id`, `receivableId`, `assignedToUserId`, `status` |
 | **ReceivableBalanceHistory** | Immutable snapshots of a receivable's balance and status at each balance/status transition; the source for historical outstanding balances, not an audit log or event-sourced ledger. A payment without an allocation is not a balance transition. A snapshot may carry transition provenance. It follows the receivable's lifecycle and is not independently hard-deleted. `effectiveAt` is when the transition became effective in the domain, not when the bank transaction originally occurred. Receivables/Payments own transitions; balance history owns snapshots and historical queries; reporting only reads them. It is an immutable record, not an aggregate root | `id`, `receivableId`, `status`, `remainingAmount`, `effectiveAt`, `changeSource`, `actorType`, `actorUserId`, `reasonCode`, `note`, `transitionReferenceId` |
+| **LedgerEvent** | Immutable, org-scoped record of one AR money movement (see "AR Ledger" below). Unlike `ReceivableBalanceHistory` (a per-receivable *snapshot* of the resulting balance), a `LedgerEvent` is a per-subject *movement* (a signed amount) against either a `Receivable` or a `Payment`'s unallocated (credit) balance. It is additive alongside the persisted rollups and `ReceivableBalanceHistory`, not a replacement for either | `id`, `organizationId`, `subjectType`, `subjectId`, `kind`, `amount`, `effectiveAt`, `transitionReferenceId` |
 | **AuditLog** | Actor-oriented record of who performed an action and what changed; general audit history, not the source for historical receivable balances | `id`, `entityType`, `entityId`, `beforeState`, `afterState` |
 | **BankConnection** | Bank connection through Cas ID | `id`, `organizationId`, `status`, `accessToken` |
 | **Subscription** | Subscription plan | `id`, `organizationId`, `plan`, `status` |
@@ -110,6 +111,49 @@ require an explicit new epoch. It is a coverage event, not a receivable business
 transition, so it does not emit ordinary audit, collection, or notification events.
 `DRAFT` remains a declared but currently unused receivable status; its future
 transition into `OPEN` must be defined explicitly when a real draft workflow exists.
+
+## AR Ledger
+
+The **AR Ledger** is the append-only stream of every `LedgerEvent` for an organization —
+the single query surface for "how did this organization's AR money move" without joining
+`Receivable`, `Payment`, and `PaymentAllocation`. It is scoped to AR only: `Receivable`,
+`Payment`, and the credit balance a `Payment` retains when not fully allocated. It does
+**not** cover `PeriodCharge`/`PlanUpgradeOrder` (CASSO's own subscription revenue from the
+tenant) — that is a different accounting subject (CASSO is the payee there; in AR the
+tenant is the payee) and out of scope for this ledger.
+
+The AR Ledger is explicitly **not** a double-entry general ledger: there is no `Account`
+entity, no chart of accounts, and no requirement that debits equal credits. A `LedgerEvent`
+is a single signed movement against one subject, not a balanced pair of postings. Adopting
+real double-entry accounting (accounts, balanced postings, financial-statement support) is
+a deferred, unscoped idea — revisit only if a concrete requirement appears (e.g. exporting
+to external accounting software); seeing "Ledger" in the product name is not by itself
+such a requirement.
+
+A `PaymentAllocation` action is two-sided: it moves money off one subject (a `Payment`'s
+unallocated/credit balance) and onto another (a `Receivable`'s remaining balance). This
+falls out of the domain naturally — it is not an imposed double-entry rule — so one
+`allocate` or `undo` action emits **two** `LedgerEvent` rows, one per subject:
+
+- **Receivable-subject kinds** mirror `ReceivableBalanceHistory`'s change sources:
+  `RECEIVABLE_CREATED`, `RECEIVABLE_ALLOCATED`, `RECEIVABLE_ALLOCATION_UNDONE`,
+  `RECEIVABLE_CANCELLED`, `RECEIVABLE_WRITTEN_OFF`, `RECEIVABLE_ROLLOUT_BASELINE`.
+- **Payment-subject kinds** track the credit balance, which today has no history at all
+  (only the current `unallocatedAmount` is queryable): `PAYMENT_RECEIVED` (credit opens at
+  the full payment amount when the `Payment` is created), `PAYMENT_ALLOCATED` (credit
+  decreases — the other side of `RECEIVABLE_ALLOCATED`), `PAYMENT_ALLOCATION_UNDONE`
+  (credit is restored — the other side of `RECEIVABLE_ALLOCATION_UNDONE`),
+  `PAYMENT_ROLLOUT_BASELINE`.
+
+The AR Ledger is a **dual-write, not a replacement**: `Receivable.paidAmount`,
+`Payment.allocatedAmount`, and `ReceivableBalanceHistory` are unchanged (ADR-0002,
+ADR-0018 still hold) — every read path that exists today keeps reading exactly what it
+reads today. `LedgerEvent` rows are written in the same transaction as the triggering
+allocate/undo/cancel/write-off, so the ledger can never observe a state the rollups
+didn't also reach. Like `ReceivableBalanceHistory`, existing data gets a
+`*_ROLLOUT_BASELINE` opening event per subject via a one-time atomic migration, following
+the same precedent as the balance-history rollout baseline — the ledger has no history
+before that cutover.
 
 **Change source** names the lifecycle transition (`CREATE`, `ALLOCATE`, `UNDO`,
 `CANCEL`, `WRITE_OFF`, or `ROLLOUT_BASELINE`). **Reason code** names the business
@@ -210,6 +254,7 @@ Score components:
 | 0016 | Batch endpoints process items independently, never as one all-or-nothing transaction | Issue #134 requires per-item failure reporting; an all-or-nothing transaction would also hold row locks across up to 50 items, violating the short-transaction-scope rule |
 | 0017 | Cross-org Operator plane is separate from tenant RBAC (proposed) | `Operator` is a flag on `User` with its own `AdminGuard`/`OperatorAuditLog`, never touching `TenantContextService`/`PermissionGuard`/`AuditLog` — those are the cross-cutting foundation every business module depends on; research for issue #98, not yet built |
 | 0019 | Member block scoped to `Membership`, not `User` | Blocking must not leak across orgs a `User` belongs to; `OWNER` action gets its own `MEMBER_BLOCK` permission instead of riding `USER_MANAGE`; issue #178, shipped PR #182 |
+| 0020 | AR Ledger is event-sourced, not double-entry (proposed) | Additive `LedgerEvent` stream covering `Receivable` + `Payment` credit movements, dual-write alongside existing rollups/`ReceivableBalanceHistory`; no `Account`/chart-of-accounts/debit=credit — issue #264 |
 
 ## Constraints
 
