@@ -14,7 +14,9 @@ export interface ICasIdIntegrationAdapter {
     scopes: string[],
     redirectUri: string,
   ): Promise<{ grantToken: string; expiresAt: Date }>;
-  exchangeToken(publicToken: string): Promise<{ accessToken: string }>;
+  exchangeToken(
+    publicToken: string,
+  ): Promise<{ accessToken: string; grantId: string }>;
   invalidateToken(accessToken: string): Promise<void>;
   getAccountIdentity(accessToken: string): Promise<AccountIdentity>;
   getTransactions(accessToken: string): Promise<CasIdTransaction[]>;

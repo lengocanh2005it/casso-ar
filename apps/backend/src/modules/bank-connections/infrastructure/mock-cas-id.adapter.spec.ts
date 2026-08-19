@@ -12,10 +12,12 @@ describe('MockCasIdAdapter', () => {
     expect(result.expiresAt.getTime()).toBeGreaterThan(before + 29 * 60 * 1000);
   });
 
-  it('exchanges and resolves a mock token', async () => {
+  it('exchanges and resolves a mock token, including a grantId', async () => {
     const adapter = new MockCasIdAdapter();
-    const { accessToken } = await adapter.exchangeToken('public-token');
+    const { accessToken, grantId } =
+      await adapter.exchangeToken('public-token');
     expect(accessToken).toContain('mock-access-token-');
+    expect(grantId).toContain('mock-grant-id-');
     await expect(adapter.getAccountIdentity(accessToken)).resolves.toEqual(
       expect.objectContaining({ bankName: 'Mock Bank' }),
     );
