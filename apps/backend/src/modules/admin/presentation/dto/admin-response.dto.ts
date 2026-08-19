@@ -12,8 +12,8 @@ export class AdminOrganizationItemResponseDto {
   @ApiProperty()
   name: string;
 
-  @ApiProperty({ enum: ['ACTIVE', 'LOCKED'] })
-  status: 'ACTIVE' | 'LOCKED';
+  @ApiProperty({ enum: ['ACTIVE', 'LOCKED', 'PENDING_REVIEW', 'REJECTED'] })
+  status: 'ACTIVE' | 'LOCKED' | 'PENDING_REVIEW' | 'REJECTED';
 
   @ApiProperty()
   createdAt: Date;
@@ -45,8 +45,8 @@ export class AdminOrganizationsResponseDto {
 }
 
 export class AdminOrganizationStatusResponseDto {
-  @ApiProperty({ enum: ['ACTIVE', 'LOCKED'] })
-  status: 'ACTIVE' | 'LOCKED';
+  @ApiProperty({ enum: ['ACTIVE', 'LOCKED', 'PENDING_REVIEW', 'REJECTED'] })
+  status: 'ACTIVE' | 'LOCKED' | 'PENDING_REVIEW' | 'REJECTED';
 }
 
 export class AdminAiUsageItemResponseDto {

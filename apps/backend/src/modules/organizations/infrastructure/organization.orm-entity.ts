@@ -9,7 +9,7 @@ export class OrganizationOrmEntity {
   name: string;
 
   @Column({ type: 'varchar', default: 'ACTIVE' })
-  status: 'ACTIVE' | 'LOCKED';
+  status: 'ACTIVE' | 'LOCKED' | 'PENDING_REVIEW' | 'REJECTED';
 
   @Column({ type: 'timestamptz' })
   createdAt: Date;
