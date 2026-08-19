@@ -40,15 +40,17 @@ describe('Webhook matching (e2e)', () => {
   const bankConnectionId = '00000000-0000-0000-0000-0000000000f2';
   const firstTransactionId = `provider-tx-1-${randomUUID()}`;
   const matchingTransactionId = `provider-tx-2-${randomUUID()}`;
+  const grantId = '00000000-0000-0000-0000-0000000000f4';
   const payload = {
-    organizationId,
-    bankConnectionId,
-    transactionId: firstTransactionId,
-    amount: 30_000_000,
-    transactionDateTime: '2026-08-05T10:00:00.000Z',
-    counterpartyAccountNumber: '0011002233',
-    counterpartyName: 'Unknown Payer',
-    transferContent: 'chuyen tien',
+    grantId,
+    transaction: {
+      id: firstTransactionId,
+      amount: 30_000_000,
+      transactionDateTime: '2026-08-05T10:00:00.000Z',
+      description: 'chuyen tien',
+      counterAccountNumber: '0011002233',
+      counterAccountName: 'Unknown Payer',
+    },
   };
 
   beforeAll(async () => {
@@ -67,8 +69,12 @@ describe('Webhook matching (e2e)', () => {
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
     process.env.RESEND_API_KEY = 'e2e-resend-key';
-    process.env.CASSO_WEBHOOK_CLIENT_ID = 'e2e-client';
-    process.env.CASSO_WEBHOOK_SECRET_KEY = 'e2e-secret';
+    // Loopback addresses supertest's in-process client connects from —
+    // covers both IPv4 and IPv6 representations Node/Express may report as
+    // req.ip depending on environment. Not a real-world Cas ID IP; this is
+    // test-only, matching the real fail-closed allowlist mechanism being
+    // exercised (WebhookAuthGuard), not the real sandbox IP.
+    process.env.CAS_ID_WEBHOOK_IP_ALLOWLIST = '127.0.0.1,::1,::ffff:127.0.0.1';
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
@@ -118,17 +124,14 @@ describe('Webhook matching (e2e)', () => {
 
   it('accepts the hook and deduplicates the provider transaction', async () => {
     const endpoint = '/api/v1/webhooks/casso-balance-hook';
-    const auth = { 'x-client-id': 'e2e-client', 'x-secret-key': 'e2e-secret' };
 
     await request(app.getHttpServer())
       .post(endpoint)
-      .set(auth)
       .send(payload)
       .expect(200, { received: true, duplicate: false });
 
     await request(app.getHttpServer())
       .post(endpoint)
-      .set(auth)
       .send(payload)
       .expect(200, { received: true, duplicate: true });
 
@@ -238,12 +241,16 @@ describe('Webhook matching (e2e)', () => {
 
     await request(app.getHttpServer())
       .post('/api/v1/webhooks/casso-balance-hook')
-      .set({ 'x-client-id': 'e2e-client', 'x-secret-key': 'e2e-secret' })
       .send({
-        ...payload,
-        transactionId: matchingTransactionId,
-        counterpartyName: 'Company B',
-        transferContent: 'Thanh toan INV-2026-0012',
+        grantId,
+        transaction: {
+          id: matchingTransactionId,
+          amount: 30_000_000,
+          transactionDateTime: '2026-08-05T10:00:00.000Z',
+          description: 'Thanh toan INV-2026-0012',
+          counterAccountNumber: '0011002233',
+          counterAccountName: 'Company B',
+        },
       })
       .expect(200, { received: true, duplicate: false });
 
