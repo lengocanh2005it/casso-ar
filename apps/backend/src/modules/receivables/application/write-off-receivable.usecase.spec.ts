@@ -1,4 +1,5 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { LedgerEventKind } from '../../ledger/domain/ledger-event-kind';
 import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
 import { Receivable } from '../domain/receivable';
 import { WriteOffReceivableUseCase } from './write-off-receivable.usecase';
@@ -32,6 +33,7 @@ describe('WriteOffReceivableUseCase', () => {
     expect(transitionRunner.run).toHaveBeenCalledWith({
       receivableId: 'rec-1',
       changeSource: BalanceHistoryChangeSource.WRITE_OFF,
+      ledgerKind: LedgerEventKind.RECEIVABLE_WRITTEN_OFF,
       transition: expect.any(Function),
     });
   });

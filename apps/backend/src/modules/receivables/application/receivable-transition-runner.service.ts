@@ -9,6 +9,9 @@ import {
   type IEventPublisher,
 } from '../../../common/events/event-publisher.port';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { LedgerEventRecorderService } from '../../ledger/application/ledger-event-recorder.service';
+import { LedgerEventKind } from '../../ledger/domain/ledger-event-kind';
+import { LedgerEventSubjectType } from '../../ledger/domain/ledger-event-subject-type';
 import { ReceivableBalanceHistoryRecorderService } from '../../receivable-balance-history/application/receivable-balance-history-recorder.service';
 import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
@@ -21,6 +24,7 @@ import {
 export interface RunReceivableTransitionInput {
   receivableId: string;
   changeSource: BalanceHistoryChangeSource;
+  ledgerKind: LedgerEventKind;
   /** Usecase-specific pre-condition check, run after load, before setBefore. */
   assertTransitionAllowed?: (receivable: Receivable) => void;
   /** Domain transition, including the usecase-specific error-code mapping. */
@@ -46,6 +50,7 @@ export class ReceivableTransitionRunnerService {
     @Inject(EVENT_PUBLISHER)
     private readonly eventPublisher: IEventPublisher,
     private readonly historyRecorder: ReceivableBalanceHistoryRecorderService,
+    private readonly ledgerRecorder: LedgerEventRecorderService,
   ) {}
 
   async run(input: RunReceivableTransitionInput): Promise<Receivable> {
@@ -61,6 +66,8 @@ export class ReceivableTransitionRunnerService {
             'Không tìm thấy khoản phải thu.',
           );
         }
+
+        const remainingBefore = receivable.remainingAmount;
 
         input.assertTransitionAllowed?.(receivable);
 
@@ -79,6 +86,14 @@ export class ReceivableTransitionRunnerService {
             actorType: BalanceHistoryActorType.USER,
             actorUserId: user.userId,
           },
+          manager,
+        });
+        await this.ledgerRecorder.record({
+          organizationId: next.organizationId,
+          subjectType: LedgerEventSubjectType.RECEIVABLE,
+          subjectId: next.id,
+          kind: input.ledgerKind,
+          amount: -remainingBefore,
           manager,
         });
         return next;

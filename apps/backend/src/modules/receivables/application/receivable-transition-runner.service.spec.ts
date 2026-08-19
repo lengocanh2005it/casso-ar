@@ -3,6 +3,7 @@ import type { EntityManager } from 'typeorm';
 import type { AuthenticatedUser } from '../../../common/auth/authenticated-user';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { LedgerEventKind } from '../../ledger/domain/ledger-event-kind';
 import { Role } from '../../organizations/domain/membership';
 import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { BalanceHistoryChangeSource } from '../../receivable-balance-history/domain/balance-history-change-source';
@@ -52,6 +53,7 @@ function buildDeps(receivable: Receivable | null) {
     },
     eventPublisher: { emit: jest.fn() },
     recorder: { record: jest.fn() },
+    ledgerRecorder: { record: jest.fn() },
   };
 }
 
@@ -63,6 +65,7 @@ function buildService(deps: ReturnType<typeof buildDeps>) {
     deps.tenantContext as any,
     deps.eventPublisher as any,
     deps.recorder as any,
+    deps.ledgerRecorder as any,
   );
 }
 
@@ -75,6 +78,7 @@ describe('ReceivableTransitionRunnerService', () => {
     const result = await service.run({
       receivableId: 'rec-1',
       changeSource: BalanceHistoryChangeSource.WRITE_OFF,
+      ledgerKind: LedgerEventKind.RECEIVABLE_WRITTEN_OFF,
       transition: (current) => current.writeOff(),
     });
 
@@ -115,6 +119,7 @@ describe('ReceivableTransitionRunnerService', () => {
       service.run({
         receivableId: 'missing',
         changeSource: BalanceHistoryChangeSource.CANCEL,
+        ledgerKind: LedgerEventKind.RECEIVABLE_CANCELLED,
         transition,
       }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.RECEIVABLE_NOT_FOUND });
@@ -134,6 +139,7 @@ describe('ReceivableTransitionRunnerService', () => {
       service.run({
         receivableId: 'rec-1',
         changeSource: BalanceHistoryChangeSource.CANCEL,
+        ledgerKind: LedgerEventKind.RECEIVABLE_CANCELLED,
         transition: (current) => current.cancel(),
       }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.UNAUTHORIZED });
@@ -159,6 +165,7 @@ describe('ReceivableTransitionRunnerService', () => {
       service.run({
         receivableId: 'rec-1',
         changeSource: BalanceHistoryChangeSource.CANCEL,
+        ledgerKind: LedgerEventKind.RECEIVABLE_CANCELLED,
         assertTransitionAllowed,
         transition,
       }),
@@ -179,6 +186,7 @@ describe('ReceivableTransitionRunnerService', () => {
       service.run({
         receivableId: 'rec-1',
         changeSource: BalanceHistoryChangeSource.CANCEL,
+        ledgerKind: LedgerEventKind.RECEIVABLE_CANCELLED,
         transition: () => {
           throw mappedError;
         },
@@ -186,5 +194,27 @@ describe('ReceivableTransitionRunnerService', () => {
     ).rejects.toBe(mappedError);
     expect(deps.receivableRepo.save).not.toHaveBeenCalled();
     expect(deps.eventPublisher.emit).not.toHaveBeenCalled();
+  });
+
+  it('records a ledger event for the pre-transition remaining amount', async () => {
+    const receivable = buildReceivable(ReceivableStatus.OPEN, 20_000_000);
+    const deps = buildDeps(receivable);
+    const service = buildService(deps);
+
+    await service.run({
+      receivableId: 'rec-1',
+      changeSource: BalanceHistoryChangeSource.WRITE_OFF,
+      ledgerKind: LedgerEventKind.RECEIVABLE_WRITTEN_OFF,
+      transition: (current) => current.writeOff(),
+    });
+
+    expect(deps.ledgerRecorder.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subjectType: 'RECEIVABLE',
+        subjectId: 'rec-1',
+        kind: 'RECEIVABLE_WRITTEN_OFF',
+        amount: -30_000_000,
+      }),
+    );
   });
 });
