@@ -8,6 +8,7 @@ import { AuthModule } from '../auth/auth.module';
 import { CopilotModule } from '../copilot/copilot.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
 import { UsersModule } from '../users/users.module';
+import { ApproveOrganizationUseCase } from './application/approve-organization.usecase';
 import { BlockMemberByOperatorUseCase } from './application/block-member-by-operator.usecase';
 import { GetAiUsageAggregateUseCase } from './application/get-ai-usage-aggregate.usecase';
 import { GetAiUsageTrendUseCase } from './application/get-ai-usage-trend.usecase';
@@ -16,6 +17,7 @@ import { ListOrganizationMembersUseCase } from './application/list-organization-
 import { ListOrganizationsUseCase } from './application/list-organizations.usecase';
 import { LockOrganizationUseCase } from './application/lock-organization.usecase';
 import { OPERATOR_AUDIT_LOG_REPOSITORY } from './application/operator-audit-log-repository.port';
+import { RejectOrganizationUseCase } from './application/reject-organization.usecase';
 import { ResendInviteByOperatorUseCase } from './application/resend-invite-by-operator.usecase';
 import { RevokeInviteByOperatorUseCase } from './application/revoke-invite-by-operator.usecase';
 import { UnblockMemberByOperatorUseCase } from './application/unblock-member-by-operator.usecase';
@@ -44,6 +46,8 @@ import { AdminController } from './presentation/admin.controller';
     ListOrganizationsUseCase,
     LockOrganizationUseCase,
     UnlockOrganizationUseCase,
+    ApproveOrganizationUseCase,
+    RejectOrganizationUseCase,
     BlockMemberByOperatorUseCase,
     UnblockMemberByOperatorUseCase,
     GetAiUsageAggregateUseCase,

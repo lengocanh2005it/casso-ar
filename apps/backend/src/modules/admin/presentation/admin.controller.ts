@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
@@ -29,7 +30,6 @@ import {
   MemberStatusResponseDto,
   toMemberStatusResponse,
 } from '../../../common/dto/member-status-response.dto';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
@@ -38,6 +38,7 @@ import {
   type IOrganizationRepository,
   ORGANIZATION_REPOSITORY,
 } from '../../organizations/application/organization-repository.port';
+import { ApproveOrganizationUseCase } from '../application/approve-organization.usecase';
 import { BlockMemberByOperatorUseCase } from '../application/block-member-by-operator.usecase';
 import { GetAiUsageAggregateUseCase } from '../application/get-ai-usage-aggregate.usecase';
 import { GetAiUsageTrendUseCase } from '../application/get-ai-usage-trend.usecase';
@@ -45,11 +46,13 @@ import { GetOrganizationUseCase } from '../application/get-organization.usecase'
 import { ListOrganizationMembersUseCase } from '../application/list-organization-members.usecase';
 import { ListOrganizationsUseCase } from '../application/list-organizations.usecase';
 import { LockOrganizationUseCase } from '../application/lock-organization.usecase';
+import { RejectOrganizationUseCase } from '../application/reject-organization.usecase';
 import { ResendInviteByOperatorUseCase } from '../application/resend-invite-by-operator.usecase';
 import { RevokeInviteByOperatorUseCase } from '../application/revoke-invite-by-operator.usecase';
 import { UnblockMemberByOperatorUseCase } from '../application/unblock-member-by-operator.usecase';
 import { UnlockOrganizationUseCase } from '../application/unlock-organization.usecase';
 import { AdminMembersQueryDto } from './dto/admin-members-query.dto';
+import { AdminOrganizationsQueryDto } from './dto/admin-organizations-query.dto';
 import {
   AdminAiUsageResponseDto,
   AdminAiUsageTrendResponseDto,
@@ -60,6 +63,7 @@ import {
   toAdminOrganizationItemResponse,
 } from './dto/admin-response.dto';
 import { GetAiUsageQueryDto } from './dto/get-ai-usage-query.dto';
+import { RejectOrganizationDto } from './dto/reject-organization.dto';
 
 interface AdminRequest extends Request {
   user: AuthenticatedOperator;
@@ -74,6 +78,8 @@ export class AdminController {
     private readonly listOrganizationsUseCase: ListOrganizationsUseCase,
     private readonly lockOrganizationUseCase: LockOrganizationUseCase,
     private readonly unlockOrganizationUseCase: UnlockOrganizationUseCase,
+    private readonly approveOrganizationUseCase: ApproveOrganizationUseCase,
+    private readonly rejectOrganizationUseCase: RejectOrganizationUseCase,
     private readonly blockMemberByOperatorUseCase: BlockMemberByOperatorUseCase,
     private readonly unblockMemberByOperatorUseCase: UnblockMemberByOperatorUseCase,
     private readonly getAiUsageAggregateUseCase: GetAiUsageAggregateUseCase,
@@ -95,10 +101,11 @@ export class AdminController {
     ErrorCode.UNAUTHORIZED,
     ErrorCode.FORBIDDEN,
   )
-  async listOrganizations(@Query() pagination: PaginationDto) {
+  async listOrganizations(@Query() query: AdminOrganizationsQueryDto) {
     return this.listOrganizationsUseCase.execute({
-      page: pagination.page,
-      limit: pagination.limit,
+      page: query.page,
+      limit: query.limit,
+      status: query.status,
     });
   }
 
@@ -156,6 +163,50 @@ export class AdminController {
       operatorId: request.user.operatorId,
     });
     return { status: 'ACTIVE' as const };
+  }
+
+  @Post('organizations/:id/approve')
+  @ApiOperation({ summary: 'Approve an organization pending review' })
+  @ApiCreatedResponse({ type: AdminOrganizationStatusResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+  )
+  async approve(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() request: AdminRequest,
+  ) {
+    await this.approveOrganizationUseCase.execute({
+      organizationId: id,
+      operatorId: request.user.operatorId,
+    });
+    return { status: 'ACTIVE' as const };
+  }
+
+  @Post('organizations/:id/reject')
+  @ApiOperation({ summary: 'Reject an organization pending review' })
+  @ApiCreatedResponse({ type: AdminOrganizationStatusResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+  )
+  async reject(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RejectOrganizationDto,
+    @Req() request: AdminRequest,
+  ) {
+    await this.rejectOrganizationUseCase.execute({
+      organizationId: id,
+      operatorId: request.user.operatorId,
+      reason: dto.reason,
+    });
+    return { status: 'REJECTED' as const };
   }
 
   @Get('organizations/:orgId/members')

@@ -16,6 +16,15 @@ export class AdminOrganizationItemResponseDto {
   status: 'ACTIVE' | 'LOCKED' | 'PENDING_REVIEW' | 'REJECTED';
 
   @ApiProperty()
+  taxCode: string;
+
+  @ApiProperty()
+  taxCodeMatched: boolean;
+
+  @ApiProperty({ type: String, nullable: true })
+  taxCodeLookupName: string | null;
+
+  @ApiProperty()
   createdAt: Date;
 }
 
@@ -26,6 +35,9 @@ export function toAdminOrganizationItemResponse(
     id: organization.id,
     name: organization.name,
     status: organization.status,
+    taxCode: organization.taxCode,
+    taxCodeMatched: organization.taxCodeMatched,
+    taxCodeLookupName: organization.taxCodeLookupName,
     createdAt: organization.createdAt,
   };
 }

@@ -28,6 +28,8 @@ describe('AdminController', () => {
         {} as never,
         {} as never,
         {} as never,
+        {} as never,
+        {} as never,
         idempotency as never,
         revokeInviteUseCase as never,
         resendInviteUseCase as never,
@@ -114,6 +116,8 @@ describe('AdminController', () => {
         {} as never,
         {} as never,
         {} as never,
+        {} as never,
+        {} as never,
         getOrganizationUseCase as never,
         {} as never,
         {} as never,
@@ -128,6 +132,9 @@ describe('AdminController', () => {
         id: 'org-1',
         name: 'Acme',
         status: 'ACTIVE',
+        taxCode: '',
+        taxCodeMatched: false,
+        taxCodeLookupName: null,
         createdAt: new Date('2026-08-01'),
       });
       expect(result).not.toBeInstanceOf(Organization);
@@ -143,6 +150,8 @@ describe('AdminController', () => {
     };
     const getAiUsageTrendUseCase = { execute: jest.fn().mockResolvedValue([]) };
     const controller = new AdminController(
+      {} as never,
+      {} as never,
       {} as never,
       {} as never,
       {} as never,
