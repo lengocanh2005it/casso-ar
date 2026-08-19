@@ -1,10 +1,15 @@
 import { GUARDS_METADATA } from '@nestjs/common/constants';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { Role } from '../../organizations/domain/membership';
 import { CopilotController } from './copilot.controller';
 import { CopilotRateLimitGuard } from './copilot-rate-limit.guard';
 
 function buildController() {
-  const copilotChatUseCase = { execute: jest.fn() };
+  const copilotChatUseCase = {
+    execute: jest.fn(),
+    persistUserMessage: jest.fn(),
+    executeStreaming: jest.fn(),
+  };
   const confirmPendingActionUseCase = { execute: jest.fn() };
   const cancelPendingActionUseCase = { execute: jest.fn() };
   const getCopilotUsageUseCase = { execute: jest.fn() };
@@ -12,6 +17,8 @@ function buildController() {
   const reopenCopilotDraftUseCase = { execute: jest.fn() };
   const updateCopilotDraftUseCase = { execute: jest.fn() };
   const deleteCopilotDraftUseCase = { execute: jest.fn() };
+  const listCopilotConversationsUseCase = { execute: jest.fn() };
+  const getCopilotConversationMessagesUseCase = { execute: jest.fn() };
   const idempotency = {
     execute: jest.fn((_endpoint, _key, _input, operation) => operation()),
   };
@@ -25,6 +32,8 @@ function buildController() {
       reopenCopilotDraftUseCase as any,
       updateCopilotDraftUseCase as any,
       deleteCopilotDraftUseCase as any,
+      listCopilotConversationsUseCase as any,
+      getCopilotConversationMessagesUseCase as any,
       idempotency as any,
     ),
     copilotChatUseCase,
@@ -35,6 +44,8 @@ function buildController() {
     reopenCopilotDraftUseCase,
     updateCopilotDraftUseCase,
     deleteCopilotDraftUseCase,
+    listCopilotConversationsUseCase,
+    getCopilotConversationMessagesUseCase,
     idempotency,
   };
 }
@@ -76,6 +87,7 @@ describe('CopilotController', () => {
         role: 'ASSISTANT',
         content: 'Summary',
         createdAt: '2026-08-09T10:00:00.000Z',
+        isPartial: false,
       },
       pendingAction: null,
     });
@@ -262,5 +274,324 @@ describe('CopilotController', () => {
     expect(deps.deleteCopilotDraftUseCase.execute).toHaveBeenCalledWith(
       'draft-1',
     );
+  });
+
+  describe('listConversations', () => {
+    it('returns the mapped conversations page', async () => {
+      const { controller, listCopilotConversationsUseCase } = buildController();
+      listCopilotConversationsUseCase.execute.mockResolvedValue({
+        items: [
+          {
+            id: 'c1',
+            title: 'Hỏi về công nợ',
+            createdAt: new Date('2026-08-09T00:00:00Z'),
+            lastMessageAt: new Date('2026-08-09T01:00:00Z'),
+          },
+        ],
+        total: 1,
+      });
+
+      const result = await controller.listConversations({ page: 1, limit: 20 });
+
+      expect(result).toEqual({
+        items: [
+          {
+            id: 'c1',
+            title: 'Hỏi về công nợ',
+            createdAt: '2026-08-09T00:00:00.000Z',
+            lastMessageAt: '2026-08-09T01:00:00.000Z',
+          },
+        ],
+        total: 1,
+      });
+    });
+
+    it('falls back to a generated title for untitled conversations', async () => {
+      const { controller, listCopilotConversationsUseCase } = buildController();
+      listCopilotConversationsUseCase.execute.mockResolvedValue({
+        items: [
+          {
+            id: 'c1',
+            title: null,
+            createdAt: new Date('2026-08-09T00:00:00Z'),
+            lastMessageAt: new Date('2026-08-09T00:00:00Z'),
+          },
+        ],
+        total: 1,
+      });
+
+      const result = await controller.listConversations({ page: 1, limit: 20 });
+
+      expect(result.items[0].title).not.toBe('');
+      expect(result.items[0].title).toMatch(/Cuộc trò chuyện/);
+    });
+  });
+
+  describe('getConversationMessages', () => {
+    it('returns mapped messages for the conversation', async () => {
+      const { controller, getCopilotConversationMessagesUseCase } =
+        buildController();
+      getCopilotConversationMessagesUseCase.execute.mockResolvedValue([
+        {
+          id: 'm1',
+          organizationId: 'org-1',
+          conversationId: 'c1',
+          role: 'USER',
+          content: 'Xin chào',
+          toolCalls: null,
+          createdAt: new Date('2026-08-09T00:00:00Z'),
+        },
+      ]);
+
+      const result = await controller.getConversationMessages('c1');
+
+      expect(result).toEqual({
+        items: [
+          {
+            id: 'm1',
+            role: 'USER',
+            content: 'Xin chào',
+            createdAt: '2026-08-09T00:00:00.000Z',
+            isPartial: false,
+          },
+        ],
+      });
+    });
+  });
+
+  describe('streamMessage', () => {
+    function buildRes() {
+      const writes: string[] = [];
+      return {
+        setHeader: jest.fn(),
+        flushHeaders: jest.fn(),
+        write: jest.fn((chunk: string) => writes.push(chunk)),
+        end: jest.fn(),
+        writes,
+      };
+    }
+
+    it('persists the user message once (via idempotency) then streams status/delta/done events', async () => {
+      const { controller, copilotChatUseCase, idempotency } = buildController();
+      copilotChatUseCase.persistUserMessage.mockResolvedValue(undefined);
+      idempotency.execute.mockImplementation(
+        (
+          _endpoint: string,
+          _key: string,
+          _input: unknown,
+          operation: () => Promise<unknown>,
+        ) => operation(),
+      );
+      copilotChatUseCase.executeStreaming.mockReturnValue(
+        (async function* () {
+          yield { type: 'status', text: 'Đang xử lý…' };
+          yield { type: 'delta', text: 'Xin chào' };
+          yield {
+            type: 'done',
+            message: {
+              id: 'm1',
+              organizationId: 'org-1',
+              conversationId: 'c1',
+              role: 'ASSISTANT',
+              content: 'Xin chào',
+              toolCalls: null,
+              createdAt: new Date('2026-08-09T00:00:00Z'),
+            },
+            pendingAction: null,
+          };
+        })(),
+      );
+      const res = buildRes();
+      const req = {
+        on: jest.fn(),
+        user: {
+          userId: 'user-1',
+          organizationId: 'org-1',
+          role: Role.FINANCE_MANAGER,
+        },
+      };
+
+      await controller.streamMessage(
+        'c1',
+        { content: 'Xin chào' },
+        'key-1',
+        req as any,
+        res as any,
+      );
+
+      expect(copilotChatUseCase.persistUserMessage).toHaveBeenCalledWith(
+        { conversationId: 'c1', userMessage: 'Xin chào' },
+        { userId: 'user-1', organizationId: 'org-1' },
+      );
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'Content-Type',
+        'text/event-stream',
+      );
+      expect(res.writes.join('')).toContain('event: status');
+      expect(res.writes.join('')).toContain('event: delta');
+      expect(res.writes.join('')).toContain('event: done');
+      expect(res.writes.join('')).toContain('"content":"Xin chào"');
+      expect(res.writes.join('')).not.toContain('organizationId');
+      expect(res.end).toHaveBeenCalled();
+    });
+
+    it('stops writing once the client disconnects', async () => {
+      const { controller, copilotChatUseCase, idempotency } = buildController();
+      idempotency.execute.mockImplementation(
+        (
+          _endpoint: string,
+          _key: string,
+          _input: unknown,
+          operation: () => Promise<unknown>,
+        ) => operation(),
+      );
+      copilotChatUseCase.persistUserMessage.mockResolvedValue(undefined);
+      let closeHandler: () => void = () => {};
+      const req = {
+        on: jest.fn((event: string, handler: () => void) => {
+          if (event === 'close') closeHandler = handler;
+        }),
+        user: {
+          userId: 'user-1',
+          organizationId: 'org-1',
+          role: Role.FINANCE_MANAGER,
+        },
+      };
+      copilotChatUseCase.executeStreaming.mockImplementation(
+        // biome-ignore lint/correctness/useYield: test double simulating an abort mid-stream
+        async function* () {
+          closeHandler();
+        },
+      );
+      const res = buildRes();
+
+      await controller.streamMessage(
+        'c1',
+        { content: 'Xin chào' },
+        'key-1',
+        req as any,
+        res as any,
+      );
+
+      expect(copilotChatUseCase.executeStreaming).toHaveBeenCalledWith(
+        { conversationId: 'c1', userMessage: 'Xin chào' },
+        expect.any(Function),
+      );
+      const isAborted = copilotChatUseCase.executeStreaming.mock.calls[0][1];
+      expect(isAborted()).toBe(true);
+    });
+
+    it('does not re-run the model or duplicate the assistant message on an idempotent retry with the same key', async () => {
+      const { controller, copilotChatUseCase, idempotency } = buildController();
+      const store = new Map<string, unknown>();
+      idempotency.execute.mockImplementation(
+        async (
+          endpoint: string,
+          key: string,
+          _input: unknown,
+          operation: () => Promise<unknown>,
+        ) => {
+          const cacheKey = `${endpoint}:${key}`;
+          if (store.has(cacheKey)) return store.get(cacheKey);
+          const result = await operation();
+          store.set(cacheKey, result);
+          return result;
+        },
+      );
+      copilotChatUseCase.persistUserMessage.mockResolvedValue(undefined);
+      copilotChatUseCase.executeStreaming.mockReturnValue(
+        (async function* () {
+          yield {
+            type: 'done',
+            message: {
+              id: 'm1',
+              organizationId: 'org-1',
+              conversationId: 'c1',
+              role: 'ASSISTANT',
+              content: 'Xin chào',
+              toolCalls: null,
+              createdAt: new Date('2026-08-09T00:00:00Z'),
+              isPartial: false,
+            },
+            pendingAction: null,
+          };
+        })(),
+      );
+      const req = {
+        on: jest.fn(),
+        user: {
+          userId: 'user-1',
+          organizationId: 'org-1',
+          role: Role.FINANCE_MANAGER,
+        },
+      };
+
+      await controller.streamMessage(
+        'c1',
+        { content: 'Xin chào' },
+        'retry-key',
+        req as any,
+        buildRes() as any,
+      );
+      const res2 = buildRes();
+      await controller.streamMessage(
+        'c1',
+        { content: 'Xin chào' },
+        'retry-key',
+        req as any,
+        res2 as any,
+      );
+
+      expect(copilotChatUseCase.persistUserMessage).toHaveBeenCalledTimes(1);
+      expect(copilotChatUseCase.executeStreaming).toHaveBeenCalledTimes(1);
+      expect(res2.writes.join('')).toContain('event: done');
+      expect(res2.writes.join('')).toContain('"content":"Xin chào"');
+    });
+
+    it('turns a mid-stream error event into an SSE error event instead of throwing out of the handler', async () => {
+      const { controller, copilotChatUseCase, idempotency } = buildController();
+      idempotency.execute.mockImplementation(
+        (
+          _endpoint: string,
+          _key: string,
+          _input: unknown,
+          operation: () => Promise<unknown>,
+        ) => operation(),
+      );
+      copilotChatUseCase.persistUserMessage.mockResolvedValue(undefined);
+      copilotChatUseCase.executeStreaming.mockReturnValue(
+        (async function* () {
+          yield { type: 'status', text: 'Đang xử lý…' };
+          yield {
+            type: 'error',
+            errorCode: ErrorCode.INTERNAL_SERVER_ERROR,
+            message: 'Copilot gặp lỗi không xác định.',
+          };
+        })(),
+      );
+      const res = buildRes();
+      const req = {
+        on: jest.fn(),
+        user: {
+          userId: 'user-1',
+          organizationId: 'org-1',
+          role: Role.FINANCE_MANAGER,
+        },
+      };
+
+      await expect(
+        controller.streamMessage(
+          'c1',
+          { content: 'Xin chào' },
+          'key-err',
+          req as any,
+          res as any,
+        ),
+      ).resolves.toBeUndefined();
+
+      expect(res.writes.join('')).toContain('event: error');
+      expect(res.writes.join('')).toContain('INTERNAL_SERVER_ERROR');
+      expect(res.end).toHaveBeenCalled();
+    });
   });
 });

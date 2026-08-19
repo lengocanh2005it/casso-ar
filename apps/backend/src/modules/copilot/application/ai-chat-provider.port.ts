@@ -24,11 +24,22 @@ export interface AIChatCompletionResult {
   outputTokens: number | null;
 }
 
+export interface AIStreamChunk {
+  contentDelta: string | null;
+  toolCalls: AIToolCall[] | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+}
+
 export interface IAIChatProvider {
   createChatCompletion(
     messages: AIChatMessage[],
     tools: AIToolSpec[],
   ): Promise<AIChatCompletionResult>;
+  streamChatCompletion(
+    messages: AIChatMessage[],
+    tools: AIToolSpec[],
+  ): AsyncIterable<AIStreamChunk>;
 }
 
 export const AI_CHAT_PROVIDER = Symbol('AI_CHAT_PROVIDER');

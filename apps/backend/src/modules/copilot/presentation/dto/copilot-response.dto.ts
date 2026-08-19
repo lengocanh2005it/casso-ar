@@ -1,4 +1,7 @@
-import type { CopilotMessageRecord } from '../../application/conversation-repository.port';
+import type {
+  CopilotConversationSummary,
+  CopilotMessageRecord,
+} from '../../application/conversation-repository.port';
 import type { CopilotDraftListItem } from '../../application/list-copilot-drafts.usecase';
 import type { CopilotPendingAction } from '../../application/pending-action-repository.port';
 
@@ -7,6 +10,7 @@ export class CopilotMessageDto {
   role: 'USER' | 'ASSISTANT';
   content: string;
   createdAt: string;
+  isPartial: boolean;
 }
 
 export class CopilotDraftDto {
@@ -58,6 +62,7 @@ export const toCopilotMessageDto = (
   role: message.role === 'TOOL' ? 'ASSISTANT' : message.role,
   content: message.content,
   createdAt: message.createdAt.toISOString(),
+  isPartial: message.isPartial ?? false,
 });
 
 export const toCopilotPendingActionDto = (
@@ -90,4 +95,45 @@ export const toCopilotDraftsPageResponse = (page: {
 }): CopilotDraftsPageDto => ({
   items: page.items.map(toCopilotDraftDto),
   total: page.total,
+});
+
+export class CopilotConversationSummaryDto {
+  id: string;
+  title: string;
+  createdAt: string;
+  lastMessageAt: string;
+}
+
+export class CopilotConversationsPageDto {
+  items: CopilotConversationSummaryDto[];
+  total: number;
+}
+
+export class CopilotConversationMessagesDto {
+  items: CopilotMessageDto[];
+}
+
+export const toCopilotConversationSummaryDto = (
+  summary: CopilotConversationSummary,
+): CopilotConversationSummaryDto => ({
+  id: summary.id,
+  title:
+    summary.title?.trim() ||
+    `Cuộc trò chuyện ${summary.createdAt.toLocaleDateString('vi-VN')}`,
+  createdAt: summary.createdAt.toISOString(),
+  lastMessageAt: summary.lastMessageAt.toISOString(),
+});
+
+export const toCopilotConversationsPageResponse = (page: {
+  items: CopilotConversationSummary[];
+  total: number;
+}): CopilotConversationsPageDto => ({
+  items: page.items.map(toCopilotConversationSummaryDto),
+  total: page.total,
+});
+
+export const toCopilotConversationMessagesDto = (
+  messages: CopilotMessageRecord[],
+): CopilotConversationMessagesDto => ({
+  items: messages.map(toCopilotMessageDto),
 });

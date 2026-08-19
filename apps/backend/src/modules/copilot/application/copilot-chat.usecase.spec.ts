@@ -566,6 +566,44 @@ describe('CopilotChatUseCase', () => {
     expect(aiProvider.createChatCompletion).toHaveBeenCalledTimes(2);
   });
 
+  it('creates the conversation with a title derived from the first user message', async () => {
+    const aiProvider = {
+      createChatCompletion: jest.fn().mockResolvedValue({
+        content: 'Chào bạn',
+        toolCalls: [],
+        inputTokens: 1,
+        outputTokens: 1,
+      }),
+    };
+    const deps = buildDeps();
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Công nợ khách ABC còn bao nhiêu?',
+    });
+
+    expect(deps.conversationRepo.findOrCreate).toHaveBeenCalledWith(
+      'conversation-1',
+      'user-1',
+      'Công nợ khách ABC còn bao nhiêu?',
+      expect.anything(),
+    );
+  });
+
   it('does not let a failing batched tool call abort the sendReminderEmail-interception branch', async () => {
     const aiProvider = { createChatCompletion: jest.fn() };
     aiProvider.createChatCompletion.mockResolvedValueOnce({

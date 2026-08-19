@@ -53,6 +53,7 @@ export class ReopenCopilotDraftUseCase {
       const conversation = await this.conversationRepo.findOrCreate(
         randomUUID(),
         user.userId,
+        undefined,
         manager,
       );
       const pendingAction = await this.pendingActionRepo.create(

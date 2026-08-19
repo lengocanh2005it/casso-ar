@@ -10,6 +10,7 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -20,9 +21,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import type { AuthenticatedUser } from '../../../common/auth/authenticated-user';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
@@ -33,7 +36,9 @@ import { CancelPendingActionUseCase } from '../application/cancel-pending-action
 import { ConfirmPendingActionUseCase } from '../application/confirm-pending-action.usecase';
 import { CopilotChatUseCase } from '../application/copilot-chat.usecase';
 import { DeleteCopilotDraftUseCase } from '../application/delete-copilot-draft.usecase';
+import { GetCopilotConversationMessagesUseCase } from '../application/get-copilot-conversation-messages.usecase';
 import { GetCopilotUsageUseCase } from '../application/get-copilot-usage.usecase';
+import { ListCopilotConversationsUseCase } from '../application/list-copilot-conversations.usecase';
 import { ListCopilotDraftsUseCase } from '../application/list-copilot-drafts.usecase';
 import { ReopenCopilotDraftUseCase } from '../application/reopen-copilot-draft.usecase';
 import { UpdateCopilotDraftUseCase } from '../application/update-copilot-draft.usecase';
@@ -41,11 +46,15 @@ import { CopilotRateLimitGuard } from './copilot-rate-limit.guard';
 import { CopilotDraftsQueryDto } from './dto/copilot-drafts-query.dto';
 import {
   CopilotChatResponseDto,
+  CopilotConversationMessagesDto,
+  CopilotConversationsPageDto,
   CopilotDraftDto,
   CopilotDraftsPageDto,
   CopilotPendingActionDto,
   CopilotUsageResponseDto,
   ReopenCopilotDraftResponseDto,
+  toCopilotConversationMessagesDto,
+  toCopilotConversationsPageResponse,
   toCopilotDraftDto,
   toCopilotDraftsPageResponse,
   toCopilotMessageDto,
@@ -67,6 +76,8 @@ export class CopilotController {
     private readonly reopenCopilotDraftUseCase: ReopenCopilotDraftUseCase,
     private readonly updateCopilotDraftUseCase: UpdateCopilotDraftUseCase,
     private readonly deleteCopilotDraftUseCase: DeleteCopilotDraftUseCase,
+    private readonly listCopilotConversationsUseCase: ListCopilotConversationsUseCase,
+    private readonly getCopilotConversationMessagesUseCase: GetCopilotConversationMessagesUseCase,
     private readonly idempotency: IdempotencyService,
   ) {}
 
@@ -190,6 +201,38 @@ export class CopilotController {
     );
   }
 
+  @Get('conversations')
+  @ApiOperation({ summary: 'List Copilot conversations for the current user' })
+  @ApiOkResponse({ type: CopilotConversationsPageDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+  )
+  @RequirePermission(Permission.RECEIVABLE_READ)
+  async listConversations(@Query() query: PaginationDto) {
+    const page = await this.listCopilotConversationsUseCase.execute(
+      query.page,
+      query.limit,
+    );
+    return toCopilotConversationsPageResponse(page);
+  }
+
+  @Get('conversations/:id/messages')
+  @ApiOperation({ summary: 'Get message history for a Copilot conversation' })
+  @ApiOkResponse({ type: CopilotConversationMessagesDto })
+  @ApiErrorResponse(
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.NOT_FOUND,
+  )
+  @RequirePermission(Permission.RECEIVABLE_READ)
+  async getConversationMessages(@Param('id') id: string) {
+    const messages =
+      await this.getCopilotConversationMessagesUseCase.execute(id);
+    return toCopilotConversationMessagesDto(messages);
+  }
+
   @Post('conversations/:id/messages')
   @ApiOperation({ summary: 'Send a message to a Copilot conversation' })
   @ApiHeader({ name: 'idempotency-key', required: false })
@@ -227,6 +270,115 @@ export class CopilotController {
         };
       },
     );
+  }
+
+  @Post('conversations/:id/messages/stream')
+  @ApiOperation({
+    summary:
+      'Stream a message to a Copilot conversation over Server-Sent Events',
+  })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
+    ErrorCode.RATE_LIMIT_EXCEEDED,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
+  @UseGuards(CopilotRateLimitGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @RequirePermission(Permission.RECEIVABLE_READ)
+  async streamMessage(
+    @Param('id') conversationId: string,
+    @Body() dto: PostCopilotMessageDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Req() req: Request,
+    @Res({ passthrough: false }) response: Response,
+  ): Promise<void> {
+    const user = req.user as AuthenticatedUser;
+
+    // Tier 1: persist the user's message. Thrown here (validation, plan
+    // limit, forbidden) happens before any header is written, so it still
+    // goes through the normal HttpExceptionFilter → JSON error response.
+    await this.idempotency.execute(
+      `POST /copilot/conversations/${conversationId}/messages/stream`,
+      idempotencyKey,
+      dto,
+      () =>
+        this.copilotChatUseCase.persistUserMessage(
+          { conversationId, userMessage: dto.content },
+          { userId: user.userId, organizationId: user.organizationId },
+        ),
+    );
+
+    response.setHeader('Content-Type', 'text/event-stream');
+    response.setHeader('Cache-Control', 'no-cache');
+    response.setHeader('Connection', 'keep-alive');
+    response.flushHeaders();
+
+    let aborted = false;
+    req.on('close', () => {
+      aborted = true;
+    });
+
+    const writeEvent = (type: string, data: unknown) => {
+      if (aborted) return;
+      response.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    let payload: CopilotChatResponseDto;
+    try {
+      // Tier 2: consume the model/tool loop and cache its final result under
+      // the SAME idempotency key. A retry with that key skips this operation
+      // entirely — no duplicate model call, no duplicate assistant message or
+      // pending action — instead of re-running the whole turn like a bare
+      // `for await` here would. AppError can't become an HTTP status anymore
+      // once headers are flushed above, so it's caught below and turned into
+      // an SSE `error` event instead of propagating out of the handler.
+      payload = await this.idempotency.execute(
+        `POST /copilot/conversations/${conversationId}/messages/stream:turn`,
+        idempotencyKey,
+        dto,
+        async () => {
+          for await (const event of this.copilotChatUseCase.executeStreaming(
+            { conversationId, userMessage: dto.content },
+            () => aborted,
+          )) {
+            if (event.type === 'done') {
+              return {
+                message: toCopilotMessageDto(event.message),
+                pendingAction: event.pendingAction
+                  ? toCopilotPendingActionDto(event.pendingAction)
+                  : null,
+              };
+            }
+            if (event.type === 'error') {
+              throw new AppError(event.errorCode, event.message);
+            }
+            writeEvent(event.type, { text: event.text });
+          }
+          throw new AppError(
+            ErrorCode.INTERNAL_SERVER_ERROR,
+            'Copilot stream kết thúc mà không có kết quả.',
+          );
+        },
+      );
+    } catch (error) {
+      const errorCode =
+        error instanceof AppError
+          ? error.errorCode
+          : ErrorCode.INTERNAL_SERVER_ERROR;
+      const message =
+        error instanceof AppError
+          ? error.message
+          : 'Copilot gặp lỗi không xác định.';
+      writeEvent('error', { errorCode, message });
+      response.end();
+      return;
+    }
+
+    writeEvent('done', payload);
+    response.end();
   }
 
   @Post('actions/:actionId/confirm')

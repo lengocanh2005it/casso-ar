@@ -196,6 +196,120 @@ describe('Copilot TypeORM repositories', () => {
     );
   });
 
+  it('stores the given title only when creating a new conversation row', async () => {
+    const conversationRepo = {
+      findOne: jest.fn().mockResolvedValue(null),
+      save: jest.fn().mockImplementation((row) => Promise.resolve(row)),
+    };
+    const messageRepo = { find: jest.fn(), save: jest.fn() };
+    const tenantContext = new TenantContextService();
+    const repository = new TypeOrmCopilotConversationRepository(
+      conversationRepo as any,
+      messageRepo as any,
+      tenantContext,
+    );
+
+    await tenantContext.run(USER, async () => {
+      await repository.findOrCreate(
+        'conversation-1',
+        'user-1',
+        'Hỏi về công nợ',
+      );
+    });
+
+    expect(conversationRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'conversation-1',
+        title: 'Hỏi về công nợ',
+      }),
+    );
+  });
+
+  it('findById returns null outside the organization and the row inside it', async () => {
+    const conversationRepo = {
+      findOne: jest
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          id: 'conversation-1',
+          organizationId: 'org-1',
+          userId: 'user-2',
+          customerId: null,
+          title: 'Hỏi về công nợ',
+          createdAt: new Date('2026-08-09'),
+        }),
+    };
+    const messageRepo = { find: jest.fn(), save: jest.fn() };
+    const tenantContext = new TenantContextService();
+    const repository = new TypeOrmCopilotConversationRepository(
+      conversationRepo as any,
+      messageRepo as any,
+      tenantContext,
+    );
+
+    await tenantContext.run(USER, async () => {
+      await expect(repository.findById('missing')).resolves.toBeNull();
+      await expect(
+        repository.findById('conversation-1'),
+      ).resolves.toMatchObject({
+        id: 'conversation-1',
+        userId: 'user-2',
+        title: 'Hỏi về công nợ',
+      });
+    });
+  });
+
+  it('listByUser paginates conversations ordered by their newest message', async () => {
+    const rawMany = [
+      {
+        id: 'conversation-2',
+        title: 'Hỏi mới nhất',
+        createdAt: new Date('2026-08-10'),
+        lastMessageAt: new Date('2026-08-10T01:00:00Z'),
+      },
+    ];
+    const qb = {
+      leftJoin: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      offset: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue(rawMany),
+    };
+    const conversationRepo = {
+      createQueryBuilder: jest.fn().mockReturnValue(qb),
+      count: jest.fn().mockResolvedValue(1),
+    };
+    const messageRepo = { find: jest.fn(), save: jest.fn() };
+    const tenantContext = new TenantContextService();
+    const repository = new TypeOrmCopilotConversationRepository(
+      conversationRepo as any,
+      messageRepo as any,
+      tenantContext,
+    );
+
+    await tenantContext.run(USER, async () => {
+      await expect(repository.listByUser('user-1', 1, 20)).resolves.toEqual({
+        items: [
+          {
+            id: 'conversation-2',
+            title: 'Hỏi mới nhất',
+            createdAt: rawMany[0].createdAt,
+            lastMessageAt: rawMany[0].lastMessageAt,
+          },
+        ],
+        total: 1,
+      });
+    });
+    expect(qb.andWhere).toHaveBeenCalledWith('conversation.userId = :userId', {
+      userId: 'user-1',
+    });
+  });
+
   it('records usage logs with the current organization', async () => {
     const ormRepo = { save: jest.fn().mockResolvedValue(undefined) };
     const tenantContext = new TenantContextService();

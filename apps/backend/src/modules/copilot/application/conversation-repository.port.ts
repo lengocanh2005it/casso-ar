@@ -7,7 +7,15 @@ export interface CopilotConversation {
   organizationId: string;
   userId: string;
   customerId: string | null;
+  title: string | null;
   createdAt: Date;
+}
+
+export interface CopilotConversationSummary {
+  id: string;
+  title: string | null;
+  createdAt: Date;
+  lastMessageAt: Date;
 }
 
 export interface CopilotMessageRecord {
@@ -18,14 +26,23 @@ export interface CopilotMessageRecord {
   content: string;
   toolCalls: Array<{ id: string; name: string; input: unknown }> | null;
   createdAt: Date;
+  /** Set when the assistant's answer was cut short by a client-initiated abort mid-stream. */
+  isPartial?: boolean;
 }
 
 export interface ICopilotConversationRepository {
   findOrCreate(
     conversationId: string,
     userId: string,
+    title?: string,
     manager?: EntityManager,
   ): Promise<CopilotConversation>;
+  findById(conversationId: string): Promise<CopilotConversation | null>;
+  listByUser(
+    userId: string,
+    page: number,
+    limit: number,
+  ): Promise<{ items: CopilotConversationSummary[]; total: number }>;
   listMessages(conversationId: string): Promise<CopilotMessageRecord[]>;
   appendMessage(
     message: Omit<CopilotMessageRecord, 'id' | 'organizationId'>,

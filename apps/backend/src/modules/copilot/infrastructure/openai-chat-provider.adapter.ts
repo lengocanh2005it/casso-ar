@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import type {
   AIChatCompletionResult,
   AIChatMessage,
+  AIStreamChunk,
   AIToolSpec,
   IAIChatProvider,
 } from '../application/ai-chat-provider.port';
@@ -59,6 +60,78 @@ export class OpenAiChatProviderAdapter implements IAIChatProvider {
       inputTokens: response.usage?.prompt_tokens ?? null,
       outputTokens: response.usage?.completion_tokens ?? null,
     };
+  }
+
+  async *streamChatCompletion(
+    messages: AIChatMessage[],
+    tools: AIToolSpec[],
+  ): AsyncIterable<AIStreamChunk> {
+    const stream = await this.client.chat.completions.create({
+      model: this.model,
+      max_tokens: 1024,
+      stream: true,
+      stream_options: { include_usage: true },
+      messages: messages.map((message) => this.toOpenAiMessage(message)),
+      tools: tools.length
+        ? tools.map((tool) => ({
+            type: 'function' as const,
+            function: {
+              name: tool.name,
+              description: tool.description,
+              parameters: tool.parameters,
+            },
+          }))
+        : undefined,
+      tool_choice: tools.length ? 'auto' : undefined,
+    });
+
+    const toolCallBuffers = new Map<
+      number,
+      { id: string; name: string; arguments: string }
+    >();
+    let inputTokens: number | null = null;
+    let outputTokens: number | null = null;
+
+    for await (const part of stream) {
+      const delta = part.choices[0]?.delta;
+      if (delta?.content) {
+        yield {
+          contentDelta: delta.content,
+          toolCalls: null,
+          inputTokens: null,
+          outputTokens: null,
+        };
+      }
+      for (const toolCallDelta of delta?.tool_calls ?? []) {
+        const existing = toolCallBuffers.get(toolCallDelta.index) ?? {
+          id: '',
+          name: '',
+          arguments: '',
+        };
+        if (toolCallDelta.id) existing.id = toolCallDelta.id;
+        if (toolCallDelta.function?.name) {
+          existing.name = toolCallDelta.function.name;
+        }
+        if (toolCallDelta.function?.arguments) {
+          existing.arguments += toolCallDelta.function.arguments;
+        }
+        toolCallBuffers.set(toolCallDelta.index, existing);
+      }
+      if (part.usage) {
+        inputTokens = part.usage.prompt_tokens;
+        outputTokens = part.usage.completion_tokens;
+      }
+    }
+
+    const toolCalls = toolCallBuffers.size
+      ? Array.from(toolCallBuffers.values()).map((call) => ({
+          id: call.id,
+          name: call.name,
+          arguments: this.parseArguments(call.arguments, call.name),
+        }))
+      : null;
+
+    yield { contentDelta: null, toolCalls, inputTokens, outputTokens };
   }
 
   private parseArguments(
