@@ -14,10 +14,21 @@ import {
 } from '../application/organization-repository.port';
 import type { OrganizationStatus } from '../domain/organization';
 
-const ERROR_CODE_BY_STATUS: Partial<Record<OrganizationStatus, ErrorCode>> = {
-  LOCKED: ErrorCode.ORGANIZATION_LOCKED,
-  PENDING_REVIEW: ErrorCode.ORGANIZATION_PENDING_REVIEW,
-  REJECTED: ErrorCode.ORGANIZATION_REJECTED,
+const BLOCKED_STATUS: Partial<
+  Record<OrganizationStatus, { errorCode: ErrorCode; message: string }>
+> = {
+  LOCKED: {
+    errorCode: ErrorCode.ORGANIZATION_LOCKED,
+    message: 'Tổ chức của bạn đã bị khóa.',
+  },
+  PENDING_REVIEW: {
+    errorCode: ErrorCode.ORGANIZATION_PENDING_REVIEW,
+    message: 'Tổ chức của bạn đang chờ được duyệt.',
+  },
+  REJECTED: {
+    errorCode: ErrorCode.ORGANIZATION_REJECTED,
+    message: 'Đăng ký tổ chức của bạn chưa được chấp thuận.',
+  },
 };
 
 @Injectable()
@@ -42,12 +53,9 @@ export class OrganizationLockGuard implements CanActivate {
     const organization = await this.organizationRepo.findById(
       user.organizationId,
     );
-    const errorCode = organization && ERROR_CODE_BY_STATUS[organization.status];
-    if (errorCode) {
-      throw new ForbiddenException({
-        errorCode,
-        message: 'Tổ chức của bạn hiện không thể sử dụng dịch vụ.',
-      });
+    const blocked = organization && BLOCKED_STATUS[organization.status];
+    if (blocked) {
+      throw new ForbiddenException(blocked);
     }
     return true;
   }

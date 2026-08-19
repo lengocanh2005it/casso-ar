@@ -1,8 +1,5 @@
-import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { AppError } from '../../../common/errors/app-error';
-import { ErrorCode } from '../../../common/errors/error-code';
 import {
   type IMemberNotificationSender,
   MEMBER_NOTIFICATION_SENDER,
@@ -19,11 +16,11 @@ import {
   type IUserRepository,
   USER_REPOSITORY,
 } from '../../users/application/user-repository.port';
-import { OperatorAuditLog } from '../domain/operator-audit-log';
 import {
   type IOperatorAuditLogRepository,
   OPERATOR_AUDIT_LOG_REPOSITORY,
 } from './operator-audit-log-repository.port';
+import { transitionPendingOrganization } from './transition-pending-organization';
 
 export interface ApproveOrganizationInput {
   organizationId: string;
@@ -47,46 +44,21 @@ export class ApproveOrganizationUseCase {
   ) {}
 
   async execute(input: ApproveOrganizationInput): Promise<void> {
-    await this.dataSource.transaction(async (manager) => {
-      const organization = await this.organizationRepo.findById(
-        input.organizationId,
-        manager,
-      );
-      if (!organization) {
-        throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy tổ chức.');
-      }
-      if (organization.status !== 'PENDING_REVIEW') {
-        throw new AppError(
-          ErrorCode.CONFLICT,
-          'Tổ chức không ở trạng thái chờ duyệt.',
-        );
-      }
-
-      await this.organizationRepo.save(organization.approve(), manager);
-      await this.auditRepo.save(
-        new OperatorAuditLog({
-          id: randomUUID(),
-          operatorId: input.operatorId,
-          organizationId: input.organizationId,
-          actionType: 'ORGANIZATION_APPROVED',
-          createdAt: new Date(),
-        }),
-        manager,
-      );
+    await transitionPendingOrganization({
+      dataSource: this.dataSource,
+      organizationRepo: this.organizationRepo,
+      auditRepo: this.auditRepo,
+      membershipRepo: this.membershipRepo,
+      userRepo: this.userRepo,
+      organizationId: input.organizationId,
+      operatorId: input.operatorId,
+      actionType: 'ORGANIZATION_APPROVED',
+      transition: (organization) => organization.approve(),
+      notify: (email, name) =>
+        this.memberNotificationSender.sendOrganizationApprovedEmail(
+          email,
+          name,
+        ),
     });
-
-    const owner = await this.membershipRepo.findOwnerByOrganization(
-      input.organizationId,
-    );
-    if (!owner) return;
-    const ownerUser = await this.userRepo.findById(owner.userId);
-    if (!ownerUser) return;
-    const organization = await this.organizationRepo.findById(
-      input.organizationId,
-    );
-    await this.memberNotificationSender.sendOrganizationApprovedEmail(
-      ownerUser.email,
-      organization?.name ?? '',
-    );
   }
 }
