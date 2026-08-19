@@ -13,6 +13,7 @@ import {
   adminRoutes,
   appRoutes,
   authRoutes,
+  CasIdCallbackPage,
   OnboardingPage,
   withPageSuspense,
 } from '@/routes';
@@ -42,6 +43,14 @@ export function AppRoutes() {
         element={
           <ProtectedRoute>
             {withPageSuspense(<OnboardingPage />)}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="bank-connections/cas-id/callback"
+        element={
+          <ProtectedRoute>
+            {withPageSuspense(<CasIdCallbackPage />)}
           </ProtectedRoute>
         }
       />

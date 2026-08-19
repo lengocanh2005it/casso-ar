@@ -20,13 +20,13 @@ vi.mock('@/contexts/auth-context', () => ({
   useAuth: () => ({ user: { role: 'OWNER' } }),
 }));
 
-function renderDialog() {
+function renderDialog(receivableId = 'r1') {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   render(
     <QueryClientProvider client={queryClient}>
-      <CancelDialog receivableId="r1" />
+      <CancelDialog receivableId={receivableId} />
     </QueryClientProvider>,
   );
 }
@@ -63,6 +63,15 @@ describe('CancelDialog', () => {
       expect(screen.getByRole('alert', { name: '' })).toHaveTextContent(
         'Không thể hủy khoản phải thu.',
       ),
+    );
+  });
+
+  it('does not show the raw receivable id in the dialog title', () => {
+    renderDialog('a1b2c3d4-e5f6-47a8-9abc-1234567890ab');
+
+    fireEvent.click(screen.getByText('Hủy'));
+    expect(screen.getByRole('heading', { level: 2 })).not.toHaveTextContent(
+      'a1b2c3d4-e5f6-47a8-9abc-1234567890ab',
     );
   });
 });

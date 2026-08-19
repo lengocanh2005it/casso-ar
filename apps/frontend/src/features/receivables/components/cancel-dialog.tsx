@@ -29,7 +29,7 @@ export function CancelDialog({ receivableId }: { receivableId: string }) {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Hủy khoản phải thu {receivableId}</DialogTitle>
+          <DialogTitle>Hủy khoản phải thu này</DialogTitle>
         </DialogHeader>
         <DialogDescription>
           Chỉ áp dụng khi chưa có khoản thanh toán nào. Nếu đã có tiền, hãy dùng

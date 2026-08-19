@@ -26,6 +26,8 @@ export interface BankConnectionList {
 export interface CasIdInitiation {
   sessionId: string;
   grantToken: string;
+  redirectUri: string;
+  linkBaseUrl: string;
 }
 
 export interface CasIdExchangeInput {

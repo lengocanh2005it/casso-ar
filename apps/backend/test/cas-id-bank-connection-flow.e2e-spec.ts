@@ -31,7 +31,6 @@ describe('Cas ID bank connection flow (integration)', () => {
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
     process.env.RESEND_API_KEY = 'cas-id-flow-e2e-resend-key';
-    process.env.CAS_ID_REDIRECT_URI_ALLOWLIST = 'http://localhost';
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
@@ -89,11 +88,15 @@ describe('Cas ID bank connection flow (integration)', () => {
       .post('/api/v1/bank-connections/cas-id/initiate')
       .set('Authorization', `Bearer ${token}`)
       .set('Idempotency-Key', 'bank-connection-flow-initiate')
-      .send({ redirectUri: 'http://localhost/callback' })
+      .send({})
       .expect(201);
 
     expect(initiateRes.body.sessionId).toBeDefined();
     expect(initiateRes.body.grantToken).toBeDefined();
+    expect(initiateRes.body.redirectUri).toContain(
+      `sessionId=${initiateRes.body.sessionId}`,
+    );
+    expect(initiateRes.body.linkBaseUrl).toBeDefined();
 
     const sessionRow = await dataSource.query(
       'SELECT status, "organizationId" FROM cas_id_connection_sessions WHERE id = $1',

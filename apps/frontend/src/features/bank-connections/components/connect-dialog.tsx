@@ -32,7 +32,8 @@ export function ConnectDialog() {
         <DialogHeader>
           <DialogTitle>Kết nối qua Cas ID</DialogTitle>
           <DialogDescription>
-            Quét mã QR để cấp quyền truy cập tài khoản ngân hàng.
+            Một cửa sổ Cas Link sẽ mở ra để cấp quyền truy cập tài khoản ngân
+            hàng.
           </DialogDescription>
         </DialogHeader>
         <CasIdConnectionFlow onCompleted={() => setOpen(false)} />
