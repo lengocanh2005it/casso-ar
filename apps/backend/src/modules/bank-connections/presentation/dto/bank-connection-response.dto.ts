@@ -22,8 +22,8 @@ export function toBankConnectionResponse(
 ): BankConnectionResponseDto {
   const dto = new BankConnectionResponseDto();
   dto.id = connection.id;
-  dto.accountNumber = connection.accountIdentity.accountNumber;
-  dto.bankName = connection.accountIdentity.bankName;
+  dto.accountNumber = connection.accountNumber;
+  dto.bankName = connection.bankName;
   dto.status = connection.status;
   dto.connectedAt = connection.connectedAt;
   dto.lastSyncAt = connection.lastSyncAt;
