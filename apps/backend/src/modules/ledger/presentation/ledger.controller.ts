@@ -2,10 +2,8 @@ import { Permission } from '@casso-ledger/shared-types';
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
-import { ErrorCode } from '../../../common/errors/error-code';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
-import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { ListLedgerEventsUseCase } from '../application/list-ledger-events.usecase';
 import { LedgerEventListResponseDto } from './dto/ledger-event-response.dto';
 import { ListLedgerEventsQueryDto } from './dto/list-ledger-events.query';
@@ -20,7 +18,6 @@ export class LedgerController {
   @RequirePermission(Permission.RECEIVABLE_AUDIT_READ)
   @ApiOperation({ summary: 'List AR ledger events for a subject' })
   @ApiOkResponse({ type: LedgerEventListResponseDto })
-  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR)
   async list(@Query() query: ListLedgerEventsQueryDto) {
     return this.listLedgerEvents.execute({
       filters: {

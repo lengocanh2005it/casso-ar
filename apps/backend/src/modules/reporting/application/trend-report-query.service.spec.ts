@@ -118,7 +118,7 @@ describe('TrendReportQueryService', () => {
     const result = await service.getTrend(3);
 
     expect(result.items).toEqual([
-      { month: '2026-06', outstanding: null, collected: 0 },
+      { month: '2026-06', outstanding: 0, collected: 0 },
       { month: '2026-07', outstanding: 5_000_000, collected: 3_000_000 },
       { month: '2026-08', outstanding: 2_000_000, collected: 0 },
     ]);

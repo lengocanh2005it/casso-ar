@@ -10,8 +10,6 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
-import { ErrorCode } from '../../../common/errors/error-code';
-import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { UploadAvatarUseCase } from '../application/upload-avatar.usecase';
 
 @ApiTags('Profile')
@@ -29,11 +27,6 @@ export class ProfileController {
   )
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Upload avatar image' })
-  @ApiErrorResponse(
-    ErrorCode.UNAUTHORIZED,
-    ErrorCode.VALIDATION_ERROR,
-    ErrorCode.FILE_TOO_LARGE,
-  )
   async uploadAvatar(
     @UploadedFile() file: Express.Multer.File,
     @Req() req: { user?: { userId: string } },
