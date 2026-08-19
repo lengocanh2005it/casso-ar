@@ -51,7 +51,9 @@ export function ReceivableDetailPage() {
           >
             ← Công nợ
           </Link>
-          <h1 className="text-2xl font-semibold">{receivable.id}</h1>
+          <h1 className="text-2xl font-semibold" title={receivable.id}>
+            {receivable.invoiceNumber ?? `#${receivable.id.slice(0, 8)}`}
+          </h1>
           <ReceivableStatusBadge status={receivable.status} />
           {receivable.isDisputed && (
             <Badge variant="destructive">Tranh chấp</Badge>

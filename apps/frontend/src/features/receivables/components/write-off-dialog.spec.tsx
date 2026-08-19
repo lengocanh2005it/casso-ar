@@ -45,4 +45,20 @@ describe('WriteOffDialog', () => {
       ),
     );
   });
+
+  it('does not show the raw receivable id in the dialog title', () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <WriteOffDialog receivableId="a1b2c3d4-e5f6-47a8-9abc-1234567890ab" />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByText('Xóa nợ'));
+    expect(screen.getByRole('heading', { level: 2 })).not.toHaveTextContent(
+      'a1b2c3d4-e5f6-47a8-9abc-1234567890ab',
+    );
+  });
 });

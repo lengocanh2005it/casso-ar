@@ -29,7 +29,7 @@ export function WriteOffDialog({ receivableId }: { receivableId: string }) {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Xóa nợ {receivableId}</DialogTitle>
+          <DialogTitle>Xóa nợ khoản phải thu này</DialogTitle>
         </DialogHeader>
         <DialogDescription>
           Chấp nhận mất phần còn lại của khoản phải thu này. Không thể hoàn tác

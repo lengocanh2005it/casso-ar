@@ -60,4 +60,46 @@ describe('ReceivableDetailPage', () => {
     );
     expect(screen.getAllByText('30.000.000 ₫')).toHaveLength(2);
   });
+
+  it('shows the invoice number as heading instead of the raw id when available', async () => {
+    apiRequest.mockResolvedValue({
+      id: 'a1b2c3d4-e5f6-47a8-9abc-1234567890ab',
+      customerId: 'c1',
+      invoiceId: 'inv1',
+      invoiceNumber: 'INV-001',
+      originalAmount: 50_000_000,
+      paidAmount: 0,
+      remainingAmount: 50_000_000,
+      dueDate: '2026-08-20',
+      status: 'OPEN',
+      isDisputed: false,
+      disputeId: null,
+      isOverdue: false,
+      salesRepresentativeId: null,
+      createdAt: '2026-07-01',
+      allocations: [],
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter
+          initialEntries={['/receivables/a1b2c3d4-e5f6-47a8-9abc-1234567890ab']}
+        >
+          <Routes>
+            <Route path="/receivables/:id" element={<ReceivableDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: 'INV-001' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('a1b2c3d4-e5f6-47a8-9abc-1234567890ab'),
+    ).not.toBeInTheDocument();
+  });
 });
