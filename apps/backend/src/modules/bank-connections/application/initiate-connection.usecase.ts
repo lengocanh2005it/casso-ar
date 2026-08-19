@@ -25,7 +25,7 @@ import {
 const DEFAULT_SCOPES = ['identity', 'transaction'];
 const DEFAULT_REDIRECT_BASE_URL =
   'http://localhost:5173/bank-connections/cas-id/callback';
-const DEFAULT_LINK_BASE_URL = 'https://dev.link.cas.so';
+const DEFAULT_LINK_BASE_URL = 'https://dev.link.bankhub.dev';
 
 export interface InitiateConnectionInput {
   userId: string;

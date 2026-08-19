@@ -52,6 +52,26 @@ describe('bank connection use cases', () => {
     expect(auditRepo.save).not.toHaveBeenCalled();
   });
 
+  it('defaults linkBaseUrl to a real, resolvable Cas Link sandbox host', async () => {
+    const useCase = new InitiateConnectionUseCase(
+      {
+        createGrantToken: jest.fn().mockResolvedValue({
+          grantToken: 'grant',
+          expiresAt: new Date(Date.now() + 60_000),
+        }),
+      } as never,
+      { save: jest.fn() } as never,
+      { findById: jest.fn() } as never,
+      { save: jest.fn() } as never,
+      { getOrganizationId: () => 'org-1' } as never,
+      dataSource as never,
+    );
+
+    const result = await useCase.execute({ userId: 'user-1' });
+
+    expect(result.linkBaseUrl).toBe('https://dev.link.bankhub.dev');
+  });
+
   it('uses CAS_ID_REDIRECT_BASE_URL and CAS_ID_LINK_BASE_URL when configured', async () => {
     const previousRedirectBase = process.env.CAS_ID_REDIRECT_BASE_URL;
     const previousLinkBase = process.env.CAS_ID_LINK_BASE_URL;
