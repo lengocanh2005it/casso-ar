@@ -12,9 +12,9 @@ export interface OrganizationListItem {
   id: string;
   name: string;
   status: 'ACTIVE' | 'LOCKED' | 'PENDING_REVIEW' | 'REJECTED';
-  taxCode: string;
-  taxCodeMatched: boolean;
-  taxCodeLookupName: string | null;
+  taxCode?: string;
+  taxCodeMatched?: boolean;
+  taxCodeLookupName?: string | null;
   createdAt: string;
 }
 
