@@ -22,106 +22,127 @@ function buildInvite(
 
 const manager = { name: 'transaction-manager' };
 
-const dataSource = {
-  transaction: jest.fn(
-    async (callback: (value: typeof manager) => Promise<unknown>) =>
-      callback(manager),
-  ),
-};
-
 function buildUseCase(
   inviteRepo: Record<string, jest.Mock>,
   organizationRepo: Record<string, jest.Mock>,
-  inviteMemberUseCase: Record<string, jest.Mock>,
+  emailSender: Record<string, jest.Mock>,
   tenantContext = { getOrganizationId: jest.fn().mockReturnValue('org-1') },
 ) {
-  return new ResendInviteUseCase(
-    inviteRepo as never,
-    organizationRepo as never,
-    inviteMemberUseCase as never,
-    tenantContext as never,
-    dataSource as never,
-  );
+  const dataSource = {
+    transaction: jest.fn(
+      async (callback: (value: typeof manager) => Promise<unknown>) =>
+        callback(manager),
+    ),
+  };
+  return {
+    useCase: new ResendInviteUseCase(
+      inviteRepo as never,
+      organizationRepo as never,
+      emailSender as never,
+      tenantContext as never,
+      dataSource as never,
+    ),
+    dataSource,
+  };
 }
 
 describe('ResendInviteUseCase', () => {
-  it('deletes the old invite and re-invites the same email with the same role', async () => {
+  it('deletes the old invite and creates the new one in a single transaction, then emails after commit', async () => {
     const inviteRepo = {
-      findByTokenHash: jest.fn(),
-      findById: jest.fn().mockResolvedValue(buildInvite()),
+      findByIdForUpdate: jest.fn().mockResolvedValue(buildInvite()),
       delete: jest.fn(),
       save: jest.fn(),
     };
     const organizationRepo = {
       findById: jest.fn().mockResolvedValue({ id: 'org-1', name: 'Công ty A' }),
     };
-    const inviteMemberUseCase = {
-      execute: jest.fn().mockResolvedValue(undefined),
-    };
-    const useCase = buildUseCase(
+    const emailSender = { sendInviteEmail: jest.fn() };
+    const { useCase, dataSource } = buildUseCase(
       inviteRepo,
       organizationRepo,
-      inviteMemberUseCase,
+      emailSender,
     );
 
     await useCase.execute('invite-1');
 
-    expect(inviteRepo.findById).toHaveBeenCalledWith('invite-1', 'org-1');
+    expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+    expect(inviteRepo.findByIdForUpdate).toHaveBeenCalledWith(
+      'invite-1',
+      'org-1',
+      manager,
+    );
     expect(inviteRepo.delete).toHaveBeenCalledWith(
       'invite-1',
       'org-1',
       manager,
     );
-    expect(inviteMemberUseCase.execute).toHaveBeenCalledWith({
-      organizationId: 'org-1',
-      organizationName: 'Công ty A',
-      email: 'member@example.com',
-      role: Role.ACCOUNTANT,
-      invitedByUserId: 'user-1',
-    });
+    expect(inviteRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: 'org-1',
+        email: 'member@example.com',
+        role: Role.ACCOUNTANT,
+        invitedByUserId: 'user-1',
+      }),
+      manager,
+    );
+    expect(emailSender.sendInviteEmail).toHaveBeenCalledWith(
+      'member@example.com',
+      expect.stringMatching(/\/invite-accept\?token=/),
+      'Công ty A',
+    );
   });
 
   it('rejects resending an invite that does not exist in the organization', async () => {
     const inviteRepo = {
-      findByTokenHash: jest.fn(),
-      findById: jest.fn().mockResolvedValue(null),
+      findByIdForUpdate: jest.fn().mockResolvedValue(null),
       delete: jest.fn(),
       save: jest.fn(),
     };
-    const organizationRepo = { findById: jest.fn() };
-    const inviteMemberUseCase = { execute: jest.fn() };
-    const useCase = buildUseCase(
-      inviteRepo,
-      organizationRepo,
-      inviteMemberUseCase,
-    );
+    const organizationRepo = {
+      findById: jest.fn().mockResolvedValue({ id: 'org-1', name: 'Công ty A' }),
+    };
+    const emailSender = { sendInviteEmail: jest.fn() };
+    const { useCase } = buildUseCase(inviteRepo, organizationRepo, emailSender);
 
     await expect(useCase.execute('invite-9')).rejects.toMatchObject({
       errorCode: ErrorCode.NOT_FOUND,
     });
-    expect(inviteMemberUseCase.execute).not.toHaveBeenCalled();
+    expect(emailSender.sendInviteEmail).not.toHaveBeenCalled();
   });
 
   it('rejects resending an already-accepted invite', async () => {
     const inviteRepo = {
-      findByTokenHash: jest.fn(),
-      findById: jest
+      findByIdForUpdate: jest
         .fn()
         .mockResolvedValue(buildInvite({ acceptedAt: new Date() })),
       delete: jest.fn(),
       save: jest.fn(),
     };
-    const organizationRepo = { findById: jest.fn() };
-    const inviteMemberUseCase = { execute: jest.fn() };
-    const useCase = buildUseCase(
-      inviteRepo,
-      organizationRepo,
-      inviteMemberUseCase,
-    );
+    const organizationRepo = {
+      findById: jest.fn().mockResolvedValue({ id: 'org-1', name: 'Công ty A' }),
+    };
+    const emailSender = { sendInviteEmail: jest.fn() };
+    const { useCase } = buildUseCase(inviteRepo, organizationRepo, emailSender);
 
     await expect(useCase.execute('invite-1')).rejects.toMatchObject({
       errorCode: ErrorCode.CONFLICT,
     });
-    expect(inviteMemberUseCase.execute).not.toHaveBeenCalled();
+    expect(emailSender.sendInviteEmail).not.toHaveBeenCalled();
+  });
+
+  it('rejects when the organization no longer exists', async () => {
+    const inviteRepo = {
+      findByIdForUpdate: jest.fn(),
+      delete: jest.fn(),
+      save: jest.fn(),
+    };
+    const organizationRepo = { findById: jest.fn().mockResolvedValue(null) };
+    const emailSender = { sendInviteEmail: jest.fn() };
+    const { useCase } = buildUseCase(inviteRepo, organizationRepo, emailSender);
+
+    await expect(useCase.execute('invite-1')).rejects.toMatchObject({
+      errorCode: ErrorCode.NOT_FOUND,
+    });
+    expect(inviteRepo.findByIdForUpdate).not.toHaveBeenCalled();
   });
 });
