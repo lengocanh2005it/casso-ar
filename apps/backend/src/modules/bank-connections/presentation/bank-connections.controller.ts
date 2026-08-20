@@ -32,11 +32,26 @@ import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { ConnectCassoFlowUseCase } from '../application/connect-casso-flow.usecase';
 import { DisconnectConnectionUseCase } from '../application/disconnect-connection.usecase';
 import { ListBankConnectionsUseCase } from '../application/list-bank-connections.usecase';
+import { PreviewCassoFlowAccountsUseCase } from '../application/preview-casso-flow-accounts.usecase';
+import { PreviewCassoFlowAuthorizationRotationUseCase } from '../application/preview-casso-flow-authorization-rotation.usecase';
+import { RotateCassoFlowAuthorizationUseCase } from '../application/rotate-casso-flow-authorization.usecase';
 import {
   ListBankConnectionsResponseDto,
   toBankConnectionResponse,
 } from './dto/bank-connection-response.dto';
-import { ConnectCassoFlowDto } from './dto/connect-casso-flow.dto';
+import {
+  ConfirmCassoFlowDto,
+  ConnectCassoFlowResponseDto,
+} from './dto/confirm-casso-flow.dto';
+import {
+  PreviewCassoFlowAccountsResponseDto,
+  PreviewCassoFlowAuthorizationRotationResponseDto,
+  PreviewCassoFlowDto,
+} from './dto/preview-casso-flow.dto';
+import {
+  RotateCassoFlowAuthorizationResponseDto,
+  RotateCassoFlowDto,
+} from './dto/rotate-casso-flow-authorization.dto';
 
 @ApiTags('bank-connections')
 @Controller('bank-connections')
@@ -44,7 +59,10 @@ import { ConnectCassoFlowDto } from './dto/connect-casso-flow.dto';
 export class BankConnectionsController {
   constructor(
     private readonly listBankConnectionsUseCase: ListBankConnectionsUseCase,
+    private readonly previewCassoFlowAccountsUseCase: PreviewCassoFlowAccountsUseCase,
     private readonly connectCassoFlowUseCase: ConnectCassoFlowUseCase,
+    private readonly previewCassoFlowAuthorizationRotationUseCase: PreviewCassoFlowAuthorizationRotationUseCase,
+    private readonly rotateCassoFlowAuthorizationUseCase: RotateCassoFlowAuthorizationUseCase,
     private readonly disconnectConnectionUseCase: DisconnectConnectionUseCase,
     private readonly idempotency: IdempotencyService,
     private readonly tenantContext: TenantContextService,
@@ -68,27 +86,29 @@ export class BankConnectionsController {
     };
   }
 
-  @Post('casso-flow/connect')
+  @Post('casso-flow/preview')
   @ApiOperation({
-    summary:
-      "Connect this organization's Casso Flow account via a pasted API Key",
+    summary: 'Preview the bank accounts a Casso Flow API Key can connect',
+  })
+  @ApiOkResponse({ type: PreviewCassoFlowAccountsResponseDto })
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.UNAUTHORIZED)
+  @RequirePermission(Permission.BANK_CONNECTION_MANAGE)
+  async preview(@Body() dto: PreviewCassoFlowDto) {
+    return this.previewCassoFlowAccountsUseCase.execute({
+      organizationId: this.tenantContext.getOrganizationId(),
+      apiKey: dto.apiKey,
+    });
+  }
+
+  @Post('casso-flow/confirm')
+  @ApiOperation({
+    summary: 'Connect the selected bank accounts from a Casso Flow API Key',
   })
   @ApiHeader({ name: 'idempotency-key', required: false })
-  @ApiCreatedResponse({
-    description: 'Connection created',
-    schema: {
-      type: 'object',
-      required: ['connectionId', 'status'],
-      properties: {
-        connectionId: { type: 'string', format: 'uuid' },
-        status: { type: 'string' },
-      },
-    },
-  })
+  @ApiCreatedResponse({ type: ConnectCassoFlowResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
     ErrorCode.UNAUTHORIZED,
-    ErrorCode.FORBIDDEN,
     ErrorCode.IDEMPOTENCY_KEY_REUSED,
   )
   @RequirePermission(Permission.BANK_CONNECTION_MANAGE)
@@ -96,22 +116,78 @@ export class BankConnectionsController {
     AuditActionType.BANK_CONNECTION_CREATE,
     AuditEntityType.BANK_CONNECTION,
   )
-  async connect(
+  async confirm(
     @Headers('idempotency-key') key: string | undefined,
-    @Body() dto: ConnectCassoFlowDto,
+    @Body() dto: ConfirmCassoFlowDto,
   ) {
     return this.idempotency.execute(
-      'POST /bank-connections/casso-flow/connect',
+      'POST /bank-connections/casso-flow/confirm',
       key,
       dto,
-      async () => {
-        const connection = await this.connectCassoFlowUseCase.execute({
+      () =>
+        this.connectCassoFlowUseCase.execute({
           organizationId: this.tenantContext.getOrganizationId(),
           apiKey: dto.apiKey,
-          bankConnectionId: dto.bankConnectionId,
-        });
-        return { connectionId: connection.id, status: connection.status };
-      },
+          selectedAccountNumbers: dto.selectedAccountNumbers,
+        }),
+    );
+  }
+
+  @Post('authorizations/:id/casso-flow/preview')
+  @ApiOperation({
+    summary:
+      "Preview rotating one CassoFlowAuthorization's API Key against its currently connected accounts",
+  })
+  @ApiOkResponse({ type: PreviewCassoFlowAuthorizationRotationResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+  )
+  @RequirePermission(Permission.BANK_CONNECTION_MANAGE)
+  async previewRotation(
+    @Param('id') authorizationId: string,
+    @Body() dto: PreviewCassoFlowDto,
+  ) {
+    return this.previewCassoFlowAuthorizationRotationUseCase.execute({
+      organizationId: this.tenantContext.getOrganizationId(),
+      cassoFlowAuthorizationId: authorizationId,
+      apiKey: dto.apiKey,
+    });
+  }
+
+  @Post('authorizations/:id/casso-flow/confirm')
+  @ApiOperation({ summary: "Rotate one CassoFlowAuthorization's API Key" })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: RotateCassoFlowAuthorizationResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
+  @RequirePermission(Permission.BANK_CONNECTION_MANAGE)
+  @Audited(
+    AuditActionType.BANK_CONNECTION_API_KEY_ROTATE,
+    AuditEntityType.CASSO_FLOW_AUTHORIZATION,
+  )
+  async rotate(
+    @Param('id') authorizationId: string,
+    @Headers('idempotency-key') key: string | undefined,
+    @Body() dto: RotateCassoFlowDto,
+  ) {
+    return this.idempotency.execute(
+      `POST /bank-connections/authorizations/${authorizationId}/casso-flow/confirm`,
+      key,
+      dto,
+      () =>
+        this.rotateCassoFlowAuthorizationUseCase.execute({
+          organizationId: this.tenantContext.getOrganizationId(),
+          cassoFlowAuthorizationId: authorizationId,
+          apiKey: dto.apiKey,
+        }),
     );
   }
 
