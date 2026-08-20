@@ -10,7 +10,7 @@ import {
   getApiErrorCode,
   getApiErrorMessage,
 } from '@/lib/api-client';
-import { AuthLogoLink } from '../components/auth-logo-link';
+import { AuthStatusCard } from '../components/auth-status-card';
 
 type VerificationState =
   | 'pending'
@@ -99,8 +99,7 @@ export function VerifyEmailPage() {
 
   if (state === 'pending') {
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
-        <AuthLogoLink />
+      <AuthStatusCard>
         <div role="status" className="space-y-2">
           <h1 className="text-xl font-semibold">Kiểm tra email</h1>
           <p className="text-sm text-muted-foreground">
@@ -143,23 +142,21 @@ export function VerifyEmailPage() {
             Quay lại đăng nhập
           </Link>
         </div>
-      </div>
+      </AuthStatusCard>
     );
   }
 
   if (state === 'verifying') {
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
-        <AuthLogoLink />
+      <AuthStatusCard>
         <div role="status">Đang xác minh email…</div>
-      </div>
+      </AuthStatusCard>
     );
   }
 
   if (state === 'pending-review') {
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
-        <AuthLogoLink />
+      <AuthStatusCard>
         <div role="status" className="space-y-2">
           <h1 className="text-xl font-semibold">Email đã được xác minh</h1>
           <p className="text-sm text-muted-foreground">
@@ -173,14 +170,13 @@ export function VerifyEmailPage() {
             Đến trang đăng nhập
           </Link>
         </div>
-      </div>
+      </AuthStatusCard>
     );
   }
 
   if (state === 'rejected') {
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
-        <AuthLogoLink />
+      <AuthStatusCard>
         <div role="alert" className="space-y-2">
           <h1 className="text-xl font-semibold">
             Đăng ký chưa được chấp thuận
@@ -193,14 +189,13 @@ export function VerifyEmailPage() {
             Đến trang đăng nhập
           </Link>
         </div>
-      </div>
+      </AuthStatusCard>
     );
   }
 
   if (state === 'error') {
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
-        <AuthLogoLink />
+      <AuthStatusCard>
         <div role="status" className="space-y-2">
           <h1 className="text-xl font-semibold">Liên kết không hợp lệ</h1>
           <p className="text-sm text-muted-foreground">
@@ -213,7 +208,7 @@ export function VerifyEmailPage() {
             Đến trang đăng nhập
           </Link>
         </div>
-      </div>
+      </AuthStatusCard>
     );
   }
 

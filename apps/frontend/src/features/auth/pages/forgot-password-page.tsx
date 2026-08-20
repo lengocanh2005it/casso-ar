@@ -5,6 +5,7 @@ import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Spinner } from '@/components/ui/spinner';
 import { apiRequest } from '@/lib/api-client';
 import { AuthLogoLink } from '../components/auth-logo-link';
+import { AuthStatusCard } from '../components/auth-status-card';
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -33,8 +34,7 @@ export function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
-        <AuthLogoLink />
+      <AuthStatusCard>
         <div role="status" className="space-y-2">
           <h1 className="text-xl font-semibold">Kiểm tra email</h1>
           <p className="text-sm text-muted-foreground">
@@ -47,7 +47,7 @@ export function ForgotPasswordPage() {
             Đến trang đăng nhập
           </Link>
         </div>
-      </div>
+      </AuthStatusCard>
     );
   }
 

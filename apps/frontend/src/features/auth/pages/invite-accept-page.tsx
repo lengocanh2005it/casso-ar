@@ -6,6 +6,7 @@ import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Spinner } from '@/components/ui/spinner';
 import { apiRequest } from '@/lib/api-client';
 import { AuthLogoLink } from '../components/auth-logo-link';
+import { AuthStatusCard } from '../components/auth-status-card';
 
 export function InviteAcceptPage() {
   const [searchParams] = useSearchParams();
@@ -42,8 +43,7 @@ export function InviteAcceptPage() {
 
   if (done) {
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-4 p-6 text-center">
-        <AuthLogoLink />
+      <AuthStatusCard>
         <div role="status" className="space-y-2">
           <h1 className="text-xl font-semibold">Tham gia tổ chức thành công</h1>
           <p className="text-sm text-muted-foreground">
@@ -56,7 +56,7 @@ export function InviteAcceptPage() {
             Đến trang đăng nhập
           </Link>
         </div>
-      </div>
+      </AuthStatusCard>
     );
   }
 
