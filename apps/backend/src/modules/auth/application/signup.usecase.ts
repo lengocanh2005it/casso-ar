@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { buildFrontendUrl } from '../../../common/config/frontend-url';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
@@ -155,7 +156,7 @@ export class SignupUseCase {
     );
     await this.emailSender.sendVerificationEmail(
       user.email,
-      `/verify-email?token=${token}`,
+      buildFrontendUrl(`/verify-email?token=${token}`),
     );
 
     if (organization.status !== 'ACTIVE') {

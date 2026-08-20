@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { buildFrontendUrl } from '../../../common/config/frontend-url';
 import {
   type IUserRepository,
   USER_REPOSITORY,
@@ -51,7 +52,7 @@ export class ForgotPasswordUseCase {
 
     await this.emailSender.sendPasswordResetEmail(
       user.email,
-      `/auth/reset-password?token=${token}`,
+      buildFrontendUrl(`/reset-password?token=${token}`),
     );
   }
 }
