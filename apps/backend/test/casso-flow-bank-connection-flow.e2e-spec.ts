@@ -18,6 +18,7 @@ import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 import { BankTransactionOrmEntity } from '../src/modules/webhooks/infrastructure/bank-transaction.orm-entity';
 import { WebhookInboxOrmEntity } from '../src/modules/webhooks/infrastructure/webhook-inbox.orm-entity';
+import { signCassoWebhookPayload } from './helpers/casso-webhook-signature';
 
 describe('Casso Flow bank connection flow (integration)', () => {
   let container: StartedPostgreSqlContainer;
@@ -65,7 +66,7 @@ describe('Casso Flow bank connection flow (integration)', () => {
     await container.stop();
   });
 
-  it('resolves an inbound webhook to the right connection via accountNumber + secure_token', async () => {
+  it('resolves an inbound webhook to the right connection via accountNumber + V2 signature', async () => {
     const organizationId = '00000000-0000-4000-8000-000000000301';
     const userId = '00000000-0000-4000-8000-000000000302';
     const accountNumber = '00000301';
@@ -120,22 +121,35 @@ describe('Casso Flow bank connection flow (integration)', () => {
     });
 
     const transactionId = Math.floor(Math.random() * 1_000_000) + 1;
+    const payload = {
+      error: 0,
+      data: {
+        id: transactionId,
+        amount: 5_000_000,
+        transactionDateTime: '2026-08-19 10:00:00',
+        description: 'test balance hook transaction',
+        accountNumber,
+        counterAccountNumber: '1112223334',
+        counterAccountName: 'Round Trip Payer',
+      },
+    };
+    await request(app.getHttpServer())
+      .post('/api/v1/webhooks/casso-balance-hook')
+      .set('X-Casso-Signature', signCassoWebhookPayload(payload, webhookSecret))
+      .send(payload)
+      .expect(200, { received: true, duplicate: false });
+
     await request(app.getHttpServer())
       .post('/api/v1/webhooks/casso-balance-hook')
       .set('secure-token', webhookSecret)
       .send({
-        error: 0,
-        data: {
-          id: transactionId,
-          amount: 5_000_000,
-          transactionDateTime: '2026-08-19 10:00:00',
-          description: 'test balance hook transaction',
-          accountNumber,
-          counterAccountNumber: '1112223334',
-          counterAccountName: 'Round Trip Payer',
-        },
+        ...payload,
+        data: { ...payload.data, id: transactionId + 1 },
       })
-      .expect(200, { received: true, duplicate: false });
+      .expect(401)
+      .expect((response) => {
+        expect(response.body.errorCode).toBe('UNAUTHORIZED');
+      });
 
     const inboxRepo = dataSource.getRepository(WebhookInboxOrmEntity);
     const transactionRepo = dataSource.getRepository(BankTransactionOrmEntity);

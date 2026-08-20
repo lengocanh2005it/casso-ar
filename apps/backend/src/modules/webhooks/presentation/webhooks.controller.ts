@@ -25,7 +25,7 @@ export class WebhooksController {
   @ApiOperation({
     summary: 'Receive a Casso Flow balance-hook notification',
     description:
-      "Authenticated by a per-organization secure_token this product generated and registered with Casso Flow — carried on the 'secure-token' header, verified against the resolved BankConnection inside ReceiveWebhookUseCase (not a route guard, since verification needs the resolved connection's own secret).",
+      "Authenticated by a per-authorization secret registered with Casso Flow — Casso sends the V2 HMAC signature on the 'X-Casso-Signature' header, verified against the resolved authorization inside ReceiveWebhookUseCase.",
   })
   @ApiOkResponse({
     description: 'Webhook accepted for processing',
@@ -38,17 +38,21 @@ export class WebhooksController {
       },
     },
   })
-  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.RATE_LIMIT_EXCEEDED)
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.RATE_LIMIT_EXCEEDED,
+  )
   @UseGuards(WebhookRateLimitGuard)
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @HttpCode(200)
   async receiveBalanceHook(
     @Body() payload: BalanceHookDto,
-    @Headers('secure-token') secureToken: string | undefined,
+    @Headers('x-casso-signature') signature: string | undefined,
   ) {
     return this.receiveWebhook.execute({
       accountNumber: payload.data.accountNumber,
-      webhookSecret: secureToken ?? '',
+      webhookSignature: signature ?? '',
       transactionId: String(payload.data.id),
       rawPayload: Object.fromEntries(Object.entries(payload)),
     });

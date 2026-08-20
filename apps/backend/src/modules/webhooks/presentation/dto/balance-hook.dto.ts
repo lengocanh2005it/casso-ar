@@ -16,8 +16,13 @@ export class BalanceHookDataDto {
   @IsString() @IsNotEmpty() transactionDateTime: string;
   @IsString() @IsNotEmpty() accountNumber: string;
   @IsOptional() bankName?: string;
+  @IsOptional() bankAbbreviation?: string;
+  @IsOptional() virtualAccountNumber?: string;
+  @IsOptional() virtualAccountName?: string;
   @IsOptional() counterAccountName?: string;
   @IsOptional() counterAccountNumber?: string | number;
+  @IsOptional() counterAccountBankId?: string;
+  @IsOptional() counterAccountBankName?: string;
 }
 
 export class BalanceHookDto {

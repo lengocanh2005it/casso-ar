@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { equalsConstantTime } from '../../../common/security/constant-time-compare';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import {
   BANK_CONNECTION_REPOSITORY,
   type IBankConnectionRepository,
@@ -13,6 +14,7 @@ import {
 import { decryptToken } from '../../bank-connections/application/token-encryption';
 import { ACCESS_TOKEN_ENCRYPTION_KEY } from '../../bank-connections/application/token-encryption-key';
 import { WebhookInbox } from '../domain/webhook-inbox';
+import { verifyCassoWebhookSignature } from './casso-webhook-signature';
 import type { IWebhookInboxRepository } from './webhook-inbox-repository.port';
 import {
   DuplicateWebhookError,
@@ -25,7 +27,7 @@ import {
 
 export interface ReceiveWebhookInput {
   accountNumber: string;
-  webhookSecret: string;
+  webhookSignature: string;
   organizationId?: string;
   transactionId: string;
   rawPayload: Record<string, unknown>;
@@ -68,8 +70,17 @@ export class ReceiveWebhookUseCase {
       authorization.encryptedSecureToken,
       this.encryptionKey,
     );
-    if (!equalsConstantTime(input.webhookSecret, expectedSecret)) {
-      return { received: true, ignored: true };
+    if (
+      !verifyCassoWebhookSignature({
+        payload: input.rawPayload,
+        signatureHeader: input.webhookSignature,
+        secret: expectedSecret,
+      })
+    ) {
+      throw new AppError(
+        ErrorCode.UNAUTHORIZED,
+        'Chữ ký webhook không hợp lệ.',
+      );
     }
     if (
       connection &&
