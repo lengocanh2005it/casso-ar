@@ -1,5 +1,5 @@
 import { Permission } from '@casso-ledger/shared-types';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,14 +32,13 @@ import {
 import { useAuth } from '@/contexts/auth-context';
 import { formatDate } from '@/lib/format';
 import { hasPermission } from '@/lib/rbac';
-import { useDisconnectConnection } from '../api/use-bank-connections';
+import {
+  useDisconnectConnection,
+  usePreviewCassoFlowAuthorizationRotation,
+  useRotateCassoFlowAuthorization,
+} from '../api/use-bank-connections';
 import type { BankConnection, BankConnectionStatus } from '../types';
-import { CassoFlowConnectForm } from './casso-flow-connect-form';
-
-const RECONNECTABLE_STATUSES: BankConnectionStatus[] = [
-  'REQUIRES_REAUTHORIZATION',
-  'ERROR',
-];
+import { CassoFlowAccountPicker } from './casso-flow-account-picker';
 
 const statusLabels: Record<BankConnectionStatus, string> = {
   PENDING_AUTHORIZATION: 'Chờ cấp quyền',
@@ -49,6 +48,18 @@ const statusLabels: Record<BankConnectionStatus, string> = {
   DISCONNECTED: 'Đã ngắt kết nối',
   ERROR: 'Lỗi',
 };
+
+function groupConnections(
+  connections: BankConnection[],
+): Array<[string, BankConnection[]]> {
+  const groups = new Map<string, BankConnection[]>();
+  for (const connection of connections) {
+    const group = groups.get(connection.cassoFlowAuthorizationId) ?? [];
+    group.push(connection);
+    groups.set(connection.cassoFlowAuthorizationId, group);
+  }
+  return Array.from(groups.entries());
+}
 
 export function ConnectionTable({
   connections,
@@ -61,8 +72,13 @@ export function ConnectionTable({
     Permission.BANK_CONNECTION_MANAGE,
   );
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [reconnectId, setReconnectId] = useState<string | null>(null);
+  const [rotationAuthorizationId, setRotationAuthorizationId] = useState<
+    string | null
+  >(null);
   const disconnectMutation = useDisconnectConnection();
+  const previewRotationMutation = usePreviewCassoFlowAuthorizationRotation();
+  const rotateMutation = useRotateCassoFlowAuthorization();
+  const groups = groupConnections(connections);
 
   if (connections.length === 0) {
     return (
@@ -84,98 +100,118 @@ export function ConnectionTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {connections.map((connection) => (
-          <TableRow key={connection.id}>
-            <TableCell className="max-w-48 break-words font-medium">
-              {connection.bankName}
-            </TableCell>
-            <TableCell className="max-w-56 break-all">
-              {connection.accountNumber}
-            </TableCell>
-            <TableCell>
-              <Badge
-                variant={connection.status === 'ACTIVE' ? 'default' : 'outline'}
-              >
-                {statusLabels[connection.status]}
-              </Badge>
-            </TableCell>
-            <TableCell>
-              {connection.lastSyncAt ? formatDate(connection.lastSyncAt) : '—'}
-            </TableCell>
+        {groups.map(([authorizationId, group]) => (
+          <Fragment key={authorizationId}>
             {canManage && (
-              <TableCell>
-                {RECONNECTABLE_STATUSES.includes(connection.status) && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-right">
                   <Dialog
-                    open={reconnectId === connection.id}
+                    open={rotationAuthorizationId === authorizationId}
                     onOpenChange={(open) =>
-                      setReconnectId(open ? connection.id : null)
+                      setRotationAuthorizationId(open ? authorizationId : null)
                     }
                   >
                     <DialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        aria-label="Reconnect bank"
-                      >
-                        Kết nối lại
+                      <Button variant="outline" size="sm">
+                        Đổi API Key
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>
-                          Kết nối lại{' '}
+                          Đổi API Key{' '}
                           <span className="text-primary">Casso Flow</span>
                         </DialogTitle>
                         <DialogDescription>
-                          Nhập API Key mới từ tài khoản{' '}
-                          <span className="text-primary">Casso Flow</span> của
-                          bạn.
+                          Nhập API Key mới để cập nhật quyền truy cập cho các
+                          tài khoản trong nhóm này.
                         </DialogDescription>
                       </DialogHeader>
-                      <CassoFlowConnectForm
-                        bankConnectionId={connection.id}
-                        onCompleted={() => setReconnectId(null)}
+                      <CassoFlowAccountPicker
+                        onPreview={(apiKey) =>
+                          previewRotationMutation.mutateAsync({
+                            authorizationId,
+                            apiKey,
+                          })
+                        }
+                        onConfirm={(apiKey) =>
+                          rotateMutation.mutateAsync({
+                            authorizationId,
+                            apiKey,
+                          })
+                        }
+                        onCompleted={() => setRotationAuthorizationId(null)}
                       />
                     </DialogContent>
                   </Dialog>
-                )}
-                {connection.status === 'ACTIVE' && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        aria-label="Disconnect bank"
-                        onClick={() => setPendingId(connection.id)}
-                      >
-                        Ngắt kết nối
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Ngắt kết nối ngân hàng?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Dữ liệu đã đồng bộ vẫn được giữ lại.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Hủy</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => {
-                            if (pendingId) disconnectMutation.mutate(pendingId);
-                          }}
-                        >
-                          Xác nhận
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </TableCell>
+                </TableCell>
+              </TableRow>
             )}
-          </TableRow>
+            {group.map((connection) => (
+              <TableRow key={connection.id}>
+                <TableCell className="max-w-48 break-words font-medium">
+                  {connection.bankName}
+                </TableCell>
+                <TableCell className="max-w-56 break-all">
+                  {connection.accountNumber}
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      connection.status === 'ACTIVE' ? 'default' : 'outline'
+                    }
+                  >
+                    {statusLabels[connection.status]}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {connection.lastSyncAt
+                    ? formatDate(connection.lastSyncAt)
+                    : '—'}
+                </TableCell>
+                {canManage && (
+                  <TableCell>
+                    {connection.status === 'ACTIVE' && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            aria-label="Disconnect bank"
+                            onClick={() => setPendingId(connection.id)}
+                          >
+                            Ngắt kết nối
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Ngắt kết nối ngân hàng?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Dữ liệu đã đồng bộ vẫn được giữ lại.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Hủy</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => {
+                                if (pendingId) {
+                                  disconnectMutation.mutate(pendingId);
+                                }
+                              }}
+                            >
+                              Xác nhận
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
+          </Fragment>
         ))}
       </TableBody>
     </Table>

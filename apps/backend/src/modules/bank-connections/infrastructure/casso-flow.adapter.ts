@@ -41,31 +41,43 @@ export class CassoFlowAdapter implements ICassoFlowIntegrationAdapter {
       apiKey,
     );
     const payload = this.unwrap(data);
+    const business = payload.business as Record<string, unknown> | undefined;
+    const businessId = business?.id;
+    if (businessId === undefined || businessId === null) {
+      throw new Error(
+        'Casso Flow /v2/userInfo response is missing data.business.id',
+      );
+    }
     const bankAccs = payload.bankAccs;
     if (!Array.isArray(bankAccs) || bankAccs.length === 0) {
       throw new Error(
         'Casso Flow /v2/userInfo response has no linked bank account (bankAccs is empty)',
       );
     }
-    // ponytail: takes the first linked account — matches the one-active-
-    // connection-per-org constraint this product already enforces; a
-    // business with multiple bank accounts linked to Casso Flow can only
-    // connect the first one until multi-account support is asked for.
-    const account = bankAccs[0] as Record<string, unknown>;
-    const accountNumber = account.bankSubAccId;
-    const bank = account.bank as Record<string, unknown> | undefined;
-    const bankName = bank?.fullName;
-    if (typeof accountNumber !== 'string' || !accountNumber) {
-      throw new Error(
-        'Casso Flow /v2/userInfo response is missing bankAccs[0].bankSubAccId',
-      );
-    }
-    if (typeof bankName !== 'string' || !bankName) {
-      throw new Error(
-        'Casso Flow /v2/userInfo response is missing bankAccs[0].bank.fullName',
-      );
-    }
-    return { accountNumber, bankName };
+    const accounts = bankAccs.map((raw, index) => {
+      const account = raw as Record<string, unknown>;
+      const accountNumber = account.bankSubAccId;
+      const bank = account.bank as Record<string, unknown> | undefined;
+      const bankName = bank?.fullName;
+      const accountHolderName = account.bankAccountName;
+      if (typeof accountNumber !== 'string' || !accountNumber) {
+        throw new Error(
+          `Casso Flow /v2/userInfo response is missing bankAccs[${index}].bankSubAccId`,
+        );
+      }
+      if (typeof bankName !== 'string' || !bankName) {
+        throw new Error(
+          `Casso Flow /v2/userInfo response is missing bankAccs[${index}].bank.fullName`,
+        );
+      }
+      return {
+        accountNumber,
+        bankName,
+        accountHolderName:
+          typeof accountHolderName === 'string' ? accountHolderName : '',
+      };
+    });
+    return { businessId: String(businessId), accounts };
   }
 
   async registerWebhook(apiKey: string, secureToken: string): Promise<void> {

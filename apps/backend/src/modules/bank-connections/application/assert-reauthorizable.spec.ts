@@ -9,10 +9,10 @@ function connectionWithStatus(
   return new BankConnection({
     id: 'conn-1',
     organizationId: 'org-1',
+    cassoFlowAuthorizationId: 'auth-1',
     accountNumber: '0011002233',
     bankName: 'Mock Bank',
-    encryptedSecureToken: 'encrypted-secure-token',
-    encryptedCassoApiKey: 'encrypted-api-key',
+    accountHolderName: 'MOCK NAME',
     status,
     connectedAt: new Date(),
     lastSyncAt: null,

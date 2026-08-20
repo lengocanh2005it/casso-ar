@@ -6,7 +6,8 @@ export type ConnectionAuditEventType =
   | 'MARKED_REQUIRES_REAUTH'
   | 'MARKED_ERROR'
   | 'RECONNECTED'
-  | 'DISCONNECTED';
+  | 'DISCONNECTED'
+  | 'API_KEY_ROTATED';
 
 export interface ConnectionAuditEventProps {
   id: string;

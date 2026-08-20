@@ -56,18 +56,25 @@ export class TypeOrmBankConnectionRepository
     return row ? new BankConnection(row) : null;
   }
 
-  async findActiveOrReauthorizableByOrganizationForUpdate(
-    organizationId: string,
-    manager: EntityManager,
-  ): Promise<BankConnection | null> {
-    const row = await manager.findOne(BankConnectionOrmEntity, {
-      where: {
-        organizationId,
-        status: In(['ACTIVE', 'REQUIRES_REAUTHORIZATION', 'ERROR']),
-      },
-      lock: { mode: 'pessimistic_write' },
+  async findByAccountNumbers(
+    accountNumbers: string[],
+  ): Promise<Map<string, BankConnection>> {
+    if (accountNumbers.length === 0) return new Map();
+    const rows = await this.ormRepo.find({
+      where: { accountNumber: In(accountNumbers) },
     });
-    return row ? new BankConnection(row) : null;
+    return new Map(
+      rows.map((row) => [row.accountNumber, new BankConnection(row)]),
+    );
+  }
+
+  async findByAuthorizationId(
+    cassoFlowAuthorizationId: string,
+  ): Promise<BankConnection[]> {
+    const rows = await this.ormRepo.find({
+      where: { cassoFlowAuthorizationId },
+    });
+    return rows.map((row) => new BankConnection(row));
   }
 
   async save(
@@ -114,6 +121,17 @@ export class TypeOrmBankConnectionRepository
     const rows: Array<{ count: string }> = await manager.query(
       'SELECT COUNT(*) as count FROM bank_connections WHERE "organizationId" = $1 AND status = $2',
       [organizationId, 'ACTIVE'],
+    );
+    return Number(rows[0]?.count ?? 0);
+  }
+
+  async countActiveByAuthorization(
+    cassoFlowAuthorizationId: string,
+    manager: EntityManager,
+  ): Promise<number> {
+    const rows: Array<{ count: string }> = await manager.query(
+      'SELECT COUNT(*) as count FROM bank_connections WHERE "cassoFlowAuthorizationId" = $1 AND status = $2',
+      [cassoFlowAuthorizationId, 'ACTIVE'],
     );
     return Number(rows[0]?.count ?? 0);
   }
