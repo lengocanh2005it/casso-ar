@@ -1,10 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
+import { getApiErrorCode } from '@/lib/api-client';
 import {
-  connectCassoFlow,
+  confirmCassoFlow,
   disconnectConnection,
   fetchBankConnections,
+  previewCassoFlowAccounts,
+  previewCassoFlowAuthorizationRotation,
+  rotateCassoFlowAuthorization,
 } from './bank-connections-api';
 
 const queryKey = ['bank-connections'];
@@ -25,19 +29,42 @@ export function usePollConnections(enabled = true) {
   });
 }
 
-export function useConnectCassoFlow() {
+export function usePreviewCassoFlowAccounts() {
+  return useMutation({ mutationFn: previewCassoFlowAccounts });
+}
+
+export function useConfirmCassoFlow() {
   const queryClient = useQueryClient();
+  const { refreshUser } = useAuth();
   return useMutation({
-    mutationFn: connectCassoFlow,
+    mutationFn: confirmCassoFlow,
     onSuccess: () => {
-      toast.success('Đã kết nối tài khoản Casso Flow thành công.');
       void queryClient.invalidateQueries({ queryKey });
+      void refreshUser();
     },
-    onError: () => {
+    onError: (error) => {
+      if (getApiErrorCode(error) === 'PLAN_LIMIT_EXCEEDED') return;
       toast.error(
         'Không thể kết nối Casso Flow. Vui lòng kiểm tra lại API Key.',
       );
     },
+  });
+}
+
+export function usePreviewCassoFlowAuthorizationRotation() {
+  return useMutation({ mutationFn: previewCassoFlowAuthorizationRotation });
+}
+
+export function useRotateCassoFlowAuthorization() {
+  const queryClient = useQueryClient();
+  const { refreshUser } = useAuth();
+  return useMutation({
+    mutationFn: rotateCassoFlowAuthorization,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey });
+      void refreshUser();
+    },
+    onError: () => toast.error('Không thể đổi API Key Casso Flow.'),
   });
 }
 
