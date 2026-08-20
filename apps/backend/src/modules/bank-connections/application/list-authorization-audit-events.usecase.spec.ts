@@ -98,7 +98,13 @@ describe('ListAuthorizationAuditEventsUseCase', () => {
     });
     expect(deps.auditEventRepo.findByBankConnectionIds).toHaveBeenCalledWith(
       ['conn-1'],
-      ['TOKEN_EXCHANGED', 'RECONNECTED', 'DISCONNECTED', 'API_KEY_ROTATED', 'API_KEY_REVEALED'],
+      [
+        'TOKEN_EXCHANGED',
+        'RECONNECTED',
+        'DISCONNECTED',
+        'API_KEY_ROTATED',
+        'API_KEY_REVEALED',
+      ],
       1,
       20,
     );

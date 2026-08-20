@@ -298,8 +298,7 @@ export class BankConnectionsController {
 
   @Get('authorizations/:id/audit-events')
   @ApiOperation({
-    summary:
-      "List a CassoFlowAuthorization's API Key history (audit events)",
+    summary: "List a CassoFlowAuthorization's API Key history (audit events)",
   })
   @ApiOkResponse({ type: ListConnectionAuditEventsResponseDto })
   @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.NOT_FOUND)

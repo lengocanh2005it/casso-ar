@@ -2,6 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
+  CONNECTION_HISTORY_EVENT_TYPES,
+  type ConnectionAuditEvent,
+} from '../domain/connection-audit-event';
+import {
   BANK_CONNECTION_REPOSITORY,
   type IBankConnectionRepository,
 } from './bank-connection-repository.port';
@@ -13,10 +17,6 @@ import {
   CONNECTION_AUDIT_EVENT_REPOSITORY,
   type IConnectionAuditEventRepository,
 } from './connection-audit-event-repository.port';
-import {
-  CONNECTION_HISTORY_EVENT_TYPES,
-  type ConnectionAuditEvent,
-} from '../domain/connection-audit-event';
 
 export interface ListAuthorizationAuditEventsInput {
   organizationId: string;
@@ -63,13 +63,12 @@ export class ListAuthorizationAuditEventsUseCase {
       return { items: [], total: 0, page: input.page, limit: input.limit };
     }
 
-    const { items, total } =
-      await this.auditEventRepo.findByBankConnectionIds(
-        connections.map((connection) => connection.id),
-        CONNECTION_HISTORY_EVENT_TYPES,
-        input.page,
-        input.limit,
-      );
+    const { items, total } = await this.auditEventRepo.findByBankConnectionIds(
+      connections.map((connection) => connection.id),
+      CONNECTION_HISTORY_EVENT_TYPES,
+      input.page,
+      input.limit,
+    );
     return { items, total, page: input.page, limit: input.limit };
   }
 }

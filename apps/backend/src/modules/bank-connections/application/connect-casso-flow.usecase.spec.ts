@@ -34,8 +34,7 @@ function buildDeps(
   };
   const bankConnectionRepo = {
     findByAccountNumbers:
-      overrides.findByAccountNumbers ??
-      jest.fn().mockResolvedValue(new Map()),
+      overrides.findByAccountNumbers ?? jest.fn().mockResolvedValue(new Map()),
     save: jest.fn(),
     countActiveByOrganization: jest.fn().mockResolvedValue(0),
   };
