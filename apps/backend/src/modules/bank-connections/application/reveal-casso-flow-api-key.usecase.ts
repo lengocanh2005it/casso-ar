@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
@@ -7,7 +6,6 @@ import {
   type IUserRepository,
   USER_REPOSITORY,
 } from '../../users/application/user-repository.port';
-import { ConnectionAuditEvent } from '../domain/connection-audit-event';
 import {
   BANK_CONNECTION_REPOSITORY,
   type IBankConnectionRepository,
@@ -20,6 +18,7 @@ import {
   CONNECTION_AUDIT_EVENT_REPOSITORY,
   type IConnectionAuditEventRepository,
 } from './connection-audit-event-repository.port';
+import { recordConnectionAuditEvent } from './record-connection-audit-event';
 import { decryptToken } from './token-encryption';
 import { ACCESS_TOKEN_ENCRYPTION_KEY } from './token-encryption-key';
 
@@ -75,18 +74,13 @@ export class RevealCassoFlowApiKeyUseCase {
     const connections = await this.bankConnectionRepo.findByAuthorizationId(
       input.cassoFlowAuthorizationId,
     );
-    const now = new Date();
     for (const connection of connections) {
-      await this.auditEventRepo.save(
-        new ConnectionAuditEvent({
-          id: randomUUID(),
-          organizationId: input.organizationId,
-          bankConnectionId: connection.id,
-          eventType: 'API_KEY_REVEALED',
-          metadata: { revealedByUserId: input.userId },
-          createdAt: now,
-        }),
-      );
+      await recordConnectionAuditEvent(this.auditEventRepo, {
+        organizationId: input.organizationId,
+        bankConnectionId: connection.id,
+        eventType: 'API_KEY_REVEALED',
+        metadata: { revealedByUserId: input.userId },
+      });
     }
 
     return { apiKey };

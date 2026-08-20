@@ -8,6 +8,7 @@ import {
   Post,
   Query,
   Req,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -222,6 +223,10 @@ export class BankConnectionsController {
     @Body() dto: RevealCassoFlowApiKeyDto,
     @Req() request: AuthRequest,
   ) {
+    const userId = request.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
     return this.idempotency.execute(
       `POST /bank-connections/authorizations/${authorizationId}/reveal-key`,
       key,
@@ -230,7 +235,7 @@ export class BankConnectionsController {
         this.revealCassoFlowApiKeyUseCase.execute({
           organizationId: this.tenantContext.getOrganizationId(),
           cassoFlowAuthorizationId: authorizationId,
-          userId: request.user?.userId ?? '',
+          userId,
           password: dto.password,
         }),
     );

@@ -59,22 +59,19 @@ async function buildDeps(
       .mockResolvedValue(overrides.connections ?? [buildConnection('conn-1')]),
   };
   const userRepo = {
-    findById: jest
-      .fn()
-      .mockResolvedValue(
-        overrides.user === undefined
-          ? {
-              passwordHash: await hashPassword(
-                overrides.userPassword ?? 'correct',
-              ),
-            }
-          : overrides.user,
-      ),
+    findById: jest.fn().mockResolvedValue(
+      overrides.user === undefined
+        ? {
+            passwordHash: await hashPassword(
+              overrides.userPassword ?? 'correct',
+            ),
+          }
+        : overrides.user,
+    ),
   };
   const auditEventRepo = { save: jest.fn().mockResolvedValue(undefined) };
 
   const useCase = new RevealCassoFlowApiKeyUseCase(
-    // biome-ignore lint: test doubles satisfy the port shape structurally
     authorizationRepo as never,
     bankConnectionRepo as never,
     userRepo as never,
@@ -138,12 +135,14 @@ describe('RevealCassoFlowApiKeyUseCase', () => {
         eventType: 'API_KEY_REVEALED',
         bankConnectionId: 'conn-1',
       }),
+      undefined,
     );
     expect(auditEventRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: 'API_KEY_REVEALED',
         bankConnectionId: 'conn-2',
       }),
+      undefined,
     );
   });
 
