@@ -3,6 +3,7 @@ import type {
   BankConnectionList,
   ConfirmCassoFlowInput,
   ConnectCassoFlowResult,
+  ConnectionAuditEventList,
   PreviewCassoFlowAccountsResult,
   PreviewCassoFlowAuthorizationRotationResult,
   RevealCassoFlowApiKeyInput,
@@ -72,4 +73,13 @@ export function disconnectConnection(
   id: string,
 ): Promise<{ success: boolean }> {
   return postWithIdempotency(`/api/v1/bank-connections/${id}/disconnect`);
+}
+
+export function fetchAuthorizationAuditEvents(
+  authorizationId: string,
+): Promise<ConnectionAuditEventList> {
+  return apiRequest<ConnectionAuditEventList>({
+    url: `/api/v1/bank-connections/authorizations/${authorizationId}/audit-events?page=1&limit=50`,
+    method: 'GET',
+  });
 }

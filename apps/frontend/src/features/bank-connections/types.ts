@@ -93,3 +93,33 @@ export interface RevealCassoFlowApiKeyInput {
 export interface RevealCassoFlowApiKeyResult {
   apiKey: string;
 }
+
+export type ConnectionAuditEventType =
+  | 'TOKEN_EXCHANGED'
+  | 'RECONNECTED'
+  | 'DISCONNECTED'
+  | 'API_KEY_ROTATED'
+  | 'API_KEY_REVEALED';
+
+export interface ConnectionAuditEvent {
+  id: string;
+  bankConnectionId: string;
+  eventType: ConnectionAuditEventType;
+  actorUserId: string | null;
+  maskedApiKey: string | null;
+  oldMaskedApiKey: string | null;
+  newMaskedApiKey: string | null;
+  accountNumber: string | null;
+  oldBankName: string | null;
+  newBankName: string | null;
+  oldAccountHolderName: string | null;
+  newAccountHolderName: string | null;
+  createdAt: string;
+}
+
+export interface ConnectionAuditEventList {
+  items: ConnectionAuditEvent[];
+  total: number;
+  page: number;
+  limit: number;
+}
