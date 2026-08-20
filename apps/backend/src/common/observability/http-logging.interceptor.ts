@@ -53,14 +53,17 @@ export class HttpLoggingInterceptor implements NestInterceptor {
     const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
     const statusCode = statusCodeOverride ?? response.statusCode ?? 200;
     const slow = durationMs > this.slowRequestThresholdMs;
+    const method = request.method;
+    const path = this.getPath(request);
     const fields = {
-      method: request.method,
-      path: this.getPath(request),
+      method,
+      path,
       statusCode,
       durationMs: Math.round(durationMs),
       ip: request.ip,
       userAgent: request.get('user-agent'),
       ...(slow ? { slow: true } : {}),
+      message: `${method} ${path} ${statusCode}`,
     };
 
     if (statusCode >= 500) {

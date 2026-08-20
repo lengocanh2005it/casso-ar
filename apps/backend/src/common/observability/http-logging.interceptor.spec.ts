@@ -56,6 +56,7 @@ describe('HttpLoggingInterceptor', () => {
         durationMs: expect.any(Number),
         ip: '127.0.0.1',
         userAgent: 'test-agent',
+        message: 'GET /payments/:id 200',
       },
       HttpLoggingInterceptor.name,
     );
