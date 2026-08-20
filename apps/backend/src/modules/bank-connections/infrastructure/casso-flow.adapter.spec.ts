@@ -62,22 +62,59 @@ describe('CassoFlowAdapter', () => {
   });
 
   describe('getAccountInfo', () => {
-    it('reads the account number and bank name from bankAccs[0]', async () => {
+    it('reads businessId and every linked bank account from bankAccs', async () => {
+      const secondBankAcc = {
+        ...realBankAcc,
+        id: 16609,
+        bank: { ...realBankAcc.bank, fullName: 'VPBank' },
+        bankAccountName: 'TRAN THI B',
+        bankSubAccId: '88888888',
+      };
       const fetchMock = jest
         .fn()
-        .mockResolvedValue(jsonResponse(200, userInfoResponse([realBankAcc])));
+        .mockResolvedValue(
+          jsonResponse(200, userInfoResponse([realBankAcc, secondBankAcc])),
+        );
       global.fetch = fetchMock as never;
       const adapter = new CassoFlowAdapter();
 
       const result = await adapter.getAccountInfo('test-api-key');
 
       expect(result).toEqual({
-        accountNumber: '0393873630',
-        bankName: 'Ngân hàng TMCP Quân đội',
+        businessId: '17122',
+        accounts: [
+          {
+            accountNumber: '0393873630',
+            bankName: 'Ngân hàng TMCP Quân đội',
+            accountHolderName: 'LE NGOC ANH',
+          },
+          {
+            accountNumber: '88888888',
+            bankName: 'VPBank',
+            accountHolderName: 'TRAN THI B',
+          },
+        ],
       });
       const [url, init] = fetchMock.mock.calls[0];
       expect(url).toBe('https://oauth.casso.vn/v2/userInfo');
       expect(init.headers.Authorization).toBe('Apikey test-api-key');
+    });
+
+    it('defaults accountHolderName to an empty string when Casso Flow omits it', async () => {
+      const accWithoutHolderName = {
+        ...realBankAcc,
+        bankAccountName: undefined,
+      };
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(
+          jsonResponse(200, userInfoResponse([accWithoutHolderName])),
+        ) as never;
+      const adapter = new CassoFlowAdapter();
+
+      const result = await adapter.getAccountInfo('test-api-key');
+
+      expect(result.accounts[0]?.accountHolderName).toBe('');
     });
 
     it('throws if bankAccs is empty (no bank account linked yet)', async () => {
@@ -88,6 +125,25 @@ describe('CassoFlowAdapter', () => {
 
       await expect(adapter.getAccountInfo('test-api-key')).rejects.toThrow(
         'no linked bank account',
+      );
+    });
+
+    it('throws if business.id is missing', async () => {
+      const responseWithoutBusiness = {
+        error: 0,
+        message: 'success',
+        data: {
+          user: { id: 20841, email: 'test@example.com' },
+          bankAccs: [realBankAcc],
+        },
+      };
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue(jsonResponse(200, responseWithoutBusiness)) as never;
+      const adapter = new CassoFlowAdapter();
+
+      await expect(adapter.getAccountInfo('test-api-key')).rejects.toThrow(
+        'business.id',
       );
     });
 
@@ -142,7 +198,7 @@ describe('CassoFlowAdapter', () => {
 
       const result = await adapter.getAccountInfo('test-api-key');
 
-      expect(result.accountNumber).toBe('0393873630');
+      expect(result.accounts[0]?.accountNumber).toBe('0393873630');
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
   });

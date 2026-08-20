@@ -1,6 +1,12 @@
-export interface CassoFlowAccountInfo {
+export interface CassoFlowBankAccount {
   accountNumber: string;
   bankName: string;
+  accountHolderName: string;
+}
+
+export interface CassoFlowAccountInfo {
+  businessId: string;
+  accounts: CassoFlowBankAccount[];
 }
 
 export interface ICassoFlowIntegrationAdapter {
