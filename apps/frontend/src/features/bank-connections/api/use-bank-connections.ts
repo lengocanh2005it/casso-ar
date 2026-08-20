@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/auth-context';
 import {
   connectCassoFlow,
   disconnectConnection,
@@ -42,11 +43,13 @@ export function useConnectCassoFlow() {
 
 export function useDisconnectConnection() {
   const queryClient = useQueryClient();
+  const { refreshUser } = useAuth();
   return useMutation({
     mutationFn: disconnectConnection,
     onSuccess: () => {
       toast.success('Đã ngắt kết nối ngân hàng.');
       void queryClient.invalidateQueries({ queryKey });
+      void refreshUser();
     },
     onError: () => toast.error('Không thể ngắt kết nối ngân hàng.'),
   });
