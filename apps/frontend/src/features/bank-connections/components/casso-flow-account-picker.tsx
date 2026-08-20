@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { dispatchGlobalEvent, GLOBAL_EVENTS } from '@/lib/global-events';
 import type {
   CassoFlowAccountPreview,
   ConnectCassoFlowResult,
@@ -57,6 +58,9 @@ export function CassoFlowAccountPicker({
     null,
   );
   const [selected, setSelected] = useState<string[]>([]);
+  const [missingAccountNumbers, setMissingAccountNumbers] = useState<string[]>(
+    [],
+  );
   const [skipped, setSkipped] = useState<ConnectCassoFlowResult['skipped']>([]);
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -71,6 +75,9 @@ export function CassoFlowAccountPicker({
     try {
       const result = await onPreview(trimmed);
       setAccounts(result.accounts);
+      setMissingAccountNumbers(
+        'missingAccountNumbers' in result ? result.missingAccountNumbers : [],
+      );
       setSelected(
         result.accounts
           .filter(
@@ -98,6 +105,11 @@ export function CassoFlowAccountPicker({
       const result = await onConfirm(apiKey.trim(), selected);
       if (hasSkippedAccounts(result) && result.skipped.length > 0) {
         setSkipped(result.skipped);
+        if (
+          result.skipped.some((item) => item.reason === 'PLAN_LIMIT_EXCEEDED')
+        ) {
+          dispatchGlobalEvent(GLOBAL_EVENTS.PLAN_LIMIT);
+        }
         return;
       }
       onCompleted?.();
@@ -128,6 +140,12 @@ export function CassoFlowAccountPicker({
 
   return (
     <form onSubmit={handleConfirm} className="space-y-4 pt-2">
+      {missingAccountNumbers.length > 0 && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {missingAccountNumbers.join(', ')} không tìm thấy trong API Key mới,
+          sẽ giữ nguyên trạng thái hiện tại.
+        </p>
+      )}
       <fieldset className="space-y-3">
         <legend className="text-sm font-medium">
           Chọn tài khoản ngân hàng

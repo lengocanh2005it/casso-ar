@@ -1,6 +1,17 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CassoFlowAccountPicker } from './casso-flow-account-picker';
+
+const dispatchGlobalEvent = vi.hoisted(() => vi.fn());
+
+vi.mock('@/lib/global-events', () => ({
+  GLOBAL_EVENTS: { PLAN_LIMIT: 'casso:plan-limit' },
+  dispatchGlobalEvent,
+}));
+
+beforeEach(() => {
+  dispatchGlobalEvent.mockReset();
+});
 
 describe('CassoFlowAccountPicker', () => {
   it('previews accounts and submits the checked accounts', async () => {
@@ -87,6 +98,36 @@ describe('CassoFlowAccountPicker', () => {
 
     expect(
       await screen.findByText(/111.*vượt hạn mức gói dịch vụ/i),
+    ).toBeInTheDocument();
+    expect(dispatchGlobalEvent).toHaveBeenCalledWith('casso:plan-limit');
+  });
+
+  it('shows missing accounts as informational during API-key rotation', async () => {
+    const onPreview = vi.fn().mockResolvedValue({
+      businessId: 'biz-1',
+      accounts: [],
+      missingAccountNumbers: ['999'],
+    });
+
+    render(
+      <CassoFlowAccountPicker
+        onPreview={onPreview}
+        onConfirm={vi.fn().mockResolvedValue({
+          rotatedAccountNumbers: [],
+          newlyDiscovered: [],
+        })}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(/Casso Flow API Key/i), {
+      target: { value: 'replacement-key' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /xem tài khoản/i }));
+
+    expect(
+      await screen.findByText(
+        /999.*không tìm thấy trong API Key mới, sẽ giữ nguyên trạng thái hiện tại/i,
+      ),
     ).toBeInTheDocument();
   });
 });
