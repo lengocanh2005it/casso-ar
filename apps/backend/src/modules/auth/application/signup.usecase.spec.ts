@@ -75,7 +75,7 @@ describe('SignupUseCase', () => {
     expect(verificationTokenRepo.save).toHaveBeenCalled();
     expect(emailSender.sendVerificationEmail).toHaveBeenCalledWith(
       'ap@congtyb.vn',
-      expect.stringContaining('/verify-email?token='),
+      expect.stringMatching(/^https?:\/\/[^/]+\/verify-email\?token=/),
     );
   });
 

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { buildFrontendUrl } from '../../../common/config/frontend-url';
 import {
   type IUserRepository,
   USER_REPOSITORY,
@@ -51,7 +52,7 @@ export class ResendVerificationEmailUseCase {
 
     await this.emailSender.sendVerificationEmail(
       user.email,
-      `/verify-email?token=${token}`,
+      buildFrontendUrl(`/verify-email?token=${token}`),
     );
   }
 }

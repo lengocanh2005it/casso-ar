@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { buildFrontendUrl } from '../../../common/config/frontend-url';
 import type { Role } from '../../organizations/domain/membership';
 import { MembershipInvite } from '../domain/membership-invite';
 import {
@@ -51,7 +52,7 @@ export class InviteMemberUseCase {
     });
     await this.emailSender.sendInviteEmail(
       invite.email,
-      `/invites/accept?token=${token}`,
+      buildFrontendUrl(`/invite-accept?token=${token}`),
       input.organizationName,
     );
   }
