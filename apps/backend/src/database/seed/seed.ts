@@ -30,6 +30,10 @@ import {
   INVOICE_REPOSITORY,
 } from '../../modules/invoices/application/invoice-repository.port';
 import { Invoice } from '../../modules/invoices/domain/invoice';
+import {
+  type IOrganizationRepository,
+  ORGANIZATION_REPOSITORY,
+} from '../../modules/organizations/application/organization-repository.port';
 import { Role } from '../../modules/organizations/domain/membership';
 import { AllocatePaymentUseCase } from '../../modules/payments/application/allocate-payment.usecase';
 import {
@@ -120,6 +124,14 @@ async function main() {
       taxCode: '0000000000',
     });
     await userRepo.save(user.markEmailVerified());
+
+    // Seed's fake taxCode won't match any real VietQR business name, so
+    // signup lands the org in PENDING_REVIEW — force-approve it so the seed
+    // owner can actually log in.
+    const organizationRepo = app.get<IOrganizationRepository>(
+      ORGANIZATION_REPOSITORY,
+    );
+    await organizationRepo.save(organization.approve());
 
     const tenantContext = app.get(TenantContextService);
     const customerRepo = app.get<ICustomerRepository>(CUSTOMER_REPOSITORY);
