@@ -28,10 +28,13 @@ export function ConnectDialog() {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Kết nối Casso Flow</DialogTitle>
+          <DialogTitle>
+            Kết nối <span className="text-primary">Casso Flow</span>
+          </DialogTitle>
           <DialogDescription>
-            Nhập API Key từ tài khoản Casso Flow của bạn để đồng bộ giao dịch
-            ngân hàng.
+            Nhập API Key từ tài khoản{' '}
+            <span className="text-primary">Casso Flow</span> của bạn để đồng bộ
+            giao dịch ngân hàng.
           </DialogDescription>
         </DialogHeader>
         <CassoFlowConnectForm onCompleted={() => setOpen(false)} />

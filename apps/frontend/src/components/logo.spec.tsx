@@ -14,4 +14,9 @@ describe('Logo', () => {
     expect(screen.getByTitle('CASSO')).toBeInTheDocument();
     expect(screen.queryByText('Casso Ledger')).not.toBeInTheDocument();
   });
+
+  it('renders the wordmark in the brand green by default', () => {
+    render(<Logo />);
+    expect(screen.getByText('Casso Ledger')).toHaveClass('text-primary');
+  });
 });

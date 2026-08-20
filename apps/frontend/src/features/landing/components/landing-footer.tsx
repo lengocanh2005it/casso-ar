@@ -13,7 +13,9 @@ export function LandingFooter() {
           <Logo className="h-7" wordmarkClassName="text-primary" />
         </Link>
         <p className="text-base text-muted-foreground">
-          © {new Date().getFullYear()} Casso Ledger. Đã đăng ký bản quyền.
+          © {new Date().getFullYear()}{' '}
+          <span className="text-primary">Casso Ledger</span>. Đã đăng ký bản
+          quyền.
         </p>
         <div className="flex items-center gap-4 text-base">
           <Link

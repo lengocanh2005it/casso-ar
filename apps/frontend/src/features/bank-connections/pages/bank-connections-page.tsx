@@ -14,7 +14,8 @@ export function BankConnectionsPage() {
             Kết nối ngân hàng
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Kết nối Casso Flow để tự động đồng bộ giao dịch ngân hàng.
+            Kết nối <span className="text-primary">Casso Flow</span> để tự động
+            đồng bộ giao dịch ngân hàng.
           </p>
         </div>
         <ConnectDialog />

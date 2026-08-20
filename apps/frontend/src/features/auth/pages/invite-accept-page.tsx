@@ -47,7 +47,8 @@ export function InviteAcceptPage() {
         <div role="status" className="space-y-2">
           <h1 className="text-xl font-semibold">Tham gia tổ chức thành công</h1>
           <p className="text-sm text-muted-foreground">
-            Bạn có thể đăng nhập để bắt đầu sử dụng Casso Ledger.
+            Bạn có thể đăng nhập để bắt đầu sử dụng{' '}
+            <span className="text-primary">Casso Ledger</span>.
           </p>
           <Link
             to="/login"

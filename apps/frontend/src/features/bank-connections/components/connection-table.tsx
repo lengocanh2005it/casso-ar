@@ -122,9 +122,14 @@ export function ConnectionTable({
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Kết nối lại Casso Flow</DialogTitle>
+                        <DialogTitle>
+                          Kết nối lại{' '}
+                          <span className="text-primary">Casso Flow</span>
+                        </DialogTitle>
                         <DialogDescription>
-                          Nhập API Key mới từ tài khoản Casso Flow của bạn.
+                          Nhập API Key mới từ tài khoản{' '}
+                          <span className="text-primary">Casso Flow</span> của
+                          bạn.
                         </DialogDescription>
                       </DialogHeader>
                       <CassoFlowConnectForm

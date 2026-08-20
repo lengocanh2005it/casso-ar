@@ -45,7 +45,7 @@ export function Logo({
       <CassoIcon className={cn('h-8 w-8 shrink-0', iconClassName)} />
       <span
         className={cn(
-          'text-lg font-bold tracking-tight text-foreground',
+          'text-lg font-bold tracking-tight text-primary',
           wordmarkClassName,
         )}
       >

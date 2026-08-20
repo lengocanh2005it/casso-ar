@@ -22,7 +22,11 @@ export function AboutSection() {
                 'bold' in segment && segment.bold ? (
                   <strong
                     key={segment.text}
-                    className="font-semibold text-foreground"
+                    className={
+                      segment.text === 'Casso Ledger'
+                        ? 'font-semibold text-primary'
+                        : 'font-semibold text-foreground'
+                    }
                   >
                     {segment.text}
                   </strong>

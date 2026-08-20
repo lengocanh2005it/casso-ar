@@ -22,6 +22,7 @@ function renderPage(user: { role: string; bankingLinked: boolean }) {
     defaultOptions: { queries: { retry: false } },
   });
   const refreshUser = vi.fn().mockResolvedValue(undefined);
+  const logout = vi.fn().mockResolvedValue(undefined);
   useAuthMock.mockReturnValue({
     user: {
       id: 'user-1',
@@ -35,10 +36,12 @@ function renderPage(user: { role: string; bankingLinked: boolean }) {
     isLoading: false,
     isAuthenticated: true,
     refreshUser,
+    logout,
   } as never);
 
   return {
     refreshUser,
+    logout,
     ...render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={['/onboarding']}>
@@ -64,6 +67,18 @@ describe('OnboardingPage', () => {
 
     expect(screen.getByText('Liên kết ngân hàng')).toBeInTheDocument();
     expect(screen.getByText(/owner hoặc finance manager/i)).toBeInTheDocument();
+  });
+
+  it('shows the logo and lets the user log out without connecting', () => {
+    useConnectCassoFlowMock.mockReturnValue({} as never);
+
+    const { logout } = renderPage({ role: 'OWNER', bankingLinked: false });
+
+    expect(screen.getByRole('link', { name: /casso ledger/i })).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: /đăng xuất/i }));
+
+    expect(logout).toHaveBeenCalledOnce();
   });
 
   it('refreshes the profile and navigates to dashboard after connecting', async () => {
