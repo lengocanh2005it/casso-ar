@@ -12,10 +12,10 @@ export type BankConnectionStatus =
 export interface BankConnectionProps {
   id: string;
   organizationId: string;
+  cassoFlowAuthorizationId: string;
   accountNumber: string;
   bankName: string;
-  encryptedSecureToken: string;
-  encryptedCassoApiKey: string;
+  accountHolderName: string;
   status: BankConnectionStatus;
   connectedAt: Date | null;
   lastSyncAt: Date | null;
@@ -26,10 +26,10 @@ export interface BankConnectionProps {
 export class BankConnection {
   readonly id: string;
   readonly organizationId: string;
+  readonly cassoFlowAuthorizationId: string;
   readonly accountNumber: string;
   readonly bankName: string;
-  readonly encryptedSecureToken: string;
-  readonly encryptedCassoApiKey: string;
+  readonly accountHolderName: string;
   readonly status: BankConnectionStatus;
   readonly connectedAt: Date | null;
   readonly lastSyncAt: Date | null;
@@ -65,8 +65,8 @@ export class BankConnection {
   reactivate(input: {
     accountNumber: string;
     bankName: string;
-    encryptedSecureToken: string;
-    encryptedCassoApiKey: string;
+    accountHolderName: string;
+    cassoFlowAuthorizationId: string;
   }): BankConnection {
     if (this.status !== 'REQUIRES_REAUTHORIZATION' && this.status !== 'ERROR') {
       throw new Error(
@@ -80,6 +80,18 @@ export class BankConnection {
       connectedAt: new Date(),
       revokedAt: null,
     });
+  }
+
+  rotateApiKey(input: {
+    bankName: string;
+    accountHolderName: string;
+  }): BankConnection {
+    if (this.status !== 'ACTIVE') {
+      throw new Error(
+        `Cannot rotate the API Key of a connection in status ${this.status}`,
+      );
+    }
+    return new BankConnection({ ...this, ...input });
   }
 
   disconnect(): BankConnection {

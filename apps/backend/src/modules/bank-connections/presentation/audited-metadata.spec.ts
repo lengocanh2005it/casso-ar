@@ -38,14 +38,25 @@ describe('audited metadata on write handlers (issue #104)', () => {
     });
   });
 
-  it('audits bank-connection connect as BANK_CONNECTION_CREATE', () => {
+  it('audits bank-connection confirm as BANK_CONNECTION_CREATE', () => {
     const metadata = Reflect.getMetadata(
       AUDITED_METADATA_KEY,
-      BankConnectionsController.prototype.connect,
+      BankConnectionsController.prototype.confirm,
     );
     expect(metadata).toEqual({
       actionType: 'BANK_CONNECTION_CREATE',
       entityType: 'BankConnection',
+    });
+  });
+
+  it('audits authorization rotation as BANK_CONNECTION_API_KEY_ROTATE', () => {
+    const metadata = Reflect.getMetadata(
+      AUDITED_METADATA_KEY,
+      BankConnectionsController.prototype.rotate,
+    );
+    expect(metadata).toEqual({
+      actionType: 'BANK_CONNECTION_API_KEY_ROTATE',
+      entityType: 'CassoFlowAuthorization',
     });
   });
 });

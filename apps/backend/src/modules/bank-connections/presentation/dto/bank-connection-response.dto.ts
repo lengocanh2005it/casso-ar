@@ -2,8 +2,10 @@ import { BankConnection } from '../../domain/bank-connection';
 
 export class BankConnectionResponseDto {
   id: string;
+  cassoFlowAuthorizationId: string;
   accountNumber: string;
   bankName: string;
+  accountHolderName: string;
   status: string;
   connectedAt: Date | null;
   lastSyncAt: Date | null;
@@ -22,8 +24,10 @@ export function toBankConnectionResponse(
 ): BankConnectionResponseDto {
   const dto = new BankConnectionResponseDto();
   dto.id = connection.id;
+  dto.cassoFlowAuthorizationId = connection.cassoFlowAuthorizationId;
   dto.accountNumber = connection.accountNumber;
   dto.bankName = connection.bankName;
+  dto.accountHolderName = connection.accountHolderName;
   dto.status = connection.status;
   dto.connectedAt = connection.connectedAt;
   dto.lastSyncAt = connection.lastSyncAt;

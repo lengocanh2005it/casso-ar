@@ -6,6 +6,10 @@ import {
   BANK_CONNECTION_REPOSITORY,
   type IBankConnectionRepository,
 } from '../../bank-connections/application/bank-connection-repository.port';
+import {
+  CASSO_FLOW_AUTHORIZATION_REPOSITORY,
+  type ICassoFlowAuthorizationRepository,
+} from '../../bank-connections/application/casso-flow-authorization-repository.port';
 import { decryptToken } from '../../bank-connections/application/token-encryption';
 import { ACCESS_TOKEN_ENCRYPTION_KEY } from '../../bank-connections/application/token-encryption-key';
 import { WebhookInbox } from '../domain/webhook-inbox';
@@ -45,6 +49,8 @@ export class ReceiveWebhookUseCase {
     private readonly dataSource: DataSource,
     @Inject(ACCESS_TOKEN_ENCRYPTION_KEY)
     private readonly encryptionKey: string,
+    @Inject(CASSO_FLOW_AUTHORIZATION_REPOSITORY)
+    private readonly authorizationRepo: ICassoFlowAuthorizationRepository,
   ) {}
 
   async execute(input: ReceiveWebhookInput): Promise<ReceiveWebhookResult> {
@@ -53,8 +59,13 @@ export class ReceiveWebhookUseCase {
     );
     if (!connection) return { received: true, ignored: true };
 
+    const authorization = await this.authorizationRepo.findByIdUnscoped(
+      connection.cassoFlowAuthorizationId,
+    );
+    if (!authorization) return { received: true, ignored: true };
+
     const expectedSecret = decryptToken(
-      connection.encryptedSecureToken,
+      authorization.encryptedSecureToken,
       this.encryptionKey,
     );
     if (!equalsConstantTime(input.webhookSecret, expectedSecret)) {

@@ -11,11 +11,17 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
-import { CassoFlowConnectForm } from './casso-flow-connect-form';
+import {
+  useConfirmCassoFlow,
+  usePreviewCassoFlowAccounts,
+} from '../api/use-bank-connections';
+import { CassoFlowAccountPicker } from './casso-flow-account-picker';
 
 export function ConnectDialog() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const previewMutation = usePreviewCassoFlowAccounts();
+  const confirmMutation = useConfirmCassoFlow();
 
   if (!hasPermission(user?.role ?? null, Permission.BANK_CONNECTION_MANAGE)) {
     return null;
@@ -37,7 +43,13 @@ export function ConnectDialog() {
             giao dịch ngân hàng.
           </DialogDescription>
         </DialogHeader>
-        <CassoFlowConnectForm onCompleted={() => setOpen(false)} />
+        <CassoFlowAccountPicker
+          onPreview={(apiKey) => previewMutation.mutateAsync({ apiKey })}
+          onConfirm={(apiKey, selectedAccountNumbers) =>
+            confirmMutation.mutateAsync({ apiKey, selectedAccountNumbers })
+          }
+          onCompleted={() => setOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   );

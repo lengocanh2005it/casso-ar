@@ -1,5 +1,7 @@
 import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { BankConnection } from '../domain/bank-connection';
+import { CassoFlowAuthorization } from '../domain/casso-flow-authorization';
 import { ConnectCassoFlowUseCase } from './connect-casso-flow.usecase';
 
 const encryptionKey =
@@ -11,155 +13,276 @@ const dataSource = {
   ),
 };
 
+function buildDeps(
+  overrides: {
+    getAccountInfo?: jest.Mock;
+    findByAccountNumbers?: jest.Mock;
+    findByBusinessIdForOrganization?: jest.Mock;
+    enforceBankConnectionLimit?: jest.Mock;
+  } = {},
+) {
+  const adapter = {
+    getAccountInfo:
+      overrides.getAccountInfo ??
+      jest.fn().mockResolvedValue({
+        businessId: 'biz-1',
+        accounts: [
+          { accountNumber: '111', bankName: 'Bank A', accountHolderName: 'A' },
+        ],
+      }),
+    registerWebhook: jest.fn().mockResolvedValue(undefined),
+  };
+  const bankConnectionRepo = {
+    findByAccountNumbers:
+      overrides.findByAccountNumbers ?? jest.fn().mockResolvedValue(new Map()),
+    save: jest.fn(),
+    countActiveByOrganization: jest.fn().mockResolvedValue(0),
+  };
+  const authorizationRepo = {
+    findByBusinessIdForOrganization:
+      overrides.findByBusinessIdForOrganization ??
+      jest.fn().mockResolvedValue(null),
+    save: jest.fn(),
+  };
+  const auditEventRepo = { save: jest.fn() };
+  const planLimitService = {
+    enforceBankConnectionLimit:
+      overrides.enforceBankConnectionLimit ??
+      jest.fn().mockResolvedValue(undefined),
+  };
+  return {
+    adapter,
+    bankConnectionRepo,
+    authorizationRepo,
+    auditEventRepo,
+    planLimitService,
+  };
+}
+
 describe('ConnectCassoFlowUseCase', () => {
-  it('reads account info, registers a webhook, and creates the connection', async () => {
-    const bankConnectionRepo = {
-      findActiveOrReauthorizableByOrganizationForUpdate: jest
-        .fn()
-        .mockResolvedValue(null),
-      save: jest.fn(),
-      countActiveByOrganization: jest.fn().mockResolvedValue(0),
-    };
-    const auditEventRepo = { save: jest.fn() };
-    const adapter = {
-      getAccountInfo: jest
-        .fn()
-        .mockResolvedValue({ accountNumber: '0011002233', bankName: 'VPBank' }),
-      registerWebhook: jest.fn().mockResolvedValue(undefined),
-    };
+  it('creates a new authorization, registers the webhook once, and connects the selected account', async () => {
+    const deps = buildDeps();
     const useCase = new ConnectCassoFlowUseCase(
-      adapter as never,
-      bankConnectionRepo as never,
-      auditEventRepo as never,
+      deps.adapter as never,
+      deps.bankConnectionRepo as never,
+      deps.authorizationRepo as never,
+      deps.auditEventRepo as never,
       dataSource as never,
       encryptionKey,
-      { enforceBankConnectionLimit: jest.fn() } as never,
+      deps.planLimitService as never,
     );
 
     const result = await useCase.execute({
       organizationId: 'org-1',
       apiKey: 'real-api-key',
+      selectedAccountNumbers: ['111'],
     });
 
-    expect(result.status).toBe('ACTIVE');
-    expect(result.accountNumber).toBe('0011002233');
-    expect(adapter.getAccountInfo).toHaveBeenCalledWith('real-api-key');
-    expect(adapter.registerWebhook).toHaveBeenCalledWith(
-      'real-api-key',
-      expect.any(String),
+    expect(result.connected).toEqual([
+      { connectionId: expect.any(String), accountNumber: '111' },
+    ]);
+    expect(result.skipped).toEqual([]);
+    expect(deps.adapter.registerWebhook).toHaveBeenCalledTimes(1);
+    expect(deps.authorizationRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationId: 'org-1', businessId: 'biz-1' }),
     );
-    expect(bankConnectionRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ organizationId: 'org-1', status: 'ACTIVE' }),
+    expect(deps.bankConnectionRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: 'org-1',
+        accountNumber: '111',
+        status: 'ACTIVE',
+      }),
+      expect.anything(),
+    );
+    expect(deps.auditEventRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: 'TOKEN_EXCHANGED' }),
       expect.anything(),
     );
   });
 
+  it('reuses an existing authorization for the same businessId, without re-registering the webhook', async () => {
+    const existingAuthorization = new CassoFlowAuthorization({
+      id: 'auth-1',
+      organizationId: 'org-1',
+      businessId: 'biz-1',
+      encryptedApiKey: 'old',
+      encryptedSecureToken: 'old',
+      createdAt: new Date(),
+    });
+    const deps = buildDeps({
+      findByBusinessIdForOrganization: jest
+        .fn()
+        .mockResolvedValue(existingAuthorization),
+    });
+    const useCase = new ConnectCassoFlowUseCase(
+      deps.adapter as never,
+      deps.bankConnectionRepo as never,
+      deps.authorizationRepo as never,
+      deps.auditEventRepo as never,
+      dataSource as never,
+      encryptionKey,
+      deps.planLimitService as never,
+    );
+
+    await useCase.execute({
+      organizationId: 'org-1',
+      apiKey: 'real-api-key',
+      selectedAccountNumbers: ['111'],
+    });
+
+    expect(deps.adapter.registerWebhook).not.toHaveBeenCalled();
+    expect(deps.authorizationRepo.save).not.toHaveBeenCalled();
+    expect(deps.bankConnectionRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ cassoFlowAuthorizationId: 'auth-1' }),
+      expect.anything(),
+    );
+  });
+
+  it('skips accounts already taken by another org, without touching the authorization if none are eligible', async () => {
+    const deps = buildDeps({
+      getAccountInfo: jest.fn().mockResolvedValue({
+        businessId: 'biz-1',
+        accounts: [
+          { accountNumber: '111', bankName: 'Bank A', accountHolderName: 'A' },
+        ],
+      }),
+      findByAccountNumbers: jest
+        .fn()
+        .mockResolvedValue(new Map([['111', { organizationId: 'org-OTHER' }]])),
+    });
+    const useCase = new ConnectCassoFlowUseCase(
+      deps.adapter as never,
+      deps.bankConnectionRepo as never,
+      deps.authorizationRepo as never,
+      deps.auditEventRepo as never,
+      dataSource as never,
+      encryptionKey,
+      deps.planLimitService as never,
+    );
+
+    const result = await useCase.execute({
+      organizationId: 'org-1',
+      apiKey: 'real-api-key',
+      selectedAccountNumbers: ['111'],
+    });
+
+    expect(result.connected).toEqual([]);
+    expect(result.skipped).toEqual([
+      { accountNumber: '111', reason: 'TAKEN_BY_ANOTHER_ORG' },
+    ]);
+    expect(deps.adapter.registerWebhook).not.toHaveBeenCalled();
+    expect(deps.authorizationRepo.save).not.toHaveBeenCalled();
+  });
+
   it('reactivates an existing REQUIRES_REAUTHORIZATION connection instead of creating a new one', async () => {
-    const existing = new BankConnection({
+    const existingConnection = new BankConnection({
       id: 'conn-1',
       organizationId: 'org-1',
-      accountNumber: '0011002233',
+      cassoFlowAuthorizationId: 'auth-old',
+      accountNumber: '111',
       bankName: 'Old Bank',
-      encryptedSecureToken: 'old-secure-token',
-      encryptedCassoApiKey: 'old-api-key',
+      accountHolderName: 'OLD NAME',
       status: 'REQUIRES_REAUTHORIZATION',
       connectedAt: new Date(),
       lastSyncAt: null,
       revokedAt: null,
       createdAt: new Date(),
     });
-    const bankConnectionRepo = {
-      findActiveOrReauthorizableByOrganizationForUpdate: jest
+    const deps = buildDeps({
+      findByAccountNumbers: jest
         .fn()
-        .mockResolvedValue(existing),
-      save: jest.fn(),
-      countActiveByOrganization: jest.fn().mockResolvedValue(0),
-    };
-    const auditEventRepo = { save: jest.fn() };
-    const adapter = {
-      getAccountInfo: jest
-        .fn()
-        .mockResolvedValue({ accountNumber: '0011002233', bankName: 'VPBank' }),
-      registerWebhook: jest.fn().mockResolvedValue(undefined),
-    };
+        .mockResolvedValue(new Map([['111', existingConnection]])),
+    });
     const useCase = new ConnectCassoFlowUseCase(
-      adapter as never,
-      bankConnectionRepo as never,
-      auditEventRepo as never,
+      deps.adapter as never,
+      deps.bankConnectionRepo as never,
+      deps.authorizationRepo as never,
+      deps.auditEventRepo as never,
       dataSource as never,
       encryptionKey,
-      { enforceBankConnectionLimit: jest.fn() } as never,
+      deps.planLimitService as never,
     );
 
     const result = await useCase.execute({
       organizationId: 'org-1',
-      apiKey: 'new-api-key',
-      bankConnectionId: 'conn-1',
+      apiKey: 'real-api-key',
+      selectedAccountNumbers: ['111'],
     });
 
-    expect(result.id).toBe('conn-1');
-    expect(result.status).toBe('ACTIVE');
-    expect(auditEventRepo.save).toHaveBeenCalledWith(
+    expect(result.connected).toEqual([
+      { connectionId: 'conn-1', accountNumber: '111' },
+    ]);
+    expect(deps.bankConnectionRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'conn-1', status: 'ACTIVE' }),
+      expect.anything(),
+    );
+    expect(deps.auditEventRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'RECONNECTED' }),
       expect.anything(),
     );
   });
 
-  it("rejects when bankConnectionId does not match the organization's reconnectable connection", async () => {
-    const bankConnectionRepo = {
-      findActiveOrReauthorizableByOrganizationForUpdate: jest
+  it('stops at the plan limit and reports the remaining accounts as skipped', async () => {
+    const deps = buildDeps({
+      getAccountInfo: jest.fn().mockResolvedValue({
+        businessId: 'biz-1',
+        accounts: [
+          { accountNumber: '111', bankName: 'Bank A', accountHolderName: 'A' },
+          { accountNumber: '222', bankName: 'Bank B', accountHolderName: 'B' },
+        ],
+      }),
+      enforceBankConnectionLimit: jest
         .fn()
-        .mockResolvedValue(null),
-      save: jest.fn(),
-      countActiveByOrganization: jest.fn().mockResolvedValue(0),
-    };
-    const adapter = {
-      getAccountInfo: jest
-        .fn()
-        .mockResolvedValue({ accountNumber: '0011002233', bankName: 'VPBank' }),
-      registerWebhook: jest.fn().mockResolvedValue(undefined),
-    };
+        .mockRejectedValue(
+          new AppError(ErrorCode.PLAN_LIMIT_EXCEEDED, 'Đã đạt giới hạn gói.'),
+        ),
+    });
     const useCase = new ConnectCassoFlowUseCase(
-      adapter as never,
-      bankConnectionRepo as never,
-      { save: jest.fn() } as never,
+      deps.adapter as never,
+      deps.bankConnectionRepo as never,
+      deps.authorizationRepo as never,
+      deps.auditEventRepo as never,
       dataSource as never,
       encryptionKey,
-      { enforceBankConnectionLimit: jest.fn() } as never,
+      deps.planLimitService as never,
+    );
+
+    const result = await useCase.execute({
+      organizationId: 'org-1',
+      apiKey: 'real-api-key',
+      selectedAccountNumbers: ['111', '222'],
+    });
+
+    expect(result.connected).toEqual([]);
+    expect(result.skipped).toEqual([
+      { accountNumber: '111', reason: 'PLAN_LIMIT_EXCEEDED' },
+    ]);
+  });
+
+  it('propagates a CassoFlowUnauthorizedError for an invalid API Key without persisting anything', async () => {
+    const deps = buildDeps({
+      getAccountInfo: jest
+        .fn()
+        .mockRejectedValue(new Error('Casso Flow API Key rejected')),
+    });
+    const useCase = new ConnectCassoFlowUseCase(
+      deps.adapter as never,
+      deps.bankConnectionRepo as never,
+      deps.authorizationRepo as never,
+      deps.auditEventRepo as never,
+      dataSource as never,
+      encryptionKey,
+      deps.planLimitService as never,
     );
 
     await expect(
       useCase.execute({
         organizationId: 'org-1',
-        apiKey: 'new-api-key',
-        bankConnectionId: 'stale-conn-id',
+        apiKey: 'bad-key',
+        selectedAccountNumbers: ['111'],
       }),
-    ).rejects.toThrow(AppError);
-    expect(bankConnectionRepo.save).not.toHaveBeenCalled();
-  });
-
-  it('propagates a CassoFlowUnauthorizedError for an invalid API Key without persisting anything', async () => {
-    const bankConnectionRepo = {
-      findActiveOrReauthorizableByOrganizationForUpdate: jest.fn(),
-      save: jest.fn(),
-    };
-    const adapter = {
-      getAccountInfo: jest
-        .fn()
-        .mockRejectedValue(new Error('Casso Flow API Key rejected')),
-    };
-    const useCase = new ConnectCassoFlowUseCase(
-      adapter as never,
-      bankConnectionRepo as never,
-      { save: jest.fn() } as never,
-      dataSource as never,
-      encryptionKey,
-      {} as never,
-    );
-
-    await expect(
-      useCase.execute({ organizationId: 'org-1', apiKey: 'bad-key' }),
     ).rejects.toThrow('Casso Flow API Key rejected');
-    expect(bankConnectionRepo.save).not.toHaveBeenCalled();
+    expect(deps.bankConnectionRepo.save).not.toHaveBeenCalled();
+    expect(deps.authorizationRepo.save).not.toHaveBeenCalled();
   });
 });

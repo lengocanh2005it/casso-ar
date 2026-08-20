@@ -11,6 +11,10 @@ import {
   type IBankConnectionRepository,
 } from './bank-connection-repository.port';
 import {
+  CASSO_FLOW_AUTHORIZATION_REPOSITORY,
+  type ICassoFlowAuthorizationRepository,
+} from './casso-flow-authorization-repository.port';
+import {
   CASSO_FLOW_INTEGRATION_ADAPTER,
   type ICassoFlowIntegrationAdapter,
 } from './casso-flow-integration-adapter.port';
@@ -36,23 +40,17 @@ export class DisconnectConnectionUseCase {
     @Inject(ACCESS_TOKEN_ENCRYPTION_KEY)
     private readonly encryptionKey: string,
     private readonly auditContext: AuditContextService,
+    @Inject(CASSO_FLOW_AUTHORIZATION_REPOSITORY)
+    private readonly authorizationRepo: ICassoFlowAuthorizationRepository,
   ) {}
 
   async execute(connectionId: string): Promise<void> {
     const connection = await this.bankConnectionRepo.findById(connectionId);
     this.assertFound(connection);
-    // External call stays outside the transaction — only the DB writes below are wrapped.
-    try {
-      await this.adapter.invalidateToken(
-        decryptToken(connection.encryptedCassoApiKey, this.encryptionKey),
-      );
-    } catch (error) {
-      await this.markRequiresReauthorization.handleAdapterError(
-        connectionId,
-        '401/403 from invalidateToken',
-        error,
-      );
-    }
+
+    let cassoFlowAuthorizationId = connection.cassoFlowAuthorizationId;
+    let shouldInvalidateToken = false;
+
     await this.dataSource.transaction(async (manager) => {
       // Re-fetch under a row lock: the connection may have changed between
       // the unlocked read above and this transaction (e.g. a concurrent
@@ -63,6 +61,7 @@ export class DisconnectConnectionUseCase {
       );
       this.assertFound(locked);
       this.auditContext.setBefore(locked);
+      cassoFlowAuthorizationId = locked.cassoFlowAuthorizationId;
       await this.bankConnectionRepo.save(locked.disconnect(), manager);
       await this.auditEventRepo.save(
         new ConnectionAuditEvent({
@@ -75,7 +74,33 @@ export class DisconnectConnectionUseCase {
         }),
         manager,
       );
+      const remainingActive =
+        await this.bankConnectionRepo.countActiveByAuthorization(
+          cassoFlowAuthorizationId,
+          manager,
+        );
+      shouldInvalidateToken = remainingActive === 0;
     });
+
+    if (!shouldInvalidateToken) return;
+
+    const authorization = await this.authorizationRepo.findByIdUnscoped(
+      cassoFlowAuthorizationId,
+    );
+    if (!authorization) return; // defensive — should not happen, the FK guarantees it exists
+
+    // External call stays outside the transaction, same as elsewhere in this module.
+    try {
+      await this.adapter.invalidateToken(
+        decryptToken(authorization.encryptedApiKey, this.encryptionKey),
+      );
+    } catch (error) {
+      await this.markRequiresReauthorization.handleAdapterError(
+        connectionId,
+        '401/403 from invalidateToken',
+        error,
+      );
+    }
   }
 
   private assertFound(

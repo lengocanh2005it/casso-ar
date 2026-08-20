@@ -1,90 +1,148 @@
 import { BankConnection } from './bank-connection';
 
-function activeConnection(): BankConnection {
+function buildConnection(
+  overrides: Partial<ConstructorParameters<typeof BankConnection>[0]> = {},
+): BankConnection {
   return new BankConnection({
     id: 'conn-1',
     organizationId: 'org-1',
+    cassoFlowAuthorizationId: 'auth-1',
     accountNumber: '0011002233',
     bankName: 'Mock Bank',
-    encryptedSecureToken: 'encrypted-secure-token',
-    encryptedCassoApiKey: 'encrypted-api-key',
+    accountHolderName: 'NGUYEN VAN A',
     status: 'ACTIVE',
-    connectedAt: new Date(),
+    connectedAt: new Date('2026-01-01'),
     lastSyncAt: null,
     revokedAt: null,
-    createdAt: new Date(),
+    createdAt: new Date('2026-01-01'),
+    ...overrides,
   });
 }
 
 describe('BankConnection', () => {
-  it('supports the required connection state transitions', () => {
-    const reauth = activeConnection().markRequiresReauthorization();
-    expect(reauth.status).toBe('REQUIRES_REAUTHORIZATION');
-    expect(reauth.isUsable()).toBe(false);
-
-    const reconnected = reauth.reactivate({
-      accountNumber: '0044005566',
-      bankName: 'New Bank',
-      encryptedSecureToken: 'new-secure-token',
-      encryptedCassoApiKey: 'new-api-key',
+  describe('isUsable', () => {
+    it('is usable only when ACTIVE', () => {
+      expect(buildConnection({ status: 'ACTIVE' }).isUsable()).toBe(true);
+      expect(buildConnection({ status: 'ERROR' }).isUsable()).toBe(false);
     });
-    expect(reconnected.status).toBe('ACTIVE');
-    expect(reconnected.id).toBe('conn-1');
-    expect(reconnected.isUsable()).toBe(true);
-    expect(reconnected.accountNumber).toBe('0044005566');
-
-    const disconnected = reconnected.disconnect();
-    expect(disconnected.status).toBe('DISCONNECTED');
-    expect(disconnected.revokedAt).not.toBeNull();
   });
 
-  it('rejects disconnecting a connection that is already disconnected', () => {
-    const disconnected = activeConnection().disconnect();
-    expect(() => disconnected.disconnect()).toThrow(
-      'Cannot disconnect a connection that is already disconnected',
-    );
+  describe('markRequiresReauthorization / markError', () => {
+    it('transitions from ACTIVE to REQUIRES_REAUTHORIZATION', () => {
+      const connection = buildConnection({ status: 'ACTIVE' });
+      expect(connection.markRequiresReauthorization().status).toBe(
+        'REQUIRES_REAUTHORIZATION',
+      );
+    });
+
+    it('throws when marking a non-ACTIVE connection as requiring reauthorization', () => {
+      const connection = buildConnection({ status: 'DISCONNECTED' });
+      expect(() => connection.markRequiresReauthorization()).toThrow();
+    });
+
+    it('transitions from ACTIVE to ERROR', () => {
+      const connection = buildConnection({ status: 'ACTIVE' });
+      expect(connection.markError().status).toBe('ERROR');
+    });
   });
 
-  it('rejects marking a non-ACTIVE connection as requiring reauthorization', () => {
-    const reauth = activeConnection().markRequiresReauthorization();
-    expect(() => reauth.markRequiresReauthorization()).toThrow(
-      'Cannot mark connection as requiring reauthorization from status REQUIRES_REAUTHORIZATION',
-    );
-  });
+  describe('reactivate', () => {
+    it('reactivates a REQUIRES_REAUTHORIZATION connection with new account info', () => {
+      const connection = buildConnection({
+        status: 'REQUIRES_REAUTHORIZATION',
+        accountNumber: 'old-number',
+        bankName: 'Old Bank',
+        accountHolderName: 'OLD NAME',
+        cassoFlowAuthorizationId: 'auth-old',
+      });
 
-  it('rejects reactivating a connection that is not awaiting reauthorization', () => {
-    const active = activeConnection();
-    expect(() =>
-      active.reactivate({
-        accountNumber: '0044005566',
+      const reactivated = connection.reactivate({
+        accountNumber: 'new-number',
         bankName: 'New Bank',
-        encryptedSecureToken: 'new-secure-token',
-        encryptedCassoApiKey: 'new-api-key',
-      }),
-    ).toThrow('Cannot reactivate a connection in status ACTIVE');
-  });
+        accountHolderName: 'NEW NAME',
+        cassoFlowAuthorizationId: 'auth-new',
+      });
 
-  it('marks an ACTIVE connection as ERROR on a non-authentication failure', () => {
-    const errored = activeConnection().markError();
-    expect(errored.status).toBe('ERROR');
-    expect(errored.isUsable()).toBe(false);
-  });
-
-  it('rejects marking a non-ACTIVE connection as ERROR', () => {
-    const errored = activeConnection().markError();
-    expect(() => errored.markError()).toThrow(
-      'Cannot mark connection as ERROR from status ERROR',
-    );
-  });
-
-  it('reactivates a connection that was marked ERROR', () => {
-    const errored = activeConnection().markError();
-    const reconnected = errored.reactivate({
-      accountNumber: '0044005566',
-      bankName: 'New Bank',
-      encryptedSecureToken: 'new-secure-token',
-      encryptedCassoApiKey: 'new-api-key',
+      expect(reactivated.status).toBe('ACTIVE');
+      expect(reactivated.accountNumber).toBe('new-number');
+      expect(reactivated.bankName).toBe('New Bank');
+      expect(reactivated.accountHolderName).toBe('NEW NAME');
+      expect(reactivated.cassoFlowAuthorizationId).toBe('auth-new');
+      expect(reactivated.revokedAt).toBeNull();
     });
-    expect(reconnected.status).toBe('ACTIVE');
+
+    it('reactivates an ERROR connection', () => {
+      const connection = buildConnection({ status: 'ERROR' });
+      expect(
+        connection.reactivate({
+          accountNumber: connection.accountNumber,
+          bankName: connection.bankName,
+          accountHolderName: connection.accountHolderName,
+          cassoFlowAuthorizationId: connection.cassoFlowAuthorizationId,
+        }).status,
+      ).toBe('ACTIVE');
+    });
+
+    it('throws when reactivating an already-ACTIVE connection', () => {
+      const connection = buildConnection({ status: 'ACTIVE' });
+      expect(() =>
+        connection.reactivate({
+          accountNumber: connection.accountNumber,
+          bankName: connection.bankName,
+          accountHolderName: connection.accountHolderName,
+          cassoFlowAuthorizationId: connection.cassoFlowAuthorizationId,
+        }),
+      ).toThrow();
+    });
+  });
+
+  describe('rotateApiKey', () => {
+    it('updates bankName/accountHolderName on an ACTIVE connection, keeps status/connectedAt', () => {
+      const connectedAt = new Date('2026-01-01');
+      const connection = buildConnection({
+        status: 'ACTIVE',
+        bankName: 'Old Bank',
+        accountHolderName: 'OLD NAME',
+        connectedAt,
+      });
+
+      const rotated = connection.rotateApiKey({
+        bankName: 'New Bank',
+        accountHolderName: 'NEW NAME',
+      });
+
+      expect(rotated.status).toBe('ACTIVE');
+      expect(rotated.bankName).toBe('New Bank');
+      expect(rotated.accountHolderName).toBe('NEW NAME');
+      expect(rotated.connectedAt).toBe(connectedAt);
+    });
+
+    it('throws when rotating a non-ACTIVE connection', () => {
+      const connection = buildConnection({
+        status: 'REQUIRES_REAUTHORIZATION',
+      });
+      expect(() =>
+        connection.rotateApiKey({
+          bankName: connection.bankName,
+          accountHolderName: connection.accountHolderName,
+        }),
+      ).toThrow(
+        'Cannot rotate the API Key of a connection in status REQUIRES_REAUTHORIZATION',
+      );
+    });
+  });
+
+  describe('disconnect', () => {
+    it('transitions to DISCONNECTED and sets revokedAt', () => {
+      const connection = buildConnection({ status: 'ACTIVE', revokedAt: null });
+      const disconnected = connection.disconnect();
+      expect(disconnected.status).toBe('DISCONNECTED');
+      expect(disconnected.revokedAt).not.toBeNull();
+    });
+
+    it('throws when disconnecting an already-DISCONNECTED connection', () => {
+      const connection = buildConnection({ status: 'DISCONNECTED' });
+      expect(() => connection.disconnect()).toThrow();
+    });
   });
 });

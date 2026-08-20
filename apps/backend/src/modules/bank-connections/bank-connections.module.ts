@@ -5,18 +5,24 @@ import { EVENT_PUBLISHER } from '../../common/events/event-publisher.port';
 import { NestEventPublisherAdapter } from '../../common/events/nest-event-publisher.adapter';
 import { BillingModule } from '../billing/billing.module';
 import { BANK_CONNECTION_REPOSITORY } from './application/bank-connection-repository.port';
+import { CASSO_FLOW_AUTHORIZATION_REPOSITORY } from './application/casso-flow-authorization-repository.port';
 import { CASSO_FLOW_INTEGRATION_ADAPTER } from './application/casso-flow-integration-adapter.port';
 import { ConnectCassoFlowUseCase } from './application/connect-casso-flow.usecase';
 import { CONNECTION_AUDIT_EVENT_REPOSITORY } from './application/connection-audit-event-repository.port';
 import { DisconnectConnectionUseCase } from './application/disconnect-connection.usecase';
 import { ListBankConnectionsUseCase } from './application/list-bank-connections.usecase';
 import { MarkRequiresReauthorizationUseCase } from './application/mark-requires-reauthorization.usecase';
+import { PreviewCassoFlowAccountsUseCase } from './application/preview-casso-flow-accounts.usecase';
+import { PreviewCassoFlowAuthorizationRotationUseCase } from './application/preview-casso-flow-authorization-rotation.usecase';
+import { RotateCassoFlowAuthorizationUseCase } from './application/rotate-casso-flow-authorization.usecase';
 import { SyncTransactionsUseCase } from './application/sync-transactions.usecase';
 import { ACCESS_TOKEN_ENCRYPTION_KEY } from './application/token-encryption-key';
 import { BankConnectionOrmEntity } from './infrastructure/bank-connection.orm-entity';
 import { CassoFlowAdapter } from './infrastructure/casso-flow.adapter';
+import { CassoFlowAuthorizationOrmEntity } from './infrastructure/casso-flow-authorization.orm-entity';
 import { ConnectionAuditEventOrmEntity } from './infrastructure/connection-audit-event.orm-entity';
 import { TypeOrmBankConnectionRepository } from './infrastructure/typeorm-bank-connection.repository';
+import { TypeOrmCassoFlowAuthorizationRepository } from './infrastructure/typeorm-casso-flow-authorization.repository';
 import { TypeOrmConnectionAuditEventRepository } from './infrastructure/typeorm-connection-audit-event.repository';
 import { BankConnectionsController } from './presentation/bank-connections.controller';
 
@@ -24,6 +30,7 @@ import { BankConnectionsController } from './presentation/bank-connections.contr
   imports: [
     TypeOrmModule.forFeature([
       BankConnectionOrmEntity,
+      CassoFlowAuthorizationOrmEntity,
       ConnectionAuditEventOrmEntity,
     ]),
     BillingModule,
@@ -33,6 +40,10 @@ import { BankConnectionsController } from './presentation/bank-connections.contr
     {
       provide: BANK_CONNECTION_REPOSITORY,
       useClass: TypeOrmBankConnectionRepository,
+    },
+    {
+      provide: CASSO_FLOW_AUTHORIZATION_REPOSITORY,
+      useClass: TypeOrmCassoFlowAuthorizationRepository,
     },
     {
       provide: CONNECTION_AUDIT_EVENT_REPOSITORY,
@@ -54,7 +65,10 @@ import { BankConnectionsController } from './presentation/bank-connections.contr
         return key;
       },
     },
+    PreviewCassoFlowAccountsUseCase,
     ConnectCassoFlowUseCase,
+    PreviewCassoFlowAuthorizationRotationUseCase,
+    RotateCassoFlowAuthorizationUseCase,
     DisconnectConnectionUseCase,
     ListBankConnectionsUseCase,
     MarkRequiresReauthorizationUseCase,
@@ -62,6 +76,7 @@ import { BankConnectionsController } from './presentation/bank-connections.contr
   ],
   exports: [
     BANK_CONNECTION_REPOSITORY,
+    CASSO_FLOW_AUTHORIZATION_REPOSITORY,
     CASSO_FLOW_INTEGRATION_ADAPTER,
     ACCESS_TOKEN_ENCRYPTION_KEY,
     ConnectCassoFlowUseCase,
