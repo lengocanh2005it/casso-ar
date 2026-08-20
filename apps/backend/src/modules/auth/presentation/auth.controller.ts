@@ -170,7 +170,7 @@ export class AuthController {
   @UseGuards(AuthCompositeRateLimitGuard)
   @HttpCode(HttpStatus.OK)
   @Post('resend-verification')
-  @ApiOperation({ summary: 'Resend the email verification link' })
+  @ApiOperation({ summary: 'Resend the email verification OTP' })
   @ApiOkResponse({
     description: 'Verification email sent if the address requires it',
     schema: successResponseSchema(),
@@ -203,6 +203,7 @@ export class AuthController {
     ErrorCode.VALIDATION_ERROR,
     ErrorCode.UNAUTHORIZED,
     ErrorCode.FORBIDDEN,
+    ErrorCode.EMAIL_NOT_VERIFIED,
     ErrorCode.RATE_LIMIT_EXCEEDED,
   )
   async login(
