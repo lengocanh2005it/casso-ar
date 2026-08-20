@@ -33,9 +33,7 @@ export function CassoFlowConnectForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4 pt-2">
       <div className="space-y-2">
-        <Label htmlFor="casso-api-key">
-          <span className="text-primary">Casso Flow</span> API Key
-        </Label>
+        <Label htmlFor="casso-api-key">Casso Flow API Key</Label>
         <Input
           id="casso-api-key"
           type="password"

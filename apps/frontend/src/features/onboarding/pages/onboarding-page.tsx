@@ -47,7 +47,9 @@ export function OnboardingPage() {
     <main className="flex min-h-svh items-center justify-center bg-muted/30 px-4 py-8">
       <Card className="w-full max-w-lg shadow-lg">
         <CardHeader>
-          <AuthLogoLink />
+          <div className="mb-2">
+            <AuthLogoLink />
+          </div>
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">
             BƯỚC ĐẦU TIÊN
           </p>
