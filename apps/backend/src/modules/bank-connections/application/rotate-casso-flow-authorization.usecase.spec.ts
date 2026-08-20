@@ -2,6 +2,7 @@ import { AppError } from '../../../common/errors/app-error';
 import { BankConnection } from '../domain/bank-connection';
 import { CassoFlowAuthorization } from '../domain/casso-flow-authorization';
 import { RotateCassoFlowAuthorizationUseCase } from './rotate-casso-flow-authorization.usecase';
+import { encryptToken } from './token-encryption';
 
 const encryptionKey =
   '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -19,8 +20,8 @@ function buildAuthorization(
     id: 'auth-1',
     organizationId: 'org-1',
     businessId,
-    encryptedApiKey: 'old-key',
-    encryptedSecureToken: 'old-secret',
+    encryptedApiKey: encryptToken('AK_CS.oldkey1234', encryptionKey),
+    encryptedSecureToken: encryptToken('old-secret', encryptionKey),
     createdAt: new Date(),
   });
 }
@@ -107,6 +108,7 @@ describe('RotateCassoFlowAuthorizationUseCase', () => {
       organizationId: 'org-1',
       cassoFlowAuthorizationId: 'auth-1',
       apiKey: 'new-key',
+      userId: 'user-1',
     });
 
     expect(result.rotatedAccountNumbers).toEqual(['111']);
@@ -139,6 +141,7 @@ describe('RotateCassoFlowAuthorizationUseCase', () => {
       organizationId: 'org-1',
       cassoFlowAuthorizationId: 'auth-1',
       apiKey: 'new-key',
+      userId: 'user-1',
     });
 
     expect(result.rotatedAccountNumbers).toEqual(['111']);
@@ -155,6 +158,7 @@ describe('RotateCassoFlowAuthorizationUseCase', () => {
       organizationId: 'org-1',
       cassoFlowAuthorizationId: 'auth-1',
       apiKey: 'new-key',
+      userId: 'user-1',
     });
 
     expect(result.rotatedAccountNumbers).toEqual([]);
@@ -181,6 +185,7 @@ describe('RotateCassoFlowAuthorizationUseCase', () => {
       organizationId: 'org-1',
       cassoFlowAuthorizationId: 'auth-1',
       apiKey: 'new-key',
+      userId: 'user-1',
     });
 
     expect(result.newlyDiscovered).toEqual([
@@ -202,6 +207,7 @@ describe('RotateCassoFlowAuthorizationUseCase', () => {
         organizationId: 'org-1',
         cassoFlowAuthorizationId: 'auth-1',
         apiKey: 'new-key',
+        userId: 'user-1',
       }),
     ).rejects.toMatchObject({
       errorCode: 'CONFLICT',
@@ -218,6 +224,7 @@ describe('RotateCassoFlowAuthorizationUseCase', () => {
       organizationId: 'org-1',
       cassoFlowAuthorizationId: 'auth-1',
       apiKey: 'new-key',
+      userId: 'user-1',
     });
 
     expect(deps.authorizationRepo.save).toHaveBeenCalledWith(
@@ -235,7 +242,35 @@ describe('RotateCassoFlowAuthorizationUseCase', () => {
         organizationId: 'org-1',
         cassoFlowAuthorizationId: 'missing',
         apiKey: 'new-key',
+        userId: 'user-1',
       }),
     ).rejects.toBeInstanceOf(AppError);
+  });
+
+  it('records the actor, old/new masked key, and old/new bank details on rotate', async () => {
+    const deps = buildDeps();
+    const useCase = buildUseCase(deps);
+
+    await useCase.execute({
+      organizationId: 'org-1',
+      cassoFlowAuthorizationId: 'auth-1',
+      apiKey: 'AK_CS.newkey5678',
+      userId: 'user-1',
+    });
+
+    expect(deps.auditEventRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'API_KEY_ROTATED',
+        metadata: expect.objectContaining({
+          actorUserId: 'user-1',
+          newMaskedApiKey: '••••5678',
+          oldBankName: 'Old Bank',
+          newBankName: 'New Bank',
+          oldAccountHolderName: 'OLD NAME',
+          newAccountHolderName: 'NEW NAME',
+        }),
+      }),
+      expect.anything(),
+    );
   });
 });

@@ -20,14 +20,16 @@ import {
   CONNECTION_AUDIT_EVENT_REPOSITORY,
   type IConnectionAuditEventRepository,
 } from './connection-audit-event-repository.port';
+import { maskApiKey } from './mask-api-key';
 import { recordConnectionAuditEvent } from './record-connection-audit-event';
-import { encryptToken } from './token-encryption';
+import { decryptToken, encryptToken } from './token-encryption';
 import { ACCESS_TOKEN_ENCRYPTION_KEY } from './token-encryption-key';
 
 export interface RotateCassoFlowAuthorizationInput {
   organizationId: string;
   cassoFlowAuthorizationId: string;
   apiKey: string;
+  userId: string;
 }
 
 export interface RotateCassoFlowAuthorizationResult {
@@ -98,6 +100,11 @@ export class RotateCassoFlowAuthorizationUseCase {
       }
       this.assertBusinessIdMatches(locked.businessId, businessId);
 
+      const oldMaskedApiKey = maskApiKey(
+        decryptToken(locked.encryptedApiKey, this.encryptionKey),
+      );
+      const newMaskedApiKey = maskApiKey(input.apiKey);
+
       const rotatedAuthorization = locked.rotate({
         businessId,
         encryptedApiKey: encryptToken(input.apiKey, this.encryptionKey),
@@ -121,7 +128,16 @@ export class RotateCassoFlowAuthorizationUseCase {
             organizationId: connection.organizationId,
             bankConnectionId: connection.id,
             eventType: 'API_KEY_ROTATED',
-            metadata: { accountNumber: connection.accountNumber },
+            metadata: {
+              accountNumber: connection.accountNumber,
+              actorUserId: input.userId,
+              oldMaskedApiKey,
+              newMaskedApiKey,
+              oldBankName: connection.bankName,
+              newBankName: matched.bankName,
+              oldAccountHolderName: connection.accountHolderName,
+              newAccountHolderName: matched.accountHolderName,
+            },
           },
           manager,
         );
