@@ -4,7 +4,6 @@ import type { ISubscriptionRepository } from '../../billing/application/subscrip
 import { Subscription } from '../../billing/domain/subscription';
 import type { IEmailQueue } from '../../notifications/application/email-queue.port';
 import type { IMembershipRepository } from '../../organizations/application/membership-repository.port';
-import { Role } from '../../organizations/domain/membership';
 import type { IUserRepository } from '../../users/application/user-repository.port';
 import type { InitiatePeriodChargeUseCase } from './initiate-period-charge.usecase';
 import type { PeriodPaymentStatusService } from './period-payment-status.service';
@@ -93,6 +92,13 @@ describe('RenewalReminderScannerService', () => {
         jobId: expect.stringContaining('org-1'),
       }),
     );
+
+    const [, job] = emailQueue.add.mock.calls[0];
+    expect(job.html).toContain('cid:casso-ledger-logo');
+    expect(job.text).toContain('thanh toán');
+    expect(job.attachments).toEqual([
+      expect.objectContaining({ contentId: 'casso-ledger-logo' }),
+    ]);
   });
 
   it('does nothing when period end is not exactly the lead-day mark', async () => {

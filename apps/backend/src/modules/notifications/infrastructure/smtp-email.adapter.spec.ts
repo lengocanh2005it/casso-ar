@@ -71,4 +71,52 @@ describe('SmtpEmailAdapter', () => {
       adapter.send('c@example.com', 's', '<p>h</p>', {}),
     ).rejects.toThrow('connection refused');
   });
+
+  it('maps plain text and CID attachments to Nodemailer', async () => {
+    const sendMail = jest
+      .fn()
+      .mockResolvedValue({ messageId: 'smtp-msg-inline' });
+    const transportFactory = jest.fn().mockReturnValue({ sendMail });
+    const adapter = new SmtpEmailAdapter(
+      buildConfig(),
+      'a'.repeat(64),
+      transportFactory,
+      () => 'plaintext',
+    );
+
+    await adapter.send(
+      'owner@example.com',
+      'Verify',
+      '<p>Verify</p>',
+      {},
+      undefined,
+      undefined,
+      {
+        text: 'Verify at https://app.casso.vn/verify',
+        attachments: [
+          {
+            filename: 'casso-ledger-logo.png',
+            content: 'base64-logo',
+            contentId: 'casso-ledger-logo',
+            contentType: 'image/png',
+          },
+        ],
+      },
+    );
+
+    expect(sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'Verify at https://app.casso.vn/verify',
+        attachments: [
+          {
+            filename: 'casso-ledger-logo.png',
+            content: 'base64-logo',
+            encoding: 'base64',
+            cid: 'casso-ledger-logo',
+            contentType: 'image/png',
+          },
+        ],
+      }),
+    );
+  });
 });

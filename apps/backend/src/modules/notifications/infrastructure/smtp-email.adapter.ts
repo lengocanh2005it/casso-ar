@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 import { decryptToken } from '../../bank-connections/application/token-encryption';
 import type { OrganizationSmtpConfig } from '../../smtp-config/domain/organization-smtp-config';
 import type {
+  EmailSendOptions,
   EmailSendResult,
   IEmailProviderAdapter,
 } from '../application/email-provider-adapter.port';
@@ -19,7 +20,15 @@ interface SmtpTransport {
     to: string;
     subject: string;
     html: string;
+    text?: string;
     replyTo?: string;
+    attachments?: Array<{
+      filename: string;
+      content: string;
+      encoding: 'base64';
+      cid?: string;
+      contentType?: string;
+    }>;
   }): Promise<{ messageId: string }>;
 }
 
@@ -56,6 +65,7 @@ export class SmtpEmailAdapter implements IEmailProviderAdapter {
     _metadata: Record<string, string>,
     replyTo?: string,
     _fromName?: string,
+    options?: EmailSendOptions,
   ): Promise<EmailSendResult> {
     const password = this.decryptFn(
       this.config.encryptedPassword,
@@ -67,12 +77,23 @@ export class SmtpEmailAdapter implements IEmailProviderAdapter {
       username: this.config.username,
       password,
     });
+    const attachments = options?.attachments?.map(
+      ({ content, filename, contentId, contentType }) => ({
+        filename,
+        content,
+        encoding: 'base64' as const,
+        ...(contentId ? { cid: contentId } : {}),
+        ...(contentType ? { contentType } : {}),
+      }),
+    );
     const result = await transport.sendMail({
       from: this.config.fromAddress,
       to,
       subject,
       html,
+      ...(options?.text !== undefined ? { text: options.text } : {}),
       ...(replyTo ? { replyTo } : {}),
+      ...(attachments?.length ? { attachments } : {}),
     });
     return { providerMessageId: result.messageId };
   }

@@ -3,17 +3,67 @@ import { ErrorCode } from '../../../common/errors/error-code';
 import { ResendAuthEmailSenderAdapter } from './resend-auth-email-sender.adapter';
 
 describe('ResendAuthEmailSenderAdapter', () => {
+  afterEach(() => {
+    delete process.env.APP_WEB_URL;
+  });
+
+  it('localizes and brands verification OTP email', async () => {
+    const emailQueue = { add: jest.fn().mockResolvedValue(undefined) };
+    const adapter = new ResendAuthEmailSenderAdapter(emailQueue as any);
+
+    await adapter.sendVerificationEmail('owner@example.com', '482913');
+
+    expect(emailQueue.add).toHaveBeenCalledWith(
+      'send-auth-email',
+      expect.objectContaining({
+        to: 'owner@example.com',
+        subject: 'Mã xác thực email | Casso Ledger',
+        html: expect.stringContaining('482913'),
+        text: expect.stringContaining('482913'),
+        attachments: [
+          expect.objectContaining({
+            filename: 'casso-ledger-logo.png',
+            contentId: 'casso-ledger-logo',
+          }),
+        ],
+        emailType: 'AUTH_VERIFICATION',
+      }),
+    );
+  });
+
+  it('escapes organization names in invitation email HTML', async () => {
+    const emailQueue = { add: jest.fn().mockResolvedValue(undefined) };
+    const adapter = new ResendAuthEmailSenderAdapter(emailQueue as any);
+
+    await adapter.sendInviteEmail(
+      'owner@example.com',
+      '/invites/accept?token=abc',
+      '<Công ty> & Đối tác',
+    );
+
+    const [, job] = emailQueue.add.mock.calls[0];
+    expect(job.html).toContain('&lt;Công ty&gt; &amp; Đối tác');
+    expect(job.html).not.toContain('<Công ty>');
+  });
+
   it('queues verification email', async () => {
     const emailQueue = { add: jest.fn().mockResolvedValue(undefined) };
     await new ResendAuthEmailSenderAdapter(
       emailQueue as any,
     ).sendVerificationEmail('user@example.com', '482913');
-    expect(emailQueue.add).toHaveBeenCalledWith('send-auth-email', {
-      to: 'user@example.com',
-      subject: expect.any(String),
-      html: expect.stringContaining('482913'),
-      emailType: 'AUTH_VERIFICATION',
-    });
+    expect(emailQueue.add).toHaveBeenCalledWith(
+      'send-auth-email',
+      expect.objectContaining({
+        to: 'user@example.com',
+        subject: 'Mã xác thực email | Casso Ledger',
+        html: expect.stringContaining('482913'),
+        text: expect.stringContaining('482913'),
+        attachments: [
+          expect.objectContaining({ contentId: 'casso-ledger-logo' }),
+        ],
+        emailType: 'AUTH_VERIFICATION',
+      }),
+    );
   });
 
   it('queues reset and invite emails', async () => {
@@ -74,8 +124,12 @@ describe('ResendAuthEmailSenderAdapter', () => {
 
     expect(emailQueue.add).toHaveBeenCalledWith('send-auth-email', {
       to: 'user@example.com',
-      subject: expect.any(String),
+      subject: 'Mã OTP đổi mật khẩu | Casso Ledger',
       html: expect.stringContaining('123456'),
+      text: expect.stringContaining('123456'),
+      attachments: [
+        expect.objectContaining({ contentId: 'casso-ledger-logo' }),
+      ],
       emailType: 'AUTH_CHANGE_PASSWORD_OTP',
     });
   });
@@ -113,12 +167,19 @@ describe('ResendAuthEmailSenderAdapter', () => {
 
     await adapter.sendOrganizationApprovedEmail('owner@acme.vn', 'Acme Co');
 
-    expect(emailQueue.add).toHaveBeenCalledWith('send-auth-email', {
-      to: 'owner@acme.vn',
-      subject: 'Tổ chức Acme Co đã được duyệt',
-      html: expect.stringContaining('Acme Co'),
-      emailType: 'ORGANIZATION_APPROVED',
-    });
+    expect(emailQueue.add).toHaveBeenCalledWith(
+      'send-auth-email',
+      expect.objectContaining({
+        to: 'owner@acme.vn',
+        subject: 'Tổ chức Acme Co đã được phê duyệt',
+        html: expect.stringContaining('Acme Co'),
+        text: expect.stringContaining('Acme Co'),
+        attachments: [
+          expect.objectContaining({ contentId: 'casso-ledger-logo' }),
+        ],
+        emailType: 'ORGANIZATION_APPROVED',
+      }),
+    );
   });
 
   it('sendOrganizationRejectedEmail enqueues a rejection email without a reason', async () => {
@@ -127,11 +188,18 @@ describe('ResendAuthEmailSenderAdapter', () => {
 
     await adapter.sendOrganizationRejectedEmail('owner@acme.vn', 'Acme Co');
 
-    expect(emailQueue.add).toHaveBeenCalledWith('send-auth-email', {
-      to: 'owner@acme.vn',
-      subject: 'Đăng ký tổ chức Acme Co chưa được chấp thuận',
-      html: expect.stringContaining('liên hệ'),
-      emailType: 'ORGANIZATION_REJECTED',
-    });
+    expect(emailQueue.add).toHaveBeenCalledWith(
+      'send-auth-email',
+      expect.objectContaining({
+        to: 'owner@acme.vn',
+        subject: 'Hồ sơ đăng ký Acme Co chưa được chấp thuận',
+        html: expect.stringContaining('liên hệ'),
+        text: expect.stringContaining('liên hệ'),
+        attachments: [
+          expect.objectContaining({ contentId: 'casso-ledger-logo' }),
+        ],
+        emailType: 'ORGANIZATION_REJECTED',
+      }),
+    );
   });
 });

@@ -83,6 +83,97 @@ function buildDeps() {
 }
 
 describe('EmailQueueProcessor', () => {
+  it('passes auth email text and branding attachments to the Resend provider', async () => {
+    const emailProvider = {
+      send: jest.fn().mockResolvedValue({ providerMessageId: 'auth-msg-1' }),
+    };
+    const deps = buildDeps();
+    deps.resolver.resolve.mockResolvedValue(emailProvider);
+    const processor = buildProcessor(deps);
+
+    await processor.process({
+      name: 'send-auth-email',
+      id: 'auth-1',
+      data: {
+        to: 'owner@example.com',
+        subject: 'Xác thực địa chỉ email',
+        html: '<p>Verify</p>',
+        text: 'Verify',
+        attachments: [
+          {
+            filename: 'casso-ledger-logo.png',
+            content: 'base64-logo',
+            contentId: 'casso-ledger-logo',
+            contentType: 'image/png',
+          },
+        ],
+        emailType: 'AUTH_VERIFICATION',
+      },
+    } as any);
+
+    expect(emailProvider.send).toHaveBeenCalledWith(
+      'owner@example.com',
+      'Xác thực địa chỉ email',
+      '<p>Verify</p>',
+      { emailType: 'AUTH_VERIFICATION' },
+      undefined,
+      undefined,
+      {
+        text: 'Verify',
+        attachments: [
+          expect.objectContaining({
+            filename: 'casso-ledger-logo.png',
+            contentId: 'casso-ledger-logo',
+          }),
+        ],
+      },
+    );
+  });
+
+  it('passes owner-alert branding attachments to the Resend provider', async () => {
+    const emailProvider = {
+      send: jest.fn().mockResolvedValue({ providerMessageId: 'alert-msg-1' }),
+    };
+    const deps = buildDeps();
+    deps.resolver.resolve.mockResolvedValue(emailProvider);
+    const processor = buildProcessor(deps);
+
+    await processor.process({
+      name: 'send-owner-alert',
+      id: 'alert-1',
+      data: {
+        organizationId: 'org-1',
+        to: 'owner@example.com',
+        subject: 'Thông báo Casso',
+        html: '<p>Alert</p>',
+        text: 'Alert',
+        attachments: [
+          {
+            filename: 'casso-ledger-logo.png',
+            content: 'base64-logo',
+            contentId: 'casso-ledger-logo',
+            contentType: 'image/png',
+          },
+        ],
+      },
+    } as any);
+
+    expect(emailProvider.send).toHaveBeenCalledWith(
+      'owner@example.com',
+      'Thông báo Casso',
+      '<p>Alert</p>',
+      { emailType: 'OWNER_ALERT' },
+      undefined,
+      undefined,
+      {
+        text: 'Alert',
+        attachments: [
+          expect.objectContaining({ contentId: 'casso-ledger-logo' }),
+        ],
+      },
+    );
+  });
+
   it('sends the email and records SENT with the provider id', async () => {
     const emailProvider = {
       send: jest.fn().mockResolvedValue({ providerMessageId: 'msg-1' }),
@@ -230,9 +321,25 @@ describe('EmailQueueProcessor — provider resolution', () => {
     expect(warningAdapter.send).toHaveBeenCalledWith(
       'owner@congtyb.vn',
       expect.any(String),
-      expect.any(String),
+      expect.stringContaining('cid:casso-ledger-logo'),
       { emailType: 'SMTP_CONNECTION_FAILED_WARNING' },
+      undefined,
+      undefined,
+      expect.objectContaining({
+        text: expect.any(String),
+        attachments: [
+          expect.objectContaining({ contentId: 'casso-ledger-logo' }),
+        ],
+      }),
     );
+    const warningCall = warningAdapter.send.mock.calls[0];
+    expect(warningCall[2]).toContain('cid:casso-ledger-logo');
+    expect(warningCall[6]).toEqual({
+      text: expect.any(String),
+      attachments: [
+        expect.objectContaining({ contentId: 'casso-ledger-logo' }),
+      ],
+    });
     expect(deps.smtpConfigRepo.markFailedIfVersionMatches).toHaveBeenCalledWith(
       expect.objectContaining({ status: SmtpConfigStatus.FAILED }),
     );
