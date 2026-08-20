@@ -59,6 +59,17 @@ describe('audited metadata on write handlers (issue #104)', () => {
       entityType: 'CassoFlowAuthorization',
     });
   });
+
+  it('audits API key reveal as BANK_CONNECTION_API_KEY_REVEAL', () => {
+    const metadata = Reflect.getMetadata(
+      AUDITED_METADATA_KEY,
+      BankConnectionsController.prototype.revealApiKey,
+    );
+    expect(metadata).toEqual({
+      actionType: 'BANK_CONNECTION_API_KEY_REVEAL',
+      entityType: 'CassoFlowAuthorization',
+    });
+  });
 });
 
 describe('permission-guard sweep (issue #109)', () => {

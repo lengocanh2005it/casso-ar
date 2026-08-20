@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { EVENT_PUBLISHER } from '../../common/events/event-publisher.port';
 import { NestEventPublisherAdapter } from '../../common/events/nest-event-publisher.adapter';
 import { BillingModule } from '../billing/billing.module';
+import { UsersModule } from '../users/users.module';
 import { BANK_CONNECTION_REPOSITORY } from './application/bank-connection-repository.port';
 import { CASSO_FLOW_AUTHORIZATION_REPOSITORY } from './application/casso-flow-authorization-repository.port';
 import { CASSO_FLOW_INTEGRATION_ADAPTER } from './application/casso-flow-integration-adapter.port';
@@ -14,6 +15,7 @@ import { ListBankConnectionsUseCase } from './application/list-bank-connections.
 import { MarkRequiresReauthorizationUseCase } from './application/mark-requires-reauthorization.usecase';
 import { PreviewCassoFlowAccountsUseCase } from './application/preview-casso-flow-accounts.usecase';
 import { PreviewCassoFlowAuthorizationRotationUseCase } from './application/preview-casso-flow-authorization-rotation.usecase';
+import { RevealCassoFlowApiKeyUseCase } from './application/reveal-casso-flow-api-key.usecase';
 import { RotateCassoFlowAuthorizationUseCase } from './application/rotate-casso-flow-authorization.usecase';
 import { SyncTransactionsUseCase } from './application/sync-transactions.usecase';
 import { ACCESS_TOKEN_ENCRYPTION_KEY } from './application/token-encryption-key';
@@ -34,6 +36,7 @@ import { BankConnectionsController } from './presentation/bank-connections.contr
       ConnectionAuditEventOrmEntity,
     ]),
     BillingModule,
+    UsersModule,
   ],
   controllers: [BankConnectionsController],
   providers: [
@@ -69,6 +72,7 @@ import { BankConnectionsController } from './presentation/bank-connections.contr
     ConnectCassoFlowUseCase,
     PreviewCassoFlowAuthorizationRotationUseCase,
     RotateCassoFlowAuthorizationUseCase,
+    RevealCassoFlowApiKeyUseCase,
     DisconnectConnectionUseCase,
     ListBankConnectionsUseCase,
     MarkRequiresReauthorizationUseCase,
