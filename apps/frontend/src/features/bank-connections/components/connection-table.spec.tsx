@@ -17,6 +17,11 @@ vi.mock('../api/use-bank-connections', () => ({
     isPending: false,
   }),
 }));
+vi.mock('./reveal-api-key-dialog', () => ({
+  RevealApiKeyDialog: ({ authorizationId }: { authorizationId: string }) => (
+    <button type="button">Hiện API Key ({authorizationId})</button>
+  ),
+}));
 
 const connection: BankConnection = {
   id: 'connection-1',
@@ -81,6 +86,26 @@ describe('ConnectionTable', () => {
     ).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /disconnect/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the reveal-key action for a role with BANK_CONNECTION_REVEAL_KEY', () => {
+    useAuth.mockReturnValue({ user: { role: 'OWNER' } });
+
+    render(<ConnectionTable connections={[connection]} />);
+
+    expect(
+      screen.getByRole('button', { name: /hiện api key/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('hides the reveal-key action for a role without BANK_CONNECTION_REVEAL_KEY', () => {
+    useAuth.mockReturnValue({ user: { role: 'ACCOUNTANT' } });
+
+    render(<ConnectionTable connections={[connection]} />);
+
+    expect(
+      screen.queryByRole('button', { name: /hiện api key/i }),
     ).not.toBeInTheDocument();
   });
 });

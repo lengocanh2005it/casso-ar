@@ -5,20 +5,28 @@ import { useAuth } from '@/contexts/auth-context';
 import {
   useConfirmCassoFlow,
   useDisconnectConnection,
+  useRevealCassoFlowApiKey,
 } from './use-bank-connections';
 
-const { confirmCassoFlow, disconnectConnection, getApiErrorCode, toastError } =
-  vi.hoisted(() => ({
-    confirmCassoFlow: vi.fn(),
-    disconnectConnection: vi.fn(),
-    getApiErrorCode: vi.fn(),
-    toastError: vi.fn(),
-  }));
+const {
+  confirmCassoFlow,
+  disconnectConnection,
+  revealCassoFlowApiKey,
+  getApiErrorCode,
+  toastError,
+} = vi.hoisted(() => ({
+  confirmCassoFlow: vi.fn(),
+  disconnectConnection: vi.fn(),
+  revealCassoFlowApiKey: vi.fn(),
+  getApiErrorCode: vi.fn(),
+  toastError: vi.fn(),
+}));
 
 vi.mock('./bank-connections-api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./bank-connections-api')>()),
   confirmCassoFlow,
   disconnectConnection,
+  revealCassoFlowApiKey,
 }));
 
 vi.mock('sonner', () => ({
@@ -119,5 +127,56 @@ describe('useConfirmCassoFlow', () => {
     expect(toastError).toHaveBeenCalledWith(
       'Không thể kết nối Casso Flow. Vui lòng kiểm tra lại API Key.',
     );
+  });
+});
+
+describe('useRevealCassoFlowApiKey', () => {
+  it('resolves with the revealed API key on success', async () => {
+    revealCassoFlowApiKey.mockResolvedValueOnce({ apiKey: 'AK_CS.real-key' });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const { result } = renderHook(() => useRevealCassoFlowApiKey(), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      ),
+    });
+
+    const response = await result.current.mutateAsync({
+      authorizationId: 'auth-1',
+      password: 'correct',
+    });
+
+    expect(response.apiKey).toBe('AK_CS.real-key');
+    expect(revealCassoFlowApiKey).toHaveBeenCalledWith('auth-1', {
+      password: 'correct',
+    });
+  });
+
+  it('shows a Vietnamese wrong-password toast on UNAUTHORIZED', async () => {
+    const error = new Error('unauthorized');
+    revealCassoFlowApiKey.mockRejectedValueOnce(error);
+    getApiErrorCode.mockReturnValue('UNAUTHORIZED');
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const { result } = renderHook(() => useRevealCassoFlowApiKey(), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      ),
+    });
+
+    await expect(
+      result.current.mutateAsync({
+        authorizationId: 'auth-1',
+        password: 'wrong',
+      }),
+    ).rejects.toThrow();
+
+    expect(toastError).toHaveBeenCalledWith('Mật khẩu không đúng.');
   });
 });

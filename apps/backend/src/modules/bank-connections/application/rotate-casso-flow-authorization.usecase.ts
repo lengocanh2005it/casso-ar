@@ -1,9 +1,8 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
-import { ConnectionAuditEvent } from '../domain/connection-audit-event';
 import {
   BANK_CONNECTION_REPOSITORY,
   type IBankConnectionRepository,
@@ -21,6 +20,7 @@ import {
   CONNECTION_AUDIT_EVENT_REPOSITORY,
   type IConnectionAuditEventRepository,
 } from './connection-audit-event-repository.port';
+import { recordConnectionAuditEvent } from './record-connection-audit-event';
 import { encryptToken } from './token-encryption';
 import { ACCESS_TOKEN_ENCRYPTION_KEY } from './token-encryption-key';
 
@@ -115,15 +115,14 @@ export class RotateCassoFlowAuthorizationUseCase {
           accountHolderName: matched.accountHolderName,
         });
         await this.bankConnectionRepo.save(rotatedConnection, manager);
-        await this.auditEventRepo.save(
-          new ConnectionAuditEvent({
-            id: randomUUID(),
+        await recordConnectionAuditEvent(
+          this.auditEventRepo,
+          {
             organizationId: connection.organizationId,
             bankConnectionId: connection.id,
             eventType: 'API_KEY_ROTATED',
             metadata: { accountNumber: connection.accountNumber },
-            createdAt: new Date(),
-          }),
+          },
           manager,
         );
         rotatedAccountNumbers.push(connection.accountNumber);

@@ -7,6 +7,8 @@ import {
   Param,
   Post,
   Query,
+  Req,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -16,11 +18,13 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import {
   AuditActionType,
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
+import { type AuthRequest } from '../../../common/auth/assert-org-matches';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
@@ -34,6 +38,7 @@ import { DisconnectConnectionUseCase } from '../application/disconnect-connectio
 import { ListBankConnectionsUseCase } from '../application/list-bank-connections.usecase';
 import { PreviewCassoFlowAccountsUseCase } from '../application/preview-casso-flow-accounts.usecase';
 import { PreviewCassoFlowAuthorizationRotationUseCase } from '../application/preview-casso-flow-authorization-rotation.usecase';
+import { RevealCassoFlowApiKeyUseCase } from '../application/reveal-casso-flow-api-key.usecase';
 import { RotateCassoFlowAuthorizationUseCase } from '../application/rotate-casso-flow-authorization.usecase';
 import {
   ListBankConnectionsResponseDto,
@@ -49,6 +54,10 @@ import {
   PreviewCassoFlowDto,
 } from './dto/preview-casso-flow.dto';
 import {
+  RevealCassoFlowApiKeyDto,
+  RevealCassoFlowApiKeyResponseDto,
+} from './dto/reveal-casso-flow-api-key.dto';
+import {
   RotateCassoFlowAuthorizationResponseDto,
   RotateCassoFlowDto,
 } from './dto/rotate-casso-flow-authorization.dto';
@@ -63,6 +72,7 @@ export class BankConnectionsController {
     private readonly connectCassoFlowUseCase: ConnectCassoFlowUseCase,
     private readonly previewCassoFlowAuthorizationRotationUseCase: PreviewCassoFlowAuthorizationRotationUseCase,
     private readonly rotateCassoFlowAuthorizationUseCase: RotateCassoFlowAuthorizationUseCase,
+    private readonly revealCassoFlowApiKeyUseCase: RevealCassoFlowApiKeyUseCase,
     private readonly disconnectConnectionUseCase: DisconnectConnectionUseCase,
     private readonly idempotency: IdempotencyService,
     private readonly tenantContext: TenantContextService,
@@ -187,6 +197,46 @@ export class BankConnectionsController {
           organizationId: this.tenantContext.getOrganizationId(),
           cassoFlowAuthorizationId: authorizationId,
           apiKey: dto.apiKey,
+        }),
+    );
+  }
+
+  @Post('authorizations/:id/reveal-key')
+  @ApiOperation({ summary: "Reveal one CassoFlowAuthorization's full API Key" })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: RevealCassoFlowApiKeyResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @RequirePermission(Permission.BANK_CONNECTION_REVEAL_KEY)
+  @Audited(
+    AuditActionType.BANK_CONNECTION_API_KEY_REVEAL,
+    AuditEntityType.CASSO_FLOW_AUTHORIZATION,
+  )
+  async revealApiKey(
+    @Param('id') authorizationId: string,
+    @Headers('idempotency-key') key: string | undefined,
+    @Body() dto: RevealCassoFlowApiKeyDto,
+    @Req() request: AuthRequest,
+  ) {
+    const userId = request.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
+    return this.idempotency.execute(
+      `POST /bank-connections/authorizations/${authorizationId}/reveal-key`,
+      key,
+      dto,
+      () =>
+        this.revealCassoFlowApiKeyUseCase.execute({
+          organizationId: this.tenantContext.getOrganizationId(),
+          cassoFlowAuthorizationId: authorizationId,
+          userId,
+          password: dto.password,
         }),
     );
   }

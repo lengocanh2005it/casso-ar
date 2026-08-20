@@ -32,4 +32,22 @@ describe('ROLE_PERMISSIONS', () => {
       Permission.MEMBER_BLOCK,
     );
   });
+
+  it('grants BANK_CONNECTION_REVEAL_KEY to OWNER and FINANCE_MANAGER only', () => {
+    expect(ROLE_PERMISSIONS[Role.OWNER]).toContain(
+      Permission.BANK_CONNECTION_REVEAL_KEY,
+    );
+    expect(ROLE_PERMISSIONS[Role.FINANCE_MANAGER]).toContain(
+      Permission.BANK_CONNECTION_REVEAL_KEY,
+    );
+    expect(ROLE_PERMISSIONS[Role.ACCOUNTANT]).not.toContain(
+      Permission.BANK_CONNECTION_REVEAL_KEY,
+    );
+    expect(ROLE_PERMISSIONS[Role.SALES_REP]).not.toContain(
+      Permission.BANK_CONNECTION_REVEAL_KEY,
+    );
+    expect(ROLE_PERMISSIONS[Role.VIEWER]).not.toContain(
+      Permission.BANK_CONNECTION_REVEAL_KEY,
+    );
+  });
 });

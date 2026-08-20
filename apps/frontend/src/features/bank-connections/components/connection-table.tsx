@@ -39,6 +39,7 @@ import {
 } from '../api/use-bank-connections';
 import type { BankConnection, BankConnectionStatus } from '../types';
 import { CassoFlowAccountPicker } from './casso-flow-account-picker';
+import { RevealApiKeyDialog } from './reveal-api-key-dialog';
 
 const statusLabels: Record<BankConnectionStatus, string> = {
   PENDING_AUTHORIZATION: 'Chờ cấp quyền',
@@ -71,6 +72,10 @@ export function ConnectionTable({
     user?.role ?? null,
     Permission.BANK_CONNECTION_MANAGE,
   );
+  const canRevealKey = hasPermission(
+    user?.role ?? null,
+    Permission.BANK_CONNECTION_REVEAL_KEY,
+  );
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [rotationAuthorizationId, setRotationAuthorizationId] = useState<
     string | null
@@ -102,48 +107,58 @@ export function ConnectionTable({
       <TableBody>
         {groups.map(([authorizationId, group]) => (
           <Fragment key={authorizationId}>
-            {canManage && (
+            {(canManage || canRevealKey) && (
               <TableRow>
-                <TableCell colSpan={5} className="text-right">
-                  <Dialog
-                    open={rotationAuthorizationId === authorizationId}
-                    onOpenChange={(open) =>
-                      setRotationAuthorizationId(open ? authorizationId : null)
-                    }
-                  >
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        Đổi API Key
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>
-                          Đổi API Key{' '}
-                          <span className="text-primary">Casso Flow</span>
-                        </DialogTitle>
-                        <DialogDescription>
-                          Nhập API Key mới để cập nhật quyền truy cập cho các
-                          tài khoản trong nhóm này.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <CassoFlowAccountPicker
-                        onPreview={(apiKey) =>
-                          previewRotationMutation.mutateAsync({
-                            authorizationId,
-                            apiKey,
-                          })
-                        }
-                        onConfirm={(apiKey) =>
-                          rotateMutation.mutateAsync({
-                            authorizationId,
-                            apiKey,
-                          })
-                        }
-                        onCompleted={() => setRotationAuthorizationId(null)}
-                      />
-                    </DialogContent>
-                  </Dialog>
+                <TableCell
+                  colSpan={5}
+                  className="flex justify-end gap-2 text-right"
+                >
+                  {canRevealKey && (
+                    <RevealApiKeyDialog authorizationId={authorizationId} />
+                  )}
+                  {canManage && (
+                    <Dialog
+                      open={rotationAuthorizationId === authorizationId}
+                      onOpenChange={(open) =>
+                        setRotationAuthorizationId(
+                          open ? authorizationId : null,
+                        )
+                      }
+                    >
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          Đổi API Key
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>
+                            Đổi API Key{' '}
+                            <span className="text-primary">Casso Flow</span>
+                          </DialogTitle>
+                          <DialogDescription>
+                            Nhập API Key mới để cập nhật quyền truy cập cho các
+                            tài khoản trong nhóm này.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <CassoFlowAccountPicker
+                          onPreview={(apiKey) =>
+                            previewRotationMutation.mutateAsync({
+                              authorizationId,
+                              apiKey,
+                            })
+                          }
+                          onConfirm={(apiKey) =>
+                            rotateMutation.mutateAsync({
+                              authorizationId,
+                              apiKey,
+                            })
+                          }
+                          onCompleted={() => setRotationAuthorizationId(null)}
+                        />
+                      </DialogContent>
+                    </Dialog>
+                  )}
                 </TableCell>
               </TableRow>
             )}

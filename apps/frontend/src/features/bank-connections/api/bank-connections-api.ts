@@ -5,6 +5,8 @@ import type {
   ConnectCassoFlowResult,
   PreviewCassoFlowAccountsResult,
   PreviewCassoFlowAuthorizationRotationResult,
+  RevealCassoFlowApiKeyInput,
+  RevealCassoFlowApiKeyResult,
   RotateCassoFlowAuthorizationResult,
   RotateCassoFlowInput,
 } from '../types';
@@ -52,6 +54,16 @@ export function rotateCassoFlowAuthorization(
 ): Promise<RotateCassoFlowAuthorizationResult> {
   return postWithIdempotency<RotateCassoFlowAuthorizationResult>(
     `/api/v1/bank-connections/authorizations/${authorizationId}/casso-flow/confirm`,
+    input,
+  );
+}
+
+export function revealCassoFlowApiKey(
+  authorizationId: string,
+  input: RevealCassoFlowApiKeyInput,
+): Promise<RevealCassoFlowApiKeyResult> {
+  return postWithIdempotency<RevealCassoFlowApiKeyResult>(
+    `/api/v1/bank-connections/authorizations/${authorizationId}/reveal-key`,
     input,
   );
 }
