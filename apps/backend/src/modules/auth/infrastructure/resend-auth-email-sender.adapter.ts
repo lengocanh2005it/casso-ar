@@ -60,6 +60,27 @@ export class ResendAuthEmailSenderAdapter
     }
   }
 
+  async sendChangePasswordOtpEmail(to: string, otp: string): Promise<void> {
+    try {
+      await this.emailQueue.add('send-auth-email', {
+        to,
+        subject: 'Mã OTP đổi mật khẩu',
+        html: `<p>Mã OTP đổi mật khẩu của bạn là: <strong style="font-size:24px;letter-spacing:4px">${otp}</strong></p><p>Mã có hiệu lực trong 5 phút.</p>`,
+        emailType: 'AUTH_CHANGE_PASSWORD_OTP',
+      });
+    } catch (error) {
+      this.logger.error('Failed to enqueue change-password OTP email', {
+        to,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw AppError.withCause(
+        error,
+        ErrorCode.EMAIL_SEND_FAILED,
+        'Không thể gửi email mã OTP. Vui lòng thử lại sau.',
+      );
+    }
+  }
+
   async sendInviteEmail(
     to: string,
     acceptUrl: string,

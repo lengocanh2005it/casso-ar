@@ -75,6 +75,20 @@ describe('ResendAuthEmailSenderAdapter', () => {
     }
   });
 
+  it('queues a change-password OTP email', async () => {
+    const emailQueue = { add: jest.fn().mockResolvedValue(undefined) };
+    const adapter = new ResendAuthEmailSenderAdapter(emailQueue as any);
+
+    await adapter.sendChangePasswordOtpEmail('user@example.com', '123456');
+
+    expect(emailQueue.add).toHaveBeenCalledWith('send-auth-email', {
+      to: 'user@example.com',
+      subject: expect.any(String),
+      html: expect.stringContaining('123456'),
+      emailType: 'AUTH_CHANGE_PASSWORD_OTP',
+    });
+  });
+
   it('queues member blocked and unblocked emails', async () => {
     const emailQueue = { add: jest.fn().mockResolvedValue(undefined) };
     const adapter = new ResendAuthEmailSenderAdapter(emailQueue as any);
