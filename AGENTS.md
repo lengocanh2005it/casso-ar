@@ -242,6 +242,11 @@ cp apps/backend/.env .worktrees/feat/<ticket-name>/apps/backend/.env
 ```
 Skipping this causes confusing, environment-only failures later (e.g. backend e2e tests failing with "JWT_SECRET is required" or similar config errors that have nothing to do with the code change).
 
+1c. **Run `pnpm install` in the new worktree** right after copying the env files — a freshly created worktree has no `node_modules`, and commands like `tsc`/`jest` will fail with unrelated-looking module errors until dependencies are installed:
+```bash
+cd .worktrees/feat/<ticket-name> && pnpm install
+```
+
 2. **Work in that worktree**, NOT on `main`
 
 3. **When complete**:
