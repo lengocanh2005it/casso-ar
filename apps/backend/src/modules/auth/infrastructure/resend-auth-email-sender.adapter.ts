@@ -80,8 +80,8 @@ export class ResendAuthEmailSenderAdapter
       buildCassoEmail({
         title: 'Mã xác thực email',
         greeting: 'Kính chào Quý khách,',
+        highlight: { label: 'Mã OTP', value: otp },
         paragraphs: [
-          `Mã xác thực email của Quý khách là: ${otp}.`,
           'Mã có hiệu lực trong 10 phút. Vui lòng không chia sẻ mã này với bất kỳ ai.',
         ],
       }),
@@ -115,8 +115,8 @@ export class ResendAuthEmailSenderAdapter
       buildCassoEmail({
         title: 'Mã OTP đổi mật khẩu',
         greeting: 'Kính chào Quý khách,',
+        highlight: { label: 'Mã OTP', value: otp },
         paragraphs: [
-          `Mã OTP đổi mật khẩu của Quý khách là: ${otp}.`,
           'Mã có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này với bất kỳ ai.',
         ],
       }),

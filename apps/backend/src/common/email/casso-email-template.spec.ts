@@ -41,4 +41,18 @@ describe('buildCassoEmail', () => {
     expect(email.html).toContain('&quot;đối tác&quot; &amp;');
     expect(email.html).toContain('a=1&amp;b=2');
   });
+
+  it('highlights important values in HTML and the plain-text fallback', () => {
+    const email = buildCassoEmail({
+      title: 'Mã xác thực email',
+      greeting: 'Kính chào Quý khách,',
+      highlight: { label: 'Mã OTP', value: '875323' },
+      paragraphs: ['Mã có hiệu lực trong 10 phút.'],
+    });
+
+    expect(email.html).toContain('Mã OTP');
+    expect(email.html).toContain('font-size:28px');
+    expect(email.html).toContain('875323');
+    expect(email.text).toContain('Mã OTP: 875323');
+  });
 });

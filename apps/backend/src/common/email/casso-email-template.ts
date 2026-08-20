@@ -18,10 +18,16 @@ export interface CassoEmailAction {
   url: string;
 }
 
+export interface CassoEmailHighlight {
+  label: string;
+  value: string;
+}
+
 export interface CassoEmailInput {
   title: string;
   greeting: string;
   paragraphs: string[];
+  highlight?: CassoEmailHighlight;
   action?: CassoEmailAction;
   closing?: string;
 }
@@ -59,6 +65,16 @@ export function buildCassoEmail(input: CassoEmailInput): CassoEmailContent {
       (paragraph) => `<p style="margin:0 0 16px;">${escapeHtml(paragraph)}</p>`,
     )
     .join('');
+  const highlightHtml = input.highlight
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:0 0 24px;border:1px solid #b6e5cf;border-radius:10px;background:#ecfaf2;">
+        <tr>
+          <td align="center" style="padding:18px 16px;">
+            <p style="margin:0 0 8px;color:#426154;font-size:14px;line-height:1.4;font-weight:700;">${escapeHtml(input.highlight.label)}</p>
+            <p style="margin:0;color:#0f8b55;font-size:28px;line-height:1.2;font-weight:700;letter-spacing:4px;">${escapeHtml(input.highlight.value)}</p>
+          </td>
+        </tr>
+      </table>`
+    : '';
   const actionHtml = input.action
     ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
         <tr>
@@ -85,6 +101,7 @@ export function buildCassoEmail(input: CassoEmailInput): CassoEmailContent {
               <td style="padding:32px;">
                 <h1 style="margin:0 0 24px;color:#18352a;font-size:24px;line-height:1.3;">${title}</h1>
                 <p style="margin:0 0 16px;line-height:1.7;">${greeting}</p>
+                ${highlightHtml}
                 ${paragraphs}
                 ${actionHtml}
                 <p style="margin:24px 0 0;line-height:1.7;">${renderClosing(closing)}</p>
@@ -104,6 +121,9 @@ export function buildCassoEmail(input: CassoEmailInput): CassoEmailContent {
   const text = [
     input.title,
     input.greeting,
+    ...(input.highlight
+      ? [`${input.highlight.label}: ${input.highlight.value}`]
+      : []),
     ...input.paragraphs,
     ...(input.action ? [`${input.action.label}: ${input.action.url}`] : []),
     closing,
