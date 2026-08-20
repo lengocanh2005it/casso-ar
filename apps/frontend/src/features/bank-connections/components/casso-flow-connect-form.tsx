@@ -37,7 +37,7 @@ export function CassoFlowConnectForm({
         <Input
           id="casso-api-key"
           type="password"
-          placeholder="casso_api_key_..."
+          placeholder="AK_CS.****"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           disabled={connectMutation.isPending}
