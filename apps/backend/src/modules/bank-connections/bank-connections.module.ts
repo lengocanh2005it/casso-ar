@@ -11,6 +11,7 @@ import { CASSO_FLOW_INTEGRATION_ADAPTER } from './application/casso-flow-integra
 import { ConnectCassoFlowUseCase } from './application/connect-casso-flow.usecase';
 import { CONNECTION_AUDIT_EVENT_REPOSITORY } from './application/connection-audit-event-repository.port';
 import { DisconnectConnectionUseCase } from './application/disconnect-connection.usecase';
+import { ListAuthorizationAuditEventsUseCase } from './application/list-authorization-audit-events.usecase';
 import { ListBankConnectionsUseCase } from './application/list-bank-connections.usecase';
 import { MarkRequiresReauthorizationUseCase } from './application/mark-requires-reauthorization.usecase';
 import { PreviewCassoFlowAccountsUseCase } from './application/preview-casso-flow-accounts.usecase';
@@ -75,6 +76,7 @@ import { BankConnectionsController } from './presentation/bank-connections.contr
     RevealCassoFlowApiKeyUseCase,
     DisconnectConnectionUseCase,
     ListBankConnectionsUseCase,
+    ListAuthorizationAuditEventsUseCase,
     MarkRequiresReauthorizationUseCase,
     SyncTransactionsUseCase,
   ],

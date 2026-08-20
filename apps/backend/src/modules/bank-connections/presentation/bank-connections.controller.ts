@@ -35,6 +35,7 @@ import { successResponseSchema } from '../../../common/swagger/success-response-
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { ConnectCassoFlowUseCase } from '../application/connect-casso-flow.usecase';
 import { DisconnectConnectionUseCase } from '../application/disconnect-connection.usecase';
+import { ListAuthorizationAuditEventsUseCase } from '../application/list-authorization-audit-events.usecase';
 import { ListBankConnectionsUseCase } from '../application/list-bank-connections.usecase';
 import { PreviewCassoFlowAccountsUseCase } from '../application/preview-casso-flow-accounts.usecase';
 import { PreviewCassoFlowAuthorizationRotationUseCase } from '../application/preview-casso-flow-authorization-rotation.usecase';
@@ -48,6 +49,10 @@ import {
   ConfirmCassoFlowDto,
   ConnectCassoFlowResponseDto,
 } from './dto/confirm-casso-flow.dto';
+import {
+  ListConnectionAuditEventsResponseDto,
+  toConnectionAuditEventResponse,
+} from './dto/connection-audit-event-response.dto';
 import {
   PreviewCassoFlowAccountsResponseDto,
   PreviewCassoFlowAuthorizationRotationResponseDto,
@@ -74,6 +79,7 @@ export class BankConnectionsController {
     private readonly rotateCassoFlowAuthorizationUseCase: RotateCassoFlowAuthorizationUseCase,
     private readonly revealCassoFlowApiKeyUseCase: RevealCassoFlowApiKeyUseCase,
     private readonly disconnectConnectionUseCase: DisconnectConnectionUseCase,
+    private readonly listAuthorizationAuditEventsUseCase: ListAuthorizationAuditEventsUseCase,
     private readonly idempotency: IdempotencyService,
     private readonly tenantContext: TenantContextService,
   ) {}
@@ -129,7 +135,12 @@ export class BankConnectionsController {
   async confirm(
     @Headers('idempotency-key') key: string | undefined,
     @Body() dto: ConfirmCassoFlowDto,
+    @Req() request: AuthRequest,
   ) {
+    const userId = request.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
     return this.idempotency.execute(
       'POST /bank-connections/casso-flow/confirm',
       key,
@@ -139,6 +150,7 @@ export class BankConnectionsController {
           organizationId: this.tenantContext.getOrganizationId(),
           apiKey: dto.apiKey,
           selectedAccountNumbers: dto.selectedAccountNumbers,
+          userId,
         }),
     );
   }
@@ -187,7 +199,12 @@ export class BankConnectionsController {
     @Param('id') authorizationId: string,
     @Headers('idempotency-key') key: string | undefined,
     @Body() dto: RotateCassoFlowDto,
+    @Req() request: AuthRequest,
   ) {
+    const userId = request.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
     return this.idempotency.execute(
       `POST /bank-connections/authorizations/${authorizationId}/casso-flow/confirm`,
       key,
@@ -197,6 +214,7 @@ export class BankConnectionsController {
           organizationId: this.tenantContext.getOrganizationId(),
           cassoFlowAuthorizationId: authorizationId,
           apiKey: dto.apiKey,
+          userId,
         }),
     );
   }
@@ -261,15 +279,46 @@ export class BankConnectionsController {
   async disconnect(
     @Param('id') connectionId: string,
     @Headers('idempotency-key') key: string | undefined,
+    @Req() request: AuthRequest,
   ) {
+    const userId = request.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
     return this.idempotency.execute(
       `POST /bank-connections/${connectionId}/disconnect`,
       key,
       { connectionId },
       async () => {
-        await this.disconnectConnectionUseCase.execute(connectionId);
+        await this.disconnectConnectionUseCase.execute(connectionId, userId);
         return { success: true };
       },
     );
+  }
+
+  @Get('authorizations/:id/audit-events')
+  @ApiOperation({
+    summary:
+      "List a CassoFlowAuthorization's API Key history (audit events)",
+  })
+  @ApiOkResponse({ type: ListConnectionAuditEventsResponseDto })
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.NOT_FOUND)
+  @RequirePermission(Permission.BANK_CONNECTION_REVEAL_KEY)
+  async listAuditEvents(
+    @Param('id') authorizationId: string,
+    @Query() query: PaginationDto,
+  ) {
+    const result = await this.listAuthorizationAuditEventsUseCase.execute({
+      organizationId: this.tenantContext.getOrganizationId(),
+      cassoFlowAuthorizationId: authorizationId,
+      page: query.page,
+      limit: query.limit,
+    });
+    return {
+      items: result.items.map(toConnectionAuditEventResponse),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+    };
   }
 }
