@@ -1,3 +1,4 @@
+import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +13,7 @@ export function CassoFlowConnectForm({
   onCompleted?: () => void;
 }) {
   const [apiKey, setApiKey] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
   const connectMutation = useConnectCassoFlow();
 
   function handleSubmit(e: React.FormEvent) {
@@ -34,16 +36,31 @@ export function CassoFlowConnectForm({
     <form onSubmit={handleSubmit} className="space-y-4 pt-2">
       <div className="space-y-2">
         <Label htmlFor="casso-api-key">Casso Flow API Key</Label>
-        <Input
-          id="casso-api-key"
-          type="password"
-          placeholder="AK_CS.****"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          disabled={connectMutation.isPending}
-          autoComplete="off"
-          required
-        />
+        <div className="relative">
+          <Input
+            id="casso-api-key"
+            type={showApiKey ? 'text' : 'password'}
+            placeholder="AK_CS.****"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            disabled={connectMutation.isPending}
+            autoComplete="off"
+            required
+            className="pr-9"
+          />
+          <button
+            type="button"
+            onClick={() => setShowApiKey((v) => !v)}
+            aria-label={showApiKey ? 'Ẩn mã API Key' : 'Hiện mã API Key'}
+            className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground pointer-hover:hover:text-foreground"
+          >
+            {showApiKey ? (
+              <EyeOff className="size-4" aria-hidden="true" />
+            ) : (
+              <Eye className="size-4" aria-hidden="true" />
+            )}
+          </button>
+        </div>
         <p className="text-xs text-muted-foreground">
           Bạn có thể xem cách lấy API Key tại{' '}
           <a

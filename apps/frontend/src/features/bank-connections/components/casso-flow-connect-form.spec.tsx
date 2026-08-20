@@ -68,4 +68,17 @@ describe('CassoFlowConnectForm', () => {
       });
     });
   });
+
+  it('toggles the API key field between masked and plain text', () => {
+    renderWithQuery(<CassoFlowConnectForm />);
+
+    const input = screen.getByLabelText(/Casso Flow API Key/i);
+    expect(input).toHaveAttribute('type', 'password');
+
+    fireEvent.click(screen.getByRole('button', { name: /hiện mã api key/i }));
+    expect(input).toHaveAttribute('type', 'text');
+
+    fireEvent.click(screen.getByRole('button', { name: /ẩn mã api key/i }));
+    expect(input).toHaveAttribute('type', 'password');
+  });
 });
