@@ -12,6 +12,7 @@ import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
 import { encryptToken } from '../src/modules/bank-connections/application/token-encryption';
 import { BankConnectionOrmEntity } from '../src/modules/bank-connections/infrastructure/bank-connection.orm-entity';
+import { CassoFlowAuthorizationOrmEntity } from '../src/modules/bank-connections/infrastructure/casso-flow-authorization.orm-entity';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
@@ -87,20 +88,30 @@ describe('Casso Flow bank connection flow (integration)', () => {
       createdAt: new Date(),
     });
 
-    const connectionId = randomUUID();
-    await dataSource.getRepository(BankConnectionOrmEntity).save({
-      id: connectionId,
+    const authorizationId = randomUUID();
+    await dataSource.getRepository(CassoFlowAuthorizationOrmEntity).save({
+      id: authorizationId,
       organizationId,
-      accountNumber,
-      bankName: 'Round Trip Bank',
+      businessId: 'e2e-business-1',
+      encryptedApiKey: encryptToken(
+        'seeded-api-key',
+        process.env.ACCESS_TOKEN_ENCRYPTION_KEY as string,
+      ),
       encryptedSecureToken: encryptToken(
         webhookSecret,
         process.env.ACCESS_TOKEN_ENCRYPTION_KEY as string,
       ),
-      encryptedCassoApiKey: encryptToken(
-        'seeded-api-key',
-        process.env.ACCESS_TOKEN_ENCRYPTION_KEY as string,
-      ),
+      createdAt: new Date(),
+    });
+
+    const connectionId = randomUUID();
+    await dataSource.getRepository(BankConnectionOrmEntity).save({
+      id: connectionId,
+      organizationId,
+      cassoFlowAuthorizationId: authorizationId,
+      accountNumber,
+      bankName: 'Round Trip Bank',
+      accountHolderName: 'ROUND TRIP TESTER',
       status: 'ACTIVE',
       connectedAt: new Date(),
       lastSyncAt: null,
