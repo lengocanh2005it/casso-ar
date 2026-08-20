@@ -58,6 +58,12 @@ export class LoginUseCase {
         'Email hoặc mật khẩu không đúng.',
       );
     }
+    if (!user.isEmailVerified()) {
+      throw new AppError(
+        ErrorCode.EMAIL_NOT_VERIFIED,
+        'Email chưa được xác thực.',
+      );
+    }
 
     const membership = await this.membershipRepo.findFirstActiveByUserId(
       user.id,
