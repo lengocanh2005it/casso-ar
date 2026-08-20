@@ -7,20 +7,17 @@ export interface IBankConnectionRepository {
     id: string,
     manager: EntityManager,
   ): Promise<BankConnection | null>;
-  // Unscoped on purpose: called from MarkRequiresReauthorizationUseCase and
-  // SyncTransactionsUseCase, which run outside an authenticated request (a
-  // background sync / a Casso Flow error callback with only a connectionId) —
-  // there is no TenantContextService organizationId to scope by at that point.
+  // Unscoped on purpose — see typeorm-bank-connection.repository.ts.
   findByIdUnscoped(id: string): Promise<BankConnection | null>;
-  // Unscoped on purpose, same reasoning as findByIdUnscoped above: called
-  // from ReceiveWebhookUseCase, which handles an inbound Casso Flow webhook
-  // — there is no TenantContextService organizationId at that point, only
-  // the accountNumber the payload carries.
+  // Unscoped on purpose — see typeorm-bank-connection.repository.ts.
   findByAccountNumber(accountNumber: string): Promise<BankConnection | null>;
-  findActiveOrReauthorizableByOrganizationForUpdate(
-    organizationId: string,
-    manager: EntityManager,
-  ): Promise<BankConnection | null>;
+  // Unscoped on purpose, same reasoning as findByAccountNumber: used by the
+  // preview/confirm connect flow to classify each Casso Flow account as
+  // AVAILABLE / ALREADY_CONNECTED / TAKEN_BY_ANOTHER_ORG *before* knowing
+  // which organization (if any) already owns a given accountNumber.
+  findByAccountNumbers(
+    accountNumbers: string[],
+  ): Promise<Map<string, BankConnection>>;
   findPage(
     organizationId: string,
     page: number,
@@ -30,6 +27,10 @@ export interface IBankConnectionRepository {
   hasActiveByOrganization(organizationId: string): Promise<boolean>;
   countActiveByOrganization(
     organizationId: string,
+    manager: EntityManager,
+  ): Promise<number>;
+  countActiveByAuthorization(
+    cassoFlowAuthorizationId: string,
     manager: EntityManager,
   ): Promise<number>;
   save(connection: BankConnection, manager?: EntityManager): Promise<void>;

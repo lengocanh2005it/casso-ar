@@ -10,17 +10,17 @@ export class BankConnectionOrmEntity {
   @Column()
   organizationId: string;
 
+  @Column()
+  cassoFlowAuthorizationId: string;
+
   @Column({ unique: true })
   accountNumber: string;
 
   @Column()
   bankName: string;
 
-  @Column('text')
-  encryptedSecureToken: string;
-
-  @Column('text')
-  encryptedCassoApiKey: string;
+  @Column({ type: 'varchar', default: '' })
+  accountHolderName: string;
 
   @Column({ type: 'varchar' })
   status: BankConnectionStatus;
