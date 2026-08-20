@@ -14,7 +14,7 @@ const payload = {
 };
 
 describe('WebhooksController', () => {
-  it('delegates to ReceiveWebhookUseCase with accountNumber, the header secret, and data.id', async () => {
+  it('delegates to ReceiveWebhookUseCase with accountNumber, the V2 signature, and data.id', async () => {
     const receiveWebhook = {
       execute: jest
         .fn()
@@ -27,7 +27,7 @@ describe('WebhooksController', () => {
     ).resolves.toEqual({ received: true, duplicate: false });
     expect(receiveWebhook.execute).toHaveBeenCalledWith({
       accountNumber: '0011002233',
-      webhookSecret: 'the-secret',
+      webhookSignature: 'the-secret',
       transactionId: '1',
       rawPayload: payload,
     });

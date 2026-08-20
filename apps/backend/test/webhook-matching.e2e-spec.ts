@@ -21,6 +21,7 @@ import {
 import { CustomerBankAccountOrmEntity } from '../src/modules/bank-accounts/infrastructure/customer-bank-account.orm-entity';
 import { encryptToken } from '../src/modules/bank-connections/application/token-encryption';
 import { BankConnectionOrmEntity } from '../src/modules/bank-connections/infrastructure/bank-connection.orm-entity';
+import { CassoFlowAuthorizationOrmEntity } from '../src/modules/bank-connections/infrastructure/casso-flow-authorization.orm-entity';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
 import { InvoiceStatus } from '../src/modules/invoices/domain/invoice';
 import { InvoiceOrmEntity } from '../src/modules/invoices/infrastructure/invoice.orm-entity';
@@ -28,6 +29,7 @@ import { Role } from '../src/modules/organizations/domain/membership';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { BankTransactionOrmEntity } from '../src/modules/webhooks/infrastructure/bank-transaction.orm-entity';
 import { WebhookInboxOrmEntity } from '../src/modules/webhooks/infrastructure/webhook-inbox.orm-entity';
+import { signCassoWebhookPayload } from './helpers/casso-webhook-signature';
 
 describe('Webhook matching (e2e)', () => {
   let container: StartedPostgreSqlContainer;
@@ -39,8 +41,8 @@ describe('Webhook matching (e2e)', () => {
 
   const organizationId = '00000000-0000-0000-0000-0000000000f1';
   const bankConnectionId = '00000000-0000-0000-0000-0000000000f2';
-  const firstTransactionId = `provider-tx-1-${randomUUID()}`;
-  const matchingTransactionId = `provider-tx-2-${randomUUID()}`;
+  const firstTransactionId = 1_000_001;
+  const matchingTransactionId = 1_000_002;
   const webhookSecret = 'e2e-test-secret';
   const payload = {
     error: 0,
@@ -97,19 +99,28 @@ describe('Webhook matching (e2e)', () => {
     bankAccountRepo = moduleRef.get(CUSTOMER_BANK_ACCOUNT_REPOSITORY);
     tenantContext = moduleRef.get(TenantContextService);
 
-    await dataSource.getRepository(BankConnectionOrmEntity).save({
-      id: bankConnectionId,
+    const authorizationId = randomUUID();
+    await dataSource.getRepository(CassoFlowAuthorizationOrmEntity).save({
+      id: authorizationId,
       organizationId,
-      accountNumber: '99887766',
-      bankName: 'Test Bank',
+      businessId: 'e2e-business-webhook-matching',
+      encryptedApiKey: encryptToken(
+        'e2e-api-key',
+        process.env.ACCESS_TOKEN_ENCRYPTION_KEY as string,
+      ),
       encryptedSecureToken: encryptToken(
         webhookSecret,
         process.env.ACCESS_TOKEN_ENCRYPTION_KEY as string,
       ),
-      encryptedCassoApiKey: encryptToken(
-        'e2e-api-key',
-        process.env.ACCESS_TOKEN_ENCRYPTION_KEY as string,
-      ),
+      createdAt: new Date(),
+    });
+
+    await dataSource.getRepository(BankConnectionOrmEntity).save({
+      id: bankConnectionId,
+      organizationId,
+      cassoFlowAuthorizationId: authorizationId,
+      accountNumber: '99887766',
+      bankName: 'Test Bank',
       status: 'ACTIVE',
       connectedAt: new Date(),
       lastSyncAt: new Date(),
@@ -128,13 +139,13 @@ describe('Webhook matching (e2e)', () => {
 
     await request(app.getHttpServer())
       .post(endpoint)
-      .set('secure-token', webhookSecret)
+      .set('X-Casso-Signature', signCassoWebhookPayload(payload, webhookSecret))
       .send(payload)
       .expect(200, { received: true, duplicate: false });
 
     await request(app.getHttpServer())
       .post(endpoint)
-      .set('secure-token', webhookSecret)
+      .set('X-Casso-Signature', signCassoWebhookPayload(payload, webhookSecret))
       .send(payload)
       .expect(200, { received: true, duplicate: true });
 
@@ -242,21 +253,25 @@ describe('Webhook matching (e2e)', () => {
       version: 1,
     });
 
+    const matchingPayload = {
+      error: 0,
+      data: {
+        id: matchingTransactionId,
+        amount: 30_000_000,
+        transactionDateTime: '2026-08-05 10:00:00',
+        description: 'Thanh toan INV-2026-0012',
+        accountNumber: '99887766',
+        counterAccountNumber: '0011002233',
+        counterAccountName: 'Company B',
+      },
+    };
     await request(app.getHttpServer())
       .post('/api/v1/webhooks/casso-balance-hook')
-      .set('secure-token', webhookSecret)
-      .send({
-        error: 0,
-        data: {
-          id: matchingTransactionId,
-          amount: 30_000_000,
-          transactionDateTime: '2026-08-05 10:00:00',
-          description: 'Thanh toan INV-2026-0012',
-          accountNumber: '99887766',
-          counterAccountNumber: '0011002233',
-          counterAccountName: 'Company B',
-        },
-      })
+      .set(
+        'X-Casso-Signature',
+        signCassoWebhookPayload(matchingPayload, webhookSecret),
+      )
+      .send(matchingPayload)
       .expect(200, { received: true, duplicate: false });
 
     const transactionRepo = dataSource.getRepository(BankTransactionOrmEntity);

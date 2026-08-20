@@ -27,9 +27,11 @@ const validPayload = {
 describe('BalanceHookDto', () => {
   it('accepts the real Casso Flow payload verbatim', async () => {
     const dto = plainToInstance(BalanceHookDto, validPayload);
-    const errors = await validate(dto);
+    const errors = await validate(dto, { whitelist: true });
     expect(errors).toHaveLength(0);
     expect(dto.data.accountNumber).toBe('88888888');
+    expect(Object.hasOwn(dto.data, 'bankAbbreviation')).toBe(true);
+    expect(Object.hasOwn(dto.data, 'counterAccountBankName')).toBe(true);
   });
 
   it('accepts empty-string counterparty fields', async () => {
