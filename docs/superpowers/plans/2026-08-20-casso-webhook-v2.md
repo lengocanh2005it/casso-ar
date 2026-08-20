@@ -67,4 +67,4 @@ export function verifyCassoWebhookSignature(input: {
 - [x] **Step 2: Run the affected e2e/integration tests** and confirm the V2 requests are accepted, duplicates remain idempotent, and invalid signatures are rejected.
 - [x] **Step 3: Refactor only after green** to remove duplicated test signing setup while keeping behavior unchanged.
 - [x] **Step 4:** Run fresh focused tests, backend type-check, `pnpm verify`, and the relevant e2e suites; run domain-check before completion.
-- [ ] **Step 5: Review the diff, commit with `fix: verify Casso webhook V2 signatures`, push `fix/casso-webhook-v2`, and open the PR against `feat/casso-flow-authorization`.
+- [x] **Step 5: Review the diff, commit with `fix: verify Casso webhook V2 signatures`, push `fix/casso-webhook-v2`, and open the PR against `feat/casso-flow-authorization`.
