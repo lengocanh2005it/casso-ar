@@ -22,6 +22,7 @@ export interface AuthEmailJob {
     | 'AUTH_VERIFICATION'
     | 'AUTH_PASSWORD_RESET'
     | 'AUTH_INVITE'
+    | 'AUTH_CHANGE_PASSWORD_OTP'
     | 'MEMBER_BLOCKED'
     | 'MEMBER_UNBLOCKED'
     | 'ORGANIZATION_APPROVED'

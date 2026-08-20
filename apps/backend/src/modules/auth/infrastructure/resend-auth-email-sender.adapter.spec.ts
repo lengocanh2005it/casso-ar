@@ -7,33 +7,28 @@ describe('ResendAuthEmailSenderAdapter', () => {
     delete process.env.APP_WEB_URL;
   });
 
-  it('localizes and brands verification email while making a relative URL absolute', async () => {
-    process.env.APP_WEB_URL = 'https://app.casso.vn';
+  it('localizes and brands verification OTP email', async () => {
     const emailQueue = { add: jest.fn().mockResolvedValue(undefined) };
     const adapter = new ResendAuthEmailSenderAdapter(emailQueue as any);
 
-    await adapter.sendVerificationEmail(
-      'owner@example.com',
-      '/verify-email?token=abc',
-    );
+    await adapter.sendVerificationEmail('owner@example.com', '482913');
 
-    expect(emailQueue.add).toHaveBeenCalledWith('send-auth-email', {
-      to: 'owner@example.com',
-      subject: 'Xác thực địa chỉ email | Casso Ledger',
-      html: expect.stringContaining(
-        'https://app.casso.vn/verify-email?token=abc',
-      ),
-      text: expect.stringContaining(
-        'https://app.casso.vn/verify-email?token=abc',
-      ),
-      attachments: [
-        expect.objectContaining({
-          filename: 'casso-ledger-logo.png',
-          contentId: 'casso-ledger-logo',
-        }),
-      ],
-      emailType: 'AUTH_VERIFICATION',
-    });
+    expect(emailQueue.add).toHaveBeenCalledWith(
+      'send-auth-email',
+      expect.objectContaining({
+        to: 'owner@example.com',
+        subject: 'Mã xác thực email | Casso Ledger',
+        html: expect.stringContaining('482913'),
+        text: expect.stringContaining('482913'),
+        attachments: [
+          expect.objectContaining({
+            filename: 'casso-ledger-logo.png',
+            contentId: 'casso-ledger-logo',
+          }),
+        ],
+        emailType: 'AUTH_VERIFICATION',
+      }),
+    );
   });
 
   it('escapes organization names in invitation email HTML', async () => {
@@ -55,17 +50,14 @@ describe('ResendAuthEmailSenderAdapter', () => {
     const emailQueue = { add: jest.fn().mockResolvedValue(undefined) };
     await new ResendAuthEmailSenderAdapter(
       emailQueue as any,
-    ).sendVerificationEmail(
-      'user@example.com',
-      'https://app.casso.vn/verify?token=abc',
-    );
+    ).sendVerificationEmail('user@example.com', '482913');
     expect(emailQueue.add).toHaveBeenCalledWith(
       'send-auth-email',
       expect.objectContaining({
         to: 'user@example.com',
-        subject: 'Xác thực địa chỉ email | Casso Ledger',
-        html: expect.stringContaining('https://app.casso.vn/verify?token=abc'),
-        text: expect.stringContaining('https://app.casso.vn/verify?token=abc'),
+        subject: 'Mã xác thực email | Casso Ledger',
+        html: expect.stringContaining('482913'),
+        text: expect.stringContaining('482913'),
         attachments: [
           expect.objectContaining({ contentId: 'casso-ledger-logo' }),
         ],
@@ -111,23 +103,35 @@ describe('ResendAuthEmailSenderAdapter', () => {
     const adapter = new ResendAuthEmailSenderAdapter(emailQueue as any);
 
     await expect(
-      adapter.sendVerificationEmail(
-        'user@example.com',
-        'https://app.casso.vn/verify?token=abc',
-      ),
+      adapter.sendVerificationEmail('user@example.com', '482913'),
     ).rejects.toThrow(AppError);
 
     try {
-      await adapter.sendVerificationEmail(
-        'user@example.com',
-        'https://app.casso.vn/verify?token=abc',
-      );
+      await adapter.sendVerificationEmail('user@example.com', '482913');
     } catch (error) {
       expect(error).toBeInstanceOf(AppError);
       expect((error as AppError).errorCode).toBe(ErrorCode.EMAIL_SEND_FAILED);
       expect((error as AppError).cause).toBeInstanceOf(Error);
       expect(((error as AppError).cause as Error).message).toBe('Queue full');
     }
+  });
+
+  it('queues a change-password OTP email', async () => {
+    const emailQueue = { add: jest.fn().mockResolvedValue(undefined) };
+    const adapter = new ResendAuthEmailSenderAdapter(emailQueue as any);
+
+    await adapter.sendChangePasswordOtpEmail('user@example.com', '123456');
+
+    expect(emailQueue.add).toHaveBeenCalledWith('send-auth-email', {
+      to: 'user@example.com',
+      subject: 'Mã OTP đổi mật khẩu | Casso Ledger',
+      html: expect.stringContaining('123456'),
+      text: expect.stringContaining('123456'),
+      attachments: [
+        expect.objectContaining({ contentId: 'casso-ledger-logo' }),
+      ],
+      emailType: 'AUTH_CHANGE_PASSWORD_OTP',
+    });
   });
 
   it('queues member blocked and unblocked emails', async () => {

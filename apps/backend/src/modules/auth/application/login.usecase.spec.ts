@@ -95,6 +95,32 @@ describe('LoginUseCase', () => {
     });
   });
 
+  it('throws EMAIL_NOT_VERIFIED for a correct password but an unverified email', async () => {
+    const passwordHash = await hashPassword('S3curePass!');
+    const user = new User({
+      id: 'user-1',
+      name: 'An',
+      email: 'ap@congtyb.vn',
+      passwordHash,
+      emailVerifiedAt: null,
+      createdAt: new Date(),
+    });
+    const organizationRepo = buildOrganizationRepo('ACTIVE');
+    const useCase = new LoginUseCase(
+      { findByEmail: jest.fn().mockResolvedValue(user) } as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      organizationRepo as any,
+    );
+
+    await expect(
+      useCase.execute({ email: 'ap@congtyb.vn', password: 'S3curePass!' }),
+    ).rejects.toMatchObject({
+      errorCode: 'EMAIL_NOT_VERIFIED',
+    });
+  });
+
   it('signs a token for an operator without a membership', async () => {
     const user = new User({
       id: 'operator-1',

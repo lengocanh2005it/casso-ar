@@ -28,12 +28,6 @@ describe('SignupUseCase', () => {
     const emailSender = { sendVerificationEmail: jest.fn() };
     const { taxCodeLookup, memberNotificationSender } =
       buildTaxCodeMatchMocks('Company B');
-    const loginUseCase = {
-      execute: jest.fn().mockResolvedValue({
-        accessToken: 'access',
-        refreshToken: 'refresh',
-      }),
-    };
     const dataSource = {
       transaction: jest.fn(
         async (callback: (manager: object) => Promise<void>) => callback({}),
@@ -50,7 +44,6 @@ describe('SignupUseCase', () => {
       emailSender as any,
       taxCodeLookup as any,
       memberNotificationSender as any,
-      loginUseCase as any,
       dataSource as any,
     );
 
@@ -75,7 +68,7 @@ describe('SignupUseCase', () => {
     expect(verificationTokenRepo.save).toHaveBeenCalled();
     expect(emailSender.sendVerificationEmail).toHaveBeenCalledWith(
       'ap@congtyb.vn',
-      expect.stringContaining('/verify-email?token='),
+      expect.stringMatching(/^\d{6}$/),
     );
   });
 
@@ -96,7 +89,6 @@ describe('SignupUseCase', () => {
       {} as any,
       taxCodeLookup as any,
       memberNotificationSender as any,
-      {} as any,
       {} as any,
     );
 
@@ -126,12 +118,6 @@ describe('SignupUseCase tax code verification', () => {
     const subscriptionRepo = { save: jest.fn() };
     const organizationBootstrap = { seed: jest.fn() };
     const emailSender = { sendVerificationEmail: jest.fn() };
-    const loginUseCase = {
-      execute: jest.fn().mockResolvedValue({
-        accessToken: 'access-token',
-        refreshToken: 'refresh-token',
-      }),
-    };
     const dataSource = {
       transaction: jest.fn((cb) => cb({})),
     };
@@ -143,12 +129,11 @@ describe('SignupUseCase tax code verification', () => {
       subscriptionRepo,
       organizationBootstrap,
       emailSender,
-      loginUseCase,
       dataSource,
     };
   }
 
-  it('creates an ACTIVE organization and logs in immediately when the tax code matches exactly', async () => {
+  it('creates an ACTIVE organization and sends the org-approved notification', async () => {
     const common = buildCommonMocks();
     const { taxCodeLookup, memberNotificationSender } =
       buildTaxCodeMatchMocks('ACME CO');
@@ -162,7 +147,6 @@ describe('SignupUseCase tax code verification', () => {
       common.emailSender as any,
       taxCodeLookup as any,
       memberNotificationSender as any,
-      common.loginUseCase as any,
       common.dataSource as any,
     );
 
@@ -176,13 +160,12 @@ describe('SignupUseCase tax code verification', () => {
 
     expect(result.organization.status).toBe('ACTIVE');
     expect(result.organization.taxCodeMatched).toBe(true);
-    expect(result.accessToken).toBe('access-token');
     expect(
       memberNotificationSender.sendOrganizationApprovedEmail,
     ).toHaveBeenCalledWith('an@acme.vn', 'Acme Co');
   });
 
-  it('creates a PENDING_REVIEW organization and issues no tokens when the tax code does not match', async () => {
+  it('creates a PENDING_REVIEW organization and sends no org-approved notification when the tax code does not match', async () => {
     const common = buildCommonMocks();
     const { taxCodeLookup, memberNotificationSender } = buildTaxCodeMatchMocks(
       'A Totally Different Co',
@@ -197,7 +180,6 @@ describe('SignupUseCase tax code verification', () => {
       common.emailSender as any,
       taxCodeLookup as any,
       memberNotificationSender as any,
-      common.loginUseCase as any,
       common.dataSource as any,
     );
 
@@ -210,9 +192,6 @@ describe('SignupUseCase tax code verification', () => {
     });
 
     expect(result.organization.status).toBe('PENDING_REVIEW');
-    expect(result.accessToken).toBeUndefined();
-    expect(result.refreshToken).toBeUndefined();
-    expect(common.loginUseCase.execute).not.toHaveBeenCalled();
     expect(
       memberNotificationSender.sendOrganizationApprovedEmail,
     ).not.toHaveBeenCalled();
@@ -232,7 +211,6 @@ describe('SignupUseCase tax code verification', () => {
       common.emailSender as any,
       taxCodeLookup as any,
       memberNotificationSender as any,
-      common.loginUseCase as any,
       common.dataSource as any,
     );
 
@@ -245,6 +223,5 @@ describe('SignupUseCase tax code verification', () => {
     });
 
     expect(result.organization.status).toBe('PENDING_REVIEW');
-    expect(result.accessToken).toBeUndefined();
   });
 });

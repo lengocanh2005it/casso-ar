@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { buildFrontendUrl } from '../../../common/config/frontend-url';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
@@ -108,7 +109,7 @@ export class ResendInviteByOperatorUseCase {
     try {
       await this.emailSender.sendInviteEmail(
         invite.email,
-        `/invites/accept?token=${token}`,
+        buildFrontendUrl(`/invite-accept?token=${token}`),
         organization.name,
       );
     } catch (error) {

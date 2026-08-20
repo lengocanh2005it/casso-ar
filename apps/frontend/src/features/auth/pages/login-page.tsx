@@ -32,6 +32,10 @@ export function LoginPage() {
       navigate('/dashboard');
     } catch (submitError) {
       const errorCode = getApiErrorCode(submitError);
+      if (errorCode === 'EMAIL_NOT_VERIFIED') {
+        navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`);
+        return;
+      }
       if (errorCode && ORGANIZATION_STATUS_ERROR_CODES.has(errorCode)) {
         toast.error(
           getApiErrorMessage(submitError) ??

@@ -44,6 +44,7 @@ export class ResendAuthEmailSenderAdapter
       | 'AUTH_VERIFICATION'
       | 'AUTH_PASSWORD_RESET'
       | 'AUTH_INVITE'
+      | 'AUTH_CHANGE_PASSWORD_OTP'
       | 'MEMBER_BLOCKED'
       | 'MEMBER_UNBLOCKED'
       | 'ORGANIZATION_APPROVED'
@@ -72,19 +73,17 @@ export class ResendAuthEmailSenderAdapter
     }
   }
 
-  async sendVerificationEmail(to: string, verifyUrl: string): Promise<void> {
-    const url = toAbsoluteAppUrl(verifyUrl);
+  async sendVerificationEmail(to: string, otp: string): Promise<void> {
     return this.enqueue(
       to,
-      'Xác thực địa chỉ email | Casso Ledger',
+      'Mã xác thực email | Casso Ledger',
       buildCassoEmail({
-        title: 'Xác thực địa chỉ email',
+        title: 'Mã xác thực email',
         greeting: 'Kính chào Quý khách,',
         paragraphs: [
-          'Cảm ơn Quý khách đã đăng ký sử dụng Casso Ledger.',
-          'Vui lòng nhấn nút bên dưới để xác thực địa chỉ email và hoàn tất quá trình đăng ký. Liên kết này có hiệu lực trong 24 giờ.',
+          `Mã xác thực email của Quý khách là: ${otp}.`,
+          'Mã có hiệu lực trong 10 phút. Vui lòng không chia sẻ mã này với bất kỳ ai.',
         ],
-        action: { label: 'Xác thực email', url },
       }),
       'AUTH_VERIFICATION',
     );
@@ -106,6 +105,22 @@ export class ResendAuthEmailSenderAdapter
         action: { label: 'Đặt lại mật khẩu', url },
       }),
       'AUTH_PASSWORD_RESET',
+    );
+  }
+
+  async sendChangePasswordOtpEmail(to: string, otp: string): Promise<void> {
+    return this.enqueue(
+      to,
+      'Mã OTP đổi mật khẩu | Casso Ledger',
+      buildCassoEmail({
+        title: 'Mã OTP đổi mật khẩu',
+        greeting: 'Kính chào Quý khách,',
+        paragraphs: [
+          `Mã OTP đổi mật khẩu của Quý khách là: ${otp}.`,
+          'Mã có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này với bất kỳ ai.',
+        ],
+      }),
+      'AUTH_CHANGE_PASSWORD_OTP',
     );
   }
 

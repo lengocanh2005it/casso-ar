@@ -109,7 +109,7 @@ describe('ResendInviteByOperatorUseCase', () => {
     );
     expect(emailSender.sendInviteEmail).toHaveBeenCalledWith(
       'member@example.com',
-      expect.stringMatching(/^\/invites\/accept\?token=.+/),
+      expect.stringMatching(/^https?:\/\/[^/]+\/invite-accept\?token=.+/),
       'Acme',
     );
   });

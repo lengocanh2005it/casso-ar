@@ -1,7 +1,9 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsEmail, Matches } from 'class-validator';
 
 export class VerifyEmailDto {
-  @IsString()
-  @IsNotEmpty()
-  token: string;
+  @IsEmail()
+  email: string;
+
+  @Matches(/^\d{6}$/, { message: 'Mã OTP phải gồm 6 chữ số.' })
+  otp: string;
 }

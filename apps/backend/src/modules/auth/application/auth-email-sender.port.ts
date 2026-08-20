@@ -1,6 +1,7 @@
 export interface IAuthEmailSender {
-  sendVerificationEmail(to: string, verifyUrl: string): Promise<void>;
+  sendVerificationEmail(to: string, otp: string): Promise<void>;
   sendPasswordResetEmail(to: string, resetUrl: string): Promise<void>;
+  sendChangePasswordOtpEmail(to: string, otp: string): Promise<void>;
   sendInviteEmail(
     to: string,
     acceptUrl: string,

@@ -73,16 +73,11 @@ describe('ReceiveWebhookUseCase', () => {
 
   it('ignores when the secret does not match, without enqueueing', async () => {
     const connectionRepo = {
-      findByAccountNumber: jest
-        .fn()
-        .mockResolvedValue(
-          connectionWith({
-            encryptedSecureToken: encryptToken(
-              'different-secret',
-              encryptionKey,
-            ),
-          }),
-        ),
+      findByAccountNumber: jest.fn().mockResolvedValue(
+        connectionWith({
+          encryptedSecureToken: encryptToken('different-secret', encryptionKey),
+        }),
+      ),
     };
     const queue = { enqueue: jest.fn() };
     const useCase = new ReceiveWebhookUseCase(
