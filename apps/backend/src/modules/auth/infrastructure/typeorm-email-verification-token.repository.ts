@@ -14,14 +14,15 @@ export class TypeOrmEmailVerificationTokenRepository
     private readonly repo: Repository<EmailVerificationTokenOrmEntity>,
   ) {}
 
-  async findByTokenHash(
+  async findByUserIdAndTokenHash(
+    userId: string,
     tokenHash: string,
     manager?: EntityManager,
   ): Promise<EmailVerificationToken | null> {
     const row = await (manager
       ? manager.getRepository(EmailVerificationTokenOrmEntity)
       : this.repo
-    ).findOne({ where: { tokenHash } });
+    ).findOne({ where: { userId, tokenHash } });
     return row ? new EmailVerificationToken(row) : null;
   }
 
