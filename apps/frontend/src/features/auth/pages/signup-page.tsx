@@ -4,13 +4,17 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Spinner } from '@/components/ui/spinner';
+import { useAuth } from '@/contexts/auth-context';
 import { apiRequest, authTokenManager } from '@/lib/api-client';
 import { AuthLogoLink } from '../components/auth-logo-link';
+import { EmailOtpStep } from '../components/email-otp-step';
 
 const TAX_CODE_PATTERN = /^\d{10}(\d{3})?$/;
 
 export function SignupPage() {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
+  const [step, setStep] = useState<'form' | 'otp'>('form');
   const [organizationName, setOrganizationName] = useState('');
   const [taxCode, setTaxCode] = useState('');
   const [name, setName] = useState('');
@@ -37,12 +41,30 @@ export function SignupPage() {
         data: { organizationName, name, email, password, taxCode },
       });
       toast.success('Tạo tài khoản thành công.');
-      navigate(`/verify-email?email=${encodeURIComponent(email.trim())}`);
+      setStep('otp');
     } catch {
       setError('Không thể tạo tài khoản. Vui lòng kiểm tra thông tin.');
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function onVerified(result: { accessToken: string }) {
+    authTokenManager.setAccessToken(result.accessToken);
+    await refreshUser();
+    navigate('/onboarding', { replace: true });
+  }
+
+  if (step === 'otp') {
+    return (
+      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6">
+        <AuthLogoLink />
+        <div className="w-full max-w-sm rounded-xl border bg-card p-6 shadow-sm">
+          <h1 className="mb-4 text-xl font-semibold">Xác thực email</h1>
+          <EmailOtpStep email={email} onVerified={onVerified} />
+        </div>
+      </div>
+    );
   }
 
   return (

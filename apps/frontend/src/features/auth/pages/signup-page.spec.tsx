@@ -47,12 +47,11 @@ describe('SignupPage', () => {
     getValidAccessToken.mockResolvedValue(null);
   });
 
-  it('sends the new account to email verification', async () => {
-    apiRequest.mockImplementation((config: { url: string }) => {
-      if (config.url === '/api/v1/auth/signup') {
-        return Promise.resolve({ accessToken: 'access-token' });
-      }
-      return Promise.reject(new Error('me failed'));
+  it('sends the new account to the OTP step inline', async () => {
+    apiRequest.mockResolvedValueOnce({
+      userId: 'user-1',
+      organizationId: 'org-1',
+      organizationStatus: 'PENDING_REVIEW',
     });
 
     render(
@@ -60,7 +59,6 @@ describe('SignupPage', () => {
         <MemoryRouter initialEntries={['/signup']}>
           <Routes>
             <Route path="/signup" element={<SignupPage />} />
-            <Route path="/verify-email" element={<div>verify email</div>} />
           </Routes>
         </MemoryRouter>
       </AuthProvider>,
@@ -71,7 +69,9 @@ describe('SignupPage', () => {
     );
     fillAndSubmit();
 
-    await waitFor(() => expect(screen.getByText('verify email')).toBeVisible());
+    await waitFor(() =>
+      expect(screen.getByText(/new\*\*\*@casso\.vn/i)).toBeVisible(),
+    );
     expect(
       screen.queryByText(/không thể tạo tài khoản/i),
     ).not.toBeInTheDocument();
