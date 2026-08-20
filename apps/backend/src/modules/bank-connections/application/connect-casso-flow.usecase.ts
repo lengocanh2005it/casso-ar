@@ -24,6 +24,7 @@ import {
   CONNECTION_AUDIT_EVENT_REPOSITORY,
   type IConnectionAuditEventRepository,
 } from './connection-audit-event-repository.port';
+import { maskApiKey } from './mask-api-key';
 import { encryptToken } from './token-encryption';
 import { ACCESS_TOKEN_ENCRYPTION_KEY } from './token-encryption-key';
 
@@ -31,6 +32,7 @@ export interface ConnectCassoFlowInput {
   organizationId: string;
   apiKey: string;
   selectedAccountNumbers: string[];
+  userId: string;
 }
 
 export interface ConnectCassoFlowConnectedItem {
@@ -74,6 +76,7 @@ export class ConnectCassoFlowUseCase {
     const { businessId, accounts } = await this.adapter.getAccountInfo(
       input.apiKey,
     );
+    const maskedApiKey = maskApiKey(input.apiKey);
     const selected = new Set(input.selectedAccountNumbers);
     const candidates = accounts.filter((account) =>
       selected.has(account.accountNumber),
@@ -117,6 +120,8 @@ export class ConnectCassoFlowUseCase {
         account,
         existing.get(account.accountNumber) ?? null,
         authorization.id,
+        input.userId,
+        maskedApiKey,
       );
       if (connectionId === null) {
         skipped.push({
@@ -162,6 +167,8 @@ export class ConnectCassoFlowUseCase {
     account: CassoFlowBankAccount,
     existingConnection: BankConnection | null,
     cassoFlowAuthorizationId: string,
+    userId: string,
+    maskedApiKey: string,
   ): Promise<string | null> {
     try {
       return await this.dataSource.transaction(async (manager) => {
@@ -200,7 +207,11 @@ export class ConnectCassoFlowUseCase {
             organizationId: connection.organizationId,
             bankConnectionId: connection.id,
             eventType: existingConnection ? 'RECONNECTED' : 'TOKEN_EXCHANGED',
-            metadata: { accountNumber: account.accountNumber },
+            metadata: {
+              accountNumber: account.accountNumber,
+              actorUserId: userId,
+              maskedApiKey,
+            },
             createdAt: now,
           }),
           manager,
