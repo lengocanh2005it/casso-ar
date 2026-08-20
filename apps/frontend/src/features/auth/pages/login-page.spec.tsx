@@ -133,4 +133,36 @@ describe('LoginPage', () => {
       screen.queryByText(/email hoặc mật khẩu không đúng/i),
     ).not.toBeInTheDocument();
   });
+
+  it('redirects to the OTP screen when the email is not verified', async () => {
+    apiRequest.mockRejectedValue({
+      response: {
+        data: {
+          errorCode: 'EMAIL_NOT_VERIFIED',
+          message: 'Email chưa được xác thực.',
+        },
+      },
+    });
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/login']}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/verify-email"
+              element={<div>verify-email screen</div>}
+            />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByLabelText(/email/i)).toBeVisible());
+    fillAndSubmit();
+
+    await waitFor(() =>
+      expect(screen.getByText('verify-email screen')).toBeVisible(),
+    );
+  });
 });

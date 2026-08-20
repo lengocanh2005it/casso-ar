@@ -1,210 +1,30 @@
-import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { InlineFormError } from '@/components/ui/inline-form-error';
-import { Spinner } from '@/components/ui/spinner';
 import { useAuth } from '@/contexts/auth-context';
-import {
-  apiRequest,
-  authTokenManager,
-  getApiErrorCode,
-  getApiErrorMessage,
-} from '@/lib/api-client';
+import { authTokenManager } from '@/lib/api-client';
 import { AuthLogoLink } from '../components/auth-logo-link';
-
-type VerificationState =
-  | 'pending'
-  | 'verifying'
-  | 'error'
-  | 'pending-review'
-  | 'rejected';
-
-const DEFAULT_REJECTED_MESSAGE =
-  'Đăng ký tổ chức của bạn chưa được chấp thuận.';
+import { EmailOtpStep } from '../components/email-otp-step';
 
 export function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
-  const token = searchParams.get('token');
-  const [email, setEmail] = useState(searchParams.get('email') ?? '');
-  const [resending, setResending] = useState(false);
-  const [resendSent, setResendSent] = useState(false);
-  const [resendError, setResendError] = useState<string | null>(null);
-  const [rejectedMessage, setRejectedMessage] = useState(
-    DEFAULT_REJECTED_MESSAGE,
-  );
-  const [state, setState] = useState<VerificationState>(
-    token ? 'verifying' : 'pending',
-  );
+  const email = searchParams.get('email') ?? '';
 
-  async function onResend(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setResending(true);
-    setResendSent(false);
-    setResendError(null);
-
-    try {
-      await apiRequest({
-        url: '/api/v1/auth/resend-verification',
-        method: 'POST',
-        data: { email },
-      });
-      setResendSent(true);
-    } catch {
-      setResendError('Không thể gửi lại email. Vui lòng thử lại sau.');
-    } finally {
-      setResending(false);
-    }
+  async function onVerified(result: { accessToken: string }) {
+    authTokenManager.setAccessToken(result.accessToken);
+    await refreshUser();
+    navigate('/onboarding', { replace: true });
   }
 
-  useEffect(() => {
-    if (!token) {
-      setState('pending');
-      return;
-    }
-
-    let cancelled = false;
-    void apiRequest<{ accessToken: string }>({
-      url: '/api/v1/auth/verify-email',
-      method: 'POST',
-      data: { token },
-    })
-      .then(async (result) => {
-        authTokenManager.setAccessToken(result.accessToken);
-        await refreshUser();
-        if (!cancelled) navigate('/onboarding', { replace: true });
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        const errorCode = getApiErrorCode(error);
-        if (errorCode === 'ORGANIZATION_PENDING_REVIEW') {
-          setState('pending-review');
-          return;
-        }
-        if (errorCode === 'ORGANIZATION_REJECTED') {
-          setRejectedMessage(
-            getApiErrorMessage(error) ?? DEFAULT_REJECTED_MESSAGE,
-          );
-          setState('rejected');
-          return;
-        }
-        setState('error');
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [navigate, refreshUser, token]);
-
-  if (state === 'pending') {
-    return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
-        <AuthLogoLink />
-        <div role="status" className="space-y-2">
-          <h1 className="text-xl font-semibold">Kiểm tra email</h1>
-          <p className="text-sm text-muted-foreground">
-            Mở liên kết trong email để xác minh tài khoản và tiếp tục thiết lập.
-          </p>
-          <form onSubmit={onResend} className="space-y-2 text-left">
-            <label className="block space-y-1">
-              <span className="text-sm font-medium">Email</span>
-              <input
-                type="email"
-                name="email"
-                required
-                autoComplete="email"
-                spellCheck={false}
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              />
-            </label>
-            <InlineFormError message={resendError} />
-            {resendSent && (
-              <p className="text-sm text-muted-foreground" role="status">
-                Đã gửi lại email xác thực. Hãy kiểm tra hộp thư của bạn.
-              </p>
-            )}
-            <Button
-              type="submit"
-              disabled={resending}
-              aria-busy={resending}
-              className="w-full"
-            >
-              {resending && <Spinner />}
-              {resending ? 'Đang gửi…' : 'Gửi lại email xác thực'}
-            </Button>
-          </form>
-          <Link
-            to="/login"
-            className="text-primary pointer-hover:hover:underline"
-          >
-            Quay lại đăng nhập
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (state === 'verifying') {
-    return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
-        <AuthLogoLink />
-        <div role="status">Đang xác minh email…</div>
-      </div>
-    );
-  }
-
-  if (state === 'pending-review') {
-    return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
-        <AuthLogoLink />
-        <div role="status" className="space-y-2">
-          <h1 className="text-xl font-semibold">Email đã được xác minh</h1>
-          <p className="text-sm text-muted-foreground">
-            Tổ chức của bạn đang chờ được duyệt — chúng tôi sẽ gửi email khi có
-            kết quả.
-          </p>
-          <Link
-            to="/login"
-            className="text-primary pointer-hover:hover:underline"
-          >
-            Đến trang đăng nhập
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (state === 'rejected') {
+  if (!email) {
     return (
       <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
         <AuthLogoLink />
         <div role="alert" className="space-y-2">
-          <h1 className="text-xl font-semibold">
-            Đăng ký chưa được chấp thuận
-          </h1>
-          <p className="text-sm text-muted-foreground">{rejectedMessage}</p>
-          <Link
-            to="/login"
-            className="text-primary pointer-hover:hover:underline"
-          >
-            Đến trang đăng nhập
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (state === 'error') {
-    return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
-        <AuthLogoLink />
-        <div role="status" className="space-y-2">
-          <h1 className="text-xl font-semibold">Liên kết không hợp lệ</h1>
+          <h1 className="text-xl font-semibold">Thiếu thông tin email</h1>
           <p className="text-sm text-muted-foreground">
-            Liên kết xác minh đã hết hạn hoặc không tồn tại.
+            Vui lòng đăng ký hoặc đăng nhập lại để nhận mã xác thực mới.
           </p>
           <Link
             to="/login"
@@ -217,5 +37,16 @@ export function VerifyEmailPage() {
     );
   }
 
-  return null;
+  return (
+    <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6">
+      <AuthLogoLink />
+      <div className="w-full max-w-sm rounded-xl border bg-card p-6 shadow-sm">
+        <h1 className="mb-4 text-xl font-semibold">Xác thực email</h1>
+        <EmailOtpStep email={email} onVerified={onVerified} />
+        <Button variant="link" className="mt-4 h-auto p-0 text-sm" asChild>
+          <Link to="/login">← Quay lại đăng nhập</Link>
+        </Button>
+      </div>
+    </div>
+  );
 }
