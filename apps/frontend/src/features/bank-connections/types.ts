@@ -25,4 +25,5 @@ export interface BankConnectionList {
 
 export interface ConnectCassoFlowInput {
   apiKey: string;
+  bankConnectionId?: string;
 }
