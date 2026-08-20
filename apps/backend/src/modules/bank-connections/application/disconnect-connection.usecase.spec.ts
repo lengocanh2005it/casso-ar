@@ -100,7 +100,7 @@ describe('DisconnectConnectionUseCase', () => {
         },
       });
 
-    await useCase.execute('conn-1');
+    await useCase.execute('conn-1', 'user-1');
 
     expect(bankConnectionRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'DISCONNECTED' }),
@@ -120,7 +120,7 @@ describe('DisconnectConnectionUseCase', () => {
       },
     });
 
-    await useCase.execute('conn-1');
+    await useCase.execute('conn-1', 'user-1');
 
     expect(adapter.invalidateToken).toHaveBeenCalledWith('raw-api-key');
   });
@@ -145,7 +145,7 @@ describe('DisconnectConnectionUseCase', () => {
       markRequiresReauthorization,
     });
 
-    await expect(useCase.execute('conn-1')).rejects.toBeInstanceOf(
+    await expect(useCase.execute('conn-1', 'user-1')).rejects.toBeInstanceOf(
       CassoFlowUnauthorizedError,
     );
     expect(markRequiresReauthorization.handleAdapterError).toHaveBeenCalledWith(
@@ -165,7 +165,9 @@ describe('DisconnectConnectionUseCase', () => {
       bankConnectionRepo: { findById: jest.fn().mockResolvedValue(null) },
     });
 
-    await expect(useCase.execute('missing')).rejects.toBeInstanceOf(AppError);
+    await expect(useCase.execute('missing', 'user-1')).rejects.toBeInstanceOf(
+      AppError,
+    );
   });
 
   it('throws AppError if the connection disappears between the unlocked read and the locked re-read', async () => {
@@ -175,6 +177,22 @@ describe('DisconnectConnectionUseCase', () => {
       },
     });
 
-    await expect(useCase.execute('conn-1')).rejects.toBeInstanceOf(AppError);
+    await expect(useCase.execute('conn-1', 'user-1')).rejects.toBeInstanceOf(
+      AppError,
+    );
+  });
+
+  it('records the actor on the DISCONNECTED audit event', async () => {
+    const { useCase, auditEventRepo } = buildUseCase({});
+
+    await useCase.execute('conn-1', 'user-1');
+
+    expect(auditEventRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'DISCONNECTED',
+        metadata: { actorUserId: 'user-1' },
+      }),
+      expect.anything(),
+    );
   });
 });
