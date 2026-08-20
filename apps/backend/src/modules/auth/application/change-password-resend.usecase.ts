@@ -7,6 +7,10 @@ import {
   CHANGE_PASSWORD_OTP_REPOSITORY,
   type IChangePasswordOtpRepository,
 } from '../../profile/application/change-password-otp-repository.port';
+import {
+  AUTH_EMAIL_SENDER,
+  type IAuthEmailSender,
+} from './auth-email-sender.port';
 
 @Injectable()
 export class ChangePasswordResendUseCase {
@@ -16,6 +20,7 @@ export class ChangePasswordResendUseCase {
     private readonly dataSource: DataSource,
     @Inject(CHANGE_PASSWORD_OTP_REPOSITORY)
     private readonly otpRepo: IChangePasswordOtpRepository,
+    @Inject(AUTH_EMAIL_SENDER) private readonly emailSender: IAuthEmailSender,
   ) {}
 
   async execute(userId: string): Promise<void> {
@@ -23,7 +28,8 @@ export class ChangePasswordResendUseCase {
       'SELECT email FROM users WHERE id = $1',
       [userId],
     );
-    if (!result[0]) {
+    const email = result[0]?.email as string | undefined;
+    if (!email) {
       throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy người dùng');
     }
 
@@ -34,10 +40,7 @@ export class ChangePasswordResendUseCase {
     await this.otpRepo.invalidatePrevious(userId);
     await this.otpRepo.create({ userId, otpHash, expiresAt });
 
-    this.logger.log({
-      message: 'Change password OTP resent',
-      userId,
-      otp,
-    });
+    this.logger.log({ message: 'Change password OTP resent', userId });
+    await this.emailSender.sendChangePasswordOtpEmail(email, otp);
   }
 }

@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { buildFrontendUrl } from '../../../common/config/frontend-url';
 import {
   type IUserRepository,
   USER_REPOSITORY,
@@ -15,9 +14,9 @@ import {
   EMAIL_VERIFICATION_TOKEN_REPOSITORY,
   type IEmailVerificationTokenRepository,
 } from './email-verification-token-repository.port';
-import { generateToken } from './token-hasher';
+import { generateOtp } from './token-hasher';
 
-const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const VERIFICATION_TOKEN_TTL_MS = 10 * 60 * 1000;
 
 @Injectable()
 export class ResendVerificationEmailUseCase {
@@ -35,7 +34,7 @@ export class ResendVerificationEmailUseCase {
     );
     if (!user || user.isEmailVerified()) return;
 
-    const { token, hash } = generateToken();
+    const { otp, hash } = generateOtp();
     await this.dataSource.transaction(async (manager) => {
       await this.verificationTokenRepo.deleteByUserId(user.id, manager);
       await this.verificationTokenRepo.save(
@@ -50,9 +49,6 @@ export class ResendVerificationEmailUseCase {
       );
     });
 
-    await this.emailSender.sendVerificationEmail(
-      user.email,
-      buildFrontendUrl(`/verify-email?token=${token}`),
-    );
+    await this.emailSender.sendVerificationEmail(user.email, otp);
   }
 }

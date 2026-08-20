@@ -11,7 +11,7 @@ import {
   type IEmailVerificationTokenRepository,
 } from './email-verification-token-repository.port';
 import { type LoginResult, LoginUseCase } from './login.usecase';
-import { hashToken } from './token-hasher';
+import { hashOtp } from './token-hasher';
 
 @Injectable()
 export class VerifyEmailUseCase {
@@ -23,24 +23,24 @@ export class VerifyEmailUseCase {
     private readonly loginUseCase: LoginUseCase,
   ) {}
 
-  async execute(rawToken: string): Promise<LoginResult> {
-    const token = await this.tokenRepo.findByTokenHash(hashToken(rawToken));
-    if (!token || token.isExpired(new Date())) {
+  async execute(email: string, otp: string): Promise<LoginResult> {
+    const user = await this.userRepo.findByEmail(email.trim().toLowerCase());
+    const token = user
+      ? await this.tokenRepo.findByUserIdAndTokenHash(user.id, hashOtp(otp))
+      : null;
+
+    if (!user || !token || token.isExpired(new Date())) {
       throw new AppError(
-        ErrorCode.VALIDATION_ERROR,
-        'Mã xác thực email không hợp lệ hoặc đã hết hạn.',
+        ErrorCode.UNAUTHORIZED,
+        'Mã xác thực không hợp lệ hoặc đã hết hạn.',
       );
     }
 
     await this.dataSource.transaction(async (manager) => {
-      const user = await this.userRepo.findById(token.userId, manager);
-      if (!user) {
-        throw new AppError(ErrorCode.NOT_FOUND, 'Không tìm thấy người dùng.');
-      }
       await this.userRepo.save(user.markEmailVerified(), manager);
       await this.tokenRepo.deleteById(token.id, manager);
     });
 
-    return this.loginUseCase.executeForUser(token.userId);
+    return this.loginUseCase.executeForUser(user.id);
   }
 }

@@ -2,7 +2,8 @@ import type { EntityManager } from 'typeorm';
 import type { EmailVerificationToken } from '../domain/email-verification-token';
 
 export interface IEmailVerificationTokenRepository {
-  findByTokenHash(
+  findByUserIdAndTokenHash(
+    userId: string,
     tokenHash: string,
     manager?: EntityManager,
   ): Promise<EmailVerificationToken | null>;

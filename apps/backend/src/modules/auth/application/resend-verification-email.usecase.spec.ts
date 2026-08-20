@@ -38,7 +38,7 @@ describe('ResendVerificationEmailUseCase', () => {
     );
     expect(emailSender.sendVerificationEmail).toHaveBeenCalledWith(
       'person@casso.vn',
-      expect.stringMatching(/^https?:\/\/[^/]+\/verify-email\?token=/),
+      expect.stringMatching(/^\d{6}$/),
     );
   });
 

@@ -1,6 +1,10 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity({ name: 'email_verification_tokens' })
+@Index('IDX_email_verification_tokens_user_id_token_hash', [
+  'userId',
+  'tokenHash',
+])
 export class EmailVerificationTokenOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -8,7 +12,6 @@ export class EmailVerificationTokenOrmEntity {
   @Column({ type: 'varchar' })
   userId: string;
 
-  @Index({ unique: true })
   @Column({ type: 'varchar' })
   tokenHash: string;
 
