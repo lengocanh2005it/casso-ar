@@ -6,6 +6,10 @@ import {
   type IBankConnectionRepository,
 } from './bank-connection-repository.port';
 import {
+  CASSO_FLOW_AUTHORIZATION_REPOSITORY,
+  type ICassoFlowAuthorizationRepository,
+} from './casso-flow-authorization-repository.port';
+import {
   CASSO_FLOW_INTEGRATION_ADAPTER,
   type ICassoFlowIntegrationAdapter,
 } from './casso-flow-integration-adapter.port';
@@ -23,6 +27,8 @@ export class SyncTransactionsUseCase {
     private readonly markRequiresReauthorization: MarkRequiresReauthorizationUseCase,
     @Inject(ACCESS_TOKEN_ENCRYPTION_KEY)
     private readonly encryptionKey: string,
+    @Inject(CASSO_FLOW_AUTHORIZATION_REPOSITORY)
+    private readonly authorizationRepo: ICassoFlowAuthorizationRepository,
   ) {}
 
   // Called by a background sync job with only a connectionId (no authenticated
@@ -36,9 +42,17 @@ export class SyncTransactionsUseCase {
         ErrorCode.NOT_FOUND,
         'Không tìm thấy kết nối ngân hàng.',
       );
+    const authorization = await this.authorizationRepo.findByIdUnscoped(
+      connection.cassoFlowAuthorizationId,
+    );
+    if (!authorization)
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        'Không tìm thấy kết nối ngân hàng.',
+      );
     try {
       return await this.adapter.getTransactions(
-        decryptToken(connection.encryptedCassoApiKey, this.encryptionKey),
+        decryptToken(authorization.encryptedApiKey, this.encryptionKey),
       );
     } catch (error) {
       await this.markRequiresReauthorization.handleAdapterError(
