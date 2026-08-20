@@ -9,17 +9,24 @@ const { getValidAccessToken, apiRequest } = vi.hoisted(() => ({
   apiRequest: vi.fn(),
 }));
 
-vi.mock('@/lib/api-client', () => ({
-  authTokenManager: {
-    getValidAccessToken,
-    hasKnownSession: () => true,
-    setAccessToken: vi.fn(),
-    resetLogoutState: vi.fn(),
-    markLogoutInitiated: vi.fn(),
-    clearStaleRefreshSession: vi.fn(),
-  },
-  apiRequest,
-}));
+vi.mock('@/lib/api-client', async () => {
+  const { getApiErrorCode, getApiErrorMessage } = await import(
+    '@/test/api-error-mock'
+  );
+  return {
+    authTokenManager: {
+      getValidAccessToken,
+      hasKnownSession: () => true,
+      setAccessToken: vi.fn(),
+      resetLogoutState: vi.fn(),
+      markLogoutInitiated: vi.fn(),
+      clearStaleRefreshSession: vi.fn(),
+    },
+    apiRequest,
+    getApiErrorCode,
+    getApiErrorMessage,
+  };
+});
 
 function fillAndSubmit() {
   fireEvent.change(screen.getByLabelText(/tên tổ chức/i), {
@@ -98,6 +105,39 @@ describe('SignupPage', () => {
 
     await waitFor(() =>
       expect(screen.getByText(/không thể tạo tài khoản/i)).toBeVisible(),
+    );
+  });
+
+  it('shows the backend message when the tax code is already registered', async () => {
+    apiRequest.mockRejectedValue({
+      response: {
+        status: 409,
+        data: {
+          statusCode: 409,
+          errorCode: 'CONFLICT',
+          message: 'Mã số thuế này đã được đăng ký.',
+          details: { rowErrorCode: 'DUPLICATE_TAX_CODE' },
+        },
+      },
+    });
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/signup']}>
+          <Routes>
+            <Route path="/signup" element={<SignupPage />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
+    );
+    fillAndSubmit();
+
+    await waitFor(() =>
+      expect(screen.getByText(/mã số thuế này đã được đăng ký/i)).toBeVisible(),
     );
   });
 

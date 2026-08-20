@@ -5,7 +5,11 @@ import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Spinner } from '@/components/ui/spinner';
 import { useAuth } from '@/contexts/auth-context';
-import { apiRequest, authTokenManager } from '@/lib/api-client';
+import {
+  apiRequest,
+  authTokenManager,
+  getApiErrorMessage,
+} from '@/lib/api-client';
 import { AuthLogoLink } from '../components/auth-logo-link';
 import { EmailOtpStep } from '../components/email-otp-step';
 
@@ -42,8 +46,11 @@ export function SignupPage() {
       });
       toast.success('Tạo tài khoản thành công.');
       setStep('otp');
-    } catch {
-      setError('Không thể tạo tài khoản. Vui lòng kiểm tra thông tin.');
+    } catch (submitError) {
+      setError(
+        getApiErrorMessage(submitError) ??
+          'Không thể tạo tài khoản. Vui lòng kiểm tra thông tin.',
+      );
     } finally {
       setSubmitting(false);
     }
