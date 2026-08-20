@@ -84,6 +84,40 @@ describe('SignupPage', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('renders the logo inside the card on the OTP step, matching every other auth status screen', async () => {
+    apiRequest.mockResolvedValueOnce({
+      userId: 'user-1',
+      organizationId: 'org-1',
+      organizationStatus: 'PENDING_REVIEW',
+    });
+
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/signup']}>
+          <Routes>
+            <Route path="/signup" element={<SignupPage />} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
+    );
+    fillAndSubmit();
+
+    await waitFor(() =>
+      expect(screen.getByText(/new\*\*\*@casso\.vn/i)).toBeVisible(),
+    );
+
+    const card = screen
+      .getByRole('heading', { name: /xác thực email/i })
+      .closest('.rounded-xl');
+    expect(card).toContainElement(
+      screen.getByRole('link', { name: /casso ledger/i }),
+    );
+  });
+
   it('shows an error when the signup request itself fails', async () => {
     apiRequest.mockRejectedValue(new Error('signup failed'));
 

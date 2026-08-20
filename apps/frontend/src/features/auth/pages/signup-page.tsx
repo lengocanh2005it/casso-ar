@@ -64,10 +64,10 @@ export function SignupPage() {
 
   if (step === 'otp') {
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6">
-        <AuthLogoLink />
-        <div className="w-full max-w-sm rounded-xl border bg-card p-6 shadow-sm">
-          <h1 className="mb-4 text-xl font-semibold">Xác thực email</h1>
+      <div className="flex min-h-svh items-center justify-center bg-muted/30 p-6">
+        <div className="w-full max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm">
+          <AuthLogoLink />
+          <h1 className="text-xl font-semibold">Xác thực email</h1>
           <EmailOtpStep email={email} onVerified={onVerified} />
         </div>
       </div>
