@@ -18,12 +18,12 @@ export class ResendAuthEmailSenderAdapter
     @Inject(EMAIL_QUEUE_PORT) private readonly emailQueue: IEmailQueue,
   ) {}
 
-  async sendVerificationEmail(to: string, verifyUrl: string): Promise<void> {
+  async sendVerificationEmail(to: string, otp: string): Promise<void> {
     try {
       await this.emailQueue.add('send-auth-email', {
         to,
-        subject: 'Verify your email address',
-        html: `<p>Click the following link to verify your email: <a href="${verifyUrl}">${verifyUrl}</a></p>`,
+        subject: 'Mã xác thực email của bạn',
+        html: `<p>Mã xác thực email của bạn là: <strong style="font-size:24px;letter-spacing:4px">${otp}</strong></p><p>Mã có hiệu lực trong 10 phút.</p>`,
         emailType: 'AUTH_VERIFICATION',
       });
     } catch (error) {

@@ -7,14 +7,11 @@ describe('ResendAuthEmailSenderAdapter', () => {
     const emailQueue = { add: jest.fn().mockResolvedValue(undefined) };
     await new ResendAuthEmailSenderAdapter(
       emailQueue as any,
-    ).sendVerificationEmail(
-      'user@example.com',
-      'https://app.casso.vn/verify?token=abc',
-    );
+    ).sendVerificationEmail('user@example.com', '482913');
     expect(emailQueue.add).toHaveBeenCalledWith('send-auth-email', {
       to: 'user@example.com',
       subject: expect.any(String),
-      html: expect.stringContaining('https://app.casso.vn/verify?token=abc'),
+      html: expect.stringContaining('482913'),
       emailType: 'AUTH_VERIFICATION',
     });
   });
@@ -56,17 +53,11 @@ describe('ResendAuthEmailSenderAdapter', () => {
     const adapter = new ResendAuthEmailSenderAdapter(emailQueue as any);
 
     await expect(
-      adapter.sendVerificationEmail(
-        'user@example.com',
-        'https://app.casso.vn/verify?token=abc',
-      ),
+      adapter.sendVerificationEmail('user@example.com', '482913'),
     ).rejects.toThrow(AppError);
 
     try {
-      await adapter.sendVerificationEmail(
-        'user@example.com',
-        'https://app.casso.vn/verify?token=abc',
-      );
+      await adapter.sendVerificationEmail('user@example.com', '482913');
     } catch (error) {
       expect(error).toBeInstanceOf(AppError);
       expect((error as AppError).errorCode).toBe(ErrorCode.EMAIL_SEND_FAILED);
