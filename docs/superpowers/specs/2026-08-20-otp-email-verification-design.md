@@ -44,6 +44,22 @@ signup verification has no session yet, so it MUST email the code for real.
 
 ## Backend changes
 
+### Addendum (found during planning): `SignupUseCase` drops its auto-login branch
+
+`SignupUseCase` currently auto-logs in a user immediately after signup when
+the organization is `ACTIVE` (tax code matched exactly), returning
+`accessToken`/`refreshToken` — before email verification ever happens. Adding
+the `EMAIL_NOT_VERIFIED` login gate below would make this internal call throw
+on every signup, since the user's email isn't verified yet at that point.
+
+The frontend already discards these tokens unconditionally (`signup-page.tsx`
+always navigates through email verification regardless of what signup
+returns), so this auto-login branch has no live consumer. Resolution: remove
+it. `SignupUseCase` no longer takes a `LoginUseCase` dependency, and
+`SignupResult` no longer has `accessToken`/`refreshToken` fields — every
+signup, ACTIVE org or not, requires OTP confirmation before any session is
+issued.
+
 ### `token-hasher.ts`
 Add `generateOtp()` and `hashOtp()` alongside the existing `generateToken()` /
 `hashToken()` (same file already pairs a generator with a matching hasher for
