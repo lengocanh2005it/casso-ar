@@ -8,6 +8,10 @@ import {
   type IChangePasswordOtpRepository,
 } from '../../profile/application/change-password-otp-repository.port';
 import { hashPassword } from './password-hasher';
+import {
+  type IRefreshTokenRepository,
+  REFRESH_TOKEN_REPOSITORY,
+} from './refresh-token-repository.port';
 
 @Injectable()
 export class ChangePasswordConfirmUseCase {
@@ -15,6 +19,8 @@ export class ChangePasswordConfirmUseCase {
     private readonly dataSource: DataSource,
     @Inject(CHANGE_PASSWORD_OTP_REPOSITORY)
     private readonly otpRepo: IChangePasswordOtpRepository,
+    @Inject(REFRESH_TOKEN_REPOSITORY)
+    private readonly refreshTokenRepo: IRefreshTokenRepository,
   ) {}
 
   async execute(
@@ -47,11 +53,18 @@ export class ChangePasswordConfirmUseCase {
       throw new AppError(ErrorCode.UNAUTHORIZED, 'OTP đã hết hạn');
     }
 
-    await this.otpRepo.markUsed(otpRecord.id);
     const newHash = await hashPassword(newPassword);
-    await this.dataSource.query(
-      'UPDATE users SET password_hash = $1 WHERE id = $2',
-      [newHash, userId],
-    );
+
+    // A password change is a "log everyone else out" event, same as
+    // reset-password.usecase.ts — otherwise a compromised session survives
+    // the very action meant to invalidate it.
+    await this.dataSource.transaction(async (manager) => {
+      await this.otpRepo.markUsed(otpRecord.id);
+      await manager.query('UPDATE users SET password_hash = $1 WHERE id = $2', [
+        newHash,
+        userId,
+      ]);
+      await this.refreshTokenRepo.revokeAllForUser(userId, manager);
+    });
   }
 }
