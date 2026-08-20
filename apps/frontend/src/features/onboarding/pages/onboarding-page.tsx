@@ -11,7 +11,11 @@ import {
 } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthLogoLink } from '@/features/auth/components/auth-logo-link';
-import { CassoFlowConnectForm } from '@/features/bank-connections/components/casso-flow-connect-form';
+import {
+  useConfirmCassoFlow,
+  usePreviewCassoFlowAccounts,
+} from '@/features/bank-connections/api/use-bank-connections';
+import { CassoFlowAccountPicker } from '@/features/bank-connections/components/casso-flow-account-picker';
 import { hasPermission } from '@/lib/rbac';
 
 export function OnboardingPage() {
@@ -21,6 +25,8 @@ export function OnboardingPage() {
     user?.role,
     Permission.BANK_CONNECTION_MANAGE,
   );
+  const previewMutation = usePreviewCassoFlowAccounts();
+  const confirmMutation = useConfirmCassoFlow();
 
   useEffect(() => {
     if (user?.bankingLinked) {
@@ -63,7 +69,13 @@ export function OnboardingPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {canManageConnections ? (
-            <CassoFlowConnectForm onCompleted={handleCompleted} />
+            <CassoFlowAccountPicker
+              onPreview={(apiKey) => previewMutation.mutateAsync({ apiKey })}
+              onConfirm={(apiKey, selectedAccountNumbers) =>
+                confirmMutation.mutateAsync({ apiKey, selectedAccountNumbers })
+              }
+              onCompleted={handleCompleted}
+            />
           ) : (
             <div
               className="space-y-2 text-sm text-muted-foreground"

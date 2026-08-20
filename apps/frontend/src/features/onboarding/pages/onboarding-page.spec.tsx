@@ -3,18 +3,23 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useAuth } from '@/contexts/auth-context';
-import { useConnectCassoFlow } from '@/features/bank-connections/api/use-bank-connections';
+import {
+  useConfirmCassoFlow,
+  usePreviewCassoFlowAccounts,
+} from '@/features/bank-connections/api/use-bank-connections';
 import { OnboardingPage } from './onboarding-page';
 
 const useAuthMock = vi.mocked(useAuth);
-const useConnectCassoFlowMock = vi.mocked(useConnectCassoFlow);
+const useConfirmCassoFlowMock = vi.mocked(useConfirmCassoFlow);
+const usePreviewCassoFlowAccountsMock = vi.mocked(usePreviewCassoFlowAccounts);
 
 vi.mock('@/contexts/auth-context', () => ({
   useAuth: vi.fn(),
 }));
 
 vi.mock('@/features/bank-connections/api/use-bank-connections', () => ({
-  useConnectCassoFlow: vi.fn(),
+  useConfirmCassoFlow: vi.fn(),
+  usePreviewCassoFlowAccounts: vi.fn(),
 }));
 
 function renderPage(user: { role: string; bankingLinked: boolean }) {
@@ -61,7 +66,8 @@ describe('OnboardingPage', () => {
   });
 
   it('shows a waiting state when the member cannot manage bank connections', () => {
-    useConnectCassoFlowMock.mockReturnValue({} as never);
+    usePreviewCassoFlowAccountsMock.mockReturnValue({} as never);
+    useConfirmCassoFlowMock.mockReturnValue({} as never);
 
     renderPage({ role: 'VIEWER', bankingLinked: false });
 
@@ -70,7 +76,8 @@ describe('OnboardingPage', () => {
   });
 
   it('shows the logo and lets the user log out without connecting', () => {
-    useConnectCassoFlowMock.mockReturnValue({} as never);
+    usePreviewCassoFlowAccountsMock.mockReturnValue({} as never);
+    useConfirmCassoFlowMock.mockReturnValue({} as never);
 
     const { logout } = renderPage({ role: 'OWNER', bankingLinked: false });
 
@@ -82,15 +89,24 @@ describe('OnboardingPage', () => {
   });
 
   it('refreshes the profile and navigates to dashboard after connecting', async () => {
-    const connectMutation = {
-      isPending: false,
-      mutate: vi.fn(
-        (_input: { apiKey: string }, options?: { onSuccess?: () => void }) => {
-          options?.onSuccess?.();
-        },
-      ),
+    const previewMutation = {
+      mutateAsync: vi.fn().mockResolvedValue({
+        businessId: 'biz-1',
+        accounts: [
+          {
+            accountNumber: '111',
+            bankName: 'VPBank',
+            accountHolderName: 'NGUYEN VAN A',
+            status: 'AVAILABLE',
+          },
+        ],
+      }),
     };
-    useConnectCassoFlowMock.mockReturnValue(connectMutation as never);
+    const confirmMutation = {
+      mutateAsync: vi.fn().mockResolvedValue({ connected: [], skipped: [] }),
+    };
+    usePreviewCassoFlowAccountsMock.mockReturnValue(previewMutation as never);
+    useConfirmCassoFlowMock.mockReturnValue(confirmMutation as never);
 
     const { refreshUser } = renderPage({
       role: 'OWNER',
@@ -98,16 +114,23 @@ describe('OnboardingPage', () => {
     });
 
     const input = screen.getByLabelText(/Casso Flow API Key/i);
-    const submitBtn = screen.getByRole('button', { name: /kết nối/i });
+    const previewBtn = screen.getByRole('button', { name: /xem tài khoản/i });
 
     fireEvent.change(input, { target: { value: 'test-casso-api-key' } });
-    fireEvent.click(submitBtn);
+    fireEvent.click(previewBtn);
 
     await waitFor(() => {
-      expect(connectMutation.mutate).toHaveBeenCalledWith(
-        { apiKey: 'test-casso-api-key' },
-        expect.any(Object),
-      );
+      expect(previewMutation.mutateAsync).toHaveBeenCalledWith({
+        apiKey: 'test-casso-api-key',
+      });
+    });
+    fireEvent.click(screen.getByRole('button', { name: /xác nhận/i }));
+
+    await waitFor(() => {
+      expect(confirmMutation.mutateAsync).toHaveBeenCalledWith({
+        apiKey: 'test-casso-api-key',
+        selectedAccountNumbers: ['111'],
+      });
       expect(refreshUser).toHaveBeenCalledOnce();
     });
     expect(screen.getByText('dashboard')).toBeInTheDocument();
