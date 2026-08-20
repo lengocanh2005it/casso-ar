@@ -1,10 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { EntityManager, Repository } from 'typeorm';
+import { type EntityManager, In, type Repository } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { IConnectionAuditEventRepository } from '../application/connection-audit-event-repository.port';
-import type { ConnectionAuditEvent } from '../domain/connection-audit-event';
+import {
+  ConnectionAuditEvent,
+  type ConnectionAuditEventType,
+} from '../domain/connection-audit-event';
 import { ConnectionAuditEventOrmEntity } from './connection-audit-event.orm-entity';
 
 @Injectable()
@@ -28,5 +31,32 @@ export class TypeOrmConnectionAuditEventRepository
     manager?: EntityManager,
   ): Promise<void> {
     await this.scopedSaveWithManager(event, manager, event.organizationId);
+  }
+
+  // Unscoped by organizationId on purpose, same reasoning as
+  // findByAuthorizationId on the bank connection repository: the caller
+  // (ListAuthorizationAuditEventsUseCase) has already verified the
+  // authorization — and therefore every bankConnectionId passed in — belongs
+  // to the caller's organization.
+  async findByBankConnectionIds(
+    bankConnectionIds: string[],
+    eventTypes: ConnectionAuditEventType[],
+    page: number,
+    limit: number,
+  ): Promise<{ items: ConnectionAuditEvent[]; total: number }> {
+    if (bankConnectionIds.length === 0) return { items: [], total: 0 };
+    const [rows, total] = await this.ormRepo.findAndCount({
+      where: {
+        bankConnectionId: In(bankConnectionIds),
+        eventType: In(eventTypes),
+      },
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return {
+      items: rows.map((row) => new ConnectionAuditEvent(row)),
+      total,
+    };
   }
 }
