@@ -52,14 +52,28 @@ export function useConfirmCassoFlow() {
 }
 
 export function usePreviewCassoFlowAuthorizationRotation() {
-  return useMutation({ mutationFn: previewCassoFlowAuthorizationRotation });
+  return useMutation({
+    mutationFn: ({
+      authorizationId,
+      apiKey,
+    }: {
+      authorizationId: string;
+      apiKey: string;
+    }) => previewCassoFlowAuthorizationRotation(authorizationId, { apiKey }),
+  });
 }
 
 export function useRotateCassoFlowAuthorization() {
   const queryClient = useQueryClient();
   const { refreshUser } = useAuth();
   return useMutation({
-    mutationFn: rotateCassoFlowAuthorization,
+    mutationFn: ({
+      authorizationId,
+      apiKey,
+    }: {
+      authorizationId: string;
+      apiKey: string;
+    }) => rotateCassoFlowAuthorization(authorizationId, { apiKey }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey });
       void refreshUser();
