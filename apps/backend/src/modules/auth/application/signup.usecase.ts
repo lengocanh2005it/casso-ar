@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { buildFrontendUrl } from '../../../common/config/frontend-url';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
@@ -38,7 +37,6 @@ import {
   EMAIL_VERIFICATION_TOKEN_REPOSITORY,
   type IEmailVerificationTokenRepository,
 } from './email-verification-token-repository.port';
-import { LoginUseCase } from './login.usecase';
 import {
   type IMemberNotificationSender,
   MEMBER_NOTIFICATION_SENDER,
@@ -48,7 +46,7 @@ import {
   type IOrganizationBootstrap,
 } from './organization-bootstrap.port';
 import { hashPassword } from './password-hasher';
-import { generateToken } from './token-hasher';
+import { generateOtp } from './token-hasher';
 
 export interface SignupInput {
   organizationName: string;
@@ -62,11 +60,9 @@ export interface SignupResult {
   user: User;
   organization: Organization;
   membership: Membership;
-  accessToken?: string;
-  refreshToken?: string;
 }
 
-const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const VERIFICATION_TOKEN_TTL_MS = 10 * 60 * 1000;
 
 @Injectable()
 export class SignupUseCase {
@@ -88,7 +84,6 @@ export class SignupUseCase {
     private readonly taxCodeLookup: ITaxCodeLookupAdapter,
     @Inject(MEMBER_NOTIFICATION_SENDER)
     private readonly memberNotificationSender: IMemberNotificationSender,
-    private readonly loginUseCase: LoginUseCase,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -144,7 +139,7 @@ export class SignupUseCase {
       await this.organizationBootstrap.seed(organization.id, manager);
     });
 
-    const { token, hash } = generateToken();
+    const { otp, hash } = generateOtp();
     await this.verificationTokenRepo.save(
       new EmailVerificationToken({
         id: randomUUID(),
@@ -154,23 +149,15 @@ export class SignupUseCase {
         createdAt: now,
       }),
     );
-    await this.emailSender.sendVerificationEmail(
-      user.email,
-      buildFrontendUrl(`/verify-email?token=${token}`),
-    );
+    await this.emailSender.sendVerificationEmail(user.email, otp);
 
-    if (organization.status !== 'ACTIVE') {
-      return { user, organization, membership };
+    if (organization.status === 'ACTIVE') {
+      await this.memberNotificationSender.sendOrganizationApprovedEmail(
+        user.email,
+        organization.name,
+      );
     }
 
-    await this.memberNotificationSender.sendOrganizationApprovedEmail(
-      user.email,
-      organization.name,
-    );
-    const tokens = await this.loginUseCase.execute({
-      email: user.email,
-      password: input.password,
-    });
-    return { user, organization, membership, ...tokens };
+    return { user, organization, membership };
   }
 }
