@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/contexts/auth-context';
+import { useEmailTemplates } from '@/features/settings/api/use-settings';
 import { hasPermission } from '@/lib/rbac';
 import {
   useCreateReminderPolicy,
@@ -49,6 +50,18 @@ function toRuleDrafts(policy: ReminderPolicy | null): RuleDraft[] {
   return policy.rules.map((rule) => ({ ...rule, key: rule.id }));
 }
 
+function templateLabel(template: {
+  name: string;
+  reminderStage: string | null;
+  isDefault: boolean;
+}): string {
+  const stage =
+    template.reminderStage && template.reminderStage !== template.name
+      ? ` — ${template.reminderStage}`
+      : '';
+  return `${template.name}${stage}${template.isDefault ? ' (Mặc định)' : ''}`;
+}
+
 export function PolicyDialog({
   policy,
   open,
@@ -69,6 +82,16 @@ export function PolicyDialog({
     user?.role ?? null,
     Permission.REMINDER_POLICY_WRITE,
   );
+  const templatesQuery = useEmailTemplates(open && canWrite);
+  const templates = templatesQuery.data ?? [];
+  const templateIds = new Set(templates.map((template) => template.id));
+  const templatesReady =
+    !templatesQuery.isPending &&
+    !templatesQuery.isError &&
+    templates.length > 0;
+  const hasValidTemplateSelections =
+    templatesReady &&
+    rules.every((rule) => templateIds.has(rule.emailTemplateId));
   const mutation = policy ? update : create;
 
   useEffect(() => {
@@ -102,10 +125,14 @@ export function PolicyDialog({
 
   function submit() {
     const cleanedRules = rules.map(({ key: _key, ...rule }) => rule);
+    if (!templatesReady) {
+      toast.error('Chưa thể lưu khi danh sách mẫu email chưa sẵn sàng.');
+      return;
+    }
     if (
       cleanedRules.some(
         (rule) =>
-          !rule.emailTemplateId.trim() ||
+          !templateIds.has(rule.emailTemplateId) ||
           !Number.isInteger(rule.offsetDays) ||
           !Number.isInteger(rule.minIntervalDays) ||
           rule.minIntervalDays < 0,
@@ -206,11 +233,43 @@ export function PolicyDialog({
                 type="button"
                 variant="outline"
                 size="sm"
+                disabled={!templatesReady}
                 onClick={() => setRules((current) => [...current, newRule()])}
               >
                 Thêm quy tắc
               </Button>
             </div>
+            {templatesQuery.isPending && (
+              <p
+                role="status"
+                aria-live="polite"
+                className="text-sm text-muted-foreground"
+              >
+                Đang tải mẫu email…
+              </p>
+            )}
+            {templatesQuery.isError && (
+              <p
+                role="alert"
+                aria-live="polite"
+                className="text-sm text-destructive"
+              >
+                Không thể tải mẫu email. Vui lòng thử lại.
+              </p>
+            )}
+            {!templatesQuery.isPending &&
+              !templatesQuery.isError &&
+              templatesQuery.data &&
+              templates.length === 0 && (
+                <p
+                  role="alert"
+                  aria-live="polite"
+                  className="text-sm text-muted-foreground"
+                >
+                  Chưa có mẫu email. Hãy tạo mẫu email trước khi lập chính sách
+                  nhắc.
+                </p>
+              )}
             {rules.map((rule, index) => (
               <div
                 key={rule.key}
@@ -231,17 +290,35 @@ export function PolicyDialog({
                   />
                 </Label>
                 <Label className="space-y-1">
-                  <span className="text-xs">Mã email template</span>
-                  <Input
-                    name={`emailTemplateId-${index}`}
-                    autoComplete="off"
-                    aria-label={`Mã email template ${index + 1}`}
-                    required
+                  <span className="text-xs">Mẫu email</span>
+                  <Select
                     value={rule.emailTemplateId}
-                    onChange={(event) =>
-                      setRule(index, 'emailTemplateId', event.target.value)
+                    onValueChange={(value) =>
+                      setRule(index, 'emailTemplateId', value)
                     }
-                  />
+                    disabled={!templatesReady}
+                  >
+                    <SelectTrigger
+                      name={`emailTemplateId-${index}`}
+                      aria-label={`Mẫu email ${index + 1}`}
+                      className="w-full"
+                    >
+                      <SelectValue placeholder="Chọn mẫu email" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {rule.emailTemplateId &&
+                        !templateIds.has(rule.emailTemplateId) && (
+                          <SelectItem value={rule.emailTemplateId} disabled>
+                            Mẫu không còn khả dụng
+                          </SelectItem>
+                        )}
+                      {templates.map((template) => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {templateLabel(template)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </Label>
                 <Label className="space-y-1">
                   <span className="text-xs">Khoảng cách tối thiểu (ngày)</span>
@@ -283,7 +360,15 @@ export function PolicyDialog({
           >
             Hủy
           </Button>
-          <Button type="button" disabled={mutation.isPending} onClick={submit}>
+          <Button
+            type="button"
+            disabled={
+              mutation.isPending ||
+              !templatesReady ||
+              !hasValidTemplateSelections
+            }
+            onClick={submit}
+          >
             {mutation.isPending ? 'Đang lưu…' : 'Lưu chính sách'}
           </Button>
         </DialogFooter>

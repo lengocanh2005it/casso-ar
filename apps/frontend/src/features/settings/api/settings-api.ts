@@ -67,7 +67,7 @@ export function deleteSmtpConfig(): Promise<{ success: boolean }> {
 
 export function fetchEmailTemplates(): Promise<EmailTemplate[]> {
   return apiRequest<EmailTemplate[]>({
-    url: '/api/v1/email-templates',
+    url: '/api/v1/email-templates?limit=100',
     method: 'GET',
   });
 }

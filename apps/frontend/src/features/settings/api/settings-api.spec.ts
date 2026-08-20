@@ -13,6 +13,7 @@ vi.mock('@/lib/api-client', () => ({
 import {
   blockMember,
   changeMemberRole,
+  fetchEmailTemplates,
   fetchOrganizationInvites,
   fetchSmtpConfig,
   initiatePlanUpgrade,
@@ -47,6 +48,19 @@ describe('fetchSmtpConfig', () => {
     apiRequest.mockRejectedValueOnce(error);
 
     await expect(fetchSmtpConfig()).rejects.toBe(error);
+  });
+});
+
+describe('fetchEmailTemplates', () => {
+  it('requests up to 100 templates for selectors', async () => {
+    apiRequest.mockResolvedValueOnce([]);
+
+    await fetchEmailTemplates();
+
+    expect(apiRequest).toHaveBeenCalledWith({
+      url: '/api/v1/email-templates?limit=100',
+      method: 'GET',
+    });
   });
 });
 
