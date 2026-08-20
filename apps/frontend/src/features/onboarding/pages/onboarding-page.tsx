@@ -18,6 +18,21 @@ import {
 import { CassoFlowAccountPicker } from '@/features/bank-connections/components/casso-flow-account-picker';
 import { hasPermission } from '@/lib/rbac';
 
+function ManagedCassoFlowPicker({ onCompleted }: { onCompleted: () => void }) {
+  const previewMutation = usePreviewCassoFlowAccounts();
+  const confirmMutation = useConfirmCassoFlow();
+
+  return (
+    <CassoFlowAccountPicker
+      onPreview={(apiKey) => previewMutation.mutateAsync({ apiKey })}
+      onConfirm={(apiKey, selectedAccountNumbers) =>
+        confirmMutation.mutateAsync({ apiKey, selectedAccountNumbers })
+      }
+      onCompleted={onCompleted}
+    />
+  );
+}
+
 export function OnboardingPage() {
   const { user, refreshUser, logout } = useAuth();
   const navigate = useNavigate();
@@ -25,8 +40,6 @@ export function OnboardingPage() {
     user?.role,
     Permission.BANK_CONNECTION_MANAGE,
   );
-  const previewMutation = usePreviewCassoFlowAccounts();
-  const confirmMutation = useConfirmCassoFlow();
 
   useEffect(() => {
     if (user?.bankingLinked) {
@@ -69,13 +82,7 @@ export function OnboardingPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {canManageConnections ? (
-            <CassoFlowAccountPicker
-              onPreview={(apiKey) => previewMutation.mutateAsync({ apiKey })}
-              onConfirm={(apiKey, selectedAccountNumbers) =>
-                confirmMutation.mutateAsync({ apiKey, selectedAccountNumbers })
-              }
-              onCompleted={handleCompleted}
-            />
+            <ManagedCassoFlowPicker onCompleted={handleCompleted} />
           ) : (
             <div
               className="space-y-2 text-sm text-muted-foreground"
