@@ -85,3 +85,11 @@ export interface RotateCassoFlowAuthorizationResult {
   rotatedAccountNumbers: string[];
   newlyDiscovered: CassoFlowNewlyDiscoveredAccount[];
 }
+
+export interface RevealCassoFlowApiKeyInput {
+  password: string;
+}
+
+export interface RevealCassoFlowApiKeyResult {
+  apiKey: string;
+}

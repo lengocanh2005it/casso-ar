@@ -8,6 +8,7 @@ import {
   fetchBankConnections,
   previewCassoFlowAccounts,
   previewCassoFlowAuthorizationRotation,
+  revealCassoFlowApiKey,
   rotateCassoFlowAuthorization,
 } from './bank-connections-api';
 
@@ -93,5 +94,24 @@ export function useDisconnectConnection() {
       void refreshUser();
     },
     onError: () => toast.error('Không thể ngắt kết nối ngân hàng.'),
+  });
+}
+
+export function useRevealCassoFlowApiKey() {
+  return useMutation({
+    mutationFn: ({
+      authorizationId,
+      password,
+    }: {
+      authorizationId: string;
+      password: string;
+    }) => revealCassoFlowApiKey(authorizationId, { password }),
+    onError: (error) => {
+      if (getApiErrorCode(error) === 'UNAUTHORIZED') {
+        toast.error('Mật khẩu không đúng.');
+        return;
+      }
+      toast.error('Không thể hiện API Key.');
+    },
   });
 }
