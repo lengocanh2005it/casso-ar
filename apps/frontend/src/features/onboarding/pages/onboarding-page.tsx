@@ -50,8 +50,8 @@ export function OnboardingPage() {
           </p>
           <CardTitle className="text-2xl">Liên kết ngân hàng</CardTitle>
           <CardDescription>
-            Liên kết tài khoản qua Casso Flow để bắt đầu đồng bộ giao dịch vào
-            Casso Ledger.
+            Liên kết một tài khoản ngân hàng qua Casso Flow để bắt đầu đồng bộ
+            giao dịch phát sinh mới vào Casso Ledger.
           </CardDescription>
         </CardHeader>
         <CardContent>
