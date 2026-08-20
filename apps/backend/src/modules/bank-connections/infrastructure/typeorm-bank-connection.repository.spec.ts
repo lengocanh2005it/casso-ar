@@ -49,4 +49,23 @@ describe('TypeOrmBankConnectionRepository', () => {
       );
     });
   });
+
+  describe('findByAuthorizationId', () => {
+    it('lists every connection under one authorization', async () => {
+      const find = jest
+        .fn()
+        .mockResolvedValue([
+          { id: 'conn-1', accountNumber: '111', organizationId: 'org-1' },
+        ]);
+      const ormRepo = { find } as never;
+      const repo = new TypeOrmBankConnectionRepository(ormRepo, {} as never);
+
+      const result = await repo.findByAuthorizationId('auth-1');
+
+      expect(result).toHaveLength(1);
+      expect(find).toHaveBeenCalledWith({
+        where: { cassoFlowAuthorizationId: 'auth-1' },
+      });
+    });
+  });
 });

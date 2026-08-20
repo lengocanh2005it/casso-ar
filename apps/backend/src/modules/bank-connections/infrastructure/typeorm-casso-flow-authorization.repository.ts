@@ -25,6 +25,14 @@ export class TypeOrmCassoFlowAuthorizationRepository
     return row ? new CassoFlowAuthorization(row) : null;
   }
 
+  async findById(id: string): Promise<CassoFlowAuthorization | null> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const row = await this.ormRepo.findOne({
+      where: { id, organizationId },
+    });
+    return row ? new CassoFlowAuthorization(row) : null;
+  }
+
   async findByIdForUpdate(
     id: string,
     manager: EntityManager,

@@ -38,6 +38,24 @@ describe('TypeOrmCassoFlowAuthorizationRepository', () => {
     });
   });
 
+  describe('findById', () => {
+    it('looks up by id scoped to the current organization', async () => {
+      const findOne = jest.fn().mockResolvedValue(null);
+      const ormRepo = { findOne } as never;
+      const tenantContext = { getOrganizationId: () => 'org-1' };
+      const repo = new TypeOrmCassoFlowAuthorizationRepository(
+        ormRepo,
+        tenantContext as never,
+      );
+
+      await repo.findById('auth-1');
+
+      expect(findOne).toHaveBeenCalledWith({
+        where: { id: 'auth-1', organizationId: 'org-1' },
+      });
+    });
+  });
+
   describe('findByBusinessIdForOrganization', () => {
     it('looks up by businessId scoped to the given organization', async () => {
       const findOne = jest.fn().mockResolvedValue(null);

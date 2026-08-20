@@ -68,6 +68,15 @@ export class TypeOrmBankConnectionRepository
     );
   }
 
+  async findByAuthorizationId(
+    cassoFlowAuthorizationId: string,
+  ): Promise<BankConnection[]> {
+    const rows = await this.ormRepo.find({
+      where: { cassoFlowAuthorizationId },
+    });
+    return rows.map((row) => new BankConnection(row));
+  }
+
   async save(
     connection: BankConnection,
     manager?: EntityManager,

@@ -18,6 +18,9 @@ export interface IBankConnectionRepository {
   findByAccountNumbers(
     accountNumbers: string[],
   ): Promise<Map<string, BankConnection>>;
+  findByAuthorizationId(
+    cassoFlowAuthorizationId: string,
+  ): Promise<BankConnection[]>;
   findPage(
     organizationId: string,
     page: number,

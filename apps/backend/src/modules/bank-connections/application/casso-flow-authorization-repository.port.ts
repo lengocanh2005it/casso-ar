@@ -8,6 +8,7 @@ export interface ICassoFlowAuthorizationRepository {
   // accountNumber, itself unscoped for the same reason), then its
   // authorization is looked up by id from that already-resolved connection.
   findByIdUnscoped(id: string): Promise<CassoFlowAuthorization | null>;
+  findById(id: string): Promise<CassoFlowAuthorization | null>;
   findByIdForUpdate(
     id: string,
     manager: EntityManager,
