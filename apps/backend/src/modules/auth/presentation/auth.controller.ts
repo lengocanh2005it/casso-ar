@@ -108,7 +108,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Sign up a new user and organization' })
   @ApiCreatedResponse({
     description:
-      'Account created; if the organization is auto-approved, the refresh token is set as an httpOnly cookie (refreshToken) and accessToken is present. If the organization is pending review, no session is issued.',
+      'Account created. Email verification (a 6-digit OTP) is required before login, regardless of organization status.',
     schema: {
       type: 'object',
       required: ['userId', 'organizationId', 'organizationStatus'],
@@ -119,7 +119,6 @@ export class AuthController {
           type: 'string',
           enum: ['ACTIVE', 'PENDING_REVIEW'],
         },
-        accessToken: { type: 'string' },
       },
     },
   })
@@ -128,30 +127,20 @@ export class AuthController {
     ErrorCode.CONFLICT,
     ErrorCode.RATE_LIMIT_EXCEEDED,
   )
-  async signup(
-    @Body() dto: SignupDto,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+  async signup(@Body() dto: SignupDto) {
     const result = await this.signupUseCase.execute(dto);
-    if (result.refreshToken) {
-      response.cookie(
-        REFRESH_COOKIE_NAME,
-        result.refreshToken,
-        this.refreshCookieOptions,
-      );
-    }
     return {
       userId: result.user.id,
       organizationId: result.organization.id,
       organizationStatus: result.organization.status,
-      ...(result.accessToken ? { accessToken: result.accessToken } : {}),
     };
   }
 
   @Public()
+  @UseGuards(AuthCompositeRateLimitGuard)
   @HttpCode(HttpStatus.OK)
   @Post('verify-email')
-  @ApiOperation({ summary: 'Verify an email with a token' })
+  @ApiOperation({ summary: 'Verify an email with a 6-digit OTP' })
   @ApiOkResponse({
     description: 'Email verified',
     schema: {
@@ -163,12 +152,12 @@ export class AuthController {
       },
     },
   })
-  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.NOT_FOUND)
+  @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.UNAUTHORIZED)
   async verifyEmail(
     @Body() dto: VerifyEmailDto,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.verifyEmailUseCase.execute(dto.token);
+    const result = await this.verifyEmailUseCase.execute(dto.email, dto.otp);
     response.cookie(
       REFRESH_COOKIE_NAME,
       result.refreshToken,

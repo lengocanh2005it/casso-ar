@@ -37,8 +37,15 @@ describe('AuthController', () => {
     );
 
     await expect(
-      controller.verifyEmail({ token: 'token' }, response as never),
+      controller.verifyEmail(
+        { email: 'new@casso.vn', otp: '482913' },
+        response as never,
+      ),
     ).resolves.toEqual({ verified: true, accessToken: 'access-token' });
+    expect(verifyEmailUseCase.execute).toHaveBeenCalledWith(
+      'new@casso.vn',
+      '482913',
+    );
     expect(response.cookie).toHaveBeenCalledWith(
       'refreshToken',
       'refresh-token',
