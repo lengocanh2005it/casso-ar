@@ -4,12 +4,11 @@ function activeConnection(): BankConnection {
   return new BankConnection({
     id: 'conn-1',
     organizationId: 'org-1',
-    casIdConnectionSessionId: 'session-1',
-    grantId: 'grant-1',
-    encryptedAccessToken: 'encrypted',
-    accountIdentity: { accountNumber: '0011002233', bankName: 'Mock Bank' },
+    accountNumber: '0011002233',
+    bankName: 'Mock Bank',
+    encryptedSecureToken: 'encrypted-secure-token',
+    encryptedCassoApiKey: 'encrypted-api-key',
     status: 'ACTIVE',
-    scopes: ['identity', 'transaction'],
     connectedAt: new Date(),
     lastSyncAt: null,
     revokedAt: null,
@@ -24,15 +23,15 @@ describe('BankConnection', () => {
     expect(reauth.isUsable()).toBe(false);
 
     const reconnected = reauth.reactivate({
-      casIdConnectionSessionId: 'session-2',
-      grantId: 'grant-2',
-      encryptedAccessToken: 'encrypted-2',
-      accountIdentity: { accountNumber: '0044005566', bankName: 'New Bank' },
-      scopes: ['identity', 'transaction'],
+      accountNumber: '0044005566',
+      bankName: 'New Bank',
+      encryptedSecureToken: 'new-secure-token',
+      encryptedCassoApiKey: 'new-api-key',
     });
     expect(reconnected.status).toBe('ACTIVE');
     expect(reconnected.id).toBe('conn-1');
     expect(reconnected.isUsable()).toBe(true);
+    expect(reconnected.accountNumber).toBe('0044005566');
 
     const disconnected = reconnected.disconnect();
     expect(disconnected.status).toBe('DISCONNECTED');
@@ -57,11 +56,10 @@ describe('BankConnection', () => {
     const active = activeConnection();
     expect(() =>
       active.reactivate({
-        casIdConnectionSessionId: 'session-2',
-        grantId: 'grant-2',
-        encryptedAccessToken: 'encrypted-2',
-        accountIdentity: { accountNumber: '0044005566', bankName: 'New Bank' },
-        scopes: ['identity', 'transaction'],
+        accountNumber: '0044005566',
+        bankName: 'New Bank',
+        encryptedSecureToken: 'new-secure-token',
+        encryptedCassoApiKey: 'new-api-key',
       }),
     ).toThrow('Cannot reactivate a connection in status ACTIVE');
   });
@@ -82,24 +80,11 @@ describe('BankConnection', () => {
   it('reactivates a connection that was marked ERROR', () => {
     const errored = activeConnection().markError();
     const reconnected = errored.reactivate({
-      casIdConnectionSessionId: 'session-2',
-      grantId: 'grant-2',
-      encryptedAccessToken: 'encrypted-2',
-      accountIdentity: { accountNumber: '0044005566', bankName: 'New Bank' },
-      scopes: ['identity', 'transaction'],
+      accountNumber: '0044005566',
+      bankName: 'New Bank',
+      encryptedSecureToken: 'new-secure-token',
+      encryptedCassoApiKey: 'new-api-key',
     });
     expect(reconnected.status).toBe('ACTIVE');
-  });
-
-  it('overwrites grantId on reactivate — grantId belongs to the current grant session, not the connection', () => {
-    const reauth = activeConnection().markRequiresReauthorization();
-    const reconnected = reauth.reactivate({
-      casIdConnectionSessionId: 'session-2',
-      encryptedAccessToken: 'encrypted-2',
-      accountIdentity: { accountNumber: '0044005566', bankName: 'New Bank' },
-      scopes: ['identity', 'transaction'],
-      grantId: 'grant-2',
-    });
-    expect(reconnected.grantId).toBe('grant-2');
   });
 });

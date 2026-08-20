@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
-import { CasIdConnectionFlow } from '@/features/bank-connections/components/cas-id-connection-flow';
+import { CassoFlowConnectForm } from '@/features/bank-connections/components/casso-flow-connect-form';
 import { hasPermission } from '@/lib/rbac';
 
 export function OnboardingPage() {
@@ -50,13 +50,13 @@ export function OnboardingPage() {
           </p>
           <CardTitle className="text-2xl">Liên kết ngân hàng</CardTitle>
           <CardDescription>
-            Liên kết tài khoản qua Cas ID để bắt đầu đồng bộ giao dịch vào Casso
-            Ledger.
+            Liên kết tài khoản qua Casso Flow để bắt đầu đồng bộ giao dịch vào
+            Casso Ledger.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {canManageConnections ? (
-            <CasIdConnectionFlow onCompleted={handleCompleted} />
+            <CassoFlowConnectForm onCompleted={handleCompleted} />
           ) : (
             <div
               className="space-y-2 text-sm text-muted-foreground"

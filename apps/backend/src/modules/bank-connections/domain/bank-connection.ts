@@ -1,6 +1,6 @@
-// REVOKED is listed in the design spec's BankConnection fields (§2) but has
-// no transition in the spec's state machine (§3) — kept in the union for
-// forward-compat per that field listing; no code path produces it yet.
+// REVOKED is listed in the design spec's BankConnection fields but has no
+// transition in the state machine — kept for forward-compat; no code path
+// produces it yet.
 export type BankConnectionStatus =
   | 'PENDING_AUTHORIZATION'
   | 'ACTIVE'
@@ -9,21 +9,14 @@ export type BankConnectionStatus =
   | 'DISCONNECTED'
   | 'ERROR';
 
-export interface AccountIdentity {
-  accountNumber: string;
-  bankName: string;
-  [key: string]: unknown;
-}
-
 export interface BankConnectionProps {
   id: string;
   organizationId: string;
-  casIdConnectionSessionId: string;
-  grantId: string;
-  encryptedAccessToken: string;
-  accountIdentity: AccountIdentity;
+  accountNumber: string;
+  bankName: string;
+  encryptedSecureToken: string;
+  encryptedCassoApiKey: string;
   status: BankConnectionStatus;
-  scopes: string[];
   connectedAt: Date | null;
   lastSyncAt: Date | null;
   revokedAt: Date | null;
@@ -33,12 +26,11 @@ export interface BankConnectionProps {
 export class BankConnection {
   readonly id: string;
   readonly organizationId: string;
-  readonly casIdConnectionSessionId: string;
-  readonly grantId: string;
-  readonly encryptedAccessToken: string;
-  readonly accountIdentity: AccountIdentity;
+  readonly accountNumber: string;
+  readonly bankName: string;
+  readonly encryptedSecureToken: string;
+  readonly encryptedCassoApiKey: string;
   readonly status: BankConnectionStatus;
-  readonly scopes: string[];
   readonly connectedAt: Date | null;
   readonly lastSyncAt: Date | null;
   readonly revokedAt: Date | null;
@@ -71,11 +63,10 @@ export class BankConnection {
   }
 
   reactivate(input: {
-    casIdConnectionSessionId: string;
-    grantId: string;
-    encryptedAccessToken: string;
-    accountIdentity: AccountIdentity;
-    scopes: string[];
+    accountNumber: string;
+    bankName: string;
+    encryptedSecureToken: string;
+    encryptedCassoApiKey: string;
   }): BankConnection {
     if (this.status !== 'REQUIRES_REAUTHORIZATION' && this.status !== 'ERROR') {
       throw new Error(

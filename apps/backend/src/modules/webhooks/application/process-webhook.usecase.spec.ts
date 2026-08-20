@@ -8,11 +8,11 @@ const inbox = new WebhookInbox({
   bankConnectionId: 'conn-1',
   providerTransactionId: 'TX-001',
   rawPayload: {
-    grantId: 'grant-1',
-    transaction: {
+    error: 0,
+    data: {
       id: 'TX-001',
       amount: 30_000_000,
-      transactionDateTime: '2026-08-05T00:00:00.000Z',
+      transactionDateTime: '2026-08-05 00:00:00',
       counterAccountNumber: '0011002233',
       counterAccountName: 'CONG TY B',
       description: 'INV-1',

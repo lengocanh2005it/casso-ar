@@ -38,10 +38,10 @@ describe('audited metadata on write handlers (issue #104)', () => {
     });
   });
 
-  it('audits bank-connection token exchange as BANK_CONNECTION_CREATE', () => {
+  it('audits bank-connection connect as BANK_CONNECTION_CREATE', () => {
     const metadata = Reflect.getMetadata(
       AUDITED_METADATA_KEY,
-      BankConnectionsController.prototype.exchange,
+      BankConnectionsController.prototype.connect,
     );
     expect(metadata).toEqual({
       actionType: 'BANK_CONNECTION_CREATE',

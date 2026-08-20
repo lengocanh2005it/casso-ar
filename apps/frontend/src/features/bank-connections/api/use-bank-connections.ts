@@ -1,13 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
-  connectCasId,
+  connectCassoFlow,
   disconnectConnection,
-  exchangeCasId,
   fetchBankConnections,
 } from './bank-connections-api';
 
 const queryKey = ['bank-connections'];
+
+export function useBankConnections() {
+  return useQuery({
+    queryKey,
+    queryFn: fetchBankConnections,
+  });
+}
 
 export function usePollConnections(enabled = true) {
   return useQuery({
@@ -18,25 +24,19 @@ export function usePollConnections(enabled = true) {
   });
 }
 
-export function useConnectCasId() {
-  return useMutation({ mutationFn: connectCasId });
-}
-
-export function useExchangeCasId() {
+export function useConnectCassoFlow() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      sessionId,
-      publicToken,
-    }: {
-      sessionId: string;
-      publicToken: string;
-    }) => exchangeCasId(sessionId, { publicToken }),
+    mutationFn: connectCassoFlow,
     onSuccess: () => {
-      toast.success('Đã kết nối ngân hàng.');
+      toast.success('Đã kết nối tài khoản Casso Flow thành công.');
       void queryClient.invalidateQueries({ queryKey });
     },
-    onError: () => toast.error('Không thể hoàn tất kết nối ngân hàng.'),
+    onError: () => {
+      toast.error(
+        'Không thể kết nối Casso Flow. Vui lòng kiểm tra lại API Key.',
+      );
+    },
   });
 }
 

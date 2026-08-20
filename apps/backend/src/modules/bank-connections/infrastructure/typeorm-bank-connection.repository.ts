@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
+import {
+  type EntityManager,
+  type FindOptionsWhere,
+  In,
+  type Repository,
+} from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { IBankConnectionRepository } from '../application/bank-connection-repository.port';
@@ -44,8 +49,24 @@ export class TypeOrmBankConnectionRepository
     return row ? new BankConnection(row) : null;
   }
 
-  async findByGrantId(grantId: string): Promise<BankConnection | null> {
-    const row = await this.ormRepo.findOne({ where: { grantId } });
+  async findByAccountNumber(
+    accountNumber: string,
+  ): Promise<BankConnection | null> {
+    const row = await this.ormRepo.findOne({ where: { accountNumber } });
+    return row ? new BankConnection(row) : null;
+  }
+
+  async findActiveOrReauthorizableByOrganizationForUpdate(
+    organizationId: string,
+    manager: EntityManager,
+  ): Promise<BankConnection | null> {
+    const row = await manager.findOne(BankConnectionOrmEntity, {
+      where: {
+        organizationId,
+        status: In(['ACTIVE', 'REQUIRES_REAUTHORIZATION', 'ERROR']),
+      },
+      lock: { mode: 'pessimistic_write' },
+    });
     return row ? new BankConnection(row) : null;
   }
 

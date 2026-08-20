@@ -23,13 +23,7 @@ export interface BankConnectionList {
   limit: number;
 }
 
-export interface CasIdInitiation {
-  sessionId: string;
-  grantToken: string;
-  redirectUri: string;
-  linkBaseUrl: string;
-}
-
-export interface CasIdExchangeInput {
-  publicToken: string;
+export interface ConnectCassoFlowInput {
+  apiKey: string;
+  bankConnectionId?: string;
 }

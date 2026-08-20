@@ -19,6 +19,7 @@ import {
   type ICustomerBankAccountRepository,
 } from '../src/modules/bank-accounts/application/customer-bank-account-repository.port';
 import { CustomerBankAccountOrmEntity } from '../src/modules/bank-accounts/infrastructure/customer-bank-account.orm-entity';
+import { encryptToken } from '../src/modules/bank-connections/application/token-encryption';
 import { BankConnectionOrmEntity } from '../src/modules/bank-connections/infrastructure/bank-connection.orm-entity';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
 import { InvoiceStatus } from '../src/modules/invoices/domain/invoice';
@@ -40,14 +41,15 @@ describe('Webhook matching (e2e)', () => {
   const bankConnectionId = '00000000-0000-0000-0000-0000000000f2';
   const firstTransactionId = `provider-tx-1-${randomUUID()}`;
   const matchingTransactionId = `provider-tx-2-${randomUUID()}`;
-  const grantId = '00000000-0000-0000-0000-0000000000f4';
+  const webhookSecret = 'e2e-test-secret';
   const payload = {
-    grantId,
-    transaction: {
+    error: 0,
+    data: {
       id: firstTransactionId,
       amount: 30_000_000,
-      transactionDateTime: '2026-08-05T10:00:00.000Z',
+      transactionDateTime: '2026-08-05 10:00:00',
       description: 'chuyen tien',
+      accountNumber: '99887766',
       counterAccountNumber: '0011002233',
       counterAccountName: 'Unknown Payer',
     },
@@ -69,12 +71,6 @@ describe('Webhook matching (e2e)', () => {
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
     process.env.RESEND_API_KEY = 'e2e-resend-key';
-    // Loopback addresses supertest's in-process client connects from —
-    // covers both IPv4 and IPv6 representations Node/Express may report as
-    // req.ip depending on environment. Not a real-world Cas ID IP; this is
-    // test-only, matching the real fail-closed allowlist mechanism being
-    // exercised (WebhookAuthGuard), not the real sandbox IP.
-    process.env.CAS_ID_WEBHOOK_IP_ALLOWLIST = '127.0.0.1,::1,::ffff:127.0.0.1';
 
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
@@ -104,12 +100,17 @@ describe('Webhook matching (e2e)', () => {
     await dataSource.getRepository(BankConnectionOrmEntity).save({
       id: bankConnectionId,
       organizationId,
-      casIdConnectionSessionId: '00000000-0000-0000-0000-0000000000f3',
-      grantId: '00000000-0000-0000-0000-0000000000f4',
-      encryptedAccessToken: 'encrypted-test-token',
-      accountIdentity: { accountNumber: '99887766', bankName: 'Test Bank' },
+      accountNumber: '99887766',
+      bankName: 'Test Bank',
+      encryptedSecureToken: encryptToken(
+        webhookSecret,
+        process.env.ACCESS_TOKEN_ENCRYPTION_KEY as string,
+      ),
+      encryptedCassoApiKey: encryptToken(
+        'e2e-api-key',
+        process.env.ACCESS_TOKEN_ENCRYPTION_KEY as string,
+      ),
       status: 'ACTIVE',
-      scopes: ['balances'],
       connectedAt: new Date(),
       lastSyncAt: new Date(),
       revokedAt: null,
@@ -127,11 +128,13 @@ describe('Webhook matching (e2e)', () => {
 
     await request(app.getHttpServer())
       .post(endpoint)
+      .set('secure-token', webhookSecret)
       .send(payload)
       .expect(200, { received: true, duplicate: false });
 
     await request(app.getHttpServer())
       .post(endpoint)
+      .set('secure-token', webhookSecret)
       .send(payload)
       .expect(200, { received: true, duplicate: true });
 
@@ -241,13 +244,15 @@ describe('Webhook matching (e2e)', () => {
 
     await request(app.getHttpServer())
       .post('/api/v1/webhooks/casso-balance-hook')
+      .set('secure-token', webhookSecret)
       .send({
-        grantId,
-        transaction: {
+        error: 0,
+        data: {
           id: matchingTransactionId,
           amount: 30_000_000,
-          transactionDateTime: '2026-08-05T10:00:00.000Z',
+          transactionDateTime: '2026-08-05 10:00:00',
           description: 'Thanh toan INV-2026-0012',
+          accountNumber: '99887766',
           counterAccountNumber: '0011002233',
           counterAccountName: 'Company B',
         },
@@ -261,7 +266,7 @@ describe('Webhook matching (e2e)', () => {
     let receivable: ReceivableOrmEntity | null = null;
     while (Date.now() < deadline) {
       transaction = await transactionRepo.findOneBy({
-        providerTransactionId: matchingTransactionId,
+        providerTransactionId: String(matchingTransactionId),
       });
       receivable = await receivableRepo.findOneBy({ id: receivableId });
       if (transaction?.status === 'MATCHED' && receivable?.status === 'PAID') {

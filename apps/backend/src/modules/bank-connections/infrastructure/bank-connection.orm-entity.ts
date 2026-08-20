@@ -1,8 +1,5 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
-import type {
-  AccountIdentity,
-  BankConnectionStatus,
-} from '../domain/bank-connection';
+import type { BankConnectionStatus } from '../domain/bank-connection';
 
 @Entity({ name: 'bank_connections' })
 @Index(['organizationId'])
@@ -13,23 +10,20 @@ export class BankConnectionOrmEntity {
   @Column()
   organizationId: string;
 
-  @Column({ type: 'uuid' })
-  casIdConnectionSessionId: string;
-
   @Column({ unique: true })
-  grantId: string;
+  accountNumber: string;
+
+  @Column()
+  bankName: string;
 
   @Column('text')
-  encryptedAccessToken: string;
+  encryptedSecureToken: string;
 
-  @Column({ type: 'jsonb' })
-  accountIdentity: AccountIdentity;
+  @Column('text')
+  encryptedCassoApiKey: string;
 
   @Column({ type: 'varchar' })
   status: BankConnectionStatus;
-
-  @Column('simple-array')
-  scopes: string[];
 
   @Column({ type: 'timestamp', nullable: true })
   connectedAt: Date | null;

@@ -7,8 +7,6 @@ import {
   Param,
   Post,
   Query,
-  Req,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -18,7 +16,6 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Request } from 'express';
 import {
   AuditActionType,
   AuditEntityType,
@@ -31,21 +28,15 @@ import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { successResponseSchema } from '../../../common/swagger/success-response-schema';
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { ConnectCassoFlowUseCase } from '../application/connect-casso-flow.usecase';
 import { DisconnectConnectionUseCase } from '../application/disconnect-connection.usecase';
-import { ExchangeTokenUseCase } from '../application/exchange-token.usecase';
-import { InitiateConnectionUseCase } from '../application/initiate-connection.usecase';
 import { ListBankConnectionsUseCase } from '../application/list-bank-connections.usecase';
 import {
   ListBankConnectionsResponseDto,
   toBankConnectionResponse,
 } from './dto/bank-connection-response.dto';
-import { ExchangeTokenDto } from './dto/exchange-token.dto';
-import { InitiateConnectionDto } from './dto/initiate-connection.dto';
-import { InitiateConnectionResponseDto } from './dto/initiate-connection-response.dto';
-
-interface AuthenticatedRequest extends Request {
-  user?: { userId: string };
-}
+import { ConnectCassoFlowDto } from './dto/connect-casso-flow.dto';
 
 @ApiTags('bank-connections')
 @Controller('bank-connections')
@@ -53,10 +44,10 @@ interface AuthenticatedRequest extends Request {
 export class BankConnectionsController {
   constructor(
     private readonly listBankConnectionsUseCase: ListBankConnectionsUseCase,
-    private readonly initiateConnectionUseCase: InitiateConnectionUseCase,
-    private readonly exchangeTokenUseCase: ExchangeTokenUseCase,
+    private readonly connectCassoFlowUseCase: ConnectCassoFlowUseCase,
     private readonly disconnectConnectionUseCase: DisconnectConnectionUseCase,
     private readonly idempotency: IdempotencyService,
+    private readonly tenantContext: TenantContextService,
   ) {}
 
   @Get()
@@ -77,41 +68,11 @@ export class BankConnectionsController {
     };
   }
 
-  @Post('cas-id/initiate')
-  @ApiOperation({ summary: 'Initiate a Cas ID bank connection session' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
-  @ApiCreatedResponse({ type: InitiateConnectionResponseDto })
-  @ApiErrorResponse(
-    ErrorCode.VALIDATION_ERROR,
-    ErrorCode.UNAUTHORIZED,
-    ErrorCode.FORBIDDEN,
-    ErrorCode.IDEMPOTENCY_KEY_REUSED,
-  )
-  @RequirePermission(Permission.BANK_CONNECTION_MANAGE)
-  async initiate(
-    @Headers('idempotency-key') key: string | undefined,
-    @Body() dto: InitiateConnectionDto,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return this.idempotency.execute(
-      'POST /bank-connections/cas-id/initiate',
-      key,
-      dto,
-      () => {
-        const userId = request.user?.userId;
-        if (!userId) {
-          throw new UnauthorizedException();
-        }
-        return this.initiateConnectionUseCase.execute({
-          userId,
-          bankConnectionId: dto.bankConnectionId,
-        });
-      },
-    );
-  }
-
-  @Post('cas-id/sessions/:id/exchange')
-  @ApiOperation({ summary: 'Exchange a Cas ID session token for a connection' })
+  @Post('casso-flow/connect')
+  @ApiOperation({
+    summary:
+      "Connect this organization's Casso Flow account via a pasted API Key",
+  })
   @ApiHeader({ name: 'idempotency-key', required: false })
   @ApiCreatedResponse({
     description: 'Connection created',
@@ -126,8 +87,8 @@ export class BankConnectionsController {
   })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
-    ErrorCode.NOT_FOUND,
-    ErrorCode.CONFLICT,
+    ErrorCode.UNAUTHORIZED,
+    ErrorCode.FORBIDDEN,
     ErrorCode.IDEMPOTENCY_KEY_REUSED,
   )
   @RequirePermission(Permission.BANK_CONNECTION_MANAGE)
@@ -135,19 +96,19 @@ export class BankConnectionsController {
     AuditActionType.BANK_CONNECTION_CREATE,
     AuditEntityType.BANK_CONNECTION,
   )
-  async exchange(
-    @Param('id') sessionId: string,
+  async connect(
     @Headers('idempotency-key') key: string | undefined,
-    @Body() dto: ExchangeTokenDto,
+    @Body() dto: ConnectCassoFlowDto,
   ) {
     return this.idempotency.execute(
-      `POST /bank-connections/cas-id/sessions/${sessionId}/exchange`,
+      'POST /bank-connections/casso-flow/connect',
       key,
       dto,
       async () => {
-        const connection = await this.exchangeTokenUseCase.execute({
-          sessionId,
-          publicToken: dto.publicToken,
+        const connection = await this.connectCassoFlowUseCase.execute({
+          organizationId: this.tenantContext.getOrganizationId(),
+          apiKey: dto.apiKey,
+          bankConnectionId: dto.bankConnectionId,
         });
         return { connectionId: connection.id, status: connection.status };
       },

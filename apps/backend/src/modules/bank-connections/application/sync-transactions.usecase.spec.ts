@@ -1,6 +1,6 @@
 import { AppError } from '../../../common/errors/app-error';
 import { BankConnection } from '../domain/bank-connection';
-import { CasIdUnauthorizedError } from './cas-id-integration-adapter.port';
+import { CassoFlowUnauthorizedError } from './casso-flow-integration-adapter.port';
 import { SyncTransactionsUseCase } from './sync-transactions.usecase';
 import { encryptToken } from './token-encryption';
 
@@ -11,12 +11,11 @@ function activeConnection(): BankConnection {
   return new BankConnection({
     id: 'conn-1',
     organizationId: 'org-1',
-    casIdConnectionSessionId: 'session-1',
-    grantId: 'grant-1',
-    encryptedAccessToken: encryptToken('raw-access-token', encryptionKey),
-    accountIdentity: { accountNumber: '0011002233', bankName: 'Mock Bank' },
+    accountNumber: '0011002233',
+    bankName: 'Mock Bank',
+    encryptedSecureToken: 'encrypted-secure-token',
+    encryptedCassoApiKey: encryptToken('raw-api-key', encryptionKey),
     status: 'ACTIVE',
-    scopes: ['identity', 'transaction'],
     connectedAt: new Date(),
     lastSyncAt: null,
     revokedAt: null,
@@ -46,14 +45,14 @@ describe('SyncTransactionsUseCase', () => {
     ).not.toHaveBeenCalled();
   });
 
-  it('marks the connection as requiring reauthorization and rethrows on a 401/403 from Cas ID', async () => {
+  it('marks the connection as requiring reauthorization and rethrows on a 401/403 from Casso Flow', async () => {
     const bankConnectionRepo = {
       findByIdUnscoped: jest.fn().mockResolvedValue(activeConnection()),
     };
     const adapter = {
       getTransactions: jest
         .fn()
-        .mockRejectedValue(new CasIdUnauthorizedError()),
+        .mockRejectedValue(new CassoFlowUnauthorizedError()),
     };
     const markRequiresReauthorization = {
       handleAdapterError: jest
@@ -70,12 +69,12 @@ describe('SyncTransactionsUseCase', () => {
     );
 
     await expect(useCase.execute('conn-1')).rejects.toBeInstanceOf(
-      CasIdUnauthorizedError,
+      CassoFlowUnauthorizedError,
     );
     expect(markRequiresReauthorization.handleAdapterError).toHaveBeenCalledWith(
       'conn-1',
       '401/403 from getTransactions',
-      expect.any(CasIdUnauthorizedError),
+      expect.any(CassoFlowUnauthorizedError),
     );
   });
 

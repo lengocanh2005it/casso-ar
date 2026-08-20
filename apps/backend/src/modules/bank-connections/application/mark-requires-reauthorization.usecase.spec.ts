@@ -1,5 +1,5 @@
 import { BankConnection } from '../domain/bank-connection';
-import { CasIdUnauthorizedError } from './cas-id-integration-adapter.port';
+import { CassoFlowUnauthorizedError } from './casso-flow-integration-adapter.port';
 import { MarkRequiresReauthorizationUseCase } from './mark-requires-reauthorization.usecase';
 
 function connectionWithStatus(
@@ -8,12 +8,11 @@ function connectionWithStatus(
   return new BankConnection({
     id: 'conn-1',
     organizationId: 'org-1',
-    casIdConnectionSessionId: 'session-1',
-    grantId: 'grant-1',
-    encryptedAccessToken: 'encrypted',
-    accountIdentity: { accountNumber: '0011002233', bankName: 'Mock Bank' },
+    accountNumber: '0011002233',
+    bankName: 'Mock Bank',
+    encryptedSecureToken: 'encrypted-secure-token',
+    encryptedCassoApiKey: 'encrypted-api-key',
     status,
-    scopes: ['identity', 'transaction'],
     connectedAt: new Date(),
     lastSyncAt: null,
     revokedAt: null,
@@ -120,7 +119,7 @@ describe('MarkRequiresReauthorizationUseCase', () => {
   });
 
   describe('handleAdapterError', () => {
-    it('marks the connection and rethrows on a CasIdUnauthorizedError', async () => {
+    it('marks the connection and rethrows on a CassoFlowUnauthorizedError', async () => {
       const connection = connectionWithStatus('ACTIVE');
       const bankConnectionRepo = {
         findByIdUnscoped: jest.fn().mockResolvedValue(connection),
@@ -131,7 +130,7 @@ describe('MarkRequiresReauthorizationUseCase', () => {
         bankConnectionRepo,
         auditEventRepo,
       );
-      const error = new CasIdUnauthorizedError();
+      const error = new CassoFlowUnauthorizedError();
 
       await expect(
         useCase.handleAdapterError(

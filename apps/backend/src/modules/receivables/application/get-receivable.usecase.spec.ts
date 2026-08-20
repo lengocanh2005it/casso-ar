@@ -13,7 +13,7 @@ function buildReceivable(): Receivable {
     invoiceId: 'invoice-1',
     originalAmount: 50_000_000,
     paidAmount: 0,
-    dueDate: new Date('2026-08-20'),
+    dueDate: new Date('2099-12-31'),
     status: ReceivableStatus.OPEN,
     salesRepresentativeId: null,
     createdAt: new Date('2026-07-20'),

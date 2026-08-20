@@ -11,13 +11,11 @@ import {
 } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
-import { usePollConnections } from '../api/use-bank-connections';
-import { CasIdConnectionFlow } from './cas-id-connection-flow';
+import { CassoFlowConnectForm } from './casso-flow-connect-form';
 
 export function ConnectDialog() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
-  usePollConnections(open);
 
   if (!hasPermission(user?.role ?? null, Permission.BANK_CONNECTION_MANAGE)) {
     return null;
@@ -30,13 +28,13 @@ export function ConnectDialog() {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Kết nối qua Cas ID</DialogTitle>
+          <DialogTitle>Kết nối Casso Flow</DialogTitle>
           <DialogDescription>
-            Một cửa sổ Cas Link sẽ mở ra để cấp quyền truy cập tài khoản ngân
-            hàng.
+            Nhập API Key từ tài khoản Casso Flow của bạn để đồng bộ giao dịch
+            ngân hàng.
           </DialogDescription>
         </DialogHeader>
-        <CasIdConnectionFlow onCompleted={() => setOpen(false)} />
+        <CassoFlowConnectForm onCompleted={() => setOpen(false)} />
       </DialogContent>
     </Dialog>
   );
