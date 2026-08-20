@@ -16,7 +16,7 @@ export function connectCassoFlow(
   input: ConnectCassoFlowInput,
 ): Promise<BankConnection> {
   return postWithIdempotency<BankConnection>(
-    '/api/v1/bank-connections/connect',
+    '/api/v1/bank-connections/casso-flow/connect',
     input,
   );
 }
