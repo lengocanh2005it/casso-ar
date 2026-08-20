@@ -84,6 +84,14 @@ export class BankConnectionsController {
     private readonly tenantContext: TenantContextService,
   ) {}
 
+  private requireUserId(request: AuthRequest): string {
+    const userId = request.user?.userId;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
+    return userId;
+  }
+
   @Get()
   @ApiOperation({ summary: 'List bank connections with pagination' })
   @ApiOkResponse({ type: ListBankConnectionsResponseDto })
@@ -137,10 +145,7 @@ export class BankConnectionsController {
     @Body() dto: ConfirmCassoFlowDto,
     @Req() request: AuthRequest,
   ) {
-    const userId = request.user?.userId;
-    if (!userId) {
-      throw new UnauthorizedException();
-    }
+    const userId = this.requireUserId(request);
     return this.idempotency.execute(
       'POST /bank-connections/casso-flow/confirm',
       key,
@@ -201,10 +206,7 @@ export class BankConnectionsController {
     @Body() dto: RotateCassoFlowDto,
     @Req() request: AuthRequest,
   ) {
-    const userId = request.user?.userId;
-    if (!userId) {
-      throw new UnauthorizedException();
-    }
+    const userId = this.requireUserId(request);
     return this.idempotency.execute(
       `POST /bank-connections/authorizations/${authorizationId}/casso-flow/confirm`,
       key,
@@ -241,10 +243,7 @@ export class BankConnectionsController {
     @Body() dto: RevealCassoFlowApiKeyDto,
     @Req() request: AuthRequest,
   ) {
-    const userId = request.user?.userId;
-    if (!userId) {
-      throw new UnauthorizedException();
-    }
+    const userId = this.requireUserId(request);
     return this.idempotency.execute(
       `POST /bank-connections/authorizations/${authorizationId}/reveal-key`,
       key,
@@ -281,10 +280,7 @@ export class BankConnectionsController {
     @Headers('idempotency-key') key: string | undefined,
     @Req() request: AuthRequest,
   ) {
-    const userId = request.user?.userId;
-    if (!userId) {
-      throw new UnauthorizedException();
-    }
+    const userId = this.requireUserId(request);
     return this.idempotency.execute(
       `POST /bank-connections/${connectionId}/disconnect`,
       key,
