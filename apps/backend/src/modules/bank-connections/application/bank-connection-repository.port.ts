@@ -18,6 +18,11 @@ export interface IBankConnectionRepository {
   findByAccountNumbers(
     accountNumbers: string[],
   ): Promise<Map<string, BankConnection>>;
+  // Unscoped on purpose: the CassoFlowAuthorization id, not the caller's org,
+  // is the natural key here — used by rotate/preview flows that already hold
+  // (and have verified) the authorization, and by disconnect to inspect its
+  // sibling connections. The authorization itself is always org-scoped when
+  // it's looked up, so this can't leak across tenants in practice.
   findByAuthorizationId(
     cassoFlowAuthorizationId: string,
   ): Promise<BankConnection[]>;
@@ -32,6 +37,9 @@ export interface IBankConnectionRepository {
     organizationId: string,
     manager: EntityManager,
   ): Promise<number>;
+  // Unscoped on purpose, same reasoning as findByAuthorizationId above —
+  // called from DisconnectConnectionUseCase to decide whether this was the
+  // last active connection under a given (already-verified) authorization.
   countActiveByAuthorization(
     cassoFlowAuthorizationId: string,
     manager: EntityManager,

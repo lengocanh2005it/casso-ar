@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { BankConnection } from '../domain/bank-connection';
 import {
   BANK_CONNECTION_REPOSITORY,
   type IBankConnectionRepository,
@@ -8,6 +7,7 @@ import {
   CASSO_FLOW_INTEGRATION_ADAPTER,
   type ICassoFlowIntegrationAdapter,
 } from './casso-flow-integration-adapter.port';
+import { classifyCassoFlowAccount } from './classify-casso-flow-account';
 
 export type CassoFlowAccountPreviewStatus =
   | 'ALREADY_CONNECTED'
@@ -53,24 +53,12 @@ export class PreviewCassoFlowAccountsUseCase {
       businessId,
       accounts: accounts.map((account) => ({
         ...account,
-        status: this.classify(
+        status: classifyCassoFlowAccount(
           account.accountNumber,
           input.organizationId,
           existing,
         ),
       })),
     };
-  }
-
-  private classify(
-    accountNumber: string,
-    organizationId: string,
-    existing: Map<string, BankConnection>,
-  ): CassoFlowAccountPreviewStatus {
-    const row = existing.get(accountNumber);
-    if (!row) return 'AVAILABLE';
-    return row.organizationId === organizationId
-      ? 'ALREADY_CONNECTED'
-      : 'TAKEN_BY_ANOTHER_ORG';
   }
 }

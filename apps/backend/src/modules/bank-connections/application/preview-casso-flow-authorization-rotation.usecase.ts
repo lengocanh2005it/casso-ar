@@ -1,7 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
-import type { BankConnection } from '../domain/bank-connection';
 import {
   BANK_CONNECTION_REPOSITORY,
   type IBankConnectionRepository,
@@ -14,10 +13,8 @@ import {
   CASSO_FLOW_INTEGRATION_ADAPTER,
   type ICassoFlowIntegrationAdapter,
 } from './casso-flow-integration-adapter.port';
-import type {
-  CassoFlowAccountPreview,
-  CassoFlowAccountPreviewStatus,
-} from './preview-casso-flow-accounts.usecase';
+import { classifyCassoFlowAccount } from './classify-casso-flow-account';
+import type { CassoFlowAccountPreview } from './preview-casso-flow-accounts.usecase';
 
 export interface PreviewCassoFlowAuthorizationRotationInput {
   organizationId: string;
@@ -88,7 +85,7 @@ export class PreviewCassoFlowAuthorizationRotationUseCase {
       businessId,
       accounts: accounts.map((account) => ({
         ...account,
-        status: this.classify(
+        status: classifyCassoFlowAccount(
           account.accountNumber,
           input.organizationId,
           existing,
@@ -96,17 +93,5 @@ export class PreviewCassoFlowAuthorizationRotationUseCase {
       })),
       missingAccountNumbers,
     };
-  }
-
-  private classify(
-    accountNumber: string,
-    organizationId: string,
-    existing: Map<string, BankConnection>,
-  ): CassoFlowAccountPreviewStatus {
-    const row = existing.get(accountNumber);
-    if (!row) return 'AVAILABLE';
-    return row.organizationId === organizationId
-      ? 'ALREADY_CONNECTED'
-      : 'TAKEN_BY_ANOTHER_ORG';
   }
 }
