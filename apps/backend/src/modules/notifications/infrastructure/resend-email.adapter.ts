@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Resend } from 'resend';
 import type {
+  EmailSendOptions,
   EmailSendResult,
   IEmailProviderAdapter,
 } from '../application/email-provider-adapter.port';
@@ -36,15 +37,25 @@ export class ResendEmailAdapter implements IEmailProviderAdapter {
     metadata: Record<string, string>,
     replyTo?: string,
     fromName?: string,
+    options?: EmailSendOptions,
   ): Promise<EmailSendResult> {
     const from = fromName
       ? `"${sanitizeDisplayName(fromName)}" <${this.fromAddress}>`
       : this.fromAddress;
+    const attachments = options?.attachments?.map(
+      ({ content, filename, contentId }) => ({
+        content,
+        filename,
+        ...(contentId ? { contentId } : {}),
+      }),
+    );
     const result = await this.client.emails.send({
       from,
       to,
       subject,
       html,
+      ...(options?.text !== undefined ? { text: options.text } : {}),
+      ...(attachments?.length ? { attachments } : {}),
       tags: Object.entries(metadata).map(([name, value]) => ({ name, value })),
       ...(replyTo ? { replyTo } : {}),
     });

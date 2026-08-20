@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { buildCassoEmail } from '../../../common/email/casso-email-template';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import {
   BANK_CONNECTION_STATUS_CHANGED,
@@ -66,17 +67,27 @@ export class BankConnectionStatusListener {
         if (!owner?.email) return;
 
         const isError = payload.status === 'ERROR';
+        const subject = isError
+          ? 'Kết nối ngân hàng của bạn đang gặp sự cố'
+          : 'Kết nối ngân hàng của bạn cần xác thực lại';
+        const content = buildCassoEmail({
+          title: subject,
+          greeting: 'Kính chào Quý khách,',
+          paragraphs: [
+            isError
+              ? 'Casso không thể đồng bộ giao dịch từ kết nối ngân hàng của bạn. Vui lòng kiểm tra và xác thực lại kết nối để tiếp tục sử dụng.'
+              : 'Kết nối ngân hàng của bạn cần xác thực lại để tiếp tục đồng bộ giao dịch. Vui lòng thực hiện xác thực lại.',
+          ],
+        });
         await this.emailQueue.add(
           'send-owner-alert',
           {
             organizationId: payload.organizationId,
             to: owner.email,
-            subject: isError
-              ? 'Kết nối ngân hàng của bạn đang gặp sự cố'
-              : 'Kết nối ngân hàng của bạn cần xác thực lại',
-            html: isError
-              ? '<p>Casso không thể đồng bộ giao dịch từ kết nối ngân hàng của bạn. Vui lòng kiểm tra và xác thực lại kết nối để tiếp tục sử dụng.</p>'
-              : '<p>Kết nối ngân hàng của bạn cần xác thực lại để tiếp tục đồng bộ giao dịch. Vui lòng thực hiện xác thực lại.</p>',
+            subject,
+            html: content.html,
+            text: content.text,
+            attachments: content.attachments,
           },
           {
             jobId: `owner-alert-${payload.bankConnectionId}-${payload.status}`,

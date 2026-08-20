@@ -50,6 +50,46 @@ describe('ResendEmailAdapter', () => {
     );
   });
 
+  it('passes plain text and inline attachments to Resend', async () => {
+    sendMock.mockResolvedValue({
+      data: { id: 'resend-msg-inline' },
+      error: null,
+    });
+
+    await new ResendEmailAdapter().send(
+      'owner@example.com',
+      'Verify',
+      '<p>Verify</p>',
+      { emailType: 'AUTH_VERIFICATION' },
+      undefined,
+      undefined,
+      {
+        text: 'Verify at https://app.casso.vn/verify',
+        attachments: [
+          {
+            filename: 'casso-ledger-logo.png',
+            content: 'base64-logo',
+            contentId: 'casso-ledger-logo',
+            contentType: 'image/png',
+          },
+        ],
+      },
+    );
+
+    expect(sendMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'Verify at https://app.casso.vn/verify',
+        attachments: [
+          {
+            filename: 'casso-ledger-logo.png',
+            content: 'base64-logo',
+            contentId: 'casso-ledger-logo',
+          },
+        ],
+      }),
+    );
+  });
+
   it('builds a display-name From header when fromName is provided', async () => {
     sendMock.mockResolvedValue({ data: { id: 'resend-msg-3' }, error: null });
 

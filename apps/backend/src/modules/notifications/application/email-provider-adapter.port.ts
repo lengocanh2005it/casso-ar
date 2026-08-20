@@ -1,5 +1,12 @@
+import type { EmailAttachment } from '../../../common/email/email-attachment';
+
 export interface EmailSendResult {
   providerMessageId: string;
+}
+
+export interface EmailSendOptions {
+  text?: string;
+  attachments?: EmailAttachment[];
 }
 
 export interface IEmailProviderAdapter {
@@ -10,6 +17,7 @@ export interface IEmailProviderAdapter {
     metadata: Record<string, string>,
     replyTo?: string,
     fromName?: string,
+    options?: EmailSendOptions,
   ): Promise<EmailSendResult>;
 }
 

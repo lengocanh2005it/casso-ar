@@ -1,3 +1,5 @@
+import type { EmailAttachment } from '../../../common/email/email-attachment';
+
 export interface ReminderEmailJob {
   reminderExecutionId: string;
   receivableId: string;
@@ -14,6 +16,8 @@ export interface AuthEmailJob {
   to: string;
   subject: string;
   html: string;
+  text?: string;
+  attachments?: EmailAttachment[];
   emailType:
     | 'AUTH_VERIFICATION'
     | 'AUTH_PASSWORD_RESET'
@@ -29,6 +33,8 @@ export interface OwnerAlertEmailJob {
   to: string;
   subject: string;
   html: string;
+  text?: string;
+  attachments?: EmailAttachment[];
 }
 
 export interface IEmailQueue {

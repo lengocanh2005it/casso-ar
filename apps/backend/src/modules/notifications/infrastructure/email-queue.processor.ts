@@ -3,6 +3,7 @@ import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { Job } from 'bullmq';
+import { buildCassoEmail } from '../../../common/email/casso-email-template';
 import { MetricsService } from '../../../common/observability/metrics.service';
 import { RequestIdStore } from '../../../common/observability/request-id.store';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
@@ -82,7 +83,7 @@ export class EmailQueueProcessor extends WorkerHost {
   private async processOwnerAlertEmail(
     job: Job<OwnerAlertEmailJob>,
   ): Promise<void> {
-    const { organizationId, to, subject, html } = job.data;
+    const { organizationId, to, subject, html, text, attachments } = job.data;
     await this.tenantContext.run(
       { userId: 'system', organizationId, role: Role.OWNER },
       async () => {
@@ -90,18 +91,36 @@ export class EmailQueueProcessor extends WorkerHost {
           organizationId,
           'RESEND',
         );
-        await resendAdapter.send(to, subject, html, {
-          emailType: 'OWNER_ALERT',
-        });
+        await resendAdapter.send(
+          to,
+          subject,
+          html,
+          { emailType: 'OWNER_ALERT' },
+          undefined,
+          undefined,
+          text !== undefined || attachments !== undefined
+            ? { text, attachments }
+            : undefined,
+        );
       },
     );
   }
 
   private async processAuthEmail(job: Job<AuthEmailJob>): Promise<void> {
-    const { to, subject, html, emailType } = job.data;
+    const { to, subject, html, text, attachments, emailType } = job.data;
     const resendAdapter = await this.resolver.resolve('__auth__', 'RESEND');
     try {
-      await resendAdapter.send(to, subject, html, { emailType });
+      await resendAdapter.send(
+        to,
+        subject,
+        html,
+        { emailType },
+        undefined,
+        undefined,
+        text !== undefined || attachments !== undefined
+          ? { text, attachments }
+          : undefined,
+      );
     } catch (error) {
       this.logger.error({
         message: 'Auth email send failed',
@@ -235,11 +254,21 @@ export class EmailQueueProcessor extends WorkerHost {
                     organizationId,
                     'RESEND',
                   );
+                  const warning = buildCassoEmail({
+                    title: 'Thông báo về máy chủ email riêng',
+                    greeting: 'Kính chào Quý khách,',
+                    paragraphs: [
+                      'Casso không thể gửi email nhắc nợ qua máy chủ email riêng của bạn. Các email nhắc nợ tạm thời sẽ được gửi qua Casso cho đến khi bạn cấu hình lại.',
+                    ],
+                  });
                   await warningAdapter.send(
                     owner.email,
                     'Email server riêng của bạn đang gặp sự cố',
-                    '<p>Casso không thể gửi email nhắc nợ qua SMTP server riêng của bạn. Các email nhắc nợ tạm thời sẽ gửi qua Casso cho đến khi bạn cấu hình lại.</p>',
+                    warning.html,
                     { emailType: 'SMTP_CONNECTION_FAILED_WARNING' },
+                    undefined,
+                    undefined,
+                    { text: warning.text, attachments: warning.attachments },
                   );
                 } catch (error) {
                   this.logger.error({

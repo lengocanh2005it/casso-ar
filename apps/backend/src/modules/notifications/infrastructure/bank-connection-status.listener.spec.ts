@@ -47,17 +47,28 @@ describe('BankConnectionStatusListener', () => {
     );
     expect(emailQueue.add).toHaveBeenCalledWith(
       'send-owner-alert',
-      {
+      expect.objectContaining({
         organizationId: 'org-1',
         to: 'owner@company.vn',
         subject: 'Kết nối ngân hàng của bạn cần xác thực lại',
         html: expect.stringContaining('xác thực lại'),
-      },
+        text: expect.stringContaining('xác thực lại'),
+        attachments: [
+          expect.objectContaining({ contentId: 'casso-ledger-logo' }),
+        ],
+      }),
       expect.objectContaining({
         jobId: 'owner-alert-conn-1-REQUIRES_REAUTHORIZATION',
         attempts: 3,
       }),
     );
+
+    const [, job] = emailQueue.add.mock.calls[0];
+    expect(job.html).toContain('cid:casso-ledger-logo');
+    expect(job.text).toContain('xác thực lại');
+    expect(job.attachments).toEqual([
+      expect.objectContaining({ contentId: 'casso-ledger-logo' }),
+    ]);
   });
 
   it('enqueues an error alert to the org owner', async () => {

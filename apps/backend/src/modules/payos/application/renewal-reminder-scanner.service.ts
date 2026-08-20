@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { buildCassoEmail } from '../../../common/email/casso-email-template';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { ISubscriptionRepository } from '../../billing/application/subscription-repository.port';
 import { SUBSCRIPTION_REPOSITORY } from '../../billing/application/subscription-repository.port';
@@ -104,13 +105,26 @@ export class RenewalReminderScannerService {
           : null;
         if (!owner?.email) return;
 
+        const expiryDate = subscription.currentPeriodEnd
+          .toISOString()
+          .slice(0, 10);
+        const content = buildCassoEmail({
+          title: `Thông báo gia hạn gói ${subscription.planId}`,
+          greeting: 'Kính chào Quý khách,',
+          paragraphs: [
+            `Gói ${subscription.planId} của Quý khách sẽ hết hạn vào ${expiryDate}. Vui lòng thanh toán để tiếp tục sử dụng dịch vụ.`,
+          ],
+          action: { label: 'Thanh toán gia hạn', url: checkoutUrl },
+        });
         await this.emailQueue.add(
           'send-owner-alert',
           {
             organizationId: subscription.organizationId,
             to: owner.email,
             subject: `Gói ${subscription.planId} của bạn sắp hết hạn`,
-            html: `<p>Gói ${subscription.planId} của bạn sẽ hết hạn vào ${subscription.currentPeriodEnd.toISOString().slice(0, 10)}. Vui lòng thanh toán để tiếp tục sử dụng: <a href="${checkoutUrl}">${checkoutUrl}</a></p>`,
+            html: content.html,
+            text: content.text,
+            attachments: content.attachments,
           },
           {
             jobId: `renewal-reminder-${subscription.organizationId}-${subscription.currentPeriodStart.toISOString().slice(0, 10)}`,
