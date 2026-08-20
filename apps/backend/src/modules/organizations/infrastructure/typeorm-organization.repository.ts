@@ -1,13 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, Repository } from 'typeorm';
-import { In } from 'typeorm';
-import type {
-  IOrganizationRepository,
-  OrganizationListItem,
+import { In, QueryFailedError } from 'typeorm';
+import { isUniqueViolation } from '../../../common/database/unique-violation';
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
+import {
+  DUPLICATE_TAX_CODE,
+  type IOrganizationRepository,
+  type OrganizationListItem,
 } from '../application/organization-repository.port';
 import { Organization, type OrganizationStatus } from '../domain/organization';
 import { OrganizationOrmEntity } from './organization.orm-entity';
+
+const TAX_CODE_UNIQUE_CONSTRAINT = 'UQ_organizations_tax_code';
 
 const SELECT_COLUMNS = {
   id: true,
@@ -101,13 +107,51 @@ export class TypeOrmOrganizationRepository implements IOrganizationRepository {
     return new Map(rows.map((row) => [row.id, toDomain(row)]));
   }
 
+  async findByTaxCode(
+    taxCode: string,
+    manager?: EntityManager,
+  ): Promise<Organization | null> {
+    const row = await (manager
+      ? manager.getRepository(OrganizationOrmEntity)
+      : this.repo
+    ).findOne({ select: SELECT_COLUMNS, where: { taxCode } });
+    return row ? toDomain(row) : null;
+  }
+
   async save(
     organization: Organization,
     manager?: EntityManager,
   ): Promise<void> {
-    await (manager
+    const repo = manager
       ? manager.getRepository(OrganizationOrmEntity)
-      : this.repo
-    ).save(toOrm(organization));
+      : this.repo;
+    try {
+      await repo.save(toOrm(organization));
+    } catch (error) {
+      if (
+        error instanceof QueryFailedError &&
+        isUniqueViolation(error) &&
+        this.isTaxCodeConstraint(error)
+      ) {
+        throw new AppError(
+          ErrorCode.CONFLICT,
+          'Mã số thuế này đã được đăng ký.',
+          {
+            rowErrorCode: DUPLICATE_TAX_CODE,
+          },
+        );
+      }
+      throw error;
+    }
+  }
+
+  private isTaxCodeConstraint(error: QueryFailedError): boolean {
+    if (typeof error.driverError !== 'object' || error.driverError === null) {
+      return false;
+    }
+    return (
+      'constraint' in error.driverError &&
+      error.driverError.constraint === TAX_CODE_UNIQUE_CONSTRAINT
+    );
   }
 }

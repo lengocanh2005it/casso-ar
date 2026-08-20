@@ -13,6 +13,7 @@ import {
   MEMBERSHIP_REPOSITORY,
 } from '../../organizations/application/membership-repository.port';
 import {
+  DUPLICATE_TAX_CODE,
   type IOrganizationRepository,
   ORGANIZATION_REPOSITORY,
 } from '../../organizations/application/organization-repository.port';
@@ -37,10 +38,6 @@ import {
   EMAIL_VERIFICATION_TOKEN_REPOSITORY,
   type IEmailVerificationTokenRepository,
 } from './email-verification-token-repository.port';
-import {
-  type IMemberNotificationSender,
-  MEMBER_NOTIFICATION_SENDER,
-} from './member-notification.port';
 import {
   DEFAULT_ORGANIZATION_BOOTSTRAP,
   type IOrganizationBootstrap,
@@ -82,8 +79,6 @@ export class SignupUseCase {
     private readonly emailSender: IAuthEmailSender,
     @Inject(TAX_CODE_LOOKUP_ADAPTER)
     private readonly taxCodeLookup: ITaxCodeLookupAdapter,
-    @Inject(MEMBER_NOTIFICATION_SENDER)
-    private readonly memberNotificationSender: IMemberNotificationSender,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -91,6 +86,13 @@ export class SignupUseCase {
     const email = input.email.trim().toLowerCase();
     if (await this.userRepo.findByEmail(email)) {
       throw new AppError(ErrorCode.CONFLICT, 'Email đã được đăng ký.');
+    }
+    if (await this.organizationRepo.findByTaxCode(input.taxCode)) {
+      throw new AppError(
+        ErrorCode.CONFLICT,
+        'Mã số thuế này đã được đăng ký.',
+        { rowErrorCode: DUPLICATE_TAX_CODE },
+      );
     }
 
     const organizationName = input.organizationName.trim();
@@ -111,7 +113,7 @@ export class SignupUseCase {
     const organization = new Organization({
       id: randomUUID(),
       name: organizationName,
-      status: taxCodeMatched ? 'ACTIVE' : 'PENDING_REVIEW',
+      status: 'PENDING_REVIEW',
       taxCode: input.taxCode,
       taxCodeMatched,
       taxCodeLookupName: lookupResult?.name ?? null,
@@ -150,13 +152,6 @@ export class SignupUseCase {
       }),
     );
     await this.emailSender.sendVerificationEmail(user.email, otp);
-
-    if (organization.status === 'ACTIVE') {
-      await this.memberNotificationSender.sendOrganizationApprovedEmail(
-        user.email,
-        organization.name,
-      );
-    }
 
     return { user, organization, membership };
   }

@@ -1,6 +1,10 @@
 import type { EntityManager } from 'typeorm';
 import type { Organization, OrganizationStatus } from '../domain/organization';
 
+// Stable row-error code returned to the FE when a tax code collides with an
+// existing organization (any status).
+export const DUPLICATE_TAX_CODE = 'DUPLICATE_TAX_CODE';
+
 export interface OrganizationListItem {
   id: string;
   name: string;
@@ -20,6 +24,10 @@ export interface IOrganizationRepository {
     status?: OrganizationStatus,
   ): Promise<{ items: OrganizationListItem[]; total: number }>;
   findByIds(ids: string[]): Promise<Map<string, Organization>>;
+  findByTaxCode(
+    taxCode: string,
+    manager?: EntityManager,
+  ): Promise<Organization | null>;
   save(organization: Organization, manager?: EntityManager): Promise<void>;
 }
 

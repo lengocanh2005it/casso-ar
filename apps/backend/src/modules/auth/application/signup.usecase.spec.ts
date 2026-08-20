@@ -7,10 +7,6 @@ function buildTaxCodeMatchMocks(matchedName: string | null) {
         .fn()
         .mockResolvedValue(matchedName === null ? null : { name: matchedName }),
     },
-    memberNotificationSender: {
-      sendOrganizationApprovedEmail: jest.fn(),
-      sendOrganizationRejectedEmail: jest.fn(),
-    },
   };
 }
 
@@ -20,14 +16,16 @@ describe('SignupUseCase', () => {
       findByEmail: jest.fn().mockResolvedValue(null),
       save: jest.fn(),
     };
-    const organizationRepo = { save: jest.fn() };
+    const organizationRepo = {
+      findByTaxCode: jest.fn().mockResolvedValue(null),
+      save: jest.fn(),
+    };
     const membershipRepo = { save: jest.fn() };
     const verificationTokenRepo = { save: jest.fn() };
     const subscriptionRepo = { save: jest.fn() };
     const organizationBootstrap = { seed: jest.fn() };
     const emailSender = { sendVerificationEmail: jest.fn() };
-    const { taxCodeLookup, memberNotificationSender } =
-      buildTaxCodeMatchMocks('Company B');
+    const { taxCodeLookup } = buildTaxCodeMatchMocks('Company B');
     const dataSource = {
       transaction: jest.fn(
         async (callback: (manager: object) => Promise<void>) => callback({}),
@@ -43,7 +41,6 @@ describe('SignupUseCase', () => {
       organizationBootstrap as any,
       emailSender as any,
       taxCodeLookup as any,
-      memberNotificationSender as any,
       dataSource as any,
     );
 
@@ -77,8 +74,7 @@ describe('SignupUseCase', () => {
       findByEmail: jest.fn().mockResolvedValue({ id: 'existing' }),
       save: jest.fn(),
     };
-    const { taxCodeLookup, memberNotificationSender } =
-      buildTaxCodeMatchMocks(null);
+    const { taxCodeLookup } = buildTaxCodeMatchMocks(null);
     const useCase = new SignupUseCase(
       userRepo as any,
       {} as any,
@@ -88,7 +84,6 @@ describe('SignupUseCase', () => {
       {} as any,
       {} as any,
       taxCodeLookup as any,
-      memberNotificationSender as any,
       {} as any,
     );
 
@@ -104,6 +99,42 @@ describe('SignupUseCase', () => {
       errorCode: 'CONFLICT',
     });
   });
+
+  it('throws if another organization already holds this tax code', async () => {
+    const userRepo = {
+      findByEmail: jest.fn().mockResolvedValue(null),
+      save: jest.fn(),
+    };
+    const organizationRepo = {
+      findByTaxCode: jest.fn().mockResolvedValue({ id: 'other-org' }),
+      save: jest.fn(),
+    };
+    const { taxCodeLookup } = buildTaxCodeMatchMocks('Acme Co');
+    const useCase = new SignupUseCase(
+      userRepo as any,
+      organizationRepo as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      taxCodeLookup as any,
+      {} as any,
+    );
+
+    await expect(
+      useCase.execute({
+        organizationName: 'Acme Co',
+        name: 'An',
+        email: 'an@acme.vn',
+        password: 'S3curePass!',
+        taxCode: '0101234567',
+      }),
+    ).rejects.toMatchObject({
+      errorCode: 'CONFLICT',
+      details: { rowErrorCode: 'DUPLICATE_TAX_CODE' },
+    });
+  });
 });
 
 describe('SignupUseCase tax code verification', () => {
@@ -112,7 +143,10 @@ describe('SignupUseCase tax code verification', () => {
       findByEmail: jest.fn().mockResolvedValue(null),
       save: jest.fn(),
     };
-    const organizationRepo = { save: jest.fn() };
+    const organizationRepo = {
+      findByTaxCode: jest.fn().mockResolvedValue(null),
+      save: jest.fn(),
+    };
     const membershipRepo = { save: jest.fn() };
     const verificationTokenRepo = { save: jest.fn() };
     const subscriptionRepo = { save: jest.fn() };
@@ -133,10 +167,9 @@ describe('SignupUseCase tax code verification', () => {
     };
   }
 
-  it('creates an ACTIVE organization and sends the org-approved notification', async () => {
+  it('creates a PENDING_REVIEW organization even when the tax code matches', async () => {
     const common = buildCommonMocks();
-    const { taxCodeLookup, memberNotificationSender } =
-      buildTaxCodeMatchMocks('ACME CO');
+    const { taxCodeLookup } = buildTaxCodeMatchMocks('ACME CO');
     const useCase = new SignupUseCase(
       common.userRepo as any,
       common.organizationRepo as any,
@@ -146,40 +179,6 @@ describe('SignupUseCase tax code verification', () => {
       common.organizationBootstrap as any,
       common.emailSender as any,
       taxCodeLookup as any,
-      memberNotificationSender as any,
-      common.dataSource as any,
-    );
-
-    const result = await useCase.execute({
-      organizationName: 'Acme Co',
-      name: 'An',
-      email: 'an@acme.vn',
-      password: 'S3curePass!',
-      taxCode: '0101234567',
-    });
-
-    expect(result.organization.status).toBe('ACTIVE');
-    expect(result.organization.taxCodeMatched).toBe(true);
-    expect(
-      memberNotificationSender.sendOrganizationApprovedEmail,
-    ).toHaveBeenCalledWith('an@acme.vn', 'Acme Co');
-  });
-
-  it('creates a PENDING_REVIEW organization and sends no org-approved notification when the tax code does not match', async () => {
-    const common = buildCommonMocks();
-    const { taxCodeLookup, memberNotificationSender } = buildTaxCodeMatchMocks(
-      'A Totally Different Co',
-    );
-    const useCase = new SignupUseCase(
-      common.userRepo as any,
-      common.organizationRepo as any,
-      common.membershipRepo as any,
-      common.verificationTokenRepo as any,
-      common.subscriptionRepo as any,
-      common.organizationBootstrap as any,
-      common.emailSender as any,
-      taxCodeLookup as any,
-      memberNotificationSender as any,
       common.dataSource as any,
     );
 
@@ -192,15 +191,12 @@ describe('SignupUseCase tax code verification', () => {
     });
 
     expect(result.organization.status).toBe('PENDING_REVIEW');
-    expect(
-      memberNotificationSender.sendOrganizationApprovedEmail,
-    ).not.toHaveBeenCalled();
+    expect(result.organization.taxCodeMatched).toBe(true);
   });
 
-  it('creates a PENDING_REVIEW organization when the lookup fails', async () => {
+  it('creates a PENDING_REVIEW organization when the tax code does not match', async () => {
     const common = buildCommonMocks();
-    const { taxCodeLookup, memberNotificationSender } =
-      buildTaxCodeMatchMocks(null);
+    const { taxCodeLookup } = buildTaxCodeMatchMocks('A Totally Different Co');
     const useCase = new SignupUseCase(
       common.userRepo as any,
       common.organizationRepo as any,
@@ -210,7 +206,32 @@ describe('SignupUseCase tax code verification', () => {
       common.organizationBootstrap as any,
       common.emailSender as any,
       taxCodeLookup as any,
-      memberNotificationSender as any,
+      common.dataSource as any,
+    );
+
+    const result = await useCase.execute({
+      organizationName: 'Acme Co',
+      name: 'An',
+      email: 'an@acme.vn',
+      password: 'S3curePass!',
+      taxCode: '0101234567',
+    });
+
+    expect(result.organization.status).toBe('PENDING_REVIEW');
+  });
+
+  it('creates a PENDING_REVIEW organization when the lookup fails', async () => {
+    const common = buildCommonMocks();
+    const { taxCodeLookup } = buildTaxCodeMatchMocks(null);
+    const useCase = new SignupUseCase(
+      common.userRepo as any,
+      common.organizationRepo as any,
+      common.membershipRepo as any,
+      common.verificationTokenRepo as any,
+      common.subscriptionRepo as any,
+      common.organizationBootstrap as any,
+      common.emailSender as any,
+      taxCodeLookup as any,
       common.dataSource as any,
     );
 
