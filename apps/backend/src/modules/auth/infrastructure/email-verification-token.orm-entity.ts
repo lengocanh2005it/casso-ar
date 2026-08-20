@@ -1,4 +1,4 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity({ name: 'email_verification_tokens' })
 export class EmailVerificationTokenOrmEntity {
@@ -8,7 +8,6 @@ export class EmailVerificationTokenOrmEntity {
   @Column({ type: 'varchar' })
   userId: string;
 
-  @Index({ unique: true })
   @Column({ type: 'varchar' })
   tokenHash: string;
 
