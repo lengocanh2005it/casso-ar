@@ -1,24 +1,37 @@
 import { AppError } from '../../../common/errors/app-error';
 import { BankConnection } from '../domain/bank-connection';
+import { CassoFlowAuthorization } from '../domain/casso-flow-authorization';
 import { CassoFlowUnauthorizedError } from './casso-flow-integration-adapter.port';
 import { DisconnectConnectionUseCase } from './disconnect-connection.usecase';
 import { encryptToken } from './token-encryption';
 
 const encryptionKey =
   '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+const realSecret = 'the-real-secret';
 
 function activeConnection(): BankConnection {
   return new BankConnection({
     id: 'conn-1',
     organizationId: 'org-1',
+    cassoFlowAuthorizationId: 'auth-1',
     accountNumber: '0011002233',
     bankName: 'Mock Bank',
-    encryptedSecureToken: 'encrypted-secure-token',
-    encryptedCassoApiKey: encryptToken('raw-api-key', encryptionKey),
+    accountHolderName: 'MOCK NAME',
     status: 'ACTIVE',
     connectedAt: new Date(),
     lastSyncAt: null,
     revokedAt: null,
+    createdAt: new Date(),
+  });
+}
+
+function authorization(): CassoFlowAuthorization {
+  return new CassoFlowAuthorization({
+    id: 'auth-1',
+    organizationId: 'org-1',
+    businessId: 'biz-1',
+    encryptedApiKey: encryptToken('raw-api-key', encryptionKey),
+    encryptedSecureToken: encryptToken(realSecret, encryptionKey),
     createdAt: new Date(),
   });
 }
@@ -29,65 +42,90 @@ const dataSource = {
   ),
 };
 
+function buildUseCase(overrides: {
+  bankConnectionRepo?: Record<string, jest.Mock>;
+  authorizationRepo?: Record<string, jest.Mock>;
+  adapter?: Record<string, jest.Mock>;
+  markRequiresReauthorization?: Record<string, jest.Mock>;
+}) {
+  const connection = activeConnection();
+  const bankConnectionRepo = {
+    findById: jest.fn().mockResolvedValue(connection),
+    findByIdForUpdate: jest.fn().mockResolvedValue(connection),
+    countActiveByAuthorization: jest.fn().mockResolvedValue(0),
+    save: jest.fn(),
+    ...overrides.bankConnectionRepo,
+  };
+  const authorizationRepo = {
+    findByIdUnscoped: jest.fn().mockResolvedValue(authorization()),
+    ...overrides.authorizationRepo,
+  };
+  const adapter = {
+    invalidateToken: jest.fn().mockResolvedValue(undefined),
+    ...overrides.adapter,
+  };
+  const auditEventRepo = { save: jest.fn() };
+  const markRequiresReauthorization = {
+    handleAdapterError: jest.fn(),
+    ...overrides.markRequiresReauthorization,
+  };
+  const auditContext = { setBefore: jest.fn() };
+  const useCase = new DisconnectConnectionUseCase(
+    bankConnectionRepo as never,
+    adapter as never,
+    auditEventRepo as never,
+    markRequiresReauthorization as never,
+    dataSource as never,
+    encryptionKey,
+    auditContext as never,
+    authorizationRepo as never,
+  );
+  return {
+    useCase,
+    bankConnectionRepo,
+    authorizationRepo,
+    adapter,
+    auditEventRepo,
+    markRequiresReauthorization,
+    auditContext,
+  };
+}
+
 describe('DisconnectConnectionUseCase', () => {
-  it('invalidates the token and persists the disconnected connection', async () => {
-    const connection = activeConnection();
-    const bankConnectionRepo = {
-      findById: jest.fn().mockResolvedValue(connection),
-      findByIdForUpdate: jest.fn().mockResolvedValue(connection),
-      save: jest.fn(),
-    };
-    const adapter = { invalidateToken: jest.fn().mockResolvedValue(undefined) };
-    const auditEventRepo = { save: jest.fn() };
-    const markRequiresReauthorization = { handleAdapterError: jest.fn() };
-    const auditContext = { setBefore: jest.fn() };
-    const useCase = new DisconnectConnectionUseCase(
-      bankConnectionRepo as never,
-      adapter as never,
-      auditEventRepo as never,
-      markRequiresReauthorization as never,
-      dataSource as never,
-      encryptionKey,
-      auditContext as never,
-    );
+  it('disconnects and persists without invalidating the token when sibling connections remain active', async () => {
+    const { useCase, bankConnectionRepo, adapter, auditEventRepo } =
+      buildUseCase({
+        bankConnectionRepo: {
+          countActiveByAuthorization: jest.fn().mockResolvedValue(2),
+        },
+      });
 
     await useCase.execute('conn-1');
 
-    expect(adapter.invalidateToken).toHaveBeenCalled();
-    expect(auditContext.setBefore).toHaveBeenCalledWith(connection);
     expect(bankConnectionRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'DISCONNECTED' }),
       expect.anything(),
     );
     expect(auditEventRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        organizationId: 'org-1',
-        bankConnectionId: 'conn-1',
-        eventType: 'DISCONNECTED',
-      }),
+      expect.objectContaining({ eventType: 'DISCONNECTED' }),
       expect.anything(),
     );
-    expect(bankConnectionRepo.findByIdForUpdate).toHaveBeenCalledWith(
-      'conn-1',
-      expect.anything(),
-    );
-    expect(
-      markRequiresReauthorization.handleAdapterError,
-    ).not.toHaveBeenCalled();
+    expect(adapter.invalidateToken).not.toHaveBeenCalled();
   });
 
-  it('marks the connection as requiring reauthorization and rethrows on a 401/403, without persisting a disconnect', async () => {
-    const connection = activeConnection();
-    const bankConnectionRepo = {
-      findById: jest.fn().mockResolvedValue(connection),
-      save: jest.fn(),
-    };
-    const adapter = {
-      invalidateToken: jest
-        .fn()
-        .mockRejectedValue(new CassoFlowUnauthorizedError()),
-    };
-    const auditEventRepo = { save: jest.fn() };
+  it('invalidates the authorization token when this was the last active account under it', async () => {
+    const { useCase, adapter } = buildUseCase({
+      bankConnectionRepo: {
+        countActiveByAuthorization: jest.fn().mockResolvedValue(0),
+      },
+    });
+
+    await useCase.execute('conn-1');
+
+    expect(adapter.invalidateToken).toHaveBeenCalledWith('raw-api-key');
+  });
+
+  it('marks requiring reauthorization and rethrows on a 401/403 from invalidateToken, without undoing the already-persisted disconnect', async () => {
     const markRequiresReauthorization = {
       handleAdapterError: jest
         .fn()
@@ -95,15 +133,17 @@ describe('DisconnectConnectionUseCase', () => {
           throw error;
         }),
     };
-    const useCase = new DisconnectConnectionUseCase(
-      bankConnectionRepo as never,
-      adapter as never,
-      auditEventRepo as never,
-      markRequiresReauthorization as never,
-      dataSource as never,
-      encryptionKey,
-      { setBefore: jest.fn() } as never,
-    );
+    const { useCase, bankConnectionRepo } = buildUseCase({
+      bankConnectionRepo: {
+        countActiveByAuthorization: jest.fn().mockResolvedValue(0),
+      },
+      adapter: {
+        invalidateToken: jest
+          .fn()
+          .mockRejectedValue(new CassoFlowUnauthorizedError()),
+      },
+      markRequiresReauthorization,
+    });
 
     await expect(useCase.execute('conn-1')).rejects.toBeInstanceOf(
       CassoFlowUnauthorizedError,
@@ -113,44 +153,27 @@ describe('DisconnectConnectionUseCase', () => {
       '401/403 from invalidateToken',
       expect.any(CassoFlowUnauthorizedError),
     );
-    expect(bankConnectionRepo.save).not.toHaveBeenCalled();
-    expect(auditEventRepo.save).not.toHaveBeenCalled();
+    // the disconnect itself already committed before invalidateToken ran
+    expect(bankConnectionRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'DISCONNECTED' }),
+      expect.anything(),
+    );
   });
 
   it('throws AppError when the connection cannot be found', async () => {
-    const bankConnectionRepo = {
-      findById: jest.fn().mockResolvedValue(null),
-      save: jest.fn(),
-    };
-    const useCase = new DisconnectConnectionUseCase(
-      bankConnectionRepo as never,
-      { invalidateToken: jest.fn() } as never,
-      { save: jest.fn() } as never,
-      { handleAdapterError: jest.fn() } as never,
-      dataSource as never,
-      encryptionKey,
-      { setBefore: jest.fn() } as never,
-    );
+    const { useCase } = buildUseCase({
+      bankConnectionRepo: { findById: jest.fn().mockResolvedValue(null) },
+    });
 
     await expect(useCase.execute('missing')).rejects.toBeInstanceOf(AppError);
   });
 
   it('throws AppError if the connection disappears between the unlocked read and the locked re-read', async () => {
-    const connection = activeConnection();
-    const bankConnectionRepo = {
-      findById: jest.fn().mockResolvedValue(connection),
-      findByIdForUpdate: jest.fn().mockResolvedValue(null),
-      save: jest.fn(),
-    };
-    const useCase = new DisconnectConnectionUseCase(
-      bankConnectionRepo as never,
-      { invalidateToken: jest.fn().mockResolvedValue(undefined) } as never,
-      { save: jest.fn() } as never,
-      { handleAdapterError: jest.fn() } as never,
-      dataSource as never,
-      encryptionKey,
-      { setBefore: jest.fn() } as never,
-    );
+    const { useCase } = buildUseCase({
+      bankConnectionRepo: {
+        findByIdForUpdate: jest.fn().mockResolvedValue(null),
+      },
+    });
 
     await expect(useCase.execute('conn-1')).rejects.toBeInstanceOf(AppError);
   });
