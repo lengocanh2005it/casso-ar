@@ -1,5 +1,6 @@
 import { Permission, PlanId } from '@casso-ledger/shared-types';
 import {
+  Bot,
   Lock,
   Mail,
   Menu,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { HeaderIcon } from '@/components/layout/header-icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -138,7 +140,10 @@ export function CopilotPage() {
         inert={!hasCopilotAccess ? true : undefined}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold sm:text-2xl">Copilot</h1>
+          <div className="flex items-center gap-2">
+            <HeaderIcon icon={Bot} />
+            <h1 className="text-xl font-semibold sm:text-2xl">Copilot</h1>
+          </div>
           <UsageIndicator />
         </div>
         <div className="flex min-h-0 min-w-0 flex-1 gap-3">

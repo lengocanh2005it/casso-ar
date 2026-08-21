@@ -1,4 +1,6 @@
+import { Receipt } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
+import { HeaderIcon } from '@/components/layout/header-icon';
 import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,6 +53,7 @@ export function ReceivableDetailPage() {
           >
             ← Công nợ
           </Link>
+          <HeaderIcon icon={Receipt} />
           <h1 className="text-2xl font-semibold" title={receivable.id}>
             {receivable.invoiceNumber ?? `#${receivable.id.slice(0, 8)}`}
           </h1>
