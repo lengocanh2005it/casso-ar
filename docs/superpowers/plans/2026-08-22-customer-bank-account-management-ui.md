@@ -463,7 +463,7 @@ git commit -m "feat(frontend): add customer bank account create edit dialog"
 - Consumes Task 2 hooks, Task 3 `CustomerBankAccountDialog`, `useAuth`, `hasPermission`, `Permission`, and existing shadcn card/badge/alert-dialog/button components.
 - Produces `CustomerBankAccountsCard({ customerId })` for Task 5.
 
-- [ ] **Step 1: Write the failing card tests**
+- [x] **Step 1: Write the failing card tests**
 
 Cover these states and permissions:
 
@@ -509,7 +509,7 @@ it('offers retry when the list request fails', async () => {
 
 Add interaction tests for the confirmation dialog: active `Vô hiệu hóa` calls DELETE only after confirmation; inactive `Khôi phục` calls PATCH with `{ isActive: true }` only after confirmation; cancel calls neither mutation. Add the empty-state assertion and verify `Thêm tài khoản` is present only for a managing role.
 
-- [ ] **Step 2: Run the card tests and verify RED**
+- [x] **Step 2: Run the card tests and verify RED**
 
 Run:
 
@@ -519,7 +519,7 @@ pnpm --filter @casso-ledger/frontend test -- src/features/customers/components/c
 
 Expected: FAIL because the card component does not exist.
 
-- [ ] **Step 3: Implement the card list states**
+- [x] **Step 3: Implement the card list states**
 
 Implement `CustomerBankAccountsCard({ customerId })` with:
 
@@ -534,7 +534,7 @@ Implement `CustomerBankAccountsCard({ customerId })` with:
 
 Keep the list order from the API. Do not add client-side sorting, filtering, or pagination.
 
-- [ ] **Step 4: Implement controlled create/edit dialog state**
+- [x] **Step 4: Implement controlled create/edit dialog state**
 
 Keep the selected mode/account in the card:
 
@@ -546,7 +546,7 @@ type DialogState =
 
 Render one `CustomerBankAccountDialog` with `open={dialogState !== null}` and `onOpenChange` that clears the state when closed. Only authorized users can set a non-null dialog state.
 
-- [ ] **Step 5: Implement deactivation/reactivation confirmation**
+- [x] **Step 5: Implement deactivation/reactivation confirmation**
 
 Use one controlled `AlertDialog` state with `{ action: 'deactivate' | 'reactivate'; account: CustomerBankAccount }`. The dialog copy must distinguish the consequences:
 
@@ -559,11 +559,11 @@ Use one controlled `AlertDialog` state with `{ action: 'deactivate' | 'reactivat
 
 While pending, disable both dialog actions and use `Đang xử lý…`. Deactivation calls `useDeactivateCustomerBankAccount(customerId).mutate(account.id)`. Reactivation calls `useUpdateCustomerBankAccount(customerId).mutate({ id: account.id, input: { isActive: true } })`. On success, close the dialog and show the corresponding success toast; on failure, close the dialog and show `Không thể cập nhật tài khoản ngân hàng.`.
 
-- [ ] **Step 6: Run the card tests and verify GREEN**
+- [x] **Step 6: Run the card tests and verify GREEN**
 
 Run the same focused command. Expected: all list, RBAC, retry, empty-state, and confirmation tests pass.
 
-- [ ] **Step 7: Commit the card slice**
+- [x] **Step 7: Commit the card slice**
 
 ```bash
 git add apps/frontend/src/features/customers/components/customer-bank-accounts-card.tsx apps/frontend/src/features/customers/components/customer-bank-accounts-card.spec.tsx
