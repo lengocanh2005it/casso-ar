@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
@@ -13,12 +14,11 @@ export function CustomersPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <p className="text-sm font-medium text-primary">QUẢN LÝ KHÁCH HÀNG</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          Khách hàng
-        </h1>
-      </div>
+      <PageHeading
+        eyebrow="QUẢN LÝ KHÁCH HÀNG"
+        title="Khách hàng"
+        description="Quản lý thông tin và danh sách khách hàng."
+      />
       <Input
         name="search"
         autoComplete="off"

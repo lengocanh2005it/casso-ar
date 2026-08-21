@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/layout/page-heading';
 import { usePollConnections } from '../api/use-bank-connections';
 import { ConnectDialog } from '../components/connect-dialog';
 import { ConnectionTable } from '../components/connection-table';
@@ -7,19 +8,17 @@ export function BankConnectionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-primary">TÍCH HỢP</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-            Kết nối ngân hàng
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+      <PageHeading
+        eyebrow="TÍCH HỢP"
+        title="Kết nối ngân hàng"
+        description={
+          <>
             Kết nối <span className="text-primary">Casso Flow</span> để tự động
             đồng bộ giao dịch ngân hàng.
-          </p>
-        </div>
-        <ConnectDialog />
-      </div>
+          </>
+        }
+        actions={<ConnectDialog />}
+      />
       {connectionsQuery.isPending && (
         <p role="status" aria-live="polite">
           Đang tải kết nối ngân hàng…

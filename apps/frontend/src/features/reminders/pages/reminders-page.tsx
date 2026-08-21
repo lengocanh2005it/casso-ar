@@ -1,5 +1,6 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { useState } from 'react';
+import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
@@ -49,18 +50,16 @@ export function RemindersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-primary">TỰ ĐỘNG HÓA</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-            Lịch nhắc
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Quản lý chính sách và theo dõi các email nhắc thanh toán.
-          </p>
-        </div>
-        {canWrite && <Button onClick={openCreate}>Tạo chính sách</Button>}
-      </div>
+      <PageHeading
+        eyebrow="TỰ ĐỘNG HÓA"
+        title="Lịch nhắc"
+        description="Quản lý chính sách và theo dõi các email nhắc thanh toán."
+        actions={
+          canWrite ? (
+            <Button onClick={openCreate}>Tạo chính sách</Button>
+          ) : undefined
+        }
+      />
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Chính sách nhắc</h2>

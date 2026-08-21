@@ -1,4 +1,5 @@
 import { Permission, ReceivableStatus } from '@casso-ledger/shared-types';
+import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TableSkeleton } from '@/components/ui/skeleton';
@@ -47,12 +48,11 @@ export function ReceivablesPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <p className="text-sm font-medium text-primary">QUẢN LÝ CÔNG NỢ</p>
-        <div className="flex items-center justify-between gap-4">
-          <h1 className="mt-1 text-balance text-2xl font-semibold tracking-tight">
-            Công nợ
-          </h1>
+      <PageHeading
+        eyebrow="QUẢN LÝ CÔNG NỢ"
+        title="Công nợ"
+        description="Theo dõi và quản lý công nợ của khách hàng."
+        actions={
           <div className="flex flex-wrap gap-2">
             {canExport && (
               <Button
@@ -84,8 +84,8 @@ export function ReceivablesPage() {
             <ImportInvoicesDialog />
             <CreateReceivableDialog />
           </div>
-        </div>
-      </div>
+        }
+      />
       <Input
         name="search"
         type="search"

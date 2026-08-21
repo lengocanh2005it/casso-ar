@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
+import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -165,29 +166,25 @@ export function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-primary">PHÂN TÍCH</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-            Báo cáo
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Theo dõi công nợ, tuổi nợ và khả năng thu tiền.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          disabled={isExporting}
-          onClick={() =>
-            exportCsv(
-              () => exportAgingReportCsv().then((csv) => ({ csv })),
-              'bao-cao-tuoi-no.csv',
-            )
-          }
-        >
-          {isExporting ? 'Đang xuất…' : 'Xuất CSV'}
-        </Button>
-      </div>
+      <PageHeading
+        eyebrow="PHÂN TÍCH"
+        title="Báo cáo"
+        description="Theo dõi công nợ, tuổi nợ và khả năng thu tiền."
+        actions={
+          <Button
+            variant="outline"
+            disabled={isExporting}
+            onClick={() =>
+              exportCsv(
+                () => exportAgingReportCsv().then((csv) => ({ csv })),
+                'bao-cao-tuoi-no.csv',
+              )
+            }
+          >
+            {isExporting ? 'Đang xuất…' : 'Xuất CSV'}
+          </Button>
+        }
+      />
       <DashboardSummary summary={summaryQuery.data} />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

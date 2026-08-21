@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from 'react';
+import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
@@ -100,15 +101,11 @@ export function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-medium text-primary">ADMIN CONSOLE</p>
-        <h1 className="mt-1 text-balance text-2xl font-semibold tracking-tight">
-          Admin overview
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Theo dõi usage AI trên toàn bộ tổ chức.
-        </p>
-      </div>
+      <PageHeading
+        eyebrow="ADMIN CONSOLE"
+        title="Admin overview"
+        description="Theo dõi usage AI trên toàn bộ tổ chức."
+      />
       <Suspense
         fallback={
           <ChartLoadingFallback
