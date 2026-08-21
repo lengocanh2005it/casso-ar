@@ -162,4 +162,28 @@ describe('RevealCassoFlowApiKeyUseCase', () => {
     expect(result.apiKey).toBe('AK_CS.real-key');
     expect(auditEventRepo.save).not.toHaveBeenCalled();
   });
+
+  it('records a masked API key alongside the actor on reveal', async () => {
+    const { useCase, auditEventRepo } = await buildDeps({
+      userPassword: 'correct',
+    });
+
+    await useCase.execute({
+      organizationId: 'org-1',
+      cassoFlowAuthorizationId: 'auth-1',
+      userId: 'user-1',
+      password: 'correct',
+    });
+
+    expect(auditEventRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'API_KEY_REVEALED',
+        metadata: {
+          actorUserId: 'user-1',
+          maskedApiKey: '••••-key',
+        },
+      }),
+      undefined,
+    );
+  });
 });

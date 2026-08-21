@@ -44,7 +44,7 @@ export class DisconnectConnectionUseCase {
     private readonly authorizationRepo: ICassoFlowAuthorizationRepository,
   ) {}
 
-  async execute(connectionId: string): Promise<void> {
+  async execute(connectionId: string, userId: string): Promise<void> {
     const connection = await this.bankConnectionRepo.findById(connectionId);
     this.assertFound(connection);
 
@@ -69,7 +69,7 @@ export class DisconnectConnectionUseCase {
           organizationId: locked.organizationId,
           bankConnectionId: connectionId,
           eventType: 'DISCONNECTED',
-          metadata: {},
+          metadata: { actorUserId: userId },
           createdAt: new Date(),
         }),
         manager,
