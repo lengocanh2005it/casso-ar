@@ -141,7 +141,7 @@ export function CopilotPage() {
           <h1 className="text-xl font-semibold sm:text-2xl">Copilot</h1>
           <UsageIndicator />
         </div>
-        <div className="flex min-h-0 flex-1 gap-3">
+        <div className="flex min-h-0 min-w-0 flex-1 gap-3">
           <aside
             className={cn(
               'hidden shrink-0 overflow-hidden rounded-lg border transition-[width] duration-200 md:block',
@@ -160,7 +160,7 @@ export function CopilotPage() {
             </Sheet>
           )}
 
-          <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="mb-2 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Button
