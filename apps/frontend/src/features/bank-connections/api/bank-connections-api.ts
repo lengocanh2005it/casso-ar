@@ -77,9 +77,11 @@ export function disconnectConnection(
 
 export function fetchAuthorizationAuditEvents(
   authorizationId: string,
+  page = 1,
+  limit = 50,
 ): Promise<ConnectionAuditEventList> {
   return apiRequest<ConnectionAuditEventList>({
-    url: `/api/v1/bank-connections/authorizations/${authorizationId}/audit-events?page=1&limit=50`,
+    url: `/api/v1/bank-connections/authorizations/${authorizationId}/audit-events?page=${page}&limit=${limit}`,
     method: 'GET',
   });
 }

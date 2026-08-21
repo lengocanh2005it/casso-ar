@@ -57,4 +57,45 @@ describe('AuthorizationHistoryDialog', () => {
 
     expect(screen.getByText('Chưa có lịch sử.')).toBeInTheDocument();
   });
+
+  it('shows a load-more button when there are more events than the current page, and requests the next page on click', () => {
+    useAuthorizationAuditEvents.mockReturnValue({
+      data: {
+        items: [
+          {
+            id: 'evt-1',
+            bankConnectionId: 'conn-1',
+            eventType: 'TOKEN_EXCHANGED',
+            actorUserId: 'user-1',
+            maskedApiKey: '••••1111',
+            oldMaskedApiKey: null,
+            newMaskedApiKey: null,
+            accountNumber: '111',
+            oldBankName: null,
+            newBankName: null,
+            oldAccountHolderName: null,
+            newAccountHolderName: null,
+            createdAt: '2026-08-10T00:00:00Z',
+          },
+        ],
+        total: 2,
+        page: 1,
+        limit: 1,
+      },
+      isPending: false,
+      isError: false,
+    });
+
+    render(<AuthorizationHistoryDialog authorizationId="auth-1" />);
+    fireEvent.click(screen.getByRole('button', { name: /lịch sử/i }));
+
+    const loadMoreButton = screen.getByRole('button', { name: /xem thêm/i });
+    fireEvent.click(loadMoreButton);
+
+    expect(useAuthorizationAuditEvents).toHaveBeenLastCalledWith(
+      'auth-1',
+      true,
+      2,
+    );
+  });
 });

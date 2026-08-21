@@ -120,10 +120,11 @@ export function useRevealCassoFlowApiKey() {
 export function useAuthorizationAuditEvents(
   authorizationId: string,
   enabled: boolean,
+  page = 1,
 ) {
   return useQuery({
-    queryKey: ['bank-connections', 'audit-events', authorizationId],
-    queryFn: () => fetchAuthorizationAuditEvents(authorizationId),
+    queryKey: ['bank-connections', 'audit-events', authorizationId, page],
+    queryFn: () => fetchAuthorizationAuditEvents(authorizationId, page),
     enabled,
   });
 }

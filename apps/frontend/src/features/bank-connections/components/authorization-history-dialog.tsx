@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -63,13 +63,29 @@ export function AuthorizationHistoryDialog({
   authorizationId: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [items, setItems] = useState<ConnectionAuditEvent[]>([]);
   const { data, isPending, isError } = useAuthorizationAuditEvents(
     authorizationId,
     open,
+    page,
   );
 
+  useEffect(() => {
+    if (!data) return;
+    setItems((prev) => (page === 1 ? data.items : [...prev, ...data.items]));
+  }, [data, page]);
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) {
+      setPage(1);
+      setItems([]);
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           Lịch sử
@@ -93,25 +109,36 @@ export function AuthorizationHistoryDialog({
             Không thể tải lịch sử.
           </p>
         )}
-        {data && data.items.length === 0 && (
+        {data && items.length === 0 && (
           <p className="text-sm text-muted-foreground">Chưa có lịch sử.</p>
         )}
-        {data && data.items.length > 0 && (
-          <ol className="max-h-96 space-y-4 overflow-y-auto">
-            {data.items.map((event) => (
-              <li key={event.id} className="rounded-lg border p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="font-medium">
-                    {eventTypeLabels[event.eventType]}
-                  </span>
-                  <time className="text-sm text-muted-foreground">
-                    {formatDate(event.createdAt)}
-                  </time>
-                </div>
-                <EventDetails event={event} />
-              </li>
-            ))}
-          </ol>
+        {data && items.length > 0 && (
+          <>
+            <ol className="max-h-96 space-y-4 overflow-y-auto">
+              {items.map((event) => (
+                <li key={event.id} className="rounded-lg border p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="font-medium">
+                      {eventTypeLabels[event.eventType]}
+                    </span>
+                    <time className="text-sm text-muted-foreground">
+                      {formatDate(event.createdAt)}
+                    </time>
+                  </div>
+                  <EventDetails event={event} />
+                </li>
+              ))}
+            </ol>
+            {items.length < data.total && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Xem thêm
+              </Button>
+            )}
+          </>
         )}
       </DialogContent>
     </Dialog>
