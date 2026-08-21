@@ -39,4 +39,16 @@ describe('CopilotMessageBubble', () => {
     );
     expect(screen.queryByText(/đã dừng/i)).not.toBeInTheDocument();
   });
+
+  it('wraps a long unbroken assistant value without truncating it', () => {
+    const content = `https://example.com/${'transaction-id-'.repeat(12)}`;
+    render(
+      <CopilotMessageBubble
+        message={{ role: 'ASSISTANT', content, isPartial: false }}
+      />,
+    );
+
+    expect(screen.getByText(content)).toHaveClass('break-words');
+    expect(screen.getByText(content)).toHaveTextContent(content);
+  });
 });

@@ -47,4 +47,31 @@ describe('ReceivableTimeline', () => {
     );
     expect(screen.queryByText('PAYMENT_RECEIVED')).toBeNull();
   });
+
+  it('wraps a long unbroken activity description', async () => {
+    const description = `transfer-${'z'.repeat(100)}`;
+    fetchReceivableTimeline.mockResolvedValue({
+      items: [
+        {
+          id: 'act-long',
+          receivableId: 'rec-1',
+          customerId: 'cust-1',
+          activityType: 'PAYMENT_RECEIVED',
+          description,
+          metadata: {},
+          createdByUserId: null,
+          createdAt: '2026-08-13T00:00:00Z',
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+
+    renderTimeline();
+
+    const activity = await screen.findByText(description);
+    expect(activity).toHaveClass('break-words');
+    expect(activity).toHaveTextContent(description);
+  });
 });

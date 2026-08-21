@@ -307,4 +307,16 @@ describe('CopilotPage', () => {
       expect.objectContaining({ url: '/api/v1/copilot/drafts' }),
     );
   });
+
+  it('allows the chat column to shrink inside the Copilot flex layout', async () => {
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+    );
+
+    expect(
+      document.querySelector('.min-w-0.flex-1.flex-col'),
+    ).toBeInTheDocument();
+  });
 });

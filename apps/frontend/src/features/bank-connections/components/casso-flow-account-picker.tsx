@@ -141,7 +141,7 @@ export function CassoFlowAccountPicker({
   return (
     <form onSubmit={handleConfirm} className="space-y-4 pt-2">
       {missingAccountNumbers.length > 0 && (
-        <p role="status" className="text-sm text-muted-foreground">
+        <p role="status" className="break-words text-sm text-muted-foreground">
           {missingAccountNumbers.join(', ')} không tìm thấy trong API Key mới,
           sẽ giữ nguyên trạng thái hiện tại.
         </p>
@@ -174,10 +174,16 @@ export function CassoFlowAccountPicker({
                 className="mt-1 size-4"
               />
               <span className="min-w-0 text-sm">
-                <span className="block font-medium">
-                  {account.bankName} · {account.accountNumber}
+                <span className="block break-words font-medium">
+                  {account.bankName}
                 </span>
-                <span className="block text-muted-foreground">
+                <span
+                  className="block min-w-0 truncate"
+                  title={account.accountNumber}
+                >
+                  {account.accountNumber}
+                </span>
+                <span className="block break-words text-muted-foreground">
                   {account.accountHolderName} · {statusMessage(account)}
                 </span>
               </span>
@@ -194,7 +200,7 @@ export function CassoFlowAccountPicker({
           <p className="text-sm font-medium">
             Một số tài khoản chưa được kết nối
           </p>
-          <ul className="mt-1 list-disc pl-5 text-sm text-muted-foreground">
+          <ul className="mt-1 list-disc break-words pl-5 text-sm text-muted-foreground">
             {skipped.map((item) => (
               <li key={item.accountNumber}>
                 {item.accountNumber}: {skippedReason(item.reason)}

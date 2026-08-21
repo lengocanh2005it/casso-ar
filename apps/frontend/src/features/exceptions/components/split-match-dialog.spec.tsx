@@ -185,4 +185,35 @@ describe('SplitMatchDialog', () => {
       'Số tiền vượt quá công nợ còn lại của khoản phải thu.',
     );
   });
+
+  it('keeps long identifiers accessible without widening the dialog actions', async () => {
+    const providerTransactionId = `provider-${'x'.repeat(80)}`;
+    const receivableId = `receivable-${'y'.repeat(80)}`;
+    apiRequest.mockResolvedValue([{ ...candidates[0], receivableId }]);
+    render(
+      <QueryClientProvider
+        client={
+          new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        }
+      >
+        <SplitMatchDialog
+          tx={{ ...tx, providerTransactionId }}
+          open
+          onOpenChange={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
+
+    const providerId = screen.getByText(providerTransactionId);
+    const receivable = screen.getByText(receivableId);
+    expect(providerId).toHaveClass('truncate');
+    expect(providerId).toHaveAttribute('title', providerTransactionId);
+    expect(receivable).toHaveClass('truncate');
+    expect(receivable).toHaveAttribute('title', receivableId);
+    expect(
+      screen.getByRole('button', { name: /ghi nhận công nợ/i }).parentElement,
+    ).toHaveClass('flex-col');
+  });
 });

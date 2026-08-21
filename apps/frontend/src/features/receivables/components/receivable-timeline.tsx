@@ -30,15 +30,15 @@ export function ReceivableTimeline({ receivableId }: { receivableId: string }) {
     <ol className="space-y-4">
       {data.items.map((item) => (
         <li key={item.id} className="rounded-lg border p-4">
-          <div className="flex items-center justify-between gap-4">
-            <span className="font-medium">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-4">
+            <span className="min-w-0 break-words font-medium">
               {formatActivityType(item.activityType)}
             </span>
-            <time className="text-sm text-muted-foreground">
+            <time className="shrink-0 text-sm text-muted-foreground">
               {formatDate(item.createdAt)}
             </time>
           </div>
-          <p className="mt-1 text-sm">{item.description}</p>
+          <p className="mt-1 break-words text-sm">{item.description}</p>
         </li>
       ))}
     </ol>
