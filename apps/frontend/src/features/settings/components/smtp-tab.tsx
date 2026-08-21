@@ -40,6 +40,9 @@ function ConfiguredSmtpCard({ config }: { config: SmtpConfig }) {
             {isConnected ? 'Đang hoạt động' : 'Gặp sự cố'}
           </Badge>
         </CardTitle>
+        <CardDescription>
+          Cấu hình máy chủ gửi email nhắc nợ của tổ chức.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="break-words font-medium">

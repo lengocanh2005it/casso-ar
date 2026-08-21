@@ -1,4 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { formatVND } from '@/lib/format';
 import type { DashboardSummary as DashboardSummaryData } from '../types';
 
@@ -70,6 +76,9 @@ export function DashboardSummary({
       <Card>
         <CardHeader>
           <CardTitle>Khách hàng quá hạn nhiều nhất</CardTitle>
+          <CardDescription>
+            Top khách hàng có tổng công nợ quá hạn cao nhất
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {summary.topOverdueCustomers.length === 0 ? (

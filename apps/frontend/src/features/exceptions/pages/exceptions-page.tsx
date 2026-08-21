@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PageHeading } from '@/components/layout/page-heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -38,12 +39,11 @@ export function ExceptionsPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <p className="text-sm font-medium text-primary">CẦN XỬ LÝ</p>
-        <h1 className="mt-1 text-balance text-2xl font-semibold tracking-tight">
-          Hàng chờ xử lý ngoại lệ
-        </h1>
-      </div>
+      <PageHeading
+        eyebrow="CẦN XỬ LÝ"
+        title="Hàng chờ xử lý ngoại lệ"
+        description="Đối soát các giao dịch ngân hàng chưa khớp với công nợ."
+      />
       <Input
         name="search"
         type="search"

@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from 'react';
+import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,12 +37,11 @@ export function AdminAiUsagePage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <p className="text-sm font-medium text-primary">ADMIN CONSOLE</p>
-        <h1 className="mt-1 text-balance text-2xl font-semibold tracking-tight">
-          AI usage
-        </h1>
-      </div>
+      <PageHeading
+        eyebrow="ADMIN CONSOLE"
+        title="AI usage"
+        description="Theo dõi mức sử dụng AI theo tổ chức và khoảng thời gian."
+      />
       <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
         <div className="space-y-2">
           <Label htmlFor="from">Từ ngày</Label>

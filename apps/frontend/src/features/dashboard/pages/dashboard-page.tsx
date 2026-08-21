@@ -10,6 +10,7 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react';
+import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -125,15 +126,11 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-medium text-primary">TỔNG QUAN</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          Trang chủ
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Tổng quan về công nợ và hoạt động thu hồi của bạn.
-        </p>
-      </div>
+      <PageHeading
+        eyebrow="TỔNG QUAN"
+        title="Trang chủ"
+        description="Tổng quan về công nợ và hoạt động thu hồi của bạn."
+      />
 
       <h2 className="text-xl font-semibold tracking-tight text-primary">
         Chào mừng{' '}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { PageHeading } from '@/components/layout/page-heading';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -182,12 +183,11 @@ export function AdminOrganizationsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <p className="text-sm font-medium text-primary">ADMIN CONSOLE</p>
-        <h1 className="mt-1 text-balance text-2xl font-semibold tracking-tight">
-          Organizations
-        </h1>
-      </div>
+      <PageHeading
+        eyebrow="ADMIN CONSOLE"
+        title="Organizations"
+        description="Quản lý danh sách tổ chức và trạng thái tài khoản."
+      />
 
       <Select value={status} onValueChange={setStatusFilter}>
         <SelectTrigger className="w-56">

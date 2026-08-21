@@ -9,7 +9,12 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+} from '@/components/ui/card';
 import type { AiUsageAggregateItem, AiUsageTrendPoint } from '../api/admin-api';
 
 const trendDateFormatter = new Intl.DateTimeFormat('vi-VN', {
@@ -43,6 +48,9 @@ export function AdminUsageCharts({
           <h2 className="text-balance leading-none font-semibold">
             Top organizations theo usage (7 ngày)
           </h2>
+          <CardDescription>
+            Các tổ chức gọi AI nhiều nhất trong 7 ngày qua
+          </CardDescription>
         </CardHeader>
         <CardContent className="h-64">
           {topOrganizations.length === 0 ? (
@@ -68,6 +76,9 @@ export function AdminUsageCharts({
           <h2 className="text-balance leading-none font-semibold">
             Xu hướng usage theo ngày (7 ngày)
           </h2>
+          <CardDescription>
+            Số lượt gọi AI theo từng ngày trong 7 ngày qua
+          </CardDescription>
         </CardHeader>
         <CardContent className="h-64">
           {trend.length === 0 ? (

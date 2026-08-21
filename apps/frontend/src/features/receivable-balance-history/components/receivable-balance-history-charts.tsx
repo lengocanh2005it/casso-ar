@@ -10,7 +10,12 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+} from '@/components/ui/card';
 import type {
   ReceivableBalanceHistoryDailyPoint,
   ReceivableBalanceHistorySourcePoint,
@@ -67,6 +72,9 @@ export function ReceivableBalanceHistoryCharts({
       <Card>
         <CardHeader>
           <h2 className="text-sm font-medium">Thay đổi theo ngày</h2>
+          <CardDescription>
+            Số lần công nợ thay đổi trạng thái theo từng ngày
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {dailySeries.length === 0 ? (
@@ -108,6 +116,9 @@ export function ReceivableBalanceHistoryCharts({
       <Card>
         <CardHeader>
           <h2 className="text-sm font-medium">Phân bố theo nguồn thay đổi</h2>
+          <CardDescription>
+            Tỷ trọng các nguyên nhân gây thay đổi số dư công nợ
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {chartData.length === 0 ? (

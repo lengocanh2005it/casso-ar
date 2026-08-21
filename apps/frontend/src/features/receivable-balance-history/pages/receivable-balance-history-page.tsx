@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo } from 'react';
+import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
 import { Skeleton, TableSkeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
@@ -183,10 +184,12 @@ export function ReceivableBalanceHistoryPage() {
   if (listQuery.isLoading || summaryQuery.isLoading) {
     return (
       <div className="space-y-6 p-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">Lịch sử công nợ</h1>
-          <Button disabled>Xuất CSV</Button>
-        </div>
+        <PageHeading
+          eyebrow="BÁO CÁO"
+          title="Lịch sử công nợ"
+          description="Lịch sử biến động số dư công nợ theo thời gian."
+          actions={<Button disabled>Xuất CSV</Button>}
+        />
         <ReceivableBalanceHistoryKpis summary={undefined} isLoading />
         <TableSkeleton rows={5} />
       </div>
@@ -196,7 +199,11 @@ export function ReceivableBalanceHistoryPage() {
   if (listQuery.isError || summaryQuery.isError) {
     return (
       <div className="space-y-6 p-6">
-        <h1 className="text-2xl font-semibold">Lịch sử công nợ</h1>
+        <PageHeading
+          eyebrow="BÁO CÁO"
+          title="Lịch sử công nợ"
+          description="Lịch sử biến động số dư công nợ theo thời gian."
+        />
         <div
           className="rounded-xl border bg-card py-16 text-center text-muted-foreground"
           role="alert"
@@ -211,19 +218,23 @@ export function ReceivableBalanceHistoryPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Lịch sử công nợ</h1>
-        <Button
-          onClick={handleExport}
-          disabled={isExporting}
-          aria-busy={isExporting}
-        >
-          {isExporting && <Spinner className="size-4" />}
-          <span aria-live="polite">
-            {isExporting ? 'Đang xuất…' : 'Xuất CSV'}
-          </span>
-        </Button>
-      </div>
+      <PageHeading
+        eyebrow="BÁO CÁO"
+        title="Lịch sử công nợ"
+        description="Lịch sử biến động số dư công nợ theo thời gian."
+        actions={
+          <Button
+            onClick={handleExport}
+            disabled={isExporting}
+            aria-busy={isExporting}
+          >
+            {isExporting && <Spinner className="size-4" />}
+            <span aria-live="polite">
+              {isExporting ? 'Đang xuất…' : 'Xuất CSV'}
+            </span>
+          </Button>
+        }
+      />
 
       <ReceivableBalanceHistoryKpis
         summary={summaryQuery.data}
