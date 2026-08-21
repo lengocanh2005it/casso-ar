@@ -11,6 +11,7 @@ import {
   changeMemberRole,
   createEmailTemplate,
   deleteEmailTemplate,
+  deleteEmailTemplateAttachment,
   deleteSmtpConfig,
   fetchOrganizationInvites,
   fetchOrganizationMembers,
@@ -25,6 +26,7 @@ import {
   saveSmtpConfig,
   unblockMember,
   updateEmailTemplate,
+  uploadEmailTemplateAttachment,
 } from './settings-api';
 
 const smtpConfigKey = ['smtp-config'];
@@ -104,6 +106,37 @@ export function useDeleteTemplate() {
 
 export function usePreviewTemplate() {
   return useMutation({ mutationFn: previewEmailTemplate });
+}
+
+export function useUploadTemplateAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ templateId, file }: { templateId: string; file: File }) =>
+      uploadEmailTemplateAttachment(templateId, file),
+    onSuccess: () => {
+      toast.success('Đã tải lên file đính kèm.');
+      void queryClient.invalidateQueries({ queryKey: emailTemplatesKey });
+    },
+    onError: () => toast.error('Không thể tải lên file đính kèm.'),
+  });
+}
+
+export function useDeleteTemplateAttachment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      templateId,
+      attachmentId,
+    }: {
+      templateId: string;
+      attachmentId: string;
+    }) => deleteEmailTemplateAttachment(templateId, attachmentId),
+    onSuccess: () => {
+      toast.success('Đã xoá file đính kèm.');
+      void queryClient.invalidateQueries({ queryKey: emailTemplatesKey });
+    },
+    onError: () => toast.error('Không thể xoá file đính kèm.'),
+  });
 }
 
 export function useOrganizationMembers(organizationId: string | undefined) {

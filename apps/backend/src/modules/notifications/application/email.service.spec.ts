@@ -81,6 +81,7 @@ describe('EmailService', () => {
 
     const service = new EmailService(
       deps.templateRepo as any,
+      { findAllByTemplateId: jest.fn().mockResolvedValue([]) } as any,
       deps.receivableRepo as any,
       deps.customerRepo as any,
       deps.organizationRepo as any,

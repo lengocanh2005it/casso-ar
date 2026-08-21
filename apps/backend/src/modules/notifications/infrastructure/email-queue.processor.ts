@@ -4,10 +4,15 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { Job } from 'bullmq';
 import { buildCassoEmail } from '../../../common/email/casso-email-template';
+import type { EmailAttachment } from '../../../common/email/email-attachment';
 import { MetricsService } from '../../../common/observability/metrics.service';
 import { RequestIdStore } from '../../../common/observability/request-id.store';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { REMINDER_EXECUTION_REPOSITORY } from '../../../common/tokens/reminder-execution.token';
+import {
+  ATTACHMENT_STORAGE,
+  type IAttachmentStorage,
+} from '../../email-templates/application/attachment-storage.port';
 import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
@@ -30,6 +35,7 @@ import {
 import {
   type AuthEmailJob,
   EMAIL_QUEUE_PORT,
+  type EmailAttachmentRef,
   type IEmailQueue,
   type OwnerAlertEmailJob,
   type ReminderEmailJob,
@@ -61,6 +67,8 @@ export class EmailQueueProcessor extends WorkerHost {
     private readonly metrics: MetricsService,
     private readonly requestIdStore: RequestIdStore,
     @Inject(EMAIL_QUEUE_PORT) private readonly emailQueue: IEmailQueue,
+    @Inject(ATTACHMENT_STORAGE)
+    private readonly attachmentStorage: IAttachmentStorage,
   ) {
     super();
   }
@@ -144,6 +152,7 @@ export class EmailQueueProcessor extends WorkerHost {
       html,
       forceProvider,
       fromName,
+      attachmentRefs,
     } = job.data;
 
     await this.tenantContext.run(
@@ -163,6 +172,11 @@ export class EmailQueueProcessor extends WorkerHost {
           return;
         }
 
+        const attachments = await this.buildEmailAttachments(
+          attachmentRefs,
+          html,
+        );
+
         const adapter = await this.resolver.resolve(
           organizationId,
           forceProvider,
@@ -174,6 +188,7 @@ export class EmailQueueProcessor extends WorkerHost {
           { reminderExecutionId },
           replyTo,
           fromName,
+          attachments ? { attachments } : undefined,
         );
         await this.executionRepo.updateSendResult(
           reminderExecutionId,
@@ -188,6 +203,35 @@ export class EmailQueueProcessor extends WorkerHost {
         });
       },
     );
+  }
+
+  private async buildEmailAttachments(
+    refs: EmailAttachmentRef[] | undefined,
+    html: string,
+  ): Promise<EmailAttachment[] | undefined> {
+    if (!refs || refs.length === 0) return undefined;
+
+    const attachments: EmailAttachment[] = [];
+    for (const ref of refs) {
+      const stillExists = await this.attachmentStorage.exists(ref.storageKey);
+      if (!stillExists) {
+        this.logger.warn({
+          message: 'Skipping reminder attachment that no longer exists on disk',
+          storageKey: ref.storageKey,
+          filename: ref.filename,
+        });
+        continue;
+      }
+      const buffer = await this.attachmentStorage.read(ref.storageKey);
+      const isInline = html.includes(`cid:${ref.filename}`);
+      attachments.push({
+        filename: ref.filename,
+        content: buffer.toString('base64'),
+        contentType: ref.mimeType,
+        ...(isInline ? { contentId: ref.filename } : {}),
+      });
+    }
+    return attachments.length > 0 ? attachments : undefined;
   }
 
   @OnWorkerEvent('failed')

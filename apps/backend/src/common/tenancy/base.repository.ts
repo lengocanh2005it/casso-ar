@@ -36,9 +36,13 @@ export abstract class BaseRepository<
   protected async scopedFindMany(
     where: FindOptionsWhere<TEntity> = {} as FindOptionsWhere<TEntity>,
     options: ScopedFindManyOptions<TEntity> = {},
+    manager?: EntityManager,
   ): Promise<TEntity[]> {
     const organizationId = this.tenantContext.getOrganizationId();
-    return this.ormRepo.find({
+    const repo = manager
+      ? manager.getRepository<TEntity>(this.ormRepo.target)
+      : this.ormRepo;
+    return repo.find({
       where: { ...where, organizationId } as FindOptionsWhere<TEntity>,
       ...options,
     });
@@ -46,9 +50,13 @@ export abstract class BaseRepository<
 
   protected async scopedDelete(
     where: FindOptionsWhere<TEntity>,
+    manager?: EntityManager,
   ): Promise<void> {
     const organizationId = this.tenantContext.getOrganizationId();
-    await this.ormRepo.delete({
+    const repo = manager
+      ? manager.getRepository<TEntity>(this.ormRepo.target)
+      : this.ormRepo;
+    await repo.delete({
       ...where,
       organizationId,
     } as FindOptionsWhere<TEntity>);

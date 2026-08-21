@@ -47,6 +47,18 @@ export class TypeOrmEmailTemplateRepository
     return row ? new EmailTemplate(row) : null;
   }
 
+  async findByIdForUpdate(
+    id: string,
+    manager: EntityManager,
+  ): Promise<EmailTemplate | null> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const row = await manager.findOne(EmailTemplateOrmEntity, {
+      where: { id, organizationId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    return row ? new EmailTemplate(row) : null;
+  }
+
   async findAllForOrganization(
     pagination: ListEmailTemplatesPagination,
   ): Promise<EmailTemplate[]> {
@@ -76,10 +88,11 @@ export class TypeOrmEmailTemplateRepository
     await this.scopedSaveWithManager(toOrm(template), manager);
   }
 
-  async delete(id: string): Promise<void> {
-    await this.scopedDelete({
-      id,
-    } as FindOptionsWhere<EmailTemplateOrmEntity>);
+  async delete(id: string, manager?: EntityManager): Promise<void> {
+    await this.scopedDelete(
+      { id } as FindOptionsWhere<EmailTemplateOrmEntity>,
+      manager,
+    );
   }
 
   async saveMany(
