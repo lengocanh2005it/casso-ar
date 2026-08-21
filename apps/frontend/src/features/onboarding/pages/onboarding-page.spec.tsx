@@ -133,6 +133,6 @@ describe('OnboardingPage', () => {
       });
       expect(refreshUser).toHaveBeenCalledOnce();
     });
-    expect(screen.getByText('dashboard')).toBeInTheDocument();
+    expect(await screen.findByText('dashboard')).toBeInTheDocument();
   });
 });
