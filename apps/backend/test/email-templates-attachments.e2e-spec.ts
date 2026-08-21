@@ -93,6 +93,7 @@ describe('Email template attachments (e2e)', () => {
     organizationId = signupResponse.body.organizationId;
     ownerId = signupResponse.body.userId;
 
+    // Verify email directly (same shortcut as email-templates.e2e-spec.ts)
     await dataSource
       .getRepository(UserOrmEntity)
       .update({ id: ownerId }, { emailVerifiedAt: new Date() });

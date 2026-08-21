@@ -40,7 +40,7 @@ import { EmailTemplatesController } from './presentation/email-templates.control
     },
     {
       provide: ATTACHMENT_STORAGE,
-      useClass: LocalDiskAttachmentStorage,
+      useFactory: () => new LocalDiskAttachmentStorage(),
     },
     {
       provide: TEMPLATE_COMPILER,
