@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CopilotPage } from './copilot-page';
 
@@ -56,17 +56,34 @@ function sseResponse(events: Array<{ event: string; data: unknown }>) {
   return new Response(body, { status: 200 });
 }
 
-function renderPage() {
+function LocationProbe() {
+  const location = useLocation();
+  return (
+    <output data-testid="location">
+      {location.pathname}
+      {location.search}
+    </output>
+  );
+}
+
+function renderPage({ withLocationProbe = false } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  render(
+  const page = () => (
     <MemoryRouter>
       <QueryClientProvider client={queryClient}>
         <CopilotPage />
+        {withLocationProbe && <LocationProbe />}
       </QueryClientProvider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
+  const view = render(page());
+
+  return {
+    ...view,
+    rerenderPage: () => view.rerender(page()),
+  };
 }
 
 describe('CopilotPage', () => {
@@ -87,6 +104,77 @@ describe('CopilotPage', () => {
 
     await waitFor(() =>
       expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('shows the Copilot layout behind an upgrade gate for the FREE plan', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { role: 'OWNER', subscriptionPlan: 'FREE' },
+    });
+    renderPage({ withLocationProbe: true });
+
+    await waitFor(() =>
+      expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+    );
+
+    await waitFor(() => expect(screen.getByRole('dialog')).toHaveFocus());
+    expect(
+      screen.getByRole('heading', { name: /copilot đang bị khóa/i }),
+    ).toBeInTheDocument();
+    const copilotContent = document.querySelector('[inert]');
+    expect(copilotContent).not.toBeNull();
+    expect(copilotContent).toHaveAttribute('inert');
+    expect(copilotContent).toHaveAttribute('aria-hidden', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: /nâng cấp gói/i }));
+
+    expect(screen.getByTestId('location')).toHaveTextContent(
+      '/settings?tab=billing',
+    );
+  });
+
+  it('asks users without subscription permission to contact an administrator', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { role: 'VIEWER', subscriptionPlan: 'FREE' },
+    });
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+    );
+
+    expect(
+      screen.getByText(/liên hệ quản trị viên để nâng cấp gói/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /nâng cấp gói/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('closes an open Copilot sheet when the plan loses access', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { role: 'OWNER', subscriptionPlan: 'STARTER' },
+    });
+    const { rerenderPage } = renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /mở lịch sử chat/i }));
+    expect(
+      screen.getByRole('dialog', { name: /menu điều hướng/i }),
+    ).toBeInTheDocument();
+
+    mockUseAuth.mockReturnValue({
+      user: { role: 'OWNER', subscriptionPlan: 'FREE' },
+    });
+    rerenderPage();
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: /menu điều hướng/i }),
+      ).not.toBeInTheDocument(),
     );
   });
 
