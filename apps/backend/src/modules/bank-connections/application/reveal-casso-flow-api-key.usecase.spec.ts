@@ -179,7 +179,7 @@ describe('RevealCassoFlowApiKeyUseCase', () => {
       expect.objectContaining({
         eventType: 'API_KEY_REVEALED',
         metadata: {
-          revealedByUserId: 'user-1',
+          actorUserId: 'user-1',
           maskedApiKey: '••••-key',
         },
       }),

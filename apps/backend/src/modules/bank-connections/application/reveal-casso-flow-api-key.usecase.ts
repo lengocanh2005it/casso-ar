@@ -81,7 +81,7 @@ export class RevealCassoFlowApiKeyUseCase {
         bankConnectionId: connection.id,
         eventType: 'API_KEY_REVEALED',
         metadata: {
-          revealedByUserId: input.userId,
+          actorUserId: input.userId,
           maskedApiKey: maskApiKey(apiKey),
         },
       });

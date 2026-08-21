@@ -41,9 +41,7 @@ export function toConnectionAuditEventResponse(
   dto.id = event.id;
   dto.bankConnectionId = event.bankConnectionId;
   dto.eventType = event.eventType;
-  dto.actorUserId =
-    metadataString(event.metadata, 'actorUserId') ??
-    metadataString(event.metadata, 'revealedByUserId');
+  dto.actorUserId = metadataString(event.metadata, 'actorUserId');
   dto.maskedApiKey = metadataString(event.metadata, 'maskedApiKey');
   dto.oldMaskedApiKey = metadataString(event.metadata, 'oldMaskedApiKey');
   dto.newMaskedApiKey = metadataString(event.metadata, 'newMaskedApiKey');
