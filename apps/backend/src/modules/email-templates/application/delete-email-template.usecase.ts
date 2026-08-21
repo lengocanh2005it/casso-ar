@@ -51,12 +51,21 @@ export class DeleteEmailTemplateUseCase {
     }
 
     const attachments = await this.attachmentRepo.findAllByTemplateId(id);
+
+    // Both DB writes commit together — an interrupted delete must never leave
+    // a template row deleted with attachment rows still pointing at it (or
+    // vice versa). Disk cleanup happens after commit, outside the
+    // transaction: it's an external side effect, and a failed unlink here
+    // only leaks an orphan file rather than risking a partially applied DB
+    // delete.
+    await this.dataSource.transaction(async (manager) => {
+      await this.attachmentRepo.deleteAllByTemplateId(id, manager);
+      await this.templateRepo.delete(id, manager);
+    });
+
     for (const attachment of attachments) {
       await this.storage.delete(attachment.storageKey);
     }
-    await this.attachmentRepo.deleteAllByTemplateId(id);
-
-    await this.templateRepo.delete(id);
   }
 
   private async isReferencedByReminderRule(
