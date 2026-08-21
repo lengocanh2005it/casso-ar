@@ -255,5 +255,53 @@ describe('Bank connections audit events (e2e)', () => {
       )
       .set('Authorization', `Bearer ${accountantToken}`)
       .expect(403);
+
+    // 6. List audit events for a non-existent authorization -> 404 Not Found
+    await request(app.getHttpServer())
+      .get(
+        `/api/v1/bank-connections/authorizations/${randomUUID()}/audit-events`,
+      )
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(404);
+
+    // 7. Cross-tenant: an OWNER in a different organization must not see
+    // this organization's history, even for an id that exists elsewhere.
+    const otherOrganizationId = '00000000-0000-4000-8000-000000000501';
+    const otherOwnerUserId = '00000000-0000-4000-8000-000000000502';
+
+    await dataSource.getRepository(OrganizationOrmEntity).save({
+      id: otherOrganizationId,
+      name: 'E2E Other Org',
+      createdAt: new Date(),
+    });
+    await dataSource.getRepository(UserOrmEntity).save({
+      id: otherOwnerUserId,
+      name: 'Other Owner',
+      email: 'other-owner@example.com',
+      passwordHash: 'test-hash',
+      emailVerifiedAt: new Date(),
+      createdAt: new Date(),
+    });
+    await dataSource.getRepository(MembershipOrmEntity).save({
+      organizationId: otherOrganizationId,
+      userId: otherOwnerUserId,
+      role: Role.OWNER,
+      invitedAt: new Date(),
+      joinedAt: new Date(),
+      createdAt: new Date(),
+    });
+
+    const otherOwnerToken = jwtService.sign({
+      userId: otherOwnerUserId,
+      organizationId: otherOrganizationId,
+      role: Role.OWNER,
+    });
+
+    await request(app.getHttpServer())
+      .get(
+        `/api/v1/bank-connections/authorizations/${authorizationId}/audit-events`,
+      )
+      .set('Authorization', `Bearer ${otherOwnerToken}`)
+      .expect(404);
   }, 30_000);
 });
