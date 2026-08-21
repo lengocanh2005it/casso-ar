@@ -9,7 +9,14 @@ import {
   fetchCustomerBankAccounts,
   updateCustomerBankAccount,
 } from './customers-api';
-import { useAllocatePayment } from './use-customers';
+import {
+  customerBankAccountsKey,
+  useAllocatePayment,
+  useCreateCustomerBankAccount,
+  useCustomerBankAccounts,
+  useDeactivateCustomerBankAccount,
+  useUpdateCustomerBankAccount,
+} from './use-customers';
 
 const apiRequest = vi.fn();
 const postWithIdempotency = vi.fn();
@@ -146,5 +153,113 @@ describe('useAllocatePayment', () => {
     expect(invalidateQueries).toHaveBeenNthCalledWith(3, {
       queryKey: ['receivable', 'receivable-1'],
     });
+  });
+});
+
+describe('customer bank accounts hooks', () => {
+  it('fetches bank accounts when customerId is provided and disables when empty', async () => {
+    apiRequest.mockResolvedValueOnce({ items: [], total: 0 });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const { result: enabledResult } = renderHook(
+      () => useCustomerBankAccounts('customer-1'),
+      { wrapper: createWrapper(queryClient) },
+    );
+
+    await waitFor(() => expect(enabledResult.current.isSuccess).toBe(true));
+    expect(enabledResult.current.data).toEqual({ items: [], total: 0 });
+
+    const { result: disabledResult } = renderHook(
+      () => useCustomerBankAccounts(''),
+      { wrapper: createWrapper(queryClient) },
+    );
+
+    expect(disabledResult.current.fetchStatus).toBe('idle');
+  });
+
+  it('invalidates the customer bank-account query after a successful create', async () => {
+    const account = {
+      id: 'account-1',
+      customerId: 'customer-1',
+      accountNumberMasked: '******2233',
+      isActive: true,
+      createdAt: '2026-08-22T00:00:00.000Z',
+      updatedAt: '2026-08-22T00:00:00.000Z',
+    };
+    postWithIdempotency.mockResolvedValueOnce(account);
+
+    const queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: false } },
+    });
+    const invalidateQueries = vi
+      .spyOn(queryClient, 'invalidateQueries')
+      .mockResolvedValue();
+
+    const { result } = renderHook(
+      () => useCreateCustomerBankAccount('customer-1'),
+      { wrapper: createWrapper(queryClient) },
+    );
+
+    await result.current.mutateAsync({ accountNumber: '0011 2233' });
+
+    await waitFor(() =>
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: customerBankAccountsKey('customer-1'),
+      }),
+    );
+  });
+
+  it('invalidates the customer bank-account query after a successful update', async () => {
+    apiRequest.mockResolvedValueOnce({ id: 'account-1', isActive: true });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: false } },
+    });
+    const invalidateQueries = vi
+      .spyOn(queryClient, 'invalidateQueries')
+      .mockResolvedValue();
+
+    const { result } = renderHook(
+      () => useUpdateCustomerBankAccount('customer-1'),
+      { wrapper: createWrapper(queryClient) },
+    );
+
+    await result.current.mutateAsync({
+      id: 'account-1',
+      input: { isActive: true },
+    });
+
+    await waitFor(() =>
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: customerBankAccountsKey('customer-1'),
+      }),
+    );
+  });
+
+  it('invalidates the customer bank-account query after a successful deactivation', async () => {
+    apiRequest.mockResolvedValueOnce(undefined);
+
+    const queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: false } },
+    });
+    const invalidateQueries = vi
+      .spyOn(queryClient, 'invalidateQueries')
+      .mockResolvedValue();
+
+    const { result } = renderHook(
+      () => useDeactivateCustomerBankAccount('customer-1'),
+      { wrapper: createWrapper(queryClient) },
+    );
+
+    await result.current.mutateAsync('account-1');
+
+    await waitFor(() =>
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: customerBankAccountsKey('customer-1'),
+      }),
+    );
   });
 });

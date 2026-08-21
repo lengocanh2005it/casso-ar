@@ -237,7 +237,7 @@ git commit -m "feat(frontend): add customer bank account API client"
 - Consumes Task 1's HTTP functions.
 - Produces `useCustomerBankAccounts(customerId)`, `useCreateCustomerBankAccount(customerId)`, `useUpdateCustomerBankAccount(customerId)`, and `useDeactivateCustomerBankAccount(customerId)`.
 
-- [ ] **Step 1: Write the failing hook tests**
+- [x] **Step 1: Write the failing hook tests**
 
 Add `renderHook` tests that resolve each mutation and spy on the `QueryClient`:
 
@@ -269,7 +269,7 @@ it('invalidates the customer bank-account query after a successful update', asyn
 
 Add equivalent success invalidation assertions for create and deactivate. The query test must verify that an empty customer id disables the GET request, matching `useCustomer`.
 
-- [ ] **Step 2: Run the focused hook tests and verify RED**
+- [x] **Step 2: Run the focused hook tests and verify RED**
 
 Run:
 
@@ -279,7 +279,7 @@ pnpm --filter @casso-ledger/frontend test -- src/features/customers/api/customer
 
 Expected: FAIL because the new hooks and query key are not exported.
 
-- [ ] **Step 3: Implement the customer-specific query key and hooks**
+- [x] **Step 3: Implement the customer-specific query key and hooks**
 
 Add this key helper and hooks to `use-customers.ts`:
 
@@ -338,11 +338,11 @@ export function useDeactivateCustomerBankAccount(customerId: string) {
 
 Use `void` before the invalidation calls if the repository's lint configuration requires an explicitly ignored promise. Keep toasts and inline error copy in the UI components so form errors are not duplicated by global toasts.
 
-- [ ] **Step 4: Run the focused hook tests and verify GREEN**
+- [x] **Step 4: Run the focused hook tests and verify GREEN**
 
 Run the same focused command. Expected: all API and hook tests pass.
 
-- [ ] **Step 5: Commit the hook slice**
+- [x] **Step 5: Commit the hook slice**
 
 ```bash
 git add apps/frontend/src/features/customers/api/use-customers.ts apps/frontend/src/features/customers/api/customers-api.spec.ts
