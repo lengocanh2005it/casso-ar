@@ -44,6 +44,7 @@ function buildProcessor(
     deps.metrics as any,
     deps.requestIdStore as any,
     deps.emailQueue as any,
+    deps.storage as any,
   );
 }
 
@@ -79,6 +80,10 @@ function buildDeps() {
       getRequestId: jest.fn().mockReturnValue('request-1'),
     },
     emailQueue: { add: jest.fn() },
+    storage: {
+      exists: jest.fn().mockResolvedValue(true),
+      read: jest.fn().mockResolvedValue(Buffer.from('file-bytes')),
+    },
   };
 }
 
@@ -192,6 +197,7 @@ describe('EmailQueueProcessor', () => {
       { reminderExecutionId: 'exec-1' },
       'owner@example.com',
       undefined,
+      undefined,
     );
     expect(deps.executionRepo.updateSendResult).toHaveBeenCalledWith(
       'exec-1',
@@ -230,6 +236,7 @@ describe('EmailQueueProcessor', () => {
       { reminderExecutionId: 'exec-1' },
       'owner@example.com',
       'Công ty ABC (qua Casso)',
+      undefined,
     );
   });
 
@@ -442,5 +449,108 @@ describe('EmailQueueProcessor — provider resolution', () => {
       null,
     );
     expect(deps.emailQueue.add).not.toHaveBeenCalled();
+  });
+
+  it('reads attachment refs from storage, marks cid-referenced ones inline, and passes them to adapter.send', async () => {
+    const send = jest.fn().mockResolvedValue({ providerMessageId: 'msg-1' });
+    const deps = buildDeps();
+    deps.resolver.resolve.mockResolvedValue({ send });
+    deps.storage.exists.mockResolvedValue(true);
+    deps.storage.read.mockResolvedValue(Buffer.from('file-bytes'));
+    const processor = buildProcessor(deps);
+
+    const job = {
+      id: 'job-1',
+      name: 'send-reminder-email',
+      data: {
+        reminderExecutionId: 'exec-1',
+        organizationId: 'org-1',
+        to: 'a@b.com',
+        subject: 'Hi',
+        html: '<p><img src="cid:logo.png"></p>',
+        attachmentRefs: [
+          {
+            storageKey: 'org-1/tpl-1/uuid1.png',
+            filename: 'logo.png',
+            mimeType: 'image/png',
+          },
+          {
+            storageKey: 'org-1/tpl-1/uuid2.pdf',
+            filename: 'invoice.pdf',
+            mimeType: 'application/pdf',
+          },
+        ],
+      },
+      opts: { attempts: 3 },
+      attemptsMade: 0,
+    } as any;
+
+    await processor.process(job);
+
+    expect(send).toHaveBeenCalledWith(
+      'a@b.com',
+      'Hi',
+      '<p><img src="cid:logo.png"></p>',
+      { reminderExecutionId: 'exec-1' },
+      undefined,
+      undefined,
+      {
+        attachments: [
+          {
+            filename: 'logo.png',
+            content: Buffer.from('file-bytes').toString('base64'),
+            contentId: 'logo.png',
+            contentType: 'image/png',
+          },
+          {
+            filename: 'invoice.pdf',
+            content: Buffer.from('file-bytes').toString('base64'),
+            contentType: 'application/pdf',
+          },
+        ],
+      },
+    );
+  });
+
+  it('skips a referenced attachment that no longer exists on disk instead of failing the send', async () => {
+    const send = jest.fn().mockResolvedValue({ providerMessageId: 'msg-1' });
+    const deps = buildDeps();
+    deps.resolver.resolve.mockResolvedValue({ send });
+    deps.storage.exists.mockResolvedValue(false);
+    const processor = buildProcessor(deps);
+
+    const job = {
+      id: 'job-1',
+      name: 'send-reminder-email',
+      data: {
+        reminderExecutionId: 'exec-1',
+        organizationId: 'org-1',
+        to: 'a@b.com',
+        subject: 'Hi',
+        html: '<p>hi</p>',
+        attachmentRefs: [
+          {
+            storageKey: 'org-1/tpl-1/uuid1.png',
+            filename: 'deleted.png',
+            mimeType: 'image/png',
+          },
+        ],
+      },
+      opts: { attempts: 3 },
+      attemptsMade: 0,
+    } as any;
+
+    await processor.process(job);
+
+    expect(deps.storage.read).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledWith(
+      'a@b.com',
+      'Hi',
+      '<p>hi</p>',
+      { reminderExecutionId: 'exec-1' },
+      undefined,
+      undefined,
+      undefined,
+    );
   });
 });
