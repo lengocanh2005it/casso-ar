@@ -653,4 +653,150 @@ describe('CopilotChatUseCase', () => {
 
     expect(result.pendingAction).toMatchObject({ id: 'action-1' });
   });
+
+  it('attaches a draftReminderEmail result as output on the final message when no send is proposed', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion
+      .mockResolvedValueOnce({
+        content: null,
+        toolCalls: [
+          {
+            id: 'tool-1',
+            name: 'draftReminderEmail',
+            arguments: {
+              receivableId: 'rec-1',
+              subject: 'Nhắc thanh toán',
+              bodyHtml: '<p>Nội dung</p>',
+            },
+          },
+        ],
+        inputTokens: 10,
+        outputTokens: 5,
+      })
+      .mockResolvedValueOnce({
+        content: 'Đã tạo bản nháp cho bạn.',
+        toolCalls: [],
+        inputTokens: 5,
+        outputTokens: 5,
+      });
+    const deps = buildDeps();
+    deps.draftTool.execute.mockResolvedValue({
+      draftId: 'draft-1',
+      receivableId: 'rec-1',
+      recipientEmail: 'ap@abc.vn',
+      subject: 'Nhắc thanh toán',
+      bodyHtml: '<p>Nội dung</p>',
+    });
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    const result = await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Draft a reminder for rec-1',
+    });
+
+    expect(result.pendingAction).toBeNull();
+    expect(result.message.toolCalls).toEqual([
+      expect.objectContaining({
+        id: 'tool-1',
+        name: 'draftReminderEmail',
+        output: expect.objectContaining({ draftId: 'draft-1' }),
+      }),
+    ]);
+  });
+
+  it('includes an earlier-round draftReminderEmail output alongside a later sendReminderEmail proposal', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion
+      .mockResolvedValueOnce({
+        content: null,
+        toolCalls: [
+          {
+            id: 'tool-1',
+            name: 'draftReminderEmail',
+            arguments: {
+              receivableId: 'rec-1',
+              subject: 'Nhắc thanh toán',
+              bodyHtml: '<p>Nội dung</p>',
+            },
+          },
+        ],
+        inputTokens: 10,
+        outputTokens: 5,
+      })
+      .mockResolvedValueOnce({
+        content: 'Đề xuất gửi.',
+        toolCalls: [
+          {
+            id: 'tool-2',
+            name: 'sendReminderEmail',
+            arguments: { draftId: 'draft-1', receivableId: 'rec-1' },
+          },
+        ],
+        inputTokens: 20,
+        outputTokens: 8,
+      });
+    const deps = buildDeps();
+    deps.draftTool.execute.mockResolvedValue({
+      draftId: 'draft-1',
+      receivableId: 'rec-1',
+      recipientEmail: 'ap@abc.vn',
+      subject: 'Nhắc thanh toán',
+      bodyHtml: '<p>Nội dung</p>',
+    });
+    deps.pendingActionRepo.create.mockResolvedValue({
+      id: 'action-1',
+      organizationId: 'org-1',
+      conversationId: 'conversation-1',
+      actionType: 'SEND_REMINDER_EMAIL',
+      status: 'PENDING',
+      payload: { draftId: 'draft-1', receivableId: 'rec-1' },
+      createdAt: new Date('2026-08-21T10:00:00Z'),
+      resolvedAt: null,
+      resolvedByUserId: null,
+    });
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    const result = await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Draft then send for rec-1',
+    });
+
+    expect(result.pendingAction).toMatchObject({ id: 'action-1' });
+    expect(result.message.toolCalls).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'tool-1',
+          name: 'draftReminderEmail',
+          output: expect.objectContaining({ draftId: 'draft-1' }),
+        }),
+        expect.objectContaining({ id: 'tool-2', name: 'sendReminderEmail' }),
+      ]),
+    );
+  });
 });
