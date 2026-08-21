@@ -131,6 +131,42 @@ describe('CassoFlowAccountPicker', () => {
     ).toBeInTheDocument();
   });
 
+  it('wraps long account numbers in skipped-account feedback', async () => {
+    const accountNumber = `9704${'1'.repeat(70)}`;
+    const onPreview = vi.fn().mockResolvedValue({
+      businessId: 'biz-1',
+      accounts: [
+        {
+          accountNumber: '111',
+          bankName: 'VPBank',
+          accountHolderName: 'NGUYEN VAN A',
+          status: 'AVAILABLE',
+        },
+      ],
+    });
+    const onConfirm = vi.fn().mockResolvedValue({
+      connected: [],
+      skipped: [{ accountNumber, reason: 'PLAN_LIMIT_EXCEEDED' }],
+    });
+
+    render(
+      <CassoFlowAccountPicker onPreview={onPreview} onConfirm={onConfirm} />,
+    );
+
+    fireEvent.change(screen.getByLabelText(/Casso Flow API Key/i), {
+      target: { value: 'test-key' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /xem tài khoản/i }));
+    await waitFor(() =>
+      expect(screen.getByRole('checkbox', { name: /111/ })).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /xác nhận/i }));
+
+    const accountList = await screen.findByRole('list');
+    expect(accountList).toHaveClass('break-words');
+    expect(accountList).toHaveTextContent(accountNumber);
+  });
+
   it('contains long account numbers and wraps long account-holder names', async () => {
     const accountNumber = `9704${'1'.repeat(70)}`;
     const accountHolderName = `NGUYEN VAN ${'A'.repeat(70)}`;

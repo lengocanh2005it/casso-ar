@@ -200,7 +200,7 @@ export function CassoFlowAccountPicker({
           <p className="text-sm font-medium">
             Một số tài khoản chưa được kết nối
           </p>
-          <ul className="mt-1 list-disc pl-5 text-sm text-muted-foreground">
+          <ul className="mt-1 list-disc break-words pl-5 text-sm text-muted-foreground">
             {skipped.map((item) => (
               <li key={item.accountNumber}>
                 {item.accountNumber}: {skippedReason(item.reason)}
