@@ -1,3 +1,4 @@
+import { BarChart3 } from 'lucide-react';
 import { lazy, Suspense, useEffect } from 'react';
 import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
@@ -170,6 +171,7 @@ export function ReportsPage() {
         eyebrow="PHÂN TÍCH"
         title="Báo cáo"
         description="Theo dõi công nợ, tuổi nợ và khả năng thu tiền."
+        icon={BarChart3}
         actions={
           <Button
             variant="outline"
