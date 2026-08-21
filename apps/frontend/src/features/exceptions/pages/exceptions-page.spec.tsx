@@ -86,6 +86,104 @@ describe('ExceptionsPage', () => {
     expect(await screen.findByText('Đã chọn 1')).toBeInTheDocument();
   });
 
+  it('shows the transfer content column with a fallback when it is blank', async () => {
+    apiRequest.mockResolvedValue({
+      items: [
+        {
+          transaction: {
+            id: 'tx-1',
+            providerTransactionId: 'TX-1',
+            amount: 10_000,
+            transactionDateTime: '2026-08-01',
+            counterpartyAccountNumber: '001',
+            counterpartyName: 'A',
+            transferContent: 'Thanh toan hoa don INV-001',
+            status: 'PENDING_REVIEW',
+            version: 1,
+          },
+          topCandidate: null,
+        },
+        {
+          transaction: {
+            id: 'tx-2',
+            providerTransactionId: 'TX-2',
+            amount: 20_000,
+            transactionDateTime: '2026-08-02',
+            counterpartyAccountNumber: '002',
+            counterpartyName: 'B',
+            transferContent: '   ',
+            status: 'PENDING_REVIEW',
+            version: 1,
+          },
+          topCandidate: null,
+        },
+      ],
+      total: 2,
+      page: 1,
+      limit: 20,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByRole('columnheader', {
+        name: 'Nội dung chuyển khoản',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Thanh toan hoa don INV-001')).toBeInTheDocument();
+    expect(screen.getByText('Không có nội dung')).toBeInTheDocument();
+  });
+
+  it('clamps long transfer content to 2 lines but keeps the full text reachable via title', async () => {
+    const longContent =
+      'Thanh toan hoa don INV-001 cho don hang thang 8 nam 2026, vui long lien he ke toan neu co sai sot ve so tien hoac noi dung giao dich';
+    apiRequest.mockResolvedValue({
+      items: [
+        {
+          transaction: {
+            id: 'tx-1',
+            providerTransactionId: 'TX-1',
+            amount: 10_000,
+            transactionDateTime: '2026-08-01',
+            counterpartyAccountNumber: '001',
+            counterpartyName: 'A',
+            transferContent: longContent,
+            status: 'PENDING_REVIEW',
+            version: 1,
+          },
+          topCandidate: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const contentEl = await screen.findByText(longContent);
+    expect(contentEl).toHaveClass('line-clamp-2');
+    expect(contentEl).toHaveAttribute('title', longContent);
+  });
+
   it('does not open the split dialog when a row checkbox receives keyboard input', async () => {
     apiRequest.mockResolvedValue({
       items: [

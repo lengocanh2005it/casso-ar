@@ -93,6 +93,33 @@ describe('SplitMatchDialog', () => {
     apiRequest.mockClear();
   });
 
+  it('shows a labeled transfer content field', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    renderDialog();
+
+    expect(screen.getByText('Nội dung chuyển khoản')).toBeInTheDocument();
+    expect(screen.getByText('Payment for INV-001')).toBeInTheDocument();
+  });
+
+  it('shows a fallback when the transfer content is blank', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    render(
+      <QueryClientProvider
+        client={
+          new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        }
+      >
+        <SplitMatchDialog
+          tx={{ ...tx, transferContent: null }}
+          open
+          onOpenChange={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText('Không có nội dung')).toBeInTheDocument();
+  });
+
   it('keeps allocation total within the transaction amount and submits both rows', async () => {
     apiRequest.mockResolvedValue(candidates);
     renderDialog();
