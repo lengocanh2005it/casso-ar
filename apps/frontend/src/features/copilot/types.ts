@@ -1,9 +1,18 @@
+export interface CopilotMessageDraft {
+  draftId: string;
+  receivableId: string;
+  recipientEmail: string;
+  subject: string;
+  bodyHtml: string;
+}
+
 export interface CopilotMessage {
   id: string;
   role: 'USER' | 'ASSISTANT';
   content: string;
   createdAt: string;
   isPartial?: boolean;
+  drafts?: CopilotMessageDraft[];
 }
 
 export interface CopilotPendingAction {
