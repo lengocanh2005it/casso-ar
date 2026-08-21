@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
+import type { ReminderPolicy } from '../types';
 import { PolicyDialog } from './policy-dialog';
 
 const { apiRequest, useAuth } = vi.hoisted(() => ({
@@ -27,7 +28,7 @@ const template = {
   updatedAt: '2026-08-01',
 };
 
-function renderDialog() {
+function renderDialog(policy: ReminderPolicy | null = null) {
   useAuth.mockReturnValue({ user: { role: 'OWNER' } });
   apiRequest.mockImplementation((config: { url: string; method: string }) => {
     if (config.url === '/api/v1/email-templates') {
@@ -41,7 +42,7 @@ function renderDialog() {
   render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <PolicyDialog policy={null} open onOpenChange={vi.fn()} />
+        <PolicyDialog policy={policy} open onOpenChange={vi.fn()} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -82,6 +83,32 @@ describe('PolicyDialog', () => {
           }),
         }),
       ),
+    );
+  });
+
+  it('pre-selects the existing template when editing a policy', async () => {
+    const policy: ReminderPolicy = {
+      id: 'policy-1',
+      customerGroup: 'REGULAR',
+      isActive: true,
+      escalationThresholdDays: null,
+      rules: [
+        {
+          id: 'rule-1',
+          offsetDays: -3,
+          emailTemplateId: 't1',
+          minIntervalDays: 1,
+        },
+      ],
+      createdAt: '2026-08-01T00:00:00Z',
+    };
+    renderDialog(policy);
+
+    const trigger = await screen.findByRole('combobox', {
+      name: /Email template 1/i,
+    });
+    await waitFor(() =>
+      expect(trigger).toHaveTextContent('Nhắc trước hạn — DAY_3_BEFORE'),
     );
   });
 });
