@@ -38,6 +38,7 @@ import {
   useRotateCassoFlowAuthorization,
 } from '../api/use-bank-connections';
 import type { BankConnection, BankConnectionStatus } from '../types';
+import { AuthorizationHistoryDialog } from './authorization-history-dialog';
 import { CassoFlowAccountPicker } from './casso-flow-account-picker';
 import { RevealApiKeyDialog } from './reveal-api-key-dialog';
 
@@ -114,7 +115,12 @@ export function ConnectionTable({
                   className="flex justify-end gap-2 text-right"
                 >
                   {canRevealKey && (
-                    <RevealApiKeyDialog authorizationId={authorizationId} />
+                    <>
+                      <AuthorizationHistoryDialog
+                        authorizationId={authorizationId}
+                      />
+                      <RevealApiKeyDialog authorizationId={authorizationId} />
+                    </>
                   )}
                   {canManage && (
                     <Dialog

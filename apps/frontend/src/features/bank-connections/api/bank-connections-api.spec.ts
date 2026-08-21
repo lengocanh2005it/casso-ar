@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   confirmCassoFlow,
+  fetchAuthorizationAuditEvents,
   previewCassoFlowAccounts,
   previewCassoFlowAuthorizationRotation,
   rotateCassoFlowAuthorization,
@@ -79,5 +80,18 @@ describe('rotateCassoFlowAuthorization', () => {
       '/api/v1/bank-connections/authorizations/auth-1/casso-flow/confirm',
       { apiKey: 'test-key' },
     );
+  });
+});
+
+describe('fetchAuthorizationAuditEvents', () => {
+  it('gets the first page of an authorization audit-event history', async () => {
+    apiRequest.mockResolvedValue({ items: [], total: 0, page: 1, limit: 50 });
+
+    await fetchAuthorizationAuditEvents('auth-1');
+
+    expect(apiRequest).toHaveBeenCalledWith({
+      url: '/api/v1/bank-connections/authorizations/auth-1/audit-events?page=1&limit=50',
+      method: 'GET',
+    });
   });
 });

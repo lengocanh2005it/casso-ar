@@ -59,23 +59,28 @@ function buildDeps(
   };
 }
 
+function buildUseCase(deps: ReturnType<typeof buildDeps>) {
+  return new ConnectCassoFlowUseCase(
+    deps.adapter as never,
+    deps.bankConnectionRepo as never,
+    deps.authorizationRepo as never,
+    deps.auditEventRepo as never,
+    dataSource as never,
+    encryptionKey,
+    deps.planLimitService as never,
+  );
+}
+
 describe('ConnectCassoFlowUseCase', () => {
   it('creates a new authorization, registers the webhook once, and connects the selected account', async () => {
     const deps = buildDeps();
-    const useCase = new ConnectCassoFlowUseCase(
-      deps.adapter as never,
-      deps.bankConnectionRepo as never,
-      deps.authorizationRepo as never,
-      deps.auditEventRepo as never,
-      dataSource as never,
-      encryptionKey,
-      deps.planLimitService as never,
-    );
+    const useCase = buildUseCase(deps);
 
     const result = await useCase.execute({
       organizationId: 'org-1',
       apiKey: 'real-api-key',
       selectedAccountNumbers: ['111'],
+      userId: 'user-1',
     });
 
     expect(result.connected).toEqual([
@@ -114,20 +119,13 @@ describe('ConnectCassoFlowUseCase', () => {
         .fn()
         .mockResolvedValue(existingAuthorization),
     });
-    const useCase = new ConnectCassoFlowUseCase(
-      deps.adapter as never,
-      deps.bankConnectionRepo as never,
-      deps.authorizationRepo as never,
-      deps.auditEventRepo as never,
-      dataSource as never,
-      encryptionKey,
-      deps.planLimitService as never,
-    );
+    const useCase = buildUseCase(deps);
 
     await useCase.execute({
       organizationId: 'org-1',
       apiKey: 'real-api-key',
       selectedAccountNumbers: ['111'],
+      userId: 'user-1',
     });
 
     expect(deps.adapter.registerWebhook).not.toHaveBeenCalled();
@@ -150,20 +148,13 @@ describe('ConnectCassoFlowUseCase', () => {
         .fn()
         .mockResolvedValue(new Map([['111', { organizationId: 'org-OTHER' }]])),
     });
-    const useCase = new ConnectCassoFlowUseCase(
-      deps.adapter as never,
-      deps.bankConnectionRepo as never,
-      deps.authorizationRepo as never,
-      deps.auditEventRepo as never,
-      dataSource as never,
-      encryptionKey,
-      deps.planLimitService as never,
-    );
+    const useCase = buildUseCase(deps);
 
     const result = await useCase.execute({
       organizationId: 'org-1',
       apiKey: 'real-api-key',
       selectedAccountNumbers: ['111'],
+      userId: 'user-1',
     });
 
     expect(result.connected).toEqual([]);
@@ -193,20 +184,13 @@ describe('ConnectCassoFlowUseCase', () => {
         .fn()
         .mockResolvedValue(new Map([['111', existingConnection]])),
     });
-    const useCase = new ConnectCassoFlowUseCase(
-      deps.adapter as never,
-      deps.bankConnectionRepo as never,
-      deps.authorizationRepo as never,
-      deps.auditEventRepo as never,
-      dataSource as never,
-      encryptionKey,
-      deps.planLimitService as never,
-    );
+    const useCase = buildUseCase(deps);
 
     const result = await useCase.execute({
       organizationId: 'org-1',
       apiKey: 'real-api-key',
       selectedAccountNumbers: ['111'],
+      userId: 'user-1',
     });
 
     expect(result.connected).toEqual([
@@ -237,20 +221,13 @@ describe('ConnectCassoFlowUseCase', () => {
           new AppError(ErrorCode.PLAN_LIMIT_EXCEEDED, 'Đã đạt giới hạn gói.'),
         ),
     });
-    const useCase = new ConnectCassoFlowUseCase(
-      deps.adapter as never,
-      deps.bankConnectionRepo as never,
-      deps.authorizationRepo as never,
-      deps.auditEventRepo as never,
-      dataSource as never,
-      encryptionKey,
-      deps.planLimitService as never,
-    );
+    const useCase = buildUseCase(deps);
 
     const result = await useCase.execute({
       organizationId: 'org-1',
       apiKey: 'real-api-key',
       selectedAccountNumbers: ['111', '222'],
+      userId: 'user-1',
     });
 
     expect(result.connected).toEqual([]);
@@ -265,24 +242,40 @@ describe('ConnectCassoFlowUseCase', () => {
         .fn()
         .mockRejectedValue(new Error('Casso Flow API Key rejected')),
     });
-    const useCase = new ConnectCassoFlowUseCase(
-      deps.adapter as never,
-      deps.bankConnectionRepo as never,
-      deps.authorizationRepo as never,
-      deps.auditEventRepo as never,
-      dataSource as never,
-      encryptionKey,
-      deps.planLimitService as never,
-    );
+    const useCase = buildUseCase(deps);
 
     await expect(
       useCase.execute({
         organizationId: 'org-1',
         apiKey: 'bad-key',
         selectedAccountNumbers: ['111'],
+        userId: 'user-1',
       }),
     ).rejects.toThrow('Casso Flow API Key rejected');
     expect(deps.bankConnectionRepo.save).not.toHaveBeenCalled();
     expect(deps.authorizationRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('records the actor and a masked API key on the audit event', async () => {
+    const deps = buildDeps();
+    const useCase = buildUseCase(deps);
+
+    await useCase.execute({
+      organizationId: 'org-1',
+      apiKey: 'AK_CS.secret1234',
+      selectedAccountNumbers: ['111'],
+      userId: 'user-1',
+    });
+
+    expect(deps.auditEventRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'TOKEN_EXCHANGED',
+        metadata: expect.objectContaining({
+          actorUserId: 'user-1',
+          maskedApiKey: '••••1234',
+        }),
+      }),
+      expect.anything(),
+    );
   });
 });

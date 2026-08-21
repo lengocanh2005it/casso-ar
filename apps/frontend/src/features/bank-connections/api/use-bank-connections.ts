@@ -5,6 +5,7 @@ import { getApiErrorCode } from '@/lib/api-client';
 import {
   confirmCassoFlow,
   disconnectConnection,
+  fetchAuthorizationAuditEvents,
   fetchBankConnections,
   previewCassoFlowAccounts,
   previewCassoFlowAuthorizationRotation,
@@ -113,5 +114,17 @@ export function useRevealCassoFlowApiKey() {
       }
       toast.error('Không thể hiện API Key.');
     },
+  });
+}
+
+export function useAuthorizationAuditEvents(
+  authorizationId: string,
+  enabled: boolean,
+  page = 1,
+) {
+  return useQuery({
+    queryKey: ['bank-connections', 'audit-events', authorizationId, page],
+    queryFn: () => fetchAuthorizationAuditEvents(authorizationId, page),
+    enabled,
   });
 }

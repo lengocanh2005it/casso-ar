@@ -31,3 +31,14 @@ export class ConnectionAuditEvent {
     Object.assign(this, props);
   }
 }
+
+// The subset of ConnectionAuditEventType shown in the user-facing "API Key
+// history" timeline — excludes internal/error event types (SESSION_CREATED,
+// API_CALL_FAILED*, MARKED_*) which are operational signals, not history.
+export const CONNECTION_HISTORY_EVENT_TYPES: ConnectionAuditEventType[] = [
+  'TOKEN_EXCHANGED',
+  'RECONNECTED',
+  'DISCONNECTED',
+  'API_KEY_ROTATED',
+  'API_KEY_REVEALED',
+];

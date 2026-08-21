@@ -6,8 +6,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import type { EmailTemplate } from '@/lib/use-email-templates';
 import { usePreviewTemplate } from '../api/use-settings';
-import type { EmailTemplate } from '../types';
 
 export function TemplatePreviewDialog({
   template,

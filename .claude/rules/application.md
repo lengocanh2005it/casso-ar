@@ -7,7 +7,7 @@ paths:
 
 - Use cases depend only on ports (`I<Entity>Repository`, `I<Thing>`) and the domain.
 - MUST NOT import specific SDKs/integration libraries (`@nestjs/jwt`, `@nestjs/passport`,
-  `resend`, Cas ID client...) — define a dedicated port and implement the adapter in
+  `resend`, Casso Flow client...) — define a dedicated port and implement the adapter in
   `infrastructure/`. See `ITokenSigner` (`modules/auth/application/token-signer.port.ts`)
   as an example.
 - MUST NOT throw `HttpException`, `NotFoundException`, `UnauthorizedException`,

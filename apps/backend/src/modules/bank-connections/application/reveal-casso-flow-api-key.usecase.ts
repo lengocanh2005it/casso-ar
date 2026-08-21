@@ -18,6 +18,7 @@ import {
   CONNECTION_AUDIT_EVENT_REPOSITORY,
   type IConnectionAuditEventRepository,
 } from './connection-audit-event-repository.port';
+import { maskApiKey } from './mask-api-key';
 import { recordConnectionAuditEvent } from './record-connection-audit-event';
 import { decryptToken } from './token-encryption';
 import { ACCESS_TOKEN_ENCRYPTION_KEY } from './token-encryption-key';
@@ -79,7 +80,10 @@ export class RevealCassoFlowApiKeyUseCase {
         organizationId: input.organizationId,
         bankConnectionId: connection.id,
         eventType: 'API_KEY_REVEALED',
-        metadata: { revealedByUserId: input.userId },
+        metadata: {
+          actorUserId: input.userId,
+          maskedApiKey: maskApiKey(apiKey),
+        },
       });
     }
 

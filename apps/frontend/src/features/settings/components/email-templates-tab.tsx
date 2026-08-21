@@ -23,8 +23,9 @@ import {
 } from '@/components/ui/table';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
-import { useDeleteTemplate, useEmailTemplates } from '../api/use-settings';
-import type { EmailTemplate } from '../types';
+import type { EmailTemplate } from '@/lib/use-email-templates';
+import { useEmailTemplates } from '@/lib/use-email-templates';
+import { useDeleteTemplate } from '../api/use-settings';
 import { TemplateDialog } from './template-dialog';
 import { TemplatePreviewDialog } from './template-preview-dialog';
 

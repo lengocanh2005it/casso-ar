@@ -22,6 +22,13 @@ vi.mock('./reveal-api-key-dialog', () => ({
     <button type="button">Hiện API Key ({authorizationId})</button>
   ),
 }));
+vi.mock('./authorization-history-dialog', () => ({
+  AuthorizationHistoryDialog: ({
+    authorizationId,
+  }: {
+    authorizationId: string;
+  }) => <button type="button">Lịch sử ({authorizationId})</button>,
+}));
 
 const connection: BankConnection = {
   id: 'connection-1',
@@ -107,5 +114,15 @@ describe('ConnectionTable', () => {
     expect(
       screen.queryByRole('button', { name: /hiện api key/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it('shows the history action for a user who can reveal the API key', () => {
+    useAuth.mockReturnValue({ user: { role: 'FINANCE_MANAGER' } });
+
+    render(<ConnectionTable connections={[connection]} />);
+
+    expect(
+      screen.getByRole('button', { name: /lịch sử \(authorization-1\)/i }),
+    ).toBeInTheDocument();
   });
 });
