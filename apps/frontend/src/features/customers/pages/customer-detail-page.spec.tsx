@@ -12,6 +12,10 @@ vi.mock('@/lib/api-client', () => ({
   postWithIdempotency: (...args: unknown[]) => postWithIdempotency(...args),
 }));
 
+vi.mock('@/contexts/auth-context', () => ({
+  useAuth: () => ({ user: { role: 'OWNER' } }),
+}));
+
 describe('CustomerDetailPage', () => {
   beforeEach(() => {
     apiRequest.mockReset();
@@ -42,6 +46,19 @@ describe('CustomerDetailPage', () => {
         total: 0,
         page: 1,
         limit: 20,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: 'account-1',
+            customerId: 'customer-1',
+            accountNumberMasked: '******2233',
+            isActive: true,
+            createdAt: '2026-08-01T00:00:00.000Z',
+            updatedAt: '2026-08-01T00:00:00.000Z',
+          },
+        ],
+        total: 1,
       });
 
     const queryClient = new QueryClient({
@@ -61,6 +78,8 @@ describe('CustomerDetailPage', () => {
       expect(screen.getByText('Công ty B')).toBeInTheDocument(),
     );
     expect(screen.getByText(/b@example\.com/)).toBeInTheDocument();
+    expect(await screen.findByText('Tài khoản ngân hàng')).toBeInTheDocument();
+    expect(screen.getByText('******2233')).toBeInTheDocument();
   });
 
   it('shows an allocation action for each unapplied payment', async () => {
@@ -91,7 +110,8 @@ describe('CustomerDetailPage', () => {
           },
         ],
       })
-      .mockResolvedValueOnce({ items: [], total: 0, page: 1, limit: 100 });
+      .mockResolvedValueOnce({ items: [], total: 0, page: 1, limit: 100 })
+      .mockResolvedValueOnce({ items: [], total: 0 });
 
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },

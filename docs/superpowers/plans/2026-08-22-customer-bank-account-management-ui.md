@@ -582,7 +582,7 @@ git commit -m "feat(frontend): add customer bank account management card"
 - Consumes Task 4's `CustomerBankAccountsCard({ customerId })`.
 - Produces the complete issue #234 customer-detail experience without moving bank-account business logic into the page.
 
-- [ ] **Step 1: Write the failing detail-page assertion**
+- [x] **Step 1: Write the failing detail-page assertion**
 
 Extend the existing direct-route test fixture with a fifth `apiRequest` response for the bank-account list and assert that the card title and masked account appear:
 
@@ -607,7 +607,7 @@ expect(screen.getByText('******2233')).toBeInTheDocument();
 
 Add a no-raw-number assertion to ensure the page never renders a full account value.
 
-- [ ] **Step 2: Run the detail-page test and verify RED**
+- [x] **Step 2: Run the detail-page test and verify RED**
 
 Run:
 
@@ -617,7 +617,7 @@ pnpm --filter @casso-ledger/frontend test -- src/features/customers/pages/custom
 
 Expected: FAIL because the page does not render `CustomerBankAccountsCard` or request its data.
 
-- [ ] **Step 3: Place the card in the page**
+- [x] **Step 3: Place the card in the page**
 
 Import `CustomerBankAccountsCard` and render:
 
@@ -627,7 +627,7 @@ Import `CustomerBankAccountsCard` and render:
 
 Place it after the existing contact/payment-term grid and before the activity timeline. Do not add customer bank-account hooks, permissions, mutations, or dialogs directly to `CustomerDetailPage`.
 
-- [ ] **Step 4: Run the focused customer feature suite and verify GREEN**
+- [x] **Step 4: Run the focused customer feature suite and verify GREEN**
 
 Run:
 
@@ -637,7 +637,7 @@ pnpm --filter @casso-ledger/frontend test -- src/features/customers
 
 Expected: all customer API, hook, dialog, card, customer-table, timeline, allocation, and detail-page tests pass.
 
-- [ ] **Step 5: Run type-check and repository verification**
+- [x] **Step 5: Run type-check and repository verification**
 
 Run:
 
@@ -648,7 +648,7 @@ pnpm verify
 
 Expected: both commands exit 0. If the native optional `cpu-features` install warning appears again, it must not be treated as a verification failure when `pnpm install` exits 0; report it separately if it affects the local environment.
 
-- [ ] **Step 6: Commit the page integration**
+- [x] **Step 6: Commit the page integration**
 
 ```bash
 git add apps/frontend/src/features/customers/pages/customer-detail-page.tsx apps/frontend/src/features/customers/pages/customer-detail-page.spec.tsx
@@ -661,12 +661,12 @@ git commit -m "feat(frontend): integrate customer bank accounts into detail page
 
 Before handing off the implementation:
 
-- [ ] `pnpm --filter @casso-ledger/frontend test -- src/features/customers` passes.
-- [ ] `pnpm --filter @casso-ledger/frontend type-check` passes.
-- [ ] `pnpm verify` passes.
-- [ ] The card is visible to read-only users but all write controls are hidden.
-- [ ] Active and inactive rows remain visible after query invalidation.
-- [ ] Deactivation uses `DELETE`; reactivation uses `PATCH { isActive: true }`.
-- [ ] Edit cannot submit an empty replacement.
-- [ ] No raw account number is rendered, copied, logged, or persisted by frontend code.
-- [ ] No backend/API/domain/migration files changed.
+- [x] `pnpm --filter @casso-ledger/frontend test -- src/features/customers` passes.
+- [x] `pnpm --filter @casso-ledger/frontend type-check` passes.
+- [x] `pnpm verify` passes.
+- [x] The card is visible to read-only users but all write controls are hidden.
+- [x] Active and inactive rows remain visible after query invalidation.
+- [x] Deactivation uses `DELETE`; reactivation uses `PATCH { isActive: true }`.
+- [x] Edit cannot submit an empty replacement.
+- [x] No raw account number is rendered, copied, logged, or persisted by frontend code.
+- [x] No backend/API/domain/migration files changed.
