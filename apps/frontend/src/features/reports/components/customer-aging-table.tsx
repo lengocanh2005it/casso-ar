@@ -1,3 +1,4 @@
+import { InitialsAvatar } from '@/components/shared/initials-avatar';
 import {
   Table,
   TableBody,
@@ -30,7 +31,10 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
         {page.items.map((row) => (
           <TableRow key={row.customerId}>
             <TableCell className="max-w-64 break-words">
-              {row.customerName}
+              <div className="flex items-center gap-2">
+                <InitialsAvatar name={row.customerName} size="sm" />
+                {row.customerName}
+              </div>
             </TableCell>
             <TableCell className="max-w-48 break-words">
               {row.taxCode}
