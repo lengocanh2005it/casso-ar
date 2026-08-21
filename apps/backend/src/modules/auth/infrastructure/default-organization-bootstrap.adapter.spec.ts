@@ -9,6 +9,7 @@ describe('DefaultOrganizationBootstrap', () => {
     const saveMany = jest.fn().mockResolvedValue(undefined);
     const templateRepo: IEmailTemplateRepository = {
       findById: jest.fn(),
+      findByIdForUpdate: jest.fn(),
       findAllForOrganization: jest.fn(),
       save: jest.fn(),
       delete: jest.fn(),
@@ -44,6 +45,7 @@ describe('DefaultOrganizationBootstrap', () => {
     const saveMany = jest.fn().mockResolvedValue(undefined);
     const templateRepo: IEmailTemplateRepository = {
       findById: jest.fn(),
+      findByIdForUpdate: jest.fn(),
       findAllForOrganization: jest.fn(),
       save: jest.fn(),
       delete: jest.fn(),
