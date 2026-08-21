@@ -1,4 +1,5 @@
 import { Permission } from '@casso-ledger/shared-types';
+import { InitialsAvatar } from '@/components/shared/initials-avatar';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -53,7 +54,10 @@ export function PolicyTable({
         {policies.map((policy) => (
           <TableRow key={policy.id}>
             <TableCell className="font-medium">
-              {policy.customerGroup}
+              <div className="flex items-center gap-2">
+                <InitialsAvatar name={policy.customerGroup} size="sm" />
+                {policy.customerGroup}
+              </div>
             </TableCell>
             <TableCell>
               {canWrite ? (
