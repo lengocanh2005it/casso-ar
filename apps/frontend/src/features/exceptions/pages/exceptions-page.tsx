@@ -118,7 +118,12 @@ export function ExceptionsPage() {
                 </TableCell>
                 <TableCell className="max-w-64 break-words">
                   {row.transaction.transferContent?.trim() ? (
-                    row.transaction.transferContent
+                    <span
+                      className="line-clamp-2"
+                      title={row.transaction.transferContent}
+                    >
+                      {row.transaction.transferContent}
+                    </span>
                   ) : (
                     <span className="italic text-muted-foreground">
                       Không có nội dung
