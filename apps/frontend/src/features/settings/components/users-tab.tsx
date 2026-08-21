@@ -356,9 +356,7 @@ export function UsersTab() {
           <CardAction>
             <Select
               value={statusFilter}
-              onValueChange={(value) =>
-                setStatusFilter(value as StatusFilter)
-              }
+              onValueChange={(value) => setStatusFilter(value as StatusFilter)}
             >
               <SelectTrigger aria-label="Lọc theo trạng thái">
                 <SelectValue />

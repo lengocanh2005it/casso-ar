@@ -1,5 +1,5 @@
-import { Settings } from 'lucide-react';
 import { render } from '@testing-library/react';
+import { Settings } from 'lucide-react';
 import { describe, expect, it } from 'vitest';
 import { ThemeProvider } from '@/contexts/theme-context';
 import { PageHeader } from './page-header';

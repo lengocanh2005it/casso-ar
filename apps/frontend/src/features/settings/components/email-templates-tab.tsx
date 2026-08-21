@@ -80,111 +80,115 @@ export function EmailTemplatesTab() {
         )}
       </CardHeader>
       <CardContent>
-      {templatesQuery.isPending && (
-        <p role="status" aria-live="polite">
-          Đang tải mẫu email…
-        </p>
-      )}
-      {templatesQuery.isError && (
-        <p role="alert" aria-live="polite" className="text-destructive">
-          Không thể tải mẫu email.
-        </p>
-      )}
-      {templatesQuery.data && templatesQuery.data.length === 0 && (
-        <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Chưa có mẫu email.
-        </p>
-      )}
-      {templatesQuery.data && templatesQuery.data.length > 0 && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Tên</TableHead>
-              <TableHead>Tiêu đề</TableHead>
-              <TableHead>Mặc định</TableHead>
-              {canWrite && <TableHead>Thao tác</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {templatesQuery.data.map((template) => (
-              <TableRow key={template.id}>
-                <TableCell className="max-w-56 break-words font-medium">
-                  {template.name}
-                </TableCell>
-                <TableCell className="max-w-72 break-words">
-                  {template.subject}
-                </TableCell>
-                <TableCell>
-                  {template.isDefault && <Badge>Mặc định</Badge>}
-                </TableCell>
-                {canWrite && (
-                  <TableCell>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        aria-label="Preview template"
-                        onClick={() => setPreviewing(template)}
-                      >
-                        Xem trước
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setEditing(template);
-                          setDialogOpen(true);
-                        }}
-                      >
-                        Sửa
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm">
-                            Xóa
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Xóa mẫu email?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Thao tác này không thể hoàn tác.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Hủy</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => deleteMutation.mutate(template.id)}
-                            >
-                              Xác nhận
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
-                )}
+        {templatesQuery.isPending && (
+          <p role="status" aria-live="polite">
+            Đang tải mẫu email…
+          </p>
+        )}
+        {templatesQuery.isError && (
+          <p role="alert" aria-live="polite" className="text-destructive">
+            Không thể tải mẫu email.
+          </p>
+        )}
+        {templatesQuery.data && templatesQuery.data.length === 0 && (
+          <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+            Chưa có mẫu email.
+          </p>
+        )}
+        {templatesQuery.data && templatesQuery.data.length > 0 && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tên</TableHead>
+                <TableHead>Tiêu đề</TableHead>
+                <TableHead>Mặc định</TableHead>
+                {canWrite && <TableHead>Thao tác</TableHead>}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-      {canWrite && (
-        <>
-          <TemplateDialog
-            template={editing}
-            open={dialogOpen}
-            onOpenChange={setDialogOpen}
-          />
-          <TemplatePreviewDialog
-            template={previewing}
-            open={previewing !== null}
-            onOpenChange={(open) => {
-              if (!open) setPreviewing(null);
-            }}
-          />
-        </>
-      )}
+            </TableHeader>
+            <TableBody>
+              {templatesQuery.data.map((template) => (
+                <TableRow key={template.id}>
+                  <TableCell className="max-w-56 break-words font-medium">
+                    {template.name}
+                  </TableCell>
+                  <TableCell className="max-w-72 break-words">
+                    {template.subject}
+                  </TableCell>
+                  <TableCell>
+                    {template.isDefault && <Badge>Mặc định</Badge>}
+                  </TableCell>
+                  {canWrite && (
+                    <TableCell>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          aria-label="Preview template"
+                          onClick={() => setPreviewing(template)}
+                        >
+                          Xem trước
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditing(template);
+                            setDialogOpen(true);
+                          }}
+                        >
+                          Sửa
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                              Xóa
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Xóa mẫu email?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Thao tác này không thể hoàn tác.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Hủy</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() =>
+                                  deleteMutation.mutate(template.id)
+                                }
+                              >
+                                Xác nhận
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        {canWrite && (
+          <>
+            <TemplateDialog
+              template={editing}
+              open={dialogOpen}
+              onOpenChange={setDialogOpen}
+            />
+            <TemplatePreviewDialog
+              template={previewing}
+              open={previewing !== null}
+              onOpenChange={(open) => {
+                if (!open) setPreviewing(null);
+              }}
+            />
+          </>
+        )}
       </CardContent>
     </Card>
   );
