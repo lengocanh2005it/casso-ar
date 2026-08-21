@@ -1,5 +1,7 @@
+import { Users } from 'lucide-react';
 import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { useCustomers } from '../api/use-customers';
@@ -18,6 +20,7 @@ export function CustomersPage() {
         eyebrow="QUẢN LÝ KHÁCH HÀNG"
         title="Khách hàng"
         description="Quản lý thông tin và danh sách khách hàng."
+        icon={Users}
       />
       <Input
         name="search"
@@ -33,17 +36,21 @@ export function CustomersPage() {
         }
         className="max-w-lg"
       />
-      {isPending && (
-        <p role="status" aria-live="polite">
-          Đang tải danh sách khách hàng…
-        </p>
-      )}
-      {isError && (
-        <p role="alert" aria-live="polite" className="text-destructive">
-          Không thể tải danh sách khách hàng.
-        </p>
-      )}
-      {data && <CustomerTable customers={data.items} />}
+      <Card className="animate-fade-up motion-reduce:animate-none">
+        <CardContent>
+          {isPending && (
+            <p role="status" aria-live="polite">
+              Đang tải danh sách khách hàng…
+            </p>
+          )}
+          {isError && (
+            <p role="alert" aria-live="polite" className="text-destructive">
+              Không thể tải danh sách khách hàng.
+            </p>
+          )}
+          {data && <CustomerTable customers={data.items} />}
+        </CardContent>
+      </Card>
       {data && data.total > 0 && (
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>
