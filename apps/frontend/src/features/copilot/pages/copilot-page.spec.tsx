@@ -181,7 +181,7 @@ describe('CopilotPage', () => {
     );
   });
 
-  it('switches to the Drafts tab and lists drafts from the API', async () => {
+  it('lists drafts in the side panel alongside the chat, without switching views', async () => {
     apiRequest.mockImplementation((config) => {
       if (config.url === '/api/v1/copilot/drafts') {
         return Promise.resolve({
@@ -204,8 +204,12 @@ describe('CopilotPage', () => {
     });
 
     renderPage();
-    fireEvent.mouseDown(screen.getByRole('tab', { name: /drafts/i }));
 
+    // The chat welcome state and the drafts panel are both visible at once —
+    // there is no tab to switch between them any more.
+    await waitFor(() =>
+      expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+    );
     await waitFor(() =>
       expect(
         screen.getByText(/nhắc thanh toán abc company/i),
