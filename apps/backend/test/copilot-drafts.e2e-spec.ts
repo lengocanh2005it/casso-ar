@@ -227,6 +227,21 @@ describe('Copilot drafts list + reopen (e2e)', () => {
       .expect(409);
   });
 
+  it('sanitizes bodyHtml on a manual edit', async () => {
+    const draftId = randomUUID();
+    await seedDraft(draftId, new Date('2026-08-14T02:00:00Z'));
+
+    const updateResponse = await request(app?.getHttpServer())
+      .patch(`/api/v1/copilot/drafts/${draftId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', randomUUID())
+      .send({ bodyHtml: '<p>Hello</p><script>alert(1)</script>' })
+      .expect(200);
+
+    expect(updateResponse.body.bodyHtml).not.toContain('<script');
+    expect(updateResponse.body.bodyHtml).toContain('<p>Hello</p>');
+  });
+
   it('deletes a CANCELLED draft, and blocks deleting a CONFIRMED one', async () => {
     const cancelledDraftId = randomUUID();
     await seedDraft(cancelledDraftId, new Date('2026-08-14T03:00:00Z'));
