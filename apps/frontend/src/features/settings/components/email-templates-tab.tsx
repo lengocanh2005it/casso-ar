@@ -1,4 +1,5 @@
 import { Permission } from '@casso-ledger/shared-types';
+import { Mail } from 'lucide-react';
 import { useState } from 'react';
 import {
   AlertDialog,
@@ -13,6 +14,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -48,25 +57,29 @@ export function EmailTemplatesTab() {
   if (!canRead) return null;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">Mẫu email</h2>
-          <p className="text-sm text-muted-foreground">
-            Quản lý nội dung email dùng trong các chính sách nhắc.
-          </p>
+    <Card className="animate-fade-up motion-reduce:animate-none">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Mail className="size-4 text-primary" />
+          <CardTitle>Mẫu email</CardTitle>
         </div>
+        <CardDescription>
+          Quản lý nội dung email dùng trong các chính sách nhắc.
+        </CardDescription>
         {canWrite && (
-          <Button
-            onClick={() => {
-              setEditing(null);
-              setDialogOpen(true);
-            }}
-          >
-            Tạo mẫu email
-          </Button>
+          <CardAction>
+            <Button
+              onClick={() => {
+                setEditing(null);
+                setDialogOpen(true);
+              }}
+            >
+              Tạo mẫu email
+            </Button>
+          </CardAction>
         )}
-      </div>
+      </CardHeader>
+      <CardContent>
       {templatesQuery.isPending && (
         <p role="status" aria-live="polite">
           Đang tải mẫu email…
@@ -172,6 +185,7 @@ export function EmailTemplatesTab() {
           />
         </>
       )}
-    </div>
+      </CardContent>
+    </Card>
   );
 }
