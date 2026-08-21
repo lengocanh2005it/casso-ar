@@ -5,7 +5,9 @@ import { CustomerGroup } from '../../../customers/domain/customer-group';
 import { Receivable } from '../../../receivables/domain/receivable';
 import { DraftReminderEmailTool } from './draft-reminder-email.tool';
 
-function buildReceivable(): Receivable {
+function buildReceivable(
+  overrides: Partial<ConstructorParameters<typeof Receivable>[0]> = {},
+): Receivable {
   return new Receivable({
     id: 'rec-1',
     organizationId: 'org-1',
@@ -19,6 +21,7 @@ function buildReceivable(): Receivable {
     createdAt: new Date('2026-06-20'),
     closedAt: null,
     version: 1,
+    ...overrides,
   });
 }
 
@@ -38,30 +41,59 @@ function buildCustomer(): Customer {
   };
 }
 
-describe('DraftReminderEmailTool', () => {
-  it('composes and persists a draft from receivable and customer data', async () => {
-    const receivableRepo = {
-      findById: jest.fn().mockResolvedValue(buildReceivable()),
-    };
-    const customerRepo = {
-      findById: jest.fn().mockResolvedValue(buildCustomer()),
-    };
-    const draftRepo = { save: jest.fn() };
-    const tool = new DraftReminderEmailTool(
+function buildTool(overrides: {
+  receivable?: Receivable | null;
+  customer?: Customer | null;
+  save?: jest.Mock;
+}) {
+  const receivableRepo = {
+    findById: jest
+      .fn()
+      .mockResolvedValue(
+        overrides.receivable === undefined
+          ? buildReceivable()
+          : overrides.receivable,
+      ),
+  };
+  const customerRepo = {
+    findById: jest
+      .fn()
+      .mockResolvedValue(
+        overrides.customer === undefined ? buildCustomer() : overrides.customer,
+      ),
+  };
+  const draftRepo = { save: overrides.save ?? jest.fn() };
+  return {
+    tool: new DraftReminderEmailTool(
       receivableRepo as any,
       customerRepo as any,
       draftRepo as any,
-    );
+    ),
+    receivableRepo,
+    customerRepo,
+    draftRepo,
+  };
+}
+
+describe('DraftReminderEmailTool', () => {
+  it('persists the model-authored subject/bodyHtml with a tool-derived recipientEmail', async () => {
+    const { tool, draftRepo } = buildTool({});
 
     const result = await tool.execute(
-      { receivableId: 'rec-1', tone: 'urgent' },
+      {
+        receivableId: 'rec-1',
+        subject: 'Nhắc thanh toán khoản phải thu',
+        bodyHtml: '<p>Kính gửi ABC Company, còn lại 30.000.000 VND.</p>',
+      },
       'org-1',
       'user-1',
     );
 
     expect(result.recipientEmail).toBe('ap@abc.vn');
-    expect(result.subject).toContain('ABC Company');
-    expect(result.bodyHtml).toContain('30.000.000');
+    expect(result.subject).toBe('Nhắc thanh toán khoản phải thu');
+    expect(result.bodyHtml).toBe(
+      '<p>Kính gửi ABC Company, còn lại 30.000.000 VND.</p>',
+    );
     expect(draftRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
         id: result.draftId,
@@ -69,63 +101,118 @@ describe('DraftReminderEmailTool', () => {
         userId: 'user-1',
         receivableId: 'rec-1',
         recipientEmail: 'ap@abc.vn',
+        subject: 'Nhắc thanh toán khoản phải thu',
       }),
     );
   });
 
-  it('throws RECEIVABLE_NOT_FOUND when the receivable is unavailable', async () => {
-    const tool = new DraftReminderEmailTool(
-      { findById: jest.fn().mockResolvedValue(null) } as any,
-      { findById: jest.fn() } as any,
-      { save: jest.fn() } as any,
-    );
-
-    await expect(
-      tool.execute({ receivableId: 'missing' }, 'org-1', 'user-1'),
-    ).rejects.toMatchObject({ errorCode: ErrorCode.RECEIVABLE_NOT_FOUND });
-  });
-
-  it('throws NOT_FOUND when the receivable customer is unavailable', async () => {
-    const tool = new DraftReminderEmailTool(
-      { findById: jest.fn().mockResolvedValue(buildReceivable()) } as any,
-      { findById: jest.fn().mockResolvedValue(null) } as any,
-      { save: jest.fn() } as any,
-    );
-
-    await expect(
-      tool.execute({ receivableId: 'rec-1' }, 'org-1', 'user-1'),
-    ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
-  });
-
-  it('escapes HTML in customer.name inside the draft subject and body', async () => {
-    const maliciousName = '<img src=x onerror=alert(1)> & "quoted"';
-    const receivableRepo = {
-      findById: jest.fn().mockResolvedValue(buildReceivable()),
-    };
-    const customerRepo = {
-      findById: jest.fn().mockResolvedValue({
-        ...buildCustomer(),
-        name: maliciousName,
-      }),
-    };
-    const draftRepo = { save: jest.fn() };
-    const tool = new DraftReminderEmailTool(
-      receivableRepo as any,
-      customerRepo as any,
-      draftRepo as any,
-    );
+  it('sanitizes bodyHtml before persisting and returning it', async () => {
+    const { tool } = buildTool({});
 
     const result = await tool.execute(
-      { receivableId: 'rec-1' },
+      {
+        receivableId: 'rec-1',
+        subject: 'Nhắc thanh toán',
+        bodyHtml: '<p>Hello</p><script>alert(1)</script>',
+      },
       'org-1',
       'user-1',
     );
 
-    expect(result.subject).not.toContain('<img');
-    expect(result.subject).toContain('&lt;img src=x onerror=alert(1)&gt;');
-    expect(result.bodyHtml).not.toContain('<img src=x onerror=');
-    expect(result.bodyHtml).toContain(
-      'Kính gửi &lt;img src=x onerror=alert(1)&gt; &amp; &quot;quoted&quot;,',
-    );
+    expect(result.bodyHtml).not.toContain('<script');
+    expect(result.bodyHtml).toContain('<p>Hello</p>');
+  });
+
+  it('throws VALIDATION_ERROR when subject is missing', async () => {
+    const { tool } = buildTool({});
+
+    await expect(
+      tool.execute(
+        { receivableId: 'rec-1', subject: '', bodyHtml: '<p>ok</p>' } as any,
+        'org-1',
+        'user-1',
+      ),
+    ).rejects.toMatchObject({ errorCode: ErrorCode.VALIDATION_ERROR });
+  });
+
+  it('throws VALIDATION_ERROR when bodyHtml is missing', async () => {
+    const { tool } = buildTool({});
+
+    await expect(
+      tool.execute(
+        { receivableId: 'rec-1', subject: 'Subject', bodyHtml: '' } as any,
+        'org-1',
+        'user-1',
+      ),
+    ).rejects.toMatchObject({ errorCode: ErrorCode.VALIDATION_ERROR });
+  });
+
+  it('throws VALIDATION_ERROR when subject exceeds 200 characters', async () => {
+    const { tool } = buildTool({});
+
+    await expect(
+      tool.execute(
+        {
+          receivableId: 'rec-1',
+          subject: 'x'.repeat(201),
+          bodyHtml: '<p>ok</p>',
+        },
+        'org-1',
+        'user-1',
+      ),
+    ).rejects.toMatchObject({ errorCode: ErrorCode.VALIDATION_ERROR });
+  });
+
+  it('throws VALIDATION_ERROR when bodyHtml exceeds 20000 characters', async () => {
+    const { tool } = buildTool({});
+
+    await expect(
+      tool.execute(
+        {
+          receivableId: 'rec-1',
+          subject: 'Subject',
+          bodyHtml: '<p>' + 'x'.repeat(20_000) + '</p>',
+        },
+        'org-1',
+        'user-1',
+      ),
+    ).rejects.toMatchObject({ errorCode: ErrorCode.VALIDATION_ERROR });
+  });
+
+  it('throws RECEIVABLE_NOT_FOUND when the receivable is unavailable', async () => {
+    const { tool } = buildTool({ receivable: null });
+
+    await expect(
+      tool.execute(
+        { receivableId: 'missing', subject: 'Subject', bodyHtml: '<p>ok</p>' },
+        'org-1',
+        'user-1',
+      ),
+    ).rejects.toMatchObject({ errorCode: ErrorCode.RECEIVABLE_NOT_FOUND });
+  });
+
+  it('throws TENANT_MISMATCH when the receivable belongs to another organization', async () => {
+    const otherOrgReceivable = buildReceivable({ organizationId: 'org-2' });
+    const { tool } = buildTool({ receivable: otherOrgReceivable });
+
+    await expect(
+      tool.execute(
+        { receivableId: 'rec-1', subject: 'Subject', bodyHtml: '<p>ok</p>' },
+        'org-1',
+        'user-1',
+      ),
+    ).rejects.toMatchObject({ errorCode: ErrorCode.TENANT_MISMATCH });
+  });
+
+  it('throws NOT_FOUND when the receivable customer is unavailable', async () => {
+    const { tool } = buildTool({ customer: null });
+
+    await expect(
+      tool.execute(
+        { receivableId: 'rec-1', subject: 'Subject', bodyHtml: '<p>ok</p>' },
+        'org-1',
+        'user-1',
+      ),
+    ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
   });
 });
