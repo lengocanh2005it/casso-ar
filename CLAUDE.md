@@ -2,7 +2,7 @@
 
 # Casso Ledger
 
-A B2B SaaS platform for automating accounts receivable management and collection for Vietnamese businesses. The product directly connects to real-time bank transaction data through Cas ID/CASSO Balance Hook.
+A B2B SaaS platform for automating accounts receivable management and collection for Vietnamese businesses. The product directly connects to real-time bank transaction data through Casso Flow/CASSO Balance Hook.
 
 ## Quick Reference
 
@@ -54,7 +54,7 @@ Each business module follows 4 layers:
 ```
 domain/           Entity, state machine, domain error — NO NestJS/TypeORM imports
 application/      Use case + port interface (I<Entity>Repository)
-infrastructure/   TypeORM repository, adapters (Resend, Cas ID)
+infrastructure/   TypeORM repository, adapters (Resend, Casso Flow)
 presentation/     Controller, DTO, DI wiring
 ```
 

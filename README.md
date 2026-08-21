@@ -1,6 +1,6 @@
 # Casso Ledger
 
-A B2B SaaS platform for automating business receivables management and collection, based on real-time bank transaction data (Cas ID + CASSO Balance Hook).
+A B2B SaaS platform for automating business receivables management and collection, based on real-time bank transaction data (Casso Flow + CASSO Balance Hook).
 
 ## Tech Stack
 
@@ -54,7 +54,7 @@ application/      Use case + repository port (interface)
       ↓
 domain/           Entity, state machine, domain error — no NestJS/TypeORM imports
       ↑
-infrastructure/   TypeORM repository, external adapters (Resend, Cas ID) — implements the port
+infrastructure/   TypeORM repository, external adapters (Resend, Casso Flow) — implements the port
 ```
 
 `domain/` has zero framework dependencies; `application/` depends only on ports it defines, never on `infrastructure/`'s concrete classes — external SDKs and TypeORM live behind an adapter/repository implementation, injected at the module boundary.
@@ -64,7 +64,7 @@ infrastructure/   TypeORM repository, external adapters (Resend, Cas ID) — imp
 ```
 Invoice/Receivable created
         ↓
-Cas ID bank connection → CASSO Balance Hook webhook
+Casso Flow bank connection (business links their bank on flow.casso.vn; this product reads the linked account via OAuth2 and registers the webhook) → CASSO Balance Hook webhook
         ↓
 WebhookInbox (idempotent) → Normalizer → Matching Engine
         ↓
@@ -77,9 +77,9 @@ AR Ledger event appended (dual-write) + Receivable closes when fully paid
 
 **Multi-tenancy:** shared-schema, `organizationId` on every table, enforced by `TenantContextService` — the only runtime source of the current org (ADR-0001).
 
-**Key modules:** `receivables`, `payments`, `invoices`, `customers` (AR core) · `webhooks`, `bank-connections` (Cas ID ingestion + matching) · `receivable-balance-history`, `ledger` (immutable financial history — snapshot log vs. event log, see ADR-0018/ADR-0020) · `reminders`, `email-templates`, `notifications` (collection automation) · `billing`, `payos` (subscription/plan) · `copilot` (AI collection assistant) · `disputes`, `exception-queue`, `collection-activity`, `internal-tasks` (exception handling & audit trail).
+**Key modules:** `receivables`, `payments`, `invoices`, `customers` (AR core) · `webhooks`, `bank-connections` (Casso Flow ingestion + matching) · `receivable-balance-history`, `ledger` (immutable financial history — snapshot log vs. event log, see ADR-0018/ADR-0020) · `reminders`, `email-templates`, `notifications` (collection automation) · `billing`, `payos` (subscription/plan) · `copilot` (AI collection assistant) · `disputes`, `exception-queue`, `collection-activity`, `internal-tasks` (exception handling & audit trail).
 
-Full module map, entities, and business rules: [CONTEXT.md](CONTEXT.md). Architecture decisions with rationale: [docs/adr/](docs/adr/).
+Full module map, entities, and business rules: [CONTEXT.md](CONTEXT.md). Architecture decisions with rationale: [docs/adr/](docs/adr/) — see [ADR-0021](docs/adr/0021-casso-flow-not-cas-id-for-bank-integration.md) for why Casso Flow (flow.casso.vn), not Cas ID, is the bank-transaction-data provider.
 
 ## Documentation
 
