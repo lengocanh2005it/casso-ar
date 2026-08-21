@@ -22,6 +22,7 @@ import {
 } from '../api/use-copilot-drafts';
 import type { CopilotDraft, CopilotDraftStatus } from '../types';
 import { DraftEditDialog } from './draft-edit-dialog';
+import { EmailDraftPreview } from './email-draft-preview';
 
 const STATUS_LABEL: Record<CopilotDraftStatus, string> = {
   DRAFTED: 'Chưa gửi đề xuất',
@@ -73,14 +74,16 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
           <Card key={draft.id}>
             <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
               <CardTitle className="min-w-0 break-words text-sm">
-                {draft.subject}
+                Bản nháp
               </CardTitle>
               <Badge variant="secondary">{STATUS_LABEL[draft.status]}</Badge>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <p className="break-words text-muted-foreground">
-                {draft.recipientEmail}
-              </p>
+              <EmailDraftPreview
+                subject={draft.subject}
+                recipientEmail={draft.recipientEmail}
+                bodyHtml={draft.bodyHtml}
+              />
               {canSendManual && (
                 <div className="flex flex-wrap gap-2">
                   {draft.status === 'PENDING' && draft.pendingActionId && (

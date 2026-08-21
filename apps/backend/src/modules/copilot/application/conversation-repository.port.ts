@@ -24,7 +24,12 @@ export interface CopilotMessageRecord {
   conversationId: string;
   role: CopilotMessageRole;
   content: string;
-  toolCalls: Array<{ id: string; name: string; input: unknown }> | null;
+  toolCalls: Array<{
+    id: string;
+    name: string;
+    input: unknown;
+    output: unknown;
+  }> | null;
   createdAt: Date;
   /** Set when the assistant's answer was cut short by a client-initiated abort mid-stream. */
   isPartial?: boolean;

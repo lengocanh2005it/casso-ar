@@ -4,6 +4,29 @@ import type {
 } from '../../application/conversation-repository.port';
 import type { CopilotDraftListItem } from '../../application/list-copilot-drafts.usecase';
 import type { CopilotPendingAction } from '../../application/pending-action-repository.port';
+import { DraftReminderEmailTool } from '../../application/tools/draft-reminder-email.tool';
+
+export class CopilotMessageDraftDto {
+  draftId: string;
+  receivableId: string;
+  recipientEmail: string;
+  subject: string;
+  bodyHtml: string;
+}
+
+function isDraftReminderEmailOutput(
+  output: unknown,
+): output is CopilotMessageDraftDto {
+  return (
+    typeof output === 'object' &&
+    output !== null &&
+    'draftId' in output &&
+    'receivableId' in output &&
+    'recipientEmail' in output &&
+    'subject' in output &&
+    'bodyHtml' in output
+  );
+}
 
 export class CopilotMessageDto {
   id: string;
@@ -11,6 +34,7 @@ export class CopilotMessageDto {
   content: string;
   createdAt: string;
   isPartial: boolean;
+  drafts: CopilotMessageDraftDto[];
 }
 
 export class CopilotDraftDto {
@@ -63,6 +87,10 @@ export const toCopilotMessageDto = (
   content: message.content,
   createdAt: message.createdAt.toISOString(),
   isPartial: message.isPartial ?? false,
+  drafts: (message.toolCalls ?? [])
+    .filter((call) => call.name === DraftReminderEmailTool.NAME)
+    .map((call) => call.output)
+    .filter(isDraftReminderEmailOutput),
 });
 
 export const toCopilotPendingActionDto = (

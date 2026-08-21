@@ -88,6 +88,7 @@ describe('CopilotController', () => {
         content: 'Summary',
         createdAt: '2026-08-09T10:00:00.000Z',
         isPartial: false,
+        drafts: [],
       },
       pendingAction: null,
     });
@@ -353,6 +354,7 @@ describe('CopilotController', () => {
             content: 'Xin chào',
             createdAt: '2026-08-09T00:00:00.000Z',
             isPartial: false,
+            drafts: [],
           },
         ],
       });

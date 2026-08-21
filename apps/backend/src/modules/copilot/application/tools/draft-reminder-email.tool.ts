@@ -13,6 +13,10 @@ import {
   COPILOT_DRAFT_REPOSITORY,
   type ICopilotDraftRepository,
 } from '../draft-repository.port';
+import { sanitizeEmailHtml } from '../sanitize-email-html';
+
+export const MAX_SUBJECT_LENGTH = 200;
+export const MAX_BODY_HTML_LENGTH = 20_000;
 
 export const DRAFT_REMINDER_EMAIL_SCHEMA: CopilotJsonSchema = {
   type: 'object',
@@ -21,13 +25,20 @@ export const DRAFT_REMINDER_EMAIL_SCHEMA: CopilotJsonSchema = {
       type: 'string',
       description: 'The receivable UUID to draft a reminder for',
     },
-    tone: {
+    subject: {
       type: 'string',
-      enum: ['polite', 'urgent'],
-      description: 'Tone of the reminder email; defaults to polite',
+      maxLength: MAX_SUBJECT_LENGTH,
+      description:
+        'The email subject line, written in Vietnamese, based on real receivable data',
+    },
+    bodyHtml: {
+      type: 'string',
+      maxLength: MAX_BODY_HTML_LENGTH,
+      description:
+        'The email body as HTML, written in Vietnamese, using the real remaining amount and due date from a prior read tool call',
     },
   },
-  required: ['receivableId'],
+  required: ['receivableId', 'subject', 'bodyHtml'],
 };
 
 export interface DraftReminderEmailResult {
@@ -38,22 +49,10 @@ export interface DraftReminderEmailResult {
   bodyHtml: string;
 }
 
-function formatVnd(amount: number): string {
-  return `${amount.toLocaleString('vi-VN')} VND`;
-}
-
-// Customer-controlled values (name originates from CSV/Excel import) are
-// interpolated into the draft's subject/bodyHtml, which is sent verbatim as an
-// email — escape so a name like `<img src=x onerror=...>` cannot execute in
-// HTML-rendering email clients (the Handlebars reminder path already escapes;
-// this draft path must too).
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+export interface DraftReminderEmailInput {
+  receivableId: string;
+  subject: string;
+  bodyHtml: string;
 }
 
 @Injectable()
@@ -70,10 +69,23 @@ export class DraftReminderEmailTool {
   ) {}
 
   async execute(
-    input: { receivableId: string; tone?: 'polite' | 'urgent' },
+    input: DraftReminderEmailInput,
     organizationId: string,
     userId: string,
   ): Promise<DraftReminderEmailResult> {
+    if (!input.subject || input.subject.length > MAX_SUBJECT_LENGTH) {
+      throw new AppError(
+        ErrorCode.VALIDATION_ERROR,
+        `Tiêu đề email phải có từ 1 đến ${MAX_SUBJECT_LENGTH} ký tự.`,
+      );
+    }
+    if (!input.bodyHtml || input.bodyHtml.length > MAX_BODY_HTML_LENGTH) {
+      throw new AppError(
+        ErrorCode.VALIDATION_ERROR,
+        `Nội dung email phải có từ 1 đến ${MAX_BODY_HTML_LENGTH} ký tự.`,
+      );
+    }
+
     const receivable = await this.receivableRepo.findById(input.receivableId);
     if (!receivable) {
       throw new AppError(
@@ -102,20 +114,10 @@ export class DraftReminderEmailTool {
       );
     }
 
-    const tone = input.tone ?? 'polite';
-    const remaining = formatVnd(receivable.remainingAmount);
-    const dueDate = receivable.dueDate.toISOString().slice(0, 10);
-    const customerName = escapeHtml(customer.name);
-    const subject =
-      tone === 'urgent'
-        ? `[Nhắc thanh toán khẩn] ${customerName} - còn lại ${remaining}`
-        : `Nhắc thanh toán - ${customerName}`;
-    const bodyHtml =
-      tone === 'urgent'
-        ? `<p>Kính gửi ${customerName},</p><p>Khoản phải thu đã quá hạn (hạn thanh toán: ${dueDate}). Số tiền còn lại: <strong>${remaining}</strong>. Vui lòng thanh toán sớm nhất có thể.</p>`
-        : `<p>Kính gửi ${customerName},</p><p>Đây là thư nhắc về khoản phải thu đến hạn ngày ${dueDate}; số tiền còn lại là <strong>${remaining}</strong>. Cảm ơn.</p>`;
-
+    const subject = input.subject.trim();
+    const bodyHtml = sanitizeEmailHtml(input.bodyHtml);
     const draftId = randomUUID();
+
     await this.draftRepo.save({
       id: draftId,
       organizationId,

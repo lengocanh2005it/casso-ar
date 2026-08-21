@@ -47,6 +47,7 @@
     "reflect-metadata": "0.2.2",
     "resend": "^6.18.1",
     "rxjs": "7.8.1",
+    "sanitize-html": "^2.16.0",
     "typeorm": "1.1.0",
     "xlsx": "^0.18.5"
   },
@@ -66,6 +67,7 @@
     "@types/nodemailer": "^8.0.1",
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.21.0",
+    "@types/sanitize-html": "^2.16.1",
     "@types/supertest": "6.0.2",
     "dependency-cruiser": "18.1.1",
     "jest": "30.4.2",
