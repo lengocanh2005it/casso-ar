@@ -30,6 +30,7 @@ import type {
   ReminderPolicy,
   ReminderRuleInput,
 } from '../types';
+import { EmailTemplateSelect } from './email-template-select';
 
 interface RuleDraft extends ReminderRuleInput {
   key: string;
@@ -231,15 +232,13 @@ export function PolicyDialog({
                   />
                 </Label>
                 <Label className="space-y-1">
-                  <span className="text-xs">Mã email template</span>
-                  <Input
-                    name={`emailTemplateId-${index}`}
-                    autoComplete="off"
-                    aria-label={`Mã email template ${index + 1}`}
-                    required
+                  <span className="text-xs">Email template</span>
+                  <EmailTemplateSelect
+                    id={`emailTemplateId-${index}`}
+                    ariaLabel={`Email template ${index + 1}`}
                     value={rule.emailTemplateId}
-                    onChange={(event) =>
-                      setRule(index, 'emailTemplateId', event.target.value)
+                    onChange={(templateId) =>
+                      setRule(index, 'emailTemplateId', templateId)
                     }
                   />
                 </Label>

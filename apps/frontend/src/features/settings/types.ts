@@ -2,17 +2,6 @@ import type { MembershipStatus, Role } from '@casso-ledger/shared-types';
 
 export type { MembershipStatus };
 
-export interface EmailTemplate {
-  id: string;
-  name: string;
-  subject: string;
-  bodyHtml: string;
-  reminderStage: string | null;
-  isDefault: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface EmailTemplateInput {
   name: string;
   subject: string;

@@ -12,8 +12,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import type { EmailTemplate } from '@/lib/use-email-templates';
 import { useCreateTemplate, useUpdateTemplate } from '../api/use-settings';
-import type { EmailTemplate } from '../types';
 
 export function TemplateDialog({
   template,
