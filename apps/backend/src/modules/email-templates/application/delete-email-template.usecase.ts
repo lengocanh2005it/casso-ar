@@ -3,6 +3,14 @@ import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
+  ATTACHMENT_STORAGE,
+  type IAttachmentStorage,
+} from './attachment-storage.port';
+import {
+  EMAIL_TEMPLATE_ATTACHMENT_REPOSITORY,
+  type IEmailTemplateAttachmentRepository,
+} from './email-template-attachment-repository.port';
+import {
   EMAIL_TEMPLATE_REPOSITORY,
   type IEmailTemplateRepository,
 } from './email-template-repository.port';
@@ -13,6 +21,10 @@ export class DeleteEmailTemplateUseCase {
     @Inject(EMAIL_TEMPLATE_REPOSITORY)
     private readonly templateRepo: IEmailTemplateRepository,
     private readonly dataSource: DataSource,
+    @Inject(EMAIL_TEMPLATE_ATTACHMENT_REPOSITORY)
+    private readonly attachmentRepo: IEmailTemplateAttachmentRepository,
+    @Inject(ATTACHMENT_STORAGE)
+    private readonly storage: IAttachmentStorage,
   ) {}
 
   async execute(id: string): Promise<void> {
@@ -37,6 +49,12 @@ export class DeleteEmailTemplateUseCase {
         'Không thể xóa mẫu email đang được một quy tắc nhắc nhở sử dụng.',
       );
     }
+
+    const attachments = await this.attachmentRepo.findAllByTemplateId(id);
+    for (const attachment of attachments) {
+      await this.storage.delete(attachment.storageKey);
+    }
+    await this.attachmentRepo.deleteAllByTemplateId(id);
 
     await this.templateRepo.delete(id);
   }

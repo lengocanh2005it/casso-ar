@@ -23,9 +23,16 @@ describe('DeleteEmailTemplateUseCase', () => {
       delete: jest.fn(),
     };
     const dataSource = { query: jest.fn() };
+    const attachmentRepo = {
+      findAllByTemplateId: jest.fn().mockResolvedValue([]),
+      deleteAllByTemplateId: jest.fn(),
+    };
+    const storage = { delete: jest.fn() };
     const useCase = new DeleteEmailTemplateUseCase(
       templateRepo as any,
       dataSource as any,
+      attachmentRepo as any,
+      storage as any,
     );
 
     await expect(useCase.execute('missing')).rejects.toThrow(
@@ -39,9 +46,16 @@ describe('DeleteEmailTemplateUseCase', () => {
       delete: jest.fn(),
     };
     const dataSource = { query: jest.fn() };
+    const attachmentRepo = {
+      findAllByTemplateId: jest.fn().mockResolvedValue([]),
+      deleteAllByTemplateId: jest.fn(),
+    };
+    const storage = { delete: jest.fn() };
     const useCase = new DeleteEmailTemplateUseCase(
       templateRepo as any,
       dataSource as any,
+      attachmentRepo as any,
+      storage as any,
     );
 
     await expect(useCase.execute('tpl-1')).rejects.toThrow(
@@ -57,9 +71,16 @@ describe('DeleteEmailTemplateUseCase', () => {
       delete: jest.fn(),
     };
     const dataSource = { query: jest.fn().mockResolvedValue([{ count: 1 }]) };
+    const attachmentRepo = {
+      findAllByTemplateId: jest.fn().mockResolvedValue([]),
+      deleteAllByTemplateId: jest.fn(),
+    };
+    const storage = { delete: jest.fn() };
     const useCase = new DeleteEmailTemplateUseCase(
       templateRepo as any,
       dataSource as any,
+      attachmentRepo as any,
+      storage as any,
     );
 
     await expect(useCase.execute('tpl-1')).rejects.toThrow(
@@ -76,9 +97,16 @@ describe('DeleteEmailTemplateUseCase', () => {
     const dataSource = {
       query: jest.fn().mockRejectedValue({ code: '42P01' }),
     };
+    const attachmentRepo = {
+      findAllByTemplateId: jest.fn().mockResolvedValue([]),
+      deleteAllByTemplateId: jest.fn(),
+    };
+    const storage = { delete: jest.fn() };
     const useCase = new DeleteEmailTemplateUseCase(
       templateRepo as any,
       dataSource as any,
+      attachmentRepo as any,
+      storage as any,
     );
 
     await expect(useCase.execute('tpl-1')).rejects.toMatchObject({
@@ -94,9 +122,16 @@ describe('DeleteEmailTemplateUseCase', () => {
       delete: jest.fn(),
     };
     const dataSource = { query: jest.fn().mockResolvedValue([{ count: 0 }]) };
+    const attachmentRepo = {
+      findAllByTemplateId: jest.fn().mockResolvedValue([]),
+      deleteAllByTemplateId: jest.fn(),
+    };
+    const storage = { delete: jest.fn() };
     const useCase = new DeleteEmailTemplateUseCase(
       templateRepo as any,
       dataSource as any,
+      attachmentRepo as any,
+      storage as any,
     );
 
     await useCase.execute('tpl-1');
@@ -110,9 +145,16 @@ describe('DeleteEmailTemplateUseCase', () => {
       delete: jest.fn(),
     };
     const dataSource = { query: jest.fn().mockResolvedValue([{ count: 0 }]) };
+    const attachmentRepo = {
+      findAllByTemplateId: jest.fn().mockResolvedValue([]),
+      deleteAllByTemplateId: jest.fn(),
+    };
+    const storage = { delete: jest.fn() };
     const useCase = new DeleteEmailTemplateUseCase(
       templateRepo as any,
       dataSource as any,
+      attachmentRepo as any,
+      storage as any,
     );
 
     await useCase.execute('tpl-1');
@@ -129,9 +171,16 @@ describe('DeleteEmailTemplateUseCase', () => {
       delete: jest.fn(),
     };
     const dataSource = { query: jest.fn().mockResolvedValue([{ count: 0 }]) };
+    const attachmentRepo = {
+      findAllByTemplateId: jest.fn().mockResolvedValue([]),
+      deleteAllByTemplateId: jest.fn(),
+    };
+    const storage = { delete: jest.fn() };
     const useCase = new DeleteEmailTemplateUseCase(
       templateRepo as any,
       dataSource as any,
+      attachmentRepo as any,
+      storage as any,
     );
 
     await useCase.execute('tpl-1');
@@ -142,5 +191,36 @@ describe('DeleteEmailTemplateUseCase', () => {
       ),
       ['tpl-1', 'org-1'],
     );
+  });
+
+  it('deletes attachment files from storage and their rows before deleting the template', async () => {
+    const templateRepo = {
+      findById: jest.fn().mockResolvedValue(buildTemplate(false)),
+      delete: jest.fn(),
+    };
+    const dataSource = { query: jest.fn().mockResolvedValue([{ count: 0 }]) };
+    const attachmentRepo = {
+      findAllByTemplateId: jest
+        .fn()
+        .mockResolvedValue([
+          { storageKey: 'org-1/tpl-1/a.pdf' },
+          { storageKey: 'org-1/tpl-1/b.png' },
+        ]),
+      deleteAllByTemplateId: jest.fn(),
+    };
+    const storage = { delete: jest.fn() };
+    const useCase = new DeleteEmailTemplateUseCase(
+      templateRepo as any,
+      dataSource as any,
+      attachmentRepo as any,
+      storage as any,
+    );
+
+    await useCase.execute('tpl-1');
+
+    expect(storage.delete).toHaveBeenCalledWith('org-1/tpl-1/a.pdf');
+    expect(storage.delete).toHaveBeenCalledWith('org-1/tpl-1/b.png');
+    expect(attachmentRepo.deleteAllByTemplateId).toHaveBeenCalledWith('tpl-1');
+    expect(templateRepo.delete).toHaveBeenCalledWith('tpl-1');
   });
 });
