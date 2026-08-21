@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { HeaderIcon } from './header-icon';
 
 interface PageHeadingProps {
   eyebrow: string;
@@ -22,11 +23,7 @@ export function PageHeading({
   return (
     <div className={cn('flex items-start justify-between gap-4', className)}>
       <div className="flex items-start gap-3">
-        {Icon && (
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Icon aria-hidden="true" className="size-5" />
-          </div>
-        )}
+        {Icon && <HeaderIcon icon={Icon} />}
         <div>
           <p className="text-sm font-medium text-primary">{eyebrow}</p>
           <h1 className="mt-1 text-balance text-2xl font-semibold tracking-tight">

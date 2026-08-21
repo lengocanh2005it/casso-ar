@@ -1,9 +1,9 @@
 import { FileSearch } from 'lucide-react';
 import { useState } from 'react';
 import { PageHeading } from '@/components/layout/page-heading';
+import { SectionCard } from '@/components/layout/section-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { TableSkeleton } from '@/components/ui/skeleton';
@@ -62,107 +62,105 @@ export function ExceptionsPage() {
         }
         className="max-w-lg"
       />
-      <Card className="animate-fade-up motion-reduce:animate-none">
-        <CardContent>
-          {isPending && <TableSkeleton rows={5} />}
-          {isError && (
-            <p role="status" aria-live="polite" className="text-destructive">
-              Không thể tải danh sách giao dịch cần xử lý. Vui lòng thử lại.
-            </p>
-          )}
-          {data && data.items.length === 0 && (
-            <p
-              role="status"
-              aria-live="polite"
-              className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
-            >
-              {search
-                ? 'Không tìm thấy giao dịch phù hợp.'
-                : 'Không có giao dịch cần xử lý.'}
-            </p>
-          )}
-          {data && data.items.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
+      <SectionCard>
+        {isPending && <TableSkeleton rows={5} />}
+        {isError && (
+          <p role="status" aria-live="polite" className="text-destructive">
+            Không thể tải danh sách giao dịch cần xử lý. Vui lòng thử lại.
+          </p>
+        )}
+        {data && data.items.length === 0 && (
+          <p
+            role="status"
+            aria-live="polite"
+            className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
+          >
+            {search
+              ? 'Không tìm thấy giao dịch phù hợp.'
+              : 'Không có giao dịch cần xử lý.'}
+          </p>
+        )}
+        {data && data.items.length > 0 && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    aria-label="Chọn tất cả"
+                    checked={bulkSelection.allSelected}
+                    onCheckedChange={bulkSelection.toggleAll}
+                  />
+                </TableHead>
+                <TableHead>Ngày giờ</TableHead>
+                <TableHead>Đối tác</TableHead>
+                <TableHead>Nội dung chuyển khoản</TableHead>
+                <TableHead>Số tiền</TableHead>
+                <TableHead>Điểm cao nhất</TableHead>
+                <TableHead>Thao tác</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.items.map((row) => (
+                <TableRow key={row.transaction.id}>
+                  <TableCell
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}
+                  >
                     <Checkbox
-                      aria-label="Chọn tất cả"
-                      checked={bulkSelection.allSelected}
-                      onCheckedChange={bulkSelection.toggleAll}
+                      aria-label={`Chọn giao dịch ${row.transaction.providerTransactionId}`}
+                      checked={bulkSelection.isSelected(row.transaction.id)}
+                      onCheckedChange={() =>
+                        bulkSelection.toggle(row.transaction.id)
+                      }
                     />
-                  </TableHead>
-                  <TableHead>Ngày giờ</TableHead>
-                  <TableHead>Đối tác</TableHead>
-                  <TableHead>Nội dung chuyển khoản</TableHead>
-                  <TableHead>Số tiền</TableHead>
-                  <TableHead>Điểm cao nhất</TableHead>
-                  <TableHead>Thao tác</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.items.map((row) => (
-                  <TableRow key={row.transaction.id}>
-                    <TableCell
-                      onClick={(event) => event.stopPropagation()}
-                      onKeyDown={(event) => event.stopPropagation()}
-                    >
-                      <Checkbox
-                        aria-label={`Chọn giao dịch ${row.transaction.providerTransactionId}`}
-                        checked={bulkSelection.isSelected(row.transaction.id)}
-                        onCheckedChange={() =>
-                          bulkSelection.toggle(row.transaction.id)
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {formatDate(row.transaction.transactionDateTime)}
-                    </TableCell>
-                    <TableCell className="max-w-64 break-words">
-                      {row.transaction.counterpartyName || '—'}
-                    </TableCell>
-                    <TableCell className="max-w-64 break-words">
-                      {row.transaction.transferContent?.trim() ? (
-                        <span
-                          className="line-clamp-2"
-                          title={row.transaction.transferContent}
-                        >
-                          {row.transaction.transferContent}
-                        </span>
-                      ) : (
-                        <span className="italic text-muted-foreground">
-                          Không có nội dung
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="tabular-nums">
-                      {formatVND(row.transaction.amount)}
-                    </TableCell>
-                    <TableCell>
-                      {row.topCandidate ? (
-                        <Badge variant="outline">
-                          {row.topCandidate.totalScore}/100
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="link"
-                        size="sm"
-                        onClick={() => setSelected(row.transaction)}
+                  </TableCell>
+                  <TableCell>
+                    {formatDate(row.transaction.transactionDateTime)}
+                  </TableCell>
+                  <TableCell className="max-w-64 break-words">
+                    {row.transaction.counterpartyName || '—'}
+                  </TableCell>
+                  <TableCell className="max-w-64 break-words">
+                    {row.transaction.transferContent?.trim() ? (
+                      <span
+                        className="line-clamp-2"
+                        title={row.transaction.transferContent}
                       >
-                        Xử lý
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                        {row.transaction.transferContent}
+                      </span>
+                    ) : (
+                      <span className="italic text-muted-foreground">
+                        Không có nội dung
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="tabular-nums">
+                    {formatVND(row.transaction.amount)}
+                  </TableCell>
+                  <TableCell>
+                    {row.topCandidate ? (
+                      <Badge variant="outline">
+                        {row.topCandidate.totalScore}/100
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      onClick={() => setSelected(row.transaction)}
+                    >
+                      Xử lý
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </SectionCard>
       {data && (
         <ExceptionsBulkActionBar
           items={data.items}

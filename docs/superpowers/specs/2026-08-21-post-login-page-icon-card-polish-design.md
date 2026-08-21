@@ -52,11 +52,22 @@ Add an optional `icon?: LucideIcon`, rendered to the left of the eyebrow/title s
 For each of the 6 pages, two independent changes land together:
 
 1. Pass the page's `icon` (§2 table) into `PageHeading`/`PageHeader`.
-2. Wrap the page's loading/error/empty/table region in `<Card>` (`apps/frontend/src/components/ui/card.tsx`, already used by Dashboard/Reports/detail pages) with the `animate-fade-up motion-reduce:animate-none` class, so a slow network still animates the card in once data resolves. Search inputs, filter controls, and pagination footers stay **outside** the Card, unchanged — only the data region (skeleton/error message/empty state/table) moves inside `<CardContent>`.
+2. Wrap the page's loading/error/empty/table region in `<Card>` (`apps/frontend/src/components/ui/card.tsx`, already used by Dashboard/Reports/detail pages) with the `animate-fade-up motion-reduce:animate-none` class, so a slow network still animates the card in once data resolves.
+
+**Filter placement (clarified after code review — see PR #311):** the "stays outside the Card" rule applies to **page-level** search/filter controls — the ones next to a page-level pagination footer that affects the whole page's data set (Customers' name search, Receivables' status/customer search, Exceptions' transaction search). These are unchanged and stay above the Card, as originally written.
+
+It does **not** apply to a **section-scoped** filter that belongs to one Card's own data and has no page-level pagination footer of its own — Reminders' "Lịch sử thực thi" `receivableId` filter and `UsersTab`'s status filter are both section-local (each filters only the table inside its own Card, with no separate page-level pager). These live inside that Card (`CardContent` for the Reminders filter, `CardHeader`'s `CardAction` for the Users status filter) so the filter reads as part of the section it controls, not a floating unrelated control between two Cards.
 
 Pages that already have a plain-text `<h2>` section title above their table (Reminders' two sections, `UsersTab`'s "Thành viên", `EmailTemplatesTab`'s "Mẫu email") get a `<CardHeader>` with an icon + `<CardTitle>` replacing that `<h2>`, matching the Reports page's existing `<Card><CardHeader><CardTitle>` pattern. Pages with no section `<h2>` (Customers, Receivables, Exceptions — their only heading is the page-level `PageHeading` above) get a `<Card><CardContent>` with no `CardHeader`, avoiding a redundant duplicate title.
 
 Reports already wraps every section in `<Card>` — it only gets the `PageHeading` icon (§2), no structural change.
+
+## 5a. Shared components (added after code review — see PR #311)
+
+Two shared pieces of markup were extracted once the same shapes started repeating across 4+ files (`.claude/rules/frontend.md`'s Rule of Two):
+
+- `apps/frontend/src/components/layout/header-icon.tsx` — `HeaderIcon({ icon })`, the `size-9` rounded `bg-primary/10 text-primary` box. Used by both `PageHeading` and `PageHeader` instead of each inlining the same markup.
+- `apps/frontend/src/components/layout/section-card.tsx` — `SectionCard({ icon?, title?, description?, action?, className?, children })`, the `<Card className="animate-fade-up ...">` + optional icon/title/description/action `<CardHeader>` shape described above. Used by every page/component in §5 instead of each inlining `Card`/`CardHeader`/`CardTitle`. When `icon`, `title`, `description`, and `action` are all omitted, no `<CardHeader>` renders — this is how Customers/Receivables/Exceptions get a header-less Card.
 
 ## 6. Out of scope (confirmed via grilling, tracked separately)
 

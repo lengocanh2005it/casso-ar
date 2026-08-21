@@ -2,14 +2,8 @@ import { Permission } from '@casso-ledger/shared-types';
 import { Bell, History } from 'lucide-react';
 import { useState } from 'react';
 import { PageHeading } from '@/components/layout/page-heading';
+import { SectionCard } from '@/components/layout/section-card';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
@@ -70,39 +64,27 @@ export function RemindersPage() {
         }
       />
 
-      <Card className="animate-fade-up motion-reduce:animate-none">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Bell className="size-4 text-primary" />
-            <CardTitle>Chính sách nhắc</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {policiesPending && (
-            <p role="status" aria-live="polite">
-              Đang tải chính sách…
-            </p>
-          )}
-          {policiesError && (
-            <p role="alert" aria-live="polite" className="text-destructive">
-              Không thể tải chính sách nhắc.
-            </p>
-          )}
-          {policies && <PolicyTable policies={policies} onEdit={openEdit} />}
-        </CardContent>
-      </Card>
+      <SectionCard icon={Bell} title="Chính sách nhắc">
+        {policiesPending && (
+          <p role="status" aria-live="polite">
+            Đang tải chính sách…
+          </p>
+        )}
+        {policiesError && (
+          <p role="alert" aria-live="polite" className="text-destructive">
+            Không thể tải chính sách nhắc.
+          </p>
+        )}
+        {policies && <PolicyTable policies={policies} onEdit={openEdit} />}
+      </SectionCard>
 
-      <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:40ms]">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <History className="size-4 text-primary" />
-            <CardTitle>Lịch sử thực thi</CardTitle>
-          </div>
-          <CardDescription>
-            Tra cứu các lần gửi hoặc bỏ qua email nhắc.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <SectionCard
+        icon={History}
+        title="Lịch sử thực thi"
+        description="Tra cứu các lần gửi hoặc bỏ qua email nhắc."
+        className="[animation-delay:40ms]"
+      >
+        <div className="space-y-3">
           <Input
             name="receivableId"
             autoComplete="off"
@@ -127,8 +109,8 @@ export function RemindersPage() {
           {executionsQuery.data && (
             <ExecutionsTable executions={executionsQuery.data.items} />
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </SectionCard>
 
       <PolicyDialog
         policy={editingPolicy}

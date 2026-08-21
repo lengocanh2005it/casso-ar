@@ -1,6 +1,7 @@
 import { Permission, Role } from '@casso-ledger/shared-types';
 import { Users } from 'lucide-react';
 import { memo, useCallback, useState } from 'react';
+import { SectionCard } from '@/components/layout/section-card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,13 +15,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -347,42 +341,37 @@ export function UsersTab() {
           </Button>
         </div>
       )}
-      <Card className="animate-fade-up motion-reduce:animate-none">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Users className="size-4 text-primary" />
-            <CardTitle>Thành viên</CardTitle>
-          </div>
-          <CardAction>
-            <Select
-              value={statusFilter}
-              onValueChange={(value) => setStatusFilter(value as StatusFilter)}
-            >
-              <SelectTrigger aria-label="Lọc theo trạng thái">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>{statusFilterItems}</SelectContent>
-            </Select>
-          </CardAction>
-        </CardHeader>
-        <CardContent>
-          {membersQuery.isPending && membersLoadingMessage}
-          {membersQuery.isError && membersErrorMessage}
-          {membersQuery.data && (
-            <MembersTable
-              members={filteredMembers}
-              emptyMessage={emptyMessage}
-              canManage={canManage}
-              canBlock={canBlock}
-              currentUserId={user?.id}
-              onRoleChange={handleRoleChange}
-              onRemove={handleRemove}
-              onBlock={handleBlock}
-              onUnblock={handleUnblock}
-            />
-          )}
-        </CardContent>
-      </Card>
+      <SectionCard
+        icon={Users}
+        title="Thành viên"
+        action={
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+          >
+            <SelectTrigger aria-label="Lọc theo trạng thái">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>{statusFilterItems}</SelectContent>
+          </Select>
+        }
+      >
+        {membersQuery.isPending && membersLoadingMessage}
+        {membersQuery.isError && membersErrorMessage}
+        {membersQuery.data && (
+          <MembersTable
+            members={filteredMembers}
+            emptyMessage={emptyMessage}
+            canManage={canManage}
+            canBlock={canBlock}
+            currentUserId={user?.id}
+            onRoleChange={handleRoleChange}
+            onRemove={handleRemove}
+            onBlock={handleBlock}
+            onUnblock={handleUnblock}
+          />
+        )}
+      </SectionCard>
       {canManage && (
         <PendingInvitesTable organizationId={user?.organizationId} />
       )}
