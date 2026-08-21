@@ -361,7 +361,7 @@ git commit -m "feat(frontend): add customer bank account query hooks"
 - Consumes Task 2's `useCreateCustomerBankAccount` and `useUpdateCustomerBankAccount` hooks plus `getApiErrorMessage` from `@/lib/api-client`.
 - Produces `CustomerBankAccountDialog({ customerId, account, open, onOpenChange })`.
 
-- [ ] **Step 1: Write the failing dialog tests**
+- [x] **Step 1: Write the failing dialog tests**
 
 Cover these public behaviors:
 
@@ -409,7 +409,7 @@ it('shows the backend duplicate message inline', async () => {
 
 Also verify that a successful create calls `postWithIdempotency` with the raw input only in the request and invokes `onOpenChange(false)`, while the rendered UI never displays a raw account response value.
 
-- [ ] **Step 2: Run the dialog tests and verify RED**
+- [x] **Step 2: Run the dialog tests and verify RED**
 
 Run:
 
@@ -419,7 +419,7 @@ pnpm --filter @casso-ledger/frontend test -- src/features/customers/components/c
 
 Expected: FAIL because the dialog component does not exist.
 
-- [ ] **Step 3: Implement the dialog shell and form state**
+- [x] **Step 3: Implement the dialog shell and form state**
 
 Use the existing `Dialog`, `DialogContent`, `DialogHeader`, `DialogDescription`, `DialogFooter`, `DialogTitle`, `Input`, and `Button` components. The component must:
 
@@ -436,15 +436,15 @@ Use the existing `Dialog`, `DialogContent`, `DialogHeader`, `DialogDescription`,
 
 Use the exact submit labels `Thêm` and `Lưu thay đổi`; pending labels are `Đang thêm…` and `Đang lưu…`.
 
-- [ ] **Step 4: Run the dialog tests and verify GREEN**
+- [x] **Step 4: Run the dialog tests and verify GREEN**
 
 Run the same focused command. Expected: all dialog tests pass.
 
-- [ ] **Step 5: Refactor only after the tests are green**
+- [x] **Step 5: Refactor only after the tests are green**
 
 Keep the dialog self-contained. Do not extract a generic CRUD form or a new error abstraction for this one feature.
 
-- [ ] **Step 6: Commit the dialog slice**
+- [x] **Step 6: Commit the dialog slice**
 
 ```bash
 git add apps/frontend/src/features/customers/components/customer-bank-account-dialog.tsx apps/frontend/src/features/customers/components/customer-bank-account-dialog.spec.tsx
