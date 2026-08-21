@@ -4,6 +4,7 @@ import type {
 } from '../../application/conversation-repository.port';
 import type { CopilotDraftListItem } from '../../application/list-copilot-drafts.usecase';
 import type { CopilotPendingAction } from '../../application/pending-action-repository.port';
+import { DraftReminderEmailTool } from '../../application/tools/draft-reminder-email.tool';
 
 export class CopilotMessageDraftDto {
   draftId: string;
@@ -87,7 +88,7 @@ export const toCopilotMessageDto = (
   createdAt: message.createdAt.toISOString(),
   isPartial: message.isPartial ?? false,
   drafts: (message.toolCalls ?? [])
-    .filter((call) => call.name === 'draftReminderEmail')
+    .filter((call) => call.name === DraftReminderEmailTool.NAME)
     .map((call) => call.output)
     .filter(isDraftReminderEmailOutput),
 });

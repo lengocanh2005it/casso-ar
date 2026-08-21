@@ -171,7 +171,7 @@ describe('DraftReminderEmailTool', () => {
         {
           receivableId: 'rec-1',
           subject: 'Subject',
-          bodyHtml: '<p>' + 'x'.repeat(20_000) + '</p>',
+          bodyHtml: `<p>${'x'.repeat(20_000)}</p>`,
         },
         'org-1',
         'user-1',

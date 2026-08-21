@@ -139,6 +139,8 @@ function isDraftReminderEmailResult(
   );
 }
 
+type ToolCallRecord = NonNullable<CopilotMessageRecord['toolCalls']>[number];
+
 @Injectable()
 export class CopilotChatUseCase {
   constructor(
@@ -294,6 +296,74 @@ export class CopilotChatUseCase {
     }
   }
 
+  // Runs every tool call in a response except sendReminderEmail (which is
+  // never executed — it's intercepted into a pending action) and returns
+  // each call's result keyed by call id, for both attaching as message
+  // output and (for draftReminderEmail) surfacing to the frontend.
+  private async runNonSendToolCalls(
+    calls: AIToolCall[],
+    organizationId: string,
+    userId: string,
+  ): Promise<Map<string, unknown>> {
+    const batchedResults = await Promise.all(
+      calls
+        .filter((call) => call.name !== SendReminderEmailTool.NAME)
+        .map(async (call) => ({
+          call,
+          result: await this.executeTool(
+            call.name,
+            call.arguments,
+            organizationId,
+            userId,
+          ).catch(() => null),
+        })),
+    );
+    return new Map(batchedResults.map(({ call, result }) => [call.id, result]));
+  }
+
+  // Merges draft results accumulated from earlier iterations of this turn
+  // with this response's own tool calls (each looked up in outputByCallId),
+  // into the toolCalls array persisted on the turn-ending message.
+  private buildToolCallRecords(
+    draftToolCalls: ToolCallRecord[],
+    calls: AIToolCall[],
+    outputByCallId: Map<string, unknown>,
+  ): ToolCallRecord[] {
+    return [
+      ...draftToolCalls,
+      ...calls.map((call) => ({
+        id: call.id,
+        name: call.name,
+        input: call.arguments,
+        output: outputByCallId.get(call.id) ?? null,
+      })),
+    ];
+  }
+
+  // Appends any successful draftReminderEmail result from this iteration
+  // onto the turn's running draftToolCalls accumulator, so it survives to
+  // whichever later iteration ends up persisting the turn's message.
+  private trackDraftToolCalls(
+    calls: AIToolCall[],
+    toolResults: Array<{ id: string; result: unknown }>,
+    draftToolCalls: ToolCallRecord[],
+  ): void {
+    for (const call of calls) {
+      const toolResult = toolResults.find((r) => r.id === call.id);
+      if (
+        toolResult &&
+        isDraftReminderEmailResult(call.name, toolResult.result)
+      ) {
+        draftToolCalls.push({
+          id: call.id,
+          name: call.name,
+          input: call.arguments,
+          output: toolResult.result,
+        });
+      }
+    }
+  }
+
   private toAiHistory(messages: CopilotMessageRecord[]): AIChatMessage[] {
     return messages.map((message): AIChatMessage => {
       if (message.role === 'TOOL') {
@@ -333,12 +403,7 @@ export class CopilotChatUseCase {
       ),
     ];
     const tools = this.toolRegistry.getTools(canSendReminders);
-    const draftToolCalls: Array<{
-      id: string;
-      name: string;
-      input: unknown;
-      output: unknown;
-    }> = [];
+    const draftToolCalls: ToolCallRecord[] = [];
 
     for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
       const response = await this.callModelWithRetry(
@@ -353,21 +418,10 @@ export class CopilotChatUseCase {
       if (sendCall) {
         const draftId = requiredString(sendCall.arguments, 'draftId');
         const receivableId = requiredString(sendCall.arguments, 'receivableId');
-        const batchedResults = await Promise.all(
-          response.toolCalls
-            .filter((call) => call.name !== SendReminderEmailTool.NAME)
-            .map(async (call) => ({
-              call,
-              result: await this.executeTool(
-                call.name,
-                call.arguments,
-                user.organizationId,
-                user.userId,
-              ).catch(() => null),
-            })),
-        );
-        const outputByCallId = new Map(
-          batchedResults.map(({ call, result }) => [call.id, result]),
+        const outputByCallId = await this.runNonSendToolCalls(
+          response.toolCalls,
+          user.organizationId,
+          user.userId,
         );
         const { pendingAction, saved } = await this.dataSource.transaction(
           async (manager) => {
@@ -381,15 +435,11 @@ export class CopilotChatUseCase {
                 conversationId: input.conversationId,
                 role: 'ASSISTANT',
                 content: response.content ?? '',
-                toolCalls: [
-                  ...draftToolCalls,
-                  ...response.toolCalls.map((call) => ({
-                    id: call.id,
-                    name: call.name,
-                    input: call.arguments,
-                    output: outputByCallId.get(call.id) ?? null,
-                  })),
-                ],
+                toolCalls: this.buildToolCallRecords(
+                  draftToolCalls,
+                  response.toolCalls,
+                  outputByCallId,
+                ),
                 createdAt: new Date(),
               },
               manager,
@@ -422,20 +472,7 @@ export class CopilotChatUseCase {
           ).catch((error: unknown) => toToolErrorPayload(error)),
         })),
       );
-      for (const call of response.toolCalls) {
-        const toolResult = toolResults.find((r) => r.id === call.id);
-        if (
-          toolResult &&
-          isDraftReminderEmailResult(call.name, toolResult.result)
-        ) {
-          draftToolCalls.push({
-            id: call.id,
-            name: call.name,
-            input: call.arguments,
-            output: toolResult.result,
-          });
-        }
-      }
+      this.trackDraftToolCalls(response.toolCalls, toolResults, draftToolCalls);
       messages.push({
         role: 'assistant',
         content: response.content,
@@ -492,12 +529,7 @@ export class CopilotChatUseCase {
         description: tool.function.description,
         parameters: { ...tool.function.parameters },
       }));
-      const draftToolCalls: Array<{
-        id: string;
-        name: string;
-        input: unknown;
-        output: unknown;
-      }> = [];
+      const draftToolCalls: ToolCallRecord[] = [];
 
       for (
         let iteration = 0;
@@ -546,21 +578,10 @@ export class CopilotChatUseCase {
             sendCall.arguments,
             'receivableId',
           );
-          const batchedResults = await Promise.all(
-            toolCalls
-              .filter((call) => call.name !== SendReminderEmailTool.NAME)
-              .map(async (call) => ({
-                call,
-                result: await this.executeTool(
-                  call.name,
-                  call.arguments,
-                  user.organizationId,
-                  user.userId,
-                ).catch(() => null),
-              })),
-          );
-          const outputByCallId = new Map(
-            batchedResults.map(({ call, result }) => [call.id, result]),
+          const outputByCallId = await this.runNonSendToolCalls(
+            toolCalls,
+            user.organizationId,
+            user.userId,
           );
           const { pendingAction, saved } = await this.dataSource.transaction(
             async (manager) => {
@@ -574,15 +595,11 @@ export class CopilotChatUseCase {
                   conversationId: input.conversationId,
                   role: 'ASSISTANT',
                   content,
-                  toolCalls: [
-                    ...draftToolCalls,
-                    ...toolCalls.map((call) => ({
-                      id: call.id,
-                      name: call.name,
-                      input: call.arguments,
-                      output: outputByCallId.get(call.id) ?? null,
-                    })),
-                  ],
+                  toolCalls: this.buildToolCallRecords(
+                    draftToolCalls,
+                    toolCalls,
+                    outputByCallId,
+                  ),
                   createdAt: new Date(),
                 },
                 manager,
@@ -617,20 +634,7 @@ export class CopilotChatUseCase {
             ).catch((error: unknown) => toToolErrorPayload(error)),
           })),
         );
-        for (const call of toolCalls) {
-          const toolResult = toolResults.find((r) => r.id === call.id);
-          if (
-            toolResult &&
-            isDraftReminderEmailResult(call.name, toolResult.result)
-          ) {
-            draftToolCalls.push({
-              id: call.id,
-              name: call.name,
-              input: call.arguments,
-              output: toolResult.result,
-            });
-          }
-        }
+        this.trackDraftToolCalls(toolCalls, toolResults, draftToolCalls);
         messages.push({
           role: 'assistant',
           content: content || null,

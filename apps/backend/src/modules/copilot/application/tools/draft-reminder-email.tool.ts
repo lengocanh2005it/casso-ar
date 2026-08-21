@@ -15,8 +15,8 @@ import {
 } from '../draft-repository.port';
 import { sanitizeEmailHtml } from '../sanitize-email-html';
 
-const MAX_SUBJECT_LENGTH = 200;
-const MAX_BODY_HTML_LENGTH = 20_000;
+export const MAX_SUBJECT_LENGTH = 200;
+export const MAX_BODY_HTML_LENGTH = 20_000;
 
 export const DRAFT_REMINDER_EMAIL_SCHEMA: CopilotJsonSchema = {
   type: 'object',

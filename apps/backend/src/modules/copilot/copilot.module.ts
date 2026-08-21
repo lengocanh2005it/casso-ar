@@ -24,7 +24,11 @@ import { ListCopilotConversationsUseCase } from './application/list-copilot-conv
 import { ListCopilotDraftsUseCase } from './application/list-copilot-drafts.usecase';
 import { COPILOT_PENDING_ACTION_REPOSITORY } from './application/pending-action-repository.port';
 import { ReopenCopilotDraftUseCase } from './application/reopen-copilot-draft.usecase';
-import { DraftReminderEmailTool } from './application/tools/draft-reminder-email.tool';
+import {
+  DraftReminderEmailTool,
+  MAX_BODY_HTML_LENGTH,
+  MAX_SUBJECT_LENGTH,
+} from './application/tools/draft-reminder-email.tool';
 import { GetCollectionActivityTimelineTool } from './application/tools/get-collection-activity-timeline.tool';
 import { GetPaymentHistoryTool } from './application/tools/get-payment-history.tool';
 import { GetReceivableSummaryTool } from './application/tools/get-receivable-summary.tool';
@@ -88,8 +92,8 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
       type: 'object',
       properties: {
         receivableId: { type: 'string' },
-        subject: { type: 'string', maxLength: 200 },
-        bodyHtml: { type: 'string', maxLength: 20000 },
+        subject: { type: 'string', maxLength: MAX_SUBJECT_LENGTH },
+        bodyHtml: { type: 'string', maxLength: MAX_BODY_HTML_LENGTH },
       },
       required: ['receivableId', 'subject', 'bodyHtml'],
     },
