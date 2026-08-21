@@ -1,6 +1,6 @@
 import { apiRequest, postWithIdempotency } from '@/lib/api-client';
+import type { EmailTemplate } from '@/lib/use-email-templates';
 import type {
-  EmailTemplate,
   EmailTemplateInput,
   EmailTemplatePreview,
   MemberStatusResponse,
@@ -62,13 +62,6 @@ export function deleteSmtpConfig(): Promise<{ success: boolean }> {
     url: '/api/v1/smtp-config',
     method: 'DELETE',
     headers: { 'Idempotency-Key': crypto.randomUUID() },
-  });
-}
-
-export function fetchEmailTemplates(): Promise<EmailTemplate[]> {
-  return apiRequest<EmailTemplate[]>({
-    url: '/api/v1/email-templates',
-    method: 'GET',
   });
 }
 

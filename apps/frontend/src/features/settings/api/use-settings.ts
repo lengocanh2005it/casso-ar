@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { emailTemplatesKey } from '@/lib/use-email-templates';
 import type {
   EmailTemplateInput,
   OrganizationMemberList,
@@ -11,7 +12,6 @@ import {
   createEmailTemplate,
   deleteEmailTemplate,
   deleteSmtpConfig,
-  fetchEmailTemplates,
   fetchOrganizationInvites,
   fetchOrganizationMembers,
   fetchSmtpConfig,
@@ -27,16 +27,7 @@ import {
   updateEmailTemplate,
 } from './settings-api';
 
-const templatesKey = ['email-templates'];
 const smtpConfigKey = ['smtp-config'];
-
-export function useEmailTemplates(enabled = true) {
-  return useQuery({
-    queryKey: templatesKey,
-    queryFn: fetchEmailTemplates,
-    enabled,
-  });
-}
 
 export function useSmtpConfig(enabled = true) {
   return useQuery({
@@ -75,7 +66,7 @@ export function useCreateTemplate() {
     mutationFn: createEmailTemplate,
     onSuccess: () => {
       toast.success('Đã tạo mẫu email.');
-      void queryClient.invalidateQueries({ queryKey: templatesKey });
+      void queryClient.invalidateQueries({ queryKey: emailTemplatesKey });
     },
     onError: () => toast.error('Không thể tạo mẫu email.'),
   });
@@ -93,7 +84,7 @@ export function useUpdateTemplate() {
     }) => updateEmailTemplate(id, input),
     onSuccess: () => {
       toast.success('Đã cập nhật mẫu email.');
-      void queryClient.invalidateQueries({ queryKey: templatesKey });
+      void queryClient.invalidateQueries({ queryKey: emailTemplatesKey });
     },
     onError: () => toast.error('Không thể cập nhật mẫu email.'),
   });
@@ -105,7 +96,7 @@ export function useDeleteTemplate() {
     mutationFn: deleteEmailTemplate,
     onSuccess: () => {
       toast.success('Đã xóa mẫu email.');
-      void queryClient.invalidateQueries({ queryKey: templatesKey });
+      void queryClient.invalidateQueries({ queryKey: emailTemplatesKey });
     },
     onError: () => toast.error('Không thể xóa mẫu email.'),
   });
