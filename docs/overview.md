@@ -4,7 +4,7 @@
 
 - **Project title (VI):** Building a platform for automated management and collection of corporate receivables based on real-time bank transaction data.
 - **Project title (EN):** Design and Development of a Real-Time Accounts Receivable Automation Platform.
-- **Product:** A B2B SaaS platform built by CASSO. The system helps businesses track receivables, automatically remind customers to pay, connect bank accounts through Cas ID, receive transaction data from CASSO Balance Hook, automatically match transactions to receivables, and close receivables when paid in full.
+- **Product:** A B2B SaaS platform built by CASSO. The system helps businesses track receivables, automatically remind customers to pay, read a bank account already linked on Casso Flow, receive transaction data from CASSO Balance Hook, automatically match transactions to receivables, and close receivables when paid in full.
 - **Positioning:** *A platform that automates the entire accounts-receivable lifecycle using real-time bank transaction data* — the key differentiator is direct connection to actual cash flow, not merely invoice-list management.
 
 ## 2. Users
@@ -15,7 +15,7 @@
 | **Businesses (CASSO customers)** | Direct product users: manage receivables, configure reminder schedules, monitor transactions, handle exceptions, and view reports. |
 | **Business roles** | AR accountant, chief accountant, finance staff, customer-facing sales staff, finance manager, business owner/CEO. |
 | **Businesses' end customers** | Individuals/businesses that owe money; they do not log in, but receive reminder emails, invoice information, and payment-confirmation receipts. |
-| **Cas ID** | The **consent and bank-account connection layer** — connects bank accounts, verifies/grants data access, manages authorizations, and revokes access. It is **NOT SSO** for this product and does not replace AR Automation's login system. |
+| **Casso Flow** | A separate third-party service (flow.casso.vn, unrelated company, name collision only — see [ADR-0021](adr/0021-casso-flow-not-cas-id-for-bank-integration.md)) where the business links its own bank account directly. This product only reads the already-linked account via Casso Flow's OAuth2 and receives its transaction webhook — it does not grant bank access itself and is **NOT SSO** for this product. |
 
 ## 3. Problem & Value
 
@@ -34,7 +34,7 @@ Create invoice / receivable (manually or by Excel/CSV import)
         ↓
 Configure reminder schedule by customer group (VIP/REGULAR) + number of days from dueDate
         ↓
-Connect bank account through Cas ID (OAuth-style, QR scan)
+Read a bank account already linked on Casso Flow (flow.casso.vn) via OAuth2, register the webhook
         ↓
 CASSO Balance Hook sends transaction webhook
         ↓
@@ -79,7 +79,7 @@ Payment P2: 25.000.000
 | Receivable | [domain-core-design](docs/superpowers/specs/2026-08-03-domain-core-design.md) |
 | Reminder | [reminder-automation-design](docs/superpowers/specs/2026-08-03-reminder-automation-design.md) |
 | Email template | [email-template-management-design](docs/superpowers/specs/2026-08-03-email-template-management-design.md) |
-| Cas ID / bank connection | [cas-id-bank-connection-design](docs/superpowers/specs/2026-08-03-cas-id-bank-connection-design.md) |
+| Casso Flow / bank connection | [cas-id-bank-connection-design](docs/superpowers/specs/2026-08-03-cas-id-bank-connection-design.md) (superseded by [ADR-0021](adr/0021-casso-flow-not-cas-id-for-bank-integration.md)) |
 | Webhook + matching | [webhook-matching-engine-design](docs/superpowers/specs/2026-08-03-webhook-matching-engine-design.md) |
 | Payment allocation | [domain-core-design](docs/superpowers/specs/2026-08-03-domain-core-design.md) |
 | Exception queue + Audit log | [exception-queue-audit-log-design](docs/superpowers/specs/2026-08-03-exception-queue-audit-log-design.md) |
@@ -196,8 +196,8 @@ casso-ledger/ (pnpm + Turborepo)
 **Four-layer Clean Architecture for each BE module** (`domain/application/infrastructure/presentation`):
 
 - `domain/`: plain TS entities, state machine, domain errors — **does not import NestJS/TypeORM**.
-- `application/`: use-case + port interface (`I<Entity>Repository`, `EmailProviderAdapter`, `CasIdIntegrationAdapter`).
-- `infrastructure/`: TypeORM repositories and concrete adapters (Resend, mock/real Cas ID).
+- `application/`: use-case + port interface (`I<Entity>Repository`, `EmailProviderAdapter`, `CassoFlowIntegrationAdapter`).
+- `infrastructure/`: TypeORM repositories and concrete adapters (Resend, mock/real Casso Flow).
 - `presentation/`: controller, DTO, DI wiring. Dependency: `presentation → application → domain`, `infrastructure → application`.
 
 **Core stack:** PostgreSQL 16 (shared-schema, TypeORM) + Redis/BullMQ (queue, daily cron); Jest + testcontainers (real Postgres/Redis for integration tests); Biome (format+lint, replacing ESLint/Prettier); Docker Compose 4 services (backend, frontend/nginx, postgres, redis); `GET /health` (503 if a dependency fails), `GET /metrics` (Prometheus, 4 required series), structured JSON logs to stdout.
@@ -253,7 +253,7 @@ List of main entities (field details/ERD are in each spec; no ERD is drawn here)
 | `CollectionActivity` | Timeline denormalized; INSERT-only. |
 | `InternalTask` | Internal ESCALATION/MANUAL task, status OPEN/DONE/DISMISSED. |
 | `AuditLog` | `@Audited` + interceptor, before/afterState jsonb, INSERT-only. |
-| `BankConnection` / `CasIdConnectionSession` / `ConnectionAuditEvent` | Bank connection: accessToken encrypted at rest, 6 statuses (ACTIVE/REQUIRES_REAUTHORIZATION/...), connection-event audit. |
+| `BankConnection` / `CassoFlowAuthorization` / `ConnectionAuditEvent` | Bank connection: secure token encrypted at rest, 6 statuses (ACTIVE/REQUIRES_REAUTHORIZATION/...), connection-event audit. |
 | `Subscription` | FREE/STARTER/BUSINESS/ENTERPRISE plan + 2 limit snapshots + current period. |
 | `CopilotConversation` / `CopilotMessage` / `CopilotPendingAction` / `AIUsageLog` | Chat conversation, pending action (SEND_REMINDER_EMAIL, EXPIRED after 10 minutes), model-usage log. |
 | Token entities | `EmailVerificationToken`, `PasswordResetToken`, `MembershipInvite`, `RefreshToken` — all store hashes (SHA-256), never plaintext. ([auth section 1](docs/superpowers/specs/2026-08-03-authentication-onboarding-design.md)) |
@@ -291,7 +291,7 @@ List of main entities (field details/ERD are in each spec; no ERD is drawn here)
 
 ## 16. Non-functional requirements
 
-- **Security:** TLS for all connections; encrypt sensitive data (accessToken at rest, never log plaintext); do not store unnecessary bank credentials; RBAC + tenant isolation; rate limiting `/auth/*` (5 requests/minute by IP+email); constant-time webhook auth comparison; audit log; minimum consent scope; do not use Cas ID as SSO.
+- **Security:** TLS for all connections; encrypt sensitive data (accessToken at rest, never log plaintext); do not store unnecessary bank credentials; RBAC + tenant isolation; rate limiting `/auth/*` (5 requests/minute by IP+email); constant-time webhook auth comparison; audit log; minimum consent scope; do not use Casso Flow as SSO.
 - **Reliability:** webhooks are not lost (inbox before processing); retry backoff; DLQ for failed jobs; idempotency unique keys (webhook: `providerTransactionId`; FE-called API: `Idempotency-Key` header); DB transactions for all money/status changes; backup: daily `pg_dump` cron, retain the 7 most recent copies ([deployment section 5](docs/superpowers/specs/2026-08-03-deployment-observability-design.md)).
 - **Performance:** real-time queries with the correct index (`Receivable(organizationId, status, dueDate)`) — **no precomputation** at MVP scale; matching runs asynchronously through a queue; paginate every list (`page/limit`, maximum 100).
 - **Observability:** structured JSON logs to stdout (timestamp, level, organizationId, userId, requestId); `/metrics` Prometheus (HTTP duration, webhook duration, BullMQ failed/backlog); `/health` returns 503 when a dependency fails; defer distributed tracing (single-process modular monolith).
@@ -300,7 +300,7 @@ List of main entities (field details/ERD are in each spec; no ERD is drawn here)
 ## 17. Risks
 
 - **Incorrect matching** → auto-match only when score ≥ 90; show an explanation (5 score components); undo allocation; audit log; human review for uncertain cases.
-- **Cas ID access revoked** → lazy detection (401/403 → REQUIRES_REAUTHORIZATION); alert Owner; stop accepting new transactions for a connection that is not ACTIVE; preserve history; reauthorize by QR; do not automatically substitute another account.
+- **Casso Flow access revoked** → lazy detection (401/403 → REQUIRES_REAUTHORIZATION); alert Owner; stop accepting new transactions for a connection that is not ACTIVE; preserve history; reauthorize on Casso Flow; do not automatically substitute another account.
 - **Data permissions too broad** → least privilege, request only reconciliation data, show scopes before granting access, make revocation possible, retain consent history.
 - **Customer email harassment** → `minIntervalDays` rate limit, policies by customer group, pause during disputes.
 - **Paid customers still receive reminders** → near-real-time processing, worker re-checks status immediately before sending, cancel unsent executions when PAID.
@@ -310,19 +310,20 @@ List of main entities (field details/ERD are in each spec; no ERD is drawn here)
 
 ## 18. References
 
-Official Cas ID / CASSO documentation, accessed in 08/2026:
+**Casso Flow (flow.casso.vn) is the actual bank-transaction-data provider** — a separate
+third-party company, coincidentally sharing the "Casso" name; not a partner product and not
+a rebrand. See [ADR-0021](adr/0021-casso-flow-not-cas-id-for-bank-integration.md) for why
+the earlier Cas ID (Open Banking / cas.so) integration was replaced. A business links its
+bank account directly on Casso Flow's own site; this product only reads the linked
+account's info via Casso Flow's OAuth2 and registers the transaction webhook.
 
-- [Cas ID – Business data wallet](https://cas.so/cas-id/)
-- [CASSO Docs – Connect a bank account by scanning a QR code in the Cas ID app](https://docs.casso.vn/huong-dan/ket-noi-tai-khoan-ngan-hang-thong-qua-cas-id)
-- [CASSO Developer](https://developer.casso.vn/)
-- [Cas ID on Google Play](https://play.google.com/store/apps/details?id=vn.bankhub.mobile&hl=vi)
-- [Balance Hook](https://cas.so/product/balance-hook) — payload, header authentication, real-time balances.
-- [Cas ID Quickstart](https://cas.so/quickstart) — OAuth-style grant/exchange token flow.
-
-API details (QR-generation endpoint, callback, scope, access-revocation event) must be confirmed with the Developer Portal / internal technical documentation before production deployment — `MockCasIdAdapter` is currently used for demo/test.
+Exact Casso Flow API details (OAuth2 endpoints, webhook header/signature scheme, scopes)
+must be confirmed against the Developer Portal / internal technical documentation before
+production deployment — `MockCasIdAdapter`/mocked Casso Flow adapters are currently used
+for demo/test.
 
 ## 19. Conclusion
 
-The project combines an Accounts Receivable domain, real Cas ID/Balance Hook integration, webhook idempotency and payment matching, email automation, and a Copilot with guardrails and human-in-the-loop — deep enough to demonstrate system-design ability and complete a demo vertical slice quickly.
+The project combines an Accounts Receivable domain, real Casso Flow/Balance Hook integration, webhook idempotency and payment matching, email automation, and a Copilot with guardrails and human-in-the-loop — deep enough to demonstrate system-design ability and complete a demo vertical slice quickly.
 
 The product's core is not merely sending payment-reminder emails: **the system knows which receivables need reminders, when to remind, who should receive notifications, which money has arrived, which transaction belongs to which receivable, and when to stop the entire reminder process.** All these decisions have been finalized in the specs/plans in `docs/superpowers/`; this document is only the overview entry point for the whole project.
