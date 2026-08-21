@@ -131,4 +131,26 @@ describe('UpdateCopilotDraftUseCase', () => {
       useCase.execute({ id: 'draft-1', subject: 'x' }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
   });
+
+  it('sanitizes bodyHtml before saving a manual edit', async () => {
+    const deps = buildDeps({ latestAction: null });
+    const useCase = new UpdateCopilotDraftUseCase(
+      deps.draftRepo as never,
+      deps.pendingActionRepo as never,
+      deps.tenantContext,
+      deps.dataSource as never,
+    );
+
+    await useCase.execute({
+      id: 'draft-1',
+      bodyHtml: '<p>Hello</p><script>alert(1)</script>',
+    });
+
+    expect(deps.draftRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bodyHtml: expect.not.stringContaining('<script'),
+      }),
+      expect.anything(),
+    );
+  });
 });

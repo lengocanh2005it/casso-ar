@@ -16,6 +16,8 @@ import {
   type ICopilotPendingActionRepository,
 } from './pending-action-repository.port';
 
+import { sanitizeEmailHtml } from './sanitize-email-html';
+
 export interface UpdateCopilotDraftInput {
   id: string;
   subject?: string;
@@ -51,7 +53,10 @@ export class UpdateCopilotDraftUseCase {
       const updated = {
         ...draft,
         subject: input.subject ?? draft.subject,
-        bodyHtml: input.bodyHtml ?? draft.bodyHtml,
+        bodyHtml:
+          input.bodyHtml !== undefined
+            ? sanitizeEmailHtml(input.bodyHtml)
+            : draft.bodyHtml,
       };
       await this.draftRepo.save(updated, manager);
 
