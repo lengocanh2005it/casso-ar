@@ -7,6 +7,10 @@ import {
   type ICustomerRepository,
 } from '../../customers/application/customer-repository.port';
 import {
+  EMAIL_TEMPLATE_ATTACHMENT_REPOSITORY,
+  type IEmailTemplateAttachmentRepository,
+} from '../../email-templates/application/email-template-attachment-repository.port';
+import {
   EMAIL_TEMPLATE_REPOSITORY,
   type IEmailTemplateRepository,
 } from '../../email-templates/application/email-template-repository.port';
@@ -48,6 +52,8 @@ export class EmailService {
   constructor(
     @Inject(EMAIL_TEMPLATE_REPOSITORY)
     private readonly templateRepo: IEmailTemplateRepository,
+    @Inject(EMAIL_TEMPLATE_ATTACHMENT_REPOSITORY)
+    private readonly attachmentRepo: IEmailTemplateAttachmentRepository,
     @Inject(RECEIVABLE_REPOSITORY)
     private readonly receivableRepo: IReceivableRepository,
     @Inject(CUSTOMER_REPOSITORY)
@@ -110,6 +116,10 @@ export class EmailService {
       organizationName: organization?.name ?? '',
     });
 
+    const attachments = await this.attachmentRepo.findAllByTemplateId(
+      template.id,
+    );
+
     try {
       await this.emailQueue.add(
         'send-reminder-email',
@@ -126,6 +136,15 @@ export class EmailService {
           fromName: organization?.name
             ? `${organization.name} (qua Casso)`
             : undefined,
+          ...(attachments.length
+            ? {
+                attachmentRefs: attachments.map((a) => ({
+                  storageKey: a.storageKey,
+                  filename: a.filename,
+                  mimeType: a.mimeType,
+                })),
+              }
+            : {}),
         },
         {
           jobId: input.reminderExecutionId,

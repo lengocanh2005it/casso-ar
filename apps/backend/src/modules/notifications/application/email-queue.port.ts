@@ -1,5 +1,11 @@
 import type { EmailAttachment } from '../../../common/email/email-attachment';
 
+export interface EmailAttachmentRef {
+  storageKey: string;
+  filename: string;
+  mimeType: string;
+}
+
 export interface ReminderEmailJob {
   reminderExecutionId: string;
   receivableId: string;
@@ -10,6 +16,7 @@ export interface ReminderEmailJob {
   html: string;
   forceProvider?: 'RESEND';
   fromName?: string;
+  attachmentRefs?: EmailAttachmentRef[];
 }
 
 export interface AuthEmailJob {
