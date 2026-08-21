@@ -82,14 +82,16 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
   });
   registry.register({
     name: DraftReminderEmailTool.NAME,
-    description: 'Create a reminder email draft without sending it.',
+    description:
+      'Create a reminder email draft (subject + HTML body, written in Vietnamese using real receivable data) without sending it.',
     inputSchema: {
       type: 'object',
       properties: {
         receivableId: { type: 'string' },
-        tone: { type: 'string', enum: ['polite', 'urgent'] },
+        subject: { type: 'string', maxLength: 200 },
+        bodyHtml: { type: 'string', maxLength: 20000 },
       },
-      required: ['receivableId'],
+      required: ['receivableId', 'subject', 'bodyHtml'],
     },
     requiresReminderPermission: true,
   });
