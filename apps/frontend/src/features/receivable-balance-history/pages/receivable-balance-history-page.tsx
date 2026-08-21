@@ -1,5 +1,7 @@
+import { History } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { PageHeading } from '@/components/layout/page-heading';
+import { SectionCard } from '@/components/layout/section-card';
 import { Button } from '@/components/ui/button';
 import { Skeleton, TableSkeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
@@ -188,6 +190,7 @@ export function ReceivableBalanceHistoryPage() {
           eyebrow="BÁO CÁO"
           title="Lịch sử công nợ"
           description="Lịch sử biến động số dư công nợ theo thời gian."
+          icon={History}
           actions={<Button disabled>Xuất CSV</Button>}
         />
         <ReceivableBalanceHistoryKpis summary={undefined} isLoading />
@@ -203,6 +206,7 @@ export function ReceivableBalanceHistoryPage() {
           eyebrow="BÁO CÁO"
           title="Lịch sử công nợ"
           description="Lịch sử biến động số dư công nợ theo thời gian."
+          icon={History}
         />
         <div
           className="rounded-xl border bg-card py-16 text-center text-muted-foreground"
@@ -222,6 +226,7 @@ export function ReceivableBalanceHistoryPage() {
         eyebrow="BÁO CÁO"
         title="Lịch sử công nợ"
         description="Lịch sử biến động số dư công nợ theo thời gian."
+        icon={History}
         actions={
           <Button
             onClick={handleExport}
@@ -257,11 +262,13 @@ export function ReceivableBalanceHistoryPage() {
         onChange={updateFilterValues}
       />
 
-      {items.length === 0 ? (
-        <ReceivableBalanceHistoryEmpty />
-      ) : (
-        <ReceivableBalanceHistoryTable items={items} />
-      )}
+      <SectionCard>
+        {items.length === 0 ? (
+          <ReceivableBalanceHistoryEmpty />
+        ) : (
+          <ReceivableBalanceHistoryTable items={items} />
+        )}
+      </SectionCard>
 
       <div className="flex items-center justify-between">
         <p className="tabular-nums text-sm text-muted-foreground">
