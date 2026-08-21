@@ -58,7 +58,7 @@ The existing `customers-api.ts` and `use-customers.ts` remain the single custome
 - Produces `CustomerBankAccount`, `CustomerBankAccountList`, `CreateCustomerBankAccountInput`, and `UpdateCustomerBankAccountInput` for Tasks 2–4.
 - Produces `fetchCustomerBankAccounts(customerId)`, `createCustomerBankAccount(customerId, input)`, `updateCustomerBankAccount(customerId, id, input)`, and `deactivateCustomerBankAccount(customerId, id)`.
 
-- [ ] **Step 1: Add the response and input interfaces**
+- [x] **Step 1: Add the response and input interfaces**
 
 Add to `apps/frontend/src/features/customers/types.ts`:
 
@@ -87,7 +87,7 @@ export interface UpdateCustomerBankAccountInput {
 }
 ```
 
-- [ ] **Step 2: Write the failing API contract tests**
+- [x] **Step 2: Write the failing API contract tests**
 
 Extend `customers-api.spec.ts` with tests for the four public functions. Mock `apiRequest` and `postWithIdempotency` through `@/lib/api-client` and assert these exact calls:
 
@@ -155,7 +155,7 @@ it('deactivates with DELETE and an idempotency key', async () => {
 });
 ```
 
-- [ ] **Step 3: Run the API tests and verify RED**
+- [x] **Step 3: Run the API tests and verify RED**
 
 Run:
 
@@ -165,7 +165,7 @@ pnpm --filter @casso-ledger/frontend test -- src/features/customers/api/customer
 
 Expected: FAIL because the four bank-account functions do not exist yet.
 
-- [ ] **Step 4: Implement the four HTTP functions**
+- [x] **Step 4: Implement the four HTTP functions**
 
 Import the new types and add these functions to `customers-api.ts`:
 
@@ -214,11 +214,11 @@ export function deactivateCustomerBankAccount(
 }
 ```
 
-- [ ] **Step 5: Run the API tests and verify GREEN**
+- [x] **Step 5: Run the API tests and verify GREEN**
 
 Run the same focused command. Expected: all existing customer API tests and the four new bank-account contract tests pass.
 
-- [ ] **Step 6: Commit the API slice**
+- [x] **Step 6: Commit the API slice**
 
 ```bash
 git add apps/frontend/src/features/customers/types.ts apps/frontend/src/features/customers/api/customers-api.ts apps/frontend/src/features/customers/api/customers-api.spec.ts
