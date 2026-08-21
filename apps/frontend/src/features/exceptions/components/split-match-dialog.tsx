@@ -121,9 +121,18 @@ export function SplitMatchDialog({
           này.
         </DialogDescription>
         <div className="space-y-3">
-          <p className="break-words text-xs text-muted-foreground">
-            {tx.transferContent}
-          </p>
+          <div>
+            <p className="text-xs font-medium">Nội dung chuyển khoản</p>
+            {tx.transferContent?.trim() ? (
+              <p className="break-words text-xs text-muted-foreground">
+                {tx.transferContent}
+              </p>
+            ) : (
+              <p className="text-xs italic text-muted-foreground">
+                Không có nội dung
+              </p>
+            )}
+          </div>
           {sortedCandidates.map((candidate) => (
             <div
               key={candidate.receivableId}
