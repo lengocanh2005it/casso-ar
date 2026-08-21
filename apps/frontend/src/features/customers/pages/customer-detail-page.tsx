@@ -1,5 +1,7 @@
+import { Users } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useReceivables } from '@/features/receivables/api/use-receivables';
@@ -57,12 +59,11 @@ export function CustomerDetailPage() {
       >
         ← Quay lại khách hàng
       </Link>
-      <div>
-        <p className="text-sm font-medium text-primary">HỒ SƠ KHÁCH HÀNG</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          {customer.name}
-        </h1>
-      </div>
+      <PageHeading
+        eyebrow="HỒ SƠ KHÁCH HÀNG"
+        title={customer.name}
+        icon={Users}
+      />
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
