@@ -44,10 +44,13 @@ export class TypeOrmEmailTemplateAttachmentRepository
 
   async findAllByTemplateId(
     emailTemplateId: string,
+    manager?: EntityManager,
   ): Promise<EmailTemplateAttachment[]> {
-    const rows = await this.scopedFindMany({
-      emailTemplateId,
-    } as FindOptionsWhere<EmailTemplateAttachmentOrmEntity>);
+    const rows = await this.scopedFindMany(
+      { emailTemplateId } as FindOptionsWhere<EmailTemplateAttachmentOrmEntity>,
+      {},
+      manager,
+    );
     return rows.map((row) => new EmailTemplateAttachment(row));
   }
 
@@ -58,15 +61,22 @@ export class TypeOrmEmailTemplateAttachmentRepository
     await this.scopedSaveWithManager(toOrm(attachment), manager);
   }
 
-  async delete(id: string): Promise<void> {
-    await this.scopedDelete({
-      id,
-    } as FindOptionsWhere<EmailTemplateAttachmentOrmEntity>);
+  async delete(id: string, manager?: EntityManager): Promise<void> {
+    await this.scopedDelete(
+      { id } as FindOptionsWhere<EmailTemplateAttachmentOrmEntity>,
+      manager,
+    );
   }
 
-  async deleteAllByTemplateId(emailTemplateId: string): Promise<void> {
-    await this.scopedDelete({
-      emailTemplateId,
-    } as FindOptionsWhere<EmailTemplateAttachmentOrmEntity>);
+  async deleteAllByTemplateId(
+    emailTemplateId: string,
+    manager?: EntityManager,
+  ): Promise<void> {
+    await this.scopedDelete(
+      {
+        emailTemplateId,
+      } as FindOptionsWhere<EmailTemplateAttachmentOrmEntity>,
+      manager,
+    );
   }
 }

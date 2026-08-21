@@ -8,11 +8,15 @@ export interface ListEmailTemplatesPagination {
 
 export interface IEmailTemplateRepository {
   findById(id: string): Promise<EmailTemplate | null>;
+  findByIdForUpdate(
+    id: string,
+    manager: EntityManager,
+  ): Promise<EmailTemplate | null>;
   findAllForOrganization(
     pagination: ListEmailTemplatesPagination,
   ): Promise<EmailTemplate[]>;
   save(template: EmailTemplate, manager?: EntityManager): Promise<void>;
-  delete(id: string): Promise<void>;
+  delete(id: string, manager?: EntityManager): Promise<void>;
   /**
    * Unscoped bulk insert — does NOT read organizationId from TenantContextService.
    * The only caller is DefaultOrganizationBootstrap's default-template seeding step
