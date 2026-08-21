@@ -97,6 +97,7 @@ describe('ListAuthorizationAuditEventsUseCase', () => {
       limit: 20,
     });
     expect(deps.auditEventRepo.findByBankConnectionIds).toHaveBeenCalledWith(
+      'org-1',
       ['conn-1'],
       [
         'TOKEN_EXCHANGED',

@@ -7,6 +7,7 @@ import type {
 export interface IConnectionAuditEventRepository {
   save(event: ConnectionAuditEvent, manager?: EntityManager): Promise<void>;
   findByBankConnectionIds(
+    organizationId: string,
     bankConnectionIds: string[],
     eventTypes: ConnectionAuditEventType[],
     page: number,

@@ -33,12 +33,8 @@ export class TypeOrmConnectionAuditEventRepository
     await this.scopedSaveWithManager(event, manager, event.organizationId);
   }
 
-  // Unscoped by organizationId on purpose, same reasoning as
-  // findByAuthorizationId on the bank connection repository: the caller
-  // (ListAuthorizationAuditEventsUseCase) has already verified the
-  // authorization — and therefore every bankConnectionId passed in — belongs
-  // to the caller's organization.
   async findByBankConnectionIds(
+    organizationId: string,
     bankConnectionIds: string[],
     eventTypes: ConnectionAuditEventType[],
     page: number,
@@ -47,6 +43,7 @@ export class TypeOrmConnectionAuditEventRepository
     if (bankConnectionIds.length === 0) return { items: [], total: 0 };
     const [rows, total] = await this.ormRepo.findAndCount({
       where: {
+        organizationId,
         bankConnectionId: In(bankConnectionIds),
         eventType: In(eventTypes),
       },

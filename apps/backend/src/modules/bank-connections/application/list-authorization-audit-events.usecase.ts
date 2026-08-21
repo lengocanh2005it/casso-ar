@@ -64,6 +64,7 @@ export class ListAuthorizationAuditEventsUseCase {
     }
 
     const { items, total } = await this.auditEventRepo.findByBankConnectionIds(
+      input.organizationId,
       connections.map((connection) => connection.id),
       CONNECTION_HISTORY_EVENT_TYPES,
       input.page,

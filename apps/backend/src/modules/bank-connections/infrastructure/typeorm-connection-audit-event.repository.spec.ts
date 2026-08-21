@@ -21,6 +21,7 @@ describe('TypeOrmConnectionAuditEventRepository', () => {
       );
 
       const result = await repo.findByBankConnectionIds(
+        'org-1',
         ['conn-1'],
         ['API_KEY_ROTATED', 'DISCONNECTED'],
         2,
@@ -32,6 +33,7 @@ describe('TypeOrmConnectionAuditEventRepository', () => {
       expect(result.items[0].id).toBe('evt-2');
       expect(findAndCount).toHaveBeenCalledWith({
         where: {
+          organizationId: 'org-1',
           bankConnectionId: expect.anything(),
           eventType: expect.anything(),
         },
@@ -49,7 +51,7 @@ describe('TypeOrmConnectionAuditEventRepository', () => {
         {} as never,
       );
 
-      const result = await repo.findByBankConnectionIds([], [], 1, 20);
+      const result = await repo.findByBankConnectionIds('org-1', [], [], 1, 20);
 
       expect(result).toEqual({ items: [], total: 0 });
       expect(findAndCount).not.toHaveBeenCalled();
