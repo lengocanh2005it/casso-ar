@@ -1,5 +1,7 @@
 import { Permission, ReceivableStatus } from '@casso-ledger/shared-types';
+import { Receipt } from 'lucide-react';
 import { PageHeading } from '@/components/layout/page-heading';
+import { SectionCard } from '@/components/layout/section-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TableSkeleton } from '@/components/ui/skeleton';
@@ -52,6 +54,7 @@ export function ReceivablesPage() {
         eyebrow="QUẢN LÝ CÔNG NỢ"
         title="Công nợ"
         description="Theo dõi và quản lý công nợ của khách hàng."
+        icon={Receipt}
         actions={
           <div className="flex flex-wrap gap-2">
             {canExport && (
@@ -107,21 +110,23 @@ export function ReceivablesPage() {
           setParam('status', value ?? '', { resetPage: true })
         }
       />
-      {isPending && <TableSkeleton rows={5} />}
-      {isError && (
-        <p role="status" aria-live="polite" className="text-destructive">
-          Không thể tải danh sách công nợ. Vui lòng thử lại.
-        </p>
-      )}
-      {data && (
-        <ReceivableTable
-          receivables={data.items}
-          selectedIds={bulkSelection.selectedIds}
-          onToggle={bulkSelection.toggle}
-          onToggleAll={bulkSelection.toggleAll}
-          allSelected={bulkSelection.allSelected}
-        />
-      )}
+      <SectionCard>
+        {isPending && <TableSkeleton rows={5} />}
+        {isError && (
+          <p role="status" aria-live="polite" className="text-destructive">
+            Không thể tải danh sách công nợ. Vui lòng thử lại.
+          </p>
+        )}
+        {data && (
+          <ReceivableTable
+            receivables={data.items}
+            selectedIds={bulkSelection.selectedIds}
+            onToggle={bulkSelection.toggle}
+            onToggleAll={bulkSelection.toggleAll}
+            allSelected={bulkSelection.allSelected}
+          />
+        )}
+      </SectionCard>
       <ReceivablesBulkActionBar
         selectedIds={bulkSelection.selectedIds}
         onResult={(succeeded) => bulkSelection.drop(succeeded)}

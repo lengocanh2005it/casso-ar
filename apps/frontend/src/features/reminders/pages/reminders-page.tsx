@@ -1,6 +1,8 @@
 import { Permission } from '@casso-ledger/shared-types';
+import { Bell, History } from 'lucide-react';
 import { useState } from 'react';
 import { PageHeading } from '@/components/layout/page-heading';
+import { SectionCard } from '@/components/layout/section-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
@@ -54,6 +56,7 @@ export function RemindersPage() {
         eyebrow="TỰ ĐỘNG HÓA"
         title="Lịch nhắc"
         description="Quản lý chính sách và theo dõi các email nhắc thanh toán."
+        icon={Bell}
         actions={
           canWrite ? (
             <Button onClick={openCreate}>Tạo chính sách</Button>
@@ -61,8 +64,7 @@ export function RemindersPage() {
         }
       />
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Chính sách nhắc</h2>
+      <SectionCard icon={Bell} title="Chính sách nhắc">
         {policiesPending && (
           <p role="status" aria-live="polite">
             Đang tải chính sách…
@@ -74,40 +76,41 @@ export function RemindersPage() {
           </p>
         )}
         {policies && <PolicyTable policies={policies} onEdit={openEdit} />}
-      </section>
+      </SectionCard>
 
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold">Lịch sử thực thi</h2>
-          <p className="text-sm text-muted-foreground">
-            Tra cứu các lần gửi hoặc bỏ qua email nhắc.
-          </p>
+      <SectionCard
+        icon={History}
+        title="Lịch sử thực thi"
+        description="Tra cứu các lần gửi hoặc bỏ qua email nhắc."
+        className="[animation-delay:40ms]"
+      >
+        <div className="space-y-3">
+          <Input
+            name="receivableId"
+            autoComplete="off"
+            aria-label="Lọc theo mã khoản phải thu"
+            placeholder="Lọc theo mã khoản phải thu…"
+            value={receivableId}
+            onChange={(event) =>
+              setParam('receivableId', event.target.value, { replace: true })
+            }
+            className="max-w-sm"
+          />
+          {executionsQuery.isPending && (
+            <p role="status" aria-live="polite">
+              Đang tải lịch sử thực thi…
+            </p>
+          )}
+          {executionsQuery.isError && (
+            <p role="alert" aria-live="polite" className="text-destructive">
+              Không thể tải lịch sử thực thi.
+            </p>
+          )}
+          {executionsQuery.data && (
+            <ExecutionsTable executions={executionsQuery.data.items} />
+          )}
         </div>
-        <Input
-          name="receivableId"
-          autoComplete="off"
-          aria-label="Lọc theo mã khoản phải thu"
-          placeholder="Lọc theo mã khoản phải thu…"
-          value={receivableId}
-          onChange={(event) =>
-            setParam('receivableId', event.target.value, { replace: true })
-          }
-          className="max-w-sm"
-        />
-        {executionsQuery.isPending && (
-          <p role="status" aria-live="polite">
-            Đang tải lịch sử thực thi…
-          </p>
-        )}
-        {executionsQuery.isError && (
-          <p role="alert" aria-live="polite" className="text-destructive">
-            Không thể tải lịch sử thực thi.
-          </p>
-        )}
-        {executionsQuery.data && (
-          <ExecutionsTable executions={executionsQuery.data.items} />
-        )}
-      </section>
+      </SectionCard>
 
       <PolicyDialog
         policy={editingPolicy}

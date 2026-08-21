@@ -1,10 +1,13 @@
+import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { HeaderIcon } from './header-icon';
 import { ThemeToggle } from './theme-toggle';
 
 interface PageHeaderProps {
   title: string;
   description?: string;
+  icon?: LucideIcon;
   actions?: ReactNode;
   className?: string;
   hideThemeToggle?: boolean;
@@ -13,6 +16,7 @@ interface PageHeaderProps {
 export function PageHeader({
   title,
   description,
+  icon: Icon,
   actions,
   className,
   hideThemeToggle = false,
@@ -26,6 +30,7 @@ export function PageHeader({
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
+          {Icon && <HeaderIcon icon={Icon} />}
           <div className="min-w-0">
             <h1 className="truncate text-lg font-semibold text-foreground sm:text-xl">
               {title}

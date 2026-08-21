@@ -1,3 +1,5 @@
+import { MailPlus } from 'lucide-react';
+import { SectionCard } from '@/components/layout/section-card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,8 +36,11 @@ export function PendingInvitesTable({
   const revoke = useRevokeInvite(organizationId);
 
   return (
-    <div>
-      <h2 className="mb-3 text-lg font-semibold">Lời mời đang chờ</h2>
+    <SectionCard
+      icon={MailPlus}
+      title="Lời mời đang chờ"
+      className="[animation-delay:40ms]"
+    >
       {invitesQuery.isPending && (
         <p role="status" aria-live="polite">
           Đang tải lời mời…
@@ -115,6 +120,6 @@ export function PendingInvitesTable({
           </TableBody>
         </Table>
       )}
-    </div>
+    </SectionCard>
   );
 }

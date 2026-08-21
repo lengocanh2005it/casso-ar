@@ -1,5 +1,7 @@
 import { Permission, Role } from '@casso-ledger/shared-types';
+import { Users } from 'lucide-react';
 import { memo, useCallback, useState } from 'react';
+import { SectionCard } from '@/components/layout/section-card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -339,9 +341,10 @@ export function UsersTab() {
           </Button>
         </div>
       )}
-      <div>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">Thành viên</h2>
+      <SectionCard
+        icon={Users}
+        title="Thành viên"
+        action={
           <Select
             value={statusFilter}
             onValueChange={(value) => setStatusFilter(value as StatusFilter)}
@@ -351,7 +354,8 @@ export function UsersTab() {
             </SelectTrigger>
             <SelectContent>{statusFilterItems}</SelectContent>
           </Select>
-        </div>
+        }
+      >
         {membersQuery.isPending && membersLoadingMessage}
         {membersQuery.isError && membersErrorMessage}
         {membersQuery.data && (
@@ -367,7 +371,7 @@ export function UsersTab() {
             onUnblock={handleUnblock}
           />
         )}
-      </div>
+      </SectionCard>
       {canManage && (
         <PendingInvitesTable organizationId={user?.organizationId} />
       )}

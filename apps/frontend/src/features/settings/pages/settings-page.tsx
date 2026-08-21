@@ -1,5 +1,13 @@
 import { Permission } from '@casso-ledger/shared-types';
-import { CreditCard, Lock, Mail, Palette, Server, Users } from 'lucide-react';
+import {
+  CreditCard,
+  Lock,
+  Mail,
+  Palette,
+  Server,
+  Settings as SettingsIcon,
+  Users,
+} from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -114,6 +122,7 @@ export function SettingsPage() {
       <PageHeader
         title="Cài đặt"
         description="Quản lý tài khoản và cấu hình hệ thống"
+        icon={SettingsIcon}
       />
       <div className="flex flex-col gap-6 p-4 sm:p-6">
         <Tabs

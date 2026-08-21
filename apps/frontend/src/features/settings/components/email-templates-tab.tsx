@@ -1,5 +1,7 @@
 import { Permission } from '@casso-ledger/shared-types';
+import { Mail } from 'lucide-react';
 import { useState } from 'react';
+import { SectionCard } from '@/components/layout/section-card';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,15 +50,12 @@ export function EmailTemplatesTab() {
   if (!canRead) return null;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold">Mẫu email</h2>
-          <p className="text-sm text-muted-foreground">
-            Quản lý nội dung email dùng trong các chính sách nhắc.
-          </p>
-        </div>
-        {canWrite && (
+    <SectionCard
+      icon={Mail}
+      title="Mẫu email"
+      description="Quản lý nội dung email dùng trong các chính sách nhắc."
+      action={
+        canWrite && (
           <Button
             onClick={() => {
               setEditing(null);
@@ -65,8 +64,9 @@ export function EmailTemplatesTab() {
           >
             Tạo mẫu email
           </Button>
-        )}
-      </div>
+        )
+      }
+    >
       {templatesQuery.isPending && (
         <p role="status" aria-live="polite">
           Đang tải mẫu email…
@@ -172,6 +172,6 @@ export function EmailTemplatesTab() {
           />
         </>
       )}
-    </div>
+    </SectionCard>
   );
 }
