@@ -27,9 +27,14 @@ export function TemplatePreviewDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
+        <DialogHeader className="min-w-0">
           <DialogTitle>Xem trước mẫu email</DialogTitle>
-          <DialogDescription>{template?.name}</DialogDescription>
+          <DialogDescription
+            className="min-w-0 truncate"
+            title={template?.name ?? '—'}
+          >
+            {template?.name ?? '—'}
+          </DialogDescription>
         </DialogHeader>
         {preview.isPending && (
           <p role="status" aria-live="polite">
@@ -42,8 +47,10 @@ export function TemplatePreviewDialog({
           </p>
         )}
         {preview.data && (
-          <div className="space-y-3 rounded-lg border p-4">
-            <h3 className="font-medium">{preview.data.subject}</h3>
+          <div className="min-w-0 space-y-3 rounded-lg border p-4">
+            <h3 className="truncate font-medium" title={preview.data.subject}>
+              {preview.data.subject}
+            </h3>
             <iframe
               title="Email body preview"
               className="min-h-48 w-full rounded border"
