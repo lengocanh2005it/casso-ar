@@ -1,7 +1,15 @@
 import { Permission } from '@casso-ledger/shared-types';
+import { Bell, History } from 'lucide-react';
 import { useState } from 'react';
 import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
@@ -54,6 +62,7 @@ export function RemindersPage() {
         eyebrow="TỰ ĐỘNG HÓA"
         title="Lịch nhắc"
         description="Quản lý chính sách và theo dõi các email nhắc thanh toán."
+        icon={Bell}
         actions={
           canWrite ? (
             <Button onClick={openCreate}>Tạo chính sách</Button>
@@ -61,53 +70,65 @@ export function RemindersPage() {
         }
       />
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Chính sách nhắc</h2>
-        {policiesPending && (
-          <p role="status" aria-live="polite">
-            Đang tải chính sách…
-          </p>
-        )}
-        {policiesError && (
-          <p role="alert" aria-live="polite" className="text-destructive">
-            Không thể tải chính sách nhắc.
-          </p>
-        )}
-        {policies && <PolicyTable policies={policies} onEdit={openEdit} />}
-      </section>
+      <Card className="animate-fade-up motion-reduce:animate-none">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Bell className="size-4 text-primary" />
+            <CardTitle>Chính sách nhắc</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {policiesPending && (
+            <p role="status" aria-live="polite">
+              Đang tải chính sách…
+            </p>
+          )}
+          {policiesError && (
+            <p role="alert" aria-live="polite" className="text-destructive">
+              Không thể tải chính sách nhắc.
+            </p>
+          )}
+          {policies && <PolicyTable policies={policies} onEdit={openEdit} />}
+        </CardContent>
+      </Card>
 
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold">Lịch sử thực thi</h2>
-          <p className="text-sm text-muted-foreground">
+      <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:40ms]">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <History className="size-4 text-primary" />
+            <CardTitle>Lịch sử thực thi</CardTitle>
+          </div>
+          <CardDescription>
             Tra cứu các lần gửi hoặc bỏ qua email nhắc.
-          </p>
-        </div>
-        <Input
-          name="receivableId"
-          autoComplete="off"
-          aria-label="Lọc theo mã khoản phải thu"
-          placeholder="Lọc theo mã khoản phải thu…"
-          value={receivableId}
-          onChange={(event) =>
-            setParam('receivableId', event.target.value, { replace: true })
-          }
-          className="max-w-sm"
-        />
-        {executionsQuery.isPending && (
-          <p role="status" aria-live="polite">
-            Đang tải lịch sử thực thi…
-          </p>
-        )}
-        {executionsQuery.isError && (
-          <p role="alert" aria-live="polite" className="text-destructive">
-            Không thể tải lịch sử thực thi.
-          </p>
-        )}
-        {executionsQuery.data && (
-          <ExecutionsTable executions={executionsQuery.data.items} />
-        )}
-      </section>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Input
+            name="receivableId"
+            autoComplete="off"
+            aria-label="Lọc theo mã khoản phải thu"
+            placeholder="Lọc theo mã khoản phải thu…"
+            value={receivableId}
+            onChange={(event) =>
+              setParam('receivableId', event.target.value, { replace: true })
+            }
+            className="max-w-sm"
+          />
+          {executionsQuery.isPending && (
+            <p role="status" aria-live="polite">
+              Đang tải lịch sử thực thi…
+            </p>
+          )}
+          {executionsQuery.isError && (
+            <p role="alert" aria-live="polite" className="text-destructive">
+              Không thể tải lịch sử thực thi.
+            </p>
+          )}
+          {executionsQuery.data && (
+            <ExecutionsTable executions={executionsQuery.data.items} />
+          )}
+        </CardContent>
+      </Card>
 
       <PolicyDialog
         policy={editingPolicy}
