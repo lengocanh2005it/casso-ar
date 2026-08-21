@@ -1,5 +1,6 @@
 import { Permission } from '@casso-ledger/shared-types';
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -9,15 +10,21 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
+  ApiBody,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { memoryStorage } from 'multer';
 import {
   AuditActionType,
   AuditEntityType,
@@ -29,12 +36,19 @@ import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { successResponseSchema } from '../../../common/swagger/success-response-schema';
+import { MAX_ATTACHMENT_SIZE_BYTES } from '../application/attachment-limits';
 import { CreateEmailTemplateUseCase } from '../application/create-email-template.usecase';
 import { DeleteEmailTemplateUseCase } from '../application/delete-email-template.usecase';
+import { DeleteEmailTemplateAttachmentUseCase } from '../application/delete-email-template-attachment.usecase';
 import { ListEmailTemplatesUseCase } from '../application/list-email-templates.usecase';
 import { PreviewEmailTemplateUseCase } from '../application/preview-email-template.usecase';
 import { UpdateEmailTemplateUseCase } from '../application/update-email-template.usecase';
+import { UploadEmailTemplateAttachmentUseCase } from '../application/upload-email-template-attachment.usecase';
 import { CreateEmailTemplateDto } from './dto/create-email-template.dto';
+import {
+  EmailTemplateAttachmentResponseDto,
+  toEmailTemplateAttachmentResponse,
+} from './dto/email-template-attachment-response.dto';
 import {
   EmailTemplateResponseDto,
   toEmailTemplateResponse,
@@ -51,6 +65,8 @@ export class EmailTemplatesController {
     private readonly updateEmailTemplateUseCase: UpdateEmailTemplateUseCase,
     private readonly deleteEmailTemplateUseCase: DeleteEmailTemplateUseCase,
     private readonly previewEmailTemplateUseCase: PreviewEmailTemplateUseCase,
+    private readonly uploadAttachmentUseCase: UploadEmailTemplateAttachmentUseCase,
+    private readonly deleteAttachmentUseCase: DeleteEmailTemplateAttachmentUseCase,
     private readonly idempotency: IdempotencyService,
   ) {}
 
@@ -184,5 +200,90 @@ export class EmailTemplatesController {
   @RequirePermission(Permission.EMAIL_TEMPLATE_READ)
   async preview(@Param('id') id: string) {
     return this.previewEmailTemplateUseCase.execute(id);
+  }
+
+  @Post(':id/attachments')
+  @ApiOperation({ summary: 'Upload an attachment for an email template' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'File (multipart field "file", max 10 MB, PDF/PNG/JPEG only)',
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiCreatedResponse({ type: EmailTemplateAttachmentResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.FILE_TOO_LARGE,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
+  @Audited(
+    AuditActionType.EMAIL_TEMPLATE_ATTACHMENT_CREATE,
+    AuditEntityType.EMAIL_TEMPLATE,
+  )
+  @RequirePermission(Permission.REMINDER_POLICY_WRITE)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_ATTACHMENT_SIZE_BYTES },
+    }),
+  )
+  async uploadAttachment(
+    @Param('id') id: string,
+    @Headers('idempotency-key') key: string | undefined,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ) {
+    if (!file) throw new BadRequestException('File là bắt buộc.');
+    return this.idempotency.execute(
+      `POST /email-templates/${id}/attachments`,
+      key,
+      { filename: file.originalname, size: file.size },
+      async () => {
+        const attachment = await this.uploadAttachmentUseCase.execute({
+          emailTemplateId: id,
+          originalFilename: file.originalname,
+          mimeType: file.mimetype,
+          sizeBytes: file.size,
+          buffer: file.buffer,
+        });
+        return toEmailTemplateAttachmentResponse(attachment);
+      },
+    );
+  }
+
+  @Delete(':id/attachments/:attachmentId')
+  @ApiOperation({ summary: 'Delete an email template attachment' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiOkResponse({
+    description: 'Attachment deleted',
+    schema: successResponseSchema(),
+  })
+  @ApiErrorResponse(
+    ErrorCode.ATTACHMENT_NOT_FOUND,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
+  )
+  @Audited(
+    AuditActionType.EMAIL_TEMPLATE_ATTACHMENT_DELETE,
+    AuditEntityType.EMAIL_TEMPLATE,
+  )
+  @RequirePermission(Permission.REMINDER_POLICY_WRITE)
+  async removeAttachment(
+    @Param('id') id: string,
+    @Param('attachmentId') attachmentId: string,
+    @Headers('idempotency-key') key: string | undefined,
+  ) {
+    return this.idempotency.execute(
+      `DELETE /email-templates/${id}/attachments/${attachmentId}`,
+      key,
+      { id, attachmentId },
+      async () => {
+        await this.deleteAttachmentUseCase.execute(id, attachmentId);
+        return { success: true };
+      },
+    );
   }
 }
