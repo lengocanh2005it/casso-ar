@@ -130,4 +130,39 @@ describe('CassoFlowAccountPicker', () => {
       ),
     ).toBeInTheDocument();
   });
+
+  it('contains long account numbers and wraps long account-holder names', async () => {
+    const accountNumber = `9704${'1'.repeat(70)}`;
+    const accountHolderName = `NGUYEN VAN ${'A'.repeat(70)}`;
+    const onPreview = vi.fn().mockResolvedValue({
+      businessId: 'biz-1',
+      accounts: [
+        {
+          accountNumber,
+          bankName: 'VPBank',
+          accountHolderName,
+          status: 'AVAILABLE',
+        },
+      ],
+    });
+
+    render(
+      <CassoFlowAccountPicker
+        onPreview={onPreview}
+        onConfirm={vi.fn().mockResolvedValue({ connected: [], skipped: [] })}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText(/Casso Flow API Key/i), {
+      target: { value: 'test-key' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /xem tài khoản/i }));
+
+    const account = await screen.findByText(accountNumber);
+    expect(account).toHaveClass('truncate');
+    expect(account).toHaveAttribute('title', accountNumber);
+    expect(screen.getByText(new RegExp(accountHolderName))).toHaveClass(
+      'break-words',
+    );
+  });
 });
