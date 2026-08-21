@@ -2,6 +2,7 @@ import { Permission, Role } from '@casso-ledger/shared-types';
 import { Users } from 'lucide-react';
 import { memo, useCallback, useState } from 'react';
 import { SectionCard } from '@/components/layout/section-card';
+import { InitialsAvatar } from '@/components/shared/initials-avatar';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -128,7 +129,12 @@ const MembersTable = memo(function MembersTable({
           const isBlocked = member.status === 'BLOCKED';
           return (
             <TableRow key={member.id}>
-              <TableCell className="break-words">{member.name}</TableCell>
+              <TableCell className="break-words">
+                <div className="flex items-center gap-2">
+                  <InitialsAvatar name={member.name} size="sm" />
+                  {member.name}
+                </div>
+              </TableCell>
               <TableCell className="break-words">{member.email}</TableCell>
               <TableCell>
                 {canManage && !isSelf ? (
