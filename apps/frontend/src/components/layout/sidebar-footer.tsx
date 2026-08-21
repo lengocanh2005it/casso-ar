@@ -1,6 +1,6 @@
 import { LogOut } from 'lucide-react';
 import { useState } from 'react';
-import { UserAvatar } from '@/components/shared/user-avatar';
+import { InitialsAvatar } from '@/components/shared/initials-avatar';
 import { useAuth } from '@/contexts/auth-context';
 import { ProfileDialog } from './profile-dialog';
 
@@ -20,7 +20,11 @@ export function SidebarFooter({ collapsed }: { collapsed: boolean }) {
             className="flex w-full items-center justify-center rounded-md p-1.5 transition-[background-color] duration-150 ease-out motion-reduce:transition-none pointer-hover:hover:bg-sidebar-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
             aria-label="Xem thông tin tài khoản"
           >
-            <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size="sm" />
+            <InitialsAvatar
+              name={user.name}
+              avatarUrl={user.avatarUrl}
+              size="sm"
+            />
           </button>
           <button
             type="button"
@@ -45,7 +49,11 @@ export function SidebarFooter({ collapsed }: { collapsed: boolean }) {
           className="flex w-full items-center gap-3 rounded-md text-left transition-[background-color] duration-150 ease-out motion-reduce:transition-none pointer-hover:hover:bg-sidebar-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
           aria-label="Xem thông tin tài khoản"
         >
-          <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size="sm" />
+          <InitialsAvatar
+            name={user.name}
+            avatarUrl={user.avatarUrl}
+            size="sm"
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{user.name}</p>
             <p className="truncate text-xs text-muted-foreground">

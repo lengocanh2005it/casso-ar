@@ -1,6 +1,7 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { Mail } from 'lucide-react';
 import { useState } from 'react';
+import { HeaderIcon } from '@/components/layout/header-icon';
 import { SectionCard } from '@/components/layout/section-card';
 import {
   AlertDialog,
@@ -96,7 +97,10 @@ export function EmailTemplatesTab() {
             {templatesQuery.data.map((template) => (
               <TableRow key={template.id}>
                 <TableCell className="max-w-56 break-words font-medium">
-                  {template.name}
+                  <div className="flex items-center gap-2">
+                    <HeaderIcon icon={Mail} />
+                    {template.name}
+                  </div>
                 </TableCell>
                 <TableCell className="max-w-72 break-words">
                   {template.subject}

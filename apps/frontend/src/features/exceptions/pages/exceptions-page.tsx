@@ -2,6 +2,7 @@ import { FileSearch } from 'lucide-react';
 import { useState } from 'react';
 import { PageHeading } from '@/components/layout/page-heading';
 import { SectionCard } from '@/components/layout/section-card';
+import { InitialsAvatar } from '@/components/shared/initials-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -118,7 +119,17 @@ export function ExceptionsPage() {
                     {formatDate(row.transaction.transactionDateTime)}
                   </TableCell>
                   <TableCell className="max-w-64 break-words">
-                    {row.transaction.counterpartyName || '—'}
+                    {row.transaction.counterpartyName ? (
+                      <div className="flex items-center gap-2">
+                        <InitialsAvatar
+                          name={row.transaction.counterpartyName}
+                          size="sm"
+                        />
+                        {row.transaction.counterpartyName}
+                      </div>
+                    ) : (
+                      '—'
+                    )}
                   </TableCell>
                   <TableCell className="max-w-64 break-words">
                     {row.transaction.transferContent?.trim() ? (

@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-interface UserAvatarProps {
+interface InitialsAvatarProps {
   name: string;
   avatarUrl?: string | null;
   size?: 'sm' | 'md' | 'lg';
@@ -22,12 +22,12 @@ function getInitials(name: string): string {
     .join('');
 }
 
-export function UserAvatar({
+export function InitialsAvatar({
   name,
   avatarUrl,
   size = 'md',
   className,
-}: UserAvatarProps) {
+}: InitialsAvatarProps) {
   if (avatarUrl) {
     return (
       <img

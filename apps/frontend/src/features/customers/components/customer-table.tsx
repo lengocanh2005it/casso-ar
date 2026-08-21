@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { InitialsAvatar } from '@/components/shared/initials-avatar';
 import {
   Table,
   TableBody,
@@ -33,12 +34,15 @@ export function CustomerTable({ customers }: { customers: Customer[] }) {
         {customers.map((customer) => (
           <TableRow key={customer.id}>
             <TableCell className="max-w-64 break-words">
-              <Link
-                to={`/customers/${customer.id}`}
-                className="font-medium text-primary pointer-hover:hover:underline"
-              >
-                {customer.name}
-              </Link>
+              <div className="flex items-center gap-2">
+                <InitialsAvatar name={customer.name} size="sm" />
+                <Link
+                  to={`/customers/${customer.id}`}
+                  className="font-medium text-primary pointer-hover:hover:underline"
+                >
+                  {customer.name}
+                </Link>
+              </div>
             </TableCell>
             <TableCell className="max-w-48 break-words">
               {customer.taxCode ?? '—'}
