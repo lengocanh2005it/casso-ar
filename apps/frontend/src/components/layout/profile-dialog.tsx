@@ -2,7 +2,7 @@ import { Building2, Camera, KeyRound, LogOut, User } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { UserAvatar } from '@/components/shared/user-avatar';
+import { InitialsAvatar } from '@/components/shared/initials-avatar';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -161,7 +161,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
               <TabsContent value="personal" className="space-y-4 pt-4">
                 <div className="flex items-center gap-4">
                   <div className="relative">
-                    <UserAvatar
+                    <InitialsAvatar
                       name={user.name}
                       avatarUrl={pendingAvatarPreview ?? user.avatarUrl}
                       size="lg"
