@@ -1,4 +1,5 @@
 import { Permission, Role } from '@casso-ledger/shared-types';
+import { Users } from 'lucide-react';
 import { memo, useCallback, useState } from 'react';
 import {
   AlertDialog,
@@ -13,6 +14,13 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -339,35 +347,44 @@ export function UsersTab() {
           </Button>
         </div>
       )}
-      <div>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">Thành viên</h2>
-          <Select
-            value={statusFilter}
-            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
-          >
-            <SelectTrigger aria-label="Lọc theo trạng thái">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>{statusFilterItems}</SelectContent>
-          </Select>
-        </div>
-        {membersQuery.isPending && membersLoadingMessage}
-        {membersQuery.isError && membersErrorMessage}
-        {membersQuery.data && (
-          <MembersTable
-            members={filteredMembers}
-            emptyMessage={emptyMessage}
-            canManage={canManage}
-            canBlock={canBlock}
-            currentUserId={user?.id}
-            onRoleChange={handleRoleChange}
-            onRemove={handleRemove}
-            onBlock={handleBlock}
-            onUnblock={handleUnblock}
-          />
-        )}
-      </div>
+      <Card className="animate-fade-up motion-reduce:animate-none">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Users className="size-4 text-primary" />
+            <CardTitle>Thành viên</CardTitle>
+          </div>
+          <CardAction>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) =>
+                setStatusFilter(value as StatusFilter)
+              }
+            >
+              <SelectTrigger aria-label="Lọc theo trạng thái">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>{statusFilterItems}</SelectContent>
+            </Select>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          {membersQuery.isPending && membersLoadingMessage}
+          {membersQuery.isError && membersErrorMessage}
+          {membersQuery.data && (
+            <MembersTable
+              members={filteredMembers}
+              emptyMessage={emptyMessage}
+              canManage={canManage}
+              canBlock={canBlock}
+              currentUserId={user?.id}
+              onRoleChange={handleRoleChange}
+              onRemove={handleRemove}
+              onBlock={handleBlock}
+              onUnblock={handleUnblock}
+            />
+          )}
+        </CardContent>
+      </Card>
       {canManage && (
         <PendingInvitesTable organizationId={user?.organizationId} />
       )}

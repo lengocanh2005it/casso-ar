@@ -1,3 +1,4 @@
+import { MailPlus } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,6 +11,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -34,8 +36,14 @@ export function PendingInvitesTable({
   const revoke = useRevokeInvite(organizationId);
 
   return (
-    <div>
-      <h2 className="mb-3 text-lg font-semibold">Lời mời đang chờ</h2>
+    <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:40ms]">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <MailPlus className="size-4 text-primary" />
+          <CardTitle>Lời mời đang chờ</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
       {invitesQuery.isPending && (
         <p role="status" aria-live="polite">
           Đang tải lời mời…
@@ -115,6 +123,7 @@ export function PendingInvitesTable({
           </TableBody>
         </Table>
       )}
-    </div>
+      </CardContent>
+    </Card>
   );
 }
