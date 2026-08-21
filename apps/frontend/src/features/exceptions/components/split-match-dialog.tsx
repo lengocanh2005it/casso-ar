@@ -112,8 +112,15 @@ export function SplitMatchDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>
-            Xử lý giao dịch {tx.providerTransactionId} — {formatVND(tx.amount)}
+          <DialogTitle className="min-w-0 pr-6">
+            Xử lý giao dịch{' '}
+            <span
+              className="inline-block max-w-full truncate align-bottom"
+              title={tx.providerTransactionId}
+            >
+              {tx.providerTransactionId}
+            </span>{' '}
+            — {formatVND(tx.amount)}
           </DialogTitle>
         </DialogHeader>
         <DialogDescription>
@@ -141,7 +148,12 @@ export function SplitMatchDialog({
               <span className="text-sm font-medium tabular-nums">
                 {candidate.totalScore}/100
               </span>
-              <span className="flex-1 text-sm">{candidate.receivableId}</span>
+              <span
+                className="min-w-0 flex-1 truncate text-sm"
+                title={candidate.receivableId}
+              >
+                {candidate.receivableId}
+              </span>
               <label
                 htmlFor={`allocation-${candidate.receivableId}`}
                 className="flex items-center gap-2 text-sm"
@@ -215,7 +227,7 @@ export function SplitMatchDialog({
               </SelectContent>
             </Select>
           )}
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
             <Button
               variant="outline"
               disabled={!prepaidCustomerId || prepaid.isPending}
