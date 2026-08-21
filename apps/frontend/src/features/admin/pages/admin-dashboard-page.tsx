@@ -1,7 +1,12 @@
 import { lazy, Suspense, useState } from 'react';
 import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+} from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { useAdminAiUsage, useAdminAiUsageTrend } from '../api/use-admin';
 
@@ -35,6 +40,9 @@ function ChartLoadingFallback({
           <h2 className="text-balance leading-none font-semibold">
             Top organizations theo usage (7 ngày)
           </h2>
+          <CardDescription>
+            Các tổ chức gọi AI nhiều nhất trong 7 ngày qua
+          </CardDescription>
         </CardHeader>
         <CardContent className="h-64">
           <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -49,6 +57,9 @@ function ChartLoadingFallback({
           <h2 className="text-balance leading-none font-semibold">
             Xu hướng usage theo ngày (7 ngày)
           </h2>
+          <CardDescription>
+            Số lượt gọi AI theo từng ngày trong 7 ngày qua
+          </CardDescription>
         </CardHeader>
         <CardContent className="h-64">
           <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
