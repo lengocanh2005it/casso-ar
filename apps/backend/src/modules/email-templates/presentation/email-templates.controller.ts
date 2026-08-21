@@ -75,11 +75,13 @@ export class EmailTemplatesController {
   @ApiOkResponse({ type: [EmailTemplateResponseDto] })
   @RequirePermission(Permission.EMAIL_TEMPLATE_READ)
   async list(@Query('page') page?: string, @Query('limit') limit?: string) {
-    const templates = await this.listEmailTemplatesUseCase.execute({
+    const results = await this.listEmailTemplatesUseCase.execute({
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
     });
-    return templates.map(toEmailTemplateResponse);
+    return results.map((result) =>
+      toEmailTemplateResponse(result.template, result.attachments),
+    );
   }
 
   @Post()

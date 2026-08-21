@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,7 +13,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import type { EmailTemplate } from '@/lib/use-email-templates';
-import { useCreateTemplate, useUpdateTemplate } from '../api/use-settings';
+import {
+  useCreateTemplate,
+  useDeleteTemplateAttachment,
+  useUpdateTemplate,
+  useUploadTemplateAttachment,
+} from '../api/use-settings';
 
 export function TemplateDialog({
   template,
@@ -29,6 +34,9 @@ export function TemplateDialog({
   const [bodyHtml, setBodyHtml] = useState('');
   const create = useCreateTemplate();
   const update = useUpdateTemplate();
+  const uploadAttachment = useUploadTemplateAttachment();
+  const deleteAttachment = useDeleteTemplateAttachment();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -53,6 +61,19 @@ export function TemplateDialog({
         { onSuccess: () => onOpenChange(false) },
       );
     }
+  }
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file || !template) return;
+    uploadAttachment.mutate(
+      { templateId: template.id, file },
+      {
+        onSettled: () => {
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        },
+      },
+    );
   }
 
   const pending = create.isPending || update.isPending;
@@ -97,6 +118,41 @@ export function TemplateDialog({
               onChange={(event) => setBodyHtml(event.target.value)}
             />
           </Label>
+          {template && (
+            <div className="space-y-2">
+              <span className="text-sm font-medium">File đính kèm</span>
+              <ul className="space-y-1">
+                {template.attachments.map((attachment) => (
+                  <li
+                    key={attachment.id}
+                    className="flex items-center justify-between text-sm"
+                  >
+                    <span>{attachment.filename}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={deleteAttachment.isPending}
+                      onClick={() =>
+                        deleteAttachment.mutate({
+                          templateId: template.id,
+                          attachmentId: attachment.id,
+                        })
+                      }
+                    >
+                      Xoá
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf,image/png,image/jpeg"
+                disabled={uploadAttachment.isPending}
+                onChange={handleFileChange}
+              />
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

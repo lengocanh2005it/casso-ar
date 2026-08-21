@@ -1,5 +1,8 @@
 import { apiRequest, postWithIdempotency } from '@/lib/api-client';
-import type { EmailTemplate } from '@/lib/use-email-templates';
+import type {
+  EmailTemplate,
+  EmailTemplateAttachment,
+} from '@/lib/use-email-templates';
 import type {
   EmailTemplateInput,
   EmailTemplatePreview,
@@ -203,4 +206,32 @@ export function unblockMember(
   return postWithIdempotency(
     `/api/v1/organizations/${organizationId}/members/${userId}/unblock`,
   );
+}
+
+export function uploadEmailTemplateAttachment(
+  templateId: string,
+  file: File,
+): Promise<EmailTemplateAttachment> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiRequest<EmailTemplateAttachment>({
+    url: `/api/v1/email-templates/${templateId}/attachments`,
+    method: 'POST',
+    data: formData,
+    headers: {
+      'Idempotency-Key': crypto.randomUUID(),
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+}
+
+export function deleteEmailTemplateAttachment(
+  templateId: string,
+  attachmentId: string,
+): Promise<{ success: boolean }> {
+  return apiRequest<{ success: boolean }>({
+    url: `/api/v1/email-templates/${templateId}/attachments/${attachmentId}`,
+    method: 'DELETE',
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
 }

@@ -1,4 +1,9 @@
 import type { EmailTemplate } from '../../domain/email-template';
+import type { EmailTemplateAttachment } from '../../domain/email-template-attachment';
+import {
+  EmailTemplateAttachmentResponseDto,
+  toEmailTemplateAttachmentResponse,
+} from './email-template-attachment-response.dto';
 
 export class EmailTemplateResponseDto {
   id: string;
@@ -9,10 +14,12 @@ export class EmailTemplateResponseDto {
   isDefault: boolean;
   createdAt: Date;
   updatedAt: Date;
+  attachments: EmailTemplateAttachmentResponseDto[];
 }
 
 export function toEmailTemplateResponse(
   template: EmailTemplate,
+  attachments: EmailTemplateAttachment[] = [],
 ): EmailTemplateResponseDto {
   return {
     id: template.id,
@@ -23,5 +30,6 @@ export function toEmailTemplateResponse(
     isDefault: template.isDefault,
     createdAt: template.createdAt,
     updatedAt: template.updatedAt,
+    attachments: attachments.map(toEmailTemplateAttachmentResponse),
   };
 }
