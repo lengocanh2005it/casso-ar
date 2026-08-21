@@ -1,5 +1,7 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { Receipt } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { HeaderIcon } from '@/components/layout/header-icon';
 import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -73,16 +75,19 @@ export function ReceivableTable({
               />
             </TableCell>
             <TableCell>
-              <Link
-                to={`/receivables/${receivable.id}`}
-                className={
-                  receivable.invoiceNumber
-                    ? 'font-medium text-primary pointer-hover:hover:underline'
-                    : 'font-medium text-muted-foreground italic pointer-hover:hover:underline'
-                }
-              >
-                {receivable.invoiceNumber ?? 'Không có hóa đơn'}
-              </Link>
+              <div className="flex items-center gap-2">
+                <HeaderIcon icon={Receipt} />
+                <Link
+                  to={`/receivables/${receivable.id}`}
+                  className={
+                    receivable.invoiceNumber
+                      ? 'font-medium text-primary pointer-hover:hover:underline'
+                      : 'font-medium text-muted-foreground italic pointer-hover:hover:underline'
+                  }
+                >
+                  {receivable.invoiceNumber ?? 'Không có hóa đơn'}
+                </Link>
+              </div>
             </TableCell>
             <TableCell className="max-w-56 break-words">
               {receivable.customerName ?? receivable.customerId}
