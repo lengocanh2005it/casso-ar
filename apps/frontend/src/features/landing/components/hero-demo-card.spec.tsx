@@ -35,4 +35,15 @@ describe('HeroDemoCard', () => {
 
     expect(screen.getAllByTestId('hero-demo-progress-dot')).toHaveLength(3);
   });
+
+  it('shows summary stats for matched volume and average match time', () => {
+    render(<HeroDemoCard />);
+
+    expect(screen.getByText('126')).toBeInTheDocument();
+    expect(
+      screen.getByText(/giao dịch đã khớp tháng này/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText('~3s')).toBeInTheDocument();
+    expect(screen.getByText(/thời gian khớp trung bình/i)).toBeInTheDocument();
+  });
 });

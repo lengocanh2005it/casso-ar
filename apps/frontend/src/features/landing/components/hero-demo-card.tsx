@@ -30,7 +30,7 @@ function DemoChip({
   badge?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3.5 rounded-xl border border-border/70 bg-background px-4 py-5">
+    <div className="flex items-center gap-3.5 rounded-xl border border-border/70 bg-background px-4 py-4">
       <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
         <Icon className="size-5" aria-hidden="true" />
       </span>
@@ -61,15 +61,15 @@ export function HeroDemoCard() {
   }, []);
 
   return (
-    <Card className="border-border/70 py-9 shadow-lg" aria-hidden="true">
-      <CardHeader className="flex-row items-center justify-between gap-2 pb-5">
+    <Card className="border-border/70 py-7 shadow-lg" aria-hidden="true">
+      <CardHeader className="flex-row items-center justify-between gap-2 pb-4">
         <div className="flex items-center gap-2">
           <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Sparkles className="size-3.5" aria-hidden="true" />
           </span>
-          <p className="text-xs font-medium">Đối chiếu tự động</p>
+          <p className="text-sm font-semibold">Đối chiếu tự động</p>
         </div>
-        <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <LiveDot />
           Theo thời gian thực
         </span>
@@ -89,7 +89,7 @@ export function HeroDemoCard() {
             amountVnd={active.amountVnd}
           />
 
-          <div className="relative mx-auto flex h-14 w-px items-stretch justify-center bg-border">
+          <div className="relative mx-auto flex h-10 w-px items-stretch justify-center bg-border">
             {!reducedMotion && (
               <motion.span
                 className="absolute left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-primary"
@@ -112,7 +112,7 @@ export function HeroDemoCard() {
           />
         </motion.div>
 
-        <div className="mt-8 flex items-center justify-center gap-1.5">
+        <div className="mt-6 flex items-center justify-center gap-1.5">
           {DEMO_TRANSACTIONS.map((transaction, index) => (
             <span
               key={transaction.customer}
@@ -123,6 +123,21 @@ export function HeroDemoCard() {
               )}
             />
           ))}
+        </div>
+
+        <div className="mt-6 grid grid-cols-2 border-t border-border/70 pt-5">
+          <div className="border-r border-border/70 text-center">
+            <p className="text-lg font-semibold text-primary">126</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Giao dịch đã khớp tháng này
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-semibold text-primary">~3s</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Thời gian khớp trung bình
+            </p>
+          </div>
         </div>
       </CardContent>
     </Card>
