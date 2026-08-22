@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/layout/empty-state';
 import { HeaderIcon } from '@/components/layout/header-icon';
 import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
+import { InitialsAvatar } from '@/components/shared/initials-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -68,65 +69,74 @@ export function ReceivableTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {receivables.map((receivable) => (
-          <TableRow key={receivable.id}>
-            <TableCell className="max-w-48 break-words">
-              <Checkbox
-                aria-label={`Chọn ${getReceivableDisplayName(receivable.invoiceNumber)}`}
-                checked={selectedIds.includes(receivable.id)}
-                disabled={!isBulkEligible(receivable.status)}
-                onCheckedChange={() => onToggle(receivable.id)}
-              />
-            </TableCell>
-            <TableCell>
-              <div className="flex items-center gap-2">
-                <HeaderIcon icon={Receipt} />
-                <div className="min-w-0">
-                  <Link
-                    to={`/receivables/${receivable.id}`}
-                    className={
-                      receivable.invoiceNumber
-                        ? 'font-medium text-primary pointer-hover:hover:underline'
-                        : 'font-medium text-muted-foreground pointer-hover:hover:underline'
-                    }
-                  >
-                    {getReceivableDisplayName(receivable.invoiceNumber)}
-                  </Link>
-                  {!receivable.invoiceNumber && (
-                    <p className="text-xs text-muted-foreground">
-                      Không có hóa đơn
-                    </p>
+        {receivables.map((receivable) => {
+          const customerName = receivable.customerName ?? receivable.customerId;
+
+          return (
+            <TableRow key={receivable.id}>
+              <TableCell className="max-w-48 break-words">
+                <Checkbox
+                  aria-label={`Chọn ${getReceivableDisplayName(receivable.invoiceNumber)}`}
+                  checked={selectedIds.includes(receivable.id)}
+                  disabled={!isBulkEligible(receivable.status)}
+                  onCheckedChange={() => onToggle(receivable.id)}
+                />
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <HeaderIcon icon={Receipt} />
+                  <div className="min-w-0">
+                    <Link
+                      to={`/receivables/${receivable.id}`}
+                      className={
+                        receivable.invoiceNumber
+                          ? 'font-medium text-primary pointer-hover:hover:underline'
+                          : 'font-medium text-muted-foreground pointer-hover:hover:underline'
+                      }
+                    >
+                      {getReceivableDisplayName(receivable.invoiceNumber)}
+                    </Link>
+                    {!receivable.invoiceNumber && (
+                      <p className="text-xs text-muted-foreground">
+                        Không có hóa đơn
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell className="max-w-56">
+                <div className="flex min-w-0 items-center gap-2">
+                  <InitialsAvatar name={customerName} size="sm" />
+                  <span className="block min-w-0 truncate" title={customerName}>
+                    {customerName}
+                  </span>
+                </div>
+              </TableCell>
+              <TableCell className="tabular-nums">
+                {formatVND(receivable.originalAmount)}
+              </TableCell>
+              <TableCell className="tabular-nums font-medium">
+                {formatVND(receivable.remainingAmount)}
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap items-center gap-2">
+                  {formatDate(receivable.dueDate)}
+                  {receivable.isOverdue && (
+                    <Badge variant="destructive">Quá hạn</Badge>
                   )}
                 </div>
-              </div>
-            </TableCell>
-            <TableCell className="max-w-56 break-words">
-              {receivable.customerName ?? receivable.customerId}
-            </TableCell>
-            <TableCell className="tabular-nums">
-              {formatVND(receivable.originalAmount)}
-            </TableCell>
-            <TableCell className="tabular-nums font-medium">
-              {formatVND(receivable.remainingAmount)}
-            </TableCell>
-            <TableCell>
-              <div className="flex flex-wrap items-center gap-2">
-                {formatDate(receivable.dueDate)}
-                {receivable.isOverdue && (
-                  <Badge variant="destructive">Quá hạn</Badge>
-                )}
-              </div>
-            </TableCell>
-            <TableCell>
-              <div className="flex flex-wrap gap-2">
-                <ReceivableStatusBadge status={receivable.status} />
-                {receivable.isDisputed && (
-                  <Badge variant="outline">Tranh chấp</Badge>
-                )}
-              </div>
-            </TableCell>
-          </TableRow>
-        ))}
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-2">
+                  <ReceivableStatusBadge status={receivable.status} />
+                  {receivable.isDisputed && (
+                    <Badge variant="outline">Tranh chấp</Badge>
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          );
+        })}
       </TableBody>
     </Table>
   );

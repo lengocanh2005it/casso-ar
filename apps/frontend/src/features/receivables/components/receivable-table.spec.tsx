@@ -92,4 +92,21 @@ describe('ReceivableTable', () => {
     expect(screen.getByText('Không có hóa đơn')).toBeInTheDocument();
     expect(screen.queryByText('#rec-1')).not.toBeInTheDocument();
   });
+
+  it('shows a stable customer avatar beside the customer name', () => {
+    render(
+      <MemoryRouter>
+        <ReceivableTable
+          receivables={[buildReceivable({ customerName: 'Công ty ABC' })]}
+          selectedIds={[]}
+          onToggle={vi.fn()}
+          onToggleAll={vi.fn()}
+          allSelected={false}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Công ty ABC')).toBeInTheDocument();
+    expect(screen.getByText('CT')).toHaveClass('shrink-0');
+  });
 });

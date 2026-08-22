@@ -84,6 +84,7 @@ describe('DashboardPage', () => {
     expect(screen.getByText('7', { selector: 'span' })).toBeTruthy();
     expect(screen.getByRole('link', { name: /Xử lý ngay/i })).toBeTruthy();
     expect(screen.getByText('Công ty A')).toBeTruthy();
+    expect(screen.getByText('CT')).toHaveClass('shrink-0');
 
     const trendCard = screen
       .getByText('Xu hướng công nợ 6 tháng')

@@ -18,7 +18,13 @@ vi.mock('@/lib/download-csv', () => ({
   downloadCsv: (...args: unknown[]) => downloadCsv(...args),
 }));
 
-function mockReports() {
+function mockReports(
+  topOverdueCustomers: Array<{
+    customerId: string;
+    customerName: string;
+    totalOverdue: number;
+  }> = [],
+) {
   apiRequest.mockImplementation(({ url }: { url: string }) => {
     if (url === '/api/v1/reports/dashboard-summary') {
       return Promise.resolve({
@@ -30,7 +36,7 @@ function mockReports() {
           forecast14d: 20_000_000,
           forecast30d: 30_000_000,
         },
-        topOverdueCustomers: [],
+        topOverdueCustomers,
         autoMatchRate: 0.8,
         manualHandlingRate: 0.2,
         reminderEffectiveness: 0.5,
@@ -166,6 +172,20 @@ describe('ReportsPage', () => {
     expect(screen.getByText('1.500.000 ₫')).toBeTruthy();
     expect(screen.getByText('4.900.000 ₫')).toBeTruthy();
     expect(screen.getByText('11.400.000 ₫')).toBeTruthy();
+  });
+
+  it('uses the same customer avatar in the overdue ranking', async () => {
+    mockReports([
+      {
+        customerId: 'cust-overdue',
+        customerName: 'Công ty A',
+        totalOverdue: 20_000_000,
+      },
+    ]);
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('Công ty A')).toBeTruthy());
+    expect(screen.getByText('CT')).toHaveClass('shrink-0');
   });
 
   it('sends URL search and bucket values and resets page on filter change', async () => {

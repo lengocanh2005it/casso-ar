@@ -34,7 +34,7 @@ export function InitialsAvatar({
         src={avatarUrl}
         alt={name}
         className={cn(
-          'rounded-full object-cover',
+          'shrink-0 overflow-hidden rounded-full object-cover',
           SIZE_CLASSES[size],
           className,
         )}
@@ -45,7 +45,7 @@ export function InitialsAvatar({
   return (
     <div
       className={cn(
-        'flex items-center justify-center rounded-full bg-primary/10 font-semibold text-primary',
+        'flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-semibold leading-none text-primary',
         SIZE_CLASSES[size],
         className,
       )}

@@ -13,6 +13,7 @@ import {
 import { EmptyState } from '@/components/layout/empty-state';
 import { PageHeading } from '@/components/layout/page-heading';
 import { MetricCard } from '@/components/metric-card';
+import { InitialsAvatar } from '@/components/shared/initials-avatar';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -279,16 +280,25 @@ export function DashboardPage() {
                     description="Danh sách sẽ xuất hiện khi có khoản quá hạn cần theo dõi."
                   />
                 ) : (
-                  <div className="space-y-2">
+                  <div className="divide-y overflow-hidden rounded-lg border border-border/70">
                     {summaryQuery.data.topOverdueCustomers.map((customer) => (
                       <div
                         key={customer.customerId}
-                        className="flex items-center justify-between gap-4 text-sm"
+                        className="flex items-center justify-between gap-4 px-3 py-3 text-sm"
                       >
-                        <span className="truncate">
-                          {customer.customerName}
-                        </span>
-                        <span className="shrink-0 font-medium tabular-nums">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <InitialsAvatar
+                            name={customer.customerName}
+                            size="sm"
+                          />
+                          <span
+                            className="min-w-0 truncate font-medium"
+                            title={customer.customerName}
+                          >
+                            {customer.customerName}
+                          </span>
+                        </div>
+                        <span className="shrink-0 rounded-lg bg-destructive/10 px-2.5 py-1 font-semibold tabular-nums text-destructive">
                           {formatVND(customer.totalOverdue)}
                         </span>
                       </div>
