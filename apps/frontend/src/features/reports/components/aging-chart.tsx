@@ -15,6 +15,10 @@ export function formatAgingBucketTick(bucket: AgingBucket): string {
   return AGING_BUCKET_LABELS[bucket];
 }
 
+function isAgingBucket(value: unknown): value is AgingBucket {
+  return typeof value === 'string' && value in AGING_BUCKET_LABELS;
+}
+
 export function AgingChart({ report }: { report: AgingReport }) {
   return (
     <div className="h-80 w-full">
@@ -40,7 +44,9 @@ export function AgingChart({ report }: { report: AgingReport }) {
           />
           <Tooltip
             formatter={(value) => formatVND(Number(value))}
-            labelFormatter={formatAgingBucketTick}
+            labelFormatter={(label) =>
+              isAgingBucket(label) ? formatAgingBucketTick(label) : label
+            }
           />
           <Bar
             dataKey="totalRemaining"
