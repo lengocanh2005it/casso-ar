@@ -22,6 +22,24 @@ function renderWithProviders() {
 }
 
 describe('PricingSection', () => {
+  it('announces that pricing is loading while the plan request is pending', () => {
+    vi.mocked(apiRequest).mockReturnValue(new Promise(() => {}));
+
+    renderWithProviders();
+
+    expect(screen.getByText('Đang tải bảng giá…')).toBeInTheDocument();
+  });
+
+  it('announces when the plan request fails', async () => {
+    vi.mocked(apiRequest).mockRejectedValue(new Error('Request failed'));
+
+    renderWithProviders();
+
+    expect(
+      await screen.findByText('Không thể tải bảng giá. Vui lòng thử lại sau.'),
+    ).toBeInTheDocument();
+  });
+
   it('renders each plan with its price and marks BUSINESS as most popular', async () => {
     vi.mocked(apiRequest).mockResolvedValue([
       {
