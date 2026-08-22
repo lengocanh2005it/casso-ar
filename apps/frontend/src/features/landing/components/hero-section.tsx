@@ -38,8 +38,12 @@ export function HeroSection() {
   const reducedMotion = useReducedMotion();
 
   return (
-    <section className="min-h-[80vh] pb-4 pt-32 sm:pb-4 sm:pt-36">
-      <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16">
+    <section className="relative isolate overflow-hidden pb-12 pt-32 sm:pb-16 sm:pt-36">
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 top-12 -z-10 mx-auto h-80 max-w-5xl rounded-full bg-primary/10 blur-3xl"
+      />
+      <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-20 lg:px-8">
         <div className="text-center lg:text-left">
           <Logo
             className="mb-4 rounded-full border border-border/70 bg-card px-3 py-1.5"
@@ -88,7 +92,9 @@ export function HeroSection() {
           </div>
         </div>
 
-        <HeroDemoCard />
+        <div className="rounded-3xl border border-primary/10 bg-card/60 p-3 shadow-xl shadow-primary/5 backdrop-blur-sm sm:p-5">
+          <HeroDemoCard />
+        </div>
       </div>
     </section>
   );

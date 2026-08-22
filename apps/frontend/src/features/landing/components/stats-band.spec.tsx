@@ -19,7 +19,7 @@ describe('StatsBand', () => {
       name: 'Vì sao chọn Casso Ledger?',
     });
 
-    expect(region).toHaveClass('py-12', 'sm:py-16');
+    expect(region).toHaveClass('py-10', 'sm:py-14');
     expect(region).not.toHaveClass('bg-primary');
     expect(region.firstElementChild).toHaveClass('max-w-6xl');
     expect(region.firstElementChild?.firstElementChild).toHaveClass(

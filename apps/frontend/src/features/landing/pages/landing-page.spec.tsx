@@ -64,16 +64,17 @@ describe('LandingPage', () => {
     expect(document.getElementById('tinh-nang')).toHaveClass(
       'bg-muted/20',
       'py-16',
-      'sm:py-24',
+      'sm:py-20',
     );
     expect(document.getElementById('cach-hoat-dong')).toHaveClass(
       'bg-background',
       'py-16',
-      'sm:py-24',
+      'sm:py-20',
     );
     expect(document.getElementById('bang-gia')).toHaveClass(
+      'bg-muted/20',
       'py-16',
-      'sm:py-24',
+      'sm:py-20',
     );
   });
 

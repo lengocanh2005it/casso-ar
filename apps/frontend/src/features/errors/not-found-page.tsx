@@ -33,10 +33,10 @@ export default function NotFoundPage() {
         <ThemeToggle />
       </div>
 
-      <div className="flex min-h-svh flex-col items-center px-4 pt-12 sm:px-6 sm:pt-16">
+      <div className="flex min-h-svh flex-col items-center px-4 pt-10 sm:px-6 sm:pt-14">
         <Link
           to={homeTo}
-          className="mb-6 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:mb-8"
+          className="mb-5 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:mb-6"
         >
           <Logo
             className="h-12 sm:h-16"
@@ -45,21 +45,21 @@ export default function NotFoundPage() {
           />
         </Link>
 
-        <div className="relative w-full max-w-lg flex-1 flex items-center">
-          <Card className="relative overflow-hidden border-border/70 bg-card/90 shadow-lg backdrop-blur-sm">
+        <div className="relative flex w-full max-w-md flex-1 items-center">
+          <Card className="relative overflow-hidden border-border/70 bg-card/90 shadow-xl shadow-primary/5 backdrop-blur-sm">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/30 via-primary to-primary/30" />
 
-            <CardContent className="px-6 py-10 text-center sm:px-10 sm:py-12">
-              <div className="relative mx-auto mb-8 flex size-28 items-center justify-center">
+            <CardContent className="px-6 py-8 text-center sm:px-10 sm:py-10">
+              <div className="relative mx-auto mb-6 flex size-24 items-center justify-center">
                 <div className="absolute inset-0 rounded-full bg-primary/10" />
                 <div className="absolute inset-2 rounded-full border border-primary/20 border-dashed" />
                 <div className="relative flex flex-col items-center gap-1">
                   <MapPinOff
-                    className="size-8 text-primary"
+                    className="size-7 text-primary"
                     strokeWidth={1.75}
                     aria-hidden
                   />
-                  <span className="bg-gradient-to-br from-primary via-primary to-primary/50 bg-clip-text text-5xl font-black tracking-tighter text-transparent">
+                  <span className="bg-gradient-to-br from-primary via-primary to-primary/50 bg-clip-text text-4xl font-black tracking-tighter text-transparent">
                     404
                   </span>
                 </div>
@@ -73,7 +73,7 @@ export default function NotFoundPage() {
                 này. Hãy quay về nơi bạn đang làm việc.
               </p>
 
-              <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:justify-center">
+              <div className="mt-7 flex flex-col gap-2.5 sm:flex-row sm:justify-center">
                 <Button
                   asChild
                   size="lg"

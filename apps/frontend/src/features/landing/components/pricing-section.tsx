@@ -23,7 +23,7 @@ export function PricingSection() {
   const reducedMotion = useReducedMotion();
 
   return (
-    <section id="bang-gia" className="scroll-mt-24 py-16 sm:py-24">
+    <section id="bang-gia" className="scroll-mt-24 bg-muted/20 py-16 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
@@ -71,9 +71,9 @@ export function PricingSection() {
                   >
                     <Card
                       className={cn(
-                        'relative flex h-full flex-col',
+                        'relative flex h-full flex-col bg-card shadow-sm',
                         isHighlighted
-                          ? 'border-primary ring-1 ring-primary/20'
+                          ? 'border-primary shadow-lg shadow-primary/10 ring-1 ring-primary/20'
                           : 'border-border/70',
                       )}
                     >

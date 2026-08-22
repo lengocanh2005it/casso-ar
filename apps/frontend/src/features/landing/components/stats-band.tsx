@@ -5,9 +5,9 @@ const HIGHLIGHT_ICONS = [ArrowLeftRight, ListChecks, BellRing, Clock3] as const;
 
 export function StatsBand() {
   return (
-    <section aria-labelledby="stats-band-title" className="py-12 sm:py-16">
+    <section aria-labelledby="stats-band-title" className="py-10 sm:py-14">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="rounded-3xl bg-primary px-6 py-12 text-primary-foreground dark:text-white sm:px-12 sm:py-14">
+        <div className="rounded-3xl bg-primary px-6 py-10 text-primary-foreground shadow-lg shadow-primary/15 dark:text-white sm:px-12 sm:py-12">
           <div className="mx-auto max-w-2xl text-center">
             <h2
               id="stats-band-title"

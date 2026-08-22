@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/button';
 
 export function CtaSection() {
   return (
-    <section className="pb-20 sm:pb-28">
+    <section className="py-16 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="rounded-3xl bg-primary px-6 py-14 text-center text-primary-foreground dark:text-white sm:px-12 sm:py-16">
+        <div className="rounded-3xl bg-primary px-6 py-14 text-center text-primary-foreground shadow-xl shadow-primary/15 dark:text-white sm:px-12 sm:py-16">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Sẵn sàng quản lý công nợ dễ dàng hơn?
           </h2>

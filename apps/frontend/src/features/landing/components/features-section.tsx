@@ -19,7 +19,7 @@ export function FeaturesSection() {
   return (
     <section
       id="tinh-nang"
-      className="scroll-mt-24 border-b border-border/60 bg-muted/20 py-16 sm:py-24"
+      className="scroll-mt-24 border-b border-border/60 bg-muted/20 py-16 sm:py-20"
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
@@ -46,7 +46,7 @@ export function FeaturesSection() {
                 variants={FADE_UP_ITEM_VARIANTS}
                 whileHover={reducedMotion ? undefined : HOVER_SCALE}
               >
-                <Card className="h-full border-border/70">
+                <Card className="h-full border-border/70 bg-card shadow-sm">
                   <CardHeader>
                     <div className="mb-2 flex size-10 items-center justify-center rounded-lg bg-primary/10">
                       <Icon

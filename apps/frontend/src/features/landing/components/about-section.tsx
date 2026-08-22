@@ -4,7 +4,7 @@ import { AboutDemoCard } from './about-demo-card';
 
 export function AboutSection() {
   return (
-    <section id="gioi-thieu" className="scroll-mt-24 py-16 sm:py-20">
+    <section id="gioi-thieu" className="scroll-mt-24 py-14 sm:py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">

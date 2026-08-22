@@ -3,8 +3,8 @@ import { Logo } from '@/components/logo';
 
 export function LandingFooter() {
   return (
-    <footer className="border-t border-border/60 py-10">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">
+    <footer className="border-t border-border/60 py-8 sm:py-10">
+      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-8">
         <Link
           to="/"
           aria-label="Casso Ledger — Trang chủ"
