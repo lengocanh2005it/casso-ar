@@ -8,7 +8,16 @@ import {
   YAxis,
 } from 'recharts';
 import { formatVND } from '@/lib/format';
-import type { AgingReport } from '../types';
+import type { AgingBucket, AgingReport } from '../types';
+import { AGING_BUCKET_LABELS } from './customer-aging-filters';
+
+export function formatAgingBucketTick(bucket: AgingBucket): string {
+  return AGING_BUCKET_LABELS[bucket];
+}
+
+function isAgingBucket(value: unknown): value is AgingBucket {
+  return typeof value === 'string' && value in AGING_BUCKET_LABELS;
+}
 
 export function AgingChart({ report }: { report: AgingReport }) {
   return (
@@ -19,7 +28,12 @@ export function AgingChart({ report }: { report: AgingReport }) {
           margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
         >
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="bucket" tickLine={false} axisLine={false} />
+          <XAxis
+            dataKey="bucket"
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={formatAgingBucketTick}
+          />
           <YAxis
             width={96}
             tickLine={false}
@@ -28,7 +42,12 @@ export function AgingChart({ report }: { report: AgingReport }) {
               formatVND(value).replace(/\s₫$/u, '')
             }
           />
-          <Tooltip formatter={(value) => formatVND(Number(value))} />
+          <Tooltip
+            formatter={(value) => formatVND(Number(value))}
+            labelFormatter={(label) =>
+              isAgingBucket(label) ? formatAgingBucketTick(label) : label
+            }
+          />
           <Bar
             dataKey="totalRemaining"
             fill="var(--chart-1)"
