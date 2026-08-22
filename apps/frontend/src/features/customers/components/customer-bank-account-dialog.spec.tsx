@@ -11,6 +11,20 @@ const postWithIdempotency = vi.fn();
 vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
   postWithIdempotency: (...args: unknown[]) => postWithIdempotency(...args),
+  getApiErrorCode: (error: unknown) => {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'response' in error &&
+      typeof (error as { response?: { data?: { errorCode?: unknown } } })
+        .response?.data === 'object'
+    ) {
+      const code = (error as { response: { data: { errorCode?: unknown } } })
+        .response.data.errorCode;
+      return typeof code === 'string' ? code : undefined;
+    }
+    return undefined;
+  },
   getApiErrorMessage: (error: unknown) => {
     if (
       typeof error === 'object' &&
@@ -161,7 +175,7 @@ describe('CustomerBankAccountDialog', () => {
     });
   });
 
-  it('shows the backend duplicate message inline', async () => {
+  it('explains that duplicate accounts should be restored inline', async () => {
     postWithIdempotency.mockRejectedValueOnce({
       response: {
         data: {
@@ -179,6 +193,9 @@ describe('CustomerBankAccountDialog', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Số tài khoản ngân hàng đã được liên kết.',
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Nếu tài khoản đang vô hiệu hóa, hãy khôi phục tài khoản đó thay vì tạo mới.',
     );
     expect(onOpenChange).not.toHaveBeenCalled();
   });

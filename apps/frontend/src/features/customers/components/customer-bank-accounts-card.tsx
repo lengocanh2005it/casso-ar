@@ -64,7 +64,6 @@ export function CustomerBankAccountsCard({
           toast.success('Đã vô hiệu hóa tài khoản ngân hàng.');
         },
         onError: () => {
-          setConfirmState(null);
           toast.error('Không thể cập nhật tài khoản ngân hàng.');
         },
       });
@@ -80,7 +79,6 @@ export function CustomerBankAccountsCard({
             toast.success('Đã khôi phục tài khoản ngân hàng.');
           },
           onError: () => {
-            setConfirmState(null);
             toast.error('Không thể cập nhật tài khoản ngân hàng.');
           },
         },

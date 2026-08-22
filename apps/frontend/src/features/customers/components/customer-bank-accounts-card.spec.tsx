@@ -225,6 +225,37 @@ describe('CustomerBankAccountsCard', () => {
     expect(apiRequest).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the deactivation confirmation open when the mutation fails', async () => {
+    useAuth.mockReturnValue({ user: { role: Role.OWNER } });
+    apiRequest
+      .mockResolvedValueOnce({
+        items: [activeAccount],
+        total: 1,
+      })
+      .mockRejectedValueOnce(new Error('network'));
+
+    renderCard();
+
+    expect(await screen.findByText('******2233')).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Vô hiệu hóa ${activeAccount.accountNumberMasked}`,
+      }),
+    );
+    expect(
+      await screen.findByText('Vô hiệu hóa tài khoản ngân hàng?'),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vô hiệu hóa' }));
+
+    await waitFor(() => {
+      expect(apiRequest).toHaveBeenCalledTimes(2);
+    });
+    expect(
+      screen.getByText('Vô hiệu hóa tài khoản ngân hàng?'),
+    ).toBeInTheDocument();
+  });
+
   it('reactivates an inactive account after confirmation', async () => {
     useAuth.mockReturnValue({ user: { role: Role.OWNER } });
     apiRequest

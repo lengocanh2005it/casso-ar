@@ -10,12 +10,15 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { getApiErrorMessage } from '@/lib/api-client';
+import { getApiErrorCode, getApiErrorMessage } from '@/lib/api-client';
 import {
   useCreateCustomerBankAccount,
   useUpdateCustomerBankAccount,
 } from '../api/use-customers';
 import type { CustomerBankAccount } from '../types';
+
+const DUPLICATE_ACCOUNT_HINT =
+  'Nếu tài khoản đang vô hiệu hóa, hãy khôi phục tài khoản đó thay vì tạo mới.';
 
 export interface CustomerBankAccountDialogProps {
   customerId: string;
@@ -70,9 +73,13 @@ export function CustomerBankAccountDialog({
             handleOpenChange(false);
           },
           onError: (mutationError) => {
-            setError(
+            const message =
               getApiErrorMessage(mutationError) ??
-                'Không thể lưu tài khoản ngân hàng.',
+              'Không thể lưu tài khoản ngân hàng.';
+            setError(
+              getApiErrorCode(mutationError) === 'CONFLICT'
+                ? `${message} ${DUPLICATE_ACCOUNT_HINT}`
+                : message,
             );
           },
         },
@@ -93,9 +100,13 @@ export function CustomerBankAccountDialog({
             handleOpenChange(false);
           },
           onError: (mutationError) => {
-            setError(
+            const message =
               getApiErrorMessage(mutationError) ??
-                'Không thể lưu tài khoản ngân hàng.',
+              'Không thể lưu tài khoản ngân hàng.';
+            setError(
+              getApiErrorCode(mutationError) === 'CONFLICT'
+                ? `${message} ${DUPLICATE_ACCOUNT_HINT}`
+                : message,
             );
           },
         },

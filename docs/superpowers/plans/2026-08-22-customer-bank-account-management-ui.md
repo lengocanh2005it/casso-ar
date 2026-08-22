@@ -557,7 +557,7 @@ Use one controlled `AlertDialog` state with `{ action: 'deactivate' | 'reactivat
 - cancel: `Hủy`;
 - confirm: `Vô hiệu hóa` or `Khôi phục`.
 
-While pending, disable both dialog actions and use `Đang xử lý…`. Deactivation calls `useDeactivateCustomerBankAccount(customerId).mutate(account.id)`. Reactivation calls `useUpdateCustomerBankAccount(customerId).mutate({ id: account.id, input: { isActive: true } })`. On success, close the dialog and show the corresponding success toast; on failure, close the dialog and show `Không thể cập nhật tài khoản ngân hàng.`.
+While pending, disable both dialog actions and use `Đang xử lý…`. Deactivation calls `useDeactivateCustomerBankAccount(customerId).mutate(account.id)`. Reactivation calls `useUpdateCustomerBankAccount(customerId).mutate({ id: account.id, input: { isActive: true } })`. On success, close the dialog and show the corresponding success toast; on failure, keep the dialog open and show `Không thể cập nhật tài khoản ngân hàng.` so the user can retry or cancel.
 
 - [x] **Step 6: Run the card tests and verify GREEN**
 
