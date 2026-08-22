@@ -134,6 +134,8 @@ describe('AppLayout', () => {
 
     const main = screen.getByRole('main');
     expect(main).toHaveClass('bg-app-canvas');
+    expect(main).toHaveClass('min-h-0');
+    expect(main.parentElement).toHaveClass('min-h-0');
     expect(main.firstElementChild).toHaveClass(
       'mx-auto',
       'max-w-[1600px]',

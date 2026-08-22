@@ -28,7 +28,7 @@ export function AppLayout() {
           />
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <header className="flex items-center gap-3 border-b border-border px-4 py-3 md:hidden">
             <MobileSidebarWrapper />
             <span className="text-base font-semibold text-primary">
@@ -42,7 +42,7 @@ export function AppLayout() {
 
           <main
             id="main-content"
-            className="flex-1 overflow-auto bg-app-canvas p-4 md:p-6 xl:p-8"
+            className="min-h-0 flex-1 overflow-auto bg-app-canvas p-4 md:p-6 xl:p-8"
           >
             <div className="mx-auto min-h-full w-full max-w-[1600px]">
               <Outlet />
