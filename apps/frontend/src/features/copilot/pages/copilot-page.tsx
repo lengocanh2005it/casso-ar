@@ -118,8 +118,8 @@ export function CopilotPage() {
   );
   const draftsPanel = (
     <div className="flex h-full flex-col">
-      <div className="border-b bg-muted/30 px-3 py-2.5">
-        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+      <div className="border-b border-violet-100 bg-violet-50/60 px-3 py-3 dark:border-violet-950 dark:bg-violet-950/20">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-700 dark:text-violet-300">
           Bản nháp email
         </span>
       </div>
@@ -130,7 +130,7 @@ export function CopilotPage() {
   );
 
   return (
-    <div className="relative h-full min-h-0 overflow-hidden">
+    <div className="relative h-full min-h-0 overflow-hidden bg-gradient-to-br from-violet-50/40 via-background to-sky-50/40 dark:from-violet-950/10 dark:via-background dark:to-slate-950/20">
       <div
         aria-hidden={!hasCopilotAccess}
         className={cn(
@@ -139,17 +139,27 @@ export function CopilotPage() {
         )}
         inert={!hasCopilotAccess ? true : undefined}
       >
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+        <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-violet-200/70 bg-card/85 px-5 py-4 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between dark:border-violet-900/60">
+          <div className="flex items-center gap-3">
             <HeaderIcon icon={Bot} tone="ai" />
-            <h1 className="text-xl font-semibold sm:text-2xl">Copilot</h1>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-violet-600 dark:text-violet-300">
+                TRỢ LÝ THU HỒI
+              </p>
+              <h1 className="mt-0.5 text-xl font-semibold tracking-tight sm:text-2xl">
+                Copilot
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Tra cứu công nợ và soạn email nhắc thanh toán.
+              </p>
+            </div>
           </div>
           <UsageIndicator />
         </div>
-        <div className="flex min-h-0 min-w-0 flex-1 gap-3">
+        <div className="flex min-h-0 min-w-0 flex-1 gap-4">
           <aside
             className={cn(
-              'hidden shrink-0 overflow-hidden rounded-lg border transition-[width] duration-200 md:block',
+              'hidden shrink-0 overflow-hidden rounded-2xl border border-violet-100/80 bg-card/80 shadow-sm backdrop-blur transition-[width] duration-200 md:block dark:border-violet-950',
               historyCollapsed ? 'w-0 border-0' : 'w-56',
             )}
           >
@@ -166,7 +176,7 @@ export function CopilotPage() {
           )}
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="mb-2 flex min-h-9 items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
@@ -229,7 +239,7 @@ export function CopilotPage() {
               </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto rounded-xl border bg-card p-4 shadow-sm">
+            <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto rounded-2xl border border-violet-200/70 bg-gradient-to-b from-violet-50/75 via-card to-card p-5 shadow-md dark:border-violet-900/60 dark:from-violet-950/20">
               {isEmptyConversation ? (
                 <CopilotWelcomeState
                   onSuggestionClick={(text) => void send(text)}
@@ -251,7 +261,7 @@ export function CopilotPage() {
             </div>
             <form
               onSubmit={onSubmit}
-              className="mt-3 flex gap-2 rounded-xl border bg-card p-2 shadow-sm"
+              className="mt-3 flex gap-2 rounded-2xl border border-violet-200/70 bg-card p-2.5 shadow-md dark:border-violet-900/60"
             >
               <Input
                 name="question"
@@ -276,9 +286,10 @@ export function CopilotPage() {
               ) : (
                 <Button
                   type="submit"
+                  aria-label="Send"
                   disabled={blockedByPendingAction || !draft.trim()}
                 >
-                  Send
+                  Gửi
                 </Button>
               )}
             </form>
@@ -286,7 +297,7 @@ export function CopilotPage() {
 
           <aside
             className={cn(
-              'hidden shrink-0 overflow-hidden rounded-lg border transition-[width] duration-200 md:block',
+              'hidden shrink-0 overflow-hidden rounded-2xl border border-violet-100/80 bg-card/80 shadow-sm backdrop-blur transition-[width] duration-200 md:block dark:border-violet-950',
               draftsCollapsed ? 'w-0 border-0' : 'w-80',
             )}
           >

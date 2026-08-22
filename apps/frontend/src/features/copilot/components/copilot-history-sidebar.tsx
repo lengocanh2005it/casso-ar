@@ -18,8 +18,8 @@ export function CopilotHistorySidebar({
 }) {
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b px-3 py-2.5">
-        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+      <div className="flex items-center justify-between border-b border-violet-100 bg-violet-50/60 px-3 py-3 dark:border-violet-950 dark:bg-violet-950/20">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-700 dark:text-violet-300">
           Lịch sử chat
         </span>
         <Button
