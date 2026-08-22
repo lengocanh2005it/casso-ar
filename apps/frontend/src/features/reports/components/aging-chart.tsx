@@ -7,7 +7,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { formatVND } from '@/lib/format';
+import { formatVND, formatVNDCompact } from '@/lib/format';
 import type { AgingBucket, AgingReport } from '../types';
 import { AGING_BUCKET_LABELS } from './customer-aging-filters';
 
@@ -35,21 +35,20 @@ export function AgingChart({ report }: { report: AgingReport }) {
             tickFormatter={formatAgingBucketTick}
           />
           <YAxis
-            width={96}
+            width={64}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(value: number) =>
-              formatVND(value).replace(/\s₫$/u, '')
-            }
+            tickFormatter={(value: number) => formatVNDCompact(value)}
           />
           <Tooltip
-            formatter={(value) => formatVND(Number(value))}
+            formatter={(value) => [formatVND(Number(value)), 'Còn lại']}
             labelFormatter={(label) =>
               isAgingBucket(label) ? formatAgingBucketTick(label) : label
             }
           />
           <Bar
             dataKey="totalRemaining"
+            name="Còn lại"
             fill="var(--chart-1)"
             radius={[4, 4, 0, 0]}
           />

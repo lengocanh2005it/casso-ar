@@ -190,7 +190,7 @@ export function ReportsPage() {
         }
       />
       <DashboardSummary summary={summaryQuery.data} />
-      <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid items-start gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <Card className="overflow-hidden">
           <CardHeader>
             <div className="flex items-center gap-2">

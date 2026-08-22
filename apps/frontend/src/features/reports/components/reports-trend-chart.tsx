@@ -7,7 +7,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { formatVND } from '@/lib/format';
+import { formatVND, formatVNDCompact } from '@/lib/format';
 import type { ReportsTrend } from '../types';
 
 const monthFormatter = new Intl.DateTimeFormat('vi-VN', {
@@ -48,12 +48,10 @@ export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {
               }
             />
             <YAxis
-              width={96}
+              width={64}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(value: number) =>
-                formatVND(value).replace(/\s₫$/u, '')
-              }
+              tickFormatter={(value: number) => formatVNDCompact(value)}
             />
             <Tooltip
               labelFormatter={(label) => {

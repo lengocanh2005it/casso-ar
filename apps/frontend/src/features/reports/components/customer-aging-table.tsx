@@ -8,11 +8,22 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatVND } from '@/lib/format';
-import type { CustomerAgingPage } from '../types';
+import { cn } from '@/lib/utils';
+import type { AgingBucket, CustomerAgingPage } from '../types';
 import {
   AGING_BUCKET_LABELS,
   AGING_BUCKET_ORDER,
 } from './customer-aging-filters';
+
+// Overdue buckets get a severity tone so the eye lands on what needs
+// attention; NOT_DUE carries no tone since it isn't a problem to flag.
+const BUCKET_TONE: Record<AgingBucket, string> = {
+  NOT_DUE: '',
+  OVERDUE_1_7: 'text-warning',
+  OVERDUE_8_30: 'text-warning',
+  OVERDUE_31_60: 'text-destructive',
+  OVERDUE_60_PLUS: 'text-destructive font-semibold',
+};
 
 export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
   return (
@@ -46,15 +57,25 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
                 {row.taxCode}
               </span>
             </TableCell>
-            {AGING_BUCKET_ORDER.map((bucket) => (
-              <TableCell key={bucket}>
-                {formatVND(
-                  row.buckets.find((item) => item.bucket === bucket)
-                    ?.totalRemaining ?? 0,
-                )}
-              </TableCell>
-            ))}
-            <TableCell className="tabular-nums">
+            {AGING_BUCKET_ORDER.map((bucket) => {
+              const amount =
+                row.buckets.find((item) => item.bucket === bucket)
+                  ?.totalRemaining ?? 0;
+              return (
+                <TableCell
+                  key={bucket}
+                  className={cn(
+                    'tabular-nums',
+                    amount === 0
+                      ? 'text-muted-foreground/50'
+                      : BUCKET_TONE[bucket],
+                  )}
+                >
+                  {formatVND(amount)}
+                </TableCell>
+              );
+            })}
+            <TableCell className="font-semibold tabular-nums">
               {formatVND(row.totalRemaining)}
             </TableCell>
           </TableRow>
