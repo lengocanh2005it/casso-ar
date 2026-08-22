@@ -42,6 +42,9 @@ function routeApiRequest(config: { url: string; method?: string }) {
   if (config.url === '/api/v1/copilot/drafts') {
     return Promise.resolve(EMPTY_DRAFTS_PAGE);
   }
+  if (/\/api\/v1\/copilot\/conversations\/[^/]+\/messages$/.test(config.url)) {
+    return Promise.resolve({ items: [] });
+  }
   return Promise.reject(
     new Error(
       `Unhandled apiRequest call: ${config.method ?? 'GET'} ${config.url}`,

@@ -1,9 +1,11 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { getApiErrorCode } from '@/lib/api-client';
 import type { CopilotMessage, CopilotPendingAction } from '../types';
 import {
   cancelCopilotAction,
   confirmCopilotAction,
+  getCopilotConversationMessages,
   streamCopilotMessage,
 } from './copilot-api';
 
@@ -21,6 +23,29 @@ export function useCopilotChat(
   const abortControllerRef = useRef<AbortController | null>(null);
   const blockedByPendingAction =
     pendingAction !== null && canResolvePendingAction;
+
+  useEffect(() => {
+    let cancelled = false;
+    setMessages([]);
+    setPendingAction(null);
+
+    getCopilotConversationMessages(conversationId)
+      .then((page) => {
+        if (cancelled) return;
+        // A send() started for this conversation before this load resolved
+        // already has the up-to-date messages — don't clobber it with the
+        // (now stale) fetched history.
+        setMessages((current) => (current.length > 0 ? current : page.items));
+      })
+      .catch((error: unknown) => {
+        if (cancelled || getApiErrorCode(error) === 'NOT_FOUND') return;
+        toast.error('Không thể tải lịch sử cuộc trò chuyện.');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [conversationId]);
 
   async function send(content: string) {
     const trimmed = content.trim();

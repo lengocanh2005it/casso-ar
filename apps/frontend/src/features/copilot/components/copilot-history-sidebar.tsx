@@ -32,7 +32,7 @@ export function CopilotHistorySidebar({
           <Plus className="size-4" />
         </Button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
         {isLoading && conversations.length === 0 && (
           <p className="px-2 py-4 text-center text-xs text-muted-foreground">
             Đang tải…
@@ -57,11 +57,12 @@ export function CopilotHistorySidebar({
           <button
             key={conversation.id}
             type="button"
+            title={conversation.title ?? undefined}
             onClick={() => onSelect(conversation.id)}
             className={cn(
-              'mb-1 block w-full truncate rounded-md px-2 py-2 text-left text-sm hover:bg-muted',
+              'block w-full truncate rounded-md border border-transparent px-2.5 py-2.5 text-left text-sm text-foreground/90 hover:bg-muted',
               conversation.id === activeConversationId &&
-                'bg-muted font-medium',
+                'border-border bg-muted font-medium text-foreground',
             )}
           >
             {conversation.title}

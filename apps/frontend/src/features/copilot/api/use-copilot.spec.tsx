@@ -1,17 +1,24 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { streamCopilotMessage, confirmCopilotAction, cancelCopilotAction } =
-  vi.hoisted(() => ({
-    streamCopilotMessage: vi.fn(),
-    confirmCopilotAction: vi.fn(),
-    cancelCopilotAction: vi.fn(),
-  }));
+const {
+  streamCopilotMessage,
+  confirmCopilotAction,
+  cancelCopilotAction,
+  getCopilotConversationMessages,
+} = vi.hoisted(() => ({
+  streamCopilotMessage: vi.fn(),
+  confirmCopilotAction: vi.fn(),
+  cancelCopilotAction: vi.fn(),
+  getCopilotConversationMessages: vi.fn(),
+}));
 
 vi.mock('./copilot-api', () => ({
   streamCopilotMessage: (...args: unknown[]) => streamCopilotMessage(...args),
   confirmCopilotAction: (...args: unknown[]) => confirmCopilotAction(...args),
   cancelCopilotAction: (...args: unknown[]) => cancelCopilotAction(...args),
+  getCopilotConversationMessages: (...args: unknown[]) =>
+    getCopilotConversationMessages(...args),
 }));
 
 import { useCopilotChat } from './use-copilot';
@@ -19,6 +26,69 @@ import { useCopilotChat } from './use-copilot';
 describe('useCopilotChat', () => {
   beforeEach(() => {
     streamCopilotMessage.mockReset();
+    getCopilotConversationMessages.mockReset();
+    getCopilotConversationMessages.mockResolvedValue({ items: [] });
+  });
+
+  it('loads the conversation history when switching to an existing conversation', async () => {
+    getCopilotConversationMessages.mockResolvedValue({
+      items: [
+        {
+          id: 'm1',
+          role: 'USER',
+          content: 'Câu hỏi cũ',
+          createdAt: '2026-08-09T00:00:00Z',
+        },
+        {
+          id: 'm2',
+          role: 'ASSISTANT',
+          content: 'Câu trả lời cũ',
+          createdAt: '2026-08-09T00:00:01Z',
+        },
+      ],
+    });
+    const { result } = renderHook(() => useCopilotChat(true, 'conversation-1'));
+
+    await waitFor(() => expect(result.current.messages).toHaveLength(2));
+    expect(getCopilotConversationMessages).toHaveBeenCalledWith(
+      'conversation-1',
+    );
+    expect(result.current.messages[0]).toMatchObject({
+      content: 'Câu hỏi cũ',
+    });
+  });
+
+  it('clears messages and loads the new conversation when conversationId changes', async () => {
+    getCopilotConversationMessages.mockResolvedValueOnce({ items: [] });
+    const { result, rerender } = renderHook(
+      ({ conversationId }) => useCopilotChat(true, conversationId),
+      { initialProps: { conversationId: 'conversation-1' } },
+    );
+    await waitFor(() =>
+      expect(getCopilotConversationMessages).toHaveBeenCalledWith(
+        'conversation-1',
+      ),
+    );
+
+    getCopilotConversationMessages.mockResolvedValueOnce({
+      items: [
+        {
+          id: 'm3',
+          role: 'USER',
+          content: 'Câu hỏi khác',
+          createdAt: '2026-08-09T00:00:00Z',
+        },
+      ],
+    });
+    rerender({ conversationId: 'conversation-2' });
+
+    await waitFor(() => expect(result.current.messages).toHaveLength(1));
+    expect(result.current.messages[0]).toMatchObject({
+      content: 'Câu hỏi khác',
+    });
+    expect(getCopilotConversationMessages).toHaveBeenCalledWith(
+      'conversation-2',
+    );
   });
 
   it('accumulates delta events into streamingContent, then commits the done message', async () => {
