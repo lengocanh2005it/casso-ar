@@ -20,6 +20,7 @@ export function useCopilotChat(
   const [isSending, setIsSending] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
   const [busy, setBusy] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const abortControllerRef = useRef<AbortController | null>(null);
   const blockedByPendingAction =
     pendingAction !== null && canResolvePendingAction;
@@ -28,6 +29,7 @@ export function useCopilotChat(
     let cancelled = false;
     setMessages([]);
     setPendingAction(null);
+    setIsLoadingHistory(true);
 
     getCopilotConversationMessages(conversationId)
       .then((page) => {
@@ -40,6 +42,9 @@ export function useCopilotChat(
       .catch((error: unknown) => {
         if (cancelled || getApiErrorCode(error) === 'NOT_FOUND') return;
         toast.error('Không thể tải lịch sử cuộc trò chuyện.');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingHistory(false);
       });
 
     return () => {
@@ -151,5 +156,6 @@ export function useCopilotChat(
     cancel,
     busy,
     blockedByPendingAction,
+    isLoadingHistory,
   };
 }

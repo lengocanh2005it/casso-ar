@@ -1,6 +1,7 @@
 import { Permission, PlanId } from '@casso-ledger/shared-types';
 import {
   Bot,
+  LoaderCircle,
   Lock,
   Mail,
   Menu,
@@ -88,6 +89,7 @@ export function CopilotPage() {
     cancel,
     busy,
     blockedByPendingAction,
+    isLoadingHistory,
   } = useCopilotChat(canSendManual, activeConversationId, {
     onTurnComplete: refreshConversations,
   });
@@ -243,7 +245,14 @@ export function CopilotPage() {
             </div>
 
             <div className="mx-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto p-5">
-              {isEmptyConversation ? (
+              {isLoadingHistory ? (
+                <div className="flex flex-1 items-center justify-center">
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="size-6 animate-spin text-muted-foreground"
+                  />
+                </div>
+              ) : isEmptyConversation ? (
                 <CopilotWelcomeState
                   onSuggestionClick={(text) => void send(text)}
                 />

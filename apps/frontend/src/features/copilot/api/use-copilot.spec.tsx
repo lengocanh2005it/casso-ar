@@ -58,6 +58,25 @@ describe('useCopilotChat', () => {
     });
   });
 
+  it('reports isLoadingHistory as true only while a conversation is being fetched', async () => {
+    let resolveLoad: (page: { items: never[] }) => void = () => {};
+    getCopilotConversationMessages.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveLoad = resolve;
+      }),
+    );
+    const { result } = renderHook(() => useCopilotChat(true, 'conversation-1'));
+
+    expect(result.current.isLoadingHistory).toBe(true);
+
+    await act(async () => {
+      resolveLoad({ items: [] });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+  });
+
   it('clears messages and loads the new conversation when conversationId changes', async () => {
     getCopilotConversationMessages.mockResolvedValueOnce({ items: [] });
     const { result, rerender } = renderHook(
