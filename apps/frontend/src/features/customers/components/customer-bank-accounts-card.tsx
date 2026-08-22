@@ -24,20 +24,30 @@ import {
 import type { CustomerBankAccount } from '../types';
 import { CustomerBankAccountDialog } from './customer-bank-account-dialog';
 
-type DialogState =
-  | { mode: 'create'; account?: undefined }
-  | { mode: 'edit'; account: CustomerBankAccount };
+interface CreateDialogState {
+  mode: 'create';
+  account?: undefined;
+}
 
-type ConfirmState = {
+interface EditDialogState {
+  mode: 'edit';
+  account: CustomerBankAccount;
+}
+
+type DialogState = CreateDialogState | EditDialogState;
+
+interface ConfirmState {
   action: 'deactivate' | 'reactivate';
   account: CustomerBankAccount;
-};
+}
+
+interface CustomerBankAccountsCardProps {
+  customerId: string;
+}
 
 export function CustomerBankAccountsCard({
   customerId,
-}: {
-  customerId: string;
-}) {
+}: CustomerBankAccountsCardProps) {
   const { user } = useAuth();
   const canManage = hasPermission(
     user?.role ?? null,
@@ -54,6 +64,10 @@ export function CustomerBankAccountsCard({
   const isConfirmPending =
     deactivateMutation.isPending || updateMutation.isPending;
 
+  function handleConfirmError() {
+    toast.error('Không thể cập nhật tài khoản ngân hàng.');
+  }
+
   function handleConfirm() {
     if (!confirmState) return;
 
@@ -63,9 +77,7 @@ export function CustomerBankAccountsCard({
           setConfirmState(null);
           toast.success('Đã vô hiệu hóa tài khoản ngân hàng.');
         },
-        onError: () => {
-          toast.error('Không thể cập nhật tài khoản ngân hàng.');
-        },
+        onError: handleConfirmError,
       });
     } else {
       updateMutation.mutate(
@@ -78,9 +90,7 @@ export function CustomerBankAccountsCard({
             setConfirmState(null);
             toast.success('Đã khôi phục tài khoản ngân hàng.');
           },
-          onError: () => {
-            toast.error('Không thể cập nhật tài khoản ngân hàng.');
-          },
+          onError: handleConfirmError,
         },
       );
     }

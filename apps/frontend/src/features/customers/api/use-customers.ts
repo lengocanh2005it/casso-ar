@@ -15,6 +15,11 @@ import {
   updateCustomerBankAccount,
 } from './customers-api';
 
+interface UpdateCustomerBankAccountMutationVariables {
+  id: string;
+  input: UpdateCustomerBankAccountInput;
+}
+
 export function useCustomers(search = '', page = 1, enabled = true) {
   return useQuery({
     queryKey: ['customers', search, page],
@@ -102,13 +107,8 @@ export function useCreateCustomerBankAccount(customerId: string) {
 export function useUpdateCustomerBankAccount(customerId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      id,
-      input,
-    }: {
-      id: string;
-      input: UpdateCustomerBankAccountInput;
-    }) => updateCustomerBankAccount(customerId, id, input),
+    mutationFn: ({ id, input }: UpdateCustomerBankAccountMutationVariables) =>
+      updateCustomerBankAccount(customerId, id, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: customerBankAccountsKey(customerId),

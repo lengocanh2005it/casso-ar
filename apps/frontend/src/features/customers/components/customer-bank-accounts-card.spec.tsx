@@ -82,6 +82,16 @@ describe('CustomerBankAccountsCard', () => {
     });
   }
 
+  it('shows a loading state while the list request is pending', () => {
+    apiRequest.mockImplementationOnce(() => new Promise(() => {}));
+
+    renderCard();
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Đang tải tài khoản ngân hàng…',
+    );
+  });
+
   it('hides write controls for a read-only role', async () => {
     useAuth.mockReturnValue({ user: { role: Role.VIEWER } });
     apiRequest.mockResolvedValueOnce({

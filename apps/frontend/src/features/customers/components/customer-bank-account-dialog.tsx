@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -40,12 +41,13 @@ export function CustomerBankAccountDialog({
   const createMutation = useCreateCustomerBankAccount(customerId);
   const updateMutation = useUpdateCustomerBankAccount(customerId);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: account identity changes must reset the edit form
   useEffect(() => {
     if (open) {
       setAccountNumber('');
       setError(null);
     }
-  }, [open]);
+  }, [account?.id, open]);
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
@@ -53,6 +55,21 @@ export function CustomerBankAccountDialog({
       setError(null);
     }
     onOpenChange(nextOpen);
+  }
+
+  function handleMutationSuccess(message: string) {
+    toast.success(message);
+    handleOpenChange(false);
+  }
+
+  function handleMutationError(mutationError: unknown) {
+    const message =
+      getApiErrorMessage(mutationError) ?? 'Không thể lưu tài khoản ngân hàng.';
+    setError(
+      getApiErrorCode(mutationError) === 'CONFLICT'
+        ? `${message} ${DUPLICATE_ACCOUNT_HINT}`
+        : message,
+    );
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -69,19 +86,9 @@ export function CustomerBankAccountDialog({
       createMutation.mutate(
         { accountNumber: trimmed },
         {
-          onSuccess: () => {
-            handleOpenChange(false);
-          },
-          onError: (mutationError) => {
-            const message =
-              getApiErrorMessage(mutationError) ??
-              'Không thể lưu tài khoản ngân hàng.';
-            setError(
-              getApiErrorCode(mutationError) === 'CONFLICT'
-                ? `${message} ${DUPLICATE_ACCOUNT_HINT}`
-                : message,
-            );
-          },
+          onSuccess: () =>
+            handleMutationSuccess('Đã thêm tài khoản ngân hàng.'),
+          onError: handleMutationError,
         },
       );
     } else {
@@ -96,19 +103,9 @@ export function CustomerBankAccountDialog({
           input: { accountNumber: trimmed },
         },
         {
-          onSuccess: () => {
-            handleOpenChange(false);
-          },
-          onError: (mutationError) => {
-            const message =
-              getApiErrorMessage(mutationError) ??
-              'Không thể lưu tài khoản ngân hàng.';
-            setError(
-              getApiErrorCode(mutationError) === 'CONFLICT'
-                ? `${message} ${DUPLICATE_ACCOUNT_HINT}`
-                : message,
-            );
-          },
+          onSuccess: () =>
+            handleMutationSuccess('Đã cập nhật tài khoản ngân hàng.'),
+          onError: handleMutationError,
         },
       );
     }

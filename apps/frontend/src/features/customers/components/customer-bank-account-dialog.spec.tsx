@@ -7,6 +7,15 @@ import { CustomerBankAccountDialog } from './customer-bank-account-dialog';
 
 const apiRequest = vi.fn();
 const postWithIdempotency = vi.fn();
+const { toastSuccess } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+}));
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: (...args: unknown[]) => toastSuccess(...args),
+  },
+}));
 
 vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
@@ -64,6 +73,7 @@ describe('CustomerBankAccountDialog', () => {
     });
     apiRequest.mockReset();
     postWithIdempotency.mockReset();
+    toastSuccess.mockReset();
     onOpenChange.mockReset();
   });
 
@@ -135,6 +145,7 @@ describe('CustomerBankAccountDialog', () => {
         { accountNumber: '0011 2233' },
       );
       expect(onOpenChange).toHaveBeenCalledWith(false);
+      expect(toastSuccess).toHaveBeenCalledWith('Đã thêm tài khoản ngân hàng.');
     });
   });
 
@@ -172,7 +183,50 @@ describe('CustomerBankAccountDialog', () => {
         headers: { 'Idempotency-Key': expect.any(String) },
       });
       expect(onOpenChange).toHaveBeenCalledWith(false);
+      expect(toastSuccess).toHaveBeenCalledWith(
+        'Đã cập nhật tài khoản ngân hàng.',
+      );
     });
+  });
+
+  it('resets the replacement input when the edited account changes', () => {
+    const firstAccount: CustomerBankAccount = {
+      id: 'account-1',
+      customerId: 'customer-1',
+      accountNumberMasked: '******2233',
+      isActive: true,
+      createdAt: '2026-08-22T00:00:00.000Z',
+      updatedAt: '2026-08-22T00:00:00.000Z',
+    };
+    const secondAccount = {
+      ...firstAccount,
+      id: 'account-2',
+      accountNumberMasked: '******8899',
+    };
+    const view = render(
+      <CustomerBankAccountDialog
+        customerId="customer-1"
+        account={firstAccount}
+        open={true}
+        onOpenChange={onOpenChange}
+      />,
+      { wrapper: createWrapper(queryClient) },
+    );
+
+    fireEvent.change(screen.getByLabelText('Số tài khoản ngân hàng mới'), {
+      target: { value: '0011 4455' },
+    });
+    view.rerender(
+      <CustomerBankAccountDialog
+        customerId="customer-1"
+        account={secondAccount}
+        open={true}
+        onOpenChange={onOpenChange}
+      />,
+    );
+
+    expect(screen.getByLabelText('Số tài khoản ngân hàng mới')).toHaveValue('');
+    expect(screen.getByText('******8899')).toBeInTheDocument();
   });
 
   it('explains that duplicate accounts should be restored inline', async () => {
