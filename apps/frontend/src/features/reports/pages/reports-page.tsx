@@ -1,5 +1,6 @@
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, PieChart, TrendingUp, Users } from 'lucide-react';
 import { lazy, Suspense, useEffect } from 'react';
+import { EmptyState } from '@/components/layout/empty-state';
 import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -166,12 +167,13 @@ export function ReportsPage() {
   if (!summaryQuery.data || !agingQuery.data) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeading
         eyebrow="PHÂN TÍCH"
         title="Báo cáo"
         description="Theo dõi công nợ, tuổi nợ và khả năng thu tiền."
         icon={BarChart3}
+        tone="info"
         actions={
           <Button
             variant="outline"
@@ -188,10 +190,13 @@ export function ReportsPage() {
         }
       />
       <DashboardSummary summary={summaryQuery.data} />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
+      <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <Card className="overflow-hidden">
           <CardHeader>
-            <CardTitle>Phân bổ tuổi nợ</CardTitle>
+            <div className="flex items-center gap-2">
+              <PieChart aria-hidden="true" className="size-4 text-info" />
+              <CardTitle>Phân bổ tuổi nợ</CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
             <AgingTable
@@ -200,9 +205,12 @@ export function ReportsPage() {
             />
           </CardContent>
         </Card>
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
-            <CardTitle>Biểu đồ tuổi nợ</CardTitle>
+            <div className="flex items-center gap-2">
+              <BarChart3 aria-hidden="true" className="size-4 text-warning" />
+              <CardTitle>Biểu đồ tuổi nợ</CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
             <Suspense fallback={<ChartLoadingFallback />}>
@@ -211,9 +219,12 @@ export function ReportsPage() {
           </CardContent>
         </Card>
       </div>
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader>
-          <CardTitle>Công nợ theo khách hàng</CardTitle>
+          <div className="flex items-center gap-2">
+            <Users aria-hidden="true" className="size-4 text-info" />
+            <CardTitle>Công nợ theo khách hàng</CardTitle>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <CustomerAgingFilters
@@ -235,16 +246,19 @@ export function ReportsPage() {
           {customerAgingQuery.data &&
             customerAgingQuery.data.total === 0 &&
             customerAgingQuery.data.items.length === 0 && (
-              <p className="text-muted-foreground">
-                Không có khách hàng nào có công nợ hiện tại.
-              </p>
+              <EmptyState
+                density="compact"
+                icon={Users}
+                title="Không có khách hàng có công nợ hiện tại"
+                description="Thử thay đổi bộ lọc để xem thêm kết quả."
+              />
             )}
           {customerAgingQuery.data &&
             customerAgingQuery.data.items.length > 0 && (
               <CustomerAgingTable page={customerAgingQuery.data} />
             )}
           {customerAgingQuery.data && customerAgingQuery.data.total > 0 && (
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="-mx-6 flex flex-col gap-3 border-t bg-muted/20 px-6 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
               <span>
                 Trang {customerAgingQuery.data.page} / {agingTotalPages}
               </span>
@@ -270,9 +284,15 @@ export function ReportsPage() {
           )}
         </CardContent>
       </Card>
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between gap-4">
-          <CardTitle>Xu hướng công nợ và thu hồi</CardTitle>
+          <div className="flex min-w-0 items-center gap-2">
+            <TrendingUp
+              aria-hidden="true"
+              className="size-4 shrink-0 text-success"
+            />
+            <CardTitle>Xu hướng công nợ và thu hồi</CardTitle>
+          </div>
           <Select
             value={String(trendMonths)}
             onValueChange={(value) => {
@@ -282,7 +302,10 @@ export function ReportsPage() {
               }
             }}
           >
-            <SelectTrigger aria-label="Khoảng thời gian" className="w-40">
+            <SelectTrigger
+              aria-label="Khoảng thời gian"
+              className="w-full sm:w-40"
+            >
               <SelectValue placeholder="12 tháng" />
             </SelectTrigger>
             <SelectContent>

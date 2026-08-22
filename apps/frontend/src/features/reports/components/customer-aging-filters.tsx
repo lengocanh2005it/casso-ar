@@ -49,7 +49,7 @@ export function CustomerAgingFilters({
   onBucketChange,
 }: CustomerAgingFiltersProps) {
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-col gap-3 rounded-xl border bg-muted/20 p-3 sm:flex-row sm:items-center">
       <Input
         name="search"
         autoComplete="off"
@@ -57,7 +57,7 @@ export function CustomerAgingFilters({
         placeholder="Tìm theo tên, mã số thuế hoặc số điện thoại…"
         value={search}
         onChange={(event) => onSearchChange(event.target.value)}
-        className="max-w-lg"
+        className="w-full sm:max-w-lg"
       />
       <Select
         value={bucket}
@@ -65,7 +65,7 @@ export function CustomerAgingFilters({
           if (isAgingBucketFilter(value)) onBucketChange(value);
         }}
       >
-        <SelectTrigger aria-label="Bộ lọc tuổi nợ" className="w-56">
+        <SelectTrigger aria-label="Bộ lọc tuổi nợ" className="w-full sm:w-56">
           <SelectValue placeholder="Tất cả" />
         </SelectTrigger>
         <SelectContent>

@@ -123,6 +123,11 @@ describe('ReportsPage', () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText('70.000.000 ₫')).toBeTruthy());
+    expect(
+      screen.getByRole('heading', { name: 'Báo cáo' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Phân bổ tuổi nợ')).toBeInTheDocument();
+    expect(screen.getByText('Công nợ theo khách hàng')).toBeInTheDocument();
     await waitFor(() =>
       expect(
         screen.getAllByText(/100.000.000 ₫/).length,
@@ -284,7 +289,7 @@ describe('ReportsPage', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText('Không có khách hàng nào có công nợ hiện tại.'),
+        screen.getByText('Không có khách hàng có công nợ hiện tại'),
       ).toBeTruthy(),
     );
 
@@ -340,7 +345,7 @@ describe('ReportsPage', () => {
       ).toBe(true);
     });
     expect(
-      screen.queryByText('Không có khách hàng nào có công nợ hiện tại.'),
+      screen.queryByText('Không có khách hàng có công nợ hiện tại'),
     ).toBeNull();
   });
 });

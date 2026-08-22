@@ -54,7 +54,9 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
                 )}
               </TableCell>
             ))}
-            <TableCell>{formatVND(row.totalRemaining)}</TableCell>
+            <TableCell className="tabular-nums">
+              {formatVND(row.totalRemaining)}
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>

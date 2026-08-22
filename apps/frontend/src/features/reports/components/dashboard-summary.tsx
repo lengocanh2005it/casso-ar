@@ -6,7 +6,9 @@ import {
   Clock,
   Hand,
   TrendingUp,
+  Users,
 } from 'lucide-react';
+import { EmptyState } from '@/components/layout/empty-state';
 import { MetricCard } from '@/components/metric-card';
 import {
   Card,
@@ -95,18 +97,24 @@ export function DashboardSummary({
         />
       </div>
 
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader>
-          <CardTitle>Khách hàng quá hạn nhiều nhất</CardTitle>
+          <div className="flex items-center gap-2">
+            <Users aria-hidden="true" className="size-4 text-destructive" />
+            <CardTitle>Khách hàng quá hạn nhiều nhất</CardTitle>
+          </div>
           <CardDescription>
             Top khách hàng có tổng công nợ quá hạn cao nhất
           </CardDescription>
         </CardHeader>
         <CardContent>
           {summary.topOverdueCustomers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Chưa có khách hàng quá hạn.
-            </p>
+            <EmptyState
+              density="compact"
+              icon={Users}
+              title="Chưa có khách hàng quá hạn"
+              description="Danh sách sẽ xuất hiện khi có khoản quá hạn cần theo dõi."
+            />
           ) : (
             <div className="space-y-2">
               {summary.topOverdueCustomers.map((customer) => (
