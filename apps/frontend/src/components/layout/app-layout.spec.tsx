@@ -111,4 +111,29 @@ describe('AppLayout', () => {
 
     vi.unstubAllGlobals();
   });
+
+  it('centers page content on the light application canvas', () => {
+    useAuth.mockReturnValue({ user: null, logout: vi.fn() });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <ThemeProvider>
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <QueryClientProvider client={queryClient}>
+            <Routes>
+              <Route element={<AppLayout />}>
+                <Route path="dashboard" element={<div>Dashboard</div>} />
+              </Route>
+            </Routes>
+          </QueryClientProvider>
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+    const main = screen.getByRole('main');
+    expect(main).toHaveClass('bg-app-canvas');
+    expect(main.firstElementChild).toHaveClass('mx-auto', 'max-w-[1600px]');
+  });
 });

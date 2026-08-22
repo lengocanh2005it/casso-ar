@@ -1,8 +1,38 @@
 import type { LucideIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-export function HeaderIcon({ icon: Icon }: { icon: LucideIcon }) {
+export type HeaderIconTone =
+  | 'brand'
+  | 'info'
+  | 'success'
+  | 'warning'
+  | 'danger'
+  | 'ai';
+
+const toneClasses: Record<HeaderIconTone, string> = {
+  brand: 'bg-primary/10 text-primary',
+  info: 'bg-info/10 text-info',
+  success: 'bg-success/10 text-success',
+  warning: 'bg-warning/15 text-warning-foreground',
+  danger: 'bg-destructive/10 text-destructive',
+  ai: 'bg-violet-500/10 text-violet-600 dark:text-violet-300',
+};
+
+export function HeaderIcon({
+  icon: Icon,
+  tone = 'brand',
+}: {
+  icon: LucideIcon;
+  tone?: HeaderIconTone;
+}) {
   return (
-    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+    <div
+      data-testid="header-icon"
+      className={cn(
+        'flex size-9 shrink-0 items-center justify-center rounded-lg',
+        toneClasses[tone],
+      )}
+    >
       <Icon aria-hidden="true" className="size-5" />
     </div>
   );

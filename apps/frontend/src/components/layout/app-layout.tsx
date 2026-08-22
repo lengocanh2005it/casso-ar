@@ -20,7 +20,7 @@ export function AppLayout() {
       >
         Đi tới nội dung
       </a>
-      <div className="flex h-dvh w-full overflow-hidden bg-background">
+      <div className="flex h-dvh w-full overflow-hidden bg-app-canvas">
         <div className="hidden h-full md:block">
           <Sidebar
             collapsed={collapsed}
@@ -40,8 +40,13 @@ export function AppLayout() {
             </div>
           </header>
 
-          <main id="main-content" className="flex-1 overflow-auto p-4 md:p-6">
-            <Outlet />
+          <main
+            id="main-content"
+            className="flex-1 overflow-auto bg-app-canvas p-4 md:p-6 xl:p-8"
+          >
+            <div className="mx-auto w-full max-w-[1600px]">
+              <Outlet />
+            </div>
           </main>
         </div>
       </div>
