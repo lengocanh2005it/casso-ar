@@ -23,7 +23,12 @@ export function PageHeading({
   className,
 }: PageHeadingProps) {
   return (
-    <div className={cn('flex items-start justify-between gap-4', className)}>
+    <div
+      className={cn(
+        'flex flex-col items-start justify-between gap-4 sm:flex-row',
+        className,
+      )}
+    >
       <div className="flex items-start gap-3">
         {Icon && <HeaderIcon icon={Icon} tone={tone} />}
         <div>

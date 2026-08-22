@@ -1,6 +1,8 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ListTodo } from 'lucide-react';
 import { useState } from 'react';
+import { EmptyState } from '@/components/layout/empty-state';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -118,7 +120,12 @@ export function ReceivableTasks({ receivableId }: { receivableId: string }) {
         </p>
       )}
       {!data || data.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Chưa có công việc.</p>
+        <EmptyState
+          density="compact"
+          icon={ListTodo}
+          title="Chưa có công việc"
+          description="Các việc cần theo dõi khoản phải thu sẽ hiển thị tại đây."
+        />
       ) : (
         <ul className="space-y-3">
           {data.map((task) => (

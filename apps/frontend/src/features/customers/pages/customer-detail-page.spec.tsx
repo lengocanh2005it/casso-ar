@@ -77,6 +77,9 @@ describe('CustomerDetailPage', () => {
     await waitFor(() =>
       expect(screen.getByText('Công ty B')).toBeInTheDocument(),
     );
+    expect(
+      screen.getByRole('heading', { name: 'Công ty B' }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/b@example\.com/)).toBeInTheDocument();
     expect(await screen.findByText('Tài khoản ngân hàng')).toBeInTheDocument();
     expect(screen.getByText('******2233')).toBeInTheDocument();

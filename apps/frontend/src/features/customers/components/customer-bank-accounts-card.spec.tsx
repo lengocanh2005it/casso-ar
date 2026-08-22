@@ -158,7 +158,7 @@ describe('CustomerBankAccountsCard', () => {
     renderCard();
 
     expect(
-      await screen.findByText('Khách hàng chưa có tài khoản ngân hàng nào.'),
+      await screen.findByText('Chưa có tài khoản ngân hàng'),
     ).toBeInTheDocument();
     expect(
       screen.getAllByRole('button', { name: 'Thêm tài khoản' }),

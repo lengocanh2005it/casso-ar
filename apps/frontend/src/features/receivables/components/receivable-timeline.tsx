@@ -1,4 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
+import { Activity } from 'lucide-react';
+import { EmptyState } from '@/components/layout/empty-state';
 import { formatActivityType } from '@/lib/collection-activity-labels';
 import { formatDate } from '@/lib/format';
 import { fetchReceivableTimeline } from '../api/receivables-api';
@@ -23,7 +25,14 @@ export function ReceivableTimeline({ receivableId }: { receivableId: string }) {
     );
   }
   if (!data || data.items.length === 0) {
-    return <p className="text-sm text-muted-foreground">Chưa có hoạt động.</p>;
+    return (
+      <EmptyState
+        density="compact"
+        icon={Activity}
+        title="Chưa có hoạt động"
+        description="Các cập nhật của khoản phải thu sẽ hiển thị tại đây."
+      />
+    );
   }
 
   return (

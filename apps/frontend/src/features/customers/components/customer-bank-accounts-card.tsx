@@ -1,6 +1,8 @@
 import { Permission } from '@casso-ledger/shared-types';
+import { Landmark } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { EmptyState } from '@/components/layout/empty-state';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -100,7 +102,10 @@ export function CustomerBankAccountsCard({
     <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle>Tài khoản ngân hàng</CardTitle>
+          <div className="flex items-center gap-2">
+            <Landmark aria-hidden="true" className="size-4 text-info" />
+            <CardTitle>Tài khoản ngân hàng</CardTitle>
+          </div>
           {canManage && (
             <Button
               size="sm"
@@ -141,20 +146,23 @@ export function CustomerBankAccountsCard({
           )}
 
           {query.data && query.data.items.length === 0 && (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Khách hàng chưa có tài khoản ngân hàng nào.
-              </p>
-              {canManage && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDialogState({ mode: 'create' })}
-                >
-                  Thêm tài khoản
-                </Button>
-              )}
-            </div>
+            <EmptyState
+              density="compact"
+              icon={Landmark}
+              title="Chưa có tài khoản ngân hàng"
+              description="Thêm tài khoản để đối soát giao dịch của khách hàng."
+              action={
+                canManage ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDialogState({ mode: 'create' })}
+                  >
+                    Thêm tài khoản
+                  </Button>
+                ) : null
+              }
+            />
           )}
 
           {query.data && query.data.items.length > 0 && (

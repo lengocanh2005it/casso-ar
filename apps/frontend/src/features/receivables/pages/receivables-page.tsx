@@ -1,5 +1,5 @@
 import { Permission, ReceivableStatus } from '@casso-ledger/shared-types';
-import { Receipt } from 'lucide-react';
+import { Receipt, Search } from 'lucide-react';
 import { PageHeading } from '@/components/layout/page-heading';
 import { SectionCard } from '@/components/layout/section-card';
 import { Button } from '@/components/ui/button';
@@ -55,6 +55,7 @@ export function ReceivablesPage() {
         title="Công nợ"
         description="Theo dõi và quản lý công nợ của khách hàng."
         icon={Receipt}
+        tone="brand"
         actions={
           <div className="flex flex-wrap gap-2">
             {canExport && (
@@ -89,28 +90,36 @@ export function ReceivablesPage() {
           </div>
         }
       />
-      <Input
-        name="search"
-        type="search"
-        autoComplete="off"
-        aria-label="Tìm kiếm công nợ"
-        placeholder="Tìm theo số hóa đơn hoặc khách hàng…"
-        value={search}
-        onChange={(event) => {
-          setParam('search', event.target.value, {
-            resetPage: true,
-            replace: true,
-          });
-        }}
-        className="max-w-lg"
-      />
-      <ReceivableFilters
-        status={status}
-        onStatusChange={(value) =>
-          setParam('status', value ?? '', { resetPage: true })
-        }
-      />
-      <SectionCard>
+      <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 shadow-sm sm:flex-row sm:items-center sm:p-4">
+        <div className="relative min-w-0 flex-1">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            name="search"
+            type="search"
+            autoComplete="off"
+            aria-label="Tìm kiếm công nợ"
+            placeholder="Tìm theo số hóa đơn hoặc khách hàng…"
+            value={search}
+            onChange={(event) => {
+              setParam('search', event.target.value, {
+                resetPage: true,
+                replace: true,
+              });
+            }}
+            className="w-full pl-9"
+          />
+        </div>
+        <ReceivableFilters
+          status={status}
+          onStatusChange={(value) =>
+            setParam('status', value ?? '', { resetPage: true })
+          }
+        />
+      </div>
+      <SectionCard className="overflow-hidden">
         {isPending && <TableSkeleton rows={5} />}
         {isError && (
           <p role="status" aria-live="polite" className="text-destructive">
@@ -126,36 +135,36 @@ export function ReceivablesPage() {
             allSelected={bulkSelection.allSelected}
           />
         )}
+        {data && data.total > 0 && (
+          <div className="-mx-6 mt-4 flex flex-col gap-3 border-t bg-muted/20 px-6 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              Trang {data.page} / {totalPages}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 1}
+                onClick={() => setPage(page - 1)}
+              >
+                Trước
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage(page + 1)}
+              >
+                Sau
+              </Button>
+            </div>
+          </div>
+        )}
       </SectionCard>
       <ReceivablesBulkActionBar
         selectedIds={bulkSelection.selectedIds}
         onResult={(succeeded) => bulkSelection.drop(succeeded)}
       />
-      {data && data.total > 0 && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>
-            Trang {data.page} / {totalPages}
-          </span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page === 1}
-              onClick={() => setPage(page - 1)}
-            >
-              Trước
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages}
-              onClick={() => setPage(page + 1)}
-            >
-              Sau
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

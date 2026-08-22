@@ -62,6 +62,15 @@ describe('ReceivablesPage', () => {
     await waitFor(() =>
       expect(screen.getByText('INV-001')).toBeInTheDocument(),
     );
+    expect(
+      screen.getByRole('heading', { name: 'Công nợ' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('searchbox', { name: 'Tìm kiếm công nợ' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('combobox', { name: 'Lọc theo trạng thái' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('15.000.000 ₫')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'INV-001' })).toHaveAttribute(
       'href',

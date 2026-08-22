@@ -1,10 +1,19 @@
+import { Activity } from 'lucide-react';
+import { EmptyState } from '@/components/layout/empty-state';
 import type { CustomerTimelineItem } from '@/features/customers/types';
 import { formatActivityType } from '@/lib/collection-activity-labels';
 import { formatDate } from '@/lib/format';
 
 export function CustomerTimeline({ items }: { items: CustomerTimelineItem[] }) {
   if (items.length === 0) {
-    return <p className="text-sm text-muted-foreground">Chưa có hoạt động.</p>;
+    return (
+      <EmptyState
+        density="compact"
+        icon={Activity}
+        title="Chưa có hoạt động"
+        description="Các cập nhật của khách hàng sẽ hiển thị tại đây."
+      />
+    );
   }
 
   return (

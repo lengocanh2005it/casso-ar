@@ -58,6 +58,7 @@ describe('ReceivableDetailPage', () => {
     await waitFor(() =>
       expect(screen.getByText('20.000.000 ₫')).toBeInTheDocument(),
     );
+    expect(screen.getByRole('heading')).toBeInTheDocument();
     expect(screen.getByRole('progressbar')).toHaveAttribute(
       'aria-valuenow',
       '60',

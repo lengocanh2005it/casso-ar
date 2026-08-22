@@ -54,6 +54,12 @@ describe('CustomersPage', () => {
     await waitFor(() =>
       expect(screen.getByText('Công ty B')).toBeInTheDocument(),
     );
+    expect(
+      screen.getByRole('heading', { name: 'Khách hàng' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('textbox', { name: 'Tìm kiếm khách hàng' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Công ty B' })).toHaveAttribute(
       'href',
       '/customers/customer-1',

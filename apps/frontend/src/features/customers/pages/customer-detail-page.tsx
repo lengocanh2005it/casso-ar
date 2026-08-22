@@ -1,6 +1,7 @@
-import { Users } from 'lucide-react';
+import { CreditCard, History, Receipt, Users } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { EmptyState } from '@/components/layout/empty-state';
 import { PageHeading } from '@/components/layout/page-heading';
 import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 import { Button } from '@/components/ui/button';
@@ -54,7 +55,7 @@ export function CustomerDetailPage() {
   const customer = customerQuery.data;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Link
         to="/customers"
         className="text-sm text-primary pointer-hover:hover:underline"
@@ -65,11 +66,15 @@ export function CustomerDetailPage() {
         eyebrow="HỒ SƠ KHÁCH HÀNG"
         title={customer.name}
         icon={Users}
+        tone="info"
       />
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Thông tin liên hệ</CardTitle>
+            <div className="flex items-center gap-2">
+              <Users aria-hidden="true" className="size-4 text-info" />
+              <CardTitle>Thông tin liên hệ</CardTitle>
+            </div>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <p>Email: {customer.email ?? '—'}</p>
@@ -80,7 +85,10 @@ export function CustomerDetailPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Điều khoản công nợ</CardTitle>
+            <div className="flex items-center gap-2">
+              <CreditCard aria-hidden="true" className="size-4 text-primary" />
+              <CardTitle>Điều khoản công nợ</CardTitle>
+            </div>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <p>
@@ -99,7 +107,10 @@ export function CustomerDetailPage() {
       <CustomerBankAccountsCard customerId={id} />
       <Card>
         <CardHeader>
-          <CardTitle>Lịch sử hoạt động</CardTitle>
+          <div className="flex items-center gap-2">
+            <History aria-hidden="true" className="size-4 text-success" />
+            <CardTitle>Lịch sử hoạt động</CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
           {timelineQuery.isPending && (
@@ -120,7 +131,10 @@ export function CustomerDetailPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Số dư tín dụng</CardTitle>
+            <div className="flex items-center gap-2">
+              <CreditCard aria-hidden="true" className="size-4 text-info" />
+              <CardTitle>Số dư tín dụng</CardTitle>
+            </div>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             {creditsQuery.isPending && (
@@ -144,7 +158,7 @@ export function CustomerDetailPage() {
                 <p className="text-muted-foreground">
                   {creditsQuery.data.items.length} khoản thanh toán chưa phân bổ
                 </p>
-                {creditsQuery.data.items.length > 0 && (
+                {creditsQuery.data.items.length > 0 ? (
                   <ul className="space-y-2 pt-2">
                     {creditsQuery.data.items.map((payment) => (
                       <li
@@ -171,6 +185,13 @@ export function CustomerDetailPage() {
                       </li>
                     ))}
                   </ul>
+                ) : (
+                  <EmptyState
+                    density="compact"
+                    icon={CreditCard}
+                    title="Chưa có khoản thanh toán chưa phân bổ"
+                    description="Các khoản thanh toán chờ phân bổ sẽ hiển thị tại đây."
+                  />
                 )}
               </>
             )}
@@ -178,7 +199,10 @@ export function CustomerDetailPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Khoản phải thu</CardTitle>
+            <div className="flex items-center gap-2">
+              <Receipt aria-hidden="true" className="size-4 text-primary" />
+              <CardTitle>Khoản phải thu</CardTitle>
+            </div>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             {receivablesQuery.isPending && (
@@ -194,17 +218,30 @@ export function CustomerDetailPage() {
             {receivablesQuery.data && (
               <>
                 <p>Tổng cộng: {receivablesQuery.data.total} khoản phải thu</p>
-                <ul className="space-y-1">
-                  {receivablesQuery.data.items.slice(0, 5).map((receivable) => (
-                    <li
-                      key={receivable.id}
-                      className="flex justify-between gap-2"
-                    >
-                      <ReceivableStatusBadge status={receivable.status} />
-                      <span>{formatVND(receivable.remainingAmount)}</span>
-                    </li>
-                  ))}
-                </ul>
+                {receivablesQuery.data.items.length > 0 ? (
+                  <ul className="space-y-1">
+                    {receivablesQuery.data.items
+                      .slice(0, 5)
+                      .map((receivable) => (
+                        <li
+                          key={receivable.id}
+                          className="flex justify-between gap-2"
+                        >
+                          <ReceivableStatusBadge status={receivable.status} />
+                          <span className="tabular-nums">
+                            {formatVND(receivable.remainingAmount)}
+                          </span>
+                        </li>
+                      ))}
+                  </ul>
+                ) : (
+                  <EmptyState
+                    density="compact"
+                    icon={Receipt}
+                    title="Chưa có khoản phải thu"
+                    description="Các khoản công nợ của khách hàng sẽ hiển thị tại đây."
+                  />
+                )}
                 {receivablesQuery.data.total > 5 && (
                   <Link
                     to={`/receivables?customerId=${encodeURIComponent(id)}`}
