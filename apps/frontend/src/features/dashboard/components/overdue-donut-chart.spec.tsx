@@ -22,6 +22,18 @@ describe('OverdueDonutChart', () => {
     expect(screen.getByText('70.000.000 ₫')).toBeInTheDocument();
   });
 
+  it('stacks the donut above the allocation details', () => {
+    render(
+      <OverdueDonutChart
+        totalOutstanding={100_000_000}
+        totalOverdue={30_000_000}
+      />,
+    );
+
+    const layout = screen.getByRole('img').parentElement?.parentElement;
+    expect(layout).toHaveClass('flex', 'flex-col', 'items-center');
+  });
+
   it('shows a useful empty state when there is no outstanding debt', () => {
     render(<OverdueDonutChart totalOutstanding={0} totalOverdue={0} />);
 

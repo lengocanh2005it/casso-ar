@@ -45,7 +45,7 @@ export function OverdueDonutChart({
   ];
 
   return (
-    <div className="grid min-h-64 items-center gap-6 py-2 sm:grid-cols-[minmax(9rem,11rem)_1fr]">
+    <div className="flex min-h-64 flex-col items-center justify-center gap-6 py-2">
       <div className="flex justify-center">
         <div
           role="img"
@@ -66,11 +66,11 @@ export function OverdueDonutChart({
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="w-full max-w-lg space-y-3">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           Phân bổ công nợ
         </p>
-        <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           {bars.map((bar) => (
             <div
               key={bar.name}
