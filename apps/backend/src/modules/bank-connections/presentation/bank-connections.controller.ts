@@ -5,6 +5,7 @@ import {
   Get,
   Headers,
   Param,
+  ParseUUIDPipe,
   Post,
   Query,
   Req,
@@ -174,7 +175,7 @@ export class BankConnectionsController {
   )
   @RequirePermission(Permission.BANK_CONNECTION_MANAGE)
   async previewRotation(
-    @Param('id') authorizationId: string,
+    @Param('id', ParseUUIDPipe) authorizationId: string,
     @Body() dto: PreviewCassoFlowDto,
   ) {
     return this.previewCassoFlowAuthorizationRotationUseCase.execute({
@@ -201,7 +202,7 @@ export class BankConnectionsController {
     AuditEntityType.CASSO_FLOW_AUTHORIZATION,
   )
   async rotate(
-    @Param('id') authorizationId: string,
+    @Param('id', ParseUUIDPipe) authorizationId: string,
     @Headers('idempotency-key') key: string | undefined,
     @Body() dto: RotateCassoFlowDto,
     @Req() request: AuthRequest,
@@ -238,7 +239,7 @@ export class BankConnectionsController {
     AuditEntityType.CASSO_FLOW_AUTHORIZATION,
   )
   async revealApiKey(
-    @Param('id') authorizationId: string,
+    @Param('id', ParseUUIDPipe) authorizationId: string,
     @Headers('idempotency-key') key: string | undefined,
     @Body() dto: RevealCassoFlowApiKeyDto,
     @Req() request: AuthRequest,
@@ -276,7 +277,7 @@ export class BankConnectionsController {
     AuditEntityType.BANK_CONNECTION,
   )
   async disconnect(
-    @Param('id') connectionId: string,
+    @Param('id', ParseUUIDPipe) connectionId: string,
     @Headers('idempotency-key') key: string | undefined,
     @Req() request: AuthRequest,
   ) {
@@ -300,7 +301,7 @@ export class BankConnectionsController {
   @ApiErrorResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.NOT_FOUND)
   @RequirePermission(Permission.BANK_CONNECTION_REVEAL_KEY)
   async listAuditEvents(
-    @Param('id') authorizationId: string,
+    @Param('id', ParseUUIDPipe) authorizationId: string,
     @Query() query: PaginationDto,
   ) {
     const result = await this.listAuthorizationAuditEventsUseCase.execute({

@@ -303,5 +303,13 @@ describe('Bank connections audit events (e2e)', () => {
       )
       .set('Authorization', `Bearer ${otherOwnerToken}`)
       .expect(404);
+
+    // 8. A malformed (non-UUID) authorization id must fail input validation,
+    // not crash into a raw Postgres error surfaced as a 500.
+    const malformedRes = await request(app.getHttpServer())
+      .get('/api/v1/bank-connections/authorizations/not-a-uuid/audit-events')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(400);
+    expect(malformedRes.body.errorCode).toBe('VALIDATION_ERROR');
   }, 30_000);
 });
