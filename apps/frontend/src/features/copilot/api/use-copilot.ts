@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { getApiErrorCode } from '@/lib/api-client';
 import type { CopilotMessage, CopilotPendingAction } from '../types';
 import {
+  CopilotStreamRequestError,
   cancelCopilotAction,
   confirmCopilotAction,
   getCopilotConversationMessages,
@@ -21,6 +22,9 @@ export function useCopilotChat(
   const [streamingContent, setStreamingContent] = useState('');
   const [busy, setBusy] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [quotaExceededMessage, setQuotaExceededMessage] = useState<
+    string | null
+  >(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const blockedByPendingAction =
     pendingAction !== null && canResolvePendingAction;
@@ -30,6 +34,7 @@ export function useCopilotChat(
     setMessages([]);
     setPendingAction(null);
     setIsLoadingHistory(true);
+    setQuotaExceededMessage(null);
 
     getCopilotConversationMessages(conversationId)
       .then((page) => {
@@ -54,14 +59,22 @@ export function useCopilotChat(
 
   async function send(content: string) {
     const trimmed = content.trim();
-    if (!trimmed || isSending || blockedByPendingAction) return;
+    if (
+      !trimmed ||
+      isSending ||
+      blockedByPendingAction ||
+      quotaExceededMessage !== null
+    ) {
+      return;
+    }
 
     setIsSending(true);
     setStreamingContent('');
+    const optimisticMessageId = crypto.randomUUID();
     setMessages((current) => [
       ...current,
       {
-        id: crypto.randomUUID(),
+        id: optimisticMessageId,
         role: 'USER',
         content: trimmed,
         createdAt: new Date().toISOString(),
@@ -104,6 +117,18 @@ export function useCopilotChat(
             },
           ]);
         }
+      } else if (
+        error instanceof CopilotStreamRequestError &&
+        error.errorCode === 'PLAN_LIMIT_EXCEEDED'
+      ) {
+        // The message was never persisted (the quota check runs before the
+        // write) — drop the optimistic bubble so the chat doesn't show a
+        // question that was never actually sent.
+        setMessages((current) =>
+          current.filter((message) => message.id !== optimisticMessageId),
+        );
+        setQuotaExceededMessage(error.message);
+        toast.error(error.message);
       } else {
         toast.error('Không thể gửi câu hỏi cho Copilot.');
       }
@@ -157,5 +182,6 @@ export function useCopilotChat(
     busy,
     blockedByPendingAction,
     isLoadingHistory,
+    quotaExceededMessage,
   };
 }

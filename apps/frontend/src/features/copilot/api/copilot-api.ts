@@ -96,6 +96,16 @@ export type CopilotStreamEvent =
     }
   | { type: 'error'; errorCode: string; message: string };
 
+export class CopilotStreamRequestError extends Error {
+  errorCode?: string;
+
+  constructor(message: string, errorCode?: string) {
+    super(message);
+    this.name = 'CopilotStreamRequestError';
+    this.errorCode = errorCode;
+  }
+}
+
 export async function streamCopilotMessage(
   conversationId: string,
   content: string,
@@ -118,7 +128,16 @@ export async function streamCopilotMessage(
     },
   );
   if (!response.ok || !response.body) {
-    throw new Error(`Copilot stream failed with status ${response.status}`);
+    const body: unknown = await response.json().catch(() => null);
+    const errorCode =
+      isRecord(body) && typeof body.errorCode === 'string'
+        ? body.errorCode
+        : undefined;
+    const message =
+      isRecord(body) && typeof body.message === 'string'
+        ? body.message
+        : `Copilot stream failed with status ${response.status}`;
+    throw new CopilotStreamRequestError(message, errorCode);
   }
 
   const reader = response.body.getReader();

@@ -315,6 +315,36 @@ describe('CopilotPage', () => {
     );
   });
 
+  it('locks the input after hitting the Copilot plan quota', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            statusCode: 402,
+            errorCode: 'PLAN_LIMIT_EXCEEDED',
+            message: 'Đã đạt giới hạn gói FREE; vui lòng nâng cấp để tiếp tục.',
+          }),
+          { status: 402 },
+        ),
+      ),
+    );
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+    );
+    fireEvent.change(screen.getByLabelText(/enter question/i), {
+      target: { value: 'Tóm tắt công nợ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/đã đạt giới hạn gói free/i)).toBeInTheDocument(),
+    );
+    expect(screen.getByLabelText(/enter question/i)).toBeDisabled();
+  });
+
   it('allows the chat column to shrink inside the Copilot flex layout', async () => {
     renderPage();
 

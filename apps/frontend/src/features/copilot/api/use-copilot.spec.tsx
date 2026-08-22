@@ -13,14 +13,19 @@ const {
   getCopilotConversationMessages: vi.fn(),
 }));
 
-vi.mock('./copilot-api', () => ({
-  streamCopilotMessage: (...args: unknown[]) => streamCopilotMessage(...args),
-  confirmCopilotAction: (...args: unknown[]) => confirmCopilotAction(...args),
-  cancelCopilotAction: (...args: unknown[]) => cancelCopilotAction(...args),
-  getCopilotConversationMessages: (...args: unknown[]) =>
-    getCopilotConversationMessages(...args),
-}));
+vi.mock('./copilot-api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./copilot-api')>();
+  return {
+    CopilotStreamRequestError: actual.CopilotStreamRequestError,
+    streamCopilotMessage: (...args: unknown[]) => streamCopilotMessage(...args),
+    confirmCopilotAction: (...args: unknown[]) => confirmCopilotAction(...args),
+    cancelCopilotAction: (...args: unknown[]) => cancelCopilotAction(...args),
+    getCopilotConversationMessages: (...args: unknown[]) =>
+      getCopilotConversationMessages(...args),
+  };
+});
 
+import { CopilotStreamRequestError } from './copilot-api';
 import { useCopilotChat } from './use-copilot';
 
 describe('useCopilotChat', () => {
@@ -138,6 +143,32 @@ describe('useCopilotChat', () => {
       role: 'ASSISTANT',
       content: 'Xin chào',
     });
+  });
+
+  it('locks sending and rolls back the optimistic message when the plan quota is exceeded', async () => {
+    streamCopilotMessage.mockRejectedValue(
+      new CopilotStreamRequestError(
+        'Đã đạt giới hạn gói FREE; vui lòng nâng cấp để tiếp tục.',
+        'PLAN_LIMIT_EXCEEDED',
+      ),
+    );
+    const { result } = renderHook(() => useCopilotChat(true, 'conversation-1'));
+    await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+
+    await act(async () => {
+      await result.current.send('Câu hỏi thừa quota');
+    });
+
+    expect(result.current.quotaExceededMessage).toBe(
+      'Đã đạt giới hạn gói FREE; vui lòng nâng cấp để tiếp tục.',
+    );
+    expect(result.current.messages).toHaveLength(0);
+
+    streamCopilotMessage.mockClear();
+    await act(async () => {
+      await result.current.send('Thử lại');
+    });
+    expect(streamCopilotMessage).not.toHaveBeenCalled();
   });
 
   it('stop() aborts the in-flight stream without throwing an unhandled error', async () => {

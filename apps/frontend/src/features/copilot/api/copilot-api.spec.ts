@@ -11,6 +11,7 @@ vi.mock('@/lib/api-client', () => ({
 }));
 
 import {
+  CopilotStreamRequestError,
   getCopilotConversationMessages,
   listCopilotConversations,
   streamCopilotMessage,
@@ -111,6 +112,36 @@ describe('copilot-api', () => {
     expect(onEvent).toHaveBeenCalledTimes(1);
     expect(onEvent).toHaveBeenCalledWith({ type: 'delta', text: 'Xin chào' });
     vi.unstubAllGlobals();
+  });
+
+  it('throws a CopilotStreamRequestError carrying the backend errorCode on a non-ok response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            statusCode: 402,
+            errorCode: 'PLAN_LIMIT_EXCEEDED',
+            message: 'Đã đạt giới hạn gói FREE; vui lòng nâng cấp để tiếp tục.',
+          }),
+          { status: 402 },
+        ),
+      ),
+    );
+    const controller = new AbortController();
+
+    await expect(
+      streamCopilotMessage('c1', 'Xin chào', vi.fn(), controller.signal),
+    ).rejects.toMatchObject({
+      errorCode: 'PLAN_LIMIT_EXCEEDED',
+      message: 'Đã đạt giới hạn gói FREE; vui lòng nâng cấp để tiếp tục.',
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it('exports CopilotStreamRequestError as an Error subclass', () => {
+    const error = new CopilotStreamRequestError('msg', 'PLAN_LIMIT_EXCEEDED');
+    expect(error).toBeInstanceOf(Error);
   });
 
   it('skips an unrecognized SSE event type', async () => {

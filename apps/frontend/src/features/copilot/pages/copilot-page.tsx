@@ -1,6 +1,7 @@
 import { Permission, PlanId } from '@casso-ledger/shared-types';
 import {
   Bot,
+  CircleAlert,
   LoaderCircle,
   Lock,
   Mail,
@@ -90,6 +91,7 @@ export function CopilotPage() {
     busy,
     blockedByPendingAction,
     isLoadingHistory,
+    quotaExceededMessage,
   } = useCopilotChat(canSendManual, activeConversationId, {
     onTurnComplete: refreshConversations,
   });
@@ -97,7 +99,14 @@ export function CopilotPage() {
   function onSubmit(event: FormEvent) {
     event.preventDefault();
     const content = draft.trim();
-    if (!content || isSending || blockedByPendingAction) return;
+    if (
+      !content ||
+      isSending ||
+      blockedByPendingAction ||
+      quotaExceededMessage
+    ) {
+      return;
+    }
     setDraft('');
     void send(content);
   }
@@ -271,6 +280,15 @@ export function CopilotPage() {
                 />
               )}
             </div>
+            {quotaExceededMessage && (
+              <div className="mx-3 mb-3 flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                <CircleAlert aria-hidden="true" className="size-3.5 shrink-0" />
+                <span>
+                  {quotaExceededMessage}
+                  {!canUpgrade && ' Liên hệ quản trị viên để nâng cấp gói.'}
+                </span>
+              </div>
+            )}
             <form
               onSubmit={onSubmit}
               className="mx-3 mb-3 mt-3 flex gap-2 rounded-2xl border border-border bg-card p-2.5"
@@ -283,7 +301,9 @@ export function CopilotPage() {
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 className="border-0 bg-transparent shadow-none"
-                disabled={isSending || blockedByPendingAction}
+                disabled={
+                  isSending || blockedByPendingAction || !!quotaExceededMessage
+                }
               />
               {isSending ? (
                 <Button
@@ -299,7 +319,11 @@ export function CopilotPage() {
                 <Button
                   type="submit"
                   aria-label="Send"
-                  disabled={blockedByPendingAction || !draft.trim()}
+                  disabled={
+                    blockedByPendingAction ||
+                    !!quotaExceededMessage ||
+                    !draft.trim()
+                  }
                 >
                   Gửi
                 </Button>
