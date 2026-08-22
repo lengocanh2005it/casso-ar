@@ -10,6 +10,7 @@ import {
   Users,
 } from 'lucide-react';
 import { PageHeading } from '@/components/layout/page-heading';
+import { MetricCard } from '@/components/metric-card';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -19,7 +20,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MetricCard } from '@/components/metric-card';
 import { useAuth } from '@/contexts/auth-context';
 import { useReviewCount } from '@/features/exceptions/api/use-review-count';
 import {
