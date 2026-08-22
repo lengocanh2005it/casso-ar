@@ -248,8 +248,8 @@ describe('ReceivableBalanceHistoryPage', () => {
     expect(screen.getByText(/FM A/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /chi tiết/i }));
-    expect(screen.getByText('alloc-1')).toBeInTheDocument();
-    expect(screen.getByText('PAYMENT_ALLOCATION_UNDONE')).toBeInTheDocument();
+    expect(screen.getByText('alloc-1…')).toBeInTheDocument();
+    expect(screen.getByText('Hoàn tác phân bổ thanh toán')).toBeInTheDocument();
     expect(screen.getByText('Nhập sai số tiền')).toBeInTheDocument();
   });
 
