@@ -1,6 +1,8 @@
 import type { Role } from '@casso-ledger/shared-types';
+import { Users } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { HeaderIcon } from '@/components/layout/header-icon';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -199,35 +201,39 @@ export function AdminOrganizationMembersPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <Link
-          to="/admin/organizations"
-          className="rounded-md text-sm text-muted-foreground transition-colors duration-150 ease-out motion-reduce:transition-none pointer-hover:hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          ← Organizations
-        </Link>
-        <p className="mt-2 text-sm font-medium text-primary">ADMIN CONSOLE</p>
-        <h1 className="mt-1 text-balance text-2xl font-semibold tracking-tight">
-          {organization.name}
-        </h1>
-        <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <span className="font-mono text-xs" translate="no">
-            {organization.id}
-          </span>
-          <span>
-            · Tạo ngày {dateFormatter.format(new Date(organization.createdAt))}
-          </span>
-          <Badge
-            variant={
-              organization.status === 'LOCKED' ? 'destructive' : 'default'
-            }
+      <div className="flex items-start gap-3">
+        <HeaderIcon icon={Users} tone="info" />
+        <header>
+          <Link
+            to="/admin/organizations"
+            className="rounded-md text-sm text-muted-foreground transition-colors duration-150 ease-out motion-reduce:transition-none pointer-hover:hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {organization.status}
-          </Badge>
-        </p>
-      </header>
+            ← Organizations
+          </Link>
+          <p className="mt-2 text-sm font-medium text-primary">ADMIN CONSOLE</p>
+          <h1 className="mt-1 text-balance text-2xl font-semibold tracking-tight">
+            {organization.name}
+          </h1>
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span className="font-mono text-xs" translate="no">
+              {organization.id}
+            </span>
+            <span>
+              · Tạo ngày{' '}
+              {dateFormatter.format(new Date(organization.createdAt))}
+            </span>
+            <Badge
+              variant={
+                organization.status === 'LOCKED' ? 'destructive' : 'default'
+              }
+            >
+              {organization.status}
+            </Badge>
+          </p>
+        </header>
+      </div>
 
-      <div className="flex flex-wrap items-end gap-2">
+      <div className="flex flex-wrap items-end gap-2 rounded-xl border bg-card p-4">
         <div>
           <Label htmlFor="member-search">Tìm tên hoặc email</Label>
           <Input
@@ -294,89 +300,93 @@ export function AdminOrganizationMembersPage() {
         ) : (members?.items.length ?? 0) === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa có thành viên.</p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tên</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Vai trò</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead>Hành động</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {members?.items.map((member) => {
-                const isBlocked = member.status === 'BLOCKED';
-                return (
-                  <TableRow key={member.id}>
-                    <TableCell>
-                      <span
-                        className="block max-w-[18rem] truncate"
-                        title={member.name}
-                      >
-                        {member.name}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className="block max-w-[18rem] truncate"
-                        title={member.email}
-                        translate="no"
-                      >
-                        {member.email}
-                      </span>
-                    </TableCell>
-                    <TableCell>{ROLE_LABELS[member.role]}</TableCell>
-                    <TableCell>
-                      <Badge variant={isBlocked ? 'destructive' : 'default'}>
-                        {isBlocked ? 'Bị chặn' : 'Hoạt động'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <BreakerSwitch
-                            checked={isBlocked}
-                            disabled={pendingUserId === member.userId}
-                            onCheckedChange={() => undefined}
-                            label={
-                              isBlocked
-                                ? `Bỏ chặn ${member.name}`
-                                : `Chặn ${member.name}`
-                            }
-                          />
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              {isBlocked
-                                ? `Bỏ chặn ${member.name}?`
-                                : `Chặn ${member.name}?`}
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {member.role === 'OWNER' && !isBlocked
-                                ? 'Đây là chủ sở hữu của tổ chức. Việc chặn có thể ảnh hưởng đến toàn bộ tổ chức.'
-                                : isBlocked
-                                  ? 'Thành viên sẽ có thể truy cập tổ chức trở lại.'
-                                  : 'Thành viên sẽ không thể truy cập tổ chức cho đến khi được bỏ chặn.'}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Hủy</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => void handleToggle(member)}
-                            >
-                              {isBlocked ? 'Xác nhận bỏ chặn' : 'Xác nhận chặn'}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tên</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Vai trò</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead>Hành động</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {members?.items.map((member) => {
+                  const isBlocked = member.status === 'BLOCKED';
+                  return (
+                    <TableRow key={member.id}>
+                      <TableCell>
+                        <span
+                          className="block max-w-[18rem] truncate"
+                          title={member.name}
+                        >
+                          {member.name}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className="block max-w-[18rem] truncate"
+                          title={member.email}
+                          translate="no"
+                        >
+                          {member.email}
+                        </span>
+                      </TableCell>
+                      <TableCell>{ROLE_LABELS[member.role]}</TableCell>
+                      <TableCell>
+                        <Badge variant={isBlocked ? 'destructive' : 'default'}>
+                          {isBlocked ? 'Bị chặn' : 'Hoạt động'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <BreakerSwitch
+                              checked={isBlocked}
+                              disabled={pendingUserId === member.userId}
+                              onCheckedChange={() => undefined}
+                              label={
+                                isBlocked
+                                  ? `Bỏ chặn ${member.name}`
+                                  : `Chặn ${member.name}`
+                              }
+                            />
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                {isBlocked
+                                  ? `Bỏ chặn ${member.name}?`
+                                  : `Chặn ${member.name}?`}
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {member.role === 'OWNER' && !isBlocked
+                                  ? 'Đây là chủ sở hữu của tổ chức. Việc chặn có thể ảnh hưởng đến toàn bộ tổ chức.'
+                                  : isBlocked
+                                    ? 'Thành viên sẽ có thể truy cập tổ chức trở lại.'
+                                    : 'Thành viên sẽ không thể truy cập tổ chức cho đến khi được bỏ chặn.'}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Hủy</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => void handleToggle(member)}
+                              >
+                                {isBlocked
+                                  ? 'Xác nhận bỏ chặn'
+                                  : 'Xác nhận chặn'}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </section>
 
@@ -397,101 +407,103 @@ export function AdminOrganizationMembersPage() {
             Chưa có lời mời đang chờ.
           </p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Email</TableHead>
-                <TableHead>Vai trò</TableHead>
-                <TableHead>Ngày mời</TableHead>
-                <TableHead>Ngày hết hạn</TableHead>
-                <TableHead>Hành động</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pendingInvites?.items.map((invite) => {
-                const isExpired =
-                  new Date(invite.expiresAt).getTime() < Date.now();
-                const isActive = activeInviteId === invite.id;
-                const isResending = isActive && resendInvite.isPending;
-                const isRevoking = isActive && revokeInvite.isPending;
-                return (
-                  <TableRow key={invite.id}>
-                    <TableCell>
-                      <span
-                        className="block max-w-[18rem] truncate"
-                        title={invite.email}
-                        translate="no"
-                      >
-                        {invite.email}
-                      </span>
-                    </TableCell>
-                    <TableCell>{ROLE_LABELS[invite.role]}</TableCell>
-                    <TableCell>
-                      {dateFormatter.format(new Date(invite.invitedAt))}
-                    </TableCell>
-                    <TableCell>
-                      <span className="flex items-center gap-2">
-                        {dateFormatter.format(new Date(invite.expiresAt))}
-                        {isExpired && (
-                          <Badge variant="destructive">Đã hết hạn</Badge>
-                        )}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="min-w-32"
-                          disabled={isActive}
-                          aria-busy={isResending}
-                          onClick={() => void handleResendInvite(invite.id)}
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Vai trò</TableHead>
+                  <TableHead>Ngày mời</TableHead>
+                  <TableHead>Ngày hết hạn</TableHead>
+                  <TableHead>Hành động</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingInvites?.items.map((invite) => {
+                  const isExpired =
+                    new Date(invite.expiresAt).getTime() < Date.now();
+                  const isActive = activeInviteId === invite.id;
+                  const isResending = isActive && resendInvite.isPending;
+                  const isRevoking = isActive && revokeInvite.isPending;
+                  return (
+                    <TableRow key={invite.id}>
+                      <TableCell>
+                        <span
+                          className="block max-w-[18rem] truncate"
+                          title={invite.email}
+                          translate="no"
                         >
-                          {isResending ? 'Đang gửi lại…' : 'Gửi lại'}
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              className="min-w-32"
-                              disabled={isActive}
-                              aria-busy={isRevoking}
-                            >
-                              {isRevoking ? 'Đang thu hồi…' : 'Thu hồi'}
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                Thu hồi lời mời tới{' '}
-                                <span translate="no">{invite.email}</span>?
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Lời mời sẽ mất hiệu lực và không thể được chấp
-                                nhận.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Hủy</AlertDialogCancel>
-                              <AlertDialogAction
+                          {invite.email}
+                        </span>
+                      </TableCell>
+                      <TableCell>{ROLE_LABELS[invite.role]}</TableCell>
+                      <TableCell>
+                        {dateFormatter.format(new Date(invite.invitedAt))}
+                      </TableCell>
+                      <TableCell>
+                        <span className="flex items-center gap-2">
+                          {dateFormatter.format(new Date(invite.expiresAt))}
+                          {isExpired && (
+                            <Badge variant="destructive">Đã hết hạn</Badge>
+                          )}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="min-w-32"
+                            disabled={isActive}
+                            aria-busy={isResending}
+                            onClick={() => void handleResendInvite(invite.id)}
+                          >
+                            {isResending ? 'Đang gửi lại…' : 'Gửi lại'}
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="min-w-32"
                                 disabled={isActive}
-                                onClick={() =>
-                                  void handleRevokeInvite(invite.id)
-                                }
+                                aria-busy={isRevoking}
                               >
-                                Xác nhận thu hồi
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                                {isRevoking ? 'Đang thu hồi…' : 'Thu hồi'}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Thu hồi lời mời tới{' '}
+                                  <span translate="no">{invite.email}</span>?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Lời mời sẽ mất hiệu lực và không thể được chấp
+                                  nhận.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Hủy</AlertDialogCancel>
+                                <AlertDialogAction
+                                  disabled={isActive}
+                                  onClick={() =>
+                                    void handleRevokeInvite(invite.id)
+                                  }
+                                >
+                                  Xác nhận thu hồi
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </section>
 
@@ -500,7 +512,7 @@ export function AdminOrganizationMembersPage() {
           <span className="tabular-nums">
             Trang {page} / {totalPages}
           </span>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               size="sm"

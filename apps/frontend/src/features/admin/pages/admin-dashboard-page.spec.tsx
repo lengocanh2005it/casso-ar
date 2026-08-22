@@ -46,6 +46,7 @@ describe('AdminDashboardPage', () => {
     expect(
       await screen.findByRole('heading', { name: /admin overview/i }),
     ).toBeInTheDocument();
+    expect(screen.getByTestId('header-icon')).toBeInTheDocument();
     expect(screen.getAllByText(/chưa có dữ liệu usage/i)).toHaveLength(2);
   });
 

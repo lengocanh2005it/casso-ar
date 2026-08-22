@@ -1,3 +1,4 @@
+import { BarChart3 } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
 import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
@@ -90,7 +91,7 @@ export function AdminDashboardPage() {
         role="status"
         aria-live="polite"
         aria-label="Đang tải dữ liệu…"
-        className="flex min-h-48 items-center justify-center"
+        className="flex min-h-48 items-center justify-center rounded-xl border bg-card"
       >
         <Spinner className="size-6" />
       </div>
@@ -99,7 +100,7 @@ export function AdminDashboardPage() {
 
   if (error) {
     return (
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
         <p role="alert" aria-live="polite" className="text-sm text-destructive">
           Không thể tải dữ liệu usage. Vui lòng thử lại.
         </p>
@@ -116,6 +117,8 @@ export function AdminDashboardPage() {
         eyebrow="ADMIN CONSOLE"
         title="Admin overview"
         description="Theo dõi usage AI trên toàn bộ tổ chức."
+        icon={BarChart3}
+        tone="info"
       />
       <Suspense
         fallback={

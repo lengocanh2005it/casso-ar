@@ -153,6 +153,7 @@ describe('AdminOrganizationMembersPage', () => {
       expect(
         await screen.findByRole('heading', { name: 'Acme' }),
       ).toBeInTheDocument();
+      expect(screen.getByTestId('header-icon')).toBeInTheDocument();
       expect(
         screen.getByRole('link', { name: /organizations/i }),
       ).toHaveAttribute('href', '/admin/organizations');

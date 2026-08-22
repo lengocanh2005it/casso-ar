@@ -1,3 +1,4 @@
+import { BarChart3 } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -9,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { EmptyState } from '@/components/layout/empty-state';
 import {
   Card,
   CardContent,
@@ -54,9 +56,13 @@ export function AdminUsageCharts({
         </CardHeader>
         <CardContent className="h-64">
           {topOrganizations.length === 0 ? (
-            <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              Chưa có dữ liệu usage.
-            </p>
+            <div className="flex h-full items-center justify-center">
+              <EmptyState
+                density="compact"
+                icon={BarChart3}
+                title="Chưa có dữ liệu usage."
+              />
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={topOrganizations}>
@@ -82,9 +88,13 @@ export function AdminUsageCharts({
         </CardHeader>
         <CardContent className="h-64">
           {trend.length === 0 ? (
-            <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              Chưa có dữ liệu usage.
-            </p>
+            <div className="flex h-full items-center justify-center">
+              <EmptyState
+                density="compact"
+                icon={BarChart3}
+                title="Chưa có dữ liệu usage."
+              />
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trend}>

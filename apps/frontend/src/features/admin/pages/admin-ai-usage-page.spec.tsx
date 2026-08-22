@@ -62,6 +62,9 @@ describe('AdminAiUsagePage', () => {
 
     expect(screen.getByLabelText(/từ ngày/i)).toHaveAttribute('name', 'from');
     expect(screen.getByLabelText(/đến ngày/i)).toHaveAttribute('name', 'to');
+    expect(
+      screen.getByRole('form', { name: /lọc usage/i }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/chưa có dữ liệu usage/i)).toBeInTheDocument();
   });
 

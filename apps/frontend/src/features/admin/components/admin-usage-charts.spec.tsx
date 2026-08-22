@@ -11,5 +11,6 @@ describe('AdminUsageCharts', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/xu hướng usage theo ngày/i)).toBeInTheDocument();
     expect(screen.getAllByText(/chưa có dữ liệu usage/i)).toHaveLength(2);
+    expect(screen.getAllByTestId('empty-state')).toHaveLength(2);
   });
 });

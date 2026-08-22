@@ -1,3 +1,4 @@
+import { BarChart3 } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
@@ -36,13 +37,19 @@ export function AdminAiUsagePage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <PageHeading
         eyebrow="ADMIN CONSOLE"
         title="AI usage"
         description="Theo dõi mức sử dụng AI theo tổ chức và khoảng thời gian."
+        icon={BarChart3}
+        tone="info"
       />
-      <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
+      <form
+        aria-label="Lọc usage"
+        onSubmit={handleSubmit}
+        className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-4"
+      >
         <div className="space-y-2">
           <Label htmlFor="from">Từ ngày</Label>
           <Input
@@ -83,60 +90,62 @@ export function AdminAiUsagePage() {
           Không thể tải dữ liệu usage. Kiểm tra khoảng thời gian và thử lại.
         </p>
       )}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Tổ chức</TableHead>
-            <TableHead>Model</TableHead>
-            <TableHead className="font-mono">Requests</TableHead>
-            <TableHead className="font-mono">Tokens</TableHead>
-            <TableHead className="font-mono">Lỗi</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.length === 0 ? (
+      <div className="overflow-hidden rounded-xl border bg-card">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell
-                colSpan={5}
-                className="py-8 text-center text-muted-foreground"
-              >
-                Chưa có dữ liệu usage trong khoảng thời gian đã chọn.
-              </TableCell>
+              <TableHead>Tổ chức</TableHead>
+              <TableHead>Model</TableHead>
+              <TableHead className="font-mono">Requests</TableHead>
+              <TableHead className="font-mono">Tokens</TableHead>
+              <TableHead className="font-mono">Lỗi</TableHead>
             </TableRow>
-          ) : (
-            items.map((item) => (
-              <TableRow key={`${item.organizationId}-${item.model}`}>
-                <TableCell>
-                  <span
-                    className="block max-w-[18rem] truncate"
-                    title={item.organizationName}
-                  >
-                    {item.organizationName || 'Không có tên tổ chức'}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span
-                    className="block max-w-[14rem] truncate"
-                    title={item.model}
-                    translate="no"
-                  >
-                    {item.model || 'Không xác định'}
-                  </span>
-                </TableCell>
-                <TableCell className="font-mono tabular-nums">
-                  {numberFormatter.format(item.requestCount)}
-                </TableCell>
-                <TableCell className="font-mono tabular-nums">
-                  {numberFormatter.format(item.totalTokens)}
-                </TableCell>
-                <TableCell className="font-mono tabular-nums">
-                  {numberFormatter.format(item.errorCount)}
+          </TableHeader>
+          <TableBody>
+            {items.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="py-8 text-center text-muted-foreground"
+                >
+                  Chưa có dữ liệu usage trong khoảng thời gian đã chọn.
                 </TableCell>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            ) : (
+              items.map((item) => (
+                <TableRow key={`${item.organizationId}-${item.model}`}>
+                  <TableCell>
+                    <span
+                      className="block max-w-[18rem] truncate"
+                      title={item.organizationName}
+                    >
+                      {item.organizationName || 'Không có tên tổ chức'}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className="block max-w-[14rem] truncate"
+                      title={item.model}
+                      translate="no"
+                    >
+                      {item.model || 'Không xác định'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="font-mono tabular-nums">
+                    {numberFormatter.format(item.requestCount)}
+                  </TableCell>
+                  <TableCell className="font-mono tabular-nums">
+                    {numberFormatter.format(item.totalTokens)}
+                  </TableCell>
+                  <TableCell className="font-mono tabular-nums">
+                    {numberFormatter.format(item.errorCount)}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

@@ -15,7 +15,7 @@ export function AdminStatusRail() {
       role="status"
       aria-live="polite"
       aria-atomic="true"
-      className="flex items-center gap-4 border-b border-border bg-muted/40 px-4 py-2 text-sm"
+      className="flex items-center gap-4 border-b border-slate-800 bg-slate-900 px-4 py-2 text-sm text-slate-100"
     >
       {organizationQuery.isError ? (
         <span className="text-destructive">
@@ -24,7 +24,7 @@ export function AdminStatusRail() {
       ) : (
         <>
           <span className="flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-primary" aria-hidden />
+            <span className="size-2 rounded-full bg-sky-400" aria-hidden />
             <span className="font-mono tabular-nums">
               {total === null ? '–' : numberFormatter.format(total)}
             </span>{' '}
@@ -41,7 +41,7 @@ export function AdminStatusRail() {
           )}
         </>
       )}
-      <span className="ml-auto font-medium text-muted-foreground">
+      <span className="ml-auto font-medium text-slate-400">
         <span translate="no">Casso Admin</span>
       </span>
     </div>

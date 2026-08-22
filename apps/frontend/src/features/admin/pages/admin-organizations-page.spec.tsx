@@ -43,6 +43,7 @@ describe('AdminOrganizationsPage', () => {
     renderPage();
 
     expect(await screen.findByText('Acme')).toBeInTheDocument();
+    expect(screen.getByTestId('header-icon')).toBeInTheDocument();
     expect(adminApi.listOrganizations).toHaveBeenCalledWith(1, 50, 'ALL');
     const toggle = screen.getByRole('switch', { name: /acme/i });
     expect(toggle).toHaveAttribute('aria-checked', 'false');

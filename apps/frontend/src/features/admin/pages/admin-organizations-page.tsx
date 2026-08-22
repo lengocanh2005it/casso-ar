@@ -1,5 +1,7 @@
+import { Building2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { EmptyState } from '@/components/layout/empty-state';
 import { PageHeading } from '@/components/layout/page-heading';
 import {
   AlertDialog,
@@ -158,7 +160,11 @@ export function AdminOrganizationsPage() {
 
   if (organizationsQuery.isPending) {
     return (
-      <p role="status" aria-live="polite">
+      <p
+        role="status"
+        aria-live="polite"
+        className="rounded-xl border bg-card p-4"
+      >
         Đang tải tổ chức…
       </p>
     );
@@ -166,7 +172,7 @@ export function AdminOrganizationsPage() {
 
   if (organizationsQuery.isError) {
     return (
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
         <p role="alert" aria-live="polite" className="text-sm text-destructive">
           Không thể tải danh sách tổ chức. Vui lòng thử lại.
         </p>
@@ -182,169 +188,181 @@ export function AdminOrganizationsPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <PageHeading
         eyebrow="ADMIN CONSOLE"
         title="Organizations"
         description="Quản lý danh sách tổ chức và trạng thái tài khoản."
+        icon={Building2}
+        tone="info"
       />
 
-      <Select value={status} onValueChange={setStatusFilter}>
-        <SelectTrigger className="w-56">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {STATUS_OPTIONS.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-4">
+        <Select value={status} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Chưa có tổ chức nào.</p>
+        <EmptyState
+          density="compact"
+          icon={Building2}
+          title="Chưa có tổ chức nào."
+        />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Tên tổ chức</TableHead>
-              <TableHead className="font-mono">ID</TableHead>
-              <TableHead>Mã số thuế</TableHead>
-              <TableHead>Ngày tạo</TableHead>
-              <TableHead>Trạng thái</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.map((org) => {
-              const displayName = org.name || 'tổ chức này';
-              const isLocking = org.status === 'ACTIVE';
-              const isPendingReview = org.status === 'PENDING_REVIEW';
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tên tổ chức</TableHead>
+                <TableHead className="font-mono">ID</TableHead>
+                <TableHead>Mã số thuế</TableHead>
+                <TableHead>Ngày tạo</TableHead>
+                <TableHead>Trạng thái</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.map((org) => {
+                const displayName = org.name || 'tổ chức này';
+                const isLocking = org.status === 'ACTIVE';
+                const isPendingReview = org.status === 'PENDING_REVIEW';
 
-              return (
-                <TableRow key={org.id}>
-                  <TableCell>
-                    <span
-                      className="block max-w-[18rem] truncate"
-                      title={org.name}
-                    >
-                      {org.name || 'Không có tên tổ chức'}
-                    </span>
-                    <Link
-                      to={`/admin/organizations/${org.id}/members`}
-                      className="rounded-md text-sm font-medium text-primary pointer-hover:hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      Thành viên
-                    </Link>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    <span
-                      className="block max-w-[14rem] truncate"
-                      title={org.id}
-                      translate="no"
-                    >
-                      {org.id}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    <span>{org.taxCode || '—'}</span>
-                    {org.taxCode && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Badge
-                          variant={
-                            org.taxCodeMatched ? 'default' : 'destructive'
-                          }
-                        >
-                          {org.taxCodeMatched ? 'Khớp' : 'Không khớp'}
-                        </Badge>
-                        {org.taxCodeLookupName && (
-                          <span title={org.taxCodeLookupName}>
-                            {org.taxCodeLookupName}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {dateFormatter.format(new Date(org.createdAt))}
-                  </TableCell>
-                  <TableCell>
-                    {org.status === 'ACTIVE' || org.status === 'LOCKED' ? (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <BreakerSwitch
-                            checked={!isLocking}
-                            disabled={pendingId === org.id}
-                            onCheckedChange={() => undefined}
-                            label={
-                              isLocking
-                                ? `Lock ${displayName}`
-                                : `Unlock ${displayName}`
+                return (
+                  <TableRow key={org.id}>
+                    <TableCell>
+                      <span
+                        className="block max-w-[18rem] truncate"
+                        title={org.name}
+                      >
+                        {org.name || 'Không có tên tổ chức'}
+                      </span>
+                      <Link
+                        to={`/admin/organizations/${org.id}/members`}
+                        className="rounded-md text-sm font-medium text-primary pointer-hover:hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        Thành viên
+                      </Link>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      <span
+                        className="block max-w-[14rem] truncate"
+                        title={org.id}
+                        translate="no"
+                      >
+                        {org.id}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      <span>{org.taxCode || '—'}</span>
+                      {org.taxCode && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Badge
+                            variant={
+                              org.taxCodeMatched ? 'default' : 'destructive'
                             }
-                          />
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              {isLocking
-                                ? `Khóa ${displayName}?`
-                                : `Mở khóa ${displayName}?`}
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {isLocking
-                                ? 'Tổ chức sẽ không thể truy cập hệ thống cho đến khi được mở khóa.'
-                                : 'Tổ chức sẽ có thể truy cập hệ thống trở lại.'}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Hủy</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => void handleToggle(org)}
-                            >
-                              {isLocking ? 'Xác nhận khóa' : 'Xác nhận mở khóa'}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    ) : isPendingReview ? (
-                      <div className="flex gap-2">
+                          >
+                            {org.taxCodeMatched ? 'Khớp' : 'Không khớp'}
+                          </Badge>
+                          {org.taxCodeLookupName && (
+                            <span title={org.taxCodeLookupName}>
+                              {org.taxCodeLookupName}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {dateFormatter.format(new Date(org.createdAt))}
+                    </TableCell>
+                    <TableCell>
+                      {org.status === 'ACTIVE' || org.status === 'LOCKED' ? (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button size="sm">Duyệt</Button>
+                            <BreakerSwitch
+                              checked={!isLocking}
+                              disabled={pendingId === org.id}
+                              onCheckedChange={() => undefined}
+                              label={
+                                isLocking
+                                  ? `Lock ${displayName}`
+                                  : `Unlock ${displayName}`
+                              }
+                            />
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>
-                                Duyệt {displayName}?
+                                {isLocking
+                                  ? `Khóa ${displayName}?`
+                                  : `Mở khóa ${displayName}?`}
                               </AlertDialogTitle>
                               <AlertDialogDescription>
-                                Tổ chức sẽ có thể truy cập hệ thống ngay sau khi
-                                duyệt.
+                                {isLocking
+                                  ? 'Tổ chức sẽ không thể truy cập hệ thống cho đến khi được mở khóa.'
+                                  : 'Tổ chức sẽ có thể truy cập hệ thống trở lại.'}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Hủy</AlertDialogCancel>
                               <AlertDialogAction
-                                onClick={() =>
-                                  approveOrganization.mutate(org.id)
-                                }
+                                onClick={() => void handleToggle(org)}
                               >
-                                Xác nhận duyệt
+                                {isLocking
+                                  ? 'Xác nhận khóa'
+                                  : 'Xác nhận mở khóa'}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-                        <RejectDialog organizationId={org.id} />
-                      </div>
-                    ) : (
-                      <Badge variant="destructive">Đã từ chối</Badge>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                      ) : isPendingReview ? (
+                        <div className="flex gap-2">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="sm">Duyệt</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Duyệt {displayName}?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tổ chức sẽ có thể truy cập hệ thống ngay sau
+                                  khi duyệt.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Hủy</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() =>
+                                    approveOrganization.mutate(org.id)
+                                  }
+                                >
+                                  Xác nhận duyệt
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                          <RejectDialog organizationId={org.id} />
+                        </div>
+                      ) : (
+                        <Badge variant="destructive">Đã từ chối</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       )}
       {total > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
