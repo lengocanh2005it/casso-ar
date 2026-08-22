@@ -1,4 +1,5 @@
 import { Permission } from '@casso-ledger/shared-types';
+import { ShieldCheck } from 'lucide-react';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -63,15 +64,18 @@ export function OnboardingPage() {
   }
 
   return (
-    <main className="flex min-h-svh items-center justify-center bg-muted/30 px-4 py-8">
-      <Card className="w-full max-w-lg shadow-lg">
-        <CardHeader>
-          <div className="mb-2">
+    <main className="flex min-h-svh items-center justify-center bg-gradient-to-br from-emerald-50 via-background to-teal-50 px-4 py-8 dark:from-emerald-950/20 dark:via-background dark:to-teal-950/20">
+      <Card className="w-full max-w-lg border-primary/10 bg-card/95 shadow-xl shadow-primary/5 backdrop-blur">
+        <CardHeader className="gap-3">
+          <div className="mb-1">
             <AuthLogoLink />
           </div>
-          <p className="text-sm font-medium uppercase tracking-[0.18em] text-primary">
-            BƯỚC ĐẦU TIÊN
-          </p>
+          <div className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+            <span className="flex size-7 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/60">
+              <ShieldCheck aria-hidden="true" className="size-4" />
+            </span>
+            Kết nối an toàn
+          </div>
           <CardTitle className="text-2xl">Liên kết ngân hàng</CardTitle>
           <CardDescription>
             Liên kết một tài khoản ngân hàng qua{' '}
@@ -80,12 +84,15 @@ export function OnboardingPage() {
             <span className="text-primary">Casso Ledger</span>.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-5">
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 text-sm text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100">
+            Casso Flow chỉ đồng bộ giao dịch mới để bạn theo dõi dòng tiền.
+          </div>
           {canManageConnections ? (
             <ManagedCassoFlowPicker onCompleted={handleCompleted} />
           ) : (
             <div
-              className="space-y-2 text-sm text-muted-foreground"
+              className="space-y-2 rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground"
               role="status"
             >
               <p>

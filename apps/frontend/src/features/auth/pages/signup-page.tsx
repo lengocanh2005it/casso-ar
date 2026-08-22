@@ -10,7 +10,7 @@ import {
   authTokenManager,
   getApiErrorMessage,
 } from '@/lib/api-client';
-import { AuthLogoLink } from '../components/auth-logo-link';
+import { AuthStatusCard } from '../components/auth-status-card';
 import { EmailOtpStep } from '../components/email-otp-step';
 
 const TAX_CODE_PATTERN = /^\d{10}(\d{3})?$/;
@@ -64,24 +64,18 @@ export function SignupPage() {
 
   if (step === 'otp') {
     return (
-      <div className="flex min-h-svh items-center justify-center bg-muted/30 p-6">
-        <div className="w-full max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm">
-          <AuthLogoLink />
+      <AuthStatusCard>
+        <div className="space-y-5 text-left">
           <h1 className="text-xl font-semibold">Xác thực email</h1>
           <EmailOtpStep email={email} onVerified={onVerified} />
         </div>
-      </div>
+      </AuthStatusCard>
     );
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-muted/30 p-6">
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm"
-      >
-        <AuthLogoLink />
-
+    <AuthStatusCard>
+      <form onSubmit={onSubmit} className="space-y-5 text-left">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">Tạo tài khoản</h1>
           <p className="text-sm text-muted-foreground">
@@ -181,6 +175,6 @@ export function SignupPage() {
           </Link>
         </p>
       </form>
-    </div>
+    </AuthStatusCard>
   );
 }

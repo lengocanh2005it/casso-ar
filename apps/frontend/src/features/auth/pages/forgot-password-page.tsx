@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Spinner } from '@/components/ui/spinner';
 import { apiRequest } from '@/lib/api-client';
-import { AuthLogoLink } from '../components/auth-logo-link';
 import { AuthStatusCard } from '../components/auth-status-card';
 
 export function ForgotPasswordPage() {
@@ -52,13 +51,8 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-muted/30 p-6">
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm"
-      >
-        <AuthLogoLink />
-
+    <AuthStatusCard>
+      <form onSubmit={onSubmit} className="space-y-5 text-left">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">Quên mật khẩu?</h1>
           <p className="text-sm text-muted-foreground">
@@ -100,6 +94,6 @@ export function ForgotPasswordPage() {
           ← Quay lại đăng nhập
         </Link>
       </form>
-    </div>
+    </AuthStatusCard>
   );
 }

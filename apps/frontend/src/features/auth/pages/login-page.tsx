@@ -6,7 +6,7 @@ import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Spinner } from '@/components/ui/spinner';
 import { useAuth } from '@/contexts/auth-context';
 import { getApiErrorCode, getApiErrorMessage } from '@/lib/api-client';
-import { AuthLogoLink } from '../components/auth-logo-link';
+import { AuthStatusCard } from '../components/auth-status-card';
 
 const ORGANIZATION_STATUS_ERROR_CODES = new Set([
   'ORGANIZATION_PENDING_REVIEW',
@@ -50,13 +50,8 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-muted/30 p-6">
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm"
-      >
-        <AuthLogoLink />
-
+    <AuthStatusCard>
+      <form onSubmit={onSubmit} className="space-y-5 text-left">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">Đăng nhập</h1>
           <p className="text-sm text-muted-foreground">
@@ -120,6 +115,6 @@ export function LoginPage() {
           </Link>
         </div>
       </form>
-    </div>
+    </AuthStatusCard>
   );
 }

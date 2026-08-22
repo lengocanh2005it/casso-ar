@@ -72,6 +72,7 @@ describe('OnboardingPage', () => {
     renderPage({ role: 'VIEWER', bankingLinked: false });
 
     expect(screen.getByText('Liên kết ngân hàng')).toBeInTheDocument();
+    expect(screen.getByText('Kết nối an toàn')).toBeVisible();
     expect(screen.getByText(/owner hoặc finance manager/i)).toBeInTheDocument();
   });
 

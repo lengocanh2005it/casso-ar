@@ -2,7 +2,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
 import { authTokenManager } from '@/lib/api-client';
-import { AuthLogoLink } from '../components/auth-logo-link';
 import { AuthStatusCard } from '../components/auth-status-card';
 import { EmailOtpStep } from '../components/email-otp-step';
 
@@ -38,15 +37,14 @@ export function VerifyEmailPage() {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-muted/30 p-6">
-      <div className="w-full max-w-sm space-y-4 rounded-xl border bg-card p-6 shadow-sm">
-        <AuthLogoLink />
+    <AuthStatusCard>
+      <div className="space-y-5 text-left">
         <h1 className="text-xl font-semibold">Xác thực email</h1>
         <EmailOtpStep email={email} onVerified={onVerified} />
         <Button variant="link" className="h-auto p-0 text-sm" asChild>
           <Link to="/login">← Quay lại đăng nhập</Link>
         </Button>
       </div>
-    </div>
+    </AuthStatusCard>
   );
 }

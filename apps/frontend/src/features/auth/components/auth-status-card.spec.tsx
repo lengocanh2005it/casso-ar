@@ -15,5 +15,6 @@ describe('AuthStatusCard', () => {
 
     expect(screen.getByRole('link', { name: /casso ledger/i })).toBeVisible();
     expect(screen.getByText('Kiểm tra email')).toBeVisible();
+    expect(screen.getByTestId('auth-surface')).toHaveClass('from-emerald-50');
   });
 });

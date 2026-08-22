@@ -7,8 +7,11 @@ interface AuthStatusCardProps {
 
 export function AuthStatusCard({ children }: AuthStatusCardProps) {
   return (
-    <div className="flex min-h-svh items-center justify-center bg-muted/30 p-6">
-      <div className="w-full max-w-sm space-y-4 rounded-xl border bg-card p-6 text-center shadow-sm">
+    <div
+      data-testid="auth-surface"
+      className="flex min-h-svh items-center justify-center bg-gradient-to-br from-emerald-50 via-background to-teal-50 p-4 dark:from-emerald-950/20 dark:via-background dark:to-teal-950/20 sm:p-6"
+    >
+      <div className="w-full max-w-md space-y-5 rounded-xl border-primary/10 bg-card/95 p-6 text-center shadow-lg shadow-primary/5 backdrop-blur sm:p-7">
         <AuthLogoLink />
         {children}
       </div>
