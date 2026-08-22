@@ -14,11 +14,11 @@ export function PendingActionCard({
   busy: boolean;
 }) {
   return (
-    <Card className="border-violet-200 bg-violet-500/[0.03] shadow-none dark:border-violet-900">
+    <Card className="border-primary/20 bg-primary/[0.03] shadow-none dark:border-primary/30">
       <CardHeader className="flex-row items-center gap-2 space-y-0">
         <CircleAlert
           aria-hidden="true"
-          className="size-4 shrink-0 text-violet-600 dark:text-violet-300"
+          className="size-4 shrink-0 text-primary"
         />
         <CardTitle className="text-sm">Confirm reminder email send</CardTitle>
       </CardHeader>

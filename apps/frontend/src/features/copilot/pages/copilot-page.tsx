@@ -118,8 +118,8 @@ export function CopilotPage() {
   );
   const draftsPanel = (
     <div className="flex h-full flex-col">
-      <div className="border-b border-violet-100 bg-violet-50/60 px-3 py-3 dark:border-violet-950 dark:bg-violet-950/20">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-violet-700 dark:text-violet-300">
+      <div className="border-b border-primary/15 bg-primary/5 px-3 py-3 dark:border-primary/25 dark:bg-primary/10">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
           Bản nháp email
         </span>
       </div>
@@ -130,7 +130,7 @@ export function CopilotPage() {
   );
 
   return (
-    <div className="relative h-full min-h-0 overflow-hidden bg-gradient-to-br from-violet-50/40 via-background to-sky-50/40 dark:from-violet-950/10 dark:via-background dark:to-slate-950/20">
+    <div className="relative h-full min-h-0 overflow-hidden bg-gradient-to-br from-primary/5 via-background to-success/5 dark:from-primary/10 dark:via-background dark:to-success/10">
       <div
         aria-hidden={!hasCopilotAccess}
         className={cn(
@@ -139,11 +139,11 @@ export function CopilotPage() {
         )}
         inert={!hasCopilotAccess ? true : undefined}
       >
-        <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-violet-200/70 bg-card/85 px-5 py-4 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between dark:border-violet-900/60">
+        <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-primary/20 bg-card/85 px-5 py-4 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between dark:border-primary/30">
           <div className="flex items-center gap-3">
             <HeaderIcon icon={Bot} tone="ai" />
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-violet-600 dark:text-violet-300">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
                 TRỢ LÝ THU HỒI
               </p>
               <h1 className="mt-0.5 text-xl font-semibold tracking-tight sm:text-2xl">
@@ -159,7 +159,7 @@ export function CopilotPage() {
         <div className="flex min-h-0 min-w-0 flex-1 gap-4">
           <aside
             className={cn(
-              'hidden shrink-0 overflow-hidden rounded-2xl border border-violet-100/80 bg-card/80 shadow-sm backdrop-blur transition-[width] duration-200 md:block dark:border-violet-950',
+              'hidden shrink-0 overflow-hidden rounded-2xl border border-primary/15 bg-card/80 shadow-sm backdrop-blur transition-[width] duration-200 md:block dark:border-primary/25',
               historyCollapsed ? 'w-0 border-0' : 'w-56',
             )}
           >
@@ -239,7 +239,7 @@ export function CopilotPage() {
               </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto rounded-2xl border border-violet-200/70 bg-gradient-to-b from-violet-50/75 via-card to-card p-5 shadow-md dark:border-violet-900/60 dark:from-violet-950/20">
+            <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto rounded-2xl border border-primary/20 bg-gradient-to-b from-primary/10 via-card to-card p-5 shadow-md dark:border-primary/30 dark:from-primary/15">
               {isEmptyConversation ? (
                 <CopilotWelcomeState
                   onSuggestionClick={(text) => void send(text)}
@@ -261,7 +261,7 @@ export function CopilotPage() {
             </div>
             <form
               onSubmit={onSubmit}
-              className="mt-3 flex gap-2 rounded-2xl border border-violet-200/70 bg-card p-2.5 shadow-md dark:border-violet-900/60"
+              className="mt-3 flex gap-2 rounded-2xl border border-primary/20 bg-card p-2.5 shadow-md dark:border-primary/30"
             >
               <Input
                 name="question"
@@ -297,7 +297,7 @@ export function CopilotPage() {
 
           <aside
             className={cn(
-              'hidden shrink-0 overflow-hidden rounded-2xl border border-violet-100/80 bg-card/80 shadow-sm backdrop-blur transition-[width] duration-200 md:block dark:border-violet-950',
+              'hidden shrink-0 overflow-hidden rounded-2xl border border-primary/15 bg-card/80 shadow-sm backdrop-blur transition-[width] duration-200 md:block dark:border-primary/25',
               draftsCollapsed ? 'w-0 border-0' : 'w-80',
             )}
           >

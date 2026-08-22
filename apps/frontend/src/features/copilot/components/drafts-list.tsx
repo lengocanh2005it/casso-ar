@@ -94,7 +94,7 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
       >
         <FilePenLine
           aria-hidden="true"
-          className="mx-auto mb-2 size-4 text-violet-600 dark:text-violet-300"
+          className="mx-auto mb-2 size-4 text-primary"
         />
         Chưa có bản nháp email nào.
       </div>

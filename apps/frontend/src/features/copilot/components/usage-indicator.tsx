@@ -8,7 +8,7 @@ export function UsageIndicator() {
 
   return (
     <p
-      className="flex items-center gap-2 rounded-xl border border-violet-200/70 bg-violet-50/70 px-3 py-2 text-xs text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-300"
+      className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary dark:border-primary/30 dark:bg-primary/10"
       aria-live="polite"
     >
       <Gauge aria-hidden="true" className="size-3.5" />

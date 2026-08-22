@@ -15,7 +15,7 @@ const toneClasses: Record<HeaderIconTone, string> = {
   success: 'bg-success/10 text-success',
   warning: 'bg-warning/15 text-warning-foreground',
   danger: 'bg-destructive/10 text-destructive',
-  ai: 'bg-violet-500/10 text-violet-600 dark:text-violet-300',
+  ai: 'bg-primary/10 text-primary',
 };
 
 export function HeaderIcon({
