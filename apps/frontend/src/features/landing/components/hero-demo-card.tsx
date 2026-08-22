@@ -30,15 +30,15 @@ function DemoChip({
   badge?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-background px-3.5 py-3">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-        <Icon className="size-4" aria-hidden="true" />
+    <div className="flex items-center gap-3.5 rounded-xl border border-border/70 bg-background px-4 py-5">
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <Icon className="size-5" aria-hidden="true" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] text-muted-foreground">{eyebrow}</p>
-        <p className="truncate text-sm font-medium">{customer}</p>
+        <p className="text-xs text-muted-foreground">{eyebrow}</p>
+        <p className="mt-0.5 truncate text-sm font-medium">{customer}</p>
       </div>
-      <div className="flex shrink-0 flex-col items-end gap-1">
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
         <p className="text-sm font-semibold tabular-nums">
           {formatVND(amountVnd)}
         </p>
@@ -61,8 +61,8 @@ export function HeroDemoCard() {
   }, []);
 
   return (
-    <Card className="border-border/70 shadow-lg" aria-hidden="true">
-      <CardHeader className="flex-row items-center justify-between gap-2 pb-3">
+    <Card className="border-border/70 py-9 shadow-lg" aria-hidden="true">
+      <CardHeader className="flex-row items-center justify-between gap-2 pb-5">
         <div className="flex items-center gap-2">
           <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Sparkles className="size-3.5" aria-hidden="true" />
@@ -89,7 +89,7 @@ export function HeroDemoCard() {
             amountVnd={active.amountVnd}
           />
 
-          <div className="relative mx-auto flex h-7 w-px items-stretch justify-center bg-border">
+          <div className="relative mx-auto flex h-14 w-px items-stretch justify-center bg-border">
             {!reducedMotion && (
               <motion.span
                 className="absolute left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-primary"
@@ -112,7 +112,7 @@ export function HeroDemoCard() {
           />
         </motion.div>
 
-        <div className="mt-4 flex items-center justify-center gap-1.5">
+        <div className="mt-8 flex items-center justify-center gap-1.5">
           {DEMO_TRANSACTIONS.map((transaction, index) => (
             <span
               key={transaction.customer}
