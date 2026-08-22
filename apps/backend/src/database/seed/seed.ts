@@ -76,9 +76,9 @@ import {
 } from './seed-dataset';
 import { assertNotProduction } from './seed-guard';
 
-export const SEED_OWNER_EMAIL = 'owner@seed.local';
-export const SEED_OWNER_PASSWORD = 'SeedPass123!';
-const SEED_ORGANIZATION_NAME = 'Casso Seed Co';
+export const SEED_OWNER_EMAIL = 'admin@antam.test';
+export const SEED_OWNER_PASSWORD = 'CassoDemo123!';
+const SEED_ORGANIZATION_NAME = 'Công ty TNHH Giải pháp Công nợ An Tâm';
 
 async function seedOperator(userRepo: IUserRepository): Promise<void> {
   const existingOperator = await userRepo.findByEmail(SEED_OPERATOR_EMAIL);
@@ -118,16 +118,15 @@ async function main() {
     const signup = app.get(SignupUseCase);
     const { user, organization } = await signup.execute({
       organizationName: SEED_ORGANIZATION_NAME,
-      name: 'Seed Owner',
+      name: 'Nguyễn Minh Anh',
       email: SEED_OWNER_EMAIL,
       password: SEED_OWNER_PASSWORD,
-      taxCode: '0000000000',
+      taxCode: '0319999800',
     });
     await userRepo.save(user.markEmailVerified());
 
-    // Seed's fake taxCode won't match any real VietQR business name, so
-    // signup lands the org in PENDING_REVIEW — force-approve it so the seed
-    // owner can actually log in.
+    // The synthetic tax code is not backed by VietQR, so signup lands the org
+    // in PENDING_REVIEW — force-approve it so the demo owner can log in.
     const organizationRepo = app.get<IOrganizationRepository>(
       ORGANIZATION_REPOSITORY,
     );
@@ -192,10 +191,41 @@ async function main() {
           new Date(),
           customerIds.length,
         );
-        for (const plan of receivablePlans) {
+        const disputedPlans = buildSeedDisputedReceivablePlans(
+          new Date(),
+          customerIds.length,
+        );
+        const invoicePlans = buildSeedInvoicePlans(
+          new Date(),
+          receivablePlans,
+          disputedPlans,
+          customerIds.length,
+        );
+        const invoiceIdsByReceivableIndex = new Map<number, string>();
+        for (const plan of invoicePlans) {
+          const invoice = new Invoice({
+            id: randomUUID(),
+            organizationId: organization.id,
+            customerId: customerIds[plan.customerIndex],
+            invoiceNumber: plan.invoiceNumber,
+            issueDate: plan.issueDate,
+            totalAmount: plan.totalAmount,
+            taxAmount: plan.taxAmount,
+            sourceType: plan.sourceType,
+            fileUrl: null,
+            status: plan.status,
+            createdAt: plan.issueDate,
+          });
+          await invoiceRepo.save(invoice);
+          if (plan.receivableIndex !== null) {
+            invoiceIdsByReceivableIndex.set(plan.receivableIndex, invoice.id);
+          }
+        }
+
+        for (const [receivableIndex, plan] of receivablePlans.entries()) {
           const receivable = await createReceivable.execute({
             customerId: customerIds[plan.customerIndex],
-            invoiceId: null,
+            invoiceId: invoiceIdsByReceivableIndex.get(receivableIndex) ?? null,
             originalAmount: plan.originalAmount,
             dueDate: plan.dueDate,
             salesRepresentativeId: null,
@@ -228,15 +258,13 @@ async function main() {
         }
 
         // ── Disputed receivables ───────────────────────────────────
-        const disputedPlans = buildSeedDisputedReceivablePlans(
-          new Date(),
-          customerIds.length,
-        );
         const disputedReceivableIds: string[] = [];
-        for (const plan of disputedPlans) {
+        for (const [index, plan] of disputedPlans.entries()) {
           const receivable = await createReceivable.execute({
             customerId: customerIds[plan.customerIndex],
-            invoiceId: null,
+            invoiceId:
+              invoiceIdsByReceivableIndex.get(receivablePlans.length + index) ??
+              null,
             originalAmount: plan.originalAmount,
             dueDate: plan.dueDate,
             salesRepresentativeId: null,
@@ -257,29 +285,6 @@ async function main() {
             version: 1,
           });
           await disputeRepo.save(dispute);
-        }
-
-        // ── Invoices ───────────────────────────────────────────────
-        const invoicePlans = buildSeedInvoicePlans(
-          new Date(),
-          disputedReceivableIds.length + receivablePlans.length,
-          customerIds.length,
-        );
-        for (const plan of invoicePlans) {
-          const invoice = new Invoice({
-            id: randomUUID(),
-            organizationId: organization.id,
-            customerId: customerIds[plan.customerIndex],
-            invoiceNumber: plan.invoiceNumber,
-            issueDate: plan.issueDate,
-            totalAmount: plan.totalAmount,
-            taxAmount: plan.taxAmount,
-            sourceType: plan.sourceType,
-            fileUrl: null,
-            status: plan.status,
-            createdAt: plan.issueDate,
-          });
-          await invoiceRepo.save(invoice);
         }
 
         // ── Bank transactions ──────────────────────────────────────
@@ -433,7 +438,7 @@ async function main() {
            ("id", "organizationId", "receivableId", "status", "remainingAmount",
             "effectiveAt", "changeSource", "changeReason", "createdAt")
            VALUES ($1, $2, $3, $4::receivable_balance_history_status_enum, $5, $6,
-                   'SEED_BACKFILL', 'Trend chart seed data', $6)
+                   'SEED_BACKFILL', 'Khởi tạo dữ liệu lịch sử xu hướng', $6)
            ON CONFLICT DO NOTHING`,
           [
             randomUUID(),

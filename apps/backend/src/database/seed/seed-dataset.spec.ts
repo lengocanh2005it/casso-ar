@@ -1,21 +1,28 @@
 import {
+  buildSeedBankTransactionPlans,
   buildSeedCustomers,
+  buildSeedDisputedReceivablePlans,
+  buildSeedInvoicePlans,
   buildSeedOperatorUserProps,
   buildSeedReceivablePlans,
   SEED_OPERATOR_EMAIL,
 } from './seed-dataset';
 
 describe('buildSeedCustomers', () => {
-  it('returns a handful of customers with unique, non-empty tax codes and emails', () => {
+  it('returns a varied business catalog with unique, realistic contact data', () => {
     const customers = buildSeedCustomers();
 
-    expect(customers.length).toBeGreaterThanOrEqual(3);
+    expect(customers.length).toBeGreaterThanOrEqual(16);
     const taxCodes = customers.map((c) => c.taxCode);
     const emails = customers.map((c) => c.email);
     expect(new Set(taxCodes).size).toBe(taxCodes.length);
     expect(new Set(emails).size).toBe(emails.length);
     for (const customer of customers) {
       expect(customer.name.length).toBeGreaterThan(0);
+      expect(customer.taxCode).toMatch(/^\d{10}$/);
+      expect(customer.phone).toMatch(/^0\d{9}$/);
+      expect(customer.email).toMatch(/@[^@]+\.test$/);
+      expect(`${customer.name} ${customer.email}`).not.toMatch(/seed/i);
     }
   });
 });
@@ -77,6 +84,46 @@ describe('buildSeedReceivablePlans', () => {
       expect(plan.originalAmount).toBeGreaterThan(0);
     }
   });
+
+  it('contains enough records to make the local workspace useful for demos', () => {
+    expect(plans.length).toBeGreaterThanOrEqual(60);
+  });
+});
+
+describe('buildSeedInvoicePlans and buildSeedBankTransactionPlans', () => {
+  const now = new Date('2026-08-17T00:00:00Z');
+
+  it('provides enough invoices and bank transactions for varied reports', () => {
+    const receivablePlans = buildSeedReceivablePlans(
+      now,
+      buildSeedCustomers().length,
+    );
+    const disputedPlans = buildSeedDisputedReceivablePlans(
+      now,
+      buildSeedCustomers().length,
+    );
+    const invoicePlans = buildSeedInvoicePlans(
+      now,
+      receivablePlans,
+      disputedPlans,
+      buildSeedCustomers().length,
+    );
+
+    expect(invoicePlans).toHaveLength(30);
+    expect(buildSeedBankTransactionPlans(now)).toHaveLength(60);
+
+    const allReceivablePlans = [...receivablePlans, ...disputedPlans];
+    const linkedInvoices = invoicePlans.filter(
+      (plan) => plan.receivableIndex !== null,
+    );
+    expect(linkedInvoices.length).toBeGreaterThanOrEqual(15);
+    for (const invoice of linkedInvoices) {
+      if (invoice.receivableIndex === null) continue;
+      const receivable = allReceivablePlans[invoice.receivableIndex];
+      expect(receivable.originalAmount).toBe(invoice.totalAmount);
+      expect(receivable.customerIndex).toBe(invoice.customerIndex);
+    }
+  });
 });
 
 describe('buildSeedOperatorUserProps', () => {
@@ -94,6 +141,11 @@ describe('buildSeedOperatorUserProps', () => {
 
   it('is already email-verified so it is usable immediately', () => {
     expect(props.emailVerifiedAt).toEqual(now);
+  });
+
+  it('uses a human-readable operator identity without seed placeholders', () => {
+    expect(props.name).not.toMatch(/seed/i);
+    expect(props.email).not.toMatch(/seed/i);
   });
 
   it('passes the id and password hash through unchanged', () => {

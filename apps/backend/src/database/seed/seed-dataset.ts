@@ -19,110 +19,170 @@ export interface SeedCustomerPlan {
 export function buildSeedCustomers(): SeedCustomerPlan[] {
   return [
     {
-      name: 'Công ty TNHH Thương mại An Phát',
-      taxCode: '0seed0001',
-      email: 'anphat@seed.local',
-      phone: '0900000001',
+      name: 'Công ty TNHH Phân phối Minh Phát',
+      taxCode: '0319999001',
+      email: 'ketoan@minhphat.test',
+      phone: '0903124501',
       defaultPaymentTermDays: 30,
       creditLimit: 500_000_000,
       priority: 1,
       customerGroup: CustomerGroup.VIP,
     },
     {
-      name: 'Công ty CP Bình Minh Group',
-      taxCode: '0seed0002',
-      email: 'binhminh@seed.local',
-      phone: '0900000002',
-      defaultPaymentTermDays: 15,
-      creditLimit: 200_000_000,
-      priority: 2,
-      customerGroup: CustomerGroup.REGULAR,
-    },
-    {
-      name: 'Doanh nghiệp Cường Thịnh',
-      taxCode: '0seed0003',
-      email: 'cuongthinh@seed.local',
-      phone: '0900000003',
-      defaultPaymentTermDays: 45,
-      creditLimit: 300_000_000,
-      priority: 1,
-      customerGroup: CustomerGroup.VIP,
-    },
-    {
-      name: 'Tổng công ty Đại Nam',
-      taxCode: '0seed0004',
-      email: 'dainam@seed.local',
-      phone: '0900000004',
-      defaultPaymentTermDays: 30,
-      creditLimit: 800_000_000,
-      priority: 1,
-      customerGroup: CustomerGroup.VIP,
-    },
-    {
-      name: 'Công ty TNHH Én Vàng',
-      taxCode: '0seed0005',
-      email: 'envang@seed.local',
-      phone: '0900000005',
+      name: 'Công ty CP Nội thất An Khang',
+      taxCode: '0109999002',
+      email: 'congno@ankhang.test',
+      phone: '0914235602',
       defaultPaymentTermDays: 20,
-      creditLimit: 150_000_000,
-      priority: 3,
-      customerGroup: CustomerGroup.REGULAR,
-    },
-    {
-      name: 'Công ty CP Phúc Đức',
-      taxCode: '0seed0006',
-      email: 'phucduc@seed.local',
-      phone: '0900000006',
-      defaultPaymentTermDays: 30,
-      creditLimit: 250_000_000,
+      creditLimit: 240_000_000,
       priority: 2,
       customerGroup: CustomerGroup.REGULAR,
     },
     {
-      name: 'Hợp tác xã Nông nghiệp Sông Mã',
-      taxCode: '0seed0007',
-      email: 'songma@seed.local',
-      phone: '0900000007',
-      defaultPaymentTermDays: 10,
-      creditLimit: 80_000_000,
-      priority: 3,
-      customerGroup: CustomerGroup.REGULAR,
-    },
-    {
-      name: 'Công ty TNHH Đầu tư Hạ tầng PinkCity',
-      taxCode: '0seed0008',
-      email: 'pinkcity@seed.local',
-      phone: '0900000008',
-      defaultPaymentTermDays: 60,
-      creditLimit: 1_000_000_000,
+      name: 'Công ty TNHH Công nghệ Sao Việt',
+      taxCode: '0409999003',
+      email: 'finance@saoviet.test',
+      phone: '0938346703',
+      defaultPaymentTermDays: 45,
+      creditLimit: 650_000_000,
       priority: 1,
       customerGroup: CustomerGroup.VIP,
     },
     {
-      name: 'Công ty TNHH Dịch vụ Vận tải Hòa Bình',
-      taxCode: '0seed0009',
-      email: 'hoabinh@seed.local',
-      phone: '0900000009',
+      name: 'Công ty CP Xây dựng Nam Việt',
+      taxCode: '0609999004',
+      email: 'ketoan@namviet.test',
+      phone: '0975457804',
+      defaultPaymentTermDays: 30,
+      creditLimit: 420_000_000,
+      priority: 2,
+      customerGroup: CustomerGroup.REGULAR,
+    },
+    {
+      name: 'Công ty TNHH Dược phẩm Tâm An',
+      taxCode: '0309999005',
+      email: 'muahang@tamanpharma.test',
+      phone: '0986568905',
       defaultPaymentTermDays: 15,
+      creditLimit: 350_000_000,
+      priority: 1,
+      customerGroup: CustomerGroup.VIP,
+    },
+    {
+      name: 'Công ty CP Thực phẩm Hương Việt',
+      taxCode: '0119999006',
+      email: 'thanhtoan@huongviet.test',
+      phone: '0907679106',
+      defaultPaymentTermDays: 30,
+      creditLimit: 280_000_000,
+      priority: 2,
+      customerGroup: CustomerGroup.REGULAR,
+    },
+    {
+      name: 'Hợp tác xã Nông nghiệp Đồng Tâm',
+      taxCode: '2809999007',
+      email: 'tckt.dongtam@dongtam.test',
+      phone: '0918781207',
+      defaultPaymentTermDays: 12,
       creditLimit: 120_000_000,
       priority: 3,
       customerGroup: CustomerGroup.REGULAR,
     },
     {
-      name: 'Công ty CP Giáo dục SmartKids',
-      taxCode: '0seed0010',
-      email: 'smartkids@seed.local',
-      phone: '0900000010',
-      defaultPaymentTermDays: 30,
+      name: 'Công ty TNHH Vận tải Bắc Nam',
+      taxCode: '0109999008',
+      email: 'congno@bacnamlogistics.test',
+      phone: '0939892308',
+      defaultPaymentTermDays: 15,
       creditLimit: 180_000_000,
+      priority: 2,
+      customerGroup: CustomerGroup.REGULAR,
+    },
+    {
+      name: 'Công ty CP Thiết bị Điện Đông Á',
+      taxCode: '0319999009',
+      email: 'finance@donga.test',
+      phone: '0971903409',
+      defaultPaymentTermDays: 30,
+      creditLimit: 520_000_000,
+      priority: 1,
+      customerGroup: CustomerGroup.VIP,
+    },
+    {
+      name: 'Công ty TNHH Giáo dục Khai Minh',
+      taxCode: '0249999010',
+      email: 'ketoan@khaiminh.test',
+      phone: '0982014510',
+      defaultPaymentTermDays: 30,
+      creditLimit: 220_000_000,
+      priority: 3,
+      customerGroup: CustomerGroup.REGULAR,
+    },
+    {
+      name: 'Công ty TNHH Giải pháp Kho vận Việt Trung',
+      taxCode: '0319999011',
+      email: 'thanhtoan@viettrunglogistics.test',
+      phone: '0903125611',
+      defaultPaymentTermDays: 45,
+      creditLimit: 750_000_000,
+      priority: 1,
+      customerGroup: CustomerGroup.VIP,
+    },
+    {
+      name: 'Công ty CP Du lịch Biển Xanh',
+      taxCode: '0236999012',
+      email: 'ketoan@bienxanhtravel.test',
+      phone: '0914236712',
+      defaultPaymentTermDays: 20,
+      creditLimit: 160_000_000,
+      priority: 2,
+      customerGroup: CustomerGroup.REGULAR,
+    },
+    {
+      name: 'Công ty TNHH Bao bì Tân Tiến',
+      taxCode: '0209999013',
+      email: 'congno@tantienpack.test',
+      phone: '0938347813',
+      defaultPaymentTermDays: 30,
+      creditLimit: 300_000_000,
+      priority: 2,
+      customerGroup: CustomerGroup.REGULAR,
+    },
+    {
+      name: 'Công ty CP Cơ khí Đại Thành',
+      taxCode: '0109999014',
+      email: 'finance@daithanhmechanical.test',
+      phone: '0975458914',
+      defaultPaymentTermDays: 60,
+      creditLimit: 900_000_000,
+      priority: 1,
+      customerGroup: CustomerGroup.VIP,
+    },
+    {
+      name: 'Công ty TNHH Thương mại Dịch vụ Hoàng Gia',
+      taxCode: '0319999015',
+      email: 'ketoan@hoanggia.test',
+      phone: '0986569015',
+      defaultPaymentTermDays: 15,
+      creditLimit: 200_000_000,
+      priority: 3,
+      customerGroup: CustomerGroup.REGULAR,
+    },
+    {
+      name: 'Công ty CP Phần mềm Mây Việt',
+      taxCode: '0319999016',
+      email: 'billing@mayviet.test',
+      phone: '0907671216',
+      defaultPaymentTermDays: 30,
+      creditLimit: 480_000_000,
       priority: 2,
       customerGroup: CustomerGroup.REGULAR,
     },
   ];
 }
 
-export const SEED_OPERATOR_EMAIL = 'operator@seed.local';
-export const SEED_OPERATOR_PASSWORD = 'SeedOperator123!';
+export const SEED_OPERATOR_EMAIL = 'operator@casso.test';
+export const SEED_OPERATOR_PASSWORD = 'CassoOperator123!';
 
 export interface SeedOperatorUserProps {
   id: string;
@@ -141,7 +201,7 @@ export function buildSeedOperatorUserProps(
 ): SeedOperatorUserProps {
   return {
     id,
-    name: 'Seed Operator',
+    name: 'Nhân viên vận hành Casso',
     email: SEED_OPERATOR_EMAIL,
     passwordHash,
     emailVerifiedAt: now,
@@ -520,6 +580,48 @@ export function buildSeedReceivablePlans(
       outcome: 'PARTIALLY_PAID',
       paymentAmount: 15_000_000,
     },
+    {
+      originalAmount: 18_200_000,
+      dueDate: daysFrom(now, 12),
+      outcome: 'OPEN',
+      paymentAmount: 0,
+    },
+    {
+      originalAmount: 26_400_000,
+      dueDate: daysFrom(now, -18),
+      outcome: 'OPEN_OVERDUE',
+      paymentAmount: 0,
+    },
+    {
+      originalAmount: 74_000_000,
+      dueDate: daysFrom(now, 20),
+      outcome: 'OPEN',
+      paymentAmount: 0,
+    },
+    {
+      originalAmount: 16_500_000,
+      dueDate: daysFrom(now, -10),
+      outcome: 'PARTIALLY_PAID',
+      paymentAmount: 5_500_000,
+    },
+    {
+      originalAmount: 44_000_000,
+      dueDate: daysFrom(now, -7),
+      outcome: 'PAID',
+      paymentAmount: 44_000_000,
+    },
+    {
+      originalAmount: 12_800_000,
+      dueDate: daysFrom(now, -30),
+      outcome: 'PAID',
+      paymentAmount: 12_800_000,
+    },
+    {
+      originalAmount: 39_600_000,
+      dueDate: daysFrom(now, -2),
+      outcome: 'PARTIALLY_PAID',
+      paymentAmount: 20_000_000,
+    },
   ];
 
   return plans.map((plan, index) => ({
@@ -590,7 +692,7 @@ export function buildSeedDisputedReceivablePlans(
 // ── Invoices ─────────────────────────────────────────────────────
 export interface SeedInvoicePlan {
   customerIndex: number;
-  receivableIndex: number;
+  receivableIndex: number | null;
   invoiceNumber: string;
   issueDate: Date;
   totalAmount: number;
@@ -601,7 +703,8 @@ export interface SeedInvoicePlan {
 
 export function buildSeedInvoicePlans(
   now: Date,
-  receivableCount: number,
+  receivablePlans: SeedReceivablePlan[],
+  disputedReceivablePlans: SeedDisputedReceivablePlan[],
   customerCount: number,
 ): SeedInvoicePlan[] {
   const plans: Array<
@@ -751,13 +854,127 @@ export function buildSeedInvoicePlans(
       sourceType: 'MANUAL',
       status: InvoiceStatus.DRAFT,
     },
+    {
+      invoiceNumber: 'INV-2026-019',
+      issueDate: monthsAgo(now, 5),
+      totalAmount: 72_000_000,
+      taxAmount: 7_200_000,
+      sourceType: 'API',
+      status: InvoiceStatus.ISSUED,
+    },
+    {
+      invoiceNumber: 'INV-2026-020',
+      issueDate: monthsAgo(now, 5),
+      totalAmount: 16_800_000,
+      taxAmount: 1_680_000,
+      sourceType: 'IMPORT',
+      status: InvoiceStatus.ISSUED,
+    },
+    {
+      invoiceNumber: 'INV-2026-021',
+      issueDate: monthsAgo(now, 4),
+      totalAmount: 29_400_000,
+      taxAmount: 2_940_000,
+      sourceType: 'MANUAL',
+      status: InvoiceStatus.ISSUED,
+    },
+    {
+      invoiceNumber: 'INV-2026-022',
+      issueDate: monthsAgo(now, 4),
+      totalAmount: 84_000_000,
+      taxAmount: 8_400_000,
+      sourceType: 'API',
+      status: InvoiceStatus.ISSUED,
+    },
+    {
+      invoiceNumber: 'INV-2026-023',
+      issueDate: monthsAgo(now, 3),
+      totalAmount: 11_200_000,
+      taxAmount: 1_120_000,
+      sourceType: 'MANUAL',
+      status: InvoiceStatus.ISSUED,
+    },
+    {
+      invoiceNumber: 'INV-2026-024',
+      issueDate: monthsAgo(now, 3),
+      totalAmount: 66_000_000,
+      taxAmount: 6_600_000,
+      sourceType: 'IMPORT',
+      status: InvoiceStatus.ISSUED,
+    },
+    {
+      invoiceNumber: 'INV-2026-025',
+      issueDate: monthsAgo(now, 2),
+      totalAmount: 18_600_000,
+      taxAmount: 1_860_000,
+      sourceType: 'MANUAL',
+      status: InvoiceStatus.ISSUED,
+    },
+    {
+      invoiceNumber: 'INV-2026-026',
+      issueDate: monthsAgo(now, 2),
+      totalAmount: 92_000_000,
+      taxAmount: 9_200_000,
+      sourceType: 'API',
+      status: InvoiceStatus.ISSUED,
+    },
+    {
+      invoiceNumber: 'INV-2026-027',
+      issueDate: monthsAgo(now, 1),
+      totalAmount: 7_800_000,
+      taxAmount: 780_000,
+      sourceType: 'MANUAL',
+      status: InvoiceStatus.ISSUED,
+    },
+    {
+      invoiceNumber: 'INV-2026-028',
+      issueDate: monthsAgo(now, 1),
+      totalAmount: 35_000_000,
+      taxAmount: 3_500_000,
+      sourceType: 'IMPORT',
+      status: InvoiceStatus.ISSUED,
+    },
+    {
+      invoiceNumber: 'INV-2026-029',
+      issueDate: now,
+      totalAmount: 24_500_000,
+      taxAmount: 2_450_000,
+      sourceType: 'MANUAL',
+      status: InvoiceStatus.DRAFT,
+    },
+    {
+      invoiceNumber: 'INV-2026-030',
+      issueDate: now,
+      totalAmount: 48_000_000,
+      taxAmount: 4_800_000,
+      sourceType: 'API',
+      status: InvoiceStatus.CANCELLED,
+    },
   ];
 
-  return plans.map((plan, index) => ({
-    ...plan,
-    customerIndex: index % customerCount,
-    receivableIndex: index % receivableCount,
-  }));
+  const allReceivablePlans = [...receivablePlans, ...disputedReceivablePlans];
+  const linkedReceivableIndexes = new Set<number>();
+
+  return plans.map((plan, index) => {
+    const receivableIndex =
+      plan.status === InvoiceStatus.ISSUED
+        ? allReceivablePlans.findIndex(
+            (receivable, candidateIndex) =>
+              !linkedReceivableIndexes.has(candidateIndex) &&
+              receivable.originalAmount === plan.totalAmount,
+          )
+        : -1;
+    if (receivableIndex >= 0) linkedReceivableIndexes.add(receivableIndex);
+
+    return {
+      ...plan,
+      customerIndex:
+        receivableIndex >= 0
+          ? allReceivablePlans[receivableIndex].customerIndex
+          : index % customerCount,
+      receivableIndex: receivableIndex >= 0 ? receivableIndex : null,
+    };
+  });
 }
 
 // ── Bank transactions ────────────────────────────────────────────
@@ -797,16 +1014,28 @@ export function buildSeedBankTransactionPlans(
   ];
 
   const counterparties = [
-    { name: 'Công ty TNHH Thương mại An Phát', account: '1234567890' },
-    { name: 'Công ty CP Bình Minh Group', account: '2345678901' },
-    { name: 'Doanh nghiệp Cường Thịnh', account: '3456789012' },
-    { name: 'Tổng công ty Đại Nam', account: '4567890123' },
-    { name: 'Công ty TNHH Én Vàng', account: '5678901234' },
-    { name: 'Công ty CP Phúc Đức', account: '6789012345' },
-    { name: 'Hợp tác xã Nông nghiệp Sông Mã', account: '7890123456' },
-    { name: 'Công ty TNHH Đầu tư Hạ tầng PinkCity', account: '8901234567' },
-    { name: 'Công ty TNHH Dịch vụ Vận tải Hòa Bình', account: '9012345678' },
-    { name: 'Công ty CP Giáo dục SmartKids', account: '0123456789' },
+    { name: 'Công ty TNHH Phân phối Minh Phát', account: '1903678214' },
+    { name: 'Công ty CP Nội thất An Khang', account: '1028846173' },
+    { name: 'Công ty TNHH Công nghệ Sao Việt', account: '2201457936' },
+    { name: 'Công ty CP Xây dựng Nam Việt', account: '7609124835' },
+    { name: 'Công ty TNHH Dược phẩm Tâm An', account: '1402678391' },
+    { name: 'Công ty CP Thực phẩm Hương Việt', account: '3205987146' },
+    { name: 'Hợp tác xã Nông nghiệp Đồng Tâm', account: '4901836275' },
+    { name: 'Công ty TNHH Vận tải Bắc Nam', account: '6802749153' },
+    { name: 'Công ty CP Thiết bị Điện Đông Á', account: '3708619245' },
+    { name: 'Công ty TNHH Giáo dục Khai Minh', account: '1204938675' },
+    {
+      name: 'Công ty TNHH Giải pháp Kho vận Việt Trung',
+      account: '8901763245',
+    },
+    { name: 'Công ty CP Du lịch Biển Xanh', account: '2506389147' },
+    { name: 'Công ty TNHH Bao bì Tân Tiến', account: '4109273658' },
+    { name: 'Công ty CP Cơ khí Đại Thành', account: '5301847962' },
+    {
+      name: 'Công ty TNHH Thương mại Dịch vụ Hoàng Gia',
+      account: '6103758294',
+    },
+    { name: 'Công ty CP Phần mềm Mây Việt', account: '7302916485' },
   ];
 
   const transferContents = [
@@ -823,8 +1052,8 @@ export function buildSeedBankTransactionPlans(
   ];
 
   const plans: SeedBankTransactionPlan[] = [];
-  for (let i = 0; i < 35; i++) {
-    const monthOffset = Math.floor(i / 6);
+  for (let i = 0; i < 60; i++) {
+    const monthOffset = Math.floor(i / 10);
     const cp = counterparties[i % counterparties.length];
     const amount = randomAmount(2_000_000, 60_000_000, i + 200);
     const dt = new Date(now.getTime());
