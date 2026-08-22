@@ -19,3 +19,26 @@ export interface CustomerTimelineItem {
   createdByUserId: string | null;
   createdAt: string;
 }
+
+export interface CustomerBankAccount {
+  id: string;
+  customerId: string;
+  accountNumberMasked: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerBankAccountList {
+  items: CustomerBankAccount[];
+  total: number;
+}
+
+export interface CreateCustomerBankAccountInput {
+  accountNumber: string;
+}
+
+export interface UpdateCustomerBankAccountInput {
+  accountNumber?: string;
+  isActive?: boolean;
+}

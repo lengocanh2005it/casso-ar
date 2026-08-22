@@ -1,6 +1,10 @@
 import type {
+  CreateCustomerBankAccountInput,
   Customer,
+  CustomerBankAccount,
+  CustomerBankAccountList,
   CustomerTimelineItem,
+  UpdateCustomerBankAccountInput,
 } from '@/features/customers/types';
 import { apiRequest, postWithIdempotency } from '@/lib/api-client';
 
@@ -76,5 +80,48 @@ export function fetchCustomerTimeline(
     url: `/api/v1/customers/${customerId}/timeline`,
     method: 'GET',
     params: { page, limit: 20 },
+  });
+}
+
+export function fetchCustomerBankAccounts(
+  customerId: string,
+): Promise<CustomerBankAccountList> {
+  return apiRequest<CustomerBankAccountList>({
+    url: `/api/v1/customers/${customerId}/bank-accounts`,
+    method: 'GET',
+  });
+}
+
+export function createCustomerBankAccount(
+  customerId: string,
+  input: CreateCustomerBankAccountInput,
+): Promise<CustomerBankAccount> {
+  return postWithIdempotency<CustomerBankAccount>(
+    `/api/v1/customers/${customerId}/bank-accounts`,
+    input,
+  );
+}
+
+export function updateCustomerBankAccount(
+  customerId: string,
+  id: string,
+  input: UpdateCustomerBankAccountInput,
+): Promise<CustomerBankAccount> {
+  return apiRequest<CustomerBankAccount>({
+    url: `/api/v1/customers/${customerId}/bank-accounts/${id}`,
+    method: 'PATCH',
+    data: input,
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}
+
+export function deactivateCustomerBankAccount(
+  customerId: string,
+  id: string,
+): Promise<void> {
+  return apiRequest<void>({
+    url: `/api/v1/customers/${customerId}/bank-accounts/${id}`,
+    method: 'DELETE',
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
   });
 }

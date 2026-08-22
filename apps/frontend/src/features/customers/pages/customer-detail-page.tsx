@@ -13,6 +13,7 @@ import {
   useCustomerTimeline,
 } from '../api/use-customers';
 import { AllocateCreditDialog } from '../components/allocate-credit-dialog';
+import { CustomerBankAccountsCard } from '../components/customer-bank-accounts-card';
 import { CustomerTimeline } from '../components/customer-timeline';
 
 export function CustomerDetailPage() {
@@ -94,6 +95,7 @@ export function CustomerDetailPage() {
           </CardContent>
         </Card>
       </div>
+      <CustomerBankAccountsCard customerId={id} />
       <Card>
         <CardHeader>
           <CardTitle>Lịch sử hoạt động</CardTitle>
