@@ -139,7 +139,57 @@ describe('AppLayout', () => {
     expect(main.firstElementChild).toHaveClass(
       'mx-auto',
       'max-w-[1600px]',
-      'h-full',
+      'min-h-full',
     );
+  });
+
+  it("keeps regular pages growing past the viewport (min-h-full), so main's bottom padding stays visible on scroll", () => {
+    useAuth.mockReturnValue({ user: null, logout: vi.fn() });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <ThemeProvider>
+        <MemoryRouter initialEntries={['/customers']}>
+          <QueryClientProvider client={queryClient}>
+            <Routes>
+              <Route element={<AppLayout />}>
+                <Route path="customers" element={<div>Customers</div>} />
+              </Route>
+            </Routes>
+          </QueryClientProvider>
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+    const main = screen.getByRole('main');
+    expect(main.firstElementChild).toHaveClass('min-h-full');
+    expect(main.firstElementChild).not.toHaveClass('h-full');
+  });
+
+  it('gives the Copilot route an exact-fit shell (h-full) instead of growing past the viewport', () => {
+    useAuth.mockReturnValue({ user: null, logout: vi.fn() });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <ThemeProvider>
+        <MemoryRouter initialEntries={['/copilot']}>
+          <QueryClientProvider client={queryClient}>
+            <Routes>
+              <Route element={<AppLayout />}>
+                <Route path="copilot" element={<div>Copilot</div>} />
+              </Route>
+            </Routes>
+          </QueryClientProvider>
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+    const main = screen.getByRole('main');
+    expect(main.firstElementChild).toHaveClass('h-full');
+    expect(main.firstElementChild).not.toHaveClass('min-h-full');
   });
 });

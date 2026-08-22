@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { useAlertsStream } from '@/features/alerts/api/use-alerts-stream';
 import { AlertBell } from '@/features/alerts/components/alert-bell';
+import { cn } from '@/lib/utils';
 import { MobileSidebarWrapper } from './mobile-sidebar';
 import { Sidebar } from './sidebar';
 import { ThemeToggle } from './theme-toggle';
@@ -10,7 +11,15 @@ import { ThemeToggle } from './theme-toggle';
 export function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const { user } = useAuth();
+  const { pathname } = useLocation();
   useAlertsStream(user?.role === 'OWNER');
+
+  // Every page grows past the viewport by default (min-h-full) so main's
+  // own overflow-auto scrolling keeps its bottom padding visible. Copilot
+  // is the one route that wants an exact-fit shell instead — its internal
+  // panels need a definite height to fill (see copilot-page.tsx), not a
+  // page that grows with (or shrinks to) chat content.
+  const fillsExactHeight = pathname.startsWith('/copilot');
 
   return (
     <>
@@ -44,7 +53,12 @@ export function AppLayout() {
             id="main-content"
             className="min-h-0 flex-1 overflow-auto bg-app-canvas p-4 md:p-6 xl:p-8"
           >
-            <div className="mx-auto h-full w-full max-w-[1600px]">
+            <div
+              className={cn(
+                'mx-auto w-full max-w-[1600px]',
+                fillsExactHeight ? 'h-full' : 'min-h-full',
+              )}
+            >
               <Outlet />
             </div>
           </main>
