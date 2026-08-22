@@ -3,16 +3,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const ICON_COLORS = {
   default: 'text-primary',
-  success: 'text-emerald-500',
-  warning: 'text-amber-500',
-  danger: 'text-red-500',
+  success: 'text-success',
+  warning: 'text-warning',
+  danger: 'text-destructive',
 } as const;
 
 const BORDER_COLORS = {
   default: 'border-l-primary',
-  success: 'border-l-emerald-500',
-  warning: 'border-l-amber-500',
-  danger: 'border-l-red-500',
+  success: 'border-l-success',
+  warning: 'border-l-warning',
+  danger: 'border-l-destructive',
+} as const;
+
+const LABEL_COLORS = {
+  default: 'text-foreground',
+  success: 'text-success',
+  warning: 'text-warning-foreground',
+  danger: 'text-destructive',
 } as const;
 
 export type MetricCardVariant = keyof typeof ICON_COLORS;
@@ -39,7 +46,7 @@ export function MetricCard({
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
           <Icon className={`size-4 ${ICON_COLORS[variant]}`} />
-          <CardTitle className="text-sm font-medium text-primary">
+          <CardTitle className={`text-sm font-medium ${LABEL_COLORS[variant]}`}>
             {label}
           </CardTitle>
         </div>

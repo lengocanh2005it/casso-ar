@@ -40,7 +40,7 @@ export function SectionCard({
       className={cn('animate-fade-up motion-reduce:animate-none', className)}
     >
       {hasHeader && (
-        <CardHeader>
+        <CardHeader className="gap-1.5">
           {(Icon || title) && (
             <div className="flex items-center gap-2">
               {Icon && (
