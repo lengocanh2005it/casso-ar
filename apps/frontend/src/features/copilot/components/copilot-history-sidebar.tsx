@@ -18,7 +18,7 @@ export function CopilotHistorySidebar({
 }) {
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-primary/15 bg-primary/5 px-3 py-3 dark:border-primary/25 dark:bg-primary/10">
+      <div className="flex items-center justify-between border-b border-border bg-muted/20 px-3 py-3">
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
           Lịch sử chat
         </span>
@@ -41,7 +41,7 @@ export function CopilotHistorySidebar({
         {!isLoading && conversations.length === 0 && (
           <div className="flex h-full items-center justify-center px-4 text-center">
             <div>
-              <div className="mx-auto mb-3 flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div className="mx-auto mb-3 flex size-9 items-center justify-center rounded-xl bg-muted text-primary">
                 <MessageSquare aria-hidden="true" className="size-4" />
               </div>
               <p className="text-sm font-medium text-foreground">

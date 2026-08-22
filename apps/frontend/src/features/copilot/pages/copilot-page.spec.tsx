@@ -331,6 +331,7 @@ describe('CopilotPage', () => {
       name: /không gian làm việc copilot/i,
     });
 
-    expect(workspace).toHaveClass('overflow-hidden', 'rounded-3xl');
+    expect(workspace).toHaveClass('overflow-hidden', 'rounded-2xl');
+    expect(workspace).not.toHaveClass('shadow-lg', 'bg-card/70');
   });
 });
