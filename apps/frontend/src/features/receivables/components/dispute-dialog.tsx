@@ -82,7 +82,7 @@ export function DisputeDialog({
         ) : (
           <div className="space-y-3">
             <Label className="block space-y-2">
-              <span className="text-sm">Lý do tranh chấp</span>
+              <span className="block text-sm">Lý do tranh chấp</span>
               <Textarea
                 name="reason"
                 required

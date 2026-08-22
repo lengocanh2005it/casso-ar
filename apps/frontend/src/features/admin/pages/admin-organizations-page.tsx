@@ -92,7 +92,7 @@ function RejectDialog({ organizationId }: { organizationId: string }) {
         </DialogHeader>
         <div className="space-y-3">
           <Label className="block space-y-2">
-            <span className="text-sm">Lý do từ chối</span>
+            <span className="block text-sm">Lý do từ chối</span>
             <Textarea
               name="reason"
               required

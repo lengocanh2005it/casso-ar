@@ -157,7 +157,7 @@ export function PolicyDialog({
         </DialogHeader>
         <div className="space-y-4">
           <Label className="block space-y-2">
-            <span>Nhóm khách hàng</span>
+            <span className="block">Nhóm khách hàng</span>
             <Select
               value={customerGroup}
               onValueChange={(value) =>
@@ -187,7 +187,9 @@ export function PolicyDialog({
             Kích hoạt chính sách
           </label>
           <Label className="block space-y-2">
-            <span>Ngưỡng leo thang (ngày, không bắt buộc)</span>
+            <span className="block">
+              Ngưỡng leo thang (ngày, không bắt buộc)
+            </span>
             <Input
               name="escalationThresholdDays"
               autoComplete="off"
@@ -218,7 +220,7 @@ export function PolicyDialog({
                 className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[minmax(0,140px)_minmax(0,1fr)_minmax(0,190px)_auto] sm:items-end"
               >
                 <Label className="block min-w-0 space-y-2">
-                  <span className="text-xs">Ngày lệch hạn</span>
+                  <span className="block text-xs">Ngày lệch hạn</span>
                   <Input
                     name={`offsetDays-${index}`}
                     autoComplete="off"
@@ -232,7 +234,7 @@ export function PolicyDialog({
                   />
                 </Label>
                 <Label className="block min-w-0 space-y-2">
-                  <span className="text-xs">Email template</span>
+                  <span className="block text-xs">Email template</span>
                   <EmailTemplateSelect
                     id={`emailTemplateId-${index}`}
                     ariaLabel={`Email template ${index + 1}`}
@@ -243,7 +245,9 @@ export function PolicyDialog({
                   />
                 </Label>
                 <Label className="block min-w-0 space-y-2">
-                  <span className="text-xs">Khoảng cách tối thiểu (ngày)</span>
+                  <span className="block text-xs">
+                    Khoảng cách tối thiểu (ngày)
+                  </span>
                   <Input
                     name={`minIntervalDays-${index}`}
                     autoComplete="off"

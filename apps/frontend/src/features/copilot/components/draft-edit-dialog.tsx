@@ -87,7 +87,7 @@ export function DraftEditDialog({
         <form onSubmit={submit}>
           <div className="space-y-4">
             <Label className="block space-y-2">
-              <span>Tiêu đề</span>
+              <span className="block">Tiêu đề</span>
               <Input
                 ref={subjectRef}
                 name="subject"
@@ -107,7 +107,7 @@ export function DraftEditDialog({
               />
             </Label>
             <Label className="block space-y-2">
-              <span>Nội dung HTML</span>
+              <span className="block">Nội dung HTML</span>
               <Textarea
                 ref={bodyRef}
                 name="bodyHtml"

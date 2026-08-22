@@ -67,7 +67,7 @@ export function CreateReceivableDialog() {
           }}
         >
           <Label className="block space-y-2">
-            <span className="text-sm">Mã khách hàng</span>
+            <span className="block text-sm">Mã khách hàng</span>
             <Input
               name="customerId"
               autoComplete="off"
@@ -78,7 +78,7 @@ export function CreateReceivableDialog() {
             />
           </Label>
           <Label className="block space-y-2">
-            <span className="text-sm">Số tiền (đồng)</span>
+            <span className="block text-sm">Số tiền (đồng)</span>
             <Input
               name="originalAmount"
               autoComplete="off"
@@ -91,7 +91,7 @@ export function CreateReceivableDialog() {
             />
           </Label>
           <Label className="block space-y-2">
-            <span className="text-sm">Hạn thanh toán</span>
+            <span className="block text-sm">Hạn thanh toán</span>
             <Input
               name="dueDate"
               autoComplete="off"

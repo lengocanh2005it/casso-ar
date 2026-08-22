@@ -91,7 +91,7 @@ export function TemplateDialog({
         </DialogHeader>
         <div className="space-y-4">
           <Label className="block space-y-2">
-            <span>Tên mẫu</span>
+            <span className="block">Tên mẫu</span>
             <Input
               name="name"
               autoComplete="off"
@@ -101,7 +101,7 @@ export function TemplateDialog({
             />
           </Label>
           <Label className="block space-y-2">
-            <span>Tiêu đề</span>
+            <span className="block">Tiêu đề</span>
             <Input
               name="subject"
               autoComplete="off"
@@ -110,7 +110,7 @@ export function TemplateDialog({
             />
           </Label>
           <Label className="block space-y-2">
-            <span>Nội dung HTML</span>
+            <span className="block">Nội dung HTML</span>
             <Textarea
               name="bodyHtml"
               rows={8}
