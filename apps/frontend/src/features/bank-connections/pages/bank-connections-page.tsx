@@ -20,9 +20,14 @@ export function BankConnectionsPage() {
           </>
         }
         icon={Landmark}
+        tone="info"
         actions={<ConnectDialog />}
       />
-      <SectionCard>
+      <SectionCard
+        icon={Landmark}
+        title="Trạng thái kết nối"
+        description="Theo dõi quyền truy cập và lần đồng bộ gần nhất."
+      >
         {connectionsQuery.isPending && (
           <p role="status" aria-live="polite">
             Đang tải kết nối ngân hàng…

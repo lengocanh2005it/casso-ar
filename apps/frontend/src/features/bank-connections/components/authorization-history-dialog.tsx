@@ -1,4 +1,6 @@
+import { History } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { EmptyState } from '@/components/layout/empty-state';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -110,7 +112,12 @@ export function AuthorizationHistoryDialog({
           </p>
         )}
         {data && items.length === 0 && (
-          <p className="text-sm text-muted-foreground">Chưa có lịch sử.</p>
+          <EmptyState
+            icon={History}
+            title="Chưa có lịch sử."
+            description="Các thay đổi quyền truy cập sẽ xuất hiện tại đây."
+            density="compact"
+          />
         )}
         {data && items.length > 0 && (
           <>

@@ -1,5 +1,7 @@
 import { Permission } from '@casso-ledger/shared-types';
+import { Landmark } from 'lucide-react';
 import { Fragment, useState } from 'react';
+import { EmptyState } from '@/components/layout/empty-state';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +42,7 @@ import {
 import type { BankConnection, BankConnectionStatus } from '../types';
 import { AuthorizationHistoryDialog } from './authorization-history-dialog';
 import { CassoFlowAccountPicker } from './casso-flow-account-picker';
+import { ConnectDialog } from './connect-dialog';
 import { RevealApiKeyDialog } from './reveal-api-key-dialog';
 
 const statusLabels: Record<BankConnectionStatus, string> = {
@@ -49,6 +52,17 @@ const statusLabels: Record<BankConnectionStatus, string> = {
   REVOKED: 'Đã thu hồi',
   DISCONNECTED: 'Đã ngắt kết nối',
   ERROR: 'Lỗi',
+};
+
+const statusClasses: Record<BankConnectionStatus, string> = {
+  PENDING_AUTHORIZATION:
+    'border-warning/30 bg-warning/15 text-warning-foreground',
+  ACTIVE: 'border-success/30 bg-success/10 text-success',
+  REQUIRES_REAUTHORIZATION:
+    'border-warning/30 bg-warning/15 text-warning-foreground',
+  REVOKED: 'border-destructive/30 bg-destructive/10 text-destructive',
+  DISCONNECTED: 'border-border bg-muted text-muted-foreground',
+  ERROR: 'border-destructive/30 bg-destructive/10 text-destructive',
 };
 
 function groupConnections(
@@ -88,21 +102,24 @@ export function ConnectionTable({
 
   if (connections.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-        Chưa có kết nối ngân hàng.
-      </p>
+      <EmptyState
+        icon={Landmark}
+        title="Chưa có kết nối ngân hàng"
+        description="Kết nối Casso Flow để tự động đồng bộ giao dịch ngân hàng."
+        action={<ConnectDialog />}
+      />
     );
   }
 
   return (
-    <Table>
+    <Table className="min-w-180">
       <TableHeader>
         <TableRow>
-          <TableHead>Ngân hàng</TableHead>
-          <TableHead>Số tài khoản</TableHead>
-          <TableHead>Trạng thái</TableHead>
-          <TableHead>Đồng bộ gần nhất</TableHead>
-          {canManage && <TableHead>Thao tác</TableHead>}
+          <TableHead className="min-w-40">Ngân hàng</TableHead>
+          <TableHead className="min-w-44">Số tài khoản</TableHead>
+          <TableHead className="min-w-36">Trạng thái</TableHead>
+          <TableHead className="min-w-36">Đồng bộ gần nhất</TableHead>
+          {canManage && <TableHead className="min-w-32">Thao tác</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -110,88 +127,88 @@ export function ConnectionTable({
           <Fragment key={authorizationId}>
             {(canManage || canRevealKey) && (
               <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="flex justify-end gap-2 text-right"
-                >
-                  {canRevealKey && (
-                    <>
-                      <AuthorizationHistoryDialog
-                        authorizationId={authorizationId}
-                      />
-                      <RevealApiKeyDialog authorizationId={authorizationId} />
-                    </>
-                  )}
-                  {canManage && (
-                    <Dialog
-                      open={rotationAuthorizationId === authorizationId}
-                      onOpenChange={(open) =>
-                        setRotationAuthorizationId(
-                          open ? authorizationId : null,
-                        )
-                      }
-                    >
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          Đổi API Key
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>
-                            Đổi API Key{' '}
-                            <span className="text-primary">Casso Flow</span>
-                          </DialogTitle>
-                          <DialogDescription>
-                            Nhập API Key mới để cập nhật quyền truy cập cho các
-                            tài khoản trong nhóm này.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <CassoFlowAccountPicker
-                          onPreview={(apiKey) =>
-                            previewRotationMutation.mutateAsync({
-                              authorizationId,
-                              apiKey,
-                            })
-                          }
-                          onConfirm={(apiKey) =>
-                            rotateMutation.mutateAsync({
-                              authorizationId,
-                              apiKey,
-                            })
-                          }
-                          onCompleted={() => setRotationAuthorizationId(null)}
+                <TableCell colSpan={canManage ? 5 : 4} className="bg-muted/20">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {canRevealKey && (
+                      <>
+                        <AuthorizationHistoryDialog
+                          authorizationId={authorizationId}
                         />
-                      </DialogContent>
-                    </Dialog>
-                  )}
+                        <RevealApiKeyDialog authorizationId={authorizationId} />
+                      </>
+                    )}
+                    {canManage && (
+                      <Dialog
+                        open={rotationAuthorizationId === authorizationId}
+                        onOpenChange={(open) =>
+                          setRotationAuthorizationId(
+                            open ? authorizationId : null,
+                          )
+                        }
+                      >
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            Đổi API Key
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>
+                              Đổi API Key{' '}
+                              <span className="text-primary">Casso Flow</span>
+                            </DialogTitle>
+                            <DialogDescription>
+                              Nhập API Key mới để cập nhật quyền truy cập cho
+                              các tài khoản trong nhóm này.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <CassoFlowAccountPicker
+                            onPreview={(apiKey) =>
+                              previewRotationMutation.mutateAsync({
+                                authorizationId,
+                                apiKey,
+                              })
+                            }
+                            onConfirm={(apiKey) =>
+                              rotateMutation.mutateAsync({
+                                authorizationId,
+                                apiKey,
+                              })
+                            }
+                            onCompleted={() => setRotationAuthorizationId(null)}
+                          />
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             )}
             {group.map((connection) => (
               <TableRow key={connection.id}>
-                <TableCell className="max-w-48 break-words font-medium">
+                <TableCell className="min-w-40 max-w-56 break-words font-medium">
                   {connection.bankName}
                 </TableCell>
-                <TableCell className="max-w-56 break-all">
+                <TableCell className="min-w-44 max-w-56 break-all">
                   {connection.accountNumber}
                 </TableCell>
                 <TableCell>
                   <Badge
                     variant={
-                      connection.status === 'ACTIVE' ? 'default' : 'outline'
+                      connection.status === 'ERROR' ? 'destructive' : 'outline'
                     }
+                    className={statusClasses[connection.status]}
                   >
                     {statusLabels[connection.status]}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell className="whitespace-nowrap">
                   {connection.lastSyncAt
                     ? formatDate(connection.lastSyncAt)
                     : '—'}
                 </TableCell>
                 {canManage && (
-                  <TableCell>
+                  <TableCell className="min-w-32">
                     {connection.status === 'ACTIVE' && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>

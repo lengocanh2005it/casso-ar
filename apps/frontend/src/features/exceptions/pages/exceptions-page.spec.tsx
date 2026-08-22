@@ -244,4 +244,25 @@ describe('ExceptionsPage', () => {
       ),
     ).toBeInTheDocument();
   });
+
+  it.each([
+    ['', 'Không có giao dịch cần xử lý.'],
+    ['không khớp', 'Không tìm thấy giao dịch phù hợp.'],
+  ])('shows the correct empty state for search %s', async (search, message) => {
+    apiRequest.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[`/?search=${search}`]}>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByTestId('empty-state')).toBeInTheDocument();
+    expect(screen.getByText(message)).toBeInTheDocument();
+  });
 });

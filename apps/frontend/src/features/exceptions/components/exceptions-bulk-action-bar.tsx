@@ -91,8 +91,10 @@ export function ExceptionsBulkActionBar({
   if (selectedIds.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-3">
-      <span className="text-sm font-medium">Đã chọn {selectedIds.length}</span>
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3">
+      <span className="mr-1 text-sm font-medium">
+        Đã chọn {selectedIds.length}
+      </span>
       <Button
         variant="outline"
         size="sm"

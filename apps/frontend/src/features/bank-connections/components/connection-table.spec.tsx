@@ -29,6 +29,9 @@ vi.mock('./authorization-history-dialog', () => ({
     authorizationId: string;
   }) => <button type="button">Lịch sử ({authorizationId})</button>,
 }));
+vi.mock('./connect-dialog', () => ({
+  ConnectDialog: () => <button type="button">Kết nối ngân hàng</button>,
+}));
 
 const connection: BankConnection = {
   id: 'connection-1',
@@ -124,5 +127,14 @@ describe('ConnectionTable', () => {
     expect(
       screen.getByRole('button', { name: /lịch sử \(authorization-1\)/i }),
     ).toBeInTheDocument();
+  });
+
+  it('shows the bank empty state when there are no connections', () => {
+    useAuth.mockReturnValue({ user: { role: 'OWNER' } });
+
+    render(<ConnectionTable connections={[]} />);
+
+    expect(screen.getByTestId('empty-state')).toBeInTheDocument();
+    expect(screen.getByText('Chưa có kết nối ngân hàng')).toBeInTheDocument();
   });
 });

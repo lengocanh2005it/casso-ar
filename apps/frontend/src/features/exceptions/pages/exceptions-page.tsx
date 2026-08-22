@@ -1,5 +1,6 @@
 import { FileSearch } from 'lucide-react';
 import { useState } from 'react';
+import { EmptyState } from '@/components/layout/empty-state';
 import { PageHeading } from '@/components/layout/page-heading';
 import { SectionCard } from '@/components/layout/section-card';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
@@ -47,23 +48,30 @@ export function ExceptionsPage() {
         title="Hàng chờ xử lý ngoại lệ"
         description="Đối soát các giao dịch ngân hàng chưa khớp với công nợ."
         icon={FileSearch}
+        tone="warning"
       />
-      <Input
-        name="search"
-        type="search"
-        autoComplete="off"
-        aria-label="Tìm kiếm giao dịch"
-        placeholder="Tìm theo tên, số tài khoản hoặc nội dung chuyển khoản…"
-        value={search}
-        onChange={(event) =>
-          setParam('search', event.target.value, {
-            resetPage: true,
-            replace: true,
-          })
-        }
-        className="max-w-lg"
-      />
-      <SectionCard>
+      <SectionCard
+        icon={FileSearch}
+        title="Giao dịch cần rà soát"
+        description="Tìm kiếm, chọn và xử lý các giao dịch chưa khớp."
+      >
+        <div className="mb-4 rounded-lg border bg-muted/20 p-3">
+          <Input
+            name="search"
+            type="search"
+            autoComplete="off"
+            aria-label="Tìm kiếm giao dịch"
+            placeholder="Tìm theo tên, số tài khoản hoặc nội dung chuyển khoản…"
+            value={search}
+            onChange={(event) =>
+              setParam('search', event.target.value, {
+                resetPage: true,
+                replace: true,
+              })
+            }
+            className="max-w-lg bg-background"
+          />
+        </div>
         {isPending && <TableSkeleton rows={5} />}
         {isError && (
           <p role="status" aria-live="polite" className="text-destructive">
@@ -71,15 +79,21 @@ export function ExceptionsPage() {
           </p>
         )}
         {data && data.items.length === 0 && (
-          <p
-            role="status"
-            aria-live="polite"
-            className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
-          >
-            {search
-              ? 'Không tìm thấy giao dịch phù hợp.'
-              : 'Không có giao dịch cần xử lý.'}
-          </p>
+          <div role="status" aria-live="polite">
+            <EmptyState
+              icon={FileSearch}
+              title={
+                search
+                  ? 'Không tìm thấy giao dịch phù hợp.'
+                  : 'Không có giao dịch cần xử lý.'
+              }
+              description={
+                search
+                  ? 'Thử thay đổi từ khóa để xem thêm giao dịch.'
+                  : 'Các giao dịch cần đối soát sẽ xuất hiện tại đây.'
+              }
+            />
+          </div>
         )}
         {data && data.items.length > 0 && (
           <Table>
