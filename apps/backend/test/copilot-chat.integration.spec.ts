@@ -411,4 +411,23 @@ describe('Copilot chat (integration)', () => {
     expect(response.body.errorCode).toBe('PLAN_LIMIT_EXCEEDED');
     expect(mockCreateChatCompletion).toHaveBeenCalledTimes(callsBeforeLimit);
   });
+
+  it('lists a conversation after sending it a message', async () => {
+    const fixture = await setUpOrg();
+    mockCreateChatCompletion.mockResolvedValueOnce(completion('Đã xử lý.'));
+    await postChat(
+      fixture.token,
+      fixture.conversationId,
+      'Tóm tắt công nợ',
+      `list-${randomUUID()}`,
+    ).then((response) => expect(response.status).toBe(201));
+
+    const response = await request(app?.getHttpServer())
+      .get('/api/v1/copilot/conversations')
+      .set('Authorization', `Bearer ${fixture.token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.items).toHaveLength(1);
+    expect(response.body.items[0].id).toBe(fixture.conversationId);
+  });
 });

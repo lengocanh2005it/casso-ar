@@ -128,7 +128,10 @@ export class TypeOrmCopilotConversationRepository
       .leftJoin(
         CopilotMessageOrmEntity,
         'message',
-        'message.conversationId = conversation.id',
+        // conversation.id is uuid but message.conversationId is varchar
+        // (matches how it's stored elsewhere in this repository) — cast to
+        // compare, since Postgres has no varchar = uuid operator.
+        'message.conversationId = CAST(conversation.id AS varchar)',
       )
       .select('conversation.id', 'id')
       .addSelect('conversation.title', 'title')
