@@ -30,14 +30,21 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
       <TableBody>
         {page.items.map((row) => (
           <TableRow key={row.customerId}>
-            <TableCell className="max-w-64 break-words">
-              <div className="flex items-center gap-2">
+            <TableCell className="max-w-64">
+              <div className="flex min-w-0 items-center gap-2">
                 <InitialsAvatar name={row.customerName} size="sm" />
-                {row.customerName}
+                <span
+                  className="block min-w-0 truncate"
+                  title={row.customerName}
+                >
+                  {row.customerName}
+                </span>
               </div>
             </TableCell>
-            <TableCell className="max-w-48 break-words">
-              {row.taxCode}
+            <TableCell className="max-w-48">
+              <span className="block truncate" title={row.taxCode}>
+                {row.taxCode}
+              </span>
             </TableCell>
             {AGING_BUCKET_ORDER.map((bucket) => (
               <TableCell key={bucket}>
