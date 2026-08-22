@@ -146,7 +146,7 @@ export function PolicyDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>
             {policy ? 'Sửa chính sách nhắc' : 'Tạo chính sách nhắc'}
@@ -215,9 +215,9 @@ export function PolicyDialog({
             {rules.map((rule, index) => (
               <div
                 key={rule.key}
-                className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_1.5fr_1fr_auto]"
+                className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[minmax(0,140px)_minmax(0,1fr)_minmax(0,190px)_auto] sm:items-end"
               >
-                <Label className="space-y-1">
+                <Label className="block min-w-0 space-y-1">
                   <span className="text-xs">Ngày lệch hạn</span>
                   <Input
                     name={`offsetDays-${index}`}
@@ -231,7 +231,7 @@ export function PolicyDialog({
                     }
                   />
                 </Label>
-                <Label className="space-y-1">
+                <Label className="block min-w-0 space-y-1">
                   <span className="text-xs">Email template</span>
                   <EmailTemplateSelect
                     id={`emailTemplateId-${index}`}
@@ -242,7 +242,7 @@ export function PolicyDialog({
                     }
                   />
                 </Label>
-                <Label className="space-y-1">
+                <Label className="block min-w-0 space-y-1">
                   <span className="text-xs">Khoảng cách tối thiểu (ngày)</span>
                   <Input
                     name={`minIntervalDays-${index}`}
