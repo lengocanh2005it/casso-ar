@@ -83,6 +83,22 @@ describe('CustomerDetailPage', () => {
     expect(screen.getByText(/b@example\.com/)).toBeInTheDocument();
     expect(await screen.findByText('Tài khoản ngân hàng')).toBeInTheDocument();
     expect(screen.getByText('******2233')).toBeInTheDocument();
+
+    const contactCard = screen
+      .getByText('Thông tin liên hệ')
+      .closest('[data-slot="card"]');
+    expect(
+      contactCard?.querySelector('[data-slot="card-content"]'),
+    ).toHaveClass('grid', 'sm:grid-cols-2');
+
+    const bankCard = screen
+      .getByText('Tài khoản ngân hàng')
+      .closest('[data-slot="card"]');
+    const timelineCard = screen
+      .getByText('Lịch sử hoạt động')
+      .closest('[data-slot="card"]');
+    expect(bankCard?.parentElement).toHaveClass('grid', 'lg:grid-cols-2');
+    expect(timelineCard?.parentElement).toBe(bankCard?.parentElement);
   });
 
   it('shows an allocation action for each unapplied payment', async () => {

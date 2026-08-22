@@ -76,11 +76,23 @@ export function CustomerDetailPage() {
               <CardTitle>Thông tin liên hệ</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <p>Email: {customer.email ?? '—'}</p>
-            <p>Số điện thoại: {customer.phone ?? '—'}</p>
-            <p>Mã số thuế: {customer.taxCode ?? '—'}</p>
-            <p>Ngày tạo: {formatDate(customer.createdAt)}</p>
+          <CardContent className="grid gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
+            <div>
+              <p className="text-xs text-muted-foreground">Email</p>
+              <p className="mt-1 truncate">{customer.email ?? '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Số điện thoại</p>
+              <p className="mt-1 truncate">{customer.phone ?? '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Mã số thuế</p>
+              <p className="mt-1 truncate">{customer.taxCode ?? '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Ngày tạo</p>
+              <p className="mt-1">{formatDate(customer.createdAt)}</p>
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -90,44 +102,52 @@ export function CustomerDetailPage() {
               <CardTitle>Điều khoản công nợ</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <p>
-              Hạn thanh toán mặc định: {customer.defaultPaymentTermDays} ngày
-            </p>
-            <p>
-              Hạn mức tín dụng:{' '}
-              {customer.creditLimit === null
-                ? 'Không giới hạn'
-                : formatVND(customer.creditLimit)}
-            </p>
-            <p>Ưu tiên: {customer.priority ?? '—'}</p>
+          <CardContent className="grid gap-x-4 gap-y-3 text-sm sm:grid-cols-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Hạn thanh toán</p>
+              <p className="mt-1">{customer.defaultPaymentTermDays} ngày</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Hạn mức tín dụng</p>
+              <p className="mt-1 truncate">
+                {customer.creditLimit === null
+                  ? 'Không giới hạn'
+                  : formatVND(customer.creditLimit)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Ưu tiên</p>
+              <p className="mt-1">{customer.priority ?? '—'}</p>
+            </div>
           </CardContent>
         </Card>
       </div>
-      <CustomerBankAccountsCard customerId={id} />
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <History aria-hidden="true" className="size-4 text-success" />
-            <CardTitle>Lịch sử hoạt động</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {timelineQuery.isPending && (
-            <p role="status" aria-live="polite">
-              Đang tải hoạt động…
-            </p>
-          )}
-          {timelineQuery.isError && (
-            <p role="alert" aria-live="polite" className="text-destructive">
-              Không thể tải lịch sử hoạt động.
-            </p>
-          )}
-          {timelineQuery.data && (
-            <CustomerTimeline items={timelineQuery.data.items} />
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <CustomerBankAccountsCard customerId={id} />
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <History aria-hidden="true" className="size-4 text-success" />
+              <CardTitle>Lịch sử hoạt động</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {timelineQuery.isPending && (
+              <p role="status" aria-live="polite">
+                Đang tải hoạt động…
+              </p>
+            )}
+            {timelineQuery.isError && (
+              <p role="alert" aria-live="polite" className="text-destructive">
+                Không thể tải lịch sử hoạt động.
+              </p>
+            )}
+            {timelineQuery.data && (
+              <CustomerTimeline items={timelineQuery.data.items} />
+            )}
+          </CardContent>
+        </Card>
+      </div>
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>

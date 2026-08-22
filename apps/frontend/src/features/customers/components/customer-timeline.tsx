@@ -17,13 +17,21 @@ export function CustomerTimeline({ items }: { items: CustomerTimelineItem[] }) {
   }
 
   return (
-    <ul className="space-y-3">
+    <ul className="grid gap-2 sm:grid-cols-2">
       {items.map((item) => (
-        <li key={item.id} className="text-sm">
-          <span className="text-muted-foreground">
+        <li
+          key={item.id}
+          className="flex min-w-0 items-center gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-sm"
+        >
+          <span className="shrink-0 text-xs text-muted-foreground">
             {formatDate(item.createdAt)}
-          </span>{' '}
-          — <span>{formatActivityType(item.activityType)}</span>
+          </span>
+          <span aria-hidden="true" className="text-muted-foreground">
+            —
+          </span>
+          <span className="min-w-0 truncate">
+            {formatActivityType(item.activityType)}
+          </span>
         </li>
       ))}
     </ul>
