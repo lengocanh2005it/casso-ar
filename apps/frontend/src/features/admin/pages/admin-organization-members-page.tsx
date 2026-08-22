@@ -402,6 +402,14 @@ export function AdminOrganizationMembersPage() {
         </h2>
         {membersQuery.isPending ? (
           <TableSkeleton rows={3} />
+        ) : membersQuery.isError ? (
+          <p
+            role="alert"
+            aria-live="polite"
+            className="text-sm text-destructive"
+          >
+            Không thể tải lời mời đang chờ. Vui lòng thử lại.
+          </p>
         ) : (pendingInvites?.items.length ?? 0) === 0 ? (
           <p className="text-sm text-muted-foreground">
             Chưa có lời mời đang chờ.

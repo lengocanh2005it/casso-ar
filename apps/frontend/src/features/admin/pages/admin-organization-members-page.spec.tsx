@@ -673,12 +673,28 @@ describe('AdminOrganizationMembersPage', () => {
 
       renderPage();
 
-      expect(await screen.findByRole('alert')).toHaveTextContent(
-        /không thể tải danh sách thành viên/i,
-      );
+      expect(
+        await screen.findByText(/không thể tải danh sách thành viên/i),
+      ).toBeInTheDocument();
       expect(
         screen.getByRole('button', { name: 'Thử lại' }),
       ).toBeInTheDocument();
+    });
+
+    it('shows a pending-invites error instead of an empty state when the request fails', async () => {
+      vi.mocked(adminApi.getAdminOrganization).mockResolvedValue(organization);
+      vi.mocked(adminApi.listOrganizationMembers).mockRejectedValue(
+        new Error('network'),
+      );
+
+      renderPage();
+
+      expect(
+        await screen.findByText(/không thể tải lời mời đang chờ/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText('Chưa có lời mời đang chờ.'),
+      ).not.toBeInTheDocument();
     });
   });
 
