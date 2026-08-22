@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ROLE_LABELS } from '@/lib/role-labels';
 import {
   useOrganizationInvites,
   useResendInvite,
@@ -72,7 +73,7 @@ export function PendingInvitesTable({
                 <TableCell className="max-w-64 break-words">
                   {invite.email}
                 </TableCell>
-                <TableCell>{invite.role}</TableCell>
+                <TableCell>{ROLE_LABELS[invite.role]}</TableCell>
                 <TableCell>
                   {new Intl.DateTimeFormat('vi-VN').format(
                     new Date(invite.invitedAt),

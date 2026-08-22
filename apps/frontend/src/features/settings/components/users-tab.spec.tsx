@@ -106,7 +106,7 @@ describe('UsersTab', () => {
     fireEvent.click(
       screen.getByRole('combobox', { name: 'Vai trò của Kế toán' }),
     );
-    fireEvent.click(await screen.findByRole('option', { name: 'VIEWER' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Người xem' }));
 
     await waitFor(() =>
       expect(apiRequest).toHaveBeenCalledWith(
@@ -147,7 +147,9 @@ describe('UsersTab', () => {
     mockApi();
     renderTab();
 
-    await waitFor(() => expect(screen.getByText('Chủ sở hữu')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getAllByText('Chủ sở hữu').length).toBeGreaterThan(0),
+    );
     expect(screen.queryByLabelText('Vai trò của Chủ sở hữu')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Xoá Chủ sở hữu' })).toBeNull();
   });
@@ -229,8 +231,9 @@ describe('UsersTab', () => {
     );
     fireEvent.click(await screen.findByRole('option', { name: 'Đã chặn' }));
 
-    expect(screen.queryByText('Kế toán')).toBeNull();
-    expect(screen.getByText('Sales bị chặn')).toBeTruthy();
+    const membersTable = screen.getByRole('table');
+    expect(within(membersTable).queryByText('Kế toán')).toBeNull();
+    expect(within(membersTable).getByText('Sales bị chặn')).toBeTruthy();
   });
 
   it('flips the member to blocked optimistically while the request is pending', async () => {

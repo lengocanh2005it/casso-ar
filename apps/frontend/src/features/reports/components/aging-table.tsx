@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/table';
 import { formatVND } from '@/lib/format';
 import type { AgingBucket, AgingReport } from '../types';
+import { AGING_BUCKET_LABELS } from './customer-aging-filters';
 
 const AGING_BUCKETS: AgingBucket[] = [
   'NOT_DUE',
@@ -55,7 +56,9 @@ export function AgingTable({
       <TableBody>
         {rows.map((row) => (
           <TableRow key={row.bucket}>
-            <TableCell className="font-medium">{row.bucket}</TableCell>
+            <TableCell className="font-medium">
+              {AGING_BUCKET_LABELS[row.bucket]}
+            </TableCell>
             <TableCell>{row.count}</TableCell>
             <TableCell className="tabular-nums">
               {formatVND(row.totalRemaining)}

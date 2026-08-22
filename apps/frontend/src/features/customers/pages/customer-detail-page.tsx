@@ -2,6 +2,7 @@ import { Users } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { PageHeading } from '@/components/layout/page-heading';
+import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useReceivables } from '@/features/receivables/api/use-receivables';
@@ -197,7 +198,7 @@ export function CustomerDetailPage() {
                       key={receivable.id}
                       className="flex justify-between gap-2"
                     >
-                      <span>{receivable.status}</span>
+                      <ReceivableStatusBadge status={receivable.status} />
                       <span>{formatVND(receivable.remainingAmount)}</span>
                     </li>
                   ))}
