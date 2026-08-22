@@ -60,6 +60,7 @@ describe('CollectionActivityListener', () => {
         customerId: 'cust-1',
         activityType: CollectionActivityType.PAYMENT_RECEIVED,
         createdByUserId: 'user-2',
+        description: 'Đã nhận thanh toán 30.000.000 ₫ cho khoản phải thu',
         metadata: { paymentId: 'pay-1', amount: 30_000_000 },
       }),
     );
@@ -99,6 +100,7 @@ describe('CollectionActivityListener', () => {
         customerId: 'cust-1',
         activityType: CollectionActivityType.RECEIVABLE_CLOSED,
         createdByUserId: null,
+        description: 'Khoản phải thu đã được thanh toán đầy đủ (Đã thu)',
       }),
     );
   });
@@ -139,6 +141,7 @@ describe('CollectionActivityListener', () => {
         receivableId: 'rec-1',
         customerId: 'cust-1',
         activityType: CollectionActivityType.DISPUTE_OPENED,
+        description: 'Đã mở khiếu nại cho khoản phải thu',
         metadata: { disputeId: 'dis-1' },
       }),
     );
@@ -175,6 +178,7 @@ describe('CollectionActivityListener', () => {
     expect(activityRepo.create).toHaveBeenCalledWith(
       expect.objectContaining({
         activityType: CollectionActivityType.DISPUTE_RESOLVED,
+        description: 'Đã giải quyết khiếu nại',
       }),
     );
   });
@@ -210,6 +214,7 @@ describe('CollectionActivityListener', () => {
     expect(activityRepo.create).toHaveBeenCalledWith(
       expect.objectContaining({
         activityType: CollectionActivityType.EMAIL_SENT,
+        description: 'Đã gửi email nhắc thanh toán',
         metadata: { reminderExecutionId: 'rem-1' },
       }),
     );
@@ -246,6 +251,7 @@ describe('CollectionActivityListener', () => {
     expect(activityRepo.create).toHaveBeenCalledWith(
       expect.objectContaining({
         activityType: CollectionActivityType.EMAIL_FAILED,
+        description: 'Gửi email nhắc thanh toán thất bại',
         metadata: { reminderExecutionId: 'rem-2' },
       }),
     );

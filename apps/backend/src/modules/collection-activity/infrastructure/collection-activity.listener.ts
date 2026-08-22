@@ -72,7 +72,7 @@ export class CollectionActivityListener {
           receivableId: payload.receivableId,
           customerId: payload.customerId,
           activityType: CollectionActivityType.PAYMENT_RECEIVED,
-          description: `Received payment of ${payload.amount.toLocaleString('vi-VN')} VND for receivable`,
+          description: `Đã nhận thanh toán ${payload.amount.toLocaleString('vi-VN')} ₫ cho khoản phải thu`,
           metadata: { paymentId: payload.paymentId, amount: payload.amount },
           createdByUserId: payload.allocatedByUserId,
         }),
@@ -91,7 +91,7 @@ export class CollectionActivityListener {
           receivableId: payload.receivableId,
           customerId: payload.customerId,
           activityType: CollectionActivityType.RECEIVABLE_CLOSED,
-          description: 'Receivable has been fully paid (PAID)',
+          description: 'Khoản phải thu đã được thanh toán đầy đủ (Đã thu)',
           metadata: {},
           createdByUserId: null,
         }),
@@ -114,7 +114,7 @@ export class CollectionActivityListener {
           receivableId: payload.receivableId,
           customerId,
           activityType: CollectionActivityType.DISPUTE_OPENED,
-          description: 'Dispute opened for receivable',
+          description: 'Đã mở khiếu nại cho khoản phải thu',
           metadata: { disputeId: payload.disputeId },
           createdByUserId: null,
         });
@@ -138,7 +138,7 @@ export class CollectionActivityListener {
           receivableId: payload.receivableId,
           customerId,
           activityType: CollectionActivityType.DISPUTE_RESOLVED,
-          description: 'Dispute resolved',
+          description: 'Đã giải quyết khiếu nại',
           metadata: { disputeId: payload.disputeId },
           createdByUserId: null,
         });
@@ -162,7 +162,7 @@ export class CollectionActivityListener {
           receivableId: payload.receivableId,
           customerId,
           activityType: CollectionActivityType.EMAIL_SENT,
-          description: 'Payment reminder email sent',
+          description: 'Đã gửi email nhắc thanh toán',
           metadata: { reminderExecutionId: payload.reminderExecutionId },
           createdByUserId: null,
         });
@@ -186,7 +186,7 @@ export class CollectionActivityListener {
           receivableId: payload.receivableId,
           customerId,
           activityType: CollectionActivityType.EMAIL_FAILED,
-          description: 'Payment reminder email failed to send',
+          description: 'Gửi email nhắc thanh toán thất bại',
           metadata: { reminderExecutionId: payload.reminderExecutionId },
           createdByUserId: null,
         });
