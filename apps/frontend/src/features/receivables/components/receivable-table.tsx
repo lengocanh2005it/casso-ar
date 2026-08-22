@@ -1,6 +1,7 @@
 import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { Receipt } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { EmptyState } from '@/components/layout/empty-state';
 import { HeaderIcon } from '@/components/layout/header-icon';
 import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 import { Badge } from '@/components/ui/badge';
@@ -38,9 +39,11 @@ export function ReceivableTable({
 
   if (receivables.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-        Chưa có khoản phải thu phù hợp.
-      </p>
+      <EmptyState
+        icon={Receipt}
+        title="Chưa có khoản phải thu phù hợp"
+        description="Thử thay đổi bộ lọc hoặc tạo khoản phải thu mới để bắt đầu."
+      />
     );
   }
 

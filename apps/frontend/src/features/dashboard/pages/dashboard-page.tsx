@@ -9,6 +9,7 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react';
+import { EmptyState } from '@/components/layout/empty-state';
 import { PageHeading } from '@/components/layout/page-heading';
 import { MetricCard } from '@/components/metric-card';
 import { Button } from '@/components/ui/button';
@@ -263,9 +264,12 @@ export function DashboardPage() {
               </CardHeader>
               <CardContent>
                 {summaryQuery.data.topOverdueCustomers.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Chưa có khách hàng quá hạn.
-                  </p>
+                  <EmptyState
+                    density="compact"
+                    icon={Users}
+                    title="Chưa có khách hàng quá hạn"
+                    description="Danh sách sẽ xuất hiện khi có khoản quá hạn cần theo dõi."
+                  />
                 ) : (
                   <div className="space-y-2">
                     {summaryQuery.data.topOverdueCustomers.map((customer) => (

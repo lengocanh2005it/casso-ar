@@ -1,4 +1,6 @@
+import { Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { EmptyState } from '@/components/layout/empty-state';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
 import {
   Table,
@@ -14,9 +16,11 @@ import { formatDate } from '@/lib/format';
 export function CustomerTable({ customers }: { customers: Customer[] }) {
   if (customers.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-        Chưa có khách hàng phù hợp.
-      </p>
+      <EmptyState
+        icon={Users}
+        title="Chưa có khách hàng phù hợp"
+        description="Thử thay đổi từ khóa hoặc bộ lọc để xem thêm kết quả."
+      />
     );
   }
 

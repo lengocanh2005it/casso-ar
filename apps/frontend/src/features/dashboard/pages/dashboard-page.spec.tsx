@@ -39,13 +39,13 @@ const emptyActivity = { items: [], total: 0, page: 1, limit: 10 };
 
 const emptyTrend = { months: 6, items: [] };
 
-function mockApi() {
+function mockApi(summary = summaryData) {
   apiRequest.mockImplementation(({ url }: { url: string }) => {
     if (url === '/api/v1/bank-transactions/pending-review-count') {
       return Promise.resolve({ count: 7 });
     }
     if (url === '/api/v1/reports/dashboard-summary') {
-      return Promise.resolve(summaryData);
+      return Promise.resolve(summary);
     }
     if (url === '/api/v1/reports/trend') {
       return Promise.resolve(emptyTrend);
@@ -82,6 +82,21 @@ describe('DashboardPage', () => {
     expect(screen.getByText('7', { selector: 'span' })).toBeTruthy();
     expect(screen.getByRole('link', { name: /Xử lý ngay/i })).toBeTruthy();
     expect(screen.getByText('Công ty A')).toBeTruthy();
+  });
+
+  it('uses the shared empty state when there are no overdue customers', async () => {
+    mockApi({ ...summaryData, topOverdueCustomers: [] });
+
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByText('Chưa có khách hàng quá hạn')).toBeTruthy(),
+    );
+    expect(
+      screen.getByText(
+        'Danh sách sẽ xuất hiện khi có khoản quá hạn cần theo dõi.',
+      ),
+    ).toBeTruthy();
   });
 
   it('offers a retry action when the summary fails to load', async () => {

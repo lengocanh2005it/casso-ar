@@ -1,3 +1,5 @@
+import { Activity } from 'lucide-react';
+import { EmptyState } from '@/components/layout/empty-state';
 import { formatActivityType } from '@/lib/collection-activity-labels';
 import { formatDate } from '@/lib/format';
 import type { OrganizationActivityItem } from '../types';
@@ -8,7 +10,14 @@ export function RecentActivityFeed({
   items: OrganizationActivityItem[];
 }) {
   if (items.length === 0) {
-    return <p className="text-sm text-muted-foreground">Chưa có hoạt động.</p>;
+    return (
+      <EmptyState
+        density="compact"
+        icon={Activity}
+        title="Chưa có hoạt động"
+        description="Các cập nhật thu tiền và xử lý công nợ sẽ hiển thị tại đây."
+      />
+    );
   }
 
   return (

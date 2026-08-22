@@ -27,6 +27,29 @@ function buildReceivable(overrides: Partial<Receivable>): Receivable {
 }
 
 describe('ReceivableTable', () => {
+  it('renders a descriptive empty state when no receivables match', () => {
+    render(
+      <MemoryRouter>
+        <ReceivableTable
+          receivables={[]}
+          selectedIds={[]}
+          onToggle={vi.fn()}
+          onToggleAll={vi.fn()}
+          allSelected={false}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText('Chưa có khoản phải thu phù hợp'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Thử thay đổi bộ lọc hoặc tạo khoản phải thu mới để bắt đầu.',
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('enables the checkbox only for OPEN/PARTIALLY_PAID rows', () => {
     const onToggle = vi.fn();
     render(

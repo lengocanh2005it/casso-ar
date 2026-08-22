@@ -5,7 +5,12 @@ import { RecentActivityFeed } from './recent-activity-feed';
 describe('RecentActivityFeed', () => {
   it('shows an empty state when there is no activity', () => {
     render(<RecentActivityFeed items={[]} />);
-    expect(screen.getByText('Chưa có hoạt động.')).toBeTruthy();
+    expect(screen.getByText('Chưa có hoạt động')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Các cập nhật thu tiền và xử lý công nợ sẽ hiển thị tại đây.',
+      ),
+    ).toBeTruthy();
   });
 
   it('renders each activity with its type, description, and date', () => {
