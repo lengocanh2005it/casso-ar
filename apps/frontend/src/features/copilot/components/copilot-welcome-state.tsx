@@ -12,8 +12,8 @@ export function CopilotWelcomeState({
   onSuggestionClick: (text: string) => void;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 py-8 text-center">
-      <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 py-8 text-center sm:py-12">
+      <div className="flex size-12 items-center justify-center rounded-2xl bg-violet-500/10 text-violet-600 dark:text-violet-300">
         <Sparkles className="size-6" aria-hidden="true" />
       </div>
       <div>
@@ -23,13 +23,13 @@ export function CopilotWelcomeState({
           thanh toán.
         </p>
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="flex w-full max-w-xl flex-col gap-2">
         {SUGGESTIONS.map((suggestion) => (
           <button
             key={suggestion}
             type="button"
             onClick={() => onSuggestionClick(suggestion)}
-            className="rounded-lg border px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted"
+            className="rounded-lg border bg-card px-3 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:border-violet-200 hover:bg-violet-500/5 hover:text-foreground dark:hover:border-violet-800"
           >
             {suggestion}
           </button>

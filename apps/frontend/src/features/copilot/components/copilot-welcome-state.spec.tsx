@@ -12,4 +12,18 @@ describe('CopilotWelcomeState', () => {
 
     expect(onSuggestionClick).toHaveBeenCalledWith(button.textContent);
   });
+
+  it('keeps each welcome suggestion discoverable as a button', () => {
+    render(<CopilotWelcomeState onSuggestionClick={vi.fn()} />);
+
+    expect(
+      screen.getByRole('button', { name: /tóm tắt công nợ/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /công nợ quá hạn/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /soạn email nhắc thanh toán/i }),
+    ).toBeInTheDocument();
+  });
 });

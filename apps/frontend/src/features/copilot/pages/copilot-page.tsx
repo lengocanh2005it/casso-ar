@@ -118,7 +118,7 @@ export function CopilotPage() {
   );
   const draftsPanel = (
     <div className="flex h-full flex-col">
-      <div className="border-b px-3 py-2.5">
+      <div className="border-b bg-muted/30 px-3 py-2.5">
         <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           Bản nháp email
         </span>
@@ -141,7 +141,7 @@ export function CopilotPage() {
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <HeaderIcon icon={Bot} />
+            <HeaderIcon icon={Bot} tone="ai" />
             <h1 className="text-xl font-semibold sm:text-2xl">Copilot</h1>
           </div>
           <UsageIndicator />
@@ -229,7 +229,7 @@ export function CopilotPage() {
               </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto rounded-lg border p-4">
+            <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto rounded-xl border bg-card p-4 shadow-sm">
               {isEmptyConversation ? (
                 <CopilotWelcomeState
                   onSuggestionClick={(text) => void send(text)}
@@ -249,7 +249,10 @@ export function CopilotPage() {
                 />
               )}
             </div>
-            <form onSubmit={onSubmit} className="mt-3 flex gap-2">
+            <form
+              onSubmit={onSubmit}
+              className="mt-3 flex gap-2 rounded-xl border bg-card p-2 shadow-sm"
+            >
               <Input
                 name="question"
                 autoComplete="off"
@@ -257,6 +260,7 @@ export function CopilotPage() {
                 placeholder="Hỏi về công nợ…"
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
+                className="border-0 bg-transparent shadow-none focus-visible:ring-0"
                 disabled={isSending || blockedByPendingAction}
               />
               {isSending ? (

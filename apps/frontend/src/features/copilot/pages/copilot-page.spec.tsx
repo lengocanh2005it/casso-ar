@@ -105,6 +105,8 @@ describe('CopilotPage', () => {
     await waitFor(() =>
       expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
     );
+    expect(screen.getByRole('button', { name: /send/i })).toBeDisabled();
+    expect(screen.getByLabelText(/enter question/i)).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 

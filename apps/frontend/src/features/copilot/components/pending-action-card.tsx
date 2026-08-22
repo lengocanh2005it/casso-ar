@@ -1,3 +1,4 @@
+import { CircleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -13,13 +14,17 @@ export function PendingActionCard({
   busy: boolean;
 }) {
   return (
-    <Card className="border-amber-300">
-      <CardHeader>
+    <Card className="border-violet-200 bg-violet-500/[0.03] shadow-none dark:border-violet-900">
+      <CardHeader className="flex-row items-center gap-2 space-y-0">
+        <CircleAlert
+          aria-hidden="true"
+          className="size-4 shrink-0 text-violet-600 dark:text-violet-300"
+        />
         <CardTitle className="text-sm">Confirm reminder email send</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <p>Receivable: {action.payload.receivableId}</p>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button size="sm" disabled={busy} onClick={onConfirm}>
             Confirm
           </Button>

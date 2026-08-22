@@ -1,3 +1,4 @@
+import { FilePenLine, LoaderCircle } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -53,15 +54,32 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
   const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground">Đang tải…</p>;
+    return (
+      <div
+        aria-label="Đang tải bản nháp email"
+        className="flex items-center gap-2 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground"
+        role="status"
+      >
+        <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+        Đang tải…
+      </div>
+    );
   }
 
   const items = data?.items ?? [];
   if (items.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <div
+        className="rounded-lg border border-dashed bg-muted/20 p-4 text-center text-sm text-muted-foreground"
+        aria-label="Chưa có bản nháp email nào"
+        role="status"
+      >
+        <FilePenLine
+          aria-hidden="true"
+          className="mx-auto mb-2 size-4 text-violet-600 dark:text-violet-300"
+        />
         Chưa có bản nháp email nào.
-      </p>
+      </div>
     );
   }
 
@@ -71,7 +89,7 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
         const isDeleting = deletingDraftId === draft.id;
 
         return (
-          <Card key={draft.id}>
+          <Card key={draft.id} className="shadow-none">
             <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
               <CardTitle className="min-w-0 break-words text-sm">
                 Bản nháp

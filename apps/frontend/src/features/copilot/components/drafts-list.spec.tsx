@@ -39,4 +39,19 @@ describe('DraftsList', () => {
     expect(screen.getByText('ap@abc.vn')).toBeInTheDocument();
     expect(screen.getByTitle('Xem trước email')).toBeInTheDocument();
   });
+
+  it('announces an empty drafts state', async () => {
+    vi.spyOn(draftsApi, 'fetchCopilotDrafts').mockResolvedValue({
+      items: [],
+      total: 0,
+    });
+
+    renderWithClient(<DraftsList canSendManual={false} />);
+
+    expect(
+      await screen.findByRole('status', {
+        name: /chưa có bản nháp email nào/i,
+      }),
+    ).toBeInTheDocument();
+  });
 });

@@ -26,14 +26,14 @@ export function EmailDraftPreview({
   }
 
   return (
-    <Card>
-      <CardHeader className="space-y-1">
+    <Card className="border-muted bg-muted/20 shadow-none">
+      <CardHeader className="space-y-1 pb-3">
         <CardTitle className="break-words text-sm">{subject}</CardTitle>
         <p className="break-words text-xs text-muted-foreground">
           {recipientEmail}
         </p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0">
         <Tabs
           value={mode}
           onValueChange={(value) => setMode(value as 'preview' | 'code')}
