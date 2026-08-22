@@ -66,7 +66,7 @@ export function CreateReceivableDialog() {
             );
           }}
         >
-          <Label className="block space-y-1">
+          <Label className="block space-y-2">
             <span className="text-sm">Mã khách hàng</span>
             <Input
               name="customerId"
@@ -77,7 +77,7 @@ export function CreateReceivableDialog() {
               placeholder="c-123"
             />
           </Label>
-          <Label className="block space-y-1">
+          <Label className="block space-y-2">
             <span className="text-sm">Số tiền (đồng)</span>
             <Input
               name="originalAmount"
@@ -90,7 +90,7 @@ export function CreateReceivableDialog() {
               onChange={(event) => setOriginalAmount(event.target.value)}
             />
           </Label>
-          <Label className="block space-y-1">
+          <Label className="block space-y-2">
             <span className="text-sm">Hạn thanh toán</span>
             <Input
               name="dueDate"

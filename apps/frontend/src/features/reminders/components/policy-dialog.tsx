@@ -156,7 +156,7 @@ export function PolicyDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <Label className="block space-y-1">
+          <Label className="block space-y-2">
             <span>Nhóm khách hàng</span>
             <Select
               value={customerGroup}
@@ -186,7 +186,7 @@ export function PolicyDialog({
             />
             Kích hoạt chính sách
           </label>
-          <Label className="block space-y-1">
+          <Label className="block space-y-2">
             <span>Ngưỡng leo thang (ngày, không bắt buộc)</span>
             <Input
               name="escalationThresholdDays"
@@ -217,7 +217,7 @@ export function PolicyDialog({
                 key={rule.key}
                 className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[minmax(0,140px)_minmax(0,1fr)_minmax(0,190px)_auto] sm:items-end"
               >
-                <Label className="block min-w-0 space-y-1">
+                <Label className="block min-w-0 space-y-2">
                   <span className="text-xs">Ngày lệch hạn</span>
                   <Input
                     name={`offsetDays-${index}`}
@@ -231,7 +231,7 @@ export function PolicyDialog({
                     }
                   />
                 </Label>
-                <Label className="block min-w-0 space-y-1">
+                <Label className="block min-w-0 space-y-2">
                   <span className="text-xs">Email template</span>
                   <EmailTemplateSelect
                     id={`emailTemplateId-${index}`}
@@ -242,7 +242,7 @@ export function PolicyDialog({
                     }
                   />
                 </Label>
-                <Label className="block min-w-0 space-y-1">
+                <Label className="block min-w-0 space-y-2">
                   <span className="text-xs">Khoảng cách tối thiểu (ngày)</span>
                   <Input
                     name={`minIntervalDays-${index}`}

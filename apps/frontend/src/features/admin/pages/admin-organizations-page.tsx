@@ -91,7 +91,7 @@ function RejectDialog({ organizationId }: { organizationId: string }) {
           <DialogTitle>Từ chối tổ chức</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          <Label className="block space-y-1">
+          <Label className="block space-y-2">
             <span className="text-sm">Lý do từ chối</span>
             <Textarea
               name="reason"

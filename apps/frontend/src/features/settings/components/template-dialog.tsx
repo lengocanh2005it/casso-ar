@@ -90,7 +90,7 @@ export function TemplateDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <Label className="space-y-1">
+          <Label className="block space-y-2">
             <span>Tên mẫu</span>
             <Input
               name="name"
@@ -100,7 +100,7 @@ export function TemplateDialog({
               onChange={(event) => setName(event.target.value)}
             />
           </Label>
-          <Label className="space-y-1">
+          <Label className="block space-y-2">
             <span>Tiêu đề</span>
             <Input
               name="subject"
@@ -109,7 +109,7 @@ export function TemplateDialog({
               onChange={(event) => setSubject(event.target.value)}
             />
           </Label>
-          <Label className="space-y-1">
+          <Label className="block space-y-2">
             <span>Nội dung HTML</span>
             <Textarea
               name="bodyHtml"
