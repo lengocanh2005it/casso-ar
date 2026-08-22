@@ -4,8 +4,10 @@ import {
   BellRing,
   Clock3,
   History,
+  LayoutDashboard,
   ListChecks,
   ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
 
 export const LANDING_NAV_LINKS = [
@@ -84,6 +86,41 @@ export const LANDING_FEATURES = [
     description:
       'Mọi thao tác trên một khoản công nợ đều được ghi lại theo dòng thời gian.',
     icon: History,
+  },
+] as const;
+
+// Each screen's title mirrors one LANDING_HEADLINE_PHRASES entry, so the
+// showcase reads as proof of the hero's rotating claim.
+export const LANDING_SHOWCASE_SCREENS = [
+  {
+    id: 'reminders',
+    tabLabel: 'Lịch nhắc',
+    title: 'Không cần nhắc lại',
+    description:
+      'Đặt chính sách một lần, hệ thống tự động gửi email nhắc thanh toán đúng lịch.',
+    image: '/showcase-reminders.jpg',
+    alt: 'Giao diện Lịch nhắc tự động của Casso Ledger',
+    icon: BellRing,
+  },
+  {
+    id: 'dashboard',
+    tabLabel: 'Tổng quan',
+    title: 'Không cần Excel',
+    description:
+      'Toàn bộ công nợ, dòng tiền và giao dịch chờ đối soát gói gọn trong một trang tổng quan.',
+    image: '/showcase-dashboard.jpg',
+    alt: 'Giao diện Dashboard tổng quan công nợ của Casso Ledger',
+    icon: LayoutDashboard,
+  },
+  {
+    id: 'copilot',
+    tabLabel: 'Copilot',
+    title: 'Không cần đoán',
+    description:
+      'Hỏi Copilot bằng ngôn ngữ tự nhiên, nhận câu trả lời tức thì từ dữ liệu công nợ thật.',
+    image: '/showcase-copilot.jpg',
+    alt: 'Giao diện Copilot — trợ lý AI thu hồi công nợ của Casso Ledger',
+    icon: Sparkles,
   },
 ] as const;
 
