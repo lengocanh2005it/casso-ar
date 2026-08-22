@@ -1,4 +1,14 @@
 import {
+  AlertTriangle,
+  Bell,
+  CheckCircle2,
+  CircleDollarSign,
+  Clock,
+  Hand,
+  TrendingUp,
+} from 'lucide-react';
+import { MetricCard } from '@/components/metric-card';
+import {
   Card,
   CardContent,
   CardDescription,
@@ -12,21 +22,6 @@ function formatRate(value: number | null): string {
   return value === null ? '—' : `${Math.round(value * 100)}%`;
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {label}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-xl font-semibold tabular-nums">{value}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function DashboardSummary({
   summary,
 }: {
@@ -34,42 +29,69 @@ export function DashboardSummary({
 }) {
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <MetricCard
           label="Tổng công nợ còn lại"
+          description="Tất cả công nợ chưa thanh toán"
           value={formatVND(summary.totalOutstanding)}
+          icon={CircleDollarSign}
+          variant="default"
         />
         <MetricCard
           label="Công nợ quá hạn"
+          description="Công nợ đã vượt ngày đến hạn"
           value={formatVND(summary.totalOverdue)}
+          icon={AlertTriangle}
+          variant="danger"
         />
         <MetricCard
           label="Tỷ lệ quá hạn"
+          description="Tỷ lệ công nợ quá hạn trên tổng"
           value={formatRate(summary.overdueRate)}
+          icon={Clock}
+          variant="warning"
         />
         <MetricCard
           label="Khớp tự động"
+          description="Tỷ lệ giao dịch khớp tự động"
           value={formatRate(summary.autoMatchRate)}
+          icon={CheckCircle2}
+          variant="success"
         />
         <MetricCard
           label="Xử lý thủ công"
+          description="Tỷ lệ giao dịch cần xử lý thủ công"
           value={formatRate(summary.manualHandlingRate)}
+          icon={Hand}
+          variant="warning"
         />
         <MetricCard
           label="Hiệu quả nhắc thanh toán"
+          description="Tỷ lệ thu được sau khi nhắc"
           value={formatRate(summary.reminderEffectiveness)}
+          icon={Bell}
+          variant="default"
         />
         <MetricCard
           label="Dự báo thu 7 ngày"
+          description="Dự kiến thu trong 7 ngày tới"
           value={formatVND(summary.cashForecast.forecast7d)}
+          icon={TrendingUp}
+          variant="success"
         />
         <MetricCard
           label="Dự báo thu 14 ngày"
+          description="Dự kiến thu trong 14 ngày tới"
           value={formatVND(summary.cashForecast.forecast14d)}
+          icon={TrendingUp}
+          variant="success"
         />
         <MetricCard
           label="Dự báo thu 30 ngày"
+          description="Dự kiến thu trong 30 ngày tới"
           value={formatVND(summary.cashForecast.forecast30d)}
+          icon={TrendingUp}
+          variant="success"
         />
       </div>
 

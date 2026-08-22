@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/table';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
+import { ROLE_LABELS } from '@/lib/role-labels';
 import {
   useBlockMember,
   useChangeMemberRole,
@@ -52,7 +53,7 @@ type StatusFilter = 'ALL' | MembershipStatus;
 
 const roleSelectItems = roles.map((item) => (
   <SelectItem key={item} value={item}>
-    {item}
+    {ROLE_LABELS[item]}
   </SelectItem>
 ));
 
@@ -151,7 +152,7 @@ const MembersTable = memo(function MembersTable({
                     <SelectContent>{roleSelectItems}</SelectContent>
                   </Select>
                 ) : (
-                  member.role
+                  ROLE_LABELS[member.role]
                 )}
               </TableCell>
               <TableCell>

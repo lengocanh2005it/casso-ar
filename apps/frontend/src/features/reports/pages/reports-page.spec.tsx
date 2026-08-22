@@ -128,7 +128,7 @@ describe('ReportsPage', () => {
         screen.getAllByText(/100.000.000 ₫/).length,
       ).toBeGreaterThanOrEqual(2),
     );
-    expect(screen.getByText('OVERDUE_31_60')).toBeTruthy();
+    expect(screen.getAllByText('Quá hạn 31–60 ngày').length).toBeGreaterThan(0);
   });
 
   it('exports the aging report as CSV', async () => {
@@ -151,11 +151,13 @@ describe('ReportsPage', () => {
 
     await waitFor(() => expect(screen.getByText('ACME Corp')).toBeTruthy());
     expect(screen.getByText('0101234567')).toBeTruthy();
-    expect(screen.getByText('Chưa đến hạn')).toBeTruthy();
-    expect(screen.getByText('Quá hạn 1–7 ngày')).toBeTruthy();
-    expect(screen.getByText('Quá hạn 8–30 ngày')).toBeTruthy();
-    expect(screen.getByText('Quá hạn 31–60 ngày')).toBeTruthy();
-    expect(screen.getByText('Quá hạn trên 60 ngày')).toBeTruthy();
+    expect(screen.getAllByText('Chưa đến hạn').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Quá hạn 1–7 ngày').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Quá hạn 8–30 ngày').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Quá hạn 31–60 ngày').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Quá hạn trên 60 ngày').length).toBeGreaterThan(
+      0,
+    );
     expect(screen.getByText('1.500.000 ₫')).toBeTruthy();
     expect(screen.getByText('4.900.000 ₫')).toBeTruthy();
     expect(screen.getByText('11.400.000 ₫')).toBeTruthy();

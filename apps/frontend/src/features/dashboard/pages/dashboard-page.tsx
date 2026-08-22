@@ -1,4 +1,3 @@
-import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
   AlertTriangle,
@@ -11,6 +10,7 @@ import {
   Users,
 } from 'lucide-react';
 import { PageHeading } from '@/components/layout/page-heading';
+import { MetricCard } from '@/components/metric-card';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -41,56 +41,6 @@ const percentFormatter = new Intl.NumberFormat('vi-VN', {
 
 function formatRate(value: number | null): string {
   return value === null ? '—' : percentFormatter.format(value);
-}
-
-function MetricCard({
-  label,
-  description,
-  value,
-  icon: Icon,
-  variant = 'default',
-  className,
-}: {
-  label: string;
-  description: string;
-  value: string;
-  icon: LucideIcon;
-  variant?: 'default' | 'success' | 'warning' | 'danger';
-  className?: string;
-}) {
-  const iconColors = {
-    default: 'text-primary',
-    success: 'text-emerald-500',
-    warning: 'text-amber-500',
-    danger: 'text-red-500',
-  };
-  const borderColors = {
-    default: 'border-l-primary',
-    success: 'border-l-emerald-500',
-    warning: 'border-l-amber-500',
-    danger: 'border-l-red-500',
-  };
-
-  return (
-    <Card
-      className={`border-l-4 ${borderColors[variant]} transition-shadow hover:shadow-md ${className ?? ''}`}
-    >
-      <CardHeader className="pb-2">
-        <div className="flex items-center gap-2">
-          <Icon className={`size-4 ${iconColors[variant]}`} />
-          <CardTitle className="text-sm font-medium text-primary">
-            {label}
-          </CardTitle>
-        </div>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </CardHeader>
-      <CardContent>
-        <p className="text-3xl font-bold tabular-nums text-foreground">
-          {value}
-        </p>
-      </CardContent>
-    </Card>
-  );
 }
 
 function SummarySkeleton() {

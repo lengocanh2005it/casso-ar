@@ -23,6 +23,13 @@ import {
   fetchTasks,
   resolveTask,
 } from '../api/receivables-api';
+import type { InternalTaskStatus } from '../types';
+
+const TASK_STATUS_LABELS: Record<InternalTaskStatus, string> = {
+  OPEN: 'Đang mở',
+  DONE: 'Hoàn thành',
+  DISMISSED: 'Đã bỏ qua',
+};
 
 export function ReceivableTasks({ receivableId }: { receivableId: string }) {
   const { user } = useAuth();
@@ -122,7 +129,7 @@ export function ReceivableTasks({ receivableId }: { receivableId: string }) {
               <div className="min-w-0">
                 <p className="break-words font-medium">{task.title}</p>
                 <p className="text-sm text-muted-foreground">
-                  {task.status}
+                  {TASK_STATUS_LABELS[task.status]}
                   {task.dueDate ? ` · ${formatDate(task.dueDate)}` : ''}
                 </p>
               </div>
