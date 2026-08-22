@@ -134,6 +134,10 @@ describe('AppLayout', () => {
 
     const main = screen.getByRole('main');
     expect(main).toHaveClass('bg-app-canvas');
-    expect(main.firstElementChild).toHaveClass('mx-auto', 'max-w-[1600px]');
+    expect(main.firstElementChild).toHaveClass(
+      'mx-auto',
+      'max-w-[1600px]',
+      'min-h-full',
+    );
   });
 });

@@ -324,6 +324,45 @@ describe('CopilotPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('keeps the workspace sized to the app canvas after a reply', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          {
+            event: 'done',
+            data: {
+              message: {
+                id: 'm1',
+                role: 'ASSISTANT',
+                content: 'Đây là câu trả lời.',
+                createdAt: '2026-08-09T00:00:00Z',
+              },
+            },
+          },
+        ]),
+      ),
+    );
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+    );
+    fireEvent.change(screen.getByLabelText(/enter question/i), {
+      target: { value: 'Tóm tắt công nợ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText('Đây là câu trả lời.')).toBeInTheDocument(),
+    );
+
+    const workspace = screen.getByRole('region', {
+      name: /không gian làm việc copilot/i,
+    });
+    expect(workspace.parentElement).toHaveClass('min-h-full');
+  });
+
   it('keeps the Copilot panels inside one shared workspace shell', async () => {
     renderPage();
 

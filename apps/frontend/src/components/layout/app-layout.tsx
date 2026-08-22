@@ -44,7 +44,7 @@ export function AppLayout() {
             id="main-content"
             className="flex-1 overflow-auto bg-app-canvas p-4 md:p-6 xl:p-8"
           >
-            <div className="mx-auto w-full max-w-[1600px]">
+            <div className="mx-auto min-h-full w-full max-w-[1600px]">
               <Outlet />
             </div>
           </main>
