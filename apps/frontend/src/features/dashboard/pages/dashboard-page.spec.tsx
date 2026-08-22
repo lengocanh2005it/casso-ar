@@ -79,9 +79,19 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => expect(screen.getByText('100.000.000 ₫')).toBeTruthy());
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByTestId('header-icon')).toHaveClass('text-primary');
     expect(screen.getByText('7', { selector: 'span' })).toBeTruthy();
     expect(screen.getByRole('link', { name: /Xử lý ngay/i })).toBeTruthy();
     expect(screen.getByText('Công ty A')).toBeTruthy();
+
+    const trendCard = screen
+      .getByText('Xu hướng công nợ 6 tháng')
+      .closest('[data-slot="card"]');
+    expect(trendCard?.parentElement).toHaveClass(
+      'grid',
+      'xl:grid-cols-[1.25fr_0.75fr]',
+    );
   });
 
   it('uses the shared empty state when there are no overdue customers', async () => {

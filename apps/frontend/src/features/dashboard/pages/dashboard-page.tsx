@@ -5,6 +5,7 @@ import {
   Clock,
   CreditCard,
   FileSearch,
+  LayoutDashboard,
   PieChart,
   TrendingUp,
   Users,
@@ -58,7 +59,7 @@ function SummarySkeleton() {
           <Skeleton key={index} className="h-24 w-full" />
         ))}
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
         <Skeleton className="h-72 w-full" />
         <Skeleton className="h-72 w-full" />
       </div>
@@ -76,28 +77,33 @@ export function DashboardPage() {
   const pendingCount = reviewCountQuery.data ?? 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeading
         eyebrow="TỔNG QUAN"
         title="Trang chủ"
         description="Tổng quan về công nợ và hoạt động thu hồi của bạn."
+        icon={LayoutDashboard}
+        tone="brand"
       />
 
-      <h2 className="text-xl font-semibold tracking-tight text-primary">
-        Chào mừng{' '}
-        <span className="text-foreground">
-          {user?.organizationName ?? 'bạn'}
-        </span>{' '}
-        đến với Casso Ledger!
-      </h2>
-
-      {reviewCountQuery.isError ? (
-        <p role="status" className="text-sm text-destructive">
-          Không thể tải số lượng cần đối soát.
-        </p>
-      ) : (
-        <PendingReviewBanner pendingCount={pendingCount} />
-      )}
+      <div className="rounded-xl border border-primary/15 bg-primary/5 p-4 sm:p-5">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">
+          Chào mừng{' '}
+          <span className="text-primary">
+            {user?.organizationName ?? 'bạn'}
+          </span>{' '}
+          đến với Casso Ledger!
+        </h2>
+        <div className="mt-4">
+          {reviewCountQuery.isError ? (
+            <p role="status" className="text-sm text-destructive">
+              Không thể tải số lượng cần đối soát.
+            </p>
+          ) : (
+            <PendingReviewBanner pendingCount={pendingCount} />
+          )}
+        </div>
+      </div>
 
       {summaryQuery.isPending ? (
         <SummarySkeleton />
@@ -151,46 +157,48 @@ export function DashboardPage() {
             />
           </div>
 
-          <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:160ms]">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <TrendingUp className="size-4 text-blue-500" />
-                <CardTitle>Xu hướng công nợ 6 tháng</CardTitle>
-              </div>
-              <CardDescription>
-                Biểu đồ xu hướng tăng giảm công nợ theo thời gian
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {trendQuery.isPending ? (
-                <Skeleton className="h-72 w-full" />
-              ) : trendQuery.isError || !trendQuery.data ? (
-                <p className="text-sm text-muted-foreground">
-                  Không thể tải dữ liệu xu hướng.
-                </p>
-              ) : (
-                <ReceivableTrendChart trend={trendQuery.data} />
-              )}
-            </CardContent>
-          </Card>
+          <div className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:160ms]">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="size-4 text-info" />
+                  <CardTitle>Xu hướng công nợ 6 tháng</CardTitle>
+                </div>
+                <CardDescription>
+                  Biểu đồ xu hướng tăng giảm công nợ theo thời gian
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {trendQuery.isPending ? (
+                  <Skeleton className="h-72 w-full" />
+                ) : trendQuery.isError || !trendQuery.data ? (
+                  <p className="text-sm text-muted-foreground">
+                    Không thể tải dữ liệu xu hướng.
+                  </p>
+                ) : (
+                  <ReceivableTrendChart trend={trendQuery.data} />
+                )}
+              </CardContent>
+            </Card>
 
-          <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:200ms]">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <PieChart className="size-4 text-amber-500" />
-                <CardTitle>Tỷ lệ quá hạn</CardTitle>
-              </div>
-              <CardDescription>
-                Phân tích tỷ lệ công nợ đúng hạn và quá hạn
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <OverdueDonutChart
-                totalOutstanding={summaryQuery.data.totalOutstanding}
-                totalOverdue={summaryQuery.data.totalOverdue}
-              />
-            </CardContent>
-          </Card>
+            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:200ms]">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <PieChart className="size-4 text-warning" />
+                  <CardTitle>Tỷ lệ quá hạn</CardTitle>
+                </div>
+                <CardDescription>
+                  Phân tích tỷ lệ công nợ đúng hạn và quá hạn
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <OverdueDonutChart
+                  totalOutstanding={summaryQuery.data.totalOutstanding}
+                  totalOverdue={summaryQuery.data.totalOverdue}
+                />
+              </CardContent>
+            </Card>
+          </div>
 
           {trendQuery.data && (
             <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:240ms]">
@@ -213,7 +221,7 @@ export function DashboardPage() {
             <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:280ms]">
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <Activity className="size-4 text-emerald-500" />
+                  <Activity className="size-4 text-success" />
                   <CardTitle>Hoạt động gần đây</CardTitle>
                 </div>
                 <CardDescription>
@@ -255,7 +263,7 @@ export function DashboardPage() {
             <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:320ms]">
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <Users className="size-4 text-red-500" />
+                  <Users className="size-4 text-destructive" />
                   <CardTitle>Khách hàng quá hạn nhiều nhất</CardTitle>
                 </div>
                 <CardDescription>
