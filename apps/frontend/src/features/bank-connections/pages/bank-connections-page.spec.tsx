@@ -13,6 +13,7 @@ vi.mock('../components/connect-dialog', () => ({
   ConnectDialog: () => <button type="button">Kết nối ngân hàng</button>,
 }));
 vi.mock('../components/connection-table', () => ({
+  ConnectionActions: () => null,
   ConnectionTable: () => <div>Danh sách kết nối</div>,
 }));
 

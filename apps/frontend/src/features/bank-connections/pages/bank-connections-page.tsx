@@ -3,7 +3,10 @@ import { PageHeading } from '@/components/layout/page-heading';
 import { SectionCard } from '@/components/layout/section-card';
 import { usePollConnections } from '../api/use-bank-connections';
 import { ConnectDialog } from '../components/connect-dialog';
-import { ConnectionTable } from '../components/connection-table';
+import {
+  ConnectionActions,
+  ConnectionTable,
+} from '../components/connection-table';
 
 export function BankConnectionsPage() {
   const connectionsQuery = usePollConnections();
@@ -27,6 +30,11 @@ export function BankConnectionsPage() {
         icon={Landmark}
         title="Trạng thái kết nối"
         description="Theo dõi quyền truy cập và lần đồng bộ gần nhất."
+        action={
+          connectionsQuery.data ? (
+            <ConnectionActions connections={connectionsQuery.data.items} />
+          ) : null
+        }
       >
         {connectionsQuery.isPending && (
           <p role="status" aria-live="polite">

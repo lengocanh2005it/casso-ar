@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { BankConnection } from '../types';
-import { ConnectionTable } from './connection-table';
+import { ConnectionActions, ConnectionTable } from './connection-table';
 
 const { useAuth } = vi.hoisted(() => ({ useAuth: vi.fn() }));
 
@@ -65,7 +65,7 @@ describe('ConnectionTable', () => {
     useAuth.mockReturnValue({ user: { role: 'OWNER' } });
 
     render(
-      <ConnectionTable
+      <ConnectionActions
         connections={[
           connection,
           {
@@ -86,7 +86,7 @@ describe('ConnectionTable', () => {
     useAuth.mockReturnValue({ user: { role: 'OWNER' } });
 
     render(
-      <ConnectionTable
+      <ConnectionActions
         connections={[{ ...connection, status: 'REQUIRES_REAUTHORIZATION' }]}
       />,
     );
@@ -102,7 +102,7 @@ describe('ConnectionTable', () => {
   it('shows the reveal-key action for a role with BANK_CONNECTION_REVEAL_KEY', () => {
     useAuth.mockReturnValue({ user: { role: 'OWNER' } });
 
-    render(<ConnectionTable connections={[connection]} />);
+    render(<ConnectionActions connections={[connection]} />);
 
     expect(
       screen.getByRole('button', { name: /hiện api key/i }),
@@ -112,7 +112,7 @@ describe('ConnectionTable', () => {
   it('hides the reveal-key action for a role without BANK_CONNECTION_REVEAL_KEY', () => {
     useAuth.mockReturnValue({ user: { role: 'ACCOUNTANT' } });
 
-    render(<ConnectionTable connections={[connection]} />);
+    render(<ConnectionActions connections={[connection]} />);
 
     expect(
       screen.queryByRole('button', { name: /hiện api key/i }),
@@ -122,11 +122,31 @@ describe('ConnectionTable', () => {
   it('shows the history action for a user who can reveal the API key', () => {
     useAuth.mockReturnValue({ user: { role: 'FINANCE_MANAGER' } });
 
-    render(<ConnectionTable connections={[connection]} />);
+    render(<ConnectionActions connections={[connection]} />);
 
     expect(
       screen.getByRole('button', { name: /lịch sử \(authorization-1\)/i }),
     ).toBeInTheDocument();
+  });
+
+  it('keeps authorization actions outside the connection table', () => {
+    useAuth.mockReturnValue({ user: { role: 'OWNER' } });
+
+    render(
+      <div>
+        <ConnectionActions connections={[connection]} />
+        <ConnectionTable connections={[connection]} />
+      </div>,
+    );
+
+    expect(
+      screen.getByRole('button', { name: /lịch sử \(authorization-1\)/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('table')).queryByRole('button', {
+        name: /lịch sử \(authorization-1\)/i,
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it('shows the bank empty state when there are no connections', () => {

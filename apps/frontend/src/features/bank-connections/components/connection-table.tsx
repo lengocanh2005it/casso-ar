@@ -77,7 +77,67 @@ function groupConnections(
   return Array.from(groups.entries());
 }
 
-export function ConnectionTable({
+function AuthorizationActions({
+  authorizationId,
+  canManage,
+  canRevealKey,
+}: {
+  authorizationId: string;
+  canManage: boolean;
+  canRevealKey: boolean;
+}) {
+  const [rotationOpen, setRotationOpen] = useState(false);
+  const previewRotationMutation = usePreviewCassoFlowAuthorizationRotation();
+  const rotateMutation = useRotateCassoFlowAuthorization();
+
+  return (
+    <>
+      {canRevealKey && (
+        <>
+          <AuthorizationHistoryDialog authorizationId={authorizationId} />
+          <RevealApiKeyDialog authorizationId={authorizationId} />
+        </>
+      )}
+      {canManage && (
+        <Dialog open={rotationOpen} onOpenChange={setRotationOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">
+              Đổi API Key
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                Đổi API Key <span className="text-primary">Casso Flow</span>
+              </DialogTitle>
+              <DialogDescription>
+                Nhập API Key mới để cập nhật quyền truy cập cho các tài khoản
+                trong nhóm này.
+              </DialogDescription>
+            </DialogHeader>
+            <CassoFlowAccountPicker
+              onPreview={(apiKey) =>
+                previewRotationMutation.mutateAsync({
+                  authorizationId,
+                  apiKey,
+                })
+              }
+              onConfirm={(apiKey) =>
+                rotateMutation.mutateAsync({
+                  authorizationId,
+                  apiKey,
+                })
+              }
+              onCompleted={() => setRotationOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
+  );
+}
+
+export function ConnectionActions({
   connections,
 }: {
   connections: BankConnection[];
@@ -91,13 +151,35 @@ export function ConnectionTable({
     user?.role ?? null,
     Permission.BANK_CONNECTION_REVEAL_KEY,
   );
+
+  if (!connections.length || (!canManage && !canRevealKey)) return null;
+
+  return (
+    <div className="flex flex-wrap justify-end gap-2">
+      {groupConnections(connections).map(([authorizationId]) => (
+        <AuthorizationActions
+          key={authorizationId}
+          authorizationId={authorizationId}
+          canManage={canManage}
+          canRevealKey={canRevealKey}
+        />
+      ))}
+    </div>
+  );
+}
+
+export function ConnectionTable({
+  connections,
+}: {
+  connections: BankConnection[];
+}) {
+  const { user } = useAuth();
+  const canManage = hasPermission(
+    user?.role ?? null,
+    Permission.BANK_CONNECTION_MANAGE,
+  );
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [rotationAuthorizationId, setRotationAuthorizationId] = useState<
-    string | null
-  >(null);
   const disconnectMutation = useDisconnectConnection();
-  const previewRotationMutation = usePreviewCassoFlowAuthorizationRotation();
-  const rotateMutation = useRotateCassoFlowAuthorization();
   const groups = groupConnections(connections);
 
   if (connections.length === 0) {
@@ -125,65 +207,6 @@ export function ConnectionTable({
       <TableBody>
         {groups.map(([authorizationId, group]) => (
           <Fragment key={authorizationId}>
-            {(canManage || canRevealKey) && (
-              <TableRow>
-                <TableCell colSpan={canManage ? 5 : 4} className="bg-muted/20">
-                  <div className="flex flex-wrap justify-end gap-2">
-                    {canRevealKey && (
-                      <>
-                        <AuthorizationHistoryDialog
-                          authorizationId={authorizationId}
-                        />
-                        <RevealApiKeyDialog authorizationId={authorizationId} />
-                      </>
-                    )}
-                    {canManage && (
-                      <Dialog
-                        open={rotationAuthorizationId === authorizationId}
-                        onOpenChange={(open) =>
-                          setRotationAuthorizationId(
-                            open ? authorizationId : null,
-                          )
-                        }
-                      >
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            Đổi API Key
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>
-                              Đổi API Key{' '}
-                              <span className="text-primary">Casso Flow</span>
-                            </DialogTitle>
-                            <DialogDescription>
-                              Nhập API Key mới để cập nhật quyền truy cập cho
-                              các tài khoản trong nhóm này.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <CassoFlowAccountPicker
-                            onPreview={(apiKey) =>
-                              previewRotationMutation.mutateAsync({
-                                authorizationId,
-                                apiKey,
-                              })
-                            }
-                            onConfirm={(apiKey) =>
-                              rotateMutation.mutateAsync({
-                                authorizationId,
-                                apiKey,
-                              })
-                            }
-                            onCompleted={() => setRotationAuthorizationId(null)}
-                          />
-                        </DialogContent>
-                      </Dialog>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
             {group.map((connection) => (
               <TableRow key={connection.id}>
                 <TableCell className="min-w-40 max-w-56 break-words font-medium">
