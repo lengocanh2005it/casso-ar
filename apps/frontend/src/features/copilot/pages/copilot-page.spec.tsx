@@ -323,4 +323,14 @@ describe('CopilotPage', () => {
       document.querySelector('.min-w-0.flex-1.flex-col'),
     ).toBeInTheDocument();
   });
+
+  it('keeps the Copilot panels inside one shared workspace shell', async () => {
+    renderPage();
+
+    const workspace = await screen.findByRole('region', {
+      name: /không gian làm việc copilot/i,
+    });
+
+    expect(workspace).toHaveClass('overflow-hidden', 'rounded-3xl');
+  });
 });

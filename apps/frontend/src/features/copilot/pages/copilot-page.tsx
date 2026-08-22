@@ -156,10 +156,13 @@ export function CopilotPage() {
           </div>
           <UsageIndicator />
         </div>
-        <div className="flex min-h-0 min-w-0 flex-1 gap-4">
+        <section
+          aria-label="Không gian làm việc Copilot"
+          className="flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-3xl border border-primary/15 bg-card/70 shadow-lg backdrop-blur dark:border-primary/25"
+        >
           <aside
             className={cn(
-              'hidden shrink-0 overflow-hidden rounded-2xl border border-primary/15 bg-card/80 shadow-sm backdrop-blur transition-[width] duration-200 md:block dark:border-primary/25',
+              'hidden shrink-0 overflow-hidden border-r border-primary/15 bg-primary/[0.025] transition-[width] duration-200 md:block dark:border-primary/25 dark:bg-primary/[0.04]',
               historyCollapsed ? 'w-0 border-0' : 'w-56',
             )}
           >
@@ -175,8 +178,8 @@ export function CopilotPage() {
             </Sheet>
           )}
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="mb-2 flex min-h-9 items-center justify-between gap-2">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background/35">
+            <div className="flex min-h-12 items-center justify-between gap-2 px-3 pt-2">
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
@@ -239,7 +242,7 @@ export function CopilotPage() {
               </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto rounded-2xl border border-primary/20 bg-gradient-to-b from-primary/10 via-card to-card p-5 shadow-md dark:border-primary/30 dark:from-primary/15">
+            <div className="mx-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto rounded-2xl border border-primary/20 bg-gradient-to-b from-primary/10 via-card to-card p-5 shadow-sm dark:border-primary/30 dark:from-primary/15">
               {isEmptyConversation ? (
                 <CopilotWelcomeState
                   onSuggestionClick={(text) => void send(text)}
@@ -261,7 +264,7 @@ export function CopilotPage() {
             </div>
             <form
               onSubmit={onSubmit}
-              className="mt-3 flex gap-2 rounded-2xl border border-primary/20 bg-card p-2.5 shadow-md dark:border-primary/30"
+              className="mx-3 mb-3 mt-3 flex gap-2 rounded-2xl border border-primary/20 bg-card p-2.5 shadow-sm dark:border-primary/30"
             >
               <Input
                 name="question"
@@ -297,11 +300,11 @@ export function CopilotPage() {
 
           <aside
             className={cn(
-              'hidden shrink-0 overflow-hidden rounded-2xl border border-primary/15 bg-card/80 shadow-sm backdrop-blur transition-[width] duration-200 md:block dark:border-primary/25',
-              draftsCollapsed ? 'w-0 border-0' : 'w-80',
+              'hidden shrink-0 overflow-hidden border-l border-primary/15 bg-primary/[0.025] transition-[width] duration-200 md:block dark:border-primary/25 dark:bg-primary/[0.04]',
+              draftsCollapsed ? 'w-0 border-0' : 'w-72',
             )}
           >
-            <div className={cn('h-full w-80', draftsCollapsed && 'invisible')}>
+            <div className={cn('h-full w-72', draftsCollapsed && 'invisible')}>
               {draftsPanel}
             </div>
           </aside>
@@ -312,7 +315,7 @@ export function CopilotPage() {
               </SheetContent>
             </Sheet>
           )}
-        </div>
+        </section>
       </div>
 
       {!hasCopilotAccess && (

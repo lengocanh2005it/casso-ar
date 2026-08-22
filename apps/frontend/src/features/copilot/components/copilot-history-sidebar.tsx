@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { MessageSquare, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { CopilotConversationSummary } from '../types';
@@ -39,9 +39,19 @@ export function CopilotHistorySidebar({
           </p>
         )}
         {!isLoading && conversations.length === 0 && (
-          <p className="px-2 py-4 text-center text-xs text-muted-foreground">
-            Chưa có cuộc trò chuyện nào.
-          </p>
+          <div className="flex h-full items-center justify-center px-4 text-center">
+            <div>
+              <div className="mx-auto mb-3 flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <MessageSquare aria-hidden="true" className="size-4" />
+              </div>
+              <p className="text-sm font-medium text-foreground">
+                Chưa có cuộc trò chuyện
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Đặt câu hỏi đầu tiên để bắt đầu.
+              </p>
+            </div>
+          </div>
         )}
         {conversations.map((conversation) => (
           <button
