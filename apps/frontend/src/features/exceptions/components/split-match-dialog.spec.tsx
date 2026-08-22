@@ -101,6 +101,38 @@ describe('SplitMatchDialog', () => {
     expect(screen.getByText('Payment for INV-001')).toBeInTheDocument();
   });
 
+  it('titles the dialog with the counterparty name instead of the raw provider id', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    renderDialog();
+
+    expect(
+      screen.getByRole('heading', { name: /xử lý giao dịch company c/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('p9')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the transfer content, then the raw provider id, when there is no counterparty name', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <SplitMatchDialog
+          tx={{ ...tx, counterpartyName: null }}
+          open
+          onOpenChange={vi.fn()}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(
+      screen.getByRole('heading', {
+        name: /xử lý giao dịch payment for inv-001/i,
+      }),
+    ).toBeInTheDocument();
+  });
+
   it('shows a fallback when the transfer content is blank', async () => {
     apiRequest.mockResolvedValue(candidates);
     render(
@@ -197,7 +229,12 @@ describe('SplitMatchDialog', () => {
         }
       >
         <SplitMatchDialog
-          tx={{ ...tx, providerTransactionId }}
+          tx={{
+            ...tx,
+            providerTransactionId,
+            counterpartyName: null,
+            transferContent: null,
+          }}
           open
           onOpenChange={vi.fn()}
         />

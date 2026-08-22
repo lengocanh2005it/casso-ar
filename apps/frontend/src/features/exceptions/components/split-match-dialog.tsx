@@ -90,6 +90,14 @@ export function SplitMatchDialog({
     return null;
   }
 
+  // The raw provider reference (e.g. "provider-7b2c0530") means nothing to a
+  // user — show who the transaction is with when we know it, falling back
+  // to the transfer content, and only to the raw id if neither is available.
+  const transactionLabel =
+    tx.counterpartyName?.trim() ||
+    tx.transferContent?.trim() ||
+    tx.providerTransactionId;
+
   function onMatch() {
     if (!valid) {
       setAllocationError(
@@ -116,9 +124,9 @@ export function SplitMatchDialog({
             Xử lý giao dịch{' '}
             <span
               className="inline-block max-w-full truncate align-bottom"
-              title={tx.providerTransactionId}
+              title={transactionLabel}
             >
-              {tx.providerTransactionId}
+              {transactionLabel}
             </span>{' '}
             — {formatVND(tx.amount)}
           </DialogTitle>
@@ -129,13 +137,13 @@ export function SplitMatchDialog({
         </DialogDescription>
         <div className="space-y-3">
           <div>
-            <p className="text-xs font-medium">Nội dung chuyển khoản</p>
+            <p className="text-sm font-medium">Nội dung chuyển khoản</p>
             {tx.transferContent?.trim() ? (
-              <p className="break-words text-xs text-muted-foreground">
+              <p className="break-words text-sm text-muted-foreground">
                 {tx.transferContent}
               </p>
             ) : (
-              <p className="text-xs italic text-muted-foreground">
+              <p className="text-sm italic text-muted-foreground">
                 Không có nội dung
               </p>
             )}
