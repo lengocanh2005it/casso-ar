@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { getAllocationErrorMessage } from '@/features/payments/allocation-errors';
+import { getReceivableDisplayName } from '@/features/receivables/receivable-label';
 import type { Receivable } from '@/features/receivables/types';
 import { formatVND } from '@/lib/format';
 import type { CustomerCredits } from '../api/customers-api';
@@ -114,7 +115,7 @@ export function AllocateCreditDialog({
                   .filter((item) => item.remainingAmount > 0)
                   .map((item) => (
                     <SelectItem key={item.id} value={item.id}>
-                      {item.invoiceNumber ?? item.invoiceId ?? item.id} — còn{' '}
+                      {getReceivableDisplayName(item.invoiceNumber)} — còn{' '}
                       {formatVND(item.remainingAmount)}
                     </SelectItem>
                   ))}

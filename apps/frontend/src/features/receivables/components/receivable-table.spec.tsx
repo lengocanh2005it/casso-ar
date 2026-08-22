@@ -72,7 +72,7 @@ describe('ReceivableTable', () => {
     expect(checkboxes[2]).toBeDisabled();
   });
 
-  it('keeps the row link navigable but not styled like a real invoice link when there is no invoice', () => {
+  it('uses the same neutral label as detail when there is no invoice', () => {
     render(
       <MemoryRouter>
         <ReceivableTable
@@ -85,9 +85,11 @@ describe('ReceivableTable', () => {
       </MemoryRouter>,
     );
 
-    const link = screen.getByRole('link', { name: 'Không có hóa đơn' });
+    const link = screen.getByRole('link', { name: 'Khoản phải thu' });
     expect(link).toHaveAttribute('href', '/receivables/rec-1');
     expect(link).not.toHaveClass('text-primary');
     expect(link).toHaveClass('text-muted-foreground');
+    expect(screen.getByText('Không có hóa đơn')).toBeInTheDocument();
+    expect(screen.queryByText('#rec-1')).not.toBeInTheDocument();
   });
 });

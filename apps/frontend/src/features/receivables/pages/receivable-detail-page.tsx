@@ -14,6 +14,7 @@ import { ReceivablePayments } from '../components/receivable-payments';
 import { ReceivableTasks } from '../components/receivable-tasks';
 import { ReceivableTimeline } from '../components/receivable-timeline';
 import { WriteOffDialog } from '../components/write-off-dialog';
+import { getReceivableDisplayName } from '../receivable-label';
 
 export function ReceivableDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
@@ -61,9 +62,14 @@ export function ReceivableDetailPage() {
             ← Công nợ
           </Link>
           <HeaderIcon icon={Receipt} />
-          <h1 className="text-2xl font-semibold" title={receivable.id}>
-            {receivable.invoiceNumber ?? `#${receivable.id.slice(0, 8)}`}
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {getReceivableDisplayName(receivable.invoiceNumber)}
           </h1>
+          {!receivable.invoiceNumber && (
+            <Badge variant="outline" className="text-muted-foreground">
+              Không có hóa đơn
+            </Badge>
+          )}
           <ReceivableStatusBadge status={receivable.status} />
           {receivable.isDisputed && (
             <Badge variant="destructive">Tranh chấp</Badge>

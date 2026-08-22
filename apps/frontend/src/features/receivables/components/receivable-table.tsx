@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDate, formatVND } from '@/lib/format';
+import { getReceivableDisplayName } from '../receivable-label';
 import type { Receivable } from '../types';
 
 export function ReceivableTable({
@@ -71,7 +72,7 @@ export function ReceivableTable({
           <TableRow key={receivable.id}>
             <TableCell className="max-w-48 break-words">
               <Checkbox
-                aria-label={`Chọn ${receivable.invoiceNumber ?? receivable.id}`}
+                aria-label={`Chọn ${getReceivableDisplayName(receivable.invoiceNumber)}`}
                 checked={selectedIds.includes(receivable.id)}
                 disabled={!isBulkEligible(receivable.status)}
                 onCheckedChange={() => onToggle(receivable.id)}
@@ -80,16 +81,23 @@ export function ReceivableTable({
             <TableCell>
               <div className="flex items-center gap-2">
                 <HeaderIcon icon={Receipt} />
-                <Link
-                  to={`/receivables/${receivable.id}`}
-                  className={
-                    receivable.invoiceNumber
-                      ? 'font-medium text-primary pointer-hover:hover:underline'
-                      : 'font-medium text-muted-foreground italic pointer-hover:hover:underline'
-                  }
-                >
-                  {receivable.invoiceNumber ?? 'Không có hóa đơn'}
-                </Link>
+                <div className="min-w-0">
+                  <Link
+                    to={`/receivables/${receivable.id}`}
+                    className={
+                      receivable.invoiceNumber
+                        ? 'font-medium text-primary pointer-hover:hover:underline'
+                        : 'font-medium text-muted-foreground pointer-hover:hover:underline'
+                    }
+                  >
+                    {getReceivableDisplayName(receivable.invoiceNumber)}
+                  </Link>
+                  {!receivable.invoiceNumber && (
+                    <p className="text-xs text-muted-foreground">
+                      Không có hóa đơn
+                    </p>
+                  )}
+                </div>
               </div>
             </TableCell>
             <TableCell className="max-w-56 break-words">

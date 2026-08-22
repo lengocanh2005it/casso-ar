@@ -2,6 +2,7 @@ import { ReceivableStatus } from '@casso-ledger/shared-types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Receivable } from '@/features/receivables/types';
 import { AllocateCreditDialog } from './allocate-credit-dialog';
 
 const postWithIdempotency = vi.fn();
@@ -36,7 +37,7 @@ const payment = {
   receivedAt: '2026-08-01T00:00:00.000Z',
 };
 
-const receivables = [
+const receivables: Receivable[] = [
   {
     id: 'receivable-1',
     customerId: 'customer-1',
@@ -56,7 +57,7 @@ const receivables = [
   },
 ];
 
-function renderDialog() {
+function renderDialog(receivableOptions = receivables) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -64,7 +65,7 @@ function renderDialog() {
     <QueryClientProvider client={queryClient}>
       <AllocateCreditDialog
         payment={payment}
-        receivables={receivables}
+        receivables={receivableOptions}
         open
         onOpenChange={vi.fn()}
       />
@@ -90,6 +91,26 @@ describe('AllocateCreditDialog', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('không được vượt quá');
     expect(postWithIdempotency).not.toHaveBeenCalled();
+  });
+
+  it('does not expose a technical id when a receivable has no invoice', async () => {
+    renderDialog([
+      {
+        ...receivables[0],
+        id: 'receivable-no-invoice',
+        invoiceId: null,
+        invoiceNumber: null,
+      },
+    ]);
+
+    fireEvent.click(screen.getByRole('combobox', { name: /khoản phải thu/i }));
+
+    expect(
+      screen.getByRole('option', { name: /Khoản phải thu/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('option', { name: /receivable-no-invoice/ }),
+    ).not.toBeInTheDocument();
   });
 
   it('posts a valid allocation and shows backend allocation errors inline', async () => {
