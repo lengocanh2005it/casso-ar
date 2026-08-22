@@ -92,7 +92,7 @@ export function HeroSection() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-primary/10 bg-card/60 p-3 shadow-xl shadow-primary/5 backdrop-blur-sm sm:p-5">
+        <div className="mx-auto w-full max-w-md">
           <HeroDemoCard />
         </div>
       </div>

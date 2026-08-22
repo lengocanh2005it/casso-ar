@@ -1,5 +1,5 @@
-import { useReducedMotion } from 'framer-motion';
-import { Sparkles } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { Landmark, ReceiptText, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -7,62 +7,124 @@ import { formatVND } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { DEMO_TRANSACTIONS } from '../landing-data';
 
-export function HeroDemoCard() {
-  const [highlightIndex, setHighlightIndex] = useState(0);
-  const reducedMotion = useReducedMotion();
-
-  useEffect(() => {
-    if (reducedMotion) return;
-
-    const interval = window.setInterval(() => {
-      setHighlightIndex((current) => (current + 1) % DEMO_TRANSACTIONS.length);
-    }, 3200);
-    return () => window.clearInterval(interval);
-  }, [reducedMotion]);
-
+function LiveDot() {
   return (
-    <div className="relative mx-auto w-full max-w-md">
-      <Card className="gap-3 border-border/70 shadow-lg">
-        <CardHeader className="pb-3">
-          <p className="text-xs text-muted-foreground">Giao dịch gần đây</p>
-        </CardHeader>
-        <CardContent className="space-y-2" aria-hidden="true">
-          {DEMO_TRANSACTIONS.map((transaction, i) => (
-            <div
-              key={transaction.customer}
-              className={cn(
-                'flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 transition-colors duration-200 ease-out motion-reduce:transition-none',
-                i === highlightIndex
-                  ? 'border-primary/40 bg-primary/5'
-                  : 'border-transparent',
-              )}
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">
-                  {transaction.customer}
-                </p>
-                <p className="text-base font-semibold tabular-nums">
-                  {formatVND(transaction.amountVnd)}
-                </p>
-              </div>
-              <ReceivableStatusBadge status={transaction.status} />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+    <span className="relative flex size-2">
+      <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/60 motion-reduce:hidden" />
+      <span className="relative inline-flex size-2 rounded-full bg-primary" />
+    </span>
+  );
+}
 
-      <div
-        className="absolute -right-4 -bottom-4 hidden items-center gap-2 rounded-xl border border-border/70 bg-card px-4 py-3 shadow-lg sm:flex"
-        aria-hidden="true"
-      >
-        <Sparkles className="size-4 text-primary" />
-        <div>
-          <p className="text-xs font-medium">Đối chiếu tự động</p>
-          <p className="text-[11px] text-muted-foreground">
-            Theo thời gian thực
-          </p>
-        </div>
+function DemoChip({
+  icon: Icon,
+  eyebrow,
+  customer,
+  amountVnd,
+  badge,
+}: {
+  icon: typeof Landmark;
+  eyebrow: string;
+  customer: string;
+  amountVnd: number;
+  badge?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-background px-3.5 py-3">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <Icon className="size-4" aria-hidden="true" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] text-muted-foreground">{eyebrow}</p>
+        <p className="truncate text-sm font-medium">{customer}</p>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <p className="text-sm font-semibold tabular-nums">
+          {formatVND(amountVnd)}
+        </p>
+        {badge}
       </div>
     </div>
+  );
+}
+
+export function HeroDemoCard() {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const reducedMotion = useReducedMotion();
+  const active = DEMO_TRANSACTIONS[activeIndex];
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % DEMO_TRANSACTIONS.length);
+    }, 3200);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  return (
+    <Card className="border-border/70 shadow-lg" aria-hidden="true">
+      <CardHeader className="flex-row items-center justify-between gap-2 pb-3">
+        <div className="flex items-center gap-2">
+          <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Sparkles className="size-3.5" aria-hidden="true" />
+          </span>
+          <p className="text-xs font-medium">Đối chiếu tự động</p>
+        </div>
+        <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <LiveDot />
+          Theo thời gian thực
+        </span>
+      </CardHeader>
+      <CardContent>
+        <motion.div
+          key={activeIndex}
+          initial={reducedMotion ? false : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          className="flex flex-col items-stretch"
+        >
+          <DemoChip
+            icon={Landmark}
+            eyebrow="Giao dịch ngân hàng"
+            customer={active.customer}
+            amountVnd={active.amountVnd}
+          />
+
+          <div className="relative mx-auto flex h-7 w-px items-stretch justify-center bg-border">
+            {!reducedMotion && (
+              <motion.span
+                className="absolute left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-primary"
+                animate={{ top: ['0%', '85%'] }}
+                transition={{
+                  duration: 1.1,
+                  repeat: Number.POSITIVE_INFINITY,
+                  ease: 'easeInOut',
+                }}
+              />
+            )}
+          </div>
+
+          <DemoChip
+            icon={ReceiptText}
+            eyebrow="Công nợ khớp"
+            customer={active.customer}
+            amountVnd={active.amountVnd}
+            badge={<ReceivableStatusBadge status={active.status} />}
+          />
+        </motion.div>
+
+        <div className="mt-4 flex items-center justify-center gap-1.5">
+          {DEMO_TRANSACTIONS.map((transaction, index) => (
+            <span
+              key={transaction.customer}
+              data-testid="hero-demo-progress-dot"
+              className={cn(
+                'h-1.5 rounded-full bg-primary/20 transition-all duration-300',
+                index === activeIndex ? 'w-5 bg-primary' : 'w-1.5',
+              )}
+            />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
