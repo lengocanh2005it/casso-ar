@@ -52,14 +52,14 @@ function ErrorPageShell({
         />
       </div>
 
-      <div className="flex min-h-svh flex-col items-center px-4 pt-10 sm:px-6 sm:pt-14">
-        <Logo className="mb-5 h-12 sm:mb-6 sm:h-16" />
-
-        <div className="relative flex w-full max-w-md flex-1 items-center">
+      <div className="flex min-h-svh flex-col items-center justify-center px-4 py-10 sm:px-6">
+        <div className="relative flex w-full max-w-md items-center">
           <Card className="relative overflow-hidden border-border/70 bg-card/90 shadow-xl shadow-destructive/5 backdrop-blur-sm">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-destructive/30 via-destructive to-destructive/30" />
 
             <CardContent className="px-6 py-8 text-center sm:px-10 sm:py-10">
+              <Logo className="mb-6 justify-center" iconClassName="h-9 w-9" />
+
               <div className="relative mx-auto mb-6 flex size-24 items-center justify-center">
                 <div className="absolute inset-0 rounded-full bg-destructive/10" />
                 <div className="absolute inset-2 rounded-full border border-destructive/20 border-dashed" />
