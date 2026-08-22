@@ -360,7 +360,7 @@ describe('CopilotPage', () => {
     const workspace = screen.getByRole('region', {
       name: /không gian làm việc copilot/i,
     });
-    expect(workspace.parentElement).toHaveClass('min-h-full');
+    expect(workspace.parentElement).toHaveClass('h-full');
   });
 
   it('keeps the Copilot panels inside one shared workspace shell', async () => {

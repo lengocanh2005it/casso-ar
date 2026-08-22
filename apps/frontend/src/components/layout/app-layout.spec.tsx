@@ -139,7 +139,7 @@ describe('AppLayout', () => {
     expect(main.firstElementChild).toHaveClass(
       'mx-auto',
       'max-w-[1600px]',
-      'min-h-full',
+      'h-full',
     );
   });
 });

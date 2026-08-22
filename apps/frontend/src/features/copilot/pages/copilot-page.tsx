@@ -130,11 +130,11 @@ export function CopilotPage() {
   );
 
   return (
-    <div className="relative min-h-full overflow-hidden bg-background">
+    <div className="relative h-full overflow-hidden bg-background">
       <div
         aria-hidden={!hasCopilotAccess}
         className={cn(
-          'flex min-h-full flex-col p-4 sm:p-6',
+          'flex h-full flex-col p-4 sm:p-6',
           !hasCopilotAccess && 'pointer-events-none select-none blur-sm',
         )}
         inert={!hasCopilotAccess ? true : undefined}
