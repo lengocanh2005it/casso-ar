@@ -58,6 +58,11 @@ describe('ReceivableDetailPage', () => {
     await waitFor(() =>
       expect(screen.getByText('20.000.000 ₫')).toBeInTheDocument(),
     );
+    expect(screen.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '60',
+    );
+    expect(screen.getByText('60% đã thu')).toBeInTheDocument();
     expect(screen.getAllByText('30.000.000 ₫')).toHaveLength(2);
   });
 
@@ -98,6 +103,7 @@ describe('ReceivableDetailPage', () => {
     expect(
       await screen.findByRole('heading', { name: 'INV-001' }),
     ).toBeInTheDocument();
+    expect(screen.getByText('Chưa có khoản thanh toán')).toBeInTheDocument();
     expect(
       screen.queryByText('a1b2c3d4-e5f6-47a8-9abc-1234567890ab'),
     ).not.toBeInTheDocument();
