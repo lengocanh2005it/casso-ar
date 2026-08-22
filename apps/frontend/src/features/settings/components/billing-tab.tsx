@@ -55,7 +55,11 @@ export function BillingTab() {
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {plans.map((plan, index) => (
         <Card
-          className={plan.id === currentPlan ? 'ring-2 ring-primary' : ''}
+          className={
+            plan.id === currentPlan
+              ? 'border-success/40 ring-2 ring-success/30'
+              : ''
+          }
           key={plan.id}
         >
           <CardHeader>

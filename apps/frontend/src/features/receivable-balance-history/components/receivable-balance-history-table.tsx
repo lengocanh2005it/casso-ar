@@ -1,4 +1,6 @@
+import { History } from 'lucide-react';
 import { Fragment } from 'react';
+import { EmptyState } from '@/components/layout/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -209,8 +211,11 @@ export function ReceivableBalanceHistoryTable({ items }: TableProps) {
 
 export function ReceivableBalanceHistoryEmpty() {
   return (
-    <div className="rounded-xl border bg-card py-16 text-center text-muted-foreground">
-      Chưa có thay đổi nào trong khoảng thời gian này.
-    </div>
+    <EmptyState
+      density="compact"
+      icon={History}
+      title="Chưa có thay đổi nào trong khoảng thời gian này."
+      description="Điều chỉnh bộ lọc hoặc chọn khoảng thời gian khác để xem lịch sử."
+    />
   );
 }

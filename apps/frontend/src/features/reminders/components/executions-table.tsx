@@ -1,3 +1,5 @@
+import { History } from 'lucide-react';
+import { EmptyState } from '@/components/layout/empty-state';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -26,9 +28,12 @@ export function ExecutionsTable({
 }) {
   if (executions.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-        Chưa có lần thực thi nào.
-      </p>
+      <EmptyState
+        icon={History}
+        title="Chưa có lần thực thi nào"
+        description="Lịch sử gửi email nhắc sẽ xuất hiện tại đây."
+        density="compact"
+      />
     );
   }
 
@@ -57,6 +62,13 @@ export function ExecutionsTable({
                     : execution.status === 'FAILED'
                       ? 'destructive'
                       : 'outline'
+                }
+                className={
+                  execution.status === 'SENT'
+                    ? 'bg-success text-success-foreground'
+                    : execution.status === 'PENDING'
+                      ? 'border-warning/40 bg-warning/10 text-warning-foreground'
+                      : undefined
                 }
               >
                 {statusLabel(execution.status)}

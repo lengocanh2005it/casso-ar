@@ -1,4 +1,5 @@
 import { MailPlus } from 'lucide-react';
+import { EmptyState } from '@/components/layout/empty-state';
 import { SectionCard } from '@/components/layout/section-card';
 import {
   AlertDialog,
@@ -53,9 +54,12 @@ export function PendingInvitesTable({
         </p>
       )}
       {invitesQuery.data && invitesQuery.data.items.length === 0 && (
-        <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Không có lời mời nào đang chờ.
-        </p>
+        <EmptyState
+          icon={MailPlus}
+          title="Không có lời mời nào đang chờ."
+          description="Lời mời thành viên mới sẽ xuất hiện tại đây."
+          density="compact"
+        />
       )}
       {invitesQuery.data && invitesQuery.data.items.length > 0 && (
         <Table>

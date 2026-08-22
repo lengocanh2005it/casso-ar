@@ -21,6 +21,33 @@ vi.mock('@/lib/use-url-query-params', () => ({
 }));
 
 describe('RemindersPage', () => {
+  it('keeps both reminder workflows, the receivable filter, and compact empty states visible', async () => {
+    apiRequest.mockImplementation((config: { url: string }) =>
+      config.url === '/api/v1/reminder-policies'
+        ? Promise.resolve([])
+        : Promise.resolve({ items: [], total: 0, page: 1, limit: 20 }),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <RemindersPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText('Chính sách nhắc')).toBeTruthy();
+    expect(screen.getByText('Lịch sử thực thi')).toBeTruthy();
+    expect(
+      await screen.findByRole('textbox', {
+        name: 'Lọc theo mã khoản phải thu',
+      }),
+    ).toBeTruthy();
+    expect(await screen.findAllByTestId('empty-state')).toHaveLength(2);
+  });
+
   it('replaces the history entry when the receivableId filter changes, so fast typing does not drop keystrokes', async () => {
     apiRequest.mockImplementation((config: { url: string }) =>
       config.url === '/api/v1/reminder-policies'

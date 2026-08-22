@@ -185,12 +185,13 @@ export function ReceivableBalanceHistoryPage() {
 
   if (listQuery.isLoading || summaryQuery.isLoading) {
     return (
-      <div className="space-y-6 p-6">
+      <div className="space-y-6">
         <PageHeading
           eyebrow="BÁO CÁO"
           title="Lịch sử công nợ"
           description="Lịch sử biến động số dư công nợ theo thời gian."
           icon={History}
+          tone="info"
           actions={<Button disabled>Xuất CSV</Button>}
         />
         <ReceivableBalanceHistoryKpis summary={undefined} isLoading />
@@ -201,12 +202,13 @@ export function ReceivableBalanceHistoryPage() {
 
   if (listQuery.isError || summaryQuery.isError) {
     return (
-      <div className="space-y-6 p-6">
+      <div className="space-y-6">
         <PageHeading
           eyebrow="BÁO CÁO"
           title="Lịch sử công nợ"
           description="Lịch sử biến động số dư công nợ theo thời gian."
           icon={History}
+          tone="info"
         />
         <div
           className="rounded-xl border bg-card py-16 text-center text-muted-foreground"
@@ -221,12 +223,13 @@ export function ReceivableBalanceHistoryPage() {
   const items = listQuery.data?.items ?? [];
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <PageHeading
         eyebrow="BÁO CÁO"
         title="Lịch sử công nợ"
         description="Lịch sử biến động số dư công nợ theo thời gian."
         icon={History}
+        tone="info"
         actions={
           <Button
             onClick={handleExport}
@@ -262,7 +265,11 @@ export function ReceivableBalanceHistoryPage() {
         onChange={updateFilterValues}
       />
 
-      <SectionCard>
+      <SectionCard
+        icon={History}
+        title="Biến động số dư"
+        description="Các thay đổi số dư theo bộ lọc đã chọn."
+      >
         {items.length === 0 ? (
           <ReceivableBalanceHistoryEmpty />
         ) : (

@@ -219,7 +219,7 @@ describe('ReceivableBalanceHistoryPage', () => {
     expect(screen.getByText('Công ty A')).toHaveClass('truncate');
   });
 
-  it('shows an empty state when there are no transitions', () => {
+  it('keeps history controls available when no transitions match', () => {
     useListMock.mockReturnValue({
       data: { items: [], total: 0, page: 1, limit: 20 },
       isLoading: false,
@@ -233,7 +233,14 @@ describe('ReceivableBalanceHistoryPage', () => {
 
     renderPage();
 
-    expect(screen.getByText(/chưa có/i)).toBeInTheDocument();
+    expect(screen.getByTestId('empty-state')).toHaveTextContent(
+      'Chưa có thay đổi nào trong khoảng thời gian này.',
+    );
+    expect(screen.getByRole('button', { name: 'Xuất CSV' })).toBeEnabled();
+    expect(screen.getByLabelText('Từ ngày')).toHaveAttribute('name', 'from');
+    expect(screen.getByLabelText('Nguồn thay đổi')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Trước' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Sau' })).toBeDisabled();
   });
 
   it('renders KPIs, charts, rows, detail fields, and pagination from fixtures', () => {

@@ -166,70 +166,72 @@ const MembersTable = memo(function MembersTable({
                 )}
               </TableCell>
               {showActions && (
-                <TableCell className="space-x-2">
-                  {canManage && !isSelf && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm">
-                          Xoá {member.name}
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>
-                            Xoá {member.name} khỏi tổ chức?
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Người này sẽ mất quyền truy cập ngay lập tức. Thao
-                            tác này không thể hoàn tác.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Hủy</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => onRemove(member.userId)}
-                          >
-                            Xác nhận
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                  {canBlock && !isSelf && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          {isBlocked ? 'Bỏ chặn' : 'Chặn'} {member.name}
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>
-                            {isBlocked
-                              ? `Bỏ chặn ${member.name}?`
-                              : `Chặn quyền truy cập của ${member.name}?`}
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            {isBlocked
-                              ? 'Người này sẽ được khôi phục quyền truy cập vào tổ chức.'
-                              : 'Người này sẽ mất quyền truy cập ngay lập tức. Bạn có thể bỏ chặn lại bất cứ lúc nào.'}
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Hủy</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() =>
-                              isBlocked
-                                ? onUnblock(member.userId)
-                                : onBlock(member.userId)
-                            }
-                          >
-                            Xác nhận
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
+                <TableCell>
+                  <div className="flex flex-wrap gap-2">
+                    {canManage && !isSelf && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm">
+                            Xoá {member.name}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Xoá {member.name} khỏi tổ chức?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Người này sẽ mất quyền truy cập ngay lập tức. Thao
+                              tác này không thể hoàn tác.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Hủy</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => onRemove(member.userId)}
+                            >
+                              Xác nhận
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                    {canBlock && !isSelf && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            {isBlocked ? 'Bỏ chặn' : 'Chặn'} {member.name}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              {isBlocked
+                                ? `Bỏ chặn ${member.name}?`
+                                : `Chặn quyền truy cập của ${member.name}?`}
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {isBlocked
+                                ? 'Người này sẽ được khôi phục quyền truy cập vào tổ chức.'
+                                : 'Người này sẽ mất quyền truy cập ngay lập tức. Bạn có thể bỏ chặn lại bất cứ lúc nào.'}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Hủy</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() =>
+                                isBlocked
+                                  ? onUnblock(member.userId)
+                                  : onBlock(member.userId)
+                              }
+                            >
+                              Xác nhận
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
                 </TableCell>
               )}
             </TableRow>
@@ -313,7 +315,7 @@ export function UsersTab() {
   return (
     <div className="space-y-6">
       {canInvite && (
-        <div className="flex flex-wrap items-end gap-2">
+        <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/20 p-3">
           <label className="space-y-1 text-sm" htmlFor="invite-email">
             <span className="block">Email</span>
             <Input

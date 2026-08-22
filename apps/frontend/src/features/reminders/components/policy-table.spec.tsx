@@ -35,6 +35,8 @@ describe('PolicyTable', () => {
 
     render(<PolicyTable policies={[policy]} />);
 
+    expect(screen.getByText('Đang hoạt động')).toBeTruthy();
+
     fireEvent.click(screen.getByRole('switch', { name: /VIP/i }));
 
     expect(mutate).toHaveBeenCalledWith({

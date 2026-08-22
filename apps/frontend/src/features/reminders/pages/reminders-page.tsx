@@ -64,7 +64,12 @@ export function RemindersPage() {
         }
       />
 
-      <SectionCard icon={Bell} title="Chính sách nhắc">
+      <SectionCard
+        icon={Bell}
+        title="Chính sách nhắc"
+        description="Tự động gửi email theo nhóm khách hàng và thời hạn thanh toán."
+        className="border-success/30"
+      >
         {policiesPending && (
           <p role="status" aria-live="polite">
             Đang tải chính sách…
@@ -82,20 +87,22 @@ export function RemindersPage() {
         icon={History}
         title="Lịch sử thực thi"
         description="Tra cứu các lần gửi hoặc bỏ qua email nhắc."
-        className="[animation-delay:40ms]"
+        className="border-info/30 [animation-delay:40ms]"
       >
         <div className="space-y-3">
-          <Input
-            name="receivableId"
-            autoComplete="off"
-            aria-label="Lọc theo mã khoản phải thu"
-            placeholder="Lọc theo mã khoản phải thu…"
-            value={receivableId}
-            onChange={(event) =>
-              setParam('receivableId', event.target.value, { replace: true })
-            }
-            className="max-w-sm"
-          />
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <Input
+              name="receivableId"
+              autoComplete="off"
+              aria-label="Lọc theo mã khoản phải thu"
+              placeholder="Lọc theo mã khoản phải thu…"
+              value={receivableId}
+              onChange={(event) =>
+                setParam('receivableId', event.target.value, { replace: true })
+              }
+              className="max-w-sm"
+            />
+          </div>
           {executionsQuery.isPending && (
             <p role="status" aria-live="polite">
               Đang tải lịch sử thực thi…

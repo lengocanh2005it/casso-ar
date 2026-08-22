@@ -1,6 +1,7 @@
 import { Permission } from '@casso-ledger/shared-types';
 import { Mail } from 'lucide-react';
 import { useState } from 'react';
+import { EmptyState } from '@/components/layout/empty-state';
 import { HeaderIcon } from '@/components/layout/header-icon';
 import { SectionCard } from '@/components/layout/section-card';
 import {
@@ -79,9 +80,12 @@ export function EmailTemplatesTab() {
         </p>
       )}
       {templatesQuery.data && templatesQuery.data.length === 0 && (
-        <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Chưa có mẫu email.
-        </p>
+        <EmptyState
+          icon={Mail}
+          title="Chưa có mẫu email"
+          description="Tạo mẫu để dùng trong các chính sách nhắc."
+          density="compact"
+        />
       )}
       {templatesQuery.data && templatesQuery.data.length > 0 && (
         <Table>

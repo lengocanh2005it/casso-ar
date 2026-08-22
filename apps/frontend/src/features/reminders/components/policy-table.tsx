@@ -1,5 +1,8 @@
 import { Permission } from '@casso-ledger/shared-types';
+import { Bell } from 'lucide-react';
+import { EmptyState } from '@/components/layout/empty-state';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -32,9 +35,12 @@ export function PolicyTable({
 
   if (policies.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-        Chưa có chính sách nhắc.
-      </p>
+      <EmptyState
+        icon={Bell}
+        title="Chưa có chính sách nhắc"
+        description="Tạo chính sách để tự động gửi email nhắc thanh toán."
+        density="compact"
+      />
     );
   }
 
@@ -60,27 +66,37 @@ export function PolicyTable({
               </div>
             </TableCell>
             <TableCell>
-              {canWrite ? (
-                <Switch
-                  aria-label={`Bật chính sách ${policy.customerGroup}`}
-                  checked={policy.isActive}
-                  disabled={update.isPending}
-                  onCheckedChange={() =>
-                    update.mutate({
-                      id: policy.id,
-                      input: {
-                        customerGroup: policy.customerGroup,
-                        isActive: !policy.isActive,
-                        escalationThresholdDays:
-                          policy.escalationThresholdDays ?? undefined,
-                        rules: policy.rules,
-                      },
-                    })
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge
+                  variant={policy.isActive ? 'default' : 'secondary'}
+                  className={
+                    policy.isActive
+                      ? 'bg-success text-success-foreground'
+                      : undefined
                   }
-                />
-              ) : (
-                <span>{policy.isActive ? 'Có' : 'Không'}</span>
-              )}
+                >
+                  {policy.isActive ? 'Đang hoạt động' : 'Đã tắt'}
+                </Badge>
+                {canWrite ? (
+                  <Switch
+                    aria-label={`Bật chính sách ${policy.customerGroup}`}
+                    checked={policy.isActive}
+                    disabled={update.isPending}
+                    onCheckedChange={() =>
+                      update.mutate({
+                        id: policy.id,
+                        input: {
+                          customerGroup: policy.customerGroup,
+                          isActive: !policy.isActive,
+                          escalationThresholdDays:
+                            policy.escalationThresholdDays ?? undefined,
+                          rules: policy.rules,
+                        },
+                      })
+                    }
+                  />
+                ) : null}
+              </div>
             </TableCell>
             <TableCell>{policy.rules.length}</TableCell>
             <TableCell>

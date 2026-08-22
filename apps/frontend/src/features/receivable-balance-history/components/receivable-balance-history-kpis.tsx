@@ -1,3 +1,4 @@
+import { CircleDollarSign, History, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatVND } from '@/lib/format';
@@ -29,8 +30,11 @@ export function ReceivableBalanceHistoryKpis({
 
   return (
     <div className="grid gap-4 sm:grid-cols-3">
-      <Card>
-        <CardHeader>
+      <Card className="border-info/30">
+        <CardHeader className="flex flex-row items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-info/10 text-info">
+            <History aria-hidden="true" className="size-4" />
+          </div>
           <h2 className="text-sm font-medium text-muted-foreground">
             Tổng số thay đổi
           </h2>
@@ -39,8 +43,11 @@ export function ReceivableBalanceHistoryKpis({
           {summary?.totalTransitions ?? 0}
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader>
+      <Card className="border-warning/30">
+        <CardHeader className="flex flex-row items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-warning/10 text-warning-foreground">
+            <Users aria-hidden="true" className="size-4" />
+          </div>
           <h2 className="text-sm font-medium text-muted-foreground">
             Khoản phải thu bị ảnh hưởng
           </h2>
@@ -49,8 +56,11 @@ export function ReceivableBalanceHistoryKpis({
           {summary?.affectedReceivables ?? 0}
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader>
+      <Card className="border-success/30">
+        <CardHeader className="flex flex-row items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-success/10 text-success">
+            <CircleDollarSign aria-hidden="true" className="size-4" />
+          </div>
           <h2 className="text-sm font-medium text-muted-foreground">
             Số dư còn lại mới nhất
           </h2>

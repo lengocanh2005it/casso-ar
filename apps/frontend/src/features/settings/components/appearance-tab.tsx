@@ -1,4 +1,5 @@
-import { Monitor, Moon, Sun } from 'lucide-react';
+import { Monitor, Moon, Palette, Sun } from 'lucide-react';
+import { HeaderIcon } from '@/components/layout/header-icon';
 import { type ThemeMode, useTheme } from '@/contexts/theme-context';
 import { cn } from '@/lib/utils';
 
@@ -33,11 +34,14 @@ export function AppearanceTab() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="text-lg font-medium">Giao diện</h3>
-        <p className="text-sm text-muted-foreground">
-          Chọn chế độ hiển thị cho ứng dụng.
-        </p>
+      <div className="flex items-center gap-3">
+        <HeaderIcon icon={Palette} tone="info" />
+        <div>
+          <h3 className="text-lg font-medium">Giao diện</h3>
+          <p className="text-sm text-muted-foreground">
+            Chọn chế độ hiển thị cho ứng dụng.
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3">

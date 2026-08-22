@@ -32,7 +32,9 @@ function ConfiguredSmtpCard({ config }: { config: SmtpConfig }) {
   const isConnected = config.status === 'CONNECTED';
 
   return (
-    <Card>
+    <Card
+      className={isConnected ? 'border-success/40' : 'border-destructive/40'}
+    >
       <CardHeader>
         <CardTitle className="flex items-center justify-between gap-4">
           <span>Email server riêng</span>
@@ -110,7 +112,7 @@ export function SmtpTab() {
 
   if (!hasPlan) {
     return (
-      <Card>
+      <Card className="border-warning/40">
         <CardHeader>
           <CardTitle>Email server riêng</CardTitle>
           <CardDescription>
@@ -150,7 +152,7 @@ export function SmtpTab() {
 
   if (!smtpQuery.data) {
     return (
-      <Card>
+      <Card className="border-info/40">
         <CardHeader>
           <CardTitle>Email server riêng</CardTitle>
           <CardDescription>

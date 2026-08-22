@@ -123,6 +123,7 @@ export function SettingsPage() {
         title="Cài đặt"
         description="Quản lý tài khoản và cấu hình hệ thống"
         icon={SettingsIcon}
+        tone="info"
       />
       <div className="flex flex-col gap-6 p-4 sm:p-6">
         <Tabs
@@ -137,11 +138,11 @@ export function SettingsPage() {
                   key={tab.value}
                   value={tab.value}
                   disabled={tab.locked}
-                  className="gap-1.5"
+                  className="shrink-0 gap-1.5"
                   title={tab.label}
                 >
                   <Icon className="size-3.5 shrink-0" />
-                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span>{tab.label}</span>
                   {tab.locked && <Lock className="size-3 opacity-50" />}
                 </TabsTrigger>
               );
