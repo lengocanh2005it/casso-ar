@@ -260,7 +260,7 @@ export function CopilotPage() {
                 placeholder="Hỏi về công nợ…"
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                className="border-0 bg-transparent shadow-none focus-visible:ring-0"
+                className="border-0 bg-transparent shadow-none"
                 disabled={isSending || blockedByPendingAction}
               />
               {isSending ? (

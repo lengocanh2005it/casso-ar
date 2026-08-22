@@ -54,4 +54,23 @@ describe('DraftsList', () => {
       }),
     ).toBeInTheDocument();
   });
+
+  it('shows an error instead of the empty state when drafts cannot load', async () => {
+    vi.spyOn(draftsApi, 'fetchCopilotDrafts').mockRejectedValue(
+      new Error('Drafts unavailable'),
+    );
+
+    renderWithClient(<DraftsList canSendManual={false} />);
+
+    expect(
+      await screen.findByRole('alert', {
+        name: /không thể tải bản nháp email/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('status', {
+        name: /chưa có bản nháp email nào/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
 });

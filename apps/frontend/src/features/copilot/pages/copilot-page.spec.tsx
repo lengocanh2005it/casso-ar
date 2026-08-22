@@ -106,7 +106,9 @@ describe('CopilotPage', () => {
       expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
     );
     expect(screen.getByRole('button', { name: /send/i })).toBeDisabled();
-    expect(screen.getByLabelText(/enter question/i)).toBeInTheDocument();
+    const composer = screen.getByLabelText(/enter question/i);
+    expect(composer).toHaveClass('focus-visible:ring-[3px]');
+    expect(composer).not.toHaveClass('focus-visible:ring-0');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 

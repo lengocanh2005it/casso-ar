@@ -1,4 +1,4 @@
-import { FilePenLine, LoaderCircle } from 'lucide-react';
+import { CircleAlert, FilePenLine, LoaderCircle } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -42,7 +42,7 @@ const MUTABLE_STATUSES: CopilotDraftStatus[] = [
 ];
 
 export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
-  const { data, isLoading } = useCopilotDrafts(1);
+  const { data, isError, isLoading, refetch } = useCopilotDrafts(1);
   const reopen = useReopenCopilotDraft();
   const confirm = useConfirmCopilotDraft();
   const deleteDraft = useDeleteCopilotDraft();
@@ -62,6 +62,24 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
       >
         <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
         Đang tải…
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div
+        aria-label="Không thể tải bản nháp email"
+        className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+        role="alert"
+      >
+        <span className="flex items-center gap-2">
+          <CircleAlert aria-hidden="true" className="size-4" />
+          Không thể tải bản nháp email.
+        </span>
+        <Button size="sm" variant="outline" onClick={() => void refetch()}>
+          Thử lại
+        </Button>
       </div>
     );
   }
