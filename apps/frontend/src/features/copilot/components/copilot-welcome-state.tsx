@@ -1,7 +1,7 @@
 import { Sparkles } from 'lucide-react';
 
 const SUGGESTIONS = [
-  'Tóm tắt công nợ của khách hàng ABC Company',
+  'Khách hàng nào đang có công nợ cao nhất?',
   'Khách hàng nào đang có công nợ quá hạn?',
   'Soạn email nhắc thanh toán cho hoá đơn quá hạn',
 ];

@@ -17,7 +17,7 @@ describe('CopilotWelcomeState', () => {
     render(<CopilotWelcomeState onSuggestionClick={vi.fn()} />);
 
     expect(
-      screen.getByRole('button', { name: /tóm tắt công nợ/i }),
+      screen.getByRole('button', { name: /công nợ cao nhất/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /công nợ quá hạn/i }),
