@@ -126,7 +126,11 @@ export function AuditLogTable({ items, members }: AuditLogTableProps) {
                     <span>
                       {ENTITY_TYPE_LABELS[item.entityType] ?? item.entityType}
                     </span>
-                    <TruncatedId id={item.entityId} />
+                    {item.entityId ? (
+                      <TruncatedId id={item.entityId} />
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell>
