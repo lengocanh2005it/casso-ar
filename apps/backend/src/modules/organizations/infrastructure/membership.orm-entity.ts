@@ -3,6 +3,10 @@ import { Role } from '../domain/membership';
 
 @Entity({ name: 'memberships' })
 @Index(['organizationId', 'userId'], { unique: true })
+@Index('IDX_memberships_one_owner_per_organization', ['organizationId'], {
+  unique: true,
+  where: '"role" = \'OWNER\' AND "joinedAt" IS NOT NULL',
+})
 export class MembershipOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
