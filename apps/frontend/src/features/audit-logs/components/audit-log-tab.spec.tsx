@@ -138,6 +138,27 @@ describe('AuditLogTab', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('shows a dash instead of a bare ellipsis when the entity id is empty', () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'OWNER', organizationId: 'org-1' },
+    } as never);
+    useAuditLogsMock.mockReturnValue({
+      data: { items: [{ ...logItem, entityId: '' }], total: 1 },
+      isLoading: false,
+      isError: false,
+    });
+    useOrganizationMembersMock.mockReturnValue({
+      data: { items: [knownMember], total: 1, page: 1, limit: 100 },
+      isLoading: false,
+      isError: false,
+    });
+
+    renderTab();
+
+    expect(screen.queryByText('…')).not.toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
   it('shows before/after state and ip only after expanding the row', () => {
     useAuthMock.mockReturnValue({
       user: { role: 'OWNER', organizationId: 'org-1' },
