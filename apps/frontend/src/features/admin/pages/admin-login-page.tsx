@@ -1,11 +1,11 @@
 import { type FormEvent, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { AuthLogoLink } from '@/features/auth/components/auth-logo-link';
 import { adminLogin } from '../api/admin-api';
 
 function initialErrorFromRedirect(state: unknown): string | null {
@@ -53,7 +53,7 @@ export function AdminLoginPage() {
       >
         <div className="w-full max-w-sm space-y-5 rounded-xl border-primary/10 bg-card/95 p-6 text-center shadow-lg shadow-primary/5 backdrop-blur sm:p-7">
           <div className="space-y-1">
-            <AuthLogoLink />
+            <Logo className="h-7" wordmarkClassName="text-primary" />
             <p className="text-sm text-muted-foreground">
               Trang đăng nhập dành cho quản trị viên.
             </p>
