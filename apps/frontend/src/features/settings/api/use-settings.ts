@@ -7,33 +7,33 @@ import type {
   SmtpConfigInput,
 } from '../types';
 import {
+  acceptOwnershipTransfer,
   blockMember,
+  cancelOwnershipTransfer,
   changeMemberRole,
+  confirmOwnershipTransfer,
   createEmailTemplate,
+  declineOwnershipTransfer,
   deleteEmailTemplate,
   deleteEmailTemplateAttachment,
   deleteSmtpConfig,
+  fetchCurrentOwnershipTransfer,
   fetchOrganizationInvites,
   fetchOrganizationMembers,
+  fetchPendingOwnershipTransferForMe,
   fetchSmtpConfig,
   getResponseErrorMessage,
   initiatePlanUpgrade,
   inviteOrganizationMember,
   previewEmailTemplate,
   removeMember,
+  requestOwnershipTransfer,
   resendInvite,
   revokeInvite,
   saveSmtpConfig,
   unblockMember,
   updateEmailTemplate,
   uploadEmailTemplateAttachment,
-  requestOwnershipTransfer,
-  confirmOwnershipTransfer,
-  cancelOwnershipTransfer,
-  acceptOwnershipTransfer,
-  declineOwnershipTransfer,
-  fetchCurrentOwnershipTransfer,
-  fetchPendingOwnershipTransferForMe,
 } from './settings-api';
 
 const smtpConfigKey = ['smtp-config'];
@@ -348,7 +348,9 @@ export function useResendInvite(organizationId: string | undefined) {
   });
 }
 
-export function useCurrentOwnershipTransfer(organizationId: string | undefined) {
+export function useCurrentOwnershipTransfer(
+  organizationId: string | undefined,
+) {
   return useQuery({
     queryKey: ['current-ownership-transfer', organizationId],
     queryFn: () => fetchCurrentOwnershipTransfer(organizationId ?? ''),
@@ -356,7 +358,9 @@ export function useCurrentOwnershipTransfer(organizationId: string | undefined) 
   });
 }
 
-export function usePendingOwnershipTransferForMe(organizationId: string | undefined) {
+export function usePendingOwnershipTransferForMe(
+  organizationId: string | undefined,
+) {
   return useQuery({
     queryKey: ['pending-ownership-transfer-for-me', organizationId],
     queryFn: () => fetchPendingOwnershipTransferForMe(organizationId ?? ''),
@@ -364,66 +368,106 @@ export function usePendingOwnershipTransferForMe(organizationId: string | undefi
   });
 }
 
-export function useRequestOwnershipTransfer(organizationId: string | undefined) {
+export function useRequestOwnershipTransfer(
+  organizationId: string | undefined,
+) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ targetUserId, currentPassword }: { targetUserId: string; currentPassword: string }) =>
-      requestOwnershipTransfer(organizationId ?? '', targetUserId, currentPassword),
+    mutationFn: ({
+      targetUserId,
+      currentPassword,
+    }: {
+      targetUserId: string;
+      currentPassword: string;
+    }) =>
+      requestOwnershipTransfer(
+        organizationId ?? '',
+        targetUserId,
+        currentPassword,
+      ),
     onSuccess: () => {
       toast.success('Đã gửi yêu cầu chuyển quyền.');
-      void queryClient.invalidateQueries({ queryKey: ['current-ownership-transfer', organizationId] });
+      void queryClient.invalidateQueries({
+        queryKey: ['current-ownership-transfer', organizationId],
+      });
     },
-    onError: (error) => toast.error(getResponseErrorMessage(error, 'Không thể gửi yêu cầu.')),
+    onError: (error) =>
+      toast.error(getResponseErrorMessage(error, 'Không thể gửi yêu cầu.')),
   });
 }
 
-export function useConfirmOwnershipTransfer(organizationId: string | undefined) {
+export function useConfirmOwnershipTransfer(
+  organizationId: string | undefined,
+) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ requestId, otp }: { requestId: string; otp: string }) =>
       confirmOwnershipTransfer(organizationId ?? '', requestId, otp),
     onSuccess: () => {
       toast.success('Đã xác nhận bằng OTP.');
-      void queryClient.invalidateQueries({ queryKey: ['current-ownership-transfer', organizationId] });
+      void queryClient.invalidateQueries({
+        queryKey: ['current-ownership-transfer', organizationId],
+      });
     },
-    onError: (error) => toast.error(getResponseErrorMessage(error, 'Không thể xác nhận OTP.')),
+    onError: (error) =>
+      toast.error(getResponseErrorMessage(error, 'Không thể xác nhận OTP.')),
   });
 }
 
 export function useCancelOwnershipTransfer(organizationId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (requestId: string) => cancelOwnershipTransfer(organizationId ?? '', requestId),
+    mutationFn: (requestId: string) =>
+      cancelOwnershipTransfer(organizationId ?? '', requestId),
     onSuccess: () => {
       toast.success('Đã huỷ yêu cầu chuyển quyền.');
-      void queryClient.invalidateQueries({ queryKey: ['current-ownership-transfer', organizationId] });
+      void queryClient.invalidateQueries({
+        queryKey: ['current-ownership-transfer', organizationId],
+      });
     },
-    onError: (error) => toast.error(getResponseErrorMessage(error, 'Không thể huỷ yêu cầu.')),
+    onError: (error) =>
+      toast.error(getResponseErrorMessage(error, 'Không thể huỷ yêu cầu.')),
   });
 }
 
 export function useAcceptOwnershipTransfer(organizationId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (requestId: string) => acceptOwnershipTransfer(organizationId ?? '', requestId),
+    mutationFn: (requestId: string) =>
+      acceptOwnershipTransfer(organizationId ?? '', requestId),
     onSuccess: () => {
       toast.success('Đã chấp nhận quyền sở hữu. Bạn hiện là OWNER mới!');
-      void queryClient.invalidateQueries({ queryKey: ['pending-ownership-transfer-for-me', organizationId] });
-      void queryClient.invalidateQueries({ queryKey: ['organization-members', organizationId] });
+      void queryClient.invalidateQueries({
+        queryKey: ['pending-ownership-transfer-for-me', organizationId],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ['organization-members', organizationId],
+      });
       // We should probably also invalidate current-user profile or organization info
     },
-    onError: (error) => toast.error(getResponseErrorMessage(error, 'Không thể chấp nhận quyền sở hữu.')),
+    onError: (error) =>
+      toast.error(
+        getResponseErrorMessage(error, 'Không thể chấp nhận quyền sở hữu.'),
+      ),
   });
 }
 
-export function useDeclineOwnershipTransfer(organizationId: string | undefined) {
+export function useDeclineOwnershipTransfer(
+  organizationId: string | undefined,
+) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (requestId: string) => declineOwnershipTransfer(organizationId ?? '', requestId),
+    mutationFn: (requestId: string) =>
+      declineOwnershipTransfer(organizationId ?? '', requestId),
     onSuccess: () => {
       toast.success('Đã từ chối quyền sở hữu.');
-      void queryClient.invalidateQueries({ queryKey: ['pending-ownership-transfer-for-me', organizationId] });
+      void queryClient.invalidateQueries({
+        queryKey: ['pending-ownership-transfer-for-me', organizationId],
+      });
     },
-    onError: (error) => toast.error(getResponseErrorMessage(error, 'Không thể từ chối quyền sở hữu.')),
+    onError: (error) =>
+      toast.error(
+        getResponseErrorMessage(error, 'Không thể từ chối quyền sở hữu.'),
+      ),
   });
 }

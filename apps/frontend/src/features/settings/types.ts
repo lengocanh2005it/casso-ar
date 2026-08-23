@@ -1,4 +1,8 @@
-import type { MembershipStatus, Role, OwnershipTransferStatus } from '@casso-ledger/shared-types';
+import type {
+  MembershipStatus,
+  OwnershipTransferStatus,
+  Role,
+} from '@casso-ledger/shared-types';
 
 export type { MembershipStatus };
 

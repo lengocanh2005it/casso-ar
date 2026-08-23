@@ -48,9 +48,7 @@ describe('PendingOwnershipTransferBanner', () => {
     renderBanner();
 
     await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Chấp nhận' }),
-      ).toBeTruthy(),
+      expect(screen.getByRole('button', { name: 'Chấp nhận' })).toBeTruthy(),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Chấp nhận' }));
 

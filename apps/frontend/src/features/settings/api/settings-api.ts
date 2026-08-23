@@ -9,9 +9,9 @@ import type {
   MemberStatusResponse,
   OrganizationInviteList,
   OrganizationMemberList,
+  OwnershipTransfer,
   SmtpConfig,
   SmtpConfigInput,
-  OwnershipTransfer,
 } from '../types';
 
 /** HTTP status of a failed apiRequest call, or undefined for a non-HTTP error. */
@@ -291,7 +291,7 @@ export function declineOwnershipTransfer(
 
 export function fetchCurrentOwnershipTransfer(
   organizationId: string,
-): Promise<any | null> {
+): Promise<OwnershipTransfer | null> {
   return apiRequest({
     url: `/api/v1/auth/organizations/${organizationId}/ownership-transfers/current`,
     method: 'GET',
@@ -300,7 +300,7 @@ export function fetchCurrentOwnershipTransfer(
 
 export function fetchPendingOwnershipTransferForMe(
   organizationId: string,
-): Promise<any | null> {
+): Promise<OwnershipTransfer | null> {
   return apiRequest({
     url: `/api/v1/auth/organizations/${organizationId}/ownership-transfers/pending-for-me`,
     method: 'GET',

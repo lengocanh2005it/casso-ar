@@ -52,7 +52,8 @@ export function OwnershipTransferDialog({
   const cancelTransfer = useCancelOwnershipTransfer(organizationId);
 
   const pending = current.data;
-  const step = pending?.status === 'PENDING_OTP_CONFIRMATION' ? 'confirm' : 'request';
+  const step =
+    pending?.status === 'PENDING_OTP_CONFIRMATION' ? 'confirm' : 'request';
 
   function submitRequest() {
     if (!targetUserId || !currentPassword) return;
@@ -79,7 +80,10 @@ export function OwnershipTransferDialog({
             <div className="space-y-2">
               <Label htmlFor="ownership-transfer-target">Người nhận</Label>
               <Select value={targetUserId} onValueChange={setTargetUserId}>
-                <SelectTrigger id="ownership-transfer-target" aria-label="Người nhận">
+                <SelectTrigger
+                  id="ownership-transfer-target"
+                  aria-label="Người nhận"
+                >
                   <SelectValue placeholder="Chọn thành viên" />
                 </SelectTrigger>
                 <SelectContent>
@@ -92,7 +96,9 @@ export function OwnershipTransferDialog({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ownership-transfer-password">Mật khẩu hiện tại</Label>
+              <Label htmlFor="ownership-transfer-password">
+                Mật khẩu hiện tại
+              </Label>
               <Input
                 id="ownership-transfer-password"
                 type="password"
@@ -102,7 +108,9 @@ export function OwnershipTransferDialog({
             </div>
             <Button
               onClick={submitRequest}
-              disabled={!targetUserId || !currentPassword || requestTransfer.isPending}
+              disabled={
+                !targetUserId || !currentPassword || requestTransfer.isPending
+              }
             >
               {requestTransfer.isPending ? 'Đang gửi…' : 'Gửi OTP'}
             </Button>

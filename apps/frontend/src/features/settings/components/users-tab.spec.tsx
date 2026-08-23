@@ -304,7 +304,9 @@ describe('UsersTab', () => {
     mockApi();
     const { unmount } = renderTab();
     await waitFor(() => expect(screen.getByText('Kế toán')).toBeTruthy());
-    expect(screen.queryByRole('button', { name: 'Chuyển quyền sở hữu' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Chuyển quyền sở hữu' }),
+    ).toBeNull();
     unmount();
 
     useAuth.mockReturnValue({
@@ -312,6 +314,8 @@ describe('UsersTab', () => {
     });
     renderTab();
     await waitFor(() => expect(screen.getByText('Kế toán')).toBeTruthy());
-    expect(screen.getByRole('button', { name: 'Chuyển quyền sở hữu' })).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Chuyển quyền sở hữu' }),
+    ).toBeTruthy();
   });
 });
