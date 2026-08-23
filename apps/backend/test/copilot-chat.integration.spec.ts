@@ -430,4 +430,116 @@ describe('Copilot chat (integration)', () => {
     expect(response.body.items).toHaveLength(1);
     expect(response.body.items[0].id).toBe(fixture.conversationId);
   });
+
+  it('looks up overdue receivables via findOverdueReceivables without search filters and returns candidates to the user', async () => {
+    const fixture = await setUpOrg();
+    mockCreateChatCompletion
+      .mockResolvedValueOnce(
+        completion(null, [
+          {
+            id: 'lookup-call',
+            name: 'findOverdueReceivables',
+            arguments: {},
+          },
+        ]),
+      )
+      .mockImplementationOnce(async (messages: AIChatMessage[]) => {
+        const toolMessage = messages
+          .filter((message) => message.role === 'tool')
+          .at(-1);
+        const result = JSON.parse(toolMessage?.content ?? '{}') as {
+          items: Array<{
+            receivableId: string;
+            customerName: string;
+            remainingAmount: number;
+            dueDate: string;
+          }>;
+        };
+        expect(result.items).toHaveLength(1);
+        expect(result.items[0]).toMatchObject({
+          receivableId: fixture.receivableId,
+          customerName: 'Công ty Copilot',
+          remainingAmount: 10_000_000,
+        });
+        return completion(
+          'Tìm thấy 1 khoản quá hạn của Công ty Copilot với số tiền còn lại 10.000.000 VND.',
+        );
+      });
+
+    const response = await postChat(
+      fixture.token,
+      fixture.conversationId,
+      'Có khoản nợ nào quá hạn không?',
+      `overdue-lookup-${randomUUID()}`,
+    );
+
+    expect(response.status).toBe(201);
+    expect(response.body.message.content).toContain('10.000.000 VND');
+    expect(response.body.pendingAction).toBeNull();
+    expect(mockCreateChatCompletion).toHaveBeenCalledTimes(2);
+  });
+
+  it('calls findOverdueReceivables and uses candidate data to draft a reminder email', async () => {
+    const fixture = await setUpOrg();
+    mockCreateChatCompletion
+      .mockResolvedValueOnce(
+        completion(null, [
+          {
+            id: 'lookup-call',
+            name: 'findOverdueReceivables',
+            arguments: { search: 'Công ty Copilot' },
+          },
+        ]),
+      )
+      .mockImplementationOnce(async (messages: AIChatMessage[]) => {
+        const toolMessage = messages
+          .filter((message) => message.role === 'tool')
+          .at(-1);
+        const result = JSON.parse(toolMessage?.content ?? '{}') as {
+          items: Array<{
+            receivableId: string;
+            customerName: string;
+            remainingAmount: number;
+            dueDate: string;
+          }>;
+        };
+        const candidate = result.items[0];
+        return completion(null, [
+          {
+            id: 'draft-call',
+            name: 'draftReminderEmail',
+            arguments: {
+              receivableId: candidate.receivableId,
+              subject: `[Casso Ledger] Nhắc thanh toán - ${candidate.customerName}`,
+              bodyHtml: `<p>Kính gửi ${candidate.customerName}, quý công ty còn nợ ${candidate.remainingAmount} VND đến hạn ngày ${candidate.dueDate}.</p>`,
+            },
+          },
+        ]);
+      })
+      .mockResolvedValueOnce(
+        completion('Tôi đã tạo bản nháp nhắc nợ cho bạn.'),
+      );
+
+    const response = await postChat(
+      fixture.token,
+      fixture.conversationId,
+      'Soạn thư nhắc nợ cho Công ty Copilot',
+      `overdue-draft-${randomUUID()}`,
+    );
+
+    expect(response.status).toBe(201);
+    expect(response.body.message.content).toContain('Tôi đã tạo bản nháp');
+    expect(response.body.message.toolCalls).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'draftReminderEmail',
+          output: expect.objectContaining({
+            receivableId: fixture.receivableId,
+            subject: expect.stringContaining('Công ty Copilot'),
+          }),
+        }),
+      ]),
+    );
+    expect(mockCreateChatCompletion).toHaveBeenCalledTimes(3);
+  });
 });
