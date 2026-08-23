@@ -964,6 +964,11 @@ describe('CopilotChatUseCase', () => {
     const systemMessage = messages.find((message) => message.role === 'system');
 
     expect(systemMessage?.content).toContain('Casso Ledger Copilot');
+    expect(systemMessage?.content).toContain('greeting');
+    expect(systemMessage?.content).toContain('tra cứu khoản phải thu');
+    expect(systemMessage?.content).toContain('theo dõi công nợ quá hạn');
+    expect(systemMessage?.content).toContain('xem lịch sử thanh toán');
+    expect(systemMessage?.content).toContain('soạn email nhắc thanh toán');
     expect(systemMessage?.content).toContain('Vietnamese');
     expect(systemMessage?.content).toContain(
       'only when the user explicitly asks',
@@ -1010,6 +1015,10 @@ describe('CopilotChatUseCase', () => {
     expect(systemMessage?.content).toContain(
       'professional, neutral enterprise tone',
     );
+    expect(systemMessage?.content).toContain('concise');
+    expect(systemMessage?.content).toContain('action-oriented');
+    expect(systemMessage?.content).toContain('casual');
+    expect(systemMessage?.content).toContain('promotional');
     expect(systemMessage?.content).toContain('"tôi"');
     expect(systemMessage?.content).toContain('công nợ');
     expect(systemMessage?.content).toContain('khoản phải thu');
@@ -1066,5 +1075,8 @@ describe('CopilotChatUseCase', () => {
     );
     expect(systemMessage?.content).toContain('do not guess');
     expect(systemMessage?.content).toContain('create a draft');
+    expect(systemMessage?.content).toContain(
+      'in Vietnamese unless the user explicitly requests English',
+    );
   });
 });
