@@ -2,7 +2,7 @@
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
-**Last reviewed**: 2026-08-15
+**Last reviewed**: 2026-08-23
 **Map mode**: chart — Plans #1–#23 complete; follow-up issues are listed in Frontier
 
 ---
@@ -102,9 +102,9 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Ticket Index
 
-**33 tracked tickets** | status snapshot (2026-08-23):
-- 🟢 done (32): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management, Spec-Plan Reconciliation, Org-Branded Reminder Emails via Custom SMTP (BYO-SMTP), SMTP Settings UI (Frontend), In-App Alerts (#137), Public Landing Page (#143), Issue #233 — manual payment allocation UI (Shipped: 2026-08-19 — PR #260)
-- 🟡 in-progress (1): #320 — Copilot Overdue Receivable Context
+**34 tracked tickets** | status snapshot (2026-08-23):
+- 🟢 done (34): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management, Spec-Plan Reconciliation, Org-Branded Reminder Emails via Custom SMTP (BYO-SMTP), SMTP Settings UI (Frontend), In-App Alerts (#137), Public Landing Page (#143), Issue #233 — manual payment allocation UI (Shipped: 2026-08-19 — PR #260), Issue #320 — Copilot Overdue Receivable Context (Shipped: 2026-08-23 — PR #325), Issue #321 — Casso Ledger Copilot Persona and Response Policy (Shipped: 2026-08-23 — PR #326)
+- 🟡 in-progress (0): none
 - 🔴 open/not started (0): none
 
 ---
@@ -760,13 +760,27 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ---
 
+#### Issue #321 — Casso Ledger Copilot Persona and Response Policy
+- **Type**: feature
+- **Status**: done ✅
+- **Owner**: BE
+- **Spec**: `docs/superpowers/specs/2026-08-23-copilot-persona-response-policy-design.md`
+- **Plan**: `docs/superpowers/plans/2026-08-23-copilot-persona-response-policy.md`
+- **Blockers**: none
+- **Shipped**: 2026-08-23 — PR #326
+- **Creates**: Vietnamese-first Casso Ledger Copilot persona, explicit-English opt-in policy, enterprise tone and grounded-data guidance, missing-context and internal-detail safety rules, and regression coverage.
+- **Implementation note**: `pnpm verify` passed 9/9 tasks; backend completed 354 suites/1360 tests and frontend completed 146 files/556 tests. CI `verify` passed on PR #326.
+
+---
+
 ## Frontier
+
+**2026-08-23 update:** PR #325 shipped #320 and PR #326 shipped #321.
 
 **Current status (2026-08-16):** Casso Admin Platform (#98) shipped via PR #177. Copilot Draft Library (#136), its edit/delete follow-up (#171), Receivable Balance History (#172), member-level block/unblock (#178), Receivable Balance History Audit Dashboard (#176), both halves of #181 (member block/unblock UI — org-facing via PR #185, Admin Platform operator workspace via PR #190), Public Landing Page (#143) via PR #188, and Admin Platform pending invite resend/revoke actions (#189) via PR #191 are done. Three unrelated e2e failures are deferred to a separate issue.
 
 **In progress:**
 - #262 — Frontend for business identity verification at signup (backend #245 shipped via PR #263; branch `lengocanh2005it/feat-262-fe-business-verification`).
-- #320 — Copilot Overdue Receivable Context (plan `docs/superpowers/plans/2026-08-23-copilot-overdue-receivable-context.md`, status `in-progress`, owner `BE`, blockers `none`).
 
 **Next available tickets** (all blockers resolved):
 - None.

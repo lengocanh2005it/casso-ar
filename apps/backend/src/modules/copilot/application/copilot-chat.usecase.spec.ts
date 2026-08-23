@@ -925,4 +925,183 @@ describe('CopilotChatUseCase', () => {
       errorCode: ErrorCode.VALIDATION_ERROR,
     });
   });
+
+  it('includes Casso Ledger identity and Vietnamese-default language policy in the system message', async () => {
+    const aiProvider = {
+      createChatCompletion: jest.fn().mockResolvedValue({
+        content: 'Xin chào!',
+        toolCalls: [],
+        inputTokens: 10,
+        outputTokens: 5,
+      }),
+    };
+    const deps = buildDeps();
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'hi',
+    });
+
+    const greetingMessages = aiProvider.createChatCompletion.mock
+      .calls[0][0] as Array<{
+      role: string;
+      content: string | null;
+    }>;
+    const greetingSystemMessage = greetingMessages.find(
+      (message) => message.role === 'system',
+    );
+
+    expect(greetingSystemMessage?.content).toContain('Casso Ledger Copilot');
+    expect(greetingSystemMessage?.content).toContain('greeting');
+    expect(greetingSystemMessage?.content).toContain('tra cứu khoản phải thu');
+    expect(greetingSystemMessage?.content).toContain(
+      'theo dõi công nợ quá hạn',
+    );
+    expect(greetingSystemMessage?.content).toContain('xem lịch sử thanh toán');
+    expect(greetingSystemMessage?.content).toContain(
+      'soạn email nhắc thanh toán',
+    );
+    expect(greetingSystemMessage?.content).toContain('Vietnamese');
+    expect(greetingSystemMessage?.content).toContain(
+      'only when the user explicitly asks',
+    );
+
+    await useCase.execute({
+      conversationId: 'conversation-2',
+      userMessage: 'Please answer in English',
+    });
+
+    const explicitEnglishMessages = aiProvider.createChatCompletion.mock
+      .calls[1][0] as Array<{
+      role: string;
+      content: string | null;
+    }>;
+    const explicitEnglishSystemMessage = explicitEnglishMessages.find(
+      (message) => message.role === 'system',
+    );
+
+    expect(explicitEnglishSystemMessage?.content).toContain(
+      'only when the user explicitly asks for English',
+    );
+  });
+
+  it('includes enterprise tone, domain vocabulary, and user-facing safety policy', async () => {
+    const aiProvider = {
+      createChatCompletion: jest.fn().mockResolvedValue({
+        content: 'Chào bạn',
+        toolCalls: [],
+        inputTokens: 10,
+        outputTokens: 5,
+      }),
+    };
+    const deps = buildDeps();
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Tổng quan công nợ',
+    });
+
+    const messages = aiProvider.createChatCompletion.mock.calls[0][0] as Array<{
+      role: string;
+      content: string | null;
+    }>;
+    const systemMessage = messages.find((message) => message.role === 'system');
+
+    expect(systemMessage?.content).toContain(
+      'professional, neutral enterprise tone',
+    );
+    expect(systemMessage?.content).toContain('concise');
+    expect(systemMessage?.content).toContain('action-oriented');
+    expect(systemMessage?.content).toContain('casual');
+    expect(systemMessage?.content).toContain('promotional');
+    expect(systemMessage?.content).toContain('"tôi"');
+    expect(systemMessage?.content).toContain('công nợ');
+    expect(systemMessage?.content).toContain('khoản phải thu');
+    expect(systemMessage?.content).toContain('thanh toán');
+    expect(systemMessage?.content).toContain('quá hạn');
+    expect(systemMessage?.content).toContain('khách hàng');
+    expect(systemMessage?.content).toContain('email nhắc thanh toán');
+    expect(systemMessage?.content).toContain('Never invent');
+    expect(systemMessage?.content).toContain('internal UUIDs');
+    expect(systemMessage?.content).toContain('tool names');
+    expect(systemMessage?.content).toContain('schema field names');
+    expect(systemMessage?.content).toContain('raw provider errors');
+  });
+
+  it('requires Vietnamese clarification before drafting without receivable context', async () => {
+    const aiProvider = {
+      createChatCompletion: jest.fn().mockResolvedValue({
+        content: 'Vui lòng cung cấp tên khách hàng hoặc số hóa đơn.',
+        toolCalls: [],
+        inputTokens: 10,
+        outputTokens: 10,
+      }),
+    };
+    const deps = buildDeps();
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Soạn email nhắc nợ',
+    });
+
+    const messages = aiProvider.createChatCompletion.mock.calls[0][0] as Array<{
+      role: string;
+      content: string | null;
+    }>;
+    const systemMessage = messages.find((message) => message.role === 'system');
+
+    expect(systemMessage?.content).toContain(
+      'ask in Vietnamese for the customer name or invoice number',
+    );
+    expect(systemMessage?.content).toContain('do not guess');
+    expect(systemMessage?.content).toContain('create a draft');
+    expect(systemMessage?.content).toContain(
+      'in Vietnamese unless the user explicitly requests English',
+    );
+  });
 });
