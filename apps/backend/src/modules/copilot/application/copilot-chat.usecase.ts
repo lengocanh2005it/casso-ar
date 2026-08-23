@@ -34,6 +34,7 @@ import {
   type DraftReminderEmailResult,
   DraftReminderEmailTool,
 } from './tools/draft-reminder-email.tool';
+import { FindOverdueReceivablesTool } from './tools/find-overdue-receivables.tool';
 import { GetCollectionActivityTimelineTool } from './tools/get-collection-activity-timeline.tool';
 import { GetPaymentHistoryTool } from './tools/get-payment-history.tool';
 import { GetReceivableSummaryTool } from './tools/get-receivable-summary.tool';
@@ -47,7 +48,8 @@ const SYSTEM_PROMPT = [
   'You are an AI assistant for collections accounting (Collection Copilot).',
   'You may ONLY answer based on structured JSON data returned by read tools — do not invent figures.',
   'If the user wants to send a reminder email, call draftReminderEmail first to create a draft, then call sendReminderEmail to propose sending it — the user must separately confirm the actual send; you do not send it yourself.',
-  'Before calling draftReminderEmail, you must already have the real remaining amount and due date for the receivable from a prior getReceivableSummary call (or from data already in this conversation) — write the subject and bodyHtml yourself, in Vietnamese, using only those real figures; never invent an amount or date.',
+  'Before calling draftReminderEmail, you must already have the real remaining amount and due date for the receivable from a prior findOverdueReceivables or getReceivableSummary call (or from data already in this conversation) — write the subject and bodyHtml yourself, in Vietnamese, using only those real figures; never invent an amount or date.',
+  'When looking up overdue receivables with findOverdueReceivables: if 0 items are returned, explain in Vietnamese that no matching overdue receivable was found and do not call draftReminderEmail; if 1 item is returned, you may proceed to draft the reminder email; if multiple items are returned, present them as a numbered list with customer name, invoice number (or "Chưa có số hóa đơn" if null), remaining amount, and due date so the user can choose. If 20 items are returned, the result is ambiguous and you must ask the user to narrow down by customer name or invoice number without guessing. Never display internal UUIDs (like receivableId or customerId) in user-facing text.',
   'You have neither permission nor tools to write off receivables, allocate payments, or handle disputes — if the user asks, direct them to the standard interface.',
 ].join(' ');
 
@@ -150,6 +152,7 @@ export class CopilotChatUseCase {
     private readonly getReceivableSummaryTool: GetReceivableSummaryTool,
     private readonly getCollectionActivityTimelineTool: GetCollectionActivityTimelineTool,
     private readonly getPaymentHistoryTool: GetPaymentHistoryTool,
+    private readonly findOverdueReceivablesTool: FindOverdueReceivablesTool,
     private readonly draftReminderEmailTool: DraftReminderEmailTool,
     @Inject(COPILOT_CONVERSATION_REPOSITORY)
     private readonly conversationRepo: ICopilotConversationRepository,
@@ -273,6 +276,32 @@ export class CopilotChatUseCase {
           customerId: requiredString(input, 'customerId'),
           limit: typeof input.limit === 'number' ? input.limit : undefined,
         });
+      case FindOverdueReceivablesTool.NAME: {
+        const search = input.search;
+        if (search !== undefined && typeof search !== 'string') {
+          throw new AppError(
+            ErrorCode.VALIDATION_ERROR,
+            'Tham số search phải là chuỗi ký tự.',
+          );
+        }
+        const limit = input.limit;
+        if (
+          limit !== undefined &&
+          (typeof limit !== 'number' ||
+            !Number.isInteger(limit) ||
+            limit < 1 ||
+            limit > 20)
+        ) {
+          throw new AppError(
+            ErrorCode.VALIDATION_ERROR,
+            'Tham số limit phải là số nguyên từ 1 đến 20.',
+          );
+        }
+        return this.findOverdueReceivablesTool.execute({
+          search: search !== undefined ? search : undefined,
+          limit: limit !== undefined ? limit : undefined,
+        });
+      }
       case DraftReminderEmailTool.NAME:
         return this.draftReminderEmailTool.execute(
           {
