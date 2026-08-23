@@ -73,4 +73,20 @@ describe('AdminLoginPage', () => {
       /kiểm tra thông tin và thử lại/i,
     );
   });
+
+  it('explains why a real (non-operator) account was bounced back here', () => {
+    render(
+      <MemoryRouter
+        initialEntries={[
+          { pathname: '/admin/login', state: { reason: 'not-operator' } },
+        ]}
+      >
+        <AdminLoginPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      /tài khoản này không có quyền truy cập casso admin/i,
+    );
+  });
 });

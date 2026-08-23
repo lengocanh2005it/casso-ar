@@ -1,9 +1,15 @@
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { useAuth } from '@/contexts/auth-context';
 import { authTokenManager } from '@/lib/api-client';
 import { AdminRoute } from './admin-route';
+
+function LocationStateProbe() {
+  const location = useLocation();
+  const reason = (location.state as { reason?: string } | null)?.reason;
+  return <div>login reason:{reason ?? 'none'}</div>;
+}
 
 vi.mock('@/contexts/auth-context', async () => {
   const actual = await vi.importActual<
@@ -60,5 +66,45 @@ describe('AdminRoute', () => {
 
     expect(screen.queryByText('login')).not.toBeInTheDocument();
     expect(screen.queryByText('ok')).not.toBeInTheDocument();
+  });
+
+  it('flags the redirect reason when a real (non-operator) token is rejected', () => {
+    useAuthMock.mockReturnValue({ isLoading: false } as never);
+    authTokenManager.setAccessToken(
+      buildToken({ isOperator: false, exp: Date.now() / 1000 + 3600 }),
+    );
+
+    render(
+      <MemoryRouter initialEntries={['/admin/dashboard']}>
+        <Routes>
+          <Route
+            path="/admin/dashboard"
+            element={<AdminRoute>ok</AdminRoute>}
+          />
+          <Route path="/admin/login" element={<LocationStateProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('login reason:not-operator')).toBeInTheDocument();
+  });
+
+  it('does not flag a reason when there is simply no session yet', () => {
+    useAuthMock.mockReturnValue({ isLoading: false } as never);
+    authTokenManager.setAccessToken(null);
+
+    render(
+      <MemoryRouter initialEntries={['/admin/dashboard']}>
+        <Routes>
+          <Route
+            path="/admin/dashboard"
+            element={<AdminRoute>ok</AdminRoute>}
+          />
+          <Route path="/admin/login" element={<LocationStateProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('login reason:none')).toBeInTheDocument();
   });
 });

@@ -1,6 +1,6 @@
 import { ShieldCheck } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Input } from '@/components/ui/input';
@@ -9,11 +9,21 @@ import { Spinner } from '@/components/ui/spinner';
 import { AuthLogoLink } from '@/features/auth/components/auth-logo-link';
 import { adminLogin } from '../api/admin-api';
 
+function initialErrorFromRedirect(state: unknown): string | null {
+  const reason = (state as { reason?: string } | null)?.reason;
+  return reason === 'not-operator'
+    ? 'Tài khoản này không có quyền truy cập Casso Admin.'
+    : null;
+}
+
 export function AdminLoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    initialErrorFromRedirect(location.state),
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
