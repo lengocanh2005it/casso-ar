@@ -9,8 +9,13 @@ export function AdminRoute({ children }: { children: ReactNode }) {
   if (isLoading) return <AuthLoading />;
 
   const token = authTokenManager.getAccessToken();
-  if (!token || !isOperatorToken(token)) {
+  if (!token) {
     return <Navigate to="/admin/login" replace />;
+  }
+  if (!isOperatorToken(token)) {
+    return (
+      <Navigate to="/admin/login" replace state={{ reason: 'not-operator' }} />
+    );
   }
   return children;
 }
