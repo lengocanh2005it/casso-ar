@@ -154,11 +154,12 @@ describe('AdminOrganizationMembersPage', () => {
         await screen.findByRole('heading', { name: 'Acme' }),
       ).toBeInTheDocument();
       expect(screen.getByTestId('header-icon')).toBeInTheDocument();
-      expect(
-        screen.getByRole('link', { name: /organizations/i }),
-      ).toHaveAttribute('href', '/admin/organizations');
-      expect(screen.getByText('org-1')).toBeInTheDocument();
-      expect(screen.getByText('ACTIVE')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /tổ chức/i })).toHaveAttribute(
+        'href',
+        '/admin/organizations',
+      );
+      expect(screen.getByText('org-1…')).toBeInTheDocument();
+      expect(screen.getByText('Đang hoạt động')).toBeInTheDocument();
     });
   });
 

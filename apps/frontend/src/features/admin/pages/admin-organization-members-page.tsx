@@ -2,7 +2,8 @@ import type { Role } from '@casso-ledger/shared-types';
 import { Users } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { HeaderIcon } from '@/components/layout/header-icon';
+import { PageHeading } from '@/components/layout/page-heading';
+import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +48,7 @@ import {
   useRevokeOrganizationInvite,
 } from '../api/use-admin';
 import { BreakerSwitch } from '../components/breaker-switch';
+import { ORGANIZATION_STATUS_LABELS } from '../lib/organization-status-labels';
 
 const MEMBER_PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 300;
@@ -201,23 +203,20 @@ export function AdminOrganizationMembersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start gap-3">
-        <HeaderIcon icon={Users} tone="info" />
-        <header>
-          <Link
-            to="/admin/organizations"
-            className="rounded-md text-sm text-muted-foreground transition-colors duration-150 ease-out motion-reduce:transition-none pointer-hover:hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            ← Organizations
-          </Link>
-          <p className="mt-2 text-sm font-medium text-primary">ADMIN CONSOLE</p>
-          <h1 className="mt-1 text-balance text-2xl font-semibold tracking-tight">
-            {organization.name}
-          </h1>
-          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span className="font-mono text-xs" translate="no">
-              {organization.id}
-            </span>
+      <PageHeading
+        eyebrow="QUẢN LÝ TỔ CHỨC"
+        title={organization.name}
+        icon={Users}
+        tone="info"
+        description={
+          <span className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/admin/organizations"
+              className="rounded-md text-muted-foreground transition-colors duration-150 ease-out motion-reduce:transition-none pointer-hover:hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              ← Tổ chức
+            </Link>
+            <TruncatedCopyId id={organization.id} />
             <span>
               · Tạo ngày{' '}
               {dateFormatter.format(new Date(organization.createdAt))}
@@ -227,11 +226,11 @@ export function AdminOrganizationMembersPage() {
                 organization.status === 'LOCKED' ? 'destructive' : 'default'
               }
             >
-              {organization.status}
+              {ORGANIZATION_STATUS_LABELS[organization.status]}
             </Badge>
-          </p>
-        </header>
-      </div>
+          </span>
+        }
+      />
 
       <div className="flex flex-wrap items-end gap-2 rounded-xl border bg-card p-4">
         <div>

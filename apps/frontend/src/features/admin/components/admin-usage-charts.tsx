@@ -48,7 +48,7 @@ export function AdminUsageCharts({
       <Card>
         <CardHeader>
           <h2 className="text-balance leading-none font-semibold">
-            Top organizations theo usage (7 ngày)
+            Tổ chức dùng AI nhiều nhất (7 ngày)
           </h2>
           <CardDescription>
             Các tổ chức gọi AI nhiều nhất trong 7 ngày qua
@@ -80,7 +80,7 @@ export function AdminUsageCharts({
       <Card>
         <CardHeader>
           <h2 className="text-balance leading-none font-semibold">
-            Xu hướng usage theo ngày (7 ngày)
+            Xu hướng dùng AI theo ngày (7 ngày)
           </h2>
           <CardDescription>
             Số lượt gọi AI theo từng ngày trong 7 ngày qua

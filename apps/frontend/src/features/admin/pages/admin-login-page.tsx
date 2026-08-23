@@ -1,9 +1,12 @@
+import { ShieldCheck } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { AuthLogoLink } from '@/features/auth/components/auth-logo-link';
 import { adminLogin } from '../api/admin-api';
 
 export function AdminLoginPage() {
@@ -37,56 +40,54 @@ export function AdminLoginPage() {
       </a>
       <main
         id="admin-login-content"
-        className="flex min-h-svh items-center justify-center bg-background p-6"
+        className="flex min-h-svh items-center justify-center bg-gradient-to-br from-emerald-50 via-background to-teal-50 p-4 dark:from-emerald-950/20 dark:via-background dark:to-teal-950/20 sm:p-6"
       >
-        <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
-          <h1 className="font-mono text-xl font-semibold" translate="no">
-            Casso Admin
-          </h1>
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              autoComplete="email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Mật khẩu</Label>
-            <Input
-              id="password"
-              name="password"
-              autoComplete="current-password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-            />
-          </div>
-          {error && (
-            <p
-              role="alert"
-              aria-live="polite"
-              className="text-sm text-destructive"
-            >
-              {error}
-            </p>
-          )}
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Spinner className="size-4" />
-                Đang đăng nhập…
-              </>
-            ) : (
-              'Đăng nhập'
-            )}
-          </Button>
-        </form>
+        <div className="w-full max-w-sm space-y-5 rounded-xl border-primary/10 bg-card/95 p-6 text-center shadow-lg shadow-primary/5 backdrop-blur sm:p-7">
+          <AuthLogoLink />
+          <form onSubmit={handleSubmit} className="space-y-4 text-left">
+            <div className="flex items-center gap-2">
+              <ShieldCheck aria-hidden="true" className="size-5 text-primary" />
+              <h1 className="text-lg font-semibold" translate="no">
+                Casso Admin
+              </h1>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                name="email"
+                autoComplete="email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Mật khẩu</Label>
+              <Input
+                id="password"
+                name="password"
+                autoComplete="current-password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+              />
+            </div>
+            <InlineFormError message={error} />
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Spinner className="size-4" />
+                  Đang đăng nhập…
+                </>
+              ) : (
+                'Đăng nhập'
+              )}
+            </Button>
+          </form>
+        </div>
       </main>
     </>
   );

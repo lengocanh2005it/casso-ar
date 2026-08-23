@@ -2,23 +2,23 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as adminApi from '../api/admin-api';
-import { AdminStatusRail } from './admin-status-rail';
+import { AdminOrganizationSummaryCards } from './admin-organization-summary-cards';
 
 vi.mock('../api/admin-api');
 
-function renderRail() {
+function renderCards() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <AdminStatusRail />
+      <AdminOrganizationSummaryCards />
     </QueryClientProvider>,
   );
 }
 
-describe('AdminStatusRail', () => {
+describe('AdminOrganizationSummaryCards', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -44,10 +44,12 @@ describe('AdminStatusRail', () => {
       limit: 100,
     });
 
-    renderRail();
+    renderCards();
 
     expect(await screen.findByText('2')).toBeInTheDocument();
     expect(await screen.findByText('1')).toBeInTheDocument();
+    expect(screen.getByText('Tổng số tổ chức')).toBeInTheDocument();
+    expect(screen.getByText('Tổ chức đang bị khóa')).toBeInTheDocument();
   });
 
   it('announces a loading failure with a next step', async () => {
@@ -55,7 +57,7 @@ describe('AdminStatusRail', () => {
       new Error('network'),
     );
 
-    renderRail();
+    renderCards();
 
     expect(await screen.findByRole('status')).toHaveAttribute(
       'aria-live',

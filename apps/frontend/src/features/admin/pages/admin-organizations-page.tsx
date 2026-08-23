@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/layout/empty-state';
 import { PageHeading } from '@/components/layout/page-heading';
+import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -190,8 +191,8 @@ export function AdminOrganizationsPage() {
   return (
     <div className="space-y-6">
       <PageHeading
-        eyebrow="ADMIN CONSOLE"
-        title="Organizations"
+        eyebrow="QUẢN LÝ TỔ CHỨC"
+        title="Tổ chức"
         description="Quản lý danh sách tổ chức và trạng thái tài khoản."
         icon={Building2}
         tone="info"
@@ -252,14 +253,8 @@ export function AdminOrganizationsPage() {
                         Thành viên
                       </Link>
                     </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      <span
-                        className="block max-w-[14rem] truncate"
-                        title={org.id}
-                        translate="no"
-                      >
-                        {org.id}
-                      </span>
+                    <TableCell className="text-muted-foreground">
+                      <TruncatedCopyId id={org.id} />
                     </TableCell>
                     <TableCell className="text-sm">
                       <span>{org.taxCode || '—'}</span>
@@ -293,8 +288,8 @@ export function AdminOrganizationsPage() {
                               onCheckedChange={() => undefined}
                               label={
                                 isLocking
-                                  ? `Lock ${displayName}`
-                                  : `Unlock ${displayName}`
+                                  ? `Khóa ${displayName}`
+                                  : `Mở khóa ${displayName}`
                               }
                             />
                           </AlertDialogTrigger>
