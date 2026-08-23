@@ -296,4 +296,22 @@ describe('UsersTab', () => {
       expect(screen.getByText('Chưa có thành viên nào.')).toBeTruthy(),
     );
   });
+
+  it('renders the transfer ownership button only for OWNER', async () => {
+    useAuth.mockReturnValue({
+      user: { id: 'fm-1', role: 'FINANCE_MANAGER', organizationId: 'org-1' },
+    });
+    mockApi();
+    const { unmount } = renderTab();
+    await waitFor(() => expect(screen.getByText('Kế toán')).toBeTruthy());
+    expect(screen.queryByRole('button', { name: 'Chuyển quyền sở hữu' })).toBeNull();
+    unmount();
+
+    useAuth.mockReturnValue({
+      user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
+    });
+    renderTab();
+    await waitFor(() => expect(screen.getByText('Kế toán')).toBeTruthy());
+    expect(screen.getByRole('button', { name: 'Chuyển quyền sở hữu' })).toBeTruthy();
+  });
 });

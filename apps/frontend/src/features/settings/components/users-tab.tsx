@@ -45,6 +45,7 @@ import {
   useUnblockMember,
 } from '../api/use-settings';
 import type { MembershipStatus, OrganizationMember } from '../types';
+import { OwnershipTransferDialog } from './ownership-transfer-dialog';
 import { PendingInvitesTable } from './pending-invites-table';
 
 const roles = Object.values(Role);
@@ -264,6 +265,9 @@ export function UsersTab() {
   const blockMember = useBlockMember(user?.organizationId);
   const unblockMember = useUnblockMember(user?.organizationId);
 
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const isOwner = user?.role === Role.OWNER;
+
   const handleRoleChange = useCallback(
     (userId: string, nextRole: Role) => {
       changeRole.mutate({ userId, role: nextRole });
@@ -303,6 +307,19 @@ export function UsersTab() {
   }
 
   const members = membersQuery.data?.items ?? [];
+  const transferCandidates = members
+    .filter(
+      (member) =>
+        member.role !== Role.OWNER &&
+        member.status === 'ACTIVE' &&
+        member.joinedAt !== null,
+    )
+    .map((member) => ({
+      userId: member.userId,
+      name: member.name,
+      email: member.email,
+    }));
+
   const filteredMembers =
     statusFilter === 'ALL'
       ? members
@@ -348,6 +365,19 @@ export function UsersTab() {
             {invite.isPending && <Spinner className="size-4" />}
             {invite.isPending ? 'Đang mời…' : 'Mời thành viên'}
           </Button>
+        </div>
+      )}
+      {isOwner && (
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={() => setTransferDialogOpen(true)}>
+            Chuyển quyền sở hữu
+          </Button>
+          <OwnershipTransferDialog
+            open={transferDialogOpen}
+            onOpenChange={setTransferDialogOpen}
+            organizationId={user.organizationId}
+            candidates={transferCandidates}
+          />
         </div>
       )}
       <SectionCard
