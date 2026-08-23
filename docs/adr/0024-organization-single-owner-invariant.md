@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Organization has exactly one OWNER (single-owner strict)
@@ -38,3 +38,7 @@ excluding `OWNER` from their accepted role type turns a bad request into an
 ordinary 400 `VALIDATION_ERROR`. Any future "ultimate authority" check (billing,
 org deletion) can just mean "the org's `OWNER`" — no separate primary-owner
 concept required.
+
+Shipped as PR #323 (also added a DB-level partial unique index as a backstop
+behind the DTO-level exclusion). The `OwnershipTransferRequest` flow itself is
+tracked separately as issue #322 — see ADR-0025 for its acceptance mechanism.
