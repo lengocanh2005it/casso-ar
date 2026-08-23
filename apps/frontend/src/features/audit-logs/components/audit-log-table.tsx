@@ -1,6 +1,7 @@
 import { ScrollText } from 'lucide-react';
 import { Fragment } from 'react';
 import { EmptyState } from '@/components/layout/empty-state';
+import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -34,19 +35,6 @@ export function actorLabel(
   return (
     members.find((member) => member.userId === userId)?.name ??
     'Người dùng đã rời tổ chức'
-  );
-}
-
-function TruncatedId({ id }: { id: string }) {
-  return (
-    <button
-      type="button"
-      className="font-mono text-xs underline decoration-dotted underline-offset-2"
-      title={id}
-      onClick={() => navigator.clipboard.writeText(id)}
-    >
-      {id.slice(0, 8)}…
-    </button>
   );
 }
 
@@ -127,7 +115,7 @@ export function AuditLogTable({ items, members }: AuditLogTableProps) {
                       {ENTITY_TYPE_LABELS[item.entityType] ?? item.entityType}
                     </span>
                     {item.entityId ? (
-                      <TruncatedId id={item.entityId} />
+                      <TruncatedCopyId id={item.entityId} />
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}

@@ -39,8 +39,8 @@ export function AdminAiUsagePage() {
   return (
     <div className="space-y-6">
       <PageHeading
-        eyebrow="ADMIN CONSOLE"
-        title="AI usage"
+        eyebrow="PHÂN TÍCH"
+        title="Sử dụng AI"
         description="Theo dõi mức sử dụng AI theo tổ chức và khoảng thời gian."
         icon={BarChart3}
         tone="info"
@@ -95,9 +95,9 @@ export function AdminAiUsagePage() {
           <TableHeader>
             <TableRow>
               <TableHead>Tổ chức</TableHead>
-              <TableHead>Model</TableHead>
-              <TableHead className="font-mono">Requests</TableHead>
-              <TableHead className="font-mono">Tokens</TableHead>
+              <TableHead>Mô hình</TableHead>
+              <TableHead className="font-mono">Lượt gọi</TableHead>
+              <TableHead className="font-mono">Token</TableHead>
               <TableHead className="font-mono">Lỗi</TableHead>
             </TableRow>
           </TableHeader>

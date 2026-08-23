@@ -1,11 +1,12 @@
-import { NavLink, Outlet } from 'react-router-dom';
-import { AdminStatusRail } from '@/features/admin/components/admin-status-rail';
-
-function navLinkClassName({ isActive }: { isActive: boolean }): string {
-  return `touch-manipulation rounded-md px-2.5 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-hover:hover:bg-accent pointer-hover:hover:text-accent-foreground ${isActive ? 'bg-white/10 font-medium text-white' : 'text-slate-300'}`;
-}
+import { useState } from 'react';
+import { Outlet } from 'react-router-dom';
+import { AdminSidebar } from '@/features/admin/components/admin-sidebar';
+import { MobileSidebarWrapper } from './mobile-sidebar';
+import { ThemeToggle } from './theme-toggle';
 
 export function AdminLayout() {
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
     <>
       <a
@@ -14,30 +15,39 @@ export function AdminLayout() {
       >
         Đi tới nội dung
       </a>
-      <div className="flex h-dvh w-full flex-col overflow-hidden bg-background">
-        <AdminStatusRail />
-        <nav
-          aria-label="Admin navigation"
-          className="flex flex-wrap gap-2 border-b border-slate-800 bg-slate-950 px-4 py-2 text-sm shadow-sm"
-        >
-          <NavLink to="/admin/dashboard" className={navLinkClassName}>
-            Dashboard
-          </NavLink>
-          <NavLink to="/admin/organizations" className={navLinkClassName}>
-            Organizations
-          </NavLink>
-          <NavLink to="/admin/ai-usage" className={navLinkClassName}>
-            AI Usage
-          </NavLink>
-        </nav>
-        <main
-          id="admin-main-content"
-          className="flex-1 overflow-auto p-4 md:p-6"
-        >
-          <div className="mx-auto w-full max-w-7xl">
-            <Outlet />
-          </div>
-        </main>
+      <div className="flex h-dvh w-full overflow-hidden bg-app-canvas">
+        <div className="hidden h-full md:block">
+          <AdminSidebar
+            collapsed={collapsed}
+            onToggleCollapsed={() => setCollapsed((v) => !v)}
+          />
+        </div>
+
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <header className="flex items-center gap-3 border-b border-border px-4 py-3 md:hidden">
+            <MobileSidebarWrapper>
+              <AdminSidebar />
+            </MobileSidebarWrapper>
+            <span
+              className="text-base font-semibold text-primary"
+              translate="no"
+            >
+              Casso Admin
+            </span>
+            <div className="ml-auto flex items-center gap-1">
+              <ThemeToggle className="pointer-hover:hover:bg-accent" />
+            </div>
+          </header>
+
+          <main
+            id="admin-main-content"
+            className="min-h-0 flex-1 overflow-auto bg-app-canvas p-4 md:p-6 xl:p-8"
+          >
+            <div className="mx-auto w-full min-h-full max-w-[1600px]">
+              <Outlet />
+            </div>
+          </main>
+        </div>
       </div>
     </>
   );

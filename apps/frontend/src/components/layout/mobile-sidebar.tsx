@@ -1,9 +1,14 @@
 import { Menu } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Sidebar } from './sidebar';
 
-export function MobileSidebarWrapper() {
+export function MobileSidebarWrapper({
+  children = <Sidebar />,
+}: {
+  children?: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -18,7 +23,7 @@ export function MobileSidebarWrapper() {
         </button>
       </SheetTrigger>
       <SheetContent side="left" className="p-0">
-        <Sidebar />
+        {children}
       </SheetContent>
     </Sheet>
   );

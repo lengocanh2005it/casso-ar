@@ -1,4 +1,4 @@
-import { BarChart3 } from 'lucide-react';
+import { LayoutDashboard } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
 import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { useAdminAiUsage, useAdminAiUsageTrend } from '../api/use-admin';
+import { AdminOrganizationSummaryCards } from '../components/admin-organization-summary-cards';
 
 const adminUsageChartsImport = import('../components/admin-usage-charts');
 const AdminUsageCharts = lazy(() =>
@@ -39,7 +40,7 @@ function ChartLoadingFallback({
       <Card>
         <CardHeader>
           <h2 className="text-balance leading-none font-semibold">
-            Top organizations theo usage (7 ngày)
+            Tổ chức dùng AI nhiều nhất (7 ngày)
           </h2>
           <CardDescription>
             Các tổ chức gọi AI nhiều nhất trong 7 ngày qua
@@ -56,7 +57,7 @@ function ChartLoadingFallback({
       <Card>
         <CardHeader>
           <h2 className="text-balance leading-none font-semibold">
-            Xu hướng usage theo ngày (7 ngày)
+            Xu hướng dùng AI theo ngày (7 ngày)
           </h2>
           <CardDescription>
             Số lượt gọi AI theo từng ngày trong 7 ngày qua
@@ -85,51 +86,50 @@ export function AdminDashboardPage() {
     void Promise.all([usageQuery.refetch(), trendQuery.refetch()]);
   }
 
-  if (isLoading) {
-    return (
-      <div
-        role="status"
-        aria-live="polite"
-        aria-label="Đang tải dữ liệu…"
-        className="flex min-h-48 items-center justify-center rounded-xl border bg-card"
-      >
-        <Spinner className="size-6" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
-        <p role="alert" aria-live="polite" className="text-sm text-destructive">
-          Không thể tải dữ liệu usage. Vui lòng thử lại.
-        </p>
-        <Button variant="outline" size="sm" onClick={handleRetry}>
-          Thử lại
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <PageHeading
-        eyebrow="ADMIN CONSOLE"
-        title="Admin overview"
-        description="Theo dõi usage AI trên toàn bộ tổ chức."
-        icon={BarChart3}
+        eyebrow="TỔNG QUAN"
+        title="Tổng quan"
+        description="Theo dõi tổ chức và mức sử dụng AI trên toàn hệ thống."
+        icon={LayoutDashboard}
         tone="info"
       />
-      <Suspense
-        fallback={
-          <ChartLoadingFallback
-            hasTopOrganizations={topOrgs.length > 0}
-            hasTrend={trend.length > 0}
-          />
-        }
-      >
-        <AdminUsageCharts topOrganizations={topOrgs} trend={trend} />
-      </Suspense>
+      <AdminOrganizationSummaryCards />
+      {isLoading ? (
+        <div
+          role="status"
+          aria-live="polite"
+          aria-label="Đang tải dữ liệu…"
+          className="flex min-h-48 items-center justify-center rounded-xl border bg-card"
+        >
+          <Spinner className="size-6" />
+        </div>
+      ) : error ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+          <p
+            role="alert"
+            aria-live="polite"
+            className="text-sm text-destructive"
+          >
+            Không thể tải dữ liệu usage. Vui lòng thử lại.
+          </p>
+          <Button variant="outline" size="sm" onClick={handleRetry}>
+            Thử lại
+          </Button>
+        </div>
+      ) : (
+        <Suspense
+          fallback={
+            <ChartLoadingFallback
+              hasTopOrganizations={topOrgs.length > 0}
+              hasTrend={trend.length > 0}
+            />
+          }
+        >
+          <AdminUsageCharts topOrganizations={topOrgs} trend={trend} />
+        </Suspense>
+      )}
     </div>
   );
 }
