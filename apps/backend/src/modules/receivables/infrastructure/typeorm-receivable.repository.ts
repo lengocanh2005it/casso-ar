@@ -15,6 +15,7 @@ import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type {
   IReceivableRepository,
+  OverdueReceivableFilters,
   ReceivableListFilters,
 } from '../application/receivable-repository.port';
 import { Receivable } from '../domain/receivable';
@@ -140,6 +141,83 @@ export class TypeOrmReceivableRepository
         version: true,
       },
     });
+    return rows.map(toDomain);
+  }
+
+  async findOverdueCandidates(
+    filters: OverdueReceivableFilters,
+  ): Promise<Receivable[]> {
+    const currentOrganizationId = this.tenantContext.getOrganizationId();
+    if (currentOrganizationId !== filters.organizationId) {
+      throw new Error('TENANT_MISMATCH');
+    }
+
+    const qb = this.ormRepo
+      .createQueryBuilder('r')
+      .select([
+        'r.id',
+        'r.organizationId',
+        'r.customerId',
+        'r.invoiceId',
+        'r.originalAmount',
+        'r.paidAmount',
+        'r.dueDate',
+        'r.status',
+        'r.salesRepresentativeId',
+        'r.createdAt',
+        'r.closedAt',
+        'r.version',
+      ])
+      .where('r.organizationId = :organizationId', {
+        organizationId: filters.organizationId,
+      })
+      .andWhere('r.status IN (:...statuses)', {
+        statuses: [ReceivableStatus.OPEN, ReceivableStatus.PARTIALLY_PAID],
+      })
+      .andWhere('r.dueDate < :referenceDate', {
+        referenceDate: filters.referenceDate,
+      })
+      .andWhere('r.originalAmount > r.paidAmount');
+
+    if (filters.salesRepresentativeId) {
+      qb.andWhere('r.salesRepresentativeId = :salesRepresentativeId', {
+        salesRepresentativeId: filters.salesRepresentativeId,
+      });
+    }
+
+    if (
+      filters.customerIdIn !== undefined ||
+      filters.invoiceIdIn !== undefined
+    ) {
+      const hasCustomerIds = (filters.customerIdIn?.length ?? 0) > 0;
+      const hasInvoiceIds = (filters.invoiceIdIn?.length ?? 0) > 0;
+
+      if (hasCustomerIds && hasInvoiceIds) {
+        qb.andWhere(
+          '(r.customerId IN (:...customerIds) OR r.invoiceId IN (:...invoiceIds))',
+          {
+            customerIds: filters.customerIdIn,
+            invoiceIds: filters.invoiceIdIn,
+          },
+        );
+      } else if (hasCustomerIds) {
+        qb.andWhere('r.customerId IN (:...customerIds)', {
+          customerIds: filters.customerIdIn,
+        });
+      } else if (hasInvoiceIds) {
+        qb.andWhere('r.invoiceId IN (:...invoiceIds)', {
+          invoiceIds: filters.invoiceIdIn,
+        });
+      } else {
+        qb.andWhere('1 = 0');
+      }
+    }
+
+    qb.orderBy('r.dueDate', 'ASC')
+      .addOrderBy('r.id', 'ASC')
+      .take(filters.limit);
+
+    const rows = await qb.getMany();
     return rows.map(toDomain);
   }
 
