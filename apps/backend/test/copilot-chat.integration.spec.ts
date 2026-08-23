@@ -542,4 +542,216 @@ describe('Copilot chat (integration)', () => {
     );
     expect(mockCreateChatCompletion).toHaveBeenCalledTimes(3);
   });
+
+  it('presents human-readable choices on multiple overdue candidates and drafts only the selected receivable on follow-up', async () => {
+    const fixture = await setUpOrg();
+    const customerId2 = randomUUID();
+    const receivableId2 = randomUUID();
+    const now = new Date();
+
+    await dataSource.getRepository(CustomerOrmEntity).save({
+      id: customerId2,
+      organizationId: fixture.organizationId,
+      name: 'Công ty Hoa Sen',
+      taxCode: `${Date.now()}${Math.floor(Math.random() * 1000)}`,
+      email: `customer-${customerId2}@example.com`,
+      phone: '0911111111',
+      defaultPaymentTermDays: 30,
+      creditLimit: 50_000_000,
+      priority: 1,
+      createdAt: now,
+    });
+    await dataSource.getRepository(ReceivableOrmEntity).save({
+      id: receivableId2,
+      organizationId: fixture.organizationId,
+      customerId: customerId2,
+      invoiceId: null,
+      originalAmount: 25_000_000,
+      paidAmount: 0,
+      dueDate: new Date('2026-07-15T00:00:00.000Z'),
+      status: ReceivableStatus.OPEN,
+      salesRepresentativeId: fixture.userId,
+      createdAt: now,
+      closedAt: null,
+    });
+
+    // Turn 1: Generic lookup returns 2 candidates, assistant presents numbered choices without drafting
+    mockCreateChatCompletion
+      .mockResolvedValueOnce(
+        completion(null, [
+          {
+            id: 'lookup-call-all',
+            name: 'findOverdueReceivables',
+            arguments: {},
+          },
+        ]),
+      )
+      .mockImplementationOnce(async (messages: AIChatMessage[]) => {
+        const toolMessage = messages
+          .filter((message) => message.role === 'tool')
+          .at(-1);
+        const result = JSON.parse(toolMessage?.content ?? '{}') as {
+          items: Array<{
+            receivableId: string;
+            customerName: string;
+            remainingAmount: number;
+            dueDate: string;
+          }>;
+        };
+        expect(result.items).toHaveLength(2);
+        return completion(
+          'Tìm thấy 2 khoản công nợ quá hạn:\n1. Công ty Hoa Sen - 25.000.000 VND (Hạn: 15/07/2026)\n2. Công ty Copilot - 10.000.000 VND (Hạn: 01/08/2026)\nBạn muốn tạo bản nháp nhắc nợ cho khách hàng nào?',
+        );
+      });
+
+    const responseTurn1 = await postChat(
+      fixture.token,
+      fixture.conversationId,
+      'Có những khoản nợ nào quá hạn?',
+      `overdue-multi-${randomUUID()}`,
+    );
+
+    expect(responseTurn1.status).toBe(201);
+    expect(responseTurn1.body.message.content).toContain('Công ty Hoa Sen');
+    expect(responseTurn1.body.message.content).toContain('Công ty Copilot');
+    expect(responseTurn1.body.message.content).toContain('25.000.000 VND');
+    expect(responseTurn1.body.message.content).toContain('10.000.000 VND');
+    expect(responseTurn1.body.pendingAction).toBeNull();
+    expect(responseTurn1.body.message.toolCalls).toEqual([
+      expect.objectContaining({ name: 'findOverdueReceivables' }),
+    ]);
+
+    // Turn 2: User selects Công ty Hoa Sen -> Fresh narrowed lookup -> Drafts only Công ty Hoa Sen
+    mockCreateChatCompletion
+      .mockResolvedValueOnce(
+        completion(null, [
+          {
+            id: 'narrowed-lookup-call',
+            name: 'findOverdueReceivables',
+            arguments: { search: 'Công ty Hoa Sen' },
+          },
+        ]),
+      )
+      .mockImplementationOnce(async (messages: AIChatMessage[]) => {
+        const toolMessage = messages
+          .filter((message) => message.role === 'tool')
+          .at(-1);
+        const result = JSON.parse(toolMessage?.content ?? '{}') as {
+          items: Array<{
+            receivableId: string;
+            customerName: string;
+            remainingAmount: number;
+            dueDate: string;
+          }>;
+        };
+        expect(result.items).toHaveLength(1);
+        const candidate = result.items[0];
+        expect(candidate.receivableId).toBe(receivableId2);
+        return completion(null, [
+          {
+            id: 'draft-call-selected',
+            name: 'draftReminderEmail',
+            arguments: {
+              receivableId: candidate.receivableId,
+              subject: `[Casso Ledger] Nhắc nợ quá hạn - ${candidate.customerName}`,
+              bodyHtml: `<p>Kính gửi ${candidate.customerName}, quý công ty còn nợ ${candidate.remainingAmount} VND.</p>`,
+            },
+          },
+        ]);
+      })
+      .mockResolvedValueOnce(
+        completion('Tôi đã tạo bản nháp nhắc nợ cho Công ty Hoa Sen.'),
+      );
+
+    const responseTurn2 = await postChat(
+      fixture.token,
+      fixture.conversationId,
+      'Soạn nhắc nợ cho Công ty Hoa Sen',
+      `overdue-select-${randomUUID()}`,
+    );
+
+    expect(responseTurn2.status).toBe(201);
+    expect(responseTurn2.body.message.content).toContain(
+      'Tôi đã tạo bản nháp nhắc nợ cho Công ty Hoa Sen',
+    );
+    expect(responseTurn2.body.message.toolCalls).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'draftReminderEmail',
+          output: expect.objectContaining({
+            receivableId: receivableId2,
+            subject: expect.stringContaining('Công ty Hoa Sen'),
+          }),
+        }),
+      ]),
+    );
+    // Ensure the other receivable (fixture.receivableId) was NOT drafted
+    expect(responseTurn2.body.message.toolCalls).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          output: expect.objectContaining({
+            receivableId: fixture.receivableId,
+          }),
+        }),
+      ]),
+    );
+  });
+
+  it('handles no matching overdue receivable with a clear Vietnamese response and no draft or pending action', async () => {
+    const fixture = await setUpOrg();
+    // Mark the only receivable as PAID so no overdue receivables exist
+    await dataSource.getRepository(ReceivableOrmEntity).update(
+      { id: fixture.receivableId },
+      {
+        status: ReceivableStatus.PAID,
+        paidAmount: 10_000_000,
+        closedAt: new Date(),
+      },
+    );
+
+    mockCreateChatCompletion
+      .mockResolvedValueOnce(
+        completion(null, [
+          {
+            id: 'lookup-none-call',
+            name: 'findOverdueReceivables',
+            arguments: {},
+          },
+        ]),
+      )
+      .mockImplementationOnce(async (messages: AIChatMessage[]) => {
+        const toolMessage = messages
+          .filter((message) => message.role === 'tool')
+          .at(-1);
+        const result = JSON.parse(toolMessage?.content ?? '{}') as {
+          items: unknown[];
+        };
+        expect(result.items).toHaveLength(0);
+        return completion(
+          'Hiện tại tổ chức của bạn không có khoản công nợ nào quá hạn.',
+        );
+      });
+
+    const response = await postChat(
+      fixture.token,
+      fixture.conversationId,
+      'Kiểm tra danh sách nợ quá hạn để nhắc nợ',
+      `overdue-none-${randomUUID()}`,
+    );
+
+    expect(response.status).toBe(201);
+    expect(response.body.message.content).toContain(
+      'không có khoản công nợ nào quá hạn',
+    );
+    expect(response.body.pendingAction).toBeNull();
+    // Verify no reminder email draft was created or proposed
+    expect(response.body.message.toolCalls).toEqual([
+      expect.objectContaining({ name: 'findOverdueReceivables' }),
+    ]);
+    expect(
+      await dataSource.getRepository(ReminderExecutionOrmEntity).count({
+        where: { organizationId: fixture.organizationId },
+      }),
+    ).toBe(0);
+  });
 });
