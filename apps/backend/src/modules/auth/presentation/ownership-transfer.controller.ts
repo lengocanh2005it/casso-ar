@@ -17,7 +17,10 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Request } from 'express';
+import {
+  type AuthRequest,
+  assertOrgMatches,
+} from '../../../common/auth/assert-org-matches';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
@@ -38,26 +41,14 @@ import {
 } from './dto/ownership-transfer-response.dto';
 import { RequestOwnershipTransferDto } from './dto/request-ownership-transfer.dto';
 
-interface AuthRequest extends Request {
-  user?: { userId: string };
-  tenant?: { organizationId: string };
-}
-
-function assertOrgMatches(request: AuthRequest, id: string): void {
-  if (request.tenant?.organizationId !== id) {
-    throw new UnauthorizedException();
-  }
-}
-
 function requireUserId(request: AuthRequest): string {
-  if (!request.user?.userId) {
-    throw new UnauthorizedException();
-  }
-  return request.user.userId;
+  const userId = request.user?.userId;
+  if (!userId) throw new UnauthorizedException();
+  return userId;
 }
 
-@ApiTags('auth')
-@Controller('auth')
+@ApiTags('organizations')
+@Controller()
 export class OwnershipTransferController {
   constructor(
     private readonly requestUseCase: RequestOwnershipTransferUseCase,
@@ -244,7 +235,9 @@ export class OwnershipTransferController {
   }
 
   @Get('organizations/:id/ownership-transfers/current')
-  @ApiOperation({ summary: "Get the organization's own in-flight transfer request" })
+  @ApiOperation({
+    summary: "Get the organization's own in-flight transfer request",
+  })
   @ApiOkResponse({ type: OwnershipTransferResponseDto })
   @ApiErrorResponse(ErrorCode.FORBIDDEN)
   @UseGuards(JwtAuthGuard, PermissionGuard)
@@ -259,7 +252,9 @@ export class OwnershipTransferController {
   }
 
   @Get('organizations/:id/ownership-transfers/pending-for-me')
-  @ApiOperation({ summary: 'Get a pending ownership transfer targeted at the caller' })
+  @ApiOperation({
+    summary: 'Get a pending ownership transfer targeted at the caller',
+  })
   @ApiOkResponse({ type: OwnershipTransferResponseDto })
   @ApiErrorResponse(ErrorCode.FORBIDDEN)
   @UseGuards(JwtAuthGuard)

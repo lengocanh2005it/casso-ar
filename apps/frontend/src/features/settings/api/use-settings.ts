@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/auth-context';
 import { emailTemplatesKey } from '@/lib/use-email-templates';
 import type {
   EmailTemplateInput,
@@ -432,18 +433,22 @@ export function useCancelOwnershipTransfer(organizationId: string | undefined) {
 
 export function useAcceptOwnershipTransfer(organizationId: string | undefined) {
   const queryClient = useQueryClient();
+  const { refreshUser } = useAuth();
   return useMutation({
     mutationFn: (requestId: string) =>
       acceptOwnershipTransfer(organizationId ?? '', requestId),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success('Đã chấp nhận quyền sở hữu. Bạn hiện là OWNER mới!');
+      // The caller's own role just changed OWNER-side, so their cached
+      // AuthenticatedUser (role, permissions) must be refreshed too, not
+      // just the lists that display other members.
+      await refreshUser();
       void queryClient.invalidateQueries({
         queryKey: ['pending-ownership-transfer-for-me', organizationId],
       });
       void queryClient.invalidateQueries({
         queryKey: ['organization-members', organizationId],
       });
-      // We should probably also invalidate current-user profile or organization info
     },
     onError: (error) =>
       toast.error(

@@ -3,12 +3,19 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { PendingOwnershipTransferBanner } from './pending-ownership-transfer-banner';
 
-const { apiRequest } = vi.hoisted(() => ({ apiRequest: vi.fn() }));
+const { apiRequest, refreshUser } = vi.hoisted(() => ({
+  apiRequest: vi.fn(),
+  refreshUser: vi.fn(),
+}));
 
 vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
   postWithIdempotency: (url: string, data?: unknown) =>
     apiRequest({ url, method: 'POST', data }),
+}));
+
+vi.mock('@/contexts/auth-context', () => ({
+  useAuth: () => ({ refreshUser }),
 }));
 
 function renderBanner() {
@@ -55,10 +62,11 @@ describe('PendingOwnershipTransferBanner', () => {
     await waitFor(() =>
       expect(apiRequest).toHaveBeenCalledWith(
         expect.objectContaining({
-          url: '/api/v1/auth/organizations/org-1/ownership-transfers/req-1/accept',
+          url: '/api/v1/organizations/org-1/ownership-transfers/req-1/accept',
           method: 'POST',
         }),
       ),
     );
+    await waitFor(() => expect(refreshUser).toHaveBeenCalled());
   });
 });

@@ -58,7 +58,7 @@ describe('OwnershipTransferDialog', () => {
     await waitFor(() =>
       expect(apiRequest).toHaveBeenCalledWith(
         expect.objectContaining({
-          url: '/api/v1/auth/organizations/org-1/ownership-transfers',
+          url: '/api/v1/organizations/org-1/ownership-transfers',
           method: 'POST',
           data: { targetUserId: 'user-2', currentPassword: 'my-password' },
         }),
