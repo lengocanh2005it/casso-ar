@@ -4,6 +4,7 @@ import {
   Lock,
   Mail,
   Palette,
+  ScrollText,
   Server,
   Settings as SettingsIcon,
   Users,
@@ -27,6 +28,11 @@ const UsersTab = lazy(() =>
 const EmailTemplatesTab = lazy(() =>
   import('../components/email-templates-tab').then((m) => ({
     default: m.EmailTemplatesTab,
+  })),
+);
+const AuditLogTab = lazy(() =>
+  import('@/features/audit-logs/components/audit-log-tab').then((m) => ({
+    default: m.AuditLogTab,
   })),
 );
 
@@ -91,6 +97,17 @@ function useSettingsTabs(): SettingsTabConfig[] {
         icon: Server,
         locked: !hasPermission(role, Permission.ORGANIZATION_SMTP_MANAGE),
         render: () => <SmtpTab />,
+      },
+      {
+        value: 'audit-log',
+        label: 'Nhật ký',
+        icon: ScrollText,
+        locked: !hasPermission(role, Permission.AUDIT_LOG_READ),
+        render: () => (
+          <Suspense fallback={TAB_SKELETON}>
+            <AuditLogTab />
+          </Suspense>
+        ),
       },
     ],
     [role],
