@@ -202,4 +202,36 @@ describe('ResendAuthEmailSenderAdapter', () => {
       }),
     );
   });
+  it('enqueues an ownership transfer OTP email', async () => {
+    const emailQueue = { add: jest.fn().mockResolvedValue(undefined) };
+    const adapter = new ResendAuthEmailSenderAdapter(emailQueue as never);
+
+    await adapter.sendOwnershipTransferOtpEmail('owner@acme.vn', '123456');
+
+    expect(emailQueue.add).toHaveBeenCalledWith(
+      'send-auth-email',
+      expect.objectContaining({
+        to: 'owner@acme.vn',
+        emailType: 'OWNERSHIP_TRANSFER_OTP',
+      }),
+    );
+  });
+
+  it('enqueues an ownership transfer pending notification email', async () => {
+    const emailQueue = { add: jest.fn().mockResolvedValue(undefined) };
+    const adapter = new ResendAuthEmailSenderAdapter(emailQueue as never);
+
+    await adapter.sendOwnershipTransferPendingEmail(
+      'target@acme.vn',
+      'Acme Corp',
+    );
+
+    expect(emailQueue.add).toHaveBeenCalledWith(
+      'send-auth-email',
+      expect.objectContaining({
+        to: 'target@acme.vn',
+        emailType: 'OWNERSHIP_TRANSFER_PENDING',
+      }),
+    );
+  });
 });
