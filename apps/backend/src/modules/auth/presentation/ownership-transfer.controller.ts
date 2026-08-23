@@ -20,7 +20,7 @@ import {
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { ErrorCode } from '../../../common/errors/error-code';
-import { IdempotencyProvider } from '../../../common/idempotency/idempotency.provider';
+import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
@@ -67,7 +67,7 @@ export class OwnershipTransferController {
     private readonly declineUseCase: DeclineOwnershipTransferUseCase,
     private readonly getCurrentUseCase: GetCurrentOwnershipTransferUseCase,
     private readonly getPendingForMeUseCase: GetPendingOwnershipTransferForMeUseCase,
-    private readonly idempotency: IdempotencyProvider,
+    private readonly idempotency: IdempotencyService,
   ) {}
 
   @Post('organizations/:id/ownership-transfers')

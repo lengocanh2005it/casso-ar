@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import type { OwnershipTransferStatus } from '@casso-ledger/shared-types';
-import type { OwnershipTransferRequest } from '../../ownership-transfer/domain/ownership-transfer-request';
+import type { OwnershipTransferRequest } from '../../../ownership-transfer/domain/ownership-transfer-request';
 
 export class OwnershipTransferResponseDto {
   @ApiProperty({ description: 'The unique ID of the ownership transfer request' })

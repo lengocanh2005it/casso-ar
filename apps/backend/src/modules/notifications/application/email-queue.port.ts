@@ -33,7 +33,9 @@ export interface AuthEmailJob {
     | 'MEMBER_BLOCKED'
     | 'MEMBER_UNBLOCKED'
     | 'ORGANIZATION_APPROVED'
-    | 'ORGANIZATION_REJECTED';
+    | 'ORGANIZATION_REJECTED'
+    | 'OWNERSHIP_TRANSFER_OTP'
+    | 'OWNERSHIP_TRANSFER_PENDING';
 }
 
 export interface OwnerAlertEmailJob {
