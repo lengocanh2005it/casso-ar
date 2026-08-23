@@ -1,4 +1,3 @@
-import { ShieldCheck } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -53,14 +52,13 @@ export function AdminLoginPage() {
         className="flex min-h-svh items-center justify-center bg-gradient-to-br from-emerald-50 via-background to-teal-50 p-4 dark:from-emerald-950/20 dark:via-background dark:to-teal-950/20 sm:p-6"
       >
         <div className="w-full max-w-sm space-y-5 rounded-xl border-primary/10 bg-card/95 p-6 text-center shadow-lg shadow-primary/5 backdrop-blur sm:p-7">
-          <AuthLogoLink />
+          <div className="space-y-1">
+            <AuthLogoLink />
+            <p className="text-sm text-muted-foreground">
+              Trang đăng nhập dành cho quản trị viên.
+            </p>
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4 text-left">
-            <div className="flex items-center gap-2">
-              <ShieldCheck aria-hidden="true" className="size-5 text-primary" />
-              <h1 className="text-lg font-semibold" translate="no">
-                Casso Admin
-              </h1>
-            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
