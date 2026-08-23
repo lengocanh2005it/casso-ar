@@ -116,4 +116,158 @@ describe('TypeOrmReceivableRepository', () => {
     });
     expect(result).toEqual(new Map([['rec-1', 'inv-1']]));
   });
+
+  describe('findOverdueCandidates', () => {
+    it('queries overdue candidates with correct predicates, columns, order, and limit, mapping to domain instances', async () => {
+      const qb = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([
+          {
+            id: 'rcv-1',
+            organizationId: 'org-1',
+            customerId: 'cus-1',
+            invoiceId: 'inv-1',
+            originalAmount: 1_000_000,
+            paidAmount: 250_000,
+            dueDate: new Date('2026-08-01T00:00:00.000Z'),
+            status: ReceivableStatus.PARTIALLY_PAID,
+            salesRepresentativeId: 'user-1',
+            createdAt: new Date('2026-07-01T00:00:00.000Z'),
+            closedAt: null,
+            version: 3,
+          },
+        ]),
+      };
+      const ormRepo = { createQueryBuilder: jest.fn().mockReturnValue(qb) };
+      const tenantContext = new TenantContextService();
+      const repo = new TypeOrmReceivableRepository(
+        ormRepo as any,
+        tenantContext,
+      );
+
+      const refDate = new Date('2026-08-15T00:00:00.000Z');
+      const result = await tenantContext.run(
+        { userId: 'user-1', organizationId: 'org-1', role: Role.SALES_REP },
+        () =>
+          (repo as any).findOverdueCandidates({
+            organizationId: 'org-1',
+            referenceDate: refDate,
+            salesRepresentativeId: 'user-1',
+            customerIdIn: ['cus-1'],
+            invoiceIdIn: ['inv-1'],
+            limit: 20,
+          }),
+      );
+
+      expect(ormRepo.createQueryBuilder).toHaveBeenCalledWith('r');
+      expect(qb.select).toHaveBeenCalledWith([
+        'r.id',
+        'r.organizationId',
+        'r.customerId',
+        'r.invoiceId',
+        'r.originalAmount',
+        'r.paidAmount',
+        'r.dueDate',
+        'r.status',
+        'r.salesRepresentativeId',
+        'r.createdAt',
+        'r.closedAt',
+        'r.version',
+      ]);
+      expect(qb.where).toHaveBeenCalledWith(
+        'r.organizationId = :organizationId',
+        {
+          organizationId: 'org-1',
+        },
+      );
+      expect(qb.andWhere).toHaveBeenCalledWith('r.status IN (:...statuses)', {
+        statuses: [ReceivableStatus.OPEN, ReceivableStatus.PARTIALLY_PAID],
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith('r.dueDate < :referenceDate', {
+        referenceDate: refDate,
+      });
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'r.originalAmount > r.paidAmount',
+      );
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'r.salesRepresentativeId = :salesRepresentativeId',
+        { salesRepresentativeId: 'user-1' },
+      );
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        '(r.customerId IN (:...customerIds) OR r.invoiceId IN (:...invoiceIds))',
+        {
+          customerIds: ['cus-1'],
+          invoiceIds: ['inv-1'],
+        },
+      );
+      expect(qb.orderBy).toHaveBeenCalledWith('r.dueDate', 'ASC');
+      expect(qb.addOrderBy).toHaveBeenCalledWith('r.id', 'ASC');
+      expect(qb.take).toHaveBeenCalledWith(20);
+      expect(qb.getMany).toHaveBeenCalled();
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toBeInstanceOf(Receivable);
+      expect(result[0].id).toBe('rcv-1');
+      expect(result[0].remainingAmount).toBe(750_000);
+    });
+
+    it('forces no-result predicate when search ID arrays are supplied but empty', async () => {
+      const qb = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      };
+      const ormRepo = { createQueryBuilder: jest.fn().mockReturnValue(qb) };
+      const tenantContext = new TenantContextService();
+      const repo = new TypeOrmReceivableRepository(
+        ormRepo as any,
+        tenantContext,
+      );
+
+      const refDate = new Date('2026-08-15T00:00:00.000Z');
+      await tenantContext.run(
+        { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+        () =>
+          (repo as any).findOverdueCandidates({
+            organizationId: 'org-1',
+            referenceDate: refDate,
+            customerIdIn: [],
+            invoiceIdIn: [],
+            limit: 20,
+          }),
+      );
+
+      expect(qb.andWhere).toHaveBeenCalledWith('1 = 0');
+    });
+
+    it('throws TENANT_MISMATCH when filters organizationId does not match tenant context', async () => {
+      const ormRepo = { createQueryBuilder: jest.fn() };
+      const tenantContext = new TenantContextService();
+      const repo = new TypeOrmReceivableRepository(
+        ormRepo as any,
+        tenantContext,
+      );
+
+      await expect(
+        tenantContext.run(
+          { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+          () =>
+            (repo as any).findOverdueCandidates({
+              organizationId: 'org-2',
+              referenceDate: new Date(),
+              limit: 20,
+            }),
+        ),
+      ).rejects.toThrow('TENANT_MISMATCH');
+    });
+  });
 });

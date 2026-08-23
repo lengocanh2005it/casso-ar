@@ -47,6 +47,13 @@ A B2B SaaS platform for automating accounts receivable management and collection
 | **CopilotPendingAction** | Action awaiting user confirmation | `id`, `conversationId`, `status` |
 | **Alert** | Owner-facing, in-app, actionable event (bank connection needs reauth/errored, SMTP FAILED, reminder scan summary). Not the same as `notifications/` (the email queue) — see ADR-0013. `readAt: null` = UNREAD, non-null = READ (one-way transition, not a full state machine). One unread `Alert` per `(userId, entityType, entityId, type)` — a repeat event refreshes `createdAt` instead of inserting a duplicate row | `id`, `organizationId`, `userId`, `type`, `entityType`, `entityId`, `readAt`, `createdAt` |
 
+## Collection Terms
+
+| Term | Meaning |
+|------|---------|
+| **Overdue receivable** | A `Receivable` whose due date has passed while it remains `OPEN` or `PARTIALLY_PAID` with a positive remaining balance. Overdue is a computed condition, not a persisted status. |
+| **Reminder candidate** | An overdue receivable presented for collection follow-up and reminder-draft selection. It is not a separate receivable type or persisted entity. |
+
 ## Receivable State Machine
 
 ```

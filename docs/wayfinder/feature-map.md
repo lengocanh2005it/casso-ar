@@ -102,9 +102,9 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Ticket Index
 
-**32 tracked tickets** | status snapshot (2026-08-15):
+**33 tracked tickets** | status snapshot (2026-08-23):
 - 🟢 done (32): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management, Spec-Plan Reconciliation, Org-Branded Reminder Emails via Custom SMTP (BYO-SMTP), SMTP Settings UI (Frontend), In-App Alerts (#137), Public Landing Page (#143), Issue #233 — manual payment allocation UI (Shipped: 2026-08-19 — PR #260)
-- 🟡 in-progress (0): none
+- 🟡 in-progress (1): #320 — Copilot Overdue Receivable Context
 - 🔴 open/not started (0): none
 
 ---
@@ -766,6 +766,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **In progress:**
 - #262 — Frontend for business identity verification at signup (backend #245 shipped via PR #263; branch `lengocanh2005it/feat-262-fe-business-verification`).
+- #320 — Copilot Overdue Receivable Context (plan `docs/superpowers/plans/2026-08-23-copilot-overdue-receivable-context.md`, status `in-progress`, owner `BE`, blockers `none`).
 
 **Next available tickets** (all blockers resolved):
 - None.

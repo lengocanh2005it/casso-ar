@@ -11,6 +11,12 @@ function buildRegistry(): CopilotToolRegistry {
     inputSchema: { type: 'object', properties: {}, required: [] },
     requiresReminderPermission: false,
   });
+  registry.register({
+    name: 'findOverdueReceivables',
+    description: 'overdue',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+    requiresReminderPermission: false,
+  });
   return registry;
 }
 
@@ -27,6 +33,7 @@ function buildUseCase(overrides: Record<string, unknown> = {}) {
     summaryTool: { execute: jest.fn() },
     timelineTool: { execute: jest.fn() },
     paymentHistoryTool: { execute: jest.fn() },
+    findOverdueReceivablesTool: { execute: jest.fn() },
     draftTool: { execute: jest.fn() },
     conversationRepo: {
       findOrCreate: jest.fn(),
@@ -58,6 +65,7 @@ function buildUseCase(overrides: Record<string, unknown> = {}) {
     deps.summaryTool as any,
     deps.timelineTool as any,
     deps.paymentHistoryTool as any,
+    deps.findOverdueReceivablesTool as any,
     deps.draftTool as any,
     deps.conversationRepo as any,
     deps.pendingActionRepo as any,

@@ -21,6 +21,7 @@ describe('CopilotToolRegistry', () => {
     registry.register(fakeTool('getReceivableSummary'));
     registry.register(fakeTool('getCollectionActivityTimeline'));
     registry.register(fakeTool('getPaymentHistory'));
+    registry.register(fakeTool('findOverdueReceivables'));
     registry.register(fakeTool('draftReminderEmail', true));
     registry.register(fakeTool('sendReminderEmail', true));
 
@@ -28,6 +29,7 @@ describe('CopilotToolRegistry', () => {
 
     expect(names.sort()).toEqual([
       'draftReminderEmail',
+      'findOverdueReceivables',
       'getCollectionActivityTimeline',
       'getPaymentHistory',
       'getReceivableSummary',
@@ -51,6 +53,7 @@ describe('CopilotToolRegistry', () => {
     registry.register(fakeTool('getReceivableSummary'));
     registry.register(fakeTool('getCollectionActivityTimeline'));
     registry.register(fakeTool('getPaymentHistory'));
+    registry.register(fakeTool('findOverdueReceivables'));
     registry.register(fakeTool('draftReminderEmail', true));
     registry.register(fakeTool('sendReminderEmail', true));
 
@@ -58,6 +61,7 @@ describe('CopilotToolRegistry', () => {
       'getReceivableSummary',
       'getCollectionActivityTimeline',
       'getPaymentHistory',
+      'findOverdueReceivables',
     ]);
   });
 });

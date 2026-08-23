@@ -5,6 +5,7 @@ import { BillingModule } from '../billing/billing.module';
 import { CollectionActivityModule } from '../collection-activity/collection-activity.module';
 import { CustomersModule } from '../customers/customers.module';
 import { EmailTemplatesModule } from '../email-templates/email-templates.module';
+import { InvoicesModule } from '../invoices/invoices.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { ReceivablesModule } from '../receivables/receivables.module';
@@ -29,6 +30,10 @@ import {
   MAX_BODY_HTML_LENGTH,
   MAX_SUBJECT_LENGTH,
 } from './application/tools/draft-reminder-email.tool';
+import {
+  FIND_OVERDUE_RECEIVABLES_SCHEMA,
+  FindOverdueReceivablesTool,
+} from './application/tools/find-overdue-receivables.tool';
 import { GetCollectionActivityTimelineTool } from './application/tools/get-collection-activity-timeline.tool';
 import { GetPaymentHistoryTool } from './application/tools/get-payment-history.tool';
 import { GetReceivableSummaryTool } from './application/tools/get-receivable-summary.tool';
@@ -85,6 +90,13 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     requiresReminderPermission: false,
   });
   registry.register({
+    name: FindOverdueReceivablesTool.NAME,
+    description:
+      'Find overdue receivables for the current organization to choose a reminder target (returns candidate id, customer name, invoice number, remaining amount, due date).',
+    inputSchema: FIND_OVERDUE_RECEIVABLES_SCHEMA,
+    requiresReminderPermission: false,
+  });
+  registry.register({
     name: DraftReminderEmailTool.NAME,
     description:
       'Create a reminder email draft (subject + HTML body, written in Vietnamese using real receivable data) without sending it.',
@@ -126,6 +138,7 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     ]),
     CommonTokensModule,
     ReceivablesModule,
+    InvoicesModule,
     CustomersModule,
     CollectionActivityModule,
     PaymentsModule,
@@ -154,6 +167,7 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     GetReceivableSummaryTool,
     GetCollectionActivityTimelineTool,
     GetPaymentHistoryTool,
+    FindOverdueReceivablesTool,
     DraftReminderEmailTool,
     SendReminderEmailTool,
     CopilotChatUseCase,

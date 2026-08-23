@@ -24,6 +24,12 @@ function buildRegistry(): CopilotToolRegistry {
     requiresReminderPermission: false,
   });
   registry.register({
+    name: 'findOverdueReceivables',
+    description: 'overdue',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+    requiresReminderPermission: false,
+  });
+  registry.register({
     name: 'draftReminderEmail',
     description: 'draft',
     inputSchema: { type: 'object', properties: {}, required: [] },
@@ -43,6 +49,7 @@ function buildDeps(overrides: Record<string, unknown> = {}) {
     summaryTool: { execute: jest.fn() },
     timelineTool: { execute: jest.fn() },
     paymentHistoryTool: { execute: jest.fn() },
+    findOverdueReceivablesTool: { execute: jest.fn() },
     draftTool: { execute: jest.fn() },
     conversationRepo: {
       findOrCreate: jest
@@ -93,6 +100,7 @@ describe('CopilotChatUseCase', () => {
       deps.summaryTool as any,
       deps.timelineTool as any,
       deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
       deps.draftTool as any,
       deps.conversationRepo as any,
       deps.pendingActionRepo as any,
@@ -152,6 +160,7 @@ describe('CopilotChatUseCase', () => {
       deps.summaryTool as any,
       deps.timelineTool as any,
       deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
       deps.draftTool as any,
       deps.conversationRepo as any,
       deps.pendingActionRepo as any,
@@ -215,6 +224,7 @@ describe('CopilotChatUseCase', () => {
       deps.summaryTool as any,
       deps.timelineTool as any,
       deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
       deps.draftTool as any,
       deps.conversationRepo as any,
       deps.pendingActionRepo as any,
@@ -280,6 +290,7 @@ describe('CopilotChatUseCase', () => {
       deps.summaryTool as any,
       deps.timelineTool as any,
       deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
       deps.draftTool as any,
       deps.conversationRepo as any,
       deps.pendingActionRepo as any,
@@ -342,6 +353,7 @@ describe('CopilotChatUseCase', () => {
       deps.summaryTool as any,
       deps.timelineTool as any,
       deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
       deps.draftTool as any,
       deps.conversationRepo as any,
       deps.pendingActionRepo as any,
@@ -377,6 +389,7 @@ describe('CopilotChatUseCase', () => {
       deps.summaryTool as any,
       deps.timelineTool as any,
       deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
       deps.draftTool as any,
       deps.conversationRepo as any,
       deps.pendingActionRepo as any,
@@ -411,6 +424,7 @@ describe('CopilotChatUseCase', () => {
         deps.summaryTool as any,
         deps.timelineTool as any,
         deps.paymentHistoryTool as any,
+        deps.findOverdueReceivablesTool as any,
         deps.draftTool as any,
         deps.conversationRepo as any,
         deps.pendingActionRepo as any,
@@ -460,6 +474,7 @@ describe('CopilotChatUseCase', () => {
       deps.summaryTool as any,
       deps.timelineTool as any,
       deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
       deps.draftTool as any,
       deps.conversationRepo as any,
       deps.pendingActionRepo as any,
@@ -497,6 +512,7 @@ describe('CopilotChatUseCase', () => {
       deps.summaryTool as any,
       deps.timelineTool as any,
       deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
       deps.draftTool as any,
       deps.conversationRepo as any,
       deps.pendingActionRepo as any,
@@ -547,6 +563,7 @@ describe('CopilotChatUseCase', () => {
       deps.summaryTool as any,
       deps.timelineTool as any,
       deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
       deps.draftTool as any,
       deps.conversationRepo as any,
       deps.pendingActionRepo as any,
@@ -582,6 +599,7 @@ describe('CopilotChatUseCase', () => {
       deps.summaryTool as any,
       deps.timelineTool as any,
       deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
       deps.draftTool as any,
       deps.conversationRepo as any,
       deps.pendingActionRepo as any,
@@ -637,6 +655,7 @@ describe('CopilotChatUseCase', () => {
       deps.summaryTool as any,
       deps.timelineTool as any,
       deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
       deps.draftTool as any,
       deps.conversationRepo as any,
       deps.pendingActionRepo as any,
@@ -693,6 +712,7 @@ describe('CopilotChatUseCase', () => {
       deps.summaryTool as any,
       deps.timelineTool as any,
       deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
       deps.draftTool as any,
       deps.conversationRepo as any,
       deps.pendingActionRepo as any,
@@ -773,6 +793,7 @@ describe('CopilotChatUseCase', () => {
       deps.summaryTool as any,
       deps.timelineTool as any,
       deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
       deps.draftTool as any,
       deps.conversationRepo as any,
       deps.pendingActionRepo as any,
@@ -798,5 +819,110 @@ describe('CopilotChatUseCase', () => {
         expect.objectContaining({ id: 'tool-2', name: 'sendReminderEmail' }),
       ]),
     );
+  });
+
+  it('dispatches findOverdueReceivables with optional search and limit arguments', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion
+      .mockResolvedValueOnce({
+        content: null,
+        toolCalls: [
+          {
+            id: 'tool-od',
+            name: 'findOverdueReceivables',
+            arguments: { search: 'Alpha', limit: 5 },
+          },
+        ],
+        inputTokens: 10,
+        outputTokens: 5,
+      })
+      .mockResolvedValueOnce({
+        content: 'Tìm thấy 1 hóa đơn quá hạn cho Alpha.',
+        toolCalls: [],
+        inputTokens: 20,
+        outputTokens: 10,
+      });
+    const deps = buildDeps();
+    deps.findOverdueReceivablesTool.execute.mockResolvedValue({
+      items: [
+        {
+          receivableId: 'rec-1',
+          customerName: 'Alpha Corp',
+          invoiceNumber: 'INV-100',
+          remainingAmount: 5_000_000,
+          dueDate: '2026-08-01T00:00:00.000Z',
+        },
+      ],
+    });
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    const result = await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Tìm hóa đơn quá hạn của Alpha',
+    });
+
+    expect(deps.findOverdueReceivablesTool.execute).toHaveBeenCalledWith({
+      search: 'Alpha',
+      limit: 5,
+    });
+    expect(result.message.content).toContain('Alpha');
+  });
+
+  it('feeds back a validation error when findOverdueReceivables receives invalid argument types', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion.mockResolvedValue({
+      content: null,
+      toolCalls: [
+        {
+          id: 'tool-od-err',
+          name: 'findOverdueReceivables',
+          arguments: { search: 123, limit: 'invalid' },
+        },
+      ],
+      inputTokens: 10,
+      outputTokens: 5,
+    });
+    const deps = buildDeps();
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    await expect(
+      useCase.execute({ conversationId: 'conversation-1', userMessage: 'hi' }),
+    ).rejects.toMatchObject({ errorCode: ErrorCode.INTERNAL_SERVER_ERROR });
+
+    const secondCallMessages = aiProvider.createChatCompletion.mock.calls[1][0];
+    const toolMessage = secondCallMessages.find(
+      (message: { role: string }) => message.role === 'tool',
+    );
+    expect(JSON.parse(toolMessage.content)).toMatchObject({
+      errorCode: ErrorCode.VALIDATION_ERROR,
+    });
   });
 });

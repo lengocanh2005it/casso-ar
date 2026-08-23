@@ -11,6 +11,15 @@ export interface ReceivableListFilters {
   invoiceIdIn?: string[];
 }
 
+export interface OverdueReceivableFilters {
+  organizationId: string;
+  referenceDate: Date;
+  salesRepresentativeId?: string;
+  customerIdIn?: string[];
+  invoiceIdIn?: string[];
+  limit: number;
+}
+
 export interface IReceivableRepository {
   findById(id: string): Promise<Receivable | null>;
   findByIdForUpdate(
@@ -29,6 +38,9 @@ export interface IReceivableRepository {
     minDaysOverdue: number,
     afterId: string | null,
     limit: number,
+  ): Promise<Receivable[]>;
+  findOverdueCandidates(
+    filters: OverdueReceivableFilters,
   ): Promise<Receivable[]>;
   findInvoiceIdsByReceivableIds(ids: string[]): Promise<Map<string, string>>;
   findPage(
