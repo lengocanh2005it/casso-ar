@@ -1,4 +1,4 @@
-import type { MembershipStatus, Role } from '@casso-ledger/shared-types';
+import type { MembershipStatus, Role, OwnershipTransferStatus } from '@casso-ledger/shared-types';
 
 export type { MembershipStatus };
 
@@ -69,4 +69,13 @@ export interface OrganizationInviteList {
   total: number;
   page: number;
   limit: number;
+}
+
+export interface OwnershipTransfer {
+  id: string;
+  status: OwnershipTransferStatus;
+  fromUserId: string;
+  toUserId: string;
+  acceptanceExpiresAt: string | null;
+  createdAt: string;
 }
