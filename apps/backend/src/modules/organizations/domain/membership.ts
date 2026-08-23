@@ -1,5 +1,5 @@
 export type { MembershipStatus } from '@casso-ledger/shared-types';
-export { Role } from '@casso-ledger/shared-types';
+export { INVITABLE_ROLES, Role } from '@casso-ledger/shared-types';
 
 import type { MembershipStatus, Role } from '@casso-ledger/shared-types';
 
