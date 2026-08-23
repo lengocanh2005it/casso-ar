@@ -1,7 +1,7 @@
-import { IsEnum } from 'class-validator';
-import { Role } from '../../domain/membership';
+import { IsIn } from 'class-validator';
+import { INVITABLE_ROLES, Role } from '../../domain/membership';
 
 export class UpdateMemberRoleDto {
-  @IsEnum(Role)
+  @IsIn(INVITABLE_ROLES)
   role: Role;
 }

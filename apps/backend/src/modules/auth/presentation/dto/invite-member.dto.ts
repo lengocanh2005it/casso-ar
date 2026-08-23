@@ -1,10 +1,13 @@
-import { IsEmail, IsEnum } from 'class-validator';
-import { Role } from '../../../organizations/domain/membership';
+import { IsEmail, IsIn } from 'class-validator';
+import {
+  INVITABLE_ROLES,
+  Role,
+} from '../../../organizations/domain/membership';
 
 export class InviteMemberDto {
   @IsEmail()
   email: string;
 
-  @IsEnum(Role)
+  @IsIn(INVITABLE_ROLES)
   role: Role;
 }

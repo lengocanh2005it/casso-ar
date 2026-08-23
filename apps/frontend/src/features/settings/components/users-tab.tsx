@@ -1,4 +1,4 @@
-import { Permission, Role } from '@casso-ledger/shared-types';
+import { INVITABLE_ROLES, Permission, Role } from '@casso-ledger/shared-types';
 import { Users } from 'lucide-react';
 import { memo, useCallback, useState } from 'react';
 import { SectionCard } from '@/components/layout/section-card';
@@ -51,7 +51,7 @@ const roles = Object.values(Role);
 
 type StatusFilter = 'ALL' | MembershipStatus;
 
-const roleSelectItems = roles.map((item) => (
+const roleSelectItems = INVITABLE_ROLES.map((item) => (
   <SelectItem key={item} value={item}>
     {ROLE_LABELS[item]}
   </SelectItem>

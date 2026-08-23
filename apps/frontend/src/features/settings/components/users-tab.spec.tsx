@@ -95,6 +95,20 @@ describe('UsersTab', () => {
     Element.prototype.scrollIntoView = vi.fn();
   });
 
+  it('never offers OWNER as a selectable role', async () => {
+    useAuth.mockReturnValue({
+      user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
+    });
+    mockApi();
+    renderTab();
+
+    await waitFor(() => expect(screen.getByText('Kế toán')).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Vai trò' }));
+    expect(await screen.findByRole('option', { name: 'Kế toán' })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: 'Chủ sở hữu' })).toBeNull();
+  });
+
   it("lets an OWNER change another member's role", async () => {
     useAuth.mockReturnValue({
       user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
