@@ -4,7 +4,9 @@ import { cn } from '@/lib/utils';
 import { LANDING_SHOWCASE_SCREENS } from '../landing-data';
 
 export function ProductShowcase() {
-  const [activeId, setActiveId] = useState(LANDING_SHOWCASE_SCREENS[0].id);
+  const [activeId, setActiveId] = useState<
+    (typeof LANDING_SHOWCASE_SCREENS)[number]['id']
+  >(LANDING_SHOWCASE_SCREENS[0].id);
   const reducedMotion = useReducedMotion();
   const active =
     LANDING_SHOWCASE_SCREENS.find((screen) => screen.id === activeId) ??
