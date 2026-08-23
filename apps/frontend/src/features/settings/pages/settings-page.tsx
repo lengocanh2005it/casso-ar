@@ -97,7 +97,10 @@ function useSettingsTabs(): SettingsTabConfig[] {
   );
 }
 
+import { PendingOwnershipTransferBanner } from '../components/pending-ownership-transfer-banner';
+
 export function SettingsPage() {
+  const { user } = useAuth();
   const tabs = useSettingsTabs();
   const { searchParams, setParam } = useUrlQueryParams();
   const activeTab = searchParams.get('tab');
@@ -126,6 +129,7 @@ export function SettingsPage() {
         tone="info"
       />
       <div className="flex flex-col gap-6 p-4 sm:p-6">
+        <PendingOwnershipTransferBanner organizationId={user?.organizationId} />
         <Tabs
           value={resolvedTab}
           onValueChange={(value) => setParam('tab', value)}

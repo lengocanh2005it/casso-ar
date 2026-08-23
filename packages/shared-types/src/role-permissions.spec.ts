@@ -50,4 +50,21 @@ describe('ROLE_PERMISSIONS', () => {
       Permission.BANK_CONNECTION_REVEAL_KEY,
     );
   });
+  it('grants OWNERSHIP_TRANSFER_MANAGE only to OWNER', () => {
+    expect(ROLE_PERMISSIONS[Role.OWNER]).toContain(
+      Permission.OWNERSHIP_TRANSFER_MANAGE,
+    );
+    expect(ROLE_PERMISSIONS[Role.FINANCE_MANAGER]).not.toContain(
+      Permission.OWNERSHIP_TRANSFER_MANAGE,
+    );
+    expect(ROLE_PERMISSIONS[Role.ACCOUNTANT]).not.toContain(
+      Permission.OWNERSHIP_TRANSFER_MANAGE,
+    );
+    expect(ROLE_PERMISSIONS[Role.SALES_REP]).not.toContain(
+      Permission.OWNERSHIP_TRANSFER_MANAGE,
+    );
+    expect(ROLE_PERMISSIONS[Role.VIEWER]).not.toContain(
+      Permission.OWNERSHIP_TRANSFER_MANAGE,
+    );
+  });
 });

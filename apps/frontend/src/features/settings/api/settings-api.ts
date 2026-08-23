@@ -9,6 +9,7 @@ import type {
   MemberStatusResponse,
   OrganizationInviteList,
   OrganizationMemberList,
+  OwnershipTransfer,
   SmtpConfig,
   SmtpConfigInput,
 } from '../types';
@@ -233,5 +234,75 @@ export function deleteEmailTemplateAttachment(
     url: `/api/v1/email-templates/${templateId}/attachments/${attachmentId}`,
     method: 'DELETE',
     headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
+}
+
+export function requestOwnershipTransfer(
+  organizationId: string,
+  targetUserId: string,
+  currentPassword: string,
+): Promise<OwnershipTransfer> {
+  return postWithIdempotency(
+    `/api/v1/organizations/${organizationId}/ownership-transfers`,
+    { targetUserId, currentPassword },
+  );
+}
+
+export function confirmOwnershipTransfer(
+  organizationId: string,
+  requestId: string,
+  otp: string,
+): Promise<OwnershipTransfer> {
+  return postWithIdempotency(
+    `/api/v1/organizations/${organizationId}/ownership-transfers/${requestId}/confirm`,
+    { otp },
+  );
+}
+
+export function cancelOwnershipTransfer(
+  organizationId: string,
+  requestId: string,
+): Promise<OwnershipTransfer> {
+  return postWithIdempotency(
+    `/api/v1/organizations/${organizationId}/ownership-transfers/${requestId}/cancel`,
+    {},
+  );
+}
+
+export function acceptOwnershipTransfer(
+  organizationId: string,
+  requestId: string,
+): Promise<OwnershipTransfer> {
+  return postWithIdempotency(
+    `/api/v1/organizations/${organizationId}/ownership-transfers/${requestId}/accept`,
+    {},
+  );
+}
+
+export function declineOwnershipTransfer(
+  organizationId: string,
+  requestId: string,
+): Promise<OwnershipTransfer> {
+  return postWithIdempotency(
+    `/api/v1/organizations/${organizationId}/ownership-transfers/${requestId}/decline`,
+    {},
+  );
+}
+
+export function fetchCurrentOwnershipTransfer(
+  organizationId: string,
+): Promise<OwnershipTransfer | null> {
+  return apiRequest({
+    url: `/api/v1/organizations/${organizationId}/ownership-transfers/current`,
+    method: 'GET',
+  });
+}
+
+export function fetchPendingOwnershipTransferForMe(
+  organizationId: string,
+): Promise<OwnershipTransfer | null> {
+  return apiRequest({
+    url: `/api/v1/organizations/${organizationId}/ownership-transfers/pending-for-me`,
+    method: 'GET',
   });
 }

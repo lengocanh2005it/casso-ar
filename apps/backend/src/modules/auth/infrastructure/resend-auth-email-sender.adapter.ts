@@ -48,7 +48,9 @@ export class ResendAuthEmailSenderAdapter
       | 'MEMBER_BLOCKED'
       | 'MEMBER_UNBLOCKED'
       | 'ORGANIZATION_APPROVED'
-      | 'ORGANIZATION_REJECTED',
+      | 'ORGANIZATION_REJECTED'
+      | 'OWNERSHIP_TRANSFER_OTP'
+      | 'OWNERSHIP_TRANSFER_PENDING',
   ): Promise<void> {
     try {
       await this.emailQueue.add('send-auth-email', {
@@ -220,6 +222,41 @@ export class ResendAuthEmailSenderAdapter
         ],
       }),
       'ORGANIZATION_REJECTED',
+    );
+  }
+
+  async sendOwnershipTransferOtpEmail(to: string, otp: string): Promise<void> {
+    return this.enqueue(
+      to,
+      'Mã OTP chuyển quyền sở hữu | Casso Ledger',
+      buildCassoEmail({
+        title: 'Mã OTP chuyển quyền sở hữu',
+        greeting: 'Kính chào Quý khách,',
+        highlight: { label: 'Mã OTP', value: otp },
+        paragraphs: [
+          'Mã có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này với bất kỳ ai.',
+        ],
+      }),
+      'OWNERSHIP_TRANSFER_OTP',
+    );
+  }
+
+  async sendOwnershipTransferPendingEmail(
+    to: string,
+    organizationName: string,
+  ): Promise<void> {
+    return this.enqueue(
+      to,
+      `Yêu cầu chuyển quyền sở hữu ${subjectPart(organizationName)}`,
+      buildCassoEmail({
+        title: 'Yêu cầu chuyển quyền sở hữu',
+        greeting: 'Kính chào Quý khách,',
+        paragraphs: [
+          `Quý khách được đề nghị trở thành chủ sở hữu (OWNER) của tổ chức ${organizationName} trên Casso Ledger.`,
+          'Vui lòng đăng nhập và vào mục Cài đặt để chấp nhận hoặc từ chối yêu cầu này.',
+        ],
+      }),
+      'OWNERSHIP_TRANSFER_PENDING',
     );
   }
 }
