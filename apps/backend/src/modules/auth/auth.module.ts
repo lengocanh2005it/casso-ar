@@ -8,19 +8,26 @@ import { BillingModule } from '../billing/billing.module';
 import { EmailTemplatesModule } from '../email-templates/email-templates.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
+import { OwnershipTransferModule } from '../ownership-transfer/ownership-transfer.module';
 import { ProfileModule } from '../profile/profile.module';
 import { RemindersModule } from '../reminders/reminders.module';
 import { TaxVerificationModule } from '../tax-verification/tax-verification.module';
 import { UsersModule } from '../users/users.module';
 import { AcceptInviteUseCase } from './application/accept-invite.usecase';
+import { AcceptOwnershipTransferUseCase } from './application/accept-ownership-transfer.usecase';
 import { AUTH_EMAIL_SENDER } from './application/auth-email-sender.port';
 import { BlockMemberUseCase } from './application/block-member.usecase';
+import { CancelOwnershipTransferUseCase } from './application/cancel-ownership-transfer.usecase';
 import { ChangePasswordConfirmUseCase } from './application/change-password-confirm.usecase';
 import { ChangePasswordRequestUseCase } from './application/change-password-request.usecase';
 import { ChangePasswordResendUseCase } from './application/change-password-resend.usecase';
+import { ConfirmOwnershipTransferUseCase } from './application/confirm-ownership-transfer.usecase';
+import { DeclineOwnershipTransferUseCase } from './application/decline-ownership-transfer.usecase';
 import { DeleteInviteUseCase } from './application/delete-invite.usecase';
 import { EMAIL_VERIFICATION_TOKEN_REPOSITORY } from './application/email-verification-token-repository.port';
 import { ForgotPasswordUseCase } from './application/forgot-password.usecase';
+import { GetCurrentOwnershipTransferUseCase } from './application/get-current-ownership-transfer.usecase';
+import { GetPendingOwnershipTransferForMeUseCase } from './application/get-pending-ownership-transfer-for-me.usecase';
 import { GetUserProfileUseCase } from './application/get-user-profile.usecase';
 import { InviteMemberUseCase } from './application/invite-member.usecase';
 import { ListInvitesUseCase } from './application/list-invites.usecase';
@@ -33,6 +40,7 @@ import { PASSWORD_RESET_TOKEN_REPOSITORY } from './application/password-reset-to
 import { RefreshAccessTokenUseCase } from './application/refresh-access-token.usecase';
 import { REFRESH_TOKEN_REPOSITORY } from './application/refresh-token-repository.port';
 import { RemoveMemberUseCase } from './application/remove-member.usecase';
+import { RequestOwnershipTransferUseCase } from './application/request-ownership-transfer.usecase';
 import { ResendInviteUseCase } from './application/resend-invite.usecase';
 import { ResendVerificationEmailUseCase } from './application/resend-verification-email.usecase';
 import { ResetPasswordUseCase } from './application/reset-password.usecase';
@@ -55,6 +63,7 @@ import { TypeOrmPasswordResetTokenRepository } from './infrastructure/typeorm-pa
 import { TypeOrmRefreshTokenRepository } from './infrastructure/typeorm-refresh-token.repository';
 import { AuthController } from './presentation/auth.controller';
 import { InvitesController } from './presentation/invites.controller';
+import { OwnershipTransferController } from './presentation/ownership-transfer.controller';
 
 @Module({
   imports: [
@@ -70,6 +79,7 @@ import { InvitesController } from './presentation/invites.controller';
     ]),
     UsersModule,
     OrganizationsModule,
+    OwnershipTransferModule,
     BillingModule,
     BankConnectionsModule,
     ProfileModule,
@@ -101,6 +111,13 @@ import { InvitesController } from './presentation/invites.controller';
     ChangePasswordRequestUseCase,
     ChangePasswordConfirmUseCase,
     ChangePasswordResendUseCase,
+    RequestOwnershipTransferUseCase,
+    ConfirmOwnershipTransferUseCase,
+    AcceptOwnershipTransferUseCase,
+    DeclineOwnershipTransferUseCase,
+    CancelOwnershipTransferUseCase,
+    GetCurrentOwnershipTransferUseCase,
+    GetPendingOwnershipTransferForMeUseCase,
     {
       provide: EMAIL_VERIFICATION_TOKEN_REPOSITORY,
       useClass: TypeOrmEmailVerificationTokenRepository,
@@ -128,7 +145,7 @@ import { InvitesController } from './presentation/invites.controller';
     },
     { provide: TOKEN_SIGNER, useClass: JwtTokenSigner },
   ],
-  controllers: [AuthController, InvitesController],
+  controllers: [AuthController, InvitesController, OwnershipTransferController],
   exports: [
     AUTH_EMAIL_SENDER,
     MEMBER_NOTIFICATION_SENDER,
