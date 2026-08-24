@@ -108,19 +108,8 @@ export class AuthController {
   @ApiOperation({ summary: 'Sign up a new user and organization' })
   @ApiCreatedResponse({
     description:
-      'Account created. Email verification (a 6-digit OTP) is required before login, regardless of organization status.',
-    schema: {
-      type: 'object',
-      required: ['userId', 'organizationId', 'organizationStatus'],
-      properties: {
-        userId: { type: 'string', format: 'uuid' },
-        organizationId: { type: 'string', format: 'uuid' },
-        organizationStatus: {
-          type: 'string',
-          enum: ['ACTIVE', 'PENDING_REVIEW'],
-        },
-      },
-    },
+      'Signup accepted. Email verification (a 6-digit OTP) is required before the organization and account are created.',
+    schema: successResponseSchema(),
   })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -128,12 +117,8 @@ export class AuthController {
     ErrorCode.RATE_LIMIT_EXCEEDED,
   )
   async signup(@Body() dto: SignupDto) {
-    const result = await this.signupUseCase.execute(dto);
-    return {
-      userId: result.user.id,
-      organizationId: result.organization.id,
-      organizationStatus: result.organization.status,
-    };
+    await this.signupUseCase.execute(dto);
+    return { success: true };
   }
 
   @Public()
