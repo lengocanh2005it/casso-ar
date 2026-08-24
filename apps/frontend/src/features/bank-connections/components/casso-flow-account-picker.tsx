@@ -141,7 +141,7 @@ export function CassoFlowAccountPicker({
   return (
     <form onSubmit={handleConfirm} className="space-y-4 pt-2">
       {missingAccountNumbers.length > 0 && (
-        <p role="status" className="break-words text-sm text-muted-foreground">
+        <p role="status" className="break-words text-sm text-destructive">
           {missingAccountNumbers.join(', ')} không tìm thấy trong API Key mới,
           sẽ giữ nguyên trạng thái hiện tại.
         </p>

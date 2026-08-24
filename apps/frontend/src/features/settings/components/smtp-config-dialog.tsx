@@ -145,7 +145,7 @@ export function SmtpConfigDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor="smtp-password">Mật khẩu</Label>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-destructive">
               Luôn phải nhập lại, kể cả khi chỉ sửa các trường khác — Casso
               không lưu lại mật khẩu cũ để hiển thị.
             </p>
