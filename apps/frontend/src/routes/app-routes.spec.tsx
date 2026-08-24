@@ -79,7 +79,7 @@ describe('application routes', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole('heading', { name: /casso admin/i }),
+        screen.getByText(/trang đăng nhập dành cho quản trị viên/i),
       ).toBeVisible(),
     );
   });
