@@ -122,9 +122,7 @@ export function ReceivableTable({
                 <div className="flex flex-wrap items-center gap-2">
                   {formatDate(receivable.dueDate)}
                   {receivable.isOverdue && (
-                    <Badge className="bg-destructive/10 text-destructive">
-                      Quá hạn
-                    </Badge>
+                    <Badge variant="destructive">Quá hạn</Badge>
                   )}
                 </div>
               </TableCell>
