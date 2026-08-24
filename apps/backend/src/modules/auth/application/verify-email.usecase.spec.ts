@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { User } from '../../users/domain/user';
 import { EmailVerificationToken } from '../domain/email-verification-token';
 import { PendingSignup } from '../domain/pending-signup';
@@ -246,5 +247,65 @@ describe('VerifyEmailUseCase — PendingSignup branch', () => {
     await expect(
       useCase.execute('missing@b.vn', '123456'),
     ).rejects.toMatchObject({ errorCode: 'UNAUTHORIZED' });
+  });
+
+  it('logs a non-secret pending-signup-verified event after provisioning', async () => {
+    const otp = '482913';
+    const pendingSignup = buildPendingSignup();
+    const provisionedUser = new User({
+      id: 'user-1',
+      name: 'An',
+      email: 'a@b.vn',
+      passwordHash: 'hashed',
+      emailVerifiedAt: null,
+      createdAt: new Date(),
+    });
+    const pendingSignupRepo = {
+      findByEmail: jest.fn().mockResolvedValue(pendingSignup),
+      delete: jest.fn(),
+    };
+    const provisionOrganizationUseCase = {
+      execute: jest.fn().mockResolvedValue({
+        user: provisionedUser,
+        organization: { id: 'org-1' },
+        membership: { id: 'membership-1' },
+      }),
+    };
+    const userRepo = {
+      findByEmail: jest.fn().mockResolvedValue(null),
+      save: jest.fn(),
+    };
+    const loginUseCase = {
+      executeForUser: jest.fn().mockResolvedValue({
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      }),
+    };
+    const dataSource = {
+      transaction: jest.fn(
+        async (callback: (manager: object) => Promise<unknown>) => callback({}),
+      ),
+    };
+    const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+
+    const useCase = new VerifyEmailUseCase(
+      { findByUserIdAndTokenHash: jest.fn() } as any,
+      userRepo as any,
+      pendingSignupRepo as any,
+      provisionOrganizationUseCase as any,
+      dataSource as any,
+      loginUseCase as any,
+    );
+    await useCase.execute('a@b.vn', otp);
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Pending signup verified',
+        email: 'a@b.vn',
+        userId: 'user-1',
+        organizationId: 'org-1',
+      }),
+    );
+    logSpy.mockRestore();
   });
 });

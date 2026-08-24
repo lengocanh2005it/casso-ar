@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
@@ -20,6 +20,8 @@ import { hashOtp } from './token-hasher';
 
 @Injectable()
 export class VerifyEmailUseCase {
+  private readonly logger = new Logger(VerifyEmailUseCase.name);
+
   constructor(
     @Inject(EMAIL_VERIFICATION_TOKEN_REPOSITORY)
     private readonly tokenRepo: IEmailVerificationTokenRepository,
@@ -81,6 +83,12 @@ export class VerifyEmailUseCase {
         // marking the user verified, same as the legacy branch above.
         await this.userRepo.save(provisioned.user.markEmailVerified(), manager);
         await this.pendingSignupRepo.delete(pendingSignup.id, manager);
+        this.logger.log({
+          message: 'Pending signup verified',
+          email: pendingSignup.email,
+          userId: provisioned.user.id,
+          organizationId: provisioned.organization.id,
+        });
         return provisioned.user.id;
       },
     );

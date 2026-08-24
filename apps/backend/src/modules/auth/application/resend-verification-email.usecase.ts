@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import {
   type IUserRepository,
@@ -24,6 +24,8 @@ const VERIFICATION_TOKEN_TTL_MS = 10 * 60 * 1000;
 
 @Injectable()
 export class ResendVerificationEmailUseCase {
+  private readonly logger = new Logger(ResendVerificationEmailUseCase.name);
+
   constructor(
     @Inject(USER_REPOSITORY) private readonly userRepo: IUserRepository,
     @Inject(EMAIL_VERIFICATION_TOKEN_REPOSITORY)
@@ -67,6 +69,10 @@ export class ResendVerificationEmailUseCase {
         new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS),
       ),
     );
+    this.logger.log({
+      message: 'Verification OTP resent',
+      email: pendingSignup.email,
+    });
     await this.emailSender.sendVerificationEmail(pendingSignup.email, otp);
   }
 }

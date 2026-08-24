@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
@@ -45,6 +45,8 @@ const VERIFICATION_TOKEN_TTL_MS = 10 * 60 * 1000;
 
 @Injectable()
 export class SignupUseCase {
+  private readonly logger = new Logger(SignupUseCase.name);
+
   constructor(
     @Inject(USER_REPOSITORY) private readonly userRepo: IUserRepository,
     @Inject(ORGANIZATION_REPOSITORY)
@@ -127,6 +129,12 @@ export class SignupUseCase {
         }),
         manager,
       );
+    });
+
+    this.logger.log({
+      message: 'Signup requested',
+      email,
+      taxCode: input.taxCode,
     });
 
     await this.emailSender.sendVerificationEmail(email, otp);
