@@ -781,7 +781,9 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **In progress:**
 - #262 — Frontend for business identity verification at signup (backend #245 shipped via PR #263; branch `lengocanh2005it/feat-262-fe-business-verification`).
-- #235 — Webhook inbox reprocess action in Casso Admin (backend already shipped via PR #147 — `GET /webhooks/inbox`, `POST /webhooks/inbox/:id/reprocess`, `WEBHOOK_INBOX_READ`; frontend-only; branch `feat/webhook-inbox-reprocess`).
+
+**PR open, awaiting review:**
+- #235 — PR #334 (branch `feat/webhook-inbox-reprocess`) adds a "Webhook" tab to Settings listing an organization's inbound Casso Flow webhooks with a "Xử lý lại" (reprocess) action for `FAILED` rows. Backend already shipped via PR #147 (`GET /webhooks/inbox`, `POST /webhooks/inbox/:id/reprocess`, `WEBHOOK_INBOX_READ`) — frontend-only. **Placement deviates from the issue's own text**: #235 described this as a Casso Admin (operator-only) screen, but `WEBHOOK_INBOX_READ` is org-scoped (`OWNER`/`FINANCE_MANAGER` only, per-organization via `TenantContextService`) — not cross-org like Casso Admin's `Operator` role. Placed in Settings instead, following the same precedent as the audit log viewer (#236/PR #327); see `docs/superpowers/specs/2026-08-24-webhook-inbox-settings-ui-design.md`. Built TDD per `docs/superpowers/plans/2026-08-24-webhook-inbox-settings-ui.md` (6 task commits). `npx vitest run` 149/151 (2 pre-existing unrelated failures), `tsc --noEmit` clean, `biome check` clean, manual browser walkthrough (list/filters/expand-detail/reprocess-confirm-toast-refetch, and RBAC hiding verified) all pass.
 
 **Next available tickets** (all blockers resolved):
 - None.
