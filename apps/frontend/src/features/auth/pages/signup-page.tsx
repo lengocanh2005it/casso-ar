@@ -200,7 +200,7 @@ export function SignupPage() {
           </div>
 
           {!cameFromConfirming && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-destructive">
               Chúng tôi không xác minh được tổ chức tự động — vui lòng nhập tên
               tổ chức.
             </p>
