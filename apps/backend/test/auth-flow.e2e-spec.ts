@@ -11,10 +11,10 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
+import { AUTH_EMAIL_SENDER } from '../src/modules/auth/application/auth-email-sender.port';
 import { MembershipInviteOrmEntity } from '../src/modules/auth/infrastructure/membership-invite.orm-entity';
 import { PasswordResetTokenOrmEntity } from '../src/modules/auth/infrastructure/password-reset-token.orm-entity';
 import { TAX_CODE_LOOKUP_ADAPTER } from '../src/modules/tax-verification/application/tax-code-lookup.port';
-import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 
 jest.setTimeout(60_000);
 
@@ -25,6 +25,12 @@ describe('Auth flow (integration)', () => {
   let throttlerStorage: ThrottlerStorageService;
   const taxCodeLookup = {
     lookup: jest.fn().mockResolvedValue({ name: 'Company B' }),
+  };
+  const authEmailSender = {
+    sendVerificationEmail: jest.fn(),
+    sendPasswordResetEmail: jest.fn(),
+    sendChangePasswordOtpEmail: jest.fn(),
+    sendInviteEmail: jest.fn(),
   };
 
   beforeAll(async () => {
@@ -55,6 +61,8 @@ describe('Auth flow (integration)', () => {
       )
       .overrideProvider(TAX_CODE_LOOKUP_ADAPTER)
       .useValue(taxCodeLookup)
+      .overrideProvider(AUTH_EMAIL_SENDER)
+      .useValue(authEmailSender)
       .compile();
     app = moduleRef.createNestApplication();
     app.use(cookieParser());
@@ -69,8 +77,8 @@ describe('Auth flow (integration)', () => {
     await container.stop();
   });
 
-  it('signup creates the organization, subscription, membership, verification token, and cookie', async () => {
-    const response = await request(app.getHttpServer())
+  it('signup creates a pending signup, and verifying it provisions the organization and issues a session', async () => {
+    const signupResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/signup')
       .send({
         organizationName: 'Company B',
@@ -81,9 +89,38 @@ describe('Auth flow (integration)', () => {
       })
       .expect(201);
 
-    expect(response.body.accessToken).toBeDefined();
-    expect(response.body.refreshToken).toBeUndefined();
-    expect(response.headers['set-cookie'][0]).toContain('refreshToken=');
+    expect(signupResponse.body).toEqual({ success: true });
+    expect(
+      await dataSource.query('SELECT id FROM pending_signups'),
+    ).toHaveLength(1);
+    expect(await dataSource.query('SELECT id FROM organizations')).toHaveLength(
+      0,
+    );
+    expect(await dataSource.query('SELECT id FROM subscriptions')).toHaveLength(
+      0,
+    );
+    expect(await dataSource.query('SELECT id FROM memberships')).toHaveLength(
+      0,
+    );
+    expect(authEmailSender.sendVerificationEmail).toHaveBeenCalledWith(
+      'ap@congtyb.vn',
+      expect.stringMatching(/^\d{6}$/),
+    );
+
+    const otp = authEmailSender.sendVerificationEmail.mock
+      .calls[0][1] as string;
+
+    const verifyResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/verify-email')
+      .send({ email: 'ap@congtyb.vn', otp })
+      .expect(200);
+
+    expect(verifyResponse.body.verified).toBe(true);
+    expect(verifyResponse.body.accessToken).toBeDefined();
+    expect(verifyResponse.headers['set-cookie'][0]).toContain('refreshToken=');
+    expect(
+      await dataSource.query('SELECT id FROM pending_signups'),
+    ).toHaveLength(0);
     expect(await dataSource.query('SELECT id FROM organizations')).toHaveLength(
       1,
     );
@@ -93,16 +130,35 @@ describe('Auth flow (integration)', () => {
     expect(await dataSource.query('SELECT id FROM memberships')).toHaveLength(
       1,
     );
-    expect(
-      await dataSource.query('SELECT id FROM email_verification_tokens'),
-    ).toHaveLength(1);
+  });
+
+  it('rejects a second signup for the same email while one is still pending', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/signup')
+      .send({
+        organizationName: 'Company D',
+        name: 'Cuong',
+        email: 'cuong@congtyd.vn',
+        password: 'S3curePass!',
+        taxCode: '0999999998',
+      })
+      .expect(201);
+
+    const conflict = await request(app.getHttpServer())
+      .post('/api/v1/auth/signup')
+      .send({
+        organizationName: 'Company D Retry',
+        name: 'Cuong',
+        email: 'cuong@congtyd.vn',
+        password: 'S3curePass!',
+        taxCode: '0999999997',
+      })
+      .expect(409);
+
+    expect(conflict.body.errorCode).toBe('CONFLICT');
   });
 
   it('verified user can log in and refresh rotates the cookie', async () => {
-    await dataSource
-      .getRepository(UserOrmEntity)
-      .update({ email: 'ap@congtyb.vn' }, { emailVerifiedAt: new Date() });
-
     const invalidLogin = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
       .send({ email: 'ap@congtyb.vn', password: 'wrong-password' })
