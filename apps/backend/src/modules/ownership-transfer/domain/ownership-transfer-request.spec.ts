@@ -1,7 +1,9 @@
 import { OwnershipTransferRequest } from './ownership-transfer-request';
 
 function buildRequest(
-  overrides: Partial<ConstructorParameters<typeof OwnershipTransferRequest>[0]> = {},
+  overrides: Partial<
+    ConstructorParameters<typeof OwnershipTransferRequest>[0]
+  > = {},
 ) {
   return new OwnershipTransferRequest({
     id: 'req-1',
@@ -20,8 +22,12 @@ function buildRequest(
 
 describe('OwnershipTransferRequest', () => {
   it('is non-terminal while pending OTP confirmation or acceptance', () => {
-    expect(buildRequest({ status: 'PENDING_OTP_CONFIRMATION' }).isNonTerminal()).toBe(true);
-    expect(buildRequest({ status: 'PENDING_ACCEPTANCE' }).isNonTerminal()).toBe(true);
+    expect(
+      buildRequest({ status: 'PENDING_OTP_CONFIRMATION' }).isNonTerminal(),
+    ).toBe(true);
+    expect(buildRequest({ status: 'PENDING_ACCEPTANCE' }).isNonTerminal()).toBe(
+      true,
+    );
     expect(buildRequest({ status: 'ACCEPTED' }).isNonTerminal()).toBe(false);
     expect(buildRequest({ status: 'DECLINED' }).isNonTerminal()).toBe(false);
     expect(buildRequest({ status: 'CANCELLED' }).isNonTerminal()).toBe(false);
@@ -33,8 +39,12 @@ describe('OwnershipTransferRequest', () => {
       status: 'PENDING_OTP_CONFIRMATION',
       otpExpiresAt: new Date('2026-08-23T00:05:00.000Z'),
     });
-    expect(request.isOtpExpired(new Date('2026-08-23T00:04:59.000Z'))).toBe(false);
-    expect(request.isOtpExpired(new Date('2026-08-23T00:05:01.000Z'))).toBe(true);
+    expect(request.isOtpExpired(new Date('2026-08-23T00:04:59.000Z'))).toBe(
+      false,
+    );
+    expect(request.isOtpExpired(new Date('2026-08-23T00:05:01.000Z'))).toBe(
+      true,
+    );
     expect(
       buildRequest({
         status: 'PENDING_ACCEPTANCE',
@@ -48,8 +58,12 @@ describe('OwnershipTransferRequest', () => {
       status: 'PENDING_ACCEPTANCE',
       acceptanceExpiresAt: new Date('2026-08-25T00:00:00.000Z'),
     });
-    expect(request.isAcceptanceExpired(new Date('2026-08-24T23:59:59.000Z'))).toBe(false);
-    expect(request.isAcceptanceExpired(new Date('2026-08-25T00:00:01.000Z'))).toBe(true);
+    expect(
+      request.isAcceptanceExpired(new Date('2026-08-24T23:59:59.000Z')),
+    ).toBe(false);
+    expect(
+      request.isAcceptanceExpired(new Date('2026-08-25T00:00:01.000Z')),
+    ).toBe(true);
   });
 
   it('confirm() moves to PENDING_ACCEPTANCE and sets the acceptance window', () => {

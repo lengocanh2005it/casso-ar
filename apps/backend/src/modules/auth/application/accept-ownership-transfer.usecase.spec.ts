@@ -12,7 +12,9 @@ const dataSource = {
 };
 
 function buildRequest(
-  overrides: Partial<ConstructorParameters<typeof OwnershipTransferRequest>[0]> = {},
+  overrides: Partial<
+    ConstructorParameters<typeof OwnershipTransferRequest>[0]
+  > = {},
 ) {
   return new OwnershipTransferRequest({
     id: 'req-1',
@@ -29,7 +31,10 @@ function buildRequest(
   });
 }
 
-function buildMembership(role: Role, joinedAt: Date | null = new Date('2026-08-01')) {
+function buildMembership(
+  role: Role,
+  joinedAt: Date | null = new Date('2026-08-01'),
+) {
   return {
     role,
     joinedAt,
@@ -44,10 +49,12 @@ function buildMembership(role: Role, joinedAt: Date | null = new Date('2026-08-0
   };
 }
 
-function buildUseCase(overrides: {
-  requestRepo?: Record<string, jest.Mock>;
-  membershipRepo?: Record<string, jest.Mock>;
-} = {}) {
+function buildUseCase(
+  overrides: {
+    requestRepo?: Record<string, jest.Mock>;
+    membershipRepo?: Record<string, jest.Mock>;
+  } = {},
+) {
   const requestRepo = {
     findById: jest.fn().mockResolvedValue(buildRequest()),
     save: jest.fn(),

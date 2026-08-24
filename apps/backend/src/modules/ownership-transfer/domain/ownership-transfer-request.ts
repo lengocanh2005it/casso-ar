@@ -48,7 +48,9 @@ export class OwnershipTransferRequest {
   }
 
   isOtpExpired(now: Date = new Date()): boolean {
-    return this.status === 'PENDING_OTP_CONFIRMATION' && now > this.otpExpiresAt;
+    return (
+      this.status === 'PENDING_OTP_CONFIRMATION' && now > this.otpExpiresAt
+    );
   }
 
   isAcceptanceExpired(now: Date = new Date()): boolean {

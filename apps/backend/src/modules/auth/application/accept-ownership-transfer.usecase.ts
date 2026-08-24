@@ -3,15 +3,15 @@ import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
-  MEMBERSHIP_REPOSITORY,
   type IMembershipRepository,
+  MEMBERSHIP_REPOSITORY,
 } from '../../organizations/application/membership-repository.port';
 import { Role } from '../../organizations/domain/membership';
-import { reclaimIfExpired } from '../../ownership-transfer/application/reclaim-if-expired';
 import {
-  OWNERSHIP_TRANSFER_REQUEST_REPOSITORY,
   type IOwnershipTransferRequestRepository,
+  OWNERSHIP_TRANSFER_REQUEST_REPOSITORY,
 } from '../../ownership-transfer/application/ownership-transfer-request-repository.port';
+import { reclaimIfExpired } from '../../ownership-transfer/application/reclaim-if-expired';
 import type { OwnershipTransferRequest } from '../../ownership-transfer/domain/ownership-transfer-request';
 
 export interface AcceptOwnershipTransferInput {
@@ -68,11 +68,12 @@ export class AcceptOwnershipTransferUseCase {
 
       // Re-validate every precondition against current state — never trust
       // what was true when the request was created or confirmed.
-      const targetMembership = await this.membershipRepo.findByUserAndOrganization(
-        reclaimed.toUserId,
-        organizationId,
-        manager,
-      );
+      const targetMembership =
+        await this.membershipRepo.findByUserAndOrganization(
+          reclaimed.toUserId,
+          organizationId,
+          manager,
+        );
       if (
         !targetMembership ||
         !targetMembership.isActive() ||
@@ -84,11 +85,12 @@ export class AcceptOwnershipTransferUseCase {
         );
       }
 
-      const fromMembership = await this.membershipRepo.findByUserAndOrganization(
-        reclaimed.fromUserId,
-        organizationId,
-        manager,
-      );
+      const fromMembership =
+        await this.membershipRepo.findByUserAndOrganization(
+          reclaimed.fromUserId,
+          organizationId,
+          manager,
+        );
       if (!fromMembership || fromMembership.role !== Role.OWNER) {
         throw new AppError(
           ErrorCode.CONFLICT,

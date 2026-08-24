@@ -12,10 +12,10 @@ describe('ConfirmOwnershipTransferDto', () => {
     const dto = new ConfirmOwnershipTransferDto();
     dto.otp = '123';
     expect(await validate(dto)).toHaveLength(1);
-    
+
     dto.otp = '1234567';
     expect(await validate(dto)).toHaveLength(1);
-    
+
     // @ts-expect-error test
     dto.otp = undefined;
     expect(await validate(dto)).toHaveLength(1);

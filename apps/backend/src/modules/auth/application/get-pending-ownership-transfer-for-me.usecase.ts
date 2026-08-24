@@ -1,10 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { reclaimIfExpired } from '../../ownership-transfer/application/reclaim-if-expired';
 import {
-  OWNERSHIP_TRANSFER_REQUEST_REPOSITORY,
   type IOwnershipTransferRequestRepository,
+  OWNERSHIP_TRANSFER_REQUEST_REPOSITORY,
 } from '../../ownership-transfer/application/ownership-transfer-request-repository.port';
+import { reclaimIfExpired } from '../../ownership-transfer/application/reclaim-if-expired';
 import type { OwnershipTransferRequest } from '../../ownership-transfer/domain/ownership-transfer-request';
 
 @Injectable()
