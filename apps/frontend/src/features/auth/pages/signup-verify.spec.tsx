@@ -56,6 +56,7 @@ describe('signup and email verification', () => {
   });
 
   it('shows the OTP step inline after signup, without navigating away', async () => {
+    apiRequest.mockResolvedValueOnce({ name: 'Casso Ledger' });
     apiRequest.mockResolvedValueOnce({
       userId: 'user-1',
       organizationId: 'org-1',
@@ -80,14 +81,25 @@ describe('signup and email verification', () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
+      expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
     );
-    fireEvent.change(screen.getByLabelText(/tên tổ chức/i), {
-      target: { value: 'Casso Ledger' },
-    });
     fireEvent.change(screen.getByLabelText(/mã số thuế/i), {
       target: { value: '0101234567' },
     });
+    fireEvent.click(screen.getByRole('button', { name: /tiếp tục/i }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /đúng, đây là tổ chức của tôi/i }),
+      ).toBeVisible(),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /đúng, đây là tổ chức của tôi/i }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/họ và tên/i)).toBeVisible(),
+    );
     fireEvent.change(screen.getByLabelText(/họ và tên/i), {
       target: { value: 'New User' },
     });
@@ -102,7 +114,7 @@ describe('signup and email verification', () => {
     await waitFor(() =>
       expect(screen.getByText(/new\*\*\*@casso\.vn/i)).toBeVisible(),
     );
-    expect(apiRequest).toHaveBeenNthCalledWith(1, {
+    expect(apiRequest).toHaveBeenNthCalledWith(2, {
       url: '/api/v1/auth/signup',
       method: 'POST',
       data: {
@@ -117,6 +129,7 @@ describe('signup and email verification', () => {
 
   it('confirms the OTP inline and lands on onboarding', async () => {
     apiRequest
+      .mockResolvedValueOnce({ name: 'Casso Ledger' })
       .mockResolvedValueOnce({
         userId: 'user-1',
         organizationId: 'org-1',
@@ -137,14 +150,25 @@ describe('signup and email verification', () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
+      expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
     );
-    fireEvent.change(screen.getByLabelText(/tên tổ chức/i), {
-      target: { value: 'Casso Ledger' },
-    });
     fireEvent.change(screen.getByLabelText(/mã số thuế/i), {
       target: { value: '0101234567' },
     });
+    fireEvent.click(screen.getByRole('button', { name: /tiếp tục/i }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /đúng, đây là tổ chức của tôi/i }),
+      ).toBeVisible(),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /đúng, đây là tổ chức của tôi/i }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/họ và tên/i)).toBeVisible(),
+    );
     fireEvent.change(screen.getByLabelText(/họ và tên/i), {
       target: { value: 'New User' },
     });
@@ -163,7 +187,7 @@ describe('signup and email verification', () => {
     fireEvent.click(screen.getByRole('button', { name: /xác nhận/i }));
 
     await waitFor(() => expect(screen.getByText('onboarding')).toBeVisible());
-    expect(apiRequest).toHaveBeenNthCalledWith(2, {
+    expect(apiRequest).toHaveBeenNthCalledWith(3, {
       url: '/api/v1/auth/verify-email',
       method: 'POST',
       data: { email: 'new@casso.vn', otp: '482913' },
