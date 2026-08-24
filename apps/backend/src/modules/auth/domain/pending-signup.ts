@@ -32,4 +32,8 @@ export class PendingSignup {
   isExpired(now: Date): boolean {
     return this.expiresAt.getTime() <= now.getTime();
   }
+
+  withNewOtp(otpHash: string, expiresAt: Date): PendingSignup {
+    return new PendingSignup({ ...this, otpHash, expiresAt });
+  }
 }

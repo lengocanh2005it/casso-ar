@@ -6,7 +6,6 @@ import {
   USER_REPOSITORY,
 } from '../../users/application/user-repository.port';
 import { EmailVerificationToken } from '../domain/email-verification-token';
-import { PendingSignup } from '../domain/pending-signup';
 import {
   AUTH_EMAIL_SENDER,
   type IAuthEmailSender,
@@ -16,8 +15,8 @@ import {
   type IEmailVerificationTokenRepository,
 } from './email-verification-token-repository.port';
 import {
-  PENDING_SIGNUP_REPOSITORY,
   type IPendingSignupRepository,
+  PENDING_SIGNUP_REPOSITORY,
 } from './pending-signup-repository.port';
 import { generateOtp } from './token-hasher';
 
@@ -63,11 +62,10 @@ export class ResendVerificationEmailUseCase {
 
     const { otp, hash } = generateOtp();
     await this.pendingSignupRepo.save(
-      new PendingSignup({
-        ...pendingSignup,
-        otpHash: hash,
-        expiresAt: new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS),
-      }),
+      pendingSignup.withNewOtp(
+        hash,
+        new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS),
+      ),
     );
     await this.emailSender.sendVerificationEmail(pendingSignup.email, otp);
   }

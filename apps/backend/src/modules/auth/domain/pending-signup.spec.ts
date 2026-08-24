@@ -37,4 +37,19 @@ describe('PendingSignup', () => {
       true,
     );
   });
+
+  it('withNewOtp replaces the otpHash and expiresAt, keeping every other field', () => {
+    const pendingSignup = buildPendingSignup();
+    const newExpiresAt = new Date('2026-08-24T00:20:00.000Z');
+
+    const renewed = pendingSignup.withNewOtp('new-otp-hash', newExpiresAt);
+
+    expect(renewed.otpHash).toBe('new-otp-hash');
+    expect(renewed.expiresAt).toBe(newExpiresAt);
+    expect(renewed.id).toBe(pendingSignup.id);
+    expect(renewed.email).toBe(pendingSignup.email);
+    expect(renewed.passwordHash).toBe(pendingSignup.passwordHash);
+    expect(renewed.organizationName).toBe(pendingSignup.organizationName);
+    expect(renewed.taxCode).toBe(pendingSignup.taxCode);
+  });
 });
