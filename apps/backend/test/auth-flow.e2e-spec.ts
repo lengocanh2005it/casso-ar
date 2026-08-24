@@ -21,6 +21,7 @@ describe('Auth flow (integration)', () => {
   let container: StartedPostgreSqlContainer;
   let app: INestApplication;
   let dataSource: DataSource;
+  const taxCodeLookup = { lookup: jest.fn().mockResolvedValue({ name: 'Company B' }) };
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16').start();
@@ -49,7 +50,7 @@ describe('Auth flow (integration)', () => {
         }),
       )
       .overrideProvider(TAX_CODE_LOOKUP_ADAPTER)
-      .useValue({ lookup: jest.fn().mockResolvedValue({ name: 'Company B' }) })
+      .useValue(taxCodeLookup)
       .compile();
     app = moduleRef.createNestApplication();
     app.use(cookieParser());
@@ -178,5 +179,58 @@ describe('Auth flow (integration)', () => {
       .getRepository(MembershipInviteOrmEntity)
       .findOne({ where: { email: 'new-member@congtyb.vn' } });
     expect(invite?.tokenHash).toHaveLength(64);
+  });
+
+  it('returns the resolved organization name without authentication', async () => {
+    taxCodeLookup.lookup.mockResolvedValueOnce({ name: 'Company B' });
+
+    await request(app.getHttpServer())
+      .get('/api/v1/tax-verification/lookup')
+      .query({ taxCode: '0123456789' })
+      .expect(200)
+      .expect({ name: 'Company B' });
+  });
+
+  it('returns null when the tax code is not resolved', async () => {
+    taxCodeLookup.lookup.mockResolvedValueOnce(null);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/tax-verification/lookup')
+      .query({ taxCode: '0123456789' })
+      .expect(200)
+      .expect({ name: null });
+  });
+
+  it('rejects an invalid tax-code query before calling the adapter', async () => {
+    taxCodeLookup.lookup.mockClear();
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/tax-verification/lookup')
+      .query({ taxCode: '123' })
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      statusCode: 400,
+      errorCode: 'VALIDATION_ERROR',
+    });
+    expect(taxCodeLookup.lookup).not.toHaveBeenCalled();
+  });
+
+  it('tax-code lookup rate-limits after 5 requests per IP', async () => {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await request(app.getHttpServer())
+        .get('/api/v1/tax-verification/lookup')
+        .query({ taxCode: '0123456789' });
+    }
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/tax-verification/lookup')
+      .query({ taxCode: '0123456789' })
+      .expect(429);
+
+    expect(response.body).toMatchObject({
+      statusCode: 429,
+      errorCode: 'RATE_LIMIT_EXCEEDED',
+    });
   });
 });

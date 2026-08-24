@@ -1,11 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import { LookupTaxCodeUseCase } from './application/lookup-tax-code.usecase';
 import { TAX_CODE_LOOKUP_ADAPTER } from './application/tax-code-lookup.port';
 import { REDIS_CLIENT } from './infrastructure/redis-client.provider';
 import { VietQrTaxCodeLookupAdapter } from './infrastructure/vietqr-tax-code-lookup.adapter';
+import { TaxVerificationController } from './presentation/tax-verification.controller';
 
 @Module({
+  controllers: [TaxVerificationController],
   providers: [
     {
       provide: REDIS_CLIENT,
@@ -20,6 +23,7 @@ import { VietQrTaxCodeLookupAdapter } from './infrastructure/vietqr-tax-code-loo
       provide: TAX_CODE_LOOKUP_ADAPTER,
       useClass: VietQrTaxCodeLookupAdapter,
     },
+    LookupTaxCodeUseCase,
   ],
   exports: [TAX_CODE_LOOKUP_ADAPTER],
 })
