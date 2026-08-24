@@ -51,11 +51,13 @@ entry / business rule 17 for the canonical domain description.
 
 ```
 PendingSignup {
-  id, email, passwordHash, organizationName, taxCode,
+  id, email, passwordHash, name, organizationName, taxCode,
   taxCodeMatched, taxCodeLookupName, otpHash, expiresAt, createdAt
 }
 isExpired(now: Date): boolean
 ```
+
+(`name` is the applicant's own name — distinct from `organizationName` — needed to construct `User` at provisioning time; this was missing from the first pass of this section and corrected while writing the implementation plan.)
 
 No `status` column — a row's existence means "pending"; consuming (verify success) or reclaiming
 (expired) both delete the row. No persisted history is kept, matching how `OwnershipTransferRequest`
@@ -144,6 +146,36 @@ POST /resend-verification-email {email}
   expires (via lazy reclaim, no manual cleanup step).
 - Migration spec for the new table + unique indexes, following the existing per-migration `.spec.ts`
   convention.
+
+## Additional findings from implementation-plan research
+
+Discovered while reading the exact current code (not present in the brainstorming pass above):
+
+1. **Provisioning logic needs a second caller besides `VerifyEmailUseCase`.**
+   `apps/backend/src/database/seed/seed.ts` calls `SignupUseCase.execute()` directly today and
+   expects a synchronously-created `{ user, organization }` back (it then force-verifies the email
+   and force-approves the organization for the local demo account). Once `SignupUseCase` only
+   writes a `PendingSignup`, the seed script can no longer get real entities back from it. Fix:
+   extract the entity-creation transaction (`Organization`/`User`/`Membership`/`Subscription`/
+   bootstrap save, today inline in `SignupUseCase.execute`) into its own
+   `ProvisionOrganizationUseCase` (`modules/auth/application/provision-organization.usecase.ts`),
+   taking an already-hashed password and already-resolved tax-lookup result, with an optional
+   `manager: EntityManager` parameter (runs in the caller's transaction when passed, opens its own
+   otherwise — the same optional-manager idiom every repository in this codebase already uses).
+   `VerifyEmailUseCase` calls it with its own transaction's manager; `seed.ts` calls it standalone
+   (hashing the seed password itself first, since that responsibility moves to `SignupUseCase`).
+2. **The `/auth/signup` HTTP response shape changes.** It currently returns
+   `{ userId, organizationId, organizationStatus }` (`auth.controller.ts:130-137`), read from the
+   `Organization`/`User` `SignupUseCase` used to create — which no longer exist at signup time.
+   Confirmed via grep that no frontend code reads these fields (`signup-page.tsx` ignores the
+   response; only test mocks reference them, not assertions). New response:
+   `{ success: true }`, matching `POST /auth/resend-verification`'s existing shape
+   (`successResponseSchema()`), with the `@ApiCreatedResponse` docs/description updated to match.
+3. **`apps/backend/test/auth-flow.e2e-spec.ts`'s signup test is already stale** (asserts
+   `response.body.accessToken` after signup, which the current controller never returned — dead
+   from before OTP-gated verification existed, unrelated to #336). Since #336 rewrites this test's
+   assertions anyway (no more `organizations`/`subscriptions`/`memberships` rows created at signup
+   time), the corrected assertions are written as part of this plan.
 
 ## Out of scope (belongs to #335 / #337)
 
