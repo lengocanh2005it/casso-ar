@@ -4,6 +4,7 @@ import { PasswordStrength } from '@/components/shared/password-strength';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useResendCooldown } from '@/lib/use-resend-cooldown';
 import {
   useConfirmChangePassword,
   useRequestChangePasswordOtp,
@@ -28,6 +29,9 @@ export function ChangePasswordForm({
   const requestOtp = useRequestChangePasswordOtp();
   const confirmChange = useConfirmChangePassword();
   const resendOtp = useResendChangePasswordOtp();
+  const { remainingSeconds, triggerResend, reset } = useResendCooldown(
+    'resend-cooldown:change-password',
+  );
 
   function handleRequestOtp() {
     requestOtp.mutate(currentPassword, {
@@ -35,9 +39,21 @@ export function ChangePasswordForm({
     });
   }
 
+  function handleResendOtp() {
+    triggerResend(() => resendOtp.mutateAsync()).catch(() => {});
+  }
+
   function handleConfirm() {
     if (newPassword !== confirmPassword) return;
-    confirmChange.mutate({ otp, newPassword }, { onSuccess });
+    confirmChange.mutate(
+      { otp, newPassword },
+      {
+        onSuccess: () => {
+          reset();
+          onSuccess();
+        },
+      },
+    );
   }
 
   return (
@@ -72,10 +88,14 @@ export function ChangePasswordForm({
             <Button
               variant="link"
               className="h-auto p-0 text-sm"
-              onClick={() => resendOtp.mutate()}
-              disabled={resendOtp.isPending}
+              onClick={handleResendOtp}
+              disabled={resendOtp.isPending || remainingSeconds > 0}
             >
-              {resendOtp.isPending ? 'Đang gửi…' : 'Gửi lại OTP'}
+              {resendOtp.isPending
+                ? 'Đang gửi…'
+                : remainingSeconds > 0
+                  ? `Gửi lại OTP (${remainingSeconds}s)`
+                  : 'Gửi lại OTP'}
             </Button>
           </div>
           <div className="space-y-2">
