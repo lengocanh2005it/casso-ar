@@ -13,6 +13,7 @@ import {
 } from '@nestjs/throttler';
 import type { Redis } from 'ioredis';
 import { RATE_LIMIT_REDIS_CLIENT } from '../../../common/rate-limiting/rate-limit-redis-client.provider';
+import { extractIp } from './auth-rate-limit-trackers';
 
 const VIOLATION_THRESHOLD = 3;
 const VIOLATION_WINDOW_SECONDS = 60 * 60;
@@ -20,8 +21,7 @@ const LOCKOUT_SECONDS = 15 * 60;
 
 function escalationKeyFor(context: ExecutionContext): string {
   const req = context.switchToHttp().getRequest<Record<string, unknown>>();
-  const ip = typeof req.ip === 'string' ? req.ip : 'unknown';
-  return `abuse-escalation:${ip}`;
+  return `abuse-escalation:${extractIp(req)}`;
 }
 
 @Injectable()
