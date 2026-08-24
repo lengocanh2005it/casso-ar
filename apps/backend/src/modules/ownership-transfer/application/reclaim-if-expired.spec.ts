@@ -2,7 +2,9 @@ import { OwnershipTransferRequest } from '../domain/ownership-transfer-request';
 import { reclaimIfExpired } from './reclaim-if-expired';
 
 function buildRequest(
-  overrides: Partial<ConstructorParameters<typeof OwnershipTransferRequest>[0]> = {},
+  overrides: Partial<
+    ConstructorParameters<typeof OwnershipTransferRequest>[0]
+  > = {},
 ) {
   return new OwnershipTransferRequest({
     id: 'req-1',
@@ -25,11 +27,7 @@ describe('reclaimIfExpired', () => {
     const save = jest.fn();
     const manager = {} as never;
 
-    const result = await reclaimIfExpired(
-      { save } as never,
-      request,
-      manager,
-    );
+    const result = await reclaimIfExpired({ save } as never, request, manager);
 
     expect(result).toBe(request);
     expect(save).not.toHaveBeenCalled();
@@ -42,11 +40,7 @@ describe('reclaimIfExpired', () => {
     const save = jest.fn();
     const manager = {} as never;
 
-    const result = await reclaimIfExpired(
-      { save } as never,
-      request,
-      manager,
-    );
+    const result = await reclaimIfExpired({ save } as never, request, manager);
 
     expect(result.status).toBe('EXPIRED');
     expect(save).toHaveBeenCalledWith(

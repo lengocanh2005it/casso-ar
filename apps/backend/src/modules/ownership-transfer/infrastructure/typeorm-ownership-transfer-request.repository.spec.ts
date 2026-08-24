@@ -29,7 +29,10 @@ describe('TypeOrmOwnershipTransferRequestRepository', () => {
     await repo.save(buildRequest());
 
     expect(save).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'req-1', status: 'PENDING_OTP_CONFIRMATION' }),
+      expect.objectContaining({
+        id: 'req-1',
+        status: 'PENDING_OTP_CONFIRMATION',
+      }),
     );
   });
 

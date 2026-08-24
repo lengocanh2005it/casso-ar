@@ -11,7 +11,9 @@ const dataSource = {
 };
 
 function buildRequest(
-  overrides: Partial<ConstructorParameters<typeof OwnershipTransferRequest>[0]> = {},
+  overrides: Partial<
+    ConstructorParameters<typeof OwnershipTransferRequest>[0]
+  > = {},
 ) {
   return new OwnershipTransferRequest({
     id: 'req-1',
@@ -74,7 +76,9 @@ describe('CancelOwnershipTransferUseCase', () => {
 
   it('rejects cancelling an already-terminal request', async () => {
     const { useCase } = buildUseCase({
-      findById: jest.fn().mockResolvedValue(buildRequest({ status: 'ACCEPTED' })),
+      findById: jest
+        .fn()
+        .mockResolvedValue(buildRequest({ status: 'ACCEPTED' })),
       save: jest.fn(),
     });
 

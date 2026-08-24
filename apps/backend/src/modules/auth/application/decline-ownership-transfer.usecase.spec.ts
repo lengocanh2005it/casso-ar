@@ -11,7 +11,9 @@ const dataSource = {
 };
 
 function buildRequest(
-  overrides: Partial<ConstructorParameters<typeof OwnershipTransferRequest>[0]> = {},
+  overrides: Partial<
+    ConstructorParameters<typeof OwnershipTransferRequest>[0]
+  > = {},
 ) {
   return new OwnershipTransferRequest({
     id: 'req-1',
@@ -74,7 +76,9 @@ describe('DeclineOwnershipTransferUseCase', () => {
 
   it('rejects declining a request that is not PENDING_ACCEPTANCE', async () => {
     const { useCase } = buildUseCase({
-      findById: jest.fn().mockResolvedValue(buildRequest({ status: 'EXPIRED' })),
+      findById: jest
+        .fn()
+        .mockResolvedValue(buildRequest({ status: 'EXPIRED' })),
       save: jest.fn(),
     });
 

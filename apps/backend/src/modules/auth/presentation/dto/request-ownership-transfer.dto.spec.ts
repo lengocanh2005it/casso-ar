@@ -14,7 +14,7 @@ describe('RequestOwnershipTransferDto', () => {
     dto.targetUserId = 'not-a-uuid';
     dto.currentPassword = 'password123';
     expect(await validate(dto)).toHaveLength(1);
-    
+
     dto.targetUserId = '123e4567-e89b-12d3-a456-426614174000';
     dto.currentPassword = '';
     expect(await validate(dto)).toHaveLength(1);

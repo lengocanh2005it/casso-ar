@@ -10,7 +10,9 @@ const dataSource = {
 };
 
 function buildRequest(
-  overrides: Partial<ConstructorParameters<typeof OwnershipTransferRequest>[0]> = {},
+  overrides: Partial<
+    ConstructorParameters<typeof OwnershipTransferRequest>[0]
+  > = {},
 ) {
   return new OwnershipTransferRequest({
     id: 'req-1',
@@ -30,7 +32,9 @@ function buildRequest(
 describe('GetPendingOwnershipTransferForMeUseCase', () => {
   it('returns the request when it targets the caller', async () => {
     const requestRepo = {
-      findNonTerminalByOrganization: jest.fn().mockResolvedValue(buildRequest()),
+      findNonTerminalByOrganization: jest
+        .fn()
+        .mockResolvedValue(buildRequest()),
       save: jest.fn(),
     };
     const useCase = new GetPendingOwnershipTransferForMeUseCase(
@@ -45,7 +49,9 @@ describe('GetPendingOwnershipTransferForMeUseCase', () => {
 
   it('returns null when it targets someone else', async () => {
     const requestRepo = {
-      findNonTerminalByOrganization: jest.fn().mockResolvedValue(buildRequest()),
+      findNonTerminalByOrganization: jest
+        .fn()
+        .mockResolvedValue(buildRequest()),
       save: jest.fn(),
     };
     const useCase = new GetPendingOwnershipTransferForMeUseCase(
@@ -60,7 +66,9 @@ describe('GetPendingOwnershipTransferForMeUseCase', () => {
     const requestRepo = {
       findNonTerminalByOrganization: jest
         .fn()
-        .mockResolvedValue(buildRequest({ status: 'PENDING_OTP_CONFIRMATION' })),
+        .mockResolvedValue(
+          buildRequest({ status: 'PENDING_OTP_CONFIRMATION' }),
+        ),
       save: jest.fn(),
     };
     const useCase = new GetPendingOwnershipTransferForMeUseCase(

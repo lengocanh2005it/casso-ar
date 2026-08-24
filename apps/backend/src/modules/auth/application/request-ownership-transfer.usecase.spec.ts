@@ -9,7 +9,9 @@ const dataSource = {
   ),
 };
 
-function buildUser(overrides: Partial<{ id: string; email: string; passwordHash: string }> = {}) {
+function buildUser(
+  overrides: Partial<{ id: string; email: string; passwordHash: string }> = {},
+) {
   return {
     id: 'owner-1',
     email: 'owner@acme.vn',
@@ -19,7 +21,11 @@ function buildUser(overrides: Partial<{ id: string; email: string; passwordHash:
 }
 
 function buildMembership(
-  overrides: Partial<{ role: string; joinedAt: Date | null; status: string }> = {},
+  overrides: Partial<{
+    role: string;
+    joinedAt: Date | null;
+    status: string;
+  }> = {},
 ) {
   return {
     role: 'ACCOUNTANT',
@@ -37,20 +43,22 @@ jest.mock('./password-hasher', () => ({
 
 import { comparePassword } from './password-hasher';
 
-function buildUseCase(overrides: {
-  userRepo?: Record<string, jest.Mock>;
-  membershipRepo?: Record<string, jest.Mock>;
-  requestRepo?: Record<string, jest.Mock>;
-  notificationSender?: Record<string, jest.Mock>;
-} = {}) {
+function buildUseCase(
+  overrides: {
+    userRepo?: Record<string, jest.Mock>;
+    membershipRepo?: Record<string, jest.Mock>;
+    requestRepo?: Record<string, jest.Mock>;
+    notificationSender?: Record<string, jest.Mock>;
+  } = {},
+) {
   const userRepo = {
     findById: jest.fn().mockResolvedValue(buildUser()),
     ...overrides.userRepo,
   };
   const membershipRepo = {
-    findByUserAndOrganization: jest.fn().mockResolvedValue(
-      buildMembership({ joinedAt: new Date('2026-08-01') }),
-    ),
+    findByUserAndOrganization: jest
+      .fn()
+      .mockResolvedValue(buildMembership({ joinedAt: new Date('2026-08-01') })),
     ...overrides.membershipRepo,
   };
   const requestRepo = {
@@ -99,10 +107,9 @@ describe('RequestOwnershipTransferUseCase', () => {
       expect.objectContaining({ status: 'PENDING_OTP_CONFIRMATION' }),
       manager,
     );
-    expect(notificationSender.sendOwnershipTransferOtpEmail).toHaveBeenCalledWith(
-      'owner@acme.vn',
-      expect.stringMatching(/^\d{6}$/),
-    );
+    expect(
+      notificationSender.sendOwnershipTransferOtpEmail,
+    ).toHaveBeenCalledWith('owner@acme.vn', expect.stringMatching(/^\d{6}$/));
   });
 
   it('rejects targeting yourself', async () => {
@@ -135,9 +142,12 @@ describe('RequestOwnershipTransferUseCase', () => {
   it('rejects a target who is already OWNER', async () => {
     const { useCase } = buildUseCase({
       membershipRepo: {
-        findByUserAndOrganization: jest
-          .fn()
-          .mockResolvedValue(buildMembership({ role: 'OWNER', joinedAt: new Date('2026-08-01') })),
+        findByUserAndOrganization: jest.fn().mockResolvedValue(
+          buildMembership({
+            role: 'OWNER',
+            joinedAt: new Date('2026-08-01'),
+          }),
+        ),
       },
     });
 
@@ -154,9 +164,10 @@ describe('RequestOwnershipTransferUseCase', () => {
   it('rejects when another non-terminal request already exists', async () => {
     const { useCase } = buildUseCase({
       requestRepo: {
-        findNonTerminalByOrganization: jest.fn().mockResolvedValue(
-          { isExpired: () => false, isNonTerminal: () => true },
-        ),
+        findNonTerminalByOrganization: jest.fn().mockResolvedValue({
+          isExpired: () => false,
+          isNonTerminal: () => true,
+        }),
         save: jest.fn(),
       },
     });

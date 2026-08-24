@@ -8,6 +8,7 @@ import {
   Server,
   Settings as SettingsIcon,
   Users,
+  Webhook,
 } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
@@ -33,6 +34,11 @@ const EmailTemplatesTab = lazy(() =>
 const AuditLogTab = lazy(() =>
   import('@/features/audit-logs/components/audit-log-tab').then((m) => ({
     default: m.AuditLogTab,
+  })),
+);
+const WebhookInboxTab = lazy(() =>
+  import('@/features/webhook-inbox/components/webhook-inbox-tab').then((m) => ({
+    default: m.WebhookInboxTab,
   })),
 );
 
@@ -106,6 +112,17 @@ function useSettingsTabs(): SettingsTabConfig[] {
         render: () => (
           <Suspense fallback={TAB_SKELETON}>
             <AuditLogTab />
+          </Suspense>
+        ),
+      },
+      {
+        value: 'webhook-inbox',
+        label: 'Webhook',
+        icon: Webhook,
+        locked: !hasPermission(role, Permission.WEBHOOK_INBOX_READ),
+        render: () => (
+          <Suspense fallback={TAB_SKELETON}>
+            <WebhookInboxTab />
           </Suspense>
         ),
       },

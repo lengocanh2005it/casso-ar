@@ -10,7 +10,9 @@ const dataSource = {
 };
 
 function buildRequest(
-  overrides: Partial<ConstructorParameters<typeof OwnershipTransferRequest>[0]> = {},
+  overrides: Partial<
+    ConstructorParameters<typeof OwnershipTransferRequest>[0]
+  > = {},
 ) {
   return new OwnershipTransferRequest({
     id: 'req-1',
@@ -30,7 +32,9 @@ function buildRequest(
 describe('GetCurrentOwnershipTransferUseCase', () => {
   it('returns the non-terminal request for the organization', async () => {
     const requestRepo = {
-      findNonTerminalByOrganization: jest.fn().mockResolvedValue(buildRequest()),
+      findNonTerminalByOrganization: jest
+        .fn()
+        .mockResolvedValue(buildRequest()),
       save: jest.fn(),
     };
     const useCase = new GetCurrentOwnershipTransferUseCase(
@@ -60,7 +64,9 @@ describe('GetCurrentOwnershipTransferUseCase', () => {
     const requestRepo = {
       findNonTerminalByOrganization: jest
         .fn()
-        .mockResolvedValue(buildRequest({ otpExpiresAt: new Date('2020-01-01') })),
+        .mockResolvedValue(
+          buildRequest({ otpExpiresAt: new Date('2020-01-01') }),
+        ),
       save: jest.fn(),
     };
     const useCase = new GetCurrentOwnershipTransferUseCase(

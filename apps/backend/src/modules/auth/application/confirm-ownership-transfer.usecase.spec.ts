@@ -12,7 +12,9 @@ const dataSource = {
 };
 
 function buildRequest(
-  overrides: Partial<ConstructorParameters<typeof OwnershipTransferRequest>[0]> = {},
+  overrides: Partial<
+    ConstructorParameters<typeof OwnershipTransferRequest>[0]
+  > = {},
 ) {
   return new OwnershipTransferRequest({
     id: 'req-1',
@@ -29,19 +31,23 @@ function buildRequest(
   });
 }
 
-function buildUseCase(overrides: {
-  requestRepo?: Record<string, jest.Mock>;
-  userRepo?: Record<string, jest.Mock>;
-  organizationRepo?: Record<string, jest.Mock>;
-  notificationSender?: Record<string, jest.Mock>;
-} = {}) {
+function buildUseCase(
+  overrides: {
+    requestRepo?: Record<string, jest.Mock>;
+    userRepo?: Record<string, jest.Mock>;
+    organizationRepo?: Record<string, jest.Mock>;
+    notificationSender?: Record<string, jest.Mock>;
+  } = {},
+) {
   const requestRepo = {
     findById: jest.fn().mockResolvedValue(buildRequest()),
     save: jest.fn(),
     ...overrides.requestRepo,
   };
   const userRepo = {
-    findById: jest.fn().mockResolvedValue({ id: 'target-1', email: 'target@acme.vn' }),
+    findById: jest
+      .fn()
+      .mockResolvedValue({ id: 'target-1', email: 'target@acme.vn' }),
     ...overrides.userRepo,
   };
   const organizationRepo = {
@@ -84,10 +90,9 @@ describe('ConfirmOwnershipTransferUseCase', () => {
       expect.objectContaining({ status: 'PENDING_ACCEPTANCE' }),
       manager,
     );
-    expect(notificationSender.sendOwnershipTransferPendingEmail).toHaveBeenCalledWith(
-      'target@acme.vn',
-      'Acme Corp',
-    );
+    expect(
+      notificationSender.sendOwnershipTransferPendingEmail,
+    ).toHaveBeenCalledWith('target@acme.vn', 'Acme Corp');
   });
 
   it('rejects a wrong OTP', async () => {
