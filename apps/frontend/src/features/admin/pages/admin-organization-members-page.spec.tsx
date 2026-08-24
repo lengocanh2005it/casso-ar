@@ -142,6 +142,7 @@ describe('AdminOrganizationMembersPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Element.prototype.scrollIntoView = vi.fn();
+    sessionStorage.clear();
   });
 
   describe('organization header', () => {
@@ -396,7 +397,7 @@ describe('AdminOrganizationMembersPage', () => {
 
       expect(
         await within(inviteRow as HTMLElement).findByRole('button', {
-          name: 'Đang gửi lại…',
+          name: 'Đang gửi…',
         }),
       ).toBeDisabled();
       expect(

@@ -1,6 +1,7 @@
 import { MailPlus } from 'lucide-react';
 import { EmptyState } from '@/components/layout/empty-state';
 import { SectionCard } from '@/components/layout/section-card';
+import { InviteResendButton } from '@/components/shared/invite-resend-button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ROLE_LABELS } from '@/lib/role-labels';
+import { buildResendCooldownKey } from '@/lib/use-resend-cooldown';
 import {
   useOrganizationInvites,
   useResendInvite,
@@ -85,14 +87,13 @@ export function PendingInvitesTable({
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={resend.isPending}
-                      onClick={() => resend.mutate(invite.id)}
-                    >
-                      Gửi lại
-                    </Button>
+                    <InviteResendButton
+                      cooldownKey={buildResendCooldownKey(
+                        'invitation',
+                        `${organizationId}:${invite.id}`,
+                      )}
+                      onResend={() => resend.mutateAsync(invite.id)}
+                    />
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="destructive" size="sm">

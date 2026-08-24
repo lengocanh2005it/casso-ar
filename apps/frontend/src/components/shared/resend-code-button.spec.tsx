@@ -75,4 +75,22 @@ describe('ResendCodeButton', () => {
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
+
+  it('applies a custom variant, size, and className when provided', () => {
+    render(
+      <ResendCodeButton
+        label="Gửi lại"
+        pending={false}
+        remainingSeconds={0}
+        onClick={vi.fn()}
+        variant="outline"
+        size="sm"
+        className="min-w-32"
+      />,
+    );
+
+    const button = screen.getByRole('button', { name: 'Gửi lại' });
+    expect(button.className).toContain('min-w-32');
+    expect(button.className).toContain('border');
+  });
 });

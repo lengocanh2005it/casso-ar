@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PendingInvitesTable } from './pending-invites-table';
 
 const apiRequest = vi.fn();
@@ -12,6 +12,14 @@ vi.mock('@/lib/api-client', () => ({
 const invite = {
   id: 'inv-1',
   email: 'moi@congtyb.vn',
+  role: 'VIEWER',
+  invitedAt: '2026-08-12T00:00:00.000Z',
+  expiresAt: '2026-08-19T00:00:00.000Z',
+};
+
+const invite2 = {
+  id: 'inv-2',
+  email: 'khac@congtyb.vn',
   role: 'VIEWER',
   invitedAt: '2026-08-12T00:00:00.000Z',
   expiresAt: '2026-08-19T00:00:00.000Z',
@@ -29,6 +37,11 @@ function renderTable() {
 }
 
 describe('PendingInvitesTable', () => {
+  beforeEach(() => {
+    apiRequest.mockReset();
+    sessionStorage.clear();
+  });
+
   it('shows the empty state when there are no pending invites', async () => {
     apiRequest.mockResolvedValueOnce({
       items: [],
@@ -67,6 +80,50 @@ describe('PendingInvitesTable', () => {
         }),
       ),
     );
+  });
+
+  it('disables only the resent invite, not other pending invites', async () => {
+    apiRequest
+      .mockResolvedValueOnce({
+        items: [invite, invite2],
+        total: 2,
+        page: 1,
+        limit: 100,
+      })
+      .mockResolvedValueOnce({ success: true });
+    renderTable();
+
+    await waitFor(() =>
+      expect(screen.getByText('moi@congtyb.vn')).toBeTruthy(),
+    );
+    const resendButtons = screen.getAllByRole('button', { name: 'Gửi lại' });
+    fireEvent.click(resendButtons[0]);
+
+    const resentButton = await screen.findByRole('button', {
+      name: 'Gửi lại (30s)',
+    });
+    expect(resentButton).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Gửi lại' })).not.toBeDisabled();
+  });
+
+  it('does not disable the resend button when the request fails', async () => {
+    apiRequest
+      .mockResolvedValueOnce({
+        items: [invite],
+        total: 1,
+        page: 1,
+        limit: 100,
+      })
+      .mockRejectedValueOnce(new Error('rate limited'));
+    renderTable();
+
+    await waitFor(() =>
+      expect(screen.getByText('moi@congtyb.vn')).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi lại' }));
+
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('button', { name: 'Gửi lại' })).not.toBeDisabled();
   });
 
   it('confirms before revoking an invite', async () => {
