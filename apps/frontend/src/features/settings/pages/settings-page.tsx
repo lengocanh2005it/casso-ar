@@ -11,7 +11,7 @@ import {
   Webhook,
 } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo } from 'react';
-import { PageHeader } from '@/components/layout/page-header';
+import { PageHeading } from '@/components/layout/page-heading';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/auth-context';
@@ -155,45 +155,44 @@ export function SettingsPage() {
     tabs.find((t) => t.value === activeTab && !t.locked)?.value ?? defaultTab;
 
   return (
-    <>
-      <PageHeader
+    <div className="space-y-6">
+      <PageHeading
+        eyebrow="QUẢN LÝ TÀI KHOẢN"
         title="Cài đặt"
         description="Quản lý tài khoản và cấu hình hệ thống"
         icon={SettingsIcon}
         tone="info"
       />
-      <div className="flex flex-col gap-6 p-4 sm:p-6">
-        <PendingOwnershipTransferBanner organizationId={user?.organizationId} />
-        <Tabs
-          value={resolvedTab}
-          onValueChange={(value) => setParam('tab', value)}
-        >
-          <TabsList className="w-full justify-start gap-1 overflow-x-auto rounded-lg bg-muted p-1">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <TabsTrigger
-                  key={tab.value}
-                  value={tab.value}
-                  disabled={tab.locked}
-                  className="shrink-0 gap-1.5"
-                  title={tab.label}
-                >
-                  <Icon className="size-3.5 shrink-0" />
-                  <span>{tab.label}</span>
-                  {tab.locked && <Lock className="size-3 opacity-50" />}
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
+      <PendingOwnershipTransferBanner organizationId={user?.organizationId} />
+      <Tabs
+        value={resolvedTab}
+        onValueChange={(value) => setParam('tab', value)}
+      >
+        <TabsList className="w-full justify-start gap-1 overflow-x-auto rounded-lg bg-muted p-1">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                disabled={tab.locked}
+                className="shrink-0 gap-1.5"
+                title={tab.label}
+              >
+                <Icon className="size-3.5 shrink-0" />
+                <span>{tab.label}</span>
+                {tab.locked && <Lock className="size-3 opacity-50" />}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
 
-          {tabs.map((tab) => (
-            <TabsContent key={tab.value} value={tab.value} className="mt-4">
-              {resolvedTab === tab.value ? tab.render() : null}
-            </TabsContent>
-          ))}
-        </Tabs>
-      </div>
-    </>
+        {tabs.map((tab) => (
+          <TabsContent key={tab.value} value={tab.value} className="mt-4">
+            {resolvedTab === tab.value ? tab.render() : null}
+          </TabsContent>
+        ))}
+      </Tabs>
+    </div>
   );
 }

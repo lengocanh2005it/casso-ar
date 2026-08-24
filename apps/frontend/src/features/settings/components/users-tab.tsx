@@ -332,7 +332,7 @@ export function UsersTab() {
   return (
     <div className="space-y-6">
       {canInvite && (
-        <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/20 p-3">
+        <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-4 shadow-sm">
           <label className="space-y-1 text-sm" htmlFor="invite-email">
             <span className="block">Email</span>
             <Input
@@ -368,31 +368,37 @@ export function UsersTab() {
         </div>
       )}
       {isOwner && (
-        <div className="flex justify-end">
-          <Button variant="outline" onClick={() => setTransferDialogOpen(true)}>
-            Chuyển quyền sở hữu
-          </Button>
-          <OwnershipTransferDialog
-            open={transferDialogOpen}
-            onOpenChange={setTransferDialogOpen}
-            organizationId={user.organizationId}
-            candidates={transferCandidates}
-          />
-        </div>
+        <OwnershipTransferDialog
+          open={transferDialogOpen}
+          onOpenChange={setTransferDialogOpen}
+          organizationId={user.organizationId}
+          candidates={transferCandidates}
+        />
       )}
       <SectionCard
         icon={Users}
         title="Thành viên"
         action={
-          <Select
-            value={statusFilter}
-            onValueChange={(value) => setStatusFilter(value as StatusFilter)}
-          >
-            <SelectTrigger aria-label="Lọc theo trạng thái">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>{statusFilterItems}</SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            {isOwner && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setTransferDialogOpen(true)}
+              >
+                Chuyển quyền sở hữu
+              </Button>
+            )}
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+            >
+              <SelectTrigger aria-label="Lọc theo trạng thái">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>{statusFilterItems}</SelectContent>
+            </Select>
+          </div>
         }
       >
         {membersQuery.isPending && membersLoadingMessage}
