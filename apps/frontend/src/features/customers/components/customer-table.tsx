@@ -2,6 +2,7 @@ import { Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/layout/empty-state';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -51,7 +52,11 @@ export function CustomerTable({ customers }: { customers: Customer[] }) {
             <TableCell className="max-w-48 break-words">
               {customer.taxCode ?? '—'}
             </TableCell>
-            <TableCell>{customer.defaultPaymentTermDays} ngày</TableCell>
+            <TableCell>
+              <Badge variant="outline">
+                {customer.defaultPaymentTermDays} ngày
+              </Badge>
+            </TableCell>
             <TableCell>{formatDate(customer.createdAt)}</TableCell>
           </TableRow>
         ))}

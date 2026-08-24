@@ -164,7 +164,7 @@ export function ReceivableBalanceHistoryTable({ items }: TableProps) {
                     {STATUS_LABELS[item.status] ?? item.status}
                   </Badge>
                 </TableCell>
-                <TableCell className="tabular-nums">
+                <TableCell className="tabular-nums font-semibold">
                   {formatVND(item.remainingAmount)}
                 </TableCell>
                 <TableCell>

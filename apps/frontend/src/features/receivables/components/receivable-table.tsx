@@ -115,7 +115,7 @@ export function ReceivableTable({
               <TableCell className="tabular-nums">
                 {formatVND(receivable.originalAmount)}
               </TableCell>
-              <TableCell className="tabular-nums font-medium">
+              <TableCell className="tabular-nums font-semibold">
                 {formatVND(receivable.remainingAmount)}
               </TableCell>
               <TableCell>

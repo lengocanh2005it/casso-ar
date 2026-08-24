@@ -184,6 +184,23 @@ describe('UsersTab', () => {
     expect(screen.queryByRole('button', { name: /Xoá/ })).toBeNull();
   });
 
+  it('shows an active badge for an unblocked member', async () => {
+    useAuth.mockReturnValue({
+      user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
+    });
+    mockApi({ members: [ownerMember, accountantMember] });
+    renderTab();
+
+    await waitFor(() =>
+      expect(screen.getByText('ke-toan@congtyb.vn')).toBeTruthy(),
+    );
+    const activeRow = screen.getByText('ke-toan@congtyb.vn').closest('tr');
+    expect(activeRow).not.toBeNull();
+    expect(
+      within(activeRow as HTMLElement).getByText('Đang hoạt động'),
+    ).toBeTruthy();
+  });
+
   it('shows a blocked badge and lets an OWNER unblock a blocked member', async () => {
     useAuth.mockReturnValue({
       user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },

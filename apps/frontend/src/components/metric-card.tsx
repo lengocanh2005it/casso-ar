@@ -31,6 +31,7 @@ export function MetricCard({
   icon: Icon,
   variant = 'default',
   className,
+  empty = false,
 }: {
   label: string;
   description: string;
@@ -38,6 +39,7 @@ export function MetricCard({
   icon: LucideIcon;
   variant?: MetricCardVariant;
   className?: string;
+  empty?: boolean;
 }) {
   return (
     <Card
@@ -53,9 +55,13 @@ export function MetricCard({
         <p className="text-xs text-muted-foreground">{description}</p>
       </CardHeader>
       <CardContent>
-        <p className="text-3xl font-bold tabular-nums text-foreground">
-          {value}
-        </p>
+        {empty ? (
+          <p className="text-sm text-muted-foreground">Chưa có dữ liệu</p>
+        ) : (
+          <p className="text-3xl font-bold tabular-nums text-foreground">
+            {value}
+          </p>
+        )}
       </CardContent>
     </Card>
   );
