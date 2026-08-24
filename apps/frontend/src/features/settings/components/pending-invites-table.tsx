@@ -90,7 +90,7 @@ export function PendingInvitesTable({
                     <InviteResendButton
                       cooldownKey={buildInvitationCooldownKey(
                         organizationId ?? '',
-                        invite.id,
+                        invite.email,
                       )}
                       onResend={() => resend.mutateAsync(invite.id)}
                     />

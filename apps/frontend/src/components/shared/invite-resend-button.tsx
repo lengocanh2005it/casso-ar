@@ -13,7 +13,7 @@ export function InviteResendButton({
   cooldownKey,
   onResend,
   onError,
-  className,
+  className = '',
 }: InviteResendButtonProps) {
   const [pending, setPending] = useState(false);
   const { remainingSeconds, triggerResend } = useResendCooldown(cooldownKey);
