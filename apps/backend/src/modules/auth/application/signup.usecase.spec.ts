@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { PendingSignup } from '../domain/pending-signup';
 import { SignupUseCase } from './signup.usecase';
 
@@ -243,5 +244,31 @@ describe('SignupUseCase', () => {
       errorCode: 'CONFLICT',
       details: { rowErrorCode: 'DUPLICATE_TAX_CODE' },
     });
+  });
+
+  it('logs a non-secret signup-requested event with email and taxCode', async () => {
+    const common = buildCommonMocks();
+    const { taxCodeLookup } = buildTaxCodeMatchMocks('Acme Co');
+    const useCase = buildUseCase(common, taxCodeLookup);
+    const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+
+    await useCase.execute({
+      organizationName: 'Acme Co',
+      name: 'An',
+      email: 'an@acme.vn',
+      password: 'S3curePass!',
+      taxCode: '0101234567',
+    });
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Signup requested',
+        email: 'an@acme.vn',
+        taxCode: '0101234567',
+      }),
+    );
+    const loggedPayload = JSON.stringify(logSpy.mock.calls[0][0]);
+    expect(loggedPayload).not.toMatch(/S3curePass!/);
+    logSpy.mockRestore();
   });
 });

@@ -16,6 +16,7 @@ import {
   type IUserRepository,
   USER_REPOSITORY,
 } from '../../users/application/user-repository.port';
+import type { OrganizationVerificationMethod } from '../domain/operator-audit-log';
 import {
   type IOperatorAuditLogRepository,
   OPERATOR_AUDIT_LOG_REPOSITORY,
@@ -25,6 +26,8 @@ import { transitionPendingOrganization } from './transition-pending-organization
 export interface ApproveOrganizationInput {
   organizationId: string;
   operatorId: string;
+  verificationMethod: OrganizationVerificationMethod;
+  reason?: string;
 }
 
 @Injectable()
@@ -53,6 +56,8 @@ export class ApproveOrganizationUseCase {
       organizationId: input.organizationId,
       operatorId: input.operatorId,
       actionType: 'ORGANIZATION_APPROVED',
+      verificationMethod: input.verificationMethod,
+      reason: input.reason,
       transition: (organization) => organization.approve(),
       notify: (email, name) =>
         this.memberNotificationSender.sendOrganizationApprovedEmail(

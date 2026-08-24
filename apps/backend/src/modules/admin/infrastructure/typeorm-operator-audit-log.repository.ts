@@ -14,6 +14,7 @@ function toOrm(log: OperatorAuditLog): OperatorAuditLogOrmEntity {
   row.membershipId = log.membershipId;
   row.inviteId = log.inviteId;
   row.reason = log.reason;
+  row.verificationMethod = log.verificationMethod;
   row.createdAt = log.createdAt;
   return row;
 }

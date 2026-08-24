@@ -9,6 +9,7 @@ import type { IUserRepository } from '../../users/application/user-repository.po
 import {
   type OperatorActionType,
   OperatorAuditLog,
+  type OrganizationVerificationMethod,
 } from '../domain/operator-audit-log';
 import type { IOperatorAuditLogRepository } from './operator-audit-log-repository.port';
 
@@ -22,6 +23,7 @@ export interface TransitionPendingOrganizationInput {
   operatorId: string;
   actionType: OperatorActionType;
   reason?: string;
+  verificationMethod?: OrganizationVerificationMethod;
   transition: (organization: Organization) => Organization;
   notify: (ownerEmail: string, organizationName: string) => Promise<void>;
 }
@@ -60,6 +62,7 @@ export async function transitionPendingOrganization(
         organizationId: input.organizationId,
         actionType: input.actionType,
         reason: input.reason,
+        verificationMethod: input.verificationMethod,
         createdAt: new Date(),
       }),
       manager,

@@ -9,12 +9,18 @@ import { PassportModule } from '@nestjs/passport';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import {
+  extractIp,
+  extractSignupEmail,
+  extractTaxCode,
+} from './modules/auth/presentation/auth-rate-limit-trackers';
 import { JwtStrategy } from './common/auth/jwt.strategy';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { AuditModule } from './common/audit/audit.module';
 import { IdempotencyModule } from './common/idempotency/idempotency.module';
 import { TenancyModule } from './common/tenancy/tenancy.module';
 import { CommonTokensModule } from './common/tokens/common-tokens.module';
+import { RateLimitingModule } from './common/rate-limiting/rate-limiting.module';
 import { RetentionModule } from './common/retention/retention.module';
 import { TenantContextInterceptor } from './common/tenancy/tenant-context.interceptor';
 import { ObservabilityModule } from './common/observability/observability.module';
@@ -57,7 +63,33 @@ import { ProfileModule } from './modules/profile/profile.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 5 }]),
+    ThrottlerModule.forRoot([
+      {
+        name: 'ip',
+        ttl: 15 * 60 * 1000,
+        limit: 20,
+        getTracker: (req: Record<string, unknown>) => extractIp(req),
+      },
+      {
+        name: 'email',
+        ttl: 60 * 60 * 1000,
+        limit: 5,
+        getTracker: (req: Record<string, unknown>) =>
+          extractSignupEmail(req) ?? 'no-email',
+        skipIf: (context) =>
+          extractSignupEmail(context.switchToHttp().getRequest()) === null,
+      },
+      {
+        name: 'taxCode',
+        ttl: 60 * 60 * 1000,
+        limit: 5,
+        getTracker: (req: Record<string, unknown>) =>
+          extractTaxCode(req) ?? 'no-tax-code',
+        skipIf: (context) =>
+          extractTaxCode(context.switchToHttp().getRequest()) === null,
+      },
+    ]),
+    RateLimitingModule,
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: getTypeOrmConfig,

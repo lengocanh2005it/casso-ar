@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { PendingSignup } from '../domain/pending-signup';
 import { ResendVerificationEmailUseCase } from './resend-verification-email.usecase';
 
@@ -17,8 +18,7 @@ describe('ResendVerificationEmailUseCase', () => {
     const emailSender = { sendVerificationEmail: jest.fn() };
     const dataSource = {
       transaction: jest.fn(
-        async (callback: (manager: object) => Promise<unknown>) =>
-          callback({}),
+        async (callback: (manager: object) => Promise<unknown>) => callback({}),
       ),
     };
     const useCase = new ResendVerificationEmailUseCase(
@@ -62,7 +62,10 @@ describe('ResendVerificationEmailUseCase', () => {
       createdAt: new Date(),
     });
     const userRepo = { findByEmail: jest.fn().mockResolvedValue(null) };
-    const verificationTokenRepo = { deleteByUserId: jest.fn(), save: jest.fn() };
+    const verificationTokenRepo = {
+      deleteByUserId: jest.fn(),
+      save: jest.fn(),
+    };
     const pendingSignupRepo = {
       findByEmail: jest.fn().mockResolvedValue(pendingSignup),
       save: jest.fn(),
@@ -83,7 +86,9 @@ describe('ResendVerificationEmailUseCase', () => {
     expect(pendingSignupRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'pending-1', otpHash: expect.any(String) }),
     );
-    expect(pendingSignupRepo.save.mock.calls[0][0].otpHash).not.toBe('old-hash');
+    expect(pendingSignupRepo.save.mock.calls[0][0].otpHash).not.toBe(
+      'old-hash',
+    );
     expect(emailSender.sendVerificationEmail).toHaveBeenCalledWith(
       'new@casso.vn',
       expect.stringMatching(/^\d{6}$/),
@@ -93,7 +98,10 @@ describe('ResendVerificationEmailUseCase', () => {
 
   it('does not reveal or email when neither a user nor a pending signup exists', async () => {
     const userRepo = { findByEmail: jest.fn().mockResolvedValue(null) };
-    const verificationTokenRepo = { deleteByUserId: jest.fn(), save: jest.fn() };
+    const verificationTokenRepo = {
+      deleteByUserId: jest.fn(),
+      save: jest.fn(),
+    };
     const pendingSignupRepo = {
       findByEmail: jest.fn().mockResolvedValue(null),
       save: jest.fn(),
@@ -115,9 +123,16 @@ describe('ResendVerificationEmailUseCase', () => {
   });
 
   it('does not resend for an already-verified user, and does not fall through to the pending-signup branch', async () => {
-    const user = { id: 'user-1', email: 'v@casso.vn', isEmailVerified: () => true };
+    const user = {
+      id: 'user-1',
+      email: 'v@casso.vn',
+      isEmailVerified: () => true,
+    };
     const userRepo = { findByEmail: jest.fn().mockResolvedValue(user) };
-    const verificationTokenRepo = { deleteByUserId: jest.fn(), save: jest.fn() };
+    const verificationTokenRepo = {
+      deleteByUserId: jest.fn(),
+      save: jest.fn(),
+    };
     const pendingSignupRepo = {
       findByEmail: jest.fn().mockResolvedValue(null),
       save: jest.fn(),
@@ -136,5 +151,52 @@ describe('ResendVerificationEmailUseCase', () => {
 
     expect(emailSender.sendVerificationEmail).not.toHaveBeenCalled();
     expect(pendingSignupRepo.findByEmail).not.toHaveBeenCalled();
+  });
+
+  it('logs a non-secret OTP-resent event for a pending signup', async () => {
+    const pendingSignup = new PendingSignup({
+      id: 'pending-1',
+      email: 'new@casso.vn',
+      passwordHash: 'hashed',
+      name: 'An',
+      organizationName: 'Acme Co',
+      taxCode: '0101234567',
+      taxCodeMatched: true,
+      taxCodeLookupName: 'Acme Co',
+      otpHash: 'old-hash',
+      expiresAt: new Date(Date.now() + 60_000),
+      createdAt: new Date(),
+    });
+    const userRepo = { findByEmail: jest.fn().mockResolvedValue(null) };
+    const verificationTokenRepo = {
+      deleteByUserId: jest.fn(),
+      save: jest.fn(),
+    };
+    const pendingSignupRepo = {
+      findByEmail: jest.fn().mockResolvedValue(pendingSignup),
+      save: jest.fn(),
+    };
+    const emailSender = { sendVerificationEmail: jest.fn() };
+    const dataSource = { transaction: jest.fn() };
+    const logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+
+    const useCase = new ResendVerificationEmailUseCase(
+      userRepo as any,
+      verificationTokenRepo as any,
+      pendingSignupRepo as any,
+      emailSender as any,
+      dataSource as any,
+    );
+    await useCase.execute('new@casso.vn');
+
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Verification OTP resent',
+        email: 'new@casso.vn',
+      }),
+    );
+    const loggedPayload = JSON.stringify(logSpy.mock.calls[0][0]);
+    expect(loggedPayload).not.toMatch(/old-hash/);
+    logSpy.mockRestore();
   });
 });

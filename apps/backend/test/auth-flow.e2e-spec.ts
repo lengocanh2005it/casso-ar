@@ -7,9 +7,11 @@ import {
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
 import cookieParser from 'cookie-parser';
+import type { Redis } from 'ioredis';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { RATE_LIMIT_REDIS_CLIENT } from '../src/common/rate-limiting/rate-limit-redis-client.provider';
 import { configureApp } from '../src/configure-app';
 import { AUTH_EMAIL_SENDER } from '../src/modules/auth/application/auth-email-sender.port';
 import { MembershipInviteOrmEntity } from '../src/modules/auth/infrastructure/membership-invite.orm-entity';
@@ -23,6 +25,13 @@ describe('Auth flow (integration)', () => {
   let app: INestApplication;
   let dataSource: DataSource;
   let throttlerStorage: ThrottlerStorageService;
+  let rateLimitRedis: Redis;
+
+  async function clearRateLimitState() {
+    throttlerStorage.storage.clear();
+    const keys = await rateLimitRedis.keys('abuse-escalation:*');
+    if (keys.length > 0) await rateLimitRedis.del(...keys);
+  }
   const taxCodeLookup = {
     lookup: jest.fn().mockResolvedValue({ name: 'Company B' }),
   };
@@ -70,6 +79,7 @@ describe('Auth flow (integration)', () => {
     await app.init();
     dataSource = moduleRef.get(DataSource);
     throttlerStorage = moduleRef.get<ThrottlerStorageService>(ThrottlerStorage);
+    rateLimitRedis = moduleRef.get<Redis>(RATE_LIMIT_REDIS_CLIENT);
   }, 60_000);
 
   afterAll(async () => {
@@ -188,7 +198,9 @@ describe('Auth flow (integration)', () => {
     ).not.toHaveLength(0);
   });
 
-  it('auth rate limiting returns the standard 429 envelope', async () => {
+  it('email dimension rate-limits login and returns the standard 429 envelope', async () => {
+    await clearRateLimitState();
+
     for (let attempt = 0; attempt < 5; attempt += 1) {
       await request(app.getHttpServer())
         .post('/api/v1/auth/login')
@@ -278,7 +290,7 @@ describe('Auth flow (integration)', () => {
   });
 
   it('tax-code lookup rate-limits after 5 requests per IP', async () => {
-    throttlerStorage.storage.clear();
+    await clearRateLimitState();
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
       await request(app.getHttpServer())
@@ -290,6 +302,89 @@ describe('Auth flow (integration)', () => {
     const response = await request(app.getHttpServer())
       .get('/api/v1/tax-verification/lookup')
       .query({ taxCode: '0123456789' })
+      .expect(429);
+
+    expect(response.body).toMatchObject({
+      statusCode: 429,
+      errorCode: 'RATE_LIMIT_EXCEEDED',
+    });
+  });
+
+  it('IP dimension rate-limits lookup after 20 requests regardless of tax code', async () => {
+    await clearRateLimitState();
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      await request(app.getHttpServer())
+        .get('/api/v1/tax-verification/lookup')
+        .query({ taxCode: `0900000${String(attempt).padStart(3, '0')}` })
+        .expect(200);
+    }
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/tax-verification/lookup')
+      .query({ taxCode: '0999999999' })
+      .expect(429);
+
+    expect(response.body).toMatchObject({
+      statusCode: 429,
+      errorCode: 'RATE_LIMIT_EXCEEDED',
+    });
+  });
+
+  it('tax-code dimension rate-limits signup independently of the email dimension', async () => {
+    await clearRateLimitState();
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/signup')
+        .send({
+          organizationName: 'Company E',
+          name: 'Emi',
+          email: `emi${attempt}@congtye.vn`,
+          password: 'S3curePass!',
+          taxCode: '0777777770',
+        })
+        .expect((res) => {
+          expect([201, 409]).toContain(res.status);
+        });
+    }
+
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/auth/signup')
+      .send({
+        organizationName: 'Company E',
+        name: 'Emi',
+        email: 'emi-final@congtye.vn',
+        password: 'S3curePass!',
+        taxCode: '0777777770',
+      })
+      .expect(429);
+
+    expect(response.body).toMatchObject({
+      statusCode: 429,
+      errorCode: 'RATE_LIMIT_EXCEEDED',
+    });
+  });
+
+  it('escalates an IP to a lockout after repeated throttled attempts', async () => {
+    await clearRateLimitState();
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await request(app.getHttpServer())
+        .get('/api/v1/tax-verification/lookup')
+        .query({ taxCode: `080000000${attempt}` })
+        .expect(200);
+    }
+    for (let violation = 0; violation < 3; violation += 1) {
+      await request(app.getHttpServer())
+        .get('/api/v1/tax-verification/lookup')
+        .query({ taxCode: `081111111${violation}` })
+        .expect(429);
+    }
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/tax-verification/lookup')
+      .query({ taxCode: '0822222222' })
       .expect(429);
 
     expect(response.body).toMatchObject({

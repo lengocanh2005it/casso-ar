@@ -8,6 +8,12 @@ export type OperatorActionType =
   | 'INVITE_RESENT'
   | 'INVITE_REVOKED';
 
+export type OrganizationVerificationMethod =
+  | 'TAX_CODE_NAME_MATCH_ONLY'
+  | 'BUSINESS_REGISTRATION_DOCUMENT'
+  | 'PHONE_CALL'
+  | 'OTHER';
+
 export interface OperatorAuditLogProps {
   id: string;
   operatorId: string;
@@ -17,6 +23,7 @@ export interface OperatorAuditLogProps {
   membershipId?: string | null;
   inviteId?: string | null;
   reason?: string | null;
+  verificationMethod?: OrganizationVerificationMethod | null;
 }
 
 export class OperatorAuditLog {
@@ -28,6 +35,7 @@ export class OperatorAuditLog {
   readonly membershipId: string | null;
   readonly inviteId: string | null;
   readonly reason: string | null;
+  readonly verificationMethod: OrganizationVerificationMethod | null;
 
   constructor(props: OperatorAuditLogProps) {
     this.id = props.id;
@@ -38,5 +46,6 @@ export class OperatorAuditLog {
     this.membershipId = props.membershipId ?? null;
     this.inviteId = props.inviteId ?? null;
     this.reason = props.reason ?? null;
+    this.verificationMethod = props.verificationMethod ?? null;
   }
 }
