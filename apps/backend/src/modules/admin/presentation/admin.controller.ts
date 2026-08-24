@@ -62,6 +62,7 @@ import {
   AdminOrganizationsResponseDto,
   toAdminOrganizationItemResponse,
 } from './dto/admin-response.dto';
+import { ApproveOrganizationDto } from './dto/approve-organization.dto';
 import { GetAiUsageQueryDto } from './dto/get-ai-usage-query.dto';
 import { RejectOrganizationDto } from './dto/reject-organization.dto';
 
@@ -177,11 +178,14 @@ export class AdminController {
   )
   async approve(
     @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ApproveOrganizationDto,
     @Req() request: AdminRequest,
   ) {
     await this.approveOrganizationUseCase.execute({
       organizationId: id,
       operatorId: request.user.operatorId,
+      verificationMethod: dto.verificationMethod,
+      reason: dto.reason,
     });
     return { status: 'ACTIVE' as const };
   }

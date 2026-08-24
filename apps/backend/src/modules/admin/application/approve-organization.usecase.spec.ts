@@ -53,7 +53,11 @@ describe('ApproveOrganizationUseCase', () => {
       memberNotificationSender as any,
     );
 
-    await useCase.execute({ organizationId: 'org-1', operatorId: 'op-1' });
+    await useCase.execute({
+      organizationId: 'org-1',
+      operatorId: 'op-1',
+      verificationMethod: 'BUSINESS_REGISTRATION_DOCUMENT',
+    });
 
     expect(organizationRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'ACTIVE' }),
@@ -101,8 +105,65 @@ describe('ApproveOrganizationUseCase', () => {
     );
 
     await expect(
-      useCase.execute({ organizationId: 'org-1', operatorId: 'op-1' }),
+      useCase.execute({
+        organizationId: 'org-1',
+        operatorId: 'op-1',
+        verificationMethod: 'BUSINESS_REGISTRATION_DOCUMENT',
+      }),
     ).rejects.toMatchObject({ errorCode: 'CONFLICT' });
     expect(organizationRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('records the verification method on the OperatorAuditLog row', async () => {
+    const savedAuditLogs: unknown[] = [];
+    const dataSource = {
+      transaction: jest.fn(
+        async (callback: (manager: object) => Promise<unknown>) => callback({}),
+      ),
+    };
+    const organization = {
+      id: 'org-1',
+      name: 'Acme Co',
+      status: 'PENDING_REVIEW',
+      approve: () => ({ id: 'org-1', name: 'Acme Co', status: 'ACTIVE' }),
+    };
+    const organizationRepo = {
+      findById: jest.fn().mockResolvedValue(organization),
+      save: jest.fn(),
+    };
+    const auditRepo = {
+      save: jest.fn((log: unknown) => {
+        savedAuditLogs.push(log);
+        return Promise.resolve();
+      }),
+    };
+    const membershipRepo = {
+      findOwnerByOrganization: jest.fn().mockResolvedValue(null),
+    };
+    const userRepo = { findById: jest.fn() };
+    const memberNotificationSender = {
+      sendOrganizationApprovedEmail: jest.fn(),
+    };
+
+    const useCase = new ApproveOrganizationUseCase(
+      dataSource as any,
+      organizationRepo as any,
+      auditRepo as any,
+      membershipRepo as any,
+      userRepo as any,
+      memberNotificationSender as any,
+    );
+
+    await useCase.execute({
+      organizationId: 'org-1',
+      operatorId: 'operator-1',
+      verificationMethod: 'BUSINESS_REGISTRATION_DOCUMENT',
+    });
+
+    expect(savedAuditLogs).toEqual([
+      expect.objectContaining({
+        verificationMethod: 'BUSINESS_REGISTRATION_DOCUMENT',
+      }),
+    ]);
   });
 });
