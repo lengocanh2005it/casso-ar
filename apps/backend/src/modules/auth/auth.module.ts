@@ -37,6 +37,8 @@ import { MEMBER_NOTIFICATION_SENDER } from './application/member-notification.po
 import { MEMBERSHIP_INVITE_REPOSITORY } from './application/membership-invite-repository.port';
 import { DEFAULT_ORGANIZATION_BOOTSTRAP } from './application/organization-bootstrap.port';
 import { PASSWORD_RESET_TOKEN_REPOSITORY } from './application/password-reset-token-repository.port';
+import { PENDING_SIGNUP_REPOSITORY } from './application/pending-signup-repository.port';
+import { ProvisionOrganizationUseCase } from './application/provision-organization.usecase';
 import { RefreshAccessTokenUseCase } from './application/refresh-access-token.usecase';
 import { REFRESH_TOKEN_REPOSITORY } from './application/refresh-token-repository.port';
 import { RemoveMemberUseCase } from './application/remove-member.usecase';
@@ -55,11 +57,13 @@ import { EmailVerificationTokenOrmEntity } from './infrastructure/email-verifica
 import { JwtTokenSigner } from './infrastructure/jwt-token-signer.adapter';
 import { MembershipInviteOrmEntity } from './infrastructure/membership-invite.orm-entity';
 import { PasswordResetTokenOrmEntity } from './infrastructure/password-reset-token.orm-entity';
+import { PendingSignupOrmEntity } from './infrastructure/pending-signup.orm-entity';
 import { RefreshTokenOrmEntity } from './infrastructure/refresh-token.orm-entity';
 import { ResendAuthEmailSenderAdapter } from './infrastructure/resend-auth-email-sender.adapter';
 import { TypeOrmEmailVerificationTokenRepository } from './infrastructure/typeorm-email-verification-token.repository';
 import { TypeOrmMembershipInviteRepository } from './infrastructure/typeorm-membership-invite.repository';
 import { TypeOrmPasswordResetTokenRepository } from './infrastructure/typeorm-password-reset-token.repository';
+import { TypeOrmPendingSignupRepository } from './infrastructure/typeorm-pending-signup.repository';
 import { TypeOrmRefreshTokenRepository } from './infrastructure/typeorm-refresh-token.repository';
 import { AuthController } from './presentation/auth.controller';
 import { InvitesController } from './presentation/invites.controller';
@@ -76,6 +80,7 @@ import { OwnershipTransferController } from './presentation/ownership-transfer.c
       PasswordResetTokenOrmEntity,
       MembershipInviteOrmEntity,
       RefreshTokenOrmEntity,
+      PendingSignupOrmEntity,
     ]),
     UsersModule,
     OrganizationsModule,
@@ -91,6 +96,7 @@ import { OwnershipTransferController } from './presentation/ownership-transfer.c
   providers: [
     LoginUseCase,
     SignupUseCase,
+    ProvisionOrganizationUseCase,
     VerifyEmailUseCase,
     AcceptInviteUseCase,
     GetUserProfileUseCase,
@@ -118,6 +124,10 @@ import { OwnershipTransferController } from './presentation/ownership-transfer.c
     CancelOwnershipTransferUseCase,
     GetCurrentOwnershipTransferUseCase,
     GetPendingOwnershipTransferForMeUseCase,
+    {
+      provide: PENDING_SIGNUP_REPOSITORY,
+      useClass: TypeOrmPendingSignupRepository,
+    },
     {
       provide: EMAIL_VERIFICATION_TOKEN_REPOSITORY,
       useClass: TypeOrmEmailVerificationTokenRepository,

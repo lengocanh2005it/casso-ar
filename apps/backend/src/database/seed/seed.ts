@@ -6,7 +6,7 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../../app.module';
 import { TenantContextService } from '../../common/tenancy/tenant-context';
 import { hashPassword } from '../../modules/auth/application/password-hasher';
-import { SignupUseCase } from '../../modules/auth/application/signup.usecase';
+import { ProvisionOrganizationUseCase } from '../../modules/auth/application/provision-organization.usecase';
 import {
   type ISubscriptionRepository,
   SUBSCRIPTION_REPOSITORY,
@@ -115,18 +115,20 @@ async function main() {
       return;
     }
 
-    const signup = app.get(SignupUseCase);
-    const { user, organization } = await signup.execute({
-      organizationName: SEED_ORGANIZATION_NAME,
+    const provisionOrganization = app.get(ProvisionOrganizationUseCase);
+    const { user, organization } = await provisionOrganization.execute({
       name: 'Nguyễn Minh Anh',
       email: SEED_OWNER_EMAIL,
-      password: SEED_OWNER_PASSWORD,
+      passwordHash: await hashPassword(SEED_OWNER_PASSWORD),
+      organizationName: SEED_ORGANIZATION_NAME,
       taxCode: '0319999800',
+      taxCodeMatched: false,
+      taxCodeLookupName: null,
     });
     await userRepo.save(user.markEmailVerified());
 
-    // The synthetic tax code is not backed by VietQR, so signup lands the org
-    // in PENDING_REVIEW — force-approve it so the demo owner can log in.
+    // The synthetic tax code is not backed by VietQR, so provisioning lands
+    // the org in PENDING_REVIEW — force-approve it so the demo owner can log in.
     const organizationRepo = app.get<IOrganizationRepository>(
       ORGANIZATION_REPOSITORY,
     );

@@ -4,22 +4,11 @@ import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
-  type ISubscriptionRepository,
-  SUBSCRIPTION_REPOSITORY,
-} from '../../billing/application/subscription-repository.port';
-import { Subscription } from '../../billing/domain/subscription';
-import {
-  type IMembershipRepository,
-  MEMBERSHIP_REPOSITORY,
-} from '../../organizations/application/membership-repository.port';
-import {
   DUPLICATE_TAX_CODE,
   type IOrganizationRepository,
   ORGANIZATION_REPOSITORY,
 } from '../../organizations/application/organization-repository.port';
-import { Membership, Role } from '../../organizations/domain/membership';
 import { matchesTaxCodeName } from '../../organizations/domain/normalize-company-name';
-import { Organization } from '../../organizations/domain/organization';
 import {
   type ITaxCodeLookupAdapter,
   TAX_CODE_LOOKUP_ADAPTER,
@@ -28,21 +17,16 @@ import {
   type IUserRepository,
   USER_REPOSITORY,
 } from '../../users/application/user-repository.port';
-import { User } from '../../users/domain/user';
-import { EmailVerificationToken } from '../domain/email-verification-token';
+import { PendingSignup } from '../domain/pending-signup';
 import {
   AUTH_EMAIL_SENDER,
   type IAuthEmailSender,
 } from './auth-email-sender.port';
-import {
-  EMAIL_VERIFICATION_TOKEN_REPOSITORY,
-  type IEmailVerificationTokenRepository,
-} from './email-verification-token-repository.port';
-import {
-  DEFAULT_ORGANIZATION_BOOTSTRAP,
-  type IOrganizationBootstrap,
-} from './organization-bootstrap.port';
 import { hashPassword } from './password-hasher';
+import {
+  type IPendingSignupRepository,
+  PENDING_SIGNUP_REPOSITORY,
+} from './pending-signup-repository.port';
 import { generateOtp } from './token-hasher';
 
 export interface SignupInput {
@@ -54,9 +38,7 @@ export interface SignupInput {
 }
 
 export interface SignupResult {
-  user: User;
-  organization: Organization;
-  membership: Membership;
+  email: string;
 }
 
 const VERIFICATION_TOKEN_TTL_MS = 10 * 60 * 1000;
@@ -67,14 +49,8 @@ export class SignupUseCase {
     @Inject(USER_REPOSITORY) private readonly userRepo: IUserRepository,
     @Inject(ORGANIZATION_REPOSITORY)
     private readonly organizationRepo: IOrganizationRepository,
-    @Inject(MEMBERSHIP_REPOSITORY)
-    private readonly membershipRepo: IMembershipRepository,
-    @Inject(EMAIL_VERIFICATION_TOKEN_REPOSITORY)
-    private readonly verificationTokenRepo: IEmailVerificationTokenRepository,
-    @Inject(SUBSCRIPTION_REPOSITORY)
-    private readonly subscriptionRepo: ISubscriptionRepository,
-    @Inject(DEFAULT_ORGANIZATION_BOOTSTRAP)
-    private readonly organizationBootstrap: IOrganizationBootstrap,
+    @Inject(PENDING_SIGNUP_REPOSITORY)
+    private readonly pendingSignupRepo: IPendingSignupRepository,
     @Inject(AUTH_EMAIL_SENDER)
     private readonly emailSender: IAuthEmailSender,
     @Inject(TAX_CODE_LOOKUP_ADAPTER)
@@ -84,6 +60,8 @@ export class SignupUseCase {
 
   async execute(input: SignupInput): Promise<SignupResult> {
     const email = input.email.trim().toLowerCase();
+    const organizationName = input.organizationName.trim();
+
     if (await this.userRepo.findByEmail(email)) {
       throw new AppError(ErrorCode.CONFLICT, 'Email đã được đăng ký.');
     }
@@ -95,64 +73,64 @@ export class SignupUseCase {
       );
     }
 
-    const organizationName = input.organizationName.trim();
     const lookupResult = await this.taxCodeLookup.lookup(input.taxCode);
     const taxCodeMatched =
       lookupResult !== null &&
       matchesTaxCodeName(organizationName, lookupResult.name);
-
+    const passwordHash = await hashPassword(input.password);
+    const { otp, hash: otpHash } = generateOtp();
     const now = new Date();
-    const user = new User({
-      id: randomUUID(),
-      name: input.name.trim(),
-      email,
-      passwordHash: await hashPassword(input.password),
-      emailVerifiedAt: null,
-      createdAt: now,
-    });
-    const organization = new Organization({
-      id: randomUUID(),
-      name: organizationName,
-      status: 'PENDING_REVIEW',
-      taxCode: input.taxCode,
-      taxCodeMatched,
-      taxCodeLookupName: lookupResult?.name ?? null,
-      createdAt: now,
-    });
-    const membership = new Membership({
-      id: randomUUID(),
-      organizationId: organization.id,
-      userId: user.id,
-      role: Role.OWNER,
-      invitedAt: now,
-      joinedAt: now,
-      createdAt: now,
-    });
 
     await this.dataSource.transaction(async (manager) => {
-      await this.organizationRepo.save(organization, manager);
-      await this.userRepo.save(user, manager);
-      await this.membershipRepo.save(membership, manager);
-      await this.subscriptionRepo.save(
-        Subscription.createFree(randomUUID(), organization.id, now),
+      const existingByEmail = await this.pendingSignupRepo.findByEmail(
+        email,
         manager,
-        organization.id,
       );
-      await this.organizationBootstrap.seed(organization.id, manager);
+      if (existingByEmail) {
+        if (!existingByEmail.isExpired(now)) {
+          throw new AppError(
+            ErrorCode.CONFLICT,
+            'Email này đang có một yêu cầu đăng ký chờ xác thực.',
+          );
+        }
+        await this.pendingSignupRepo.delete(existingByEmail.id, manager);
+      }
+
+      const existingByTaxCode = await this.pendingSignupRepo.findByTaxCode(
+        input.taxCode,
+        manager,
+      );
+      if (existingByTaxCode) {
+        if (!existingByTaxCode.isExpired(now)) {
+          throw new AppError(
+            ErrorCode.CONFLICT,
+            'Mã số thuế này đang có một yêu cầu đăng ký chờ xác thực.',
+            { rowErrorCode: DUPLICATE_TAX_CODE },
+          );
+        }
+        await this.pendingSignupRepo.delete(existingByTaxCode.id, manager);
+      }
+
+      await this.pendingSignupRepo.save(
+        new PendingSignup({
+          id: randomUUID(),
+          email,
+          passwordHash,
+          name: input.name.trim(),
+          organizationName,
+          taxCode: input.taxCode,
+          taxCodeMatched,
+          taxCodeLookupName: lookupResult?.name ?? null,
+          otpHash,
+          expiresAt: new Date(now.getTime() + VERIFICATION_TOKEN_TTL_MS),
+          createdAt: now,
+        }),
+        manager,
+      );
     });
 
-    const { otp, hash } = generateOtp();
-    await this.verificationTokenRepo.save(
-      new EmailVerificationToken({
-        id: randomUUID(),
-        userId: user.id,
-        tokenHash: hash,
-        expiresAt: new Date(now.getTime() + VERIFICATION_TOKEN_TTL_MS),
-        createdAt: now,
-      }),
-    );
-    await this.emailSender.sendVerificationEmail(user.email, otp);
+    await this.emailSender.sendVerificationEmail(email, otp);
 
-    return { user, organization, membership };
+    return { email };
   }
 }
