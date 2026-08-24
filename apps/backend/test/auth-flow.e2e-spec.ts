@@ -297,4 +297,66 @@ describe('Auth flow (integration)', () => {
       errorCode: 'RATE_LIMIT_EXCEEDED',
     });
   });
+
+  it('tax-code dimension rate-limits signup independently of the email dimension', async () => {
+    throttlerStorage.storage.clear();
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/signup')
+        .send({
+          organizationName: 'Company E',
+          name: 'Emi',
+          email: `emi${attempt}@congtye.vn`,
+          password: 'S3curePass!',
+          taxCode: '0777777770',
+        })
+        .expect((res) => {
+          expect([201, 409]).toContain(res.status);
+        });
+    }
+
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/auth/signup')
+      .send({
+        organizationName: 'Company E',
+        name: 'Emi',
+        email: 'emi-final@congtye.vn',
+        password: 'S3curePass!',
+        taxCode: '0777777770',
+      })
+      .expect(429);
+
+    expect(response.body).toMatchObject({
+      statusCode: 429,
+      errorCode: 'RATE_LIMIT_EXCEEDED',
+    });
+  });
+
+  it('escalates an IP to a lockout after repeated throttled attempts', async () => {
+    throttlerStorage.storage.clear();
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await request(app.getHttpServer())
+        .get('/api/v1/tax-verification/lookup')
+        .query({ taxCode: `080000000${attempt}` })
+        .expect(200);
+    }
+    for (let violation = 0; violation < 3; violation += 1) {
+      await request(app.getHttpServer())
+        .get('/api/v1/tax-verification/lookup')
+        .query({ taxCode: `081111111${violation}` })
+        .expect(429);
+    }
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/tax-verification/lookup')
+      .query({ taxCode: '0822222222' })
+      .expect(429);
+
+    expect(response.body).toMatchObject({
+      statusCode: 429,
+      errorCode: 'RATE_LIMIT_EXCEEDED',
+    });
+  });
 });
