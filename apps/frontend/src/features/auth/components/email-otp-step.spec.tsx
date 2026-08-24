@@ -22,6 +22,7 @@ function fillOtp(code: string) {
 describe('EmailOtpStep', () => {
   beforeEach(() => {
     apiRequest.mockReset();
+    sessionStorage.clear();
   });
 
   it('shows a masked-email hint, never an editable email field', () => {
@@ -100,6 +101,40 @@ describe('EmailOtpStep', () => {
         data: { email: 'lengocanh@gmail.com' },
       }),
     );
+  });
+
+  it('disables resend and shows a countdown after a successful resend', async () => {
+    apiRequest.mockResolvedValueOnce({ success: true });
+
+    render(
+      <MemoryRouter>
+        <EmailOtpStep email="lengocanh@gmail.com" onVerified={vi.fn()} />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /gửi lại mã/i }));
+
+    const resendButton = await screen.findByRole('button', {
+      name: /gửi lại mã \(30s\)/i,
+    });
+    expect(resendButton).toBeDisabled();
+  });
+
+  it('does not start a cooldown when the resend request fails', async () => {
+    apiRequest.mockRejectedValueOnce({
+      response: { data: { errorCode: 'RATE_LIMIT_EXCEEDED' } },
+    });
+
+    render(
+      <MemoryRouter>
+        <EmailOtpStep email="lengocanh@gmail.com" onVerified={vi.fn()} />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /gửi lại mã/i }));
+
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(1));
+    expect(
+      screen.getByRole('button', { name: /^gửi lại mã$/i }),
+    ).not.toBeDisabled();
   });
 
   it('shows a pending-review state when the code was correct but the org is pending', async () => {

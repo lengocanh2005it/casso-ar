@@ -1,6 +1,8 @@
 import { type FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 import { OtpInput } from '@/components/shared/otp-input';
+import { ResendCodeButton } from '@/components/shared/resend-code-button';
 import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Spinner } from '@/components/ui/spinner';
@@ -10,6 +12,10 @@ import {
   getApiErrorMessage,
 } from '@/lib/api-client';
 import { maskEmail } from '@/lib/mask-email';
+import {
+  buildResendCooldownKey,
+  useResendCooldown,
+} from '@/lib/use-resend-cooldown';
 
 interface VerifyEmailResult {
   verified: boolean;
@@ -36,6 +42,9 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
   const [rejectedMessage, setRejectedMessage] = useState(
     DEFAULT_REJECTED_MESSAGE,
   );
+  const { remainingSeconds, triggerResend, reset } = useResendCooldown(
+    buildResendCooldownKey('email-verification', email),
+  );
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -48,6 +57,7 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
         method: 'POST',
         data: { email, otp },
       });
+      reset();
       onVerified(result);
     } catch (error) {
       const errorCode = getApiErrorCode(error);
@@ -76,12 +86,19 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
     setResending(true);
     setResendSent(false);
     try {
-      await apiRequest({
-        url: '/api/v1/auth/resend-verification',
-        method: 'POST',
-        data: { email },
-      });
+      await triggerResend(() =>
+        apiRequest({
+          url: '/api/v1/auth/resend-verification',
+          method: 'POST',
+          data: { email },
+        }),
+      );
       setResendSent(true);
+    } catch (error) {
+      toast.error(
+        getApiErrorMessage(error) ??
+          'Không thể gửi lại mã. Vui lòng thử lại sau.',
+      );
     } finally {
       setResending(false);
     }
@@ -147,15 +164,12 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
         {confirming ? 'Đang xác nhận…' : 'Xác nhận'}
       </Button>
 
-      <Button
-        type="button"
-        variant="link"
-        className="h-auto p-0 text-sm"
+      <ResendCodeButton
+        label="Gửi lại mã"
+        pending={resending}
+        remainingSeconds={remainingSeconds}
         onClick={onResend}
-        disabled={resending}
-      >
-        {resending ? 'Đang gửi…' : 'Gửi lại mã'}
-      </Button>
+      />
     </form>
   );
 }

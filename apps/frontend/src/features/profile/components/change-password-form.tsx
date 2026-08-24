@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import { OtpInput } from '@/components/shared/otp-input';
 import { PasswordStrength } from '@/components/shared/password-strength';
+import { ResendCodeButton } from '@/components/shared/resend-code-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  buildResendCooldownKey,
+  useResendCooldown,
+} from '@/lib/use-resend-cooldown';
 import {
   useConfirmChangePassword,
   useRequestChangePasswordOtp,
@@ -28,6 +33,9 @@ export function ChangePasswordForm({
   const requestOtp = useRequestChangePasswordOtp();
   const confirmChange = useConfirmChangePassword();
   const resendOtp = useResendChangePasswordOtp();
+  const { remainingSeconds, triggerResend, reset } = useResendCooldown(
+    buildResendCooldownKey('change-password'),
+  );
 
   function handleRequestOtp() {
     requestOtp.mutate(currentPassword, {
@@ -35,9 +43,21 @@ export function ChangePasswordForm({
     });
   }
 
+  function handleResendOtp() {
+    triggerResend(() => resendOtp.mutateAsync()).catch(() => {});
+  }
+
   function handleConfirm() {
     if (newPassword !== confirmPassword) return;
-    confirmChange.mutate({ otp, newPassword }, { onSuccess });
+    confirmChange.mutate(
+      { otp, newPassword },
+      {
+        onSuccess: () => {
+          reset();
+          onSuccess();
+        },
+      },
+    );
   }
 
   return (
@@ -69,14 +89,12 @@ export function ChangePasswordForm({
           <div className="space-y-2">
             <Label>Mã OTP (6 chữ số)</Label>
             <OtpInput value={otp} onChange={setOtp} />
-            <Button
-              variant="link"
-              className="h-auto p-0 text-sm"
-              onClick={() => resendOtp.mutate()}
-              disabled={resendOtp.isPending}
-            >
-              {resendOtp.isPending ? 'Đang gửi…' : 'Gửi lại OTP'}
-            </Button>
+            <ResendCodeButton
+              label="Gửi lại OTP"
+              pending={resendOtp.isPending}
+              remainingSeconds={remainingSeconds}
+              onClick={handleResendOtp}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="newPassword">Mật khẩu mới</Label>
