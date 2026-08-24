@@ -781,6 +781,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **In progress:**
 - #262 — Frontend for business identity verification at signup (backend #245 shipped via PR #263; branch `lengocanh2005it/feat-262-fe-business-verification`).
+- #235 — Webhook inbox reprocess action in Casso Admin (backend already shipped via PR #147 — `GET /webhooks/inbox`, `POST /webhooks/inbox/:id/reprocess`, `WEBHOOK_INBOX_READ`; frontend-only; branch `feat/webhook-inbox-reprocess`).
 
 **Next available tickets** (all blockers resolved):
 - None.
