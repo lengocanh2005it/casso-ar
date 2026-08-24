@@ -157,12 +157,16 @@ const MembersTable = memo(function MembersTable({
                 )}
               </TableCell>
               <TableCell>
-                {isBlocked && (
+                {isBlocked ? (
                   <Badge
                     variant="destructive"
                     className="animate-in fade-in zoom-in duration-150 ease-out motion-reduce:animate-none"
                   >
                     Đã chặn
+                  </Badge>
+                ) : (
+                  <Badge className="bg-success/10 text-success">
+                    Đang hoạt động
                   </Badge>
                 )}
               </TableCell>

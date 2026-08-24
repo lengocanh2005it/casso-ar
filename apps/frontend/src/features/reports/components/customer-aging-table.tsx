@@ -35,7 +35,9 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
           {AGING_BUCKET_ORDER.map((bucket) => (
             <TableHead key={bucket}>{AGING_BUCKET_LABELS[bucket]}</TableHead>
           ))}
-          <TableHead>Tổng còn lại</TableHead>
+          <TableHead className="sticky right-0 border-l bg-muted/40">
+            Tổng còn lại
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -75,7 +77,7 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
                 </TableCell>
               );
             })}
-            <TableCell className="font-semibold tabular-nums">
+            <TableCell className="sticky right-0 border-l bg-background font-semibold tabular-nums">
               {formatVND(row.totalRemaining)}
             </TableCell>
           </TableRow>

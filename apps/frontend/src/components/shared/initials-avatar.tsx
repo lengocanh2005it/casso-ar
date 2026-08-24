@@ -22,6 +22,25 @@ function getInitials(name: string): string {
     .join('');
 }
 
+// Every avatar used to share the same tint, so a table full of names read
+// as one flat block. Hashing the name into a small, already-used semantic
+// palette gives each entity a stable, recognizable color without adding a
+// new color system.
+const TONE_CLASSES = [
+  'bg-primary/10 text-primary',
+  'bg-success/10 text-success',
+  'bg-warning/10 text-warning',
+  'bg-info/10 text-info',
+];
+
+function toneForName(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  }
+  return TONE_CLASSES[Math.abs(hash) % TONE_CLASSES.length];
+}
+
 export function InitialsAvatar({
   name,
   avatarUrl,
@@ -45,7 +64,8 @@ export function InitialsAvatar({
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 font-semibold leading-none text-primary',
+        'flex shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold leading-none',
+        toneForName(name),
         SIZE_CLASSES[size],
         className,
       )}

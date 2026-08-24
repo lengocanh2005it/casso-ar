@@ -115,14 +115,16 @@ export function ReceivableTable({
               <TableCell className="tabular-nums">
                 {formatVND(receivable.originalAmount)}
               </TableCell>
-              <TableCell className="tabular-nums font-medium">
+              <TableCell className="tabular-nums font-semibold">
                 {formatVND(receivable.remainingAmount)}
               </TableCell>
               <TableCell>
                 <div className="flex flex-wrap items-center gap-2">
                   {formatDate(receivable.dueDate)}
                   {receivable.isOverdue && (
-                    <Badge variant="destructive">Quá hạn</Badge>
+                    <Badge className="bg-destructive/10 text-destructive">
+                      Quá hạn
+                    </Badge>
                   )}
                 </div>
               </TableCell>

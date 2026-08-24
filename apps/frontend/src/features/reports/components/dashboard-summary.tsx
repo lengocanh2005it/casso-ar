@@ -60,6 +60,7 @@ export function DashboardSummary({
           value={formatRate(summary.autoMatchRate)}
           icon={CheckCircle2}
           variant="success"
+          empty={summary.autoMatchRate === null}
         />
         <MetricCard
           label="Xử lý thủ công"
@@ -67,6 +68,7 @@ export function DashboardSummary({
           value={formatRate(summary.manualHandlingRate)}
           icon={Hand}
           variant="warning"
+          empty={summary.manualHandlingRate === null}
         />
         <MetricCard
           label="Hiệu quả nhắc thanh toán"
@@ -74,6 +76,7 @@ export function DashboardSummary({
           value={formatRate(summary.reminderEffectiveness)}
           icon={Bell}
           variant="default"
+          empty={summary.reminderEffectiveness === null}
         />
         <MetricCard
           label="Dự báo thu 7 ngày"

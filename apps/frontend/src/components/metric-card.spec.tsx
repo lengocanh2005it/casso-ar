@@ -18,4 +18,20 @@ describe('MetricCard', () => {
     expect(screen.getByText('Đã thu')).toHaveClass('text-success');
     expect(screen.getByText('30.000.000 ₫')).toBeInTheDocument();
   });
+
+  it('shows a muted no-data message instead of a bare value when empty', () => {
+    render(
+      <MetricCard
+        label="Khớp tự động"
+        description="Tỷ lệ giao dịch khớp tự động"
+        value="—"
+        icon={CircleDollarSign}
+        variant="success"
+        empty
+      />,
+    );
+
+    expect(screen.queryByText('—')).not.toBeInTheDocument();
+    expect(screen.getByText('Chưa có dữ liệu')).toBeInTheDocument();
+  });
 });
