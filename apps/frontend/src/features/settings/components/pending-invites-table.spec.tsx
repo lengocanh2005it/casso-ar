@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { buildInvitationCooldownKey } from '@/lib/use-resend-cooldown';
 import { PendingInvitesTable } from './pending-invites-table';
 
 const apiRequest = vi.fn();
@@ -124,6 +125,49 @@ describe('PendingInvitesTable', () => {
 
     await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(2));
     expect(screen.getByRole('button', { name: 'Gửi lại' })).not.toBeDisabled();
+  });
+
+  it('escalates the cooldown to 60s on a second resend of the same invitation', async () => {
+    sessionStorage.setItem(
+      buildInvitationCooldownKey('org-1', 'inv-1'),
+      JSON.stringify({ stepIndex: 1, cooldownUntil: Date.now() - 1000 }),
+    );
+    apiRequest
+      .mockResolvedValueOnce({
+        items: [invite],
+        total: 1,
+        page: 1,
+        limit: 100,
+      })
+      .mockResolvedValueOnce({ success: true });
+    renderTable();
+
+    await waitFor(() =>
+      expect(screen.getByText('moi@congtyb.vn')).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi lại' }));
+
+    expect(
+      await screen.findByRole('button', { name: 'Gửi lại (60s)' }),
+    ).toBeDisabled();
+  });
+
+  it('persists an active cooldown for an invitation across a remount', async () => {
+    sessionStorage.setItem(
+      buildInvitationCooldownKey('org-1', 'inv-1'),
+      JSON.stringify({ stepIndex: 1, cooldownUntil: Date.now() + 17_000 }),
+    );
+    apiRequest.mockResolvedValueOnce({
+      items: [invite],
+      total: 1,
+      page: 1,
+      limit: 100,
+    });
+    renderTable();
+
+    expect(
+      await screen.findByRole('button', { name: 'Gửi lại (17s)' }),
+    ).toBeDisabled();
   });
 
   it('confirms before revoking an invite', async () => {

@@ -16,6 +16,13 @@ export function buildResendCooldownKey(
     : `resend-cooldown:${flow}`;
 }
 
+export function buildInvitationCooldownKey(
+  organizationId: string,
+  inviteId: string,
+): string {
+  return buildResendCooldownKey('invitation', `${organizationId}:${inviteId}`);
+}
+
 interface StoredCooldown {
   stepIndex: number;
   cooldownUntil: number;

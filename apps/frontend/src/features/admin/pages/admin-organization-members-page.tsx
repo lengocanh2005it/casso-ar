@@ -36,7 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { buildResendCooldownKey } from '@/lib/use-resend-cooldown';
+import { buildInvitationCooldownKey } from '@/lib/use-resend-cooldown';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import type {
   AdminMemberItem,
@@ -446,9 +446,9 @@ export function AdminOrganizationMembersPage() {
                       <TableCell>
                         <div className="flex flex-wrap gap-2">
                           <InviteResendButton
-                            cooldownKey={buildResendCooldownKey(
-                              'invitation',
-                              `${organizationId}:${invite.id}`,
+                            cooldownKey={buildInvitationCooldownKey(
+                              organizationId,
+                              invite.id,
                             )}
                             onResend={() =>
                               resendInvite.mutateAsync({

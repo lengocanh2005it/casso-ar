@@ -23,7 +23,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ROLE_LABELS } from '@/lib/role-labels';
-import { buildResendCooldownKey } from '@/lib/use-resend-cooldown';
+import { buildInvitationCooldownKey } from '@/lib/use-resend-cooldown';
 import {
   useOrganizationInvites,
   useResendInvite,
@@ -88,9 +88,9 @@ export function PendingInvitesTable({
                 <TableCell>
                   <div className="flex flex-wrap gap-2">
                     <InviteResendButton
-                      cooldownKey={buildResendCooldownKey(
-                        'invitation',
-                        `${organizationId}:${invite.id}`,
+                      cooldownKey={buildInvitationCooldownKey(
+                        organizationId ?? '',
+                        invite.id,
                       )}
                       onResend={() => resend.mutateAsync(invite.id)}
                     />
