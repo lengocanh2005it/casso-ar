@@ -1,8 +1,8 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../../../common/auth/public.decorator';
-import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { AuthCompositeRateLimitGuard } from '../../auth/presentation/auth-composite-rate-limit.guard';
 import { LookupTaxCodeUseCase } from '../application/lookup-tax-code.usecase';
 import { TaxCodeLookupQueryDto } from './dto/tax-code-lookup-query.dto';

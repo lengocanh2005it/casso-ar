@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
-  ITaxCodeLookupAdapter,
+  type ITaxCodeLookupAdapter,
   TAX_CODE_LOOKUP_ADAPTER,
   type TaxCodeLookupResult,
 } from './tax-code-lookup.port';

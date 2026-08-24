@@ -308,6 +308,28 @@ describe('SignupPage', () => {
     expect(screen.getByLabelText(/tên tổ chức/i)).toHaveValue('');
   });
 
+  it('deduplicates repeated blur lookups for the same tax code', async () => {
+    apiRequest.mockResolvedValueOnce({ name: 'Công ty TNHH CASSO' });
+
+    renderSignupPage();
+    await waitFor(() =>
+      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
+    );
+
+    const taxInput = screen.getByLabelText(/mã số thuế/i);
+    fireEvent.change(taxInput, { target: { value: '0101234567' } });
+    fireEvent.blur(taxInput);
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/tên tổ chức/i)).toHaveValue(
+        'Công ty TNHH CASSO',
+      ),
+    );
+    fireEvent.blur(taxInput);
+
+    expect(apiRequest).toHaveBeenCalledTimes(1);
+  });
+
   it('clears the auto-filled name when the tax code changes', async () => {
     // First lookup resolves
     apiRequest.mockResolvedValueOnce({ name: 'Công ty A' });
@@ -330,6 +352,26 @@ describe('SignupPage', () => {
 
     // The auto-filled name should be cleared
     expect(screen.getByLabelText(/tên tổ chức/i)).toHaveValue('');
+  });
+
+  it('preserves a manually edited name when the tax code changes', async () => {
+    apiRequest.mockResolvedValueOnce({ name: 'Công ty A' });
+
+    renderSignupPage();
+    await waitFor(() =>
+      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
+    );
+
+    const orgInput = screen.getByLabelText(/tên tổ chức/i);
+    const taxInput = screen.getByLabelText(/mã số thuế/i);
+    fireEvent.change(orgInput, { target: { value: 'Tên tự nhập' } });
+    fireEvent.change(taxInput, { target: { value: '0101234567' } });
+    fireEvent.blur(taxInput);
+
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(1));
+    fireEvent.change(taxInput, { target: { value: '0101234568' } });
+
+    expect(orgInput).toHaveValue('Tên tự nhập');
   });
 
   it('ignores a stale lookup response when a newer tax code is current', async () => {

@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { ThrottlerStorage, ThrottlerStorageService } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   PostgreSqlContainer,
@@ -21,7 +22,10 @@ describe('Auth flow (integration)', () => {
   let container: StartedPostgreSqlContainer;
   let app: INestApplication;
   let dataSource: DataSource;
-  const taxCodeLookup = { lookup: jest.fn().mockResolvedValue({ name: 'Company B' }) };
+  let throttlerStorage: ThrottlerStorageService;
+  const taxCodeLookup = {
+    lookup: jest.fn().mockResolvedValue({ name: 'Company B' }),
+  };
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16').start();
@@ -57,6 +61,7 @@ describe('Auth flow (integration)', () => {
     configureApp(app);
     await app.init();
     dataSource = moduleRef.get(DataSource);
+    throttlerStorage = moduleRef.get<ThrottlerStorageService>(ThrottlerStorage);
   }, 60_000);
 
   afterAll(async () => {
@@ -217,10 +222,13 @@ describe('Auth flow (integration)', () => {
   });
 
   it('tax-code lookup rate-limits after 5 requests per IP', async () => {
+    throttlerStorage.storage.clear();
+
     for (let attempt = 0; attempt < 5; attempt += 1) {
       await request(app.getHttpServer())
         .get('/api/v1/tax-verification/lookup')
-        .query({ taxCode: '0123456789' });
+        .query({ taxCode: '0123456789' })
+        .expect(200);
     }
 
     const response = await request(app.getHttpServer())
