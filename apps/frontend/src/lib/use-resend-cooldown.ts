@@ -2,6 +2,17 @@ import { useCallback, useEffect, useState } from 'react';
 
 const COOLDOWN_SCHEDULE_SECONDS = [30, 60, 120, 300];
 
+type ResendCooldownFlow = 'email-verification' | 'change-password';
+
+export function buildResendCooldownKey(
+  flow: ResendCooldownFlow,
+  discriminator?: string,
+): string {
+  return discriminator
+    ? `resend-cooldown:${flow}:${discriminator}`
+    : `resend-cooldown:${flow}`;
+}
+
 interface StoredCooldown {
   stepIndex: number;
   cooldownUntil: number;

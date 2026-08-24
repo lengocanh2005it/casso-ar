@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { OtpInput } from '@/components/shared/otp-input';
+import { ResendCodeButton } from '@/components/shared/resend-code-button';
 import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
 import { Spinner } from '@/components/ui/spinner';
@@ -11,7 +12,10 @@ import {
   getApiErrorMessage,
 } from '@/lib/api-client';
 import { maskEmail } from '@/lib/mask-email';
-import { useResendCooldown } from '@/lib/use-resend-cooldown';
+import {
+  buildResendCooldownKey,
+  useResendCooldown,
+} from '@/lib/use-resend-cooldown';
 
 interface VerifyEmailResult {
   verified: boolean;
@@ -39,7 +43,7 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
     DEFAULT_REJECTED_MESSAGE,
   );
   const { remainingSeconds, triggerResend, reset } = useResendCooldown(
-    `resend-cooldown:email-verification:${email}`,
+    buildResendCooldownKey('email-verification', email),
   );
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -160,19 +164,12 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
         {confirming ? 'Đang xác nhận…' : 'Xác nhận'}
       </Button>
 
-      <Button
-        type="button"
-        variant="link"
-        className="h-auto p-0 text-sm"
+      <ResendCodeButton
+        label="Gửi lại mã"
+        pending={resending}
+        remainingSeconds={remainingSeconds}
         onClick={onResend}
-        disabled={resending || remainingSeconds > 0}
-      >
-        {resending
-          ? 'Đang gửi…'
-          : remainingSeconds > 0
-            ? `Gửi lại mã (${remainingSeconds}s)`
-            : 'Gửi lại mã'}
-      </Button>
+      />
     </form>
   );
 }

@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { OtpInput } from '@/components/shared/otp-input';
 import { PasswordStrength } from '@/components/shared/password-strength';
+import { ResendCodeButton } from '@/components/shared/resend-code-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useResendCooldown } from '@/lib/use-resend-cooldown';
+import {
+  buildResendCooldownKey,
+  useResendCooldown,
+} from '@/lib/use-resend-cooldown';
 import {
   useConfirmChangePassword,
   useRequestChangePasswordOtp,
@@ -30,7 +34,7 @@ export function ChangePasswordForm({
   const confirmChange = useConfirmChangePassword();
   const resendOtp = useResendChangePasswordOtp();
   const { remainingSeconds, triggerResend, reset } = useResendCooldown(
-    'resend-cooldown:change-password',
+    buildResendCooldownKey('change-password'),
   );
 
   function handleRequestOtp() {
@@ -85,18 +89,12 @@ export function ChangePasswordForm({
           <div className="space-y-2">
             <Label>Mã OTP (6 chữ số)</Label>
             <OtpInput value={otp} onChange={setOtp} />
-            <Button
-              variant="link"
-              className="h-auto p-0 text-sm"
+            <ResendCodeButton
+              label="Gửi lại OTP"
+              pending={resendOtp.isPending}
+              remainingSeconds={remainingSeconds}
               onClick={handleResendOtp}
-              disabled={resendOtp.isPending || remainingSeconds > 0}
-            >
-              {resendOtp.isPending
-                ? 'Đang gửi…'
-                : remainingSeconds > 0
-                  ? `Gửi lại OTP (${remainingSeconds}s)`
-                  : 'Gửi lại OTP'}
-            </Button>
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="newPassword">Mật khẩu mới</Label>
