@@ -142,6 +142,7 @@ describe('AdminOrganizationMembersPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Element.prototype.scrollIntoView = vi.fn();
+    sessionStorage.clear();
   });
 
   describe('organization header', () => {
@@ -396,11 +397,68 @@ describe('AdminOrganizationMembersPage', () => {
 
       expect(
         await within(inviteRow as HTMLElement).findByRole('button', {
-          name: 'Đang gửi lại…',
+          name: 'Đang gửi…',
         }),
       ).toBeDisabled();
       expect(
         within(otherInviteRow as HTMLElement).getByRole('button', {
+          name: 'Gửi lại',
+        }),
+      ).not.toBeDisabled();
+    });
+
+    it('does not disable revoke while resend is in flight for the same row', async () => {
+      mockReads();
+      vi.mocked(adminApi.resendOrganizationInvite).mockImplementation(
+        () => new Promise(() => {}),
+      );
+
+      renderPage();
+
+      const inviteRow = await screen
+        .findByText('moi@congtyb.vn')
+        .then((element) => element.closest('tr'));
+      fireEvent.click(
+        within(inviteRow as HTMLElement).getByRole('button', {
+          name: 'Gửi lại',
+        }),
+      );
+
+      await within(inviteRow as HTMLElement).findByRole('button', {
+        name: 'Đang gửi…',
+      });
+      expect(
+        within(inviteRow as HTMLElement).getByRole('button', {
+          name: 'Thu hồi',
+        }),
+      ).not.toBeDisabled();
+    });
+
+    it('does not disable resend while revoke is in flight for the same row', async () => {
+      mockReads();
+      vi.mocked(adminApi.revokeOrganizationInvite).mockImplementation(
+        () => new Promise(() => {}),
+      );
+
+      renderPage();
+
+      const inviteRow = await screen
+        .findByText('moi@congtyb.vn')
+        .then((element) => element.closest('tr'));
+      fireEvent.click(
+        within(inviteRow as HTMLElement).getByRole('button', {
+          name: 'Thu hồi',
+        }),
+      );
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Xác nhận thu hồi' }),
+      );
+
+      await within(inviteRow as HTMLElement).findByRole('button', {
+        name: 'Đang thu hồi…',
+      });
+      expect(
+        within(inviteRow as HTMLElement).getByRole('button', {
           name: 'Gửi lại',
         }),
       ).not.toBeDisabled();

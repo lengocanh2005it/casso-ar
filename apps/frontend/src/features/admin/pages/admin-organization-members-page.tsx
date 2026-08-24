@@ -3,6 +3,7 @@ import { Users } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { PageHeading } from '@/components/layout/page-heading';
+import { InviteResendButton } from '@/components/shared/invite-resend-button';
 import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
 import {
   AlertDialog,
@@ -35,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { buildInvitationCooldownKey } from '@/lib/use-resend-cooldown';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import type {
   AdminMemberItem,
@@ -95,7 +97,7 @@ export function AdminOrganizationMembersPage() {
   const resendInvite = useResendOrganizationInvite();
   const revokeInvite = useRevokeOrganizationInvite();
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
-  const [activeInviteId, setActiveInviteId] = useState<string | null>(null);
+  const [revokingInviteId, setRevokingInviteId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState(search);
   const [committedSearch, setCommittedSearch] = useState(search);
@@ -150,27 +152,15 @@ export function AdminOrganizationMembersPage() {
     }
   }
 
-  async function handleResendInvite(inviteId: string) {
-    setActiveInviteId(inviteId);
-    setActionError(null);
-    try {
-      await resendInvite.mutateAsync({ organizationId, inviteId });
-    } catch {
-      setActionError('Không thể gửi lại lời mời. Vui lòng thử lại.');
-    } finally {
-      setActiveInviteId(null);
-    }
-  }
-
   async function handleRevokeInvite(inviteId: string) {
-    setActiveInviteId(inviteId);
+    setRevokingInviteId(inviteId);
     setActionError(null);
     try {
       await revokeInvite.mutateAsync({ organizationId, inviteId });
     } catch {
       setActionError('Không thể thu hồi lời mời. Vui lòng thử lại.');
     } finally {
-      setActiveInviteId(null);
+      setRevokingInviteId(null);
     }
   }
 
@@ -429,9 +419,7 @@ export function AdminOrganizationMembersPage() {
                 {pendingInvites?.items.map((invite) => {
                   const isExpired =
                     new Date(invite.expiresAt).getTime() < Date.now();
-                  const isActive = activeInviteId === invite.id;
-                  const isResending = isActive && resendInvite.isPending;
-                  const isRevoking = isActive && revokeInvite.isPending;
+                  const isRevoking = revokingInviteId === invite.id;
                   return (
                     <TableRow key={invite.id}>
                       <TableCell>
@@ -457,23 +445,31 @@ export function AdminOrganizationMembersPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
+                          <InviteResendButton
+                            cooldownKey={buildInvitationCooldownKey(
+                              organizationId,
+                              invite.id,
+                            )}
+                            onResend={() =>
+                              resendInvite.mutateAsync({
+                                organizationId,
+                                inviteId: invite.id,
+                              })
+                            }
+                            onError={() =>
+                              setActionError(
+                                'Không thể gửi lại lời mời. Vui lòng thử lại.',
+                              )
+                            }
                             className="min-w-32"
-                            disabled={isActive}
-                            aria-busy={isResending}
-                            onClick={() => void handleResendInvite(invite.id)}
-                          >
-                            {isResending ? 'Đang gửi lại…' : 'Gửi lại'}
-                          </Button>
+                          />
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button
                                 variant="destructive"
                                 size="sm"
                                 className="min-w-32"
-                                disabled={isActive}
+                                disabled={isRevoking}
                                 aria-busy={isRevoking}
                               >
                                 {isRevoking ? 'Đang thu hồi…' : 'Thu hồi'}
@@ -493,7 +489,7 @@ export function AdminOrganizationMembersPage() {
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Hủy</AlertDialogCancel>
                                 <AlertDialogAction
-                                  disabled={isActive}
+                                  disabled={isRevoking}
                                   onClick={() =>
                                     void handleRevokeInvite(invite.id)
                                   }

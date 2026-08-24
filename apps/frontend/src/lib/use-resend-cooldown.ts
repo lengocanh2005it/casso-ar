@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 
 const COOLDOWN_SCHEDULE_SECONDS = [30, 60, 120, 300];
 
-type ResendCooldownFlow = 'email-verification' | 'change-password';
+type ResendCooldownFlow =
+  | 'email-verification'
+  | 'change-password'
+  | 'invitation';
 
 export function buildResendCooldownKey(
   flow: ResendCooldownFlow,
@@ -11,6 +14,13 @@ export function buildResendCooldownKey(
   return discriminator
     ? `resend-cooldown:${flow}:${discriminator}`
     : `resend-cooldown:${flow}`;
+}
+
+export function buildInvitationCooldownKey(
+  organizationId: string,
+  inviteId: string,
+): string {
+  return buildResendCooldownKey('invitation', `${organizationId}:${inviteId}`);
 }
 
 interface StoredCooldown {
@@ -50,7 +60,7 @@ export function useResendCooldown(storageKey: string) {
   }, [storageKey]);
 
   const triggerResend = useCallback(
-    async (resendFn: () => Promise<void>) => {
+    async (resendFn: () => Promise<unknown>) => {
       await resendFn();
 
       const stored = readStoredCooldown(storageKey);

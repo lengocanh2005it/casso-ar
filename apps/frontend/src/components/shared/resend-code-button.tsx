@@ -1,10 +1,13 @@
-import { Button } from '@/components/ui/button';
+import { Button, type ButtonProps } from '@/components/ui/button';
 
 interface ResendCodeButtonProps {
   label: string;
   pending: boolean;
   remainingSeconds: number;
   onClick: () => void;
+  variant?: ButtonProps['variant'];
+  size?: ButtonProps['size'];
+  className?: string;
 }
 
 export function ResendCodeButton({
@@ -12,13 +15,17 @@ export function ResendCodeButton({
   pending,
   remainingSeconds,
   onClick,
+  variant = 'link',
+  size,
+  className = 'h-auto p-0 text-sm',
 }: ResendCodeButtonProps) {
   return (
     <div className="space-y-1">
       <Button
         type="button"
-        variant="link"
-        className="h-auto p-0 text-sm"
+        variant={variant}
+        size={size}
+        className={className}
         onClick={onClick}
         disabled={pending || remainingSeconds > 0}
       >
