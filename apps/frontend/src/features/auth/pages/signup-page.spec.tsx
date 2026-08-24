@@ -42,21 +42,44 @@ function renderSignupPage() {
   );
 }
 
-function fillAndSubmit() {
-  fireEvent.change(screen.getByLabelText(/tên tổ chức/i), {
-    target: { value: 'Casso Ledger' },
-  });
+function submitTaxCode(taxCode = '0101234567') {
   fireEvent.change(screen.getByLabelText(/mã số thuế/i), {
-    target: { value: '0101234567' },
+    target: { value: taxCode },
   });
+  fireEvent.click(screen.getByRole('button', { name: /tiếp tục/i }));
+}
+
+function confirmOrganization() {
+  fireEvent.click(
+    screen.getByRole('button', { name: /đúng, đây là tổ chức của tôi/i }),
+  );
+}
+
+function declineOrganization() {
+  fireEvent.click(
+    screen.getByRole('button', { name: /không phải tổ chức của tôi/i }),
+  );
+}
+
+function fillFormAndSubmit(values?: {
+  organizationName?: string;
+  name?: string;
+  email?: string;
+  password?: string;
+}) {
+  if (values?.organizationName !== undefined) {
+    fireEvent.change(screen.getByLabelText(/tên tổ chức/i), {
+      target: { value: values.organizationName },
+    });
+  }
   fireEvent.change(screen.getByLabelText(/họ và tên/i), {
-    target: { value: 'New User' },
+    target: { value: values?.name ?? 'New User' },
   });
   fireEvent.change(screen.getByLabelText(/email/i), {
-    target: { value: 'new@casso.vn' },
+    target: { value: values?.email ?? 'new@casso.vn' },
   });
   fireEvent.change(screen.getByLabelText(/mật khẩu/i), {
-    target: { value: 'secret123' },
+    target: { value: values?.password ?? 'secret123' },
   });
   fireEvent.click(screen.getByRole('button', { name: /tạo tài khoản/i }));
 }
@@ -68,27 +91,45 @@ describe('SignupPage', () => {
     getValidAccessToken.mockResolvedValue(null);
   });
 
-  it('sends the new account to the OTP step inline', async () => {
+  it('Scenario 1 & 10: happy path: tax code found -> confirming shows resolved name -> confirm -> prefilled form -> submit -> OTP step with card logo', async () => {
+    apiRequest.mockResolvedValueOnce({ name: 'Công ty TNHH CASSO' });
     apiRequest.mockResolvedValueOnce({
       userId: 'user-1',
       organizationId: 'org-1',
       organizationStatus: 'PENDING_REVIEW',
     });
 
-    render(
-      <AuthProvider>
-        <MemoryRouter initialEntries={['/signup']}>
-          <Routes>
-            <Route path="/signup" element={<SignupPage />} />
-          </Routes>
-        </MemoryRouter>
-      </AuthProvider>,
+    renderSignupPage();
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
     );
+
+    submitTaxCode('0101234567');
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: /xác nhận tổ chức/i }),
+      ).toBeVisible(),
+    );
+    expect(screen.getByText('0101234567')).toBeVisible();
+    expect(screen.getByText('Công ty TNHH CASSO')).toBeVisible();
+
+    confirmOrganization();
 
     await waitFor(() =>
       expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
     );
-    fillAndSubmit();
+    expect(screen.getByLabelText(/tên tổ chức/i)).toHaveValue(
+      'Công ty TNHH CASSO',
+    );
+    expect(
+      screen.queryByText(
+        /chúng tôi không xác minh được tổ chức tự động — vui lòng nhập tên tổ chức/i,
+      ),
+    ).not.toBeInTheDocument();
+
+    fillFormAndSubmit();
 
     await waitFor(() =>
       expect(screen.getByText(/new\*\*\*@casso\.vn/i)).toBeVisible(),
@@ -96,33 +137,22 @@ describe('SignupPage', () => {
     expect(
       screen.queryByText(/không thể tạo tài khoản/i),
     ).not.toBeInTheDocument();
-  });
 
-  it('renders the logo inside the card on the OTP step, matching every other auth status screen', async () => {
-    apiRequest.mockResolvedValueOnce({
-      userId: 'user-1',
-      organizationId: 'org-1',
-      organizationStatus: 'PENDING_REVIEW',
+    expect(apiRequest).toHaveBeenNthCalledWith(1, {
+      url: '/api/v1/tax-verification/lookup?taxCode=0101234567',
+      method: 'GET',
     });
-
-    render(
-      <AuthProvider>
-        <MemoryRouter initialEntries={['/signup']}>
-          <Routes>
-            <Route path="/signup" element={<SignupPage />} />
-          </Routes>
-        </MemoryRouter>
-      </AuthProvider>,
-    );
-
-    await waitFor(() =>
-      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
-    );
-    fillAndSubmit();
-
-    await waitFor(() =>
-      expect(screen.getByText(/new\*\*\*@casso\.vn/i)).toBeVisible(),
-    );
+    expect(apiRequest).toHaveBeenNthCalledWith(2, {
+      url: '/api/v1/auth/signup',
+      method: 'POST',
+      data: {
+        organizationName: 'Công ty TNHH CASSO',
+        name: 'New User',
+        email: 'new@casso.vn',
+        password: 'secret123',
+        taxCode: '0101234567',
+      },
+    });
 
     const card = screen
       .getByRole('heading', { name: /xác thực email/i })
@@ -132,32 +162,297 @@ describe('SignupPage', () => {
     );
   });
 
-  it('shows an error when the signup request itself fails', async () => {
-    apiRequest.mockRejectedValue(new Error('signup failed'));
+  it('Scenario 2: tax code found -> decline on confirming -> form step has empty editable name and notice -> submit works', async () => {
+    apiRequest.mockResolvedValueOnce({ name: 'Công ty TNHH CASSO' });
+    apiRequest.mockResolvedValueOnce({
+      userId: 'user-1',
+      organizationId: 'org-1',
+      organizationStatus: 'PENDING_REVIEW',
+    });
 
-    render(
-      <AuthProvider>
-        <MemoryRouter initialEntries={['/signup']}>
-          <Routes>
-            <Route path="/signup" element={<SignupPage />} />
-            <Route path="/dashboard" element={<div>dashboard</div>} />
-          </Routes>
-        </MemoryRouter>
-      </AuthProvider>,
+    renderSignupPage();
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
     );
+
+    submitTaxCode('0101234567');
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: /xác nhận tổ chức/i }),
+      ).toBeVisible(),
+    );
+
+    declineOrganization();
 
     await waitFor(() =>
       expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
     );
-    fillAndSubmit();
+    expect(screen.getByLabelText(/tên tổ chức/i)).toHaveValue('');
+    expect(
+      screen.getByText(
+        /chúng tôi không xác minh được tổ chức tự động — vui lòng nhập tên tổ chức/i,
+      ),
+    ).toBeVisible();
+
+    fillFormAndSubmit({ organizationName: 'Công ty TNHH Tuỳ Chỉnh' });
 
     await waitFor(() =>
-      expect(screen.getByText(/không thể tạo tài khoản/i)).toBeVisible(),
+      expect(screen.getByText(/new\*\*\*@casso\.vn/i)).toBeVisible(),
     );
+
+    expect(apiRequest).toHaveBeenNthCalledWith(2, {
+      url: '/api/v1/auth/signup',
+      method: 'POST',
+      data: {
+        organizationName: 'Công ty TNHH Tuỳ Chỉnh',
+        name: 'New User',
+        email: 'new@casso.vn',
+        password: 'secret123',
+        taxCode: '0101234567',
+      },
+    });
   });
 
-  it('shows the backend message when the tax code is already registered', async () => {
-    apiRequest.mockRejectedValue({
+  it('Scenario 3: tax code not found ({ name: null }) -> advances directly to form step with empty name and notice', async () => {
+    apiRequest.mockResolvedValueOnce({ name: null });
+
+    renderSignupPage();
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
+    );
+
+    submitTaxCode('0101234567');
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
+    );
+    expect(screen.getByLabelText(/tên tổ chức/i)).toHaveValue('');
+    expect(
+      screen.getByText(
+        /chúng tôi không xác minh được tổ chức tự động — vui lòng nhập tên tổ chức/i,
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole('button', { name: /đúng, đây là tổ chức của tôi/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('Scenario 4: malformed tax code -> rejected client-side before calling API', async () => {
+    renderSignupPage();
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
+    );
+
+    fireEvent.change(screen.getByLabelText(/mã số thuế/i), {
+      target: { value: '123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /tiếp tục/i }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/mã số thuế phải gồm 10 hoặc 13 chữ số/i),
+      ).toBeVisible(),
+    );
+    expect(apiRequest).not.toHaveBeenCalled();
+  });
+
+  it('Scenario 5: lookup returns RATE_LIMIT_EXCEEDED -> stays on taxCode step and shows error', async () => {
+    apiRequest.mockRejectedValueOnce({
+      response: {
+        status: 429,
+        data: {
+          statusCode: 429,
+          errorCode: 'RATE_LIMIT_EXCEEDED',
+          message: 'Bạn đã thực hiện quá nhiều yêu cầu. Vui lòng thử lại sau.',
+        },
+      },
+    });
+
+    renderSignupPage();
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
+    );
+
+    submitTaxCode('0101234567');
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/bạn đã thực hiện quá nhiều yêu cầu/i),
+      ).toBeVisible(),
+    );
+    expect(
+      screen.getByRole('button', { name: /tiếp tục/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText(/tên tổ chức/i)).not.toBeInTheDocument();
+  });
+
+  it('Scenario 6: lookup fails with non-rate-limit error -> silently proceeds to form step with empty name', async () => {
+    apiRequest.mockRejectedValueOnce(new Error('network error'));
+
+    renderSignupPage();
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
+    );
+
+    submitTaxCode('0101234567');
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
+    );
+    expect(screen.getByLabelText(/tên tổ chức/i)).toHaveValue('');
+    expect(screen.queryByText(/lỗi|error/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /chúng tôi không xác minh được tổ chức tự động — vui lòng nhập tên tổ chức/i,
+      ),
+    ).toBeVisible();
+  });
+
+  it('Scenario 7: back button from confirming returns to taxCode with tax code preserved', async () => {
+    apiRequest.mockResolvedValueOnce({ name: 'Công ty TNHH CASSO' });
+
+    renderSignupPage();
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
+    );
+
+    submitTaxCode('0101234567');
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: /xác nhận tổ chức/i }),
+      ).toBeVisible(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /quay lại/i }));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
+    );
+    expect(screen.getByLabelText(/mã số thuế/i)).toHaveValue('0101234567');
+  });
+
+  describe('Scenario 8: back button from form step', () => {
+    it('returns to confirming when arrived via confirm', async () => {
+      apiRequest.mockResolvedValueOnce({ name: 'Công ty TNHH CASSO' });
+
+      renderSignupPage();
+
+      await waitFor(() =>
+        expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
+      );
+
+      submitTaxCode('0101234567');
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole('button', { name: /đúng, đây là tổ chức của tôi/i }),
+        ).toBeVisible(),
+      );
+
+      confirmOrganization();
+
+      await waitFor(() =>
+        expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /quay lại/i }));
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { name: /xác nhận tổ chức/i }),
+        ).toBeVisible(),
+      );
+    });
+
+    it('returns to taxCode when arrived via tax-code not-found', async () => {
+      apiRequest.mockResolvedValueOnce({ name: null });
+
+      renderSignupPage();
+
+      await waitFor(() =>
+        expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
+      );
+
+      submitTaxCode('0101234567');
+
+      await waitFor(() =>
+        expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /quay lại/i }));
+
+      await waitFor(() =>
+        expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
+      );
+      expect(screen.getByLabelText(/mã số thuế/i)).toHaveValue('0101234567');
+    });
+
+    it('returns to taxCode when arrived via decline on confirming', async () => {
+      apiRequest.mockResolvedValueOnce({ name: 'Công ty TNHH CASSO' });
+
+      renderSignupPage();
+
+      await waitFor(() =>
+        expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
+      );
+
+      submitTaxCode('0101234567');
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole('button', { name: /không phải tổ chức của tôi/i }),
+        ).toBeVisible(),
+      );
+
+      declineOrganization();
+
+      await waitFor(() =>
+        expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /quay lại/i }));
+
+      await waitFor(() =>
+        expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
+      );
+      expect(screen.getByLabelText(/mã số thuế/i)).toHaveValue('0101234567');
+    });
+
+    it('returns to taxCode when arrived via silent lookup error fallback', async () => {
+      apiRequest.mockRejectedValueOnce(new Error('network error'));
+
+      renderSignupPage();
+
+      await waitFor(() =>
+        expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
+      );
+
+      submitTaxCode('0101234567');
+
+      await waitFor(() =>
+        expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /quay lại/i }));
+
+      await waitFor(() =>
+        expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
+      );
+      expect(screen.getByLabelText(/mã số thuế/i)).toHaveValue('0101234567');
+    });
+  });
+
+  it('Scenario 9: shows the backend message when signup fails with duplicate tax code 409 conflict', async () => {
+    apiRequest.mockResolvedValueOnce({ name: 'Công ty TNHH CASSO' });
+    apiRequest.mockRejectedValueOnce({
       response: {
         status: 409,
         data: {
@@ -169,313 +464,53 @@ describe('SignupPage', () => {
       },
     });
 
-    render(
-      <AuthProvider>
-        <MemoryRouter initialEntries={['/signup']}>
-          <Routes>
-            <Route path="/signup" element={<SignupPage />} />
-          </Routes>
-        </MemoryRouter>
-      </AuthProvider>,
+    renderSignupPage();
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
     );
+
+    submitTaxCode('0101234567');
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /đúng, đây là tổ chức của tôi/i }),
+      ).toBeVisible(),
+    );
+
+    confirmOrganization();
 
     await waitFor(() =>
       expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
     );
-    fillAndSubmit();
+
+    fillFormAndSubmit();
 
     await waitFor(() =>
       expect(screen.getByText(/mã số thuế này đã được đăng ký/i)).toBeVisible(),
     );
   });
 
-  it('rejects a malformed tax code before submitting', async () => {
-    apiRequest.mockResolvedValue({
-      userId: 'u1',
-      organizationId: 'o1',
-      organizationStatus: 'ACTIVE',
-    });
-
-    render(
-      <AuthProvider>
-        <MemoryRouter initialEntries={['/signup']}>
-          <Routes>
-            <Route path="/signup" element={<SignupPage />} />
-            <Route path="/verify-email" element={<div>verify email</div>} />
-          </Routes>
-        </MemoryRouter>
-      </AuthProvider>,
-    );
-
-    await waitFor(() =>
-      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
-    );
-    fireEvent.change(screen.getByLabelText(/tên tổ chức/i), {
-      target: { value: 'Casso Ledger' },
-    });
-    fireEvent.change(screen.getByLabelText(/mã số thuế/i), {
-      target: { value: '123' },
-    });
-    fireEvent.change(screen.getByLabelText(/họ và tên/i), {
-      target: { value: 'New User' },
-    });
-    fireEvent.change(screen.getByLabelText(/email/i), {
-      target: { value: 'new@casso.vn' },
-    });
-    fireEvent.change(screen.getByLabelText(/mật khẩu/i), {
-      target: { value: 'secret123' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /tạo tài khoản/i }));
-
-    await waitFor(() =>
-      expect(
-        screen.getByText(/mã số thuế phải gồm 10 hoặc 13 chữ số/i),
-      ).toBeVisible(),
-    );
-    expect(apiRequest).not.toHaveBeenCalled();
-  });
-
-  // ─── Prefill behavior tests (Task 4 RED) ───────────────────────────────────
-
-  it('prefills the organization name from a valid tax-code blur', async () => {
-    // Lookup resolves; signup not yet called
-    apiRequest.mockResolvedValueOnce({ name: 'Công ty TNHH CASSO' });
-
-    renderSignupPage();
-    await waitFor(() =>
-      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
-    );
-
-    const taxInput = screen.getByLabelText(/mã số thuế/i);
-    fireEvent.change(taxInput, { target: { value: '0101234567' } });
-    fireEvent.blur(taxInput);
-
-    await waitFor(() =>
-      expect(screen.getByLabelText(/tên tổ chức/i)).toHaveValue(
-        'Công ty TNHH CASSO',
-      ),
-    );
-
-    expect(apiRequest).toHaveBeenCalledWith({
-      url: '/api/v1/tax-verification/lookup?taxCode=0101234567',
-      method: 'GET',
-    });
-  });
-
-  it('does not overwrite a name already typed by the user', async () => {
-    apiRequest.mockResolvedValueOnce({ name: 'Công ty TNHH CASSO' });
-
-    renderSignupPage();
-    await waitFor(() =>
-      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
-    );
-
-    // User types their own name first
-    fireEvent.change(screen.getByLabelText(/tên tổ chức/i), {
-      target: { value: 'Tên tự nhập' },
-    });
-
-    const taxInput = screen.getByLabelText(/mã số thuế/i);
-    fireEvent.change(taxInput, { target: { value: '0101234567' } });
-    fireEvent.blur(taxInput);
-
-    await waitFor(() => expect(apiRequest).toHaveBeenCalled());
-
-    // Name must remain unchanged
-    expect(screen.getByLabelText(/tên tổ chức/i)).toHaveValue('Tên tự nhập');
-  });
-
-  it('does not overwrite when user typed a name and then cleared it', async () => {
-    apiRequest.mockResolvedValueOnce({ name: 'Công ty TNHH CASSO' });
-
-    renderSignupPage();
-    await waitFor(() =>
-      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
-    );
-
-    // User types then clears
-    const orgInput = screen.getByLabelText(/tên tổ chức/i);
-    fireEvent.change(orgInput, { target: { value: 'Typed' } });
-    fireEvent.change(orgInput, { target: { value: '' } });
-
-    const taxInput = screen.getByLabelText(/mã số thuế/i);
-    fireEvent.change(taxInput, { target: { value: '0101234567' } });
-    fireEvent.blur(taxInput);
-
-    await waitFor(() => expect(apiRequest).toHaveBeenCalled());
-
-    // Must remain empty — user-edited flag prevents auto-fill
-    expect(screen.getByLabelText(/tên tổ chức/i)).toHaveValue('');
-  });
-
-  it('deduplicates repeated blur lookups for the same tax code', async () => {
-    apiRequest.mockResolvedValueOnce({ name: 'Công ty TNHH CASSO' });
-
-    renderSignupPage();
-    await waitFor(() =>
-      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
-    );
-
-    const taxInput = screen.getByLabelText(/mã số thuế/i);
-    fireEvent.change(taxInput, { target: { value: '0101234567' } });
-    fireEvent.blur(taxInput);
-
-    await waitFor(() =>
-      expect(screen.getByLabelText(/tên tổ chức/i)).toHaveValue(
-        'Công ty TNHH CASSO',
-      ),
-    );
-    fireEvent.blur(taxInput);
-
-    expect(apiRequest).toHaveBeenCalledTimes(1);
-  });
-
-  it('clears the auto-filled name when the tax code changes', async () => {
-    // First lookup resolves
-    apiRequest.mockResolvedValueOnce({ name: 'Công ty A' });
-
-    renderSignupPage();
-    await waitFor(() =>
-      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
-    );
-
-    const taxInput = screen.getByLabelText(/mã số thuế/i);
-    fireEvent.change(taxInput, { target: { value: '0101234567' } });
-    fireEvent.blur(taxInput);
-
-    await waitFor(() =>
-      expect(screen.getByLabelText(/tên tổ chức/i)).toHaveValue('Công ty A'),
-    );
-
-    // Now user changes the tax code
-    fireEvent.change(taxInput, { target: { value: '0101234568' } });
-
-    // The auto-filled name should be cleared
-    expect(screen.getByLabelText(/tên tổ chức/i)).toHaveValue('');
-  });
-
-  it('preserves a manually edited name when the tax code changes', async () => {
-    apiRequest.mockResolvedValueOnce({ name: 'Công ty A' });
-
-    renderSignupPage();
-    await waitFor(() =>
-      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
-    );
-
-    const orgInput = screen.getByLabelText(/tên tổ chức/i);
-    const taxInput = screen.getByLabelText(/mã số thuế/i);
-    fireEvent.change(orgInput, { target: { value: 'Tên tự nhập' } });
-    fireEvent.change(taxInput, { target: { value: '0101234567' } });
-    fireEvent.blur(taxInput);
-
-    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(1));
-    fireEvent.change(taxInput, { target: { value: '0101234568' } });
-
-    expect(orgInput).toHaveValue('Tên tự nhập');
-  });
-
-  it('ignores a stale lookup response when a newer tax code is current', async () => {
-    let resolveFirst!: (v: { name: string }) => void;
-    const firstLookup = new Promise<{ name: string }>(
-      (res) => (resolveFirst = res),
-    );
-
-    apiRequest
-      .mockReturnValueOnce(firstLookup) // first lookup (for code A) — deferred
-      .mockResolvedValueOnce({ name: 'Công ty B' }); // second lookup (for code B)
-
-    renderSignupPage();
-    await waitFor(() =>
-      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
-    );
-
-    const taxInput = screen.getByLabelText(/mã số thuế/i);
-
-    // Blur with code A — first lookup fires but not yet resolved
-    fireEvent.change(taxInput, { target: { value: '0101234561' } });
-    fireEvent.blur(taxInput);
-
-    // Change to code B and blur — second lookup fires and resolves
-    fireEvent.change(taxInput, { target: { value: '0101234562' } });
-    fireEvent.blur(taxInput);
-
-    await waitFor(() =>
-      expect(screen.getByLabelText(/tên tổ chức/i)).toHaveValue('Công ty B'),
-    );
-
-    // Now resolve the first (stale) lookup — it must NOT overwrite
-    resolveFirst({ name: 'Công ty A (stale)' });
-
-    // Small settle to ensure no async state update occurs
-    await new Promise((r) => setTimeout(r, 50));
-    expect(screen.getByLabelText(/tên tổ chức/i)).toHaveValue('Công ty B');
-  });
-
-  it('leaves the form usable when the lookup fails', async () => {
-    apiRequest.mockRejectedValueOnce(new Error('network error'));
-    // Signup request mocked for subsequent submit
-    apiRequest.mockResolvedValueOnce({
-      userId: 'u1',
-      organizationId: 'o1',
-      organizationStatus: 'PENDING_REVIEW',
-    });
-
-    renderSignupPage();
-    await waitFor(() =>
-      expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
-    );
-
-    const taxInput = screen.getByLabelText(/mã số thuế/i);
-    fireEvent.change(taxInput, { target: { value: '0101234567' } });
-    fireEvent.blur(taxInput);
-
-    // Wait for the failed lookup to settle
-    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(1));
-
-    // No lookup error message shown
-    expect(screen.queryByText(/lỗi|error/i)).not.toBeInTheDocument();
-
-    // User can still type and submit
-    fireEvent.change(screen.getByLabelText(/tên tổ chức/i), {
-      target: { value: 'Manual Name' },
-    });
-    fireEvent.change(screen.getByLabelText(/họ và tên/i), {
-      target: { value: 'New User' },
-    });
-    fireEvent.change(screen.getByLabelText(/email/i), {
-      target: { value: 'new@casso.vn' },
-    });
-    fireEvent.change(screen.getByLabelText(/mật khẩu/i), {
-      target: { value: 'secret123' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /tạo tài khoản/i }));
-
-    await waitFor(() =>
-      expect(screen.getByText(/new\*\*\*@casso\.vn/i)).toBeVisible(),
-    );
-  });
-
-  it('leaves the form usable when the lookup returns null', async () => {
+  it('shows an error when the signup request itself fails with a generic error', async () => {
     apiRequest.mockResolvedValueOnce({ name: null });
-    apiRequest.mockResolvedValueOnce({
-      userId: 'u1',
-      organizationId: 'o1',
-      organizationStatus: 'PENDING_REVIEW',
-    });
+    apiRequest.mockRejectedValueOnce(new Error('signup failed'));
 
     renderSignupPage();
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/mã số thuế/i)).toBeVisible(),
+    );
+
+    submitTaxCode('0101234567');
+
     await waitFor(() =>
       expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
     );
 
-    const taxInput = screen.getByLabelText(/mã số thuế/i);
-    fireEvent.change(taxInput, { target: { value: '0101234567' } });
-    fireEvent.blur(taxInput);
+    fillFormAndSubmit({ organizationName: 'Công ty ABC' });
 
-    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(1));
-
-    // Organization name stays empty, no error
-    expect(screen.getByLabelText(/tên tổ chức/i)).toHaveValue('');
-    expect(screen.queryByText(/lỗi|error/i)).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText(/không thể tạo tài khoản/i)).toBeVisible(),
+    );
   });
 });
