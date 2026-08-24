@@ -59,8 +59,7 @@ describe('VerifyEmailUseCase — legacy User branch', () => {
     };
     const dataSource = {
       transaction: jest.fn(
-        async (callback: (manager: object) => Promise<unknown>) =>
-          callback({}),
+        async (callback: (manager: object) => Promise<unknown>) => callback({}),
       ),
     };
 
@@ -81,7 +80,10 @@ describe('VerifyEmailUseCase — legacy User branch', () => {
       expect.objectContaining({ emailVerifiedAt: expect.any(Date) }),
       expect.anything(),
     );
-    expect(tokenRepo.deleteById).toHaveBeenCalledWith('tok-1', expect.anything());
+    expect(tokenRepo.deleteById).toHaveBeenCalledWith(
+      'tok-1',
+      expect.anything(),
+    );
     expect(loginUseCase.executeForUser).toHaveBeenCalledWith('user-1');
     expect(pendingSignupRepo.findByEmail).not.toHaveBeenCalled();
   });
@@ -110,6 +112,10 @@ describe('VerifyEmailUseCase — PendingSignup branch', () => {
         membership: { id: 'membership-1' },
       }),
     };
+    const userRepo = {
+      findByEmail: jest.fn().mockResolvedValue(null),
+      save: jest.fn(),
+    };
     const loginUseCase = {
       executeForUser: jest.fn().mockResolvedValue({
         accessToken: 'access-token',
@@ -118,13 +124,12 @@ describe('VerifyEmailUseCase — PendingSignup branch', () => {
     };
     const dataSource = {
       transaction: jest.fn(
-        async (callback: (manager: object) => Promise<unknown>) =>
-          callback({}),
+        async (callback: (manager: object) => Promise<unknown>) => callback({}),
       ),
     };
     const useCase = new VerifyEmailUseCase(
       { findByUserIdAndTokenHash: jest.fn() } as any,
-      { findByEmail: jest.fn().mockResolvedValue(null) } as any,
+      userRepo as any,
       pendingSignupRepo as any,
       provisionOrganizationUseCase as any,
       dataSource as any,
@@ -148,6 +153,17 @@ describe('VerifyEmailUseCase — PendingSignup branch', () => {
       },
       expect.anything(),
     );
+    // Regression: the freshly-provisioned user must be marked verified before
+    // login, or LoginUseCase.executeForUser rejects with FORBIDDEN because
+    // ProvisionOrganizationUseCase always creates the user with
+    // emailVerifiedAt: null (it doesn't know it's being called post-OTP-check).
+    expect(userRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'user-1',
+        emailVerifiedAt: expect.any(Date),
+      }),
+      expect.anything(),
+    );
     expect(pendingSignupRepo.delete).toHaveBeenCalledWith(
       'pending-1',
       expect.anything(),
@@ -163,8 +179,7 @@ describe('VerifyEmailUseCase — PendingSignup branch', () => {
     };
     const dataSource = {
       transaction: jest.fn(
-        async (callback: (manager: object) => Promise<unknown>) =>
-          callback({}),
+        async (callback: (manager: object) => Promise<unknown>) => callback({}),
       ),
     };
     const useCase = new VerifyEmailUseCase(
@@ -192,8 +207,7 @@ describe('VerifyEmailUseCase — PendingSignup branch', () => {
     };
     const dataSource = {
       transaction: jest.fn(
-        async (callback: (manager: object) => Promise<unknown>) =>
-          callback({}),
+        async (callback: (manager: object) => Promise<unknown>) => callback({}),
       ),
     };
     const useCase = new VerifyEmailUseCase(
@@ -217,8 +231,7 @@ describe('VerifyEmailUseCase — PendingSignup branch', () => {
     };
     const dataSource = {
       transaction: jest.fn(
-        async (callback: (manager: object) => Promise<unknown>) =>
-          callback({}),
+        async (callback: (manager: object) => Promise<unknown>) => callback({}),
       ),
     };
     const useCase = new VerifyEmailUseCase(

@@ -12,8 +12,8 @@ import {
 } from './email-verification-token-repository.port';
 import { type LoginResult, LoginUseCase } from './login.usecase';
 import {
-  PENDING_SIGNUP_REPOSITORY,
   type IPendingSignupRepository,
+  PENDING_SIGNUP_REPOSITORY,
 } from './pending-signup-repository.port';
 import { ProvisionOrganizationUseCase } from './provision-organization.usecase';
 import { hashOtp } from './token-hasher';
@@ -75,6 +75,11 @@ export class VerifyEmailUseCase {
           },
           manager,
         );
+        // ProvisionOrganizationUseCase always creates the user unverified
+        // (it has no notion of "this call follows a successful OTP check") —
+        // this call site is the one that just verified the OTP, so it owns
+        // marking the user verified, same as the legacy branch above.
+        await this.userRepo.save(provisioned.user.markEmailVerified(), manager);
         await this.pendingSignupRepo.delete(pendingSignup.id, manager);
         return provisioned.user.id;
       },
