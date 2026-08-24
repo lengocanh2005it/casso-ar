@@ -49,6 +49,18 @@ function submitTaxCode(taxCode = '0101234567') {
   fireEvent.click(screen.getByRole('button', { name: /tiếp tục/i }));
 }
 
+function confirmOrganization() {
+  fireEvent.click(
+    screen.getByRole('button', { name: /đúng, đây là tổ chức của tôi/i }),
+  );
+}
+
+function declineOrganization() {
+  fireEvent.click(
+    screen.getByRole('button', { name: /không phải tổ chức của tôi/i }),
+  );
+}
+
 function fillFormAndSubmit(values?: {
   organizationName?: string;
   name?: string;
@@ -103,9 +115,7 @@ describe('SignupPage', () => {
     expect(screen.getByText('0101234567')).toBeVisible();
     expect(screen.getByText('Công ty TNHH CASSO')).toBeVisible();
 
-    fireEvent.click(
-      screen.getByRole('button', { name: /đúng, đây là tổ chức của tôi/i }),
-    );
+    confirmOrganization();
 
     await waitFor(() =>
       expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
@@ -174,9 +184,7 @@ describe('SignupPage', () => {
       ).toBeVisible(),
     );
 
-    fireEvent.click(
-      screen.getByRole('button', { name: /không phải tổ chức của tôi/i }),
-    );
+    declineOrganization();
 
     await waitFor(() =>
       expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
@@ -349,9 +357,7 @@ describe('SignupPage', () => {
         ).toBeVisible(),
       );
 
-      fireEvent.click(
-        screen.getByRole('button', { name: /đúng, đây là tổ chức của tôi/i }),
-      );
+      confirmOrganization();
 
       await waitFor(() =>
         expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
@@ -406,9 +412,7 @@ describe('SignupPage', () => {
         ).toBeVisible(),
       );
 
-      fireEvent.click(
-        screen.getByRole('button', { name: /không phải tổ chức của tôi/i }),
-      );
+      declineOrganization();
 
       await waitFor(() =>
         expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),
@@ -474,9 +478,7 @@ describe('SignupPage', () => {
       ).toBeVisible(),
     );
 
-    fireEvent.click(
-      screen.getByRole('button', { name: /đúng, đây là tổ chức của tôi/i }),
-    );
+    confirmOrganization();
 
     await waitFor(() =>
       expect(screen.getByLabelText(/tên tổ chức/i)).toBeVisible(),

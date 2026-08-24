@@ -37,6 +37,12 @@ export function SignupPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  function goToFormWithoutPrefill() {
+    setOrganizationName('');
+    setCameFromConfirming(false);
+    setStep('form');
+  }
+
   async function onTaxCodeSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setTaxCodeError(null);
@@ -58,9 +64,7 @@ export function SignupPage() {
         setResolvedName(result.name);
         setStep('confirming');
       } else {
-        setOrganizationName('');
-        setCameFromConfirming(false);
-        setStep('form');
+        goToFormWithoutPrefill();
       }
     } catch (error) {
       if (getApiErrorCode(error) === 'RATE_LIMIT_EXCEEDED') {
@@ -70,9 +74,7 @@ export function SignupPage() {
         );
       } else {
         // Silent fallback: lookup failure must never block signup
-        setOrganizationName('');
-        setCameFromConfirming(false);
-        setStep('form');
+        goToFormWithoutPrefill();
       }
     } finally {
       setTaxCodeLoading(false);
@@ -82,12 +84,6 @@ export function SignupPage() {
   function onConfirmOrganization() {
     setOrganizationName(resolvedName);
     setCameFromConfirming(true);
-    setStep('form');
-  }
-
-  function onDeclineOrganization() {
-    setOrganizationName('');
-    setCameFromConfirming(false);
     setStep('form');
   }
 
@@ -173,7 +169,7 @@ export function SignupPage() {
               type="button"
               variant="outline"
               className="w-full"
-              onClick={onDeclineOrganization}
+              onClick={goToFormWithoutPrefill}
             >
               Không phải tổ chức của tôi
             </Button>
