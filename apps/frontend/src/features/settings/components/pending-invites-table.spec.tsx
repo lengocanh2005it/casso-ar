@@ -129,7 +129,7 @@ describe('PendingInvitesTable', () => {
 
   it('escalates the cooldown to 60s on a second resend of the same invitation', async () => {
     sessionStorage.setItem(
-      buildInvitationCooldownKey('org-1', 'inv-1'),
+      buildInvitationCooldownKey('org-1', 'moi@congtyb.vn'),
       JSON.stringify({ stepIndex: 1, cooldownUntil: Date.now() - 1000 }),
     );
     apiRequest
@@ -154,7 +154,7 @@ describe('PendingInvitesTable', () => {
 
   it('persists an active cooldown for an invitation across a remount', async () => {
     sessionStorage.setItem(
-      buildInvitationCooldownKey('org-1', 'inv-1'),
+      buildInvitationCooldownKey('org-1', 'moi@congtyb.vn'),
       JSON.stringify({ stepIndex: 1, cooldownUntil: Date.now() + 17_000 }),
     );
     apiRequest.mockResolvedValueOnce({
@@ -167,6 +167,35 @@ describe('PendingInvitesTable', () => {
 
     expect(
       await screen.findByRole('button', { name: 'Gửi lại (17s)' }),
+    ).toBeDisabled();
+  });
+
+  it('keeps the cooldown active after a resend rotates the invite id via refetch', async () => {
+    const rotatedInvite = { ...invite, id: 'inv-1-rotated' };
+    apiRequest
+      .mockResolvedValueOnce({
+        items: [invite],
+        total: 1,
+        page: 1,
+        limit: 100,
+      })
+      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValueOnce({
+        items: [rotatedInvite],
+        total: 1,
+        page: 1,
+        limit: 100,
+      });
+    renderTable();
+
+    await waitFor(() =>
+      expect(screen.getByText('moi@congtyb.vn')).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi lại' }));
+
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(3));
+    expect(
+      await screen.findByRole('button', { name: 'Gửi lại (30s)' }),
     ).toBeDisabled();
   });
 

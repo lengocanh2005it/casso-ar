@@ -37,4 +37,14 @@ describe('InviteResendButton', () => {
     await waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
     expect(screen.getByRole('button', { name: 'Gửi lại' })).not.toBeDisabled();
   });
+
+  it('keeps its outline button padding when no className override is given', () => {
+    render(
+      <InviteResendButton cooldownKey="test:invite-3" onResend={vi.fn()} />,
+    );
+
+    const button = screen.getByRole('button', { name: 'Gửi lại' });
+    expect(button.className).toContain('px-3');
+    expect(button.className).not.toContain('p-0');
+  });
 });

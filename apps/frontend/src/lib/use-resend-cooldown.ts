@@ -18,9 +18,15 @@ export function buildResendCooldownKey(
 
 export function buildInvitationCooldownKey(
   organizationId: string,
-  inviteId: string,
+  email: string,
 ): string {
-  return buildResendCooldownKey('invitation', `${organizationId}:${inviteId}`);
+  // Resending an invite deletes the old row and creates a replacement with a
+  // new id (see ResendInviteUseCase / ResendInviteByOperatorUseCase), so the
+  // key must be keyed by the stable invitee email, not the row's current id.
+  return buildResendCooldownKey(
+    'invitation',
+    `${organizationId}:${email.trim().toLowerCase()}`,
+  );
 }
 
 interface StoredCooldown {

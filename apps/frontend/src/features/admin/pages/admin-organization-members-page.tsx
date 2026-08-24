@@ -448,7 +448,7 @@ export function AdminOrganizationMembersPage() {
                           <InviteResendButton
                             cooldownKey={buildInvitationCooldownKey(
                               organizationId,
-                              invite.id,
+                              invite.email,
                             )}
                             onResend={() =>
                               resendInvite.mutateAsync({

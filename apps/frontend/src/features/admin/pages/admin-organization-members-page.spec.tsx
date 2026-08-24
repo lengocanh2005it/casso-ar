@@ -486,6 +486,49 @@ describe('AdminOrganizationMembersPage', () => {
       );
     });
 
+    it('keeps the cooldown active after a resend rotates the invite id via refetch', async () => {
+      const rotatedInvite = { ...validInvite, id: 'inv-1-rotated' };
+      vi.mocked(adminApi.getAdminOrganization).mockResolvedValue(organization);
+      vi.mocked(adminApi.listOrganizationMembers)
+        .mockResolvedValueOnce(buildResponse())
+        .mockResolvedValue(
+          buildResponse({
+            pendingInvites: {
+              items: [rotatedInvite, expiredInvite],
+              total: 2,
+              page: 1,
+              limit: 50,
+            },
+          }),
+        );
+      vi.mocked(adminApi.resendOrganizationInvite).mockResolvedValue({
+        success: true,
+      });
+
+      renderPage();
+
+      const inviteRow = await screen
+        .findByText('moi@congtyb.vn')
+        .then((element) => element.closest('tr'));
+      fireEvent.click(
+        within(inviteRow as HTMLElement).getByRole('button', {
+          name: 'Gửi lại',
+        }),
+      );
+
+      await waitFor(() =>
+        expect(adminApi.listOrganizationMembers).toHaveBeenCalledTimes(2),
+      );
+      const refreshedRow = await screen
+        .findByText('moi@congtyb.vn')
+        .then((element) => element.closest('tr'));
+      expect(
+        await within(refreshedRow as HTMLElement).findByRole('button', {
+          name: 'Gửi lại (30s)',
+        }),
+      ).toBeDisabled();
+    });
+
     it('shows failure feedback when resending fails', async () => {
       mockReads();
       vi.mocked(adminApi.resendOrganizationInvite).mockRejectedValue(
