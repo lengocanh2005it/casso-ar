@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,75 @@ export function SignupPage() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Refs for async lookup guards — must be read after await to see current values
+  const organizationNameRef = useRef('');
+  const taxCodeRef = useRef('');
+  const organizationNameUserEditedRef = useRef(false);
+  const autoFilledOrganizationNameRef = useRef<string | null>(null);
+  const lookupSequence = useRef(0);
+  const lastLookupTaxCode = useRef<string | null>(null);
+
+  function onOrganizationNameChange(value: string) {
+    organizationNameRef.current = value;
+    organizationNameUserEditedRef.current = true;
+    autoFilledOrganizationNameRef.current = null;
+    setOrganizationName(value);
+  }
+
+  function onTaxCodeChange(value: string) {
+    // Clear the auto-filled name when tax code changes, but only if the current
+    // name is still the one we auto-filled (i.e., user hasn't edited it)
+    if (
+      !organizationNameUserEditedRef.current &&
+      autoFilledOrganizationNameRef.current !== null &&
+      organizationNameRef.current === autoFilledOrganizationNameRef.current
+    ) {
+      organizationNameRef.current = '';
+      autoFilledOrganizationNameRef.current = null;
+      setOrganizationName('');
+    }
+    // Reset so a changed-back code can be looked up again
+    lastLookupTaxCode.current = null;
+    taxCodeRef.current = value;
+    setTaxCode(value);
+  }
+
+  async function onTaxCodeBlur() {
+    const code = taxCodeRef.current.trim();
+
+    if (!TAX_CODE_PATTERN.test(code)) return;
+    if (lastLookupTaxCode.current === code) return;
+
+    lastLookupTaxCode.current = code;
+    lookupSequence.current += 1;
+    const mySequence = lookupSequence.current;
+
+    try {
+      const result = await apiRequest<{ name: string | null }>({
+        url: `/api/v1/tax-verification/lookup?taxCode=${encodeURIComponent(code)}`,
+        method: 'GET',
+      });
+
+      // Guard against stale responses
+      if (
+        mySequence !== lookupSequence.current ||
+        taxCodeRef.current.trim() !== code ||
+        organizationNameUserEditedRef.current ||
+        organizationNameRef.current.trim() !== ''
+      ) {
+        return;
+      }
+
+      if (result.name !== null) {
+        organizationNameRef.current = result.name;
+        autoFilledOrganizationNameRef.current = result.name;
+        setOrganizationName(result.name);
+      }
+    } catch {
+      // Silent: lookup failure must never block signup
+    }
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -91,7 +160,7 @@ export function SignupPage() {
             autoComplete="organization"
             placeholder="VD: Công ty TNHH ABC"
             value={organizationName}
-            onChange={(event) => setOrganizationName(event.target.value)}
+            onChange={(event) => onOrganizationNameChange(event.target.value)}
             className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </label>
@@ -105,7 +174,8 @@ export function SignupPage() {
             maxLength={13}
             placeholder="VD: 0101234567"
             value={taxCode}
-            onChange={(event) => setTaxCode(event.target.value)}
+            onChange={(event) => onTaxCodeChange(event.target.value)}
+            onBlur={onTaxCodeBlur}
             className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </label>

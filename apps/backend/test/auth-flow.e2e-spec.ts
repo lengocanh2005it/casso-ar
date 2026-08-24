@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { ThrottlerStorage, ThrottlerStorageService } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
   PostgreSqlContainer,
@@ -21,6 +22,10 @@ describe('Auth flow (integration)', () => {
   let container: StartedPostgreSqlContainer;
   let app: INestApplication;
   let dataSource: DataSource;
+  let throttlerStorage: ThrottlerStorageService;
+  const taxCodeLookup = {
+    lookup: jest.fn().mockResolvedValue({ name: 'Company B' }),
+  };
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16').start();
@@ -49,13 +54,14 @@ describe('Auth flow (integration)', () => {
         }),
       )
       .overrideProvider(TAX_CODE_LOOKUP_ADAPTER)
-      .useValue({ lookup: jest.fn().mockResolvedValue({ name: 'Company B' }) })
+      .useValue(taxCodeLookup)
       .compile();
     app = moduleRef.createNestApplication();
     app.use(cookieParser());
     configureApp(app);
     await app.init();
     dataSource = moduleRef.get(DataSource);
+    throttlerStorage = moduleRef.get<ThrottlerStorageService>(ThrottlerStorage);
   }, 60_000);
 
   afterAll(async () => {
@@ -178,5 +184,61 @@ describe('Auth flow (integration)', () => {
       .getRepository(MembershipInviteOrmEntity)
       .findOne({ where: { email: 'new-member@congtyb.vn' } });
     expect(invite?.tokenHash).toHaveLength(64);
+  });
+
+  it('returns the resolved organization name without authentication', async () => {
+    taxCodeLookup.lookup.mockResolvedValueOnce({ name: 'Company B' });
+
+    await request(app.getHttpServer())
+      .get('/api/v1/tax-verification/lookup')
+      .query({ taxCode: '0123456789' })
+      .expect(200)
+      .expect({ name: 'Company B' });
+  });
+
+  it('returns null when the tax code is not resolved', async () => {
+    taxCodeLookup.lookup.mockResolvedValueOnce(null);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/tax-verification/lookup')
+      .query({ taxCode: '0123456789' })
+      .expect(200)
+      .expect({ name: null });
+  });
+
+  it('rejects an invalid tax-code query before calling the adapter', async () => {
+    taxCodeLookup.lookup.mockClear();
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/tax-verification/lookup')
+      .query({ taxCode: '123' })
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      statusCode: 400,
+      errorCode: 'VALIDATION_ERROR',
+    });
+    expect(taxCodeLookup.lookup).not.toHaveBeenCalled();
+  });
+
+  it('tax-code lookup rate-limits after 5 requests per IP', async () => {
+    throttlerStorage.storage.clear();
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await request(app.getHttpServer())
+        .get('/api/v1/tax-verification/lookup')
+        .query({ taxCode: '0123456789' })
+        .expect(200);
+    }
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/tax-verification/lookup')
+      .query({ taxCode: '0123456789' })
+      .expect(429);
+
+    expect(response.body).toMatchObject({
+      statusCode: 429,
+      errorCode: 'RATE_LIMIT_EXCEEDED',
+    });
   });
 });
