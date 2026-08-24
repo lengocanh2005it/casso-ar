@@ -9,6 +9,11 @@ import { PassportModule } from '@nestjs/passport';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import {
+  extractIp,
+  extractSignupEmail,
+  extractTaxCode,
+} from './modules/auth/presentation/auth-rate-limit-trackers';
 import { JwtStrategy } from './common/auth/jwt.strategy';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { AuditModule } from './common/audit/audit.module';
@@ -57,7 +62,32 @@ import { ProfileModule } from './modules/profile/profile.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 5 }]),
+    ThrottlerModule.forRoot([
+      {
+        name: 'ip',
+        ttl: 15 * 60 * 1000,
+        limit: 20,
+        getTracker: (req: Record<string, unknown>) => extractIp(req),
+      },
+      {
+        name: 'email',
+        ttl: 60 * 60 * 1000,
+        limit: 5,
+        getTracker: (req: Record<string, unknown>) =>
+          extractSignupEmail(req) ?? 'no-email',
+        skipIf: (context) =>
+          extractSignupEmail(context.switchToHttp().getRequest()) === null,
+      },
+      {
+        name: 'taxCode',
+        ttl: 60 * 60 * 1000,
+        limit: 5,
+        getTracker: (req: Record<string, unknown>) =>
+          extractTaxCode(req) ?? 'no-tax-code',
+        skipIf: (context) =>
+          extractTaxCode(context.switchToHttp().getRequest()) === null,
+      },
+    ]),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: getTypeOrmConfig,
