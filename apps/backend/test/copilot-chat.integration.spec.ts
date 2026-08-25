@@ -228,7 +228,11 @@ describe('Copilot chat (integration)', () => {
         {
           id: 'draft-call',
           name: 'draftReminderEmail',
-          arguments: { receivableId: fixture.receivableId },
+          arguments: {
+            receivableId: fixture.receivableId,
+            subject: '[Casso AR] Nhắc thanh toán',
+            bodyHtml: '<p>Quý công ty còn nợ khoản phải thu này.</p>',
+          },
         },
       ]),
     );
@@ -529,14 +533,11 @@ describe('Copilot chat (integration)', () => {
 
     expect(response.status).toBe(201);
     expect(response.body.message.content).toContain('Tôi đã tạo bản nháp');
-    expect(response.body.message.toolCalls).toEqual(
+    expect(response.body.message.drafts).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          name: 'draftReminderEmail',
-          output: expect.objectContaining({
-            receivableId: fixture.receivableId,
-            subject: expect.stringContaining('Công ty Copilot'),
-          }),
+          receivableId: fixture.receivableId,
+          subject: expect.stringContaining('Công ty Copilot'),
         }),
       ]),
     );
@@ -617,9 +618,9 @@ describe('Copilot chat (integration)', () => {
     expect(responseTurn1.body.message.content).toContain('25.000.000 VND');
     expect(responseTurn1.body.message.content).toContain('10.000.000 VND');
     expect(responseTurn1.body.pendingAction).toBeNull();
-    expect(responseTurn1.body.message.toolCalls).toEqual([
-      expect.objectContaining({ name: 'findOverdueReceivables' }),
-    ]);
+    // toolCalls isn't on the wire DTO (only draftReminderEmail outputs are,
+    // via `drafts`) — a pure lookup turn like this has none.
+    expect(responseTurn1.body.message.drafts).toEqual([]);
 
     // Turn 2: User selects Công ty Hoa Sen -> Fresh narrowed lookup -> Drafts only Công ty Hoa Sen
     mockCreateChatCompletion
@@ -674,24 +675,19 @@ describe('Copilot chat (integration)', () => {
     expect(responseTurn2.body.message.content).toContain(
       'Tôi đã tạo bản nháp nhắc nợ cho Công ty Hoa Sen',
     );
-    expect(responseTurn2.body.message.toolCalls).toEqual(
+    expect(responseTurn2.body.message.drafts).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          name: 'draftReminderEmail',
-          output: expect.objectContaining({
-            receivableId: receivableId2,
-            subject: expect.stringContaining('Công ty Hoa Sen'),
-          }),
+          receivableId: receivableId2,
+          subject: expect.stringContaining('Công ty Hoa Sen'),
         }),
       ]),
     );
     // Ensure the other receivable (fixture.receivableId) was NOT drafted
-    expect(responseTurn2.body.message.toolCalls).not.toEqual(
+    expect(responseTurn2.body.message.drafts).not.toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          output: expect.objectContaining({
-            receivableId: fixture.receivableId,
-          }),
+          receivableId: fixture.receivableId,
         }),
       ]),
     );
@@ -745,9 +741,7 @@ describe('Copilot chat (integration)', () => {
     );
     expect(response.body.pendingAction).toBeNull();
     // Verify no reminder email draft was created or proposed
-    expect(response.body.message.toolCalls).toEqual([
-      expect.objectContaining({ name: 'findOverdueReceivables' }),
-    ]);
+    expect(response.body.message.drafts).toEqual([]);
     expect(
       await dataSource.getRepository(ReminderExecutionOrmEntity).count({
         where: { organizationId: fixture.organizationId },

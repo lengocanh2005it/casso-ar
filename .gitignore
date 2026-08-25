@@ -9,3 +9,4 @@ dist
 .worktrees
 .superpowers
 /backups
+apps/backend/uploads/

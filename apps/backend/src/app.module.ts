@@ -65,6 +65,18 @@ import { ProfileModule } from './modules/profile/profile.module';
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([
       {
+        // Route-level `@Throttle({ default: { limit, ttl } })` decorators
+        // (bank-connections, copilot, payos, receivable-balance-history
+        // export, smtp-config, webhooks) only take effect if a throttler
+        // named 'default' is registered here — ThrottlerGuard iterates only
+        // the throttlers listed in this array, keyed by name. No getTracker
+        // here on purpose: each route's own guard (or the base IP tracker)
+        // supplies it via ThrottlerGuard's getTracker/commonOptions fallback.
+        name: 'default',
+        ttl: 60_000,
+        limit: 100,
+      },
+      {
         name: 'ip',
         ttl: 15 * 60 * 1000,
         limit: 20,

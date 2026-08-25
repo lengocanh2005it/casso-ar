@@ -397,6 +397,7 @@ describe('BYO SMTP configuration and fallback (e2e)', () => {
       { reminderExecutionId },
       undefined,
       undefined,
+      undefined,
     );
   }, 20_000);
 });

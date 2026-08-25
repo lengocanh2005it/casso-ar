@@ -93,7 +93,12 @@ export class TrendReportQueryService {
 
     const items = windows.map((window) => ({
       month: window.key,
-      outstanding: outstandingByMonth.get(window.key) ?? 0,
+      // Preserve the query layer's null ("no history yet — unknown", e.g.
+      // months before the org's first receivable) distinct from a real 0
+      // ("history exists and the balance was zero"). Only a genuinely
+      // missing map entry (shouldn't happen — every window is queried)
+      // falls back to null too, never a silent 0.
+      outstanding: outstandingByMonth.get(window.key) ?? null,
       collected: collectedByMonth.get(window.key) ?? 0,
     }));
 
