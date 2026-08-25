@@ -10,6 +10,7 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
+import { AUTH_EMAIL_SENDER } from '../src/modules/auth/application/auth-email-sender.port';
 import { EMAIL_PROVIDER_ADAPTER } from '../src/modules/notifications/application/email-provider-adapter.port';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { TAX_CODE_LOOKUP_ADAPTER } from '../src/modules/tax-verification/application/tax-code-lookup.port';
@@ -17,6 +18,13 @@ import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-enti
 
 const fakeEmailProvider = {
   send: jest.fn().mockResolvedValue({ providerMessageId: 'fake-msg-id' }),
+};
+
+const authEmailSender = {
+  sendVerificationEmail: jest.fn(),
+  sendPasswordResetEmail: jest.fn(),
+  sendChangePasswordOtpEmail: jest.fn(),
+  sendInviteEmail: jest.fn(),
 };
 
 jest.setTimeout(60_000);
@@ -67,6 +75,8 @@ describe('Email template attachments (e2e)', () => {
       )
       .overrideProvider(EMAIL_PROVIDER_ADAPTER)
       .useValue(fakeEmailProvider)
+      .overrideProvider(AUTH_EMAIL_SENDER)
+      .useValue(authEmailSender)
       .overrideProvider(TAX_CODE_LOOKUP_ADAPTER)
       .useValue({
         lookup: jest.fn().mockResolvedValue({ name: 'Test Company' }),
@@ -78,8 +88,14 @@ describe('Email template attachments (e2e)', () => {
     dataSource = moduleRef.get(DataSource);
     jwtService = moduleRef.get(JwtService);
 
-    // Seed org + user via signup
-    const signupResponse = await request(app.getHttpServer())
+    // Seed org + user via signup + verify-email. Signup only creates a
+    // pending_signups row (no organizationId/userId in its response);
+    // verify-email is what provisions org/user/membership, but the new org
+    // starts PENDING_REVIEW, so verify-email itself 403s (expected) and
+    // OrganizationLockGuard would block every endpoint below until an
+    // operator approves it — simulate that approval directly, same
+    // shortcut billing-quota.e2e-spec.ts uses.
+    await request(app.getHttpServer())
       .post('/api/v1/auth/signup')
       .send({
         organizationName: 'Attachment Test Co',
@@ -90,13 +106,28 @@ describe('Email template attachments (e2e)', () => {
       })
       .expect(201);
 
-    organizationId = signupResponse.body.organizationId;
-    ownerId = signupResponse.body.userId;
+    const otp = authEmailSender.sendVerificationEmail.mock
+      .calls[0][1] as string;
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/verify-email')
+      .send({ email: 'owner@attach-test.vn', otp })
+      .expect(403);
 
-    // Verify email directly (same shortcut as email-templates.e2e-spec.ts)
-    await dataSource
-      .getRepository(UserOrmEntity)
-      .update({ id: ownerId }, { emailVerifiedAt: new Date() });
+    ownerId = (
+      await dataSource.query('SELECT id FROM users WHERE email = $1', [
+        'owner@attach-test.vn',
+      ])
+    )[0].id;
+    organizationId = (
+      await dataSource.query(
+        'SELECT "organizationId" FROM memberships WHERE "userId" = $1',
+        [ownerId],
+      )
+    )[0].organizationId;
+    await dataSource.query(
+      `UPDATE organizations SET status = 'ACTIVE' WHERE id = $1`,
+      [organizationId],
+    );
   }, 60_000);
 
   afterAll(async () => {
@@ -110,6 +141,7 @@ describe('Email template attachments (e2e)', () => {
     const createRes = await request(app.getHttpServer())
       .post('/api/v1/email-templates')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'create-template-with-attachment')
       .send({
         name: 'With attachment',
         subject: 'Hi {{customerName}}',
@@ -121,6 +153,7 @@ describe('Email template attachments (e2e)', () => {
     const uploadRes = await request(app.getHttpServer())
       .post(`/api/v1/email-templates/${templateId}/attachments`)
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'upload-attachment-pdf')
       .attach('file', Buffer.from('%PDF-1.4 fake'), {
         filename: 'invoice.pdf',
         contentType: 'application/pdf',
@@ -136,6 +169,7 @@ describe('Email template attachments (e2e)', () => {
         `/api/v1/email-templates/${templateId}/attachments/${uploadRes.body.id}`,
       )
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'delete-attachment-pdf')
       .expect(200);
   });
 
@@ -145,6 +179,7 @@ describe('Email template attachments (e2e)', () => {
     const createRes = await request(app.getHttpServer())
       .post('/api/v1/email-templates')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'create-template-bad-type')
       .send({
         name: 'Bad type',
         subject: 'Hi',
@@ -156,6 +191,7 @@ describe('Email template attachments (e2e)', () => {
     const res = await request(app.getHttpServer())
       .post(`/api/v1/email-templates/${templateId}/attachments`)
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'upload-attachment-bad-type')
       .attach('file', Buffer.from('not a real docx'), {
         filename: 'resume.docx',
         contentType:
@@ -169,8 +205,9 @@ describe('Email template attachments (e2e)', () => {
   it('rejects an upload from a different organization (tenant isolation)', async () => {
     const tokenA = tokenFor(ownerId, Role.OWNER);
 
-    // Create a second org via signup
-    const signupB = await request(app.getHttpServer())
+    // Create a second org via signup + verify-email (see beforeAll for why
+    // verify-email 403s and organizationId/userId aren't in the responses).
+    await request(app.getHttpServer())
       .post('/api/v1/auth/signup')
       .send({
         organizationName: 'Org B',
@@ -181,11 +218,29 @@ describe('Email template attachments (e2e)', () => {
       })
       .expect(201);
 
-    const orgBId = signupB.body.organizationId;
-    const ownerBId = signupB.body.userId;
-    await dataSource
-      .getRepository(UserOrmEntity)
-      .update({ id: ownerBId }, { emailVerifiedAt: new Date() });
+    const otpB = authEmailSender.sendVerificationEmail.mock.calls.find(
+      (call) => call[0] === 'owner-b@attach-test.vn',
+    )?.[1] as string;
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/verify-email')
+      .send({ email: 'owner-b@attach-test.vn', otp: otpB })
+      .expect(403);
+
+    const ownerBId = (
+      await dataSource.query('SELECT id FROM users WHERE email = $1', [
+        'owner-b@attach-test.vn',
+      ])
+    )[0].id;
+    const orgBId = (
+      await dataSource.query(
+        'SELECT "organizationId" FROM memberships WHERE "userId" = $1',
+        [ownerBId],
+      )
+    )[0].organizationId;
+    await dataSource.query(
+      `UPDATE organizations SET status = 'ACTIVE' WHERE id = $1`,
+      [orgBId],
+    );
     const tokenB = jwtService.sign({
       userId: ownerBId,
       organizationId: orgBId,
@@ -196,6 +251,7 @@ describe('Email template attachments (e2e)', () => {
     const createRes = await request(app.getHttpServer())
       .post('/api/v1/email-templates')
       .set('Authorization', `Bearer ${tokenA}`)
+      .set('Idempotency-Key', 'create-template-org-a')
       .send({ name: 'Org A template', subject: 'Hi', bodyHtml: '<p>hi</p>' })
       .expect(201);
     const templateId = createRes.body.id as string;
@@ -204,6 +260,7 @@ describe('Email template attachments (e2e)', () => {
     const res = await request(app.getHttpServer())
       .post(`/api/v1/email-templates/${templateId}/attachments`)
       .set('Authorization', `Bearer ${tokenB}`)
+      .set('Idempotency-Key', 'upload-attachment-org-b')
       .attach('file', Buffer.from('%PDF-1.4 fake'), {
         filename: 'invoice.pdf',
         contentType: 'application/pdf',
