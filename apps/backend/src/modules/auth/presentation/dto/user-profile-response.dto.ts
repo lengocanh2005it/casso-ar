@@ -1,4 +1,4 @@
-import type { Role } from '@casso-ledger/shared-types';
+import type { Role } from '@casso-ar/shared-types';
 
 export class UserProfileResponseDto {
   id: string;

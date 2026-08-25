@@ -1,4 +1,4 @@
-import { PlanId } from '@casso-ledger/shared-types';
+import { PlanId } from '@casso-ar/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';

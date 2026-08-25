@@ -1,4 +1,4 @@
-import type { PlanId, Role } from '@casso-ledger/shared-types';
+import type { PlanId, Role } from '@casso-ar/shared-types';
 import type { ReactNode } from 'react';
 import {
   createContext,

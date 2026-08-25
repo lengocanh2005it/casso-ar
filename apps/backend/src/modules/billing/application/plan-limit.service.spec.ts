@@ -1,4 +1,4 @@
-import { PlanId, SubscriptionStatus } from '@casso-ledger/shared-types';
+import { PlanId, SubscriptionStatus } from '@casso-ar/shared-types';
 import { Subscription, type SubscriptionProps } from '../domain/subscription';
 import { PlanLimitService } from './plan-limit.service';
 

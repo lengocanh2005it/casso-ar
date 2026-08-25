@@ -1,4 +1,4 @@
-import { PlanId } from '@casso-ledger/shared-types';
+import { PlanId } from '@casso-ar/shared-types';
 
 const PLAN_HIERARCHY: Record<PlanId, number> = {
   [PlanId.FREE]: 0,

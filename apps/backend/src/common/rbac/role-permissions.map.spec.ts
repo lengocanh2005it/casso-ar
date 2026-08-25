@@ -1,4 +1,4 @@
-import { Permission, ROLE_PERMISSIONS } from '@casso-ledger/shared-types';
+import { Permission, ROLE_PERMISSIONS } from '@casso-ar/shared-types';
 import { Role } from '../../modules/organizations/domain/membership';
 
 describe('ROLE_PERMISSIONS', () => {

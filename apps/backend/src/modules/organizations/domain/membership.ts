@@ -1,7 +1,7 @@
-export type { MembershipStatus } from '@casso-ledger/shared-types';
-export { INVITABLE_ROLES, Role } from '@casso-ledger/shared-types';
+export type { MembershipStatus } from '@casso-ar/shared-types';
+export { INVITABLE_ROLES, Role } from '@casso-ar/shared-types';
 
-import type { MembershipStatus, Role } from '@casso-ledger/shared-types';
+import type { MembershipStatus, Role } from '@casso-ar/shared-types';
 
 export interface MembershipProps {
   id: string;

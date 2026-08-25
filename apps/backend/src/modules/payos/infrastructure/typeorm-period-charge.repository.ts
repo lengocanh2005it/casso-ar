@@ -1,4 +1,4 @@
-import { PeriodChargeStatus } from '@casso-ledger/shared-types';
+import { PeriodChargeStatus } from '@casso-ar/shared-types';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, Repository } from 'typeorm';

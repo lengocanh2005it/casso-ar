@@ -1,4 +1,4 @@
-import { PlanId } from '@casso-ledger/shared-types';
+import { PlanId } from '@casso-ar/shared-types';
 import { GetPublicPlansUseCase } from './get-public-plans.usecase';
 
 describe('GetPublicPlansUseCase', () => {

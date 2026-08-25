@@ -1,4 +1,4 @@
-import { Role } from '@casso-ledger/shared-types';
+import { Role } from '@casso-ar/shared-types';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { GetUserProfileUseCase } from './get-user-profile.usecase';

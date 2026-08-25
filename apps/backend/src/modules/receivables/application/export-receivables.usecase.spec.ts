@@ -1,4 +1,4 @@
-import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus } from '@casso-ar/shared-types';
 import { ExportReceivablesUseCase } from './export-receivables.usecase';
 
 describe('ExportReceivablesUseCase', () => {

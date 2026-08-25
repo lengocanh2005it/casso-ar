@@ -1,4 +1,4 @@
-import { PlanId, SubscriptionStatus } from '@casso-ledger/shared-types';
+import { PlanId, SubscriptionStatus } from '@casso-ar/shared-types';
 import type { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type { ISubscriptionRepository } from '../../billing/application/subscription-repository.port';
 import { Subscription } from '../../billing/domain/subscription';

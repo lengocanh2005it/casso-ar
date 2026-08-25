@@ -1,4 +1,4 @@
-import { PlanId } from '@casso-ledger/shared-types';
+import { PlanId } from '@casso-ar/shared-types';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Check } from 'lucide-react';
 import { Link } from 'react-router-dom';

@@ -1,4 +1,4 @@
-import type { PlanId } from '@casso-ledger/shared-types';
+import type { PlanId } from '@casso-ar/shared-types';
 import { apiRequest } from '@/lib/api-client';
 
 export interface PlanCatalogEntry {

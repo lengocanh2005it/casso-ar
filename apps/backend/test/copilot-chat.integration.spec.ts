@@ -3,7 +3,7 @@ import {
   PlanId,
   ReceivableStatus,
   SubscriptionStatus,
-} from '@casso-ledger/shared-types';
+} from '@casso-ar/shared-types';
 import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';

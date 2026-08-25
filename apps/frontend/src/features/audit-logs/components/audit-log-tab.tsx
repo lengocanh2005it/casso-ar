@@ -1,4 +1,4 @@
-import { Permission } from '@casso-ledger/shared-types';
+import { Permission } from '@casso-ar/shared-types';
 import { ScrollText } from 'lucide-react';
 import { SectionCard } from '@/components/layout/section-card';
 import { Button } from '@/components/ui/button';

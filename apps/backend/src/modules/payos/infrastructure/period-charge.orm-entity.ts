@@ -1,4 +1,4 @@
-import { PeriodChargeStatus, PlanId } from '@casso-ledger/shared-types';
+import { PeriodChargeStatus, PlanId } from '@casso-ar/shared-types';
 import {
   Column,
   Entity,

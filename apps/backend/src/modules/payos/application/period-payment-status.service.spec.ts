@@ -1,4 +1,4 @@
-import { PeriodChargeStatus, PlanId } from '@casso-ledger/shared-types';
+import { PeriodChargeStatus, PlanId } from '@casso-ar/shared-types';
 import { Subscription } from '../../billing/domain/subscription';
 import { PeriodCharge } from '../domain/period-charge';
 import type { IPeriodChargeRepository } from './period-charge-repository.port';

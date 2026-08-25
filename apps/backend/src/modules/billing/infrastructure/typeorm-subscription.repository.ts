@@ -1,4 +1,4 @@
-import { PlanId, SubscriptionStatus } from '@casso-ledger/shared-types';
+import { PlanId, SubscriptionStatus } from '@casso-ar/shared-types';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { type EntityManager, Not, type Repository } from 'typeorm';

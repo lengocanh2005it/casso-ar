@@ -26,7 +26,7 @@ importers:
 
   apps/backend:
     dependencies:
-      '@casso-ledger/shared-types':
+      '@casso-ar/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
       '@nestjs/bullmq':
@@ -213,7 +213,7 @@ importers:
 
   apps/frontend:
     dependencies:
-      '@casso-ledger/shared-types':
+      '@casso-ar/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
       '@radix-ui/react-slot':

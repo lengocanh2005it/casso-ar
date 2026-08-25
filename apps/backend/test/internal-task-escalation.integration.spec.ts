@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus } from '@casso-ar/shared-types';
 import type { INestApplication } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Test } from '@nestjs/testing';

@@ -1,4 +1,4 @@
-import { Permission } from '@casso-ledger/shared-types';
+import { Permission } from '@casso-ar/shared-types';
 import { Landmark } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';

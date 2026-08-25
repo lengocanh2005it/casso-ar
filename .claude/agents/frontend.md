@@ -45,7 +45,7 @@ apps/frontend/src/
 
 - Feature folder contains its own API calls, hooks, components
 - Only move to `components/` when shared by 2+ features (Rule of Two)
-- Shared types from `@casso-ledger/shared-types`
+- Shared types from `@casso-ar/shared-types`
 - API client singleton in `lib/api-client.ts`
 - All API calls use `/api/v1` prefix
 - `hasPermission(role, permission)` for RBAC — hide button, never disable

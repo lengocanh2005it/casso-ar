@@ -1,4 +1,4 @@
-import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus } from '@casso-ar/shared-types';
 import { Receivable } from '../../receivables/domain/receivable';
 import { MatchingEngineService } from './matching-engine.service';
 

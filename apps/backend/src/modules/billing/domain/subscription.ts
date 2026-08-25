@@ -1,4 +1,4 @@
-import { PlanId, SubscriptionStatus } from '@casso-ledger/shared-types';
+import { PlanId, SubscriptionStatus } from '@casso-ar/shared-types';
 
 export interface SubscriptionProps {
   id: string;

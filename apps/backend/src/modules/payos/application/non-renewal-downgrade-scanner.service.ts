@@ -1,4 +1,4 @@
-import { PlanId } from '@casso-ledger/shared-types';
+import { PlanId } from '@casso-ar/shared-types';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { DataSource, type EntityManager } from 'typeorm';

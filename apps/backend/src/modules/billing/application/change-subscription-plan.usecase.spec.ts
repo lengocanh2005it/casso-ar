@@ -1,4 +1,4 @@
-import { PlanId, SubscriptionStatus } from '@casso-ledger/shared-types';
+import { PlanId, SubscriptionStatus } from '@casso-ar/shared-types';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { Subscription, type SubscriptionProps } from '../domain/subscription';

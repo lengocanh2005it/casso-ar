@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus } from '@casso-ar/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { DataSource } from 'typeorm';

@@ -1,4 +1,4 @@
-import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus } from '@casso-ar/shared-types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';

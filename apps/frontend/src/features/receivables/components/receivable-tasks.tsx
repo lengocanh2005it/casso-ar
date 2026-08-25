@@ -1,4 +1,4 @@
-import { Permission } from '@casso-ledger/shared-types';
+import { Permission } from '@casso-ar/shared-types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ListTodo } from 'lucide-react';
 import { useState } from 'react';

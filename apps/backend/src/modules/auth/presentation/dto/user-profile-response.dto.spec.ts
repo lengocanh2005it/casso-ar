@@ -1,4 +1,4 @@
-import { Role } from '@casso-ledger/shared-types';
+import { Role } from '@casso-ar/shared-types';
 import { toUserProfileResponse } from './user-profile-response.dto';
 
 describe('toUserProfileResponse', () => {

@@ -1,4 +1,4 @@
-import type { ReceivableStatus } from '@casso-ledger/shared-types';
+import type { ReceivableStatus } from '@casso-ar/shared-types';
 
 export class ReceivableSummaryResponseDto {
   id: string;

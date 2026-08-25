@@ -1,4 +1,4 @@
-import { Permission } from '@casso-ledger/shared-types';
+import { Permission } from '@casso-ar/shared-types';
 import { REQUIRED_PERMISSION_KEY } from '../../../common/rbac/require-permission.decorator';
 import { LedgerController } from './ledger.controller';
 

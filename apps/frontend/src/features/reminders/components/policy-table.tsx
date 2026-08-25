@@ -1,4 +1,4 @@
-import { Permission } from '@casso-ledger/shared-types';
+import { Permission } from '@casso-ar/shared-types';
 import { Bell } from 'lucide-react';
 import { EmptyState } from '@/components/layout/empty-state';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';

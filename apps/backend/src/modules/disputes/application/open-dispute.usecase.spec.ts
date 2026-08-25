@@ -1,4 +1,4 @@
-import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus } from '@casso-ar/shared-types';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { Receivable } from '../../receivables/domain/receivable';
 import { DisputeStatus } from '../domain/dispute';

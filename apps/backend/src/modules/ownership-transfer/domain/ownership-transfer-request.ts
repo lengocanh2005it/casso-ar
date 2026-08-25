@@ -1,4 +1,4 @@
-import type { OwnershipTransferStatus } from '@casso-ledger/shared-types';
+import type { OwnershipTransferStatus } from '@casso-ar/shared-types';
 
 export type { OwnershipTransferStatus };
 

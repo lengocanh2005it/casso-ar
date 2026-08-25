@@ -1,4 +1,4 @@
-import { Permission } from '@casso-ledger/shared-types';
+import { Permission } from '@casso-ar/shared-types';
 import { lazy, type ReactNode, Suspense } from 'react';
 import type { RouteObject } from 'react-router-dom';
 import { Spinner } from '@/components/ui/spinner';

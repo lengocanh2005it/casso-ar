@@ -1,4 +1,4 @@
-import { PlanId } from '@casso-ledger/shared-types';
+import { PlanId } from '@casso-ar/shared-types';
 import { describe, expect, it } from 'vitest';
 import { hasPlanAccess } from './plan-access';
 

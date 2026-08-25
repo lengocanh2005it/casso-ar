@@ -1,4 +1,4 @@
-import { Role } from '@casso-ledger/shared-types';
+import { Role } from '@casso-ar/shared-types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';

@@ -1,4 +1,4 @@
-import type { PlanId, SubscriptionStatus } from '@casso-ledger/shared-types';
+import type { PlanId, SubscriptionStatus } from '@casso-ar/shared-types';
 import type { Subscription } from '../../domain/subscription';
 
 export class SubscriptionResponseDto {

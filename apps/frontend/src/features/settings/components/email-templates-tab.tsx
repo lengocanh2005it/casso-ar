@@ -1,4 +1,4 @@
-import { Permission } from '@casso-ledger/shared-types';
+import { Permission } from '@casso-ar/shared-types';
 import { Mail } from 'lucide-react';
 import { useState } from 'react';
 import { EmptyState } from '@/components/layout/empty-state';

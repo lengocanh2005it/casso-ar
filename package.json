@@ -1,5 +1,5 @@
 {
-  "name": "casso-ledger",
+  "name": "casso-ar",
   "private": true,
   "packageManager": "pnpm@11.20.0",
   "engines": {
@@ -7,8 +7,8 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "dev:backend": "turbo run dev --filter=@casso-ledger/backend",
-    "dev:frontend": "turbo run dev --filter=@casso-ledger/frontend",
+    "dev:backend": "turbo run dev --filter=@casso-ar/backend",
+    "dev:frontend": "turbo run dev --filter=@casso-ar/frontend",
     "lint": "turbo run lint",
     "format": "biome format --write .",
     "test": "turbo run test",

@@ -1,5 +1,5 @@
 {
-  "name": "@casso-ledger/frontend",
+  "name": "@casso-ar/frontend",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@casso-ledger/shared-types": "workspace:*",
+    "@casso-ar/shared-types": "workspace:*",
     "@radix-ui/react-slot": "1.1.1",
     "@tanstack/react-query": "5.62.11",
     "axios": "^1.19.0",

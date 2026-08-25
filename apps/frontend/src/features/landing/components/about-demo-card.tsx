@@ -1,4 +1,4 @@
-import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus } from '@casso-ar/shared-types';
 import { ArrowLeftRight } from 'lucide-react';
 import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';

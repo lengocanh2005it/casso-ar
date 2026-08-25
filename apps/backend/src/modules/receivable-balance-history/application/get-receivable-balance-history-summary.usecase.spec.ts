@@ -1,4 +1,4 @@
-import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus } from '@casso-ar/shared-types';
 import { Role } from '../../organizations/domain/membership';
 import { BalanceHistoryChangeSource } from '../domain/balance-history-change-source';
 import { GetReceivableBalanceHistorySummaryUseCase } from './get-receivable-balance-history-summary.usecase';

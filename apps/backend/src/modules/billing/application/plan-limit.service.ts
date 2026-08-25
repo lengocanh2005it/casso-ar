@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { SubscriptionStatus } from '@casso-ledger/shared-types';
+import { SubscriptionStatus } from '@casso-ar/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';

@@ -1,4 +1,4 @@
-import { Permission, ROLE_PERMISSIONS } from '@casso-ledger/shared-types';
+import { Permission, ROLE_PERMISSIONS } from '@casso-ar/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';

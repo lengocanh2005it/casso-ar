@@ -1,4 +1,4 @@
-import { PlanId } from '@casso-ledger/shared-types';
+import { PlanId } from '@casso-ar/shared-types';
 import { ApiProperty } from '@nestjs/swagger';
 import type { PlanCatalogEntry } from '../../domain/subscription';
 

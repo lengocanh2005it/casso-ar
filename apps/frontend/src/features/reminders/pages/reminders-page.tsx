@@ -1,4 +1,4 @@
-import { Permission } from '@casso-ledger/shared-types';
+import { Permission } from '@casso-ar/shared-types';
 import { Bell, History } from 'lucide-react';
 import { useState } from 'react';
 import { PageHeading } from '@/components/layout/page-heading';

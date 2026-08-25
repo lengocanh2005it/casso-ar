@@ -1,4 +1,4 @@
-import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus } from '@casso-ar/shared-types';
 import { Customer } from '../../customers/domain/customer';
 import { CustomerGroup } from '../../customers/domain/customer-group';
 import { EmailTemplate } from '../../email-templates/domain/email-template';

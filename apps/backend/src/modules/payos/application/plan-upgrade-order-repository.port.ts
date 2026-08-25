@@ -1,4 +1,4 @@
-import type { PlanId } from '@casso-ledger/shared-types';
+import type { PlanId } from '@casso-ar/shared-types';
 import type { EntityManager } from 'typeorm';
 import type { PlanUpgradeOrder } from '../domain/plan-upgrade-order';
 

@@ -1,4 +1,4 @@
-import { PlanId, SubscriptionStatus } from '@casso-ledger/shared-types';
+import { PlanId, SubscriptionStatus } from '@casso-ar/shared-types';
 import { DataSource } from 'typeorm';
 import type { IAuditLogRepository } from '../../../common/audit/audit-log-repository.port';
 import type { ISubscriptionRepository } from '../../billing/application/subscription-repository.port';

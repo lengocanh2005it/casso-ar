@@ -1,4 +1,4 @@
-import type { OwnershipTransferStatus } from '@casso-ledger/shared-types';
+import type { OwnershipTransferStatus } from '@casso-ar/shared-types';
 import { ApiProperty } from '@nestjs/swagger';
 import type { OwnershipTransferRequest } from '../../../ownership-transfer/domain/ownership-transfer-request';
 

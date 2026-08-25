@@ -1,4 +1,4 @@
-import type { Role } from '@casso-ledger/shared-types';
+import type { Role } from '@casso-ar/shared-types';
 import { Users } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';

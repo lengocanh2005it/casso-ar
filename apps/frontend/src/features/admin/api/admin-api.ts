@@ -1,4 +1,4 @@
-import type { Role } from '@casso-ledger/shared-types';
+import type { Role } from '@casso-ar/shared-types';
 import { apiRequest, authTokenManager } from '@/lib/api-client';
 
 export type AdminOrganizationStatusFilter =

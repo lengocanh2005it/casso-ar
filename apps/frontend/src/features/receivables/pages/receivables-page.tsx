@@ -1,4 +1,4 @@
-import { Permission, ReceivableStatus } from '@casso-ledger/shared-types';
+import { Permission, ReceivableStatus } from '@casso-ar/shared-types';
 import { Receipt, Search } from 'lucide-react';
 import { PageHeading } from '@/components/layout/page-heading';
 import { SectionCard } from '@/components/layout/section-card';

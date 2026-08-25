@@ -1,4 +1,4 @@
-import { PlanId, SubscriptionStatus } from '@casso-ledger/shared-types';
+import { PlanId, SubscriptionStatus } from '@casso-ar/shared-types';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { Role } from '../../organizations/domain/membership';
 import { Subscription } from '../domain/subscription';

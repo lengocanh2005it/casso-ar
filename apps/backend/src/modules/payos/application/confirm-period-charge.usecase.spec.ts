@@ -1,4 +1,4 @@
-import { PeriodChargeStatus, PlanId } from '@casso-ledger/shared-types';
+import { PeriodChargeStatus, PlanId } from '@casso-ar/shared-types';
 import { DataSource } from 'typeorm';
 import type { IAuditLogRepository } from '../../../common/audit/audit-log-repository.port';
 import { PeriodCharge } from '../domain/period-charge';

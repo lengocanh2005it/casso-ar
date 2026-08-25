@@ -1,4 +1,4 @@
-import { PlanId, ReceivableStatus } from '@casso-ledger/shared-types';
+import { PlanId, ReceivableStatus } from '@casso-ar/shared-types';
 import {
   ArrowLeftRight,
   BellRing,

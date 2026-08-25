@@ -1,4 +1,4 @@
-import { PlanId, PlanUpgradeOrderStatus } from '@casso-ledger/shared-types';
+import { PlanId, PlanUpgradeOrderStatus } from '@casso-ar/shared-types';
 
 export interface PlanUpgradeOrderProps {
   id: string;

@@ -1,4 +1,4 @@
-import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus } from '@casso-ar/shared-types';
 import { In, IsNull, LessThanOrEqual, MoreThan, Not } from 'typeorm';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { Role } from '../../organizations/domain/membership';

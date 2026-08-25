@@ -1,4 +1,4 @@
-import { Permission, Role } from '@casso-ledger/shared-types';
+import { Permission, Role } from '@casso-ar/shared-types';
 import { describe, expect, it } from 'vitest';
 import { hasPermission } from './rbac';
 

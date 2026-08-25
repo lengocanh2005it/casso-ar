@@ -1,4 +1,4 @@
-import { PlanId } from '@casso-ledger/shared-types';
+import { PlanId } from '@casso-ar/shared-types';
 import { IsEnum, IsUrl } from 'class-validator';
 import { IsAllowedRedirectUri } from '../../../../common/validation/redirect-uri.decorator';
 

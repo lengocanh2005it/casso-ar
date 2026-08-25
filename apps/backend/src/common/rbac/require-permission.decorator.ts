@@ -1,4 +1,4 @@
-import type { Permission } from '@casso-ledger/shared-types';
+import type { Permission } from '@casso-ar/shared-types';
 import { SetMetadata } from '@nestjs/common';
 
 export const REQUIRED_PERMISSION_KEY = 'requiredPermission';

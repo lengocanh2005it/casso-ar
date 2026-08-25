@@ -1,4 +1,4 @@
-import { PeriodChargeStatus } from '@casso-ledger/shared-types';
+import { PeriodChargeStatus } from '@casso-ar/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Subscription } from '../../billing/domain/subscription';
 import {
