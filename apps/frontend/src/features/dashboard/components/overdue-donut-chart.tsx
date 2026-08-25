@@ -30,17 +30,15 @@ export function OverdueDonutChart({
       name: 'Còn hạn',
       value: onTime,
       pct: onTimeRate,
-      color: 'bg-emerald-500',
-      surface:
-        'border-emerald-100 bg-emerald-50/60 dark:border-emerald-900/60 dark:bg-emerald-950/20',
+      color: 'bg-success',
+      surface: 'border-success/30 bg-success/10',
     },
     {
       name: 'Quá hạn',
       value: totalOverdue,
       pct: overdueRate,
-      color: 'bg-red-500',
-      surface:
-        'border-red-100 bg-red-50/60 dark:border-red-900/60 dark:bg-red-950/20',
+      color: 'bg-destructive',
+      surface: 'border-destructive/30 bg-destructive/10',
     },
   ];
 
@@ -52,7 +50,7 @@ export function OverdueDonutChart({
           aria-label={`Tỷ lệ công nợ: ${overdueRate}% quá hạn, ${onTimeRate}% còn hạn`}
           className="relative size-40 shrink-0 rounded-full p-3 shadow-inner"
           style={{
-            background: `conic-gradient(#ef4444 0 ${overdueRate}%, #10b981 ${overdueRate}% 100%)`,
+            background: `conic-gradient(var(--destructive) 0 ${overdueRate}%, var(--success) ${overdueRate}% 100%)`,
           }}
         >
           <div className="flex size-full flex-col items-center justify-center rounded-full bg-card">

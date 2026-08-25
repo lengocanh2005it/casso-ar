@@ -209,7 +209,7 @@ export function DashboardPage() {
                   <CardTitle>Hoạt động thanh toán 6 tháng</CardTitle>
                 </div>
                 <CardDescription>
-                  Tổng hợp tiền thu và hoàn trong 6 tháng gần nhất
+                  Tổng số tiền đã thu theo từng tháng trong 6 tháng gần nhất
                 </CardDescription>
               </CardHeader>
               <CardContent>
