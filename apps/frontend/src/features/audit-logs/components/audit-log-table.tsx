@@ -12,20 +12,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { OrganizationMember } from '@/features/settings/types';
+import { actorLabel } from '@/lib/actor-label';
 import { formatDateTime } from '@/lib/format';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { ACTION_TYPE_LABELS, ENTITY_TYPE_LABELS } from '../labels';
 import type { AuditLogItem } from '../types';
-
-export function actorLabel(
-  userId: string,
-  members: OrganizationMember[],
-): string {
-  return (
-    members.find((member) => member.userId === userId)?.name ??
-    'Người dùng đã rời tổ chức'
-  );
-}
 
 function DetailRow({ item }: { item: AuditLogItem }) {
   return (

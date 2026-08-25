@@ -7,11 +7,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useAuth } from '@/contexts/auth-context';
+import { useOrganizationMembers } from '@/features/settings/api/use-settings';
+import { actorLabel } from '@/lib/actor-label';
 import { formatDateTime, formatVND } from '@/lib/format';
 import { useReceivable } from '../api/use-receivables';
 
 export function ReceivablePayments({ receivableId }: { receivableId: string }) {
+  const { user } = useAuth();
   const { data } = useReceivable(receivableId);
+  const membersQuery = useOrganizationMembers(user?.organizationId);
+  const members = membersQuery.data?.items ?? [];
   const allocations = data?.allocations ?? [];
 
   if (allocations.length === 0) {
@@ -39,11 +45,9 @@ export function ReceivablePayments({ receivableId }: { receivableId: string }) {
             <TableCell>{formatVND(allocation.allocatedAmount)}</TableCell>
             <TableCell>{formatDateTime(allocation.allocatedAt)}</TableCell>
             <TableCell>
-              {allocation.allocatedByUserId === null ? (
-                'Tự động khớp'
-              ) : (
-                <TruncatedCopyId id={allocation.allocatedByUserId} />
-              )}
+              {allocation.allocatedByUserId === null
+                ? 'Tự động khớp'
+                : actorLabel(allocation.allocatedByUserId, members)}
             </TableCell>
           </TableRow>
         ))}
