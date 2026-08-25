@@ -36,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { formatDateTime } from '@/lib/format';
 import { buildInvitationCooldownKey } from '@/lib/use-resend-cooldown';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import type {
@@ -54,7 +55,6 @@ import { ORGANIZATION_STATUS_LABELS } from '../lib/organization-status-labels';
 
 const MEMBER_PAGE_SIZE = 50;
 const SEARCH_DEBOUNCE_MS = 300;
-const dateFormatter = new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' });
 
 const STATUS_OPTIONS: { value: AdminMemberStatusFilter; label: string }[] = [
   { value: 'ALL', label: 'Tất cả' },
@@ -207,10 +207,7 @@ export function AdminOrganizationMembersPage() {
               ← Tổ chức
             </Link>
             <TruncatedCopyId id={organization.id} />
-            <span>
-              · Tạo ngày{' '}
-              {dateFormatter.format(new Date(organization.createdAt))}
-            </span>
+            <span>· Tạo ngày {formatDateTime(organization.createdAt)}</span>
             <Badge
               variant={
                 organization.status === 'LOCKED' ? 'destructive' : 'default'
@@ -432,12 +429,10 @@ export function AdminOrganizationMembersPage() {
                         </span>
                       </TableCell>
                       <TableCell>{ROLE_LABELS[invite.role]}</TableCell>
-                      <TableCell>
-                        {dateFormatter.format(new Date(invite.invitedAt))}
-                      </TableCell>
+                      <TableCell>{formatDateTime(invite.invitedAt)}</TableCell>
                       <TableCell>
                         <span className="flex items-center gap-2">
-                          {dateFormatter.format(new Date(invite.expiresAt))}
+                          {formatDateTime(invite.expiresAt)}
                           {isExpired && (
                             <Badge variant="destructive">Đã hết hạn</Badge>
                           )}

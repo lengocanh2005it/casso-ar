@@ -25,11 +25,28 @@ export function formatVNDCompact(amount: number): string {
   return compactNumberFormatter.format(amount);
 }
 
+const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
+  timeZone: 'Asia/Ho_Chi_Minh',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+});
+
 export function formatDate(iso: string | Date): string {
   const date = typeof iso === 'string' ? new Date(iso) : iso;
-  return new Intl.DateTimeFormat('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(date);
+  return dateFormatter.format(date);
+}
+
+const dateTimeFormatter = new Intl.DateTimeFormat('vi-VN', {
+  timeZone: 'Asia/Ho_Chi_Minh',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+export function formatDateTime(iso: string | Date): string {
+  const date = typeof iso === 'string' ? new Date(iso) : iso;
+  return dateTimeFormatter.format(date);
 }

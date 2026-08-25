@@ -41,6 +41,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { formatDateTime } from '@/lib/format';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import type {
   AdminOrganizationStatusFilter,
@@ -55,9 +56,6 @@ import {
 import { BreakerSwitch } from '../components/breaker-switch';
 
 const ORGANIZATION_PAGE_SIZE = 50;
-const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
-  dateStyle: 'medium',
-});
 
 const STATUS_OPTIONS: {
   value: AdminOrganizationStatusFilter;
@@ -275,9 +273,7 @@ export function AdminOrganizationsPage() {
                         </div>
                       )}
                     </TableCell>
-                    <TableCell>
-                      {dateFormatter.format(new Date(org.createdAt))}
-                    </TableCell>
+                    <TableCell>{formatDateTime(org.createdAt)}</TableCell>
                     <TableCell>
                       {org.status === 'ACTIVE' || org.status === 'LOCKED' ? (
                         <AlertDialog>

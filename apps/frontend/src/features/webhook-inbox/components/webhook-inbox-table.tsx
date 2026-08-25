@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { formatDateTime } from '@/lib/format';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { useReprocessWebhook } from '../api/use-webhook-inbox';
 import {
@@ -30,18 +31,6 @@ import {
   WEBHOOK_INBOX_STATUS_LABELS,
 } from '../labels';
 import type { WebhookInboxItem } from '../types';
-
-const RECEIVED_AT_FORMATTER = new Intl.DateTimeFormat('vi-VN', {
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-});
-
-function formatReceivedAt(iso: string): string {
-  return RECEIVED_AT_FORMATTER.format(new Date(iso));
-}
 
 function DetailRow({ item }: { item: WebhookInboxItem }) {
   return (
@@ -106,7 +95,7 @@ export function WebhookInboxTable({ items }: WebhookInboxTableProps) {
           {items.map((item) => (
             <Fragment key={item.id}>
               <TableRow className="align-middle">
-                <TableCell>{formatReceivedAt(item.receivedAt)}</TableCell>
+                <TableCell>{formatDateTime(item.receivedAt)}</TableCell>
                 <TableCell>
                   <Badge
                     variant={WEBHOOK_INBOX_STATUS_BADGE_VARIANT[item.status]}

@@ -7,7 +7,7 @@ import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useReceivables } from '@/features/receivables/api/use-receivables';
-import { formatDate, formatVND } from '@/lib/format';
+import { formatDateTime, formatVND } from '@/lib/format';
 import type { CustomerCredits } from '../api/customers-api';
 import {
   useCustomer,
@@ -91,7 +91,7 @@ export function CustomerDetailPage() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Ngày tạo</p>
-              <p className="mt-1">{formatDate(customer.createdAt)}</p>
+              <p className="mt-1">{formatDateTime(customer.createdAt)}</p>
             </div>
           </CardContent>
         </Card>

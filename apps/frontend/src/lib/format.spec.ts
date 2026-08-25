@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, formatVND, formatVNDCompact } from './format';
+import {
+  formatDate,
+  formatDateTime,
+  formatVND,
+  formatVNDCompact,
+} from './format';
 
 describe('format helpers', () => {
   it('formats integer VND amounts for Vietnamese users', () => {
@@ -8,6 +13,10 @@ describe('format helpers', () => {
 
   it('formats an ISO date for Vietnamese users', () => {
     expect(formatDate('2026-08-20T00:00:00.000Z')).toBe('20/08/2026');
+  });
+
+  it('formats an ISO timestamp with date and minute precision for Vietnamese users', () => {
+    expect(formatDateTime('2026-08-20T07:05:00.000Z')).toBe('14:05 20/08/2026');
   });
 
   it('abbreviates VND amounts in millions for compact axis labels', () => {

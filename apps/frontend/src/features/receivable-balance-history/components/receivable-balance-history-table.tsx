@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { formatVND } from '@/lib/format';
+import { formatDateTime, formatVND } from '@/lib/format';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import type { ReceivableBalanceHistoryListItem } from '../types';
 
@@ -47,18 +47,6 @@ const REASON_CODE_LABELS: Record<string, string> = {
   RECEIVABLE_WRITTEN_OFF: 'Xóa nợ khoản phải thu',
   ROLLOUT_BASELINE: 'Baseline',
 };
-
-const EFFECTIVE_TIME_FORMATTER = new Intl.DateTimeFormat('vi-VN', {
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-});
-
-function formatEffectiveTime(iso: string): string {
-  return EFFECTIVE_TIME_FORMATTER.format(new Date(iso));
-}
 
 function DetailRow({ item }: { item: ReceivableBalanceHistoryListItem }) {
   return (
@@ -142,7 +130,7 @@ export function ReceivableBalanceHistoryTable({ items }: TableProps) {
           {items.map((item) => (
             <Fragment key={item.id}>
               <TableRow className="align-middle">
-                <TableCell>{formatEffectiveTime(item.effectiveAt)}</TableCell>
+                <TableCell>{formatDateTime(item.effectiveAt)}</TableCell>
                 <TableCell className="max-w-48">
                   <span
                     className="block max-w-48 truncate"

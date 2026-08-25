@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { formatDate } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 import type { ReminderExecution } from '../types';
 
 function statusLabel(status: ReminderExecution['status']): string {
@@ -75,7 +75,7 @@ export function ExecutionsTable({
               </Badge>
             </TableCell>
             <TableCell>
-              {execution.sentAt ? formatDate(execution.sentAt) : '—'}
+              {execution.sentAt ? formatDateTime(execution.sentAt) : '—'}
             </TableCell>
           </TableRow>
         ))}

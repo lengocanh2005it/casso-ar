@@ -1,7 +1,7 @@
 import { Activity } from 'lucide-react';
 import { EmptyState } from '@/components/layout/empty-state';
 import { formatActivityType } from '@/lib/collection-activity-labels';
-import { formatDate } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 import type { OrganizationActivityItem } from '../types';
 
 export function RecentActivityFeed({
@@ -32,7 +32,7 @@ export function RecentActivityFeed({
               dateTime={item.createdAt}
               className="shrink-0 text-xs text-muted-foreground"
             >
-              {formatDate(item.createdAt)}
+              {formatDateTime(item.createdAt)}
             </time>
           </div>
           <p className="mt-0.5 break-words text-muted-foreground">
