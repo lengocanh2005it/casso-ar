@@ -5,7 +5,7 @@ import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { formatDate, formatVND } from '@/lib/format';
+import { formatDate, formatDateTime, formatVND } from '@/lib/format';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { useReceivable } from '../api/use-receivables';
 import { CancelDialog } from '../components/cancel-dialog';
@@ -176,7 +176,7 @@ export function ReceivableDetailPage() {
             <div>
               <p className="text-muted-foreground">Ngày tạo</p>
               <p className="mt-1 font-medium">
-                {formatDate(receivable.createdAt)}
+                {formatDateTime(receivable.createdAt)}
               </p>
             </div>
             <div className="flex items-center gap-2 sm:col-span-2">

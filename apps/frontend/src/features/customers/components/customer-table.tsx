@@ -12,7 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { Customer } from '@/features/customers/types';
-import { formatDate } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 
 export function CustomerTable({ customers }: { customers: Customer[] }) {
   if (customers.length === 0) {
@@ -57,7 +57,7 @@ export function CustomerTable({ customers }: { customers: Customer[] }) {
                 {customer.defaultPaymentTermDays} ngày
               </Badge>
             </TableCell>
-            <TableCell>{formatDate(customer.createdAt)}</TableCell>
+            <TableCell>{formatDateTime(customer.createdAt)}</TableCell>
           </TableRow>
         ))}
       </TableBody>

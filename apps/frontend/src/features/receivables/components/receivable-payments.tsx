@@ -6,7 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { formatDate, formatVND } from '@/lib/format';
+import { formatDateTime, formatVND } from '@/lib/format';
 import { useReceivable } from '../api/use-receivables';
 
 export function ReceivablePayments({ receivableId }: { receivableId: string }) {
@@ -36,7 +36,7 @@ export function ReceivablePayments({ receivableId }: { receivableId: string }) {
               {allocation.paymentId}
             </TableCell>
             <TableCell>{formatVND(allocation.allocatedAmount)}</TableCell>
-            <TableCell>{formatDate(allocation.allocatedAt)}</TableCell>
+            <TableCell>{formatDateTime(allocation.allocatedAt)}</TableCell>
             <TableCell className="max-w-56 break-all">
               {allocation.allocatedByUserId === null
                 ? 'Tự động khớp'

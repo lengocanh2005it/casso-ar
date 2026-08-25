@@ -2,7 +2,7 @@ import { Activity } from 'lucide-react';
 import { EmptyState } from '@/components/layout/empty-state';
 import type { CustomerTimelineItem } from '@/features/customers/types';
 import { formatActivityType } from '@/lib/collection-activity-labels';
-import { formatDate } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 
 export function CustomerTimeline({ items }: { items: CustomerTimelineItem[] }) {
   if (items.length === 0) {
@@ -24,7 +24,7 @@ export function CustomerTimeline({ items }: { items: CustomerTimelineItem[] }) {
           className="flex min-w-0 items-center gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-sm"
         >
           <span className="shrink-0 text-xs text-muted-foreground">
-            {formatDate(item.createdAt)}
+            {formatDateTime(item.createdAt)}
           </span>
           <span aria-hidden="true" className="text-muted-foreground">
             —

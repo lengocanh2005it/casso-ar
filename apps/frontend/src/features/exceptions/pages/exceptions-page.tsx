@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { formatDate, formatVND } from '@/lib/format';
+import { formatDateTime, formatVND } from '@/lib/format';
 import { useBulkSelection } from '@/lib/use-bulk-selection';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
@@ -130,7 +130,7 @@ export function ExceptionsPage() {
                     />
                   </TableCell>
                   <TableCell>
-                    {formatDate(row.transaction.transactionDateTime)}
+                    {formatDateTime(row.transaction.transactionDateTime)}
                   </TableCell>
                   <TableCell className="max-w-64 break-words">
                     {row.transaction.counterpartyName ? (

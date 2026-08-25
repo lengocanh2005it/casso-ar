@@ -32,7 +32,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAuth } from '@/contexts/auth-context';
-import { formatDate } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 import { hasPermission } from '@/lib/rbac';
 import {
   useDisconnectConnection,
@@ -227,7 +227,7 @@ export function ConnectionTable({
                 </TableCell>
                 <TableCell className="whitespace-nowrap">
                   {connection.lastSyncAt
-                    ? formatDate(connection.lastSyncAt)
+                    ? formatDateTime(connection.lastSyncAt)
                     : '—'}
                 </TableCell>
                 {canManage && (

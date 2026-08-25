@@ -12,21 +12,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { OrganizationMember } from '@/features/settings/types';
+import { formatDateTime } from '@/lib/format';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { ACTION_TYPE_LABELS, ENTITY_TYPE_LABELS } from '../labels';
 import type { AuditLogItem } from '../types';
-
-const CREATED_AT_FORMATTER = new Intl.DateTimeFormat('vi-VN', {
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-});
-
-function formatCreatedAt(iso: string): string {
-  return CREATED_AT_FORMATTER.format(new Date(iso));
-}
 
 export function actorLabel(
   userId: string,
@@ -104,7 +93,7 @@ export function AuditLogTable({ items, members }: AuditLogTableProps) {
           {items.map((item) => (
             <Fragment key={item.id}>
               <TableRow className="align-middle">
-                <TableCell>{formatCreatedAt(item.createdAt)}</TableCell>
+                <TableCell>{formatDateTime(item.createdAt)}</TableCell>
                 <TableCell>{actorLabel(item.userId, members)}</TableCell>
                 <TableCell>
                   {ACTION_TYPE_LABELS[item.actionType] ?? item.actionType}

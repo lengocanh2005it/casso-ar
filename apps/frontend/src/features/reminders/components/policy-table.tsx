@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAuth } from '@/contexts/auth-context';
-import { formatDate } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 import { hasPermission } from '@/lib/rbac';
 import { useUpdateReminderPolicy } from '../api/use-reminders';
 import type { ReminderPolicy } from '../types';
@@ -104,7 +104,7 @@ export function PolicyTable({
                 ? '—'
                 : `${policy.escalationThresholdDays} ngày`}
             </TableCell>
-            <TableCell>{formatDate(policy.createdAt)}</TableCell>
+            <TableCell>{formatDateTime(policy.createdAt)}</TableCell>
             {canWrite && (
               <TableCell>
                 {onEdit && (

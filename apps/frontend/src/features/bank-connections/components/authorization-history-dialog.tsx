@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { formatDate } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 import { useAuthorizationAuditEvents } from '../api/use-bank-connections';
 import type { ConnectionAuditEvent, ConnectionAuditEventType } from '../types';
 
@@ -129,7 +129,7 @@ export function AuthorizationHistoryDialog({
                       {eventTypeLabels[event.eventType]}
                     </span>
                     <time className="text-sm text-muted-foreground">
-                      {formatDate(event.createdAt)}
+                      {formatDateTime(event.createdAt)}
                     </time>
                   </div>
                   <EventDetails event={event} />
