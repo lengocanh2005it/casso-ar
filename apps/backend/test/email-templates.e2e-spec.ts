@@ -10,6 +10,7 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
+import { AUTH_EMAIL_SENDER } from '../src/modules/auth/application/auth-email-sender.port';
 import { EMAIL_PROVIDER_ADAPTER } from '../src/modules/notifications/application/email-provider-adapter.port';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
@@ -18,6 +19,13 @@ import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-enti
 
 const fakeEmailProvider = {
   send: jest.fn().mockResolvedValue({ providerMessageId: 'fake-msg-id' }),
+};
+
+const authEmailSender = {
+  sendVerificationEmail: jest.fn(),
+  sendPasswordResetEmail: jest.fn(),
+  sendChangePasswordOtpEmail: jest.fn(),
+  sendInviteEmail: jest.fn(),
 };
 
 jest.setTimeout(60_000);
@@ -68,6 +76,8 @@ describe('Email Template Management (integration)', () => {
       )
       .overrideProvider(EMAIL_PROVIDER_ADAPTER)
       .useValue(fakeEmailProvider)
+      .overrideProvider(AUTH_EMAIL_SENDER)
+      .useValue(authEmailSender)
       .overrideProvider(TAX_CODE_LOOKUP_ADAPTER)
       .useValue({
         lookup: jest.fn().mockResolvedValue({ name: 'Test Company' }),
@@ -86,7 +96,7 @@ describe('Email Template Management (integration)', () => {
   });
 
   it('seeds 4 default templates when a new Organization signs up', async () => {
-    const signupResponse = await request(app.getHttpServer())
+    await request(app.getHttpServer())
       .post('/api/v1/auth/signup')
       .send({
         organizationName: 'Test Company',
@@ -97,15 +107,38 @@ describe('Email Template Management (integration)', () => {
       })
       .expect(201);
 
-    organizationId = signupResponse.body.organizationId;
-    ownerId = signupResponse.body.userId;
+    // Signup only creates a pending_signups row; verify-email is what
+    // provisions the organization/user/membership/subscription. It still
+    // does so even though the new org starts PENDING_REVIEW and blocks the
+    // login session that would normally follow (403 here is expected, not
+    // a failure).
+    const otp = authEmailSender.sendVerificationEmail.mock
+      .calls[0][1] as string;
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/verify-email')
+      .send({ email: 'owner@test-org.vn', otp })
+      .expect(403);
 
-    // Signup leaves the email unverified (EmailVerifiedGuard would reject
-    // every subsequent authenticated call in this suite otherwise) — verify
-    // it directly, the same shortcut billing-quota.e2e-spec.ts uses.
-    await dataSource
-      .getRepository(UserOrmEntity)
-      .update({ id: ownerId }, { emailVerifiedAt: new Date() });
+    ownerId = (
+      await dataSource.query('SELECT id FROM users WHERE email = $1', [
+        'owner@test-org.vn',
+      ])
+    )[0].id;
+    organizationId = (
+      await dataSource.query(
+        'SELECT "organizationId" FROM memberships WHERE "userId" = $1',
+        [ownerId],
+      )
+    )[0].organizationId;
+
+    // OrganizationLockGuard blocks every authenticated endpoint (not just
+    // login) while PENDING_REVIEW — simulate operator approval so the rest
+    // of this suite can exercise the authenticated CRUD flow the same way
+    // billing-quota.e2e-spec.ts's direct-fixture shortcut does.
+    await dataSource.query(
+      `UPDATE organizations SET status = 'ACTIVE' WHERE id = $1`,
+      [organizationId],
+    );
 
     const token = tokenFor(ownerId, Role.OWNER);
 
