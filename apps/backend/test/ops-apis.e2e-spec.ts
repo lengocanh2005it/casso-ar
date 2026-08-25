@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
@@ -41,6 +42,27 @@ describe('Audit logs + webhook inbox admin APIs (integration)', () => {
 
   function token(userId: string, organizationId: string, role: Role) {
     return jwtService.sign({ userId, organizationId, role });
+  }
+
+  // Audit log writes are fire-and-forget, so poll instead of asserting
+  // immediately after the triggering request resolves.
+  async function waitForAuditCount(
+    actionType: AuditActionType,
+    entityId: string,
+    expectedCount: number,
+  ) {
+    const auditRepo = dataSource.getRepository(AuditLogOrmEntity);
+    const deadline = Date.now() + 5_000;
+    while (Date.now() < deadline) {
+      const count = await auditRepo.count({
+        where: { organizationId: orgA, actionType, entityId },
+      });
+      if (count >= expectedCount) return;
+      await delay(100);
+    }
+    throw new Error(
+      `Audit log count for ${actionType}/${entityId} never reached ${expectedCount}`,
+    );
   }
 
   beforeAll(async () => {
@@ -274,6 +296,8 @@ describe('Audit logs + webhook inbox admin APIs (integration)', () => {
   });
 
   it('writes an audit log for the reprocess trigger, without the raw webhook payload', async () => {
+    await waitForAuditCount(AuditActionType.WEBHOOK_REPROCESS, inboxId, 2);
+
     const response = await request(app.getHttpServer())
       .get('/api/v1/audit-logs?actionType=WEBHOOK_REPROCESS')
       .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)

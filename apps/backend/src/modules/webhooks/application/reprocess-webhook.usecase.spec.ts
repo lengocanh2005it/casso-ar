@@ -128,6 +128,27 @@ describe('ReprocessWebhookUseCase', () => {
     expect(auditLogRepo.create).not.toHaveBeenCalled();
   });
 
+  it('rejects reprocessing when there is no authenticated user', async () => {
+    const { repo, enqueue, auditLogRepo, logger } = buildDeps();
+    const tenantContext = {
+      getOrganizationId: jest.fn(),
+      getCurrentUser: jest.fn().mockReturnValue(undefined),
+    };
+    const useCase = new ReprocessWebhookUseCase(
+      repo as never,
+      { enqueue } as never,
+      tenantContext as never,
+      auditLogRepo as never,
+      logger as never,
+    );
+
+    await expect(useCase.execute('inbox-1')).rejects.toMatchObject({
+      errorCode: ErrorCode.UNAUTHORIZED,
+    });
+    expect(enqueue).not.toHaveBeenCalled();
+    expect(auditLogRepo.create).not.toHaveBeenCalled();
+  });
+
   it('rejects reprocessing a webhook that does not exist in the org', async () => {
     const { repo, enqueue, tenantContext, auditLogRepo, logger } = buildDeps();
     repo.findById.mockResolvedValue(null);

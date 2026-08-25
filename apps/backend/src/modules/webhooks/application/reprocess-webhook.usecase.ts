@@ -37,7 +37,11 @@ export class ReprocessWebhookUseCase {
   ) {}
 
   async execute(webhookInboxId: string): Promise<WebhookInbox> {
-    const organizationId = this.tenantContext.getOrganizationId();
+    const user = this.tenantContext.getCurrentUser();
+    if (!user) {
+      throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
+    }
+    const organizationId = user.organizationId;
     const inbox = await this.repo.findById(webhookInboxId, organizationId);
     if (!inbox) {
       throw new AppError(
@@ -59,36 +63,33 @@ export class ReprocessWebhookUseCase {
       jobId: `webhook-reprocess-${inbox.id}`,
     });
 
-    const user = this.tenantContext.getCurrentUser();
-    if (user) {
-      // Reprocessing only enqueues an async job (status flips later in the
-      // worker), so before/after capture the same "trigger" snapshot.
-      const auditedInbox = toAuditedWebhookInbox(inbox);
-      void this.auditLogRepo
-        .create(
-          new AuditLog({
-            organizationId: user.organizationId,
-            userId: user.userId,
-            actionType: AuditActionType.WEBHOOK_REPROCESS,
-            entityType: AuditEntityType.WEBHOOK_INBOX,
-            entityId: inbox.id,
-            beforeState: auditedInbox,
-            afterState: auditedInbox,
-            ipAddress: null,
-            createdAt: new Date(),
-          }),
-        )
-        .catch((error: unknown) => {
-          this.logger.error({
-            message: 'Failed to write audit log',
-            actionType: AuditActionType.WEBHOOK_REPROCESS,
-            entityId: inbox.id,
-            organizationId: user.organizationId,
-            userId: user.userId,
-            error,
-          });
+    // Reprocessing only enqueues an async job (status flips later in the
+    // worker), so before/after capture the same "trigger" snapshot.
+    const auditedInbox = toAuditedWebhookInbox(inbox);
+    void this.auditLogRepo
+      .create(
+        new AuditLog({
+          organizationId: user.organizationId,
+          userId: user.userId,
+          actionType: AuditActionType.WEBHOOK_REPROCESS,
+          entityType: AuditEntityType.WEBHOOK_INBOX,
+          entityId: inbox.id,
+          beforeState: auditedInbox,
+          afterState: auditedInbox,
+          ipAddress: null,
+          createdAt: new Date(),
+        }),
+      )
+      .catch((error: unknown) => {
+        this.logger.error({
+          message: 'Failed to write audit log',
+          actionType: AuditActionType.WEBHOOK_REPROCESS,
+          entityId: inbox.id,
+          organizationId: user.organizationId,
+          userId: user.userId,
+          error,
         });
-    }
+      });
 
     return inbox;
   }
