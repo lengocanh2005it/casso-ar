@@ -36,6 +36,7 @@ export enum AuditActionType {
   SMTP_CONFIG_SAVE = 'SMTP_CONFIG_SAVE',
   SMTP_CONFIG_DELETE = 'SMTP_CONFIG_DELETE',
   RECEIVABLE_BALANCE_HISTORY_EXPORT = 'RECEIVABLE_BALANCE_HISTORY_EXPORT',
+  WEBHOOK_REPROCESS = 'WEBHOOK_REPROCESS',
 }
 
 export enum AuditEntityType {
@@ -56,4 +57,5 @@ export enum AuditEntityType {
   CUSTOMER_BANK_ACCOUNT = 'CustomerBankAccount',
   SMTP_CONFIG = 'SmtpConfig',
   RECEIVABLE_BALANCE_HISTORY = 'ReceivableBalanceHistory',
+  WEBHOOK_INBOX = 'WebhookInbox',
 }

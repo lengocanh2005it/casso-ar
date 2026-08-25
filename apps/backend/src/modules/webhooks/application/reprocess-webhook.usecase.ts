@@ -1,8 +1,19 @@
 import { Inject, Injectable } from '@nestjs/common';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../../../common/audit/audit.enums';
+import { AuditLog } from '../../../common/audit/audit-log';
+import {
+  AUDIT_LOG_REPOSITORY,
+  type IAuditLogRepository,
+} from '../../../common/audit/audit-log-repository.port';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { JsonLogger } from '../../../common/observability/json-logger.service';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { WebhookInbox } from '../domain/webhook-inbox';
+import { toAuditedWebhookInbox } from './webhook-inbox-audit-view';
 import {
   type IWebhookInboxRepository,
   WEBHOOK_INBOX_REPOSITORY,
@@ -20,6 +31,9 @@ export class ReprocessWebhookUseCase {
     @Inject(WEBHOOK_JOB_QUEUE)
     private readonly jobQueue: IWebhookJobQueue,
     private readonly tenantContext: TenantContextService,
+    @Inject(AUDIT_LOG_REPOSITORY)
+    private readonly auditLogRepo: IAuditLogRepository,
+    private readonly logger: JsonLogger,
   ) {}
 
   async execute(webhookInboxId: string): Promise<WebhookInbox> {
@@ -44,6 +58,38 @@ export class ReprocessWebhookUseCase {
       organizationId,
       jobId: `webhook-reprocess-${inbox.id}`,
     });
+
+    const user = this.tenantContext.getCurrentUser();
+    if (user) {
+      // Reprocessing only enqueues an async job (status flips later in the
+      // worker), so before/after capture the same "trigger" snapshot.
+      const auditedInbox = toAuditedWebhookInbox(inbox);
+      void this.auditLogRepo
+        .create(
+          new AuditLog({
+            organizationId: user.organizationId,
+            userId: user.userId,
+            actionType: AuditActionType.WEBHOOK_REPROCESS,
+            entityType: AuditEntityType.WEBHOOK_INBOX,
+            entityId: inbox.id,
+            beforeState: auditedInbox,
+            afterState: auditedInbox,
+            ipAddress: null,
+            createdAt: new Date(),
+          }),
+        )
+        .catch((error: unknown) => {
+          this.logger.error({
+            message: 'Failed to write audit log',
+            actionType: AuditActionType.WEBHOOK_REPROCESS,
+            entityId: inbox.id,
+            organizationId: user.organizationId,
+            userId: user.userId,
+            error,
+          });
+        });
+    }
+
     return inbox;
   }
 }

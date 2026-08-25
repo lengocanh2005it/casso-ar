@@ -273,6 +273,24 @@ describe('Audit logs + webhook inbox admin APIs (integration)', () => {
     expect(enqueue.mock.calls[0][0].jobId).toBe(enqueue.mock.calls[1][0].jobId);
   });
 
+  it('writes an audit log for the reprocess trigger, without the raw webhook payload', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/audit-logs?actionType=WEBHOOK_REPROCESS')
+      .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .expect(200);
+
+    // The preceding test reprocesses the same inbox twice.
+    expect(response.body.total).toBe(2);
+    expect(response.body.items[0]).toMatchObject({
+      userId: ownerA,
+      actionType: 'WEBHOOK_REPROCESS',
+      entityType: 'WebhookInbox',
+      entityId: inboxId,
+    });
+    expect(response.body.items[0].afterState).not.toHaveProperty('rawPayload');
+    expect(response.body.items[0].beforeState).not.toHaveProperty('rawPayload');
+  });
+
   it('rejects reprocessing a webhook that is not FAILED', async () => {
     const processed = await dataSource
       .getRepository(WebhookInboxOrmEntity)
