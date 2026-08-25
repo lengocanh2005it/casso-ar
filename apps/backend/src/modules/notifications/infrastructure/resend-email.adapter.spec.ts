@@ -10,7 +10,7 @@ describe('ResendEmailAdapter', () => {
   beforeEach(() => {
     sendMock.mockReset();
     process.env.RESEND_API_KEY = 'test-api-key';
-    process.env.RESEND_FROM_ADDRESS = 'no-reply@casso-ledger.vn';
+    process.env.RESEND_FROM_ADDRESS = 'no-reply@casso-ar.vn';
   });
 
   it('returns the provider message id and sends the configured message', async () => {
@@ -26,7 +26,7 @@ describe('ResendEmailAdapter', () => {
     expect(result).toEqual({ providerMessageId: 'resend-msg-1' });
     expect(sendMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        from: 'no-reply@casso-ledger.vn',
+        from: 'no-reply@casso-ar.vn',
         to: 'customer@example.com',
         subject: 'Payment reminder',
         html: '<p>Due</p>',
@@ -67,9 +67,9 @@ describe('ResendEmailAdapter', () => {
         text: 'Verify at https://app.casso.vn/verify',
         attachments: [
           {
-            filename: 'casso-ledger-logo.png',
+            filename: 'casso-ar-logo.png',
             content: 'base64-logo',
-            contentId: 'casso-ledger-logo',
+            contentId: 'casso-ar-logo',
             contentType: 'image/png',
           },
         ],
@@ -81,9 +81,9 @@ describe('ResendEmailAdapter', () => {
         text: 'Verify at https://app.casso.vn/verify',
         attachments: [
           {
-            filename: 'casso-ledger-logo.png',
+            filename: 'casso-ar-logo.png',
             content: 'base64-logo',
-            contentId: 'casso-ledger-logo',
+            contentId: 'casso-ar-logo',
           },
         ],
       }),
@@ -104,7 +104,7 @@ describe('ResendEmailAdapter', () => {
 
     expect(sendMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        from: '"Công ty ABC (qua Casso)" <no-reply@casso-ledger.vn>',
+        from: '"Công ty ABC (qua Casso)" <no-reply@casso-ar.vn>',
       }),
     );
   });
@@ -123,7 +123,7 @@ describe('ResendEmailAdapter', () => {
 
     expect(sendMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        from: '"Bad \'name\'" <no-reply@casso-ledger.vn>',
+        from: '"Bad \'name\'" <no-reply@casso-ar.vn>',
       }),
     );
   });

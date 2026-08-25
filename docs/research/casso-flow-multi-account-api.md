@@ -2,7 +2,7 @@
 
 Research question: can one Casso API key (`GET /v2/userInfo`) legitimately return
 more than one entry in `bankAccs`, and what does that imply for a
-"select/import multiple bank accounts" feature in casso-ledger's bank
+"select/import multiple bank accounts" feature in casso-ar's bank
 connection flow. Investigated against `developer.casso.vn` and `docs.casso.vn`
 (Casso's own help center, which developer.casso.vn's getting-started material
 links out to for the dashboard-side bank-linking flow).
@@ -115,7 +115,7 @@ generated (or an old one deleted/rotated) for the same business:
 No page found states that generating a new key creates "a new business" or
 "a new session," nor confirms the opposite (that `business.id` and
 `bankAccs` are stable across rotation). This must be treated as an open
-question for casso-ledger's design — do not assume either behavior without
+question for casso-ar's design — do not assume either behavior without
 directly testing against the Casso sandbox/API or getting written
 confirmation from Casso support.
 

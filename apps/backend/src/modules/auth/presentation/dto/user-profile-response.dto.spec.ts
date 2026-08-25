@@ -9,7 +9,7 @@ describe('toUserProfileResponse', () => {
       name: 'Owner',
       avatarUrl: null,
       organizationId: 'org-1',
-      organizationName: 'Casso Ledger',
+      organizationName: 'Casso AR',
       role: Role.OWNER,
       subscriptionPlan: 'FREE',
       bankingLinked: true,
@@ -22,7 +22,7 @@ describe('toUserProfileResponse', () => {
       avatarUrl: null,
       role: Role.OWNER,
       organizationId: 'org-1',
-      organizationName: 'Casso Ledger',
+      organizationName: 'Casso AR',
       subscriptionPlan: 'FREE',
       bankingLinked: true,
     });

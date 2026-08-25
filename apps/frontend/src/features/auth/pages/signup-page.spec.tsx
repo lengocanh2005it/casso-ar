@@ -158,7 +158,7 @@ describe('SignupPage', () => {
       .getByRole('heading', { name: /xác thực email/i })
       .closest('.rounded-xl');
     expect(card).toContainElement(
-      screen.getByRole('link', { name: /casso ledger/i }),
+      screen.getByRole('link', { name: /casso ar/i }),
     );
   });
 

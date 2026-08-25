@@ -23,7 +23,7 @@ export function AboutSection() {
                   <strong
                     key={segment.text}
                     className={
-                      segment.text === 'Casso Ledger'
+                      segment.text === 'Casso AR'
                         ? 'font-semibold text-primary'
                         : 'font-semibold text-foreground'
                     }

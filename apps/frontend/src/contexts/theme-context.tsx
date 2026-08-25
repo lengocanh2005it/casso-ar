@@ -11,7 +11,7 @@ import {
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type ResolvedTheme = 'light' | 'dark';
 
-const STORAGE_KEY = 'casso-ledger:theme';
+const STORAGE_KEY = 'casso-ar:theme';
 
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 

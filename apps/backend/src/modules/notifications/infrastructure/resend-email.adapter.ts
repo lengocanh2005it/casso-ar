@@ -28,7 +28,7 @@ export class ResendEmailAdapter implements IEmailProviderAdapter {
     }
     this.client = new Resend(apiKey);
     this.fromAddress =
-      process.env.RESEND_FROM_ADDRESS ?? 'no-reply@casso-ledger.vn';
+      process.env.RESEND_FROM_ADDRESS ?? 'no-reply@casso-ar.vn';
   }
   async send(
     to: string,

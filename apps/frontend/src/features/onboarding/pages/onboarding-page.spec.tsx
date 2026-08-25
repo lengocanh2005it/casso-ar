@@ -34,7 +34,7 @@ function renderPage(user: { role: string; bankingLinked: boolean }) {
       email: 'owner@casso.vn',
       name: 'Owner',
       organizationId: 'org-1',
-      organizationName: 'Casso Ledger',
+      organizationName: 'Casso AR',
       subscriptionPlan: 'FREE',
       ...user,
     },
@@ -82,7 +82,7 @@ describe('OnboardingPage', () => {
 
     const { logout } = renderPage({ role: 'OWNER', bankingLinked: false });
 
-    expect(screen.getByRole('link', { name: /casso ledger/i })).toBeVisible();
+    expect(screen.getByRole('link', { name: /casso ar/i })).toBeVisible();
 
     fireEvent.click(screen.getByRole('button', { name: /đăng xuất/i }));
 

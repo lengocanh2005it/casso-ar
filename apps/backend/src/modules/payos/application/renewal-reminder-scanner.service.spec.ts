@@ -94,10 +94,10 @@ describe('RenewalReminderScannerService', () => {
     );
 
     const [, job] = emailQueue.add.mock.calls[0];
-    expect(job.html).toContain('cid:casso-ledger-logo');
+    expect(job.html).toContain('cid:casso-ar-logo');
     expect(job.text).toContain('thanh toán');
     expect(job.attachments).toEqual([
-      expect.objectContaining({ contentId: 'casso-ledger-logo' }),
+      expect.objectContaining({ contentId: 'casso-ar-logo' }),
     ]);
   });
 

@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# Casso Ledger
+# Casso AR
 
 A B2B SaaS platform for automating accounts receivable management and collection for Vietnamese businesses. The product directly connects to real-time bank transaction data through Casso Flow/CASSO Balance Hook.
 
@@ -27,7 +27,7 @@ A B2B SaaS platform for automating accounts receivable management and collection
 ## Project Structure
 
 ```
-casso-ledger/
+casso-ar/
   apps/
     backend/          NestJS modular monolith
       src/

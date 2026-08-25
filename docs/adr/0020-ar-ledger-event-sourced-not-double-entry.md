@@ -2,7 +2,7 @@
 
 **Status:** proposed
 
-Issue #264 asked whether Casso Ledger should have something living up to its name as a
+Issue #264 asked whether Casso AR should have something living up to its name as a
 "ledger." We're adding an **AR Ledger**: an append-only `LedgerEvent` stream, scoped to AR
 only (`Receivable` balance movements and `Payment` credit-balance movements), written in
 the same transaction as the triggering use case, dual-write alongside the existing

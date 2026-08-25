@@ -37,7 +37,7 @@ describe('EmailService', () => {
     };
     const organization = new Organization({
       id: 'org-1',
-      name: 'Casso Ledger',
+      name: 'Casso AR',
       createdAt: new Date('2026-01-01'),
     });
     const template = new EmailTemplate({
@@ -73,7 +73,7 @@ describe('EmailService', () => {
       tenantContext: { getOrganizationId: jest.fn().mockReturnValue('org-1') },
       renderUseCase: {
         render: jest.fn().mockReturnValue({
-          subject: 'Invoice INV-1 — Casso Ledger',
+          subject: 'Invoice INV-1 — Casso AR',
           bodyHtml: '<p>Company B, outstanding 20000000</p>',
         }),
       },
@@ -106,7 +106,7 @@ describe('EmailService', () => {
         organizationId: 'org-1',
         to: 'ap@congtyb.vn',
         replyTo: 'owner@congtyb.vn',
-        subject: 'Invoice INV-1 — Casso Ledger',
+        subject: 'Invoice INV-1 — Casso AR',
       }),
       {
         jobId: 'exec-1',

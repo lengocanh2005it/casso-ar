@@ -8,7 +8,7 @@ describe('ProductShowcase', () => {
 
     expect(screen.getByText('Không cần nhắc lại')).toBeInTheDocument();
     const image = screen.getByAltText(
-      'Giao diện Lịch nhắc tự động của Casso Ledger',
+      'Giao diện Lịch nhắc tự động của Casso AR',
     );
     expect(image).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /lịch nhắc/i })).toHaveAttribute(
@@ -25,7 +25,7 @@ describe('ProductShowcase', () => {
     expect(screen.getByText('Không cần đoán')).toBeInTheDocument();
     expect(
       screen.getByAltText(
-        'Giao diện Copilot — trợ lý AI thu hồi công nợ của Casso Ledger',
+        'Giao diện Copilot — trợ lý AI thu hồi công nợ của Casso AR',
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText('Không cần nhắc lại')).not.toBeInTheDocument();

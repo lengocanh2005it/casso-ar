@@ -14,7 +14,7 @@ describe('LandingNavbar', () => {
       </ThemeProvider>,
     );
 
-    expect(screen.getByText('Casso Ledger').parentElement).toHaveClass(
+    expect(screen.getByText('Casso AR').parentElement).toHaveClass(
       'sm:inline-flex',
     );
   });
@@ -28,7 +28,7 @@ describe('LandingNavbar', () => {
       </ThemeProvider>,
     );
 
-    expect(screen.getByText('Casso Ledger')).toHaveClass('text-primary');
+    expect(screen.getByText('Casso AR')).toHaveClass('text-primary');
   });
 
   it('opens the mobile menu with signup and login links', async () => {

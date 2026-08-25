@@ -12,7 +12,7 @@ describe('invite acceptance', () => {
     apiRequest.mockReset();
   });
 
-  it('shows the Casso Ledger logo like the other auth pages', () => {
+  it('shows the Casso AR logo like the other auth pages', () => {
     render(
       <MemoryRouter initialEntries={['/invite-accept?token=invite-token']}>
         <Routes>
@@ -21,7 +21,7 @@ describe('invite acceptance', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('link', { name: /casso ledger/i })).toBeVisible();
+    expect(screen.getByRole('link', { name: /casso ar/i })).toBeVisible();
   });
 
   it('accepts an invite with the invitee name and password', async () => {

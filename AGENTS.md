@@ -481,7 +481,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=casso
 DB_PASSWORD=casso
-DB_DATABASE=casso_ledger
+DB_DATABASE=casso_ar
 
 # JWT
 JWT_SECRET=your-secret-key-here

@@ -186,7 +186,7 @@ Out of scope: overage billing, grace period, automatic billing invoices through 
 According to the [project-scaffolding spec](docs/superpowers/specs/2026-08-03-project-scaffolding-architecture-design.md) and [deployment spec](docs/superpowers/specs/2026-08-03-deployment-observability-design.md):
 
 ```
-casso-ledger/ (pnpm + Turborepo)
+casso-ar/ (pnpm + Turborepo)
   apps/backend/     NestJS 10 modular monolith (API + BullMQ worker in the same process)
   apps/frontend/    React 19 + Vite + Tailwind v4 + shadcn/ui ("new-york"/"neutral")
                     + TanStack Query + React Router 7 + sonner + recharts + qrcode.react

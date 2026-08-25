@@ -1,4 +1,4 @@
-# Casso Ledger
+# Casso AR
 
 A B2B SaaS platform for automating business receivables management and collection, based on real-time bank transaction data (Casso Flow + CASSO Balance Hook).
 
@@ -35,7 +35,7 @@ pnpm test
 ## Project Structure
 
 ```
-casso-ledger/
+casso-ar/
   apps/
     backend/          NestJS 11, Clean Architecture 4 layers
     frontend/         React 19 + Vite + Tailwind v4

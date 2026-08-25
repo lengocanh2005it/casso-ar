@@ -1,4 +1,4 @@
-# Wayfinder Map — Casso Ledger AR Automation
+# Wayfinder Map — Casso AR AR Automation
 
 **Tracker**: GitHub Issues
 **Charted**: 2026-08-04
@@ -103,7 +103,7 @@ Success = a single document a new developer can read and know exactly what to pi
 ## Ticket Index
 
 **35 tracked tickets** | status snapshot (2026-08-23):
-- 🟢 done (35): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management, Spec-Plan Reconciliation, Org-Branded Reminder Emails via Custom SMTP (BYO-SMTP), SMTP Settings UI (Frontend), In-App Alerts (#137), Public Landing Page (#143), Issue #233 — manual payment allocation UI (Shipped: 2026-08-19 — PR #260), Issue #320 — Copilot Overdue Receivable Context (Shipped: 2026-08-23 — PR #325), Issue #321 — Casso Ledger Copilot Persona and Response Policy (Shipped: 2026-08-23 — PR #326), Issue #236 — audit log viewer UI (Shipped: 2026-08-23 — PR #327)
+- 🟢 done (35): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management, Spec-Plan Reconciliation, Org-Branded Reminder Emails via Custom SMTP (BYO-SMTP), SMTP Settings UI (Frontend), In-App Alerts (#137), Public Landing Page (#143), Issue #233 — manual payment allocation UI (Shipped: 2026-08-19 — PR #260), Issue #320 — Copilot Overdue Receivable Context (Shipped: 2026-08-23 — PR #325), Issue #321 — Casso AR Copilot Persona and Response Policy (Shipped: 2026-08-23 — PR #326), Issue #236 — audit log viewer UI (Shipped: 2026-08-23 — PR #327)
 - 🟡 in-progress (0): none
 - 🔴 open/not started (0): none
 
@@ -760,7 +760,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ---
 
-#### Issue #321 — Casso Ledger Copilot Persona and Response Policy
+#### Issue #321 — Casso AR Copilot Persona and Response Policy
 - **Type**: feature
 - **Status**: done ✅
 - **Owner**: BE
@@ -768,7 +768,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Plan**: `docs/superpowers/plans/2026-08-23-copilot-persona-response-policy.md`
 - **Blockers**: none
 - **Shipped**: 2026-08-23 — PR #326
-- **Creates**: Vietnamese-first Casso Ledger Copilot persona, explicit-English opt-in policy, enterprise tone and grounded-data guidance, missing-context and internal-detail safety rules, and regression coverage.
+- **Creates**: Vietnamese-first Casso AR Copilot persona, explicit-English opt-in policy, enterprise tone and grounded-data guidance, missing-context and internal-detail safety rules, and regression coverage.
 - **Implementation note**: `pnpm verify` passed 9/9 tasks; backend completed 354 suites/1360 tests and frontend completed 146 files/556 tests. CI `verify` passed on PR #326.
 
 ---

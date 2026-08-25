@@ -510,7 +510,7 @@ describe('Copilot chat (integration)', () => {
             name: 'draftReminderEmail',
             arguments: {
               receivableId: candidate.receivableId,
-              subject: `[Casso Ledger] Nhắc thanh toán - ${candidate.customerName}`,
+              subject: `[Casso AR] Nhắc thanh toán - ${candidate.customerName}`,
               bodyHtml: `<p>Kính gửi ${candidate.customerName}, quý công ty còn nợ ${candidate.remainingAmount} VND đến hạn ngày ${candidate.dueDate}.</p>`,
             },
           },
@@ -653,7 +653,7 @@ describe('Copilot chat (integration)', () => {
             name: 'draftReminderEmail',
             arguments: {
               receivableId: candidate.receivableId,
-              subject: `[Casso Ledger] Nhắc nợ quá hạn - ${candidate.customerName}`,
+              subject: `[Casso AR] Nhắc nợ quá hạn - ${candidate.customerName}`,
               bodyHtml: `<p>Kính gửi ${candidate.customerName}, quý công ty còn nợ ${candidate.remainingAmount} VND.</p>`,
             },
           },

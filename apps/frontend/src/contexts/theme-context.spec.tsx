@@ -86,7 +86,7 @@ describe('ThemeProvider', () => {
     fireEvent.click(screen.getByText('dark'));
 
     expect(document.documentElement.classList.contains('dark')).toBe(true);
-    expect(localStorage.getItem('casso-ledger:theme')).toBe('dark');
+    expect(localStorage.getItem('casso-ar:theme')).toBe('dark');
     expect(screen.getByTestId('theme').textContent).toBe('dark');
     expect(screen.getByTestId('resolved').textContent).toBe('dark');
   });
@@ -103,12 +103,12 @@ describe('ThemeProvider', () => {
     fireEvent.click(screen.getByText('light'));
 
     expect(document.documentElement.classList.contains('dark')).toBe(false);
-    expect(localStorage.getItem('casso-ledger:theme')).toBe('light');
+    expect(localStorage.getItem('casso-ar:theme')).toBe('light');
   });
 
   it('restores a persisted theme on mount', () => {
     mockMatchMedia(false);
-    localStorage.setItem('casso-ledger:theme', 'dark');
+    localStorage.setItem('casso-ar:theme', 'dark');
 
     render(
       <ThemeProvider>
@@ -123,7 +123,7 @@ describe('ThemeProvider', () => {
 
   it('switches directly from dark to light on one toggle click', () => {
     mockMatchMedia(true);
-    localStorage.setItem('casso-ledger:theme', 'dark');
+    localStorage.setItem('casso-ar:theme', 'dark');
 
     render(
       <ThemeProvider>
