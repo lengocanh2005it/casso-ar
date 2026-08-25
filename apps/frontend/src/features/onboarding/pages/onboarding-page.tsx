@@ -1,4 +1,4 @@
-import { Permission } from '@casso-ledger/shared-types';
+import { Permission } from '@casso-ar/shared-types';
 import { ShieldCheck } from 'lucide-react';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -81,7 +81,7 @@ export function OnboardingPage() {
             Liên kết một tài khoản ngân hàng qua{' '}
             <span className="text-primary">Casso Flow</span> để bắt đầu đồng bộ
             giao dịch phát sinh mới vào{' '}
-            <span className="text-primary">Casso Ledger</span>.
+            <span className="text-primary">Casso AR</span>.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">

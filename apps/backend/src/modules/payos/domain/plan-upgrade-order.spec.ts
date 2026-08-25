@@ -1,4 +1,4 @@
-import { PlanId, PlanUpgradeOrderStatus } from '@casso-ledger/shared-types';
+import { PlanId, PlanUpgradeOrderStatus } from '@casso-ar/shared-types';
 import { PlanUpgradeOrder } from './plan-upgrade-order';
 
 function buildOrder(status = PlanUpgradeOrderStatus.PENDING): PlanUpgradeOrder {

@@ -36,7 +36,7 @@ const user = {
   name: 'New User',
   role: 'OWNER',
   organizationId: 'org-1',
-  organizationName: 'Casso Ledger',
+  organizationName: 'Casso AR',
   subscriptionPlan: 'FREE',
   bankingLinked: true,
 };
@@ -56,7 +56,7 @@ describe('signup and email verification', () => {
   });
 
   it('shows the OTP step inline after signup, without navigating away', async () => {
-    apiRequest.mockResolvedValueOnce({ name: 'Casso Ledger' });
+    apiRequest.mockResolvedValueOnce({ name: 'Casso AR' });
     apiRequest.mockResolvedValueOnce({
       userId: 'user-1',
       organizationId: 'org-1',
@@ -118,7 +118,7 @@ describe('signup and email verification', () => {
       url: '/api/v1/auth/signup',
       method: 'POST',
       data: {
-        organizationName: 'Casso Ledger',
+        organizationName: 'Casso AR',
         name: 'New User',
         email: 'new@casso.vn',
         password: 'secret123',
@@ -129,7 +129,7 @@ describe('signup and email verification', () => {
 
   it('confirms the OTP inline and lands on onboarding', async () => {
     apiRequest
-      .mockResolvedValueOnce({ name: 'Casso Ledger' })
+      .mockResolvedValueOnce({ name: 'Casso AR' })
       .mockResolvedValueOnce({
         userId: 'user-1',
         organizationId: 'org-1',

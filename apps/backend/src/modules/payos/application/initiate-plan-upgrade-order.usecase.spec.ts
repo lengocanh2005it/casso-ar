@@ -1,4 +1,4 @@
-import { PlanId, PlanUpgradeOrderStatus } from '@casso-ledger/shared-types';
+import { PlanId, PlanUpgradeOrderStatus } from '@casso-ar/shared-types';
 import type { ISubscriptionRepository } from '../../billing/application/subscription-repository.port';
 import { Subscription } from '../../billing/domain/subscription';
 import { PlanUpgradeOrder } from '../domain/plan-upgrade-order';

@@ -13,14 +13,14 @@ describe('buildCassoEmail', () => {
     });
 
     expect(email.html).toContain('lang="vi"');
-    expect(email.html).toContain('cid:casso-ledger-logo');
+    expect(email.html).toContain('cid:casso-ar-logo');
     expect(email.html).toContain('Xác thực email');
     expect(email.text).toContain('Kính chào Quý khách');
     expect(email.text).toContain('https://app.casso.vn/verify?token=abc');
     expect(email.attachments).toEqual([
       expect.objectContaining({
-        filename: 'casso-ledger-logo.png',
-        contentId: 'casso-ledger-logo',
+        filename: 'casso-ar-logo.png',
+        contentId: 'casso-ar-logo',
         contentType: 'image/png',
       }),
     ]);

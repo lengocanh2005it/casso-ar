@@ -7,15 +7,14 @@ export function LandingFooter() {
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-8">
         <Link
           to="/"
-          aria-label="Casso Ledger — Trang chủ"
+          aria-label="Casso AR — Trang chủ"
           className="inline-flex items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Logo className="h-7" wordmarkClassName="text-primary" />
         </Link>
         <p className="text-base text-muted-foreground">
           © {new Date().getFullYear()}{' '}
-          <span className="text-primary">Casso Ledger</span>. Đã đăng ký bản
-          quyền.
+          <span className="text-primary">Casso AR</span>. Đã đăng ký bản quyền.
         </p>
         <div className="flex items-center gap-4 text-base">
           <Link

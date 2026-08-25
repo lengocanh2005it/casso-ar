@@ -16,7 +16,7 @@ describe('StatsBand', () => {
     render(<StatsBand />);
 
     const region = screen.getByRole('region', {
-      name: 'Vì sao chọn Casso Ledger?',
+      name: 'Vì sao chọn Casso AR?',
     });
 
     expect(region).toHaveClass('py-10', 'sm:py-14');
@@ -37,7 +37,7 @@ describe('StatsBand', () => {
       'dark:text-white/90',
     );
     expect(
-      screen.getByRole('heading', { name: 'Vì sao chọn Casso Ledger?' }),
+      screen.getByRole('heading', { name: 'Vì sao chọn Casso AR?' }),
     ).toHaveAttribute('id', 'stats-band-title');
   });
 });

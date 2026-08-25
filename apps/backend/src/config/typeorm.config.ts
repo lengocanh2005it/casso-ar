@@ -26,7 +26,7 @@ export function getTypeOrmConfig(config: ConfigService): TypeOrmModuleOptions {
     port: Number(config.get<string>('DB_PORT', '5432')),
     username: config.get<string>('DB_USERNAME', 'casso'),
     password,
-    database: config.get<string>('DB_DATABASE', 'casso_ledger'),
+    database: config.get<string>('DB_DATABASE', 'casso_ar'),
     autoLoadEntities: true,
     synchronize: config.get<string>('NODE_ENV', 'development') !== 'production',
     migrations: [join(__dirname, '../database/migrations/!(*.spec){.js,.ts}')],

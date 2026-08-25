@@ -1,4 +1,4 @@
-import { Permission, ROLE_PERMISSIONS, Role } from '@casso-ledger/shared-types';
+import { Permission, ROLE_PERMISSIONS, Role } from '@casso-ar/shared-types';
 
 function isRole(value: string): value is Role {
   return Object.values(Role).includes(value as Role);

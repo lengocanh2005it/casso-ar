@@ -1,4 +1,4 @@
-import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus } from '@casso-ar/shared-types';
 import type { EntityManager, Repository } from 'typeorm';
 import { ErrorCode } from '../../../common/errors/error-code';
 import type { TenantContextService } from '../../../common/tenancy/tenant-context';

@@ -83,7 +83,7 @@ describe('Swagger / OpenAPI docs (integration)', () => {
       .expect(200);
 
     expect(res.body.openapi).toMatch(/^3\./);
-    expect(res.body.info.title).toBe('Casso Ledger API');
+    expect(res.body.info.title).toBe('Casso AR API');
     expect(res.body.paths['/api/v1/receivables']).toBeDefined();
     expect(res.body.paths['/api/v1/receivables/{id}']).toBeDefined();
     expect(res.body.paths['/api/v1/payments/{id}/allocate']).toBeDefined();

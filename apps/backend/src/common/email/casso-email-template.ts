@@ -3,13 +3,13 @@ import { join } from 'node:path';
 import type { EmailAttachment } from './email-attachment';
 
 const LOGO_CONTENT = readFileSync(
-  join(__dirname, 'assets/casso-ledger-logo.png'),
+  join(__dirname, 'assets/casso-ar-logo.png'),
 ).toString('base64');
 
 const LOGO_ATTACHMENT: EmailAttachment = {
-  filename: 'casso-ledger-logo.png',
+  filename: 'casso-ar-logo.png',
   content: LOGO_CONTENT,
-  contentId: 'casso-ledger-logo',
+  contentId: 'casso-ar-logo',
   contentType: 'image/png',
 };
 
@@ -57,7 +57,7 @@ function renderClosing(closing: string): string {
 }
 
 export function buildCassoEmail(input: CassoEmailInput): CassoEmailContent {
-  const closing = input.closing ?? 'Trân trọng,\nĐội ngũ Casso Ledger';
+  const closing = input.closing ?? 'Trân trọng,\nĐội ngũ Casso AR';
   const title = escapeHtml(input.title);
   const greeting = escapeHtml(input.greeting);
   const paragraphs = input.paragraphs
@@ -94,7 +94,7 @@ export function buildCassoEmail(input: CassoEmailInput): CassoEmailContent {
           <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border:1px solid #e1e9e4;border-radius:12px;overflow:hidden;">
             <tr>
               <td align="center" style="padding:24px 24px 18px;border-bottom:1px solid #e8efeb;">
-                <img src="cid:casso-ledger-logo" alt="Casso Ledger" width="150" height="150" style="display:block;width:150px;height:150px;" />
+                <img src="cid:casso-ar-logo" alt="Casso AR" width="150" height="150" style="display:block;width:150px;height:150px;" />
               </td>
             </tr>
             <tr>
@@ -109,7 +109,7 @@ export function buildCassoEmail(input: CassoEmailInput): CassoEmailContent {
             </tr>
             <tr>
               <td style="padding:18px 32px;background:#f8faf9;color:#718078;font-size:12px;line-height:1.6;text-align:center;">
-                Email này được gửi tự động từ Casso Ledger. Vui lòng không trả lời trực tiếp email này.
+                Email này được gửi tự động từ Casso AR. Vui lòng không trả lời trực tiếp email này.
               </td>
             </tr>
           </table>
@@ -127,7 +127,7 @@ export function buildCassoEmail(input: CassoEmailInput): CassoEmailContent {
     ...input.paragraphs,
     ...(input.action ? [`${input.action.label}: ${input.action.url}`] : []),
     closing,
-    'Email này được gửi tự động từ Casso Ledger. Vui lòng không trả lời trực tiếp email này.',
+    'Email này được gửi tự động từ Casso AR. Vui lòng không trả lời trực tiếp email này.',
   ].join('\n\n');
 
   return { html, text, attachments: [LOGO_ATTACHMENT] };

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { PlanId, SubscriptionStatus } from '@casso-ledger/shared-types';
+import { PlanId, SubscriptionStatus } from '@casso-ar/shared-types';
 import { getQueueToken } from '@nestjs/bullmq';
 import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';

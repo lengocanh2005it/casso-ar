@@ -17,13 +17,13 @@ describe('ResendAuthEmailSenderAdapter', () => {
       'send-auth-email',
       expect.objectContaining({
         to: 'owner@example.com',
-        subject: 'Mã xác thực email | Casso Ledger',
+        subject: 'Mã xác thực email | Casso AR',
         html: expect.stringContaining('482913'),
         text: expect.stringContaining('482913'),
         attachments: [
           expect.objectContaining({
-            filename: 'casso-ledger-logo.png',
-            contentId: 'casso-ledger-logo',
+            filename: 'casso-ar-logo.png',
+            contentId: 'casso-ar-logo',
           }),
         ],
         emailType: 'AUTH_VERIFICATION',
@@ -55,12 +55,10 @@ describe('ResendAuthEmailSenderAdapter', () => {
       'send-auth-email',
       expect.objectContaining({
         to: 'user@example.com',
-        subject: 'Mã xác thực email | Casso Ledger',
+        subject: 'Mã xác thực email | Casso AR',
         html: expect.stringContaining('482913'),
         text: expect.stringContaining('482913'),
-        attachments: [
-          expect.objectContaining({ contentId: 'casso-ledger-logo' }),
-        ],
+        attachments: [expect.objectContaining({ contentId: 'casso-ar-logo' })],
         emailType: 'AUTH_VERIFICATION',
       }),
     );
@@ -124,12 +122,10 @@ describe('ResendAuthEmailSenderAdapter', () => {
 
     expect(emailQueue.add).toHaveBeenCalledWith('send-auth-email', {
       to: 'user@example.com',
-      subject: 'Mã OTP đổi mật khẩu | Casso Ledger',
+      subject: 'Mã OTP đổi mật khẩu | Casso AR',
       html: expect.stringContaining('123456'),
       text: expect.stringContaining('123456'),
-      attachments: [
-        expect.objectContaining({ contentId: 'casso-ledger-logo' }),
-      ],
+      attachments: [expect.objectContaining({ contentId: 'casso-ar-logo' })],
       emailType: 'AUTH_CHANGE_PASSWORD_OTP',
     });
   });
@@ -174,9 +170,7 @@ describe('ResendAuthEmailSenderAdapter', () => {
         subject: 'Tổ chức Acme Co đã được phê duyệt',
         html: expect.stringContaining('Acme Co'),
         text: expect.stringContaining('Acme Co'),
-        attachments: [
-          expect.objectContaining({ contentId: 'casso-ledger-logo' }),
-        ],
+        attachments: [expect.objectContaining({ contentId: 'casso-ar-logo' })],
         emailType: 'ORGANIZATION_APPROVED',
       }),
     );
@@ -195,9 +189,7 @@ describe('ResendAuthEmailSenderAdapter', () => {
         subject: 'Hồ sơ đăng ký Acme Co chưa được chấp thuận',
         html: expect.stringContaining('liên hệ'),
         text: expect.stringContaining('liên hệ'),
-        attachments: [
-          expect.objectContaining({ contentId: 'casso-ledger-logo' }),
-        ],
+        attachments: [expect.objectContaining({ contentId: 'casso-ar-logo' })],
         emailType: 'ORGANIZATION_REJECTED',
       }),
     );

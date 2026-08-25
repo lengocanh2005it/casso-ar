@@ -9,7 +9,7 @@ export default defineConfig({
     alias: { '@': path.resolve(__dirname, './src') },
   },
   optimizeDeps: {
-    include: ['@casso-ledger/shared-types'],
+    include: ['@casso-ar/shared-types'],
   },
   build: {
     // pnpm workspace packages are symlinked, so their resolved real path

@@ -21,9 +21,9 @@ Review backend PRs for Clean Architecture compliance only. Do not modify code un
 For changed backend code, run:
 
 ```bash
-pnpm --filter @casso-ledger/backend arch-check
-pnpm --filter @casso-ledger/backend type-check
-pnpm --filter @casso-ledger/backend test -- <changed-test-files> --runInBand
+pnpm --filter @casso-ar/backend arch-check
+pnpm --filter @casso-ar/backend type-check
+pnpm --filter @casso-ar/backend test -- <changed-test-files> --runInBand
 git diff --check "$BASE_SHA...HEAD"
 git diff --check --staged
 git diff --check

@@ -1,4 +1,4 @@
-import { ReceivableStatus as SharedReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus as SharedReceivableStatus } from '@casso-ar/shared-types';
 import {
   Select,
   SelectContent,

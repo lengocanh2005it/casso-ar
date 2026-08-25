@@ -15,8 +15,8 @@ COPY --from=deps /repo/node_modules ./node_modules
 COPY --from=deps /repo/packages/shared-types/node_modules ./packages/shared-types/node_modules
 COPY --from=deps /repo/apps/backend/node_modules ./apps/backend/node_modules
 COPY . .
-RUN pnpm --filter @casso-ledger/shared-types build
-RUN pnpm --filter @casso-ledger/backend build
+RUN pnpm --filter @casso-ar/shared-types build
+RUN pnpm --filter @casso-ar/backend build
 
 # ---- prod-deps: install production-only workspace dependencies ----
 FROM node:22-alpine AS prod-deps

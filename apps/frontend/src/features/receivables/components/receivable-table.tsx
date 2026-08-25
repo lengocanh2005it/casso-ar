@@ -1,4 +1,4 @@
-import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus } from '@casso-ar/shared-types';
 import { Receipt } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/layout/empty-state';

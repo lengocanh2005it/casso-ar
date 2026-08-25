@@ -1,4 +1,4 @@
-import { INVITABLE_ROLES, Permission, Role } from '@casso-ledger/shared-types';
+import { INVITABLE_ROLES, Permission, Role } from '@casso-ar/shared-types';
 import { Users } from 'lucide-react';
 import { memo, useCallback, useState } from 'react';
 import { SectionCard } from '@/components/layout/section-card';

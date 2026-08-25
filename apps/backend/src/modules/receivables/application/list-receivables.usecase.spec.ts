@@ -1,4 +1,4 @@
-import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus } from '@casso-ar/shared-types';
 import { Test } from '@nestjs/testing';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { CUSTOMER_REPOSITORY } from '../../customers/application/customer-repository.port';

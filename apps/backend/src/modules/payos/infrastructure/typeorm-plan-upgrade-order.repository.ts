@@ -1,4 +1,4 @@
-import { PlanUpgradeOrderStatus } from '@casso-ledger/shared-types';
+import { PlanUpgradeOrderStatus } from '@casso-ar/shared-types';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, type EntityManager, type Repository } from 'typeorm';

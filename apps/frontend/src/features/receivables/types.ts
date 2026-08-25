@@ -1,4 +1,4 @@
-import type { ReceivableStatus as SharedReceivableStatus } from '@casso-ledger/shared-types';
+import type { ReceivableStatus as SharedReceivableStatus } from '@casso-ar/shared-types';
 
 export type ReceivableStatus = SharedReceivableStatus;
 

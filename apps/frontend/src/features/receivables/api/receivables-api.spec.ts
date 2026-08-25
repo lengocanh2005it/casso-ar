@@ -1,4 +1,4 @@
-import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus } from '@casso-ar/shared-types';
 import { describe, expect, it, vi } from 'vitest';
 
 const apiRequestWithHeaders = vi.fn();

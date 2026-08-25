@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { AuthStatusCard } from './auth-status-card';
 
 describe('AuthStatusCard', () => {
-  it('renders the Casso Ledger logo link and the given content', () => {
+  it('renders the Casso AR logo link and the given content', () => {
     render(
       <MemoryRouter>
         <AuthStatusCard>
@@ -13,7 +13,7 @@ describe('AuthStatusCard', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('link', { name: /casso ledger/i })).toBeVisible();
+    expect(screen.getByRole('link', { name: /casso ar/i })).toBeVisible();
     expect(screen.getByText('Kiểm tra email')).toBeVisible();
     expect(screen.getByTestId('auth-surface')).toHaveClass('from-emerald-50');
   });

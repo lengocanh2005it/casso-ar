@@ -1,4 +1,4 @@
-import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus } from '@casso-ar/shared-types';
 import { CustomerGroup } from '../src/modules/customers/domain/customer-group';
 import type { ReminderCandidate } from '../src/modules/reminders/application/reminder-candidate-reader.port';
 

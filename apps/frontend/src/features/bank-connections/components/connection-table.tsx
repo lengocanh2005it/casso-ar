@@ -1,4 +1,4 @@
-import { Permission } from '@casso-ledger/shared-types';
+import { Permission } from '@casso-ar/shared-types';
 import { Landmark } from 'lucide-react';
 import { Fragment, useState } from 'react';
 import { EmptyState } from '@/components/layout/empty-state';

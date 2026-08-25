@@ -1,4 +1,4 @@
-import { PlanId } from '@casso-ledger/shared-types';
+import { PlanId } from '@casso-ar/shared-types';
 import { useAuth } from '@/contexts/auth-context';
 import { useReviewCount } from '@/features/exceptions/api/use-review-count';
 import { hasPlanAccess } from '@/lib/plan-access';

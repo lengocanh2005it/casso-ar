@@ -2,7 +2,7 @@ import type {
   MembershipStatus,
   OwnershipTransferStatus,
   Role,
-} from '@casso-ledger/shared-types';
+} from '@casso-ar/shared-types';
 
 export type { MembershipStatus };
 

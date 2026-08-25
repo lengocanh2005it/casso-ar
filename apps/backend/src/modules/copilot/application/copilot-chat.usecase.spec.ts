@@ -926,7 +926,7 @@ describe('CopilotChatUseCase', () => {
     });
   });
 
-  it('includes Casso Ledger identity and Vietnamese-default language policy in the system message', async () => {
+  it('includes Casso AR identity and Vietnamese-default language policy in the system message', async () => {
     const aiProvider = {
       createChatCompletion: jest.fn().mockResolvedValue({
         content: 'Xin chào!',
@@ -966,7 +966,7 @@ describe('CopilotChatUseCase', () => {
       (message) => message.role === 'system',
     );
 
-    expect(greetingSystemMessage?.content).toContain('Casso Ledger Copilot');
+    expect(greetingSystemMessage?.content).toContain('Casso AR Copilot');
     expect(greetingSystemMessage?.content).toContain('greeting');
     expect(greetingSystemMessage?.content).toContain('tra cứu khoản phải thu');
     expect(greetingSystemMessage?.content).toContain(

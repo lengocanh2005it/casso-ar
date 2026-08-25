@@ -1,4 +1,4 @@
-import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus } from '@casso-ar/shared-types';
 import type { EntityManager } from 'typeorm';
 import type { AuthenticatedUser } from '../../../common/auth/authenticated-user';
 import { AppError } from '../../../common/errors/app-error';

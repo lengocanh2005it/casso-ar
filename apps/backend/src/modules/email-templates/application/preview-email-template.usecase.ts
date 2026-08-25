@@ -18,7 +18,7 @@ const SAMPLE_RENDER_DATA: EmailTemplateRenderData = {
   remainingAmount: 20_000_000,
   dueDate: '2026-08-10',
   daysOverdue: 5,
-  organizationName: 'Casso Ledger Demo',
+  organizationName: 'Casso AR Demo',
 };
 
 @Injectable()

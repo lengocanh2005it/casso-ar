@@ -1,4 +1,4 @@
-import { Role } from '@casso-ledger/shared-types';
+import { Role } from '@casso-ar/shared-types';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { GetUserProfileUseCase } from './get-user-profile.usecase';
@@ -23,7 +23,7 @@ describe('GetUserProfileUseCase', () => {
     const organizationRepo = {
       findById: jest.fn().mockResolvedValue({
         id: 'org-1',
-        name: 'Casso Ledger',
+        name: 'Casso AR',
       }),
     };
     const bankConnectionRepo = {
@@ -62,7 +62,7 @@ describe('GetUserProfileUseCase', () => {
       email: 'owner@casso.vn',
       name: 'Owner',
       organizationId: 'org-1',
-      organizationName: 'Casso Ledger',
+      organizationName: 'Casso AR',
       role: Role.OWNER,
       subscriptionPlan: 'STARTER',
       bankingLinked: true,

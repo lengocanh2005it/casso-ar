@@ -36,9 +36,9 @@ export function setupSwagger(
   const document = SwaggerModule.createDocument(
     app,
     new DocumentBuilder()
-      .setTitle('Casso Ledger API')
+      .setTitle('Casso AR API')
       .setDescription(
-        'Casso Ledger backend REST API. ' +
+        'Casso AR backend REST API. ' +
           'All errors share the envelope { statusCode, errorCode, message, details? } — ' +
           'see AGENTS.md "API Error Codes" for the full list.',
       )

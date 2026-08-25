@@ -1,4 +1,4 @@
-import { PlanId, ReceivableStatus } from '@casso-ledger/shared-types';
+import { PlanId, ReceivableStatus } from '@casso-ar/shared-types';
 import {
   ArrowLeftRight,
   BellRing,
@@ -25,7 +25,7 @@ export const LANDING_HEADLINE_PHRASES = [
 
 export const LANDING_ABOUT = {
   paragraphSegments: [
-    { text: 'Casso Ledger', bold: true },
+    { text: 'Casso AR', bold: true },
     { text: ' là nền tảng ' },
     { text: 'quản lý và thu hồi công nợ', bold: true },
     {
@@ -99,7 +99,7 @@ export const LANDING_SHOWCASE_SCREENS = [
     description:
       'Đặt chính sách một lần, hệ thống tự động gửi email nhắc thanh toán đúng lịch.',
     image: '/showcase-reminders.jpg',
-    alt: 'Giao diện Lịch nhắc tự động của Casso Ledger',
+    alt: 'Giao diện Lịch nhắc tự động của Casso AR',
     icon: BellRing,
   },
   {
@@ -109,7 +109,7 @@ export const LANDING_SHOWCASE_SCREENS = [
     description:
       'Toàn bộ công nợ, dòng tiền và giao dịch chờ đối soát gói gọn trong một trang tổng quan.',
     image: '/showcase-dashboard.jpg',
-    alt: 'Giao diện Dashboard tổng quan công nợ của Casso Ledger',
+    alt: 'Giao diện Dashboard tổng quan công nợ của Casso AR',
     icon: LayoutDashboard,
   },
   {
@@ -119,7 +119,7 @@ export const LANDING_SHOWCASE_SCREENS = [
     description:
       'Hỏi Copilot bằng ngôn ngữ tự nhiên, nhận câu trả lời tức thì từ dữ liệu công nợ thật.',
     image: '/showcase-copilot.jpg',
-    alt: 'Giao diện Copilot — trợ lý AI thu hồi công nợ của Casso Ledger',
+    alt: 'Giao diện Copilot — trợ lý AI thu hồi công nợ của Casso AR',
     icon: Sparkles,
   },
 ] as const;

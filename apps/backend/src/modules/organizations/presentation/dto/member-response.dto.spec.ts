@@ -1,4 +1,4 @@
-import { Role } from '@casso-ledger/shared-types';
+import { Role } from '@casso-ar/shared-types';
 import { Membership } from '../../domain/membership';
 import { toMemberResponse } from './member-response.dto';
 

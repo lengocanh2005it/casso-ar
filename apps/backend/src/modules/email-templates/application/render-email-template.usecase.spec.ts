@@ -35,10 +35,10 @@ describe('RenderEmailTemplateUseCase', () => {
       remainingAmount: 40,
       dueDate: '2026-08-10',
       daysOverdue: 5,
-      organizationName: 'Casso Ledger',
+      organizationName: 'Casso AR',
     });
 
-    expect(result.subject).toBe('Invoice INV-001 — Casso Ledger');
+    expect(result.subject).toBe('Invoice INV-001 — Casso AR');
     expect(result.bodyHtml).toBe(
       '<p>Company B, owes 40 / 100, due 2026-08-10, 5 days overdue</p>',
     );
@@ -57,7 +57,7 @@ describe('RenderEmailTemplateUseCase', () => {
       remainingAmount: 40,
       dueDate: '2026-08-10',
       daysOverdue: 5,
-      organizationName: 'Casso Ledger',
+      organizationName: 'Casso AR',
     });
 
     expect(result.subject).toBe('Hello &lt;script&gt;alert(1)&lt;/script&gt;');

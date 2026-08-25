@@ -1,4 +1,4 @@
-import { Permission, PlanId } from '@casso-ledger/shared-types';
+import { Permission, PlanId } from '@casso-ar/shared-types';
 import { useSearchParams } from 'react-router-dom';
 import {
   AlertDialog,

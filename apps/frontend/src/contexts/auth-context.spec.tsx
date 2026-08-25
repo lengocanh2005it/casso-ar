@@ -73,7 +73,7 @@ describe('AuthProvider', () => {
       name: 'Owner',
       role: 'OWNER',
       organizationId: 'org-1',
-      organizationName: 'Casso Ledger',
+      organizationName: 'Casso AR',
       subscriptionPlan: 'FREE',
       bankingLinked: true,
     });

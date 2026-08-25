@@ -3,7 +3,7 @@ import {
   PeriodChargeStatus,
   PlanId,
   SubscriptionStatus,
-} from '@casso-ledger/shared-types';
+} from '@casso-ar/shared-types';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';

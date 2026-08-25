@@ -41,7 +41,7 @@ export function AppLayout() {
           <header className="flex items-center gap-3 border-b border-border px-4 py-3 md:hidden">
             <MobileSidebarWrapper />
             <span className="text-base font-semibold text-primary">
-              Casso Ledger
+              Casso AR
             </span>
             <div className="ml-auto flex items-center gap-1">
               <AlertBell />

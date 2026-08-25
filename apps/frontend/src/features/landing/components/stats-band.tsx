@@ -13,7 +13,7 @@ export function StatsBand() {
               id="stats-band-title"
               className="text-3xl font-bold tracking-tight sm:text-4xl"
             >
-              Vì sao chọn Casso Ledger?
+              Vì sao chọn Casso AR?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-lg text-primary-foreground/80 text-pretty dark:text-white/80">
               Những công cụ giúp bạn thu tiền đúng hạn và giảm thao tác thủ

@@ -1,4 +1,4 @@
-import type { ReceivableStatus } from '@casso-ledger/shared-types';
+import type { ReceivableStatus } from '@casso-ar/shared-types';
 import type { BalanceHistoryActorType } from './balance-history-actor-type';
 import type { BalanceHistoryChangeSource } from './balance-history-change-source';
 import type { BalanceHistoryReasonCode } from './balance-history-reason-code';

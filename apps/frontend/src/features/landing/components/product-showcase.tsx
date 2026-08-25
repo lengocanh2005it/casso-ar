@@ -17,7 +17,7 @@ export function ProductShowcase() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Xem Casso Ledger hoạt động
+            Xem Casso AR hoạt động
           </h2>
           <p className="mt-4 text-lg text-muted-foreground text-pretty">
             Không phải mockup — đây là giao diện thật doanh nghiệp bạn sẽ dùng
@@ -27,7 +27,7 @@ export function ProductShowcase() {
 
         <div
           role="tablist"
-          aria-label="Chọn màn hình Casso Ledger để xem"
+          aria-label="Chọn màn hình Casso AR để xem"
           className="mx-auto mt-8 flex w-fit max-w-full flex-wrap items-center justify-center gap-1.5 rounded-full border border-border/70 bg-muted/40 p-1.5"
         >
           {LANDING_SHOWCASE_SCREENS.map((screen) => {

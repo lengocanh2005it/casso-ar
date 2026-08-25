@@ -78,7 +78,7 @@ export class ResendAuthEmailSenderAdapter
   async sendVerificationEmail(to: string, otp: string): Promise<void> {
     return this.enqueue(
       to,
-      'Mã xác thực email | Casso Ledger',
+      'Mã xác thực email | Casso AR',
       buildCassoEmail({
         title: 'Mã xác thực email',
         greeting: 'Kính chào Quý khách,',
@@ -95,12 +95,12 @@ export class ResendAuthEmailSenderAdapter
     const url = toAbsoluteAppUrl(resetUrl);
     return this.enqueue(
       to,
-      'Đặt lại mật khẩu Casso Ledger',
+      'Đặt lại mật khẩu Casso AR',
       buildCassoEmail({
         title: 'Đặt lại mật khẩu',
         greeting: 'Kính chào Quý khách,',
         paragraphs: [
-          'Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản Casso Ledger của Quý khách.',
+          'Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản Casso AR của Quý khách.',
           'Nếu đây là yêu cầu của Quý khách, vui lòng nhấn nút bên dưới. Liên kết này có hiệu lực trong 45 phút.',
           'Nếu Quý khách không thực hiện yêu cầu này, vui lòng bỏ qua email và bảo mật tài khoản của mình.',
         ],
@@ -113,7 +113,7 @@ export class ResendAuthEmailSenderAdapter
   async sendChangePasswordOtpEmail(to: string, otp: string): Promise<void> {
     return this.enqueue(
       to,
-      'Mã OTP đổi mật khẩu | Casso Ledger',
+      'Mã OTP đổi mật khẩu | Casso AR',
       buildCassoEmail({
         title: 'Mã OTP đổi mật khẩu',
         greeting: 'Kính chào Quý khách,',
@@ -135,12 +135,12 @@ export class ResendAuthEmailSenderAdapter
     const safeOrganizationName = subjectPart(organizationName);
     return this.enqueue(
       to,
-      `Lời mời tham gia ${safeOrganizationName} trên Casso Ledger`,
+      `Lời mời tham gia ${safeOrganizationName} trên Casso AR`,
       buildCassoEmail({
-        title: 'Lời mời tham gia Casso Ledger',
+        title: 'Lời mời tham gia Casso AR',
         greeting: 'Kính chào Quý khách,',
         paragraphs: [
-          `Quý khách được mời tham gia quản lý tổ chức ${organizationName} trên Casso Ledger.`,
+          `Quý khách được mời tham gia quản lý tổ chức ${organizationName} trên Casso AR.`,
           'Vui lòng nhấn nút bên dưới để chấp nhận lời mời. Liên kết này có hiệu lực trong 7 ngày.',
         ],
         action: { label: 'Chấp nhận lời mời', url },
@@ -160,7 +160,7 @@ export class ResendAuthEmailSenderAdapter
         title: 'Thông báo về quyền truy cập',
         greeting: 'Kính chào Quý khách,',
         paragraphs: [
-          `Quyền truy cập của Quý khách vào tổ chức ${organizationName} trên Casso Ledger đã bị tạm khóa.`,
+          `Quyền truy cập của Quý khách vào tổ chức ${organizationName} trên Casso AR đã bị tạm khóa.`,
           'Vui lòng liên hệ quản trị viên của tổ chức nếu Quý khách cho rằng đây là nhầm lẫn.',
         ],
       }),
@@ -179,7 +179,7 @@ export class ResendAuthEmailSenderAdapter
         title: 'Quyền truy cập đã được khôi phục',
         greeting: 'Kính chào Quý khách,',
         paragraphs: [
-          `Quyền truy cập của Quý khách vào tổ chức ${organizationName} trên Casso Ledger đã được khôi phục.`,
+          `Quyền truy cập của Quý khách vào tổ chức ${organizationName} trên Casso AR đã được khôi phục.`,
           'Quý khách có thể đăng nhập để tiếp tục sử dụng dịch vụ.',
         ],
       }),
@@ -198,7 +198,7 @@ export class ResendAuthEmailSenderAdapter
         title: 'Tổ chức đã được phê duyệt',
         greeting: 'Kính chào Quý khách,',
         paragraphs: [
-          `Hồ sơ đăng ký tổ chức ${organizationName} trên Casso Ledger đã được phê duyệt.`,
+          `Hồ sơ đăng ký tổ chức ${organizationName} trên Casso AR đã được phê duyệt.`,
           'Quý khách có thể đăng nhập để bắt đầu sử dụng dịch vụ.',
         ],
       }),
@@ -217,7 +217,7 @@ export class ResendAuthEmailSenderAdapter
         title: 'Hồ sơ đăng ký tổ chức chưa được chấp thuận',
         greeting: 'Kính chào Quý khách,',
         paragraphs: [
-          `Hồ sơ đăng ký tổ chức ${organizationName} trên Casso Ledger hiện chưa được chấp thuận.`,
+          `Hồ sơ đăng ký tổ chức ${organizationName} trên Casso AR hiện chưa được chấp thuận.`,
           'Vui lòng liên hệ đội ngũ hỗ trợ nếu Quý khách cần được giải đáp thêm.',
         ],
       }),
@@ -228,7 +228,7 @@ export class ResendAuthEmailSenderAdapter
   async sendOwnershipTransferOtpEmail(to: string, otp: string): Promise<void> {
     return this.enqueue(
       to,
-      'Mã OTP chuyển quyền sở hữu | Casso Ledger',
+      'Mã OTP chuyển quyền sở hữu | Casso AR',
       buildCassoEmail({
         title: 'Mã OTP chuyển quyền sở hữu',
         greeting: 'Kính chào Quý khách,',
@@ -252,7 +252,7 @@ export class ResendAuthEmailSenderAdapter
         title: 'Yêu cầu chuyển quyền sở hữu',
         greeting: 'Kính chào Quý khách,',
         paragraphs: [
-          `Quý khách được đề nghị trở thành chủ sở hữu (OWNER) của tổ chức ${organizationName} trên Casso Ledger.`,
+          `Quý khách được đề nghị trở thành chủ sở hữu (OWNER) của tổ chức ${organizationName} trên Casso AR.`,
           'Vui lòng đăng nhập và vào mục Cài đặt để chấp nhận hoặc từ chối yêu cầu này.',
         ],
       }),

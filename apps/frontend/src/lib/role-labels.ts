@@ -1,4 +1,4 @@
-import { Role } from '@casso-ledger/shared-types';
+import { Role } from '@casso-ar/shared-types';
 
 export const ROLE_LABELS: Record<Role, string> = {
   [Role.OWNER]: 'Chủ sở hữu',

@@ -106,9 +106,9 @@ describe('EmailQueueProcessor', () => {
         text: 'Verify',
         attachments: [
           {
-            filename: 'casso-ledger-logo.png',
+            filename: 'casso-ar-logo.png',
             content: 'base64-logo',
-            contentId: 'casso-ledger-logo',
+            contentId: 'casso-ar-logo',
             contentType: 'image/png',
           },
         ],
@@ -127,8 +127,8 @@ describe('EmailQueueProcessor', () => {
         text: 'Verify',
         attachments: [
           expect.objectContaining({
-            filename: 'casso-ledger-logo.png',
-            contentId: 'casso-ledger-logo',
+            filename: 'casso-ar-logo.png',
+            contentId: 'casso-ar-logo',
           }),
         ],
       },
@@ -154,9 +154,9 @@ describe('EmailQueueProcessor', () => {
         text: 'Alert',
         attachments: [
           {
-            filename: 'casso-ledger-logo.png',
+            filename: 'casso-ar-logo.png',
             content: 'base64-logo',
-            contentId: 'casso-ledger-logo',
+            contentId: 'casso-ar-logo',
             contentType: 'image/png',
           },
         ],
@@ -172,9 +172,7 @@ describe('EmailQueueProcessor', () => {
       undefined,
       {
         text: 'Alert',
-        attachments: [
-          expect.objectContaining({ contentId: 'casso-ledger-logo' }),
-        ],
+        attachments: [expect.objectContaining({ contentId: 'casso-ar-logo' })],
       },
     );
   });
@@ -328,24 +326,20 @@ describe('EmailQueueProcessor — provider resolution', () => {
     expect(warningAdapter.send).toHaveBeenCalledWith(
       'owner@congtyb.vn',
       expect.any(String),
-      expect.stringContaining('cid:casso-ledger-logo'),
+      expect.stringContaining('cid:casso-ar-logo'),
       { emailType: 'SMTP_CONNECTION_FAILED_WARNING' },
       undefined,
       undefined,
       expect.objectContaining({
         text: expect.any(String),
-        attachments: [
-          expect.objectContaining({ contentId: 'casso-ledger-logo' }),
-        ],
+        attachments: [expect.objectContaining({ contentId: 'casso-ar-logo' })],
       }),
     );
     const warningCall = warningAdapter.send.mock.calls[0];
-    expect(warningCall[2]).toContain('cid:casso-ledger-logo');
+    expect(warningCall[2]).toContain('cid:casso-ar-logo');
     expect(warningCall[6]).toEqual({
       text: expect.any(String),
-      attachments: [
-        expect.objectContaining({ contentId: 'casso-ledger-logo' }),
-      ],
+      attachments: [expect.objectContaining({ contentId: 'casso-ar-logo' })],
     });
     expect(deps.smtpConfigRepo.markFailedIfVersionMatches).toHaveBeenCalledWith(
       expect.objectContaining({ status: SmtpConfigStatus.FAILED }),

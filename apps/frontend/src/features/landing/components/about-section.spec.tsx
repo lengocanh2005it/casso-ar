@@ -17,7 +17,7 @@ describe('AboutSection', () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText('Casso Ledger', { selector: 'strong' }),
+      screen.getByText('Casso AR', { selector: 'strong' }),
     ).toBeInTheDocument();
     for (const segment of LANDING_ABOUT.paragraphSegments.filter(
       (s) => 'bold' in s && s.bold,

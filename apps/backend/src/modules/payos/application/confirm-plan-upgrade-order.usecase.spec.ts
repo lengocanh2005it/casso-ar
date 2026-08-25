@@ -1,4 +1,4 @@
-import { PlanId, PlanUpgradeOrderStatus } from '@casso-ledger/shared-types';
+import { PlanId, PlanUpgradeOrderStatus } from '@casso-ar/shared-types';
 import { DataSource } from 'typeorm';
 import type { IAuditLogRepository } from '../../../common/audit/audit-log-repository.port';
 import type { ChangeSubscriptionPlanUseCase } from '../../billing/application/change-subscription-plan.usecase';

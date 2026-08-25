@@ -1,4 +1,4 @@
-import { ReceivableStatus } from '@casso-ledger/shared-types';
+import { ReceivableStatus } from '@casso-ar/shared-types';
 import { Role } from '../../organizations/domain/membership';
 import { Receivable } from '../../receivables/domain/receivable';
 import { CollectionActivityType } from '../domain/collection-activity';

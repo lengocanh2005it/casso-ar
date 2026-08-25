@@ -1,4 +1,4 @@
-import { Permission } from '@casso-ledger/shared-types';
+import { Permission } from '@casso-ar/shared-types';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { JwtAuthGuard } from '../../../common/auth/jwt-auth.guard';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';

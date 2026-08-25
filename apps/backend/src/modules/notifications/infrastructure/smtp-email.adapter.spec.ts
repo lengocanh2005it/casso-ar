@@ -95,9 +95,9 @@ describe('SmtpEmailAdapter', () => {
         text: 'Verify at https://app.casso.vn/verify',
         attachments: [
           {
-            filename: 'casso-ledger-logo.png',
+            filename: 'casso-ar-logo.png',
             content: 'base64-logo',
-            contentId: 'casso-ledger-logo',
+            contentId: 'casso-ar-logo',
             contentType: 'image/png',
           },
         ],
@@ -109,10 +109,10 @@ describe('SmtpEmailAdapter', () => {
         text: 'Verify at https://app.casso.vn/verify',
         attachments: [
           {
-            filename: 'casso-ledger-logo.png',
+            filename: 'casso-ar-logo.png',
             content: 'base64-logo',
             encoding: 'base64',
-            cid: 'casso-ledger-logo',
+            cid: 'casso-ar-logo',
             contentType: 'image/png',
           },
         ],

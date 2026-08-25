@@ -15,8 +15,8 @@ COPY --from=deps /repo/node_modules ./node_modules
 COPY --from=deps /repo/packages/shared-types/node_modules ./packages/shared-types/node_modules
 COPY --from=deps /repo/apps/frontend/node_modules ./apps/frontend/node_modules
 COPY . .
-RUN pnpm --filter @casso-ledger/shared-types build
-RUN pnpm --filter @casso-ledger/frontend build
+RUN pnpm --filter @casso-ar/shared-types build
+RUN pnpm --filter @casso-ar/frontend build
 
 # ---- runtime: nginx serves the static Vite output ----
 FROM nginx:1.27-alpine AS runtime

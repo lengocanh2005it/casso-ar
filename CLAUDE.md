@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# Casso Ledger
+# Casso AR
 
 A B2B SaaS platform for automating accounts receivable management and collection for Vietnamese businesses. The product directly connects to real-time bank transaction data through Casso Flow/CASSO Balance Hook.
 
@@ -27,7 +27,7 @@ A B2B SaaS platform for automating accounts receivable management and collection
 ## Project Structure
 
 ```
-casso-ledger/
+casso-ar/
   apps/
     backend/          NestJS modular monolith
       src/
@@ -123,7 +123,7 @@ Lane D (22-23): Testing/CI → Deployment
 pnpm install              # Install all deps
 pnpm dev:backend          # Start backend in watch mode
 pnpm test                 # Run all unit tests
-pnpm --filter @casso-ledger/backend test:e2e   # Run e2e tests (needs Docker)
+pnpm --filter @casso-ar/backend test:e2e   # Run e2e tests (needs Docker)
 pnpm lint                 # Lint all packages
 pnpm format               # Format with Biome
 pnpm verify               # lint + type-check + test

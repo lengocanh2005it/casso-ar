@@ -1,4 +1,4 @@
-import type { Permission } from '@casso-ledger/shared-types';
+import type { Permission } from '@casso-ar/shared-types';
 import type { ReactNode } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';

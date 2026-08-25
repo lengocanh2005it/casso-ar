@@ -1,4 +1,4 @@
-import { ROLE_PERMISSIONS } from '@casso-ledger/shared-types';
+import { ROLE_PERMISSIONS } from '@casso-ar/shared-types';
 import {
   type CanActivate,
   type ExecutionContext,

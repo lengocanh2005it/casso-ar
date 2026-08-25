@@ -49,7 +49,7 @@ export function Logo({
           wordmarkClassName,
         )}
       >
-        Casso Ledger
+        Casso AR
       </span>
     </span>
   );

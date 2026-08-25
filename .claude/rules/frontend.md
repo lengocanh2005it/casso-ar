@@ -31,6 +31,6 @@ apps/frontend/src/
 - All API calls use `/api/v1` prefix via `lib/api-client.ts`
 - RBAC: `hasPermission(role, permission)` — hide button, never disable
 - Money: `formatVND()` utility, integer VND units, never float
-- Types from `@casso-ledger/shared-types`
+- Types from `@casso-ar/shared-types`
 - No `any` in production code
 - Use `node:` protocol for Node.js builtins
