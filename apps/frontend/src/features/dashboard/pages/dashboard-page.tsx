@@ -93,18 +93,17 @@ export function DashboardPage() {
           <span className="text-primary">
             {user?.organizationName ?? 'bạn'}
           </span>{' '}
-          đến với Casso Ledger!
+          đã quay trở lại!
         </h2>
-        <div className="mt-4">
-          {reviewCountQuery.isError ? (
-            <p role="status" className="text-sm text-destructive">
-              Không thể tải số lượng cần đối soát.
-            </p>
-          ) : (
-            <PendingReviewBanner pendingCount={pendingCount} />
-          )}
-        </div>
       </div>
+
+      {reviewCountQuery.isError ? (
+        <p role="status" className="text-sm text-destructive">
+          Không thể tải số lượng cần đối soát.
+        </p>
+      ) : (
+        <PendingReviewBanner pendingCount={pendingCount} />
+      )}
 
       {summaryQuery.isPending ? (
         <SummarySkeleton />

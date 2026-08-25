@@ -58,7 +58,7 @@ export function MetricCard({
         {empty ? (
           <p className="text-sm text-muted-foreground">Chưa có dữ liệu</p>
         ) : (
-          <p className="text-3xl font-bold tabular-nums text-foreground">
+          <p className="text-2xl font-semibold tabular-nums text-foreground">
             {value}
           </p>
         )}
