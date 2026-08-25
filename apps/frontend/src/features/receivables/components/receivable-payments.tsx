@@ -1,3 +1,4 @@
+import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
 import {
   Table,
   TableBody,
@@ -32,15 +33,17 @@ export function ReceivablePayments({ receivableId }: { receivableId: string }) {
       <TableBody>
         {allocations.map((allocation) => (
           <TableRow key={allocation.id}>
-            <TableCell className="max-w-56 break-all">
-              {allocation.paymentId}
+            <TableCell>
+              <TruncatedCopyId id={allocation.paymentId} />
             </TableCell>
             <TableCell>{formatVND(allocation.allocatedAmount)}</TableCell>
             <TableCell>{formatDateTime(allocation.allocatedAt)}</TableCell>
-            <TableCell className="max-w-56 break-all">
-              {allocation.allocatedByUserId === null
-                ? 'Tự động khớp'
-                : allocation.allocatedByUserId}
+            <TableCell>
+              {allocation.allocatedByUserId === null ? (
+                'Tự động khớp'
+              ) : (
+                <TruncatedCopyId id={allocation.allocatedByUserId} />
+              )}
             </TableCell>
           </TableRow>
         ))}
