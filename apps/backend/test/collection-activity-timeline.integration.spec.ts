@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { ReceivableStatus } from '@casso-ar/shared-types';
+import { getQueueToken } from '@nestjs/bullmq';
 import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
@@ -8,6 +9,7 @@ import {
   PostgreSqlContainer,
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
+import type { Queue } from 'bullmq';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
@@ -24,6 +26,7 @@ import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure
 import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment.orm-entity';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
+import { WEBHOOK_PROCESSING_QUEUE } from '../src/modules/webhooks/infrastructure/webhooks-queue.constants';
 import { signCassoWebhookPayload } from './helpers/casso-webhook-signature';
 
 describe('Collection Activity Timeline (integration)', () => {
@@ -61,6 +64,15 @@ describe('Collection Activity Timeline (integration)', () => {
     await app.init();
     dataSource = moduleRef.get(DataSource);
     jwtService = moduleRef.get(JwtService);
+
+    // WEBHOOK_PROCESSING_QUEUE lives in the real, shared Redis (every e2e
+    // file's app instance registers a processor on the same queue name) —
+    // obliterate any backlog left by earlier suites in this run so the
+    // webhook auto-match test below isn't waiting behind stale jobs.
+    const webhookQueue = moduleRef.get<Queue>(
+      getQueueToken(WEBHOOK_PROCESSING_QUEUE),
+    );
+    await webhookQueue.obliterate({ force: true });
 
     await dataSource.getRepository(UserOrmEntity).save({
       id: userId,
