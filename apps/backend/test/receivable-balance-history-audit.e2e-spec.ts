@@ -17,7 +17,9 @@ import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
 import { AddReceivableBalanceHistoryAuditMetadata20260823000000 } from '../src/database/migrations/20260823000000-add-receivable-balance-history-audit-metadata';
 import { CustomerBankAccountOrmEntity } from '../src/modules/bank-accounts/infrastructure/customer-bank-account.orm-entity';
+import { encryptToken } from '../src/modules/bank-connections/application/token-encryption';
 import { BankConnectionOrmEntity } from '../src/modules/bank-connections/infrastructure/bank-connection.orm-entity';
+import { CassoFlowAuthorizationOrmEntity } from '../src/modules/bank-connections/infrastructure/casso-flow-authorization.orm-entity';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
 import { InvoiceStatus } from '../src/modules/invoices/domain/invoice';
 import { InvoiceOrmEntity } from '../src/modules/invoices/infrastructure/invoice.orm-entity';
@@ -25,6 +27,7 @@ import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
+import { signCassoWebhookPayload } from './helpers/casso-webhook-signature';
 
 const REPORTING_TIMEZONE = 'Asia/Ho_Chi_Minh';
 
@@ -51,17 +54,18 @@ const bankConnectionId = '00000000-0000-4000-8000-0000000000a8';
 const receivableB = '00000000-0000-4000-8000-0000000000ba';
 const invoiceA = '00000000-0000-4000-8000-0000000000aa';
 
-const grantId = '00000000-0000-0000-0000-0000000000f4';
+const bankConnectionWebhookSecret = 'audit-e2e-webhook-secret';
 
 const webhookPayload = {
-  grantId,
-  transaction: {
-    id: `audit-tx-${randomUUID()}`,
+  error: 0,
+  data: {
+    id: 2_000_001,
     amount: 30_000_000,
-    transactionDateTime: '2026-08-14T10:00:00.000Z',
+    transactionDateTime: '2026-08-14 10:00:00',
+    description: 'Thanh toan INV-AUDIT-001',
+    accountNumber: '99887766',
     counterAccountNumber: '0011002233',
     counterAccountName: 'Công ty A',
-    description: 'Thanh toan INV-AUDIT-001',
   },
 };
 
@@ -206,13 +210,27 @@ describe('Receivable balance history audit (e2e)', () => {
       createdAt: new Date(),
     });
 
+    const bankConnectionAuthorizationId = randomUUID();
+    await dataSource.getRepository(CassoFlowAuthorizationOrmEntity).save({
+      id: bankConnectionAuthorizationId,
+      organizationId: orgA,
+      businessId: 'e2e-business-receivable-balance-history-audit',
+      encryptedApiKey: encryptToken(
+        'e2e-api-key',
+        process.env.ACCESS_TOKEN_ENCRYPTION_KEY as string,
+      ),
+      encryptedSecureToken: encryptToken(
+        bankConnectionWebhookSecret,
+        process.env.ACCESS_TOKEN_ENCRYPTION_KEY as string,
+      ),
+      createdAt: new Date(),
+    });
     await dataSource.getRepository(BankConnectionOrmEntity).save({
       id: bankConnectionId,
       organizationId: orgA,
+      cassoFlowAuthorizationId: bankConnectionAuthorizationId,
       accountNumber: '99887766',
       bankName: 'Test Bank',
-      encryptedSecureToken: 'encrypted-test-token',
-      encryptedCassoApiKey: 'encrypted-test-key',
       status: 'ACTIVE',
       connectedAt: new Date(),
       lastSyncAt: new Date(),
@@ -271,6 +289,10 @@ describe('Receivable balance history audit (e2e)', () => {
   async function allocateViaWebhook(): Promise<void> {
     await request(app.getHttpServer())
       .post('/api/v1/webhooks/casso-balance-hook')
+      .set(
+        'X-Casso-Signature',
+        signCassoWebhookPayload(webhookPayload, bankConnectionWebhookSecret),
+      )
       .send(webhookPayload)
       .expect(200, { received: true, duplicate: false });
 
