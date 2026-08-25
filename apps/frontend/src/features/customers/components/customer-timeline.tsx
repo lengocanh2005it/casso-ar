@@ -29,7 +29,10 @@ export function CustomerTimeline({ items }: { items: CustomerTimelineItem[] }) {
           <span aria-hidden="true" className="text-muted-foreground">
             —
           </span>
-          <span className="min-w-0 truncate">
+          <span
+            className="min-w-0 truncate"
+            title={formatActivityType(item.activityType)}
+          >
             {formatActivityType(item.activityType)}
           </span>
         </li>

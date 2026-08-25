@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { EmptyState } from '@/components/layout/empty-state';
 import { PageHeading } from '@/components/layout/page-heading';
 import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useReceivables } from '@/features/receivables/api/use-receivables';
@@ -105,7 +106,9 @@ export function CustomerDetailPage() {
           <CardContent className="grid gap-x-4 gap-y-3 text-sm sm:grid-cols-3">
             <div>
               <p className="text-xs text-muted-foreground">Hạn thanh toán</p>
-              <p className="mt-1">{customer.defaultPaymentTermDays} ngày</p>
+              <Badge variant="outline" className="mt-1">
+                {customer.defaultPaymentTermDays} ngày
+              </Badge>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Hạn mức tín dụng</p>
@@ -248,7 +251,7 @@ export function CustomerDetailPage() {
                           className="flex justify-between gap-2"
                         >
                           <ReceivableStatusBadge status={receivable.status} />
-                          <span className="tabular-nums">
+                          <span className="font-semibold tabular-nums">
                             {formatVND(receivable.remainingAmount)}
                           </span>
                         </li>

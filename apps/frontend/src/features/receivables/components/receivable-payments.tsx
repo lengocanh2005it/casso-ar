@@ -1,3 +1,4 @@
+import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
 import {
   Table,
   TableBody,
@@ -6,11 +7,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useAuth } from '@/contexts/auth-context';
+import { useOrganizationMembers } from '@/features/settings/api/use-settings';
+import { actorLabel } from '@/lib/actor-label';
 import { formatDateTime, formatVND } from '@/lib/format';
 import { useReceivable } from '../api/use-receivables';
 
 export function ReceivablePayments({ receivableId }: { receivableId: string }) {
+  const { user } = useAuth();
   const { data } = useReceivable(receivableId);
+  const membersQuery = useOrganizationMembers(user?.organizationId);
+  const members = membersQuery.data?.items ?? [];
   const allocations = data?.allocations ?? [];
 
   if (allocations.length === 0) {
@@ -32,15 +39,15 @@ export function ReceivablePayments({ receivableId }: { receivableId: string }) {
       <TableBody>
         {allocations.map((allocation) => (
           <TableRow key={allocation.id}>
-            <TableCell className="max-w-56 break-all">
-              {allocation.paymentId}
+            <TableCell>
+              <TruncatedCopyId id={allocation.paymentId} />
             </TableCell>
             <TableCell>{formatVND(allocation.allocatedAmount)}</TableCell>
             <TableCell>{formatDateTime(allocation.allocatedAt)}</TableCell>
-            <TableCell className="max-w-56 break-all">
+            <TableCell>
               {allocation.allocatedByUserId === null
                 ? 'Tự động khớp'
-                : allocation.allocatedByUserId}
+                : actorLabel(allocation.allocatedByUserId, members)}
             </TableCell>
           </TableRow>
         ))}
