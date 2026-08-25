@@ -21,9 +21,9 @@ export function RecentActivityFeed({
   }
 
   return (
-    <ol className="space-y-3">
+    <ol className="divide-y overflow-hidden rounded-lg border border-border/70">
       {items.map((item) => (
-        <li key={item.id} className="text-sm">
+        <li key={item.id} className="px-3 py-3 text-sm">
           <div className="flex items-center justify-between gap-4">
             <span className="font-medium">
               {formatActivityType(item.activityType)}

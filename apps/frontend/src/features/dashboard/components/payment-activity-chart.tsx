@@ -15,16 +15,20 @@ function PaymentTooltip({
   active,
   payload,
   label,
+  currentMonth,
 }: {
   active?: boolean;
   payload?: Array<{ value: number; name: string }>;
   label?: string;
+  currentMonth?: string;
 }) {
   if (!active || !payload?.length) return null;
 
   return (
     <div className="rounded-lg border bg-background px-3 py-2 text-sm shadow-sm">
-      <p className="mb-1 font-medium">{label}</p>
+      <p className="mb-1 font-medium">
+        {formatTrendMonthLabel(label ?? '', label === currentMonth)}
+      </p>
       {payload.map((entry) => (
         <p key={entry.name} className="text-muted-foreground">
           {formatVND(entry.value)}
@@ -75,15 +79,7 @@ export function PaymentActivityChart({ trend }: { trend: ReportsTrend }) {
               formatVND(value).replace(/\s₫$/u, '')
             }
           />
-          <Tooltip
-            content={<PaymentTooltip />}
-            labelFormatter={(label) =>
-              formatTrendMonthLabel(
-                String(label),
-                String(label) === currentMonth,
-              )
-            }
-          />
+          <Tooltip content={<PaymentTooltip currentMonth={currentMonth} />} />
           <Bar
             dataKey="collected"
             name="Đã thu"

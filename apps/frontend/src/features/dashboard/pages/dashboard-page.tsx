@@ -93,18 +93,17 @@ export function DashboardPage() {
           <span className="text-primary">
             {user?.organizationName ?? 'bạn'}
           </span>{' '}
-          đến với Casso Ledger!
+          đã quay trở lại!
         </h2>
-        <div className="mt-4">
-          {reviewCountQuery.isError ? (
-            <p role="status" className="text-sm text-destructive">
-              Không thể tải số lượng cần đối soát.
-            </p>
-          ) : (
-            <PendingReviewBanner pendingCount={pendingCount} />
-          )}
-        </div>
       </div>
+
+      {reviewCountQuery.isError ? (
+        <p role="status" className="text-sm text-destructive">
+          Không thể tải số lượng cần đối soát.
+        </p>
+      ) : (
+        <PendingReviewBanner pendingCount={pendingCount} />
+      )}
 
       {summaryQuery.isPending ? (
         <SummarySkeleton />
@@ -209,7 +208,7 @@ export function DashboardPage() {
                   <CardTitle>Hoạt động thanh toán 6 tháng</CardTitle>
                 </div>
                 <CardDescription>
-                  Tổng hợp tiền thu và hoàn trong 6 tháng gần nhất
+                  Tổng số tiền đã thu theo từng tháng trong 6 tháng gần nhất
                 </CardDescription>
               </CardHeader>
               <CardContent>
