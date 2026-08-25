@@ -13,7 +13,9 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
 import { CustomerBankAccountOrmEntity } from '../src/modules/bank-accounts/infrastructure/customer-bank-account.orm-entity';
+import { encryptToken } from '../src/modules/bank-connections/application/token-encryption';
 import { BankConnectionOrmEntity } from '../src/modules/bank-connections/infrastructure/bank-connection.orm-entity';
+import { CassoFlowAuthorizationOrmEntity } from '../src/modules/bank-connections/infrastructure/casso-flow-authorization.orm-entity';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
 import { InvoiceStatus } from '../src/modules/invoices/domain/invoice';
 import { InvoiceOrmEntity } from '../src/modules/invoices/infrastructure/invoice.orm-entity';
@@ -22,6 +24,7 @@ import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure
 import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment.orm-entity';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
+import { signCassoWebhookPayload } from './helpers/casso-webhook-signature';
 
 describe('Collection Activity Timeline (integration)', () => {
   let container: StartedPostgreSqlContainer;
@@ -231,19 +234,33 @@ describe('Collection Activity Timeline (integration)', () => {
     const webhookBankConnectionId = randomUUID();
     const webhookCustomerId = randomUUID();
     const webhookBankAccountId = randomUUID();
-    const webhookGrantId = randomUUID();
     const webhookInvoiceId = randomUUID();
     const webhookReceivableId = randomUUID();
-    const webhookTransactionId = `provider-tx-${randomUUID()}`;
+    const webhookTransactionId = 3_000_001;
+    const webhookSecret = 'collection-activity-e2e-webhook-secret';
 
     beforeAll(async () => {
+      const webhookAuthorizationId = randomUUID();
+      await dataSource.getRepository(CassoFlowAuthorizationOrmEntity).save({
+        id: webhookAuthorizationId,
+        organizationId: webhookOrganizationId,
+        businessId: 'e2e-business-collection-activity-timeline',
+        encryptedApiKey: encryptToken(
+          'e2e-api-key',
+          process.env.ACCESS_TOKEN_ENCRYPTION_KEY as string,
+        ),
+        encryptedSecureToken: encryptToken(
+          webhookSecret,
+          process.env.ACCESS_TOKEN_ENCRYPTION_KEY as string,
+        ),
+        createdAt: new Date(),
+      });
       await dataSource.getRepository(BankConnectionOrmEntity).save({
         id: webhookBankConnectionId,
         organizationId: webhookOrganizationId,
+        cassoFlowAuthorizationId: webhookAuthorizationId,
         accountNumber: '99887766',
         bankName: 'Test Bank',
-        encryptedSecureToken: 'encrypted-test-token',
-        encryptedCassoApiKey: 'encrypted-test-key',
         status: 'ACTIVE',
         connectedAt: new Date(),
         lastSyncAt: new Date(),
@@ -299,19 +316,25 @@ describe('Collection Activity Timeline (integration)', () => {
     });
 
     it('auto-matching a bank transaction that fully closes a Receivable produces PAYMENT_RECEIVED and RECEIVABLE_CLOSED rows in the timeline', async () => {
+      const webhookPayload = {
+        error: 0,
+        data: {
+          id: webhookTransactionId,
+          amount: 15_000_000,
+          transactionDateTime: '2026-08-05 10:00:00',
+          description: 'Thanh toan INV-2026-0099',
+          accountNumber: '99887766',
+          counterAccountNumber: '0011002244',
+          counterAccountName: 'Company Webhook',
+        },
+      };
       await request(app.getHttpServer())
         .post('/api/v1/webhooks/casso-balance-hook')
-        .send({
-          grantId: webhookGrantId,
-          transaction: {
-            id: webhookTransactionId,
-            amount: 15_000_000,
-            transactionDateTime: '2026-08-05T10:00:00.000Z',
-            description: 'Thanh toan INV-2026-0099',
-            counterAccountNumber: '0011002244',
-            counterAccountName: 'Company Webhook',
-          },
-        })
+        .set(
+          'X-Casso-Signature',
+          signCassoWebhookPayload(webhookPayload, webhookSecret),
+        )
+        .send(webhookPayload)
         .expect(200, { received: true, duplicate: false });
 
       const webhookToken = jwtService.sign({
