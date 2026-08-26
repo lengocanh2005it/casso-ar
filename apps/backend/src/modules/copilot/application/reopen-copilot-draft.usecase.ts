@@ -7,6 +7,18 @@ import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import {
+  CUSTOMER_REPOSITORY,
+  type ICustomerRepository,
+} from '../../customers/application/customer-repository.port';
+import {
+  type IInvoiceRepository,
+  INVOICE_REPOSITORY,
+} from '../../invoices/application/invoice-repository.port';
+import {
+  type IReceivableRepository,
+  RECEIVABLE_REPOSITORY,
+} from '../../receivables/application/receivable-repository.port';
+import {
   COPILOT_CONVERSATION_REPOSITORY,
   type ICopilotConversationRepository,
 } from './conversation-repository.port';
@@ -18,6 +30,7 @@ import { findMutableDraft } from './find-mutable-draft';
 import {
   COPILOT_PENDING_ACTION_REPOSITORY,
   type CopilotPendingAction,
+  enrichSendReminderEmailPayload,
   type ICopilotPendingActionRepository,
 } from './pending-action-repository.port';
 
@@ -32,6 +45,12 @@ export class ReopenCopilotDraftUseCase {
     private readonly conversationRepo: ICopilotConversationRepository,
     private readonly tenantContext: TenantContextService,
     @InjectDataSource() private readonly dataSource: DataSource,
+    @Inject(RECEIVABLE_REPOSITORY)
+    private readonly receivableRepo?: IReceivableRepository,
+    @Inject(CUSTOMER_REPOSITORY)
+    private readonly customerRepo?: ICustomerRepository,
+    @Inject(INVOICE_REPOSITORY)
+    private readonly invoiceRepo?: IInvoiceRepository,
   ) {}
 
   async execute(
@@ -56,9 +75,16 @@ export class ReopenCopilotDraftUseCase {
         undefined,
         manager,
       );
+      const payload = await enrichSendReminderEmailPayload(
+        { draftId: draft.id, receivableId: draft.receivableId },
+        user.organizationId,
+        this.receivableRepo,
+        this.customerRepo,
+        this.invoiceRepo,
+      );
       const pendingAction = await this.pendingActionRepo.create(
         conversation.id,
-        { draftId: draft.id, receivableId: draft.receivableId },
+        payload,
         manager,
       );
       return { conversationId: conversation.id, pendingAction };
