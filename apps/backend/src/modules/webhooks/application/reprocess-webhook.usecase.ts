@@ -57,14 +57,16 @@ export class ReprocessWebhookUseCase {
     }
 
     // Deterministic job id makes re-enqueueing idempotent (BullMQ dedupes).
+    const jobId = `webhook-reprocess-${inbox.id}`;
     await this.jobQueue.enqueue({
       webhookInboxId: inbox.id,
       organizationId,
-      jobId: `webhook-reprocess-${inbox.id}`,
+      jobId,
     });
 
-    // Reprocessing only enqueues an async job (status flips later in the
-    // worker), so before/after capture the same "trigger" snapshot.
+    // Reprocessing only enqueues an async job (the inbox status itself flips
+    // later in the worker), so the "resulting state" this log can capture is
+    // the enqueue outcome, not the eventual reprocess result.
     const auditedInbox = toAuditedWebhookInbox(inbox);
     void this.auditLogRepo
       .create(
@@ -75,7 +77,7 @@ export class ReprocessWebhookUseCase {
           entityType: AuditEntityType.WEBHOOK_INBOX,
           entityId: inbox.id,
           beforeState: auditedInbox,
-          afterState: auditedInbox,
+          afterState: { ...auditedInbox, jobId },
           ipAddress: null,
           createdAt: new Date(),
         }),

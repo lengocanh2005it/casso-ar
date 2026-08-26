@@ -90,6 +90,10 @@ describe('ReprocessWebhookUseCase', () => {
     });
     expect(log.beforeState).not.toHaveProperty('rawPayload');
     expect(log.afterState).not.toHaveProperty('rawPayload');
+    expect(log.beforeState).not.toHaveProperty('jobId');
+    expect(log.afterState).toMatchObject({
+      jobId: 'webhook-reprocess-inbox-1',
+    });
   });
 
   it('keeps reprocessing successful when audit persistence fails', async () => {
