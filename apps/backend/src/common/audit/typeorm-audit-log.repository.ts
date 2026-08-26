@@ -84,6 +84,9 @@ export class TypeOrmAuditLogRepository implements IAuditLogRepository {
       ...(query.entityType ? { entityType: query.entityType } : {}),
       ...(query.actionType ? { actionType: query.actionType } : {}),
       ...(query.actorUserId ? { userId: query.actorUserId } : {}),
+      ...(query.relatedReceivableId
+        ? { relatedReceivableId: query.relatedReceivableId }
+        : {}),
       ...(query.from || query.to
         ? {
             createdAt: Between(query.from ?? MIN_DATE, query.to ?? MAX_DATE),

@@ -19,6 +19,10 @@ export class ListAuditLogsQueryDto extends PaginationDto {
   actorUserId?: string;
 
   @IsOptional()
+  @IsUUID()
+  receivableId?: string;
+
+  @IsOptional()
   @IsDateString()
   from?: string;
 

@@ -17,6 +17,7 @@ export interface ListAuditLogsInput {
   entityType?: AuditEntityType;
   actionType?: AuditActionType;
   actorUserId?: string;
+  receivableId?: string;
   from?: Date;
   to?: Date;
 }
@@ -39,6 +40,9 @@ export class ListAuditLogsUseCase {
       ...(input.entityType ? { entityType: input.entityType } : {}),
       ...(input.actionType ? { actionType: input.actionType } : {}),
       ...(input.actorUserId ? { actorUserId: input.actorUserId } : {}),
+      ...(input.receivableId
+        ? { relatedReceivableId: input.receivableId }
+        : {}),
       ...(input.from ? { from: input.from } : {}),
       ...(input.to ? { to: input.to } : {}),
     };

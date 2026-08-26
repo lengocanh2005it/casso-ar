@@ -82,4 +82,27 @@ describe('ListAuditLogsUseCase', () => {
       to: new Date('2026-08-31'),
     });
   });
+
+  it('passes receivableId through to the repository as relatedReceivableId', async () => {
+    const repo = {
+      create: jest.fn(),
+      findPage: jest.fn().mockResolvedValue({ items: [], total: 0 }),
+    };
+    const tenantContext = {
+      getOrganizationId: jest.fn().mockReturnValue('org-1'),
+    };
+    const useCase = new ListAuditLogsUseCase(
+      repo as never,
+      tenantContext as never,
+    );
+
+    await useCase.execute({ page: 1, limit: 20, receivableId: 'rec-1' });
+
+    expect(repo.findPage).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      page: 1,
+      limit: 20,
+      relatedReceivableId: 'rec-1',
+    });
+  });
 });

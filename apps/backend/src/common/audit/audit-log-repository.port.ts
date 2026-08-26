@@ -7,6 +7,7 @@ export interface AuditLogPageQuery {
   entityType?: AuditEntityType;
   actionType?: AuditActionType;
   actorUserId?: string;
+  relatedReceivableId?: string;
   from?: Date;
   to?: Date;
   page: number;

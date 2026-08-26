@@ -172,8 +172,73 @@ describe('AuditLogTab', () => {
     fireEvent.click(screen.getByRole('button', { name: /chi tiết/i }));
 
     expect(screen.getByText('203.0.113.7')).toBeInTheDocument();
-    expect(screen.getByText(/"status": "OPEN"/)).toBeInTheDocument();
-    expect(screen.getByText(/"status": "WRITTEN_OFF"/)).toBeInTheDocument();
+    expect(screen.getByText('status')).toBeInTheDocument();
+    expect(screen.getByText('OPEN')).toBeInTheDocument();
+    expect(screen.getByText('WRITTEN_OFF')).toBeInTheDocument();
+    expect(screen.queryByText(/"status"/)).not.toBeInTheDocument();
+  });
+
+  it('formats a known money field as VND in the expanded detail', () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'OWNER', organizationId: 'org-1' },
+    } as never);
+    useAuditLogsMock.mockReturnValue({
+      data: {
+        items: [
+          {
+            ...logItem,
+            id: 'log-2',
+            beforeState: null,
+            afterState: { allocatedAmount: 500000 },
+          },
+        ],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+    });
+    useOrganizationMembersMock.mockReturnValue({
+      data: { items: [knownMember], total: 1, page: 1, limit: 100 },
+      isLoading: false,
+      isError: false,
+    });
+
+    renderTab();
+    fireEvent.click(screen.getByRole('button', { name: /chi tiết/i }));
+
+    expect(screen.getByText('500.000 ₫')).toBeInTheDocument();
+  });
+
+  it('formats creditLimit and taxAmount as VND too', () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'OWNER', organizationId: 'org-1' },
+    } as never);
+    useAuditLogsMock.mockReturnValue({
+      data: {
+        items: [
+          {
+            ...logItem,
+            id: 'log-3',
+            beforeState: null,
+            afterState: { creditLimit: 1_000_000, taxAmount: 200_000 },
+          },
+        ],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+    });
+    useOrganizationMembersMock.mockReturnValue({
+      data: { items: [knownMember], total: 1, page: 1, limit: 100 },
+      isLoading: false,
+      isError: false,
+    });
+
+    renderTab();
+    fireEvent.click(screen.getByRole('button', { name: /chi tiết/i }));
+
+    expect(screen.getByText('1.000.000 ₫')).toBeInTheDocument();
+    expect(screen.getByText('200.000 ₫')).toBeInTheDocument();
   });
 
   it('maps URL search params to the audit log query', () => {
