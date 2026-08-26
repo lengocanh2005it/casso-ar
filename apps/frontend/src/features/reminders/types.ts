@@ -26,6 +26,8 @@ export interface ReminderExecution {
   sentAt: string | null;
   skipReason: string | null;
   providerMessageId: string | null;
+  invoiceNumber: string | null;
+  customerName: string | null;
 }
 
 export interface ReminderRuleInput {

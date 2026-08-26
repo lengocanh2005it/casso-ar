@@ -277,6 +277,82 @@ describe('AuditLogTab', () => {
     expect(screen.getByText('200.000 ₫')).toBeInTheDocument();
   });
 
+  it('formats date fields in the expanded detail using the shared Vietnamese formatters', () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'OWNER', organizationId: 'org-1' },
+    } as never);
+    useAuditLogsMock.mockReturnValue({
+      data: {
+        items: [
+          {
+            ...logItem,
+            id: 'log-dates',
+            beforeState: null,
+            afterState: {
+              createdAt: '2026-08-26T09:14:14.087Z',
+              dueDate: '2026-11-30T00:00:00.000Z',
+            },
+          },
+        ],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+    });
+    useOrganizationMembersMock.mockReturnValue({
+      data: { items: [knownMember], total: 1, page: 1, limit: 100 },
+      isLoading: false,
+      isError: false,
+    });
+
+    renderTab();
+    fireEvent.click(screen.getByRole('button', { name: /chi tiết/i }));
+
+    expect(screen.getByText('16:14 26/08/2026')).toBeInTheDocument();
+    expect(screen.getByText('30/11/2026')).toBeInTheDocument();
+    expect(
+      screen.queryByText('2026-08-26T09:14:14.087Z'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows a resolved customer name while keeping the customer id copyable', () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'OWNER', organizationId: 'org-1' },
+    } as never);
+    const customerId = '139b0a85-5be9-4836-96bb-32e88cdeffb1';
+    useAuditLogsMock.mockReturnValue({
+      data: {
+        items: [
+          {
+            ...logItem,
+            id: 'log-customer-name',
+            beforeState: null,
+            afterState: { customerId },
+            display: {
+              entityLabel: null,
+              customerNames: { [customerId]: 'Công ty ABC' },
+              invoiceNumbers: {},
+            },
+          },
+        ],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+    });
+    useOrganizationMembersMock.mockReturnValue({
+      data: { items: [knownMember], total: 1, page: 1, limit: 100 },
+      isLoading: false,
+      isError: false,
+    });
+
+    renderTab();
+    fireEvent.click(screen.getByRole('button', { name: /chi tiết/i }));
+
+    expect(screen.getByText('Công ty ABC')).toBeInTheDocument();
+    expect(screen.getByTitle(customerId)).toHaveTextContent('139b0a85…');
+  });
+
   it('maps URL search params to the audit log query', () => {
     useAuthMock.mockReturnValue({
       user: { role: 'OWNER', organizationId: 'org-1' },

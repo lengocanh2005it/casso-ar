@@ -181,7 +181,7 @@ describe('ReceivableBalanceHistoryPage', () => {
     );
     expect(screen.getByLabelText('Khoản phải thu')).toHaveAttribute(
       'placeholder',
-      'Ví dụ: rec_123…',
+      'Nhập mã kỹ thuật khoản phải thu',
     );
   });
 

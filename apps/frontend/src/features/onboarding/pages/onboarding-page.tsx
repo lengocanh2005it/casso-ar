@@ -85,9 +85,6 @@ export function OnboardingPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 text-sm text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-100">
-            Casso Flow chỉ đồng bộ giao dịch mới để bạn theo dõi dòng tiền.
-          </div>
           {canManageConnections ? (
             <ManagedCassoFlowPicker onCompleted={handleCompleted} />
           ) : (

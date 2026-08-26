@@ -26,6 +26,7 @@ function renderPayments() {
 
 describe('ReceivablePayments', () => {
   it('resolves a manual allocation to the organization member who made it', async () => {
+    const bankTransactionId = '77b1de38-2ace-4b6d-b6b3-cf81d70b1024';
     apiRequest.mockImplementation(({ url }: { url: string }) => {
       if (url.includes('/members'))
         return Promise.resolve({
@@ -37,6 +38,9 @@ describe('ReceivablePayments', () => {
           {
             id: 'pa1',
             paymentId: 'p1',
+            payerName: 'Công ty An Phát',
+            bankTransactionId,
+            receivedAt: '2026-08-01T00:00:00Z',
             allocatedAmount: 20_000_000,
             allocatedAt: '2026-08-01T00:00:00Z',
             allocatedByUserId: 'user-1',
@@ -47,7 +51,10 @@ describe('ReceivablePayments', () => {
 
     renderPayments();
 
+    expect(await screen.findByText('Công ty An Phát')).toBeInTheDocument();
     expect(await screen.findByText('Nguyễn Minh Anh')).toBeInTheDocument();
+    expect(screen.queryByText(bankTransactionId)).not.toBeInTheDocument();
+    expect(screen.getByTitle(bankTransactionId)).toHaveTextContent('77b1de38…');
     expect(screen.queryByText('user-1')).not.toBeInTheDocument();
   });
 

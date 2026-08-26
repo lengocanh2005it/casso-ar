@@ -1,5 +1,9 @@
 import type { CopilotMessageRecord } from '../../application/conversation-repository.port';
-import { toCopilotMessageDto } from './copilot-response.dto';
+import type { CopilotPendingAction } from '../../application/pending-action-repository.port';
+import {
+  toCopilotMessageDto,
+  toCopilotPendingActionDto,
+} from './copilot-response.dto';
 
 function buildMessage(
   overrides: Partial<CopilotMessageRecord> = {},
@@ -86,5 +90,45 @@ describe('toCopilotMessageDto', () => {
     );
 
     expect(dto.drafts).toEqual([]);
+  });
+});
+
+describe('toCopilotPendingActionDto', () => {
+  const action = (
+    payload: CopilotPendingAction['payload'],
+  ): CopilotPendingAction => ({
+    id: 'action-1',
+    organizationId: 'org-1',
+    conversationId: 'conversation-1',
+    actionType: 'SEND_REMINDER_EMAIL',
+    payload,
+    status: 'PENDING',
+    createdAt: new Date('2026-08-21T10:00:00Z'),
+    resolvedAt: null,
+    resolvedByUserId: null,
+  });
+
+  it('builds a human receivable label from persisted metadata', () => {
+    expect(
+      toCopilotPendingActionDto(
+        action({
+          draftId: 'draft-1',
+          receivableId: 'receivable-1',
+          customerName: 'Công ty An Phát',
+          invoiceNumber: 'INV-2026-001',
+        }),
+      ),
+    ).toMatchObject({
+      receivableLabel: 'INV-2026-001 — Công ty An Phát',
+      payload: { draftId: 'draft-1', receivableId: 'receivable-1' },
+    });
+  });
+
+  it('returns a null receivable label when no presentation metadata exists', () => {
+    expect(
+      toCopilotPendingActionDto(
+        action({ draftId: 'draft-1', receivableId: 'receivable-1' }),
+      ).receivableLabel,
+    ).toBeNull();
   });
 });

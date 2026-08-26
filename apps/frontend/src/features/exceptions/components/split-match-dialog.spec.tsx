@@ -62,6 +62,10 @@ const candidates = [
     payerNameScore: 0,
     timingScore: 0,
     totalScore: 80,
+    invoiceNumber: 'INV-2026-001',
+    customerName: 'Công ty An Phát',
+    remainingAmount: 50_000_000,
+    dueDate: '2026-08-31T00:00:00Z',
   },
   {
     id: 'mc2',
@@ -74,6 +78,10 @@ const candidates = [
     payerNameScore: 0,
     timingScore: 0,
     totalScore: 50,
+    invoiceNumber: 'INV-2026-002',
+    customerName: 'Công ty An Phát',
+    remainingAmount: 30_000_000,
+    dueDate: '2026-08-31T00:00:00Z',
   },
 ];
 
@@ -150,6 +158,35 @@ describe('SplitMatchDialog', () => {
     );
 
     expect(screen.getByText('Không có nội dung')).toBeInTheDocument();
+  });
+
+  it('shows the candidate invoice and customer before its technical id', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    renderDialog();
+
+    expect(
+      await screen.findByText('INV-2026-001 — Công ty An Phát'),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Còn lại: 50\.000\.000/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Hạn thanh toán: 31\/08\/2026/)).toHaveLength(2);
+    expect(screen.getByTitle('r1')).toHaveAttribute('title', 'r1');
+  });
+
+  it('uses business fallbacks when candidate metadata is missing', async () => {
+    apiRequest.mockResolvedValue([
+      {
+        ...candidates[0],
+        invoiceNumber: null,
+        customerName: null,
+        remainingAmount: null,
+        dueDate: null,
+      },
+    ]);
+    renderDialog();
+
+    expect(await screen.findByText('Khoản phải thu')).toBeInTheDocument();
+    expect(screen.getByText(/Chưa có số dư/)).toBeInTheDocument();
+    expect(screen.getByText(/Chưa có hạn thanh toán/)).toBeInTheDocument();
   });
 
   it('keeps allocation total within the transaction amount and submits both rows', async () => {
@@ -244,10 +281,9 @@ describe('SplitMatchDialog', () => {
     await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
 
     const providerId = screen.getByText(providerTransactionId);
-    const receivable = screen.getByText(receivableId);
+    const receivable = screen.getByTitle(receivableId);
     expect(providerId).toHaveClass('truncate');
     expect(providerId).toHaveAttribute('title', providerTransactionId);
-    expect(receivable).toHaveClass('truncate');
     expect(receivable).toHaveAttribute('title', receivableId);
     expect(
       screen.getByRole('button', { name: /ghi nhận công nợ/i }).parentElement,

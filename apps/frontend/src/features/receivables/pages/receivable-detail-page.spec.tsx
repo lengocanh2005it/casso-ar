@@ -38,6 +38,7 @@ describe('ReceivableDetailPage', () => {
     apiRequest.mockResolvedValue({
       id: 'r1',
       customerId: 'c1',
+      customerName: 'Công ty Minh Long',
       invoiceId: null,
       invoiceNumber: null,
       originalAmount: 50_000_000,
@@ -70,6 +71,7 @@ describe('ReceivableDetailPage', () => {
       screen.getByRole('heading', { name: 'Khoản phải thu' }),
     ).toBeInTheDocument();
     expect(screen.getByText('Không có hóa đơn')).toBeInTheDocument();
+    expect(screen.getByText('Công ty Minh Long')).toBeInTheDocument();
     expect(screen.queryByText('#r1')).not.toBeInTheDocument();
     expect(screen.queryByTitle('r1')).not.toBeInTheDocument();
     expect(screen.getByRole('progressbar')).toHaveAttribute(

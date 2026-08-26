@@ -163,6 +163,10 @@ describe('ExceptionsBulkActionBar', () => {
         payerNameScore: 0,
         timingScore: 0,
         totalScore: 80,
+        invoiceNumber: 'INV-001',
+        customerName: 'Công ty A',
+        remainingAmount: 20_000,
+        dueDate: '2026-08-31',
         createdAt: '2026-08-01',
       },
     };
@@ -188,6 +192,10 @@ describe('ExceptionsBulkActionBar', () => {
         payerNameScore: 0,
         timingScore: 0,
         totalScore: 40,
+        invoiceNumber: 'INV-002',
+        customerName: 'Công ty B',
+        remainingAmount: 5_000,
+        dueDate: '2026-08-31',
         createdAt: '2026-08-01',
       },
     };

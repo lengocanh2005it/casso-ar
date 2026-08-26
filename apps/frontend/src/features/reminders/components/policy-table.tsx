@@ -19,6 +19,15 @@ import { hasPermission } from '@/lib/rbac';
 import { useUpdateReminderPolicy } from '../api/use-reminders';
 import type { ReminderPolicy } from '../types';
 
+const CUSTOMER_GROUP_LABELS: Record<string, string> = {
+  VIP: 'Khách hàng VIP',
+  REGULAR: 'Thông thường',
+};
+
+function customerGroupLabel(customerGroup: string): string {
+  return CUSTOMER_GROUP_LABELS[customerGroup] ?? 'Nhóm khách hàng khác';
+}
+
 export function PolicyTable({
   policies,
   onEdit,
@@ -61,8 +70,11 @@ export function PolicyTable({
           <TableRow key={policy.id}>
             <TableCell className="font-medium">
               <div className="flex items-center gap-2">
-                <InitialsAvatar name={policy.customerGroup} size="sm" />
-                {policy.customerGroup}
+                <InitialsAvatar
+                  name={customerGroupLabel(policy.customerGroup)}
+                  size="sm"
+                />
+                {customerGroupLabel(policy.customerGroup)}
               </div>
             </TableCell>
             <TableCell>
@@ -79,7 +91,7 @@ export function PolicyTable({
                 </Badge>
                 {canWrite ? (
                   <Switch
-                    aria-label={`Bật chính sách ${policy.customerGroup}`}
+                    aria-label={`Bật chính sách ${customerGroupLabel(policy.customerGroup)}`}
                     checked={policy.isActive}
                     disabled={update.isPending}
                     onCheckedChange={() =>

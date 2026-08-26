@@ -168,6 +168,8 @@ export class ReceivablesController {
       result.disputeId,
       result.allocations,
       result.invoiceNumber,
+      result.customerName,
+      result.paymentsById,
       result.isOverdue,
     );
   }
