@@ -42,7 +42,7 @@ describe('RemindersPage', () => {
     expect(screen.getByText('Lịch sử thực thi')).toBeTruthy();
     expect(
       await screen.findByRole('textbox', {
-        name: 'Lọc theo mã khoản phải thu',
+        name: 'Lọc theo khoản phải thu',
       }),
     ).toBeTruthy();
     expect(await screen.findAllByTestId('empty-state')).toHaveLength(2);
@@ -67,7 +67,7 @@ describe('RemindersPage', () => {
 
     fireEvent.change(
       await screen.findByRole('textbox', {
-        name: 'Lọc theo mã khoản phải thu',
+        name: 'Lọc theo khoản phải thu',
       }),
       { target: { value: 'a' } },
     );

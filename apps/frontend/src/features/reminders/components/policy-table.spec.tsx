@@ -30,6 +30,17 @@ const policy: ReminderPolicy = {
 };
 
 describe('PolicyTable', () => {
+  it('renders the regular customer group in Vietnamese', () => {
+    useAuth.mockReturnValue({ user: { role: 'OWNER' } });
+
+    render(
+      <PolicyTable policies={[{ ...policy, customerGroup: 'REGULAR' }]} />,
+    );
+
+    expect(screen.getByText('Thông thường')).toBeInTheDocument();
+    expect(screen.queryByText('REGULAR')).not.toBeInTheDocument();
+  });
+
   it('updates a policy with its full rule payload when toggled', () => {
     useAuth.mockReturnValue({ user: { role: 'OWNER' } });
 

@@ -117,8 +117,11 @@ describe('EmailTemplateSelect', () => {
       await screen.findByRole('combobox', { name: 'Email template 1' }),
     );
     const orphanOption = screen.getByRole('option', {
-      name: 'Template không tồn tại (id: missing-id)',
+      name: /Mẫu email đã bị xóa/,
     });
     expect(orphanOption).toHaveAttribute('aria-disabled', 'true');
+    expect(
+      screen.getAllByText('Mẫu email đã bị xóa (mã kỹ thuật: missing-id)'),
+    ).toHaveLength(2);
   });
 });

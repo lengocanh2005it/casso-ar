@@ -19,6 +19,10 @@ import { hasPermission } from '@/lib/rbac';
 import { useUpdateReminderPolicy } from '../api/use-reminders';
 import type { ReminderPolicy } from '../types';
 
+function customerGroupLabel(customerGroup: ReminderPolicy['customerGroup']) {
+  return customerGroup === 'REGULAR' ? 'Thông thường' : customerGroup;
+}
+
 export function PolicyTable({
   policies,
   onEdit,
@@ -61,8 +65,11 @@ export function PolicyTable({
           <TableRow key={policy.id}>
             <TableCell className="font-medium">
               <div className="flex items-center gap-2">
-                <InitialsAvatar name={policy.customerGroup} size="sm" />
-                {policy.customerGroup}
+                <InitialsAvatar
+                  name={customerGroupLabel(policy.customerGroup)}
+                  size="sm"
+                />
+                {customerGroupLabel(policy.customerGroup)}
               </div>
             </TableCell>
             <TableCell>
