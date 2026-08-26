@@ -5,6 +5,9 @@ export type ReceivableStatus = SharedReceivableStatus;
 export interface PaymentAllocation {
   id: string;
   paymentId: string;
+  payerName: string | null;
+  bankTransactionId: string | null;
+  receivedAt: string | null;
   allocatedAmount: number;
   allocatedAt: string;
   allocatedByUserId: string | null;

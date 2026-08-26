@@ -37,6 +37,9 @@ describe('ReceivablePayments', () => {
           {
             id: 'pa1',
             paymentId: 'p1',
+            payerName: 'Công ty An Phát',
+            bankTransactionId: 'CAS-20260801-001',
+            receivedAt: '2026-08-01T00:00:00Z',
             allocatedAmount: 20_000_000,
             allocatedAt: '2026-08-01T00:00:00Z',
             allocatedByUserId: 'user-1',
@@ -47,6 +50,7 @@ describe('ReceivablePayments', () => {
 
     renderPayments();
 
+    expect(await screen.findByText('Công ty An Phát')).toBeInTheDocument();
     expect(await screen.findByText('Nguyễn Minh Anh')).toBeInTheDocument();
     expect(screen.queryByText('user-1')).not.toBeInTheDocument();
   });
