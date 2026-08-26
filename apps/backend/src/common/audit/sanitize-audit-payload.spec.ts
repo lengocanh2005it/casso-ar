@@ -27,4 +27,21 @@ describe('sanitizeAuditPayload', () => {
       status: 'PAID',
     });
   });
+
+  it('preserves Date values at the top level and nested', () => {
+    const createdAt = new Date('2026-08-26T00:00:00.000Z');
+    const dueDate = new Date('2026-09-01T00:00:00.000Z');
+
+    expect(
+      sanitizeAuditPayload({
+        id: 'rec-1',
+        createdAt,
+        nested: { dueDate },
+      }),
+    ).toEqual({
+      id: 'rec-1',
+      createdAt,
+      nested: { dueDate },
+    });
+  });
 });
