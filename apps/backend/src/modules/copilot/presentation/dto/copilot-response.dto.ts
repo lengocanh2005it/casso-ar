@@ -58,6 +58,7 @@ export class CopilotPendingActionDto {
   actionType: 'SEND_REMINDER_EMAIL';
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED';
   payload: { draftId: string; receivableId: string };
+  receivableLabel: string | null;
   createdAt: string;
   resolvedAt: string | null;
 }
@@ -100,6 +101,10 @@ export const toCopilotPendingActionDto = (
   actionType: action.actionType,
   status: action.status,
   payload: action.payload,
+  receivableLabel:
+    action.payload.invoiceNumber && action.payload.customerName
+      ? `${action.payload.invoiceNumber} — ${action.payload.customerName}`
+      : (action.payload.invoiceNumber ?? action.payload.customerName ?? null),
   createdAt: action.createdAt.toISOString(),
   resolvedAt: action.resolvedAt?.toISOString() ?? null,
 });

@@ -7,10 +7,21 @@ import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { PlanLimitService } from '../../billing/application/plan-limit.service';
 import {
+  CUSTOMER_REPOSITORY,
+  type ICustomerRepository,
+} from '../../customers/application/customer-repository.port';
+import {
+  type IInvoiceRepository,
+  INVOICE_REPOSITORY,
+} from '../../invoices/application/invoice-repository.port';
+import {
+  type IReceivableRepository,
+  RECEIVABLE_REPOSITORY,
+} from '../../receivables/application/receivable-repository.port';
+import {
   AI_CHAT_PROVIDER,
   type AIChatCompletionResult,
   type AIChatMessage,
-  type AIStreamChunk,
   type AIToolCall,
   type IAIChatProvider,
 } from './ai-chat-provider.port';
@@ -28,6 +39,7 @@ import { deriveConversationTitle } from './derive-conversation-title';
 import {
   COPILOT_PENDING_ACTION_REPOSITORY,
   type CopilotPendingAction,
+  enrichSendReminderEmailPayload,
   type ICopilotPendingActionRepository,
 } from './pending-action-repository.port';
 import {
@@ -167,7 +179,27 @@ export class CopilotChatUseCase {
     private readonly planLimitService: PlanLimitService,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly tenantContext: TenantContextService,
+    @Inject(RECEIVABLE_REPOSITORY)
+    private readonly receivableRepo?: IReceivableRepository,
+    @Inject(CUSTOMER_REPOSITORY)
+    private readonly customerRepo?: ICustomerRepository,
+    @Inject(INVOICE_REPOSITORY)
+    private readonly invoiceRepo?: IInvoiceRepository,
   ) {}
+
+  private enrichPendingActionPayload(
+    draftId: string,
+    receivableId: string,
+    organizationId: string,
+  ) {
+    return enrichSendReminderEmailPayload(
+      { draftId, receivableId },
+      organizationId,
+      this.receivableRepo,
+      this.customerRepo,
+      this.invoiceRepo,
+    );
+  }
 
   async persistUserMessage(
     input: CopilotChatInput,
@@ -456,11 +488,16 @@ export class CopilotChatUseCase {
           user.organizationId,
           user.userId,
         );
+        const payload = await this.enrichPendingActionPayload(
+          draftId,
+          receivableId,
+          user.organizationId,
+        );
         const { pendingAction, saved } = await this.dataSource.transaction(
           async (manager) => {
             const action = await this.pendingActionRepo.create(
               input.conversationId,
-              { draftId, receivableId },
+              payload,
               manager,
             );
             const message = await this.conversationRepo.appendMessage(
@@ -616,11 +653,16 @@ export class CopilotChatUseCase {
             user.organizationId,
             user.userId,
           );
+          const payload = await this.enrichPendingActionPayload(
+            draftId,
+            receivableId,
+            user.organizationId,
+          );
           const { pendingAction, saved } = await this.dataSource.transaction(
             async (manager) => {
               const action = await this.pendingActionRepo.create(
                 input.conversationId,
-                { draftId, receivableId },
+                payload,
                 manager,
               );
               const message = await this.conversationRepo.appendMessage(

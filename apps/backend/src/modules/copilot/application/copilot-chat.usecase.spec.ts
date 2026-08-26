@@ -65,6 +65,9 @@ function buildDeps(overrides: Record<string, unknown> = {}) {
       ),
     },
     pendingActionRepo: { create: jest.fn() },
+    receivableRepo: { findById: jest.fn().mockResolvedValue(null) },
+    customerRepo: { findById: jest.fn().mockResolvedValue(null) },
+    invoiceRepo: { findById: jest.fn().mockResolvedValue(null) },
     usageLogRepo: { log: jest.fn() },
     planLimitService: { enforceCopilotChatLimit: jest.fn() },
     dataSource: {
@@ -250,6 +253,90 @@ describe('CopilotChatUseCase', () => {
     );
     expect(aiProvider.createChatCompletion).toHaveBeenCalledTimes(1);
     expect(deps.usageLogRepo.log).toHaveBeenCalledTimes(1);
+  });
+
+  it('persists receivable presentation metadata with a pending action', async () => {
+    const aiProvider = {
+      createChatCompletion: jest.fn().mockResolvedValueOnce({
+        content: 'Đề xuất gửi email nhắc.',
+        toolCalls: [
+          {
+            id: 'tool-3',
+            name: 'sendReminderEmail',
+            arguments: { draftId: 'draft-1', receivableId: 'receivable-1' },
+          },
+        ],
+        inputTokens: 40,
+        outputTokens: 12,
+      }),
+    };
+    const deps = buildDeps({
+      receivableRepo: {
+        findById: jest.fn().mockResolvedValue({
+          id: 'receivable-1',
+          organizationId: 'org-1',
+          customerId: 'customer-1',
+          invoiceId: 'invoice-1',
+        }),
+      },
+      customerRepo: {
+        findById: jest.fn().mockResolvedValue({
+          organizationId: 'org-1',
+          name: 'Công ty An Phát',
+        }),
+      },
+      invoiceRepo: {
+        findById: jest.fn().mockResolvedValue({
+          organizationId: 'org-1',
+          invoiceNumber: 'INV-2026-001',
+        }),
+      },
+    });
+    deps.pendingActionRepo.create.mockResolvedValue({
+      id: 'action-1',
+      organizationId: 'org-1',
+      conversationId: 'conversation-1',
+      actionType: 'SEND_REMINDER_EMAIL',
+      status: 'PENDING',
+      payload: { draftId: 'draft-1', receivableId: 'receivable-1' },
+      createdAt: new Date('2026-08-09T10:00:00Z'),
+      resolvedAt: null,
+      resolvedByUserId: null,
+    });
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+      deps.receivableRepo as any,
+      deps.customerRepo as any,
+      deps.invoiceRepo as any,
+    );
+
+    await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Gửi email nhắc thanh toán',
+    });
+
+    expect(deps.pendingActionRepo.create).toHaveBeenCalledWith(
+      'conversation-1',
+      {
+        draftId: 'draft-1',
+        receivableId: 'receivable-1',
+        customerName: 'Công ty An Phát',
+        invoiceNumber: 'INV-2026-001',
+      },
+      expect.anything(),
+    );
   });
 
   it('still executes other batched tool calls when the model also calls sendReminderEmail in the same response', async () => {

@@ -83,6 +83,9 @@ function buildDeps(overrides: {
       createdAt: new Date('2026-08-14T10:00:00Z'),
     }),
   };
+  const receivableRepo = { findById: jest.fn().mockResolvedValue(null) };
+  const customerRepo = { findById: jest.fn().mockResolvedValue(null) };
+  const invoiceRepo = { findById: jest.fn().mockResolvedValue(null) };
   const tenantContext = {
     getCurrentUser: () => ({
       userId: 'user-1',
@@ -97,6 +100,9 @@ function buildDeps(overrides: {
     draftRepo,
     pendingActionRepo,
     conversationRepo,
+    receivableRepo,
+    customerRepo,
+    invoiceRepo,
     tenantContext,
     dataSource,
   };
@@ -152,6 +158,47 @@ describe('ReopenCopilotDraftUseCase', () => {
     await expect(useCase.execute('draft-1')).resolves.toMatchObject({
       conversationId: 'new-conv-1',
     });
+  });
+
+  it('persists receivable presentation metadata when reopening a draft', async () => {
+    const deps = buildDeps({ latestAction: null });
+    deps.receivableRepo.findById.mockResolvedValue({
+      id: 'rec-1',
+      organizationId: 'org-1',
+      customerId: 'customer-1',
+      invoiceId: 'invoice-1',
+    });
+    deps.customerRepo.findById.mockResolvedValue({
+      organizationId: 'org-1',
+      name: 'Công ty An Phát',
+    });
+    deps.invoiceRepo.findById.mockResolvedValue({
+      organizationId: 'org-1',
+      invoiceNumber: 'INV-2026-001',
+    });
+    const useCase = new ReopenCopilotDraftUseCase(
+      deps.draftRepo as never,
+      deps.pendingActionRepo as never,
+      deps.conversationRepo as never,
+      deps.tenantContext,
+      deps.dataSource as never,
+      deps.receivableRepo as never,
+      deps.customerRepo as never,
+      deps.invoiceRepo as never,
+    );
+
+    await useCase.execute('draft-1');
+
+    expect(deps.pendingActionRepo.create).toHaveBeenCalledWith(
+      'new-conv-1',
+      {
+        draftId: 'draft-1',
+        receivableId: 'rec-1',
+        customerName: 'Công ty An Phát',
+        invoiceNumber: 'INV-2026-001',
+      },
+      {},
+    );
   });
 
   it('rejects reopening a still-PENDING draft with CONFLICT', async () => {
