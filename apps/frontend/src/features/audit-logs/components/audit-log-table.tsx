@@ -15,8 +15,15 @@ import type { OrganizationMember } from '@/features/settings/types';
 import { actorLabel } from '@/lib/actor-label';
 import { formatDateTime, formatVND } from '@/lib/format';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
-import { ACTION_TYPE_LABELS, ENTITY_TYPE_LABELS } from '../labels';
+import {
+  ACTION_TYPE_LABELS,
+  ENTITY_TYPE_LABELS,
+  FIELD_LABELS,
+} from '../labels';
 import type { AuditLogItem } from '../types';
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Every @Column('bigint') money field across the app (apps/backend/src/modules/**/*.orm-entity.ts),
 // so a new field shown in an audit payload renders as VND, not a raw number.
@@ -32,13 +39,16 @@ const MONEY_FIELD_NAMES = new Set([
   'unallocatedAmount',
 ]);
 
-function formatFieldValue(field: string, value: unknown): string {
-  if (value === undefined || value === null) return '—';
+function FieldValue({ field, value }: { field: string; value: unknown }) {
+  if (value === undefined || value === null) return <>—</>;
   if (typeof value === 'number' && MONEY_FIELD_NAMES.has(field)) {
-    return formatVND(value);
+    return <>{formatVND(value)}</>;
   }
-  if (typeof value === 'object') return JSON.stringify(value);
-  return String(value);
+  if (typeof value === 'string' && UUID_PATTERN.test(value)) {
+    return <TruncatedCopyId id={value} />;
+  }
+  if (typeof value === 'object') return <>{JSON.stringify(value)}</>;
+  return <>{String(value)}</>;
 }
 
 interface FieldDiffRow {
@@ -86,12 +96,14 @@ function DetailRow({ item }: { item: AuditLogItem }) {
               <tbody>
                 {rows.map((row) => (
                   <tr key={row.field}>
-                    <td className="pr-4 py-1 font-mono">{row.field}</td>
                     <td className="pr-4 py-1">
-                      {formatFieldValue(row.field, row.before)}
+                      {FIELD_LABELS[row.field] ?? row.field}
+                    </td>
+                    <td className="pr-4 py-1">
+                      <FieldValue field={row.field} value={row.before} />
                     </td>
                     <td className="py-1">
-                      {formatFieldValue(row.field, row.after)}
+                      <FieldValue field={row.field} value={row.after} />
                     </td>
                   </tr>
                 ))}
