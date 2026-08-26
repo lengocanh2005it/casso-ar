@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { AuditLogPagination } from '@/components/shared/audit-log-pagination';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import { useAuditLogs } from '@/features/audit-logs/api/use-audit-logs';
@@ -40,29 +40,13 @@ export function ReceivableAuditTrail({
   return (
     <div className="space-y-4">
       <AuditLogTable items={items} members={members} />
-      <div className="flex items-center justify-between">
-        <p className="tabular-nums text-sm text-muted-foreground">
-          Trang {page} / {totalPages} • {total} nhật ký
-        </p>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage((current) => Math.max(1, current - 1))}
-          >
-            Trước
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => setPage((current) => current + 1)}
-          >
-            Sau
-          </Button>
-        </div>
-      </div>
+      <AuditLogPagination
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        onPrev={() => setPage((current) => Math.max(1, current - 1))}
+        onNext={() => setPage((current) => current + 1)}
+      />
     </div>
   );
 }
