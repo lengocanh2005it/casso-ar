@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { dispatchGlobalEvent, GLOBAL_EVENTS } from '@/lib/global-events';
 import type {
   CassoFlowAccountPreview,
@@ -150,46 +151,50 @@ export function CassoFlowAccountPicker({
         <legend className="text-sm font-medium">
           Chọn tài khoản ngân hàng
         </legend>
-        {accounts.map((account) => {
-          const selectable = isSelectable(account);
-          return (
-            <label
-              key={account.accountNumber}
-              className="flex items-start gap-3 rounded-md border p-3"
-            >
-              <input
-                type="checkbox"
-                aria-label={account.accountNumber}
-                checked={selected.includes(account.accountNumber)}
-                disabled={!selectable || isPending}
-                onChange={(event) =>
-                  setSelected((current) =>
-                    event.target.checked
-                      ? [...current, account.accountNumber]
-                      : current.filter(
-                          (number) => number !== account.accountNumber,
-                        ),
-                  )
-                }
-                className="mt-1 size-4"
-              />
-              <span className="min-w-0 text-sm">
-                <span className="block break-words font-medium">
-                  {account.bankName}
-                </span>
-                <span
-                  className="block min-w-0 truncate"
-                  title={account.accountNumber}
+        <ScrollArea className="max-h-64">
+          <div className="space-y-3 pr-3">
+            {accounts.map((account) => {
+              const selectable = isSelectable(account);
+              return (
+                <label
+                  key={account.accountNumber}
+                  className="flex items-start gap-3 rounded-md border p-3"
                 >
-                  {account.accountNumber}
-                </span>
-                <span className="block break-words text-muted-foreground">
-                  {account.accountHolderName} · {statusMessage(account)}
-                </span>
-              </span>
-            </label>
-          );
-        })}
+                  <input
+                    type="checkbox"
+                    aria-label={account.accountNumber}
+                    checked={selected.includes(account.accountNumber)}
+                    disabled={!selectable || isPending}
+                    onChange={(event) =>
+                      setSelected((current) =>
+                        event.target.checked
+                          ? [...current, account.accountNumber]
+                          : current.filter(
+                              (number) => number !== account.accountNumber,
+                            ),
+                      )
+                    }
+                    className="mt-1 size-4"
+                  />
+                  <span className="min-w-0 text-sm">
+                    <span className="block break-words font-medium">
+                      {account.bankName}
+                    </span>
+                    <span
+                      className="block min-w-0 truncate"
+                      title={account.accountNumber}
+                    >
+                      {account.accountNumber}
+                    </span>
+                    <span className="block break-words text-muted-foreground">
+                      {account.accountHolderName} · {statusMessage(account)}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </ScrollArea>
       </fieldset>
 
       {skipped.length > 0 && (
