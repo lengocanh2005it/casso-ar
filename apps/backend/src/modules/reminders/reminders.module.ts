@@ -4,9 +4,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { EVENT_PUBLISHER } from '../../common/events/event-publisher.port';
 import { NestEventPublisherAdapter } from '../../common/events/nest-event-publisher.adapter';
 import { CommonTokensModule } from '../../common/tokens/common-tokens.module';
+import { CustomersModule } from '../customers/customers.module';
+import { InvoicesModule } from '../invoices/invoices.module';
 import { EmailService } from '../notifications/application/email.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
+import { ReceivablesModule } from '../receivables/receivables.module';
 import { CreateReminderPolicyUseCase } from './application/create-reminder-policy.usecase';
 import { I_EMAIL_SERVICE } from './application/i-email-service.port';
 import { ListReminderExecutionsUseCase } from './application/list-reminder-executions.usecase';
@@ -36,6 +39,9 @@ import {
     CommonTokensModule,
     NotificationsModule,
     OrganizationsModule,
+    CustomersModule,
+    InvoicesModule,
+    ReceivablesModule,
   ],
   controllers: [RemindersController, ReminderExecutionsController],
   providers: [

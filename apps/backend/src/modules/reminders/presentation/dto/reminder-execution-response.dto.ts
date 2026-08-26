@@ -1,5 +1,5 @@
+import type { ReminderExecutionView } from '../../application/list-reminder-executions.usecase';
 import type {
-  ReminderExecution,
   ReminderExecutionStatus,
   ReminderSkipReason,
 } from '../../domain/reminder-execution';
@@ -14,6 +14,8 @@ export class ReminderExecutionResponseDto {
   skipReason: ReminderSkipReason | null;
   providerMessageId: string | null;
   failureReason: string | null;
+  invoiceNumber: string | null;
+  customerName: string | null;
   createdAt: Date;
 }
 
@@ -25,8 +27,9 @@ export class ListReminderExecutionsResponseDto {
 }
 
 export function toReminderExecutionResponse(
-  execution: ReminderExecution,
+  view: ReminderExecutionView,
 ): ReminderExecutionResponseDto {
+  const { execution } = view;
   return {
     id: execution.id,
     receivableId: execution.receivableId,
@@ -37,6 +40,8 @@ export function toReminderExecutionResponse(
     skipReason: execution.skipReason,
     providerMessageId: execution.providerMessageId,
     failureReason: execution.failureReason,
+    invoiceNumber: view.invoiceNumber,
+    customerName: view.customerName,
     createdAt: execution.createdAt,
   };
 }
