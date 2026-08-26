@@ -46,7 +46,8 @@ export function ReceivablePayments({ receivableId }: { receivableId: string }) {
                 </p>
                 {allocation.bankTransactionId && (
                   <p className="text-xs text-muted-foreground">
-                    Mã giao dịch ngân hàng: {allocation.bankTransactionId}
+                    Mã giao dịch ngân hàng:{' '}
+                    <TruncatedCopyId id={allocation.bankTransactionId} />
                   </p>
                 )}
                 <TruncatedCopyId id={allocation.paymentId} />
