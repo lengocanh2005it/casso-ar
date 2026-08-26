@@ -172,10 +172,46 @@ describe('AuditLogTab', () => {
     fireEvent.click(screen.getByRole('button', { name: /chi tiết/i }));
 
     expect(screen.getByText('203.0.113.7')).toBeInTheDocument();
-    expect(screen.getByText('status')).toBeInTheDocument();
+    expect(screen.getByText('Trạng thái')).toBeInTheDocument();
+    expect(screen.queryByText('status')).not.toBeInTheDocument();
     expect(screen.getByText('OPEN')).toBeInTheDocument();
     expect(screen.getByText('WRITTEN_OFF')).toBeInTheDocument();
     expect(screen.queryByText(/"status"/)).not.toBeInTheDocument();
+  });
+
+  it('truncates UUID-shaped values with a copy button in the expanded detail', () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'OWNER', organizationId: 'org-1' },
+    } as never);
+    const customerId = '139b0a85-5be9-4836-96bb-32e88cdeffb1';
+    useAuditLogsMock.mockReturnValue({
+      data: {
+        items: [
+          {
+            ...logItem,
+            id: 'log-3',
+            beforeState: null,
+            afterState: { customerId },
+          },
+        ],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+    });
+    useOrganizationMembersMock.mockReturnValue({
+      data: { items: [knownMember], total: 1, page: 1, limit: 100 },
+      isLoading: false,
+      isError: false,
+    });
+
+    renderTab();
+    fireEvent.click(screen.getByRole('button', { name: /chi tiết/i }));
+
+    expect(screen.getByText('Khách hàng')).toBeInTheDocument();
+    expect(screen.queryByText(customerId)).not.toBeInTheDocument();
+    const copyButton = screen.getByTitle(customerId);
+    expect(copyButton).toHaveTextContent('139b0a85…');
   });
 
   it('formats a known money field as VND in the expanded detail', () => {

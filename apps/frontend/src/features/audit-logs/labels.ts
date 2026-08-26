@@ -60,6 +60,40 @@ export const ACTION_TYPE_LABELS: Record<string, string> = {
   WEBHOOK_REPROCESS: 'Xử lý lại webhook',
 };
 
+// Field names shown in the before/after diff table's "Trường" column.
+// Not exhaustive — covers fields from the domain entities most commonly
+// audited (Receivable, PaymentAllocation, Dispute). Anything missing falls
+// back to its raw name (see FIELD_LABELS[field] ?? field).
+export const FIELD_LABELS: Record<string, string> = {
+  id: 'Mã',
+  organizationId: 'Tổ chức',
+  customerId: 'Khách hàng',
+  invoiceId: 'Hóa đơn',
+  receivableId: 'Khoản phải thu',
+  paymentId: 'Thanh toán',
+  originalAmount: 'Nguyên giá',
+  paidAmount: 'Đã thu',
+  remainingAmount: 'Còn lại',
+  unallocatedAmount: 'Chưa phân bổ',
+  allocatedAmount: 'Số tiền phân bổ',
+  totalAmount: 'Tổng tiền',
+  dueDate: 'Hạn thanh toán',
+  status: 'Trạng thái',
+  salesRepresentativeId: 'Nhân viên phụ trách',
+  createdAt: 'Ngày tạo',
+  closedAt: 'Ngày đóng',
+  version: 'Phiên bản',
+  reason: 'Lý do',
+  openedByUserId: 'Người mở',
+  resolvedByUserId: 'Người xử lý',
+  resolvedAt: 'Ngày xử lý',
+  allocatedAt: 'Ngày phân bổ',
+  allocatedByUserId: 'Người phân bổ',
+  deletedAt: 'Ngày xóa',
+  deletedByUserId: 'Người xóa',
+  undoReason: 'Lý do hoàn tác',
+};
+
 export const ENTITY_TYPE_OPTIONS = Object.entries(ENTITY_TYPE_LABELS).map(
   ([value, label]) => ({ value, label }),
 );
