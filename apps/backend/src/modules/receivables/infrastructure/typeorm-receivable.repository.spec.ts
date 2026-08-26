@@ -117,6 +117,36 @@ describe('TypeOrmReceivableRepository', () => {
     expect(result).toEqual(new Map([['rec-1', 'inv-1']]));
   });
 
+  it('selects only receivable fields needed for a tenant-scoped batch lookup', async () => {
+    const ormRepo = { find: jest.fn().mockResolvedValue([PROPS]) };
+    const tenantContext = new TenantContextService();
+    const repo = new TypeOrmReceivableRepository(ormRepo as any, tenantContext);
+
+    const result = await tenantContext.run(
+      { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+      () => repo.findByIds(['rcv-1']),
+    );
+
+    expect(ormRepo.find).toHaveBeenCalledWith({
+      where: { id: In(['rcv-1']), organizationId: 'org-1' },
+      select: {
+        id: true,
+        organizationId: true,
+        customerId: true,
+        invoiceId: true,
+        originalAmount: true,
+        paidAmount: true,
+        dueDate: true,
+        status: true,
+        salesRepresentativeId: true,
+        createdAt: true,
+        closedAt: true,
+        version: true,
+      },
+    });
+    expect(result.get('rcv-1')).toBeInstanceOf(Receivable);
+  });
+
   describe('findOverdueCandidates', () => {
     it('queries overdue candidates with correct predicates, columns, order, and limit, mapping to domain instances', async () => {
       const qb = {

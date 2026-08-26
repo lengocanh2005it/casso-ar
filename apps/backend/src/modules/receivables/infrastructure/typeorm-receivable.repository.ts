@@ -79,7 +79,25 @@ export class TypeOrmReceivableRepository
 
   async findByIds(ids: string[]): Promise<Map<string, Receivable>> {
     if (ids.length === 0) return new Map();
-    const rows = await this.scopedFindMany({ id: In(ids) });
+    const rows = await this.scopedFindMany(
+      { id: In(ids) },
+      {
+        select: {
+          id: true,
+          organizationId: true,
+          customerId: true,
+          invoiceId: true,
+          originalAmount: true,
+          paidAmount: true,
+          dueDate: true,
+          status: true,
+          salesRepresentativeId: true,
+          createdAt: true,
+          closedAt: true,
+          version: true,
+        },
+      },
+    );
     return new Map(rows.map((row) => [row.id, toDomain(row)]));
   }
 
