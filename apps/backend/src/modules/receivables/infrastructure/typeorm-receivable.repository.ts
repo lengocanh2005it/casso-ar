@@ -77,6 +77,12 @@ export class TypeOrmReceivableRepository
     return row ? toDomain(row) : null;
   }
 
+  async findByIds(ids: string[]): Promise<Map<string, Receivable>> {
+    if (ids.length === 0) return new Map();
+    const rows = await this.scopedFindMany({ id: In(ids) });
+    return new Map(rows.map((row) => [row.id, toDomain(row)]));
+  }
+
   async findByIdForUpdate(
     id: string,
     manager: EntityManager,
