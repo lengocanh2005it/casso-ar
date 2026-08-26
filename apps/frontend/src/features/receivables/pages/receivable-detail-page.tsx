@@ -60,6 +60,7 @@ export function ReceivableDetailPage() {
           Math.round((receivable.paidAmount / receivable.originalAmount) * 100),
         )
       : 0;
+  const customerName = receivable.customerName ?? 'Chưa có tên khách hàng';
 
   return (
     <div className="space-y-5">
@@ -171,6 +172,10 @@ export function ReceivableDetailPage() {
             </p>
           </CardHeader>
           <CardContent className="grid gap-3 px-5 text-sm sm:grid-cols-2">
+            <div>
+              <p className="text-muted-foreground">Khách hàng</p>
+              <p className="mt-1 font-medium">{customerName}</p>
+            </div>
             <div>
               <p className="text-muted-foreground">Hạn thanh toán</p>
               <p

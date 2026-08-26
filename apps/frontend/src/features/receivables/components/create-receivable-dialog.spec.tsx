@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { CreateReceivableDialog } from './create-receivable-dialog';
 
 const apiRequest = vi.fn();
@@ -31,15 +31,67 @@ function renderDialog() {
   );
 }
 
+async function selectCustomer() {
+  fireEvent.change(screen.getByLabelText('Tìm khách hàng'), {
+    target: { value: 'An Phát' },
+  });
+  fireEvent.click(await screen.findByRole('combobox', { name: 'Khách hàng' }));
+  fireEvent.click(
+    await screen.findByRole('option', { name: 'Công ty An Phát' }),
+  );
+}
+
+function mockCustomerSearch(result: () => Promise<unknown>) {
+  apiRequest.mockImplementation(
+    ({ url, method }: { url: string; method: string }) => {
+      if (method === 'GET' && url === '/api/v1/customers') {
+        return Promise.resolve({
+          items: [{ id: 'c-123', name: 'Công ty An Phát' }],
+          total: 1,
+          page: 1,
+          limit: 20,
+        });
+      }
+      return result();
+    },
+  );
+}
+
 describe('CreateReceivableDialog', () => {
-  it('creates a receivable with the form values on submit', async () => {
-    apiRequest.mockResolvedValue({ id: 'r1' });
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  it('selects a searched customer by name while submitting its id', async () => {
+    mockCustomerSearch(() => Promise.resolve({ id: 'r1' }));
     renderDialog();
 
     fireEvent.click(screen.getByText('Tạo khoản phải thu'));
-    fireEvent.change(screen.getByLabelText(/mã khách hàng/i), {
-      target: { value: 'c-123' },
+    await selectCustomer();
+    fireEvent.change(screen.getByLabelText(/số tiền/i), {
+      target: { value: '50000000' },
     });
+    fireEvent.change(screen.getByLabelText(/hạn thanh toán/i), {
+      target: { value: '2026-09-01' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo' }));
+
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ customerId: 'c-123' }),
+        }),
+      ),
+    );
+    expect(screen.queryByLabelText(/mã khách hàng/i)).not.toBeInTheDocument();
+  });
+
+  it('creates a receivable with the form values on submit', async () => {
+    mockCustomerSearch(() => Promise.resolve({ id: 'r1' }));
+    renderDialog();
+
+    fireEvent.click(screen.getByText('Tạo khoản phải thu'));
+    await selectCustomer();
     fireEvent.change(screen.getByLabelText(/số tiền/i), {
       target: { value: '50000000' },
     });
@@ -64,13 +116,11 @@ describe('CreateReceivableDialog', () => {
   });
 
   it('renders the error state when the create request fails', async () => {
-    apiRequest.mockRejectedValue(new Error('boom'));
+    mockCustomerSearch(() => Promise.reject(new Error('boom')));
     renderDialog();
 
     fireEvent.click(screen.getByText('Tạo khoản phải thu'));
-    fireEvent.change(screen.getByLabelText(/mã khách hàng/i), {
-      target: { value: 'c-123' },
-    });
+    await selectCustomer();
     fireEvent.change(screen.getByLabelText(/số tiền/i), {
       target: { value: '50000000' },
     });

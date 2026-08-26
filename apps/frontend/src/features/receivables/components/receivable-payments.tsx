@@ -40,7 +40,17 @@ export function ReceivablePayments({ receivableId }: { receivableId: string }) {
         {allocations.map((allocation) => (
           <TableRow key={allocation.id}>
             <TableCell>
-              <TruncatedCopyId id={allocation.paymentId} />
+              <div className="space-y-1">
+                <p className="font-medium">
+                  {allocation.payerName ?? 'Khoản thanh toán'}
+                </p>
+                {allocation.bankTransactionId && (
+                  <p className="text-xs text-muted-foreground">
+                    Mã giao dịch ngân hàng: {allocation.bankTransactionId}
+                  </p>
+                )}
+                <TruncatedCopyId id={allocation.paymentId} />
+              </div>
             </TableCell>
             <TableCell>{formatVND(allocation.allocatedAmount)}</TableCell>
             <TableCell>{formatDateTime(allocation.allocatedAt)}</TableCell>

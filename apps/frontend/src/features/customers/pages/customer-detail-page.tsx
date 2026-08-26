@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useReceivables } from '@/features/receivables/api/use-receivables';
+import { getReceivableDisplayName } from '@/features/receivables/receivable-label';
 import { formatDateTime, formatVND } from '@/lib/format';
 import type { CustomerCredits } from '../api/customers-api';
 import {
@@ -248,9 +249,23 @@ export function CustomerDetailPage() {
                       .map((receivable) => (
                         <li
                           key={receivable.id}
-                          className="flex justify-between gap-2"
+                          className="flex items-center justify-between gap-2"
                         >
-                          <ReceivableStatusBadge status={receivable.status} />
+                          <div className="min-w-0">
+                            <Link
+                              to={`/receivables/${receivable.id}`}
+                              className="font-medium text-primary pointer-hover:hover:underline"
+                            >
+                              {getReceivableDisplayName(
+                                receivable.invoiceNumber,
+                              )}
+                            </Link>
+                            <div className="mt-1">
+                              <ReceivableStatusBadge
+                                status={receivable.status}
+                              />
+                            </div>
+                          </div>
                           <span className="font-semibold tabular-nums">
                             {formatVND(receivable.remainingAmount)}
                           </span>
