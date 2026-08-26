@@ -3,7 +3,16 @@ import { ReceivableStatus } from '@casso-ar/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { DataSource } from 'typeorm';
+import {
+  AuditActionType,
+  AuditEntityType,
+} from '../../../common/audit/audit.enums';
 import { AuditContextService } from '../../../common/audit/audit-context';
+import { AuditLog } from '../../../common/audit/audit-log';
+import {
+  AUDIT_LOG_REPOSITORY,
+  type IAuditLogRepository,
+} from '../../../common/audit/audit-log-repository.port';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
@@ -55,6 +64,8 @@ export class AllocatePaymentUseCase {
     private readonly eventPublisher: IEventPublisher,
     private readonly historyRecorder: ReceivableBalanceHistoryRecorderService,
     private readonly ledgerRecorder: LedgerEventRecorderService,
+    @Inject(AUDIT_LOG_REPOSITORY)
+    private readonly auditLogRepo: IAuditLogRepository,
   ) {}
 
   async execute(input: AllocatePaymentInput): Promise<void> {
@@ -210,6 +221,23 @@ export class AllocatePaymentUseCase {
       createdAt: new Date(),
     });
     await this.allocationRepo.save(allocation, manager);
+    if (input.allocatedByUserId) {
+      await this.auditLogRepo.create(
+        new AuditLog({
+          organizationId: this.tenantContext.getOrganizationId(),
+          userId: input.allocatedByUserId,
+          actionType: AuditActionType.PAYMENT_ALLOCATE,
+          entityType: AuditEntityType.PAYMENT_ALLOCATION,
+          entityId: allocation.id,
+          relatedReceivableId: input.receivableId,
+          beforeState: null,
+          afterState: { ...allocation },
+          ipAddress: null,
+          createdAt: new Date(),
+        }),
+        manager,
+      );
+    }
     await this.historyRecorder.record({
       receivable: updatedReceivable,
       changeSource: BalanceHistoryChangeSource.ALLOCATE,
