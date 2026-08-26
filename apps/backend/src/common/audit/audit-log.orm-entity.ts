@@ -32,6 +32,9 @@ export class AuditLogOrmEntity {
   @Column({ type: 'varchar', nullable: true })
   ipAddress: string | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  relatedReceivableId: string | null;
+
   @Column({ type: 'timestamptz' })
   createdAt: Date;
 }
