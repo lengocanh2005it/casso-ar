@@ -16,6 +16,7 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   CustomerBankAccount: 'Tài khoản ngân hàng KH',
   SmtpConfig: 'Cấu hình SMTP',
   ReceivableBalanceHistory: 'Lịch sử công nợ',
+  WebhookInbox: 'Webhook nhận về',
 };
 
 export const ACTION_TYPE_LABELS: Record<string, string> = {
@@ -56,6 +57,7 @@ export const ACTION_TYPE_LABELS: Record<string, string> = {
   SMTP_CONFIG_SAVE: 'Lưu cấu hình SMTP',
   SMTP_CONFIG_DELETE: 'Xóa cấu hình SMTP',
   RECEIVABLE_BALANCE_HISTORY_EXPORT: 'Xuất lịch sử công nợ',
+  WEBHOOK_REPROCESS: 'Xử lý lại webhook',
 };
 
 export const ENTITY_TYPE_OPTIONS = Object.entries(ENTITY_TYPE_LABELS).map(

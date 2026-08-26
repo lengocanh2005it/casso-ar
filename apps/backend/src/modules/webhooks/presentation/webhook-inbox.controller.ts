@@ -71,6 +71,7 @@ export class WebhookInboxController {
   @ApiOkResponse({ type: WebhookInboxItemResponse })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
     ErrorCode.NOT_FOUND,
     ErrorCode.CONFLICT,
   )
