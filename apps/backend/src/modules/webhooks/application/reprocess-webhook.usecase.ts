@@ -8,6 +8,7 @@ import {
   AUDIT_LOG_REPOSITORY,
   type IAuditLogRepository,
 } from '../../../common/audit/audit-log-repository.port';
+import { writeAuditLogAsync } from '../../../common/audit/write-audit-log-async';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { JsonLogger } from '../../../common/observability/json-logger.service';
@@ -68,30 +69,21 @@ export class ReprocessWebhookUseCase {
     // later in the worker), so the "resulting state" this log can capture is
     // the enqueue outcome, not the eventual reprocess result.
     const auditedInbox = toAuditedWebhookInbox(inbox);
-    void this.auditLogRepo
-      .create(
-        new AuditLog({
-          organizationId: user.organizationId,
-          userId: user.userId,
-          actionType: AuditActionType.WEBHOOK_REPROCESS,
-          entityType: AuditEntityType.WEBHOOK_INBOX,
-          entityId: inbox.id,
-          beforeState: auditedInbox,
-          afterState: { ...auditedInbox, jobId },
-          ipAddress: null,
-          createdAt: new Date(),
-        }),
-      )
-      .catch((error: unknown) => {
-        this.logger.error({
-          message: 'Failed to write audit log',
-          actionType: AuditActionType.WEBHOOK_REPROCESS,
-          entityId: inbox.id,
-          organizationId: user.organizationId,
-          userId: user.userId,
-          error,
-        });
-      });
+    writeAuditLogAsync(
+      this.auditLogRepo,
+      this.logger,
+      new AuditLog({
+        organizationId: user.organizationId,
+        userId: user.userId,
+        actionType: AuditActionType.WEBHOOK_REPROCESS,
+        entityType: AuditEntityType.WEBHOOK_INBOX,
+        entityId: inbox.id,
+        beforeState: auditedInbox,
+        afterState: { ...auditedInbox, jobId },
+        ipAddress: null,
+        createdAt: new Date(),
+      }),
+    );
 
     return inbox;
   }
