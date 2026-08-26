@@ -13,35 +13,88 @@ import {
 } from '@/components/ui/table';
 import type { OrganizationMember } from '@/features/settings/types';
 import { actorLabel } from '@/lib/actor-label';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime, formatVND } from '@/lib/format';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { ACTION_TYPE_LABELS, ENTITY_TYPE_LABELS } from '../labels';
 import type { AuditLogItem } from '../types';
 
+const MONEY_FIELD_NAMES = new Set([
+  'amount',
+  'allocatedAmount',
+  'originalAmount',
+  'paidAmount',
+  'totalAmount',
+  'unallocatedAmount',
+  'remainingAmount',
+]);
+
+function formatFieldValue(field: string, value: unknown): string {
+  if (value === undefined || value === null) return '—';
+  if (typeof value === 'number' && MONEY_FIELD_NAMES.has(field)) {
+    return formatVND(value);
+  }
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
+interface FieldDiffRow {
+  field: string;
+  before: unknown;
+  after: unknown;
+}
+
+function fieldDiffRows(
+  before: Record<string, unknown> | null,
+  after: Record<string, unknown> | null,
+): FieldDiffRow[] {
+  const keys = new Set([
+    ...Object.keys(before ?? {}),
+    ...Object.keys(after ?? {}),
+  ]);
+  return [...keys].sort().map((field) => ({
+    field,
+    before: before?.[field],
+    after: after?.[field],
+  }));
+}
+
 function DetailRow({ item }: { item: AuditLogItem }) {
+  const rows = fieldDiffRows(item.beforeState, item.afterState);
   return (
     <TableRow className="bg-muted/30">
       <TableCell colSpan={5}>
-        <dl className="grid gap-2 text-sm sm:grid-cols-3">
+        <div className="space-y-3 text-sm">
           <div>
-            <dt className="text-muted-foreground">Địa chỉ IP</dt>
-            <dd>{item.ipAddress ?? '—'}</dd>
+            <span className="text-muted-foreground">Địa chỉ IP: </span>
+            <span>{item.ipAddress ?? '—'}</span>
           </div>
-          <div>
-            <dt className="text-muted-foreground">Trước</dt>
-            <dd className="whitespace-pre-wrap break-words font-mono text-xs">
-              {item.beforeState
-                ? JSON.stringify(item.beforeState, null, 2)
-                : '—'}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Sau</dt>
-            <dd className="whitespace-pre-wrap break-words font-mono text-xs">
-              {item.afterState ? JSON.stringify(item.afterState, null, 2) : '—'}
-            </dd>
-          </div>
-        </dl>
+          {rows.length === 0 ? (
+            <p className="text-muted-foreground">Không có thay đổi.</p>
+          ) : (
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-muted-foreground">
+                  <th className="pr-4 py-1 font-normal">Trường</th>
+                  <th className="pr-4 py-1 font-normal">Trước</th>
+                  <th className="py-1 font-normal">Sau</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.field}>
+                    <td className="pr-4 py-1 font-mono">{row.field}</td>
+                    <td className="pr-4 py-1">
+                      {formatFieldValue(row.field, row.before)}
+                    </td>
+                    <td className="py-1">
+                      {formatFieldValue(row.field, row.after)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </TableCell>
     </TableRow>
   );
