@@ -7,7 +7,7 @@ describe('formatActivityType', () => {
     expect(formatActivityType('RECEIVABLE_CLOSED')).toBe('Đã đóng công nợ');
   });
 
-  it('falls back to the raw code for an unknown activity type', () => {
-    expect(formatActivityType('SOMETHING_NEW')).toBe('SOMETHING_NEW');
+  it('uses a safe Vietnamese fallback for an unknown activity type', () => {
+    expect(formatActivityType('SOMETHING_NEW')).toBe('Hoạt động khác');
   });
 });

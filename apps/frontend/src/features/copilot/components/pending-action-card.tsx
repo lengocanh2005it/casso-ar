@@ -1,6 +1,8 @@
 import { CircleAlert } from 'lucide-react';
+import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { CopilotPendingAction } from '../types';
 
 export function PendingActionCard({
   action,
@@ -8,7 +10,7 @@ export function PendingActionCard({
   onCancel,
   busy,
 }: {
-  action: { id: string; payload: { receivableId: string; draftId: string } };
+  action: Pick<CopilotPendingAction, 'id' | 'payload' | 'receivableLabel'>;
   onConfirm: () => void;
   onCancel: () => void;
   busy: boolean;
@@ -20,13 +22,22 @@ export function PendingActionCard({
           aria-hidden="true"
           className="size-4 shrink-0 text-primary"
         />
-        <CardTitle className="text-sm">Confirm reminder email send</CardTitle>
+        <CardTitle className="text-sm">
+          Xác nhận gửi email nhắc thanh toán
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
-        <p>Receivable: {action.payload.receivableId}</p>
+        <div>
+          <p className="font-medium">
+            {action.receivableLabel ?? 'Khoản phải thu'}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Mã kỹ thuật: <TruncatedCopyId id={action.payload.receivableId} />
+          </p>
+        </div>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" disabled={busy} onClick={onConfirm}>
-            Confirm
+            Xác nhận gửi
           </Button>
           <Button
             size="sm"
@@ -34,11 +45,11 @@ export function PendingActionCard({
             disabled={busy}
             onClick={onCancel}
           >
-            Cancel
+            Hủy
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          The action expires after 10 minutes if not confirmed.
+          Đề xuất này hết hạn sau 10 phút nếu chưa được xác nhận.
         </p>
       </CardContent>
     </Card>

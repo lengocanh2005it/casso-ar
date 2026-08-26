@@ -39,7 +39,7 @@ export const CHANGE_SOURCE_OPTIONS: Array<{
   { value: 'UNDO', label: 'Hoàn tác' },
   { value: 'CANCEL', label: 'Hủy' },
   { value: 'WRITE_OFF', label: 'Xóa nợ' },
-  { value: 'ROLLOUT_BASELINE', label: 'Baseline' },
+  { value: 'ROLLOUT_BASELINE', label: 'Dữ liệu khởi tạo' },
 ];
 
 interface FiltersProps {
@@ -83,7 +83,7 @@ export function ReceivableBalanceHistoryFilters({
           id="audit-receivable"
           name="receivableId"
           autoComplete="off"
-          placeholder="Ví dụ: rec_123…"
+          placeholder="Nhập mã kỹ thuật khoản phải thu"
           value={values.receivableId}
           onChange={(event) =>
             onChange({ ...values, receivableId: event.target.value })

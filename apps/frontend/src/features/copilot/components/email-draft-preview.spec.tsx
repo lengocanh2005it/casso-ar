@@ -22,6 +22,8 @@ describe('EmailDraftPreview', () => {
     );
     expect(screen.getByText('Nhắc thanh toán')).toBeInTheDocument();
     expect(screen.getByText('ap@abc.vn')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Xem trước' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Mã HTML' })).toBeInTheDocument();
   });
 
   it('renders the HTML body inside a sandboxed iframe by default', () => {
@@ -47,12 +49,12 @@ describe('EmailDraftPreview', () => {
       />,
     );
 
-    fireEvent.mouseDown(screen.getByRole('tab', { name: /html/i }));
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Mã HTML' }));
 
     expect(screen.queryByTitle('Xem trước email')).not.toBeInTheDocument();
     expect(screen.getByText(bodyHtml)).toBeInTheDocument();
 
-    fireEvent.mouseDown(screen.getByRole('tab', { name: /preview/i }));
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Xem trước' }));
     expect(screen.getByTitle('Xem trước email')).toBeInTheDocument();
   });
 
@@ -65,7 +67,7 @@ describe('EmailDraftPreview', () => {
       />,
     );
 
-    fireEvent.mouseDown(screen.getByRole('tab', { name: /html/i }));
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Mã HTML' }));
     fireEvent.click(screen.getByRole('button', { name: /sao chép/i }));
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(bodyHtml);
