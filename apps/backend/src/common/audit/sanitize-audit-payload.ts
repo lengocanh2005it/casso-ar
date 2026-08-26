@@ -16,6 +16,12 @@ function sanitizeValue(value: unknown, key?: string): unknown {
   if (key && SENSITIVE_KEYS.has(key)) {
     return '[REDACTED]';
   }
+  // Date has no own enumerable properties (getTime/toISOString live on the
+  // prototype), so isRecord()'s Object.entries() below would silently
+  // collapse it to {} — treat it as an opaque scalar instead.
+  if (value instanceof Date) {
+    return value;
+  }
   if (Array.isArray(value)) {
     return value.map((item) => sanitizeValue(item));
   }
