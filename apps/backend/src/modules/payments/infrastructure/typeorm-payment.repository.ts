@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { EntityManager, Repository } from 'typeorm';
-import { Raw } from 'typeorm';
+import type { EntityManager, FindOptionsSelect, Repository } from 'typeorm';
+import { In, Raw } from 'typeorm';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import type {
@@ -10,6 +10,18 @@ import type {
 } from '../application/payment-repository.port';
 import { Payment } from '../domain/payment';
 import { PaymentOrmEntity } from './payment.orm-entity';
+
+const PAYMENT_SELECT = {
+  id: true,
+  organizationId: true,
+  customerId: true,
+  bankTransactionId: true,
+  totalAmount: true,
+  allocatedAmount: true,
+  payerName: true,
+  receivedAt: true,
+  createdAt: true,
+} satisfies FindOptionsSelect<PaymentOrmEntity>;
 
 // Explicit domain → ORM translation: the compiler checks every field, so a
 // drift between the two shapes fails here instead of being cast away.
@@ -61,6 +73,16 @@ export class TypeOrmPaymentRepository
       lock: { mode: 'pessimistic_write' },
     });
     return row ? fromOrm(row) : null;
+  }
+
+  async findByIds(ids: string[]): Promise<Map<string, Payment>> {
+    if (ids.length === 0) return new Map();
+
+    const rows = await this.scopedFindMany(
+      { id: In(ids) },
+      { select: PAYMENT_SELECT },
+    );
+    return new Map(rows.map((row) => [row.id, fromOrm(row)]));
   }
 
   async findUnallocatedByCustomerId(
