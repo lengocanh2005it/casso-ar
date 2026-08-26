@@ -19,8 +19,13 @@ import { hasPermission } from '@/lib/rbac';
 import { useUpdateReminderPolicy } from '../api/use-reminders';
 import type { ReminderPolicy } from '../types';
 
-function customerGroupLabel(customerGroup: ReminderPolicy['customerGroup']) {
-  return customerGroup === 'REGULAR' ? 'Thông thường' : customerGroup;
+const CUSTOMER_GROUP_LABELS: Record<string, string> = {
+  VIP: 'Khách hàng VIP',
+  REGULAR: 'Thông thường',
+};
+
+function customerGroupLabel(customerGroup: string): string {
+  return CUSTOMER_GROUP_LABELS[customerGroup] ?? 'Nhóm khách hàng khác';
 }
 
 export function PolicyTable({
@@ -86,7 +91,7 @@ export function PolicyTable({
                 </Badge>
                 {canWrite ? (
                   <Switch
-                    aria-label={`Bật chính sách ${policy.customerGroup}`}
+                    aria-label={`Bật chính sách ${customerGroupLabel(policy.customerGroup)}`}
                     checked={policy.isActive}
                     disabled={update.isPending}
                     onCheckedChange={() =>

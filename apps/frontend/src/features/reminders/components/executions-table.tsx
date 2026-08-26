@@ -14,13 +14,15 @@ import { getReceivableDisplayName } from '@/features/receivables/receivable-labe
 import { formatDateTime } from '@/lib/format';
 import type { ReminderExecution } from '../types';
 
-function statusLabel(status: ReminderExecution['status']): string {
-  return {
-    PENDING: 'Đang chờ',
-    SENT: 'Đã gửi',
-    FAILED: 'Thất bại',
-    SKIPPED: 'Đã bỏ qua',
-  }[status];
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Đang chờ',
+  SENT: 'Đã gửi',
+  FAILED: 'Thất bại',
+  SKIPPED: 'Đã bỏ qua',
+};
+
+function statusLabel(status: string): string {
+  return STATUS_LABELS[status] ?? 'Trạng thái khác';
 }
 
 export function ExecutionsTable({

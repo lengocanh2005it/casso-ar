@@ -27,4 +27,23 @@ describe('ExecutionsTable', () => {
       'receivable-1',
     );
   });
+
+  it('uses a safe Vietnamese fallback for an unknown status', () => {
+    const execution: ReminderExecution = {
+      id: 'execution-unknown',
+      receivableId: 'receivable-unknown',
+      reminderRuleId: null,
+      status: 'FUTURE_STATUS' as ReminderExecution['status'],
+      sentAt: null,
+      skipReason: null,
+      providerMessageId: null,
+      invoiceNumber: null,
+      customerName: null,
+    };
+
+    render(<ExecutionsTable executions={[execution]} />);
+
+    expect(screen.getByText('Trạng thái khác')).toBeInTheDocument();
+    expect(screen.queryByText('FUTURE_STATUS')).not.toBeInTheDocument();
+  });
 });

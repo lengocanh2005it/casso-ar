@@ -21,7 +21,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useCustomers } from '@/features/customers/api/use-customers';
 import { getAllocationErrorMessage } from '@/features/payments/allocation-errors';
 import { getReceivableDisplayName } from '@/features/receivables/receivable-label';
-import { formatVND } from '@/lib/format';
+import { formatDate, formatVND } from '@/lib/format';
 import { hasPermission } from '@/lib/rbac';
 import {
   useCandidates,
@@ -166,6 +166,16 @@ export function SplitMatchDialog({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm" title={candidateLabel}>
                     {candidateLabel}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Còn lại:{' '}
+                    {candidate.remainingAmount === null
+                      ? 'Chưa có số dư'
+                      : formatVND(candidate.remainingAmount)}{' '}
+                    · Hạn thanh toán:{' '}
+                    {candidate.dueDate
+                      ? formatDate(candidate.dueDate)
+                      : 'Chưa có hạn thanh toán'}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Mã kỹ thuật: <TruncatedCopyId id={candidate.receivableId} />

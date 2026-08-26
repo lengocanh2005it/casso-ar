@@ -19,6 +19,7 @@ import {
   RECEIVABLE_REPOSITORY,
 } from '../application/receivable-repository.port';
 import type { Receivable } from '../domain/receivable';
+import { loadReceivableRelatedData } from './load-receivable-related-data';
 
 // Caps the id-fan-out for a search term so an org with a huge customer/
 // invoice base can't produce an unbounded IN clause on the receivables query.
@@ -92,18 +93,18 @@ export class ListReceivablesUseCase {
     ]);
 
     const receivableIds = receivables.map((r) => r.id);
-    const invoiceIds = [
-      ...new Set(
-        receivables.flatMap((r) => (r.invoiceId ? [r.invoiceId] : [])),
-      ),
-    ];
     const customerIds = [...new Set(receivables.map((r) => r.customerId))];
 
-    const [openDisputes, invoices, customers] = await Promise.all([
+    const [openDisputes, relatedData] = await Promise.all([
       this.disputeRepo.findOpenDisputesByReceivableIds(receivableIds),
-      this.invoiceRepo.findByIds(invoiceIds),
-      this.customerRepo.findByIds(customerIds),
+      loadReceivableRelatedData(
+        receivables,
+        customerIds,
+        this.customerRepo,
+        this.invoiceRepo,
+      ),
     ]);
+    const { customers, invoices } = relatedData;
 
     const now = new Date();
     const items = receivables.map((r) => {

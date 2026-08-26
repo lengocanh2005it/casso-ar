@@ -8,6 +8,7 @@ import {
   type IInvoiceRepository,
   INVOICE_REPOSITORY,
 } from '../../invoices/application/invoice-repository.port';
+import { loadReceivableRelatedData } from '../../receivables/application/load-receivable-related-data';
 import {
   type IReceivableRepository,
   RECEIVABLE_REPOSITORY,
@@ -57,17 +58,12 @@ export class ListReminderExecutionsUseCase {
         [...receivables.values()].map((receivable) => receivable.customerId),
       ),
     ];
-    const invoiceIds = [
-      ...new Set(
-        [...receivables.values()].flatMap((receivable) =>
-          receivable.invoiceId ? [receivable.invoiceId] : [],
-        ),
-      ),
-    ];
-    const [customers, invoices] = await Promise.all([
-      this.customerRepo.findByIds(customerIds),
-      this.invoiceRepo.findByIds(invoiceIds),
-    ]);
+    const { customers, invoices } = await loadReceivableRelatedData(
+      [...receivables.values()],
+      customerIds,
+      this.customerRepo,
+      this.invoiceRepo,
+    );
 
     return {
       total: result.total,
