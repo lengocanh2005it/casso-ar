@@ -13,11 +13,6 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import {
-  AuditActionType,
-  AuditEntityType,
-} from '../../../common/audit/audit.enums';
-import { Audited } from '../../../common/audit/audited.decorator';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
@@ -62,7 +57,6 @@ export class PaymentsController {
   )
   @UseGuards(PermissionGuard)
   @RequirePermission(Permission.PAYMENT_ALLOCATE)
-  @Audited(AuditActionType.PAYMENT_ALLOCATE, AuditEntityType.PAYMENT)
   async allocate(
     @Param('id') paymentId: string,
     @Body() dto: AllocatePaymentDto,

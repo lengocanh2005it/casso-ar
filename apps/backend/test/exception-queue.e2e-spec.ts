@@ -11,6 +11,7 @@ import {
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { AuditLogOrmEntity } from '../src/common/audit/audit-log.orm-entity';
 import { configureApp } from '../src/configure-app';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
 import { Role } from '../src/modules/organizations/domain/membership';
@@ -229,5 +230,23 @@ describe('Exception Queue (e2e)', () => {
       .findOneByOrFail({ bankTransactionId: transactionId });
     expect(Number(payment.totalAmount)).toBe(30_000_000);
     expect(Number(payment.allocatedAmount)).toBe(25_000_000);
+
+    const auditRowsA = await dataSource.getRepository(AuditLogOrmEntity).find({
+      where: { organizationId, relatedReceivableId: receivableIdA },
+    });
+    const auditRowsB = await dataSource.getRepository(AuditLogOrmEntity).find({
+      where: { organizationId, relatedReceivableId: receivableIdB },
+    });
+    expect(auditRowsA).toHaveLength(1);
+    expect(auditRowsA[0].actionType).toBe('PAYMENT_ALLOCATE');
+    expect(auditRowsA[0].afterState).toMatchObject({
+      receivableId: receivableIdA,
+      allocatedAmount: 20_000_000,
+    });
+    expect(auditRowsB).toHaveLength(1);
+    expect(auditRowsB[0].afterState).toMatchObject({
+      receivableId: receivableIdB,
+      allocatedAmount: 5_000_000,
+    });
   }, 20_000);
 });

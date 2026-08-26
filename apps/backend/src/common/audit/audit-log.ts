@@ -12,6 +12,7 @@ export interface AuditLogProps {
   afterState: Record<string, unknown> | null;
   ipAddress: string | null;
   createdAt: Date;
+  relatedReceivableId?: string | null;
 }
 
 export class AuditLog implements AuditLogProps {
@@ -25,6 +26,7 @@ export class AuditLog implements AuditLogProps {
   readonly afterState: Record<string, unknown> | null;
   readonly ipAddress: string | null;
   readonly createdAt: Date;
+  readonly relatedReceivableId: string | null;
 
   constructor(props: AuditLogProps) {
     this.id = props.id ?? randomUUID();
@@ -37,5 +39,6 @@ export class AuditLog implements AuditLogProps {
     this.afterState = props.afterState;
     this.ipAddress = props.ipAddress;
     this.createdAt = props.createdAt;
+    this.relatedReceivableId = props.relatedReceivableId ?? null;
   }
 }

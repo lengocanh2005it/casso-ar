@@ -26,6 +26,7 @@ function toOrm(log: AuditLog): AuditLogOrmEntity {
     afterState: log.afterState,
     ipAddress: log.ipAddress,
     createdAt: log.createdAt,
+    relatedReceivableId: log.relatedReceivableId,
   };
 }
 
@@ -41,6 +42,7 @@ function toDomain(row: AuditLogOrmEntity): AuditLog {
     afterState: row.afterState,
     ipAddress: row.ipAddress,
     createdAt: row.createdAt,
+    relatedReceivableId: row.relatedReceivableId,
   });
 }
 
@@ -55,6 +57,7 @@ const AUDIT_LOG_SELECT = {
   afterState: true,
   ipAddress: true,
   createdAt: true,
+  relatedReceivableId: true,
 } as const;
 
 const MIN_DATE = new Date(0);

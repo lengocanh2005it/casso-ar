@@ -10,6 +10,7 @@ import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { TenantContextService } from '../tenancy/tenant-context';
+import { AuditEntityType } from './audit.enums';
 import { AuditContextService } from './audit-context';
 import { AuditLog } from './audit-log';
 import {
@@ -35,6 +36,18 @@ function responseId(value: unknown): string | undefined {
     typeof value.id === 'string'
   ) {
     return value.id;
+  }
+  return undefined;
+}
+
+function responseReceivableId(value: unknown): string | undefined {
+  if (
+    value !== null &&
+    typeof value === 'object' &&
+    'receivableId' in value &&
+    typeof value.receivableId === 'string'
+  ) {
+    return value.receivableId;
   }
   return undefined;
 }
@@ -68,12 +81,19 @@ export class AuditInterceptor implements NestInterceptor {
               if (!user) return;
 
               const entityId = request.params?.id ?? responseId(response) ?? '';
+              const relatedReceivableId =
+                metadata.entityType === AuditEntityType.RECEIVABLE
+                  ? entityId
+                  : (request.params?.receivableId ??
+                    responseReceivableId(response) ??
+                    null);
               const log = new AuditLog({
                 organizationId: user.organizationId,
                 userId: user.userId,
                 actionType: metadata.actionType,
                 entityType: metadata.entityType,
                 entityId,
+                relatedReceivableId,
                 beforeState: sanitizeAuditPayload(
                   this.auditContext.getBefore(),
                 ),

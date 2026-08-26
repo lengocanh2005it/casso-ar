@@ -143,6 +143,7 @@ export class UndoPaymentAllocationUseCase {
           actionType: AuditActionType.PAYMENT_ALLOCATE_UNDO,
           entityType: AuditEntityType.PAYMENT_ALLOCATION,
           entityId: allocation.id,
+          relatedReceivableId: allocation.receivableId,
           beforeState: { ...allocation },
           afterState: { ...undoneAllocation },
           ipAddress: null,

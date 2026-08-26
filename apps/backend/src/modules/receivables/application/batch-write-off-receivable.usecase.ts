@@ -49,6 +49,7 @@ export class BatchWriteOffReceivableUseCase {
               actionType: AuditActionType.RECEIVABLE_WRITE_OFF,
               entityType: AuditEntityType.RECEIVABLE,
               entityId: id,
+              relatedReceivableId: id,
               beforeState: null,
               afterState: sanitizeAuditPayload(receivable),
               ipAddress: null,
