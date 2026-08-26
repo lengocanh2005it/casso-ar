@@ -10,6 +10,7 @@ import {
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { AuditLogOrmEntity } from '../src/common/audit/audit-log.orm-entity';
 import { TenantContextService } from '../src/common/tenancy/tenant-context';
 import { configureApp } from '../src/configure-app';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
@@ -164,6 +165,23 @@ describe('Payment allocation (integration)', () => {
 
     expect(receivableRow[0].status).toBe('PARTIALLY_PAID');
     expect(Number(receivableRow[0].paidAmount)).toBe(30_000_000);
+
+    const auditRows = await dataSource.getRepository(AuditLogOrmEntity).find({
+      where: { organizationId, relatedReceivableId: receivableId },
+    });
+    expect(auditRows.map((row) => row.actionType).sort()).toEqual([
+      'PAYMENT_ALLOCATE',
+      'RECEIVABLE_CREATE',
+    ]);
+    const allocateRow = auditRows.find(
+      (row) => row.actionType === 'PAYMENT_ALLOCATE',
+    );
+    expect(allocateRow?.entityType).toBe('PaymentAllocation');
+    expect(allocateRow?.afterState).toMatchObject({
+      receivableId,
+      paymentId,
+      allocatedAmount: 30_000_000,
+    });
   });
 
   it('accumulates paidAmount correctly across two allocations on a receivable reloaded from the DB (bigint money columns must stay integers)', async () => {

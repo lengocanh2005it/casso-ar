@@ -44,5 +44,11 @@ describe('BatchCancelReceivableUseCase', () => {
       message: 'Không thể hủy khoản phải thu đã nhận thanh toán.',
     });
     expect(auditLogRepo.create).toHaveBeenCalledTimes(1);
+    expect(auditLogRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityId: 'rec-ok',
+        relatedReceivableId: 'rec-ok',
+      }),
+    );
   });
 });

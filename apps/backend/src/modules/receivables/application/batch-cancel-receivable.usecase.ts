@@ -49,6 +49,7 @@ export class BatchCancelReceivableUseCase {
               actionType: AuditActionType.RECEIVABLE_CANCEL,
               entityType: AuditEntityType.RECEIVABLE,
               entityId: id,
+              relatedReceivableId: id,
               beforeState: null,
               afterState: sanitizeAuditPayload(receivable),
               ipAddress: null,
