@@ -1,3 +1,9 @@
+export interface AuditLogDisplay {
+  entityLabel: string | null;
+  customerNames: Record<string, string>;
+  invoiceNumbers: Record<string, string>;
+}
+
 export interface AuditLogItem {
   id: string;
   userId: string;
@@ -8,6 +14,7 @@ export interface AuditLogItem {
   afterState: Record<string, unknown> | null;
   ipAddress: string | null;
   createdAt: string;
+  display?: AuditLogDisplay;
 }
 
 export interface AuditLogPage {

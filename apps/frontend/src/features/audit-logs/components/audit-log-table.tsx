@@ -13,14 +13,14 @@ import {
 } from '@/components/ui/table';
 import type { OrganizationMember } from '@/features/settings/types';
 import { actorLabel } from '@/lib/actor-label';
-import { formatDateTime, formatVND } from '@/lib/format';
+import { formatDate, formatDateTime, formatVND } from '@/lib/format';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import {
   ACTION_TYPE_LABELS,
   ENTITY_TYPE_LABELS,
   FIELD_LABELS,
 } from '../labels';
-import type { AuditLogItem } from '../types';
+import type { AuditLogDisplay, AuditLogItem } from '../types';
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -39,10 +39,77 @@ const MONEY_FIELD_NAMES = new Set([
   'unallocatedAmount',
 ]);
 
-function FieldValue({ field, value }: { field: string; value: unknown }) {
+const DATE_ONLY_FIELD_NAMES = new Set(['dueDate', 'issueDate']);
+
+const DATE_TIME_FIELD_NAMES = new Set([
+  'createdAt',
+  'updatedAt',
+  'closedAt',
+  'resolvedAt',
+  'allocatedAt',
+  'deletedAt',
+  'receivedAt',
+  'sentAt',
+  'invitedAt',
+  'expiresAt',
+  'lastSyncAt',
+  'effectiveAt',
+  'transactionDateTime',
+]);
+
+function formatDateField(field: string, value: unknown): string | null {
+  if (typeof value !== 'string' && !(value instanceof Date)) return null;
+  const date = typeof value === 'string' ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return null;
+  if (DATE_ONLY_FIELD_NAMES.has(field)) return formatDate(date);
+  if (
+    DATE_TIME_FIELD_NAMES.has(field) ||
+    field.endsWith('At') ||
+    field.endsWith('DateTime')
+  ) {
+    return formatDateTime(date);
+  }
+  return null;
+}
+
+function ReferenceValue({ id, label }: { id: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span title={label}>{label}</span>
+      <TruncatedCopyId id={id} />
+    </span>
+  );
+}
+
+function FieldValue({
+  field,
+  value,
+  display,
+}: {
+  field: string;
+  value: unknown;
+  display?: AuditLogDisplay;
+}) {
   if (value === undefined || value === null) return <>—</>;
   if (typeof value === 'number' && MONEY_FIELD_NAMES.has(field)) {
     return <>{formatVND(value)}</>;
+  }
+  if (typeof value === 'string') {
+    const formattedDate = formatDateField(field, value);
+    if (formattedDate) return <>{formattedDate}</>;
+
+    if (field === 'customerId') {
+      const customerName = display?.customerNames[value];
+      if (customerName) {
+        return <ReferenceValue id={value} label={customerName} />;
+      }
+    }
+    if (field === 'invoiceId') {
+      const invoiceNumber = display?.invoiceNumbers[value];
+      if (invoiceNumber) {
+        return <ReferenceValue id={value} label={invoiceNumber} />;
+      }
+    }
   }
   if (typeof value === 'string' && UUID_PATTERN.test(value)) {
     return <TruncatedCopyId id={value} />;
@@ -100,10 +167,18 @@ function DetailRow({ item }: { item: AuditLogItem }) {
                       {FIELD_LABELS[row.field] ?? row.field}
                     </td>
                     <td className="pr-4 py-1">
-                      <FieldValue field={row.field} value={row.before} />
+                      <FieldValue
+                        field={row.field}
+                        value={row.before}
+                        display={item.display}
+                      />
                     </td>
                     <td className="py-1">
-                      <FieldValue field={row.field} value={row.after} />
+                      <FieldValue
+                        field={row.field}
+                        value={row.after}
+                        display={item.display}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -160,9 +235,25 @@ export function AuditLogTable({ items, members }: AuditLogTableProps) {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1.5">
-                    <span>
-                      {ENTITY_TYPE_LABELS[item.entityType] ?? item.entityType}
-                    </span>
+                    {item.display?.entityLabel ? (
+                      <>
+                        <span className="text-muted-foreground">
+                          {ENTITY_TYPE_LABELS[item.entityType] ??
+                            item.entityType}
+                          :
+                        </span>
+                        <span
+                          className="max-w-64 truncate"
+                          title={item.display.entityLabel}
+                        >
+                          {item.display.entityLabel}
+                        </span>
+                      </>
+                    ) : (
+                      <span>
+                        {ENTITY_TYPE_LABELS[item.entityType] ?? item.entityType}
+                      </span>
+                    )}
                     {item.entityId ? (
                       <TruncatedCopyId id={item.entityId} />
                     ) : (

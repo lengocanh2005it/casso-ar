@@ -1,7 +1,7 @@
 import { Permission } from '@casso-ar/shared-types';
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { AuditLog } from '../../../common/audit/audit-log';
+import type { AuditLog } from '../../../common/audit/audit-log';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
@@ -13,7 +13,11 @@ import {
   ListAuditLogsResponseDto,
 } from './dto/list-audit-logs-response.dto';
 
-function toAuditLogItemResponse(log: AuditLog): AuditLogItemResponse {
+function toAuditLogItemResponse(
+  log: AuditLog & {
+    display: AuditLogItemResponse['display'];
+  },
+): AuditLogItemResponse {
   return {
     id: log.id,
     userId: log.userId,
@@ -24,6 +28,7 @@ function toAuditLogItemResponse(log: AuditLog): AuditLogItemResponse {
     afterState: log.afterState,
     ipAddress: log.ipAddress,
     createdAt: log.createdAt,
+    display: log.display,
   };
 }
 

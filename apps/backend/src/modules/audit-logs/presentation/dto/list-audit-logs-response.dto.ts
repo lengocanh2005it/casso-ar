@@ -1,3 +1,9 @@
+export class AuditLogDisplayResponseDto {
+  entityLabel: string | null;
+  customerNames: Record<string, string>;
+  invoiceNumbers: Record<string, string>;
+}
+
 export class AuditLogItemResponse {
   id: string;
   userId: string;
@@ -8,6 +14,7 @@ export class AuditLogItemResponse {
   afterState: Record<string, unknown> | null;
   ipAddress: string | null;
   createdAt: Date;
+  display: AuditLogDisplayResponseDto;
 }
 
 export class ListAuditLogsResponseDto {

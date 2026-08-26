@@ -65,7 +65,7 @@ export const ACTION_TYPE_LABELS: Record<string, string> = {
 // audited (Receivable, PaymentAllocation, Dispute). Anything missing falls
 // back to its raw name (see FIELD_LABELS[field] ?? field).
 export const FIELD_LABELS: Record<string, string> = {
-  id: 'Mã',
+  id: 'Mã hệ thống',
   organizationId: 'Tổ chức',
   customerId: 'Khách hàng',
   invoiceId: 'Hóa đơn',
@@ -78,9 +78,11 @@ export const FIELD_LABELS: Record<string, string> = {
   allocatedAmount: 'Số tiền phân bổ',
   totalAmount: 'Tổng tiền',
   dueDate: 'Hạn thanh toán',
+  issueDate: 'Ngày phát hành',
   status: 'Trạng thái',
   salesRepresentativeId: 'Nhân viên phụ trách',
   createdAt: 'Ngày tạo',
+  updatedAt: 'Ngày cập nhật',
   closedAt: 'Ngày đóng',
   version: 'Phiên bản',
   reason: 'Lý do',
@@ -91,6 +93,13 @@ export const FIELD_LABELS: Record<string, string> = {
   allocatedByUserId: 'Người phân bổ',
   deletedAt: 'Ngày xóa',
   deletedByUserId: 'Người xóa',
+  receivedAt: 'Thời điểm nhận',
+  sentAt: 'Thời điểm gửi',
+  invitedAt: 'Ngày mời',
+  expiresAt: 'Ngày hết hạn',
+  lastSyncAt: 'Lần đồng bộ gần nhất',
+  effectiveAt: 'Thời điểm hiệu lực',
+  transactionDateTime: 'Thời điểm giao dịch',
   undoReason: 'Lý do hoàn tác',
 };
 
