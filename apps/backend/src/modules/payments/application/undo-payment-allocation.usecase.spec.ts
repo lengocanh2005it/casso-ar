@@ -95,7 +95,10 @@ describe('UndoPaymentAllocationUseCase', () => {
       manager,
     );
     expect(auditLogRepo.create).toHaveBeenCalledWith(
-      expect.objectContaining({ actionType: 'PAYMENT_ALLOCATE_UNDO' }),
+      expect.objectContaining({
+        actionType: 'PAYMENT_ALLOCATE_UNDO',
+        relatedReceivableId: 'rec-1',
+      }),
       manager,
     );
     expect(recorder.record).toHaveBeenCalledWith({
