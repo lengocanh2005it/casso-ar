@@ -92,6 +92,80 @@ describe('AuditInterceptor', () => {
     );
   });
 
+  it('sets relatedReceivableId to entityId when entityType is RECEIVABLE', async () => {
+    const { interceptor, auditContext, auditLogRepo } = buildInterceptor({
+      actionType: AuditActionType.RECEIVABLE_WRITE_OFF,
+      entityType: AuditEntityType.RECEIVABLE,
+    });
+    const context = buildContext(
+      {
+        actionType: AuditActionType.RECEIVABLE_WRITE_OFF,
+        entityType: AuditEntityType.RECEIVABLE,
+      },
+      { id: 'rec-1' },
+    );
+    const handler: CallHandler = {
+      handle: () => {
+        auditContext.setBefore({ id: 'rec-1', status: 'OPEN' });
+        return of({ id: 'rec-1', status: 'WRITTEN_OFF' });
+      },
+    };
+
+    await lastValueFrom(interceptor.intercept(context, handler));
+
+    expect(auditLogRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ relatedReceivableId: 'rec-1' }),
+    );
+  });
+
+  it('sets relatedReceivableId from a receivableId field on the response body', async () => {
+    const { interceptor, auditLogRepo } = buildInterceptor({
+      actionType: AuditActionType.DISPUTE_OPEN,
+      entityType: AuditEntityType.DISPUTE,
+    });
+    const context = buildContext(
+      {
+        actionType: AuditActionType.DISPUTE_OPEN,
+        entityType: AuditEntityType.DISPUTE,
+      },
+      { receivableId: 'rec-9' },
+    );
+    const handler: CallHandler = {
+      handle: () =>
+        of({ id: 'dispute-1', receivableId: 'rec-9', status: 'OPEN' }),
+    };
+
+    await lastValueFrom(interceptor.intercept(context, handler));
+
+    expect(auditLogRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityId: 'dispute-1',
+        relatedReceivableId: 'rec-9',
+      }),
+    );
+  });
+
+  it('leaves relatedReceivableId unset for audited actions unrelated to a receivable', async () => {
+    const { interceptor, auditLogRepo } = buildInterceptor({
+      actionType: AuditActionType.SMTP_CONFIG_SAVE,
+      entityType: AuditEntityType.SMTP_CONFIG,
+    });
+    const context = buildContext(
+      {
+        actionType: AuditActionType.SMTP_CONFIG_SAVE,
+        entityType: AuditEntityType.SMTP_CONFIG,
+      },
+      { id: 'smtp-1' },
+    );
+    const handler: CallHandler = { handle: () => of({ success: true }) };
+
+    await lastValueFrom(interceptor.intercept(context, handler));
+
+    expect(auditLogRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ relatedReceivableId: null }),
+    );
+  });
+
   it('does not write an audit log when the handler fails', async () => {
     const { interceptor, auditLogRepo } = buildInterceptor({
       actionType: AuditActionType.RECEIVABLE_WRITE_OFF,
