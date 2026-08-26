@@ -203,6 +203,25 @@ describe('Audit logs + webhook inbox admin APIs (integration)', () => {
         ipAddress: null,
         createdAt: new Date('2026-08-13'),
       },
+      {
+        id: randomUUID(),
+        organizationId: orgB,
+        userId: ownerB,
+        actionType: AuditActionType.PAYMENT_ALLOCATE,
+        entityType: AuditEntityType.PAYMENT_ALLOCATION,
+        entityId: 'alloc-2',
+        // Same relatedReceivableId as the orgA row above, on purpose: proves
+        // the receivableId filter stays AND'ed with organizationId instead
+        // of leaking across tenants when two orgs coincidentally reuse an id.
+        relatedReceivableId: receivableForFilterTest,
+        beforeState: null,
+        afterState: {
+          receivableId: receivableForFilterTest,
+          allocatedAmount: 999999,
+        },
+        ipAddress: null,
+        createdAt: new Date('2026-08-13'),
+      },
     ]);
 
     await dataSource.getRepository(WebhookInboxOrmEntity).save([
@@ -276,6 +295,24 @@ describe('Audit logs + webhook inbox admin APIs (integration)', () => {
       entityId: 'alloc-1',
       entityType: 'PaymentAllocation',
     });
+  });
+
+  it('GET /audit-logs filters by receivableId stay scoped to the caller organization', async () => {
+    // orgB has a row with the same relatedReceivableId (see fixture setup) —
+    // this proves the filter is AND'ed with organizationId, not applied alone.
+    const responseA = await request(app.getHttpServer())
+      .get(`/api/v1/audit-logs?receivableId=${receivableForFilterTest}`)
+      .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .expect(200);
+    expect(responseA.body.total).toBe(1);
+    expect(responseA.body.items[0].entityId).toBe('alloc-1');
+
+    const responseB = await request(app.getHttpServer())
+      .get(`/api/v1/audit-logs?receivableId=${receivableForFilterTest}`)
+      .set('Authorization', `Bearer ${token(ownerB, orgB, Role.OWNER)}`)
+      .expect(200);
+    expect(responseB.body.total).toBe(1);
+    expect(responseB.body.items[0].entityId).toBe('alloc-2');
   });
 
   it('GET /webhooks/inbox lists inbox rows tenant-scoped with status filter', async () => {
@@ -367,8 +404,10 @@ describe('Audit logs + webhook inbox admin APIs (integration)', () => {
       .set('Authorization', `Bearer ${token(ownerB, orgB, Role.OWNER)}`)
       .expect(200)
       .expect(({ body }) => {
-        expect(body.total).toBe(1);
-        expect(body.items[0].id).not.toBe(logId);
+        expect(body.total).toBe(2);
+        expect(body.items.map((item: { id: string }) => item.id)).not.toContain(
+          logId,
+        );
       });
 
     await request(app.getHttpServer())
