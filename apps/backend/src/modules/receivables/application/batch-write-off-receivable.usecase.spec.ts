@@ -44,5 +44,11 @@ describe('BatchWriteOffReceivableUseCase', () => {
       message: 'Không tìm thấy khoản phải thu.',
     });
     expect(auditLogRepo.create).toHaveBeenCalledTimes(1);
+    expect(auditLogRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityId: 'rec-ok',
+        relatedReceivableId: 'rec-ok',
+      }),
+    );
   });
 });
