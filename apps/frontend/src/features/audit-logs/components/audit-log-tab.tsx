@@ -1,7 +1,7 @@
 import { Permission } from '@casso-ar/shared-types';
 import { ScrollText } from 'lucide-react';
 import { SectionCard } from '@/components/layout/section-card';
-import { Button } from '@/components/ui/button';
+import { AuditLogPagination } from '@/components/shared/audit-log-pagination';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import { useOrganizationMembers } from '@/features/settings/api/use-settings';
@@ -86,29 +86,13 @@ export function AuditLogTab() {
           <AuditLogTable items={items} members={members} />
         )}
       </SectionCard>
-      <div className="flex items-center justify-between">
-        <p className="tabular-nums text-sm text-muted-foreground">
-          Trang {page} / {totalPages} • {total} nhật ký
-        </p>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage(Math.max(1, page - 1))}
-          >
-            Trước
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => setPage(page + 1)}
-          >
-            Sau
-          </Button>
-        </div>
-      </div>
+      <AuditLogPagination
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        onPrev={() => setPage(Math.max(1, page - 1))}
+        onNext={() => setPage(page + 1)}
+      />
     </div>
   );
 }

@@ -45,6 +45,7 @@ export class AuditLogsController {
       ...(query.entityType ? { entityType: query.entityType } : {}),
       ...(query.actionType ? { actionType: query.actionType } : {}),
       ...(query.actorUserId ? { actorUserId: query.actorUserId } : {}),
+      ...(query.receivableId ? { receivableId: query.receivableId } : {}),
       ...(query.from ? { from: new Date(query.from) } : {}),
       ...(query.to ? { to: new Date(query.to) } : {}),
     });

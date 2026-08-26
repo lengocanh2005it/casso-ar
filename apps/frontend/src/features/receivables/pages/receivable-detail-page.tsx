@@ -1,3 +1,4 @@
+import { Permission } from '@casso-ar/shared-types';
 import { CalendarClock, CreditCard, Receipt } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { HeaderIcon } from '@/components/layout/header-icon';
@@ -5,11 +6,14 @@ import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/contexts/auth-context';
 import { formatDate, formatDateTime, formatVND } from '@/lib/format';
+import { hasPermission } from '@/lib/rbac';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { useReceivable } from '../api/use-receivables';
 import { CancelDialog } from '../components/cancel-dialog';
 import { DisputeDialog } from '../components/dispute-dialog';
+import { ReceivableAuditTrail } from '../components/receivable-audit-trail';
 import { ReceivablePayments } from '../components/receivable-payments';
 import { ReceivableTasks } from '../components/receivable-tasks';
 import { ReceivableTimeline } from '../components/receivable-timeline';
@@ -19,11 +23,17 @@ import { getReceivableDisplayName } from '../receivable-label';
 export function ReceivableDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const { searchParams, setParam } = useUrlQueryParams();
+  const { user } = useAuth();
+  const canReadAudit = hasPermission(
+    user?.role ?? null,
+    Permission.AUDIT_LOG_READ,
+  );
   const { data: receivable, isPending, isError } = useReceivable(id);
-  const activeTab = ['payments', 'activity', 'tasks'].includes(
-    searchParams.get('tab') ?? '',
-  )
-    ? (searchParams.get('tab') as 'payments' | 'activity' | 'tasks')
+  const allowedTabs = canReadAudit
+    ? ['payments', 'activity', 'tasks', 'audit']
+    : ['payments', 'activity', 'tasks'];
+  const activeTab = allowedTabs.includes(searchParams.get('tab') ?? '')
+    ? (searchParams.get('tab') as 'payments' | 'activity' | 'tasks' | 'audit')
     : 'payments';
 
   if (isPending)
@@ -203,6 +213,9 @@ export function ReceivableDetailPage() {
           <TabsTrigger value="payments">Thanh toán</TabsTrigger>
           <TabsTrigger value="activity">Hoạt động</TabsTrigger>
           <TabsTrigger value="tasks">Công việc</TabsTrigger>
+          {canReadAudit && (
+            <TabsTrigger value="audit">Nhật ký kiểm toán</TabsTrigger>
+          )}
         </TabsList>
         <TabsContent
           value="payments"
@@ -235,6 +248,14 @@ export function ReceivableDetailPage() {
         >
           <ReceivableTasks receivableId={receivable.id} />
         </TabsContent>
+        {canReadAudit && (
+          <TabsContent
+            value="audit"
+            className="min-h-32 rounded-xl border bg-card p-5"
+          >
+            <ReceivableAuditTrail receivableId={receivable.id} />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
