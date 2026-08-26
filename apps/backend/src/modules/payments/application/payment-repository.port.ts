@@ -2,6 +2,7 @@ import type { EntityManager } from 'typeorm';
 import type { Payment } from '../domain/payment';
 
 export interface IPaymentRepository {
+  findByIds(ids: string[]): Promise<Map<string, Payment>>;
   findByIdForUpdate(
     id: string,
     manager: EntityManager,
