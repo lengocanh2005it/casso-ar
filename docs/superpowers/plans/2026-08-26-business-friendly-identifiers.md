@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Execution status (2026-08-26):** Tasks 1–7 completed inline on the existing PR worktree; no subagents were dispatched per request. The step checklists below are historical implementation notes.
+
 **Goal:** Replace raw UUIDs and internal enum labels with business-readable identifiers in the tenant-facing receivable, payment allocation, exception, reminder, and Copilot workflows.
 
 **Architecture:** Add read-only presentation metadata at existing application/query seams, preserving domain payload IDs for commands. The frontend renders business metadata first and keeps technical IDs only in existing copyable secondary controls. No new dependency or separate design-system abstraction is introduced.
@@ -19,7 +21,7 @@
 
 ---
 
-### Task 1: Add batched read metadata for receivable details and allocations
+### Task 1: Add batched read metadata for receivable details and allocations ✅
 
 **Files:**
 - Modify: `apps/backend/src/modules/receivables/application/get-receivable.usecase.ts`
@@ -42,7 +44,7 @@
 - [ ] **Step 4: Run the same focused tests** and confirm they pass.
 - [ ] **Step 5: Commit** with `feat: add receivable display metadata`.
 
-### Task 2: Add display metadata to exception candidates and reminder executions
+### Task 2: Add display metadata to exception candidates and reminder executions ✅
 
 **Depends on:** Task 1 (the batched receivable repository lookup seam).
 
@@ -70,7 +72,7 @@
 - [ ] **Step 4: Update controller mappers and Swagger DTOs**, then rerun the focused specs.
 - [ ] **Step 5: Commit** with `feat: expose business labels for review queues`.
 
-### Task 3: Preserve a human Copilot pending-action label
+### Task 3: Preserve a human Copilot pending-action label ✅
 
 **Files:**
 - Modify: `apps/backend/src/modules/copilot/application/pending-action-repository.port.ts`
@@ -92,7 +94,7 @@
 - [ ] **Step 4: Run focused Copilot specs** and confirm pass.
 - [ ] **Step 5: Commit** with `feat: add business label to Copilot actions`.
 
-### Task 4: Make receivable/customer screens business-readable
+### Task 4: Make receivable/customer screens business-readable ✅
 
 **Depends on:** Task 1.
 
@@ -111,7 +113,7 @@
 - [ ] **Step 4: Run the affected Vitest files** and confirm pass.
 - [ ] **Step 5: Commit** with `feat: improve receivable business labels`.
 
-### Task 5: Make exception/reminder workflows business-readable
+### Task 5: Make exception/reminder workflows business-readable ✅
 
 **Depends on:** Task 2.
 
@@ -133,7 +135,7 @@
 - [ ] **Step 4: Run those Vitest files** and confirm pass.
 - [ ] **Step 5: Commit** with `feat: label exception and reminder records`.
 
-### Task 6: Make Copilot and balance-history technical labels secondary
+### Task 6: Make Copilot and balance-history technical labels secondary ✅
 
 **Depends on:** Task 3.
 
@@ -153,7 +155,7 @@
 - [ ] **Step 4: Run the affected Vitest files** and confirm pass.
 - [ ] **Step 5: Commit** with `feat: localize Copilot and audit labels`.
 
-### Task 7: Final verification and review
+### Task 7: Final verification and review ✅
 
 **Files:**
 - No new production files; update tests/docs only if verification finds a real gap.
@@ -161,5 +163,5 @@
 - [ ] **Step 1: Run frontend focused tests, backend focused tests, and both package type checks.**
 - [ ] **Step 2: Run the full test suite and record any pre-existing timeout separately from failures introduced by this branch.**
 - [ ] **Step 3: Run `domain-check` and `pnpm verify`; fix every actionable violation.
-- [ ] **Step 4: Run the two-axis `code-review` skill against `main...HEAD`; fix standards/spec findings in one follow-up commit.
-- [ ] **Step 5: Run final verification again, push the branch, and mark the draft PR ready only when the commands provide fresh evidence.
+- [x] **Step 4: Perform a manual two-axis review against `main...HEAD`; the automatic subagent review was intentionally skipped per the request to work inline, and the real bank-reference display gap was fixed in a follow-up commit.**
+- [x] **Step 5: Run final verification again and push the branch with fresh evidence.**
