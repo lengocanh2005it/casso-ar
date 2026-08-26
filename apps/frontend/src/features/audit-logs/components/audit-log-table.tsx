@@ -18,14 +18,18 @@ import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { ACTION_TYPE_LABELS, ENTITY_TYPE_LABELS } from '../labels';
 import type { AuditLogItem } from '../types';
 
+// Every @Column('bigint') money field across the app (apps/backend/src/modules/**/*.orm-entity.ts),
+// so a new field shown in an audit payload renders as VND, not a raw number.
 const MONEY_FIELD_NAMES = new Set([
   'amount',
   'allocatedAmount',
+  'creditLimit',
   'originalAmount',
   'paidAmount',
+  'remainingAmount',
+  'taxAmount',
   'totalAmount',
   'unallocatedAmount',
-  'remainingAmount',
 ]);
 
 function formatFieldValue(field: string, value: unknown): string {
