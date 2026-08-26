@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
+import { useAuth } from '@/contexts/auth-context';
 import { ReceivableDetailPage } from './receivable-detail-page';
 
 const apiRequest = vi.fn();
@@ -10,12 +11,30 @@ vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
 }));
 
-vi.mock('@/contexts/auth-context', () => ({
-  useAuth: () => ({ user: { role: 'FINANCE_MANAGER' } }),
-}));
+vi.mock('@/contexts/auth-context', () => ({ useAuth: vi.fn() }));
+
+const useAuthMock = vi.mocked(useAuth);
+
+function renderDetailPage(id = 'r1') {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[`/receivables/${id}`]}>
+        <Routes>
+          <Route path="/receivables/:id" element={<ReceivableDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
 
 describe('ReceivableDetailPage', () => {
   it('shows remaining amount and allocations', async () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'FINANCE_MANAGER' },
+    } as never);
     apiRequest.mockResolvedValue({
       id: 'r1',
       customerId: 'c1',
@@ -42,18 +61,7 @@ describe('ReceivableDetailPage', () => {
       ],
     });
 
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter initialEntries={['/receivables/r1']}>
-          <Routes>
-            <Route path="/receivables/:id" element={<ReceivableDetailPage />} />
-          </Routes>
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    renderDetailPage();
 
     await waitFor(() =>
       expect(screen.getByText('20.000.000 ₫')).toBeInTheDocument(),
@@ -73,6 +81,9 @@ describe('ReceivableDetailPage', () => {
   });
 
   it('shows the invoice number as heading instead of the raw id when available', async () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'FINANCE_MANAGER' },
+    } as never);
     apiRequest.mockResolvedValue({
       id: 'a1b2c3d4-e5f6-47a8-9abc-1234567890ab',
       customerId: 'c1',
@@ -91,20 +102,7 @@ describe('ReceivableDetailPage', () => {
       allocations: [],
     });
 
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter
-          initialEntries={['/receivables/a1b2c3d4-e5f6-47a8-9abc-1234567890ab']}
-        >
-          <Routes>
-            <Route path="/receivables/:id" element={<ReceivableDetailPage />} />
-          </Routes>
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    renderDetailPage('a1b2c3d4-e5f6-47a8-9abc-1234567890ab');
 
     expect(
       await screen.findByRole('heading', { name: 'INV-001' }),
@@ -112,6 +110,67 @@ describe('ReceivableDetailPage', () => {
     expect(screen.getByText('Chưa có khoản thanh toán')).toBeInTheDocument();
     expect(
       screen.queryByText('a1b2c3d4-e5f6-47a8-9abc-1234567890ab'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the audit trail tab for a role with AUDIT_LOG_READ', async () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'FINANCE_MANAGER' },
+    } as never);
+    apiRequest.mockResolvedValue({
+      id: 'r1',
+      customerId: 'c1',
+      invoiceId: null,
+      invoiceNumber: null,
+      originalAmount: 50_000_000,
+      paidAmount: 0,
+      remainingAmount: 50_000_000,
+      dueDate: '2026-08-20',
+      status: 'OPEN',
+      isDisputed: false,
+      disputeId: null,
+      isOverdue: false,
+      salesRepresentativeId: null,
+      createdAt: '2026-07-01',
+      allocations: [],
+    });
+
+    renderDetailPage();
+
+    expect(
+      await screen.findByRole('tab', { name: 'Nhật ký kiểm toán' }),
+    ).toBeInTheDocument();
+  });
+
+  it('hides the audit trail tab for a role without AUDIT_LOG_READ', async () => {
+    // ACCOUNTANT has neither AUDIT_LOG_READ nor RECEIVABLE_AUDIT_READ — see
+    // packages/shared-types/src/role-permissions.ts.
+    useAuthMock.mockReturnValue({
+      user: { role: 'ACCOUNTANT' },
+    } as never);
+    apiRequest.mockResolvedValue({
+      id: 'r1',
+      customerId: 'c1',
+      invoiceId: null,
+      invoiceNumber: null,
+      originalAmount: 50_000_000,
+      paidAmount: 0,
+      remainingAmount: 50_000_000,
+      dueDate: '2026-08-20',
+      status: 'OPEN',
+      isDisputed: false,
+      disputeId: null,
+      isOverdue: false,
+      salesRepresentativeId: null,
+      createdAt: '2026-07-01',
+      allocations: [],
+    });
+
+    renderDetailPage();
+
+    await screen.findByRole('heading', { name: 'Khoản phải thu' });
+    expect(
+      screen.queryByRole('tab', { name: 'Nhật ký kiểm toán' }),
     ).not.toBeInTheDocument();
   });
 });
