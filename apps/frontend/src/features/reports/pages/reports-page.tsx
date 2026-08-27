@@ -2,15 +2,9 @@ import { BarChart3, PieChart, TrendingUp, Users } from 'lucide-react';
 import { lazy, Suspense, useEffect } from 'react';
 import { EmptyState } from '@/components/layout/empty-state';
 import { PageHeading } from '@/components/layout/page-heading';
+import { TrendMonthsSelect } from '@/components/shared/trend-months-select';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useCsvExport } from '@/lib/use-csv-export';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { exportAgingReportCsv } from '../api/reports-api';
@@ -28,10 +22,10 @@ import {
 } from '../components/customer-aging-filters';
 import { CustomerAgingTable } from '../components/customer-aging-table';
 import { DashboardSummary } from '../components/dashboard-summary';
+import { parseTrendMonths } from '../trend-months';
 import type { AgingBucket, TrendMonths } from '../types';
 
 const CUSTOMER_AGING_LIMIT = 20;
-const TREND_MONTHS: TrendMonths[] = [3, 6, 12];
 
 const agingChartImport = import('../components/aging-chart');
 const AgingChart = lazy(() =>
@@ -60,15 +54,6 @@ function isAgingBucket(value: string | null): value is AgingBucket {
   return AGING_BUCKET_ORDER.some((bucket) => bucket === value);
 }
 
-function isTrendMonths(value: number): value is TrendMonths {
-  return TREND_MONTHS.some((months) => months === value);
-}
-
-function parseTrendMonths(value: string | null): TrendMonths {
-  const parsed = Number(value ?? '12');
-  return isTrendMonths(parsed) ? parsed : 12;
-}
-
 export function ReportsPage() {
   const { isExporting, exportCsv } = useCsvExport();
   const { searchParams, patch } = useUrlQueryParams();
@@ -82,7 +67,7 @@ export function ReportsPage() {
     : 'ALL';
   const rawPage = Number(searchParams.get('agingPage') ?? '1');
   const agingPage = Number.isInteger(rawPage) && rawPage >= 1 ? rawPage : 1;
-  const trendMonths = parseTrendMonths(searchParams.get('trendMonths'));
+  const trendMonths = parseTrendMonths(searchParams.get('trendMonths'), 12);
 
   const customerAgingQuery = useCustomerAging({
     page: agingPage,
@@ -293,29 +278,10 @@ export function ReportsPage() {
             />
             <CardTitle>Xu hướng công nợ và thu hồi</CardTitle>
           </div>
-          <Select
-            value={String(trendMonths)}
-            onValueChange={(value) => {
-              const months = Number(value);
-              if (isTrendMonths(months)) {
-                setTrendMonths(months);
-              }
-            }}
-          >
-            <SelectTrigger
-              aria-label="Khoảng thời gian"
-              className="w-full sm:w-40"
-            >
-              <SelectValue placeholder="12 tháng" />
-            </SelectTrigger>
-            <SelectContent>
-              {TREND_MONTHS.map((months) => (
-                <SelectItem key={months} value={String(months)}>
-                  {months} tháng
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <TrendMonthsSelect
+            value={trendMonths}
+            onValueChange={setTrendMonths}
+          />
         </CardHeader>
         <CardContent>
           {trendQuery.isPending && (
