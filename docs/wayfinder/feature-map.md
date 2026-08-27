@@ -783,6 +783,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - #262 — Frontend for business identity verification at signup (backend #245 shipped via PR #263; branch `lengocanh2005it/feat-262-fe-business-verification`).
 - #369 — Audit infra: `relatedReceivableId` correlation for receivable-relevant audit events, the prerequisite for #360's contextual receivable audit trail; plan `docs/superpowers/plans/2026-08-26-audit-related-receivable-id.md`; PR #370 open (not yet merged), branch `chore/audit-related-receivable-id`.
 - #376 — Business-friendly identifiers and Vietnamese labels across receivables, payments, exception/reminder queues, Copilot, and audit/balance-history views; plan `docs/superpowers/plans/2026-08-26-business-friendly-identifiers.md`; PR #376 open (not yet merged), branch `feat/business-friendly-identifiers`.
+- #359 — Dashboard time-range filter for the paired trend charts; done. Shipped: 2026-08-27; PR #377.
 
 **Next available tickets** (all blockers resolved):
 - None.
