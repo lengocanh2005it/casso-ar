@@ -6,6 +6,14 @@ describe('PlanLimitService', () => {
   const tenant = { getOrganizationId: () => 'org-1' };
   const manager = {} as any;
 
+  beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-08-15T00:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   function activeSubscription(overrides: Partial<SubscriptionProps> = {}) {
     return new Subscription({
       id: 'sub-1',
