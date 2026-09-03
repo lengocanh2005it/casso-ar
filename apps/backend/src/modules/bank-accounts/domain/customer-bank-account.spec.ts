@@ -58,4 +58,43 @@ describe('CustomerBankAccount', () => {
       isActive: true,
     });
   });
+
+  it('carries confirmation provenance and preserves it across transitions', () => {
+    const confirmedAt = new Date('2026-09-03T00:00:00.000Z');
+    const account = new CustomerBankAccount({
+      id: 'a1',
+      organizationId: 'org-1',
+      customerId: 'cust-1',
+      accountNumber: '0123456789',
+      isActive: true,
+      confirmedByUserId: 'user-1',
+      confirmedAt,
+      createdAt: new Date('2026-09-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-09-01T00:00:00.000Z'),
+    });
+
+    expect(account.confirmedByUserId).toBe('user-1');
+    expect(account.confirmedAt).toEqual(confirmedAt);
+
+    const deactivated = account.deactivate();
+    expect(deactivated.confirmedByUserId).toBe('user-1');
+    expect(deactivated.confirmedAt).toEqual(confirmedAt);
+    expect(deactivated.isActive).toBe(false);
+  });
+
+  it('allows null provenance for legacy rows', () => {
+    const account = new CustomerBankAccount({
+      id: 'a2',
+      organizationId: 'org-1',
+      customerId: 'cust-1',
+      accountNumber: '0123456789',
+      isActive: true,
+      confirmedByUserId: null,
+      confirmedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    expect(account.confirmedByUserId).toBeNull();
+    expect(account.confirmedAt).toBeNull();
+  });
 });
