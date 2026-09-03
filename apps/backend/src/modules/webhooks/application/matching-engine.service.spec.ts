@@ -54,6 +54,7 @@ describe('MatchingEngineService', () => {
         findOverdueByThreshold: jest.fn(),
         findOverdueCandidates: jest.fn(),
         findById: jest.fn(),
+        findByIds: jest.fn(),
         findByIdForUpdate: jest.fn(),
         findInvoiceIdsByReceivableIds:
           invoiceLookup.findInvoiceIdsByReceivableIds,
@@ -110,6 +111,7 @@ describe('MatchingEngineService', () => {
         findOverdueByThreshold: jest.fn(),
         findOverdueCandidates: jest.fn(),
         findById: jest.fn(),
+        findByIds: jest.fn(),
         findByIdForUpdate: jest.fn(),
         findInvoiceIdsByReceivableIds:
           invoiceLookup.findInvoiceIdsByReceivableIds,

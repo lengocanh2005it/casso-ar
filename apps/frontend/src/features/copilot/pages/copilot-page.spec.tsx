@@ -205,6 +205,7 @@ describe('CopilotPage', () => {
                 actionType: 'SEND_REMINDER_EMAIL',
                 status: 'PENDING',
                 payload: { draftId: 'd1', receivableId: 'r1' },
+                receivableLabel: null,
                 createdAt: '2026-08-09T00:00:00Z',
                 resolvedAt: null,
               },
@@ -231,10 +232,10 @@ describe('CopilotPage', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText(/confirm reminder email send/i),
+        screen.getByText(/xác nhận gửi email nhắc thanh toán/i),
       ).toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+    fireEvent.click(screen.getByRole('button', { name: /xác nhận gửi/i }));
     await waitFor(() =>
       expect(apiRequest).toHaveBeenCalledWith(
         expect.objectContaining({ url: '/api/v1/copilot/actions/pa1/confirm' }),

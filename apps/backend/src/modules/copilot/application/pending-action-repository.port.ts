@@ -1,4 +1,7 @@
 import type { EntityManager } from 'typeorm';
+import type { ICustomerRepository } from '../../customers/application/customer-repository.port';
+import type { IInvoiceRepository } from '../../invoices/application/invoice-repository.port';
+import type { IReceivableRepository } from '../../receivables/application/receivable-repository.port';
 
 export const PENDING_ACTION_EXPIRY_MINUTES = 10;
 
@@ -11,6 +14,42 @@ export type CopilotPendingActionStatus =
 export interface SendReminderEmailPayload {
   draftId: string;
   receivableId: string;
+  customerName?: string | null;
+  invoiceNumber?: string | null;
+}
+
+export async function enrichSendReminderEmailPayload(
+  payload: SendReminderEmailPayload,
+  organizationId: string,
+  receivableRepo: IReceivableRepository | undefined,
+  customerRepo: ICustomerRepository | undefined,
+  invoiceRepo: IInvoiceRepository | undefined,
+): Promise<SendReminderEmailPayload> {
+  if (!receivableRepo || !customerRepo || !invoiceRepo) {
+    return payload;
+  }
+
+  const receivable = await receivableRepo.findById(payload.receivableId);
+  if (!receivable || receivable.organizationId !== organizationId) {
+    return payload;
+  }
+
+  const [customer, invoice] = await Promise.all([
+    customerRepo.findById(receivable.customerId),
+    receivable.invoiceId
+      ? invoiceRepo.findById(receivable.invoiceId)
+      : Promise.resolve(null),
+  ]);
+
+  const customerName =
+    customer?.organizationId === organizationId ? customer.name : null;
+  const invoiceNumber =
+    invoice?.organizationId === organizationId ? invoice.invoiceNumber : null;
+  return {
+    ...payload,
+    ...(customerName ? { customerName } : {}),
+    ...(invoiceNumber ? { invoiceNumber } : {}),
+  };
 }
 
 export interface CopilotPendingAction {

@@ -94,8 +94,8 @@ export function RemindersPage() {
             <Input
               name="receivableId"
               autoComplete="off"
-              aria-label="Lọc theo mã khoản phải thu"
-              placeholder="Lọc theo mã khoản phải thu…"
+              aria-label="Lọc theo khoản phải thu"
+              placeholder="Lọc theo khoản phải thu…"
               value={receivableId}
               onChange={(event) =>
                 setParam('receivableId', event.target.value, { replace: true })

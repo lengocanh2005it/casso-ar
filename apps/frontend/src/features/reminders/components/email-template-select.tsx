@@ -97,7 +97,7 @@ export function EmailTemplateSelect({
       <SelectContent>
         {hasOrphanedValue && (
           <SelectItem value={value} disabled>
-            {`Template không tồn tại (id: ${value})`}
+            {`Mẫu email đã bị xóa (mã kỹ thuật: ${value})`}
           </SelectItem>
         )}
         {list.map((template) => (

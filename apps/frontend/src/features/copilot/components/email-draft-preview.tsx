@@ -40,8 +40,8 @@ export function EmailDraftPreview({
         >
           <div className="flex items-center justify-between gap-2">
             <TabsList>
-              <TabsTrigger value="preview">Preview</TabsTrigger>
-              <TabsTrigger value="code">HTML code</TabsTrigger>
+              <TabsTrigger value="preview">Xem trước</TabsTrigger>
+              <TabsTrigger value="code">Mã HTML</TabsTrigger>
             </TabsList>
             {mode === 'code' && (
               <Button

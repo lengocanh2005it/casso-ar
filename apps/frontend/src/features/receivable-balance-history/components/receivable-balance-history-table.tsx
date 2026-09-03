@@ -1,6 +1,7 @@
 import { History } from 'lucide-react';
 import { Fragment } from 'react';
 import { EmptyState } from '@/components/layout/empty-state';
+import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,7 +37,7 @@ const CHANGE_SOURCE_LABELS: Record<string, string> = {
   UNDO: 'Hoàn tác',
   CANCEL: 'Hủy',
   WRITE_OFF: 'Xóa nợ',
-  ROLLOUT_BASELINE: 'Baseline',
+  ROLLOUT_BASELINE: 'Dữ liệu khởi tạo',
 };
 
 const REASON_CODE_LABELS: Record<string, string> = {
@@ -45,7 +46,7 @@ const REASON_CODE_LABELS: Record<string, string> = {
   PAYMENT_ALLOCATION_UNDONE: 'Hoàn tác phân bổ thanh toán',
   RECEIVABLE_CANCELLED: 'Hủy khoản phải thu',
   RECEIVABLE_WRITTEN_OFF: 'Xóa nợ khoản phải thu',
-  ROLLOUT_BASELINE: 'Baseline',
+  ROLLOUT_BASELINE: 'Dữ liệu khởi tạo',
 };
 
 function DetailRow({ item }: { item: ReceivableBalanceHistoryListItem }) {
@@ -55,20 +56,9 @@ function DetailRow({ item }: { item: ReceivableBalanceHistoryListItem }) {
         <dl className="grid gap-2 text-sm sm:grid-cols-3">
           <div>
             <dt className="text-muted-foreground">Mã tham chiếu</dt>
-            <dd className="font-mono text-xs">
+            <dd>
               {item.transitionReferenceId ? (
-                <button
-                  type="button"
-                  className="underline decoration-dotted underline-offset-2"
-                  title={item.transitionReferenceId}
-                  onClick={() =>
-                    navigator.clipboard.writeText(
-                      item.transitionReferenceId as string,
-                    )
-                  }
-                >
-                  {item.transitionReferenceId.slice(0, 8)}…
-                </button>
+                <TruncatedCopyId id={item.transitionReferenceId} />
               ) : (
                 '—'
               )}
@@ -78,7 +68,7 @@ function DetailRow({ item }: { item: ReceivableBalanceHistoryListItem }) {
             <dt className="text-muted-foreground">Lý do</dt>
             <dd>
               {item.reasonCode
-                ? (REASON_CODE_LABELS[item.reasonCode] ?? item.reasonCode)
+                ? (REASON_CODE_LABELS[item.reasonCode] ?? 'Lý do khác')
                 : '—'}
             </dd>
           </div>
@@ -136,7 +126,7 @@ export function ReceivableBalanceHistoryTable({ items }: TableProps) {
                     className="block max-w-48 truncate"
                     title={item.invoiceNumber ?? undefined}
                   >
-                    {item.invoiceNumber ?? '—'}
+                    {item.invoiceNumber ?? 'Khoản phải thu'}
                   </span>
                 </TableCell>
                 <TableCell className="max-w-48">
@@ -144,12 +134,12 @@ export function ReceivableBalanceHistoryTable({ items }: TableProps) {
                     className="block max-w-48 truncate"
                     title={item.customerName ?? undefined}
                   >
-                    {item.customerName ?? '—'}
+                    {item.customerName ?? 'Chưa có tên khách hàng'}
                   </span>
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline">
-                    {STATUS_LABELS[item.status] ?? item.status}
+                    {STATUS_LABELS[item.status] ?? 'Không rõ trạng thái'}
                   </Badge>
                 </TableCell>
                 <TableCell className="tabular-nums font-semibold">
@@ -162,13 +152,13 @@ export function ReceivableBalanceHistoryTable({ items }: TableProps) {
                   >
                     <span>
                       {CHANGE_SOURCE_LABELS[item.changeSource] ??
-                        item.changeSource}
+                        'Nguồn thay đổi khác'}
                     </span>
                     <span className="text-muted-foreground">
                       {' '}
                       •{' '}
                       {item.actorType
-                        ? `${ACTOR_LABELS[item.actorType] ?? item.actorType}${
+                        ? `${ACTOR_LABELS[item.actorType] ?? 'Tác nhân khác'}${
                             item.actorDisplayName
                               ? ` (${item.actorDisplayName})`
                               : ''

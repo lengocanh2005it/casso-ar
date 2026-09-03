@@ -20,6 +20,7 @@ export interface CopilotPendingAction {
   actionType: 'SEND_REMINDER_EMAIL';
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED';
   payload: { draftId: string; receivableId: string };
+  receivableLabel: string | null;
   createdAt: string;
   resolvedAt: string | null;
 }

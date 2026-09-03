@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '@/contexts/auth-context';
 import { DashboardPage } from './dashboard-page';
 
@@ -73,6 +73,10 @@ function renderPage() {
 }
 
 describe('DashboardPage', () => {
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
   it('shows KPI cards, the pending-review banner, and top overdue customers once data loads', async () => {
     mockApi();
 
@@ -93,6 +97,35 @@ describe('DashboardPage', () => {
       'grid',
       'xl:grid-cols-[1.25fr_0.75fr]',
     );
+  });
+
+  it('applies the selected range to both dashboard trend charts', async () => {
+    mockApi();
+
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByText('Xu hướng công nợ 6 tháng')).toBeTruthy(),
+    );
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Khoảng thời gian' }));
+    fireEvent.click(await screen.findByRole('option', { name: '3 tháng' }));
+
+    await waitFor(() => {
+      const trendCalls = apiRequest.mock.calls.filter(
+        ([options]) =>
+          (options as { url: string }).url === '/api/v1/reports/trend',
+      );
+      const last = trendCalls.at(-1)?.[0] as { params: object } | undefined;
+      expect(last?.params).toMatchObject({ months: 3 });
+    });
+    expect(screen.getByText('Xu hướng công nợ 3 tháng')).toBeTruthy();
+    expect(screen.getByText('Hoạt động thanh toán 3 tháng')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Tổng số tiền đã thu theo từng tháng trong 3 tháng gần nhất',
+      ),
+    ).toBeTruthy();
   });
 
   it('uses the shared empty state when there are no overdue customers', async () => {

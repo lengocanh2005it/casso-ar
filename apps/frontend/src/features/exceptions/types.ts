@@ -40,6 +40,10 @@ export interface MatchingCandidate {
   payerNameScore: number;
   timingScore: number;
   totalScore: number;
+  invoiceNumber: string | null;
+  customerName: string | null;
+  remainingAmount: number | null;
+  dueDate: string | null;
   createdAt: string;
 }
 

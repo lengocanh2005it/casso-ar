@@ -70,7 +70,8 @@ export function ReceivableTable({
       </TableHeader>
       <TableBody>
         {receivables.map((receivable) => {
-          const customerName = receivable.customerName ?? receivable.customerId;
+          const customerName =
+            receivable.customerName ?? 'Chưa có tên khách hàng';
 
           return (
             <TableRow key={receivable.id}>

@@ -30,6 +30,38 @@ const policy: ReminderPolicy = {
 };
 
 describe('PolicyTable', () => {
+  it('renders the regular customer group in Vietnamese', () => {
+    useAuth.mockReturnValue({ user: { role: 'OWNER' } });
+
+    render(
+      <PolicyTable policies={[{ ...policy, customerGroup: 'REGULAR' }]} />,
+    );
+
+    expect(screen.getByText('Thông thường')).toBeInTheDocument();
+    expect(screen.queryByText('REGULAR')).not.toBeInTheDocument();
+  });
+
+  it('renders Vietnamese labels for VIP and unknown customer groups', () => {
+    useAuth.mockReturnValue({ user: { role: 'OWNER' } });
+
+    render(
+      <PolicyTable
+        policies={[
+          policy,
+          {
+            ...policy,
+            id: 'policy-unknown',
+            customerGroup: 'FUTURE_GROUP' as ReminderPolicy['customerGroup'],
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('Khách hàng VIP')).toBeInTheDocument();
+    expect(screen.getByText('Nhóm khách hàng khác')).toBeInTheDocument();
+    expect(screen.queryByText('FUTURE_GROUP')).not.toBeInTheDocument();
+  });
+
   it('updates a policy with its full rule payload when toggled', () => {
     useAuth.mockReturnValue({ user: { role: 'OWNER' } });
 

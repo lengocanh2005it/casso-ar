@@ -109,4 +109,28 @@ describe('ReceivableTable', () => {
     expect(screen.getByText('Công ty ABC')).toBeInTheDocument();
     expect(screen.getByText('CT')).toHaveClass('shrink-0');
   });
+
+  it('uses a Vietnamese fallback instead of a missing customer id', () => {
+    render(
+      <MemoryRouter>
+        <ReceivableTable
+          receivables={[
+            buildReceivable({
+              customerId: 'a1b2c3d4-e5f6-47a8-9abc-1234567890ab',
+              customerName: null,
+            }),
+          ]}
+          selectedIds={[]}
+          onToggle={vi.fn()}
+          onToggleAll={vi.fn()}
+          allSelected={false}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Chưa có tên khách hàng')).toBeInTheDocument();
+    expect(
+      screen.queryByText('a1b2c3d4-e5f6-47a8-9abc-1234567890ab'),
+    ).not.toBeInTheDocument();
+  });
 });

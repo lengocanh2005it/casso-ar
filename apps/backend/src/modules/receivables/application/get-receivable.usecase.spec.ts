@@ -2,6 +2,7 @@ import { ReceivableStatus } from '@casso-ar/shared-types';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { InvoiceStatus } from '../../invoices/domain/invoice';
+import { Payment } from '../../payments/domain/payment';
 import { Receivable } from '../domain/receivable';
 import { GetReceivableUseCase } from './get-receivable.usecase';
 
@@ -57,11 +58,45 @@ describe('GetReceivableUseCase', () => {
         ]),
       ),
     };
+    const customerRepo = {
+      findByIds: jest.fn().mockResolvedValue(
+        new Map([
+          [
+            'customer-1',
+            {
+              id: 'customer-1',
+              name: 'Công ty Acme',
+            },
+          ],
+        ]),
+      ),
+    };
+    const paymentsById = new Map([
+      [
+        'payment-1',
+        new Payment({
+          id: 'payment-1',
+          organizationId: 'org-1',
+          customerId: 'customer-1',
+          bankTransactionId: 'bank-transaction-1',
+          totalAmount: 10_000_000,
+          allocatedAmount: 10_000_000,
+          payerName: 'Công ty Acme',
+          receivedAt: new Date('2026-08-01'),
+          createdAt: new Date('2026-08-01'),
+        }),
+      ],
+    ]);
+    const paymentRepo = {
+      findByIds: jest.fn().mockResolvedValue(paymentsById),
+    };
     const useCase = new GetReceivableUseCase(
       receivableRepo as any,
       disputeRepo as any,
       paymentAllocationRepo as any,
       invoiceRepo as any,
+      customerRepo as any,
+      paymentRepo as any,
     );
 
     const result = await useCase.execute('receivable-1');
@@ -72,6 +107,8 @@ describe('GetReceivableUseCase', () => {
       disputeId: 'dispute-1',
       allocations,
       invoiceNumber: 'INV-001',
+      customerName: 'Công ty Acme',
+      paymentsById,
       isOverdue: false,
     });
     expect(disputeRepo.findOpenDispute).toHaveBeenCalledWith('receivable-1');
@@ -79,6 +116,37 @@ describe('GetReceivableUseCase', () => {
       'receivable-1',
     );
     expect(invoiceRepo.findByIds).toHaveBeenCalledWith(['invoice-1']);
+    expect(customerRepo.findByIds).toHaveBeenCalledWith(['customer-1']);
+    expect(paymentRepo.findByIds).toHaveBeenCalledWith(['payment-1']);
+  });
+
+  it('returns null display metadata when the referenced customer or payment is missing', async () => {
+    const receivable = buildReceivable();
+    const allocations = [
+      {
+        id: 'alloc-1',
+        paymentId: 'missing-payment',
+        allocatedAmount: 10_000_000,
+        allocatedAt: new Date('2026-08-01'),
+        allocatedByUserId: 'user-1',
+      },
+    ];
+    const customerRepo = { findByIds: jest.fn().mockResolvedValue(new Map()) };
+    const paymentRepo = { findByIds: jest.fn().mockResolvedValue(new Map()) };
+    const useCase = new GetReceivableUseCase(
+      { findById: jest.fn().mockResolvedValue(receivable) } as any,
+      { findOpenDispute: jest.fn().mockResolvedValue(null) } as any,
+      { findByReceivableId: jest.fn().mockResolvedValue(allocations) } as any,
+      { findByIds: jest.fn().mockResolvedValue(new Map()) } as any,
+      customerRepo as any,
+      paymentRepo as any,
+    );
+
+    const result = await useCase.execute('receivable-1');
+
+    expect(result.customerName).toBeNull();
+    expect(result.paymentsById.get('missing-payment')).toBeUndefined();
+    expect(paymentRepo.findByIds).toHaveBeenCalledWith(['missing-payment']);
   });
 
   it('throws a standard not-found AppError when the receivable is missing', async () => {
@@ -86,6 +154,8 @@ describe('GetReceivableUseCase', () => {
       { findById: jest.fn().mockResolvedValue(null) } as any,
       { findOpenDispute: jest.fn() } as any,
       { findByReceivableId: jest.fn() } as any,
+      { findByIds: jest.fn() } as any,
+      { findByIds: jest.fn() } as any,
       { findByIds: jest.fn() } as any,
     );
 

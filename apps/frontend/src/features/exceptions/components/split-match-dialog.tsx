@@ -1,5 +1,6 @@
 import { Permission } from '@casso-ar/shared-types';
 import { useEffect, useMemo, useState } from 'react';
+import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,7 +21,8 @@ import {
 import { useAuth } from '@/contexts/auth-context';
 import { useCustomers } from '@/features/customers/api/use-customers';
 import { getAllocationErrorMessage } from '@/features/payments/allocation-errors';
-import { formatVND } from '@/lib/format';
+import { getReceivableDisplayName } from '@/features/receivables/receivable-label';
+import { formatDate, formatVND } from '@/lib/format';
 import { hasPermission } from '@/lib/rbac';
 import {
   useCandidates,
@@ -174,46 +176,64 @@ export function SplitMatchDialog({
               </p>
             )}
           </div>
-          {sortedCandidates.map((candidate) => (
-            <div
-              key={candidate.receivableId}
-              className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:gap-3"
-            >
-              <span className="text-sm font-medium tabular-nums">
-                {candidate.totalScore}/100
-              </span>
-              <span
-                className="min-w-0 flex-1 truncate text-sm"
-                title={candidate.receivableId}
+          {sortedCandidates.map((candidate) => {
+            const candidateLabel = candidate.customerName
+              ? `${getReceivableDisplayName(candidate.invoiceNumber)} — ${candidate.customerName}`
+              : getReceivableDisplayName(candidate.invoiceNumber);
+
+            return (
+              <div
+                key={candidate.receivableId}
+                className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:gap-3"
               >
-                {candidate.receivableId}
-              </span>
-              <label
-                htmlFor={`allocation-${candidate.receivableId}`}
-                className="flex items-center gap-2 text-sm"
-              >
-                Số tiền phân bổ
-                <Input
-                  name={`allocation-${candidate.receivableId}`}
-                  autoComplete="off"
-                  aria-label={`Số tiền phân bổ cho ${candidate.receivableId}`}
-                  id={`allocation-${candidate.receivableId}`}
-                  type="number"
-                  min={0}
-                  step={1}
-                  className="w-full sm:w-40"
-                  value={amounts[candidate.receivableId] ?? ''}
-                  onChange={(event) => {
-                    setAmounts((current) => ({
-                      ...current,
-                      [candidate.receivableId]: event.target.value,
-                    }));
-                    setAllocationError(null);
-                  }}
-                />
-              </label>
-            </div>
-          ))}
+                <span className="text-sm font-medium tabular-nums">
+                  {candidate.totalScore}/100
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm" title={candidateLabel}>
+                    {candidateLabel}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Còn lại:{' '}
+                    {candidate.remainingAmount === null
+                      ? 'Chưa có số dư'
+                      : formatVND(candidate.remainingAmount)}{' '}
+                    · Hạn thanh toán:{' '}
+                    {candidate.dueDate
+                      ? formatDate(candidate.dueDate)
+                      : 'Chưa có hạn thanh toán'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Mã kỹ thuật: <TruncatedCopyId id={candidate.receivableId} />
+                  </p>
+                </div>
+                <label
+                  htmlFor={`allocation-${candidate.receivableId}`}
+                  className="flex items-center gap-2 text-sm"
+                >
+                  Số tiền phân bổ
+                  <Input
+                    name={`allocation-${candidate.receivableId}`}
+                    autoComplete="off"
+                    aria-label={`Số tiền phân bổ cho ${getReceivableDisplayName(candidate.invoiceNumber)}`}
+                    id={`allocation-${candidate.receivableId}`}
+                    type="number"
+                    min={0}
+                    step={1}
+                    className="w-full sm:w-40"
+                    value={amounts[candidate.receivableId] ?? ''}
+                    onChange={(event) => {
+                      setAmounts((current) => ({
+                        ...current,
+                        [candidate.receivableId]: event.target.value,
+                      }));
+                      setAllocationError(null);
+                    }}
+                  />
+                </label>
+              </div>
+            );
+          })}
           <p className="text-sm">
             Đã phân bổ: <span className="tabular-nums">{formatVND(total)}</span>{' '}
             / {formatVND(tx.amount)}

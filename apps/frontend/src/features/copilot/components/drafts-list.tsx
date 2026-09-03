@@ -110,7 +110,7 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
           <Card key={draft.id} className="shadow-none">
             <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
               <CardTitle className="min-w-0 break-words text-sm">
-                Bản nháp
+                Bản nháp email
               </CardTitle>
               <Badge variant="secondary">{STATUS_LABEL[draft.status]}</Badge>
             </CardHeader>
@@ -138,7 +138,7 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
                         });
                       }}
                     >
-                      Confirm
+                      Xác nhận gửi
                     </Button>
                   )}
                   {MUTABLE_STATUSES.includes(draft.status) && (
@@ -155,7 +155,7 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
                         });
                       }}
                     >
-                      Reopen
+                      Mở lại
                     </Button>
                   )}
                   {MUTABLE_STATUSES.includes(draft.status) && (

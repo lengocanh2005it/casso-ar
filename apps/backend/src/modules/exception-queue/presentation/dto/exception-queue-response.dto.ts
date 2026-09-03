@@ -4,8 +4,8 @@ import type {
   BankTransaction,
   BankTransactionStatus,
 } from '../../../webhooks/domain/bank-transaction';
-import type { MatchingCandidate } from '../../../webhooks/domain/matching-candidate';
 import type {
+  MatchingCandidateView,
   UnmatchedBankTransactionPage,
   UnmatchedBankTransactionView,
 } from '../../application/unmatched-bank-transactions-query.service';
@@ -49,6 +49,10 @@ export class MatchingCandidateResponseDto {
   payerNameScore: number;
   timingScore: number;
   totalScore: number;
+  invoiceNumber: string | null;
+  customerName: string | null;
+  remainingAmount: number | null;
+  dueDate: Date | null;
   createdAt: Date;
 }
 
@@ -96,8 +100,9 @@ export function toBankTransactionResponse(
 }
 
 export function toMatchingCandidateResponse(
-  candidate: MatchingCandidate,
+  view: MatchingCandidateView,
 ): MatchingCandidateResponseDto {
+  const { candidate } = view;
   return {
     id: candidate.id,
     receivableId: candidate.receivableId,
@@ -108,6 +113,10 @@ export function toMatchingCandidateResponse(
     payerNameScore: candidate.payerNameScore,
     timingScore: candidate.timingScore,
     totalScore: candidate.totalScore,
+    invoiceNumber: view.invoiceNumber,
+    customerName: view.customerName,
+    remainingAmount: view.remainingAmount,
+    dueDate: view.dueDate,
     createdAt: candidate.createdAt,
   };
 }

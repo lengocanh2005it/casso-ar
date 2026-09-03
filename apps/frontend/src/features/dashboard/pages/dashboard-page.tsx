@@ -14,6 +14,7 @@ import { EmptyState } from '@/components/layout/empty-state';
 import { PageHeading } from '@/components/layout/page-heading';
 import { MetricCard } from '@/components/metric-card';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
+import { TrendMonthsSelect } from '@/components/shared/trend-months-select';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -29,7 +30,10 @@ import {
   useDashboardSummary,
   useReportsTrend,
 } from '@/features/reports/api/use-reports';
+import { parseTrendMonths } from '@/features/reports/trend-months';
+import type { TrendMonths } from '@/features/reports/types';
 import { formatVND } from '@/lib/format';
+import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { useOrganizationActivity } from '../api/use-organization-activity';
 import { OverdueDonutChart } from '../components/overdue-donut-chart';
 import { PaymentActivityChart } from '../components/payment-activity-chart';
@@ -70,10 +74,18 @@ function SummarySkeleton() {
 
 export function DashboardPage() {
   const { user } = useAuth();
+  const { searchParams, patch } = useUrlQueryParams();
   const reviewCountQuery = useReviewCount();
   const summaryQuery = useDashboardSummary();
   const activityQuery = useOrganizationActivity();
-  const trendQuery = useReportsTrend(6);
+  const trendMonths = parseTrendMonths(searchParams.get('trendMonths'), 6);
+  const trendQuery = useReportsTrend(trendMonths);
+
+  function setTrendMonths(months: TrendMonths) {
+    patch((next) => {
+      next.set('trendMonths', String(months));
+    });
+  }
 
   const pendingCount = reviewCountQuery.data ?? 0;
 
@@ -85,6 +97,12 @@ export function DashboardPage() {
         description="Tổng quan về công nợ và hoạt động thu hồi của bạn."
         icon={LayoutDashboard}
         tone="brand"
+        actions={
+          <TrendMonthsSelect
+            value={trendMonths}
+            onValueChange={setTrendMonths}
+          />
+        }
       />
 
       <div className="rounded-xl border border-primary/15 bg-primary/5 p-4 sm:p-5">
@@ -162,7 +180,7 @@ export function DashboardPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <TrendingUp className="size-4 text-info" />
-                  <CardTitle>Xu hướng công nợ 6 tháng</CardTitle>
+                  <CardTitle>Xu hướng công nợ {trendMonths} tháng</CardTitle>
                 </div>
                 <CardDescription>
                   Biểu đồ xu hướng tăng giảm công nợ theo thời gian
@@ -205,10 +223,13 @@ export function DashboardPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <CreditCard className="size-4 text-violet-500" />
-                  <CardTitle>Hoạt động thanh toán 6 tháng</CardTitle>
+                  <CardTitle>
+                    Hoạt động thanh toán {trendMonths} tháng
+                  </CardTitle>
                 </div>
                 <CardDescription>
-                  Tổng số tiền đã thu theo từng tháng trong 6 tháng gần nhất
+                  Tổng số tiền đã thu theo từng tháng trong {trendMonths} tháng
+                  gần nhất
                 </CardDescription>
               </CardHeader>
               <CardContent>

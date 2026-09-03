@@ -45,6 +45,7 @@ describe('useReopenCopilotDraft', () => {
           actionType: 'SEND_REMINDER_EMAIL',
           status: 'PENDING',
           payload: { draftId: 'draft-1', receivableId: 'rec-1' },
+          receivableLabel: null,
           createdAt: '2026-08-14T10:00:00.000Z',
           resolvedAt: null,
         },

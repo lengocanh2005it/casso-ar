@@ -3,6 +3,9 @@ import type { ReceivableStatus } from '@casso-ar/shared-types';
 export class PaymentAllocationResponseDto {
   id: string;
   paymentId: string;
+  payerName: string | null;
+  bankTransactionId: string | null;
+  receivedAt: Date | null;
   allocatedAmount: number;
   allocatedAt: Date;
   allocatedByUserId: string | null;
@@ -24,6 +27,7 @@ export class ReceivableResponseDto {
 
 export class ReceivableDetailResponseDto extends ReceivableResponseDto {
   invoiceNumber: string | null;
+  customerName: string | null;
   isOverdue: boolean;
   isDisputed: boolean;
   disputeId: string | null;
@@ -36,6 +40,12 @@ interface AllocationSource {
   allocatedAmount: number;
   allocatedAt: Date;
   allocatedByUserId: string | null;
+}
+
+interface PaymentMetadataSource {
+  payerName: string;
+  bankTransactionId: string | null;
+  receivedAt: Date;
 }
 
 interface ReceivableResponseSource {
@@ -75,20 +85,29 @@ export function toReceivableDetailResponse(
   disputeId: string | null,
   allocations: AllocationSource[],
   invoiceNumber: string | null,
+  customerName: string | null,
+  paymentsById: ReadonlyMap<string, PaymentMetadataSource>,
   isOverdue: boolean,
 ): ReceivableDetailResponseDto {
   return {
     ...toReceivableResponse(r),
     invoiceNumber,
+    customerName,
     isOverdue,
     isDisputed,
     disputeId,
-    allocations: allocations.map((a) => ({
-      id: a.id,
-      paymentId: a.paymentId,
-      allocatedAmount: a.allocatedAmount,
-      allocatedAt: a.allocatedAt,
-      allocatedByUserId: a.allocatedByUserId,
-    })),
+    allocations: allocations.map((a) => {
+      const payment = paymentsById.get(a.paymentId);
+      return {
+        id: a.id,
+        paymentId: a.paymentId,
+        payerName: payment?.payerName ?? null,
+        bankTransactionId: payment?.bankTransactionId ?? null,
+        receivedAt: payment?.receivedAt ?? null,
+        allocatedAmount: a.allocatedAmount,
+        allocatedAt: a.allocatedAt,
+        allocatedByUserId: a.allocatedByUserId,
+      };
+    }),
   };
 }

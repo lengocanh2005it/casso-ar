@@ -37,6 +37,7 @@ describe('DraftsList', () => {
 
     expect(await screen.findByText('Nhắc thanh toán')).toBeInTheDocument();
     expect(screen.getByText('ap@abc.vn')).toBeInTheDocument();
+    expect(screen.getByText('Bản nháp email')).toBeInTheDocument();
     expect(screen.getByTitle('Xem trước email')).toBeInTheDocument();
   });
 

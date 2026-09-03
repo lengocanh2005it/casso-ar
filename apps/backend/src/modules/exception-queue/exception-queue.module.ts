@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CustomersModule } from '../customers/customers.module';
+import { InvoicesModule } from '../invoices/invoices.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { ReceivablesModule } from '../receivables/receivables.module';
 import { WebhooksModule } from '../webhooks/webhooks.module';
@@ -13,7 +14,13 @@ import { UnmatchedBankTransactionsQueryService } from './application/unmatched-b
 import { ExceptionQueueController } from './presentation/exception-queue.controller';
 
 @Module({
-  imports: [WebhooksModule, ReceivablesModule, PaymentsModule, CustomersModule],
+  imports: [
+    WebhooksModule,
+    ReceivablesModule,
+    PaymentsModule,
+    CustomersModule,
+    InvoicesModule,
+  ],
   providers: [
     MatchBankTransactionUseCase,
     BatchMatchBankTransactionUseCase,

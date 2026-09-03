@@ -42,10 +42,29 @@ describe('CustomerDetailPage', () => {
         items: [],
       })
       .mockResolvedValueOnce({
-        items: [],
-        total: 0,
+        items: [
+          {
+            id: 'receivable-1',
+            customerId: 'customer-1',
+            customerName: 'Công ty B',
+            invoiceId: 'invoice-1',
+            invoiceNumber: 'INV-2026-001',
+            originalAmount: 500_000,
+            paidAmount: 0,
+            remainingAmount: 500_000,
+            dueDate: '2026-09-01',
+            status: 'OPEN',
+            isDisputed: false,
+            disputeId: null,
+            isOverdue: false,
+            salesRepresentativeId: null,
+            createdAt: '2026-08-01T00:00:00.000Z',
+            closedAt: null,
+          },
+        ],
+        total: 1,
         page: 1,
-        limit: 20,
+        limit: 100,
       })
       .mockResolvedValueOnce({
         items: [
@@ -83,6 +102,10 @@ describe('CustomerDetailPage', () => {
     expect(screen.getByText(/b@example\.com/)).toBeInTheDocument();
     expect(await screen.findByText('Tài khoản ngân hàng')).toBeInTheDocument();
     expect(screen.getByText('******2233')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'INV-2026-001' })).toHaveAttribute(
+      'href',
+      '/receivables/receivable-1',
+    );
 
     const contactCard = screen
       .getByText('Thông tin liên hệ')

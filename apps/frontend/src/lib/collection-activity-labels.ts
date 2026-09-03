@@ -12,5 +12,5 @@ const ACTIVITY_TYPE_LABELS: Record<string, string> = {
 };
 
 export function formatActivityType(activityType: string): string {
-  return ACTIVITY_TYPE_LABELS[activityType] ?? activityType;
+  return ACTIVITY_TYPE_LABELS[activityType] ?? 'Hoạt động khác';
 }

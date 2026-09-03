@@ -102,6 +102,34 @@ describe('TypeOrmPaymentRepository', () => {
     expect(rows[0].unallocatedAmount).toBe(5_000_000);
   });
 
+  it('looks up payment display metadata in one tenant-scoped batch', async () => {
+    const ormRepo = {
+      find: jest.fn().mockResolvedValue([
+        { ...PROPS, id: 'pay-1' },
+        { ...PROPS, id: 'pay-2', payerName: 'Công ty B' },
+      ]),
+    };
+    const tenantContext = new TenantContextService();
+    const repo = new TypeOrmPaymentRepository(ormRepo as any, tenantContext);
+
+    const payments = await tenantContext.run(
+      { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+      () => repo.findByIds(['pay-1', 'pay-2']),
+    );
+
+    expect(ormRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ organizationId: 'org-1' }),
+      }),
+    );
+    expect(payments.get('pay-1')).toEqual(
+      expect.objectContaining({ payerName: 'Acme Co' }),
+    );
+    expect(payments.get('pay-2')).toEqual(
+      expect.objectContaining({ payerName: 'Công ty B' }),
+    );
+  });
+
   it('requests receivedAt ASC, id ASC ordering and maps multiple rows in the order returned', async () => {
     const ormRepo = {
       find: jest.fn().mockResolvedValue([

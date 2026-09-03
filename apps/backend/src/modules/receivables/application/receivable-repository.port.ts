@@ -22,6 +22,7 @@ export interface OverdueReceivableFilters {
 
 export interface IReceivableRepository {
   findById(id: string): Promise<Receivable | null>;
+  findByIds(ids: string[]): Promise<Map<string, Receivable>>;
   findByIdForUpdate(
     id: string,
     manager: EntityManager,
