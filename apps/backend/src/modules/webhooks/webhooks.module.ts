@@ -1,6 +1,7 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AIProviderModule } from '../../common/ai/ai-provider.module';
 import { BankAccountsModule } from '../bank-accounts/bank-accounts.module';
 import { BankConnectionsModule } from '../bank-connections/bank-connections.module';
 import { CustomersModule } from '../customers/customers.module';
@@ -37,6 +38,7 @@ import { WebhooksController } from './presentation/webhooks.controller';
       MatchingCandidateOrmEntity,
     ]),
     BullModule.registerQueue({ name: WEBHOOK_PROCESSING_QUEUE }),
+    AIProviderModule,
     BankConnectionsModule,
     BankAccountsModule,
     CustomersModule,

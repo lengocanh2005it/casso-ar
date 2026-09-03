@@ -5,8 +5,9 @@ import type {
   AIChatMessage,
   AIStreamChunk,
   AIToolSpec,
+  CreateChatCompletionOptions,
   IAIChatProvider,
-} from '../application/ai-chat-provider.port';
+} from './ai-chat-provider.port';
 
 @Injectable()
 export class OpenAiChatProviderAdapter implements IAIChatProvider {
@@ -24,24 +25,14 @@ export class OpenAiChatProviderAdapter implements IAIChatProvider {
   async createChatCompletion(
     messages: AIChatMessage[],
     tools: AIToolSpec[],
+    options?: CreateChatCompletionOptions,
   ): Promise<AIChatCompletionResult> {
-    const response = await this.client.chat.completions.create({
-      model: this.model,
-      // Bound completion cost per request; longer answers should use a new turn.
-      max_tokens: 1024,
-      messages: messages.map((message) => this.toOpenAiMessage(message)),
-      tools: tools.length
-        ? tools.map((tool) => ({
-            type: 'function' as const,
-            function: {
-              name: tool.name,
-              description: tool.description,
-              parameters: tool.parameters,
-            },
-          }))
-        : undefined,
-      tool_choice: tools.length ? 'auto' : undefined,
-    });
+    const request = this.createRequest(messages, tools, options);
+    const response = options?.signal
+      ? await this.client.chat.completions.create(request, {
+          signal: options.signal,
+        })
+      : await this.client.chat.completions.create(request);
     const choice = response.choices[0];
     if (!choice) throw new Error('Copilot provider returned no choices');
 
@@ -65,25 +56,18 @@ export class OpenAiChatProviderAdapter implements IAIChatProvider {
   async *streamChatCompletion(
     messages: AIChatMessage[],
     tools: AIToolSpec[],
+    options?: CreateChatCompletionOptions,
   ): AsyncIterable<AIStreamChunk> {
-    const stream = await this.client.chat.completions.create({
-      model: this.model,
-      max_tokens: 1024,
-      stream: true,
+    const request = {
+      ...this.createRequest(messages, tools, options),
+      stream: true as const,
       stream_options: { include_usage: true },
-      messages: messages.map((message) => this.toOpenAiMessage(message)),
-      tools: tools.length
-        ? tools.map((tool) => ({
-            type: 'function' as const,
-            function: {
-              name: tool.name,
-              description: tool.description,
-              parameters: tool.parameters,
-            },
-          }))
-        : undefined,
-      tool_choice: tools.length ? 'auto' : undefined,
-    });
+    };
+    const stream = options?.signal
+      ? await this.client.chat.completions.create(request, {
+          signal: options.signal,
+        })
+      : await this.client.chat.completions.create(request);
 
     const toolCallBuffers = new Map<
       number,
@@ -109,12 +93,10 @@ export class OpenAiChatProviderAdapter implements IAIChatProvider {
           arguments: '',
         };
         if (toolCallDelta.id) existing.id = toolCallDelta.id;
-        if (toolCallDelta.function?.name) {
+        if (toolCallDelta.function?.name)
           existing.name = toolCallDelta.function.name;
-        }
-        if (toolCallDelta.function?.arguments) {
+        if (toolCallDelta.function?.arguments)
           existing.arguments += toolCallDelta.function.arguments;
-        }
         toolCallBuffers.set(toolCallDelta.index, existing);
       }
       if (part.usage) {
@@ -134,15 +116,37 @@ export class OpenAiChatProviderAdapter implements IAIChatProvider {
     yield { contentDelta: null, toolCalls, inputTokens, outputTokens };
   }
 
+  private createRequest(
+    messages: AIChatMessage[],
+    tools: AIToolSpec[],
+    options?: CreateChatCompletionOptions,
+  ) {
+    return {
+      model: this.model,
+      max_tokens: 1024,
+      messages: messages.map((message) => this.toOpenAiMessage(message)),
+      tools: tools.length
+        ? tools.map((tool) => ({
+            type: 'function' as const,
+            function: {
+              name: tool.name,
+              description: tool.description,
+              parameters: tool.parameters,
+            },
+          }))
+        : undefined,
+      tool_choice: options?.toolChoice ?? (tools.length ? 'auto' : undefined),
+    };
+  }
+
   private parseArguments(
     rawArguments: string,
     toolName: string,
   ): Record<string, unknown> {
     try {
       const parsed: unknown = JSON.parse(rawArguments);
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
         throw new Error('not an object');
-      }
       return parsed as Record<string, unknown>;
     } catch {
       throw new Error(`Invalid arguments for Copilot tool "${toolName}"`);
@@ -152,14 +156,12 @@ export class OpenAiChatProviderAdapter implements IAIChatProvider {
   private toOpenAiMessage(
     message: AIChatMessage,
   ): OpenAI.Chat.ChatCompletionMessageParam {
-    if (message.role === 'tool') {
+    if (message.role === 'tool')
       return {
         role: 'tool',
         tool_call_id: message.toolCallId ?? '',
         content: message.content ?? '',
       };
-    }
-
     if (message.role === 'assistant' && message.toolCalls?.length) {
       return {
         role: 'assistant',
@@ -174,10 +176,6 @@ export class OpenAiChatProviderAdapter implements IAIChatProvider {
         })),
       };
     }
-
-    return {
-      role: message.role,
-      content: message.content ?? '',
-    };
+    return { role: message.role, content: message.content ?? '' };
   }
 }

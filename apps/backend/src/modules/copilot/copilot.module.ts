@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AIProviderModule } from '../../common/ai/ai-provider.module';
 import { CommonTokensModule } from '../../common/tokens/common-tokens.module';
 import { BillingModule } from '../billing/billing.module';
 import { CollectionActivityModule } from '../collection-activity/collection-activity.module';
@@ -10,7 +11,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { ReceivablesModule } from '../receivables/receivables.module';
 import { RemindersModule } from '../reminders/reminders.module';
-import { AI_CHAT_PROVIDER } from './application/ai-chat-provider.port';
 import { AI_USAGE_LOG_REPOSITORY } from './application/ai-usage-log-repository.port';
 import { CancelPendingActionUseCase } from './application/cancel-pending-action.usecase';
 import { ConfirmPendingActionUseCase } from './application/confirm-pending-action.usecase';
@@ -44,7 +44,6 @@ import { CopilotConversationOrmEntity } from './infrastructure/copilot-conversat
 import { CopilotDraftOrmEntity } from './infrastructure/copilot-draft.orm-entity';
 import { CopilotMessageOrmEntity } from './infrastructure/copilot-message.orm-entity';
 import { CopilotPendingActionOrmEntity } from './infrastructure/copilot-pending-action.orm-entity';
-import { OpenAiChatProviderAdapter } from './infrastructure/openai-chat-provider.adapter';
 import { TypeOrmAIUsageLogRepository } from './infrastructure/typeorm-ai-usage-log.repository';
 import { TypeOrmCopilotConversationRepository } from './infrastructure/typeorm-copilot-conversation.repository';
 import { TypeOrmCopilotDraftRepository } from './infrastructure/typeorm-copilot-draft.repository';
@@ -136,6 +135,7 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
       CopilotDraftOrmEntity,
       AIUsageLogOrmEntity,
     ]),
+    AIProviderModule,
     CommonTokensModule,
     ReceivablesModule,
     InvoicesModule,
@@ -162,7 +162,6 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
       useClass: TypeOrmCopilotDraftRepository,
     },
     { provide: AI_USAGE_LOG_REPOSITORY, useClass: TypeOrmAIUsageLogRepository },
-    { provide: AI_CHAT_PROVIDER, useClass: OpenAiChatProviderAdapter },
     { provide: CopilotToolRegistry, useFactory: copilotToolRegistryFactory },
     GetReceivableSummaryTool,
     GetCollectionActivityTimelineTool,

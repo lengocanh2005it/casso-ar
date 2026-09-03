@@ -16,14 +16,14 @@ import request from 'supertest';
 import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
-import { configureApp } from '../src/configure-app';
-import { SubscriptionOrmEntity } from '../src/modules/billing/infrastructure/subscription.orm-entity';
 import {
   AI_CHAT_PROVIDER,
   type AIChatMessage,
   type AIToolCall,
   type IAIChatProvider,
-} from '../src/modules/copilot/application/ai-chat-provider.port';
+} from '../src/common/ai/ai-chat-provider.port';
+import { configureApp } from '../src/configure-app';
+import { SubscriptionOrmEntity } from '../src/modules/billing/infrastructure/subscription.orm-entity';
 import { CopilotRateLimitGuard } from '../src/modules/copilot/presentation/copilot-rate-limit.guard';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
 import { EMAIL_PROVIDER_ADAPTER } from '../src/modules/notifications/application/email-provider-adapter.port';
