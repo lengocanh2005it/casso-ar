@@ -784,7 +784,7 @@ Success = a single document a new developer can read and know exactly what to pi
 - #369 — Audit infra: `relatedReceivableId` correlation for receivable-relevant audit events, the prerequisite for #360's contextual receivable audit trail; plan `docs/superpowers/plans/2026-08-26-audit-related-receivable-id.md`; PR #370 open (not yet merged), branch `chore/audit-related-receivable-id`.
 - #376 — Business-friendly identifiers and Vietnamese labels across receivables, payments, exception/reminder queues, Copilot, and audit/balance-history views; plan `docs/superpowers/plans/2026-08-26-business-friendly-identifiers.md`; PR #376 open (not yet merged), branch `feat/business-friendly-identifiers`.
 - #359 — Dashboard time-range filter for the paired trend charts; done. Shipped: 2026-08-27; PR #377.
-- #381 — Reframe the customer bank-account card as an optional payment-matching aid (title/description now say "không bắt buộc", empty state reassures matching works without it, manual "Thêm tài khoản" demoted to an `outline` secondary action); part of the #378 AI-matching series alongside #380. Frontend + docs only — verified no invoice-import/onboarding flow requires a customer bank-account value. Branch `fix/clarify-customer-bank-account-optional`.
+- #381 — Reframe the customer bank-account card as an optional payment-matching aid (title/description now say "không bắt buộc", empty state reassures matching works without it, manual "Thêm tài khoản" demoted to an `outline` secondary action); part of the #378 AI-matching series alongside #380. Frontend + docs only — verified no invoice-import/onboarding flow requires a customer bank-account value. Shipped: 2026-09-03 — PR #383.
 
 **Next available tickets** (all blockers resolved):
 - None.
