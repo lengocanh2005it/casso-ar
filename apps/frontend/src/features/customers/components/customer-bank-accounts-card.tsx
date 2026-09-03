@@ -15,7 +15,13 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
 import {
@@ -101,14 +107,25 @@ export function CustomerBankAccountsCard({
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <div className="flex items-center gap-2">
-            <Landmark aria-hidden="true" className="size-4 text-info" />
-            <CardTitle>Tài khoản ngân hàng</CardTitle>
+        <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 pb-4">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Landmark aria-hidden="true" className="size-4 text-info" />
+              <CardTitle>
+                Tài khoản ngân hàng của khách (không bắt buộc)
+              </CardTitle>
+            </div>
+            <CardDescription>
+              Chỉ để hỗ trợ tự động khớp giao dịch chuyển khoản với khách hàng.
+              Bạn có thể thêm tài khoản đã biết ở đây, hoặc hệ thống sẽ ghi nhớ
+              sau khi bạn xác nhận một giao dịch khớp.
+            </CardDescription>
           </div>
           {canManage && (
             <Button
+              variant="outline"
               size="sm"
+              className="shrink-0"
               onClick={() => setDialogState({ mode: 'create' })}
             >
               Thêm tài khoản
@@ -150,7 +167,7 @@ export function CustomerBankAccountsCard({
               density="compact"
               icon={Landmark}
               title="Chưa có tài khoản ngân hàng"
-              description="Thêm tài khoản để đối soát giao dịch của khách hàng."
+              description="Không bắt buộc — việc khớp giao dịch vẫn hoạt động mà không cần thông tin này. Thêm tài khoản nếu bạn đã biết số khách dùng để chuyển khoản."
               action={
                 canManage ? (
                   <Button

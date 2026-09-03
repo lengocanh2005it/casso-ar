@@ -165,6 +165,50 @@ describe('CustomerBankAccountsCard', () => {
     ).toHaveLength(2);
   });
 
+  it('states that payer-account mapping is optional even when accounts exist', async () => {
+    useAuth.mockReturnValue({ user: { role: Role.OWNER } });
+    apiRequest.mockResolvedValueOnce({ items: [activeAccount], total: 1 });
+
+    renderCard();
+
+    expect(await screen.findByText('******2233')).toBeInTheDocument();
+    expect(
+      screen.getByText('Tài khoản ngân hàng của khách (không bắt buộc)'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Chỉ để hỗ trợ tự động khớp giao dịch chuyển khoản với khách hàng\. Bạn có thể thêm tài khoản đã biết ở đây, hoặc hệ thống sẽ ghi nhớ sau khi bạn xác nhận một giao dịch khớp\./,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('reassures in the empty state that matching works without a bank account', async () => {
+    useAuth.mockReturnValue({ user: { role: Role.OWNER } });
+    apiRequest.mockResolvedValueOnce({ items: [], total: 0 });
+
+    renderCard();
+
+    expect(
+      await screen.findByText(
+        'Không bắt buộc — việc khớp giao dịch vẫn hoạt động mà không cần thông tin này. Thêm tài khoản nếu bạn đã biết số khách dùng để chuyển khoản.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps manual add available as a secondary action', async () => {
+    useAuth.mockReturnValue({ user: { role: Role.OWNER } });
+    apiRequest.mockResolvedValueOnce({ items: [activeAccount], total: 1 });
+
+    renderCard();
+
+    expect(await screen.findByText('******2233')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm tài khoản' }));
+
+    expect(
+      await screen.findByText('Thêm tài khoản ngân hàng'),
+    ).toBeInTheDocument();
+  });
+
   it('deactivates an active account after confirmation', async () => {
     useAuth.mockReturnValue({ user: { role: Role.OWNER } });
     apiRequest

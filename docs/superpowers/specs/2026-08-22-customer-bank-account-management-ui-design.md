@@ -170,6 +170,21 @@ The implementation is accepted when:
 5. Customer detail tests verify the card is rendered and its bank-account query is part of the page's normal detail flow.
 6. The frontend type check and `pnpm verify` pass.
 
+## 8a. Update — issue #381 (2026-09-03): optional-data framing
+
+The card is an **optional** payment-matching aid, not a required customer-onboarding
+or invoice-import field. No onboarding or invoice-import flow requires a customer
+bank-account value, and none is added here.
+
+- Card title: `Tài khoản ngân hàng của khách (không bắt buộc)`.
+- Card description: matching is the only purpose; a business may add a known account
+  manually, or the account is remembered after the user confirms a bank-transaction
+  match (issue #380).
+- Empty state: reassures that matching still works without any bank account; manual
+  add stays available for authorized users.
+- Manual add (`Thêm tài khoản`) is a secondary action (`Button variant="outline"`),
+  not a primary call to action.
+
 ## 9. Out of scope
 
 - Backend/API/domain/migration changes.
