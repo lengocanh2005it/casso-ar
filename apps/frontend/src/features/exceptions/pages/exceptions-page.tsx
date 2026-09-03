@@ -123,7 +123,7 @@ export function ExceptionsPage() {
                   />
                 </TableHead>
                 <TableHead>Ngày giờ</TableHead>
-                <TableHead>Đối tác</TableHead>
+                <TableHead>Người chuyển khoản</TableHead>
                 <TableHead>Nội dung chuyển khoản</TableHead>
                 <TableHead>Số tiền</TableHead>
                 <TableHead>Điểm cao nhất</TableHead>
@@ -149,17 +149,33 @@ export function ExceptionsPage() {
                     {formatDateTime(row.transaction.transactionDateTime)}
                   </TableCell>
                   <TableCell className="max-w-64 break-words">
-                    {row.transaction.counterpartyName ? (
+                    <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
                         <InitialsAvatar
-                          name={row.transaction.counterpartyName}
+                          name={row.transaction.counterpartyName ?? '—'}
                           size="sm"
                         />
-                        {row.transaction.counterpartyName}
+                        {row.transaction.counterpartyName ?? '—'}
                       </div>
-                    ) : (
-                      '—'
-                    )}
+                      {row.payer?.accountNumberMasked && (
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {row.payer.accountNumberMasked}
+                        </span>
+                      )}
+                      {(row.payer?.linkedCustomers ?? []).length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {row.payer.linkedCustomers.map((c) => (
+                            <Badge
+                              key={c.customerId}
+                              variant="secondary"
+                              className="text-[10px]"
+                            >
+                              {c.customerName}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="max-w-64 break-words">
                     {row.transaction.transferContent?.trim() ? (
