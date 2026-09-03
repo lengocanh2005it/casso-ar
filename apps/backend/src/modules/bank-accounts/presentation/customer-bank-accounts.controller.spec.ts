@@ -20,7 +20,9 @@ function buildAccount(
   });
 }
 
-function buildController() {
+function buildController(
+  currentUser: { userId: string } | null = { userId: 'user-1' },
+) {
   const list = { execute: jest.fn() };
   const create = { execute: jest.fn() };
   const update = { execute: jest.fn() };
@@ -35,6 +37,9 @@ function buildController() {
       ) => operation(),
     ),
   };
+  const tenantContext = {
+    getCurrentUser: jest.fn().mockReturnValue(currentUser),
+  };
   return {
     controller: new CustomerBankAccountsController(
       list as never,
@@ -42,12 +47,14 @@ function buildController() {
       update as never,
       deactivate as never,
       idempotency as never,
+      tenantContext as never,
     ),
     list,
     create,
     update,
     deactivate,
     idempotency,
+    tenantContext,
   };
 }
 
@@ -88,6 +95,8 @@ describe('CustomerBankAccountsController', () => {
     expect(create.execute).toHaveBeenCalledWith({
       customerId: 'cust-1',
       accountNumber: dto.accountNumber,
+      acknowledgeExistingLinks: undefined,
+      confirmedByUserId: 'user-1',
     });
   });
 
@@ -121,5 +130,22 @@ describe('CustomerBankAccountsController', () => {
       { id: 'account-1' },
       expect.any(Function),
     );
+  });
+
+  it('forwards acknowledgeExistingLinks and the acting user to the create use case', async () => {
+    const { controller, create } = buildController({ userId: 'user-7' });
+    create.execute.mockResolvedValue(buildAccount());
+
+    await controller.create('key-1', 'cust-1', {
+      accountNumber: '0123456789',
+      acknowledgeExistingLinks: true,
+    });
+
+    expect(create.execute).toHaveBeenCalledWith({
+      customerId: 'cust-1',
+      accountNumber: '0123456789',
+      acknowledgeExistingLinks: true,
+      confirmedByUserId: 'user-7',
+    });
   });
 });

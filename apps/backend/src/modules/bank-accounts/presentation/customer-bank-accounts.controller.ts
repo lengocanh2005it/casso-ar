@@ -26,11 +26,13 @@ import {
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
+import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { CreateCustomerBankAccountUseCase } from '../application/create-customer-bank-account.usecase';
 import { DeactivateCustomerBankAccountUseCase } from '../application/deactivate-customer-bank-account.usecase';
 import { ListCustomerBankAccountsUseCase } from '../application/list-customer-bank-accounts.usecase';
@@ -55,6 +57,7 @@ export class CustomerBankAccountsController {
     private readonly updateUseCase: UpdateCustomerBankAccountUseCase,
     private readonly deactivateUseCase: DeactivateCustomerBankAccountUseCase,
     private readonly idempotency: IdempotencyService,
+    private readonly tenantContext: TenantContextService,
   ) {}
 
   @Get()
@@ -90,6 +93,10 @@ export class CustomerBankAccountsController {
     @Param('customerId', ParseUUIDPipe) customerId: string,
     @Body() dto: CreateCustomerBankAccountDto,
   ) {
+    const user = this.tenantContext.getCurrentUser();
+    if (!user) {
+      throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
+    }
     return this.idempotency.execute(
       `POST /customers/${customerId}/bank-accounts`,
       key,
@@ -99,6 +106,8 @@ export class CustomerBankAccountsController {
           await this.createUseCase.execute({
             customerId,
             accountNumber: dto.accountNumber,
+            acknowledgeExistingLinks: dto.acknowledgeExistingLinks,
+            confirmedByUserId: user.userId,
           }),
         ),
     );
