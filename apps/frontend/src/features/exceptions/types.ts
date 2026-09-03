@@ -19,6 +19,16 @@ export interface BankTransaction {
   createdAt?: string;
 }
 
+export type AiRecommendationStatus = 'SUCCEEDED' | 'ABSTAINED' | 'FAILED';
+
+export interface AiRecommendation {
+  status: AiRecommendationStatus;
+  recommendedReceivableId: string | null;
+  confidence: number | null;
+  reason: string | null;
+  isCurrent: boolean;
+}
+
 export interface MatchingCandidate {
   id: string;
   bankTransactionId?: string;
@@ -36,6 +46,7 @@ export interface MatchingCandidate {
 export interface PendingReviewItem {
   transaction: BankTransaction;
   topCandidate: MatchingCandidate | null;
+  aiRecommendation?: AiRecommendation | null;
 }
 
 export interface Payment {

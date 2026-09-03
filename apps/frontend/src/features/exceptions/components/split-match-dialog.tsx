@@ -1,5 +1,6 @@
 import { Permission } from '@casso-ar/shared-types';
 import { useEffect, useMemo, useState } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -27,14 +28,38 @@ import {
   useSkipTransaction,
   useSplitMatch,
 } from '../api/use-exceptions';
-import type { BankTransaction } from '../types';
+import type { AiRecommendation, BankTransaction } from '../types';
+
+function AiRecommendationNotice({
+  recommendation,
+}: {
+  recommendation: AiRecommendation | null | undefined;
+}) {
+  if (recommendation?.status === 'SUCCEEDED' && recommendation.isCurrent) {
+    const confidenceLabel =
+      (recommendation.confidence ?? 0) >= 80 ? 'Cao' : 'Vừa';
+    return (
+      <div className="space-y-1 rounded-lg border border-primary/20 bg-primary/5 p-3">
+        <Badge variant="secondary">Gợi ý AI · {confidenceLabel}</Badge>
+        {recommendation.reason && (
+          <p className="text-sm text-muted-foreground">
+            {recommendation.reason}
+          </p>
+        )}
+      </div>
+    );
+  }
+  return <p className="text-sm text-muted-foreground">AI không có gợi ý</p>;
+}
 
 export function SplitMatchDialog({
   tx,
+  aiRecommendation,
   open,
   onOpenChange,
 }: {
   tx: BankTransaction;
+  aiRecommendation?: AiRecommendation | null;
   open: boolean;
   onOpenChange: (value: boolean) => void;
 }) {
@@ -136,6 +161,7 @@ export function SplitMatchDialog({
           này.
         </DialogDescription>
         <div className="space-y-3">
+          <AiRecommendationNotice recommendation={aiRecommendation} />
           <div>
             <p className="text-sm font-medium">Nội dung chuyển khoản</p>
             {tx.transferContent?.trim() ? (

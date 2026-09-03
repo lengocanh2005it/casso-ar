@@ -184,6 +184,50 @@ describe('ExceptionsPage', () => {
     expect(contentEl).toHaveAttribute('title', longContent);
   });
 
+  it('shows a current AI recommendation as a qualitative advisory badge', async () => {
+    apiRequest.mockResolvedValue({
+      items: [
+        {
+          transaction: {
+            id: 'tx-1',
+            providerTransactionId: 'TX-1',
+            amount: 10_000,
+            transactionDateTime: '2026-08-01',
+            counterpartyAccountNumber: '001',
+            counterpartyName: 'A',
+            transferContent: 'note',
+            status: 'PENDING_REVIEW',
+            version: 1,
+          },
+          topCandidate: null,
+          aiRecommendation: {
+            status: 'SUCCEEDED',
+            recommendedReceivableId: 'rec-1',
+            confidence: 85,
+            reason: 'Tên người chuyển và số tiền phù hợp.',
+            isCurrent: true,
+          },
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText('Gợi ý AI · Cao')).toBeInTheDocument();
+  });
+
   it('does not open the split dialog when a row checkbox receives keyboard input', async () => {
     apiRequest.mockResolvedValue({
       items: [
