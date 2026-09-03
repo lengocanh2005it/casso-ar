@@ -32,10 +32,11 @@ See `docs/overview.md` for the full picture (business flow, KPIs, NFRs...).
 | Internal task / escalation | `modules/internal-tasks` |
 | In-app notifications / alerts | `modules/notifications`, `modules/alerts` |
 | Collection Copilot (tool-based AI chat, human-in-the-loop confirmation before sending email) | `modules/copilot` |
+| AI-assisted matching recommendations (advisory, opt-in; no automatic allocation) | `modules/webhooks`, `common/ai`, `modules/exception-queue` — [design](superpowers/specs/2026-09-03-ai-assisted-matching-recommendations-design.md) |
 | Separate operator/admin console (lock org, block member, resend/revoke invite) with its own audit trail | `modules/admin`, `OperatorAuditLog` |
 | Trend report / forecast (7/14/30 days) | `modules/reporting` — `trend-report-query.service.ts` |
 | Manual webhook inbox reprocess | `modules/webhooks/presentation/webhook-inbox.controller.ts` |
 
 ## Source
 
-Verified directly against the source code on 2026-08-19. For per-module business rules/state machines, see the corresponding spec in `docs/superpowers/specs/`.
+Verified directly against the source code on 2026-09-03. For per-module business rules/state machines, see the corresponding spec in `docs/superpowers/specs/`.

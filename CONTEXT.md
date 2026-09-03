@@ -26,7 +26,7 @@ A B2B SaaS platform for automating accounts receivable management and collection
 | **Receivable** | Amount receivable | `id`, `organizationId`, `customerId`, `originalAmount`, `paidAmount`, `dueDate`, `status` |
 | **Payment** | Payment from a bank transaction | `id`, `organizationId`, `customerId`, `totalAmount`, `allocatedAmount`, `payerName` |
 | **PaymentAllocation** | Payment → receivable allocation | `id`, `paymentId`, `receivableId`, `allocatedAmount`, `deletedAt` |
-| **BankTransaction** | Normalized transaction | `id`, `organizationId`, `status`, `amount`, `referenceCode` |
+| **BankTransaction** | Normalized transaction; optional persisted AI matching recommendation is advisory only | `id`, `organizationId`, `status`, `amount`, `referenceCode`, `aiRecommendation` |
 | **WebhookInbox** | Raw webhook payload | `id`, `providerTransactionId`, `status`, `payload` |
 | **IdempotencyKey** | Dedup record for a POST request carrying an `Idempotency-Key` header. `status: PENDING` normally means "another request is executing this key, reject duplicates" — but a `PENDING` row older than 5 minutes is reclaimed as stale (see ADR-0015): deleted and re-executed rather than rejected forever | `id`, `organizationId`, `endpoint`, `key`, `requestHash`, `status`, `createdAt` |
 | **Dispute** | Dispute | `id`, `receivableId`, `status` |
@@ -55,6 +55,8 @@ A B2B SaaS platform for automating accounts receivable management and collection
 |------|---------|
 | **Overdue receivable** | A `Receivable` whose due date has passed while it remains `OPEN` or `PARTIALLY_PAID` with a positive remaining balance. Overdue is a computed condition, not a persisted status. |
 | **Reminder candidate** | An overdue receivable presented for collection follow-up and reminder-draft selection. It is not a separate receivable type or persisted entity. |
+| **AI matching recommendation** | A nullable, immutable-once-evaluated JSONB result for an ambiguous `60–89` transaction. It recommends one deterministic candidate or abstains; it never allocates money or changes transaction status. |
+| **Current AI recommendation** | A recommendation whose receivable is still among the persisted candidates and remains open with positive balance. `isCurrent` is derived at read time; the stored evaluation is retained as history. |
 
 ## Receivable State Machine
 

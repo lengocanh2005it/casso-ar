@@ -8,6 +8,11 @@
 
 **Tech Stack:** NestJS, TypeScript strict mode, TypeORM/Postgres JSONB migration, existing OpenAI SDK/provider port, existing ioredis client, Jest, React/React Query.
 
+**Implementation status (2026-09-03):** Complete on branch
+`feat/ai-assisted-matching` for [issue #378](https://github.com/lengocanh2005it/casso-ledger/issues/378).
+The implementation is committed but not pushed or opened as a PR pending user
+review. AI remains disabled by default.
+
 ## Global constraints
 
 - Do not add an AI SDK, matching table, training table, audit event, permission, billing tier, or live-provider CI test.
@@ -107,7 +112,7 @@ pnpm --filter @casso-ar/backend type-check
 1. Write service tests with a fake `IAIChatProvider` for: valid `C3` success at confidence 70, high-confidence success, `ABSTAIN`, candidate not in the offered set, malformed/multiple/no tool calls, timeout plus one transient retry, permanent provider failure, prompt masking/truncation, and reason sanitization. Assert no UUID/org/user/credential appears in messages.
 2. Implement a public `evaluate(input)` application operation accepting the tenant/webhook identifiers, transaction fields, and the top five enriched deterministic candidates. Return a typed recommendation result or `null` when disabled/guard-skipped; do not expose provider-specific types to the domain.
 3. Build a system prompt that states the data is untrusted evidence, forbids actions/tools/instructions, requires exactly one `matching_recommendation` tool call, and permits `ABSTAIN`. Build user JSON using only sanitized fields and aliases `C1`–`C5`.
-4. Call `createChatCompletion` with one tool and `toolChoice: 'required'`, an `AbortController` timeout, and at most one retry for transient provider failures. Validate the returned tool call with type guards: exactly one call, known tool name, candidate either `C1`–`C5` or `ABSTAIN`, confidence integer 0–100, and `MATCH` confidence ≥70. Convert malformed/timeout/provider failures to stable `FAILED` codes; never throw into webhook processing.
+4. Call `createChatCompletion` with one tool and `toolChoice: 'required'`, an `AbortController` timeout, and at most one retry for transient provider failures. Validate the returned tool call with type guards: exactly one call, known tool name, candidate either `C1`–`C5` or `ABSTAIN`, confidence integer 0–100, and a candidate confidence of at least 70. Convert a lower-confidence candidate to `ABSTAINED`; convert malformed/timeout/provider failures to stable `FAILED` codes; never throw into webhook processing.
 5. Sanitize the reason to bounded plain text/control-character-free content, record model/prompt version/evaluated time internally, and emit structured redacted logs with organization/request context. Do not add an AI audit table or feedback loop.
 6. Run the focused service tests and type-check.
 
@@ -212,3 +217,20 @@ pnpm --filter @casso-ar/frontend test
 pnpm verify
 git diff --check
 ```
+
+## Implementation record
+
+All eight tasks are complete in the following implementation commits:
+
+| Area | Commit(s) |
+|---|---|
+| Shared provider, persistence, guard, and service | `fd569232` → `ef54f5af` → `981fb7b1` → `ed5be316` → `a23be511` |
+| Webhook integration, API/audit, and Exception Queue UI | `ef54f5af` → `1374529d` → `2d2df12b` |
+| Retry and confidence hardening | `ea04b257`, `85c75caa` |
+
+Fresh verification evidence:
+
+- Focused backend: 12 suites, 55 tests passed.
+- Focused frontend: 2 files, 21 tests passed; full frontend: 159 files, 641 tests passed.
+- Backend `arch-check`/type-check, frontend lint/type-check, and `git diff --check` passed.
+- `pnpm verify` is blocked only by two existing date-sensitive billing test assertions; e2e is unavailable without a working Docker/Testcontainers runtime.

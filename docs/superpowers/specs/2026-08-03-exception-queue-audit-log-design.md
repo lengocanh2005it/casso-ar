@@ -1,12 +1,13 @@
 # Exception Queue + Audit Log Design
 
-> Sub-spec of [docs/overview.md](../../../docs/overview.md), dependent on [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md) (PaymentAllocation, overpayment rule) and [2026-08-03-webhook-matching-engine-design.md](2026-08-03-webhook-matching-engine-design.md) (BankTransaction, MatchingCandidate, threshold 60-89).
+> Sub-spec of [docs/overview.md](../../../docs/overview.md), dependent on [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md) (PaymentAllocation, overpayment rule) and [2026-08-03-webhook-matching-engine-design.md](2026-08-03-webhook-matching-engine-design.md) (BankTransaction, MatchingCandidate, threshold 60-89). Display-only AI recommendation context is defined in [2026-09-03-ai-assisted-matching-recommendations-design.md](2026-09-03-ai-assisted-matching-recommendations-design.md).
 
 ## 1. Exception Queue — API & concurrency
 
 ```
 GET  /bank-transactions/unmatched
   → BankTransaction status IN (PENDING_REVIEW), with the top candidate + score
+    and optional advisory aiRecommendation context
 
 GET  /bank-transactions/:id/candidates
   → list of MatchingCandidate records for the transaction, sorted by descending totalScore
@@ -29,6 +30,13 @@ POST /bank-transactions/:id/mark-prepaid → assign customerId and retain it as 
 `version` is the optimistic lock field on `BankTransaction`, incremented whenever the status changes — preventing two accountants from processing the same transaction concurrently (double allocation).
 
 The accountant selects multiple `MatchingCandidate` records at once and enters the allocation amount for each one (split), then submits once through `POST /bank-transactions/:id/match` with the `allocations` array — the backend processes it atomically in one transaction instead of making multiple separate API calls.
+
+The optional `aiRecommendation` response field is read-only context. It exposes
+`status`, `recommendedReceivableId`, `confidence`, `reason`, and derived
+`isCurrent` only. `isCurrent` is false when the recommended receivable is no
+longer a persisted candidate or no longer has an open positive balance. Reads
+never invoke the AI provider; manual matching still revalidates all current
+receivable and allocation rules.
 
 ## 2. Audit Log — mechanism & structure
 

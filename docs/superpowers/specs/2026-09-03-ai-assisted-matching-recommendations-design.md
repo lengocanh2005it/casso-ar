@@ -6,6 +6,14 @@
 > advisory AI stage to the existing webhook matching flow without making an
 > LLM the authority for financial state changes.
 
+> **Implementation status (2026-09-03):** Implemented on branch
+> `feat/ai-assisted-matching` for issue [#378](https://github.com/lengocanh2005it/casso-ledger/issues/378).
+> The feature remains opt-in (`AI_MATCHING_ENABLED=false` by default). Focused
+> tests, architecture checks, type-checks, and lint pass; the full verification
+> gate still reports two pre-existing date-sensitive billing assertions, and
+> e2e requires a container runtime that is unavailable in the implementation
+> environment.
+
 ## 1. Goal and scope
 
 When the deterministic matching engine routes an inbound bank transaction to
@@ -67,19 +75,19 @@ The provider is asked to make exactly one tool call:
 
 ```typescript
 {
-  decision: 'MATCH' | 'ABSTAIN';
-  candidateKey: 'C1' | 'C2' | 'C3' | 'C4' | 'C5' | null;
+  candidate: 'C1' | 'C2' | 'C3' | 'C4' | 'C5' | 'ABSTAIN';
   confidence: number; // integer 0..100
   reason: string; // Vietnamese plain text, max 240 characters
 }
 ```
 
-The server rejects a candidate key not present in the supplied set, a
-non-integer/out-of-range confidence, missing required fields, HTML/control
-characters, or an invalid tool-call shape. A `MATCH` below confidence `70`
-is converted to `ABSTAINED`. A valid `ABSTAIN` is stored as `ABSTAINED`.
-Invalid output and provider failures are stored as `FAILED` with a stable
-internal failure code and no raw provider error.
+The server rejects a candidate alias not present in the supplied set, a
+non-integer/out-of-range confidence, missing required fields, or an invalid
+tool-call shape. Control characters are stripped and the reason is rendered as
+plain text. A candidate recommendation below confidence `70` is converted to
+`ABSTAINED`. A valid `ABSTAIN` is stored as `ABSTAINED`. Invalid output and
+provider failures are stored as `FAILED` with a stable internal failure code
+and no raw provider error.
 
 ## 4. Persistence and API
 
@@ -193,3 +201,6 @@ errors never fail or duplicate the webhook's financial processing.
 - CI never calls a live OpenAI/OpenRouter provider; live-provider verification
   is a manual environment check after rollout.
 
+The shipped implementation covers the unit/contract slices above without
+calling a live provider in CI. Full e2e remains an environment-dependent check
+because it needs Postgres, Redis, and a working Testcontainers runtime.

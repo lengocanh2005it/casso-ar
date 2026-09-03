@@ -75,9 +75,14 @@ Payment ⇄ Receivable allocation → persisted rollup update (paidAmount/alloca
 AR Ledger event appended (dual-write) + Receivable closes when fully paid
 ```
 
+For ambiguous `60–89` transactions, an optional AI second pass recommends one
+of the top five deterministic candidates or abstains. It is disabled by
+default, never changes money or status, and is shown as advisory context in
+the Exception Queue.
+
 **Multi-tenancy:** shared-schema, `organizationId` on every table, enforced by `TenantContextService` — the only runtime source of the current org (ADR-0001).
 
-**Key modules:** `receivables`, `payments`, `invoices`, `customers` (AR core) · `webhooks`, `bank-connections` (Casso Flow ingestion + matching) · `receivable-balance-history`, `ledger` (immutable financial history — snapshot log vs. event log, see ADR-0018/ADR-0020) · `reminders`, `email-templates`, `notifications` (collection automation) · `billing`, `payos` (subscription/plan) · `copilot` (AI collection assistant) · `disputes`, `exception-queue`, `collection-activity`, `internal-tasks` (exception handling & audit trail).
+**Key modules:** `receivables`, `payments`, `invoices`, `customers` (AR core) · `webhooks`, `bank-connections` (Casso Flow ingestion + deterministic matching) · `common/ai` (shared OpenAI-compatible provider) · `receivable-balance-history`, `ledger` (immutable financial history — snapshot log vs. event log, see ADR-0018/ADR-0020) · `reminders`, `email-templates`, `notifications` (collection automation) · `billing`, `payos` (subscription/plan) · `copilot` (AI collection assistant) · `disputes`, `exception-queue`, `collection-activity`, `internal-tasks` (exception handling, AI advice, & audit trail).
 
 Full module map, entities, and business rules: [CONTEXT.md](CONTEXT.md). Architecture decisions with rationale: [docs/adr/](docs/adr/) — see [ADR-0021](docs/adr/0021-casso-flow-not-cas-id-for-bank-integration.md) for why Casso Flow (flow.casso.vn), not Cas ID, is the bank-transaction-data provider.
 
@@ -87,6 +92,7 @@ Full module map, entities, and business rules: [CONTEXT.md](CONTEXT.md). Archite
 |----------|------|
 | Product overview | [docs/overview.md](docs/overview.md) |
 | Feature map | [docs/wayfinder/feature-map.md](docs/wayfinder/feature-map.md) |
+| AI-assisted matching | [design](docs/superpowers/specs/2026-09-03-ai-assisted-matching-recommendations-design.md) · [implementation plan](docs/superpowers/plans/2026-09-03-ai-assisted-matching-recommendations.md) |
 | Module specs | [docs/superpowers/specs/](docs/superpowers/specs/) |
 | Implementation plans | [docs/superpowers/plans/](docs/superpowers/plans/) |
 | Architecture decisions | [docs/adr/](docs/adr/) |
