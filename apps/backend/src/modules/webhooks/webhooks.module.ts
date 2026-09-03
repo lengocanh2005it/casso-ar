@@ -9,6 +9,7 @@ import { InvoicesModule } from '../invoices/invoices.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { ReceivablesModule } from '../receivables/receivables.module';
 import { BANK_TRANSACTION_REPOSITORY } from './application/bank-transaction-repository.port';
+import { AI_MATCHING_GUARD } from './application/ai-matching-guard.port';
 import { ListWebhookInboxUseCase } from './application/list-webhook-inbox.usecase';
 import { MATCHING_CANDIDATE_REPOSITORY } from './application/matching-candidate-repository.port';
 import { MatchingEngineService } from './application/matching-engine.service';
@@ -20,6 +21,7 @@ import { WEBHOOK_JOB_QUEUE } from './application/webhook-job-queue.port';
 import { BankTransactionOrmEntity } from './infrastructure/bank-transaction.orm-entity';
 import { BullMqWebhookJobQueue } from './infrastructure/bullmq-webhook-job-queue.adapter';
 import { MatchingCandidateOrmEntity } from './infrastructure/matching-candidate.orm-entity';
+import { RedisAiMatchingGuard } from './infrastructure/redis-ai-matching-guard';
 import { TypeOrmBankTransactionRepository } from './infrastructure/typeorm-bank-transaction.repository';
 import { TypeOrmMatchingCandidateRepository } from './infrastructure/typeorm-matching-candidate.repository';
 import { TypeOrmWebhookInboxRepository } from './infrastructure/typeorm-webhook-inbox.repository';
@@ -61,6 +63,7 @@ import { WebhooksController } from './presentation/webhooks.controller';
       useClass: TypeOrmMatchingCandidateRepository,
     },
     { provide: WEBHOOK_JOB_QUEUE, useClass: BullMqWebhookJobQueue },
+    { provide: AI_MATCHING_GUARD, useClass: RedisAiMatchingGuard },
     MatchingEngineService,
     ProcessWebhookUseCase,
     ReceiveWebhookUseCase,
@@ -73,6 +76,7 @@ import { WebhooksController } from './presentation/webhooks.controller';
     WEBHOOK_INBOX_REPOSITORY,
     BANK_TRANSACTION_REPOSITORY,
     MATCHING_CANDIDATE_REPOSITORY,
+    AI_MATCHING_GUARD,
     WebhookRateLimitGuard,
   ],
 })
