@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import { safeNormalizeAccountNumber } from '../../bank-accounts/application/account-number-normalizer';
 import type { ICustomerBankAccountRepository } from '../../bank-accounts/application/customer-bank-account-repository.port';
 import { CUSTOMER_BANK_ACCOUNT_REPOSITORY } from '../../bank-accounts/application/customer-bank-account-repository.port';
 import type { ICustomerRepository } from '../../customers/application/customer-repository.port';
@@ -35,7 +36,7 @@ export class MatchingEngineService {
     @Inject(CUSTOMER_BANK_ACCOUNT_REPOSITORY)
     private readonly bankAccountRepo: Pick<
       ICustomerBankAccountRepository,
-      'findByAccountNumber' | 'save'
+      'findActiveByAccountNumber' | 'save'
     >,
     @Inject(RECEIVABLE_REPOSITORY)
     private readonly receivableRepo: IReceivableRepository,
@@ -49,55 +50,81 @@ export class MatchingEngineService {
     transaction: NormalizedTransaction,
     organizationId: string,
   ): Promise<ScoredCandidate[]> {
-    const account = await this.bankAccountRepo.findByAccountNumber(
+    const links = await this.bankAccountRepo.findActiveByAccountNumber(
       transaction.counterpartyAccountNumber,
     );
-    let customerId = account?.customerId ?? null;
-    let receivables = customerId
-      ? await this.receivableRepo.findOpenByCustomerId(customerId)
-      : await this.receivableRepo.findOpenTopNByOrganization(
-          organizationId,
-          ORG_WIDE_SCAN_LIMIT,
-          transaction.transactionDateTime,
-        );
+    const accountLinkedCustomerIds = new Set(
+      links.map((link) => link.customerId),
+    );
+    const linkedCustomerIds = new Set(accountLinkedCustomerIds);
+    const accountIsKnown = accountLinkedCustomerIds.size > 0;
+
+    let receivables: Receivable[];
+    if (accountIsKnown) {
+      // ponytail: one query per linked customer, bounded by how many customers
+      // authorized this one payer account (in practice 1-3); switch to a
+      // batched findOpenByCustomerIds only if that fan-out ever grows.
+      const perCustomer = await Promise.all(
+        [...accountLinkedCustomerIds].map((id) =>
+          this.receivableRepo.findOpenByCustomerId(id),
+        ),
+      );
+      const byId = new Map<string, Receivable>();
+      for (const receivable of perCustomer.flat()) {
+        byId.set(receivable.id, receivable);
+      }
+      receivables = [...byId.values()];
+    } else {
+      receivables = await this.receivableRepo.findOpenTopNByOrganization(
+        organizationId,
+        ORG_WIDE_SCAN_LIMIT,
+        transaction.transactionDateTime,
+      );
+    }
 
     let invoiceByReceivableId = await this.findInvoicesByReceivableIds(
       receivables.map((receivable) => receivable.id),
     );
 
-    if (!customerId) {
-      customerId = this.resolveCustomerByReferenceCode(
+    if (!accountIsKnown) {
+      const resolvedId = this.resolveCustomerByReferenceCode(
         transaction.transferContent,
         receivables,
         invoiceByReceivableId,
       );
-      if (customerId) {
+      if (resolvedId) {
+        linkedCustomerIds.add(resolvedId);
         receivables =
-          await this.receivableRepo.findOpenByCustomerId(customerId);
+          await this.receivableRepo.findOpenByCustomerId(resolvedId);
         invoiceByReceivableId = await this.findInvoicesByReceivableIds(
-          receivables.map((receivable) => receivable.id),
+          receivables.map((r) => r.id),
         );
       }
     }
 
-    const knownAccountNumber = account?.accountNumber ?? null;
-    const customerName = customerId
-      ? await this.customerRepo.findNameById(customerId)
-      : null;
     const customerNames = new Map<string, string | null>();
-    if (customerId) {
-      customerNames.set(customerId, customerName);
-    } else if (receivables.length > 0) {
-      const customers = await this.customerRepo.findByIds([
+    if (receivables.length > 0) {
+      const customerIds = [
         ...new Set(receivables.map((receivable) => receivable.customerId)),
-      ]);
-      for (const receivable of receivables) {
-        customerNames.set(
-          receivable.customerId,
-          customers.get(receivable.customerId)?.name ?? null,
-        );
+      ];
+      const customers = await this.customerRepo.findByIds(customerIds);
+      for (const id of customerIds) {
+        customerNames.set(id, customers.get(id)?.name ?? null);
       }
     }
+
+    // Normalized counterparty account for the deterministic account-match score
+    // below — compared against each linked customer's saved account numbers.
+    const normalizedCounterparty = safeNormalizeAccountNumber(
+      transaction.counterpartyAccountNumber,
+    );
+    const savedAccountsByCustomer = new Map<string, string[]>();
+    for (const link of links) {
+      const list = savedAccountsByCustomer.get(link.customerId) ?? [];
+      list.push(link.accountNumber);
+      savedAccountsByCustomer.set(link.customerId, list);
+    }
+
     const scored = receivables.map((receivable) => {
       const invoice = invoiceByReceivableId.get(receivable.id) ?? null;
       const reference = invoice
@@ -107,17 +134,19 @@ export class MatchingEngineService {
         transaction.amount,
         receivable.remainingAmount,
       );
-      const accountScore = customerId
+      const inLinkedSet = linkedCustomerIds.has(receivable.customerId);
+      const accountScore = normalizedCounterparty
         ? customerBankAccountScore(
-            transaction.counterpartyAccountNumber,
-            knownAccountNumber ? [knownAccountNumber] : [],
+            normalizedCounterparty,
+            savedAccountsByCustomer.get(receivable.customerId) ?? [],
           )
         : 0;
+      const customerName = customerNames.get(receivable.customerId) ?? '';
       const payer =
-        customerId && customerName
+        inLinkedSet && customerName
           ? payerNameScore(transaction.counterpartyName, customerName)
           : 0;
-      const timing = customerId
+      const timing = inLinkedSet
         ? timingScore(transaction.transactionDateTime, receivable.dueDate)
         : 0;
       return {

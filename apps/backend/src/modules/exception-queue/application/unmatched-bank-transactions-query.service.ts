@@ -2,6 +2,14 @@ import { Inject, Injectable } from '@nestjs/common';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
+  maskAccountNumber,
+  safeNormalizeAccountNumber,
+} from '../../bank-accounts/application/account-number-normalizer';
+import {
+  CUSTOMER_BANK_ACCOUNT_REPOSITORY,
+  type ICustomerBankAccountRepository,
+} from '../../bank-accounts/application/customer-bank-account-repository.port';
+import {
   CUSTOMER_REPOSITORY,
   type ICustomerRepository,
 } from '../../customers/application/customer-repository.port';
@@ -34,10 +42,22 @@ export interface AiMatchingRecommendationView {
   isCurrent: boolean;
 }
 
+export interface PayerLinkedCustomerView {
+  customerId: string;
+  customerName: string;
+}
+
+export interface PayerView {
+  accountNumberMasked: string;
+  name: string;
+  linkedCustomers: PayerLinkedCustomerView[];
+}
+
 export interface UnmatchedBankTransactionView {
   transaction: BankTransaction;
   topCandidate: MatchingCandidateView | null;
   aiRecommendation: AiMatchingRecommendationView | null;
+  payer: PayerView;
 }
 
 export interface MatchingCandidateView {
@@ -68,6 +88,11 @@ export class UnmatchedBankTransactionsQueryService {
     private readonly customerRepo: ICustomerRepository,
     @Inject(INVOICE_REPOSITORY)
     private readonly invoiceRepo: IInvoiceRepository,
+    @Inject(CUSTOMER_BANK_ACCOUNT_REPOSITORY)
+    private readonly bankAccountRepo: Pick<
+      ICustomerBankAccountRepository,
+      'findActiveByAccountNumbers'
+    >,
   ) {}
 
   async execute(
@@ -109,9 +134,47 @@ export class UnmatchedBankTransactionsQueryService {
           ).map((receivable) => receivable.id)
         : [],
     );
+
+    const counterpartyAccountNumbers = pageTransactions
+      .map((transaction) => transaction.counterpartyAccountNumber)
+      .filter((value): value is string => Boolean(value));
+    const payerLinks =
+      counterpartyAccountNumbers.length > 0
+        ? await this.bankAccountRepo.findActiveByAccountNumbers(
+            counterpartyAccountNumbers,
+          )
+        : [];
+    const payerCustomerNames =
+      payerLinks.length > 0
+        ? await this.customerRepo.findByIds([
+            ...new Set(payerLinks.map((link) => link.customerId)),
+          ])
+        : new Map<string, { name: string }>();
+    // link.accountNumber is the normalized DB value — group by it and look up
+    // each transaction's counterparty number through the same normalizer.
+    const linkedCustomersByAccount = new Map<
+      string,
+      PayerLinkedCustomerView[]
+    >();
+    for (const link of payerLinks) {
+      const list = linkedCustomersByAccount.get(link.accountNumber) ?? [];
+      list.push({
+        customerId: link.customerId,
+        customerName: payerCustomerNames.get(link.customerId)?.name ?? '',
+      });
+      linkedCustomersByAccount.set(link.accountNumber, list);
+    }
+
     return {
       items: pageTransactions.map((transaction) => {
         const candidate = topCandidates.get(transaction.id);
+        const accountNumber = transaction.counterpartyAccountNumber;
+        const normalizedAccount = accountNumber
+          ? safeNormalizeAccountNumber(accountNumber)
+          : null;
+        const linkedCustomers = normalizedAccount
+          ? (linkedCustomersByAccount.get(normalizedAccount) ?? [])
+          : [];
         return {
           transaction,
           topCandidate: candidate
@@ -121,6 +184,13 @@ export class UnmatchedBankTransactionsQueryService {
             transaction.aiRecommendation,
             openReceivableIds,
           ),
+          payer: {
+            accountNumberMasked: accountNumber
+              ? maskAccountNumber(accountNumber)
+              : '',
+            name: transaction.counterpartyName ?? '',
+            linkedCustomers,
+          },
         };
       }),
       total,

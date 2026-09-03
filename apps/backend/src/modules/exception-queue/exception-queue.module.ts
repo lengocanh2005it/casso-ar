@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BankAccountsModule } from '../bank-accounts/bank-accounts.module';
 import { CustomersModule } from '../customers/customers.module';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { PaymentsModule } from '../payments/payments.module';
@@ -20,6 +21,7 @@ import { ExceptionQueueController } from './presentation/exception-queue.control
     PaymentsModule,
     CustomersModule,
     InvoicesModule,
+    BankAccountsModule,
   ],
   providers: [
     MatchBankTransactionUseCase,

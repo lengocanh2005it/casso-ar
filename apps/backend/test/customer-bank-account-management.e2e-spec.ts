@@ -298,8 +298,8 @@ describe('Customer bank account management (e2e)', () => {
       });
 
     await expect(
-      asTenant(() => bankAccountRepo.findByAccountNumber('0011 0022-33')),
-    ).resolves.toEqual(expect.objectContaining({ id: accountId }));
+      asTenant(() => bankAccountRepo.findActiveByAccountNumber('0011 0022-33')),
+    ).resolves.toEqual([expect.objectContaining({ id: accountId })]);
     const deactivateAudit = await waitForAudit(
       AuditActionType.CUSTOMER_BANK_ACCOUNT_DEACTIVATE,
       accountId,
@@ -386,5 +386,132 @@ describe('Customer bank account management (e2e)', () => {
       .set('Idempotency-Key', `cross-org-b-${randomUUID()}`)
       .send({ accountNumber })
       .expect(201);
+  });
+
+  it('supports cross-customer bank account linking with confirmation and prevents same-customer duplicates', async () => {
+    const customerA2 = randomUUID();
+    const now = new Date();
+    await dataSource.getRepository(CustomerOrmEntity).save({
+      id: customerA2,
+      organizationId: organizationA,
+      name: 'Customer A2',
+      taxCode: 'BANK-ACCOUNT-E2E-A2',
+      email: 'customera2@bank-account-e2e.example',
+      phone: '0900000002',
+      defaultPaymentTermDays: 30,
+      creditLimit: 100_000_000,
+      priority: 1,
+      createdAt: now,
+    });
+
+    const endpointA1 = `/api/v1/customers/${customerA}/bank-accounts`;
+    const endpointA2 = `/api/v1/customers/${customerA2}/bank-accounts`;
+    const financeToken = token(financeManager, organizationA);
+    const sharedAccountNumber = '0987 6543 21';
+
+    // 1. Link to customer 1 -> 201
+    await request(app.getHttpServer())
+      .post(endpointA1)
+      .set('Authorization', `Bearer ${financeToken}`)
+      .set('Idempotency-Key', `cross-link-1-${randomUUID()}`)
+      .send({ accountNumber: sharedAccountNumber })
+      .expect(201);
+
+    // 2. Link to customer 2 without acknowledgeExistingLinks -> 409 CONFLICT with details.linkedCustomerNames
+    const conflictRes = await request(app.getHttpServer())
+      .post(endpointA2)
+      .set('Authorization', `Bearer ${financeToken}`)
+      .set('Idempotency-Key', `cross-link-2-noack-${randomUUID()}`)
+      .send({ accountNumber: sharedAccountNumber })
+      .expect(409);
+
+    expect(conflictRes.body).toEqual(
+      expect.objectContaining({
+        errorCode: 'CONFLICT',
+        details: expect.objectContaining({
+          linkedCustomerNames: expect.arrayContaining(['Customer A']),
+        }),
+      }),
+    );
+
+    // 3. Link to customer 2 with acknowledgeExistingLinks: true -> 201
+    await request(app.getHttpServer())
+      .post(endpointA2)
+      .set('Authorization', `Bearer ${financeToken}`)
+      .set('Idempotency-Key', `cross-link-2-ack-${randomUUID()}`)
+      .send({
+        accountNumber: sharedAccountNumber,
+        acknowledgeExistingLinks: true,
+      })
+      .expect(201);
+
+    // 4. GET for both customers shows their respective links
+    const getA1 = await request(app.getHttpServer())
+      .get(endpointA1)
+      .set('Authorization', `Bearer ${financeToken}`)
+      .expect(200);
+    expect(getA1.body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ customerId: customerA }),
+      ]),
+    );
+
+    const getA2 = await request(app.getHttpServer())
+      .get(endpointA2)
+      .set('Authorization', `Bearer ${financeToken}`)
+      .expect(200);
+    expect(getA2.body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ customerId: customerA2 }),
+      ]),
+    );
+
+    // 5. Duplicate link on customer 2 with acknowledgeExistingLinks: true still fails -> 409 (same customer duplicate)
+    await request(app.getHttpServer())
+      .post(endpointA2)
+      .set('Authorization', `Bearer ${financeToken}`)
+      .set('Idempotency-Key', `cross-link-2-dup-${randomUUID()}`)
+      .send({
+        accountNumber: sharedAccountNumber,
+        acknowledgeExistingLinks: true,
+      })
+      .expect(409);
+  });
+
+  it('never resolves a payer account link across organizations', async () => {
+    const isolatedAccount = '0191 8273 6455';
+    await request(app.getHttpServer())
+      .post(`/api/v1/customers/${customerA}/bank-accounts`)
+      .set('Authorization', `Bearer ${token(financeManager, organizationA)}`)
+      .set('Idempotency-Key', `iso-link-${randomUUID()}`)
+      .send({ accountNumber: isolatedAccount })
+      .expect(201);
+
+    const asOrgB = <T>(callback: () => Promise<T>): Promise<T> =>
+      tenantContext.run(
+        {
+          userId: otherTenantOwner,
+          organizationId: organizationB,
+          role: Role.OWNER,
+        },
+        callback,
+      );
+
+    // Both resolution primitives — the matching engine's single lookup and the
+    // Exception Queue payer view's batched lookup — must stay empty for another
+    // organization, and still resolve inside the owning one.
+    await expect(
+      asOrgB(() => bankAccountRepo.findActiveByAccountNumber(isolatedAccount)),
+    ).resolves.toEqual([]);
+    await expect(
+      asOrgB(() =>
+        bankAccountRepo.findActiveByAccountNumbers([isolatedAccount]),
+      ),
+    ).resolves.toEqual([]);
+    await expect(
+      asTenant(() =>
+        bankAccountRepo.findActiveByAccountNumbers([isolatedAccount]),
+      ),
+    ).resolves.toEqual([expect.objectContaining({ customerId: customerA })]);
   });
 });

@@ -309,4 +309,58 @@ describe('ExceptionsPage', () => {
     expect(await screen.findByTestId('empty-state')).toBeInTheDocument();
     expect(screen.getByText(message)).toBeInTheDocument();
   });
+
+  it('shows the payer account and its linked customers, separate from the candidate', async () => {
+    apiRequest.mockResolvedValue({
+      items: [
+        {
+          transaction: {
+            id: 'tx-1',
+            providerTransactionId: 'TX-1',
+            amount: 10_000,
+            transactionDateTime: '2026-08-01',
+            counterpartyAccountNumber: '0123456789',
+            counterpartyName: 'NGUYEN VAN A',
+            transferContent: 'note',
+            status: 'PENDING_REVIEW',
+            version: 1,
+          },
+          topCandidate: {
+            id: 'c1',
+            receivableId: 'r1',
+            customerId: 'cust-1',
+            customerName: 'Công ty A',
+            totalScore: 90,
+          },
+          aiRecommendation: null,
+          payer: {
+            accountNumberMasked: '••••6789',
+            name: 'NGUYEN VAN A',
+            linkedCustomers: [
+              { customerId: 'c1', customerName: 'Công ty A' },
+              { customerId: 'c2', customerName: 'Công ty B' },
+            ],
+          },
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText('••••6789')).toBeInTheDocument();
+    expect(screen.getByText('Công ty B')).toBeInTheDocument();
+    expect(screen.getByText(/người chuyển khoản/i)).toBeInTheDocument();
+  });
 });

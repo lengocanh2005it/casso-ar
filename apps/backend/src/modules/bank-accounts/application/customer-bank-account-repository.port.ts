@@ -2,9 +2,14 @@ import type { EntityManager } from 'typeorm';
 import type { CustomerBankAccount } from '../domain/customer-bank-account';
 
 export interface ICustomerBankAccountRepository {
-  findByAccountNumber(
+  findActiveByAccountNumber(
     accountNumber: string,
-  ): Promise<CustomerBankAccount | null>;
+  ): Promise<CustomerBankAccount[]>;
+  // Batched form for list endpoints — one query for a whole page of
+  // counterparty account numbers instead of one per number.
+  findActiveByAccountNumbers(
+    accountNumbers: string[],
+  ): Promise<CustomerBankAccount[]>;
   findByCustomerId(customerId: string): Promise<CustomerBankAccount[]>;
   findById(id: string): Promise<CustomerBankAccount | null>;
   save(account: CustomerBankAccount, manager?: EntityManager): Promise<void>;

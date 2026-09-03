@@ -26,11 +26,13 @@ import {
   AuditEntityType,
 } from '../../../common/audit/audit.enums';
 import { Audited } from '../../../common/audit/audited.decorator';
+import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { CreateCustomerBankAccountUseCase } from '../application/create-customer-bank-account.usecase';
 import { DeactivateCustomerBankAccountUseCase } from '../application/deactivate-customer-bank-account.usecase';
 import { ListCustomerBankAccountsUseCase } from '../application/list-customer-bank-accounts.usecase';
@@ -55,6 +57,7 @@ export class CustomerBankAccountsController {
     private readonly updateUseCase: UpdateCustomerBankAccountUseCase,
     private readonly deactivateUseCase: DeactivateCustomerBankAccountUseCase,
     private readonly idempotency: IdempotencyService,
+    private readonly tenantContext: TenantContextService,
   ) {}
 
   @Get()
@@ -76,6 +79,7 @@ export class CustomerBankAccountsController {
   @ApiCreatedResponse({ type: CustomerBankAccountResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
     ErrorCode.NOT_FOUND,
     ErrorCode.CONFLICT,
     ErrorCode.IDEMPOTENCY_KEY_REUSED,
@@ -90,6 +94,10 @@ export class CustomerBankAccountsController {
     @Param('customerId', ParseUUIDPipe) customerId: string,
     @Body() dto: CreateCustomerBankAccountDto,
   ) {
+    const user = this.tenantContext.getCurrentUser();
+    if (!user) {
+      throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
+    }
     return this.idempotency.execute(
       `POST /customers/${customerId}/bank-accounts`,
       key,
@@ -99,6 +107,8 @@ export class CustomerBankAccountsController {
           await this.createUseCase.execute({
             customerId,
             accountNumber: dto.accountNumber,
+            acknowledgeExistingLinks: dto.acknowledgeExistingLinks,
+            confirmedByUserId: user.userId,
           }),
         ),
     );
@@ -110,6 +120,7 @@ export class CustomerBankAccountsController {
   @ApiOkResponse({ type: CustomerBankAccountResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
     ErrorCode.NOT_FOUND,
     ErrorCode.CONFLICT,
     ErrorCode.IDEMPOTENCY_KEY_REUSED,
@@ -125,13 +136,22 @@ export class CustomerBankAccountsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCustomerBankAccountDto,
   ) {
+    const user = this.tenantContext.getCurrentUser();
+    if (!user) {
+      throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
+    }
     return this.idempotency.execute(
       `PATCH /customers/${customerId}/bank-accounts/${id}`,
       key,
       dto,
       async () =>
         toCustomerBankAccountResponse(
-          await this.updateUseCase.execute({ id, customerId, ...dto }),
+          await this.updateUseCase.execute({
+            id,
+            customerId,
+            ...dto,
+            confirmedByUserId: user.userId,
+          }),
         ),
     );
   }

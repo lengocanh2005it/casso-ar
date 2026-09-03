@@ -189,14 +189,14 @@ describe('Webhook matching (e2e)', () => {
     const lookup = () =>
       tenantContext.run(
         { userId: 'e2e-user', organizationId, role: Role.OWNER },
-        () => bankAccountRepo.findByAccountNumber(' 0000 1122- '),
+        () => bankAccountRepo.findActiveByAccountNumber(' 0000 1122- '),
       );
 
-    await expect(lookup()).resolves.toEqual(
+    await expect(lookup()).resolves.toEqual([
       expect.objectContaining({ customerId }),
-    );
+    ]);
     await ormRepo.update(bankAccountId, { isActive: false });
-    await expect(lookup()).resolves.toBeNull();
+    await expect(lookup()).resolves.toEqual([]);
   });
 
   it('processes a high-confidence match through the queue', async () => {
@@ -294,4 +294,236 @@ describe('Webhook matching (e2e)', () => {
     expect(receivable?.status).toBe('PAID');
     expect(Number(receivable?.paidAmount)).toBe(30_000_000);
   }, 15_000);
+
+  it('supports third-party payer accounts and ambiguity guard across customers', async () => {
+    const customerC1 = randomUUID();
+    const customerC2 = randomUUID();
+    const bankAccountC1 = randomUUID();
+    const bankAccountC2 = randomUUID();
+    const invoiceC1 = randomUUID();
+    const invoiceC2 = randomUUID();
+    const receivableC1 = randomUUID();
+    const receivableC2 = randomUUID();
+    const thirdPartyAccount = '0888999888';
+    const dueDate = new Date('2026-08-05T10:00:00.000Z');
+
+    // Create C1 & C2
+    await dataSource.getRepository(CustomerOrmEntity).save([
+      {
+        id: customerC1,
+        organizationId,
+        name: 'Cong ty Thao Nguyen',
+        taxCode: 'TAX-C1',
+        email: 'c1@example.com',
+        phone: '0900000011',
+        defaultPaymentTermDays: 30,
+        creditLimit: 100_000_000,
+        priority: 1,
+        createdAt: new Date(),
+      },
+      {
+        id: customerC2,
+        organizationId,
+        name: 'Cong ty Hai Ha',
+        taxCode: 'TAX-C2',
+        email: 'c2@example.com',
+        phone: '0900000012',
+        defaultPaymentTermDays: 30,
+        creditLimit: 100_000_000,
+        priority: 1,
+        createdAt: new Date(),
+      },
+    ]);
+
+    // Link payer account to C1
+    await dataSource.getRepository(CustomerBankAccountOrmEntity).save({
+      id: bankAccountC1,
+      organizationId,
+      customerId: customerC1,
+      accountNumber: thirdPartyAccount,
+      createdAt: new Date(),
+    });
+
+    // C1 receivable for 15,000,000
+    await dataSource.getRepository(InvoiceOrmEntity).save({
+      id: invoiceC1,
+      organizationId,
+      customerId: customerC1,
+      invoiceNumber: 'INV-2026-0050',
+      issueDate: new Date('2026-07-01T00:00:00.000Z'),
+      totalAmount: 15_000_000,
+      taxAmount: 0,
+      sourceType: 'MANUAL',
+      fileUrl: null,
+      status: InvoiceStatus.ISSUED,
+      createdAt: new Date(),
+    });
+    await dataSource.getRepository(ReceivableOrmEntity).save({
+      id: receivableC1,
+      organizationId,
+      customerId: customerC1,
+      invoiceId: invoiceC1,
+      originalAmount: 15_000_000,
+      paidAmount: 0,
+      dueDate,
+      status: ReceivableStatus.OPEN,
+      salesRepresentativeId: null,
+      createdAt: new Date(),
+      closedAt: null,
+      version: 1,
+    });
+
+    // Deliver webhook transaction from third-party account with un-matching name 'LE VAN THIRDPARTY' and amount 15,000,000
+    const txId1 = 2_000_001;
+    const thirdPartyPayload1 = {
+      error: 0,
+      data: {
+        id: txId1,
+        amount: 15_000_000,
+        transactionDateTime: '2026-08-05 10:00:00',
+        description: 'Thanh toan INV-2026-0050',
+        accountNumber: '99887766',
+        counterAccountNumber: thirdPartyAccount,
+        counterAccountName: 'LE VAN THIRDPARTY',
+      },
+    };
+    await request(app.getHttpServer())
+      .post('/api/v1/webhooks/casso-balance-hook')
+      .set(
+        'X-Casso-Signature',
+        signCassoWebhookPayload(thirdPartyPayload1, webhookSecret),
+      )
+      .send(thirdPartyPayload1)
+      .expect(200, { received: true, duplicate: false });
+
+    // Wait for processing: receivableC1 matched (ref code: 50, amount: 20, bankAccount: 10, timing: 15 = 95 >= 90)
+    const transactionRepo = dataSource.getRepository(BankTransactionOrmEntity);
+    const receivableRepo = dataSource.getRepository(ReceivableOrmEntity);
+    const deadline1 = Date.now() + 10_000;
+    let tx1: BankTransactionOrmEntity | null = null;
+    let rec1: ReceivableOrmEntity | null = null;
+    while (Date.now() < deadline1) {
+      tx1 = await transactionRepo.findOneBy({
+        providerTransactionId: String(txId1),
+      });
+      rec1 = await receivableRepo.findOneBy({ id: receivableC1 });
+      if (tx1?.status === 'MATCHED' && rec1?.status === 'PAID') {
+        break;
+      }
+      await delay(100);
+    }
+    expect(tx1?.status).toBe('MATCHED');
+    expect(rec1?.status).toBe('PAID');
+
+    // Now link same payer account to C2 as well
+    await dataSource.getRepository(CustomerBankAccountOrmEntity).save({
+      id: bankAccountC2,
+      organizationId,
+      customerId: customerC2,
+      accountNumber: thirdPartyAccount,
+      createdAt: new Date(),
+    });
+
+    // Create open receivable on C1 (new) and C2 with same amount (20_000_000) and invoice references
+    const invoiceC1_2 = randomUUID();
+    const receivableC1_2 = randomUUID();
+    await dataSource.getRepository(InvoiceOrmEntity).save({
+      id: invoiceC1_2,
+      organizationId,
+      customerId: customerC1,
+      invoiceNumber: 'INV-2026-0060',
+      issueDate: new Date('2026-07-01T00:00:00.000Z'),
+      totalAmount: 20_000_000,
+      taxAmount: 0,
+      sourceType: 'MANUAL',
+      fileUrl: null,
+      status: InvoiceStatus.ISSUED,
+      createdAt: new Date(),
+    });
+    await dataSource.getRepository(ReceivableOrmEntity).save({
+      id: receivableC1_2,
+      organizationId,
+      customerId: customerC1,
+      invoiceId: invoiceC1_2,
+      originalAmount: 20_000_000,
+      paidAmount: 0,
+      dueDate,
+      status: ReceivableStatus.OPEN,
+      salesRepresentativeId: null,
+      createdAt: new Date(),
+      closedAt: null,
+      version: 1,
+    });
+
+    await dataSource.getRepository(InvoiceOrmEntity).save({
+      id: invoiceC2,
+      organizationId,
+      customerId: customerC2,
+      invoiceNumber: 'INV-2026-0061',
+      issueDate: new Date('2026-07-01T00:00:00.000Z'),
+      totalAmount: 20_000_000,
+      taxAmount: 0,
+      sourceType: 'MANUAL',
+      fileUrl: null,
+      status: InvoiceStatus.ISSUED,
+      createdAt: new Date(),
+    });
+    await dataSource.getRepository(ReceivableOrmEntity).save({
+      id: receivableC2,
+      organizationId,
+      customerId: customerC2,
+      invoiceId: invoiceC2,
+      originalAmount: 20_000_000,
+      paidAmount: 0,
+      dueDate,
+      status: ReceivableStatus.OPEN,
+      salesRepresentativeId: null,
+      createdAt: new Date(),
+      closedAt: null,
+      version: 1,
+    });
+
+    // Deliver webhook transaction mentioning both invoice numbers: INV-2026-0060 va INV-2026-0061
+    // Both C1 and C2 candidates will score >= 90. Ambiguity guard must route to PENDING_REVIEW.
+    const txId2 = 2_000_002;
+    const thirdPartyPayload2 = {
+      error: 0,
+      data: {
+        id: txId2,
+        amount: 20_000_000,
+        transactionDateTime: '2026-08-05 10:00:00',
+        description: 'INV-2026-0060 va INV-2026-0061',
+        accountNumber: '99887766',
+        counterAccountNumber: thirdPartyAccount,
+        counterAccountName: 'LE VAN THIRDPARTY',
+      },
+    };
+    await request(app.getHttpServer())
+      .post('/api/v1/webhooks/casso-balance-hook')
+      .set(
+        'X-Casso-Signature',
+        signCassoWebhookPayload(thirdPartyPayload2, webhookSecret),
+      )
+      .send(thirdPartyPayload2)
+      .expect(200, { received: true, duplicate: false });
+
+    const deadline2 = Date.now() + 10_000;
+    let tx2: BankTransactionOrmEntity | null = null;
+    while (Date.now() < deadline2) {
+      tx2 = await transactionRepo.findOneBy({
+        providerTransactionId: String(txId2),
+      });
+      if (tx2?.status === 'PENDING_REVIEW') {
+        break;
+      }
+      await delay(100);
+    }
+    expect(tx2?.status).toBe('PENDING_REVIEW');
+
+    // Verify neither receivable was marked PAID
+    const checkRec1 = await receivableRepo.findOneBy({ id: receivableC1_2 });
+    const checkRec2 = await receivableRepo.findOneBy({ id: receivableC2 });
+    expect(checkRec1?.status).toBe(ReceivableStatus.OPEN);
+    expect(checkRec2?.status).toBe(ReceivableStatus.OPEN);
+  }, 30_000);
 });

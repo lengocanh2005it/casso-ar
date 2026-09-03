@@ -352,4 +352,15 @@ describe('CustomerBankAccountsCard', () => {
       });
     });
   });
+
+  it('explains that one account may belong to several customers', async () => {
+    useAuth.mockReturnValue({ user: { role: Role.OWNER } });
+    apiRequest.mockResolvedValueOnce({ items: [], total: 0 });
+
+    renderCard();
+
+    expect(
+      await screen.findByText(/một tài khoản có thể thuộc nhiều khách hàng/i),
+    ).toBeInTheDocument();
+  });
 });

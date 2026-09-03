@@ -11,6 +11,7 @@ import {
 } from '../../customers/application/customer-repository.port';
 import { CustomerBankAccount } from '../domain/customer-bank-account';
 import { normalizeOrThrow } from './account-number-normalizer';
+import { assertCrossCustomerLinkAcknowledged } from './assert-cross-customer-link-acknowledged';
 import {
   CUSTOMER_BANK_ACCOUNT_REPOSITORY,
   type ICustomerBankAccountRepository,
@@ -19,6 +20,8 @@ import {
 export interface CreateCustomerBankAccountInput {
   customerId: string;
   accountNumber: string;
+  confirmedByUserId?: string;
+  acknowledgeExistingLinks?: boolean;
 }
 
 @Injectable()
@@ -53,23 +56,34 @@ export class CreateCustomerBankAccountUseCase {
     }
 
     const accountNumber = normalizeOrThrow(input.accountNumber);
-    const existing =
-      await this.bankAccountRepo.findByAccountNumber(accountNumber);
-    if (existing) {
+    const activeLinks =
+      await this.bankAccountRepo.findActiveByAccountNumber(accountNumber);
+
+    if (activeLinks.some((link) => link.customerId === customer.id)) {
       throw new AppError(
         ErrorCode.CONFLICT,
         'Số tài khoản ngân hàng đã được liên kết.',
       );
     }
 
+    await assertCrossCustomerLinkAcknowledged({
+      activeLinks,
+      customerId: customer.id,
+      acknowledgeExistingLinks: input.acknowledgeExistingLinks,
+      customerRepo: this.customerRepo,
+    });
+
+    const now = new Date();
     const account = new CustomerBankAccount({
       id: randomUUID(),
       organizationId: this.tenantContext.getOrganizationId(),
       customerId: customer.id,
       accountNumber,
       isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      confirmedByUserId: input.confirmedByUserId ?? null,
+      confirmedAt: now,
+      createdAt: now,
+      updatedAt: now,
     });
 
     await this.bankAccountRepo.save(account, manager);

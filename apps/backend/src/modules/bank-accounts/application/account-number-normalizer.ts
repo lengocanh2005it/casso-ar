@@ -28,6 +28,17 @@ export function normalizeOrThrow(value: string): string {
   }
 }
 
+// Returns the normalized form, or null when the value isn't a usable account
+// number. For grouping unverified counterparty data on read paths — never for
+// writes, which must use normalizeOrThrow.
+export function safeNormalizeAccountNumber(value: unknown): string | null {
+  try {
+    return normalizeAccountNumber(value);
+  } catch {
+    return null;
+  }
+}
+
 export function maskAccountNumber(normalized: string): string {
   if (normalized.length <= 4) return '*'.repeat(normalized.length);
   return `${'*'.repeat(normalized.length - 4)}${normalized.slice(-4)}`;

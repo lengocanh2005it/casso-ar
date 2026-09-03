@@ -33,4 +33,41 @@ describe('exception queue response mapping', () => {
       'failureCode',
     );
   });
+
+  it('maps the payer view including linked customers', () => {
+    const response = toUnmatchedResponse({
+      items: [
+        {
+          transaction: {
+            id: 'bt-1',
+            providerTransactionId: 'TX-1',
+            amount: 1000000,
+            transactionDateTime: new Date('2026-08-01'),
+            counterpartyAccountNumber: '0123456789',
+            counterpartyName: 'NGUYEN VAN A',
+            transferContent: 'INV-1',
+            status: 'PENDING_REVIEW',
+            createdAt: new Date(),
+            version: 1,
+          },
+          topCandidate: null,
+          aiRecommendation: null,
+          payer: {
+            accountNumberMasked: '••••6789',
+            name: 'NGUYEN VAN A',
+            linkedCustomers: [{ customerId: 'c1', customerName: 'Cong ty A' }],
+          },
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    } as never);
+
+    expect(response.items[0].payer).toEqual({
+      accountNumberMasked: '••••6789',
+      name: 'NGUYEN VAN A',
+      linkedCustomers: [{ customerId: 'c1', customerName: 'Cong ty A' }],
+    });
+  });
 });

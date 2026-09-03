@@ -47,10 +47,22 @@ export interface MatchingCandidate {
   createdAt: string;
 }
 
+export interface PayerLinkedCustomer {
+  customerId: string;
+  customerName: string;
+}
+
+export interface Payer {
+  accountNumberMasked: string;
+  name: string;
+  linkedCustomers: PayerLinkedCustomer[];
+}
+
 export interface PendingReviewItem {
   transaction: BankTransaction;
   topCandidate: MatchingCandidate | null;
   aiRecommendation?: AiRecommendation | null;
+  payer: Payer;
 }
 
 export interface Payment {

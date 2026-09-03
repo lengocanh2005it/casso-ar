@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, FindOptionsSelect, Repository } from 'typeorm';
+import { In } from 'typeorm';
 import { isUniqueViolation } from '../../../common/database/unique-violation';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import { normalizeAccountNumber } from '../application/account-number-normalizer';
+import {
+  normalizeAccountNumber,
+  safeNormalizeAccountNumber,
+} from '../application/account-number-normalizer';
 import type { ICustomerBankAccountRepository } from '../application/customer-bank-account-repository.port';
 import { CustomerBankAccount } from '../domain/customer-bank-account';
 import { CustomerBankAccountOrmEntity } from './customer-bank-account.orm-entity';
@@ -17,6 +21,8 @@ const CUSTOMER_BANK_ACCOUNT_SELECT = {
   customerId: true,
   accountNumber: true,
   isActive: true,
+  confirmedByUserId: true,
+  confirmedAt: true,
   createdAt: true,
   updatedAt: true,
 } satisfies FindOptionsSelect<CustomerBankAccountOrmEntity>;
@@ -28,6 +34,8 @@ function toOrm(account: CustomerBankAccount): CustomerBankAccountOrmEntity {
     customerId: account.customerId,
     accountNumber: account.accountNumber,
     isActive: account.isActive,
+    confirmedByUserId: account.confirmedByUserId,
+    confirmedAt: account.confirmedAt,
     createdAt: account.createdAt,
     updatedAt: account.updatedAt,
   };
@@ -40,6 +48,8 @@ function toDomain(row: CustomerBankAccountOrmEntity): CustomerBankAccount {
     customerId: row.customerId,
     accountNumber: row.accountNumber,
     isActive: row.isActive,
+    confirmedByUserId: row.confirmedByUserId ?? null,
+    confirmedAt: row.confirmedAt ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   });
@@ -58,14 +68,41 @@ export class TypeOrmCustomerBankAccountRepository
     super(repo, tenantContext);
   }
 
-  async findByAccountNumber(
+  async findActiveByAccountNumber(
     accountNumber: string,
-  ): Promise<CustomerBankAccount | null> {
-    const row = await this.scopedFindOne({
-      accountNumber: normalizeAccountNumber(accountNumber),
-      isActive: true,
-    });
-    return row ? toDomain(row) : null;
+  ): Promise<CustomerBankAccount[]> {
+    const rows = await this.scopedFindMany(
+      {
+        accountNumber: normalizeAccountNumber(accountNumber),
+        isActive: true,
+      },
+      {
+        select: CUSTOMER_BANK_ACCOUNT_SELECT,
+        order: { createdAt: 'DESC' },
+      },
+    );
+    return rows.map(toDomain);
+  }
+
+  async findActiveByAccountNumbers(
+    accountNumbers: string[],
+  ): Promise<CustomerBankAccount[]> {
+    const normalized = [
+      ...new Set(
+        accountNumbers
+          .map(safeNormalizeAccountNumber)
+          .filter((value): value is string => value !== null),
+      ),
+    ];
+    if (normalized.length === 0) return [];
+    const rows = await this.scopedFindMany(
+      { accountNumber: In(normalized), isActive: true },
+      {
+        select: CUSTOMER_BANK_ACCOUNT_SELECT,
+        order: { createdAt: 'DESC' },
+      },
+    );
+    return rows.map(toDomain);
   }
 
   async findByCustomerId(customerId: string): Promise<CustomerBankAccount[]> {

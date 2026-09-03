@@ -90,6 +90,20 @@ describe('customer bank accounts api', () => {
     );
   });
 
+  it('sends acknowledgeExistingLinks when creating a bank account', async () => {
+    postWithIdempotency.mockResolvedValueOnce({ id: 'a1' });
+
+    await createCustomerBankAccount('cust-1', {
+      accountNumber: '0123456789',
+      acknowledgeExistingLinks: true,
+    });
+
+    expect(postWithIdempotency).toHaveBeenCalledWith(
+      '/api/v1/customers/cust-1/bank-accounts',
+      { accountNumber: '0123456789', acknowledgeExistingLinks: true },
+    );
+  });
+
   it('updates with PATCH and an idempotency key', async () => {
     apiRequest.mockResolvedValueOnce({ id: 'account-1' });
 

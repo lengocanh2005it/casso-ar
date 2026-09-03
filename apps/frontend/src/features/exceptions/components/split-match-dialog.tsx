@@ -30,7 +30,7 @@ import {
   useSkipTransaction,
   useSplitMatch,
 } from '../api/use-exceptions';
-import type { AiRecommendation, BankTransaction } from '../types';
+import type { AiRecommendation, BankTransaction, Payer } from '../types';
 
 function AiRecommendationNotice({
   recommendation,
@@ -57,11 +57,13 @@ function AiRecommendationNotice({
 export function SplitMatchDialog({
   tx,
   aiRecommendation,
+  payer,
   open,
   onOpenChange,
 }: {
   tx: BankTransaction;
   aiRecommendation?: AiRecommendation | null;
+  payer?: Payer | null;
   open: boolean;
   onOpenChange: (value: boolean) => void;
 }) {
@@ -164,6 +166,33 @@ export function SplitMatchDialog({
         </DialogDescription>
         <div className="space-y-3">
           <AiRecommendationNotice recommendation={aiRecommendation} />
+          {payer &&
+            (payer.accountNumberMasked || payer.linkedCustomers.length > 0) && (
+              <div className="rounded-lg border p-3">
+                <p className="text-sm font-medium">Người chuyển khoản</p>
+                <p className="text-sm text-muted-foreground">
+                  {payer.name || tx.counterpartyName || '—'}
+                  {payer.accountNumberMasked && (
+                    <span className="ml-2 tabular-nums">
+                      {payer.accountNumberMasked}
+                    </span>
+                  )}
+                </p>
+                {payer.linkedCustomers.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {payer.linkedCustomers.map((c) => (
+                      <Badge
+                        key={c.customerId}
+                        variant="secondary"
+                        className="text-[10px]"
+                      >
+                        {c.customerName}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           <div>
             <p className="text-sm font-medium">Nội dung chuyển khoản</p>
             {tx.transferContent?.trim() ? (

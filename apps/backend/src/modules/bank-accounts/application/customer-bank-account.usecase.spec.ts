@@ -17,6 +17,7 @@ const dataSource = {
 
 const tenantContext = {
   getOrganizationId: jest.fn().mockReturnValue('org-1'),
+  getCurrentUser: jest.fn().mockReturnValue(undefined),
 };
 
 function buildAccount(
@@ -48,10 +49,15 @@ function buildCreateUseCase(
 
 function buildUpdateUseCase(
   bankAccountRepo: Record<string, jest.Mock>,
+  customerRepo: Record<string, jest.Mock> = {
+    findByIds: jest.fn().mockResolvedValue(new Map()),
+  },
   auditContext = { setBefore: jest.fn() },
 ) {
   return new UpdateCustomerBankAccountUseCase(
     bankAccountRepo as never,
+    customerRepo as never,
+    tenantContext as never,
     dataSource as never,
     auditContext as never,
   );
@@ -101,7 +107,7 @@ describe('customer bank account use cases', () => {
     const bankAccountRepo = {
       findById: jest.fn(),
       findByCustomerId: jest.fn(),
-      findByAccountNumber: jest.fn().mockResolvedValue(null),
+      findActiveByAccountNumber: jest.fn().mockResolvedValue([]),
       save: jest.fn(),
     };
     const useCase = buildCreateUseCase(customerRepo, bankAccountRepo);
@@ -109,6 +115,7 @@ describe('customer bank account use cases', () => {
     const result = await useCase.execute({
       customerId: 'cust-1',
       accountNumber: '0011 0022-33',
+      confirmedByUserId: 'user-1',
     });
 
     expect(result.accountNumber).toBe('0011002233');
@@ -125,13 +132,18 @@ describe('customer bank account use cases', () => {
   it('rejects a duplicate normalized account number', async () => {
     const useCase = buildCreateUseCase(
       { findById: jest.fn().mockResolvedValue({ id: 'cust-1' }) },
-      { findByAccountNumber: jest.fn().mockResolvedValue({ id: 'existing' }) },
+      {
+        findActiveByAccountNumber: jest
+          .fn()
+          .mockResolvedValue([buildAccount({ customerId: 'cust-1' })]),
+      },
     );
 
     await expect(
       useCase.execute({
         customerId: 'cust-1',
         accountNumber: '0011002233',
+        confirmedByUserId: 'user-1',
       }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.CONFLICT });
   });
@@ -142,7 +154,7 @@ describe('customer bank account use cases', () => {
       'Số tài khoản ngân hàng đã được liên kết.',
     );
     const bankAccountRepo = {
-      findByAccountNumber: jest.fn().mockResolvedValue(null),
+      findActiveByAccountNumber: jest.fn().mockResolvedValue([]),
       save: jest.fn().mockRejectedValue(conflictError),
     };
     const useCase = buildCreateUseCase(
@@ -151,7 +163,11 @@ describe('customer bank account use cases', () => {
     );
 
     await expect(
-      useCase.execute({ customerId: 'cust-1', accountNumber: '0011002233' }),
+      useCase.execute({
+        customerId: 'cust-1',
+        accountNumber: '0011002233',
+        confirmedByUserId: 'user-1',
+      }),
     ).rejects.toBe(conflictError);
   });
 
@@ -166,6 +182,7 @@ describe('customer bank account use cases', () => {
       useCase.execute({
         customerId: 'other-customer',
         accountNumber: '0011002233',
+        confirmedByUserId: 'user-1',
       }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.NOT_FOUND });
     expect(bankAccountRepo.save).not.toHaveBeenCalled();
@@ -174,13 +191,14 @@ describe('customer bank account use cases', () => {
   it('rejects invalid account numbers with a validation error', async () => {
     const useCase = buildCreateUseCase(
       { findById: jest.fn().mockResolvedValue({ id: 'cust-1' }) },
-      { findByAccountNumber: jest.fn(), save: jest.fn() },
+      { findActiveByAccountNumber: jest.fn(), save: jest.fn() },
     );
 
     await expect(
       useCase.execute({
         customerId: 'cust-1',
         accountNumber: 'not-an-account',
+        confirmedByUserId: 'user-1',
       }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.VALIDATION_ERROR });
   });
@@ -189,7 +207,7 @@ describe('customer bank account use cases', () => {
     const account = buildAccount();
     const bankAccountRepo = {
       findById: jest.fn().mockResolvedValue(account),
-      findByAccountNumber: jest.fn().mockResolvedValue(null),
+      findActiveByAccountNumber: jest.fn().mockResolvedValue([]),
       save: jest.fn(),
     };
     const useCase = buildUpdateUseCase(bankAccountRepo);
@@ -221,10 +239,14 @@ describe('customer bank account use cases', () => {
     const auditContext = { setBefore: jest.fn() };
     const bankAccountRepo = {
       findById: jest.fn().mockResolvedValue(account),
-      findByAccountNumber: jest.fn().mockResolvedValue(null),
+      findActiveByAccountNumber: jest.fn().mockResolvedValue([]),
       save: jest.fn(),
     };
-    const useCase = buildUpdateUseCase(bankAccountRepo, auditContext);
+    const useCase = buildUpdateUseCase(
+      bankAccountRepo,
+      undefined,
+      auditContext,
+    );
 
     const result = await useCase.execute({
       id: account.id,
@@ -298,13 +320,15 @@ describe('customer bank account use cases', () => {
     expect(repo.save).not.toHaveBeenCalled();
   });
 
-  it('rejects a duplicate account number on update', async () => {
+  it('rejects a duplicate account number on update for same customer', async () => {
     const account = buildAccount();
     const repo = {
       findById: jest.fn().mockResolvedValue(account),
-      findByAccountNumber: jest
+      findActiveByAccountNumber: jest
         .fn()
-        .mockResolvedValue(buildAccount({ id: 'other-account' })),
+        .mockResolvedValue([
+          buildAccount({ id: 'other-account', customerId: account.customerId }),
+        ]),
       save: jest.fn(),
     };
     const useCase = buildUpdateUseCase(repo);
@@ -317,5 +341,199 @@ describe('customer bank account use cases', () => {
       }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.CONFLICT });
     expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects a cross-customer account number on update without acknowledgeExistingLinks', async () => {
+    const account = buildAccount({ customerId: 'cust-1' });
+    const repo = {
+      findById: jest.fn().mockResolvedValue(account),
+      findActiveByAccountNumber: jest
+        .fn()
+        .mockResolvedValue([
+          buildAccount({ id: 'other-account', customerId: 'cust-2' }),
+        ]),
+      save: jest.fn(),
+    };
+    const customerRepo = {
+      findByIds: jest
+        .fn()
+        .mockResolvedValue(
+          new Map([['cust-2', { id: 'cust-2', name: 'Other Corp' }]]),
+        ),
+    };
+    const useCase = buildUpdateUseCase(repo, customerRepo);
+
+    await expect(
+      useCase.execute({
+        id: account.id,
+        customerId: account.customerId,
+        accountNumber: '44556677',
+      }),
+    ).rejects.toMatchObject({
+      errorCode: ErrorCode.CONFLICT,
+      details: { linkedCustomerNames: ['Other Corp'] },
+    });
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('allows cross-customer update when acknowledgeExistingLinks is true and records provenance', async () => {
+    const account = buildAccount({ customerId: 'cust-1' });
+    const repo = {
+      findById: jest.fn().mockResolvedValue(account),
+      findActiveByAccountNumber: jest
+        .fn()
+        .mockResolvedValue([
+          buildAccount({ id: 'other-account', customerId: 'cust-2' }),
+        ]),
+      save: jest.fn(),
+    };
+    const customerRepo = {
+      findByIds: jest
+        .fn()
+        .mockResolvedValue(
+          new Map([['cust-2', { id: 'cust-2', name: 'Other Corp' }]]),
+        ),
+    };
+    const useCase = buildUpdateUseCase(repo, customerRepo);
+
+    const result = await useCase.execute({
+      id: account.id,
+      customerId: account.customerId,
+      accountNumber: '44556677',
+      acknowledgeExistingLinks: true,
+      confirmedByUserId: 'user-override',
+    });
+
+    expect(result.accountNumber).toBe('44556677');
+    expect(result.confirmedByUserId).toBe('user-override');
+    expect(result.confirmedAt).toBeInstanceOf(Date);
+    expect(repo.save).toHaveBeenCalled();
+  });
+});
+
+describe('CreateCustomerBankAccountUseCase — cross-customer links', () => {
+  function makeLink(
+    overrides: Partial<
+      ConstructorParameters<typeof CustomerBankAccount>[0]
+    > = {},
+  ): CustomerBankAccount {
+    return new CustomerBankAccount({
+      id: 'link-1',
+      organizationId: 'org-1',
+      customerId: 'cust-1',
+      accountNumber: '0123456789',
+      isActive: true,
+      confirmedByUserId: 'user-1',
+      confirmedAt: new Date('2026-09-01T00:00:00.000Z'),
+      createdAt: new Date('2026-09-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-09-01T00:00:00.000Z'),
+      ...overrides,
+    });
+  }
+
+  let bankAccountRepo: {
+    findActiveByAccountNumber: jest.Mock;
+    save: jest.Mock;
+  };
+  let customerRepo: {
+    findById: jest.Mock;
+    findByIds: jest.Mock;
+  };
+  let useCase: CreateCustomerBankAccountUseCase;
+
+  beforeEach(() => {
+    bankAccountRepo = {
+      findActiveByAccountNumber: jest.fn(),
+      save: jest.fn(),
+    };
+    customerRepo = {
+      findById: jest.fn(),
+      findByIds: jest.fn(),
+    };
+    useCase = buildCreateUseCase(customerRepo, bankAccountRepo as never);
+  });
+
+  it('rejects a link when the account is active on another customer and the caller has not acknowledged', async () => {
+    bankAccountRepo.findActiveByAccountNumber.mockResolvedValue([
+      makeLink({ customerId: 'cust-other', accountNumber: '0123456789' }),
+    ]);
+    customerRepo.findById.mockResolvedValue({
+      id: 'cust-1',
+      name: 'Cong ty A',
+    });
+    customerRepo.findByIds.mockResolvedValue(
+      new Map([['cust-other', { name: 'Cong ty B' }]]),
+    );
+
+    await expect(
+      useCase.execute({
+        customerId: 'cust-1',
+        accountNumber: '0123456789',
+        confirmedByUserId: 'user-1',
+      } as any),
+    ).rejects.toMatchObject({
+      errorCode: ErrorCode.CONFLICT,
+      details: { linkedCustomerNames: ['Cong ty B'] },
+    });
+    expect(bankAccountRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('creates the link when acknowledged, stamping confirmation provenance', async () => {
+    bankAccountRepo.findActiveByAccountNumber.mockResolvedValue([
+      makeLink({ customerId: 'cust-other', accountNumber: '0123456789' }),
+    ]);
+    customerRepo.findById.mockResolvedValue({
+      id: 'cust-1',
+      name: 'Cong ty A',
+    });
+
+    const created = await useCase.execute({
+      customerId: 'cust-1',
+      accountNumber: '0123456789',
+      acknowledgeExistingLinks: true,
+      confirmedByUserId: 'user-1',
+    } as any);
+
+    expect(created.customerId).toBe('cust-1');
+    expect(created.confirmedByUserId).toBe('user-1');
+    expect(created.confirmedAt).toBeInstanceOf(Date);
+    expect(bankAccountRepo.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a second active link for the SAME customer regardless of the flag', async () => {
+    bankAccountRepo.findActiveByAccountNumber.mockResolvedValue([
+      makeLink({ customerId: 'cust-1', accountNumber: '0123456789' }),
+    ]);
+    customerRepo.findById.mockResolvedValue({
+      id: 'cust-1',
+      name: 'Cong ty A',
+    });
+
+    await expect(
+      useCase.execute({
+        customerId: 'cust-1',
+        accountNumber: '0123456789',
+        acknowledgeExistingLinks: true,
+        confirmedByUserId: 'user-1',
+      } as any),
+    ).rejects.toMatchObject({ errorCode: ErrorCode.CONFLICT });
+    expect(bankAccountRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('creates a plain link with provenance when the account is unknown', async () => {
+    bankAccountRepo.findActiveByAccountNumber.mockResolvedValue([]);
+    customerRepo.findById.mockResolvedValue({
+      id: 'cust-1',
+      name: 'Cong ty A',
+    });
+
+    const created = await useCase.execute({
+      customerId: 'cust-1',
+      accountNumber: '0123456789',
+      confirmedByUserId: 'user-1',
+    } as any);
+
+    expect(created.confirmedByUserId).toBe('user-1');
+    expect(bankAccountRepo.save).toHaveBeenCalledTimes(1);
   });
 });

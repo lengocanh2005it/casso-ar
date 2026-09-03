@@ -68,11 +68,29 @@ export class PaymentResponseDto {
   createdAt: Date;
 }
 
+export class PayerLinkedCustomerResponseDto {
+  @ApiProperty({ type: String })
+  customerId: string;
+  @ApiProperty({ type: String })
+  customerName: string;
+}
+
+export class PayerResponseDto {
+  @ApiProperty({ type: String })
+  accountNumberMasked: string;
+  @ApiProperty({ type: String })
+  name: string;
+  @ApiProperty({ type: [PayerLinkedCustomerResponseDto] })
+  linkedCustomers: PayerLinkedCustomerResponseDto[];
+}
+
 export class UnmatchedBankTransactionResponseDto {
   transaction: BankTransactionResponseDto;
   topCandidate: MatchingCandidateResponseDto | null;
   @ApiProperty({ type: AiMatchingRecommendationResponseDto, nullable: true })
   aiRecommendation: AiMatchingRecommendationResponseDto | null;
+  @ApiProperty({ type: PayerResponseDto })
+  payer: PayerResponseDto;
 }
 
 export class UnmatchedBankTransactionPageResponseDto {
@@ -153,5 +171,6 @@ function toUnmatchedItemResponse(
       ? toMatchingCandidateResponse(item.topCandidate)
       : null,
     aiRecommendation: item.aiRecommendation,
+    payer: item.payer,
   };
 }

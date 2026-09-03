@@ -26,6 +26,7 @@ import { CustomerBankAccountsController } from './presentation/customer-bank-acc
     DeactivateCustomerBankAccountUseCase,
   ],
   controllers: [CustomerBankAccountsController],
+  // Exported for WebhooksModule and ExceptionQueueModule (issue #382)
   exports: [CUSTOMER_BANK_ACCOUNT_REPOSITORY],
 })
 export class BankAccountsModule {}

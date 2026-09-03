@@ -43,6 +43,12 @@ function renderBar(items: PendingReviewItem[], onResult = vi.fn()) {
   );
 }
 
+const mockPayer = {
+  accountNumberMasked: '••••001',
+  name: 'A',
+  linkedCustomers: [],
+};
+
 describe('ExceptionsBulkActionBar', () => {
   it('skips the selected transactions immediately with no confirmation dialog', async () => {
     apiRequest.mockResolvedValue({
@@ -62,6 +68,7 @@ describe('ExceptionsBulkActionBar', () => {
           version: 1,
         },
         topCandidate: null,
+        payer: mockPayer,
       },
     ]);
 
@@ -98,6 +105,7 @@ describe('ExceptionsBulkActionBar', () => {
           version: 1,
         },
         topCandidate: null,
+        payer: mockPayer,
       },
     ]);
 
@@ -127,6 +135,7 @@ describe('ExceptionsBulkActionBar', () => {
           version: 1,
         },
         topCandidate: null,
+        payer: mockPayer,
       },
     ]);
 
@@ -169,6 +178,7 @@ describe('ExceptionsBulkActionBar', () => {
         dueDate: '2026-08-31',
         createdAt: '2026-08-01',
       },
+      payer: mockPayer,
     };
     const lowConfidence = {
       transaction: {
@@ -198,6 +208,7 @@ describe('ExceptionsBulkActionBar', () => {
         dueDate: '2026-08-31',
         createdAt: '2026-08-01',
       },
+      payer: mockPayer,
     };
     renderBar([highConfidence, lowConfidence]);
 
@@ -243,6 +254,7 @@ describe('ExceptionsBulkActionBar', () => {
           version: 1,
         },
         topCandidate: null,
+        payer: mockPayer,
       },
     ]);
 

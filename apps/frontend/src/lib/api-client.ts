@@ -196,6 +196,19 @@ export function getApiErrorMessage(error: unknown): string | undefined {
     : undefined;
 }
 
+export function getApiErrorDetails(
+  error: unknown,
+): Record<string, unknown> | undefined {
+  const data = getAxiosErrorResponse(error)?.data;
+  if (typeof data !== 'object' || data === null || !('details' in data)) {
+    return undefined;
+  }
+  const details = (data as { details?: unknown }).details;
+  return typeof details === 'object' && details !== null
+    ? (details as Record<string, unknown>)
+    : undefined;
+}
+
 async function send<T>(
   config: AxiosRequestConfig,
 ): Promise<{ data: T; headers: RawAxiosResponseHeaders }> {
