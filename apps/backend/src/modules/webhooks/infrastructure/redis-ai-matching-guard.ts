@@ -96,7 +96,7 @@ export class RedisAiMatchingGuard implements IAiMatchingGuard {
     this.settings = settingsFrom(config);
     this.lockTtlMs = Math.max(
       MIN_TIMEOUT_MS,
-      this.settings.timeoutMs + CLEANUP_BUFFER_MS,
+      this.settings.timeoutMs * 2 + CLEANUP_BUFFER_MS,
     );
   }
 

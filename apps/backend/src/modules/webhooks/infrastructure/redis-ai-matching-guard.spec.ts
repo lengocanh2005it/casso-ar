@@ -110,7 +110,7 @@ describe('RedisAiMatchingGuard', () => {
       async () => undefined,
     );
 
-    expect(redis.lockTtls).toEqual([6_000]);
+    expect(redis.lockTtls).toEqual([11_000]);
   });
 
   it('allows only the first concurrent attempt for one webhook', async () => {

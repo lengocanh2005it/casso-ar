@@ -52,12 +52,14 @@ class FakeProvider implements IAIChatProvider {
   }> = [];
   responses: AIChatCompletionResult[] = [];
   errors: unknown[] = [];
+  neverResolves = false;
 
   async createChatCompletion(
     messages: AIChatMessage[],
     tools: AIToolSpec[],
   ): Promise<AIChatCompletionResult> {
     this.calls.push({ messages, tools });
+    if (this.neverResolves) return new Promise(() => undefined);
     const error = this.errors.shift();
     if (error) throw error;
     const response = this.responses.shift();
@@ -212,6 +214,28 @@ describe('MatchingAiRecommendationService', () => {
       confidence: 70,
     });
     expect(provider.calls).toHaveLength(2);
+  });
+
+  it('retries once after a provider timeout', async () => {
+    jest.useFakeTimers();
+    try {
+      const provider = new FakeProvider();
+      provider.neverResolves = true;
+      const evaluation = createService(provider, undefined, {
+        AI_MATCHING_TIMEOUT_MS: '1000',
+      }).evaluate(input);
+
+      await jest.advanceTimersByTimeAsync(1000);
+      await jest.advanceTimersByTimeAsync(1000);
+
+      await expect(evaluation).resolves.toMatchObject({
+        status: 'FAILED',
+        failureCode: 'TIMEOUT',
+      });
+      expect(provider.calls).toHaveLength(2);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('converts a permanent provider error to a stable failure code', async () => {

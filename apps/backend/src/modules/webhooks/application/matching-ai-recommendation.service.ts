@@ -130,6 +130,7 @@ function codeOf(error: unknown): string | null {
 }
 
 function isTransientProviderError(error: unknown): boolean {
+  if (error instanceof AiMatchingTimeoutError) return true;
   const status = statusOf(error);
   return (
     status === 408 ||
@@ -166,28 +167,29 @@ export class MatchingAiRecommendationService {
   async evaluate(
     input: MatchingAiRecommendationInput,
   ): Promise<AiMatchingRecommendation | null> {
-    const guarded = await this.guard.run(
-      {
-        organizationId: input.organizationId,
-        webhookInboxId: input.webhookInboxId,
-      },
-      () => this.evaluateWithProvider(input),
-    );
-    return guarded.outcome === 'executed' ? guarded.value : null;
-  }
-
-  private async evaluateWithProvider(
-    input: MatchingAiRecommendationInput,
-  ): Promise<AiMatchingRecommendation> {
     const startedAt = Date.now();
     let lastFailure: unknown = new Error('AI provider unavailable');
+    let attemptCount = 0;
 
     for (let attempt = 0; attempt < 2; attempt += 1) {
+      attemptCount = attempt + 1;
       try {
-        const response = await this.callProvider(input);
-        const recommendation = this.parseResponse(response, input.candidates);
+        const guarded = await this.guard.run(
+          {
+            organizationId: input.organizationId,
+            webhookInboxId: input.webhookInboxId,
+          },
+          () => this.evaluateAttempt(input),
+        );
+        if (guarded.outcome === 'skipped') return null;
+        const recommendation = guarded.value;
         this.logger.log({
           message: 'AI matching recommendation evaluated',
+          organizationId: input.organizationId,
+          webhookInboxId: input.webhookInboxId,
+          model: this.model,
+          promptVersion: AI_MATCHING_PROMPT_VERSION,
+          attemptCount: attempt + 1,
           status: recommendation.status,
           latencyMs: Date.now() - startedAt,
         });
@@ -202,6 +204,11 @@ export class MatchingAiRecommendationService {
     const failureCode = failureCodeFor(lastFailure);
     this.logger.warn({
       message: 'AI matching recommendation unavailable',
+      organizationId: input.organizationId,
+      webhookInboxId: input.webhookInboxId,
+      model: this.model,
+      promptVersion: AI_MATCHING_PROMPT_VERSION,
+      attemptCount,
       failureCode,
       latencyMs: Date.now() - startedAt,
     });
@@ -215,6 +222,13 @@ export class MatchingAiRecommendationService {
       evaluatedAt: new Date().toISOString(),
       failureCode,
     });
+  }
+
+  private async evaluateAttempt(
+    input: MatchingAiRecommendationInput,
+  ): Promise<AiMatchingRecommendation> {
+    const response = await this.callProvider(input);
+    return this.parseResponse(response, input.candidates);
   }
 
   private async callProvider(
@@ -254,7 +268,6 @@ export class MatchingAiRecommendationService {
           : null,
         remainingAmount: candidate.remainingAmount,
         dueDate: candidate.dueDate.toISOString(),
-        deterministicScore: candidate.totalScore,
       }));
 
     const transaction = {
