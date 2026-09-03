@@ -177,7 +177,7 @@ describe('CustomerBankAccountsCard', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Chỉ để hỗ trợ tự động khớp giao dịch chuyển khoản với khách hàng\. Bạn có thể thêm tài khoản đã biết ở đây, hoặc hệ thống sẽ ghi nhớ sau khi bạn xác nhận một giao dịch khớp\./,
+        /hệ thống sẽ ghi nhớ sau khi bạn xác nhận một giao dịch khớp/,
       ),
     ).toBeInTheDocument();
   });

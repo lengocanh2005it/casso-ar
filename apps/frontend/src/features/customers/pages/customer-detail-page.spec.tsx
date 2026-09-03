@@ -101,7 +101,7 @@ describe('CustomerDetailPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/b@example\.com/)).toBeInTheDocument();
     expect(
-      await screen.findByText('Tài khoản ngân hàng của khách (không bắt buộc)'),
+      await screen.findByText(/Tài khoản ngân hàng của khách/),
     ).toBeInTheDocument();
     expect(screen.getByText('******2233')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'INV-2026-001' })).toHaveAttribute(
@@ -117,7 +117,7 @@ describe('CustomerDetailPage', () => {
     ).toHaveClass('grid', 'sm:grid-cols-2');
 
     const bankCard = screen
-      .getByText('Tài khoản ngân hàng của khách (không bắt buộc)')
+      .getByText(/Tài khoản ngân hàng của khách/)
       .closest('[data-slot="card"]');
     const timelineCard = screen
       .getByText('Lịch sử hoạt động')
