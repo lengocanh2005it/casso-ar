@@ -35,7 +35,7 @@ export class MatchingEngineService {
     @Inject(CUSTOMER_BANK_ACCOUNT_REPOSITORY)
     private readonly bankAccountRepo: Pick<
       ICustomerBankAccountRepository,
-      'findByAccountNumber' | 'save'
+      'findActiveByAccountNumber' | 'save'
     >,
     @Inject(RECEIVABLE_REPOSITORY)
     private readonly receivableRepo: IReceivableRepository,
@@ -49,55 +49,72 @@ export class MatchingEngineService {
     transaction: NormalizedTransaction,
     organizationId: string,
   ): Promise<ScoredCandidate[]> {
-    const account = await this.bankAccountRepo.findByAccountNumber(
+    const links = await this.bankAccountRepo.findActiveByAccountNumber(
       transaction.counterpartyAccountNumber,
     );
-    let customerId = account?.customerId ?? null;
-    let receivables = customerId
-      ? await this.receivableRepo.findOpenByCustomerId(customerId)
-      : await this.receivableRepo.findOpenTopNByOrganization(
-          organizationId,
-          ORG_WIDE_SCAN_LIMIT,
-          transaction.transactionDateTime,
-        );
+    const accountLinkedCustomerIds = new Set(
+      links.map((link) => link.customerId),
+    );
+    const linkedCustomerIds = new Set(accountLinkedCustomerIds);
+    const accountIsKnown = accountLinkedCustomerIds.size > 0;
+
+    let receivables: Receivable[];
+    if (accountIsKnown) {
+      const perCustomer = await Promise.all(
+        [...accountLinkedCustomerIds].map((id) =>
+          this.receivableRepo.findOpenByCustomerId(id),
+        ),
+      );
+      const byId = new Map<string, Receivable>();
+      for (const receivable of perCustomer.flat()) {
+        byId.set(receivable.id, receivable);
+      }
+      receivables = [...byId.values()];
+    } else {
+      receivables = await this.receivableRepo.findOpenTopNByOrganization(
+        organizationId,
+        ORG_WIDE_SCAN_LIMIT,
+        transaction.transactionDateTime,
+      );
+    }
 
     let invoiceByReceivableId = await this.findInvoicesByReceivableIds(
       receivables.map((receivable) => receivable.id),
     );
 
-    if (!customerId) {
-      customerId = this.resolveCustomerByReferenceCode(
+    if (!accountIsKnown) {
+      const resolvedId = this.resolveCustomerByReferenceCode(
         transaction.transferContent,
         receivables,
         invoiceByReceivableId,
       );
-      if (customerId) {
+      if (resolvedId) {
+        linkedCustomerIds.add(resolvedId);
         receivables =
-          await this.receivableRepo.findOpenByCustomerId(customerId);
+          await this.receivableRepo.findOpenByCustomerId(resolvedId);
         invoiceByReceivableId = await this.findInvoicesByReceivableIds(
-          receivables.map((receivable) => receivable.id),
+          receivables.map((r) => r.id),
         );
       }
     }
 
-    const knownAccountNumber = account?.accountNumber ?? null;
-    const customerName = customerId
-      ? await this.customerRepo.findNameById(customerId)
-      : null;
     const customerNames = new Map<string, string | null>();
-    if (customerId) {
-      customerNames.set(customerId, customerName);
-    } else if (receivables.length > 0) {
-      const customers = await this.customerRepo.findByIds([
+    if (receivables.length > 0) {
+      const customerIds = [
         ...new Set(receivables.map((receivable) => receivable.customerId)),
-      ]);
-      for (const receivable of receivables) {
-        customerNames.set(
-          receivable.customerId,
-          customers.get(receivable.customerId)?.name ?? null,
-        );
+      ];
+      const customers = await this.customerRepo.findByIds(customerIds);
+      for (const id of customerIds) {
+        const found = customers?.get(id)?.name;
+        if (found) {
+          customerNames.set(id, found);
+        } else {
+          const fallback = await this.customerRepo.findNameById(id);
+          customerNames.set(id, fallback ?? null);
+        }
       }
     }
+
     const scored = receivables.map((receivable) => {
       const invoice = invoiceByReceivableId.get(receivable.id) ?? null;
       const reference = invoice
@@ -107,17 +124,18 @@ export class MatchingEngineService {
         transaction.amount,
         receivable.remainingAmount,
       );
-      const accountScore = customerId
-        ? customerBankAccountScore(
+      const inLinkedSet = linkedCustomerIds.has(receivable.customerId);
+      const accountScore = accountLinkedCustomerIds.has(receivable.customerId)
+        ? customerBankAccountScore(transaction.counterpartyAccountNumber, [
             transaction.counterpartyAccountNumber,
-            knownAccountNumber ? [knownAccountNumber] : [],
-          )
+          ])
         : 0;
+      const customerName = customerNames.get(receivable.customerId) ?? '';
       const payer =
-        customerId && customerName
+        inLinkedSet && customerName
           ? payerNameScore(transaction.counterpartyName, customerName)
           : 0;
-      const timing = customerId
+      const timing = inLinkedSet
         ? timingScore(transaction.transactionDateTime, receivable.dueDate)
         : 0;
       return {
