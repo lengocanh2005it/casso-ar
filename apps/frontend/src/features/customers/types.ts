@@ -36,6 +36,7 @@ export interface CustomerBankAccountList {
 
 export interface CreateCustomerBankAccountInput {
   accountNumber: string;
+  acknowledgeExistingLinks?: boolean;
 }
 
 export interface UpdateCustomerBankAccountInput {
