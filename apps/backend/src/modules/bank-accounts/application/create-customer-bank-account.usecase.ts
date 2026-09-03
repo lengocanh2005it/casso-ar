@@ -19,6 +19,8 @@ import {
 export interface CreateCustomerBankAccountInput {
   customerId: string;
   accountNumber: string;
+  confirmedByUserId?: string;
+  acknowledgeExistingLinks?: boolean;
 }
 
 @Injectable()
@@ -53,23 +55,46 @@ export class CreateCustomerBankAccountUseCase {
     }
 
     const accountNumber = normalizeOrThrow(input.accountNumber);
-    const existing =
-      await this.bankAccountRepo.findByAccountNumber(accountNumber);
-    if (existing) {
+    const activeLinks =
+      await this.bankAccountRepo.findActiveByAccountNumber(accountNumber);
+
+    if (activeLinks.some((link) => link.customerId === customer.id)) {
       throw new AppError(
         ErrorCode.CONFLICT,
         'Số tài khoản ngân hàng đã được liên kết.',
       );
     }
 
+    const otherCustomerIds = [
+      ...new Set(activeLinks.map((link) => link.customerId)),
+    ];
+    if (
+      otherCustomerIds.length > 0 &&
+      input.acknowledgeExistingLinks !== true
+    ) {
+      const names = await this.customerRepo.findByIds(otherCustomerIds);
+      throw new AppError(
+        ErrorCode.CONFLICT,
+        'Số tài khoản này đang liên kết với khách hàng khác.',
+        {
+          linkedCustomerNames: otherCustomerIds
+            .map((id) => names.get(id)?.name)
+            .filter((name): name is string => Boolean(name)),
+        },
+      );
+    }
+
+    const now = new Date();
     const account = new CustomerBankAccount({
       id: randomUUID(),
       organizationId: this.tenantContext.getOrganizationId(),
       customerId: customer.id,
       accountNumber,
       isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      confirmedByUserId: input.confirmedByUserId ?? null,
+      confirmedAt: now,
+      createdAt: now,
+      updatedAt: now,
     });
 
     await this.bankAccountRepo.save(account, manager);
