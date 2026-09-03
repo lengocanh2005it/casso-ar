@@ -71,6 +71,7 @@ describe('ProcessWebhookUseCase', () => {
       dataSource as any,
       tenant as any,
       { record: jest.fn() } as any,
+      { evaluate: jest.fn() } as any,
     );
 
     await useCase.execute('wh-1', 'org-1');
@@ -142,6 +143,7 @@ describe('ProcessWebhookUseCase', () => {
       dataSource as any,
       tenant as any,
       { record: jest.fn() } as any,
+      { evaluate: jest.fn() } as any,
     );
 
     await useCase.execute('wh-1', 'org-1');
@@ -189,11 +191,148 @@ describe('ProcessWebhookUseCase', () => {
       dataSource as any,
       tenant as any,
       { record: jest.fn() } as any,
+      { evaluate: jest.fn() } as any,
     );
 
     await useCase.execute('wh-1', 'org-1');
 
     expect(allocation.allocateWithinTransaction).not.toHaveBeenCalled();
     expect(allocation.emitAllocationEvents).not.toHaveBeenCalled();
+  });
+
+  it('evaluates an ambiguous match before the transaction and persists the advisory result', async () => {
+    const inboxRepo = {
+      findById: jest.fn().mockResolvedValue(inbox),
+      save: jest.fn(),
+    };
+    const transactionRepo = { save: jest.fn(), findById: jest.fn() };
+    const engine = {
+      scoreCandidates: jest.fn().mockResolvedValue([
+        {
+          receivableId: 'rec-1',
+          customerId: 'cust-1',
+          totalScore: 70,
+          invoiceNumber: 'INV-1',
+          customerName: 'Company B',
+          remainingAmount: 30_000_000,
+          dueDate: new Date('2026-08-20'),
+        },
+      ]),
+      toMatchingCandidateEntities: jest.fn().mockReturnValue([]),
+    };
+    const allocation = {
+      allocateWithinTransaction: jest.fn(),
+      emitAllocationEvents: jest.fn(),
+    };
+    const order: string[] = [];
+    const dataSource = {
+      transaction: jest.fn(
+        async (callback: (manager: object) => Promise<void>) => {
+          order.push('transaction');
+          return callback({});
+        },
+      ),
+    };
+    const tenant = {
+      run: jest.fn((_user: unknown, callback: () => Promise<void>) =>
+        callback(),
+      ),
+    };
+    const aiRecommendation = {
+      status: 'SUCCEEDED',
+      recommendedReceivableId: 'rec-1',
+      confidence: 80,
+      reason: 'Tên và số tiền phù hợp.',
+      model: 'gpt-4o-mini',
+      promptVersion: 'matching-v1',
+      evaluatedAt: '2026-08-05T00:00:00.000Z',
+    } as const;
+    const aiService = {
+      evaluate: jest.fn(async () => {
+        order.push('ai');
+        return aiRecommendation;
+      }),
+    };
+    const useCase = new ProcessWebhookUseCase(
+      inboxRepo as any,
+      transactionRepo as any,
+      engine as any,
+      { saveMany: jest.fn() } as any,
+      { save: jest.fn() } as any,
+      allocation as any,
+      dataSource as any,
+      tenant as any,
+      { record: jest.fn() } as any,
+      aiService as any,
+    );
+
+    await useCase.execute('wh-1', 'org-1');
+
+    expect(order).toEqual(['ai', 'transaction']);
+    expect(aiService.evaluate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: 'org-1',
+        webhookInboxId: 'wh-1',
+        candidates: expect.arrayContaining([
+          expect.objectContaining({ receivableId: 'rec-1' }),
+        ]),
+      }),
+    );
+    expect(transactionRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'PENDING_REVIEW',
+        aiRecommendation,
+      }),
+      expect.anything(),
+    );
+  });
+
+  it('does not invoke AI for an automatic match', async () => {
+    const inboxRepo = {
+      findById: jest.fn().mockResolvedValue(inbox),
+      save: jest.fn(),
+    };
+    const transactionRepo = { save: jest.fn(), findById: jest.fn() };
+    const engine = {
+      scoreCandidates: jest
+        .fn()
+        .mockResolvedValue([
+          { receivableId: 'rec-1', customerId: 'cust-1', totalScore: 95 },
+        ]),
+      toMatchingCandidateEntities: jest.fn(),
+    };
+    const aiService = { evaluate: jest.fn() };
+    const dataSource = {
+      transaction: jest.fn(
+        async (callback: (manager: object) => Promise<void>) => callback({}),
+      ),
+    };
+    const tenant = {
+      run: jest.fn((_user: unknown, callback: () => Promise<void>) =>
+        callback(),
+      ),
+    };
+    const allocation = {
+      allocateWithinTransaction: jest
+        .fn()
+        .mockResolvedValue({ customerId: 'cust-1', becameClosed: false }),
+      emitAllocationEvents: jest.fn(),
+    };
+    const useCase = new ProcessWebhookUseCase(
+      inboxRepo as any,
+      transactionRepo as any,
+      engine as any,
+      { saveMany: jest.fn() } as any,
+      { save: jest.fn() } as any,
+      allocation as any,
+      dataSource as any,
+      tenant as any,
+      { record: jest.fn() } as any,
+      aiService as any,
+    );
+
+    await useCase.execute('wh-1', 'org-1');
+
+    expect(aiService.evaluate).not.toHaveBeenCalled();
   });
 });

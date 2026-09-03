@@ -8,9 +8,10 @@ import { CustomersModule } from '../customers/customers.module';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { ReceivablesModule } from '../receivables/receivables.module';
-import { BANK_TRANSACTION_REPOSITORY } from './application/bank-transaction-repository.port';
 import { AI_MATCHING_GUARD } from './application/ai-matching-guard.port';
+import { BANK_TRANSACTION_REPOSITORY } from './application/bank-transaction-repository.port';
 import { ListWebhookInboxUseCase } from './application/list-webhook-inbox.usecase';
+import { MatchingAiRecommendationService } from './application/matching-ai-recommendation.service';
 import { MATCHING_CANDIDATE_REPOSITORY } from './application/matching-candidate-repository.port';
 import { MatchingEngineService } from './application/matching-engine.service';
 import { ProcessWebhookUseCase } from './application/process-webhook.usecase';
@@ -65,6 +66,7 @@ import { WebhooksController } from './presentation/webhooks.controller';
     { provide: WEBHOOK_JOB_QUEUE, useClass: BullMqWebhookJobQueue },
     { provide: AI_MATCHING_GUARD, useClass: RedisAiMatchingGuard },
     MatchingEngineService,
+    MatchingAiRecommendationService,
     ProcessWebhookUseCase,
     ReceiveWebhookUseCase,
     ListWebhookInboxUseCase,
