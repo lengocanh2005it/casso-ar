@@ -66,6 +66,18 @@ describe('createAiMatchingRecommendation', () => {
         failureCode: 'TIMEOUT',
       }),
     ).toThrow('FAILED');
+    expect(() =>
+      createAiMatchingRecommendation({
+        status: 'FAILED',
+        recommendedReceivableId: null,
+        confidence: null,
+        reason: null,
+        model: 'gpt-4o-mini',
+        promptVersion: AI_MATCHING_PROMPT_VERSION,
+        evaluatedAt,
+        failureCode: 'UNKNOWN' as never,
+      }),
+    ).toThrow('failure code');
   });
 
   it('sanitizes reasons to plain text without control characters and at most 240 characters', () => {
@@ -78,6 +90,9 @@ describe('createAiMatchingRecommendation', () => {
       promptVersion: AI_MATCHING_PROMPT_VERSION,
       evaluatedAt,
     });
+    if (recommendation.status !== 'SUCCEEDED') {
+      throw new Error('Expected a succeeded recommendation');
+    }
 
     expect(recommendation.reason).toHaveLength(240);
     expect(
@@ -86,5 +101,24 @@ describe('createAiMatchingRecommendation', () => {
         return codePoint > 31 && codePoint !== 127;
       }),
     ).toBe(true);
+  });
+
+  it('removes C1 controls and truncates without splitting a Unicode character', () => {
+    const recommendation = createAiMatchingRecommendation({
+      status: 'SUCCEEDED',
+      recommendedReceivableId: 'receivable-1',
+      confidence: 100,
+      reason: `\u0080${'a'.repeat(239)}😀x`,
+      model: 'gpt-4o-mini',
+      promptVersion: AI_MATCHING_PROMPT_VERSION,
+      evaluatedAt,
+    });
+    if (recommendation.status !== 'SUCCEEDED') {
+      throw new Error('Expected a succeeded recommendation');
+    }
+
+    expect(Array.from(recommendation.reason)).toHaveLength(240);
+    expect(recommendation.reason.endsWith('😀')).toBe(true);
+    expect(recommendation.reason).not.toContain('\u0080');
   });
 });

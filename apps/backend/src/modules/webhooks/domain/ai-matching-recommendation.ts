@@ -59,16 +59,22 @@ export interface AiMatchingRecommendationInput {
 }
 
 const MAX_REASON_LENGTH = 240;
+const AI_MATCHING_FAILURE_CODES: readonly AiMatchingFailureCode[] = [
+  'PROVIDER_UNAVAILABLE',
+  'TIMEOUT',
+  'INVALID_OUTPUT',
+  'QUOTA_EXCEEDED',
+  'LOCK_UNAVAILABLE',
+];
 
 function sanitizeReason(reason: string): string {
-  return Array.from(reason)
+  return Array.from(reason.trim())
     .filter((character) => {
       const codePoint = character.codePointAt(0) ?? 0;
-      return codePoint > 31 && codePoint !== 127;
+      return codePoint > 31 && (codePoint < 127 || codePoint > 159);
     })
-    .join('')
-    .trim()
-    .slice(0, MAX_REASON_LENGTH);
+    .slice(0, MAX_REASON_LENGTH)
+    .join('');
 }
 
 function assertConfidence(
@@ -134,7 +140,8 @@ export function createAiMatchingRecommendation(
       input.recommendedReceivableId !== null ||
       input.confidence !== null ||
       input.reason !== null ||
-      !input.failureCode
+      !input.failureCode ||
+      !AI_MATCHING_FAILURE_CODES.includes(input.failureCode)
     ) {
       throw new Error(
         'A FAILED AI matching recommendation only contains a failure code',
