@@ -1,6 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { maskAccountNumber } from '../../bank-accounts/application/account-number-normalizer';
+import {
+  CUSTOMER_BANK_ACCOUNT_REPOSITORY,
+  type ICustomerBankAccountRepository,
+} from '../../bank-accounts/application/customer-bank-account-repository.port';
 import {
   CUSTOMER_REPOSITORY,
   type ICustomerRepository,
@@ -34,10 +39,17 @@ export interface AiMatchingRecommendationView {
   isCurrent: boolean;
 }
 
+export interface PayerView {
+  accountNumberMasked: string;
+  name: string;
+  linkedCustomers: { customerId: string; customerName: string }[];
+}
+
 export interface UnmatchedBankTransactionView {
   transaction: BankTransaction;
   topCandidate: MatchingCandidateView | null;
   aiRecommendation: AiMatchingRecommendationView | null;
+  payer: PayerView;
 }
 
 export interface MatchingCandidateView {
@@ -68,6 +80,11 @@ export class UnmatchedBankTransactionsQueryService {
     private readonly customerRepo: ICustomerRepository,
     @Inject(INVOICE_REPOSITORY)
     private readonly invoiceRepo: IInvoiceRepository,
+    @Inject(CUSTOMER_BANK_ACCOUNT_REPOSITORY)
+    private readonly bankAccountRepo: Pick<
+      ICustomerBankAccountRepository,
+      'findActiveByAccountNumber'
+    > = { findActiveByAccountNumber: async () => [] },
   ) {}
 
   async execute(
@@ -109,9 +126,39 @@ export class UnmatchedBankTransactionsQueryService {
           ).map((receivable) => receivable.id)
         : [],
     );
+
+    const linksByAccount = new Map<string, { customerId: string }[]>();
+    await Promise.all(
+      [
+        ...new Set(
+          pageTransactions
+            .map((t) => t.counterpartyAccountNumber)
+            .filter((n): n is string => Boolean(n)),
+        ),
+      ].map(async (accountNumber) => {
+        linksByAccount.set(
+          accountNumber,
+          await this.bankAccountRepo.findActiveByAccountNumber(accountNumber),
+        );
+      }),
+    );
+    const payerCustomerIds = [
+      ...new Set(
+        [...linksByAccount.values()].flat().map((link) => link.customerId),
+      ),
+    ];
+    const payerCustomerNames =
+      payerCustomerIds.length > 0
+        ? await this.customerRepo.findByIds(payerCustomerIds)
+        : new Map<string, { name: string }>();
+
     return {
       items: pageTransactions.map((transaction) => {
         const candidate = topCandidates.get(transaction.id);
+        const accountNumber = transaction.counterpartyAccountNumber;
+        const links = accountNumber
+          ? (linksByAccount.get(accountNumber) ?? [])
+          : [];
         return {
           transaction,
           topCandidate: candidate
@@ -121,6 +168,16 @@ export class UnmatchedBankTransactionsQueryService {
             transaction.aiRecommendation,
             openReceivableIds,
           ),
+          payer: {
+            accountNumberMasked: accountNumber
+              ? maskAccountNumber(accountNumber)
+              : '',
+            name: transaction.counterpartyName ?? '',
+            linkedCustomers: links.map((link) => ({
+              customerId: link.customerId,
+              customerName: payerCustomerNames.get(link.customerId)?.name ?? '',
+            })),
+          },
         };
       }),
       total,
