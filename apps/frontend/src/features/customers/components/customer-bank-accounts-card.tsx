@@ -118,7 +118,8 @@ export function CustomerBankAccountsCard({
             <CardDescription>
               Chỉ để hỗ trợ tự động khớp giao dịch chuyển khoản với khách hàng.
               Bạn có thể thêm tài khoản đã biết ở đây, hoặc hệ thống sẽ ghi nhớ
-              sau khi bạn xác nhận một giao dịch khớp.
+              sau khi bạn xác nhận một giao dịch khớp. Một tài khoản có thể
+              thuộc nhiều khách hàng (một bên trả hộ).
             </CardDescription>
           </div>
           {canManage && (
