@@ -50,6 +50,13 @@ Update paidAmount → close receivable when fully paid (PAID), cancel remaining 
 Aging reports / collection forecasts / Copilot accounting assistance
 ```
 
+For the `60–89` branch, an optional advisory AI second pass reviews at most
+five deterministic candidates and returns a strict recommendation or
+`ABSTAIN`. The result is persisted with the pending transaction when the AI
+evaluation is admitted;
+the deterministic scorer, existing allocation rules, and manual confirmation
+remain authoritative.
+
 ## 5. Business Example
 
 Example from [domain-core spec section 5](docs/superpowers/specs/2026-08-03-domain-core-design.md):
@@ -81,6 +88,7 @@ Payment P2: 25.000.000
 | Email template | [email-template-management-design](docs/superpowers/specs/2026-08-03-email-template-management-design.md) |
 | Casso Flow / bank connection | [cas-id-bank-connection-design](docs/superpowers/specs/2026-08-03-cas-id-bank-connection-design.md) (superseded by [ADR-0021](adr/0021-casso-flow-not-cas-id-for-bank-integration.md)) |
 | Webhook + matching | [webhook-matching-engine-design](docs/superpowers/specs/2026-08-03-webhook-matching-engine-design.md) |
+| AI-assisted matching | [ai-assisted-matching-recommendations-design](superpowers/specs/2026-09-03-ai-assisted-matching-recommendations-design.md) · [implementation plan](superpowers/plans/2026-09-03-ai-assisted-matching-recommendations.md) |
 | Payment allocation | [domain-core-design](docs/superpowers/specs/2026-08-03-domain-core-design.md) |
 | Exception queue + Audit log | [exception-queue-audit-log-design](docs/superpowers/specs/2026-08-03-exception-queue-audit-log-design.md) |
 | Aging / reporting | [aging-dashboard-reporting-design](docs/superpowers/specs/2026-08-03-aging-dashboard-reporting-design.md) |
@@ -94,7 +102,20 @@ Payment P2: 25.000.000
 
 Details for each module (entities, business rules, and designed states) are in the corresponding spec.
 
-## 7. AI — Collection Copilot
+## 7. AI features
+
+### 7.1 Matching Engine advisory
+
+The matching recommendation is an opt-in, display-only second pass for
+ambiguous webhook matches. `MatchingAiRecommendationService` uses the shared
+OpenAI-compatible provider, strict tool-call validation, and a Redis
+lock/quota/concurrency guard. It sends masked/minimized evidence, stores a
+nullable `BankTransaction.aiRecommendation` JSONB payload, and exposes only
+the safe recommendation fields plus derived `isCurrent` in the existing
+Exception Queue response. It never performs allocation, changes status, or
+executes on a read request. See the [AI matching design](superpowers/specs/2026-09-03-ai-assisted-matching-recommendations-design.md).
+
+### 7.2 Collection Copilot
 
 Designed according to the [collection-copilot spec](docs/superpowers/specs/2026-08-03-collection-copilot-design.md) — **tool-based chat**, not two fixed actions:
 
@@ -210,7 +231,7 @@ CASSO Balance Hook (POST /webhooks/casso-balance-hook)
   → insert WebhookInbox, unique(providerTransactionId); duplicate → immediate 200, no further processing
   → Queue (BullMQ) → Transaction Normalizer → Matching Engine
   → score ≥ 90: automatic Payment Allocation
-  → score 60–89: Exception Queue
+  → score 60–89: Exception Queue (+ optional AI advisory, top five only)
   → score < 60: status = UNMATCHED
 ```
 
@@ -231,6 +252,7 @@ Only decisions finalized in the specs are listed:
 | 9 | Reporting | Real-time raw SQL, **no precomputation**; index `Receivable(organizationId, status, dueDate)`. ([aging section 1](docs/superpowers/specs/2026-08-03-aging-dashboard-reporting-design.md)) |
 | 10 | Reminder race | Split cron scanning (enqueue) from actual sending (re-check fresh state before sending). Cron/"today" uses fixed timezone `Asia/Ho_Chi_Minh`, not server time. ([reminder section 3](docs/superpowers/specs/2026-08-03-reminder-automation-design.md), ADR 0004) |
 | 11 | API conventions | Errors return `{ statusCode, errorCode, message, details? }`; FE-called `POST` requests that create or change money/status receive the `Idempotency-Key` header (except webhooks, which already have `providerTransactionId`). ([project-scaffolding section 5](docs/superpowers/specs/2026-08-03-project-scaffolding-architecture-design.md)) |
+| 12 | AI matching boundary | AI is an opt-in advisory second pass only for deterministic scores `60–89`; it sees at most five masked candidates, returns one strict recommendation or abstains, and cannot change amount, status, or allocation. The recommendation is persisted on `BankTransaction` and freshness is derived at read time. ([AI matching design](docs/superpowers/specs/2026-09-03-ai-assisted-matching-recommendations-design.md)) |
 
 ## 13. Data Model Summary
 
@@ -244,7 +266,7 @@ List of main entities (field details/ERD are in each spec; no ERD is drawn here)
 | `Receivable` | Receivable: `originalAmount`, `paidAmount` (rollup), `dueDate`, status, `ownerUserId`. |
 | `Payment` | Payment from a bank transaction: `totalAmount`, `allocatedAmount` (rollup), `payerName`; remainder = credit balance. |
 | `PaymentAllocation` | Payment → Receivable allocation; source of truth for history; soft-deleted on undo. |
-| `BankTransaction` | Normalized transaction: status UNMATCHED/PENDING_REVIEW/MATCHED, `version` (optimistic lock). |
+| `BankTransaction` | Normalized transaction: status UNMATCHED/PENDING_REVIEW/MATCHED, `version` (optimistic lock), nullable advisory `aiRecommendation` JSONB. |
 | `MatchingCandidate` | Matching candidate + 5 score components + `totalScore`. |
 | `WebhookInbox` | Raw payload, `unique(providerTransactionId)`, status RECEIVED/PROCESSED/FAILED, retryCount. |
 | `Dispute` | Dispute OPEN/RESOLVED; `isDisputed` = EXISTS(OPEN). |
@@ -271,6 +293,7 @@ List of main entities (field details/ERD are in each spec; no ERD is drawn here)
 - **Dedicated routes** for details: `/receivables/:id`, `/customers/:id` (3 tabs: payments/timeline/tasks; allocations are included in `GET /receivables/:id`, with no separate endpoint).
 - **Matching workspace** as list + detail sheet: 5 score-breakdown rows, primary candidate highlighted, "Match receivable" button opens the match dialog.
 - **Exception Queue:** split-match multiple receivables in one submission with `version`; skip; mark-prepaid (credit balance).
+- **Exception Queue AI context:** current successful recommendations show a qualitative confidence badge and sanitized reason; stale, abstained, failed, or absent results show no suggestion. No amount prefill, one-click AI action, or retry control is added.
 - **Copilot:** chat message list + input; when `pendingAction` exists, show a **confirmation card (Confirm/Cancel)** — confirm/cancel does not return to the LLM. Copilot navigation is gated to the STARTER plan (show a lock icon, do not hide it).
 - RBAC FE: `hasPermission()` hides buttons; detailed route-gating is only for `/settings`; the users tab (invite) is limited to OWNER/FINANCE_MANAGER.
 - `dashboard` (reports): aging chart (recharts) + summary cards; settings includes billing/static plan + users + email templates CRUD/preview.

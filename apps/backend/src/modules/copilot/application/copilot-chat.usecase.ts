@@ -2,6 +2,13 @@ import { Permission, ROLE_PERMISSIONS } from '@casso-ar/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import {
+  AI_CHAT_PROVIDER,
+  type AIChatCompletionResult,
+  type AIChatMessage,
+  type AIToolCall,
+  type IAIChatProvider,
+} from '../../../common/ai/ai-chat-provider.port';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
@@ -18,13 +25,6 @@ import {
   type IReceivableRepository,
   RECEIVABLE_REPOSITORY,
 } from '../../receivables/application/receivable-repository.port';
-import {
-  AI_CHAT_PROVIDER,
-  type AIChatCompletionResult,
-  type AIChatMessage,
-  type AIToolCall,
-  type IAIChatProvider,
-} from './ai-chat-provider.port';
 import {
   AI_USAGE_LOG_REPOSITORY,
   type IAIUsageLogRepository,

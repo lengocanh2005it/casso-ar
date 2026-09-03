@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import type { Payment } from '../../../payments/domain/payment';
 import type {
   BankTransaction,
@@ -8,6 +9,19 @@ import type {
   UnmatchedBankTransactionPage,
   UnmatchedBankTransactionView,
 } from '../../application/unmatched-bank-transactions-query.service';
+
+export class AiMatchingRecommendationResponseDto {
+  @ApiProperty({ enum: ['SUCCEEDED', 'ABSTAINED', 'FAILED'] })
+  status: 'SUCCEEDED' | 'ABSTAINED' | 'FAILED';
+  @ApiProperty({ type: String, nullable: true })
+  recommendedReceivableId: string | null;
+  @ApiProperty({ type: Number, nullable: true })
+  confidence: number | null;
+  @ApiProperty({ type: String, nullable: true })
+  reason: string | null;
+  @ApiProperty({ type: Boolean })
+  isCurrent: boolean;
+}
 
 export class BankTransactionResponseDto {
   id: string;
@@ -57,6 +71,8 @@ export class PaymentResponseDto {
 export class UnmatchedBankTransactionResponseDto {
   transaction: BankTransactionResponseDto;
   topCandidate: MatchingCandidateResponseDto | null;
+  @ApiProperty({ type: AiMatchingRecommendationResponseDto, nullable: true })
+  aiRecommendation: AiMatchingRecommendationResponseDto | null;
 }
 
 export class UnmatchedBankTransactionPageResponseDto {
@@ -136,5 +152,6 @@ function toUnmatchedItemResponse(
     topCandidate: item.topCandidate
       ? toMatchingCandidateResponse(item.topCandidate)
       : null,
+    aiRecommendation: item.aiRecommendation,
   };
 }

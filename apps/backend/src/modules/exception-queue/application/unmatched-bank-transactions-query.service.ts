@@ -22,12 +22,22 @@ import {
   type IMatchingCandidateRepository,
   MATCHING_CANDIDATE_REPOSITORY,
 } from '../../webhooks/application/matching-candidate-repository.port';
+import type { AiMatchingRecommendation } from '../../webhooks/domain/ai-matching-recommendation';
 import type { BankTransaction } from '../../webhooks/domain/bank-transaction';
 import type { MatchingCandidate } from '../../webhooks/domain/matching-candidate';
+
+export interface AiMatchingRecommendationView {
+  status: AiMatchingRecommendation['status'];
+  recommendedReceivableId: string | null;
+  confidence: number | null;
+  reason: string | null;
+  isCurrent: boolean;
+}
 
 export interface UnmatchedBankTransactionView {
   transaction: BankTransaction;
   topCandidate: MatchingCandidateView | null;
+  aiRecommendation: AiMatchingRecommendationView | null;
 }
 
 export interface MatchingCandidateView {
@@ -83,6 +93,22 @@ export class UnmatchedBankTransactionsQueryService {
     const candidateViewsById = new Map(
       candidateViews.map((view) => [view.candidate.id, view]),
     );
+    const recommendationIds = pageTransactions.flatMap((transaction) => {
+      const recommendation = transaction.aiRecommendation;
+      return recommendation?.status === 'SUCCEEDED' &&
+        recommendation.recommendedReceivableId
+        ? [recommendation.recommendedReceivableId]
+        : [];
+    });
+    const openReceivableIds = new Set(
+      recommendationIds.length > 0
+        ? (
+            await this.receivableRepo.findOpenByIds([
+              ...new Set(recommendationIds),
+            ])
+          ).map((receivable) => receivable.id)
+        : [],
+    );
     return {
       items: pageTransactions.map((transaction) => {
         const candidate = topCandidates.get(transaction.id);
@@ -91,6 +117,10 @@ export class UnmatchedBankTransactionsQueryService {
           topCandidate: candidate
             ? (candidateViewsById.get(candidate.id) ?? null)
             : null,
+          aiRecommendation: toRecommendationView(
+            transaction.aiRecommendation,
+            openReceivableIds,
+          ),
         };
       }),
       total,
@@ -150,4 +180,21 @@ export class UnmatchedBankTransactionsQueryService {
       };
     });
   }
+}
+
+function toRecommendationView(
+  recommendation: AiMatchingRecommendation | null | undefined,
+  openReceivableIds: Set<string>,
+): AiMatchingRecommendationView | null {
+  if (!recommendation) return null;
+  return {
+    status: recommendation.status,
+    recommendedReceivableId: recommendation.recommendedReceivableId,
+    confidence: recommendation.confidence,
+    reason: recommendation.reason,
+    isCurrent:
+      recommendation.status === 'SUCCEEDED' &&
+      recommendation.recommendedReceivableId !== null &&
+      openReceivableIds.has(recommendation.recommendedReceivableId),
+  };
 }

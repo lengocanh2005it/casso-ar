@@ -31,14 +31,21 @@ export interface AIStreamChunk {
   outputTokens: number | null;
 }
 
+export interface CreateChatCompletionOptions {
+  signal?: AbortSignal;
+  toolChoice?: 'auto' | 'required' | 'none';
+}
+
 export interface IAIChatProvider {
   createChatCompletion(
     messages: AIChatMessage[],
     tools: AIToolSpec[],
+    options?: CreateChatCompletionOptions,
   ): Promise<AIChatCompletionResult>;
   streamChatCompletion(
     messages: AIChatMessage[],
     tools: AIToolSpec[],
+    options?: CreateChatCompletionOptions,
   ): AsyncIterable<AIStreamChunk>;
 }
 

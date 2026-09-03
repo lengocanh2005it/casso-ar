@@ -1,14 +1,17 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AIProviderModule } from '../../common/ai/ai-provider.module';
 import { BankAccountsModule } from '../bank-accounts/bank-accounts.module';
 import { BankConnectionsModule } from '../bank-connections/bank-connections.module';
 import { CustomersModule } from '../customers/customers.module';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { ReceivablesModule } from '../receivables/receivables.module';
+import { AI_MATCHING_GUARD } from './application/ai-matching-guard.port';
 import { BANK_TRANSACTION_REPOSITORY } from './application/bank-transaction-repository.port';
 import { ListWebhookInboxUseCase } from './application/list-webhook-inbox.usecase';
+import { MatchingAiRecommendationService } from './application/matching-ai-recommendation.service';
 import { MATCHING_CANDIDATE_REPOSITORY } from './application/matching-candidate-repository.port';
 import { MatchingEngineService } from './application/matching-engine.service';
 import { ProcessWebhookUseCase } from './application/process-webhook.usecase';
@@ -19,6 +22,7 @@ import { WEBHOOK_JOB_QUEUE } from './application/webhook-job-queue.port';
 import { BankTransactionOrmEntity } from './infrastructure/bank-transaction.orm-entity';
 import { BullMqWebhookJobQueue } from './infrastructure/bullmq-webhook-job-queue.adapter';
 import { MatchingCandidateOrmEntity } from './infrastructure/matching-candidate.orm-entity';
+import { RedisAiMatchingGuard } from './infrastructure/redis-ai-matching-guard';
 import { TypeOrmBankTransactionRepository } from './infrastructure/typeorm-bank-transaction.repository';
 import { TypeOrmMatchingCandidateRepository } from './infrastructure/typeorm-matching-candidate.repository';
 import { TypeOrmWebhookInboxRepository } from './infrastructure/typeorm-webhook-inbox.repository';
@@ -37,6 +41,7 @@ import { WebhooksController } from './presentation/webhooks.controller';
       MatchingCandidateOrmEntity,
     ]),
     BullModule.registerQueue({ name: WEBHOOK_PROCESSING_QUEUE }),
+    AIProviderModule,
     BankConnectionsModule,
     BankAccountsModule,
     CustomersModule,
@@ -59,7 +64,9 @@ import { WebhooksController } from './presentation/webhooks.controller';
       useClass: TypeOrmMatchingCandidateRepository,
     },
     { provide: WEBHOOK_JOB_QUEUE, useClass: BullMqWebhookJobQueue },
+    { provide: AI_MATCHING_GUARD, useClass: RedisAiMatchingGuard },
     MatchingEngineService,
+    MatchingAiRecommendationService,
     ProcessWebhookUseCase,
     ReceiveWebhookUseCase,
     ListWebhookInboxUseCase,
@@ -71,6 +78,7 @@ import { WebhooksController } from './presentation/webhooks.controller';
     WEBHOOK_INBOX_REPOSITORY,
     BANK_TRANSACTION_REPOSITORY,
     MATCHING_CANDIDATE_REPOSITORY,
+    AI_MATCHING_GUARD,
     WebhookRateLimitGuard,
   ],
 })

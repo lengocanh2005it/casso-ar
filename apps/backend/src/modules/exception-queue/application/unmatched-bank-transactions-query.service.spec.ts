@@ -14,6 +14,7 @@ describe('UnmatchedBankTransactionsQueryService', () => {
     };
     const receivableRepo = {
       findByIds: jest.fn().mockResolvedValue(new Map()),
+      findOpenByIds: jest.fn().mockResolvedValue([]),
     };
     const customerRepo = { findByIds: jest.fn().mockResolvedValue(new Map()) };
     const invoiceRepo = { findByIds: jest.fn().mockResolvedValue(new Map()) };
@@ -37,8 +38,13 @@ describe('UnmatchedBankTransactionsQueryService', () => {
             remainingAmount: null,
             dueDate: null,
           },
+          aiRecommendation: null,
         },
-        { transaction: { id: 'bt-2' }, topCandidate: null },
+        {
+          transaction: { id: 'bt-2' },
+          topCandidate: null,
+          aiRecommendation: null,
+        },
       ],
       total: 2,
       page: 1,
@@ -59,6 +65,7 @@ describe('UnmatchedBankTransactionsQueryService', () => {
     };
     const receivableRepo = {
       findByIds: jest.fn().mockResolvedValue(new Map()),
+      findOpenByIds: jest.fn().mockResolvedValue([]),
     };
     const customerRepo = { findByIds: jest.fn().mockResolvedValue(new Map()) };
     const invoiceRepo = { findByIds: jest.fn().mockResolvedValue(new Map()) };
@@ -90,6 +97,7 @@ describe('UnmatchedBankTransactionsQueryService', () => {
     };
     const receivableRepo = {
       findByIds: jest.fn().mockResolvedValue(new Map()),
+      findOpenByIds: jest.fn().mockResolvedValue([]),
     };
     const customerRepo = { findByIds: jest.fn().mockResolvedValue(new Map()) };
     const invoiceRepo = { findByIds: jest.fn().mockResolvedValue(new Map()) };
@@ -112,6 +120,149 @@ describe('UnmatchedBankTransactionsQueryService', () => {
       'PENDING_REVIEW',
       'nguyen van a',
     );
+  });
+
+  it('marks a successful recommendation current only when its receivable is still open', async () => {
+    const transaction = {
+      id: 'bt-1',
+      aiRecommendation: {
+        status: 'SUCCEEDED',
+        recommendedReceivableId: 'rec-1',
+        confidence: 80,
+        reason: 'Khớp.',
+      },
+    };
+    const bankTransactionRepo = {
+      findManyByStatus: jest.fn().mockResolvedValue([transaction]),
+      countByStatus: jest.fn().mockResolvedValue(1),
+    };
+    const matchingCandidateRepo = {
+      findTopByBankTransactionIds: jest.fn().mockResolvedValue(new Map()),
+    };
+    const receivableRepo = {
+      findByIds: jest.fn().mockResolvedValue(new Map()),
+      findOpenByIds: jest.fn().mockResolvedValue([{ id: 'rec-1' }]),
+    };
+    const customerRepo = { findByIds: jest.fn().mockResolvedValue(new Map()) };
+    const invoiceRepo = { findByIds: jest.fn().mockResolvedValue(new Map()) };
+    const service = new UnmatchedBankTransactionsQueryService(
+      bankTransactionRepo as never,
+      matchingCandidateRepo as never,
+      receivableRepo as never,
+      customerRepo as never,
+      invoiceRepo as never,
+    );
+
+    await expect(service.execute()).resolves.toMatchObject({
+      items: [
+        {
+          aiRecommendation: {
+            status: 'SUCCEEDED',
+            recommendedReceivableId: 'rec-1',
+            confidence: 80,
+            reason: 'Khớp.',
+            isCurrent: true,
+          },
+        },
+      ],
+    });
+    expect(receivableRepo.findOpenByIds).toHaveBeenCalledWith(['rec-1']);
+  });
+
+  it('keeps a stale recommendation as history with isCurrent false', async () => {
+    const transaction = {
+      id: 'bt-1',
+      aiRecommendation: {
+        status: 'SUCCEEDED',
+        recommendedReceivableId: 'rec-closed',
+        confidence: 90,
+        reason: 'Khớp số tiền.',
+      },
+    };
+    const bankTransactionRepo = {
+      findManyByStatus: jest.fn().mockResolvedValue([transaction]),
+      countByStatus: jest.fn().mockResolvedValue(1),
+    };
+    const matchingCandidateRepo = {
+      findTopByBankTransactionIds: jest.fn().mockResolvedValue(new Map()),
+    };
+    const receivableRepo = {
+      findByIds: jest.fn().mockResolvedValue(new Map()),
+      findOpenByIds: jest.fn().mockResolvedValue([]),
+    };
+    const customerRepo = { findByIds: jest.fn().mockResolvedValue(new Map()) };
+    const invoiceRepo = { findByIds: jest.fn().mockResolvedValue(new Map()) };
+    const service = new UnmatchedBankTransactionsQueryService(
+      bankTransactionRepo as never,
+      matchingCandidateRepo as never,
+      receivableRepo as never,
+      customerRepo as never,
+      invoiceRepo as never,
+    );
+
+    await expect(service.execute()).resolves.toMatchObject({
+      items: [
+        {
+          aiRecommendation: {
+            status: 'SUCCEEDED',
+            recommendedReceivableId: 'rec-closed',
+            isCurrent: false,
+          },
+        },
+      ],
+    });
+  });
+
+  it('returns abstained and failed states without a candidate suggestion', async () => {
+    const transactions = [
+      {
+        id: 'bt-abstain',
+        aiRecommendation: {
+          status: 'ABSTAINED',
+          recommendedReceivableId: null,
+          confidence: 40,
+          reason: 'Không đủ dữ kiện.',
+        },
+      },
+      {
+        id: 'bt-failed',
+        aiRecommendation: {
+          status: 'FAILED',
+          recommendedReceivableId: null,
+          confidence: null,
+          reason: null,
+          failureCode: 'TIMEOUT',
+        },
+      },
+    ];
+    const bankTransactionRepo = {
+      findManyByStatus: jest.fn().mockResolvedValue(transactions),
+      countByStatus: jest.fn().mockResolvedValue(2),
+    };
+    const matchingCandidateRepo = {
+      findTopByBankTransactionIds: jest.fn().mockResolvedValue(new Map()),
+    };
+    const receivableRepo = {
+      findByIds: jest.fn().mockResolvedValue(new Map()),
+      findOpenByIds: jest.fn().mockResolvedValue([]),
+    };
+    const customerRepo = { findByIds: jest.fn().mockResolvedValue(new Map()) };
+    const invoiceRepo = { findByIds: jest.fn().mockResolvedValue(new Map()) };
+    const service = new UnmatchedBankTransactionsQueryService(
+      bankTransactionRepo as never,
+      matchingCandidateRepo as never,
+      receivableRepo as never,
+      customerRepo as never,
+      invoiceRepo as never,
+    );
+
+    await expect(service.execute()).resolves.toMatchObject({
+      items: [
+        { aiRecommendation: { status: 'ABSTAINED', isCurrent: false } },
+        { aiRecommendation: { status: 'FAILED', isCurrent: false } },
+      ],
+    });
+    expect(receivableRepo.findOpenByIds).not.toHaveBeenCalled();
   });
 
   it('enriches matching candidates with business labels using batch lookups', async () => {
@@ -139,6 +290,7 @@ describe('UnmatchedBankTransactionsQueryService', () => {
           ],
         ]),
       ),
+      findOpenByIds: jest.fn().mockResolvedValue([]),
     };
     const customerRepo = {
       findByIds: jest

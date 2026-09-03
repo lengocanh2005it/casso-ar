@@ -7,7 +7,7 @@ jest.mock('openai', () => ({
   },
 }));
 
-import { OpenAiChatProviderAdapter } from './openai-chat-provider.adapter';
+import { OpenAiChatProviderAdapter } from '../../../common/ai/openai-chat-provider.adapter';
 
 describe('OpenAiChatProviderAdapter', () => {
   beforeEach(() => {

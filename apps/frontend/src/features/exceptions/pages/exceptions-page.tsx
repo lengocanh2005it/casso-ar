@@ -24,14 +24,30 @@ import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { usePendingReview } from '../api/use-exceptions';
 import { ExceptionsBulkActionBar } from '../components/exceptions-bulk-action-bar';
 import { SplitMatchDialog } from '../components/split-match-dialog';
-import type { BankTransaction } from '../types';
+import type { AiRecommendation, PendingReviewItem } from '../types';
+
+function AiRecommendationBadge({
+  recommendation,
+}: {
+  recommendation: AiRecommendation | null | undefined;
+}) {
+  if (
+    recommendation?.status !== 'SUCCEEDED' ||
+    recommendation?.isCurrent !== true
+  ) {
+    return null;
+  }
+  const confidenceLabel =
+    (recommendation.confidence ?? 0) >= 80 ? 'Cao' : 'Vừa';
+  return <Badge variant="secondary">Gợi ý AI · {confidenceLabel}</Badge>;
+}
 
 export function ExceptionsPage() {
   const { searchParams, setParam, setPage } = useUrlQueryParams();
   const page = Number(searchParams.get('page') ?? '1');
   const search = searchParams.get('search') ?? '';
   const debouncedSearch = useDebouncedValue(search, 250);
-  const [selected, setSelected] = useState<BankTransaction | null>(null);
+  const [selected, setSelected] = useState<PendingReviewItem | null>(null);
   const { data, isPending, isError } = usePendingReview(
     page,
     debouncedSearch || undefined,
@@ -163,19 +179,24 @@ export function ExceptionsPage() {
                     {formatVND(row.transaction.amount)}
                   </TableCell>
                   <TableCell>
-                    {row.topCandidate ? (
-                      <Badge variant="outline">
-                        {row.topCandidate.totalScore}/100
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
+                    <div className="flex flex-col items-start gap-1">
+                      {row.topCandidate ? (
+                        <Badge variant="outline">
+                          {row.topCandidate.totalScore}/100
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                      <AiRecommendationBadge
+                        recommendation={row.aiRecommendation}
+                      />
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Button
                       variant="link"
                       size="sm"
-                      onClick={() => setSelected(row.transaction)}
+                      onClick={() => setSelected(row)}
                     >
                       Xử lý
                     </Button>
@@ -220,7 +241,8 @@ export function ExceptionsPage() {
       )}
       {selected && (
         <SplitMatchDialog
-          tx={selected}
+          tx={selected.transaction}
+          aiRecommendation={selected.aiRecommendation}
           open
           onOpenChange={(value) => {
             if (!value) setSelected(null);

@@ -49,6 +49,7 @@ describe('MatchingEngineService', () => {
       },
       {
         findOpenByCustomerId: jest.fn().mockResolvedValue([receivable]),
+        findOpenByIds: jest.fn(),
         findOpenTopNByOrganization: jest.fn(),
         findOverdueByThreshold: jest.fn(),
         findOverdueCandidates: jest.fn(),
@@ -81,7 +82,14 @@ describe('MatchingEngineService', () => {
       },
     );
     const [candidate] = await service.scoreCandidates(transaction, 'org-1');
-    expect(candidate).toMatchObject({ receivableId: 'rec-1', totalScore: 100 });
+    expect(candidate).toMatchObject({
+      receivableId: 'rec-1',
+      totalScore: 100,
+      invoiceNumber: 'INV-2026-0012',
+      customerName: 'Company B',
+      remainingAmount: 30_000_000,
+      dueDate: receivable.dueDate,
+    });
     expect(invoiceLookup.findInvoiceIdsByReceivableIds).toHaveBeenCalledWith([
       'rec-1',
     ]);
@@ -98,6 +106,7 @@ describe('MatchingEngineService', () => {
       },
       {
         findOpenByCustomerId,
+        findOpenByIds: jest.fn(),
         findOpenTopNByOrganization: jest.fn().mockResolvedValue([receivable]),
         findOverdueByThreshold: jest.fn(),
         findOverdueCandidates: jest.fn(),
@@ -143,6 +152,8 @@ describe('MatchingEngineService', () => {
       payerNameScore: 5,
       timingScore: 5,
       customerBankAccountScore: 0,
+      invoiceNumber: 'INV-2026-0012',
+      customerName: 'Company B',
     });
   });
 });

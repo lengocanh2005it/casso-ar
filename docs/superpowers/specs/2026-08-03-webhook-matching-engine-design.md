@@ -1,6 +1,6 @@
 # Webhook Ingestion + Matching Engine Design
 
-> Sub-spec of [docs/overview.md](../../../docs/overview.md), dependent on [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md). Defines how the system receives transactions from CASSO Balance Hook, prevents duplicates, and reconciles them against Receivable.
+> Sub-spec of [docs/overview.md](../../../docs/overview.md), dependent on [2026-08-03-domain-core-design.md](2026-08-03-domain-core-design.md). Defines how the system receives transactions from CASSO Balance Hook, prevents duplicates, and reconciles them against Receivable. The optional advisory AI extension is documented in [2026-09-03-ai-assisted-matching-recommendations-design.md](2026-09-03-ai-assisted-matching-recommendations-design.md).
 
 ## 0. Reference source
 
@@ -14,7 +14,7 @@ Information about CASSO Balance Hook comes from [cas.so/product/balance-hook](ht
 
 Scope: webhook ingestion (receive, authenticate, deduplicate) + Matching Engine (find matching Receivables, calculate scores, and decide auto-match/exception/unmatched).
 
-Out of scope: Exception Queue UI, the Cas ID connection/consent flow (separate spec), and Payment Allocation transaction details (covered in the Domain Core spec).
+Out of scope: Exception Queue allocation UI, the Cas ID connection/consent flow (separate spec), and Payment Allocation transaction details (covered in the Domain Core spec). AI recommendation input/output, rollout, and UI context are specified separately in the AI matching extension.
 
 ```
 CASSO Balance Hook (POST) → Webhook Controller
@@ -26,6 +26,7 @@ CASSO Balance Hook (POST) → Webhook Controller
     → Matching Engine (calculate score, find Receivable candidates)
     → score >= 90 → automatic Payment Allocation
     → score 60-89 → Exception Queue (accountant review)
+                     → optional advisory AI second pass (top five candidates or ABSTAIN)
     → score < 60 → BankTransaction.status = UNMATCHED
 ```
 
@@ -42,6 +43,7 @@ BankTransaction
   providerTransactionId, amount, transactionDateTime,
   counterpartyAccountNumber, counterpartyName, transferContent,
   status (UNMATCHED/PENDING_REVIEW/MATCHED/IGNORED), version,
+  aiRecommendation (nullable JSONB advisory result),
   createdAt
 
 MatchingCandidate
@@ -83,6 +85,12 @@ totalScore 60-89   → Exception Queue, suggested in descending totalScore order
 totalScore < 60    → BankTransaction.status = UNMATCHED
 ```
 
+For a `60–89` transaction, the optional AI extension receives only the top
+five deterministic candidates and returns display-only advice. It runs before
+the existing persistence transaction, is disabled by default, and cannot
+change the score, status, amount, or allocation decision. See the [AI
+matching design](2026-09-03-ai-assisted-matching-recommendations-design.md).
+
 ## 4. Idempotency, auth & edge cases
 
 1. **Authentication**: compare the client ID + secret key headers against server-side values using constant-time comparison. Invalid or missing headers → 401.
@@ -90,6 +98,7 @@ totalScore < 60    → BankTransaction.status = UNMATCHED
 3. **Retry**: if processing fails after `WebhookInbox` was inserted successfully (an error in Normalizer or Matching Engine), the processor must persist `WebhookInbox.status = FAILED`, `retryCount++`, and `errorMessage` (length-limited and containing no token/raw secret), then let BullMQ retry with backoff, up to N times before moving to the Dead Letter Queue. On success, persist `PROCESSED`.
 4. **Refund/negative transactions**: `amount < 0` does not enter the Matching Engine — route it to a separate refund flow (refund-flow details are out of scope for this doc).
 5. **Genuine duplicate transactions** (a customer transfers the same amount twice with different `providerTransactionId` values): these are 2 valid `BankTransaction` records, not an idempotency error — the Matching Engine processes them normally as two separate transactions (which may cause an overpayment if the receivable is already fully paid, handled according to the overpayment rule in section 4 of the Domain Core spec).
+6. **AI advisory failures**: feature-disabled, Redis guard, timeout, provider, or malformed-output conditions never fail deterministic webhook processing. AI is called outside the DB transaction; successful/abstained evaluations are retained, while reads never call the provider.
 
 ## 5. Out of scope
 

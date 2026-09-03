@@ -85,13 +85,24 @@ const candidates = [
   },
 ];
 
-function renderDialog() {
+function renderDialog(aiRecommendation?: {
+  status: 'SUCCEEDED' | 'ABSTAINED' | 'FAILED';
+  recommendedReceivableId: string | null;
+  confidence: number | null;
+  reason: string | null;
+  isCurrent: boolean;
+}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <SplitMatchDialog tx={tx} open onOpenChange={vi.fn()} />
+      <SplitMatchDialog
+        tx={tx}
+        aiRecommendation={aiRecommendation}
+        open
+        onOpenChange={vi.fn()}
+      />
     </QueryClientProvider>,
   );
 }
@@ -160,6 +171,53 @@ describe('SplitMatchDialog', () => {
     expect(screen.getByText('Không có nội dung')).toBeInTheDocument();
   });
 
+  it('shows an AI reason without pre-filling manual allocation amounts', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    renderDialog({
+      status: 'SUCCEEDED',
+      recommendedReceivableId: 'r1',
+      confidence: 75,
+      reason: 'Tên và số tiền phù hợp.',
+      isCurrent: true,
+    });
+
+    expect(await screen.findByText('Gợi ý AI · Vừa')).toBeInTheDocument();
+    expect(screen.getByText('Tên và số tiền phù hợp.')).toBeInTheDocument();
+    expect(screen.getAllByLabelText(/số tiền phân bổ/i)[0]).toHaveValue(null);
+  });
+
+  it.each([
+    {
+      status: 'SUCCEEDED' as const,
+      recommendedReceivableId: 'r1',
+      confidence: 90,
+      reason: 'Cũ.',
+      isCurrent: false,
+    },
+    {
+      status: 'ABSTAINED' as const,
+      recommendedReceivableId: null,
+      confidence: 40,
+      reason: 'Không đủ dữ kiện.',
+      isCurrent: false,
+    },
+    {
+      status: 'FAILED' as const,
+      recommendedReceivableId: null,
+      confidence: null,
+      reason: null,
+      isCurrent: false,
+    },
+  ])(
+    'does not present a stale or unavailable AI recommendation as actionable',
+    async (recommendation) => {
+      apiRequest.mockResolvedValue(candidates);
+      renderDialog(recommendation);
+
+      expect(await screen.findByText('AI không có gợi ý')).toBeInTheDocument();
+      expect(screen.queryByText(/Gợi ý AI ·/)).not.toBeInTheDocument();
+    },
+  );
   it('shows the candidate invoice and customer before its technical id', async () => {
     apiRequest.mockResolvedValue(candidates);
     renderDialog();

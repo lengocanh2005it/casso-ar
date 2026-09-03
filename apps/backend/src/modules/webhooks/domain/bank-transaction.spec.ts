@@ -1,3 +1,4 @@
+import { createAiMatchingRecommendation } from './ai-matching-recommendation';
 import { BankTransaction } from './bank-transaction';
 
 const props = {
@@ -25,5 +26,25 @@ describe('BankTransaction', () => {
     expect(transaction.markPrepaid().status).toBe('PREPAID');
     expect(transaction.isRefund()).toBe(false);
     expect(new BankTransaction({ ...props, amount: -1 }).isRefund()).toBe(true);
+  });
+
+  it('defaults the AI recommendation to null and preserves it through transitions', () => {
+    const recommendation = createAiMatchingRecommendation({
+      status: 'ABSTAINED',
+      recommendedReceivableId: null,
+      confidence: null,
+      reason: null,
+      model: 'gpt-4o-mini',
+      promptVersion: 'matching-v1',
+      evaluatedAt: '2026-09-03T00:00:00.000Z',
+    });
+
+    const transaction = new BankTransaction(props).withAiRecommendation(
+      recommendation,
+    );
+    expect(new BankTransaction(props).aiRecommendation).toBeNull();
+    expect(transaction.markPendingReview().aiRecommendation).toBe(
+      recommendation,
+    );
   });
 });

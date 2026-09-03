@@ -16,6 +16,7 @@ import { BalanceHistoryActorType } from '../../receivable-balance-history/domain
 import { BankTransaction } from '../domain/bank-transaction';
 import type { IBankTransactionRepository } from './bank-transaction-repository.port';
 import { BANK_TRANSACTION_REPOSITORY } from './bank-transaction-repository.port';
+import { MatchingAiRecommendationService } from './matching-ai-recommendation.service';
 import type { IMatchingCandidateRepository } from './matching-candidate-repository.port';
 import { MATCHING_CANDIDATE_REPOSITORY } from './matching-candidate-repository.port';
 import { MatchingEngineService } from './matching-engine.service';
@@ -42,6 +43,7 @@ export class ProcessWebhookUseCase {
     private readonly dataSource: DataSource,
     private readonly tenantContext: TenantContextService,
     private readonly ledgerRecorder: LedgerEventRecorderService,
+    private readonly matchingAiRecommendation: MatchingAiRecommendationService,
   ) {}
 
   async execute(webhookInboxId: string, organizationId: string): Promise<void> {
@@ -90,6 +92,17 @@ export class ProcessWebhookUseCase {
             inbox.organizationId,
           );
           const top = candidates[0];
+          const aiRecommendation =
+            top &&
+            top.totalScore >= EXCEPTION_QUEUE_THRESHOLD &&
+            top.totalScore < AUTO_MATCH_THRESHOLD
+              ? await this.matchingAiRecommendation.evaluate({
+                  organizationId: inbox.organizationId,
+                  webhookInboxId: inbox.id,
+                  transaction: normalized,
+                  candidates,
+                })
+              : null;
           let autoMatchResult:
             | {
                 paymentId: string;
@@ -143,8 +156,11 @@ export class ProcessWebhookUseCase {
                 manager,
               );
             } else if (top && top.totalScore >= EXCEPTION_QUEUE_THRESHOLD) {
+              const pendingTransaction = aiRecommendation
+                ? transaction.withAiRecommendation(aiRecommendation)
+                : transaction;
               await this.transactionRepo.save(
-                transaction.markPendingReview(),
+                pendingTransaction.markPendingReview(),
                 manager,
               );
               await this.candidateRepo.saveMany(

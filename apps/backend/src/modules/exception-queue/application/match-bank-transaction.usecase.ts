@@ -227,6 +227,24 @@ export class MatchBankTransactionUseCase {
       },
     );
 
+    const allocatedReceivableIds = [
+      ...new Set(
+        input.allocations
+          .filter((allocation) => allocation.amount > 0)
+          .map((allocation) => allocation.receivableId),
+      ),
+    ];
+    const recommendedReceivableId =
+      matchedTransaction.aiRecommendation?.status === 'SUCCEEDED'
+        ? matchedTransaction.aiRecommendation.recommendedReceivableId
+        : null;
+    this.auditContext.setAfterStatePatch({
+      allocatedReceivableIds,
+      aiAccepted:
+        recommendedReceivableId !== null &&
+        allocatedReceivableIds.includes(recommendedReceivableId),
+    });
+
     const organizationId = this.tenantContext.getOrganizationId();
     for (const result of allocationResults) {
       await this.allocatePaymentUseCase.emitAllocationEvents({

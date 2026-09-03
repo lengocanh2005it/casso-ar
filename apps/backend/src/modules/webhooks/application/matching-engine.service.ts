@@ -11,6 +11,7 @@ import type { IReceivableRepository } from '../../receivables/application/receiv
 import { RECEIVABLE_REPOSITORY } from '../../receivables/application/receivable-repository.port';
 import type { Receivable } from '../../receivables/domain/receivable';
 import { MatchingCandidate } from '../domain/matching-candidate';
+import type { MatchingAiCandidate } from './matching-ai-recommendation.service';
 import { amountScore } from './scoring/amount-score';
 import { customerBankAccountScore } from './scoring/customer-bank-account-score';
 import { payerNameScore } from './scoring/payer-name-score';
@@ -20,15 +21,12 @@ import type { NormalizedTransaction } from './transaction-normalizer';
 
 const ORG_WIDE_SCAN_LIMIT = 20;
 
-export interface ScoredCandidate {
-  receivableId: string;
-  customerId: string;
+export interface ScoredCandidate extends MatchingAiCandidate {
   referenceCodeScore: number;
   amountScore: number;
   customerBankAccountScore: number;
   payerNameScore: number;
   timingScore: number;
-  totalScore: number;
 }
 
 @Injectable()
@@ -86,6 +84,20 @@ export class MatchingEngineService {
     const customerName = customerId
       ? await this.customerRepo.findNameById(customerId)
       : null;
+    const customerNames = new Map<string, string | null>();
+    if (customerId) {
+      customerNames.set(customerId, customerName);
+    } else if (receivables.length > 0) {
+      const customers = await this.customerRepo.findByIds([
+        ...new Set(receivables.map((receivable) => receivable.customerId)),
+      ]);
+      for (const receivable of receivables) {
+        customerNames.set(
+          receivable.customerId,
+          customers.get(receivable.customerId)?.name ?? null,
+        );
+      }
+    }
     const scored = receivables.map((receivable) => {
       const invoice = invoiceByReceivableId.get(receivable.id) ?? null;
       const reference = invoice
@@ -111,6 +123,10 @@ export class MatchingEngineService {
       return {
         receivableId: receivable.id,
         customerId: receivable.customerId,
+        invoiceNumber: invoice?.invoiceNumber ?? null,
+        customerName: customerNames.get(receivable.customerId) ?? null,
+        remainingAmount: receivable.remainingAmount,
+        dueDate: receivable.dueDate,
         referenceCodeScore: reference,
         amountScore: amount,
         customerBankAccountScore: accountScore,
@@ -170,7 +186,14 @@ export class MatchingEngineService {
           id: randomUUID(),
           organizationId,
           bankTransactionId,
-          ...candidate,
+          receivableId: candidate.receivableId,
+          customerId: candidate.customerId,
+          referenceCodeScore: candidate.referenceCodeScore,
+          amountScore: candidate.amountScore,
+          customerBankAccountScore: candidate.customerBankAccountScore,
+          payerNameScore: candidate.payerNameScore,
+          timingScore: candidate.timingScore,
+          totalScore: candidate.totalScore,
           createdAt: new Date(),
         }),
     );
