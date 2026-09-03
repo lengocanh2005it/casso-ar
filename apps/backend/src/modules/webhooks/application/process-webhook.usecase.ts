@@ -92,6 +92,19 @@ export class ProcessWebhookUseCase {
             inbox.organizationId,
           );
           const top = candidates[0];
+          const clearedThreshold = candidates.filter(
+            (candidate) => candidate.totalScore >= AUTO_MATCH_THRESHOLD,
+          );
+          const ambiguousAcrossCustomers =
+            !!top &&
+            clearedThreshold.some(
+              (candidate) => candidate.customerId !== top.customerId,
+            );
+          const canAutoMatch =
+            !!top &&
+            top.totalScore >= AUTO_MATCH_THRESHOLD &&
+            !ambiguousAcrossCustomers;
+
           const aiRecommendation =
             top &&
             top.totalScore >= EXCEPTION_QUEUE_THRESHOLD &&
@@ -112,7 +125,7 @@ export class ProcessWebhookUseCase {
               }
             | undefined;
           await this.dataSource.transaction(async (manager) => {
-            if (top && top.totalScore >= AUTO_MATCH_THRESHOLD) {
+            if (canAutoMatch && top) {
               const payment = new Payment({
                 id: randomUUID(),
                 organizationId: inbox.organizationId,

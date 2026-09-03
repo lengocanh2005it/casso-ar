@@ -335,4 +335,104 @@ describe('ProcessWebhookUseCase', () => {
 
     expect(aiService.evaluate).not.toHaveBeenCalled();
   });
+
+  it('routes to PENDING_REVIEW when two different customers both clear the auto-match threshold', async () => {
+    const inboxRepo = {
+      findById: jest.fn().mockResolvedValue(inbox),
+      save: jest.fn(),
+    };
+    const transactionRepo = { save: jest.fn(), findById: jest.fn() };
+    const engine = {
+      scoreCandidates: jest.fn().mockResolvedValue([
+        { receivableId: 'r1', customerId: 'cust-1', totalScore: 95 },
+        { receivableId: 'r2', customerId: 'cust-2', totalScore: 92 },
+      ]),
+      toMatchingCandidateEntities: jest.fn().mockReturnValue([]),
+    };
+    const paymentRepo = { save: jest.fn() };
+    const candidateRepo = { saveMany: jest.fn() };
+    const allocation = {
+      allocateWithinTransaction: jest.fn(),
+      emitAllocationEvents: jest.fn(),
+    };
+    const dataSource = {
+      transaction: jest.fn(
+        async (callback: (manager: object) => Promise<void>) => callback({}),
+      ),
+    };
+    const tenant = {
+      run: jest.fn((_user: unknown, callback: () => Promise<void>) =>
+        callback(),
+      ),
+    };
+    const useCase = new ProcessWebhookUseCase(
+      inboxRepo as any,
+      transactionRepo as any,
+      engine as any,
+      candidateRepo as any,
+      paymentRepo as any,
+      allocation as any,
+      dataSource as any,
+      tenant as any,
+      { record: jest.fn() } as any,
+      { evaluate: jest.fn() } as any,
+    );
+
+    await useCase.execute('wh-1', 'org-1');
+
+    expect(transactionRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'PENDING_REVIEW' }),
+      expect.anything(),
+    );
+    expect(paymentRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('still auto-matches when the second-best candidate is the same customer', async () => {
+    const inboxRepo = {
+      findById: jest.fn().mockResolvedValue(inbox),
+      save: jest.fn(),
+    };
+    const transactionRepo = { save: jest.fn(), findById: jest.fn() };
+    const engine = {
+      scoreCandidates: jest.fn().mockResolvedValue([
+        { receivableId: 'r1', customerId: 'cust-1', totalScore: 95 },
+        { receivableId: 'r2', customerId: 'cust-1', totalScore: 91 },
+      ]),
+      toMatchingCandidateEntities: jest.fn().mockReturnValue([]),
+    };
+    const paymentRepo = { save: jest.fn() };
+    const candidateRepo = { saveMany: jest.fn() };
+    const allocation = {
+      allocateWithinTransaction: jest
+        .fn()
+        .mockResolvedValue({ customerId: 'cust-1', becameClosed: false }),
+      emitAllocationEvents: jest.fn(),
+    };
+    const dataSource = {
+      transaction: jest.fn(
+        async (callback: (manager: object) => Promise<void>) => callback({}),
+      ),
+    };
+    const tenant = {
+      run: jest.fn((_user: unknown, callback: () => Promise<void>) =>
+        callback(),
+      ),
+    };
+    const useCase = new ProcessWebhookUseCase(
+      inboxRepo as any,
+      transactionRepo as any,
+      engine as any,
+      candidateRepo as any,
+      paymentRepo as any,
+      allocation as any,
+      dataSource as any,
+      tenant as any,
+      { record: jest.fn() } as any,
+      { evaluate: jest.fn() } as any,
+    );
+
+    await useCase.execute('wh-1', 'org-1');
+
+    expect(paymentRepo.save).toHaveBeenCalledTimes(1);
+  });
 });
