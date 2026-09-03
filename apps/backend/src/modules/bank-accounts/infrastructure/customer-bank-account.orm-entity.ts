@@ -8,7 +8,6 @@ import {
 } from 'typeorm';
 
 @Entity({ name: 'customer_bank_accounts' })
-@Index(['organizationId', 'accountNumber', 'isActive'])
 @Index(
   'UQ_customer_bank_accounts_org_account_customer',
   ['organizationId', 'accountNumber', 'customerId'],

@@ -80,13 +80,6 @@ export class TypeOrmCustomerBankAccountRepository
     return rows.map(toDomain);
   }
 
-  async findByAccountNumber(
-    accountNumber: string,
-  ): Promise<CustomerBankAccount | null> {
-    const rows = await this.findActiveByAccountNumber(accountNumber);
-    return rows[0] ?? null;
-  }
-
   async findByCustomerId(customerId: string): Promise<CustomerBankAccount[]> {
     const rows = await this.scopedFindMany(
       { customerId },

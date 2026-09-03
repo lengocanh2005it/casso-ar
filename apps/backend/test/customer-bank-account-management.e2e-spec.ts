@@ -298,8 +298,8 @@ describe('Customer bank account management (e2e)', () => {
       });
 
     await expect(
-      asTenant(() => bankAccountRepo.findByAccountNumber('0011 0022-33')),
-    ).resolves.toEqual(expect.objectContaining({ id: accountId }));
+      asTenant(() => bankAccountRepo.findActiveByAccountNumber('0011 0022-33')),
+    ).resolves.toEqual([expect.objectContaining({ id: accountId })]);
     const deactivateAudit = await waitForAudit(
       AuditActionType.CUSTOMER_BANK_ACCOUNT_DEACTIVATE,
       accountId,

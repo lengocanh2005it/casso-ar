@@ -113,6 +113,7 @@ describe('CustomerBankAccountsController', () => {
       id: 'account-1',
       customerId: 'cust-1',
       isActive: true,
+      confirmedByUserId: 'user-1',
     });
     expect(deactivate.execute).toHaveBeenCalledWith({
       id: 'account-1',

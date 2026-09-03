@@ -48,10 +48,15 @@ function buildCreateUseCase(
 
 function buildUpdateUseCase(
   bankAccountRepo: Record<string, jest.Mock>,
+  customerRepo: Record<string, jest.Mock> = {
+    findByIds: jest.fn().mockResolvedValue(new Map()),
+  },
   auditContext = { setBefore: jest.fn() },
 ) {
   return new UpdateCustomerBankAccountUseCase(
     bankAccountRepo as never,
+    customerRepo as never,
+    tenantContext as never,
     dataSource as never,
     auditContext as never,
   );
@@ -201,7 +206,7 @@ describe('customer bank account use cases', () => {
     const account = buildAccount();
     const bankAccountRepo = {
       findById: jest.fn().mockResolvedValue(account),
-      findByAccountNumber: jest.fn().mockResolvedValue(null),
+      findActiveByAccountNumber: jest.fn().mockResolvedValue([]),
       save: jest.fn(),
     };
     const useCase = buildUpdateUseCase(bankAccountRepo);
@@ -233,10 +238,14 @@ describe('customer bank account use cases', () => {
     const auditContext = { setBefore: jest.fn() };
     const bankAccountRepo = {
       findById: jest.fn().mockResolvedValue(account),
-      findByAccountNumber: jest.fn().mockResolvedValue(null),
+      findActiveByAccountNumber: jest.fn().mockResolvedValue([]),
       save: jest.fn(),
     };
-    const useCase = buildUpdateUseCase(bankAccountRepo, auditContext);
+    const useCase = buildUpdateUseCase(
+      bankAccountRepo,
+      undefined,
+      auditContext,
+    );
 
     const result = await useCase.execute({
       id: account.id,
@@ -310,13 +319,15 @@ describe('customer bank account use cases', () => {
     expect(repo.save).not.toHaveBeenCalled();
   });
 
-  it('rejects a duplicate account number on update', async () => {
+  it('rejects a duplicate account number on update for same customer', async () => {
     const account = buildAccount();
     const repo = {
       findById: jest.fn().mockResolvedValue(account),
-      findByAccountNumber: jest
+      findActiveByAccountNumber: jest
         .fn()
-        .mockResolvedValue(buildAccount({ id: 'other-account' })),
+        .mockResolvedValue([
+          buildAccount({ id: 'other-account', customerId: account.customerId }),
+        ]),
       save: jest.fn(),
     };
     const useCase = buildUpdateUseCase(repo);
@@ -329,6 +340,73 @@ describe('customer bank account use cases', () => {
       }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.CONFLICT });
     expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects a cross-customer account number on update without acknowledgeExistingLinks', async () => {
+    const account = buildAccount({ customerId: 'cust-1' });
+    const repo = {
+      findById: jest.fn().mockResolvedValue(account),
+      findActiveByAccountNumber: jest
+        .fn()
+        .mockResolvedValue([
+          buildAccount({ id: 'other-account', customerId: 'cust-2' }),
+        ]),
+      save: jest.fn(),
+    };
+    const customerRepo = {
+      findByIds: jest
+        .fn()
+        .mockResolvedValue(
+          new Map([['cust-2', { id: 'cust-2', name: 'Other Corp' }]]),
+        ),
+    };
+    const useCase = buildUpdateUseCase(repo, customerRepo);
+
+    await expect(
+      useCase.execute({
+        id: account.id,
+        customerId: account.customerId,
+        accountNumber: '44556677',
+      }),
+    ).rejects.toMatchObject({
+      errorCode: ErrorCode.CONFLICT,
+      details: { linkedCustomerNames: ['Other Corp'] },
+    });
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('allows cross-customer update when acknowledgeExistingLinks is true and records provenance', async () => {
+    const account = buildAccount({ customerId: 'cust-1' });
+    const repo = {
+      findById: jest.fn().mockResolvedValue(account),
+      findActiveByAccountNumber: jest
+        .fn()
+        .mockResolvedValue([
+          buildAccount({ id: 'other-account', customerId: 'cust-2' }),
+        ]),
+      save: jest.fn(),
+    };
+    const customerRepo = {
+      findByIds: jest
+        .fn()
+        .mockResolvedValue(
+          new Map([['cust-2', { id: 'cust-2', name: 'Other Corp' }]]),
+        ),
+    };
+    const useCase = buildUpdateUseCase(repo, customerRepo);
+
+    const result = await useCase.execute({
+      id: account.id,
+      customerId: account.customerId,
+      accountNumber: '44556677',
+      acknowledgeExistingLinks: true,
+      confirmedByUserId: 'user-override',
+    });
+
+    expect(result.accountNumber).toBe('44556677');
+    expect(result.confirmedByUserId).toBe('user-override');
+    expect(result.confirmedAt).toBeInstanceOf(Date);
+    expect(repo.save).toHaveBeenCalled();
   });
 });
 

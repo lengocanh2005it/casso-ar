@@ -4,6 +4,11 @@ import { DataSource } from 'typeorm';
 import { AuditContextService } from '../../../common/audit/audit-context';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import {
+  CUSTOMER_REPOSITORY,
+  type ICustomerRepository,
+} from '../../customers/application/customer-repository.port';
 import type { CustomerBankAccount } from '../domain/customer-bank-account';
 import {
   normalizeOrThrow,
@@ -19,6 +24,8 @@ export interface UpdateCustomerBankAccountInput {
   customerId: string;
   accountNumber?: string;
   isActive?: boolean;
+  acknowledgeExistingLinks?: boolean;
+  confirmedByUserId?: string | null;
 }
 
 @Injectable()
@@ -26,6 +33,9 @@ export class UpdateCustomerBankAccountUseCase {
   constructor(
     @Inject(CUSTOMER_BANK_ACCOUNT_REPOSITORY)
     private readonly bankAccountRepo: ICustomerBankAccountRepository,
+    @Inject(CUSTOMER_REPOSITORY)
+    private readonly customerRepo: ICustomerRepository,
+    private readonly tenantContext: TenantContextService,
     private readonly dataSource: DataSource,
     private readonly auditContext: AuditContextService,
   ) {}
@@ -60,16 +70,58 @@ export class UpdateCustomerBankAccountUseCase {
     let next = account;
     if (input.accountNumber !== undefined) {
       const accountNumber = normalizeOrThrow(input.accountNumber);
-      const existing =
-        await this.bankAccountRepo.findByAccountNumber(accountNumber);
-      if (existing && existing.id !== account.id) {
-        throw new AppError(
-          ErrorCode.CONFLICT,
-          'Số tài khoản ngân hàng đã được liên kết.',
-        );
-      }
       if (accountNumber !== account.accountNumber) {
-        next = next.changeAccountNumber(accountNumber);
+        const activeLinks =
+          await this.bankAccountRepo.findActiveByAccountNumber(accountNumber);
+
+        if (
+          activeLinks.some(
+            (link) =>
+              link.customerId === account.customerId && link.id !== account.id,
+          )
+        ) {
+          throw new AppError(
+            ErrorCode.CONFLICT,
+            'Số tài khoản ngân hàng đã được liên kết.',
+          );
+        }
+
+        const otherCustomerIds = [
+          ...new Set(
+            activeLinks
+              .filter((link) => link.customerId !== account.customerId)
+              .map((link) => link.customerId),
+          ),
+        ];
+
+        if (
+          otherCustomerIds.length > 0 &&
+          input.acknowledgeExistingLinks !== true
+        ) {
+          const names = await this.customerRepo.findByIds(otherCustomerIds);
+          throw new AppError(
+            ErrorCode.CONFLICT,
+            'Số tài khoản này đang liên kết với khách hàng khác.',
+            {
+              linkedCustomerNames: otherCustomerIds
+                .map((id) => names.get(id)?.name)
+                .filter((name): name is string => Boolean(name)),
+            },
+          );
+        }
+
+        const confirmedByUserId =
+          input.confirmedByUserId ??
+          (otherCustomerIds.length > 0
+            ? (this.tenantContext.getCurrentUser()?.userId ?? null)
+            : null);
+        const confirmedAt = otherCustomerIds.length > 0 ? new Date() : null;
+
+        next = next.changeAccountNumber(
+          accountNumber,
+          confirmedByUserId,
+          confirmedAt,
+        );
       }
     }
     if (input.isActive !== undefined) {

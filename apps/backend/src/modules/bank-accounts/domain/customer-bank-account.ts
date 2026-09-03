@@ -52,10 +52,16 @@ export class CustomerBankAccount {
     });
   }
 
-  changeAccountNumber(accountNumber: string): CustomerBankAccount {
+  changeAccountNumber(
+    accountNumber: string,
+    confirmedByUserId: string | null = null,
+    confirmedAt: Date | null = null,
+  ): CustomerBankAccount {
     return new CustomerBankAccount({
       ...this,
       accountNumber,
+      confirmedByUserId,
+      confirmedAt,
       updatedAt: new Date(),
     });
   }

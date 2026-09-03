@@ -42,4 +42,5 @@ export interface CreateCustomerBankAccountInput {
 export interface UpdateCustomerBankAccountInput {
   accountNumber?: string;
   isActive?: boolean;
+  acknowledgeExistingLinks?: boolean;
 }

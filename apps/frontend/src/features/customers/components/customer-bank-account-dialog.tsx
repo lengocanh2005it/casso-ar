@@ -181,17 +181,36 @@ export function CustomerBankAccountDialog({
                 type="button"
                 disabled={isPending}
                 onClick={() => {
-                  createMutation.mutate(
-                    {
-                      accountNumber: accountNumber.trim(),
-                      acknowledgeExistingLinks: true,
-                    },
-                    {
-                      onSuccess: () =>
-                        handleMutationSuccess('Đã thêm tài khoản ngân hàng.'),
-                      onError: handleMutationError,
-                    },
-                  );
+                  if (isEdit && account) {
+                    updateMutation.mutate(
+                      {
+                        id: account.id,
+                        input: {
+                          accountNumber: accountNumber.trim(),
+                          acknowledgeExistingLinks: true,
+                        },
+                      },
+                      {
+                        onSuccess: () =>
+                          handleMutationSuccess(
+                            'Đã cập nhật tài khoản ngân hàng.',
+                          ),
+                        onError: handleMutationError,
+                      },
+                    );
+                  } else {
+                    createMutation.mutate(
+                      {
+                        accountNumber: accountNumber.trim(),
+                        acknowledgeExistingLinks: true,
+                      },
+                      {
+                        onSuccess: () =>
+                          handleMutationSuccess('Đã thêm tài khoản ngân hàng.'),
+                        onError: handleMutationError,
+                      },
+                    );
+                  }
                 }}
               >
                 Vẫn liên kết

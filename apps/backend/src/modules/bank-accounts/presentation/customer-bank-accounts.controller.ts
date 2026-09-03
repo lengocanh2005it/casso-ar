@@ -140,7 +140,12 @@ export class CustomerBankAccountsController {
       dto,
       async () =>
         toCustomerBankAccountResponse(
-          await this.updateUseCase.execute({ id, customerId, ...dto }),
+          await this.updateUseCase.execute({
+            id,
+            customerId,
+            ...dto,
+            confirmedByUserId: this.tenantContext.getCurrentUser()?.userId,
+          }),
         ),
     );
   }

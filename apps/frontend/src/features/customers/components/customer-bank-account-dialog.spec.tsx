@@ -309,4 +309,60 @@ describe('CustomerBankAccountDialog', () => {
     );
     expect(screen.queryByRole('button', { name: /vẫn liên kết/i })).toBeNull();
   });
+
+  it('shows a cross-customer confirmation on edit and resubmits with update mutation', async () => {
+    const existingAccount: CustomerBankAccount = {
+      id: 'account-1',
+      customerId: 'customer-1',
+      accountNumberMasked: '******2233',
+      isActive: true,
+      createdAt: '2026-08-22T00:00:00.000Z',
+      updatedAt: '2026-08-22T00:00:00.000Z',
+    };
+    const conflict = {
+      response: {
+        data: {
+          errorCode: 'CONFLICT',
+          message: 'Số tài khoản này đang liên kết với khách hàng khác.',
+          details: { linkedCustomerNames: ['Công ty B'] },
+        },
+      },
+    };
+    apiRequest
+      .mockRejectedValueOnce(conflict)
+      .mockResolvedValueOnce({ id: 'account-1' });
+
+    render(
+      <CustomerBankAccountDialog
+        customerId="customer-1"
+        account={existingAccount}
+        open={true}
+        onOpenChange={onOpenChange}
+      />,
+      { wrapper: createWrapper(queryClient) },
+    );
+
+    fireEvent.change(screen.getByLabelText('Số tài khoản ngân hàng mới'), {
+      target: { value: '0123456789' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+
+    expect(await screen.findByText(/đang liên kết với/i)).toBeInTheDocument();
+    expect(screen.getByText(/Công ty B/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /vẫn liên kết/i }));
+
+    await waitFor(() => {
+      expect(apiRequest).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          url: '/api/v1/customers/customer-1/bank-accounts/account-1',
+          method: 'PATCH',
+          data: {
+            accountNumber: '0123456789',
+            acknowledgeExistingLinks: true,
+          },
+        }),
+      );
+    });
+  });
 });

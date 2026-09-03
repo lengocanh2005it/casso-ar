@@ -189,14 +189,14 @@ describe('Webhook matching (e2e)', () => {
     const lookup = () =>
       tenantContext.run(
         { userId: 'e2e-user', organizationId, role: Role.OWNER },
-        () => bankAccountRepo.findByAccountNumber(' 0000 1122- '),
+        () => bankAccountRepo.findActiveByAccountNumber(' 0000 1122- '),
       );
 
-    await expect(lookup()).resolves.toEqual(
+    await expect(lookup()).resolves.toEqual([
       expect.objectContaining({ customerId }),
-    );
+    ]);
     await ormRepo.update(bankAccountId, { isActive: false });
-    await expect(lookup()).resolves.toBeNull();
+    await expect(lookup()).resolves.toEqual([]);
   });
 
   it('processes a high-confidence match through the queue', async () => {
