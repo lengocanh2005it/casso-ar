@@ -253,4 +253,60 @@ describe('CustomerBankAccountDialog', () => {
     );
     expect(onOpenChange).not.toHaveBeenCalled();
   });
+
+  it('shows a cross-customer confirmation and resubmits with acknowledgeExistingLinks', async () => {
+    const conflict = {
+      response: {
+        data: {
+          errorCode: 'CONFLICT',
+          message: 'Số tài khoản này đang liên kết với khách hàng khác.',
+          details: { linkedCustomerNames: ['Công ty B'] },
+        },
+      },
+    };
+    postWithIdempotency
+      .mockRejectedValueOnce(conflict)
+      .mockResolvedValueOnce({ id: 'a1' });
+
+    renderCreateDialog();
+
+    fireEvent.change(screen.getByLabelText('Số tài khoản ngân hàng'), {
+      target: { value: '0123456789' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
+
+    expect(await screen.findByText(/đang liên kết với/i)).toBeInTheDocument();
+    expect(screen.getByText(/Công ty B/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /vẫn liên kết/i }));
+
+    await waitFor(() => {
+      expect(postWithIdempotency).toHaveBeenLastCalledWith(
+        '/api/v1/customers/customer-1/bank-accounts',
+        { accountNumber: '0123456789', acknowledgeExistingLinks: true },
+      );
+    });
+  });
+
+  it('keeps the plain inline hint for a same-customer conflict (no linkedCustomerNames)', async () => {
+    postWithIdempotency.mockRejectedValueOnce({
+      response: {
+        data: {
+          errorCode: 'CONFLICT',
+          message: 'Số tài khoản ngân hàng đã được liên kết.',
+        },
+      },
+    });
+
+    renderCreateDialog();
+    fireEvent.change(screen.getByLabelText('Số tài khoản ngân hàng'), {
+      target: { value: '0123456789' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'đã được liên kết',
+    );
+    expect(screen.queryByRole('button', { name: /vẫn liên kết/i })).toBeNull();
+  });
 });
