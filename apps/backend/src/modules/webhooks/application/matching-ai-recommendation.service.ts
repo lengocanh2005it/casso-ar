@@ -327,10 +327,22 @@ export class MatchingAiRecommendationService {
       ? Number(candidateAlias.slice(1)) - 1
       : -1;
     const selected = candidates[candidateIndex];
-    if (!selected || confidence < 70) {
+    if (!selected) {
       throw new InvalidAiMatchingOutputError(
         'AI matching candidate or confidence is invalid',
       );
+    }
+
+    if (confidence < 70) {
+      return createAiMatchingRecommendation({
+        status: 'ABSTAINED',
+        recommendedReceivableId: null,
+        confidence,
+        reason,
+        model: this.model,
+        promptVersion: AI_MATCHING_PROMPT_VERSION,
+        evaluatedAt,
+      });
     }
 
     return createAiMatchingRecommendation({

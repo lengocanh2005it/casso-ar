@@ -160,7 +160,7 @@ describe('MatchingAiRecommendationService', () => {
     });
   });
 
-  it('fails closed for invalid, multiple, or unoffered tool output', async () => {
+  it('abstains below the match threshold and fails closed for other invalid output', async () => {
     const cases: AIChatCompletionResult[] = [
       {
         ...toolResponse({ candidate: 'C1', confidence: 60, reason: 'too low' }),
@@ -176,7 +176,17 @@ describe('MatchingAiRecommendationService', () => {
       toolResponse({ candidate: 'C5', confidence: 90, reason: 'not offered' }),
     ];
 
-    for (const response of cases) {
+    const lowConfidenceProvider = new FakeProvider();
+    lowConfidenceProvider.responses = [cases[0]];
+    await expect(
+      createService(lowConfidenceProvider).evaluate(input),
+    ).resolves.toMatchObject({
+      status: 'ABSTAINED',
+      recommendedReceivableId: null,
+      confidence: 60,
+    });
+
+    for (const response of cases.slice(1)) {
       const provider = new FakeProvider();
       provider.responses = [response];
       await expect(
