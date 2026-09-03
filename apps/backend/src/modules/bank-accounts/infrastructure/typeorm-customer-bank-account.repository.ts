@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, FindOptionsSelect, Repository } from 'typeorm';
+import { In } from 'typeorm';
 import { isUniqueViolation } from '../../../common/database/unique-violation';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { BaseRepository } from '../../../common/tenancy/base.repository';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import { normalizeAccountNumber } from '../application/account-number-normalizer';
+import {
+  normalizeAccountNumber,
+  safeNormalizeAccountNumber,
+} from '../application/account-number-normalizer';
 import type { ICustomerBankAccountRepository } from '../application/customer-bank-account-repository.port';
 import { CustomerBankAccount } from '../domain/customer-bank-account';
 import { CustomerBankAccountOrmEntity } from './customer-bank-account.orm-entity';
@@ -72,6 +76,27 @@ export class TypeOrmCustomerBankAccountRepository
         accountNumber: normalizeAccountNumber(accountNumber),
         isActive: true,
       },
+      {
+        select: CUSTOMER_BANK_ACCOUNT_SELECT,
+        order: { createdAt: 'DESC' },
+      },
+    );
+    return rows.map(toDomain);
+  }
+
+  async findActiveByAccountNumbers(
+    accountNumbers: string[],
+  ): Promise<CustomerBankAccount[]> {
+    const normalized = [
+      ...new Set(
+        accountNumbers
+          .map(safeNormalizeAccountNumber)
+          .filter((value): value is string => value !== null),
+      ),
+    ];
+    if (normalized.length === 0) return [];
+    const rows = await this.scopedFindMany(
+      { accountNumber: In(normalized), isActive: true },
       {
         select: CUSTOMER_BANK_ACCOUNT_SELECT,
         order: { createdAt: 'DESC' },

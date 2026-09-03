@@ -11,6 +11,7 @@ import {
 } from '../../customers/application/customer-repository.port';
 import { CustomerBankAccount } from '../domain/customer-bank-account';
 import { normalizeOrThrow } from './account-number-normalizer';
+import { assertCrossCustomerLinkAcknowledged } from './assert-cross-customer-link-acknowledged';
 import {
   CUSTOMER_BANK_ACCOUNT_REPOSITORY,
   type ICustomerBankAccountRepository,
@@ -65,24 +66,12 @@ export class CreateCustomerBankAccountUseCase {
       );
     }
 
-    const otherCustomerIds = [
-      ...new Set(activeLinks.map((link) => link.customerId)),
-    ];
-    if (
-      otherCustomerIds.length > 0 &&
-      input.acknowledgeExistingLinks !== true
-    ) {
-      const names = await this.customerRepo.findByIds(otherCustomerIds);
-      throw new AppError(
-        ErrorCode.CONFLICT,
-        'Số tài khoản này đang liên kết với khách hàng khác.',
-        {
-          linkedCustomerNames: otherCustomerIds
-            .map((id) => names.get(id)?.name)
-            .filter((name): name is string => Boolean(name)),
-        },
-      );
-    }
+    await assertCrossCustomerLinkAcknowledged({
+      activeLinks,
+      customerId: customer.id,
+      acknowledgeExistingLinks: input.acknowledgeExistingLinks,
+      customerRepo: this.customerRepo,
+    });
 
     const now = new Date();
     const account = new CustomerBankAccount({

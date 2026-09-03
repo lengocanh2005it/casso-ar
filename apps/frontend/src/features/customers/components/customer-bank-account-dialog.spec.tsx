@@ -48,6 +48,22 @@ vi.mock('@/lib/api-client', () => ({
     }
     return undefined;
   },
+  getApiErrorDetails: (error: unknown) => {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'response' in error &&
+      typeof (error as { response?: { data?: { details?: unknown } } }).response
+        ?.data === 'object'
+    ) {
+      const details = (error as { response: { data: { details?: unknown } } })
+        .response.data.details;
+      return typeof details === 'object' && details !== null
+        ? (details as Record<string, unknown>)
+        : undefined;
+    }
+    return undefined;
+  },
 }));
 
 function createWrapper(queryClient: QueryClient) {

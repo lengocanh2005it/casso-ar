@@ -14,6 +14,7 @@ import {
   normalizeOrThrow,
   toAuditedBankAccount,
 } from './account-number-normalizer';
+import { assertCrossCustomerLinkAcknowledged } from './assert-cross-customer-link-acknowledged';
 import {
   CUSTOMER_BANK_ACCOUNT_REPOSITORY,
   type ICustomerBankAccountRepository,
@@ -86,41 +87,25 @@ export class UpdateCustomerBankAccountUseCase {
           );
         }
 
-        const otherCustomerIds = [
-          ...new Set(
-            activeLinks
-              .filter((link) => link.customerId !== account.customerId)
-              .map((link) => link.customerId),
-          ),
-        ];
+        await assertCrossCustomerLinkAcknowledged({
+          activeLinks,
+          customerId: account.customerId,
+          acknowledgeExistingLinks: input.acknowledgeExistingLinks,
+          customerRepo: this.customerRepo,
+        });
 
-        if (
-          otherCustomerIds.length > 0 &&
-          input.acknowledgeExistingLinks !== true
-        ) {
-          const names = await this.customerRepo.findByIds(otherCustomerIds);
-          throw new AppError(
-            ErrorCode.CONFLICT,
-            'Số tài khoản này đang liên kết với khách hàng khác.',
-            {
-              linkedCustomerNames: otherCustomerIds
-                .map((id) => names.get(id)?.name)
-                .filter((name): name is string => Boolean(name)),
-            },
-          );
-        }
-
+        // Editing the linked account number through the management UI is an
+        // explicit user confirmation of the link (issue #382, AC#3), so always
+        // stamp fresh provenance rather than only on cross-customer links.
         const confirmedByUserId =
           input.confirmedByUserId ??
-          (otherCustomerIds.length > 0
-            ? (this.tenantContext.getCurrentUser()?.userId ?? null)
-            : null);
-        const confirmedAt = otherCustomerIds.length > 0 ? new Date() : null;
+          this.tenantContext.getCurrentUser()?.userId ??
+          null;
 
         next = next.changeAccountNumber(
           accountNumber,
           confirmedByUserId,
-          confirmedAt,
+          new Date(),
         );
       }
     }

@@ -75,7 +75,9 @@ describe('MatchingEngineService', () => {
         findNameById: jest.fn().mockResolvedValue('Company B'),
         findIdsBySearch: jest.fn(),
         findById: jest.fn(),
-        findByIds: jest.fn(),
+        findByIds: jest
+          .fn()
+          .mockResolvedValue(new Map([['cust-1', { name: 'Company B' }]])),
         findByTaxCode: jest.fn(),
         findByEmail: jest.fn(),
         findPage: jest.fn().mockResolvedValue([]),
@@ -132,7 +134,9 @@ describe('MatchingEngineService', () => {
         findNameById: jest.fn().mockResolvedValue('Company B'),
         findIdsBySearch: jest.fn(),
         findById: jest.fn(),
-        findByIds: jest.fn(),
+        findByIds: jest
+          .fn()
+          .mockResolvedValue(new Map([['cust-1', { name: 'Company B' }]])),
         findByTaxCode: jest.fn(),
         findByEmail: jest.fn(),
         findPage: jest.fn().mockResolvedValue([]),
@@ -247,8 +251,8 @@ describe('MatchingEngineService', () => {
 
     it('unions open receivables across every customer linked to the payer account', async () => {
       bankAccountRepo.findActiveByAccountNumber.mockResolvedValue([
-        link({ customerId: 'cust-1', accountNumber: '999' }),
-        link({ customerId: 'cust-2', accountNumber: '999' }),
+        link({ customerId: 'cust-1', accountNumber: '9990001' }),
+        link({ customerId: 'cust-2', accountNumber: '9990001' }),
       ]);
       receivableRepo.findOpenByCustomerId.mockImplementation((id: string) =>
         Promise.resolve(
@@ -259,7 +263,7 @@ describe('MatchingEngineService', () => {
       );
 
       const scored = await service.scoreCandidates(
-        txn({ counterpartyAccountNumber: '999' }),
+        txn({ counterpartyAccountNumber: '9990001' }),
         'org-1',
       );
 
@@ -270,14 +274,14 @@ describe('MatchingEngineService', () => {
 
     it('still scopes to the single linked customer when only one link exists', async () => {
       bankAccountRepo.findActiveByAccountNumber.mockResolvedValue([
-        link({ customerId: 'cust-1', accountNumber: '999' }),
+        link({ customerId: 'cust-1', accountNumber: '9990001' }),
       ]);
       receivableRepo.findOpenByCustomerId.mockResolvedValue([
         openReceivable('r1', 'cust-1'),
       ]);
 
       const scored = await service.scoreCandidates(
-        txn({ counterpartyAccountNumber: '999' }),
+        txn({ counterpartyAccountNumber: '9990001' }),
         'org-1',
       );
 
@@ -289,7 +293,7 @@ describe('MatchingEngineService', () => {
 
     it('scores a third-party payer whose name differs from the linked customer', async () => {
       bankAccountRepo.findActiveByAccountNumber.mockResolvedValue([
-        link({ customerId: 'cust-1', accountNumber: '999' }),
+        link({ customerId: 'cust-1', accountNumber: '9990001' }),
       ]);
       receivableRepo.findOpenByCustomerId.mockResolvedValue([
         openReceivable('r1', 'cust-1'),
@@ -301,7 +305,7 @@ describe('MatchingEngineService', () => {
 
       const [candidate] = await service.scoreCandidates(
         txn({
-          counterpartyAccountNumber: '999',
+          counterpartyAccountNumber: '9990001',
           counterpartyName: 'NGUYEN VAN B',
         }),
         'org-1',

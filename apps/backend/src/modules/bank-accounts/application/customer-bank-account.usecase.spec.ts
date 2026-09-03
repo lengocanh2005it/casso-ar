@@ -17,6 +17,7 @@ const dataSource = {
 
 const tenantContext = {
   getOrganizationId: jest.fn().mockReturnValue('org-1'),
+  getCurrentUser: jest.fn().mockReturnValue(undefined),
 };
 
 function buildAccount(

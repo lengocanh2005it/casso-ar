@@ -52,10 +52,13 @@ export class CustomerBankAccount {
     });
   }
 
+  // Changing the linked account number is a re-confirmation of the link, so the
+  // caller must pass who confirmed it and when — never left to a default, which
+  // would silently wipe the previous provenance (issue #382, AC#3).
   changeAccountNumber(
     accountNumber: string,
-    confirmedByUserId: string | null = null,
-    confirmedAt: Date | null = null,
+    confirmedByUserId: string | null,
+    confirmedAt: Date,
   ): CustomerBankAccount {
     return new CustomerBankAccount({
       ...this,

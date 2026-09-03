@@ -79,6 +79,7 @@ export class CustomerBankAccountsController {
   @ApiCreatedResponse({ type: CustomerBankAccountResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
     ErrorCode.NOT_FOUND,
     ErrorCode.CONFLICT,
     ErrorCode.IDEMPOTENCY_KEY_REUSED,
@@ -119,6 +120,7 @@ export class CustomerBankAccountsController {
   @ApiOkResponse({ type: CustomerBankAccountResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
+    ErrorCode.UNAUTHORIZED,
     ErrorCode.NOT_FOUND,
     ErrorCode.CONFLICT,
     ErrorCode.IDEMPOTENCY_KEY_REUSED,
@@ -134,6 +136,10 @@ export class CustomerBankAccountsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCustomerBankAccountDto,
   ) {
+    const user = this.tenantContext.getCurrentUser();
+    if (!user) {
+      throw new AppError(ErrorCode.UNAUTHORIZED, 'Yêu cầu đăng nhập.');
+    }
     return this.idempotency.execute(
       `PATCH /customers/${customerId}/bank-accounts/${id}`,
       key,
@@ -144,7 +150,7 @@ export class CustomerBankAccountsController {
             id,
             customerId,
             ...dto,
-            confirmedByUserId: this.tenantContext.getCurrentUser()?.userId,
+            confirmedByUserId: user.userId,
           }),
         ),
     );

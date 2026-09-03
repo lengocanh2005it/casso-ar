@@ -259,6 +259,7 @@ export function ExceptionsPage() {
         <SplitMatchDialog
           tx={selected.transaction}
           aiRecommendation={selected.aiRecommendation}
+          payer={selected.payer}
           open
           onOpenChange={(value) => {
             if (!value) setSelected(null);

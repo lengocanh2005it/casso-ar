@@ -477,4 +477,41 @@ describe('Customer bank account management (e2e)', () => {
       })
       .expect(409);
   });
+
+  it('never resolves a payer account link across organizations', async () => {
+    const isolatedAccount = '0191 8273 6455';
+    await request(app.getHttpServer())
+      .post(`/api/v1/customers/${customerA}/bank-accounts`)
+      .set('Authorization', `Bearer ${token(financeManager, organizationA)}`)
+      .set('Idempotency-Key', `iso-link-${randomUUID()}`)
+      .send({ accountNumber: isolatedAccount })
+      .expect(201);
+
+    const asOrgB = <T>(callback: () => Promise<T>): Promise<T> =>
+      tenantContext.run(
+        {
+          userId: otherTenantOwner,
+          organizationId: organizationB,
+          role: Role.OWNER,
+        },
+        callback,
+      );
+
+    // Both resolution primitives — the matching engine's single lookup and the
+    // Exception Queue payer view's batched lookup — must stay empty for another
+    // organization, and still resolve inside the owning one.
+    await expect(
+      asOrgB(() => bankAccountRepo.findActiveByAccountNumber(isolatedAccount)),
+    ).resolves.toEqual([]);
+    await expect(
+      asOrgB(() =>
+        bankAccountRepo.findActiveByAccountNumbers([isolatedAccount]),
+      ),
+    ).resolves.toEqual([]);
+    await expect(
+      asTenant(() =>
+        bankAccountRepo.findActiveByAccountNumbers([isolatedAccount]),
+      ),
+    ).resolves.toEqual([expect.objectContaining({ customerId: customerA })]);
+  });
 });

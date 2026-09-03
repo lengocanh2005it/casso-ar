@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import { safeNormalizeAccountNumber } from '../../bank-accounts/application/account-number-normalizer';
 import type { ICustomerBankAccountRepository } from '../../bank-accounts/application/customer-bank-account-repository.port';
 import { CUSTOMER_BANK_ACCOUNT_REPOSITORY } from '../../bank-accounts/application/customer-bank-account-repository.port';
 import type { ICustomerRepository } from '../../customers/application/customer-repository.port';
@@ -60,6 +61,9 @@ export class MatchingEngineService {
 
     let receivables: Receivable[];
     if (accountIsKnown) {
+      // ponytail: one query per linked customer, bounded by how many customers
+      // authorized this one payer account (in practice 1-3); switch to a
+      // batched findOpenByCustomerIds only if that fan-out ever grows.
       const perCustomer = await Promise.all(
         [...accountLinkedCustomerIds].map((id) =>
           this.receivableRepo.findOpenByCustomerId(id),
@@ -105,14 +109,20 @@ export class MatchingEngineService {
       ];
       const customers = await this.customerRepo.findByIds(customerIds);
       for (const id of customerIds) {
-        const found = customers?.get(id)?.name;
-        if (found) {
-          customerNames.set(id, found);
-        } else {
-          const fallback = await this.customerRepo.findNameById(id);
-          customerNames.set(id, fallback ?? null);
-        }
+        customerNames.set(id, customers.get(id)?.name ?? null);
       }
+    }
+
+    // Normalized counterparty account for the deterministic account-match score
+    // below — compared against each linked customer's saved account numbers.
+    const normalizedCounterparty = safeNormalizeAccountNumber(
+      transaction.counterpartyAccountNumber,
+    );
+    const savedAccountsByCustomer = new Map<string, string[]>();
+    for (const link of links) {
+      const list = savedAccountsByCustomer.get(link.customerId) ?? [];
+      list.push(link.accountNumber);
+      savedAccountsByCustomer.set(link.customerId, list);
     }
 
     const scored = receivables.map((receivable) => {
@@ -125,10 +135,11 @@ export class MatchingEngineService {
         receivable.remainingAmount,
       );
       const inLinkedSet = linkedCustomerIds.has(receivable.customerId);
-      const accountScore = accountLinkedCustomerIds.has(receivable.customerId)
-        ? customerBankAccountScore(transaction.counterpartyAccountNumber, [
-            transaction.counterpartyAccountNumber,
-          ])
+      const accountScore = normalizedCounterparty
+        ? customerBankAccountScore(
+            normalizedCounterparty,
+            savedAccountsByCustomer.get(receivable.customerId) ?? [],
+          )
         : 0;
       const customerName = customerNames.get(receivable.customerId) ?? '';
       const payer =

@@ -13,6 +13,12 @@ import {
   ['organizationId', 'accountNumber', 'customerId'],
   { unique: true, where: '"isActive"' },
 )
+// Lookup path for the matching engine's findActiveByAccountNumber (issue #382).
+@Index('IDX_customer_bank_accounts_org_account_active', [
+  'organizationId',
+  'accountNumber',
+  'isActive',
+])
 export class CustomerBankAccountOrmEntity {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column({ type: 'varchar' }) organizationId: string;

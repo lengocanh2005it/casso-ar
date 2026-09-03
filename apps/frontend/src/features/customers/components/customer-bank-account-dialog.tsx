@@ -11,7 +11,11 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { getApiErrorCode, getApiErrorMessage } from '@/lib/api-client';
+import {
+  getApiErrorCode,
+  getApiErrorDetails,
+  getApiErrorMessage,
+} from '@/lib/api-client';
 import {
   useCreateCustomerBankAccount,
   useUpdateCustomerBankAccount,
@@ -29,16 +33,9 @@ export interface CustomerBankAccountDialogProps {
 }
 
 function readLinkedCustomerNames(error: unknown): string[] | undefined {
-  if (typeof error !== 'object' || error === null) return undefined;
-  const data = (
-    error as {
-      response?: {
-        data?: { details?: { linkedCustomerNames?: unknown } };
-      };
-    }
-  ).response?.data?.details?.linkedCustomerNames;
-  return Array.isArray(data) && data.every((n) => typeof n === 'string')
-    ? (data as string[])
+  const names = getApiErrorDetails(error)?.linkedCustomerNames;
+  return Array.isArray(names) && names.every((n) => typeof n === 'string')
+    ? (names as string[])
     : undefined;
 }
 
@@ -98,35 +95,23 @@ export function CustomerBankAccountDialog({
     );
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function submit(acknowledgeExistingLinks: boolean) {
     const trimmed = accountNumber.trim();
-
-    if (!isEdit) {
-      if (trimmed === '') {
-        setError('Vui lòng nhập số tài khoản ngân hàng.');
-        return;
-      }
-
-      setError(null);
-      createMutation.mutate(
-        { accountNumber: trimmed },
-        {
-          onSuccess: () =>
-            handleMutationSuccess('Đã thêm tài khoản ngân hàng.'),
-          onError: handleMutationError,
-        },
-      );
-    } else {
-      if (trimmed === '') {
-        return;
-      }
-
-      setError(null);
+    if (trimmed === '') {
+      if (!isEdit) setError('Vui lòng nhập số tài khoản ngân hàng.');
+      return;
+    }
+    setError(null);
+    // Only send the flag once the user has confirmed the cross-customer link —
+    // an absent flag reads as "not acknowledged" on the backend.
+    const ack = acknowledgeExistingLinks
+      ? { acknowledgeExistingLinks: true as const }
+      : {};
+    if (isEdit && account) {
       updateMutation.mutate(
         {
           id: account.id,
-          input: { accountNumber: trimmed },
+          input: { accountNumber: trimmed, ...ack },
         },
         {
           onSuccess: () =>
@@ -134,7 +119,21 @@ export function CustomerBankAccountDialog({
           onError: handleMutationError,
         },
       );
+    } else {
+      createMutation.mutate(
+        { accountNumber: trimmed, ...ack },
+        {
+          onSuccess: () =>
+            handleMutationSuccess('Đã thêm tài khoản ngân hàng.'),
+          onError: handleMutationError,
+        },
+      );
     }
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    submit(false);
   }
 
   const isPending = isEdit
@@ -180,38 +179,7 @@ export function CustomerBankAccountDialog({
               <Button
                 type="button"
                 disabled={isPending}
-                onClick={() => {
-                  if (isEdit && account) {
-                    updateMutation.mutate(
-                      {
-                        id: account.id,
-                        input: {
-                          accountNumber: accountNumber.trim(),
-                          acknowledgeExistingLinks: true,
-                        },
-                      },
-                      {
-                        onSuccess: () =>
-                          handleMutationSuccess(
-                            'Đã cập nhật tài khoản ngân hàng.',
-                          ),
-                        onError: handleMutationError,
-                      },
-                    );
-                  } else {
-                    createMutation.mutate(
-                      {
-                        accountNumber: accountNumber.trim(),
-                        acknowledgeExistingLinks: true,
-                      },
-                      {
-                        onSuccess: () =>
-                          handleMutationSuccess('Đã thêm tài khoản ngân hàng.'),
-                        onError: handleMutationError,
-                      },
-                    );
-                  }
-                }}
+                onClick={() => submit(true)}
               >
                 Vẫn liên kết
               </Button>

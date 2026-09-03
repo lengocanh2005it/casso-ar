@@ -47,10 +47,15 @@ export interface MatchingCandidate {
   createdAt: string;
 }
 
+export interface PayerLinkedCustomer {
+  customerId: string;
+  customerName: string;
+}
+
 export interface Payer {
   accountNumberMasked: string;
   name: string;
-  linkedCustomers: { customerId: string; customerName: string }[];
+  linkedCustomers: PayerLinkedCustomer[];
 }
 
 export interface PendingReviewItem {

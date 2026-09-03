@@ -19,7 +19,8 @@ export class AddPayerLinkColumnsToCustomerBankAccounts20260909000000
     );
     // Existing rows were deliberately created by a user through the management
     // UI, so treat them as confirmed at creation time. The acting user is
-    // unknown for legacy rows, so confirmedByUserId stays NULL.
+    // unknown for legacy rows, so confirmedByUserId stays NULL. This is a
+    // same-row column copy — it moves no data across organizations.
     await queryRunner.query(
       'UPDATE "customer_bank_accounts" SET "confirmedAt" = "createdAt" WHERE "confirmedAt" IS NULL',
     );
@@ -27,9 +28,16 @@ export class AddPayerLinkColumnsToCustomerBankAccounts20260909000000
     await queryRunner.query(
       'CREATE UNIQUE INDEX IF NOT EXISTS "UQ_customer_bank_accounts_org_account_customer" ON "customer_bank_accounts" ("organizationId", "accountNumber", "customerId") WHERE "isActive"',
     );
+    // Lookup path for the matching engine's findActiveByAccountNumber.
+    await queryRunner.query(
+      'CREATE INDEX IF NOT EXISTS "IDX_customer_bank_accounts_org_account_active" ON "customer_bank_accounts" ("organizationId", "accountNumber", "isActive")',
+    );
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      'DROP INDEX IF EXISTS "IDX_customer_bank_accounts_org_account_active"',
+    );
     await queryRunner.query(
       'DROP INDEX IF EXISTS "UQ_customer_bank_accounts_org_account_customer"',
     );
