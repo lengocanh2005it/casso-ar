@@ -5,6 +5,7 @@ import {
   PrimaryGeneratedColumn,
   VersionColumn,
 } from 'typeorm';
+import type { AiMatchingRecommendation } from '../domain/ai-matching-recommendation';
 import type { BankTransactionStatus } from '../domain/bank-transaction';
 
 @Entity({ name: 'bank_transactions' })
@@ -22,6 +23,8 @@ export class BankTransactionOrmEntity {
   @Column({ type: 'varchar' }) counterpartyName: string;
   @Column('text') transferContent: string;
   @Column({ type: 'varchar' }) status: BankTransactionStatus;
+  @Column({ type: 'jsonb', nullable: true })
+  aiRecommendation: AiMatchingRecommendation | null;
   @VersionColumn() version: number;
   @Column({ type: 'timestamptz' }) createdAt: Date;
 }

@@ -27,7 +27,27 @@ function toOrm(transaction: BankTransaction): BankTransactionOrmEntity {
     status: transaction.status,
     version: transaction.version,
     createdAt: transaction.createdAt,
+    aiRecommendation: transaction.aiRecommendation,
   };
+}
+
+function toDomain(row: BankTransactionOrmEntity): BankTransaction {
+  return new BankTransaction({
+    id: row.id,
+    organizationId: row.organizationId,
+    bankConnectionId: row.bankConnectionId,
+    webhookInboxId: row.webhookInboxId,
+    providerTransactionId: row.providerTransactionId,
+    amount: row.amount,
+    transactionDateTime: row.transactionDateTime,
+    counterpartyAccountNumber: row.counterpartyAccountNumber,
+    counterpartyName: row.counterpartyName,
+    transferContent: row.transferContent,
+    status: row.status,
+    version: row.version,
+    createdAt: row.createdAt,
+    aiRecommendation: row.aiRecommendation,
+  });
 }
 
 @Injectable()
@@ -52,7 +72,7 @@ export class TypeOrmBankTransactionRepository
 
   async findById(id: string): Promise<BankTransaction | null> {
     const row = await this.scopedFindOne({ id });
-    return row ? new BankTransaction(row) : null;
+    return row ? toDomain(row) : null;
   }
 
   async findByIdForUpdate(
@@ -64,7 +84,7 @@ export class TypeOrmBankTransactionRepository
       where: { id, organizationId },
       lock: { mode: 'pessimistic_write' },
     });
-    return row ? new BankTransaction(row) : null;
+    return row ? toDomain(row) : null;
   }
 
   async findManyByStatus(
@@ -78,7 +98,7 @@ export class TypeOrmBankTransactionRepository
       skip: options?.skip,
       take: options?.take,
     });
-    return rows.map((row) => new BankTransaction(row));
+    return rows.map(toDomain);
   }
 
   async countByStatus(

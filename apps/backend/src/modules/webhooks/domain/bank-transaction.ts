@@ -1,3 +1,5 @@
+import type { AiMatchingRecommendation } from './ai-matching-recommendation';
+
 export type BankTransactionStatus =
   | 'UNMATCHED'
   | 'PENDING_REVIEW'
@@ -19,6 +21,7 @@ export interface BankTransactionProps {
   status: BankTransactionStatus;
   version: number;
   createdAt: Date;
+  aiRecommendation?: AiMatchingRecommendation | null;
 }
 
 export class BankTransaction {
@@ -35,9 +38,11 @@ export class BankTransaction {
   readonly status: BankTransactionStatus;
   readonly version: number;
   readonly createdAt: Date;
+  readonly aiRecommendation: AiMatchingRecommendation | null;
 
   constructor(props: BankTransactionProps) {
     Object.assign(this, props);
+    this.aiRecommendation = props.aiRecommendation ?? null;
   }
   isRefund(): boolean {
     return this.amount < 0;
@@ -56,5 +61,10 @@ export class BankTransaction {
   }
   markPrepaid(): BankTransaction {
     return new BankTransaction({ ...this, status: 'PREPAID' });
+  }
+  withAiRecommendation(
+    aiRecommendation: AiMatchingRecommendation,
+  ): BankTransaction {
+    return new BankTransaction({ ...this, aiRecommendation });
   }
 }
