@@ -17,6 +17,8 @@ const CUSTOMER_BANK_ACCOUNT_SELECT = {
   customerId: true,
   accountNumber: true,
   isActive: true,
+  confirmedByUserId: true,
+  confirmedAt: true,
   createdAt: true,
   updatedAt: true,
 } satisfies FindOptionsSelect<CustomerBankAccountOrmEntity>;
@@ -28,6 +30,8 @@ function toOrm(account: CustomerBankAccount): CustomerBankAccountOrmEntity {
     customerId: account.customerId,
     accountNumber: account.accountNumber,
     isActive: account.isActive,
+    confirmedByUserId: account.confirmedByUserId,
+    confirmedAt: account.confirmedAt,
     createdAt: account.createdAt,
     updatedAt: account.updatedAt,
   };
@@ -40,6 +44,8 @@ function toDomain(row: CustomerBankAccountOrmEntity): CustomerBankAccount {
     customerId: row.customerId,
     accountNumber: row.accountNumber,
     isActive: row.isActive,
+    confirmedByUserId: row.confirmedByUserId ?? null,
+    confirmedAt: row.confirmedAt ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   });
@@ -58,14 +64,27 @@ export class TypeOrmCustomerBankAccountRepository
     super(repo, tenantContext);
   }
 
+  async findActiveByAccountNumber(
+    accountNumber: string,
+  ): Promise<CustomerBankAccount[]> {
+    const rows = await this.scopedFindMany(
+      {
+        accountNumber: normalizeAccountNumber(accountNumber),
+        isActive: true,
+      },
+      {
+        select: CUSTOMER_BANK_ACCOUNT_SELECT,
+        order: { createdAt: 'DESC' },
+      },
+    );
+    return rows.map(toDomain);
+  }
+
   async findByAccountNumber(
     accountNumber: string,
   ): Promise<CustomerBankAccount | null> {
-    const row = await this.scopedFindOne({
-      accountNumber: normalizeAccountNumber(accountNumber),
-      isActive: true,
-    });
-    return row ? toDomain(row) : null;
+    const rows = await this.findActiveByAccountNumber(accountNumber);
+    return rows[0] ?? null;
   }
 
   async findByCustomerId(customerId: string): Promise<CustomerBankAccount[]> {

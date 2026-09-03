@@ -2,6 +2,9 @@ import type { EntityManager } from 'typeorm';
 import type { CustomerBankAccount } from '../domain/customer-bank-account';
 
 export interface ICustomerBankAccountRepository {
+  findActiveByAccountNumber(
+    accountNumber: string,
+  ): Promise<CustomerBankAccount[]>;
   findByAccountNumber(
     accountNumber: string,
   ): Promise<CustomerBankAccount | null>;
