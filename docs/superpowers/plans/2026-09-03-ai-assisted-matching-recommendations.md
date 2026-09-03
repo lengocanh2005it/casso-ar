@@ -11,7 +11,7 @@
 **Implementation status (2026-09-03):** Complete on branch
 `feat/ai-assisted-matching` for [issue #378](https://github.com/lengocanh2005it/casso-ledger/issues/378).
 The implementation is committed but not pushed or opened as a PR pending user
-review. AI remains disabled by default.
+review; PR handoff is now approved. AI remains disabled by default.
 
 ## Global constraints
 
