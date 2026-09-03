@@ -145,6 +145,44 @@ describe('AuditInterceptor', () => {
     );
   });
 
+  it('merges a sanitized after-state patch from the audited use case', async () => {
+    const { interceptor, auditContext, auditLogRepo } = buildInterceptor({
+      actionType: AuditActionType.PAYMENT_ALLOCATE,
+      entityType: AuditEntityType.BANK_TRANSACTION,
+    });
+    const context = buildContext(
+      {
+        actionType: AuditActionType.PAYMENT_ALLOCATE,
+        entityType: AuditEntityType.BANK_TRANSACTION,
+      },
+      { id: 'bt-1' },
+    );
+    const handler: CallHandler = {
+      handle: () => {
+        auditContext.setAfterStatePatch({
+          allocatedReceivableIds: ['rec-1'],
+          aiAccepted: true,
+          token: 'secret',
+        });
+        return of({ id: 'bt-1', status: 'MATCHED' });
+      },
+    };
+
+    await lastValueFrom(interceptor.intercept(context, handler));
+
+    expect(auditLogRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        afterState: {
+          id: 'bt-1',
+          status: 'MATCHED',
+          allocatedReceivableIds: ['rec-1'],
+          aiAccepted: true,
+          token: '[REDACTED]',
+        },
+      }),
+    );
+  });
+
   it('leaves relatedReceivableId unset for audited actions unrelated to a receivable', async () => {
     const { interceptor, auditLogRepo } = buildInterceptor({
       actionType: AuditActionType.SMTP_CONFIG_SAVE,

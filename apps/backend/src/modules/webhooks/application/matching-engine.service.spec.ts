@@ -49,6 +49,7 @@ describe('MatchingEngineService', () => {
       },
       {
         findOpenByCustomerId: jest.fn().mockResolvedValue([receivable]),
+        findOpenByIds: jest.fn(),
         findOpenTopNByOrganization: jest.fn(),
         findOverdueByThreshold: jest.fn(),
         findOverdueCandidates: jest.fn(),
@@ -104,6 +105,7 @@ describe('MatchingEngineService', () => {
       },
       {
         findOpenByCustomerId,
+        findOpenByIds: jest.fn(),
         findOpenTopNByOrganization: jest.fn().mockResolvedValue([receivable]),
         findOverdueByThreshold: jest.fn(),
         findOverdueCandidates: jest.fn(),

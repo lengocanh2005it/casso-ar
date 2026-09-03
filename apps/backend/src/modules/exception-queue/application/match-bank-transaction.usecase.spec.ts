@@ -4,12 +4,13 @@ import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { Receivable } from '../../receivables/domain/receivable';
+import { createAiMatchingRecommendation } from '../../webhooks/domain/ai-matching-recommendation';
 import { BankTransaction } from '../../webhooks/domain/bank-transaction';
 import { MatchBankTransactionUseCase } from './match-bank-transaction.usecase';
 
 function buildTransaction(
   overrides: Partial<
-    Pick<BankTransaction, 'version' | 'status' | 'amount'>
+    Pick<BankTransaction, 'version' | 'status' | 'amount' | 'aiRecommendation'>
   > = {},
 ): BankTransaction {
   return new BankTransaction({
@@ -26,6 +27,7 @@ function buildTransaction(
     status: overrides.status ?? 'PENDING_REVIEW',
     version: overrides.version ?? 1,
     createdAt: new Date('2026-08-01'),
+    aiRecommendation: overrides.aiRecommendation ?? null,
   });
 }
 
@@ -86,6 +88,7 @@ function buildUseCase(
   const auditContext = {
     setBefore: jest.fn(),
     setAfter: jest.fn(),
+    setAfterStatePatch: jest.fn(),
   };
 
   const useCase = new MatchBankTransactionUseCase(
@@ -208,6 +211,10 @@ describe('MatchBankTransactionUseCase', () => {
       expect.anything(),
     );
     expect(auditContext.setBefore).toHaveBeenCalled();
+    expect(auditContext.setAfterStatePatch).toHaveBeenCalledWith({
+      allocatedReceivableIds: ['rec-1', 'rec-2'],
+      aiAccepted: false,
+    });
     expect(result.status).toBe('MATCHED');
     expect(allocatePaymentUseCase.emitAllocationEvents).toHaveBeenCalledTimes(
       2,
@@ -255,5 +262,28 @@ describe('MatchBankTransactionUseCase', () => {
         ],
       }),
     ).rejects.toMatchObject({ errorCode: ErrorCode.CUSTOMER_MISMATCH });
+  });
+
+  it('records aiAccepted when the reviewer allocates the recommended receivable', async () => {
+    const recommendation = createAiMatchingRecommendation({
+      status: 'SUCCEEDED',
+      recommendedReceivableId: 'rec-1',
+      confidence: 80,
+      reason: 'Khớp.',
+      model: 'gpt-4o-mini',
+      promptVersion: 'matching-v1',
+      evaluatedAt: '2026-08-01T00:00:00.000Z',
+    });
+    const { useCase, auditContext } = buildUseCase({
+      transaction: buildTransaction({ aiRecommendation: recommendation }),
+      receivables: { 'rec-1': buildReceivable('rec-1') },
+    });
+
+    await useCase.execute(input);
+
+    expect(auditContext.setAfterStatePatch).toHaveBeenCalledWith({
+      allocatedReceivableIds: ['rec-1'],
+      aiAccepted: true,
+    });
   });
 });

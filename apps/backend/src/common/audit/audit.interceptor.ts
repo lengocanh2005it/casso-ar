@@ -28,6 +28,10 @@ interface RequestLike {
   ip?: string;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function responseId(value: unknown): string | undefined {
   if (
     value !== null &&
@@ -87,6 +91,12 @@ export class AuditInterceptor implements NestInterceptor {
                   : (request.params?.receivableId ??
                     responseReceivableId(response) ??
                     null);
+              const afterStatePatch = this.auditContext.getAfterStatePatch();
+              const afterState = afterStatePatch
+                ? isRecord(response)
+                  ? { ...response, ...afterStatePatch }
+                  : { response, ...afterStatePatch }
+                : response;
               const log = new AuditLog({
                 organizationId: user.organizationId,
                 userId: user.userId,
@@ -97,7 +107,7 @@ export class AuditInterceptor implements NestInterceptor {
                 beforeState: sanitizeAuditPayload(
                   this.auditContext.getBefore(),
                 ),
-                afterState: sanitizeAuditPayload(response),
+                afterState: sanitizeAuditPayload(afterState),
                 ipAddress: request.ip ?? null,
                 createdAt: new Date(),
               });
