@@ -14,6 +14,7 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TenantContextService } from '../src/common/tenancy/tenant-context';
 import { configureApp } from '../src/configure-app';
+import { CreateCustomerBankAccountUseCase } from '../src/modules/bank-accounts/application/create-customer-bank-account.usecase';
 import {
   CUSTOMER_BANK_ACCOUNT_REPOSITORY,
   type ICustomerBankAccountRepository,
@@ -23,11 +24,13 @@ import { encryptToken } from '../src/modules/bank-connections/application/token-
 import { BankConnectionOrmEntity } from '../src/modules/bank-connections/infrastructure/bank-connection.orm-entity';
 import { CassoFlowAuthorizationOrmEntity } from '../src/modules/bank-connections/infrastructure/casso-flow-authorization.orm-entity';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
+import { MatchBankTransactionUseCase } from '../src/modules/exception-queue/application/match-bank-transaction.usecase';
 import { InvoiceStatus } from '../src/modules/invoices/domain/invoice';
 import { InvoiceOrmEntity } from '../src/modules/invoices/infrastructure/invoice.orm-entity';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { BankTransactionOrmEntity } from '../src/modules/webhooks/infrastructure/bank-transaction.orm-entity';
+import { MatchingCandidateOrmEntity } from '../src/modules/webhooks/infrastructure/matching-candidate.orm-entity';
 import { WebhookInboxOrmEntity } from '../src/modules/webhooks/infrastructure/webhook-inbox.orm-entity';
 import { signCassoWebhookPayload } from './helpers/casso-webhook-signature';
 
@@ -525,5 +528,259 @@ describe('Webhook matching (e2e)', () => {
     const checkRec2 = await receivableRepo.findOneBy({ id: receivableC2 });
     expect(checkRec1?.status).toBe(ReceivableStatus.OPEN);
     expect(checkRec2?.status).toBe(ReceivableStatus.OPEN);
+  }, 30_000);
+
+  it('remembers a payer account after a confirmed match so the next webhook prioritizes that customer', async () => {
+    const customerId = randomUUID();
+    const invoiceId1 = randomUUID();
+    const invoiceId2 = randomUUID();
+    const receivableId1 = randomUUID();
+    const receivableId2 = randomUUID();
+    const payerAccount = '0777888999';
+    const dueDate = new Date('2026-08-05T10:00:00.000Z');
+    const actingUserId = randomUUID();
+
+    await dataSource.getRepository(CustomerOrmEntity).save({
+      id: customerId,
+      organizationId,
+      name: 'Cong ty Ghi Nho',
+      taxCode: 'TAX-REMEMBER',
+      email: 'remember@example.com',
+      phone: '0900000090',
+      defaultPaymentTermDays: 30,
+      creditLimit: 100_000_000,
+      priority: 1,
+      createdAt: new Date(),
+    });
+    await dataSource.getRepository(InvoiceOrmEntity).save([
+      {
+        id: invoiceId1,
+        organizationId,
+        customerId,
+        invoiceNumber: 'INV-2026-0080',
+        issueDate: new Date('2026-07-01T00:00:00.000Z'),
+        totalAmount: 12_000_000,
+        taxAmount: 0,
+        sourceType: 'MANUAL',
+        fileUrl: null,
+        status: InvoiceStatus.ISSUED,
+        createdAt: new Date(),
+      },
+      {
+        id: invoiceId2,
+        organizationId,
+        customerId,
+        invoiceNumber: 'INV-2026-0081',
+        issueDate: new Date('2026-07-01T00:00:00.000Z'),
+        totalAmount: 12_000_000,
+        taxAmount: 0,
+        sourceType: 'MANUAL',
+        fileUrl: null,
+        status: InvoiceStatus.ISSUED,
+        createdAt: new Date(),
+      },
+    ]);
+    await dataSource.getRepository(ReceivableOrmEntity).save([
+      {
+        id: receivableId1,
+        organizationId,
+        customerId,
+        invoiceId: invoiceId1,
+        originalAmount: 12_000_000,
+        paidAmount: 0,
+        dueDate,
+        status: ReceivableStatus.OPEN,
+        salesRepresentativeId: null,
+        createdAt: new Date(),
+        closedAt: null,
+        version: 1,
+      },
+      {
+        id: receivableId2,
+        organizationId,
+        customerId,
+        invoiceId: invoiceId2,
+        originalAmount: 12_000_000,
+        paidAmount: 0,
+        dueDate,
+        status: ReceivableStatus.OPEN,
+        salesRepresentativeId: null,
+        createdAt: new Date(),
+        closedAt: null,
+        version: 1,
+      },
+    ]);
+
+    // 1. First webhook from an UNKNOWN payer account, referencing invoice 0080
+    //    in the content -> deterministic reference-code match routes it to
+    //    PENDING_REVIEW (no customer_bank_accounts link yet).
+    const firstId = 3_000_001;
+    const firstPayload = {
+      error: 0,
+      data: {
+        id: firstId,
+        amount: 12_000_000,
+        transactionDateTime: '2026-08-05 10:00:00',
+        description: 'Thanh toan INV-2026-0080',
+        accountNumber: '99887766',
+        counterAccountNumber: payerAccount,
+        counterAccountName: 'NGUOI TRA HO',
+      },
+    };
+    await request(app.getHttpServer())
+      .post('/api/v1/webhooks/casso-balance-hook')
+      .set(
+        'X-Casso-Signature',
+        signCassoWebhookPayload(firstPayload, webhookSecret),
+      )
+      .send(firstPayload)
+      .expect(200, { received: true, duplicate: false });
+
+    const txRepo = dataSource.getRepository(BankTransactionOrmEntity);
+    const deadline1 = Date.now() + 10_000;
+    let firstTx: BankTransactionOrmEntity | null = null;
+    while (Date.now() < deadline1) {
+      firstTx = await txRepo.findOneBy({
+        providerTransactionId: String(firstId),
+      });
+      if (firstTx?.status === 'PENDING_REVIEW') break;
+      await delay(100);
+    }
+    expect(firstTx?.status).toBe('PENDING_REVIEW');
+
+    const runAsUser = <T>(cb: () => Promise<T>): Promise<T> =>
+      tenantContext.run(
+        { userId: actingUserId, organizationId, role: Role.OWNER },
+        cb,
+      );
+
+    // 2. Confirm the match against receivable 1 (the confirm-match flow).
+    const matchUseCase = app.get(MatchBankTransactionUseCase);
+    await runAsUser(() =>
+      matchUseCase.execute({
+        bankTransactionId: firstTx?.id ?? '',
+        allocations: [{ receivableId: receivableId1, amount: 12_000_000 }],
+        version: firstTx?.version ?? 0,
+        allocatedByUserId: actingUserId,
+      }),
+    );
+    expect(
+      (await txRepo.findOneBy({ providerTransactionId: String(firstId) }))
+        ?.status,
+    ).toBe('MATCHED');
+
+    const candidateRepo = dataSource.getRepository(MatchingCandidateOrmEntity);
+    const topCandidate = (providerTransactionId: number) =>
+      txRepo
+        .findOneBy({ providerTransactionId: String(providerTransactionId) })
+        .then((row) =>
+          row
+            ? candidateRepo.findOne({
+                where: { bankTransactionId: row.id },
+                order: { totalScore: 'DESC' },
+              })
+            : null,
+        );
+
+    // 3. RED control: a webhook that references invoice 0081 (exact code hit,
+    //    score 60 + exact amount 20 + timing 5 = 85) from the SAME payer
+    //    account, delivered *before* the account is remembered. It lands in
+    //    PENDING_REVIEW and its top candidate scores 0 for the bank-account
+    //    signal — proving the remembered link is the only thing that changes.
+    const controlId = 3_000_003;
+    const controlPayload = {
+      error: 0,
+      data: {
+        id: controlId,
+        amount: 12_000_000,
+        transactionDateTime: '2026-08-06 09:00:00',
+        description: 'Thanh toan INV-2026-0081',
+        accountNumber: '99887766',
+        counterAccountNumber: payerAccount,
+        counterAccountName: 'NGUOI TRA HO',
+      },
+    };
+    await request(app.getHttpServer())
+      .post('/api/v1/webhooks/casso-balance-hook')
+      .set(
+        'X-Casso-Signature',
+        signCassoWebhookPayload(controlPayload, webhookSecret),
+      )
+      .send(controlPayload)
+      .expect(200, { received: true, duplicate: false });
+
+    const controlDeadline = Date.now() + 10_000;
+    let controlTx: BankTransactionOrmEntity | null = null;
+    while (Date.now() < controlDeadline) {
+      controlTx = await txRepo.findOneBy({
+        providerTransactionId: String(controlId),
+      });
+      if (controlTx) break;
+      await delay(100);
+    }
+    expect(controlTx?.status).toBe('PENDING_REVIEW');
+    const controlTop = await topCandidate(controlId);
+    expect(controlTop?.receivableId).toBe(receivableId2);
+    expect(controlTop?.customerBankAccountScore).toBe(0);
+    expect(controlTop?.totalScore).toBe(85);
+
+    // 4. Remember the payer account for this customer — the core of what the FE
+    //    "Ghi nhớ tài khoản người chuyển" checkbox triggers. Driven through the
+    //    use case the POST /api/v1/customers/:id/bank-accounts controller
+    //    delegates to; the HTTP layer (DTO, CUSTOMER_BANK_ACCOUNT_MANAGE guard,
+    //    Idempotency-Key) is covered by customer-bank-account-management.e2e-spec.
+    const createLinkUseCase = app.get(CreateCustomerBankAccountUseCase);
+    await runAsUser(() =>
+      createLinkUseCase.execute({
+        customerId,
+        accountNumber: payerAccount,
+        confirmedByUserId: actingUserId,
+      }),
+    );
+    const link = await runAsUser(() =>
+      bankAccountRepo.findActiveByAccountNumber(payerAccount),
+    );
+    expect(link).toEqual([expect.objectContaining({ customerId })]);
+
+    // 5. GREEN: the identical webhook, now that the account is remembered. The
+    //    +10 bank-account score takes the same 85 to 95 >= 90 and it
+    //    auto-matches receivable 2 for this customer.
+    const secondId = 3_000_002;
+    const secondPayload = {
+      error: 0,
+      data: {
+        id: secondId,
+        amount: 12_000_000,
+        transactionDateTime: '2026-08-06 09:00:00',
+        description: 'Thanh toan INV-2026-0081',
+        accountNumber: '99887766',
+        counterAccountNumber: payerAccount,
+        counterAccountName: 'NGUOI TRA HO',
+      },
+    };
+    await request(app.getHttpServer())
+      .post('/api/v1/webhooks/casso-balance-hook')
+      .set(
+        'X-Casso-Signature',
+        signCassoWebhookPayload(secondPayload, webhookSecret),
+      )
+      .send(secondPayload)
+      .expect(200, { received: true, duplicate: false });
+
+    const deadline2 = Date.now() + 10_000;
+    let secondTx: BankTransactionOrmEntity | null = null;
+    while (Date.now() < deadline2) {
+      secondTx = await txRepo.findOneBy({
+        providerTransactionId: String(secondId),
+      });
+      if (secondTx?.status === 'MATCHED') break;
+      await delay(100);
+    }
+    expect(secondTx?.status).toBe('MATCHED');
+    const paid = await dataSource
+      .getRepository(ReceivableOrmEntity)
+      .findOneBy({ id: receivableId2 });
+    expect(paid?.status).toBe(ReceivableStatus.PAID);
+    expect(Number(paid?.paidAmount)).toBe(12_000_000);
   }, 30_000);
 });

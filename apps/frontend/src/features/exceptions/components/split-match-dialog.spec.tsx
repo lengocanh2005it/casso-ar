@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { BankTransaction } from '../types';
 import { SplitMatchDialog } from './split-match-dialog';
 
 const apiRequest = vi.fn();
@@ -24,6 +25,27 @@ vi.mock('@/lib/api-client', () => ({
       ? String(data.errorCode)
       : undefined;
   },
+  getApiErrorDetails: (error: unknown) => {
+    if (typeof error !== 'object' || error === null || !('response' in error)) {
+      return undefined;
+    }
+    const response = (error as { response?: unknown }).response;
+    if (
+      typeof response !== 'object' ||
+      response === null ||
+      !('data' in response)
+    ) {
+      return undefined;
+    }
+    const data = (response as { data?: unknown }).data;
+    if (typeof data !== 'object' || data === null || !('details' in data)) {
+      return undefined;
+    }
+    const details = (data as { details?: unknown }).details;
+    return typeof details === 'object' && details !== null
+      ? (details as Record<string, unknown>)
+      : undefined;
+  },
   postWithIdempotency: (url: string, data?: unknown, headers?: unknown) =>
     apiRequest({
       url,
@@ -33,11 +55,24 @@ vi.mock('@/lib/api-client', () => ({
     }),
 }));
 
+const { toastSuccess, toastWarning, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastWarning: vi.fn(),
+  toastError: vi.fn(),
+}));
+vi.mock('sonner', () => ({
+  toast: {
+    success: (...a: unknown[]) => toastSuccess(...a),
+    warning: (...a: unknown[]) => toastWarning(...a),
+    error: (...a: unknown[]) => toastError(...a),
+  },
+}));
+
 vi.mock('@/contexts/auth-context', () => ({
   useAuth: () => ({ user: { role: 'ACCOUNTANT' } }),
 }));
 
-const tx = {
+const tx: BankTransaction = {
   id: 'bt9',
   bankConnectionId: 'bc1',
   providerTransactionId: 'p9',
@@ -46,7 +81,7 @@ const tx = {
   counterpartyAccountNumber: '999',
   counterpartyName: 'Company C',
   transferContent: 'Payment for INV-001',
-  status: 'PENDING_REVIEW' as const,
+  status: 'PENDING_REVIEW',
   version: 1,
 };
 
@@ -110,6 +145,9 @@ function renderDialog(aiRecommendation?: {
 describe('SplitMatchDialog', () => {
   beforeEach(() => {
     apiRequest.mockClear();
+    toastSuccess.mockClear();
+    toastWarning.mockClear();
+    toastError.mockClear();
   });
 
   it('shows a labeled transfer content field', async () => {
@@ -346,5 +384,241 @@ describe('SplitMatchDialog', () => {
     expect(
       screen.getByRole('button', { name: /ghi nhận công nợ/i }).parentElement,
     ).toHaveClass('flex-col');
+  });
+});
+
+function renderWithPayer(opts?: {
+  txOverrides?: Partial<BankTransaction>;
+  payer?: {
+    accountNumberMasked: string;
+    name: string;
+    linkedCustomers: { customerId: string; customerName: string }[];
+  } | null;
+  onOpenChange?: (v: boolean) => void;
+}) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const onOpenChange = opts?.onOpenChange ?? vi.fn();
+  render(
+    <QueryClientProvider client={queryClient}>
+      <SplitMatchDialog
+        tx={{ ...tx, ...opts?.txOverrides }}
+        payer={
+          opts?.payer ?? {
+            accountNumberMasked: '****6789',
+            name: 'Company C',
+            linkedCustomers: [],
+          }
+        }
+        open
+        onOpenChange={onOpenChange}
+      />
+    </QueryClientProvider>,
+  );
+  return { onOpenChange };
+}
+
+describe('remember payer account', () => {
+  const REMEMBER_LABEL = 'Ghi nhớ tài khoản người chuyển cho khách hàng này';
+
+  beforeEach(() => {
+    apiRequest.mockClear();
+    toastSuccess.mockClear();
+    toastWarning.mockClear();
+    toastError.mockClear();
+  });
+
+  it('shows the remember checkbox, checked, when the transaction has an account number', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    renderWithPayer();
+    const box = await screen.findByRole('checkbox', { name: REMEMBER_LABEL });
+    expect(box).toBeChecked();
+  });
+
+  it('hides the remember checkbox when the transaction has no account number', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    renderWithPayer({ txOverrides: { counterpartyAccountNumber: null } });
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
+    expect(
+      screen.queryByRole('checkbox', { name: REMEMBER_LABEL }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('lets the user uncheck the remember checkbox', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    renderWithPayer();
+    const box = await screen.findByRole('checkbox', { name: REMEMBER_LABEL });
+    fireEvent.click(box);
+    expect(box).not.toBeChecked();
+  });
+
+  it('hides the checkbox once the chosen customer is already linked to this account', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    renderWithPayer({
+      payer: {
+        accountNumberMasked: '****6789',
+        name: 'Company C',
+        linkedCustomers: [
+          { customerId: 'c1', customerName: 'Công ty An Phát' },
+        ],
+      },
+    });
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
+    // Before any amount: no chosen customer yet -> checkbox visible.
+    expect(
+      screen.getByRole('checkbox', { name: REMEMBER_LABEL }),
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getAllByLabelText(/số tiền phân bổ/i)[0], {
+      target: { value: '1000000' },
+    });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('checkbox', { name: REMEMBER_LABEL }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
+  it('auto-unchecks and warns when the account belongs to a different customer', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    renderWithPayer({
+      payer: {
+        accountNumberMasked: '****6789',
+        name: 'Company C',
+        linkedCustomers: [
+          { customerId: 'other', customerName: 'Công ty Khác' },
+        ],
+      },
+    });
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
+    fireEvent.change(screen.getAllByLabelText(/số tiền phân bổ/i)[0], {
+      target: { value: '1000000' },
+    });
+    const box = await screen.findByRole('checkbox', { name: REMEMBER_LABEL });
+    await waitFor(() => expect(box).not.toBeChecked());
+    expect(
+      screen.getByText(/Tài khoản này đang liên kết với Công ty Khác/),
+    ).toBeInTheDocument();
+  });
+
+  it('creates the payer link after a successful match when checked', async () => {
+    apiRequest.mockImplementation((cfg: { url: string }) => {
+      if (cfg.url === '/api/v1/bank-transactions/bt9/match') {
+        return Promise.resolve({ id: 'bt9' });
+      }
+      if (cfg.url === '/api/v1/customers/c1/bank-accounts') {
+        return Promise.resolve({ id: 'cba1' });
+      }
+      return Promise.resolve(candidates);
+    });
+    const { onOpenChange } = renderWithPayer();
+
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
+    fireEvent.change(screen.getAllByLabelText(/số tiền phân bổ/i)[0], {
+      target: { value: '50000000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /khớp giao dịch/i }));
+
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: '/api/v1/customers/c1/bank-accounts',
+          method: 'POST',
+          data: { accountNumber: '999' },
+        }),
+      ),
+    );
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith(
+        expect.stringContaining('Công ty An Phát'),
+      ),
+    );
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('does not create the payer link when the checkbox is unchecked', async () => {
+    apiRequest.mockImplementation((cfg: { url: string }) => {
+      if (cfg.url === '/api/v1/bank-transactions/bt9/match') {
+        return Promise.resolve({ id: 'bt9' });
+      }
+      return Promise.resolve(candidates);
+    });
+    renderWithPayer();
+
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('checkbox', { name: REMEMBER_LABEL }));
+    fireEvent.change(screen.getAllByLabelText(/số tiền phân bổ/i)[0], {
+      target: { value: '50000000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /khớp giao dịch/i }));
+
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ url: '/api/v1/bank-transactions/bt9/match' }),
+      ),
+    );
+    expect(apiRequest).not.toHaveBeenCalledWith(
+      expect.objectContaining({ url: '/api/v1/customers/c1/bank-accounts' }),
+    );
+  });
+
+  it('warns and keeps the match on a cross-customer conflict from the save', async () => {
+    apiRequest.mockImplementation((cfg: { url: string }) => {
+      if (cfg.url === '/api/v1/bank-transactions/bt9/match') {
+        return Promise.resolve({ id: 'bt9' });
+      }
+      if (cfg.url === '/api/v1/customers/c1/bank-accounts') {
+        return Promise.reject({
+          response: {
+            data: {
+              errorCode: 'CONFLICT',
+              details: { linkedCustomerNames: ['Công ty Khác'] },
+            },
+          },
+        });
+      }
+      return Promise.resolve(candidates);
+    });
+    const { onOpenChange } = renderWithPayer();
+
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
+    fireEvent.change(screen.getAllByLabelText(/số tiền phân bổ/i)[0], {
+      target: { value: '50000000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /khớp giao dịch/i }));
+
+    await waitFor(() =>
+      expect(toastWarning).toHaveBeenCalledWith(
+        expect.stringContaining('Công ty Khác'),
+      ),
+    );
+    expect(onOpenChange).toHaveBeenCalledWith(false); // match still confirmed
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument(); // no match error surfaced
+  });
+
+  it('shows a generic error and keeps the match when the save fails outright', async () => {
+    apiRequest.mockImplementation((cfg: { url: string }) => {
+      if (cfg.url === '/api/v1/bank-transactions/bt9/match') {
+        return Promise.resolve({ id: 'bt9' });
+      }
+      if (cfg.url === '/api/v1/customers/c1/bank-accounts') {
+        return Promise.reject(new Error('network down'));
+      }
+      return Promise.resolve(candidates);
+    });
+    const { onOpenChange } = renderWithPayer();
+
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
+    fireEvent.change(screen.getAllByLabelText(/số tiền phân bổ/i)[0], {
+      target: { value: '50000000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /khớp giao dịch/i }));
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'Không ghi nhớ được tài khoản người chuyển.',
+      ),
+    );
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });

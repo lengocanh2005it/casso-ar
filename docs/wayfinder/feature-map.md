@@ -786,9 +786,10 @@ Success = a single document a new developer can read and know exactly what to pi
 - #359 — Dashboard time-range filter for the paired trend charts; done. Shipped: 2026-08-27; PR #377.
 - #381 — Reframe the customer bank-account card as an optional payment-matching aid (title/description now say "không bắt buộc", empty state reassures matching works without it, manual "Thêm tài khoản" demoted to an `outline` secondary action); part of the #378 AI-matching series alongside #380. Frontend + docs only — verified no invoice-import/onboarding flow requires a customer bank-account value. Shipped: 2026-09-03 — PR #383.
 - #382 — Third-party payer accounts: `customer_bank_accounts` becomes an org-scoped M:N payer-account↔customer authorization link (partial-unique per customer, `confirmedByUserId`/`confirmedAt` provenance, one migration); matching engine unions open receivables across every linked customer and blocks auto-match when two customers both clear the threshold; create/update endpoints gain `acknowledgeExistingLinks` with a 409+`linkedCustomerNames` cross-customer guard; Exception Queue read model + UI (list + split-match dialog) gain a `payer` block. Remembering a payer from inside the confirmed-match flow stays with #380. Shipped: 2026-09-03 — PR #384 (squash `cf0b4593`; two-axis code review + fixes landed in the same PR).
+- #380 — Remember payer bank account after a confirmed match: a "Ghi nhớ tài khoản người chuyển cho khách hàng này" checkbox in `SplitMatchDialog`; on match success it fires a fire-and-forget `POST /customers/:id/bank-accounts` for the matched customer (reusing #382's endpoint). Checkbox hidden when the transaction has no account number or the chosen customer is already linked; auto-unchecked with a hint when the account belongs to another customer; cross-customer 409 is a warning only, never a silent reassign. No backend production code — AC#5 ("later transaction prioritizes that customer") already ships in #382's matching engine. Branch `feat/remember-payer-after-match`.
 
 **Next available tickets** (all blockers resolved):
-- #380 — Remember payer bank account after a confirmed match (#378 AI-matching series). Builds directly on #382's M:N link, cross-customer acknowledgement guard, and confirmation provenance, all now on `main`.
+- None.
 
 **Blocked tickets waiting:**
 - None.
