@@ -24,6 +24,27 @@ vi.mock('@/lib/api-client', () => ({
       ? String(data.errorCode)
       : undefined;
   },
+  getApiErrorDetails: (error: unknown) => {
+    if (typeof error !== 'object' || error === null || !('response' in error)) {
+      return undefined;
+    }
+    const response = (error as { response?: unknown }).response;
+    if (
+      typeof response !== 'object' ||
+      response === null ||
+      !('data' in response)
+    ) {
+      return undefined;
+    }
+    const data = (response as { data?: unknown }).data;
+    if (typeof data !== 'object' || data === null || !('details' in data)) {
+      return undefined;
+    }
+    const details = (data as { details?: unknown }).details;
+    return typeof details === 'object' && details !== null
+      ? (details as Record<string, unknown>)
+      : undefined;
+  },
   postWithIdempotency: (url: string, data?: unknown, headers?: unknown) =>
     apiRequest({
       url,
@@ -31,6 +52,19 @@ vi.mock('@/lib/api-client', () => ({
       data,
       headers: { 'Idempotency-Key': 'test-key', ...(headers as object) },
     }),
+}));
+
+const { toastSuccess, toastWarning, toastError } = vi.hoisted(() => ({
+  toastSuccess: vi.fn(),
+  toastWarning: vi.fn(),
+  toastError: vi.fn(),
+}));
+vi.mock('sonner', () => ({
+  toast: {
+    success: (...a: unknown[]) => toastSuccess(...a),
+    warning: (...a: unknown[]) => toastWarning(...a),
+    error: (...a: unknown[]) => toastError(...a),
+  },
 }));
 
 vi.mock('@/contexts/auth-context', () => ({
@@ -110,6 +144,9 @@ function renderDialog(aiRecommendation?: {
 describe('SplitMatchDialog', () => {
   beforeEach(() => {
     apiRequest.mockClear();
+    toastSuccess.mockClear();
+    toastWarning.mockClear();
+    toastError.mockClear();
   });
 
   it('shows a labeled transfer content field', async () => {
@@ -346,5 +383,65 @@ describe('SplitMatchDialog', () => {
     expect(
       screen.getByRole('button', { name: /ghi nhận công nợ/i }).parentElement,
     ).toHaveClass('flex-col');
+  });
+});
+
+function renderWithPayer(opts?: {
+  txOverrides?: Partial<typeof tx>;
+  payer?: {
+    accountNumberMasked: string;
+    name: string;
+    linkedCustomers: { customerId: string; customerName: string }[];
+  } | null;
+  onOpenChange?: (v: boolean) => void;
+}) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const onOpenChange = opts?.onOpenChange ?? vi.fn();
+  render(
+    <QueryClientProvider client={queryClient}>
+      <SplitMatchDialog
+        tx={{ ...tx, ...opts?.txOverrides }}
+        payer={
+          opts?.payer ?? {
+            accountNumberMasked: '****6789',
+            name: 'Company C',
+            linkedCustomers: [],
+          }
+        }
+        open
+        onOpenChange={onOpenChange}
+      />
+    </QueryClientProvider>,
+  );
+  return { onOpenChange };
+}
+
+describe('remember payer account', () => {
+  const REMEMBER_LABEL = 'Ghi nhớ tài khoản người chuyển cho khách hàng này';
+
+  it('shows the remember checkbox, checked, when the transaction has an account number', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    renderWithPayer();
+    const box = await screen.findByRole('checkbox', { name: REMEMBER_LABEL });
+    expect(box).toBeChecked();
+  });
+
+  it('hides the remember checkbox when the transaction has no account number', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    renderWithPayer({ txOverrides: { counterpartyAccountNumber: null } });
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
+    expect(
+      screen.queryByRole('checkbox', { name: REMEMBER_LABEL }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('lets the user uncheck the remember checkbox', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    renderWithPayer();
+    const box = await screen.findByRole('checkbox', { name: REMEMBER_LABEL });
+    fireEvent.click(box);
+    expect(box).not.toBeChecked();
   });
 });

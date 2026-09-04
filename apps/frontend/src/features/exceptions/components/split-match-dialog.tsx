@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -73,6 +74,7 @@ export function SplitMatchDialog({
   const [customerSearch, setCustomerSearch] = useState('');
   const [prepaidCustomerId, setPrepaidCustomerId] = useState('');
   const [allocationError, setAllocationError] = useState<string | null>(null);
+  const [rememberPayer, setRememberPayer] = useState(true);
   const { data: customerPage } = useCustomers(
     customerSearch,
     1,
@@ -88,6 +90,7 @@ export function SplitMatchDialog({
       setCustomerSearch('');
       setPrepaidCustomerId('');
       setAllocationError(null);
+      setRememberPayer(true);
     }
   }, [open]);
 
@@ -114,6 +117,9 @@ export function SplitMatchDialog({
   );
   const valid =
     total > 0 && total <= tx.amount && amountsAreIntegers && tx.amount > 0;
+
+  const accountNumber = tx.counterpartyAccountNumber?.trim() || null;
+  const showRememberCheckbox = accountNumber !== null;
 
   if (!hasPermission(user?.role ?? null, Permission.PAYMENT_ALLOCATE)) {
     return null;
@@ -193,6 +199,21 @@ export function SplitMatchDialog({
                 )}
               </div>
             )}
+          {showRememberCheckbox && (
+            <label
+              htmlFor="remember-payer"
+              className="flex items-start gap-2 text-sm"
+            >
+              <Checkbox
+                id="remember-payer"
+                className="mt-0.5"
+                checked={rememberPayer}
+                onCheckedChange={(value) => setRememberPayer(value === true)}
+                aria-label="Ghi nhớ tài khoản người chuyển cho khách hàng này"
+              />
+              <span>Ghi nhớ tài khoản người chuyển cho khách hàng này</span>
+            </label>
+          )}
           <div>
             <p className="text-sm font-medium">Nội dung chuyển khoản</p>
             {tx.transferContent?.trim() ? (
