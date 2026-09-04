@@ -30,6 +30,7 @@ import { InvoiceOrmEntity } from '../src/modules/invoices/infrastructure/invoice
 import { Role } from '../src/modules/organizations/domain/membership';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { BankTransactionOrmEntity } from '../src/modules/webhooks/infrastructure/bank-transaction.orm-entity';
+import { MatchingCandidateOrmEntity } from '../src/modules/webhooks/infrastructure/matching-candidate.orm-entity';
 import { WebhookInboxOrmEntity } from '../src/modules/webhooks/infrastructure/webhook-inbox.orm-entity';
 import { signCassoWebhookPayload } from './helpers/casso-webhook-signature';
 
@@ -668,9 +669,66 @@ describe('Webhook matching (e2e)', () => {
         ?.status,
     ).toBe('MATCHED');
 
-    // 3. Remember the payer account for this customer — exactly what the FE
-    //    "Ghi nhớ tài khoản người chuyển" checkbox triggers via
-    //    POST /api/v1/customers/:id/bank-accounts.
+    const candidateRepo = dataSource.getRepository(MatchingCandidateOrmEntity);
+    const topCandidate = (providerTransactionId: number) =>
+      txRepo
+        .findOneBy({ providerTransactionId: String(providerTransactionId) })
+        .then((row) =>
+          row
+            ? candidateRepo.findOne({
+                where: { bankTransactionId: row.id },
+                order: { totalScore: 'DESC' },
+              })
+            : null,
+        );
+
+    // 3. RED control: a webhook that references invoice 0081 (exact code hit,
+    //    score 60 + exact amount 20 + timing 5 = 85) from the SAME payer
+    //    account, delivered *before* the account is remembered. It lands in
+    //    PENDING_REVIEW and its top candidate scores 0 for the bank-account
+    //    signal — proving the remembered link is the only thing that changes.
+    const controlId = 3_000_003;
+    const controlPayload = {
+      error: 0,
+      data: {
+        id: controlId,
+        amount: 12_000_000,
+        transactionDateTime: '2026-08-06 09:00:00',
+        description: 'Thanh toan INV-2026-0081',
+        accountNumber: '99887766',
+        counterAccountNumber: payerAccount,
+        counterAccountName: 'NGUOI TRA HO',
+      },
+    };
+    await request(app.getHttpServer())
+      .post('/api/v1/webhooks/casso-balance-hook')
+      .set(
+        'X-Casso-Signature',
+        signCassoWebhookPayload(controlPayload, webhookSecret),
+      )
+      .send(controlPayload)
+      .expect(200, { received: true, duplicate: false });
+
+    const controlDeadline = Date.now() + 10_000;
+    let controlTx: BankTransactionOrmEntity | null = null;
+    while (Date.now() < controlDeadline) {
+      controlTx = await txRepo.findOneBy({
+        providerTransactionId: String(controlId),
+      });
+      if (controlTx) break;
+      await delay(100);
+    }
+    expect(controlTx?.status).toBe('PENDING_REVIEW');
+    const controlTop = await topCandidate(controlId);
+    expect(controlTop?.receivableId).toBe(receivableId2);
+    expect(controlTop?.customerBankAccountScore).toBe(0);
+    expect(controlTop?.totalScore).toBe(85);
+
+    // 4. Remember the payer account for this customer — the core of what the FE
+    //    "Ghi nhớ tài khoản người chuyển" checkbox triggers. Driven through the
+    //    use case the POST /api/v1/customers/:id/bank-accounts controller
+    //    delegates to; the HTTP layer (DTO, CUSTOMER_BANK_ACCOUNT_MANAGE guard,
+    //    Idempotency-Key) is covered by customer-bank-account-management.e2e-spec.
     const createLinkUseCase = app.get(CreateCustomerBankAccountUseCase);
     await runAsUser(() =>
       createLinkUseCase.execute({
@@ -684,10 +742,9 @@ describe('Webhook matching (e2e)', () => {
     );
     expect(link).toEqual([expect.objectContaining({ customerId })]);
 
-    // 4. Second webhook from the SAME payer account referencing receivable 2.
-    //    Without the remembered link (bank-account score 0), total score is 85 < 90,
-    //    so it lands in PENDING_REVIEW. With the remembered link (+10), total score is
-    //    95 >= 90, so it auto-matches to MATCHED.
+    // 5. GREEN: the identical webhook, now that the account is remembered. The
+    //    +10 bank-account score takes the same 85 to 95 >= 90 and it
+    //    auto-matches receivable 2 for this customer.
     const secondId = 3_000_002;
     const secondPayload = {
       error: 0,
