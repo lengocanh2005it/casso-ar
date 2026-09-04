@@ -421,6 +421,13 @@ function renderWithPayer(opts?: {
 describe('remember payer account', () => {
   const REMEMBER_LABEL = 'Ghi nhớ tài khoản người chuyển cho khách hàng này';
 
+  beforeEach(() => {
+    apiRequest.mockClear();
+    toastSuccess.mockClear();
+    toastWarning.mockClear();
+    toastError.mockClear();
+  });
+
   it('shows the remember checkbox, checked, when the transaction has an account number', async () => {
     apiRequest.mockResolvedValue(candidates);
     renderWithPayer();
@@ -491,5 +498,66 @@ describe('remember payer account', () => {
     expect(
       screen.getByText(/Tài khoản này đang liên kết với Công ty Khác/),
     ).toBeInTheDocument();
+  });
+
+  it('creates the payer link after a successful match when checked', async () => {
+    apiRequest.mockImplementation((cfg: { url: string }) => {
+      if (cfg.url === '/api/v1/bank-transactions/bt9/match') {
+        return Promise.resolve({ id: 'bt9' });
+      }
+      if (cfg.url === '/api/v1/customers/c1/bank-accounts') {
+        return Promise.resolve({ id: 'cba1' });
+      }
+      return Promise.resolve(candidates);
+    });
+    const { onOpenChange } = renderWithPayer();
+
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
+    fireEvent.change(screen.getAllByLabelText(/số tiền phân bổ/i)[0], {
+      target: { value: '50000000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /khớp giao dịch/i }));
+
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: '/api/v1/customers/c1/bank-accounts',
+          method: 'POST',
+          data: { accountNumber: '999' },
+        }),
+      ),
+    );
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith(
+        expect.stringContaining('Công ty An Phát'),
+      ),
+    );
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('does not create the payer link when the checkbox is unchecked', async () => {
+    apiRequest.mockImplementation((cfg: { url: string }) => {
+      if (cfg.url === '/api/v1/bank-transactions/bt9/match') {
+        return Promise.resolve({ id: 'bt9' });
+      }
+      return Promise.resolve(candidates);
+    });
+    renderWithPayer();
+
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('checkbox', { name: REMEMBER_LABEL }));
+    fireEvent.change(screen.getAllByLabelText(/số tiền phân bổ/i)[0], {
+      target: { value: '50000000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /khớp giao dịch/i }));
+
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ url: '/api/v1/bank-transactions/bt9/match' }),
+      ),
+    );
+    expect(apiRequest).not.toHaveBeenCalledWith(
+      expect.objectContaining({ url: '/api/v1/customers/c1/bank-accounts' }),
+    );
   });
 });

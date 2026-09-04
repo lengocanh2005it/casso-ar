@@ -1,5 +1,6 @@
 import { Permission } from '@casso-ar/shared-types';
 import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,9 +21,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/contexts/auth-context';
+import { createCustomerBankAccount } from '@/features/customers/api/customers-api';
 import { useCustomers } from '@/features/customers/api/use-customers';
 import { getAllocationErrorMessage } from '@/features/payments/allocation-errors';
 import { getReceivableDisplayName } from '@/features/receivables/receivable-label';
+import { getApiErrorCode, getApiErrorDetails } from '@/lib/api-client';
 import { formatDate, formatVND } from '@/lib/format';
 import { hasPermission } from '@/lib/rbac';
 import {
@@ -53,6 +56,38 @@ function AiRecommendationNotice({
     );
   }
   return <p className="text-sm text-muted-foreground">AI không có gợi ý</p>;
+}
+
+async function rememberPayerAccount(
+  customerId: string,
+  customerName: string | null,
+  accountNumber: string,
+): Promise<void> {
+  try {
+    await createCustomerBankAccount(customerId, { accountNumber });
+    toast.success(
+      `Đã ghi nhớ tài khoản người chuyển${
+        customerName ? ` cho ${customerName}` : ''
+      }.`,
+    );
+  } catch (error) {
+    const code = getApiErrorCode(error);
+    if (code === 'CONFLICT') {
+      const names = getApiErrorDetails(error)?.linkedCustomerNames;
+      if (Array.isArray(names) && names.length > 0) {
+        toast.warning(
+          `Tài khoản này đang liên kết với ${names.join(', ')}. Chưa ghi nhớ.`,
+        );
+      }
+      // A same-customer duplicate means the link already exists — nothing to do.
+      return;
+    }
+    if (code === 'VALIDATION_ERROR') {
+      toast.warning('Số tài khoản không hợp lệ, chưa ghi nhớ.');
+      return;
+    }
+    toast.error('Không ghi nhớ được tài khoản người chuyển.');
+  }
 }
 
 export function SplitMatchDialog({
@@ -122,6 +157,7 @@ export function SplitMatchDialog({
     (candidate) => Number(amounts[candidate.receivableId]) > 0,
   );
   const chosenCustomerId = chosenCandidate?.customerId ?? null;
+  const chosenCustomerName = chosenCandidate?.customerName ?? null;
   const accountNumber = tx.counterpartyAccountNumber?.trim() || null;
   const linkedCustomers = payer?.linkedCustomers ?? [];
   const alreadyLinkedToChosen =
@@ -165,7 +201,17 @@ export function SplitMatchDialog({
     splitMatch.mutate(
       { id: tx.id, allocations, version: tx.version },
       {
-        onSuccess: () => onOpenChange(false),
+        onSuccess: () => {
+          // The match is the primary action — close first, then the aside.
+          onOpenChange(false);
+          if (rememberPayer && chosenCustomerId && accountNumber) {
+            void rememberPayerAccount(
+              chosenCustomerId,
+              chosenCustomerName,
+              accountNumber,
+            );
+          }
+        },
         onError: (error) =>
           setAllocationError(getAllocationErrorMessage(error)),
       },
