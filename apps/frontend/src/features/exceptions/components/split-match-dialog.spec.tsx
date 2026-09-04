@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { BankTransaction } from '../types';
 import { SplitMatchDialog } from './split-match-dialog';
 
 const apiRequest = vi.fn();
@@ -71,7 +72,7 @@ vi.mock('@/contexts/auth-context', () => ({
   useAuth: () => ({ user: { role: 'ACCOUNTANT' } }),
 }));
 
-const tx = {
+const tx: BankTransaction = {
   id: 'bt9',
   bankConnectionId: 'bc1',
   providerTransactionId: 'p9',
@@ -80,7 +81,7 @@ const tx = {
   counterpartyAccountNumber: '999',
   counterpartyName: 'Company C',
   transferContent: 'Payment for INV-001',
-  status: 'PENDING_REVIEW' as const,
+  status: 'PENDING_REVIEW',
   version: 1,
 };
 
@@ -387,7 +388,7 @@ describe('SplitMatchDialog', () => {
 });
 
 function renderWithPayer(opts?: {
-  txOverrides?: Partial<typeof tx>;
+  txOverrides?: Partial<BankTransaction>;
   payer?: {
     accountNumberMasked: string;
     name: string;
