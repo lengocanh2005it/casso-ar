@@ -444,4 +444,52 @@ describe('remember payer account', () => {
     fireEvent.click(box);
     expect(box).not.toBeChecked();
   });
+
+  it('hides the checkbox once the chosen customer is already linked to this account', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    renderWithPayer({
+      payer: {
+        accountNumberMasked: '****6789',
+        name: 'Company C',
+        linkedCustomers: [
+          { customerId: 'c1', customerName: 'Công ty An Phát' },
+        ],
+      },
+    });
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
+    // Before any amount: no chosen customer yet -> checkbox visible.
+    expect(
+      screen.getByRole('checkbox', { name: REMEMBER_LABEL }),
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getAllByLabelText(/số tiền phân bổ/i)[0], {
+      target: { value: '1000000' },
+    });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('checkbox', { name: REMEMBER_LABEL }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
+  it('auto-unchecks and warns when the account belongs to a different customer', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    renderWithPayer({
+      payer: {
+        accountNumberMasked: '****6789',
+        name: 'Company C',
+        linkedCustomers: [
+          { customerId: 'other', customerName: 'Công ty Khác' },
+        ],
+      },
+    });
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
+    fireEvent.change(screen.getAllByLabelText(/số tiền phân bổ/i)[0], {
+      target: { value: '1000000' },
+    });
+    const box = await screen.findByRole('checkbox', { name: REMEMBER_LABEL });
+    await waitFor(() => expect(box).not.toBeChecked());
+    expect(
+      screen.getByText(/Tài khoản này đang liên kết với Công ty Khác/),
+    ).toBeInTheDocument();
+  });
 });

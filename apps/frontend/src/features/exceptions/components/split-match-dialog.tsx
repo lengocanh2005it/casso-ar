@@ -118,8 +118,29 @@ export function SplitMatchDialog({
   const valid =
     total > 0 && total <= tx.amount && amountsAreIntegers && tx.amount > 0;
 
+  const chosenCandidate = sortedCandidates.find(
+    (candidate) => Number(amounts[candidate.receivableId]) > 0,
+  );
+  const chosenCustomerId = chosenCandidate?.customerId ?? null;
   const accountNumber = tx.counterpartyAccountNumber?.trim() || null;
-  const showRememberCheckbox = accountNumber !== null;
+  const linkedCustomers = payer?.linkedCustomers ?? [];
+  const alreadyLinkedToChosen =
+    chosenCustomerId !== null &&
+    linkedCustomers.some((c) => c.customerId === chosenCustomerId);
+  const otherLinkedCustomerNames = linkedCustomers
+    .filter((c) => c.customerId !== chosenCustomerId)
+    .map((c) => c.customerName);
+  const linkedToDifferentCustomer =
+    chosenCustomerId !== null &&
+    !alreadyLinkedToChosen &&
+    otherLinkedCustomerNames.length > 0;
+  const showRememberCheckbox = accountNumber !== null && !alreadyLinkedToChosen;
+
+  useEffect(() => {
+    if (linkedToDifferentCustomer) {
+      setRememberPayer(false);
+    }
+  }, [linkedToDifferentCustomer]);
 
   if (!hasPermission(user?.role ?? null, Permission.PAYMENT_ALLOCATE)) {
     return null;
@@ -211,7 +232,16 @@ export function SplitMatchDialog({
                 onCheckedChange={(value) => setRememberPayer(value === true)}
                 aria-label="Ghi nhớ tài khoản người chuyển cho khách hàng này"
               />
-              <span>Ghi nhớ tài khoản người chuyển cho khách hàng này</span>
+              <span>
+                Ghi nhớ tài khoản người chuyển cho khách hàng này
+                {linkedToDifferentCustomer && (
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    Tài khoản này đang liên kết với{' '}
+                    {otherLinkedCustomerNames.join(', ')}. Bỏ tích để không ghi
+                    nhớ.
+                  </span>
+                )}
+              </span>
             </label>
           )}
           <div>
