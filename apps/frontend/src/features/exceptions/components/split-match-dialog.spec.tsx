@@ -560,4 +560,64 @@ describe('remember payer account', () => {
       expect.objectContaining({ url: '/api/v1/customers/c1/bank-accounts' }),
     );
   });
+
+  it('warns and keeps the match on a cross-customer conflict from the save', async () => {
+    apiRequest.mockImplementation((cfg: { url: string }) => {
+      if (cfg.url === '/api/v1/bank-transactions/bt9/match') {
+        return Promise.resolve({ id: 'bt9' });
+      }
+      if (cfg.url === '/api/v1/customers/c1/bank-accounts') {
+        return Promise.reject({
+          response: {
+            data: {
+              errorCode: 'CONFLICT',
+              details: { linkedCustomerNames: ['Công ty Khác'] },
+            },
+          },
+        });
+      }
+      return Promise.resolve(candidates);
+    });
+    const { onOpenChange } = renderWithPayer();
+
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
+    fireEvent.change(screen.getAllByLabelText(/số tiền phân bổ/i)[0], {
+      target: { value: '50000000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /khớp giao dịch/i }));
+
+    await waitFor(() =>
+      expect(toastWarning).toHaveBeenCalledWith(
+        expect.stringContaining('Công ty Khác'),
+      ),
+    );
+    expect(onOpenChange).toHaveBeenCalledWith(false); // match still confirmed
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument(); // no match error surfaced
+  });
+
+  it('shows a generic error and keeps the match when the save fails outright', async () => {
+    apiRequest.mockImplementation((cfg: { url: string }) => {
+      if (cfg.url === '/api/v1/bank-transactions/bt9/match') {
+        return Promise.resolve({ id: 'bt9' });
+      }
+      if (cfg.url === '/api/v1/customers/c1/bank-accounts') {
+        return Promise.reject(new Error('network down'));
+      }
+      return Promise.resolve(candidates);
+    });
+    const { onOpenChange } = renderWithPayer();
+
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
+    fireEvent.change(screen.getAllByLabelText(/số tiền phân bổ/i)[0], {
+      target: { value: '50000000' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /khớp giao dịch/i }));
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'Không ghi nhớ được tài khoản người chuyển.',
+      ),
+    );
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
 });
