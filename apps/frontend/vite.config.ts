@@ -38,5 +38,11 @@ export default defineConfig(({ mode }) => ({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // Default 5000ms is smaller than the `waitFor(..., { timeout: 15_000 })`
+    // some lazy-route/chart specs already need, so a starved worker's test was
+    // killed before its own wait could finish. Align the per-test and per-hook
+    // budget with the async-util timeout set in src/test/setup.ts.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
   },
 }));

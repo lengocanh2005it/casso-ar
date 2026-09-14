@@ -1,3 +1,4 @@
+import { configure } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 // jsdom has no IntersectionObserver — framer-motion's whileInView (used by
@@ -17,3 +18,10 @@ class MockIntersectionObserver implements IntersectionObserver {
 globalThis.IntersectionObserver =
   globalThis.IntersectionObserver ??
   (MockIntersectionObserver as unknown as typeof IntersectionObserver);
+
+// The default 1000ms is too tight when vitest runs the full suite in parallel:
+// a starved worker can take seconds to paint a lazy route/chart, so `findBy*`
+// and `waitFor` time out even though the assertion is correct. This is why
+// several specs previously hand-pinned `waitFor(..., { timeout: 15_000 })`.
+// Give the async helpers one shared, generous budget instead.
+configure({ asyncUtilTimeout: 10_000 });
