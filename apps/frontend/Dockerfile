@@ -19,10 +19,12 @@ RUN pnpm --filter @casso-ar/shared-types build
 RUN pnpm --filter @casso-ar/frontend build
 
 # ---- runtime: nginx serves the static Vite output ----
-FROM nginx:1.27-alpine AS runtime
+# Unprivileged build: runs as the non-root `nginx` uid and listens on 8080,
+# so the container never needs root to bind a privileged port.
+FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
 COPY --from=build /repo/apps/frontend/dist /usr/share/nginx/html
 COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
+EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -q -O /dev/null http://localhost:80/ || exit 1
+  CMD wget -q -O /dev/null http://localhost:8080/ || exit 1
 CMD ["nginx", "-g", "daemon off;"]
