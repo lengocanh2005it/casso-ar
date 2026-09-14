@@ -345,6 +345,7 @@ describe('Audit logs + webhook inbox admin APIs (integration)', () => {
     const response = await request(app.getHttpServer())
       .post(`/api/v1/webhooks/inbox/${inboxId}/reprocess`)
       .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .set('Idempotency-Key', randomUUID())
       .expect(200);
 
     expect(response.body.id).toBe(inboxId);
@@ -352,6 +353,7 @@ describe('Audit logs + webhook inbox admin APIs (integration)', () => {
     const again = await request(app.getHttpServer())
       .post(`/api/v1/webhooks/inbox/${inboxId}/reprocess`)
       .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .set('Idempotency-Key', randomUUID())
       .expect(200);
     expect(again.body.id).toBe(inboxId);
 
@@ -392,10 +394,31 @@ describe('Audit logs + webhook inbox admin APIs (integration)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/webhooks/inbox/${processed.id}/reprocess`)
       .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .set('Idempotency-Key', randomUUID())
       .expect(409)
       .expect(({ body }) => {
         expect(body.errorCode).toBe('CONFLICT');
       });
+  });
+
+  it('returns the cached response and does not re-enqueue on an Idempotency-Key replay', async () => {
+    const key = `replay-${randomUUID()}`;
+    const before = enqueue.mock.calls.length;
+
+    const first = await request(app.getHttpServer())
+      .post(`/api/v1/webhooks/inbox/${inboxId}/reprocess`)
+      .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .set('Idempotency-Key', key)
+      .expect(200);
+
+    const replay = await request(app.getHttpServer())
+      .post(`/api/v1/webhooks/inbox/${inboxId}/reprocess`)
+      .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .set('Idempotency-Key', key)
+      .expect(200);
+
+    expect(replay.body).toEqual(first.body);
+    expect(enqueue.mock.calls.length).toBe(before + 1);
   });
 
   it('enforces tenant isolation on both APIs', async () => {
@@ -421,6 +444,7 @@ describe('Audit logs + webhook inbox admin APIs (integration)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/webhooks/inbox/${inboxId}/reprocess`)
       .set('Authorization', `Bearer ${token(ownerB, orgB, Role.OWNER)}`)
+      .set('Idempotency-Key', randomUUID())
       .expect(404);
   });
 
