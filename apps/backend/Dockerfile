@@ -37,6 +37,13 @@ COPY --from=prod-deps /repo/apps/backend/node_modules ./apps/backend/node_module
 COPY --from=build /repo/packages/shared-types ./packages/shared-types
 COPY --from=build /repo/apps/backend/dist ./apps/backend/dist
 COPY --from=build /repo/apps/backend/package.json ./apps/backend/package.json
+# avatars + email-template attachments are written to WORKDIR/uploads at
+# runtime (upload-avatar.ts / local-disk-attachment-storage.adapter.ts mkdir).
+# Pre-create the tree and hand it to the unprivileged user before USER node,
+# else the node uid can't mkdir/write into the root-owned /repo.
+RUN mkdir -p uploads/avatars uploads/email-template-attachments \
+  && chown -R node:node uploads
+USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
