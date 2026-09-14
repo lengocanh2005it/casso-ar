@@ -2,6 +2,7 @@ import { Permission } from '@casso-ar/shared-types';
 import {
   Controller,
   Get,
+  Headers,
   HttpCode,
   Param,
   ParseUUIDPipe,
@@ -9,8 +10,14 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
@@ -44,6 +51,7 @@ export class WebhookInboxController {
   constructor(
     private readonly listWebhookInboxUseCase: ListWebhookInboxUseCase,
     private readonly reprocessWebhookUseCase: ReprocessWebhookUseCase,
+    private readonly idempotency: IdempotencyService,
   ) {}
 
   @Get()
@@ -68,17 +76,29 @@ export class WebhookInboxController {
 
   @Post(':id/reprocess')
   @ApiOperation({ summary: 'Reprocess a failed webhook notification' })
+  @ApiHeader({ name: 'idempotency-key', required: false })
   @ApiOkResponse({ type: WebhookInboxItemResponse })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
     ErrorCode.UNAUTHORIZED,
     ErrorCode.NOT_FOUND,
     ErrorCode.CONFLICT,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED,
   )
   @HttpCode(200)
   @RequirePermission(Permission.WEBHOOK_INBOX_WRITE)
-  async reprocess(@Param('id', ParseUUIDPipe) id: string) {
-    const inbox = await this.reprocessWebhookUseCase.execute(id);
-    return toWebhookInboxResponse(inbox);
+  async reprocess(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('idempotency-key') key: string | undefined,
+  ) {
+    return this.idempotency.execute(
+      `POST /webhooks/inbox/${id}/reprocess`,
+      key,
+      { id },
+      async () => {
+        const inbox = await this.reprocessWebhookUseCase.execute(id);
+        return toWebhookInboxResponse(inbox);
+      },
+    );
   }
 }
