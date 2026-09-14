@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import {
   CUSTOMER_REPOSITORY,
   type ICustomerRepository,
@@ -13,6 +14,7 @@ import {
   type IInvoiceRepository,
   INVOICE_REPOSITORY,
 } from '../../invoices/application/invoice-repository.port';
+import { Role } from '../../organizations/domain/membership';
 import {
   type IPaymentAllocationRepository,
   PAYMENT_ALLOCATION_REPOSITORY,
@@ -55,11 +57,23 @@ export class GetReceivableUseCase {
     private readonly customerRepo: ICustomerRepository,
     @Inject(PAYMENT_REPOSITORY)
     private readonly paymentRepo: IPaymentRepository,
+    private readonly tenantContext: TenantContextService,
   ) {}
 
   async execute(id: string): Promise<ReceivableWithDisputeStatus> {
     const receivable = await this.receivableRepo.findById(id);
     if (!receivable) {
+      throw new AppError(
+        ErrorCode.RECEIVABLE_NOT_FOUND,
+        'Không tìm thấy khoản phải thu.',
+      );
+    }
+
+    const user = this.tenantContext.getCurrentUser();
+    if (
+      user?.role === Role.SALES_REP &&
+      receivable.salesRepresentativeId !== user.userId
+    ) {
       throw new AppError(
         ErrorCode.RECEIVABLE_NOT_FOUND,
         'Không tìm thấy khoản phải thu.',
