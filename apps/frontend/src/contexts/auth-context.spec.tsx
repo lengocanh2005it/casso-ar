@@ -10,6 +10,10 @@ const { getValidAccessToken, apiRequest, setAccessToken, hasKnownSession } =
     hasKnownSession: vi.fn(),
   }));
 
+const { prefetchDashboardSummary } = vi.hoisted(() => ({
+  prefetchDashboardSummary: vi.fn(),
+}));
+
 vi.mock('@/lib/api-client', () => ({
   authTokenManager: {
     getValidAccessToken,
@@ -20,6 +24,10 @@ vi.mock('@/lib/api-client', () => ({
     resetLogoutState: vi.fn(),
   },
   apiRequest,
+}));
+
+vi.mock('@/features/reports/api/use-reports', () => ({
+  prefetchDashboardSummary,
 }));
 
 function Probe() {
@@ -48,6 +56,7 @@ describe('AuthProvider', () => {
     getValidAccessToken.mockReset();
     apiRequest.mockReset();
     setAccessToken.mockReset();
+    prefetchDashboardSummary.mockReset();
     hasKnownSession.mockReset().mockReturnValue(true);
   });
 
@@ -89,6 +98,7 @@ describe('AuthProvider', () => {
       url: '/api/v1/auth/me',
       method: 'GET',
     });
+    expect(prefetchDashboardSummary).toHaveBeenCalledTimes(1);
   });
 
   it('stays anonymous when no refreshable session exists', async () => {
@@ -144,5 +154,28 @@ describe('AuthProvider', () => {
       actions?.login('owner@casso.vn', 'password'),
     ).resolves.toBeUndefined();
     expect(setAccessToken).toHaveBeenCalledWith('fresh-token');
+    expect(prefetchDashboardSummary).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not prefetch the dashboard when credentials are wrong', async () => {
+    apiRequest.mockImplementation((config: { url: string }) => {
+      if (config.url === '/api/v1/auth/login') {
+        return Promise.reject(new Error('invalid credentials'));
+      }
+      return Promise.resolve({});
+    });
+    let actions: AuthActions | undefined;
+
+    render(
+      <AuthProvider>
+        <ActionProbe onRender={(a) => (actions = a)} />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(actions).toBeDefined());
+
+    await expect(actions?.login('owner@casso.vn', 'wrong')).rejects.toThrow(
+      'invalid credentials',
+    );
+    expect(prefetchDashboardSummary).not.toHaveBeenCalled();
   });
 });

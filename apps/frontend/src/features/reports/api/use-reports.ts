@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { queryClient } from '@/lib/query-client';
 import type { TrendMonths } from '../types';
 import {
   type CustomerAgingFilters,
@@ -7,6 +8,8 @@ import {
   fetchDashboardSummary,
   fetchReportsTrend,
 } from './reports-api';
+
+export const dashboardSummaryQueryKey = ['reports', 'dashboard'] as const;
 
 export function useAgingReport() {
   return useQuery({
@@ -38,7 +41,14 @@ export function useReportsTrend(months: TrendMonths) {
 
 export function useDashboardSummary() {
   return useQuery({
-    queryKey: ['reports', 'dashboard'],
+    queryKey: dashboardSummaryQueryKey,
+    queryFn: fetchDashboardSummary,
+  });
+}
+
+export function prefetchDashboardSummary() {
+  return queryClient.prefetchQuery({
+    queryKey: dashboardSummaryQueryKey,
     queryFn: fetchDashboardSummary,
   });
 }
