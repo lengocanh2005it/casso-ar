@@ -7,6 +7,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { AuthProvider } from '@/contexts/auth-context';
 import { ThemeProvider } from '@/contexts/theme-context';
 import { queryClient } from '@/lib/query-client';
+import { reportWebVitals } from '@/lib/report-web-vitals';
 
 const rootElement = document.getElementById('root');
 
@@ -27,3 +28,5 @@ createRoot(rootElement).render(
     </QueryClientProvider>
   </StrictMode>,
 );
+
+reportWebVitals();
