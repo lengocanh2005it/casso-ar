@@ -3,6 +3,8 @@
 CLAUDE.local.md
 node_modules
 dist
+# rollup-plugin-visualizer output (pnpm build:analyze)
+stats.html
 .env
 .turbo
 *.tsbuildinfo

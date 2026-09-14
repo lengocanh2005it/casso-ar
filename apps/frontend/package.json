@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b && vite build",
+    "build:analyze": "vite build --mode analyze",
     "dev": "vite",
     "lint": "biome check .",
     "type-check": "tsc -b --noEmit",
@@ -37,6 +38,7 @@
     "@types/react-dom": "19.0.2",
     "@vitejs/plugin-react": "4.3.4",
     "jsdom": "25.0.1",
+    "rollup-plugin-visualizer": "^7.1.1",
     "tailwindcss": "4.3.3",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "5.7.2",
