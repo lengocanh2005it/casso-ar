@@ -264,6 +264,9 @@ importers:
       typewriter-effect:
         specifier: 2.22.0
         version: 2.22.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      web-vitals:
+        specifier: ^6.2.1
+        version: 6.2.1
     devDependencies:
       '@tailwindcss/vite':
         specifier: 4.3.3
@@ -6784,6 +6787,9 @@ packages:
 
   wcwidth@1.0.1:
     resolution: {integrity: sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg==}
+
+  web-vitals@6.2.1:
+    resolution: {integrity: sha512-rLcLXA2sx6+9dE88NHFubwTtGxpK4yYBLj6qHPdFoCaLr0cXGb4efOqtKLlm4loGA4OEKHIQKMKzZkKyOh5ctw==}
 
   web-worker@1.5.0:
     resolution: {integrity: sha512-RiMReJrTAiA+mBjGONMnjVDP2u3p9R1vkcGz6gDIrOMT3oGuYwX2WRMYI9ipkphSuE5XKEhydbhNEJh4NY9mlw==}
@@ -13640,6 +13646,8 @@ snapshots:
   wcwidth@1.0.1:
     dependencies:
       defaults: 1.0.4
+
+  web-vitals@6.2.1: {}
 
   web-worker@1.5.0: {}
 
