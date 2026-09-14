@@ -21,6 +21,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.REPORT_READ,
     Permission.AUDIT_LOG_READ,
     Permission.WEBHOOK_INBOX_READ,
+    Permission.WEBHOOK_INBOX_WRITE,
     Permission.CUSTOMER_READ,
     Permission.ORGANIZATION_READ,
     Permission.CUSTOMER_BANK_ACCOUNT_MANAGE,
