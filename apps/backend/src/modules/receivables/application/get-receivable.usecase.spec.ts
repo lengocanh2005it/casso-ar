@@ -2,11 +2,14 @@ import { ReceivableStatus } from '@casso-ar/shared-types';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { InvoiceStatus } from '../../invoices/domain/invoice';
+import { Role } from '../../organizations/domain/membership';
 import { Payment } from '../../payments/domain/payment';
 import { Receivable } from '../domain/receivable';
 import { GetReceivableUseCase } from './get-receivable.usecase';
 
-function buildReceivable(): Receivable {
+function buildReceivable(
+  salesRepresentativeId: string | null = null,
+): Receivable {
   return new Receivable({
     id: 'receivable-1',
     organizationId: 'org-1',
@@ -16,11 +19,17 @@ function buildReceivable(): Receivable {
     paidAmount: 0,
     dueDate: new Date('2099-12-31'),
     status: ReceivableStatus.OPEN,
-    salesRepresentativeId: null,
+    salesRepresentativeId,
     createdAt: new Date('2026-07-20'),
     closedAt: null,
     version: 1,
   });
+}
+
+function buildContext(role: Role, userId = 'rep-1') {
+  return {
+    getCurrentUser: () => ({ userId, organizationId: 'org-1', role }),
+  };
 }
 
 describe('GetReceivableUseCase', () => {
@@ -97,6 +106,7 @@ describe('GetReceivableUseCase', () => {
       invoiceRepo as any,
       customerRepo as any,
       paymentRepo as any,
+      buildContext(Role.OWNER) as any,
     );
 
     const result = await useCase.execute('receivable-1');
@@ -140,6 +150,7 @@ describe('GetReceivableUseCase', () => {
       { findByIds: jest.fn().mockResolvedValue(new Map()) } as any,
       customerRepo as any,
       paymentRepo as any,
+      buildContext(Role.OWNER) as any,
     );
 
     const result = await useCase.execute('receivable-1');
@@ -157,10 +168,63 @@ describe('GetReceivableUseCase', () => {
       { findByIds: jest.fn() } as any,
       { findByIds: jest.fn() } as any,
       { findByIds: jest.fn() } as any,
+      buildContext(Role.OWNER) as any,
     );
 
     await expect(useCase.execute('missing')).rejects.toMatchObject({
       errorCode: ErrorCode.RECEIVABLE_NOT_FOUND,
     } satisfies Partial<AppError>);
+  });
+
+  it('hides a foreign receivable from a SALES_REP as not-found', async () => {
+    const useCase = new GetReceivableUseCase(
+      {
+        findById: jest.fn().mockResolvedValue(buildReceivable('rep-2')),
+      } as any,
+      { findOpenDispute: jest.fn() } as any,
+      { findByReceivableId: jest.fn() } as any,
+      { findByIds: jest.fn() } as any,
+      { findByIds: jest.fn() } as any,
+      { findByIds: jest.fn() } as any,
+      buildContext(Role.SALES_REP, 'rep-1') as any,
+    );
+
+    await expect(useCase.execute('receivable-1')).rejects.toMatchObject({
+      errorCode: ErrorCode.RECEIVABLE_NOT_FOUND,
+    } satisfies Partial<AppError>);
+  });
+
+  it('hides an unassigned receivable from a SALES_REP as not-found', async () => {
+    const useCase = new GetReceivableUseCase(
+      { findById: jest.fn().mockResolvedValue(buildReceivable(null)) } as any,
+      { findOpenDispute: jest.fn() } as any,
+      { findByReceivableId: jest.fn() } as any,
+      { findByIds: jest.fn() } as any,
+      { findByIds: jest.fn() } as any,
+      { findByIds: jest.fn() } as any,
+      buildContext(Role.SALES_REP, 'rep-1') as any,
+    );
+
+    await expect(useCase.execute('receivable-1')).rejects.toMatchObject({
+      errorCode: ErrorCode.RECEIVABLE_NOT_FOUND,
+    } satisfies Partial<AppError>);
+  });
+
+  it('returns full detail to the SALES_REP who owns the receivable', async () => {
+    const receivable = buildReceivable('rep-1');
+    const useCase = new GetReceivableUseCase(
+      { findById: jest.fn().mockResolvedValue(receivable) } as any,
+      { findOpenDispute: jest.fn().mockResolvedValue(null) } as any,
+      { findByReceivableId: jest.fn().mockResolvedValue([]) } as any,
+      { findByIds: jest.fn().mockResolvedValue(new Map()) } as any,
+      { findByIds: jest.fn().mockResolvedValue(new Map()) } as any,
+      { findByIds: jest.fn().mockResolvedValue(new Map()) } as any,
+      buildContext(Role.SALES_REP, 'rep-1') as any,
+    );
+
+    const result = await useCase.execute('receivable-1');
+
+    expect(result.receivable).toBe(receivable);
+    expect(result.isDisputed).toBe(false);
   });
 });

@@ -223,7 +223,7 @@ they never rewrite an earlier snapshot.
 | SUBSCRIPTION_MANAGE | ✓ | ✓ | — | — | — |
 | USER_MANAGE | ✓ | ✓ | — | — | — |
 
-**SALES_REP:** can only view receivables for assigned customers (`WHERE salesRepresentativeId = ctx.userId`)
+**SALES_REP:** can only view receivables assigned to them — `Receivable.salesRepresentativeId = ctx.userId`. A receivable with a null `salesRepresentativeId` (unassigned) is visible to no `SALES_REP`. The rule holds on every `RECEIVABLE_READ` path, list and single-receivable detail alike.
 
 ## API Conventions
 
