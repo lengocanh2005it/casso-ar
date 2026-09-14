@@ -67,4 +67,22 @@ describe('ROLE_PERMISSIONS', () => {
       Permission.OWNERSHIP_TRANSFER_MANAGE,
     );
   });
+
+  it('grants WEBHOOK_INBOX_WRITE only to OWNER and FINANCE_MANAGER', () => {
+    expect(ROLE_PERMISSIONS[Role.OWNER]).toContain(
+      Permission.WEBHOOK_INBOX_WRITE,
+    );
+    expect(ROLE_PERMISSIONS[Role.FINANCE_MANAGER]).toContain(
+      Permission.WEBHOOK_INBOX_WRITE,
+    );
+    expect(ROLE_PERMISSIONS[Role.ACCOUNTANT]).not.toContain(
+      Permission.WEBHOOK_INBOX_WRITE,
+    );
+    expect(ROLE_PERMISSIONS[Role.SALES_REP]).not.toContain(
+      Permission.WEBHOOK_INBOX_WRITE,
+    );
+    expect(ROLE_PERMISSIONS[Role.VIEWER]).not.toContain(
+      Permission.WEBHOOK_INBOX_WRITE,
+    );
+  });
 });

@@ -76,7 +76,7 @@ export class WebhookInboxController {
     ErrorCode.CONFLICT,
   )
   @HttpCode(200)
-  @RequirePermission(Permission.WEBHOOK_INBOX_READ)
+  @RequirePermission(Permission.WEBHOOK_INBOX_WRITE)
   async reprocess(@Param('id', ParseUUIDPipe) id: string) {
     const inbox = await this.reprocessWebhookUseCase.execute(id);
     return toWebhookInboxResponse(inbox);
