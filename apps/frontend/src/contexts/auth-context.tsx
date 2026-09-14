@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { prefetchDashboardSummary } from '@/features/reports/api/use-reports';
 import { apiRequest, authTokenManager } from '@/lib/api-client';
 
 export interface AuthenticatedUser {
@@ -54,7 +55,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           url: '/api/v1/auth/me',
           method: 'GET',
         });
-        if (!cancelled) setUser(me);
+        if (!cancelled) {
+          setUser(me);
+          void prefetchDashboardSummary();
+        }
       } catch {
         if (!cancelled) setUser(null);
       } finally {
@@ -91,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // login already succeeded (token issued); a failed profile load
         // right after must not be reported back as a failed login.
       }
+      void prefetchDashboardSummary();
     },
     [refreshUser],
   );
