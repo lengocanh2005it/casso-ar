@@ -36,9 +36,11 @@ describe('CtaSection', () => {
     // themes. Hard-coding white would flip it. Assert the overrides are gone.
     expect(card).toHaveClass('bg-primary', 'text-primary-foreground');
     expect(card).not.toHaveClass('dark:text-white');
-    expect(
-      screen.getByText('Tạo tài khoản miễn phí và bắt đầu ngay hôm nay.'),
-    ).toHaveClass('text-primary-foreground/90');
+    const copy = screen.getByText(
+      'Tạo tài khoản miễn phí và bắt đầu ngay hôm nay.',
+    );
+    expect(copy).toHaveClass('text-primary-foreground/90');
+    expect(copy).not.toHaveClass('dark:text-white/90');
 
     const signup = screen.getByRole('link', { name: /dùng thử miễn phí/i });
     expect(signup).not.toHaveClass(
