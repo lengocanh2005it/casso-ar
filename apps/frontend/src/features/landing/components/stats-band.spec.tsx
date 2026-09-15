@@ -12,29 +12,29 @@ describe('StatsBand', () => {
     }
   });
 
-  it('renders the highlights in a high-contrast branded band', () => {
+  it('drives the branded band from theme-aware primary tokens with no dark overrides', () => {
     render(<StatsBand />);
 
     const region = screen.getByRole('region', {
       name: 'Vì sao chọn Casso AR?',
     });
 
-    expect(region).toHaveClass('py-10', 'sm:py-14');
-    expect(region).not.toHaveClass('bg-primary');
-    expect(region.firstElementChild).toHaveClass('max-w-6xl');
-    expect(region.firstElementChild?.firstElementChild).toHaveClass(
+    const card = region.firstElementChild?.firstElementChild as HTMLElement;
+    // Same contract as the CTA card: primary/primary-foreground already flip
+    // for dark mode, so no dark:text-white should be present.
+    expect(card).toHaveClass(
       'rounded-3xl',
       'bg-primary',
       'text-primary-foreground',
-      'dark:text-white',
     );
+    expect(card).not.toHaveClass('dark:text-white');
     expect(
       screen.getByText(
         'Những công cụ giúp bạn thu tiền đúng hạn và giảm thao tác thủ công.',
       ),
-    ).toHaveClass('dark:text-white/80');
+    ).toHaveClass('text-primary-foreground/80');
     expect(screen.getByText(LANDING_STAT_HIGHLIGHTS[0].label)).toHaveClass(
-      'dark:text-white/90',
+      'text-primary-foreground/90',
     );
     expect(
       screen.getByRole('heading', { name: 'Vì sao chọn Casso AR?' }),
