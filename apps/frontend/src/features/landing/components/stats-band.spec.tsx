@@ -28,14 +28,15 @@ describe('StatsBand', () => {
       'text-primary-foreground',
     );
     expect(card).not.toHaveClass('dark:text-white');
-    expect(
-      screen.getByText(
-        'Những công cụ giúp bạn thu tiền đúng hạn và giảm thao tác thủ công.',
-      ),
-    ).toHaveClass('text-primary-foreground/80');
-    expect(screen.getByText(LANDING_STAT_HIGHLIGHTS[0].label)).toHaveClass(
-      'text-primary-foreground/90',
+    const copy = screen.getByText(
+      'Những công cụ giúp bạn thu tiền đúng hạn và giảm thao tác thủ công.',
     );
+    expect(copy).toHaveClass('text-primary-foreground/80');
+    expect(copy).not.toHaveClass('dark:text-white/80');
+
+    const highlightLabel = screen.getByText(LANDING_STAT_HIGHLIGHTS[0].label);
+    expect(highlightLabel).toHaveClass('text-primary-foreground/90');
+    expect(highlightLabel).not.toHaveClass('dark:text-white/90');
     expect(
       screen.getByRole('heading', { name: 'Vì sao chọn Casso AR?' }),
     ).toHaveAttribute('id', 'stats-band-title');
