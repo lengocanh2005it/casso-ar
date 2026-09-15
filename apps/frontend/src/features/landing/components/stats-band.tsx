@@ -7,7 +7,7 @@ export function StatsBand() {
   return (
     <section aria-labelledby="stats-band-title" className="py-10 sm:py-14">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="rounded-3xl bg-primary px-6 py-10 text-primary-foreground shadow-lg shadow-primary/15 dark:text-white sm:px-12 sm:py-12">
+        <div className="rounded-3xl bg-primary px-6 py-10 text-primary-foreground shadow-lg shadow-primary/15 sm:px-12 sm:py-12">
           <div className="mx-auto max-w-2xl text-center">
             <h2
               id="stats-band-title"
@@ -15,7 +15,7 @@ export function StatsBand() {
             >
               Vì sao chọn Casso AR?
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-lg text-primary-foreground/80 text-pretty dark:text-white/80">
+            <p className="mx-auto mt-4 max-w-xl text-lg text-primary-foreground/80 text-pretty">
               Những công cụ giúp bạn thu tiền đúng hạn và giảm thao tác thủ
               công.
             </p>
@@ -33,7 +33,7 @@ export function StatsBand() {
                   <div className="flex size-12 items-center justify-center rounded-xl border border-primary-foreground/20 bg-primary-foreground/10">
                     <Icon className="size-6" aria-hidden="true" />
                   </div>
-                  <p className="max-w-[16rem] text-base leading-relaxed text-primary-foreground/90 dark:text-white/90">
+                  <p className="max-w-[16rem] text-base leading-relaxed text-primary-foreground/90">
                     {highlight.label}
                   </p>
                 </div>

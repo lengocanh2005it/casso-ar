@@ -19,7 +19,7 @@ describe('CtaSection', () => {
     ).toHaveAttribute('href', '/login');
   });
 
-  it('keeps the CTA copy white in dark mode', () => {
+  it('drives the branded card from theme-aware primary tokens with no dark overrides', () => {
     render(
       <MemoryRouter>
         <CtaSection />
@@ -29,31 +29,27 @@ describe('CtaSection', () => {
     const heading = screen.getByRole('heading', {
       name: 'Sẵn sàng quản lý công nợ dễ dàng hơn?',
     });
+    const card = heading.parentElement as HTMLElement;
 
-    expect(heading.parentElement).toHaveClass('dark:text-white');
+    // --primary inverts to a light green in dark mode and --primary-foreground
+    // to a dark green, so the tokens already carry correct contrast in both
+    // themes. Hard-coding white would flip it. Assert the overrides are gone.
+    expect(card).toHaveClass('bg-primary', 'text-primary-foreground');
+    expect(card).not.toHaveClass('dark:text-white');
     expect(
       screen.getByText('Tạo tài khoản miễn phí và bắt đầu ngay hôm nay.'),
-    ).toHaveClass('dark:text-white/90');
-    expect(screen.getByRole('link', { name: /đã có tài khoản/i })).toHaveClass(
-      'dark:text-white',
-    );
-  });
+    ).toHaveClass('text-primary-foreground/90');
 
-  it('uses high-contrast CTA controls in dark mode', () => {
-    render(
-      <MemoryRouter>
-        <CtaSection />
-      </MemoryRouter>,
-    );
-
-    expect(
-      screen.getByRole('link', { name: /dùng thử miễn phí/i }),
-    ).toHaveClass(
+    const signup = screen.getByRole('link', { name: /dùng thử miễn phí/i });
+    expect(signup).not.toHaveClass(
       'dark:bg-white',
       'dark:text-primary',
       'dark:pointer-hover:hover:bg-white/90',
     );
-    expect(screen.getByRole('link', { name: /đã có tài khoản/i })).toHaveClass(
+
+    const login = screen.getByRole('link', { name: /đã có tài khoản/i });
+    expect(login).toHaveClass('text-primary-foreground');
+    expect(login).not.toHaveClass(
       'dark:border-white/40',
       'dark:text-white',
       'dark:pointer-hover:hover:bg-white/10',
