@@ -58,7 +58,12 @@ describe('Sidebar', () => {
     expect(screen.getByText('Lịch sử công nợ')).toBeInTheDocument();
   });
 
-  it.each(['ACCOUNTANT', 'SALES_REP', 'VIEWER'])(
+  it('shows the receivable balance history entry to a viewer', () => {
+    renderSidebar('VIEWER');
+    expect(screen.getByText('Lịch sử công nợ')).toBeInTheDocument();
+  });
+
+  it.each(['ACCOUNTANT', 'SALES_REP'])(
     'hides the receivable balance history entry from %s',
     (role) => {
       renderSidebar(role);

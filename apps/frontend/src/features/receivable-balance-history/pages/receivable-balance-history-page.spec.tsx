@@ -325,12 +325,13 @@ describe('ReceivableBalanceHistoryPage', () => {
     );
   });
 
-  it('denies access without the audit read permission', () => {
+  it('allows access with the audit read permission for a viewer', () => {
     useAuthMock.mockReturnValue({
       user: { role: 'VIEWER' },
       isLoading: false,
       isAuthenticated: true,
     } as never);
+    mockLoadedData();
 
     const queryClient = new QueryClient();
     render(
@@ -344,8 +345,8 @@ describe('ReceivableBalanceHistoryPage', () => {
     );
 
     expect(
-      screen.getByRole('heading', { name: /403.*không có quyền/i }),
-    ).toBeInTheDocument();
-    expect(useListMock).not.toHaveBeenCalled();
+      screen.queryByRole('heading', { name: /403.*không có quyền/i }),
+    ).not.toBeInTheDocument();
+    expect(useListMock).toHaveBeenCalled();
   });
 });

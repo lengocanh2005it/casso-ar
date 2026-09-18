@@ -27,9 +27,9 @@ describe('hasPermission', () => {
     [Role.FINANCE_MANAGER, true],
     [Role.ACCOUNTANT, false],
     [Role.SALES_REP, false],
-    [Role.VIEWER, false],
+    [Role.VIEWER, true],
   ])(
-    'grants receivable audit read only to owner and finance manager for %s',
+    'grants receivable audit read to owner, finance manager, and viewer for %s',
     (role, expected) => {
       expect(hasPermission(role, Permission.RECEIVABLE_AUDIT_READ)).toBe(
         expected,

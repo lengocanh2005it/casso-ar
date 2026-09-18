@@ -186,6 +186,7 @@ Out of scope: overage billing, grace period, automatic billing invoices through 
 | Permission | OWNER | FINANCE_MANAGER | ACCOUNTANT | SALES_REP | VIEWER |
 |---|---|---|---|---|---|
 | RECEIVABLE_READ | ✔ | ✔ | ✔ | ✔ (limited) | ✔ |
+| RECEIVABLE_AUDIT_READ | ✔ | ✔ | — | — | ✔ |
 | RECEIVABLE_WRITE | ✔ | ✔ | ✔ | — | — |
 | RECEIVABLE_WRITE_OFF | ✔ | ✔ | — | — | — |
 | RECEIVABLE_DISPUTE | ✔ | ✔ | ✔ | — | — |

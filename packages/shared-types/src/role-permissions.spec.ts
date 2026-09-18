@@ -85,4 +85,22 @@ describe('ROLE_PERMISSIONS', () => {
       Permission.WEBHOOK_INBOX_WRITE,
     );
   });
+
+  it('grants RECEIVABLE_AUDIT_READ to owner, finance manager, and viewer', () => {
+    expect(ROLE_PERMISSIONS[Role.OWNER]).toContain(
+      Permission.RECEIVABLE_AUDIT_READ,
+    );
+    expect(ROLE_PERMISSIONS[Role.FINANCE_MANAGER]).toContain(
+      Permission.RECEIVABLE_AUDIT_READ,
+    );
+    expect(ROLE_PERMISSIONS[Role.ACCOUNTANT]).not.toContain(
+      Permission.RECEIVABLE_AUDIT_READ,
+    );
+    expect(ROLE_PERMISSIONS[Role.SALES_REP]).not.toContain(
+      Permission.RECEIVABLE_AUDIT_READ,
+    );
+    expect(ROLE_PERMISSIONS[Role.VIEWER]).toContain(
+      Permission.RECEIVABLE_AUDIT_READ,
+    );
+  });
 });

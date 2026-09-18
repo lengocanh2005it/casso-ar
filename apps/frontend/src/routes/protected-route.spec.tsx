@@ -80,16 +80,9 @@ describe('PermissionRoute', () => {
     expect(screen.getByText('audit content')).toBeInTheDocument();
   });
 
-  it('shows the forbidden view for a viewer', () => {
+  it('renders children for a viewer', () => {
     renderPermissionRoute({ role: 'VIEWER' });
-    expect(
-      screen.getByRole('heading', { name: /403.*không có quyền/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveAttribute(
-      'data-status-code',
-      '403',
-    );
-    expect(screen.queryByText('audit content')).not.toBeInTheDocument();
+    expect(screen.getByText('audit content')).toBeInTheDocument();
   });
 
   it('redirects an unauthenticated visitor to login', () => {

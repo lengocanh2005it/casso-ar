@@ -398,7 +398,7 @@ describe('Receivable balance history audit (e2e)', () => {
     expect(crossTenant.body.items).toEqual([]);
   });
 
-  it('rejects accountant, sales rep, viewer, and unauthenticated requests', async () => {
+  it('rejects accountant, sales rep, and unauthenticated requests, but allows viewers', async () => {
     const endpoints = [
       '/api/v1/receivable-balance-history?page=1&limit=20',
       '/api/v1/receivable-balance-history/summary',
@@ -422,9 +422,28 @@ describe('Receivable balance history audit (e2e)', () => {
       await request(app.getHttpServer())
         .get(endpoint)
         .set('Authorization', `Bearer ${tokenFor(viewerA, orgA, Role.VIEWER)}`)
-        .expect(403);
+        .expect(200);
       await request(app.getHttpServer()).get(endpoint).expect(401);
     }
+
+    // Ledger events share the same RECEIVABLE_AUDIT_READ gate.
+    const ledgerEndpoint = `/api/v1/ledger/events?subjectType=RECEIVABLE&subjectId=${receivableAId}&page=1&limit=20`;
+    await request(app.getHttpServer())
+      .get(ledgerEndpoint)
+      .set(
+        'Authorization',
+        `Bearer ${tokenFor(accountantA, orgA, Role.ACCOUNTANT)}`,
+      )
+      .expect(403);
+    await request(app.getHttpServer())
+      .get(ledgerEndpoint)
+      .set('Authorization', `Bearer ${tokenFor(salesA, orgA, Role.SALES_REP)}`)
+      .expect(403);
+    await request(app.getHttpServer())
+      .get(ledgerEndpoint)
+      .set('Authorization', `Bearer ${tokenFor(viewerA, orgA, Role.VIEWER)}`)
+      .expect(200);
+    await request(app.getHttpServer()).get(ledgerEndpoint).expect(401);
   });
 
   it('rejects invalid filter values with the standard validation shape', async () => {

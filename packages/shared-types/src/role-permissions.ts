@@ -49,6 +49,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
   [Role.VIEWER]: [
     Permission.RECEIVABLE_READ,
+    Permission.RECEIVABLE_AUDIT_READ,
     Permission.EMAIL_TEMPLATE_READ,
     Permission.REPORT_READ,
     Permission.AUDIT_LOG_READ,

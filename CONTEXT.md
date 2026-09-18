@@ -214,7 +214,8 @@ they never rewrite an earlier snapshot.
 | Permission | OWNER | FINANCE_MGR | ACCOUNTANT | SALES_REP | VIEWER |
 |-----------|-------|-------------|------------|-----------|--------|
 | RECEIVABLE_READ | ✓ | ✓ | ✓ | ✓ (own) | ✓ |
-| RECEIVABLE_AUDIT_READ | ✓ | ✓ | — | — | — |
+| RECEIVABLE_AUDIT_READ | ✓ | ✓ | — | — | ✓ |
+| AUDIT_LOG_READ | ✓ | ✓ | — | — | ✓ |
 | RECEIVABLE_WRITE | ✓ | ✓ | ✓ | — | — |
 | RECEIVABLE_WRITE_OFF | ✓ | ✓ | — | — | — |
 | PAYMENT_ALLOCATE | ✓ | ✓ | ✓ | — | — |
