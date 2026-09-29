@@ -124,9 +124,7 @@ describe('ReceivablesPage', () => {
     );
 
     fireEvent.change(
-      await screen.findByPlaceholderText(
-        'Tìm theo số hóa đơn hoặc khách hàng…',
-      ),
+      await screen.findByPlaceholderText('Tìm số hóa đơn, khách hàng…'),
       { target: { value: 'acme' } },
     );
 
@@ -138,6 +136,10 @@ describe('ReceivablesPage', () => {
         }),
       ),
     );
+    // A search that matches nothing is a filtered empty result, not "no data".
+    expect(
+      await screen.findByText('Không có khoản phải thu phù hợp'),
+    ).toBeInTheDocument();
   });
 
   it('explains how to recover when loading receivables fails', async () => {

@@ -101,7 +101,7 @@ export function ReceivablesPage() {
             type="search"
             autoComplete="off"
             aria-label="Tìm kiếm công nợ"
-            placeholder="Tìm theo số hóa đơn hoặc khách hàng…"
+            placeholder="Tìm số hóa đơn, khách hàng…"
             value={search}
             onChange={(event) => {
               setParam('search', event.target.value, {
@@ -133,6 +133,7 @@ export function ReceivablesPage() {
             onToggle={bulkSelection.toggle}
             onToggleAll={bulkSelection.toggleAll}
             allSelected={bulkSelection.allSelected}
+            isFiltered={Boolean(status || customerId || debouncedSearch)}
           />
         )}
         {data && data.total > 0 && (

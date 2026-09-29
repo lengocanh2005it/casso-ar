@@ -1,8 +1,7 @@
 import { ReceivableStatus } from '@casso-ar/shared-types';
-import { Receipt } from 'lucide-react';
+import { Receipt, SearchX } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/layout/empty-state';
-import { HeaderIcon } from '@/components/layout/header-icon';
 import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
 import { Badge } from '@/components/ui/badge';
@@ -19,18 +18,30 @@ import { formatDate, formatVND } from '@/lib/format';
 import { getReceivableDisplayName } from '../receivable-label';
 import type { Receivable } from '../types';
 
+// Below md each row becomes a 3-column card (checkbox | details | amount) via
+// CSS grid, so the same DOM serves both layouts. The status cell spans the
+// details + amount columns (grid items may share an area) so wide badges do
+// not widen the amount column and squeeze the customer name:
+//   [☐] Customer name              19.200.000 ₫
+//       INV-001 / Khoản phải thu        Đang thu
+//       29/04/2026  Quá hạn
+const MOBILE_ROW =
+  'max-md:grid max-md:grid-cols-[auto_minmax(0,1fr)_auto] max-md:items-center max-md:gap-x-3 max-md:gap-y-1 max-md:px-1 max-md:py-3';
+
 export function ReceivableTable({
   receivables,
   selectedIds,
   onToggle,
   onToggleAll,
   allSelected,
+  isFiltered = false,
 }: {
   receivables: Receivable[];
   selectedIds: string[];
   onToggle: (id: string) => void;
   onToggleAll: () => void;
   allSelected: boolean;
+  isFiltered?: boolean;
 }) {
   function isBulkEligible(status: Receivable['status']): boolean {
     return (
@@ -40,18 +51,24 @@ export function ReceivableTable({
   }
 
   if (receivables.length === 0) {
-    return (
+    return isFiltered ? (
+      <EmptyState
+        icon={SearchX}
+        title="Không có khoản phải thu phù hợp"
+        description="Thử đổi từ khóa tìm kiếm hoặc trạng thái lọc."
+      />
+    ) : (
       <EmptyState
         icon={Receipt}
-        title="Chưa có khoản phải thu phù hợp"
-        description="Thử thay đổi bộ lọc hoặc tạo khoản phải thu mới để bắt đầu."
+        title="Chưa có khoản phải thu nào"
+        description="Bấm “Tạo khoản phải thu” hoặc “Nhập hóa đơn” ở đầu trang để bắt đầu theo dõi công nợ."
       />
     );
   }
 
   return (
     <Table>
-      <TableHeader>
+      <TableHeader className="max-md:hidden">
         <TableRow>
           <TableHead className="w-10">
             <Checkbox
@@ -62,8 +79,8 @@ export function ReceivableTable({
           </TableHead>
           <TableHead>Hóa đơn</TableHead>
           <TableHead>Khách hàng</TableHead>
-          <TableHead>Phải thu</TableHead>
-          <TableHead>Còn lại</TableHead>
+          <TableHead className="text-right">Phải thu</TableHead>
+          <TableHead className="text-right">Còn lại</TableHead>
           <TableHead>Hạn thanh toán</TableHead>
           <TableHead>Trạng thái</TableHead>
         </TableRow>
@@ -74,8 +91,8 @@ export function ReceivableTable({
             receivable.customerName ?? 'Chưa có tên khách hàng';
 
           return (
-            <TableRow key={receivable.id}>
-              <TableCell className="max-w-48 break-words">
+            <TableRow key={receivable.id} className={MOBILE_ROW}>
+              <TableCell className="max-md:col-start-1 max-md:row-span-3 max-md:row-start-1 max-md:self-start max-md:p-0">
                 <Checkbox
                   aria-label={`Chọn ${getReceivableDisplayName(receivable.invoiceNumber)}`}
                   checked={selectedIds.includes(receivable.id)}
@@ -83,52 +100,54 @@ export function ReceivableTable({
                   onCheckedChange={() => onToggle(receivable.id)}
                 />
               </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <HeaderIcon icon={Receipt} />
-                  <div className="min-w-0">
-                    <Link
-                      to={`/receivables/${receivable.id}`}
-                      className={
-                        receivable.invoiceNumber
-                          ? 'font-medium text-primary pointer-hover:hover:underline'
-                          : 'font-medium text-muted-foreground pointer-hover:hover:underline'
-                      }
-                    >
-                      {getReceivableDisplayName(receivable.invoiceNumber)}
-                    </Link>
-                    {!receivable.invoiceNumber && (
-                      <p className="text-xs text-muted-foreground">
-                        Không có hóa đơn
-                      </p>
-                    )}
-                  </div>
-                </div>
+              <TableCell className="whitespace-nowrap max-md:col-start-2 max-md:row-start-2 max-md:justify-self-start max-md:p-0 max-md:text-xs">
+                <Link
+                  to={`/receivables/${receivable.id}`}
+                  className={
+                    receivable.invoiceNumber
+                      ? 'font-medium text-primary pointer-hover:hover:underline'
+                      : 'font-medium text-muted-foreground pointer-hover:hover:underline'
+                  }
+                >
+                  {getReceivableDisplayName(receivable.invoiceNumber)}
+                </Link>
+                {!receivable.invoiceNumber && (
+                  <p className="text-xs text-muted-foreground max-md:hidden">
+                    Không có hóa đơn
+                  </p>
+                )}
               </TableCell>
-              <TableCell className="max-w-56">
+              <TableCell className="max-w-72 max-md:col-start-2 max-md:row-start-1 max-md:max-w-none max-md:p-0">
                 <div className="flex min-w-0 items-center gap-2">
-                  <InitialsAvatar name={customerName} size="sm" />
-                  <span className="block min-w-0 truncate" title={customerName}>
+                  <InitialsAvatar
+                    name={customerName}
+                    size="sm"
+                    className="max-md:hidden"
+                  />
+                  <span
+                    className="block min-w-0 truncate max-md:font-medium"
+                    title={customerName}
+                  >
                     {customerName}
                   </span>
                 </div>
               </TableCell>
-              <TableCell className="tabular-nums">
+              <TableCell className="text-right whitespace-nowrap tabular-nums max-md:hidden">
                 {formatVND(receivable.originalAmount)}
               </TableCell>
-              <TableCell className="tabular-nums font-semibold">
+              <TableCell className="text-right font-semibold whitespace-nowrap tabular-nums max-md:col-start-3 max-md:row-start-1 max-md:p-0">
                 {formatVND(receivable.remainingAmount)}
               </TableCell>
-              <TableCell>
-                <div className="flex flex-wrap items-center gap-2">
+              <TableCell className="max-md:col-span-2 max-md:col-start-2 max-md:row-start-3 max-md:p-0 max-md:text-xs max-md:text-muted-foreground">
+                <div className="flex items-center gap-2 whitespace-nowrap">
                   {formatDate(receivable.dueDate)}
                   {receivable.isOverdue && (
                     <Badge variant="destructive">Quá hạn</Badge>
                   )}
                 </div>
               </TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-2">
+              <TableCell className="max-md:col-span-2 max-md:col-start-2 max-md:row-start-2 max-md:justify-self-end max-md:p-0">
+                <div className="flex flex-wrap gap-2 max-md:justify-end">
                   <ReceivableStatusBadge status={receivable.status} />
                   {receivable.isDisputed && (
                     <Badge variant="outline">Tranh chấp</Badge>

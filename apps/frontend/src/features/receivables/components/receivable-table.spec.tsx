@@ -27,7 +27,7 @@ function buildReceivable(overrides: Partial<Receivable>): Receivable {
 }
 
 describe('ReceivableTable', () => {
-  it('renders a descriptive empty state when no receivables match', () => {
+  it('points a brand-new organization at the create/import actions', () => {
     render(
       <MemoryRouter>
         <ReceivableTable
@@ -40,14 +40,62 @@ describe('ReceivableTable', () => {
       </MemoryRouter>,
     );
 
+    expect(screen.getByText('Chưa có khoản phải thu nào')).toBeInTheDocument();
+    expect(screen.getByTestId('empty-state')).toHaveTextContent(
+      'Tạo khoản phải thu',
+    );
+    expect(screen.queryByText(/bộ lọc/)).not.toBeInTheDocument();
+  });
+
+  it('suggests changing the filters only when a filter is active', () => {
+    render(
+      <MemoryRouter>
+        <ReceivableTable
+          receivables={[]}
+          selectedIds={[]}
+          onToggle={vi.fn()}
+          onToggleAll={vi.fn()}
+          allSelected={false}
+          isFiltered
+        />
+      </MemoryRouter>,
+    );
+
     expect(
-      screen.getByText('Chưa có khoản phải thu phù hợp'),
+      screen.getByText('Không có khoản phải thu phù hợp'),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(
-        'Thử thay đổi bộ lọc hoặc tạo khoản phải thu mới để bắt đầu.',
-      ),
+      screen.getByText('Thử đổi từ khóa tìm kiếm hoặc trạng thái lọc.'),
     ).toBeInTheDocument();
+  });
+
+  it('stacks each row into a compact card on phones instead of squeezing columns', () => {
+    render(
+      <MemoryRouter>
+        <ReceivableTable
+          receivables={[
+            buildReceivable({
+              customerName: 'Công ty ABC',
+              remainingAmount: 40_000,
+            }),
+          ]}
+          selectedIds={[]}
+          onToggle={vi.fn()}
+          onToggleAll={vi.fn()}
+          allSelected={false}
+        />
+      </MemoryRouter>,
+    );
+
+    // CSS-only: one DOM, so text is never duplicated for screen readers.
+    const [headerRow, row] = screen.getAllByRole('row');
+    expect(headerRow.parentElement).toHaveClass('max-md:hidden');
+    expect(row).toHaveClass('max-md:grid');
+    expect(screen.getByText('100.000 ₫', { selector: 'td' })).toHaveClass(
+      'max-md:hidden',
+    );
+    // The per-row receipt icon repeated on every line and cost ~44px width.
+    expect(screen.queryByTestId('header-icon')).not.toBeInTheDocument();
   });
 
   it('enables the checkbox only for OPEN/PARTIALLY_PAID rows', () => {
