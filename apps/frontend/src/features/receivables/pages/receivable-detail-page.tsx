@@ -1,10 +1,11 @@
 import { Permission } from '@casso-ar/shared-types';
-import { CalendarClock, CreditCard, Receipt } from 'lucide-react';
+import { CreditCard, Receipt } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
+import { BackLink } from '@/components/layout/back-link';
 import { HeaderIcon } from '@/components/layout/header-icon';
 import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/auth-context';
 import { formatDate, formatDateTime, formatVND } from '@/lib/format';
@@ -64,82 +65,90 @@ export function ReceivableDetailPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            to="/receivables"
-            className="text-sm text-primary pointer-hover:hover:underline"
-          >
-            ← Công nợ
-          </Link>
-          <HeaderIcon icon={Receipt} />
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {getReceivableDisplayName(receivable.invoiceNumber)}
-          </h1>
-          {!receivable.invoiceNumber && (
-            <Badge variant="outline" className="text-muted-foreground">
-              Không có hóa đơn
-            </Badge>
-          )}
-          <ReceivableStatusBadge status={receivable.status} />
-          {receivable.isDisputed && (
-            <Badge variant="destructive">Tranh chấp</Badge>
-          )}
-          {receivable.isOverdue && <Badge variant="destructive">Quá hạn</Badge>}
-        </div>
-        {!terminal && (
-          <div className="flex flex-wrap gap-2">
-            <DisputeDialog
-              receivableId={receivable.id}
-              isDisputed={receivable.isDisputed}
-              disputeId={receivable.disputeId}
-            />
-            <CancelDialog receivableId={receivable.id} />
-            <WriteOffDialog receivableId={receivable.id} />
+      <div className="space-y-3">
+        <BackLink to="/receivables">Công nợ</BackLink>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <HeaderIcon icon={Receipt} />
+            <div className="min-w-0 space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+                  {getReceivableDisplayName(receivable.invoiceNumber)}
+                </h1>
+                {!receivable.invoiceNumber && (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    Không có hóa đơn
+                  </Badge>
+                )}
+                <ReceivableStatusBadge status={receivable.status} />
+                {receivable.isDisputed && (
+                  <Badge variant="destructive">Tranh chấp</Badge>
+                )}
+                {receivable.isOverdue && (
+                  <Badge variant="destructive">Quá hạn</Badge>
+                )}
+              </div>
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                <Link
+                  to={`/customers/${receivable.customerId}`}
+                  className="font-medium text-foreground pointer-hover:hover:underline"
+                >
+                  {customerName}
+                </Link>
+                <span aria-hidden="true">·</span>
+                <span
+                  className={
+                    receivable.isOverdue
+                      ? 'font-medium text-destructive'
+                      : undefined
+                  }
+                >
+                  Hạn {formatDate(receivable.dueDate)}
+                </span>
+                <span aria-hidden="true">·</span>
+                <span>Tạo lúc {formatDateTime(receivable.createdAt)}</span>
+              </p>
+            </div>
           </div>
-        )}
-      </div>
-      <div className="grid gap-3 md:grid-cols-3">
-        <Card className="gap-3 py-4">
-          <CardHeader className="gap-1 px-5">
-            <CardTitle className="text-sm text-muted-foreground">
-              Nguyên giá
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-5 text-xl font-semibold tabular-nums">
-            {formatVND(receivable.originalAmount)}
-          </CardContent>
-        </Card>
-        <Card className="gap-3 py-4">
-          <CardHeader className="gap-1 px-5">
-            <CardTitle className="text-sm text-muted-foreground">
-              Đã thu
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-5 text-xl font-semibold tabular-nums">
-            {formatVND(receivable.paidAmount)}
-          </CardContent>
-        </Card>
-        <Card className="gap-3 border-primary/20 bg-primary/5 py-4">
-          <CardHeader className="gap-1 px-5">
-            <CardTitle className="text-sm text-primary">Còn lại</CardTitle>
-          </CardHeader>
-          <CardContent className="px-5 text-xl font-semibold text-primary tabular-nums">
-            {formatVND(receivable.remainingAmount)}
-          </CardContent>
-        </Card>
+          {!terminal && (
+            <div className="flex flex-wrap gap-2 lg:shrink-0">
+              <DisputeDialog
+                receivableId={receivable.id}
+                isDisputed={receivable.isDisputed}
+                disputeId={receivable.disputeId}
+              />
+              <CancelDialog receivableId={receivable.id} />
+              <WriteOffDialog receivableId={receivable.id} />
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-        <Card className="gap-4 py-5">
-          <CardHeader className="gap-1 px-5">
-            <CardTitle className="text-base">Tiến độ thu hồi</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Đã thu {formatVND(receivable.paidAmount)} trên tổng{' '}
-              {formatVND(receivable.originalAmount)}
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-3 px-5">
+      {/* One summary card: amounts + collection progress. The old separate
+          "Tiến độ thu hồi" card repeated every amount and sat half empty. */}
+      <Card className="gap-4 py-5">
+        <CardContent className="space-y-5 px-5">
+          <dl className="grid grid-cols-2 gap-4 md:grid-cols-3">
+            <div>
+              <dt className="text-sm text-muted-foreground">Nguyên giá</dt>
+              <dd className="mt-1 text-lg font-semibold tabular-nums md:text-xl">
+                {formatVND(receivable.originalAmount)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">Đã thu</dt>
+              <dd className="mt-1 text-lg font-semibold tabular-nums md:text-xl">
+                {formatVND(receivable.paidAmount)}
+              </dd>
+            </div>
+            <div className="col-span-2 md:col-span-1">
+              <dt className="text-sm font-medium text-primary">Còn lại</dt>
+              <dd className="mt-1 text-2xl font-semibold text-primary tabular-nums">
+                {formatVND(receivable.remainingAmount)}
+              </dd>
+            </div>
+          </dl>
+          <div className="space-y-2">
             <div
               className="h-2.5 overflow-hidden rounded-full bg-muted"
               role="progressbar"
@@ -153,62 +162,12 @@ export function ReceivableDetailPage() {
                 style={{ width: `${paidPercentage}%` }}
               />
             </div>
-            <div className="flex items-center justify-between gap-4 text-sm">
-              <span className="font-medium text-primary">
-                {paidPercentage}% đã thu
-              </span>
-              <span className="text-muted-foreground">
-                Còn {formatVND(receivable.remainingAmount)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="gap-4 py-5">
-          <CardHeader className="gap-1 px-5">
-            <CardTitle className="text-base">Thông tin khoản thu</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Các mốc quan trọng của khoản công nợ
+            <p className="text-sm font-medium text-primary">
+              {paidPercentage}% đã thu
             </p>
-          </CardHeader>
-          <CardContent className="grid gap-3 px-5 text-sm sm:grid-cols-2">
-            <div>
-              <p className="text-muted-foreground">Khách hàng</p>
-              <p className="mt-1 font-medium">{customerName}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Hạn thanh toán</p>
-              <p
-                className={
-                  receivable.isOverdue
-                    ? 'mt-1 font-medium text-destructive'
-                    : 'mt-1 font-medium'
-                }
-              >
-                {formatDate(receivable.dueDate)}
-              </p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Ngày tạo</p>
-              <p className="mt-1 font-medium">
-                {formatDateTime(receivable.createdAt)}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 sm:col-span-2">
-              <CalendarClock
-                aria-hidden="true"
-                className="size-4 shrink-0 text-primary"
-              />
-              <p>
-                {receivable.isOverdue
-                  ? 'Khoản thu đang quá hạn thanh toán.'
-                  : 'Khoản thu đang trong thời hạn thanh toán.'}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
+          </div>
+        </CardContent>
+      </Card>
       <Tabs
         className="gap-3"
         value={activeTab}

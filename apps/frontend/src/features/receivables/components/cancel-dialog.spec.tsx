@@ -36,7 +36,7 @@ describe('CancelDialog', () => {
     apiRequest.mockResolvedValue({ id: 'r1' });
     renderDialog();
 
-    fireEvent.click(screen.getByText('Hủy'));
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy khoản phải thu' }));
     expect(
       screen.getByText(/chưa có khoản thanh toán nào/i),
     ).toBeInTheDocument();
@@ -56,7 +56,7 @@ describe('CancelDialog', () => {
     apiRequest.mockRejectedValue(new Error('boom'));
     renderDialog();
 
-    fireEvent.click(screen.getByText('Hủy'));
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy khoản phải thu' }));
     fireEvent.click(screen.getByRole('button', { name: 'Xác nhận hủy' }));
 
     await waitFor(() =>
@@ -69,7 +69,7 @@ describe('CancelDialog', () => {
   it('does not show the raw receivable id in the dialog title', () => {
     renderDialog('a1b2c3d4-e5f6-47a8-9abc-1234567890ab');
 
-    fireEvent.click(screen.getByText('Hủy'));
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy khoản phải thu' }));
     expect(screen.getByRole('heading', { level: 2 })).not.toHaveTextContent(
       'a1b2c3d4-e5f6-47a8-9abc-1234567890ab',
     );
