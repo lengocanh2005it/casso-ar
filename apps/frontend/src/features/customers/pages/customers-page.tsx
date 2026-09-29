@@ -3,6 +3,7 @@ import { PageHeading } from '@/components/layout/page-heading';
 import { SectionCard } from '@/components/layout/section-card';
 import { CardPagination } from '@/components/shared/card-pagination';
 import { Input } from '@/components/ui/input';
+import { TableSkeleton } from '@/components/ui/skeleton';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { useCustomers } from '../api/use-customers';
 import { CustomerTable } from '../components/customer-table';
@@ -23,16 +24,17 @@ export function CustomersPage() {
         icon={Users}
         tone="info"
       />
-      <div className="rounded-xl border bg-card p-3 shadow-sm sm:p-4">
-        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-          <Search aria-hidden="true" className="size-4 text-info" />
-          <span>Tìm kiếm khách hàng</span>
-        </div>
+      <div className="relative rounded-xl border bg-card p-3 shadow-sm sm:p-4">
+        <Search
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1/2 left-6 size-4 -translate-y-1/2 text-muted-foreground sm:left-7"
+        />
         <Input
           name="search"
           autoComplete="off"
           aria-label="Tìm kiếm khách hàng"
-          placeholder="Tìm theo tên, mã số thuế hoặc số điện thoại…"
+          type="search"
+          placeholder="Tìm tên, mã số thuế, số điện thoại…"
           value={search}
           onChange={(event) =>
             setParam('search', event.target.value, {
@@ -40,21 +42,19 @@ export function CustomersPage() {
               replace: true,
             })
           }
-          className="mt-3 w-full sm:max-w-xl"
+          className="w-full pl-9"
         />
       </div>
       <SectionCard className="overflow-hidden">
-        {isPending && (
-          <p role="status" aria-live="polite">
-            Đang tải danh sách khách hàng…
-          </p>
-        )}
+        {isPending && <TableSkeleton rows={5} />}
         {isError && (
           <p role="alert" aria-live="polite" className="text-destructive">
             Không thể tải danh sách khách hàng.
           </p>
         )}
-        {data && <CustomerTable customers={data.items} />}
+        {data && (
+          <CustomerTable customers={data.items} isFiltered={Boolean(search)} />
+        )}
         {data && (
           <CardPagination
             page={data.page}

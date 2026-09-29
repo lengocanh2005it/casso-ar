@@ -58,7 +58,7 @@ describe('CustomersPage', () => {
       screen.getByRole('heading', { name: 'Khách hàng' }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('textbox', { name: 'Tìm kiếm khách hàng' }),
+      screen.getByRole('searchbox', { name: 'Tìm kiếm khách hàng' }),
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Công ty B' })).toHaveAttribute(
       'href',
@@ -80,7 +80,7 @@ describe('CustomersPage', () => {
     );
 
     fireEvent.change(
-      screen.getByRole('textbox', { name: 'Tìm kiếm khách hàng' }),
+      screen.getByRole('searchbox', { name: 'Tìm kiếm khách hàng' }),
       { target: { value: 'a' } },
     );
 
