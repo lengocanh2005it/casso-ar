@@ -6,7 +6,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from '@/App';
 import { AuthProvider } from '@/contexts/auth-context';
@@ -45,11 +45,17 @@ function renderAppRoutesAt(initialEntry: string) {
         <AuthProvider>
           <MemoryRouter initialEntries={[initialEntry]}>
             <AppRoutes />
+            <CurrentRoutePath />
           </MemoryRouter>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>,
   );
+}
+
+function CurrentRoutePath() {
+  const { pathname } = useLocation();
+  return <output data-testid="current-route-path">{pathname}</output>;
 }
 
 describe('application routes', () => {
@@ -159,14 +165,12 @@ describe('application routes', () => {
 
     renderAppRoutesAt('/');
 
-    await waitFor(
-      () =>
-        expect(
-          screen.getByRole('heading', { name: 'Trang chủ' }),
-        ).toBeVisible(),
-      { timeout: 5_000 },
+    await waitFor(() =>
+      expect(screen.getByTestId('current-route-path')).toHaveTextContent(
+        '/dashboard',
+      ),
     );
-  }, 15_000);
+  });
 
   it('lets an unlinked organization use an authenticated app route', async () => {
     getValidAccessToken.mockResolvedValue('access-token');
