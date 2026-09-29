@@ -67,7 +67,14 @@ describe('PolicyTable', () => {
 
     render(<PolicyTable policies={[policy]} />);
 
-    expect(screen.getByText('Đang hoạt động')).toBeTruthy();
+    // The switch already shows the state; a solid badge beside it said it twice.
+    expect(screen.getByText('Đang hoạt động')).not.toHaveAttribute(
+      'data-slot',
+      'badge',
+    );
+    expect(
+      screen.getByRole('columnheader', { name: 'Trạng thái' }),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('switch', { name: /VIP/i }));
 

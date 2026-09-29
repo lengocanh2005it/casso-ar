@@ -58,7 +58,7 @@ export function PolicyTable({
       <TableHeader>
         <TableRow>
           <TableHead>Nhóm khách hàng</TableHead>
-          <TableHead>Đang bật</TableHead>
+          <TableHead>Trạng thái</TableHead>
           <TableHead>Số quy tắc</TableHead>
           <TableHead>Ngưỡng leo thang</TableHead>
           <TableHead>Ngày tạo</TableHead>
@@ -78,18 +78,9 @@ export function PolicyTable({
               </div>
             </TableCell>
             <TableCell>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge
-                  variant={policy.isActive ? 'default' : 'secondary'}
-                  className={
-                    policy.isActive
-                      ? 'bg-success text-success-foreground'
-                      : undefined
-                  }
-                >
-                  {policy.isActive ? 'Đang hoạt động' : 'Đã tắt'}
-                </Badge>
-                {canWrite ? (
+              {canWrite ? (
+                // The switch is the state; the text beside it just names it.
+                <div className="flex items-center gap-2">
                   <Switch
                     aria-label={`Bật chính sách ${customerGroupLabel(policy.customerGroup)}`}
                     checked={policy.isActive}
@@ -107,9 +98,28 @@ export function PolicyTable({
                       })
                     }
                   />
-                ) : null}
-              </div>
-            </TableCell>
+                  <span
+                    className={
+                      policy.isActive
+                        ? 'text-sm font-medium text-success'
+                        : 'text-sm text-muted-foreground'
+                    }
+                  >
+                    {policy.isActive ? 'Đang hoạt động' : 'Đã tắt'}
+                  </span>
+                </div>
+              ) : (
+                <Badge
+                  className={
+                    policy.isActive
+                      ? 'bg-success/10 text-success'
+                      : 'bg-muted text-muted-foreground'
+                  }
+                >
+                  {policy.isActive ? 'Đang hoạt động' : 'Đã tắt'}
+                </Badge>
+              )}
+            </TableCell>{' '}
             <TableCell>{policy.rules.length}</TableCell>
             <TableCell>
               {policy.escalationThresholdDays === null
