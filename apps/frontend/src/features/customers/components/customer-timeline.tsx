@@ -1,4 +1,5 @@
 import { Activity } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/layout/empty-state';
 import type { CustomerTimelineItem } from '@/features/customers/types';
 import { formatActivityType } from '@/lib/collection-activity-labels';
@@ -16,25 +17,27 @@ export function CustomerTimeline({ items }: { items: CustomerTimelineItem[] }) {
     );
   }
 
+  // One row per event, same shape as the dashboard activity feed; each label
+  // opens the receivable the event belongs to.
   return (
-    <ul className="grid gap-2 sm:grid-cols-2">
+    <ul className="divide-y overflow-hidden rounded-lg border border-border/70">
       {items.map((item) => (
         <li
           key={item.id}
-          className="flex min-w-0 items-center gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-sm"
+          className="flex items-center justify-between gap-4 px-3 py-2.5 text-sm"
         >
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {formatDateTime(item.createdAt)}
-          </span>
-          <span aria-hidden="true" className="text-muted-foreground">
-            —
-          </span>
-          <span
-            className="min-w-0 truncate"
-            title={formatActivityType(item.activityType)}
+          <Link
+            to={`/receivables/${item.receivableId}`}
+            className="font-medium pointer-hover:hover:text-primary pointer-hover:hover:underline"
           >
             {formatActivityType(item.activityType)}
-          </span>
+          </Link>
+          <time
+            dateTime={item.createdAt}
+            className="shrink-0 text-xs text-muted-foreground tabular-nums"
+          >
+            {formatDateTime(item.createdAt)}
+          </time>
         </li>
       ))}
     </ul>
