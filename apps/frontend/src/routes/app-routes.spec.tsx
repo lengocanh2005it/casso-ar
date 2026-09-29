@@ -34,6 +34,24 @@ vi.mock('@/features/exceptions/api/use-review-count', () => ({
   useReviewCount: () => ({ data: 0 }),
 }));
 
+function renderAppRoutesAt(initialEntry: string) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={[initialEntry]}>
+            <AppRoutes />
+          </MemoryRouter>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>,
+  );
+}
+
 describe('application routes', () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -103,21 +121,7 @@ describe('application routes', () => {
       },
     );
 
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <AuthProvider>
-            <MemoryRouter initialEntries={['/']}>
-              <AppRoutes />
-            </MemoryRouter>
-          </AuthProvider>
-        </ThemeProvider>
-      </QueryClientProvider>,
-    );
+    renderAppRoutesAt('/');
 
     await waitFor(
       () =>
@@ -153,21 +157,7 @@ describe('application routes', () => {
       return new Promise(() => {});
     });
 
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <AuthProvider>
-            <MemoryRouter initialEntries={['/']}>
-              <AppRoutes />
-            </MemoryRouter>
-          </AuthProvider>
-        </ThemeProvider>
-      </QueryClientProvider>,
-    );
+    renderAppRoutesAt('/');
 
     await waitFor(
       () =>
@@ -196,21 +186,7 @@ describe('application routes', () => {
       return new Promise(() => {});
     });
 
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <AuthProvider>
-            <MemoryRouter initialEntries={['/customers']}>
-              <AppRoutes />
-            </MemoryRouter>
-          </AuthProvider>
-        </ThemeProvider>
-      </QueryClientProvider>,
-    );
+    renderAppRoutesAt('/customers');
 
     await waitFor(
       () =>
@@ -246,21 +222,7 @@ describe('application routes', () => {
       return new Promise(() => {});
     });
 
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <AuthProvider>
-            <MemoryRouter initialEntries={['/onboarding']}>
-              <AppRoutes />
-            </MemoryRouter>
-          </AuthProvider>
-        </ThemeProvider>
-      </QueryClientProvider>,
-    );
+    renderAppRoutesAt('/onboarding');
 
     fireEvent.click(
       await screen.findByRole('button', { name: /bỏ qua, đến trang chủ/i }),
@@ -291,21 +253,7 @@ describe('application routes', () => {
       return new Promise(() => {});
     });
 
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <AuthProvider>
-            <MemoryRouter initialEntries={['/dashboard']}>
-              <AppRoutes />
-            </MemoryRouter>
-          </AuthProvider>
-        </ThemeProvider>
-      </QueryClientProvider>,
-    );
+    renderAppRoutesAt('/dashboard');
 
     await act(async () => {
       await Promise.resolve();

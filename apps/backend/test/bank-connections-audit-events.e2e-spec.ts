@@ -227,7 +227,7 @@ describe('Bank connections audit events (e2e)', () => {
       .post('/api/v1/bank-connections/casso-flow/preview')
       .set('Authorization', `Bearer ${ownerToken}`)
       .send({ apiKey: 'initial-key-0000' })
-      .expect(200);
+      .expect(201);
 
     await request(app.getHttpServer())
       .get('/api/v1/bank-connections')
