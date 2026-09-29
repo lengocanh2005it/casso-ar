@@ -102,6 +102,25 @@ describe('CopilotPage', () => {
     vi.unstubAllGlobals();
   });
 
+  it('sits on the app canvas with the shared page heading like other pages', async () => {
+    renderPage();
+
+    const heading = await screen.findByRole('heading', {
+      level: 1,
+      name: 'Copilot',
+    });
+    // An extra padded white panel doubled the shell padding and cost the
+    // chat ~50px of width and ~170px of height on phones.
+    const workspace = screen.getByRole('region', {
+      name: 'Không gian làm việc Copilot',
+    });
+    expect(workspace.parentElement).not.toHaveClass('p-4');
+    expect(workspace.parentElement?.parentElement).not.toHaveClass(
+      'bg-background',
+    );
+    expect(heading).toHaveClass('text-2xl');
+  });
+
   it('shows the welcome state when the conversation has no messages yet', async () => {
     renderPage();
 

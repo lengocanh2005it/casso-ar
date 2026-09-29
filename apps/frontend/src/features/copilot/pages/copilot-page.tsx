@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { HeaderIcon } from '@/components/layout/header-icon';
+import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -141,32 +141,23 @@ export function CopilotPage() {
   );
 
   return (
-    <div className="relative h-full overflow-hidden bg-background">
+    <div className="relative h-full overflow-hidden">
       <div
         aria-hidden={!hasCopilotAccess}
         className={cn(
-          'flex h-full flex-col p-4 sm:p-6',
+          'flex h-full flex-col gap-4',
           !hasCopilotAccess && 'pointer-events-none select-none blur-sm',
         )}
         inert={!hasCopilotAccess ? true : undefined}
       >
-        <div className="mb-3 flex flex-col gap-3 border-b border-border px-1 pb-4 pt-1 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <HeaderIcon icon={Bot} tone="ai" />
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
-                TRỢ LÝ THU HỒI
-              </p>
-              <h1 className="mt-0.5 text-xl font-semibold tracking-tight sm:text-2xl">
-                Copilot
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Tra cứu công nợ và soạn email nhắc thanh toán.
-              </p>
-            </div>
-          </div>
-          <UsageIndicator />
-        </div>
+        <PageHeading
+          eyebrow="TRỢ LÝ THU HỒI"
+          title="Copilot"
+          description="Tra cứu công nợ và soạn email nhắc thanh toán."
+          icon={Bot}
+          tone="ai"
+          actions={<UsageIndicator />}
+        />
         <section
           aria-label="Không gian làm việc Copilot"
           className="flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl border border-border bg-card"
