@@ -51,6 +51,12 @@ A B2B SaaS platform for automating accounts receivable management and collection
 | **RefreshToken** | Long-lived credential held in an httpOnly cookie that a `User` exchanges for a new access token. Single-use: each exchange is a **rotation** that revokes the presented token and issues a **successor**. Presenting a revoked token outside its grace window is treated as theft and revokes every active `RefreshToken` of that `User` (the *family*) | `id`, `userId`, `expiresAt`, `revokedAt`, `replacedByTokenId` |
 | **Rotation grace window** | Fixed 10-second period, measured from the successor's creation, after a rotation during which re-presenting the just-rotated `RefreshToken` is treated as a benign race (a cancelled page reload, several tabs refreshing at once), not theft: the family is kept and the presenter receives a fresh `RefreshToken`. Applies only while the token's successor is still valid, so a token revoked by logout, password change or member removal never gets it | — |
 
+## Banking Terms
+
+| Term | Meaning |
+|------|---------|
+| **Bank-linked organization** | An organization with at least one active `BankConnection`. A `CassoFlowAuthorization` alone does not qualify; without an active bank connection, automatic transaction sync is unavailable. |
+
 ## Collection Terms
 
 | Term | Meaning |
@@ -223,11 +229,17 @@ they never rewrite an earlier snapshot.
 | RECEIVABLE_WRITE_OFF | ✓ | ✓ | — | — | — |
 | PAYMENT_ALLOCATE | ✓ | ✓ | ✓ | — | — |
 | PAYMENT_ALLOCATE_UNDO | ✓ | ✓ | — | — | — |
+| RECEIVABLE_IMPORT | ✓ | ✓ | ✓ | ✓ (assigned to importer) | — |
+| CUSTOMER_READ | ✓ | ✓ | ✓ | ✓ (owned customer profile) | ✓ |
+| EMAIL_TEMPLATE_READ | ✓ | ✓ | ✓ | — | ✓ |
+| REPORT_READ | ✓ | ✓ | ✓ | ✓ (org aggregates; own customer rows) | ✓ |
 | BANK_CONNECTION_MANAGE | ✓ | — | — | — | — |
 | SUBSCRIPTION_MANAGE | ✓ | ✓ | — | — | — |
 | USER_MANAGE | ✓ | ✓ | — | — | — |
 
 **SALES_REP:** can only view receivables assigned to them — `Receivable.salesRepresentativeId = ctx.userId`. A receivable with a null `salesRepresentativeId` (unassigned) is visible to no `SALES_REP`. The rule holds on every `RECEIVABLE_READ` path, list and single-receivable detail alike.
+
+**SALES_REP customer visibility:** a customer profile is visible when at least one receivable for that customer is assigned to the sales representative, regardless of receivable status; this does not grant access to receivables assigned to another representative.
 
 ## API Conventions
 
@@ -281,6 +293,7 @@ Score components:
 | 0025 | Ownership-transfer acceptance has no secret token, JWT-auth-only (proposed) | Target is an existing account, not a pre-auth invitee like `MembershipInvite` — authenticated `userId` match is already sufficient, so a magic-link token would add a redundant credential; issue #322 |
 | 0026 | Defer signup provisioning to email verification via `PendingSignup`, lazy-reclaim TTL (shipped PR #338) | Closes false-`PENDING_REVIEW` triage load from unverified signups (issue #331/#336); reuses `OwnershipTransferRequest`/`IdempotencyKey`'s lazy-reclaim pattern (ADR-0015) instead of adding a cron, even though `PendingSignup` carries a password hash, because the TTL window is short (10 min) |
 | 0027 | Signup abuse hardening: per-dimension rate-limit escalation instead of CAPTCHA; structured logging instead of a new pre-tenant audit table (proposed) | Issue #337's AC explicitly allows an "equivalent risk control", not just a CAPTCHA — escalating throttling needs no third-party dependency, frontend widget, or secret key; signup/verify events have no `organizationId` yet, and tenant `AuditLog` requires one non-null, so a persisted pre-tenant audit table would be a third audit-table pattern (after `AuditLog` and `OperatorAuditLog`) built before any consumer needs to query it |
+| 0029 | Optional bank linking during onboarding (accepted) | Issue #401 lets unlinked members use app routes with a persistent sync-status notice; FINANCE_MANAGER can manage connections, and open sessions refresh status every 60 seconds |
 | 0030 | Refresh-token reuse gets a 10 s rotation grace window keyed on a successor link (proposed) | Benign races (reload cancelled after rotation, multi-tab) signed users out of every device; a bounded window trades a 10 s replay exposure for not treating them as theft. Issue #403 |
 
 ## Constraints

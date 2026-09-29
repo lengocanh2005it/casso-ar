@@ -3,6 +3,15 @@ import { Role } from './role';
 import { ROLE_PERMISSIONS } from './role-permissions';
 
 describe('ROLE_PERMISSIONS', () => {
+  it('grants SALES_REP customer read, receivable import, and report read only', () => {
+    expect(ROLE_PERMISSIONS[Role.SALES_REP]).toEqual([
+      Permission.RECEIVABLE_READ,
+      Permission.RECEIVABLE_IMPORT,
+      Permission.REPORT_READ,
+      Permission.CUSTOMER_READ,
+    ]);
+  });
+
   it('grants ALERT_READ only to OWNER', () => {
     expect(ROLE_PERMISSIONS[Role.OWNER]).toContain(Permission.ALERT_READ);
     expect(ROLE_PERMISSIONS[Role.FINANCE_MANAGER]).not.toContain(
@@ -50,6 +59,20 @@ describe('ROLE_PERMISSIONS', () => {
       Permission.BANK_CONNECTION_REVEAL_KEY,
     );
   });
+
+  it('grants bank-connection read and management to OWNER and FINANCE_MANAGER only', () => {
+    for (const permission of [
+      Permission.BANK_CONNECTION_READ,
+      Permission.BANK_CONNECTION_MANAGE,
+    ]) {
+      expect(ROLE_PERMISSIONS[Role.OWNER]).toContain(permission);
+      expect(ROLE_PERMISSIONS[Role.FINANCE_MANAGER]).toContain(permission);
+      expect(ROLE_PERMISSIONS[Role.ACCOUNTANT]).not.toContain(permission);
+      expect(ROLE_PERMISSIONS[Role.SALES_REP]).not.toContain(permission);
+      expect(ROLE_PERMISSIONS[Role.VIEWER]).not.toContain(permission);
+    }
+  });
+
   it('grants OWNERSHIP_TRANSFER_MANAGE only to OWNER', () => {
     expect(ROLE_PERMISSIONS[Role.OWNER]).toContain(
       Permission.OWNERSHIP_TRANSFER_MANAGE,

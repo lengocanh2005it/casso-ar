@@ -45,15 +45,8 @@ export function OnboardingPage() {
   useEffect(() => {
     if (user?.bankingLinked) {
       navigate('/dashboard', { replace: true });
-      return;
     }
-
-    const intervalId = window.setInterval(() => {
-      void refreshUser().catch(() => undefined);
-    }, 5_000);
-
-    return () => window.clearInterval(intervalId);
-  }, [navigate, refreshUser, user?.bankingLinked]);
+  }, [navigate, user?.bankingLinked]);
 
   if (user?.bankingLinked) return null;
 
@@ -78,10 +71,11 @@ export function OnboardingPage() {
           </div>
           <CardTitle className="text-2xl">Liên kết ngân hàng</CardTitle>
           <CardDescription>
-            Liên kết một tài khoản ngân hàng qua{' '}
+            Kết nối một tài khoản ngân hàng qua{' '}
             <span className="text-primary">Casso Flow</span> để bắt đầu đồng bộ
             giao dịch phát sinh mới vào{' '}
-            <span className="text-primary">Casso AR</span>.
+            <span className="text-primary">Casso AR</span>. Bạn có thể bỏ qua
+            bước này và kết nối sau.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -99,6 +93,14 @@ export function OnboardingPage() {
               <p>Trang sẽ tự động cập nhật sau khi hoàn tất.</p>
             </div>
           )}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => navigate('/dashboard')}
+          >
+            Bỏ qua, đến trang chủ
+          </Button>
           <Button
             type="button"
             variant="link"

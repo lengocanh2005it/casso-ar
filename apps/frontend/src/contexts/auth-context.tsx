@@ -37,6 +37,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isAuthenticated = user !== null;
 
   useEffect(() => {
     let cancelled = false;
@@ -80,6 +81,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(me);
   }, []);
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const intervalId = window.setInterval(() => {
+      void refreshUser().catch(() => undefined);
+    }, 60_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isAuthenticated, refreshUser]);
+
   const login = useCallback(
     async (email: string, password: string): Promise<void> => {
       authTokenManager.resetLogoutState();
@@ -110,12 +121,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       isLoading,
-      isAuthenticated: user !== null,
+      isAuthenticated,
       refreshUser,
       login,
       logout,
     }),
-    [user, isLoading, refreshUser, login, logout],
+    [user, isLoading, isAuthenticated, refreshUser, login, logout],
   );
 
   return (

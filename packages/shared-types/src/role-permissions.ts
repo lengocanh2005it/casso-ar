@@ -25,6 +25,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.CUSTOMER_READ,
     Permission.ORGANIZATION_READ,
     Permission.CUSTOMER_BANK_ACCOUNT_MANAGE,
+    Permission.BANK_CONNECTION_READ,
+    Permission.BANK_CONNECTION_MANAGE,
     Permission.BANK_CONNECTION_REVEAL_KEY,
   ],
   [Role.ACCOUNTANT]: [
@@ -43,7 +45,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   [Role.SALES_REP]: [
     Permission.RECEIVABLE_READ,
     Permission.RECEIVABLE_IMPORT,
-    Permission.EMAIL_TEMPLATE_READ,
     Permission.REPORT_READ,
     Permission.CUSTOMER_READ,
   ],
