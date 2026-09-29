@@ -143,6 +143,7 @@ export class LoginUseCase {
       new RefreshToken({
         id: randomUUID(),
         userId: user.id,
+        sessionId: randomUUID(),
         tokenHash: hash,
         expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
         revokedAt: null,

@@ -7,9 +7,14 @@ export interface IRefreshTokenRepository {
     manager?: EntityManager,
     lockForUpdate?: boolean,
   ): Promise<RefreshToken | null>;
-  findById(id: string, manager?: EntityManager): Promise<RefreshToken | null>;
+  findById(
+    id: string,
+    manager?: EntityManager,
+    lockForShare?: boolean,
+  ): Promise<RefreshToken | null>;
   save(token: RefreshToken, manager?: EntityManager): Promise<void>;
   revokeAllForUser(userId: string, manager?: EntityManager): Promise<void>;
+  revokeSession(sessionId: string, manager?: EntityManager): Promise<void>;
 }
 
 export const REFRESH_TOKEN_REPOSITORY = Symbol('REFRESH_TOKEN_REPOSITORY');

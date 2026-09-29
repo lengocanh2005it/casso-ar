@@ -67,6 +67,10 @@ describe('LoginUseCase', () => {
       isOperator: false,
     });
     expect(refreshTokenRepo.save).toHaveBeenCalled();
+    // Each login starts its own session, so a later logout can end just it.
+    expect(refreshTokenRepo.save.mock.calls[0][0].sessionId).toEqual(
+      expect.any(String),
+    );
   });
 
   it('throws on wrong password', async () => {

@@ -40,6 +40,32 @@ describe('JsonLogger', () => {
     expect(written.userId).toBeUndefined();
   });
 
+  it('keeps a userId passed in the log fields when no user is authenticated', () => {
+    logger.warn({ message: 'pre-auth event', userId: 'user-9' }, 'TestContext');
+
+    const written = JSON.parse(writeSpy.mock.calls[0][0] as string);
+    expect(written.userId).toBe('user-9');
+  });
+
+  it('prefers the authenticated user over a userId in the log fields', () => {
+    tenantContext.run(
+      {
+        userId: 'user-1',
+        organizationId: 'org-1',
+        role: 'OWNER' as AuthenticatedUser['role'],
+      },
+      () => {
+        logger.warn(
+          { message: 'event', userId: 'someone-else' },
+          'TestContext',
+        );
+      },
+    );
+
+    const written = JSON.parse(writeSpy.mock.calls[0][0] as string);
+    expect(written.userId).toBe('user-1');
+  });
+
   it('includes requestId when inside a RequestIdStore scope', () => {
     requestIdStore.run('req-999', () => {
       logger.log('scoped message', 'TestContext');
