@@ -179,13 +179,105 @@ describe('AuthTokenManager', () => {
     expect(new AuthTokenManager().hasKnownSession()).toBe(false);
   });
 
-  it('forgets the session once a refresh attempt fails', async () => {
-    localStorage.setItem('casso:has-session', '1');
-    postMock.mockRejectedValue(new Error('no refresh cookie'));
+  it.each([401, 403])(
+    'forgets the session once a refresh is rejected with %i',
+    async (status) => {
+      localStorage.setItem('casso:has-session', '1');
+      postMock.mockRejectedValue({ response: { status } });
 
-    await manager.getValidAccessToken();
+      await manager.getValidAccessToken();
 
-    expect(new AuthTokenManager().hasKnownSession()).toBe(false);
+      expect(new AuthTokenManager().hasKnownSession()).toBe(false);
+    },
+  );
+
+  it.each([
+    ['a network error', new Error('Network Error')],
+    ['a 500 response', { response: { status: 500 } }],
+    ['a 429 response', { response: { status: 429 } }],
+  ])(
+    'keeps the session when a refresh fails with %s',
+    async (_label, error) => {
+      localStorage.setItem('casso:has-session', '1');
+      postMock.mockRejectedValue(error);
+
+      await manager.getValidAccessToken();
+
+      expect(new AuthTokenManager().hasKnownSession()).toBe(true);
+    },
+  );
+});
+
+describe('AuthTokenManager refresh across tabs', () => {
+  // Minimal exclusive Web Locks stand-in: requests for one name run one at a
+  // time, in arrival order.
+  function installFakeLocks() {
+    let tail: Promise<unknown> = Promise.resolve();
+    const request = vi.fn(
+      (_name: string, callback: () => Promise<unknown>): Promise<unknown> => {
+        const result = tail.then(callback);
+        tail = result.catch(() => undefined);
+        return result;
+      },
+    );
+    Object.defineProperty(navigator, 'locks', {
+      value: { request },
+      configurable: true,
+    });
+    return request;
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+    postMock.mockReset();
+    requestMock.mockReset();
+  });
+
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'locks');
+    vi.clearAllMocks();
+  });
+
+  it('sends refreshes from different tabs one at a time under a shared lock', async () => {
+    const lockRequest = installFakeLocks();
+    const resolvers: Array<(value: { data: { accessToken: string } }) => void> =
+      [];
+    postMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+    const tabA = new AuthTokenManager();
+    const tabB = new AuthTokenManager();
+
+    const first = tabA.getValidAccessToken();
+    const second = tabB.getValidAccessToken();
+    await vi.waitFor(() => expect(postMock).toHaveBeenCalledTimes(1));
+    // The second tab must still be waiting for the lock.
+    await Promise.resolve();
+    expect(postMock).toHaveBeenCalledTimes(1);
+
+    resolvers[0]({ data: { accessToken: 'token-a' } });
+    await vi.waitFor(() => expect(postMock).toHaveBeenCalledTimes(2));
+    resolvers[1]({ data: { accessToken: 'token-b' } });
+
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      'token-a',
+      'token-b',
+    ]);
+    expect(lockRequest).toHaveBeenCalledWith(
+      'casso:refresh',
+      expect.any(Function),
+    );
+  });
+
+  it('refreshes directly when Web Locks is unavailable', async () => {
+    postMock.mockResolvedValue({ data: { accessToken: 'direct-token' } });
+
+    await expect(new AuthTokenManager().getValidAccessToken()).resolves.toBe(
+      'direct-token',
+    );
   });
 });
 

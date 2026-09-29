@@ -7,6 +7,7 @@ export interface IRefreshTokenRepository {
     manager?: EntityManager,
     lockForUpdate?: boolean,
   ): Promise<RefreshToken | null>;
+  findById(id: string, manager?: EntityManager): Promise<RefreshToken | null>;
   save(token: RefreshToken, manager?: EntityManager): Promise<void>;
   revokeAllForUser(userId: string, manager?: EntityManager): Promise<void>;
 }
