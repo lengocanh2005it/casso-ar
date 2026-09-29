@@ -8,6 +8,7 @@ interface EmptyStateProps {
   description?: ReactNode;
   action?: ReactNode;
   density?: 'compact' | 'default';
+  className?: string;
 }
 
 export function EmptyState({
@@ -16,6 +17,7 @@ export function EmptyState({
   description,
   action,
   density = 'default',
+  className,
 }: EmptyStateProps) {
   return (
     <div
@@ -23,6 +25,7 @@ export function EmptyState({
       className={cn(
         'flex flex-col items-center justify-center rounded-xl border border-dashed bg-muted/20 text-center',
         density === 'compact' ? 'min-h-28 gap-2 p-4' : 'min-h-40 gap-3 p-6',
+        className,
       )}
     >
       <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">

@@ -37,6 +37,8 @@ describe('OverdueDonutChart', () => {
   it('shows a useful empty state when there is no outstanding debt', () => {
     render(<OverdueDonutChart totalOutstanding={0} totalOverdue={0} />);
 
-    expect(screen.getByText('Chưa có dữ liệu công nợ.')).toBeInTheDocument();
+    expect(screen.getByTestId('empty-state')).toHaveTextContent(
+      'Chưa có công nợ',
+    );
   });
 });
