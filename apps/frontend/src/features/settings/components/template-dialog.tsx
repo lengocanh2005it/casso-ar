@@ -52,7 +52,9 @@ function renderSampleVariables(value: string): string {
   return value.replace(
     /(?<!\{)\{\{\s*([A-Za-z]\w*)\s*\}\}(?!\})/g,
     (token, name: string) => {
-      const sample = SAMPLE_RENDER_DATA[name];
+      const sample = Object.hasOwn(SAMPLE_RENDER_DATA, name)
+        ? SAMPLE_RENDER_DATA[name]
+        : undefined;
       return sample === undefined
         ? token
         : sample.replace(/[&<>"']/g, (character) => HTML_ENTITIES[character]);
@@ -65,7 +67,7 @@ function createPreviewDocument(bodyHtml: string): string {
     ? bodyHtml
     : '<p style="color:#64748b">Nội dung email sẽ hiển thị ở đây.</p>';
 
-  return `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;min-height:100%;background:#fff}body{font:15px/1.65 Arial,sans-serif;color:#1f2937}.email-content{padding:24px;overflow-wrap:anywhere}.email-content img{max-width:100%;height:auto}</style></head><body><main class="email-content">${content}</main></body></html>`;
+  return `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'; object-src 'none'"><style>html,body{margin:0;min-height:100%;background:#fff}body{font:15px/1.65 Arial,sans-serif;color:#1f2937}.email-content{padding:24px;overflow-wrap:anywhere}.email-content img{max-width:100%;height:auto}</style></head><body><main class="email-content">${content}</main></body></html>`;
 }
 
 export function TemplateDialog({

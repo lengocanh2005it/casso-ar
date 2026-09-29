@@ -42,6 +42,30 @@ describe('TemplateDialog', () => {
     expect(screen.getByText('Nhắc hóa đơn INV-2026-0088')).toBeTruthy();
   });
 
+  it('leaves unsupported variable names intact in the preview', () => {
+    render(<TemplateDialog template={null} open onOpenChange={vi.fn()} />);
+
+    fireEvent.change(screen.getByRole('textbox', { name: /nội dung/i }), {
+      target: { value: '<p>{{constructor}}</p>' },
+    });
+
+    const preview = screen.getByTitle(
+      'Bản xem trước nội dung email',
+    ) as HTMLIFrameElement;
+    expect(preview.getAttribute('srcdoc')).toContain('<p>{{constructor}}</p>');
+  });
+
+  it('blocks network requests from the HTML preview', () => {
+    render(<TemplateDialog template={null} open onOpenChange={vi.fn()} />);
+
+    const preview = screen.getByTitle(
+      'Bản xem trước nội dung email',
+    ) as HTMLIFrameElement;
+    expect(preview.getAttribute('srcdoc')).toContain(
+      "default-src 'none'; img-src data:",
+    );
+  });
+
   it('keeps the draft when an attachment refetches the template', () => {
     const { rerender } = render(
       <TemplateDialog template={template} open onOpenChange={vi.fn()} />,
