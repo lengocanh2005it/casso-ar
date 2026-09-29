@@ -45,9 +45,11 @@ export function EmailTemplatesTab() {
   );
   const templatesQuery = useEmailTemplates(canRead);
   const deleteMutation = useDeleteTemplate();
-  const [editing, setEditing] = useState<EmailTemplate | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<EmailTemplate | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const editing =
+    templatesQuery.data?.find((template) => template.id === editingId) ?? null;
 
   if (!canRead) return null;
 
@@ -60,7 +62,7 @@ export function EmailTemplatesTab() {
         canWrite && (
           <Button
             onClick={() => {
-              setEditing(null);
+              setEditingId(null);
               setDialogOpen(true);
             }}
           >
@@ -127,7 +129,7 @@ export function EmailTemplatesTab() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          setEditing(template);
+                          setEditingId(template.id);
                           setDialogOpen(true);
                         }}
                       >

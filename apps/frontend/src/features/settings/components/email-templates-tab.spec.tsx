@@ -25,6 +25,7 @@ const template = {
   isDefault: true,
   createdAt: '2026-08-01',
   updatedAt: '2026-08-01',
+  attachments: [],
 };
 
 describe('EmailTemplatesTab', () => {
@@ -71,5 +72,56 @@ describe('EmailTemplatesTab', () => {
     );
     expect(screen.queryByRole('button', { name: /preview/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /tạo mẫu/i })).toBeNull();
+  });
+
+  it('refreshes attachments in the open editor after upload', async () => {
+    useAuth.mockReturnValue({ user: { role: 'OWNER' } });
+    const attachment = {
+      id: 'a1',
+      filename: 'brand.png',
+      mimeType: 'image/png',
+      sizeBytes: 1024,
+      createdAt: '2026-08-01',
+    };
+    let listFetches = 0;
+    apiRequest.mockImplementation(
+      ({ url, method }: { url: string; method: string }) => {
+        if (url === '/api/v1/email-templates' && method === 'GET') {
+          listFetches += 1;
+          return Promise.resolve([
+            listFetches === 1
+              ? template
+              : { ...template, attachments: [attachment] },
+          ]);
+        }
+        if (url === '/api/v1/email-templates/t1/attachments') {
+          return Promise.resolve(attachment);
+        }
+        return Promise.resolve([]);
+      },
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <EmailTemplatesTab />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText('Due date reminder')).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa' }));
+    fireEvent.change(screen.getByLabelText('Chọn file đính kèm'), {
+      target: {
+        files: [new File(['image'], 'brand.png', { type: 'image/png' })],
+      },
+    });
+
+    await waitFor(() => expect(listFetches).toBe(2));
+    expect(screen.getByText('1/5')).toBeTruthy();
+    expect(screen.getByText('brand.png')).toBeTruthy();
   });
 });
