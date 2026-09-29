@@ -13,7 +13,7 @@ const LABELS: Record<ReceivableStatus, string> = {
 const STYLES: Record<ReceivableStatus, string> = {
   DRAFT: 'bg-muted text-muted-foreground',
   OPEN: 'bg-info/10 text-info',
-  PARTIALLY_PAID: 'bg-warning/10 text-warning',
+  PARTIALLY_PAID: 'bg-warning/10 text-warning-strong',
   PAID: 'bg-success/10 text-success',
   WRITTEN_OFF: 'bg-destructive/10 text-destructive',
   CANCELLED: 'bg-muted text-muted-foreground',

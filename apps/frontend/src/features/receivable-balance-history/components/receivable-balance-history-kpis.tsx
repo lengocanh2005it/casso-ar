@@ -45,7 +45,7 @@ export function ReceivableBalanceHistoryKpis({
       </Card>
       <Card className="border-warning/30">
         <CardHeader className="flex flex-row items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-warning/10 text-warning-foreground">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-warning/10 text-warning-strong">
             <Users aria-hidden="true" className="size-4" />
           </div>
           <h2 className="text-sm font-medium text-muted-foreground">

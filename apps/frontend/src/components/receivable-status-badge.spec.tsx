@@ -10,7 +10,7 @@ describe('ReceivableStatusBadge', () => {
     expect(screen.getByText('Đã trả một phần')).toBeInTheDocument();
     expect(screen.getByText('Đã trả một phần')).toHaveClass(
       'bg-warning/10',
-      'text-warning',
+      'text-warning-strong',
     );
   });
 });

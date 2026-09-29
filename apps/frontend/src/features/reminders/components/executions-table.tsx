@@ -79,7 +79,7 @@ export function ExecutionsTable({
                     execution.status === 'SENT'
                       ? 'bg-success text-success-foreground'
                       : execution.status === 'PENDING'
-                        ? 'border-warning/40 bg-warning/10 text-warning-foreground'
+                        ? 'border-warning/40 bg-warning/10 text-warning-strong'
                         : undefined
                   }
                 >

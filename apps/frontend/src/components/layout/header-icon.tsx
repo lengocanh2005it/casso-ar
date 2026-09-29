@@ -13,7 +13,7 @@ const toneClasses: Record<HeaderIconTone, string> = {
   brand: 'bg-primary/10 text-primary',
   info: 'bg-info/10 text-info',
   success: 'bg-success/10 text-success',
-  warning: 'bg-warning/15 text-warning-foreground',
+  warning: 'bg-warning/15 text-warning-strong',
   danger: 'bg-destructive/10 text-destructive',
   ai: 'bg-primary/10 text-primary',
 };

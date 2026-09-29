@@ -19,8 +19,8 @@ import {
 // attention; NOT_DUE carries no tone since it isn't a problem to flag.
 const BUCKET_TONE: Record<AgingBucket, string> = {
   NOT_DUE: '',
-  OVERDUE_1_7: 'text-warning',
-  OVERDUE_8_30: 'text-warning',
+  OVERDUE_1_7: 'text-warning-strong',
+  OVERDUE_8_30: 'text-warning-strong',
   OVERDUE_31_60: 'text-destructive',
   OVERDUE_60_PLUS: 'text-destructive font-semibold',
 };

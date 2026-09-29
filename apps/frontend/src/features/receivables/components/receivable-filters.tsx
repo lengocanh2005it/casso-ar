@@ -24,7 +24,7 @@ const STATUS_OPTIONS: Array<{ value: ReceivableStatus; label: string }> = [
 const STATUS_TONES: Record<ReceivableStatus, string> = {
   DRAFT: 'text-muted-foreground',
   OPEN: 'text-info',
-  PARTIALLY_PAID: 'text-warning-foreground',
+  PARTIALLY_PAID: 'text-warning-strong',
   PAID: 'text-success',
   WRITTEN_OFF: 'text-destructive',
   CANCELLED: 'text-muted-foreground',

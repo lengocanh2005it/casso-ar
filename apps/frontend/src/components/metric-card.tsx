@@ -18,7 +18,7 @@ const BORDER_COLORS = {
 const LABEL_COLORS = {
   default: 'text-foreground',
   success: 'text-success',
-  warning: 'text-warning-foreground',
+  warning: 'text-warning-strong',
   danger: 'text-destructive',
 } as const;
 

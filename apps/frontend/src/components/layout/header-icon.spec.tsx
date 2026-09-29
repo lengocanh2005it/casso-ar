@@ -8,7 +8,7 @@ describe('HeaderIcon', () => {
     render(<HeaderIcon icon={AlertTriangle} tone="warning" />);
 
     expect(screen.getByTestId('header-icon')).toHaveClass(
-      'text-warning-foreground',
+      'text-warning-strong',
     );
   });
 });
