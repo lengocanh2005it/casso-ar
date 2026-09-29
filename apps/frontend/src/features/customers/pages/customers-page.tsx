@@ -1,7 +1,7 @@
 import { Search, Users } from 'lucide-react';
 import { PageHeading } from '@/components/layout/page-heading';
 import { SectionCard } from '@/components/layout/section-card';
-import { Button } from '@/components/ui/button';
+import { CardPagination } from '@/components/shared/card-pagination';
 import { Input } from '@/components/ui/input';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { useCustomers } from '../api/use-customers';
@@ -55,30 +55,12 @@ export function CustomersPage() {
           </p>
         )}
         {data && <CustomerTable customers={data.items} />}
-        {data && data.total > 0 && (
-          <div className="-mx-6 mt-4 flex flex-col gap-3 border-t bg-muted/20 px-6 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-            <span>
-              Trang {data.page} / {totalPages}
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page === 1}
-                onClick={() => setPage(page - 1)}
-              >
-                Trước
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage(page + 1)}
-              >
-                Sau
-              </Button>
-            </div>
-          </div>
+        {data && (
+          <CardPagination
+            page={data.page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
         )}
       </SectionCard>
     </div>

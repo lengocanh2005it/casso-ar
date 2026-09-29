@@ -30,9 +30,7 @@ describe('ExceptionsPage', () => {
     );
 
     fireEvent.change(
-      await screen.findByPlaceholderText(
-        'Tìm theo tên, số tài khoản hoặc nội dung chuyển khoản…',
-      ),
+      await screen.findByPlaceholderText('Tìm tên, số tài khoản, nội dung…'),
       { target: { value: 'nguyen van a' } },
     );
 
@@ -84,6 +82,49 @@ describe('ExceptionsPage', () => {
     fireEvent.click(rowCheckbox);
 
     expect(await screen.findByText('Đã chọn 1')).toBeInTheDocument();
+  });
+
+  it('stacks transactions into cards on phones and paginates inside the list card', async () => {
+    apiRequest.mockResolvedValue({
+      items: [
+        {
+          transaction: {
+            id: 'tx-1',
+            providerTransactionId: 'TX-1',
+            amount: 10_000,
+            transactionDateTime: '2026-08-01',
+            counterpartyAccountNumber: '001',
+            counterpartyName: 'Công ty A',
+            transferContent: 'note',
+            status: 'PENDING_REVIEW',
+            version: 1,
+          },
+          topCandidate: null,
+        },
+      ],
+      total: 45,
+      page: 1,
+      limit: 20,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const [headerRow, row] = await screen.findAllByRole('row');
+    expect(headerRow.parentElement).toHaveClass('max-md:hidden');
+    expect(row).toHaveClass('max-md:grid');
+    // Pagination used to float below the card on this page only.
+    expect(
+      screen.getByText('Trang 1 / 3').closest('[data-slot="card"]'),
+    ).not.toBeNull();
   });
 
   it('shows the transfer content column with a fallback when it is blank', async () => {
