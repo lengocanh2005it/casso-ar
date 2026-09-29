@@ -294,7 +294,7 @@ describe('ReceivableBalanceHistoryPage', () => {
 
     const statusTrigger = screen.getByRole('combobox', { name: /trạng thái/i });
     fireEvent.click(statusTrigger);
-    const paidOption = await screen.findByRole('option', { name: 'Đã thu' });
+    const paidOption = await screen.findByRole('option', { name: 'Đã thu đủ' });
     fireEvent.click(paidOption);
 
     await waitFor(() =>

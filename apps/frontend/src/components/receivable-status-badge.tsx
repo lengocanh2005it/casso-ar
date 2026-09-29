@@ -1,7 +1,8 @@
 import { Badge } from '@/components/ui/badge';
 import type { ReceivableStatus } from '@/features/receivables/types';
 
-const LABELS: Record<ReceivableStatus, string> = {
+// Single source for status wording: list, detail, filters and balance history.
+export const RECEIVABLE_STATUS_LABELS: Record<ReceivableStatus, string> = {
   DRAFT: 'Nháp',
   OPEN: 'Đang thu',
   PARTIALLY_PAID: 'Đã trả một phần',
@@ -24,5 +25,7 @@ export function ReceivableStatusBadge({
 }: {
   status: ReceivableStatus;
 }) {
-  return <Badge className={STYLES[status]}>{LABELS[status]}</Badge>;
+  return (
+    <Badge className={STYLES[status]}>{RECEIVABLE_STATUS_LABELS[status]}</Badge>
+  );
 }

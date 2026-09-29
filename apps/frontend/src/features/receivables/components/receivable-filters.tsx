@@ -1,4 +1,4 @@
-import { ReceivableStatus as SharedReceivableStatus } from '@casso-ar/shared-types';
+import { RECEIVABLE_STATUS_LABELS } from '@/components/receivable-status-badge';
 import {
   Select,
   SelectContent,
@@ -9,17 +9,9 @@ import {
 import { cn } from '@/lib/utils';
 import type { ReceivableStatus } from '../types';
 
-const STATUS_OPTIONS: Array<{ value: ReceivableStatus; label: string }> = [
-  { value: SharedReceivableStatus.DRAFT, label: 'Nháp' },
-  { value: SharedReceivableStatus.OPEN, label: 'Đang thu' },
-  {
-    value: SharedReceivableStatus.PARTIALLY_PAID,
-    label: 'Đã trả một phần',
-  },
-  { value: SharedReceivableStatus.PAID, label: 'Đã thu đủ' },
-  { value: SharedReceivableStatus.WRITTEN_OFF, label: 'Đã xóa nợ' },
-  { value: SharedReceivableStatus.CANCELLED, label: 'Đã hủy' },
-];
+const STATUS_OPTIONS = (
+  Object.entries(RECEIVABLE_STATUS_LABELS) as Array<[ReceivableStatus, string]>
+).map(([value, label]) => ({ value, label }));
 
 const STATUS_TONES: Record<ReceivableStatus, string> = {
   DRAFT: 'text-muted-foreground',
