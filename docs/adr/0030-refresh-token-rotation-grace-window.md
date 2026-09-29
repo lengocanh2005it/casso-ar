@@ -33,8 +33,9 @@ issuance inherit it. Logout revokes every token of the session, not only the
 presented one, because the grace path deliberately leaves the original
 successor alive (a short-lived fork) and that sibling would otherwise let a
 replayed token mint a session after logout. Other logins of the same user are
-untouched. Tokens issued before this change have no session and keep the old
-single-token logout.
+untouched. A token issued before sessions existed starts a session the first
+time it is rotated (a grace replay of it joins its successor's session); until
+then, logout revokes only the presented token, as before.
 
 The 10 s value is a constant, not configuration. The orphaned sibling from a
 grace fork expires with its normal 7-day TTL rather than being revoked early,

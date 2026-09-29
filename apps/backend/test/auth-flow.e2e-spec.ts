@@ -278,6 +278,35 @@ describe('Auth flow (integration)', () => {
       await refreshWith(otherDevice).expect(401);
     });
 
+    it('starts a session for a login that predates sessions, so logout ends its grace siblings', async () => {
+      const original = await loginCookie();
+      // Simulate tokens issued before sessions existed.
+      await dataSource.query(`UPDATE refresh_tokens SET "sessionId" = NULL`);
+      const rotated = await refreshWith(original).expect(201);
+      const graceReplay = await refreshWith(original).expect(201);
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/logout')
+        .set('Cookie', graceReplay.headers['set-cookie'][0])
+        .expect(200);
+
+      await refreshWith(rotated.headers['set-cookie'][0]).expect(401);
+      await refreshWith(original).expect(401);
+    });
+
+    it('logs out a token that has no session by revoking just that token', async () => {
+      const deviceA = await loginCookie();
+      const deviceB = await loginCookie();
+      await dataSource.query(`UPDATE refresh_tokens SET "sessionId" = NULL`);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/logout')
+        .set('Cookie', deviceA)
+        .expect(200);
+
+      await refreshWith(deviceB).expect(201);
+      await refreshWith(deviceA).expect(401);
+    });
+
     it('logout on one device leaves another device signed in', async () => {
       const deviceA = await loginCookie();
       const deviceB = await loginCookie();

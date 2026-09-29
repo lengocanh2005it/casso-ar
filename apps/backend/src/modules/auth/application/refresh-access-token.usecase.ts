@@ -59,7 +59,7 @@ export class RefreshAccessTokenUseCase {
     // this ran inside the rotation transaction it would be rolled back with
     // the UNAUTHORIZED throw and never persist.
     const probe = await this.refreshTokenRepo.findByTokenHash(rawHash);
-    if (probe?.revokedAt && !(await this.isRaceReplay(probe))) {
+    if (probe?.revokedAt && !(await this.findRaceSuccessor(probe))) {
       await this.revokeFamilyAndReject(probe.userId);
     }
 
@@ -72,7 +72,8 @@ export class RefreshAccessTokenUseCase {
         );
         if (existing?.revokedAt) {
           // The window can close between the pre-check and the row lock.
-          if (!(await this.isRaceReplay(existing, manager))) {
+          const raceSuccessor = await this.findRaceSuccessor(existing, manager);
+          if (!raceSuccessor) {
             return { kind: 'theft', userId: existing.userId };
           }
           this.logger?.warn({
@@ -82,7 +83,7 @@ export class RefreshAccessTokenUseCase {
           });
           return {
             kind: 'session',
-            result: await this.replaySession(existing, manager),
+            result: await this.replaySession(existing, raceSuccessor, manager),
           };
         }
         if (!existing?.isValid(new Date())) {
@@ -110,17 +111,18 @@ export class RefreshAccessTokenUseCase {
 
   // Inside the transaction the successor row is read under a share lock so a
   // concurrent logout cannot revoke it between this check and our commit.
-  private async isRaceReplay(
+  // Returns the successor when `token` is a benign race replay, else null.
+  private async findRaceSuccessor(
     token: RefreshToken,
     manager?: EntityManager,
-  ): Promise<boolean> {
-    if (token.replacedByTokenId === null) return false;
+  ): Promise<RefreshToken | null> {
+    if (token.replacedByTokenId === null) return null;
     const successor = await this.refreshTokenRepo.findById(
       token.replacedByTokenId,
       manager,
       manager !== undefined,
     );
-    return token.canReplayAsRace(successor, new Date());
+    return token.canReplayAsRace(successor, new Date()) ? successor : null;
   }
 
   // Normal rotation: the presented token is replaced by a new one.
@@ -129,25 +131,38 @@ export class RefreshAccessTokenUseCase {
     manager: EntityManager,
   ): Promise<RefreshResult> {
     const accessToken = await this.signAccessToken(presented.userId);
-    const { successor, rawToken } = this.newSuccessor(presented);
+    // A token issued before sessions existed starts one here, so from now on
+    // logout can end everything that descends from it.
+    const { successor, rawToken } = this.newSuccessor(
+      presented,
+      presented.sessionId ?? randomUUID(),
+    );
     await this.refreshTokenRepo.save(presented.rotate(successor.id), manager);
     await this.refreshTokenRepo.save(successor, manager);
     return { accessToken, refreshToken: rawToken };
   }
 
   // Grace replay: the presented token and its existing successor stay as they
-  // are; the presenter simply gets one more token in the same session.
+  // are; the presenter simply gets one more token in the successor's session
+  // (the presented token may predate sessions and carry none).
   private async replaySession(
     presented: RefreshToken,
+    raceSuccessor: RefreshToken,
     manager: EntityManager,
   ): Promise<RefreshResult> {
     const accessToken = await this.signAccessToken(presented.userId);
-    const { successor, rawToken } = this.newSuccessor(presented);
+    const { successor, rawToken } = this.newSuccessor(
+      presented,
+      raceSuccessor.sessionId,
+    );
     await this.refreshTokenRepo.save(successor, manager);
     return { accessToken, refreshToken: rawToken };
   }
 
-  private newSuccessor(presented: RefreshToken): {
+  private newSuccessor(
+    presented: RefreshToken,
+    sessionId: string | null,
+  ): {
     successor: RefreshToken;
     rawToken: string;
   } {
@@ -155,7 +170,7 @@ export class RefreshAccessTokenUseCase {
     const successor = new RefreshToken({
       id: randomUUID(),
       userId: presented.userId,
-      sessionId: presented.sessionId,
+      sessionId,
       tokenHash: hash,
       expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
       revokedAt: null,
