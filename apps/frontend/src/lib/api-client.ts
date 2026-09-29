@@ -45,6 +45,7 @@ export function isOperatorToken(token: string): boolean {
 }
 
 const SESSION_HINT_KEY = 'casso:has-session';
+const REFRESH_LOCK_NAME = 'casso:refresh';
 
 // Non-sensitive hint only — the real refresh token stays in an httpOnly
 // cookie the client can't read. Lets restoreSession() skip the refresh
@@ -97,8 +98,15 @@ export class AuthTokenManager {
     if (!this.refreshPromise) {
       const generation = this.generation;
       this.refreshPromise = this.refreshAccessToken(generation)
-        .catch(() => {
-          if (generation === this.generation) {
+        .catch((error: unknown) => {
+          // Only a rejection from the server ends the session; a network
+          // error, 5xx or 429 is transient, so keep the shared hint and let
+          // the next load retry.
+          const status = getAxiosErrorResponse(error)?.status;
+          if (
+            generation === this.generation &&
+            (status === 401 || status === 403)
+          ) {
             this.accessToken = null;
             setSessionHint(false);
           }
@@ -115,11 +123,17 @@ export class AuthTokenManager {
   private async refreshAccessToken(generation: number): Promise<string | null> {
     const controller = new AbortController();
     this.pendingRefreshController = controller;
-    const response = await axiosClient.post<{ accessToken: string }>(
-      '/api/v1/auth/refresh',
-      {},
-      { signal: controller.signal },
-    );
+    const send = () =>
+      axiosClient.post<{ accessToken: string }>(
+        '/api/v1/auth/refresh',
+        {},
+        { signal: controller.signal },
+      );
+    // The refresh cookie rotates on every call, so tabs must refresh one at a
+    // time: a later tab then sends the cookie the earlier tab just received.
+    const response = await ('locks' in navigator
+      ? navigator.locks.request(REFRESH_LOCK_NAME, send)
+      : send());
     if (generation !== this.generation) {
       // superseded by a newer login/signup/refresh while this was in flight
       return this.accessToken;

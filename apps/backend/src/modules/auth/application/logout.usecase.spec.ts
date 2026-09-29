@@ -44,6 +44,7 @@ describe('LogoutUseCase', () => {
       tokenHash: hashToken(raw),
       expiresAt: new Date(Date.now() + 60_000),
       revokedAt: null,
+      replacedByTokenId: null,
       createdAt: new Date(),
     });
     const refreshTokenRepo = {

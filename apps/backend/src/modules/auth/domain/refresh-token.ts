@@ -4,6 +4,7 @@ export interface RefreshTokenProps {
   tokenHash: string;
   expiresAt: Date;
   revokedAt: Date | null;
+  replacedByTokenId: string | null;
   createdAt: Date;
 }
 
@@ -13,6 +14,7 @@ export class RefreshToken {
   declare readonly tokenHash: string;
   declare readonly expiresAt: Date;
   declare readonly revokedAt: Date | null;
+  declare readonly replacedByTokenId: string | null;
   declare readonly createdAt: Date;
 
   constructor(props: RefreshTokenProps) {
@@ -23,7 +25,11 @@ export class RefreshToken {
     return this.revokedAt === null && this.expiresAt.getTime() >= now.getTime();
   }
 
-  revoke(): RefreshToken {
-    return new RefreshToken({ ...this, revokedAt: new Date() });
+  revoke(replacedByTokenId: string | null = null): RefreshToken {
+    return new RefreshToken({
+      ...this,
+      revokedAt: new Date(),
+      replacedByTokenId,
+    });
   }
 }

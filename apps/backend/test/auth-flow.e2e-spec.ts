@@ -207,6 +207,117 @@ describe('Auth flow (integration)', () => {
     ).not.toHaveLength(0);
   });
 
+  describe('refresh token reuse (rotation grace window)', () => {
+    async function loginCookie(): Promise<string> {
+      await clearRateLimitState();
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email: 'ap@congtyb.vn', password: 'S3curePass!' })
+        .expect(201);
+      return response.headers['set-cookie'][0];
+    }
+
+    function refreshWith(cookie: string) {
+      return request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .set('Cookie', cookie);
+    }
+
+    it('serves a just-rotated token again with a fresh session and keeps the family alive', async () => {
+      const original = await loginCookie();
+      const rotated = await refreshWith(original).expect(201);
+
+      const replay = await refreshWith(original).expect(201);
+
+      expect(replay.headers['set-cookie'][0]).toContain('refreshToken=');
+      expect(replay.headers['set-cookie'][0]).not.toBe(original);
+      expect(replay.headers['set-cookie'][0]).not.toBe(
+        rotated.headers['set-cookie'][0],
+      );
+      await refreshWith(rotated.headers['set-cookie'][0]).expect(201);
+    });
+
+    it('logs each grace issuance at warn level with the user and request ids', async () => {
+      const original = await loginCookie();
+      await refreshWith(original).expect(201);
+      const stdout = jest.spyOn(process.stdout, 'write');
+
+      await refreshWith(original).expect(201);
+
+      const entries = stdout.mock.calls
+        .map(([chunk]) => String(chunk))
+        .filter((line) => line.startsWith('{'))
+        .map((line) => JSON.parse(line) as Record<string, unknown>);
+      stdout.mockRestore();
+      const [user] = await dataSource.query(
+        `SELECT id FROM users WHERE email = 'ap@congtyb.vn'`,
+      );
+      expect(entries).toContainEqual(
+        expect.objectContaining({
+          level: 'warn',
+          message: 'Refresh token reused within rotation grace window',
+          refreshTokenUserId: user.id,
+          requestId: expect.any(String),
+        }),
+      );
+    });
+
+    it('treats reuse after the grace window as theft and revokes the family', async () => {
+      const original = await loginCookie();
+      const rotated = await refreshWith(original).expect(201);
+      // Age every token past the 10 s window; the rotation happened "11 s ago".
+      await dataSource.query(
+        `UPDATE refresh_tokens SET "createdAt" = "createdAt" - interval '11 seconds'`,
+      );
+
+      await refreshWith(original).expect(401);
+
+      await refreshWith(rotated.headers['set-cookie'][0]).expect(401);
+    });
+
+    it('does not mint a session from a token rotated before the user logged out', async () => {
+      const original = await loginCookie();
+      const rotated = await refreshWith(original).expect(201);
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/logout')
+        .set('Cookie', rotated.headers['set-cookie'][0])
+        .expect(200);
+      const otherDevice = await loginCookie();
+
+      await refreshWith(original).expect(401);
+
+      // Theft detection ran: the user's other sessions are revoked too.
+      await refreshWith(otherDevice).expect(401);
+    });
+
+    it('serves two simultaneous refreshes carrying the same cookie', async () => {
+      const original = await loginCookie();
+
+      const [first, second] = await Promise.all([
+        refreshWith(original),
+        refreshWith(original),
+      ]);
+
+      expect([first.status, second.status]).toEqual([201, 201]);
+      expect(first.headers['set-cookie'][0]).not.toBe(
+        second.headers['set-cookie'][0],
+      );
+    });
+
+    it('still revokes the family when a logged-out token is presented again', async () => {
+      const cookie = await loginCookie();
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/logout')
+        .set('Cookie', cookie)
+        .expect(200);
+      const otherDevice = await loginCookie();
+
+      await refreshWith(cookie).expect(401);
+
+      await refreshWith(otherDevice).expect(401);
+    });
+  });
+
   it('email dimension rate-limits login and returns the standard 429 envelope', async () => {
     await clearRateLimitState();
 

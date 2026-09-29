@@ -146,6 +146,7 @@ export class LoginUseCase {
         tokenHash: hash,
         expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_MS),
         revokedAt: null,
+        replacedByTokenId: null,
         createdAt: new Date(),
       }),
     );

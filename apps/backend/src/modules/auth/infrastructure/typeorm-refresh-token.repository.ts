@@ -30,6 +30,17 @@ export class TypeOrmRefreshTokenRepository implements IRefreshTokenRepository {
     return row ? new RefreshToken(row) : null;
   }
 
+  async findById(
+    id: string,
+    manager?: EntityManager,
+  ): Promise<RefreshToken | null> {
+    const row = await (manager
+      ? manager.getRepository(RefreshTokenOrmEntity)
+      : this.repo
+    ).findOne({ where: { id } });
+    return row ? new RefreshToken(row) : null;
+  }
+
   async save(token: RefreshToken, manager?: EntityManager): Promise<void> {
     await (manager
       ? manager.getRepository(RefreshTokenOrmEntity)

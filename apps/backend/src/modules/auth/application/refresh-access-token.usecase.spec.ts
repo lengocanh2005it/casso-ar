@@ -13,6 +13,7 @@ describe('RefreshAccessTokenUseCase', () => {
       tokenHash: hashToken(raw),
       expiresAt: new Date(Date.now() + 60_000),
       revokedAt: null,
+      replacedByTokenId: null,
       createdAt: new Date(),
     });
     const refreshTokenRepo = {
@@ -82,6 +83,7 @@ describe('RefreshAccessTokenUseCase', () => {
       tokenHash: hashToken(raw),
       expiresAt: new Date(Date.now() + 60_000),
       revokedAt: new Date(Date.now() - 1_000),
+      replacedByTokenId: null,
       createdAt: new Date(),
     });
     const refreshTokenRepo = {
@@ -124,6 +126,7 @@ describe('RefreshAccessTokenUseCase', () => {
       tokenHash: hashToken(raw),
       expiresAt: new Date(Date.now() - 1_000),
       revokedAt: null,
+      replacedByTokenId: null,
       createdAt: new Date(),
     });
     const refreshTokenRepo = {
@@ -162,6 +165,7 @@ describe('RefreshAccessTokenUseCase', () => {
       tokenHash: hashToken(raw),
       expiresAt: new Date(Date.now() + 60_000),
       revokedAt: null,
+      replacedByTokenId: null,
       createdAt: new Date(),
     });
     const refreshTokenRepo = {

@@ -19,6 +19,9 @@ export class RefreshTokenOrmEntity {
   @Column({ type: 'timestamp', nullable: true })
   revokedAt: Date | null;
 
+  @Column({ type: 'uuid', nullable: true })
+  replacedByTokenId: string | null;
+
   @Column({ type: 'timestamptz' })
   createdAt: Date;
 }
