@@ -31,6 +31,19 @@ vi.mock('@/lib/api-client', async () => {
   };
 });
 
+function renderLogin() {
+  render(
+    <AuthProvider>
+      <MemoryRouter initialEntries={['/login']}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/dashboard" element={<div>dashboard</div>} />
+        </Routes>
+      </MemoryRouter>
+    </AuthProvider>,
+  );
+}
+
 function fillAndSubmit() {
   fireEvent.change(screen.getByLabelText(/email/i), {
     target: { value: 'owner@casso.vn' },
@@ -78,7 +91,9 @@ describe('LoginPage', () => {
   });
 
   it('shows an error when the login request itself fails', async () => {
-    apiRequest.mockRejectedValue(new Error('invalid credentials'));
+    apiRequest.mockRejectedValue({
+      response: { status: 401, data: { errorCode: 'UNAUTHORIZED' } },
+    });
 
     render(
       <AuthProvider>
@@ -96,6 +111,43 @@ describe('LoginPage', () => {
 
     await waitFor(() =>
       expect(screen.getByText(/email hoặc mật khẩu không đúng/i)).toBeVisible(),
+    );
+  });
+
+  it('tells a rate-limited user to wait instead of blaming their password', async () => {
+    apiRequest.mockRejectedValue({
+      response: { status: 429, data: { errorCode: 'RATE_LIMIT_EXCEEDED' } },
+    });
+    renderLogin();
+
+    await waitFor(() => expect(screen.getByLabelText(/email/i)).toBeVisible());
+    fillAndSubmit();
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          'Bạn đã thử đăng nhập quá nhiều lần. Vui lòng đợi vài phút rồi thử lại.',
+        ),
+      ).toBeVisible(),
+    );
+    expect(
+      screen.queryByText(/email hoặc mật khẩu không đúng/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not blame credentials when the server or network fails', async () => {
+    apiRequest.mockRejectedValue(new Error('Network Error'));
+    renderLogin();
+
+    await waitFor(() => expect(screen.getByLabelText(/email/i)).toBeVisible());
+    fillAndSubmit();
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          'Không thể đăng nhập lúc này. Kiểm tra kết nối mạng rồi thử lại.',
+        ),
+      ).toBeVisible(),
     );
   });
 

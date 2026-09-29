@@ -239,8 +239,9 @@ describe('ReceivableBalanceHistoryPage', () => {
     expect(screen.getByRole('button', { name: 'Xuất CSV' })).toBeEnabled();
     expect(screen.getByLabelText('Từ ngày')).toHaveAttribute('name', 'from');
     expect(screen.getByLabelText('Nguồn thay đổi')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Trước' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Sau' })).toBeDisabled();
+    // A single (empty) page shows no pager at all.
+    expect(screen.queryByRole('button', { name: 'Trước' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Sau' })).toBeNull();
   });
 
   it('renders KPIs, charts, rows, detail fields, and pagination from fixtures', () => {
@@ -293,7 +294,7 @@ describe('ReceivableBalanceHistoryPage', () => {
 
     const statusTrigger = screen.getByRole('combobox', { name: /trạng thái/i });
     fireEvent.click(statusTrigger);
-    const paidOption = await screen.findByRole('option', { name: 'Đã thu' });
+    const paidOption = await screen.findByRole('option', { name: 'Đã thu đủ' });
     fireEvent.click(paidOption);
 
     await waitFor(() =>

@@ -55,11 +55,10 @@ const statusLabels: Record<BankConnectionStatus, string> = {
 };
 
 const statusClasses: Record<BankConnectionStatus, string> = {
-  PENDING_AUTHORIZATION:
-    'border-warning/30 bg-warning/15 text-warning-foreground',
+  PENDING_AUTHORIZATION: 'border-warning/30 bg-warning/15 text-warning-strong',
   ACTIVE: 'border-success/30 bg-success/10 text-success',
   REQUIRES_REAUTHORIZATION:
-    'border-warning/30 bg-warning/15 text-warning-foreground',
+    'border-warning/30 bg-warning/15 text-warning-strong',
   REVOKED: 'border-destructive/30 bg-destructive/10 text-destructive',
   DISCONNECTED: 'border-border bg-muted text-muted-foreground',
   ERROR: 'border-destructive/30 bg-destructive/10 text-destructive',

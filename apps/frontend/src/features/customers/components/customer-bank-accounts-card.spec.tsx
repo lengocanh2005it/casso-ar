@@ -182,6 +182,24 @@ describe('CustomerBankAccountsCard', () => {
     ).toBeInTheDocument();
   });
 
+  it('gives the description the full card width instead of a column beside the add button', async () => {
+    useAuth.mockReturnValue({ user: { role: Role.OWNER } });
+    apiRequest.mockResolvedValueOnce({ items: [activeAccount], total: 1 });
+
+    renderCard();
+
+    await screen.findByText('******2233');
+    const description = screen.getByText(
+      /hệ thống sẽ ghi nhớ sau khi bạn xác nhận một giao dịch khớp/,
+    );
+    const header = description.closest('[data-slot="card-header"]');
+    // On a phone the old side-by-side header squeezed this text to ~150px.
+    expect(description.parentElement).toBe(header);
+    expect(
+      screen.getByRole('button', { name: 'Thêm tài khoản' }).parentElement,
+    ).not.toBe(header);
+  });
+
   it('reassures in the empty state that matching works without a bank account', async () => {
     useAuth.mockReturnValue({ user: { role: Role.OWNER } });
     apiRequest.mockResolvedValueOnce({ items: [], total: 0 });

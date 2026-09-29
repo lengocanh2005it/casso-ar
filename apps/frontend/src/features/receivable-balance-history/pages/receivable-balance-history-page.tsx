@@ -2,6 +2,7 @@ import { History } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { PageHeading } from '@/components/layout/page-heading';
 import { SectionCard } from '@/components/layout/section-card';
+import { CardPagination } from '@/components/shared/card-pagination';
 import { Button } from '@/components/ui/button';
 import { Skeleton, TableSkeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
@@ -243,7 +244,6 @@ export function ReceivableBalanceHistoryPage() {
           </Button>
         }
       />
-
       <ReceivableBalanceHistoryKpis
         summary={summaryQuery.data}
         isLoading={false}
@@ -264,7 +264,6 @@ export function ReceivableBalanceHistoryPage() {
         }}
         onChange={updateFilterValues}
       />
-
       <SectionCard
         icon={History}
         title="Biến động số dư"
@@ -275,31 +274,13 @@ export function ReceivableBalanceHistoryPage() {
         ) : (
           <ReceivableBalanceHistoryTable items={items} />
         )}
-      </SectionCard>
-
-      <div className="flex items-center justify-between">
-        <p className="tabular-nums text-sm text-muted-foreground">
-          Trang {page} / {totalPages} • {listQuery.data?.total ?? 0} thay đổi
-        </p>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage(Math.max(1, page - 1))}
-          >
-            Trước
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => setPage(page + 1)}
-          >
-            Sau
-          </Button>
-        </div>
-      </div>
+        <CardPagination
+          page={page}
+          totalPages={totalPages}
+          summary={`${listQuery.data?.total ?? 0} thay đổi`}
+          onPageChange={setPage}
+        />
+      </SectionCard>{' '}
     </div>
   );
 }

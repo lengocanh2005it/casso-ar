@@ -1,3 +1,4 @@
+import { BarChart3, PieChart as PieChartIcon } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -10,12 +11,15 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { EmptyState } from '@/components/layout/empty-state';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
+  CardTitle,
 } from '@/components/ui/card';
+import { CHART_TICK, hasChartValue } from '@/lib/chart';
 import type {
   ReceivableBalanceHistoryDailyPoint,
   ReceivableBalanceHistorySourcePoint,
@@ -71,16 +75,25 @@ export function ReceivableBalanceHistoryCharts({
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader>
-          <h2 className="text-sm font-medium">Thay đổi theo ngày</h2>
+          <div className="flex items-center gap-2">
+            <BarChart3 aria-hidden="true" className="size-4 text-primary" />
+            <CardTitle role="heading" aria-level={2}>
+              Thay đổi theo ngày
+            </CardTitle>
+          </div>
           <CardDescription>
             Số lần công nợ thay đổi trạng thái theo từng ngày
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {dailySeries.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              Chưa có dữ liệu trong khoảng thời gian này.
-            </p>
+          {!hasChartValue(dailySeries.map((point) => point.transitions)) ? (
+            <EmptyState
+              density="compact"
+              icon={BarChart3}
+              title="Chưa có thay đổi trong khoảng này"
+              description="Chọn khoảng thời gian khác để xem biến động."
+              className="h-64"
+            />
           ) : (
             <div
               role="img"
@@ -92,17 +105,26 @@ export function ReceivableBalanceHistoryCharts({
                   data={dailySeries}
                   margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <CartesianGrid
+                    stroke="var(--border)"
+                    strokeDasharray="4 4"
+                    vertical={false}
+                  />
                   <XAxis
                     dataKey="date"
                     tickFormatter={formatChartDate}
+                    interval="preserveStartEnd"
+                    minTickGap={12}
                     tickLine={false}
                     axisLine={false}
+                    tick={CHART_TICK}
                   />
                   <YAxis
+                    width={40}
                     allowDecimals={false}
                     tickLine={false}
                     axisLine={false}
+                    tick={CHART_TICK}
                   />
                   <Tooltip />
                   <Bar dataKey="transitions" fill="var(--primary)" radius={4} />
@@ -115,16 +137,25 @@ export function ReceivableBalanceHistoryCharts({
 
       <Card>
         <CardHeader>
-          <h2 className="text-sm font-medium">Phân bố theo nguồn thay đổi</h2>
+          <div className="flex items-center gap-2">
+            <PieChartIcon aria-hidden="true" className="size-4 text-primary" />
+            <CardTitle role="heading" aria-level={2}>
+              Phân bố theo nguồn thay đổi
+            </CardTitle>
+          </div>
           <CardDescription>
             Tỷ trọng các nguyên nhân gây thay đổi số dư công nợ
           </CardDescription>
         </CardHeader>
         <CardContent>
           {chartData.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">
-              Chưa có dữ liệu trong khoảng thời gian này.
-            </p>
+            <EmptyState
+              density="compact"
+              icon={PieChartIcon}
+              title="Chưa có thay đổi trong khoảng này"
+              description="Chọn khoảng thời gian khác để xem nguồn thay đổi."
+              className="h-64"
+            />
           ) : (
             <div
               role="img"

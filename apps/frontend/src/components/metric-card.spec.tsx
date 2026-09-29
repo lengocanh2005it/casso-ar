@@ -19,6 +19,40 @@ describe('MetricCard', () => {
     expect(screen.getByText('30.000.000 ₫')).toBeInTheDocument();
   });
 
+  it('keeps the warning label readable on dark cards', () => {
+    render(
+      <MetricCard
+        label="Tỷ lệ quá hạn"
+        description="Tỷ lệ công nợ quá hạn trên tổng"
+        value="52%"
+        icon={CircleDollarSign}
+        variant="warning"
+      />,
+    );
+
+    // warning-foreground is the ink for text ON a warning fill; on a dark
+    // card it had near-zero contrast.
+    expect(screen.getByText('Tỷ lệ quá hạn')).toHaveClass(
+      'text-warning-strong',
+    );
+  });
+
+  it('drops the restating description on phones to keep stacked cards short', () => {
+    render(
+      <MetricCard
+        label="Tổng công nợ còn lại"
+        description="Tất cả công nợ chưa thanh toán"
+        value="616.000.000 ₫"
+        icon={CircleDollarSign}
+      />,
+    );
+
+    // Nine full-height cards made the reports page ~1300px of KPIs on mobile.
+    expect(screen.getByText('Tất cả công nợ chưa thanh toán')).toHaveClass(
+      'max-sm:hidden',
+    );
+  });
+
   it('shows a muted no-data message instead of a bare value when empty', () => {
     render(
       <MetricCard

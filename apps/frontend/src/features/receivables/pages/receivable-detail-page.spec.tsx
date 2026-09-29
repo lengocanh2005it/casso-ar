@@ -82,6 +82,47 @@ describe('ReceivableDetailPage', () => {
     expect(screen.getAllByText('30.000.000 ₫')).toHaveLength(2);
   });
 
+  it('identifies the receivable by customer and due date right under the title', async () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'FINANCE_MANAGER' },
+    } as never);
+    apiRequest.mockResolvedValue({
+      id: 'r1',
+      customerId: 'c1',
+      customerName: 'Công ty Minh Long',
+      invoiceId: null,
+      invoiceNumber: null,
+      originalAmount: 50_000_000,
+      paidAmount: 30_000_000,
+      remainingAmount: 20_000_000,
+      dueDate: '2026-08-20',
+      status: 'PARTIALLY_PAID',
+      isDisputed: false,
+      disputeId: null,
+      isOverdue: true,
+      salesRepresentativeId: null,
+      createdAt: '2026-07-01',
+      allocations: [],
+    });
+
+    renderDetailPage();
+
+    // A title of just "Khoản phải thu" could not tell two receivables apart.
+    expect(
+      await screen.findByRole('link', { name: 'Công ty Minh Long' }),
+    ).toHaveAttribute('href', '/customers/c1');
+    expect(screen.getByText('Hạn 20/08/2026')).toHaveClass('text-destructive');
+    expect(screen.getByRole('link', { name: 'Công nợ' })).toHaveAttribute(
+      'href',
+      '/receivables',
+    );
+    // The separate progress card repeated every amount from the summary.
+    expect(screen.getAllByText(/50\.000\.000 ₫/)).toHaveLength(1);
+    expect(
+      screen.getByRole('button', { name: 'Hủy khoản phải thu' }),
+    ).toBeInTheDocument();
+  });
+
   it('shows the invoice number as heading instead of the raw id when available', async () => {
     useAuthMock.mockReturnValue({
       user: { role: 'FINANCE_MANAGER' },

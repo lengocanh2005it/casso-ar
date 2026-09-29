@@ -36,5 +36,7 @@ describe('ReceivableBalanceHistoryTable', () => {
     expect(screen.getByText('Khoản phải thu')).toBeInTheDocument();
     expect(screen.getByText('Chưa có tên khách hàng')).toBeInTheDocument();
     expect(screen.getByText('Dữ liệu khởi tạo')).toBeInTheDocument();
+    // Same wording and colour as the receivables list (was "Mở").
+    expect(screen.getByText('Đang thu')).toHaveClass('text-info');
   });
 });

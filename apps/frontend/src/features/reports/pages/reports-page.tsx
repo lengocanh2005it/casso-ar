@@ -2,6 +2,7 @@ import { BarChart3, PieChart, TrendingUp, Users } from 'lucide-react';
 import { lazy, Suspense, useEffect } from 'react';
 import { EmptyState } from '@/components/layout/empty-state';
 import { PageHeading } from '@/components/layout/page-heading';
+import { CardPagination } from '@/components/shared/card-pagination';
 import { TrendMonthsSelect } from '@/components/shared/trend-months-select';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -183,7 +184,7 @@ export function ReportsPage() {
               <CardTitle>Phân bổ tuổi nợ</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="flex flex-1 flex-col justify-center">
+          <CardContent>
             <AgingTable
               report={agingQuery.data}
               totalOutstanding={summaryQuery.data.totalOutstanding}
@@ -234,43 +235,34 @@ export function ReportsPage() {
               <EmptyState
                 density="compact"
                 icon={Users}
-                title="Không có khách hàng có công nợ hiện tại"
-                description="Thử thay đổi bộ lọc để xem thêm kết quả."
+                {...(agingSearch || agingBucket !== 'ALL'
+                  ? {
+                      title: 'Không có khách hàng phù hợp',
+                      description:
+                        'Thử đổi từ khóa tìm kiếm hoặc nhóm tuổi nợ.',
+                    }
+                  : {
+                      title: 'Chưa có khách hàng còn công nợ',
+                      description:
+                        'Khách hàng có khoản phải thu chưa thu đủ sẽ xuất hiện tại đây.',
+                    })}
               />
             )}
           {customerAgingQuery.data &&
             customerAgingQuery.data.items.length > 0 && (
               <CustomerAgingTable page={customerAgingQuery.data} />
             )}
-          {customerAgingQuery.data && customerAgingQuery.data.total > 0 && (
-            <div className="-mx-6 flex flex-col gap-3 border-t bg-muted/20 px-6 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-              <span>
-                Trang {customerAgingQuery.data.page} / {agingTotalPages}
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={agingPage === 1}
-                  onClick={() => setAgingPage(agingPage - 1)}
-                >
-                  Trước
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={agingPage >= agingTotalPages}
-                  onClick={() => setAgingPage(agingPage + 1)}
-                >
-                  Sau
-                </Button>
-              </div>
-            </div>
+          {customerAgingQuery.data && (
+            <CardPagination
+              page={customerAgingQuery.data.page}
+              totalPages={agingTotalPages}
+              onPageChange={setAgingPage}
+            />
           )}
         </CardContent>
       </Card>
       <Card className="overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between gap-4">
+        <CardHeader className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
           <div className="flex min-w-0 items-center gap-2">
             <TrendingUp
               aria-hidden="true"

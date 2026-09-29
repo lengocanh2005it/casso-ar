@@ -13,6 +13,18 @@ const ORGANIZATION_STATUS_ERROR_CODES = new Set([
   'ORGANIZATION_REJECTED',
 ]);
 
+// Only a credentials rejection may blame the password; a throttled or failed
+// request used to say "wrong password" and sent users to reset it.
+function loginErrorMessage(errorCode: string | undefined): string {
+  if (errorCode === 'UNAUTHORIZED' || errorCode === 'VALIDATION_ERROR') {
+    return 'Email hoặc mật khẩu không đúng.';
+  }
+  if (errorCode === 'RATE_LIMIT_EXCEEDED') {
+    return 'Bạn đã thử đăng nhập quá nhiều lần. Vui lòng đợi vài phút rồi thử lại.';
+  }
+  return 'Không thể đăng nhập lúc này. Kiểm tra kết nối mạng rồi thử lại.';
+}
+
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -42,7 +54,7 @@ export function LoginPage() {
             'Tổ chức của bạn hiện không thể sử dụng dịch vụ.',
         );
       } else {
-        setError('Email hoặc mật khẩu không đúng.');
+        setError(loginErrorMessage(errorCode));
       }
     } finally {
       setSubmitting(false);

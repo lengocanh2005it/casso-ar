@@ -5,11 +5,14 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '@/contexts/auth-context';
 import { DashboardPage } from './dashboard-page';
 
-const { apiRequest } = vi.hoisted(() => ({ apiRequest: vi.fn() }));
+const { apiRequest, getValidAccessToken } = vi.hoisted(() => ({
+  apiRequest: vi.fn(),
+  getValidAccessToken: vi.fn(),
+}));
 vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
   authTokenManager: {
-    getValidAccessToken: vi.fn().mockResolvedValue(null),
+    getValidAccessToken,
     hasKnownSession: () => true,
     setAccessToken: vi.fn(),
     resetLogoutState: vi.fn(),
@@ -39,8 +42,12 @@ const emptyActivity = { items: [], total: 0, page: 1, limit: 10 };
 
 const emptyTrend = { months: 6, items: [] };
 
-function mockApi(summary = summaryData) {
+function mockApi(summary = summaryData, role: string | null = null) {
+  getValidAccessToken.mockResolvedValue(role ? 'access-token' : null);
   apiRequest.mockImplementation(({ url }: { url: string }) => {
+    if (url === '/api/v1/auth/me' && role) {
+      return Promise.resolve({ id: 'u1', email: 'a@b.test', role });
+    }
     if (url === '/api/v1/bank-transactions/pending-review-count') {
       return Promise.resolve({ count: 7 });
     }
@@ -126,6 +133,55 @@ describe('DashboardPage', () => {
         'Tổng số tiền đã thu theo từng tháng trong 3 tháng gần nhất',
       ),
     ).toBeTruthy();
+  });
+
+  it('does not spend a full-width banner on a welcome-back line', async () => {
+    mockApi();
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('100.000.000 ₫')).toBeTruthy());
+    // Brand-new organizations were greeted with "đã quay trở lại!" too.
+    expect(screen.queryByText(/quay trở lại/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Bắt đầu theo dõi công nợ'),
+    ).not.toBeInTheDocument();
+  });
+
+  const newOrgSummary = {
+    ...summaryData,
+    totalOutstanding: 0,
+    totalOverdue: 0,
+    overdueRate: 0,
+    topOverdueCustomers: [],
+  };
+
+  it('hides the getting-started steps from roles that cannot import', async () => {
+    mockApi(newOrgSummary, 'VIEWER');
+
+    renderPage();
+
+    expect(await screen.findByText('Chưa có công nợ')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Bắt đầu theo dõi công nợ'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('guides a brand-new organization to import its first invoices', async () => {
+    mockApi(newOrgSummary, 'OWNER');
+
+    renderPage();
+
+    expect(
+      await screen.findByText('Bắt đầu theo dõi công nợ'),
+    ).toBeInTheDocument();
+    // Import is the only way to create customers, so it is step one.
+    expect(
+      screen.getByRole('link', { name: /Nhập hóa đơn từ file/ }),
+    ).toHaveAttribute('href', '/receivables');
+    expect(
+      screen.getByRole('link', { name: /Đối soát tiền về/ }),
+    ).toHaveAttribute('href', '/exceptions');
   });
 
   it('uses the shared empty state when there are no overdue customers', async () => {

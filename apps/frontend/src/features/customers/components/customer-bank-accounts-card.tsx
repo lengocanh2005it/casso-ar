@@ -107,31 +107,34 @@ export function CustomerBankAccountsCard({
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 pb-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Landmark aria-hidden="true" className="size-4 text-info" />
-              <CardTitle>
+        <CardHeader className="flex flex-col gap-1.5 pb-4">
+          <div className="flex w-full items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-2">
+              <Landmark
+                aria-hidden="true"
+                className="mt-0.5 size-4 shrink-0 text-info"
+              />
+              <CardTitle className="leading-snug">
                 Tài khoản ngân hàng của khách (không bắt buộc)
               </CardTitle>
             </div>
-            <CardDescription>
-              Chỉ để hỗ trợ tự động khớp giao dịch chuyển khoản với khách hàng.
-              Bạn có thể thêm tài khoản đã biết ở đây, hoặc hệ thống sẽ ghi nhớ
-              sau khi bạn xác nhận một giao dịch khớp. Một tài khoản có thể
-              thuộc nhiều khách hàng (một bên trả hộ).
-            </CardDescription>
+            {canManage && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => setDialogState({ mode: 'create' })}
+              >
+                Thêm tài khoản
+              </Button>
+            )}
           </div>
-          {canManage && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0"
-              onClick={() => setDialogState({ mode: 'create' })}
-            >
-              Thêm tài khoản
-            </Button>
-          )}
+          <CardDescription>
+            Chỉ để hỗ trợ tự động khớp giao dịch chuyển khoản với khách hàng.
+            Bạn có thể thêm tài khoản đã biết ở đây, hoặc hệ thống sẽ ghi nhớ
+            sau khi bạn xác nhận một giao dịch khớp. Một tài khoản có thể thuộc
+            nhiều khách hàng (một bên trả hộ).
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {query.isPending && (

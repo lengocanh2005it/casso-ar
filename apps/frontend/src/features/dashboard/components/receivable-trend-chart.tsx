@@ -1,3 +1,4 @@
+import { TrendingUp } from 'lucide-react';
 import {
   Area,
   AreaChart,
@@ -7,8 +8,10 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { EmptyState } from '@/components/layout/empty-state';
 import { formatTrendMonthLabel } from '@/features/reports/components/reports-trend-chart';
 import type { ReportsTrend } from '@/features/reports/types';
+import { CHART_TICK, hasChartValue } from '@/lib/chart';
 import { formatVND } from '@/lib/format';
 
 function TrendTooltip({
@@ -41,11 +44,15 @@ function TrendTooltip({
 }
 
 export function ReceivableTrendChart({ trend }: { trend: ReportsTrend }) {
-  if (trend.items.length === 0) {
+  if (!hasChartValue(trend.items.map((item) => item.outstanding))) {
     return (
-      <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
-        Chưa có dữ liệu xu hướng.
-      </div>
+      <EmptyState
+        density="compact"
+        icon={TrendingUp}
+        title="Chưa có dữ liệu xu hướng"
+        description="Biểu đồ sẽ hiển thị khi có khoản phải thu phát sinh."
+        className="h-72"
+      />
     );
   }
 
@@ -75,18 +82,19 @@ export function ReceivableTrendChart({ trend }: { trend: ReportsTrend }) {
           />
           <XAxis
             dataKey="month"
-            interval={0}
+            interval="preserveStartEnd"
+            minTickGap={12}
             padding={{ left: 8, right: 12 }}
             tickLine={false}
             axisLine={false}
-            tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+            tick={CHART_TICK}
             tickFormatter={(value: string) => formatTrendMonthLabel(value)}
           />
           <YAxis
             width={80}
             tickLine={false}
             axisLine={false}
-            tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+            tick={CHART_TICK}
             tickFormatter={(value: number) =>
               formatVND(value).replace(/\s₫$/u, '')
             }

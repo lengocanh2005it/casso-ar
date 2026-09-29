@@ -2,6 +2,7 @@ import { Permission, ReceivableStatus } from '@casso-ar/shared-types';
 import { Receipt, Search } from 'lucide-react';
 import { PageHeading } from '@/components/layout/page-heading';
 import { SectionCard } from '@/components/layout/section-card';
+import { CardPagination } from '@/components/shared/card-pagination';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TableSkeleton } from '@/components/ui/skeleton';
@@ -101,7 +102,7 @@ export function ReceivablesPage() {
             type="search"
             autoComplete="off"
             aria-label="Tìm kiếm công nợ"
-            placeholder="Tìm theo số hóa đơn hoặc khách hàng…"
+            placeholder="Tìm số hóa đơn, khách hàng…"
             value={search}
             onChange={(event) => {
               setParam('search', event.target.value, {
@@ -133,32 +134,19 @@ export function ReceivablesPage() {
             onToggle={bulkSelection.toggle}
             onToggleAll={bulkSelection.toggleAll}
             allSelected={bulkSelection.allSelected}
+            isFiltered={Boolean(status || customerId || debouncedSearch)}
+            canCreate={
+              hasPermission(user?.role ?? null, Permission.RECEIVABLE_WRITE) ||
+              hasPermission(user?.role ?? null, Permission.RECEIVABLE_IMPORT)
+            }
           />
         )}
-        {data && data.total > 0 && (
-          <div className="-mx-6 mt-4 flex flex-col gap-3 border-t bg-muted/20 px-6 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-            <span>
-              Trang {data.page} / {totalPages}
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page === 1}
-                onClick={() => setPage(page - 1)}
-              >
-                Trước
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage(page + 1)}
-              >
-                Sau
-              </Button>
-            </div>
-          </div>
+        {data && (
+          <CardPagination
+            page={data.page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
         )}
       </SectionCard>
       <ReceivablesBulkActionBar

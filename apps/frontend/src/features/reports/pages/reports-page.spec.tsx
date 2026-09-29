@@ -241,6 +241,12 @@ describe('ReportsPage', () => {
         'Tháng hiện tại là số liệu tạm thời đến thời điểm hiện tại.',
       ),
     ).toBeTruthy();
+    // On phones the range select sits under the title instead of squeezing it.
+    expect(
+      screen
+        .getByText('Xu hướng công nợ và thu hồi')
+        .closest('[data-slot="card-header"]'),
+    ).toHaveClass('flex-col', 'sm:flex-row');
 
     fireEvent.click(screen.getByRole('combobox', { name: 'Khoảng thời gian' }));
     expect(await screen.findByRole('option', { name: '3 tháng' })).toBeTruthy();
@@ -307,11 +313,11 @@ describe('ReportsPage', () => {
     });
     renderPage();
 
+    // No filter set: say there is nothing owed, not "change the filters".
     await waitFor(() =>
-      expect(
-        screen.getByText('Không có khách hàng có công nợ hiện tại'),
-      ).toBeTruthy(),
+      expect(screen.getByText('Chưa có khách hàng còn công nợ')).toBeTruthy(),
     );
+    expect(screen.queryByText(/bộ lọc/)).toBeNull();
 
     apiRequest.mockImplementation(({ url }: { url: string }) => {
       if (url === '/api/v1/reports/aging/customers') {
@@ -364,8 +370,25 @@ describe('ReportsPage', () => {
         ),
       ).toBe(true);
     });
+    expect(screen.queryByText('Chưa có khách hàng còn công nợ')).toBeNull();
+  });
+
+  it('suggests changing the filters only when a customer aging filter is set', async () => {
+    mockReports();
+    const defaultImplementation = apiRequest.getMockImplementation();
+    apiRequest.mockImplementation(
+      ({ url, params }: { url: string; params?: object }) => {
+        if (url === '/api/v1/reports/aging/customers') {
+          return Promise.resolve({ items: [], total: 0, page: 1, limit: 20 });
+        }
+        return defaultImplementation?.({ url, params });
+      },
+    );
+    renderPage(['/reports?agingSearch=zzz']);
+
+    expect(await screen.findByText('Không có khách hàng phù hợp')).toBeTruthy();
     expect(
-      screen.queryByText('Không có khách hàng có công nợ hiện tại'),
-    ).toBeNull();
+      screen.getByText('Thử đổi từ khóa tìm kiếm hoặc nhóm tuổi nợ.'),
+    ).toBeTruthy();
   });
 });

@@ -18,7 +18,7 @@ const BORDER_COLORS = {
 const LABEL_COLORS = {
   default: 'text-foreground',
   success: 'text-success',
-  warning: 'text-warning-foreground',
+  warning: 'text-warning-strong',
   danger: 'text-destructive',
 } as const;
 
@@ -52,7 +52,9 @@ export function MetricCard({
             {label}
           </CardTitle>
         </div>
-        <p className="text-xs text-muted-foreground">{description}</p>
+        <p className="text-xs text-muted-foreground max-sm:hidden">
+          {description}
+        </p>
       </CardHeader>
       <CardContent>
         {empty ? (

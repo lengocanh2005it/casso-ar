@@ -116,14 +116,28 @@ describe('CustomerDetailPage', () => {
       contactCard?.querySelector('[data-slot="card-content"]'),
     ).toHaveClass('grid', 'sm:grid-cols-2');
 
-    const bankCard = screen
-      .getByText(/Tài khoản ngân hàng của khách/)
-      .closest('[data-slot="card"]');
-    const timelineCard = screen
-      .getByText('Lịch sử hoạt động')
-      .closest('[data-slot="card"]');
-    expect(bankCard?.parentElement).toHaveClass('grid', 'lg:grid-cols-2');
-    expect(timelineCard?.parentElement).toBe(bankCard?.parentElement);
+    // Two independent stacks (main: receivables + activity, side: credit +
+    // bank accounts) so a short card never stretches to its neighbour's
+    // height and leaves a blank block.
+    const card = (text: string | RegExp) =>
+      screen.getByText(text).closest('[data-slot="card"]');
+    const mainStack = card('Khoản phải thu')?.parentElement;
+    const sideStack = card(/Tài khoản ngân hàng của khách/)?.parentElement;
+    expect(card('Lịch sử hoạt động')?.parentElement).toBe(mainStack);
+    expect(card('Số dư tín dụng')?.parentElement).toBe(sideStack);
+    expect(mainStack?.parentElement).toBe(sideStack?.parentElement);
+    expect(mainStack?.parentElement).toHaveClass('grid', 'lg:grid-cols-3');
+
+    // Receivable rows say what the amount is and when it is due.
+    const row = screen
+      .getByRole('link', { name: 'INV-2026-001' })
+      .closest('li');
+    expect(row).toHaveTextContent('Còn lại');
+    expect(row).toHaveTextContent('Hạn 01/09/2026');
+    expect(screen.getByRole('link', { name: 'Khách hàng' })).toHaveAttribute(
+      'href',
+      '/customers',
+    );
   });
 
   it('shows an allocation action for each unapplied payment', async () => {

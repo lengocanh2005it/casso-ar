@@ -1,3 +1,5 @@
+import { PieChart } from 'lucide-react';
+import { EmptyState } from '@/components/layout/empty-state';
 import { formatVND } from '@/lib/format';
 
 interface OverdueDonutChartProps {
@@ -13,9 +15,13 @@ export function OverdueDonutChart({
 
   if (totalOutstanding === 0) {
     return (
-      <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
-        Chưa có dữ liệu công nợ.
-      </div>
+      <EmptyState
+        density="compact"
+        icon={PieChart}
+        title="Chưa có công nợ"
+        description="Tỷ lệ quá hạn sẽ hiển thị khi có khoản phải thu còn lại."
+        className="h-72"
+      />
     );
   }
 

@@ -1,8 +1,9 @@
-import { FileSearch } from 'lucide-react';
+import { CheckCheck, FileSearch, Search, SearchX } from 'lucide-react';
 import { useState } from 'react';
 import { EmptyState } from '@/components/layout/empty-state';
 import { PageHeading } from '@/components/layout/page-heading';
 import { SectionCard } from '@/components/layout/section-card';
+import { CardPagination } from '@/components/shared/card-pagination';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -71,13 +72,17 @@ export function ExceptionsPage() {
         title="Giao dịch cần rà soát"
         description="Tìm kiếm, chọn và xử lý các giao dịch chưa khớp."
       >
-        <div className="mb-4 rounded-lg border bg-muted/20 p-3">
+        <div className="relative mb-4 sm:max-w-md">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
           <Input
             name="search"
             type="search"
             autoComplete="off"
             aria-label="Tìm kiếm giao dịch"
-            placeholder="Tìm theo tên, số tài khoản hoặc nội dung chuyển khoản…"
+            placeholder="Tìm tên, số tài khoản, nội dung…"
             value={search}
             onChange={(event) =>
               setParam('search', event.target.value, {
@@ -85,7 +90,7 @@ export function ExceptionsPage() {
                 replace: true,
               })
             }
-            className="max-w-lg bg-background"
+            className="pl-9"
           />
         </div>
         {isPending && <TableSkeleton rows={5} />}
@@ -97,7 +102,7 @@ export function ExceptionsPage() {
         {data && data.items.length === 0 && (
           <div role="status" aria-live="polite">
             <EmptyState
-              icon={FileSearch}
+              icon={search ? SearchX : CheckCheck}
               title={
                 search
                   ? 'Không tìm thấy giao dịch phù hợp.'
@@ -106,14 +111,14 @@ export function ExceptionsPage() {
               description={
                 search
                   ? 'Thử thay đổi từ khóa để xem thêm giao dịch.'
-                  : 'Các giao dịch cần đối soát sẽ xuất hiện tại đây.'
+                  : 'Mọi khoản tiền về đã được khớp. Giao dịch cần đối soát sẽ xuất hiện tại đây.'
               }
             />
           </div>
         )}
         {data && data.items.length > 0 && (
           <Table>
-            <TableHeader>
+            <TableHeader className="max-md:hidden">
               <TableRow>
                 <TableHead className="w-10">
                   <Checkbox
@@ -125,15 +130,22 @@ export function ExceptionsPage() {
                 <TableHead>Ngày giờ</TableHead>
                 <TableHead>Người chuyển khoản</TableHead>
                 <TableHead>Nội dung chuyển khoản</TableHead>
-                <TableHead>Số tiền</TableHead>
+                <TableHead className="text-right">Số tiền</TableHead>
                 <TableHead>Điểm cao nhất</TableHead>
-                <TableHead>Thao tác</TableHead>
+                <TableHead>
+                  <span className="sr-only">Thao tác</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.items.map((row) => (
-                <TableRow key={row.transaction.id}>
+                // Below md: [☐] payer ........ amount / content / date · score · Xử lý
+                <TableRow
+                  key={row.transaction.id}
+                  className="max-md:grid max-md:grid-cols-[auto_minmax(0,1fr)_auto] max-md:items-center max-md:gap-x-3 max-md:gap-y-1.5 max-md:px-1 max-md:py-3"
+                >
                   <TableCell
+                    className="max-md:col-start-1 max-md:row-span-3 max-md:row-start-1 max-md:self-start max-md:p-0"
                     onClick={(event) => event.stopPropagation()}
                     onKeyDown={(event) => event.stopPropagation()}
                   >
@@ -145,39 +157,42 @@ export function ExceptionsPage() {
                       }
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap tabular-nums max-md:col-start-2 max-md:row-start-3 max-md:p-0 max-md:text-xs max-md:text-muted-foreground">
                     {formatDateTime(row.transaction.transactionDateTime)}
                   </TableCell>
-                  <TableCell className="max-w-64 break-words">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <InitialsAvatar
-                          name={row.transaction.counterpartyName ?? '—'}
-                          size="sm"
-                        />
-                        {row.transaction.counterpartyName ?? '—'}
+                  <TableCell className="max-w-64 max-md:col-start-2 max-md:row-start-1 max-md:max-w-none max-md:p-0">
+                    <div className="flex min-w-0 items-start gap-2">
+                      <InitialsAvatar
+                        name={row.transaction.counterpartyName ?? '—'}
+                        size="sm"
+                        className="max-md:hidden"
+                      />
+                      <div className="min-w-0 space-y-1">
+                        <p className="font-medium break-words">
+                          {row.transaction.counterpartyName ?? '—'}
+                        </p>
+                        {row.payer?.accountNumberMasked && (
+                          <p className="text-xs text-muted-foreground tabular-nums">
+                            {row.payer.accountNumberMasked}
+                          </p>
+                        )}
+                        {(row.payer?.linkedCustomers ?? []).length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {row.payer.linkedCustomers.map((c) => (
+                              <Badge
+                                key={c.customerId}
+                                variant="secondary"
+                                className="text-[10px]"
+                              >
+                                {c.customerName}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      {row.payer?.accountNumberMasked && (
-                        <span className="text-xs text-muted-foreground tabular-nums">
-                          {row.payer.accountNumberMasked}
-                        </span>
-                      )}
-                      {(row.payer?.linkedCustomers ?? []).length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {row.payer.linkedCustomers.map((c) => (
-                            <Badge
-                              key={c.customerId}
-                              variant="secondary"
-                              className="text-[10px]"
-                            >
-                              {c.customerName}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </TableCell>
-                  <TableCell className="max-w-64 break-words">
+                  <TableCell className="max-w-64 break-words max-md:col-span-2 max-md:col-start-2 max-md:row-start-2 max-md:max-w-none max-md:p-0 max-md:text-sm">
                     {row.transaction.transferContent?.trim() ? (
                       <span
                         className="line-clamp-2"
@@ -191,27 +206,30 @@ export function ExceptionsPage() {
                       </span>
                     )}
                   </TableCell>
-                  <TableCell className="tabular-nums">
+                  <TableCell className="text-right font-semibold whitespace-nowrap tabular-nums max-md:col-start-3 max-md:row-start-1 max-md:self-start max-md:p-0">
                     {formatVND(row.transaction.amount)}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col items-start gap-1">
+                  <TableCell className="max-md:col-start-2 max-md:row-start-3 max-md:justify-self-end max-md:p-0">
+                    <div className="flex flex-col items-start gap-1 max-md:flex-row max-md:items-center">
                       {row.topCandidate ? (
                         <Badge variant="outline">
                           {row.topCandidate.totalScore}/100
                         </Badge>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <span className="text-muted-foreground max-md:hidden">
+                          —
+                        </span>
                       )}
                       <AiRecommendationBadge
                         recommendation={row.aiRecommendation}
                       />
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-right max-md:col-start-3 max-md:row-start-3 max-md:p-0">
                     <Button
                       variant="link"
                       size="sm"
+                      className="max-md:h-auto max-md:px-0"
                       onClick={() => setSelected(row)}
                     >
                       Xử lý
@@ -222,6 +240,13 @@ export function ExceptionsPage() {
             </TableBody>
           </Table>
         )}
+        {data && (
+          <CardPagination
+            page={data.page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        )}
       </SectionCard>
       {data && (
         <ExceptionsBulkActionBar
@@ -229,32 +254,7 @@ export function ExceptionsPage() {
           selectedIds={bulkSelection.selectedIds}
           onResult={(succeeded) => bulkSelection.drop(succeeded)}
         />
-      )}
-      {data && data.total > 0 && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>
-            Trang {data.page} / {totalPages}
-          </span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page === 1}
-              onClick={() => setPage(page - 1)}
-            >
-              Trước
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages}
-              onClick={() => setPage(page + 1)}
-            >
-              Sau
-            </Button>
-          </div>
-        </div>
-      )}
+      )}{' '}
       {selected && (
         <SplitMatchDialog
           tx={selected.transaction}

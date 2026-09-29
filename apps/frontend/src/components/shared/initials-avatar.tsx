@@ -29,7 +29,7 @@ function getInitials(name: string): string {
 const TONE_CLASSES = [
   'bg-primary/10 text-primary',
   'bg-success/10 text-success',
-  'bg-warning/10 text-warning',
+  'bg-warning/10 text-warning-strong',
   'bg-info/10 text-info',
 ];
 

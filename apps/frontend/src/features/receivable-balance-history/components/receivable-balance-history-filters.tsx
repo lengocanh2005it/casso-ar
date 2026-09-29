@@ -1,4 +1,5 @@
 import { ReceivableStatus } from '@casso-ar/shared-types';
+import { RECEIVABLE_STATUS_LABELS } from '@/components/receivable-status-badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -21,14 +22,9 @@ export interface ReceivableBalanceHistoryFilterValues {
 export const RECEIVABLE_STATUS_OPTIONS: Array<{
   value: ReceivableStatus;
   label: string;
-}> = [
-  { value: ReceivableStatus.DRAFT, label: 'Nháp' },
-  { value: ReceivableStatus.OPEN, label: 'Mở' },
-  { value: ReceivableStatus.PARTIALLY_PAID, label: 'Đã thu một phần' },
-  { value: ReceivableStatus.PAID, label: 'Đã thu' },
-  { value: ReceivableStatus.WRITTEN_OFF, label: 'Xóa nợ' },
-  { value: ReceivableStatus.CANCELLED, label: 'Đã hủy' },
-];
+}> = (
+  Object.entries(RECEIVABLE_STATUS_LABELS) as Array<[ReceivableStatus, string]>
+).map(([value, label]) => ({ value, label }));
 
 export const CHANGE_SOURCE_OPTIONS: Array<{
   value: ReceivableBalanceHistoryChangeSource;

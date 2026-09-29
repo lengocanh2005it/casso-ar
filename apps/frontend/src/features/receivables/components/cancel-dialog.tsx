@@ -25,7 +25,7 @@ export function CancelDialog({ receivableId }: { receivableId: string }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">Hủy</Button>
+        <Button variant="outline">Hủy khoản phải thu</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

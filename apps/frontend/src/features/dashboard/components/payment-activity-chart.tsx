@@ -1,3 +1,4 @@
+import { CreditCard } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -7,8 +8,10 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { EmptyState } from '@/components/layout/empty-state';
 import { formatTrendMonthLabel } from '@/features/reports/components/reports-trend-chart';
 import type { ReportsTrend } from '@/features/reports/types';
+import { CHART_TICK, hasChartValue } from '@/lib/chart';
 import { formatVND } from '@/lib/format';
 
 function PaymentTooltip({
@@ -39,11 +42,15 @@ function PaymentTooltip({
 }
 
 export function PaymentActivityChart({ trend }: { trend: ReportsTrend }) {
-  if (trend.items.length === 0) {
+  if (!hasChartValue(trend.items.map((item) => item.collected))) {
     return (
-      <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
-        Chưa có dữ liệu thanh toán.
-      </div>
+      <EmptyState
+        density="compact"
+        icon={CreditCard}
+        title="Chưa có khoản thu nào"
+        description="Tiền về tài khoản được khớp vào công nợ sẽ hiển thị theo tháng tại đây."
+        className="h-72"
+      />
     );
   }
 
@@ -63,9 +70,11 @@ export function PaymentActivityChart({ trend }: { trend: ReportsTrend }) {
           />
           <XAxis
             dataKey="month"
+            interval="preserveStartEnd"
+            minTickGap={12}
             tickLine={false}
             axisLine={false}
-            tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+            tick={CHART_TICK}
             tickFormatter={(value: string) =>
               formatTrendMonthLabel(value, value === currentMonth)
             }
@@ -74,7 +83,7 @@ export function PaymentActivityChart({ trend }: { trend: ReportsTrend }) {
             width={80}
             tickLine={false}
             axisLine={false}
-            tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+            tick={CHART_TICK}
             tickFormatter={(value: number) =>
               formatVND(value).replace(/\s₫$/u, '')
             }

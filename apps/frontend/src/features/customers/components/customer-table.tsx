@@ -1,8 +1,9 @@
-import { Users } from 'lucide-react';
+import { SearchX, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/layout/empty-state';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -14,13 +15,34 @@ import {
 import type { Customer } from '@/features/customers/types';
 import { formatDateTime } from '@/lib/format';
 
-export function CustomerTable({ customers }: { customers: Customer[] }) {
+export function CustomerTable({
+  customers,
+  isFiltered = false,
+  canImport = false,
+}: {
+  customers: Customer[];
+  isFiltered?: boolean;
+  canImport?: boolean;
+}) {
   if (customers.length === 0) {
-    return (
+    return isFiltered ? (
       <EmptyState
-        icon={Users}
+        icon={SearchX}
         title="Chưa có khách hàng phù hợp"
         description="Thử thay đổi từ khóa hoặc bộ lọc để xem thêm kết quả."
+      />
+    ) : (
+      <EmptyState
+        icon={Users}
+        title="Chưa có khách hàng nào"
+        description="Khách hàng được tạo tự động khi bạn nhập hóa đơn từ file."
+        action={
+          canImport ? (
+            <Button asChild variant="outline" size="sm">
+              <Link to="/receivables">Nhập hóa đơn</Link>
+            </Button>
+          ) : undefined
+        }
       />
     );
   }

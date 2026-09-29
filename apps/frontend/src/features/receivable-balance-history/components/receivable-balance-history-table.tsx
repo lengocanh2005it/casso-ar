@@ -1,8 +1,8 @@
 import { History } from 'lucide-react';
 import { Fragment } from 'react';
 import { EmptyState } from '@/components/layout/empty-state';
+import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -15,15 +15,6 @@ import {
 import { formatDateTime, formatVND } from '@/lib/format';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import type { ReceivableBalanceHistoryListItem } from '../types';
-
-const STATUS_LABELS: Record<string, string> = {
-  DRAFT: 'Nháp',
-  OPEN: 'Mở',
-  PARTIALLY_PAID: 'Đã thu một phần',
-  PAID: 'Đã thu',
-  WRITTEN_OFF: 'Xóa nợ',
-  CANCELLED: 'Đã hủy',
-};
 
 const ACTOR_LABELS: Record<string, string> = {
   USER: 'Người dùng',
@@ -138,9 +129,7 @@ export function ReceivableBalanceHistoryTable({ items }: TableProps) {
                   </span>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline">
-                    {STATUS_LABELS[item.status] ?? 'Không rõ trạng thái'}
-                  </Badge>
+                  <ReceivableStatusBadge status={item.status} />
                 </TableCell>
                 <TableCell className="tabular-nums font-semibold">
                   {formatVND(item.remainingAmount)}
