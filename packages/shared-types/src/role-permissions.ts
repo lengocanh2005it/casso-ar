@@ -25,6 +25,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.CUSTOMER_READ,
     Permission.ORGANIZATION_READ,
     Permission.CUSTOMER_BANK_ACCOUNT_MANAGE,
+    Permission.BANK_CONNECTION_READ,
+    Permission.BANK_CONNECTION_MANAGE,
     Permission.BANK_CONNECTION_REVEAL_KEY,
   ],
   [Role.ACCOUNTANT]: [

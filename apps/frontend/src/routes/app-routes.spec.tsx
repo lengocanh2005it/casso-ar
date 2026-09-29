@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from '@/App';
@@ -30,6 +36,7 @@ vi.mock('@/features/exceptions/api/use-review-count', () => ({
 
 describe('application routes', () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -171,7 +178,7 @@ describe('application routes', () => {
     );
   }, 15_000);
 
-  it('redirects an authenticated organization without a bank link to onboarding', async () => {
+  it('lets an unlinked organization use an authenticated app route', async () => {
     getValidAccessToken.mockResolvedValue('access-token');
     apiRequest.mockImplementation(({ url }: { url: string }) => {
       if (url === '/api/v1/auth/me') {
@@ -189,17 +196,138 @@ describe('application routes', () => {
       return new Promise(() => {});
     });
 
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
     render(
-      <AuthProvider>
-        <MemoryRouter initialEntries={['/dashboard']}>
-          <AppRoutes />
-        </MemoryRouter>
-      </AuthProvider>,
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <AuthProvider>
+            <MemoryRouter initialEntries={['/customers']}>
+              <AppRoutes />
+            </MemoryRouter>
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>,
     );
 
     await waitFor(
-      () => expect(screen.getByText('Liên kết ngân hàng')).toBeVisible(),
+      () =>
+        expect(
+          screen.getByRole('heading', { name: /khách hàng/i }),
+        ).toBeVisible(),
       { timeout: 15_000 },
     );
   }, 20_000);
+
+  it('lets an OWNER skip unlinked onboarding and reach the dashboard', async () => {
+    getValidAccessToken.mockResolvedValue('access-token');
+    vi.stubGlobal(
+      'EventSource',
+      class {
+        onmessage: ((event: MessageEvent) => void) | null = null;
+        close() {}
+      },
+    );
+    apiRequest.mockImplementation(({ url }: { url: string }) => {
+      if (url === '/api/v1/auth/me') {
+        return Promise.resolve({
+          id: 'user-1',
+          email: 'owner@example.com',
+          name: 'Owner',
+          role: 'OWNER',
+          organizationId: 'org-1',
+          organizationName: 'Org',
+          subscriptionPlan: 'FREE',
+          bankingLinked: false,
+        });
+      }
+      return new Promise(() => {});
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <AuthProvider>
+            <MemoryRouter initialEntries={['/onboarding']}>
+              <AppRoutes />
+            </MemoryRouter>
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: /bỏ qua, đến trang chủ/i }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Trang chủ' })).toBeVisible(),
+    );
+  }, 20_000);
+
+  it('updates the sync notice in both directions on the 60-second profile refresh', async () => {
+    vi.useFakeTimers();
+    getValidAccessToken.mockResolvedValue('access-token');
+    const linkStates = [false, true, false];
+    apiRequest.mockImplementation(({ url }: { url: string }) => {
+      if (url === '/api/v1/auth/me') {
+        return Promise.resolve({
+          id: 'user-1',
+          email: 'manager@example.com',
+          name: 'Manager',
+          role: 'FINANCE_MANAGER',
+          organizationId: 'org-1',
+          organizationName: 'Org',
+          subscriptionPlan: 'FREE',
+          bankingLinked: linkStates.shift() ?? false,
+        });
+      }
+      return new Promise(() => {});
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <AuthProvider>
+            <MemoryRouter initialEntries={['/dashboard']}>
+              <AppRoutes />
+            </MemoryRouter>
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(
+      screen.getByText(/tổ chức chưa có kết nối ngân hàng/i),
+    ).toBeVisible();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(
+      screen.queryByText(/tổ chức chưa có kết nối ngân hàng/i),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(
+      screen.getByText(/tổ chức chưa có kết nối ngân hàng/i),
+    ).toBeVisible();
+  });
 });

@@ -76,6 +76,19 @@ describe('OnboardingPage', () => {
     expect(screen.getByText(/owner hoặc finance manager/i)).toBeInTheDocument();
   });
 
+  it('lets an unlinked owner skip onboarding and continue to the dashboard', async () => {
+    usePreviewCassoFlowAccountsMock.mockReturnValue({} as never);
+    useConfirmCassoFlowMock.mockReturnValue({} as never);
+
+    renderPage({ role: 'OWNER', bankingLinked: false });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /bỏ qua, đến trang chủ/i }),
+    );
+
+    expect(await screen.findByText('dashboard')).toBeInTheDocument();
+  });
+
   it('shows the logo and lets the user log out without connecting', () => {
     usePreviewCassoFlowAccountsMock.mockReturnValue({} as never);
     useConfirmCassoFlowMock.mockReturnValue({} as never);

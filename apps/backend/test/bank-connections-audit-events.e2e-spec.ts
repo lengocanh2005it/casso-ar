@@ -101,10 +101,12 @@ describe('Bank connections audit events (e2e)', () => {
     await container.stop();
   });
 
-  it('records and returns history of connect, rotate and disconnect for an authorization', async () => {
+  it('lets FINANCE_MANAGER manage connections and records their audit history', async () => {
     const organizationId = '00000000-0000-4000-8000-000000000401';
     const ownerUserId = '00000000-0000-4000-8000-000000000402';
     const accountantUserId = '00000000-0000-4000-8000-000000000403';
+    const financeManagerUserId = '00000000-0000-4000-8000-000000000405';
+    const viewerUserId = '00000000-0000-4000-8000-000000000406';
 
     await dataSource.getRepository(OrganizationOrmEntity).save({
       id: organizationId,
@@ -147,6 +149,22 @@ describe('Bank connections audit events (e2e)', () => {
         emailVerifiedAt: new Date(),
         createdAt: new Date(),
       },
+      {
+        id: financeManagerUserId,
+        name: 'Finance Manager User',
+        email: 'finance-manager@example.com',
+        passwordHash: 'test-hash',
+        emailVerifiedAt: new Date(),
+        createdAt: new Date(),
+      },
+      {
+        id: viewerUserId,
+        name: 'Viewer User',
+        email: 'viewer@example.com',
+        passwordHash: 'test-hash',
+        emailVerifiedAt: new Date(),
+        createdAt: new Date(),
+      },
     ]);
 
     await dataSource.getRepository(MembershipOrmEntity).save([
@@ -166,6 +184,22 @@ describe('Bank connections audit events (e2e)', () => {
         joinedAt: new Date(),
         createdAt: new Date(),
       },
+      {
+        organizationId,
+        userId: financeManagerUserId,
+        role: Role.FINANCE_MANAGER,
+        invitedAt: new Date(),
+        joinedAt: new Date(),
+        createdAt: new Date(),
+      },
+      {
+        organizationId,
+        userId: viewerUserId,
+        role: Role.VIEWER,
+        invitedAt: new Date(),
+        joinedAt: new Date(),
+        createdAt: new Date(),
+      },
     ]);
 
     const ownerToken = jwtService.sign({
@@ -178,11 +212,36 @@ describe('Bank connections audit events (e2e)', () => {
       organizationId,
       role: Role.ACCOUNTANT,
     });
+    const financeManagerToken = jwtService.sign({
+      userId: financeManagerUserId,
+      organizationId,
+      role: Role.FINANCE_MANAGER,
+    });
+    const viewerToken = jwtService.sign({
+      userId: viewerUserId,
+      organizationId,
+      role: Role.VIEWER,
+    });
 
-    // 1. Connect
+    await request(app.getHttpServer())
+      .post('/api/v1/bank-connections/casso-flow/preview')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ apiKey: 'initial-key-0000' })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/bank-connections')
+      .set('Authorization', `Bearer ${financeManagerToken}`)
+      .expect(200);
+    await request(app.getHttpServer())
+      .get('/api/v1/bank-connections')
+      .set('Authorization', `Bearer ${viewerToken}`)
+      .expect(403);
+
+    // 1. Connect as FINANCE_MANAGER
     const connectRes = await request(app.getHttpServer())
       .post('/api/v1/bank-connections/casso-flow/confirm')
-      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('Authorization', `Bearer ${financeManagerToken}`)
       .set('Idempotency-Key', 'e2e-connect-key-1')
       .send({
         apiKey: 'initial-key-0000',
@@ -198,23 +257,29 @@ describe('Bank connections audit events (e2e)', () => {
       .findOneByOrFail({ id: connectionId });
     const authorizationId = connectionRow.cassoFlowAuthorizationId;
 
-    // 2. Rotate
+    // 2. Rotate as FINANCE_MANAGER
     await request(app.getHttpServer())
       .post(
         `/api/v1/bank-connections/authorizations/${authorizationId}/casso-flow/confirm`,
       )
-      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('Authorization', `Bearer ${financeManagerToken}`)
       .set('Idempotency-Key', 'e2e-rotate-key-1')
       .send({ apiKey: 'new-api-key-1234' })
       .expect(201);
 
-    // 3. Disconnect
+    // 3. Disconnect as FINANCE_MANAGER
     await request(app.getHttpServer())
       .post(`/api/v1/bank-connections/${connectionId}/disconnect`)
-      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('Authorization', `Bearer ${financeManagerToken}`)
       .set('Idempotency-Key', 'e2e-disconnect-key-1')
       .send()
       .expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/bank-connections/${connectionId}/disconnect`)
+      .set('Authorization', `Bearer ${accountantToken}`)
+      .send()
+      .expect(403);
 
     // 4. List audit events as OWNER -> 200
     const historyRes = await request(app.getHttpServer())
@@ -231,11 +296,11 @@ describe('Bank connections audit events (e2e)', () => {
 
     // Newest first: DISCONNECTED
     expect(event1.eventType).toBe('DISCONNECTED');
-    expect(event1.actorUserId).toBe(ownerUserId);
+    expect(event1.actorUserId).toBe(financeManagerUserId);
 
     // Second: API_KEY_ROTATED
     expect(event2.eventType).toBe('API_KEY_ROTATED');
-    expect(event2.actorUserId).toBe(ownerUserId);
+    expect(event2.actorUserId).toBe(financeManagerUserId);
     expect(event2.oldMaskedApiKey).toBe('••••0000');
     expect(event2.newMaskedApiKey).toBe('••••1234');
     expect(event2.oldBankName).toBe('Initial Bank');
@@ -245,7 +310,7 @@ describe('Bank connections audit events (e2e)', () => {
 
     // Third: TOKEN_EXCHANGED
     expect(event3.eventType).toBe('TOKEN_EXCHANGED');
-    expect(event3.actorUserId).toBe(ownerUserId);
+    expect(event3.actorUserId).toBe(financeManagerUserId);
     expect(event3.maskedApiKey).toBe('••••0000');
 
     // 5. List audit events as ACCOUNTANT -> 403 Forbidden

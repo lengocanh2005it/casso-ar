@@ -1,0 +1,5 @@
+# Optional bank linking during onboarding
+
+**Status:** accepted
+
+Issue #401 revisits the mandatory onboarding gate from #244. After email verification, onboarding offers bank linking or a skip to the dashboard; active organization members can use ordinary app routes under existing RBAC and organization/member access checks. A non-dismissible app-shell notice explains that automatic transaction sync is unavailable whenever the organization has no active bank connection; members with `BANK_CONNECTION_MANAGE` can open `/bank-connections`, while others are told to ask an OWNER or FINANCE_MANAGER. To honor that guidance, FINANCE_MANAGER receives `BANK_CONNECTION_READ` and full `BANK_CONNECTION_MANAGE` authority, including connection, API-key rotation, and disconnection; signup still collects no Casso Flow API key. Every open app session refreshes `/auth/me` every 60 seconds so the notice reflects both activation and loss of the organization's last active connection. This lowers setup friction while keeping the missing automatic sync visible.

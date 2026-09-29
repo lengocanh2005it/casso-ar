@@ -49,6 +49,12 @@ A B2B SaaS platform for automating accounts receivable management and collection
 | **CopilotPendingAction** | Action awaiting user confirmation | `id`, `conversationId`, `status` |
 | **Alert** | Owner-facing, in-app, actionable event (bank connection needs reauth/errored, SMTP FAILED, reminder scan summary). Not the same as `notifications/` (the email queue) — see ADR-0013. `readAt: null` = UNREAD, non-null = READ (one-way transition, not a full state machine). One unread `Alert` per `(userId, entityType, entityId, type)` — a repeat event refreshes `createdAt` instead of inserting a duplicate row | `id`, `organizationId`, `userId`, `type`, `entityType`, `entityId`, `readAt`, `createdAt` |
 
+## Banking Terms
+
+| Term | Meaning |
+|------|---------|
+| **Bank-linked organization** | An organization with at least one active `BankConnection`. A `CassoFlowAuthorization` alone does not qualify; without an active bank connection, automatic transaction sync is unavailable. |
+
 ## Collection Terms
 
 | Term | Meaning |
@@ -278,6 +284,7 @@ Score components:
 | 0025 | Ownership-transfer acceptance has no secret token, JWT-auth-only (proposed) | Target is an existing account, not a pre-auth invitee like `MembershipInvite` — authenticated `userId` match is already sufficient, so a magic-link token would add a redundant credential; issue #322 |
 | 0026 | Defer signup provisioning to email verification via `PendingSignup`, lazy-reclaim TTL (shipped PR #338) | Closes false-`PENDING_REVIEW` triage load from unverified signups (issue #331/#336); reuses `OwnershipTransferRequest`/`IdempotencyKey`'s lazy-reclaim pattern (ADR-0015) instead of adding a cron, even though `PendingSignup` carries a password hash, because the TTL window is short (10 min) |
 | 0027 | Signup abuse hardening: per-dimension rate-limit escalation instead of CAPTCHA; structured logging instead of a new pre-tenant audit table (proposed) | Issue #337's AC explicitly allows an "equivalent risk control", not just a CAPTCHA — escalating throttling needs no third-party dependency, frontend widget, or secret key; signup/verify events have no `organizationId` yet, and tenant `AuditLog` requires one non-null, so a persisted pre-tenant audit table would be a third audit-table pattern (after `AuditLog` and `OperatorAuditLog`) built before any consumer needs to query it |
+| 0029 | Optional bank linking during onboarding (accepted) | Issue #401 lets unlinked members use app routes with a persistent sync-status notice; FINANCE_MANAGER can manage connections, and open sessions refresh status every 60 seconds |
 
 ## Constraints
 
