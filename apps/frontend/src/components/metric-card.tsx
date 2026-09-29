@@ -52,7 +52,9 @@ export function MetricCard({
             {label}
           </CardTitle>
         </div>
-        <p className="text-xs text-muted-foreground">{description}</p>
+        <p className="text-xs text-muted-foreground max-sm:hidden">
+          {description}
+        </p>
       </CardHeader>
       <CardContent>
         {empty ? (

@@ -37,6 +37,22 @@ describe('MetricCard', () => {
     );
   });
 
+  it('drops the restating description on phones to keep stacked cards short', () => {
+    render(
+      <MetricCard
+        label="Tổng công nợ còn lại"
+        description="Tất cả công nợ chưa thanh toán"
+        value="616.000.000 ₫"
+        icon={CircleDollarSign}
+      />,
+    );
+
+    // Nine full-height cards made the reports page ~1300px of KPIs on mobile.
+    expect(screen.getByText('Tất cả công nợ chưa thanh toán')).toHaveClass(
+      'max-sm:hidden',
+    );
+  });
+
   it('shows a muted no-data message instead of a bare value when empty', () => {
     render(
       <MetricCard

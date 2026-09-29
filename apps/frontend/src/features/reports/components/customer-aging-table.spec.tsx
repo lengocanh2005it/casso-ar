@@ -49,4 +49,16 @@ describe('CustomerAgingTable', () => {
     expect(notDueCell.className).not.toMatch(/text-destructive/);
     expect(notDueCell.className).not.toMatch(/text-warning/);
   });
+
+  it('fits bucket headers and keeps the sticky total opaque on the card', () => {
+    render(<CustomerAgingTable page={buildPage()} />);
+
+    // Nowrap "Quá hạn trên 60 ngày" slid under the sticky total column.
+    expect(
+      screen.getByRole('columnheader', { name: 'Quá hạn trên 60 ngày' }),
+    ).toHaveClass('whitespace-normal', 'text-right');
+    // bg-background differed from the card surface in dark mode.
+    expect(screen.getByText('106.000.000 ₫')).toHaveClass('bg-card');
+    expect(screen.getByText('62.000.000 ₫')).toHaveClass('text-right');
+  });
 });

@@ -183,7 +183,7 @@ export function ReportsPage() {
               <CardTitle>Phân bổ tuổi nợ</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="flex flex-1 flex-col justify-center">
+          <CardContent>
             <AgingTable
               report={agingQuery.data}
               totalOutstanding={summaryQuery.data.totalOutstanding}
@@ -234,8 +234,17 @@ export function ReportsPage() {
               <EmptyState
                 density="compact"
                 icon={Users}
-                title="Không có khách hàng có công nợ hiện tại"
-                description="Thử thay đổi bộ lọc để xem thêm kết quả."
+                {...(agingSearch || agingBucket !== 'ALL'
+                  ? {
+                      title: 'Không có khách hàng phù hợp',
+                      description:
+                        'Thử đổi từ khóa tìm kiếm hoặc nhóm tuổi nợ.',
+                    }
+                  : {
+                      title: 'Chưa có khách hàng còn công nợ',
+                      description:
+                        'Khách hàng có khoản phải thu chưa thu đủ sẽ xuất hiện tại đây.',
+                    })}
               />
             )}
           {customerAgingQuery.data &&
@@ -270,7 +279,7 @@ export function ReportsPage() {
         </CardContent>
       </Card>
       <Card className="overflow-hidden">
-        <CardHeader className="flex flex-row items-center justify-between gap-4">
+        <CardHeader className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
           <div className="flex min-w-0 items-center gap-2">
             <TrendingUp
               aria-hidden="true"
