@@ -419,4 +419,34 @@ describe('RefreshAccessTokenUseCase grace window and sessions', () => {
 
     expect(refreshTokenRepo.revokeAllForUser).toHaveBeenCalledWith('user-1');
   });
+
+  it('starts a session when it rotates a token that predates sessions', async () => {
+    const { useCase, refreshTokenRepo } = makeUseCase({
+      probe: makeToken({ sessionId: null }),
+    });
+
+    await useCase.execute(raw);
+
+    const [rotated, created] = refreshTokenRepo.save.mock.calls.map(
+      ([token]) => token as RefreshToken,
+    );
+    expect(created.sessionId).toEqual(expect.any(String));
+    expect(rotated.replacedByTokenId).toBe(created.id);
+  });
+
+  it('joins the successor session when a grace replay presents a token that predates sessions', async () => {
+    const { useCase, refreshTokenRepo } = makeUseCase({
+      probe: makeToken({
+        sessionId: null,
+        revokedAt: new Date(now - 2_000),
+        replacedByTokenId: 'token-2',
+      }),
+      successor: liveSuccessor({ sessionId: 'session-from-rotation' }),
+    });
+
+    await useCase.execute(raw);
+
+    const created = refreshTokenRepo.save.mock.calls[0][0] as RefreshToken;
+    expect(created.sessionId).toBe('session-from-rotation');
+  });
 });
