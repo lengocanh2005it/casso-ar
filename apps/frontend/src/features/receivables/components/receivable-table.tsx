@@ -35,6 +35,7 @@ export function ReceivableTable({
   onToggleAll,
   allSelected,
   isFiltered = false,
+  canCreate = false,
 }: {
   receivables: Receivable[];
   selectedIds: string[];
@@ -42,6 +43,7 @@ export function ReceivableTable({
   onToggleAll: () => void;
   allSelected: boolean;
   isFiltered?: boolean;
+  canCreate?: boolean;
 }) {
   function isBulkEligible(status: Receivable['status']): boolean {
     return (
@@ -61,7 +63,11 @@ export function ReceivableTable({
       <EmptyState
         icon={Receipt}
         title="Chưa có khoản phải thu nào"
-        description="Bấm “Tạo khoản phải thu” hoặc “Nhập hóa đơn” ở đầu trang để bắt đầu theo dõi công nợ."
+        description={
+          canCreate
+            ? 'Bấm “Tạo khoản phải thu” hoặc “Nhập hóa đơn” ở đầu trang để bắt đầu theo dõi công nợ.'
+            : 'Khoản phải thu của tổ chức sẽ hiển thị tại đây.'
+        }
       />
     );
   }

@@ -19,6 +19,10 @@ vi.mock('@/lib/use-url-query-params', () => ({
   }),
 }));
 
+vi.mock('@/contexts/auth-context', () => ({
+  useAuth: () => ({ user: { role: 'OWNER' } }),
+}));
+
 describe('CustomersPage', () => {
   it('renders a customer row with a link to its detail route', async () => {
     apiRequest.mockResolvedValue({

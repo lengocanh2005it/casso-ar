@@ -18,9 +18,11 @@ import { formatDateTime } from '@/lib/format';
 export function CustomerTable({
   customers,
   isFiltered = false,
+  canImport = false,
 }: {
   customers: Customer[];
   isFiltered?: boolean;
+  canImport?: boolean;
 }) {
   if (customers.length === 0) {
     return isFiltered ? (
@@ -35,9 +37,11 @@ export function CustomerTable({
         title="Chưa có khách hàng nào"
         description="Khách hàng được tạo tự động khi bạn nhập hóa đơn từ file."
         action={
-          <Button asChild variant="outline" size="sm">
-            <Link to="/receivables">Nhập hóa đơn</Link>
-          </Button>
+          canImport ? (
+            <Button asChild variant="outline" size="sm">
+              <Link to="/receivables">Nhập hóa đơn</Link>
+            </Button>
+          ) : undefined
         }
       />
     );

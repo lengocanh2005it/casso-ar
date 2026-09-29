@@ -1,3 +1,4 @@
+import { Permission } from '@casso-ar/shared-types';
 import {
   Activity,
   AlertTriangle,
@@ -33,6 +34,7 @@ import {
 import { parseTrendMonths } from '@/features/reports/trend-months';
 import type { TrendMonths } from '@/features/reports/types';
 import { formatVND } from '@/lib/format';
+import { hasPermission } from '@/lib/rbac';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { useOrganizationActivity } from '../api/use-organization-activity';
 import { GettingStartedCard } from '../components/getting-started-card';
@@ -91,7 +93,9 @@ export function DashboardPage() {
   const pendingCount = reviewCountQuery.data ?? 0;
   // Nothing owed, no overdue customers and no activity yet: the org has not
   // imported anything, so point at the first steps instead of empty charts.
+  // Only for roles that can act on the steps (FE rule: hide, never disable).
   const isNewOrganization =
+    hasPermission(user?.role ?? null, Permission.RECEIVABLE_IMPORT) &&
     summaryQuery.data?.totalOutstanding === 0 &&
     summaryQuery.data.topOverdueCustomers.length === 0 &&
     activityQuery.data?.items.length === 0;

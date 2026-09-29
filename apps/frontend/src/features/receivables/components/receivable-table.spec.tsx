@@ -27,6 +27,25 @@ function buildReceivable(overrides: Partial<Receivable>): Receivable {
 }
 
 describe('ReceivableTable', () => {
+  it('does not point read-only roles at buttons they cannot see', () => {
+    render(
+      <MemoryRouter>
+        <ReceivableTable
+          receivables={[]}
+          selectedIds={[]}
+          onToggle={vi.fn()}
+          onToggleAll={vi.fn()}
+          allSelected={false}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Chưa có khoản phải thu nào')).toBeInTheDocument();
+    expect(screen.getByTestId('empty-state')).not.toHaveTextContent(
+      'Tạo khoản phải thu',
+    );
+  });
+
   it('points a brand-new organization at the create/import actions', () => {
     render(
       <MemoryRouter>
@@ -36,6 +55,7 @@ describe('ReceivableTable', () => {
           onToggle={vi.fn()}
           onToggleAll={vi.fn()}
           allSelected={false}
+          canCreate
         />
       </MemoryRouter>,
     );

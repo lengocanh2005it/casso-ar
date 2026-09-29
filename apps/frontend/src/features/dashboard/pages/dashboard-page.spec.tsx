@@ -5,11 +5,14 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '@/contexts/auth-context';
 import { DashboardPage } from './dashboard-page';
 
-const { apiRequest } = vi.hoisted(() => ({ apiRequest: vi.fn() }));
+const { apiRequest, getValidAccessToken } = vi.hoisted(() => ({
+  apiRequest: vi.fn(),
+  getValidAccessToken: vi.fn(),
+}));
 vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
   authTokenManager: {
-    getValidAccessToken: vi.fn().mockResolvedValue(null),
+    getValidAccessToken,
     hasKnownSession: () => true,
     setAccessToken: vi.fn(),
     resetLogoutState: vi.fn(),
@@ -39,8 +42,12 @@ const emptyActivity = { items: [], total: 0, page: 1, limit: 10 };
 
 const emptyTrend = { months: 6, items: [] };
 
-function mockApi(summary = summaryData) {
+function mockApi(summary = summaryData, role: string | null = null) {
+  getValidAccessToken.mockResolvedValue(role ? 'access-token' : null);
   apiRequest.mockImplementation(({ url }: { url: string }) => {
+    if (url === '/api/v1/auth/me' && role) {
+      return Promise.resolve({ id: 'u1', email: 'a@b.test', role });
+    }
     if (url === '/api/v1/bank-transactions/pending-review-count') {
       return Promise.resolve({ count: 7 });
     }
@@ -141,14 +148,27 @@ describe('DashboardPage', () => {
     ).not.toBeInTheDocument();
   });
 
+  const newOrgSummary = {
+    ...summaryData,
+    totalOutstanding: 0,
+    totalOverdue: 0,
+    overdueRate: 0,
+    topOverdueCustomers: [],
+  };
+
+  it('hides the getting-started steps from roles that cannot import', async () => {
+    mockApi(newOrgSummary, 'VIEWER');
+
+    renderPage();
+
+    expect(await screen.findByText('Chưa có công nợ')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Bắt đầu theo dõi công nợ'),
+    ).not.toBeInTheDocument();
+  });
+
   it('guides a brand-new organization to import its first invoices', async () => {
-    mockApi({
-      ...summaryData,
-      totalOutstanding: 0,
-      totalOverdue: 0,
-      overdueRate: 0,
-      topOverdueCustomers: [],
-    });
+    mockApi(newOrgSummary, 'OWNER');
 
     renderPage();
 

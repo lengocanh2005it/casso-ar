@@ -1,14 +1,18 @@
+import { Permission } from '@casso-ar/shared-types';
 import { Search, Users } from 'lucide-react';
 import { PageHeading } from '@/components/layout/page-heading';
 import { SectionCard } from '@/components/layout/section-card';
 import { CardPagination } from '@/components/shared/card-pagination';
 import { Input } from '@/components/ui/input';
 import { TableSkeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/contexts/auth-context';
+import { hasPermission } from '@/lib/rbac';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { useCustomers } from '../api/use-customers';
 import { CustomerTable } from '../components/customer-table';
 
 export function CustomersPage() {
+  const { user } = useAuth();
   const { searchParams, setParam, setPage } = useUrlQueryParams();
   const search = searchParams.get('search') ?? '';
   const page = Number(searchParams.get('page') ?? '1');
@@ -53,7 +57,14 @@ export function CustomersPage() {
           </p>
         )}
         {data && (
-          <CustomerTable customers={data.items} isFiltered={Boolean(search)} />
+          <CustomerTable
+            customers={data.items}
+            isFiltered={Boolean(search)}
+            canImport={hasPermission(
+              user?.role ?? null,
+              Permission.RECEIVABLE_IMPORT,
+            )}
+          />
         )}
         {data && (
           <CardPagination

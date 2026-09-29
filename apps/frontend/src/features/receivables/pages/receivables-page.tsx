@@ -135,6 +135,10 @@ export function ReceivablesPage() {
             onToggleAll={bulkSelection.toggleAll}
             allSelected={bulkSelection.allSelected}
             isFiltered={Boolean(status || customerId || debouncedSearch)}
+            canCreate={
+              hasPermission(user?.role ?? null, Permission.RECEIVABLE_WRITE) ||
+              hasPermission(user?.role ?? null, Permission.RECEIVABLE_IMPORT)
+            }
           />
         )}
         {data && (

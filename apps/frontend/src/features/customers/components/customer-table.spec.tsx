@@ -20,7 +20,7 @@ describe('CustomerTable', () => {
   it('tells a new organization that customers come from invoice import', () => {
     render(
       <MemoryRouter>
-        <CustomerTable customers={[]} />
+        <CustomerTable customers={[]} canImport />
       </MemoryRouter>,
     );
 
@@ -31,5 +31,18 @@ describe('CustomerTable', () => {
       '/receivables',
     );
     expect(screen.queryByText(/bộ lọc/)).not.toBeInTheDocument();
+  });
+
+  it('hides the import action from roles that cannot import', () => {
+    render(
+      <MemoryRouter>
+        <CustomerTable customers={[]} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Chưa có khách hàng nào')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Nhập hóa đơn' }),
+    ).not.toBeInTheDocument();
   });
 });
