@@ -8,6 +8,7 @@ import {
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
 import request from 'supertest';
+import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
@@ -19,6 +20,7 @@ import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-enti
 
 describe('Tenant isolation and RBAC (integration)', () => {
   let container: StartedPostgreSqlContainer;
+  let redis: StartedTestContainer;
   let app: INestApplication;
   let dataSource: DataSource;
   let jwtService: JwtService;
@@ -34,16 +36,73 @@ describe('Tenant isolation and RBAC (integration)', () => {
   const userOrgBOwner = '00000000-0000-0000-0000-0000000000b1';
   const userOrgAAccountant = '00000000-0000-0000-0000-0000000000a2';
   const userOrgAFinanceManager = '00000000-0000-0000-0000-0000000000a3';
+  const userOrgASalesRepOne = '00000000-0000-0000-0000-0000000000a4';
+  const userOrgASalesRepTwo = '00000000-0000-0000-0000-0000000000a5';
 
   const receivableId = '00000000-0000-0000-0000-00000000001e';
+  const customerRepOne = '00000000-0000-0000-0000-0000000000c2';
+  const customerShared = '00000000-0000-0000-0000-0000000000c3';
+  const customerRepTwoOnly = '00000000-0000-0000-0000-0000000000c4';
+  const customerUnassigned = '00000000-0000-0000-0000-0000000000c5';
+  const customerWithoutReceivables = '00000000-0000-0000-0000-0000000000c6';
+  const customerOrgB = '00000000-0000-0000-0000-0000000000c7';
+
+  function customerRow(
+    id: string,
+    organizationId: string,
+    name: string,
+    taxCode: string,
+    phone: string,
+    createdAt: Date,
+  ) {
+    return {
+      id,
+      organizationId,
+      name,
+      taxCode,
+      email: `${taxCode}@example.com`,
+      phone,
+      defaultPaymentTermDays: 30,
+      creditLimit: 0,
+      priority: 1,
+      createdAt,
+    };
+  }
+
+  function receivableRow(
+    id: string,
+    organizationId: string,
+    customerId: string,
+    salesRepresentativeId: string | null,
+    status = ReceivableStatus.OPEN,
+  ) {
+    return {
+      id,
+      organizationId,
+      customerId,
+      invoiceId: null,
+      originalAmount: 10_000_000,
+      paidAmount: 0,
+      dueDate: new Date('2026-09-01'),
+      status,
+      salesRepresentativeId,
+      createdAt: new Date('2026-08-01'),
+      closedAt: null,
+    };
+  }
 
   beforeAll(async () => {
-    container = await new PostgreSqlContainer('postgres:16').start();
+    [container, redis] = await Promise.all([
+      new PostgreSqlContainer('postgres:16').start(),
+      new GenericContainer('redis:7-alpine').withExposedPorts(6379).start(),
+    ]);
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
+    process.env.REDIS_HOST = redis.getHost();
+    process.env.REDIS_PORT = String(redis.getMappedPort(6379));
     process.env.RESEND_API_KEY = 'tenant-isolation-e2e-resend-key';
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
@@ -94,6 +153,22 @@ describe('Tenant isolation and RBAC (integration)', () => {
         emailVerifiedAt: new Date(),
         createdAt: new Date(),
       },
+      {
+        id: userOrgASalesRepOne,
+        name: 'Org A Sales Rep One',
+        email: 'org-a-sales-rep-one@example.com',
+        passwordHash: 'test-hash',
+        emailVerifiedAt: new Date(),
+        createdAt: new Date(),
+      },
+      {
+        id: userOrgASalesRepTwo,
+        name: 'Org A Sales Rep Two',
+        email: 'org-a-sales-rep-two@example.com',
+        passwordHash: 'test-hash',
+        emailVerifiedAt: new Date(),
+        createdAt: new Date(),
+      },
     ]);
 
     await dataSource.getRepository(MembershipOrmEntity).save([
@@ -121,40 +196,154 @@ describe('Tenant isolation and RBAC (integration)', () => {
         joinedAt: new Date(),
         createdAt: new Date(),
       },
+      {
+        organizationId: orgA,
+        userId: userOrgASalesRepOne,
+        role: Role.SALES_REP,
+        invitedAt: new Date(),
+        joinedAt: new Date(),
+        createdAt: new Date(),
+      },
+      {
+        organizationId: orgB,
+        userId: userOrgASalesRepOne,
+        role: Role.SALES_REP,
+        invitedAt: new Date(),
+        joinedAt: new Date(),
+        createdAt: new Date(),
+      },
+      {
+        organizationId: orgA,
+        userId: userOrgASalesRepTwo,
+        role: Role.SALES_REP,
+        invitedAt: new Date(),
+        joinedAt: new Date(),
+        createdAt: new Date(),
+      },
     ]);
 
-    await dataSource.getRepository(CustomerOrmEntity).save({
-      id: '00000000-0000-0000-0000-0000000000c1',
-      organizationId: orgA,
-      name: 'Org A Customer',
-      taxCode: '111',
-      email: 'a@a.vn',
-      phone: '0900000001',
-      defaultPaymentTermDays: 30,
-      creditLimit: 0,
-      priority: 1,
-      createdAt: new Date(),
-    });
+    await dataSource
+      .getRepository(CustomerOrmEntity)
+      .save([
+        customerRow(
+          '00000000-0000-0000-0000-0000000000c1',
+          orgA,
+          'Org A Customer',
+          '111',
+          '0900000001',
+          new Date('2026-09-07'),
+        ),
+        customerRow(
+          customerRepOne,
+          orgA,
+          'Rep One Customer',
+          '112',
+          '0900000002',
+          new Date('2026-09-06'),
+        ),
+        customerRow(
+          customerShared,
+          orgA,
+          'Shared Customer',
+          '113',
+          '0900000003',
+          new Date('2026-09-05'),
+        ),
+        customerRow(
+          customerRepTwoOnly,
+          orgA,
+          'Rep Two Only Customer',
+          '114',
+          '0900000004',
+          new Date('2026-09-04'),
+        ),
+        customerRow(
+          customerUnassigned,
+          orgA,
+          'Unassigned Customer',
+          '115',
+          '0900000005',
+          new Date('2026-09-03'),
+        ),
+        customerRow(
+          customerWithoutReceivables,
+          orgA,
+          'Customer Without Receivables',
+          '116',
+          '0900000006',
+          new Date('2026-09-02'),
+        ),
+        customerRow(
+          customerOrgB,
+          orgB,
+          'Org B Customer',
+          '117',
+          '0900000007',
+          new Date('2026-09-01'),
+        ),
+      ]);
 
-    await dataSource.getRepository(ReceivableOrmEntity).save({
-      id: receivableId,
-      organizationId: orgA,
-      customerId: '00000000-0000-0000-0000-0000000000c1',
-      invoiceId: null,
-      originalAmount: 10_000_000,
-      paidAmount: 0,
-      dueDate: new Date('2026-09-01'),
-      status: ReceivableStatus.OPEN,
-      salesRepresentativeId: '00000000-0000-0000-0000-0000000000c1',
-      createdAt: new Date(),
-      closedAt: null,
-    });
+    await dataSource
+      .getRepository(ReceivableOrmEntity)
+      .save([
+        receivableRow(
+          receivableId,
+          orgA,
+          '00000000-0000-0000-0000-0000000000c1',
+          '00000000-0000-0000-0000-0000000000c1',
+        ),
+        receivableRow(
+          '00000000-0000-0000-0000-000000000021',
+          orgA,
+          customerRepOne,
+          userOrgASalesRepOne,
+          ReceivableStatus.CANCELLED,
+        ),
+        receivableRow(
+          '00000000-0000-0000-0000-000000000022',
+          orgA,
+          customerRepOne,
+          userOrgASalesRepOne,
+          ReceivableStatus.CANCELLED,
+        ),
+        receivableRow(
+          '00000000-0000-0000-0000-000000000023',
+          orgA,
+          customerShared,
+          userOrgASalesRepOne,
+        ),
+        receivableRow(
+          '00000000-0000-0000-0000-000000000024',
+          orgA,
+          customerShared,
+          userOrgASalesRepTwo,
+        ),
+        receivableRow(
+          '00000000-0000-0000-0000-000000000025',
+          orgA,
+          customerRepTwoOnly,
+          userOrgASalesRepTwo,
+        ),
+        receivableRow(
+          '00000000-0000-0000-0000-000000000026',
+          orgA,
+          customerUnassigned,
+          null,
+        ),
+        receivableRow(
+          '00000000-0000-0000-0000-000000000027',
+          orgB,
+          customerOrgB,
+          userOrgASalesRepOne,
+        ),
+      ]);
   }, 60_000);
 
   afterAll(async () => {
     await app.close();
     await container.stop();
-  });
+    await redis.stop();
+  }, 60_000);
 
   function tokenFor(
     userId: string,
@@ -172,6 +361,136 @@ describe('Tenant isolation and RBAC (integration)', () => {
       .set('Authorization', `Bearer ${tokenOrgB}`)
       .set('Idempotency-Key', 'tenant-isolation-cross-org-write-off')
       .expect(404); // Receivable not found (tenant-scoped) — NotFoundException, errorCode RECEIVABLE_NOT_FOUND
+  });
+
+  it('limits SALES_REP list results, search, totals, and pagination to assigned customers', async () => {
+    const token = tokenFor(userOrgASalesRepOne, orgA, Role.SALES_REP);
+
+    const pageOne = await request(app.getHttpServer())
+      .get('/api/v1/customers')
+      .query({ page: 1, limit: 1 })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(pageOne.body).toMatchObject({
+      items: [{ id: customerRepOne }],
+      total: 2,
+      page: 1,
+      limit: 1,
+    });
+
+    const pageTwo = await request(app.getHttpServer())
+      .get('/api/v1/customers')
+      .query({ page: 2, limit: 1 })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(pageTwo.body).toMatchObject({
+      items: [{ id: customerShared }],
+      total: 2,
+      page: 2,
+      limit: 1,
+    });
+
+    const assignedCustomerSearch = await request(app.getHttpServer())
+      .get('/api/v1/customers')
+      .query({ search: 'Rep One' })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(assignedCustomerSearch.body).toMatchObject({
+      items: [{ id: customerRepOne }],
+      total: 1,
+    });
+    expect(assignedCustomerSearch.body.items[0]).not.toHaveProperty(
+      'receivables',
+    );
+
+    const otherRepresentativeSearch = await request(app.getHttpServer())
+      .get('/api/v1/customers')
+      .query({ search: 'Rep Two Only' })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(otherRepresentativeSearch.body).toMatchObject({
+      items: [],
+      total: 0,
+    });
+  });
+
+  it('limits SALES_REP customer details to customers with their assigned receivables', async () => {
+    const repOneToken = tokenFor(userOrgASalesRepOne, orgA, Role.SALES_REP);
+    const repTwoToken = tokenFor(userOrgASalesRepTwo, orgA, Role.SALES_REP);
+
+    const ownCustomer = await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerRepOne}`)
+      .set('Authorization', `Bearer ${repOneToken}`)
+      .expect(200);
+    expect(ownCustomer.body).not.toHaveProperty('receivables');
+    expect(ownCustomer.body).not.toHaveProperty('remainingAmount');
+    await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerShared}`)
+      .set('Authorization', `Bearer ${repOneToken}`)
+      .expect(200);
+    await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerShared}`)
+      .set('Authorization', `Bearer ${repTwoToken}`)
+      .expect(200);
+    await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerRepTwoOnly}`)
+      .set('Authorization', `Bearer ${repOneToken}`)
+      .expect(404);
+    await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerUnassigned}`)
+      .set('Authorization', `Bearer ${repOneToken}`)
+      .expect(404);
+    await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerWithoutReceivables}`)
+      .set('Authorization', `Bearer ${repOneToken}`)
+      .expect(404);
+    await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerRepTwoOnly}`)
+      .set('Authorization', `Bearer ${repTwoToken}`)
+      .expect(200);
+
+    const repOneOrgBToken = tokenFor(userOrgASalesRepOne, orgB, Role.SALES_REP);
+    await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerOrgB}`)
+      .set('Authorization', `Bearer ${repOneToken}`)
+      .expect(404);
+    await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerOrgB}`)
+      .set('Authorization', `Bearer ${repOneOrgBToken}`)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/receivables/00000000-0000-0000-0000-000000000025')
+      .set('Authorization', `Bearer ${repOneToken}`)
+      .expect(404);
+  });
+
+  it('keeps non-SALES_REP customer reads organization-wide', async () => {
+    const accountantToken = tokenFor(userOrgAAccountant, orgA, Role.ACCOUNTANT);
+    const orgBOwnerToken = tokenFor(userOrgBOwner, orgB, Role.OWNER);
+
+    const orgACustomers = await request(app.getHttpServer())
+      .get('/api/v1/customers')
+      .set('Authorization', `Bearer ${accountantToken}`)
+      .expect(200);
+    expect(orgACustomers.body.total).toBe(6);
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerUnassigned}`)
+      .set('Authorization', `Bearer ${accountantToken}`)
+      .expect(200);
+
+    const orgBCustomers = await request(app.getHttpServer())
+      .get('/api/v1/customers')
+      .set('Authorization', `Bearer ${orgBOwnerToken}`)
+      .expect(200);
+    expect(orgBCustomers.body).toMatchObject({
+      items: [{ id: customerOrgB }],
+      total: 1,
+    });
   });
 
   it('ACCOUNTANT role is rejected from RECEIVABLE_WRITE_OFF by PermissionGuard', async () => {
@@ -202,5 +521,37 @@ describe('Tenant isolation and RBAC (integration)', () => {
       [receivableId],
     );
     expect(row[0].status).toBe('WRITTEN_OFF');
+  });
+
+  it('updates SALES_REP customer visibility when a receivable is reassigned', async () => {
+    const repOneToken = tokenFor(userOrgASalesRepOne, orgA, Role.SALES_REP);
+    const repTwoToken = tokenFor(userOrgASalesRepTwo, orgA, Role.SALES_REP);
+    const customerId = customerRepTwoOnly;
+    const assignedReceivableId = '00000000-0000-0000-0000-000000000025';
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerId}`)
+      .set('Authorization', `Bearer ${repOneToken}`)
+      .expect(404);
+    await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerId}`)
+      .set('Authorization', `Bearer ${repTwoToken}`)
+      .expect(200);
+
+    await dataSource
+      .getRepository(ReceivableOrmEntity)
+      .update(
+        { id: assignedReceivableId, organizationId: orgA },
+        { salesRepresentativeId: userOrgASalesRepOne },
+      );
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerId}`)
+      .set('Authorization', `Bearer ${repOneToken}`)
+      .expect(200);
+    await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerId}`)
+      .set('Authorization', `Bearer ${repTwoToken}`)
+      .expect(404);
   });
 });

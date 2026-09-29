@@ -5,6 +5,7 @@ import type {
   FindOptionsSelect,
   FindOptionsWhere,
   Repository,
+  SelectQueryBuilder,
 } from 'typeorm';
 import { In } from 'typeorm';
 import { toLikePattern } from '../../../common/database/like-pattern';
@@ -27,6 +28,10 @@ const CUSTOMER_SELECT = {
   customerGroup: true,
   createdAt: true,
 } satisfies FindOptionsSelect<CustomerOrmEntity>;
+
+const CUSTOMER_QUERY_SELECT = Object.keys(CUSTOMER_SELECT).map(
+  (column) => `c.${column}`,
+);
 
 // Explicit domain → ORM translation: the compiler checks every field, so a
 // drift between the two shapes fails here instead of being cast away.
@@ -80,6 +85,21 @@ export class TypeOrmCustomerRepository
     manager?: EntityManager,
   ): Promise<Customer | null> {
     return this.findOneScoped({ id }, manager);
+  }
+
+  async findByIdForSalesRep(
+    id: string,
+    salesRepresentativeId: string,
+  ): Promise<Customer | null> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const row = await this.buildCustomerReadQuery(
+      organizationId,
+      undefined,
+      salesRepresentativeId,
+    )
+      .andWhere('c.id = :id', { id })
+      .getOne();
+    return row ? toDomain(row) : null;
   }
 
   async findByIds(ids: string[]): Promise<Map<string, Customer>> {
@@ -151,19 +171,13 @@ export class TypeOrmCustomerRepository
     search: string | undefined,
     page: number,
     limit: number,
+    salesRepresentativeId?: string,
   ): Promise<Customer[]> {
-    const qb = this.ormRepo
-      .createQueryBuilder('c')
-      .where('c.organizationId = :organizationId', { organizationId });
-
-    if (search) {
-      qb.andWhere(
-        '(c.name ILIKE :search OR c.taxCode ILIKE :search OR c.phone ILIKE :search)',
-        { search: toLikePattern(search) },
-      );
-    }
-
-    const rows = await qb
+    const rows = await this.buildCustomerReadQuery(
+      organizationId,
+      search,
+      salesRepresentativeId,
+    )
       .orderBy('c.createdAt', 'DESC')
       .skip((page - 1) * limit)
       .take(limit)
@@ -175,9 +189,23 @@ export class TypeOrmCustomerRepository
   async count(
     organizationId: string,
     search: string | undefined,
+    salesRepresentativeId?: string,
   ): Promise<number> {
+    return this.buildCustomerReadQuery(
+      organizationId,
+      search,
+      salesRepresentativeId,
+    ).getCount();
+  }
+
+  private buildCustomerReadQuery(
+    organizationId: string,
+    search: string | undefined,
+    salesRepresentativeId?: string,
+  ): SelectQueryBuilder<CustomerOrmEntity> {
     const qb = this.ormRepo
       .createQueryBuilder('c')
+      .select(CUSTOMER_QUERY_SELECT)
       .where('c.organizationId = :organizationId', { organizationId });
 
     if (search) {
@@ -187,6 +215,19 @@ export class TypeOrmCustomerRepository
       );
     }
 
-    return qb.getCount();
+    if (salesRepresentativeId) {
+      qb.andWhere(
+        `EXISTS (
+          SELECT 1
+          FROM "receivables" r
+          WHERE r."organizationId" = c."organizationId"
+            AND r."customerId" = c."id"::text
+            AND r."salesRepresentativeId" = :salesRepresentativeId
+        )`,
+        { salesRepresentativeId },
+      );
+    }
+
+    return qb;
   }
 }

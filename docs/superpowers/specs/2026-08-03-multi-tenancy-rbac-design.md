@@ -74,7 +74,7 @@ The payment allocation endpoint requires `@RequirePermission(Permission.PAYMENT_
 
 The general permission check is insufficient because `SALES_REP` may view only receivables assigned to them, not the entire organization. `Receivable.salesRepresentativeId` is nullable when unassigned; `SALES_REP` cannot read unassigned receivables.
 
-- `CUSTOMER_READ`: a `SALES_REP` may read a customer profile only if at least one receivable for that customer is assigned to them, regardless of receivable status. This does not grant access to other receivables for the same customer.
+- `CUSTOMER_READ`: a `SALES_REP` may read a customer profile only if at least one receivable for that customer is assigned to them in the current organization, regardless of receivable status. This does not grant access to other receivables for the same customer; any receivable-derived customer summaries must include only receivables assigned to that representative.
 - `RECEIVABLE_IMPORT`: `SALES_REP` may import invoices; each receivable created by the import is assigned to the importing user.
 - `EMAIL_TEMPLATE_READ` is not granted to `SALES_REP`; templates are organization-level settings, and this role cannot send manual reminders.
 - `REPORT_READ`: aggregate organization-level metrics remain visible to `SALES_REP` (`/reports/aging`, `/reports/trend`, and aggregate fields in `/reports/dashboard-summary`). Customer-level rows are limited to receivables assigned to that user: `/reports/aging/customers`, `/reports/aging/export`, and `topOverdueCustomers` in `/reports/dashboard-summary`.
