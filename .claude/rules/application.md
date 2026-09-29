@@ -22,5 +22,8 @@ paths:
     multiple repositories in one use case (see AGENTS.md).
   - `bcryptjs` — a stateless hashing algorithm that needs no DI/config, like
     `node:crypto`.
+  - `JsonLogger` (`common/observability`) as an `@Optional()` constructor
+    dependency for structured logs — the repo's own logger, not an external SDK.
+    Pass pre-auth identity as a `userId` log field.
 - Files: `*.usecase.ts` for use cases, `*-repository.port.ts` / `*-<thing>.port.ts`
   for ports. DI tokens: `Symbol('X_REPOSITORY')` / `Symbol('X')`.

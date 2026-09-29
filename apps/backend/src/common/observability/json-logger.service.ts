@@ -81,7 +81,9 @@ export class JsonLogger implements LoggerService {
       context: context ?? 'Application',
       requestId: this.requestIdStore.getRequestId(),
       organizationId: user?.organizationId,
-      userId: user?.userId,
+      // Pre-auth events (e.g. refresh) have no tenant user; keep a userId the
+      // caller put in the log fields instead of overwriting it with undefined.
+      userId: user?.userId ?? fields.userId,
       trace,
     };
 

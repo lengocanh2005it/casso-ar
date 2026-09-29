@@ -21,6 +21,12 @@ export class LogoutUseCase {
     );
     if (!existing) return;
     await this.dataSource.transaction(async (manager) => {
+      // Logout ends the whole device session: rotation and grace replays can
+      // leave several live tokens in it, and none may outlive the logout.
+      if (existing.sessionId) {
+        await this.refreshTokenRepo.revokeSession(existing.sessionId, manager);
+        return;
+      }
       await this.refreshTokenRepo.save(existing.revoke(), manager);
     });
   }

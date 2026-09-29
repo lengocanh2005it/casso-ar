@@ -9,6 +9,9 @@ export class RefreshTokenOrmEntity {
   @Column({ type: 'varchar' })
   userId: string;
 
+  @Column({ type: 'uuid', nullable: true })
+  sessionId: string | null;
+
   @Index({ unique: true })
   @Column({ type: 'varchar' })
   tokenHash: string;

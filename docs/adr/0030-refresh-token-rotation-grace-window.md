@@ -1,8 +1,6 @@
----
-status: proposed
----
-
 # Refresh-token reuse gets a 10-second rotation grace window
+
+**Status:** accepted
 
 Every page load calls `POST /auth/refresh` (the access token lives only in
 memory), so a reload that cancels the request after the server rotated the
@@ -11,19 +9,36 @@ present a just-revoked token. Theft detection treated that as a leaked copy
 and revoked the whole family, signing the user out of every device.
 
 We now treat re-presentation of a rotated `RefreshToken` within 10 seconds of
-its rotation (measured from its successor's `createdAt`, a `timestamptz`,
-because `revokedAt` is a timezone-less `timestamp` that would skew the window
-across processes with different `TZ`) as a benign race: the family is kept and the presenter receives
-a fresh `RefreshToken`. The window applies only when the token has a
-successor link (`replacedByTokenId`) and that successor is still valid, so
-tokens revoked by logout, password change/reset or member removal — which
-have no successor, or a revoked one — never qualify. Reuse outside the window
-still revokes the family. Each grace issuance is logged at `warn` level.
+its rotation as a benign race: the family is kept and the presenter receives
+a fresh `RefreshToken` in the same session. The window is measured from the
+successor's `createdAt` (a `timestamptz`), because `revokedAt` is a
+timezone-less `timestamp` that would skew the window across processes with
+different `TZ`. It applies only when all hold: the token has a successor link
+(`replacedByTokenId`), the successor is not revoked, the token itself had not
+expired, and the successor is at most 10 seconds old. Tokens revoked by
+logout, password change/reset or member removal never qualify, and reuse
+outside the window still revokes the family. The rule is evaluated before the
+rotation transaction and again under the row lock (the successor is read under
+a share lock so a concurrent logout cannot slip in); if the window closes in
+between, the family is revoked after the transaction rather than the request
+failing quietly.
 
-The 10 s value is a constant, not configuration. A token issued through the
-grace path leaves its sibling successor alive (a short-lived fork); the
-orphan expires with its normal 7-day TTL rather than being revoked, because
-revoking it would break whichever cookie the browser ends up keeping.
+Each grace issuance is logged at `warn` with `userId` and `requestId`. The
+pre-auth refresh route has no tenant user, so `JsonLogger` now keeps a
+`userId` passed in the log fields when no user is authenticated (the
+authenticated user still wins).
+
+**Sessions.** Each login starts a session (`sessionId`); rotation and grace
+issuance inherit it. Logout revokes every token of the session, not only the
+presented one, because the grace path deliberately leaves the original
+successor alive (a short-lived fork) and that sibling would otherwise let a
+replayed token mint a session after logout. Other logins of the same user are
+untouched. Tokens issued before this change have no session and keep the old
+single-token logout.
+
+The 10 s value is a constant, not configuration. The orphaned sibling from a
+grace fork expires with its normal 7-day TTL rather than being revoked early,
+because revoking it would break whichever cookie the browser ends up keeping.
 
 ## Considered Options
 
@@ -36,16 +51,27 @@ revoking it would break whichever cookie the browser ends up keeping.
 - **`revokedReason` enum instead of a successor link:** does not, by itself,
   stop a token rotated and then logged out from minting a session inside the
   window; the successor-still-valid check does.
+- **Revoke the sibling successor when a grace token is issued (linear
+  chain):** rejected — if the responses reach the browser out of order the
+  cookie ends up being the revoked sibling and the next load signs the user
+  out. Session-scoped logout closes the same hole without that risk.
 
 ## Consequences
 
-If a token was rotated twice inside the window (T1 -> T2 -> T5) and a late
-request still carries T1, its successor T2 is revoked, so it is treated as
-theft and the family is revoked. Following the successor chain would close
-this, but needs two rotations plus a late request and only ever fails safe
-(the user logs in again), so we accept it rather than add chain-walking.
-
 An attacker holding a leaked token can replay it during the first 10 seconds
 after rotation and receive a valid session without the family being revoked.
-Accepted as the trade-off the issue calls out. No backfill: tokens revoked
-before the migration have no successor and never get the window.
+Every replay in that window mints another 7-day token (the presented token and
+its successor are left unchanged), so one leaked token can yield several live
+tokens. They all belong to the victim's session and die together on logout,
+and password change/reset revokes them all; the only cap on the count is the
+rate limiter (tracked separately in #410).
+
+If a token was rotated twice inside the window (T1 -> T2 -> T5) and a late
+request still carries T1, its successor T2 is revoked, so it is treated as
+theft and the family is revoked. A grace fork makes this slightly more
+reachable (a normal rotation of the fork's sibling also revokes T2). Following
+the successor chain would close it, but it only ever fails safe (the user logs
+in again), so we accept it rather than add chain-walking.
+
+No backfill: tokens revoked before the migration have no successor and never
+get the window.

@@ -14,6 +14,7 @@ import { AppModule } from '../src/app.module';
 import { RATE_LIMIT_REDIS_CLIENT } from '../src/common/rate-limiting/rate-limit-redis-client.provider';
 import { configureApp } from '../src/configure-app';
 import { AUTH_EMAIL_SENDER } from '../src/modules/auth/application/auth-email-sender.port';
+import { hashToken } from '../src/modules/auth/application/token-hasher';
 import { MembershipInviteOrmEntity } from '../src/modules/auth/infrastructure/membership-invite.orm-entity';
 import { PasswordResetTokenOrmEntity } from '../src/modules/auth/infrastructure/password-reset-token.orm-entity';
 import { TAX_CODE_LOOKUP_ADAPTER } from '../src/modules/tax-verification/application/tax-code-lookup.port';
@@ -217,6 +218,11 @@ describe('Auth flow (integration)', () => {
       return response.headers['set-cookie'][0];
     }
 
+    function tokenHashOf(cookie: string): string {
+      const raw = /refreshToken=([^;]+)/.exec(cookie)?.[1] ?? '';
+      return hashToken(raw);
+    }
+
     function refreshWith(cookie: string) {
       return request(app.getHttpServer())
         .post('/api/v1/auth/refresh')
@@ -235,6 +241,53 @@ describe('Auth flow (integration)', () => {
         rotated.headers['set-cookie'][0],
       );
       await refreshWith(rotated.headers['set-cookie'][0]).expect(201);
+    });
+
+    it('measures the window from the successor, not from the presented token', async () => {
+      const original = await loginCookie();
+      await refreshWith(original).expect(201);
+      // A skewed revokedAt (timezone-less column) and an old presented token
+      // must not matter: the successor is seconds old.
+      await dataSource.query(
+        `UPDATE refresh_tokens
+         SET "createdAt" = "createdAt" - interval '1 hour',
+             "revokedAt" = "revokedAt" - interval '5 hours'
+         WHERE "tokenHash" = $1`,
+        [tokenHashOf(original)],
+      );
+
+      await refreshWith(original).expect(201);
+    });
+
+    it('ends every token of the session on logout, including grace siblings', async () => {
+      const original = await loginCookie();
+      const rotated = await refreshWith(original).expect(201);
+      const graceReplay = await refreshWith(original).expect(201);
+      const otherDevice = await loginCookie();
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/logout')
+        .set('Cookie', graceReplay.headers['set-cookie'][0])
+        .expect(200);
+
+      // The rotation sibling died with the session...
+      await refreshWith(rotated.headers['set-cookie'][0]).expect(401);
+      // ...and the original cannot be replayed into a new session.
+      await refreshWith(original).expect(401);
+      // A different login (another device) is not part of this session, but
+      // the theft response above revoked it.
+      await refreshWith(otherDevice).expect(401);
+    });
+
+    it('logout on one device leaves another device signed in', async () => {
+      const deviceA = await loginCookie();
+      const deviceB = await loginCookie();
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/logout')
+        .set('Cookie', deviceA)
+        .expect(200);
+
+      await refreshWith(deviceB).expect(201);
     });
 
     it('logs each grace issuance at warn level with the user and request ids', async () => {
@@ -256,7 +309,7 @@ describe('Auth flow (integration)', () => {
         expect.objectContaining({
           level: 'warn',
           message: 'Refresh token reused within rotation grace window',
-          refreshTokenUserId: user.id,
+          userId: user.id,
           requestId: expect.any(String),
         }),
       );
@@ -265,9 +318,11 @@ describe('Auth flow (integration)', () => {
     it('treats reuse after the grace window as theft and revokes the family', async () => {
       const original = await loginCookie();
       const rotated = await refreshWith(original).expect(201);
-      // Age every token past the 10 s window; the rotation happened "11 s ago".
+      // Only the successor's age counts: the rotation happened "11 s ago".
       await dataSource.query(
-        `UPDATE refresh_tokens SET "createdAt" = "createdAt" - interval '11 seconds'`,
+        `UPDATE refresh_tokens SET "createdAt" = "createdAt" - interval '11 seconds'
+         WHERE id = (SELECT "replacedByTokenId" FROM refresh_tokens WHERE "tokenHash" = $1)`,
+        [tokenHashOf(original)],
       );
 
       await refreshWith(original).expect(401);
