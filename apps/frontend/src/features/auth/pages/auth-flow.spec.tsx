@@ -116,7 +116,9 @@ describe('authentication routes', () => {
   });
 
   it('shows an inline, focused error when login fails', async () => {
-    apiRequest.mockRejectedValueOnce(new Error('invalid credentials'));
+    apiRequest.mockRejectedValueOnce({
+      response: { status: 401, data: { errorCode: 'UNAUTHORIZED' } },
+    });
 
     render(
       <AuthProvider>
