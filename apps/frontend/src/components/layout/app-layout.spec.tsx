@@ -20,6 +20,37 @@ vi.mock('@/features/exceptions/api/use-review-count', () => ({
   useReviewCount: () => ({ data: 0 }),
 }));
 
+function renderAppLayoutFor(role: string, bankingLinked: boolean) {
+  useAuth.mockReturnValue({
+    user: {
+      name: 'Member',
+      email: 'member@congtyb.vn',
+      organizationName: 'Công ty B',
+      subscriptionPlan: 'BUSINESS',
+      role,
+      bankingLinked,
+    },
+    logout: vi.fn(),
+  });
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  return render(
+    <ThemeProvider>
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <QueryClientProvider client={queryClient}>
+          <Routes>
+            <Route element={<AppLayout />}>
+              <Route path="dashboard" element={<div>Dashboard</div>} />
+            </Route>
+          </Routes>
+        </QueryClientProvider>
+      </MemoryRouter>
+    </ThemeProvider>,
+  );
+}
+
 describe('AppLayout', () => {
   beforeEach(() => {
     apiRequest.mockReset();
@@ -111,6 +142,38 @@ describe('AppLayout', () => {
 
     vi.unstubAllGlobals();
   });
+
+  it.each([
+    { role: 'FINANCE_MANAGER', bankingLinked: false, canManage: true },
+    { role: 'VIEWER', bankingLinked: false, canManage: false },
+    { role: 'FINANCE_MANAGER', bankingLinked: true, canManage: false },
+  ])(
+    'shows the organization sync state for $role (linked: $bankingLinked)',
+    ({ role, bankingLinked, canManage }) => {
+      renderAppLayoutFor(role, bankingLinked);
+
+      if (bankingLinked) {
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        return;
+      }
+
+      expect(screen.getByRole('status')).toHaveTextContent(
+        /tự động đồng bộ giao dịch.*không khả dụng/i,
+      );
+      if (canManage) {
+        expect(
+          screen.getByRole('link', { name: /quản lý kết nối ngân hàng/i }),
+        ).toHaveAttribute('href', '/bank-connections');
+      } else {
+        expect(screen.getByRole('status')).toHaveTextContent(
+          /liên hệ owner hoặc finance manager/i,
+        );
+        expect(
+          screen.queryByRole('link', { name: /quản lý kết nối ngân hàng/i }),
+        ).not.toBeInTheDocument();
+      }
+    },
+  );
 
   it('centers page content on the light application canvas', () => {
     useAuth.mockReturnValue({ user: null, logout: vi.fn() });

@@ -16,7 +16,7 @@ import {
   OnboardingPage,
   withPageSuspense,
 } from '@/routes';
-import { OnboardingRoute, ProtectedRoute } from '@/routes/protected-route';
+import { ProtectedRoute } from '@/routes/protected-route';
 
 function renderRoute(route: RouteObject, routeKey: string): ReactElement {
   if (route.index) {
@@ -48,9 +48,7 @@ export function AppRoutes() {
       <Route
         element={
           <ProtectedRoute>
-            <OnboardingRoute>
-              <AppLayout />
-            </OnboardingRoute>
+            <AppLayout />
           </ProtectedRoute>
         }
       >
