@@ -3,6 +3,15 @@ import { Role } from './role';
 import { ROLE_PERMISSIONS } from './role-permissions';
 
 describe('ROLE_PERMISSIONS', () => {
+  it('grants SALES_REP customer read, receivable import, and report read only', () => {
+    expect(ROLE_PERMISSIONS[Role.SALES_REP]).toEqual([
+      Permission.RECEIVABLE_READ,
+      Permission.RECEIVABLE_IMPORT,
+      Permission.REPORT_READ,
+      Permission.CUSTOMER_READ,
+    ]);
+  });
+
   it('grants ALERT_READ only to OWNER', () => {
     expect(ROLE_PERMISSIONS[Role.OWNER]).toContain(Permission.ALERT_READ);
     expect(ROLE_PERMISSIONS[Role.FINANCE_MANAGER]).not.toContain(

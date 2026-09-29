@@ -41,7 +41,8 @@ Five fixed roles (no dynamic `Role`/`Permission` tables in the DB — hard-coded
 
 ```
 enum Permission {
-  RECEIVABLE_READ, RECEIVABLE_WRITE, RECEIVABLE_WRITE_OFF, RECEIVABLE_DISPUTE,
+  RECEIVABLE_READ, RECEIVABLE_IMPORT, CUSTOMER_READ, EMAIL_TEMPLATE_READ,
+  RECEIVABLE_WRITE, RECEIVABLE_WRITE_OFF, RECEIVABLE_DISPUTE,
   PAYMENT_ALLOCATE, PAYMENT_ALLOCATE_UNDO,
   REMINDER_POLICY_WRITE, REMINDER_SEND_MANUAL,
   BANK_CONNECTION_MANAGE,
@@ -52,14 +53,17 @@ enum Permission {
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   OWNER:           [/* all Permissions */],
   FINANCE_MANAGER: [RECEIVABLE_READ, RECEIVABLE_WRITE, RECEIVABLE_WRITE_OFF, RECEIVABLE_DISPUTE,
-                     PAYMENT_ALLOCATE, PAYMENT_ALLOCATE_UNDO,
+                     RECEIVABLE_IMPORT, PAYMENT_ALLOCATE, PAYMENT_ALLOCATE_UNDO,
+                     EMAIL_TEMPLATE_READ, CUSTOMER_READ,
                      REMINDER_POLICY_WRITE, REMINDER_SEND_MANUAL, SUBSCRIPTION_MANAGE, USER_MANAGE,
                      INTERNAL_TASK_MANAGE,
                      REPORT_READ, AUDIT_LOG_READ],
   ACCOUNTANT:      [RECEIVABLE_READ, RECEIVABLE_WRITE, RECEIVABLE_DISPUTE,
-                     PAYMENT_ALLOCATE, REMINDER_SEND_MANUAL, INTERNAL_TASK_MANAGE, REPORT_READ],
-  SALES_REP:       [RECEIVABLE_READ, REPORT_READ],   // additionally limited at the Service layer, see below
-  VIEWER:          [RECEIVABLE_READ, REPORT_READ, AUDIT_LOG_READ],
+                     RECEIVABLE_IMPORT, PAYMENT_ALLOCATE, EMAIL_TEMPLATE_READ, CUSTOMER_READ,
+                     REMINDER_SEND_MANUAL, INTERNAL_TASK_MANAGE, REPORT_READ],
+  SALES_REP:       [RECEIVABLE_READ, RECEIVABLE_IMPORT,
+                     REPORT_READ, CUSTOMER_READ],
+  VIEWER:          [RECEIVABLE_READ, EMAIL_TEMPLATE_READ, CUSTOMER_READ, REPORT_READ, AUDIT_LOG_READ],
 }
 ```
 
@@ -68,7 +72,15 @@ The payment allocation endpoint requires `@RequirePermission(Permission.PAYMENT_
 
 ### Special case: SALES_REP
 
-The general permission check is insufficient because `SALES_REP` may view only receivables for customers they own, not the entire organization. `Receivable.salesRepresentativeId` is the assignment/ownership scope and is nullable when unassigned; the Service adds `WHERE salesRepresentativeId = ctx.userId` when the role is `SALES_REP`. This condition is handled at the Service layer, not in the shared `PermissionGuard` — keep `PermissionGuard` simple (only check "does this role have permission for this action?"), while "which data scope" remains business logic for each Service.
+The general permission check is insufficient because `SALES_REP` may view only receivables assigned to them, not the entire organization. `Receivable.salesRepresentativeId` is nullable when unassigned; `SALES_REP` cannot read unassigned receivables.
+
+- `CUSTOMER_READ`: a `SALES_REP` may read a customer profile only if at least one receivable for that customer is assigned to them, regardless of receivable status. This does not grant access to other receivables for the same customer.
+- `RECEIVABLE_IMPORT`: `SALES_REP` may import invoices; each receivable created by the import is assigned to the importing user.
+- `EMAIL_TEMPLATE_READ` is not granted to `SALES_REP`; templates are organization-level settings, and this role cannot send manual reminders.
+- `REPORT_READ`: aggregate organization-level metrics remain visible to `SALES_REP` (`/reports/aging`, `/reports/trend`, and aggregate fields in `/reports/dashboard-summary`). Customer-level rows are limited to receivables assigned to that user: `/reports/aging/customers`, `/reports/aging/export`, and `topOverdueCustomers` in `/reports/dashboard-summary`.
+
+Data-scope checks belong in each use case/query, not the shared `PermissionGuard`, which only decides whether a role may perform an action.
+Implementation follow-ups: #406 scopes customer list/detail; #407 scopes customer-level aging rows, exports, and dashboard customers.
 
 ## 3. Out of scope
 
@@ -79,4 +91,3 @@ The general permission check is insufficient because `SALES_REP` may view only r
 ## 4. Open questions (do not block implementation)
 
 - When a User is removed from an Organization's Membership — should `salesRepresentativeId` on historical data remain to preserve history, or should it be reassigned?
-- Should `SALES_REP` report access (`REPORT_READ`) be limited to owned customers like `RECEIVABLE_READ`, or can it view aggregate reports for the entire organization?
