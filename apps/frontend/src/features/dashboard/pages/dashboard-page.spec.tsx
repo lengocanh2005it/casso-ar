@@ -128,6 +128,42 @@ describe('DashboardPage', () => {
     ).toBeTruthy();
   });
 
+  it('does not spend a full-width banner on a welcome-back line', async () => {
+    mockApi();
+
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('100.000.000 ₫')).toBeTruthy());
+    // Brand-new organizations were greeted with "đã quay trở lại!" too.
+    expect(screen.queryByText(/quay trở lại/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Bắt đầu theo dõi công nợ'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('guides a brand-new organization to import its first invoices', async () => {
+    mockApi({
+      ...summaryData,
+      totalOutstanding: 0,
+      totalOverdue: 0,
+      overdueRate: 0,
+      topOverdueCustomers: [],
+    });
+
+    renderPage();
+
+    expect(
+      await screen.findByText('Bắt đầu theo dõi công nợ'),
+    ).toBeInTheDocument();
+    // Import is the only way to create customers, so it is step one.
+    expect(
+      screen.getByRole('link', { name: /Nhập hóa đơn từ file/ }),
+    ).toHaveAttribute('href', '/receivables');
+    expect(
+      screen.getByRole('link', { name: /Đối soát tiền về/ }),
+    ).toHaveAttribute('href', '/exceptions');
+  });
+
   it('uses the shared empty state when there are no overdue customers', async () => {
     mockApi({ ...summaryData, topOverdueCustomers: [] });
 

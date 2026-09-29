@@ -35,6 +35,7 @@ import type { TrendMonths } from '@/features/reports/types';
 import { formatVND } from '@/lib/format';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
 import { useOrganizationActivity } from '../api/use-organization-activity';
+import { GettingStartedCard } from '../components/getting-started-card';
 import { OverdueDonutChart } from '../components/overdue-donut-chart';
 import { PaymentActivityChart } from '../components/payment-activity-chart';
 import { PendingReviewBanner } from '../components/pending-review-banner';
@@ -88,13 +89,23 @@ export function DashboardPage() {
   }
 
   const pendingCount = reviewCountQuery.data ?? 0;
+  // Nothing owed, no overdue customers and no activity yet: the org has not
+  // imported anything, so point at the first steps instead of empty charts.
+  const isNewOrganization =
+    summaryQuery.data?.totalOutstanding === 0 &&
+    summaryQuery.data.topOverdueCustomers.length === 0 &&
+    activityQuery.data?.items.length === 0;
 
   return (
     <div className="space-y-5">
       <PageHeading
         eyebrow="TỔNG QUAN"
         title="Trang chủ"
-        description="Tổng quan về công nợ và hoạt động thu hồi của bạn."
+        description={
+          user?.organizationName
+            ? `Công nợ và hoạt động thu hồi của ${user.organizationName}.`
+            : 'Tổng quan về công nợ và hoạt động thu hồi của bạn.'
+        }
         icon={LayoutDashboard}
         tone="brand"
         actions={
@@ -105,15 +116,7 @@ export function DashboardPage() {
         }
       />
 
-      <div className="rounded-xl border border-primary/15 bg-primary/5 p-4 sm:p-5">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">
-          Chào mừng{' '}
-          <span className="text-primary">
-            {user?.organizationName ?? 'bạn'}
-          </span>{' '}
-          đã quay trở lại!
-        </h2>
-      </div>
+      {isNewOrganization && <GettingStartedCard />}
 
       {reviewCountQuery.isError ? (
         <p role="status" className="text-sm text-destructive">
