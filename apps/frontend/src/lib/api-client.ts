@@ -46,6 +46,13 @@ export function isOperatorToken(token: string): boolean {
 
 const SESSION_HINT_KEY = 'casso:has-session';
 const REFRESH_LOCK_NAME = 'casso:refresh';
+// A refresh must be quick, so a request that never gets an answer is treated
+// as a transient network failure: it aborts, releases the shared lock so the
+// next tab can try, and leaves the session hint alone for the next load to
+// retry. Not configurable, and unrelated to the rotation grace window that
+// shares its value: that one bounds how long the server honours a replayed
+// token, this one bounds how long the client waits for a response.
+const REFRESH_TIMEOUT_MS = 10 * 1000;
 
 // Non-sensitive hint only — the real refresh token stays in an httpOnly
 // cookie the client can't read. Lets restoreSession() skip the refresh
@@ -127,7 +134,7 @@ export class AuthTokenManager {
       axiosClient.post<{ accessToken: string }>(
         '/api/v1/auth/refresh',
         {},
-        { signal: controller.signal },
+        { signal: controller.signal, timeout: REFRESH_TIMEOUT_MS },
       );
     // The refresh cookie rotates on every call, so tabs must refresh one at a
     // time: a later tab then sends the cookie the earlier tab just received.
