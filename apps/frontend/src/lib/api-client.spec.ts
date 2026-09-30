@@ -195,6 +195,15 @@ describe('AuthTokenManager', () => {
     ['a network error', new Error('Network Error')],
     ['a 500 response', { response: { status: 500 } }],
     ['a 429 response', { response: { status: 429 } }],
+    [
+      'a timeout',
+      {
+        code: 'ECONNABORTED',
+        message: 'timeout of 10000ms exceeded',
+        config: {},
+        request: {},
+      },
+    ],
   ])(
     'keeps the session when a refresh fails with %s',
     async (_label, error) => {
@@ -206,6 +215,18 @@ describe('AuthTokenManager', () => {
       expect(new AuthTokenManager().hasKnownSession()).toBe(true);
     },
   );
+
+  it('gives the refresh request a bounded timeout', async () => {
+    postMock.mockResolvedValue({ data: { accessToken: 'new-token' } });
+
+    await manager.getValidAccessToken();
+
+    expect(postMock).toHaveBeenCalledWith(
+      '/api/v1/auth/refresh',
+      {},
+      expect.objectContaining({ timeout: 10_000 }),
+    );
+  });
 });
 
 describe('AuthTokenManager refresh across tabs', () => {
@@ -278,6 +299,27 @@ describe('AuthTokenManager refresh across tabs', () => {
     await expect(new AuthTokenManager().getValidAccessToken()).resolves.toBe(
       'direct-token',
     );
+  });
+
+  it('lets the next tab refresh after an earlier one fails', async () => {
+    installFakeLocks();
+    postMock
+      .mockRejectedValueOnce({
+        code: 'ECONNABORTED',
+        message: 'timeout of 10000ms exceeded',
+        config: {},
+        request: {},
+      })
+      .mockResolvedValueOnce({ data: { accessToken: 'token-b' } });
+    const tabA = new AuthTokenManager();
+    const tabB = new AuthTokenManager();
+
+    const first = tabA.getValidAccessToken();
+    const second = tabB.getValidAccessToken();
+
+    await expect(first).resolves.toBeNull();
+    await expect(second).resolves.toBe('token-b');
+    expect(postMock).toHaveBeenCalledTimes(2);
   });
 });
 
