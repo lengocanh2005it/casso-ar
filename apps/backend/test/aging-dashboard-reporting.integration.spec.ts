@@ -41,6 +41,8 @@ const customer2Id = '00000000-0000-4000-8000-000000000160';
 const customer2ReceivableId = '00000000-0000-4000-8000-000000000161';
 const otherOrgId = '00000000-0000-4000-8000-000000000162';
 const otherOrgUserId = '00000000-0000-4000-8000-000000000163';
+const salesRepAId = '00000000-0000-4000-8000-000000000164';
+const salesRepBId = '00000000-0000-4000-8000-000000000165';
 
 function addDays(date: Date, days: number): Date {
   const result = new Date(date);
@@ -80,6 +82,7 @@ describe('Aging dashboard reporting (integration)', () => {
   let today: string;
   let token: string;
   let otherOrgToken: string;
+  let salesRepAToken: string;
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16').start();
@@ -143,6 +146,42 @@ describe('Aging dashboard reporting (integration)', () => {
       joinedAt: new Date(),
       createdAt: new Date(),
     });
+    await dataSource.getRepository(UserOrmEntity).save([
+      {
+        id: salesRepAId,
+        name: 'Sales Rep A',
+        email: 'sales-rep-a@example.com',
+        passwordHash: 'test-hash',
+        emailVerifiedAt: new Date(),
+        createdAt: new Date(),
+      },
+      {
+        id: salesRepBId,
+        name: 'Sales Rep B',
+        email: 'sales-rep-b@example.com',
+        passwordHash: 'test-hash',
+        emailVerifiedAt: new Date(),
+        createdAt: new Date(),
+      },
+    ]);
+    await dataSource.getRepository(MembershipOrmEntity).save([
+      {
+        organizationId,
+        userId: salesRepAId,
+        role: Role.SALES_REP,
+        invitedAt: new Date(),
+        joinedAt: new Date(),
+        createdAt: new Date(),
+      },
+      {
+        organizationId,
+        userId: salesRepBId,
+        role: Role.SALES_REP,
+        invitedAt: new Date(),
+        joinedAt: new Date(),
+        createdAt: new Date(),
+      },
+    ]);
     await dataSource.getRepository(CustomerOrmEntity).save([
       {
         id: customerId,
@@ -200,7 +239,7 @@ describe('Aging dashboard reporting (integration)', () => {
         paidAmount: 100,
         dueDate: dateAt(1),
         status: ReceivableStatus.OPEN,
-        salesRepresentativeId: null,
+        salesRepresentativeId: salesRepAId,
         createdAt,
         closedAt: null,
         version: 1,
@@ -214,7 +253,7 @@ describe('Aging dashboard reporting (integration)', () => {
         paidAmount: 500,
         dueDate: dateAt(-1),
         status: ReceivableStatus.OPEN,
-        salesRepresentativeId: null,
+        salesRepresentativeId: salesRepBId,
         createdAt,
         closedAt: null,
         version: 1,
@@ -228,7 +267,7 @@ describe('Aging dashboard reporting (integration)', () => {
         paidAmount: 1_000,
         dueDate: dateAt(-8),
         status: ReceivableStatus.PARTIALLY_PAID,
-        salesRepresentativeId: null,
+        salesRepresentativeId: salesRepAId,
         createdAt,
         closedAt: null,
         version: 1,
@@ -242,7 +281,7 @@ describe('Aging dashboard reporting (integration)', () => {
         paidAmount: 1_000,
         dueDate: dateAt(-31),
         status: ReceivableStatus.OPEN,
-        salesRepresentativeId: null,
+        salesRepresentativeId: salesRepBId,
         createdAt,
         closedAt: null,
         version: 1,
@@ -284,7 +323,7 @@ describe('Aging dashboard reporting (integration)', () => {
         paidAmount: 0,
         dueDate: dateAt(90),
         status: ReceivableStatus.OPEN,
-        salesRepresentativeId: null,
+        salesRepresentativeId: salesRepBId,
         createdAt,
         closedAt: null,
         version: 1,
@@ -366,7 +405,11 @@ describe('Aging dashboard reporting (integration)', () => {
       organizationId: otherOrgId,
       role: Role.OWNER,
     });
-
+    salesRepAToken = jwtService.sign({
+      userId: salesRepAId,
+      organizationId,
+      role: Role.SALES_REP,
+    });
     const twoMonthsAgo = monthKeyOffset(2);
     const oneMonthAgo = monthKeyOffset(1);
     const currentMonth = monthKeyOffset(0);
@@ -520,6 +563,166 @@ describe('Aging dashboard reporting (integration)', () => {
     expect(response.body.overdueRate).toBeCloseTo(10_500 / 19_400);
   });
 
+  it('ranks dashboard customers within the SALES_REP portfolio and keeps aggregates organization-wide', async () => {
+    const customerRepository = dataSource.getRepository(CustomerOrmEntity);
+    const receivableRepository = dataSource.getRepository(ReceivableOrmEntity);
+    const competingCustomers = Array.from({ length: 10 }, (_, index) => ({
+      id: randomUUID(),
+      organizationId,
+      name: `Higher Overdue Customer ${index}`,
+      taxCode: `HIGH-OVERDUE-${index}`,
+      email: `high-overdue-${index}@example.com`,
+      phone: `09200000${String(index).padStart(2, '0')}`,
+      defaultPaymentTermDays: 30,
+      creditLimit: 100_000_000,
+      priority: index + 3,
+      createdAt: new Date(),
+    }));
+    const zeroBalanceCustomer = {
+      id: randomUUID(),
+      organizationId,
+      name: 'Zero Balance Customer',
+      taxCode: 'ZERO-BALANCE',
+      email: 'zero-balance@example.com',
+      phone: '0920000011',
+      defaultPaymentTermDays: 30,
+      creditLimit: 100_000_000,
+      priority: 20,
+      createdAt: new Date(),
+    };
+    await customerRepository.save([...competingCustomers, zeroBalanceCustomer]);
+    const competingReceivables = competingCustomers.map((customer, index) => ({
+      id: randomUUID(),
+      organizationId,
+      customerId: customer.id,
+      invoiceId: null,
+      originalAmount: 100_000 + index,
+      paidAmount: 0,
+      dueDate: addDays(new Date(`${today}T00:00:00.000Z`), -2),
+      status: ReceivableStatus.OPEN,
+      salesRepresentativeId: salesRepBId,
+      createdAt: new Date(),
+      closedAt: null,
+      version: 1,
+    }));
+    const zeroBalanceReceivable = {
+      id: randomUUID(),
+      organizationId,
+      customerId: zeroBalanceCustomer.id,
+      invoiceId: null,
+      originalAmount: 1_000,
+      paidAmount: 1_000,
+      dueDate: addDays(new Date(`${today}T00:00:00.000Z`), -2),
+      status: ReceivableStatus.OPEN,
+      salesRepresentativeId: salesRepAId,
+      createdAt: new Date(),
+      closedAt: null,
+      version: 1,
+    };
+    await receivableRepository.save([
+      ...competingReceivables,
+      zeroBalanceReceivable,
+    ]);
+
+    try {
+      const [
+        ownerSummary,
+        salesRepSummary,
+        ownerAging,
+        salesRepAging,
+        ownerTrend,
+        salesRepTrend,
+      ] = await Promise.all([
+        request(app?.getHttpServer())
+          .get('/api/v1/reports/dashboard-summary')
+          .set('Authorization', `Bearer ${token}`)
+          .expect(200),
+        request(app?.getHttpServer())
+          .get('/api/v1/reports/dashboard-summary')
+          .set('Authorization', `Bearer ${salesRepAToken}`)
+          .expect(200),
+        request(app?.getHttpServer())
+          .get('/api/v1/reports/aging')
+          .set('Authorization', `Bearer ${token}`)
+          .expect(200),
+        request(app?.getHttpServer())
+          .get('/api/v1/reports/aging')
+          .set('Authorization', `Bearer ${salesRepAToken}`)
+          .expect(200),
+        request(app?.getHttpServer())
+          .get('/api/v1/reports/trend')
+          .set('Authorization', `Bearer ${token}`)
+          .expect(200),
+        request(app?.getHttpServer())
+          .get('/api/v1/reports/trend')
+          .set('Authorization', `Bearer ${salesRepAToken}`)
+          .expect(200),
+      ]);
+
+      const { topOverdueCustomers: ownerTopCustomers, ...ownerAggregates } =
+        ownerSummary.body;
+      const {
+        topOverdueCustomers: salesRepTopCustomers,
+        ...salesRepAggregates
+      } = salesRepSummary.body;
+
+      expect(salesRepTopCustomers).toEqual([
+        {
+          customerId,
+          customerName: 'Reporting Customer',
+          totalOverdue: 2_000,
+        },
+      ]);
+      expect(salesRepAggregates).toEqual(ownerAggregates);
+      expect(salesRepAging.body).toEqual(ownerAging.body);
+      expect(salesRepTrend.body).toEqual(ownerTrend.body);
+      expect(ownerTopCustomers).toHaveLength(10);
+    } finally {
+      await receivableRepository.delete(
+        [...competingReceivables, zeroBalanceReceivable].map(
+          (receivable) => receivable.id,
+        ),
+      );
+      await customerRepository.delete(
+        [...competingCustomers, zeroBalanceCustomer].map(
+          (customer) => customer.id,
+        ),
+      );
+    }
+  });
+
+  it('exports only the current SALES_REP receivables in the aging buckets', async () => {
+    const response = await request(app?.getHttpServer())
+      .get('/api/v1/reports/aging/export')
+      .set('Authorization', `Bearer ${salesRepAToken}`)
+      .expect(200);
+
+    expect(response.text.split('\r\n')).toEqual([
+      'Nhóm tuổi nợ,Số khoản,Tổng còn lại (VND)',
+      'NOT_DUE,1,900',
+      'OVERDUE_1_7,0,0',
+      'OVERDUE_8_30,1,2000',
+      'OVERDUE_31_60,0,0',
+      'OVERDUE_60_PLUS,0,0',
+    ]);
+  });
+
+  it('keeps the aging export organization-wide for OWNER', async () => {
+    const response = await request(app?.getHttpServer())
+      .get('/api/v1/reports/aging/export')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.text.split('\r\n')).toEqual([
+      'Nhóm tuổi nợ,Số khoản,Tổng còn lại (VND)',
+      'NOT_DUE,2,8900',
+      'OVERDUE_1_7,1,1500',
+      'OVERDUE_8_30,1,2000',
+      'OVERDUE_31_60,1,3000',
+      'OVERDUE_60_PLUS,1,4000',
+    ]);
+  });
+
   it('rejects a reversed dashboard date range with VALIDATION_ERROR', async () => {
     const response = await request(app?.getHttpServer())
       .get('/api/v1/reports/dashboard-summary')
@@ -603,6 +806,113 @@ describe('Aging dashboard reporting (integration)', () => {
       total: 2,
       page: 1,
       limit: 20,
+    });
+  });
+
+  it('limits customer aging amounts and rows to the current SALES_REP', async () => {
+    const response = await request(app?.getHttpServer())
+      .get('/api/v1/reports/aging/customers')
+      .set('Authorization', `Bearer ${salesRepAToken}`)
+      .expect(200);
+
+    expect(response.body).toEqual({
+      items: [
+        {
+          customerId,
+          customerName: 'Reporting Customer',
+          taxCode: 'REPORTING-001',
+          buckets: [
+            { bucket: 'NOT_DUE', totalRemaining: 900 },
+            { bucket: 'OVERDUE_1_7', totalRemaining: 0 },
+            { bucket: 'OVERDUE_8_30', totalRemaining: 2_000 },
+            { bucket: 'OVERDUE_31_60', totalRemaining: 0 },
+            { bucket: 'OVERDUE_60_PLUS', totalRemaining: 0 },
+          ],
+          totalRemaining: 2_900,
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+  });
+
+  it('omits SALES_REP customers whose assigned receivables have no positive balance', async () => {
+    const zeroBalanceCustomer = {
+      id: randomUUID(),
+      organizationId,
+      name: 'Zero Balance Aging Customer',
+      taxCode: 'ZERO-AGING-001',
+      email: 'zero-aging@example.com',
+      phone: '0940000000',
+      defaultPaymentTermDays: 30,
+      creditLimit: 100_000_000,
+      priority: 3,
+      createdAt: new Date(),
+    };
+    const zeroBalanceReceivable = {
+      id: randomUUID(),
+      organizationId,
+      customerId: zeroBalanceCustomer.id,
+      invoiceId: null,
+      originalAmount: 1_000,
+      paidAmount: 1_000,
+      dueDate: addDays(new Date(`${today}T00:00:00.000Z`), -2),
+      status: ReceivableStatus.OPEN,
+      salesRepresentativeId: salesRepAId,
+      createdAt: new Date(),
+      closedAt: null,
+      version: 1,
+    };
+    const customerRepository = dataSource.getRepository(CustomerOrmEntity);
+    const receivableRepository = dataSource.getRepository(ReceivableOrmEntity);
+    await customerRepository.save(zeroBalanceCustomer);
+    await receivableRepository.save(zeroBalanceReceivable);
+
+    try {
+      const response = await request(app?.getHttpServer())
+        .get('/api/v1/reports/aging/customers')
+        .set('Authorization', `Bearer ${salesRepAToken}`)
+        .expect(200);
+
+      expect(
+        response.body.items.map(
+          (item: { customerId: string }) => item.customerId,
+        ),
+      ).toEqual([customerId]);
+      expect(response.body.total).toBe(1);
+    } finally {
+      await receivableRepository.delete(zeroBalanceReceivable.id);
+      await customerRepository.delete(zeroBalanceCustomer.id);
+    }
+  });
+
+  it('applies customer aging search, bucket filters, and pagination within the SALES_REP scope', async () => {
+    const [otherRepSearch, otherRepBucket, secondPage] = await Promise.all([
+      request(app?.getHttpServer())
+        .get('/api/v1/reports/aging/customers')
+        .set('Authorization', `Bearer ${salesRepAToken}`)
+        .query({ search: 'Beta' })
+        .expect(200),
+      request(app?.getHttpServer())
+        .get('/api/v1/reports/aging/customers')
+        .set('Authorization', `Bearer ${salesRepAToken}`)
+        .query({ bucket: 'OVERDUE_1_7' })
+        .expect(200),
+      request(app?.getHttpServer())
+        .get('/api/v1/reports/aging/customers')
+        .set('Authorization', `Bearer ${salesRepAToken}`)
+        .query({ page: 2, limit: 1 })
+        .expect(200),
+    ]);
+
+    expect(otherRepSearch.body.total).toBe(0);
+    expect(otherRepBucket.body.total).toBe(0);
+    expect(secondPage.body).toEqual({
+      items: [],
+      total: 1,
+      page: 2,
+      limit: 1,
     });
   });
 
@@ -697,17 +1007,54 @@ describe('Aging dashboard reporting (integration)', () => {
   });
 
   it('isolates customer aging rows by organization', async () => {
-    const response = await request(app?.getHttpServer())
-      .get('/api/v1/reports/aging/customers')
-      .set('Authorization', `Bearer ${otherOrgToken}`)
-      .expect(200);
+    const otherOrgCustomer = {
+      id: randomUUID(),
+      organizationId: otherOrgId,
+      name: 'Other Organization Customer',
+      taxCode: 'OTHER-ORG-001',
+      email: 'other-organization@example.com',
+      phone: '0930000000',
+      defaultPaymentTermDays: 30,
+      creditLimit: 100_000_000,
+      priority: 1,
+      createdAt: new Date(),
+    };
+    const otherOrgReceivable = {
+      id: randomUUID(),
+      organizationId: otherOrgId,
+      customerId: otherOrgCustomer.id,
+      invoiceId: null,
+      originalAmount: 1_200,
+      paidAmount: 0,
+      dueDate: addDays(new Date(`${today}T00:00:00.000Z`), -3),
+      status: ReceivableStatus.OPEN,
+      salesRepresentativeId: null,
+      createdAt: new Date(),
+      closedAt: null,
+      version: 1,
+    };
+    const customerRepository = dataSource.getRepository(CustomerOrmEntity);
+    const receivableRepository = dataSource.getRepository(ReceivableOrmEntity);
+    await customerRepository.save(otherOrgCustomer);
+    await receivableRepository.save(otherOrgReceivable);
 
-    expect(response.body).toEqual({
-      items: [],
-      total: 0,
-      page: 1,
-      limit: 20,
-    });
+    try {
+      const response = await request(app?.getHttpServer())
+        .get('/api/v1/reports/aging/customers')
+        .set('Authorization', `Bearer ${otherOrgToken}`)
+        .expect(200);
+
+      expect(response.body.items).toHaveLength(1);
+      expect(response.body.items[0]).toMatchObject({
+        customerId: otherOrgCustomer.id,
+        customerName: 'Other Organization Customer',
+        totalRemaining: 1_200,
+      });
+      expect(response.body.total).toBe(1);
+    } finally {
+      await receivableRepository.delete(otherOrgReceivable.id);
+      await customerRepository.delete(otherOrgCustomer.id);
+    }
   });
 
   it('rejects unauthenticated trend requests', async () => {

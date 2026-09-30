@@ -96,7 +96,17 @@ export class TypeOrmDashboardSummaryRepository
 
   async getTopOverdueCustomers(
     organizationId: string,
+    salesRepresentativeId?: string,
   ): Promise<TopOverdueCustomer[]> {
+    const ownershipPredicate =
+      salesRepresentativeId !== undefined
+        ? `AND r."salesRepresentativeId" = $2
+          AND r."originalAmount" > r."paidAmount"`
+        : '';
+    const params =
+      salesRepresentativeId !== undefined
+        ? [organizationId, salesRepresentativeId]
+        : [organizationId];
     const rows: Array<{
       customerId: string;
       customerName: string;
@@ -113,11 +123,12 @@ export class TypeOrmDashboardSummaryRepository
         WHERE r."organizationId" = $1
           AND r.status IN ('OPEN', 'PARTIALLY_PAID')
           AND r."dueDate"::date < CURRENT_DATE
+          ${ownershipPredicate}
         GROUP BY r."customerId", c.name
         ORDER BY "totalOverdue" DESC
         LIMIT 10
       `,
-      [organizationId],
+      params,
     );
 
     return rows.map((row) => ({

@@ -35,5 +35,6 @@ export interface ICustomerAgingReportRepository {
   findPage(
     organizationId: string,
     filters: CustomerAgingFilters,
+    salesRepresentativeId?: string,
   ): Promise<CustomerAgingPage>;
 }

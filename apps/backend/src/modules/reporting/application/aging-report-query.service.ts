@@ -23,9 +23,17 @@ export class AgingReportQueryService {
     private readonly tenantContext: TenantContextService,
   ) {}
 
-  async getAgingBuckets(): Promise<AgingBucketCount[]> {
+  async getAgingBuckets(
+    salesRepresentativeId?: string,
+  ): Promise<AgingBucketCount[]> {
     const organizationId = this.tenantContext.getOrganizationId();
-    const rows = await this.agingReportRepo.findBucketCounts(organizationId);
+    const rows =
+      salesRepresentativeId !== undefined
+        ? await this.agingReportRepo.findBucketCounts(
+            organizationId,
+            salesRepresentativeId,
+          )
+        : await this.agingReportRepo.findBucketCounts(organizationId);
     const byBucket = new Map(rows.map((row) => [row.bucket, row]));
 
     return BUCKET_ORDER.map(

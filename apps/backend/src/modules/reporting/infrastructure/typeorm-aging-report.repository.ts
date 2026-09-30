@@ -26,17 +26,27 @@ const AGING_BUCKETS_SQL = `
     COALESCE(SUM("originalAmount" - "paidAmount"), 0) AS "totalRemaining"
   FROM receivables
   WHERE "organizationId" = $1 AND status IN ('OPEN', 'PARTIALLY_PAID')
-  GROUP BY bucket
 `;
 
 @Injectable()
 export class TypeOrmAgingReportRepository implements IAgingReportRepository {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
 
-  async findBucketCounts(organizationId: string): Promise<AgingBucketCount[]> {
+  async findBucketCounts(
+    organizationId: string,
+    salesRepresentativeId?: string,
+  ): Promise<AgingBucketCount[]> {
+    const ownershipPredicate =
+      salesRepresentativeId !== undefined
+        ? `AND "salesRepresentativeId" = $2`
+        : '';
+    const params =
+      salesRepresentativeId !== undefined
+        ? [organizationId, salesRepresentativeId]
+        : [organizationId];
     const rows: AgingBucketRow[] = await this.dataSource.query(
-      AGING_BUCKETS_SQL,
-      [organizationId],
+      `${AGING_BUCKETS_SQL}${ownershipPredicate} GROUP BY bucket`,
+      params,
     );
 
     return rows.map((row) => ({
