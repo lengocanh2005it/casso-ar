@@ -28,6 +28,8 @@ import { MatchBankTransactionUseCase } from '../src/modules/exception-queue/appl
 import { InvoiceStatus } from '../src/modules/invoices/domain/invoice';
 import { InvoiceOrmEntity } from '../src/modules/invoices/infrastructure/invoice.orm-entity';
 import { Role } from '../src/modules/organizations/domain/membership';
+import { GetCustomerCreditsUseCase } from '../src/modules/payments/application/get-customer-credits.usecase';
+import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment.orm-entity';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { BankTransactionOrmEntity } from '../src/modules/webhooks/infrastructure/bank-transaction.orm-entity';
 import { MatchingCandidateOrmEntity } from '../src/modules/webhooks/infrastructure/matching-candidate.orm-entity';
@@ -297,6 +299,250 @@ describe('Webhook matching (e2e)', () => {
     expect(receivable?.status).toBe('PAID');
     expect(Number(receivable?.paidAmount)).toBe(30_000_000);
   }, 15_000);
+
+  it('routes near-match overpayments to review and leaves the excess as customer credit', async () => {
+    const bankAccountId = randomUUID();
+    const customerId = randomUUID();
+    const invoiceId = randomUUID();
+    const receivableId = randomUUID();
+    const underpaidInvoiceId = randomUUID();
+    const underpaidReceivableId = randomUUID();
+    const actorUserId = randomUUID();
+    const invoiceNumber = `INV-${randomUUID().slice(0, 8)}`;
+    const underpaidInvoiceNumber = `INV-${randomUUID().slice(0, 8)}`;
+    const providerTransactionId = Date.now() + Math.floor(Math.random() * 1000);
+    const payerAccountNumber = String(providerTransactionId).slice(-10);
+    const dueDate = new Date('2026-08-05T10:00:00.000Z');
+    const transferredAmount = 30_200_000;
+    const underpaidAmount = 39_800_000;
+
+    await dataSource.getRepository(CustomerOrmEntity).save({
+      id: customerId,
+      organizationId,
+      name: 'Near Match Customer',
+      taxCode: `TAX-${randomUUID()}`,
+      email: `${customerId}@example.com`,
+      phone: '0900000088',
+      defaultPaymentTermDays: 30,
+      creditLimit: 100_000_000,
+      priority: 1,
+      createdAt: new Date(),
+    });
+    await dataSource.getRepository(CustomerBankAccountOrmEntity).save({
+      id: bankAccountId,
+      organizationId,
+      customerId,
+      accountNumber: payerAccountNumber,
+      createdAt: new Date(),
+    });
+    await dataSource.getRepository(InvoiceOrmEntity).save({
+      id: invoiceId,
+      organizationId,
+      customerId,
+      invoiceNumber,
+      issueDate: new Date('2026-07-01T00:00:00.000Z'),
+      totalAmount: 30_000_000,
+      taxAmount: 0,
+      sourceType: 'MANUAL',
+      fileUrl: null,
+      status: InvoiceStatus.ISSUED,
+      createdAt: new Date(),
+    });
+    await dataSource.getRepository(ReceivableOrmEntity).save({
+      id: receivableId,
+      organizationId,
+      customerId,
+      invoiceId,
+      originalAmount: 30_000_000,
+      paidAmount: 0,
+      dueDate,
+      status: ReceivableStatus.OPEN,
+      salesRepresentativeId: null,
+      createdAt: new Date(),
+      closedAt: null,
+      version: 1,
+    });
+
+    await dataSource.getRepository(InvoiceOrmEntity).save({
+      id: underpaidInvoiceId,
+      organizationId,
+      customerId,
+      invoiceNumber: underpaidInvoiceNumber,
+      issueDate: new Date('2026-07-01T00:00:00.000Z'),
+      totalAmount: 40_000_000,
+      taxAmount: 0,
+      sourceType: 'MANUAL',
+      fileUrl: null,
+      status: InvoiceStatus.ISSUED,
+      createdAt: new Date(),
+    });
+    await dataSource.getRepository(ReceivableOrmEntity).save({
+      id: underpaidReceivableId,
+      organizationId,
+      customerId,
+      invoiceId: underpaidInvoiceId,
+      originalAmount: 40_000_000,
+      paidAmount: 0,
+      dueDate,
+      status: ReceivableStatus.OPEN,
+      salesRepresentativeId: null,
+      createdAt: new Date(),
+      closedAt: null,
+      version: 1,
+    });
+
+    const matchingPayload = {
+      error: 0,
+      data: {
+        id: providerTransactionId,
+        amount: transferredAmount,
+        transactionDateTime: '2026-08-05 10:00:00',
+        description: `Thanh toan ${invoiceNumber}`,
+        accountNumber: '99887766',
+        counterAccountNumber: payerAccountNumber,
+        counterAccountName: 'Near Match Customer',
+      },
+    };
+    await request(app.getHttpServer())
+      .post('/api/v1/webhooks/casso-balance-hook')
+      .set(
+        'X-Casso-Signature',
+        signCassoWebhookPayload(matchingPayload, webhookSecret),
+      )
+      .send(matchingPayload)
+      .expect(200, { received: true, duplicate: false });
+
+    const transactionRepo = dataSource.getRepository(BankTransactionOrmEntity);
+    const inboxRepo = dataSource.getRepository(WebhookInboxOrmEntity);
+    const deadline = Date.now() + 10_000;
+    let transaction: BankTransactionOrmEntity | null = null;
+    let webhookInbox: WebhookInboxOrmEntity | null = null;
+    while (Date.now() < deadline) {
+      transaction = await transactionRepo.findOneBy({
+        providerTransactionId: String(providerTransactionId),
+      });
+      webhookInbox = await inboxRepo.findOneBy({
+        providerTransactionId: String(providerTransactionId),
+      });
+      if (
+        transaction?.status === 'PENDING_REVIEW' ||
+        webhookInbox?.status === 'FAILED'
+      ) {
+        break;
+      }
+      await delay(100);
+    }
+
+    if (webhookInbox?.status === 'FAILED') {
+      throw new Error(
+        `Webhook processing failed: ${webhookInbox.errorMessage}`,
+      );
+    }
+    expect(transaction?.status).toBe('PENDING_REVIEW');
+    expect(webhookInbox?.status).toBe('PROCESSED');
+    if (!transaction) throw new Error('Webhook transaction was not persisted');
+    const transactionId = transaction.id;
+    expect(
+      await dataSource.getRepository(PaymentOrmEntity).countBy({
+        bankTransactionId: transactionId,
+      }),
+    ).toBe(0);
+    expect(
+      await dataSource.getRepository(MatchingCandidateOrmEntity).countBy({
+        bankTransactionId: transactionId,
+      }),
+    ).toBeGreaterThan(0);
+
+    const matchUseCase = app.get(MatchBankTransactionUseCase);
+    await tenantContext.run(
+      { userId: actorUserId, organizationId, role: Role.OWNER },
+      () =>
+        matchUseCase.execute({
+          bankTransactionId: transactionId,
+          allocations: [{ receivableId, amount: 30_000_000 }],
+          version: transaction.version,
+          allocatedByUserId: actorUserId,
+        }),
+    );
+
+    const payment = await dataSource
+      .getRepository(PaymentOrmEntity)
+      .findOneByOrFail({ bankTransactionId: transactionId });
+    expect(Number(payment.totalAmount)).toBe(transferredAmount);
+    expect(Number(payment.allocatedAmount)).toBe(30_000_000);
+    const credits = await tenantContext.run(
+      { userId: actorUserId, organizationId, role: Role.OWNER },
+      () => app.get(GetCustomerCreditsUseCase).execute({ customerId }),
+    );
+    expect(credits.totalAvailableAmount).toBe(200_000);
+    expect(credits.items[0]?.unallocatedAmount).toBe(200_000);
+
+    const receivable = await dataSource
+      .getRepository(ReceivableOrmEntity)
+      .findOneByOrFail({ id: receivableId });
+    expect(receivable.status).toBe(ReceivableStatus.PAID);
+    expect(Number(receivable.paidAmount)).toBe(30_000_000);
+    const underpaymentTransactionId = providerTransactionId + 1;
+    const underpaymentPayload = {
+      error: 0,
+      data: {
+        id: underpaymentTransactionId,
+        amount: underpaidAmount,
+        transactionDateTime: '2026-08-05 10:00:00',
+        description: `Thanh toan ${underpaidInvoiceNumber}`,
+        accountNumber: '99887766',
+        counterAccountNumber: payerAccountNumber,
+        counterAccountName: 'Near Match Customer',
+      },
+    };
+    await request(app.getHttpServer())
+      .post('/api/v1/webhooks/casso-balance-hook')
+      .set(
+        'X-Casso-Signature',
+        signCassoWebhookPayload(underpaymentPayload, webhookSecret),
+      )
+      .send(underpaymentPayload)
+      .expect(200, { received: true, duplicate: false });
+
+    const underpaymentDeadline = Date.now() + 10_000;
+    let underpaymentTransaction: BankTransactionOrmEntity | null = null;
+    let underpaymentInbox: WebhookInboxOrmEntity | null = null;
+    let underpaidReceivable: ReceivableOrmEntity | null = null;
+    while (Date.now() < underpaymentDeadline) {
+      underpaymentTransaction = await transactionRepo.findOneBy({
+        providerTransactionId: String(underpaymentTransactionId),
+      });
+      underpaymentInbox = await inboxRepo.findOneBy({
+        providerTransactionId: String(underpaymentTransactionId),
+      });
+      underpaidReceivable = await dataSource
+        .getRepository(ReceivableOrmEntity)
+        .findOneBy({ id: underpaidReceivableId });
+      if (
+        underpaymentTransaction?.status === 'MATCHED' ||
+        underpaymentInbox?.status === 'FAILED'
+      ) {
+        break;
+      }
+      await delay(100);
+    }
+    if (underpaymentInbox?.status === 'FAILED') {
+      throw new Error(
+        `Underpayment webhook failed: ${underpaymentInbox.errorMessage}`,
+      );
+    }
+    expect(underpaymentTransaction?.status).toBe('MATCHED');
+    expect(underpaymentInbox?.status).toBe('PROCESSED');
+    expect(underpaidReceivable?.status).toBe(ReceivableStatus.PARTIALLY_PAID);
+    expect(Number(underpaidReceivable?.paidAmount)).toBe(underpaidAmount);
+    const underpayment = await dataSource
+      .getRepository(PaymentOrmEntity)
+      .findOneByOrFail({
+        bankTransactionId: underpaymentTransaction?.id,
+      });
+    expect(Number(underpayment.totalAmount)).toBe(underpaidAmount);
+    expect(Number(underpayment.allocatedAmount)).toBe(underpaidAmount);
+  }, 30_000);
 
   it('supports third-party payer accounts and ambiguity guard across customers', async () => {
     const customerC1 = randomUUID();

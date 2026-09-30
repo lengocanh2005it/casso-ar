@@ -80,10 +80,13 @@ Each score component is an independent pure function and is easy to unit test se
 ### Decision thresholds
 
 ```
-totalScore >= 90   → automatic Payment Allocation
-totalScore 60-89   → Exception Queue, suggested in descending totalScore order
-totalScore < 60    → BankTransaction.status = UNMATCHED
+totalScore >= 90 and transaction amount <= candidate remaining amount → automatic Payment Allocation
+totalScore >= 90 and transaction amount > candidate remaining amount  → Exception Queue
+totalScore 60-89                                                        → Exception Queue, suggested in descending totalScore order
+totalScore < 60                                                          → BankTransaction.status = UNMATCHED
 ```
+
+A near-match overpayment never auto-falls back to a lower-ranked candidate. If the top candidate cannot accept the full transfer, including when its balance shrinks before the allocation lock is acquired, route the transaction to `PENDING_REVIEW`, persist the scored candidates, and mark its `WebhookInbox` `PROCESSED`. Do not create a `Payment` until an accountant confirms the match. On confirmation, `Payment.totalAmount` is the full transfer; the accountant selects valid allocations and any remainder stays as customer credit under the [Domain Core rules](2026-08-03-domain-core-design.md). Do not call the AI recommender for these high-scoring transactions; the existing AI pass remains limited to scores 60–89.
 
 For a `60–89` transaction, the optional AI extension receives only the top
 five deterministic candidates and returns display-only advice. It runs before

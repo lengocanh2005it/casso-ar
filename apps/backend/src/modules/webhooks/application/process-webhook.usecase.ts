@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, type EntityManager } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
@@ -103,6 +103,7 @@ export class ProcessWebhookUseCase {
           const canAutoMatch =
             !!top &&
             top.totalScore >= AUTO_MATCH_THRESHOLD &&
+            transaction.amount <= top.remainingAmount &&
             !ambiguousAcrossCustomers;
 
           const aiRecommendation =
@@ -124,75 +125,97 @@ export class ProcessWebhookUseCase {
                 becameClosed: boolean;
               }
             | undefined;
-          await this.dataSource.transaction(async (manager) => {
-            if (canAutoMatch && top) {
-              const payment = new Payment({
-                id: randomUUID(),
-                organizationId: inbox.organizationId,
-                customerId: top.customerId,
-                bankTransactionId: transaction.id,
-                totalAmount: transaction.amount,
-                allocatedAmount: 0,
-                payerName: transaction.counterpartyName,
-                receivedAt: transaction.transactionDateTime,
-                createdAt: new Date(),
-              });
-              await this.paymentRepo.save(payment, manager);
-              await this.ledgerRecorder.record({
-                organizationId: payment.organizationId,
-                subjectType: LedgerEventSubjectType.PAYMENT,
-                subjectId: payment.id,
-                kind: LedgerEventKind.PAYMENT_RECEIVED,
-                amount: payment.totalAmount,
-                manager,
-              });
-              await this.transactionRepo.save(transaction, manager);
-              const allocationResult =
-                await this.allocatePayment.allocateWithinTransaction(manager, {
+          const persistPendingReview = async (
+            manager: EntityManager,
+          ): Promise<void> => {
+            if (!top) return;
+            const pendingTransaction = aiRecommendation
+              ? transaction.withAiRecommendation(aiRecommendation)
+              : transaction;
+            await this.transactionRepo.save(
+              pendingTransaction.markPendingReview(),
+              manager,
+            );
+            await this.candidateRepo.saveMany(
+              this.matchingEngine.toMatchingCandidateEntities(
+                inbox.organizationId,
+                transaction.id,
+                candidates,
+              ),
+              manager,
+            );
+          };
+          try {
+            await this.dataSource.transaction(async (manager) => {
+              if (canAutoMatch && top) {
+                const payment = new Payment({
+                  id: randomUUID(),
+                  organizationId: inbox.organizationId,
+                  customerId: top.customerId,
+                  bankTransactionId: transaction.id,
+                  totalAmount: transaction.amount,
+                  allocatedAmount: 0,
+                  payerName: transaction.counterpartyName,
+                  receivedAt: transaction.transactionDateTime,
+                  createdAt: new Date(),
+                });
+                await this.paymentRepo.save(payment, manager);
+                await this.ledgerRecorder.record({
+                  organizationId: payment.organizationId,
+                  subjectType: LedgerEventSubjectType.PAYMENT,
+                  subjectId: payment.id,
+                  kind: LedgerEventKind.PAYMENT_RECEIVED,
+                  amount: payment.totalAmount,
+                  manager,
+                });
+                await this.transactionRepo.save(transaction, manager);
+                const allocationResult =
+                  await this.allocatePayment.allocateWithinTransaction(
+                    manager,
+                    {
+                      paymentId: payment.id,
+                      receivableId: top.receivableId,
+                      amount: transaction.amount,
+                      allocatedByUserId: null,
+                      provenance: {
+                        actorType: BalanceHistoryActorType.WEBHOOK,
+                        actorUserId: null,
+                      },
+                    },
+                  );
+                autoMatchResult = {
                   paymentId: payment.id,
                   receivableId: top.receivableId,
-                  amount: transaction.amount,
-                  allocatedByUserId: null,
-                  provenance: {
-                    actorType: BalanceHistoryActorType.WEBHOOK,
-                    actorUserId: null,
-                  },
-                });
-              autoMatchResult = {
-                paymentId: payment.id,
-                receivableId: top.receivableId,
-                customerId: allocationResult.customerId,
-                becameClosed: allocationResult.becameClosed,
-              };
-              await this.transactionRepo.save(
-                transaction.markMatched(),
-                manager,
-              );
-            } else if (top && top.totalScore >= EXCEPTION_QUEUE_THRESHOLD) {
-              const pendingTransaction = aiRecommendation
-                ? transaction.withAiRecommendation(aiRecommendation)
-                : transaction;
-              await this.transactionRepo.save(
-                pendingTransaction.markPendingReview(),
-                manager,
-              );
-              await this.candidateRepo.saveMany(
-                this.matchingEngine.toMatchingCandidateEntities(
-                  inbox.organizationId,
-                  transaction.id,
-                  candidates,
-                ),
-                manager,
-              );
-            } else {
-              await this.transactionRepo.save(
-                transaction.markUnmatched(),
-                manager,
-              );
+                  customerId: allocationResult.customerId,
+                  becameClosed: allocationResult.becameClosed,
+                };
+                await this.transactionRepo.save(
+                  transaction.markMatched(),
+                  manager,
+                );
+              } else if (top && top.totalScore >= EXCEPTION_QUEUE_THRESHOLD) {
+                await persistPendingReview(manager);
+              } else {
+                await this.transactionRepo.save(
+                  transaction.markUnmatched(),
+                  manager,
+                );
+              }
+              await this.inboxRepo.save(inbox.markProcessed(), manager);
+            });
+          } catch (error) {
+            const candidateNoLongerAllocatable =
+              error instanceof AppError &&
+              (error.errorCode === ErrorCode.ALLOCATION_EXCEEDS_REMAINING ||
+                error.errorCode === ErrorCode.CONFLICT);
+            if (!canAutoMatch || !candidateNoLongerAllocatable) {
+              throw error;
             }
-            await this.inboxRepo.save(inbox.markProcessed(), manager);
-          });
-
+            await this.dataSource.transaction(async (manager) => {
+              await persistPendingReview(manager);
+              await this.inboxRepo.save(inbox.markProcessed(), manager);
+            });
+          }
           if (autoMatchResult) {
             await this.allocatePayment.emitAllocationEvents({
               paymentId: autoMatchResult.paymentId,

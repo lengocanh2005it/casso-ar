@@ -1,3 +1,5 @@
+import { AppError } from '../../../common/errors/app-error';
+import { ErrorCode } from '../../../common/errors/error-code';
 import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
 import { WebhookInbox } from '../domain/webhook-inbox';
 import { ProcessWebhookUseCase } from './process-webhook.usecase';
@@ -33,11 +35,14 @@ describe('ProcessWebhookUseCase', () => {
     };
     const transactionRepo = { save: jest.fn(), findById: jest.fn() };
     const engine = {
-      scoreCandidates: jest
-        .fn()
-        .mockResolvedValue([
-          { receivableId: 'rec-1', customerId: 'cust-1', totalScore: 95 },
-        ]),
+      scoreCandidates: jest.fn().mockResolvedValue([
+        {
+          receivableId: 'rec-1',
+          customerId: 'cust-1',
+          totalScore: 95,
+          remainingAmount: 30_000_000,
+        },
+      ]),
       toMatchingCandidateEntities: jest.fn(),
     };
     const paymentRepo = { save: jest.fn(), findByIdForUpdate: jest.fn() };
@@ -294,11 +299,14 @@ describe('ProcessWebhookUseCase', () => {
     };
     const transactionRepo = { save: jest.fn(), findById: jest.fn() };
     const engine = {
-      scoreCandidates: jest
-        .fn()
-        .mockResolvedValue([
-          { receivableId: 'rec-1', customerId: 'cust-1', totalScore: 95 },
-        ]),
+      scoreCandidates: jest.fn().mockResolvedValue([
+        {
+          receivableId: 'rec-1',
+          customerId: 'cust-1',
+          totalScore: 95,
+          remainingAmount: 30_000_000,
+        },
+      ]),
       toMatchingCandidateEntities: jest.fn(),
     };
     const aiService = { evaluate: jest.fn() };
@@ -344,8 +352,18 @@ describe('ProcessWebhookUseCase', () => {
     const transactionRepo = { save: jest.fn(), findById: jest.fn() };
     const engine = {
       scoreCandidates: jest.fn().mockResolvedValue([
-        { receivableId: 'r1', customerId: 'cust-1', totalScore: 95 },
-        { receivableId: 'r2', customerId: 'cust-2', totalScore: 92 },
+        {
+          receivableId: 'r1',
+          customerId: 'cust-1',
+          totalScore: 95,
+          remainingAmount: 30_000_000,
+        },
+        {
+          receivableId: 'r2',
+          customerId: 'cust-2',
+          totalScore: 92,
+          remainingAmount: 35_000_000,
+        },
       ]),
       toMatchingCandidateEntities: jest.fn().mockReturnValue([]),
     };
@@ -387,6 +405,84 @@ describe('ProcessWebhookUseCase', () => {
     expect(paymentRepo.save).not.toHaveBeenCalled();
   });
 
+  it.each([ErrorCode.ALLOCATION_EXCEEDS_REMAINING, ErrorCode.CONFLICT])(
+    'routes a selected candidate to review if it becomes unavailable (%s)',
+    async (errorCode) => {
+      const inboxRepo = {
+        findById: jest.fn().mockResolvedValue(inbox),
+        save: jest.fn(),
+      };
+      const transactionRepo = { save: jest.fn(), findById: jest.fn() };
+      const engine = {
+        scoreCandidates: jest.fn().mockResolvedValue([
+          {
+            receivableId: 'rec-1',
+            customerId: 'cust-1',
+            totalScore: 95,
+            remainingAmount: 31_000_000,
+          },
+          {
+            receivableId: 'rec-2',
+            customerId: 'cust-1',
+            totalScore: 92,
+            remainingAmount: 40_000_000,
+          },
+        ]),
+        toMatchingCandidateEntities: jest.fn().mockReturnValue([]),
+      };
+      const candidateRepo = { saveMany: jest.fn() };
+      const paymentRepo = { save: jest.fn() };
+      const allocation = {
+        allocateWithinTransaction: jest
+          .fn()
+          .mockRejectedValue(
+            new AppError(errorCode, 'Balance changed before allocation'),
+          ),
+        emitAllocationEvents: jest.fn(),
+      };
+      const dataSource = {
+        transaction: jest.fn(
+          async (callback: (manager: object) => Promise<void>) => callback({}),
+        ),
+      };
+      const tenant = {
+        run: jest.fn((_user: unknown, callback: () => Promise<void>) =>
+          callback(),
+        ),
+      };
+      const useCase = new ProcessWebhookUseCase(
+        inboxRepo as any,
+        transactionRepo as any,
+        engine as any,
+        candidateRepo as any,
+        paymentRepo as any,
+        allocation as any,
+        dataSource as any,
+        tenant as any,
+        { record: jest.fn() } as any,
+        { evaluate: jest.fn() } as any,
+      );
+
+      await expect(useCase.execute('wh-1', 'org-1')).resolves.toBeUndefined();
+
+      expect(allocation.allocateWithinTransaction).toHaveBeenCalledTimes(1);
+      expect(allocation.allocateWithinTransaction).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ receivableId: 'rec-1' }),
+      );
+      expect(transactionRepo.save).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: 'PENDING_REVIEW' }),
+        expect.anything(),
+      );
+      expect(candidateRepo.saveMany).toHaveBeenCalledTimes(1);
+      expect(inboxRepo.save).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: 'PROCESSED' }),
+        expect.anything(),
+      );
+      expect(allocation.emitAllocationEvents).not.toHaveBeenCalled();
+    },
+  );
+
   it('still auto-matches when the second-best candidate is the same customer', async () => {
     const inboxRepo = {
       findById: jest.fn().mockResolvedValue(inbox),
@@ -395,8 +491,18 @@ describe('ProcessWebhookUseCase', () => {
     const transactionRepo = { save: jest.fn(), findById: jest.fn() };
     const engine = {
       scoreCandidates: jest.fn().mockResolvedValue([
-        { receivableId: 'r1', customerId: 'cust-1', totalScore: 95 },
-        { receivableId: 'r2', customerId: 'cust-1', totalScore: 91 },
+        {
+          receivableId: 'r1',
+          customerId: 'cust-1',
+          totalScore: 95,
+          remainingAmount: 30_000_000,
+        },
+        {
+          receivableId: 'r2',
+          customerId: 'cust-1',
+          totalScore: 91,
+          remainingAmount: 35_000_000,
+        },
       ]),
       toMatchingCandidateEntities: jest.fn().mockReturnValue([]),
     };
