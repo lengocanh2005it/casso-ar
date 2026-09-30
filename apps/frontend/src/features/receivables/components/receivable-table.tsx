@@ -119,7 +119,7 @@ export function ReceivableTable({
                 </Link>
                 {!receivable.invoiceNumber && (
                   <p className="text-xs text-muted-foreground max-md:hidden">
-                    Không có hóa đơn
+                    Không có hóa đơn · tạo {formatDate(receivable.createdAt)}
                   </p>
                 )}
               </TableCell>

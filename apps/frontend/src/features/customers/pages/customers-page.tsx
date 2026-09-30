@@ -7,7 +7,9 @@ import { Input } from '@/components/ui/input';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
+import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
+import { cn } from '@/lib/utils';
 import { useCustomers } from '../api/use-customers';
 import { CustomerTable } from '../components/customer-table';
 
@@ -15,8 +17,12 @@ export function CustomersPage() {
   const { user } = useAuth();
   const { searchParams, setParam, setPage } = useUrlQueryParams();
   const search = searchParams.get('search') ?? '';
+  const debouncedSearch = useDebouncedValue(search, 250);
   const page = Number(searchParams.get('page') ?? '1');
-  const { data, isPending, isError } = useCustomers(search, page);
+  const { data, isPending, isError, isPlaceholderData } = useCustomers(
+    debouncedSearch,
+    page,
+  );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
 
   return (
@@ -57,19 +63,28 @@ export function CustomersPage() {
           </p>
         )}
         {data && (
-          <CustomerTable
-            customers={data.items}
-            isFiltered={Boolean(search)}
-            canImport={hasPermission(
-              user?.role ?? null,
-              Permission.RECEIVABLE_IMPORT,
+          <div
+            aria-busy={isPlaceholderData}
+            className={cn(
+              'transition-opacity motion-reduce:transition-none',
+              isPlaceholderData && 'opacity-60',
             )}
-          />
+          >
+            <CustomerTable
+              customers={data.items}
+              isFiltered={Boolean(debouncedSearch)}
+              canImport={hasPermission(
+                user?.role ?? null,
+                Permission.RECEIVABLE_IMPORT,
+              )}
+            />
+          </div>
         )}
         {data && (
           <CardPagination
             page={data.page}
             totalPages={totalPages}
+            summary={`${data.total.toLocaleString('vi-VN')} khách hàng`}
             onPageChange={setPage}
           />
         )}

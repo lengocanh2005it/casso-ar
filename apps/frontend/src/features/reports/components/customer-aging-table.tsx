@@ -25,13 +25,16 @@ const BUCKET_TONE: Record<AgingBucket, string> = {
   OVERDUE_60_PLUS: 'text-destructive font-semibold',
 };
 
+// Left shadow on the sticky total: when the table is wider than the card the
+// bucket columns slide under it, and without an edge nothing says so.
+const STICKY_EDGE = 'shadow-[-8px_0_8px_-8px_rgb(0_0_0/0.25)]';
+
 export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>Khách hàng</TableHead>
-          <TableHead>Mã số thuế</TableHead>
           {AGING_BUCKET_ORDER.map((bucket) => (
             <TableHead
               key={bucket}
@@ -40,7 +43,12 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
               {AGING_BUCKET_LABELS[bucket]}
             </TableHead>
           ))}
-          <TableHead className="sticky right-0 border-l bg-muted text-right">
+          <TableHead
+            className={cn(
+              'sticky right-0 border-l bg-muted text-right',
+              STICKY_EDGE,
+            )}
+          >
             Tổng còn lại
           </TableHead>
         </TableRow>
@@ -48,21 +56,21 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
       <TableBody>
         {page.items.map((row) => (
           <TableRow key={row.customerId}>
-            <TableCell className="max-w-64">
+            <TableCell className="max-w-56">
               <div className="flex min-w-0 items-center gap-2">
                 <InitialsAvatar name={row.customerName} size="sm" />
-                <span
-                  className="block min-w-0 truncate"
-                  title={row.customerName}
-                >
-                  {row.customerName}
-                </span>
+                <div className="min-w-0">
+                  <span
+                    className="block min-w-0 truncate"
+                    title={row.customerName}
+                  >
+                    {row.customerName}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground tabular-nums">
+                    {row.taxCode}
+                  </span>
+                </div>
               </div>
-            </TableCell>
-            <TableCell className="max-w-48">
-              <span className="block truncate" title={row.taxCode}>
-                {row.taxCode}
-              </span>
             </TableCell>
             {AGING_BUCKET_ORDER.map((bucket) => {
               const amount =
@@ -82,7 +90,12 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
                 </TableCell>
               );
             })}
-            <TableCell className="sticky right-0 border-l bg-card text-right font-semibold whitespace-nowrap tabular-nums">
+            <TableCell
+              className={cn(
+                'sticky right-0 border-l bg-card text-right font-semibold whitespace-nowrap tabular-nums',
+                STICKY_EDGE,
+              )}
+            >
               {formatVND(row.totalRemaining)}
             </TableCell>
           </TableRow>

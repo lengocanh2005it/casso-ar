@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   batchApproveMatch,
@@ -15,6 +20,7 @@ export function usePendingReview(page = 1, search?: string) {
   return useQuery({
     queryKey: ['bank-transactions', page, search],
     queryFn: () => fetchPendingReview(page, search),
+    placeholderData: keepPreviousData,
   });
 }
 

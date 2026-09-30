@@ -1,10 +1,15 @@
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { RecentActivityFeed } from './recent-activity-feed';
 
 describe('RecentActivityFeed', () => {
   it('shows an empty state when there is no activity', () => {
-    render(<RecentActivityFeed items={[]} />);
+    render(
+      <MemoryRouter>
+        <RecentActivityFeed items={[]} />
+      </MemoryRouter>,
+    );
     expect(screen.getByText('Chưa có hoạt động')).toBeTruthy();
     expect(
       screen.getByText(
@@ -27,9 +32,34 @@ describe('RecentActivityFeed', () => {
           },
         ]}
       />,
+      { wrapper: MemoryRouter },
     );
     expect(screen.getByText('Nhận thanh toán')).toBeTruthy();
     expect(screen.getByText('Nhận thanh toán 5.000.000 ₫')).toBeTruthy();
+  });
+
+  it('links each activity to the receivable it happened on', () => {
+    render(
+      <MemoryRouter>
+        <RecentActivityFeed
+          items={[
+            {
+              id: 'act-1',
+              receivableId: 'rec-1',
+              customerId: 'cust-1',
+              activityType: 'PAYMENT_RECEIVED',
+              description: 'Đã nhận thanh toán 5.000.000 ₫ cho khoản phải thu',
+              createdAt: '2026-08-13T00:00:00Z',
+            },
+          ]}
+        />
+      </MemoryRouter>,
+    );
+
+    // The description alone ("… cho khoản phải thu") never said which one.
+    expect(
+      screen.getByRole('link', { name: /Nhận thanh toán/ }),
+    ).toHaveAttribute('href', '/receivables/rec-1');
   });
 
   it('renders the date as machine-readable time with a breakable description', () => {
@@ -46,6 +76,7 @@ describe('RecentActivityFeed', () => {
           },
         ]}
       />,
+      { wrapper: MemoryRouter },
     );
     expect(screen.getByRole('time')).toHaveAttribute(
       'dateTime',

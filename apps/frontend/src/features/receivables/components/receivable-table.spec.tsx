@@ -157,7 +157,11 @@ describe('ReceivableTable', () => {
     expect(link).toHaveAttribute('href', '/receivables/rec-1');
     expect(link).not.toHaveClass('text-primary');
     expect(link).toHaveClass('text-muted-foreground');
-    expect(screen.getByText('Không có hóa đơn')).toBeInTheDocument();
+    // Every invoice-less row read "Khoản phải thu / Không có hóa đơn";
+    // the creation date tells them apart without exposing internal ids.
+    expect(
+      screen.getByText('Không có hóa đơn · tạo 01/08/2026'),
+    ).toBeInTheDocument();
     expect(screen.queryByText('#rec-1')).not.toBeInTheDocument();
   });
 

@@ -42,11 +42,20 @@ const emptyActivity = { items: [], total: 0, page: 1, limit: 10 };
 
 const emptyTrend = { months: 6, items: [] };
 
-function mockApi(summary = summaryData, role: string | null = null) {
+function mockApi(
+  summary = summaryData,
+  role: string | null = null,
+  bankingLinked = true,
+) {
   getValidAccessToken.mockResolvedValue(role ? 'access-token' : null);
   apiRequest.mockImplementation(({ url }: { url: string }) => {
     if (url === '/api/v1/auth/me' && role) {
-      return Promise.resolve({ id: 'u1', email: 'a@b.test', role });
+      return Promise.resolve({
+        id: 'u1',
+        email: 'a@b.test',
+        role,
+        bankingLinked,
+      });
     }
     if (url === '/api/v1/bank-transactions/pending-review-count') {
       return Promise.resolve({ count: 7 });
@@ -165,6 +174,7 @@ describe('DashboardPage', () => {
     expect(
       screen.queryByText('Bắt đầu theo dõi công nợ'),
     ).not.toBeInTheDocument();
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
   });
 
   it('guides a brand-new organization to import its first invoices', async () => {
@@ -182,6 +192,29 @@ describe('DashboardPage', () => {
     expect(
       screen.getByRole('link', { name: /Đối soát tiền về/ }),
     ).toHaveAttribute('href', '/exceptions');
+    expect(
+      screen.queryByRole('link', { name: /Kết nối ngân hàng/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('asks a brand-new organization without a bank connection to connect one first', async () => {
+    mockApi(newOrgSummary, 'OWNER', false);
+
+    renderPage();
+
+    expect(
+      await screen.findByText('Bắt đầu theo dõi công nợ'),
+    ).toBeInTheDocument();
+    // It used to claim "Tài khoản ngân hàng đã kết nối" right under the
+    // "no active bank connection" banner.
+    expect(
+      screen.queryByText(/Tài khoản ngân hàng đã kết nối/),
+    ).not.toBeInTheDocument();
+    const links = screen
+      .getAllByRole('link')
+      .filter((link) => link.closest('ol'));
+    expect(links[0]).toHaveAccessibleName(/Kết nối ngân hàng/);
+    expect(links[0]).toHaveAttribute('href', '/bank-connections');
   });
 
   it('uses the shared empty state when there are no overdue customers', async () => {

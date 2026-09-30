@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import {
   batchCancelReceivables,
   batchWriteOffReceivables,
@@ -19,6 +24,9 @@ export function useReceivables(
   return useQuery({
     queryKey: ['receivables', filters, page, limit],
     queryFn: () => fetchReceivables(filters, page, limit),
+    // Keep the current rows (and the pager) mounted while the next page or
+    // filter loads, instead of collapsing the table into a skeleton.
+    placeholderData: keepPreviousData,
   });
 }
 

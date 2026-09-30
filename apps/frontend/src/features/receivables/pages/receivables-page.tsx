@@ -13,6 +13,7 @@ import { useBulkSelection } from '@/lib/use-bulk-selection';
 import { useCsvExport } from '@/lib/use-csv-export';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
+import { cn } from '@/lib/utils';
 import { exportReceivablesCsv } from '../api/receivables-api';
 import { useReceivables } from '../api/use-receivables';
 import { CreateReceivableDialog } from '../components/create-receivable-dialog';
@@ -31,7 +32,7 @@ export function ReceivablesPage() {
   const search = searchParams.get('search') ?? '';
   const debouncedSearch = useDebouncedValue(search, 250);
   const page = Number(searchParams.get('page') ?? '1');
-  const { data, isPending, isError } = useReceivables(
+  const { data, isPending, isError, isPlaceholderData } = useReceivables(
     { status, customerId, search: debouncedSearch || undefined },
     page,
   );
@@ -128,23 +129,35 @@ export function ReceivablesPage() {
           </p>
         )}
         {data && (
-          <ReceivableTable
-            receivables={data.items}
-            selectedIds={bulkSelection.selectedIds}
-            onToggle={bulkSelection.toggle}
-            onToggleAll={bulkSelection.toggleAll}
-            allSelected={bulkSelection.allSelected}
-            isFiltered={Boolean(status || customerId || debouncedSearch)}
-            canCreate={
-              hasPermission(user?.role ?? null, Permission.RECEIVABLE_WRITE) ||
-              hasPermission(user?.role ?? null, Permission.RECEIVABLE_IMPORT)
-            }
-          />
+          <div
+            aria-busy={isPlaceholderData}
+            className={cn(
+              'transition-opacity motion-reduce:transition-none',
+              isPlaceholderData && 'opacity-60',
+            )}
+          >
+            <ReceivableTable
+              receivables={data.items}
+              selectedIds={bulkSelection.selectedIds}
+              onToggle={bulkSelection.toggle}
+              onToggleAll={bulkSelection.toggleAll}
+              allSelected={bulkSelection.allSelected}
+              isFiltered={Boolean(status || customerId || debouncedSearch)}
+              canCreate={
+                hasPermission(
+                  user?.role ?? null,
+                  Permission.RECEIVABLE_WRITE,
+                ) ||
+                hasPermission(user?.role ?? null, Permission.RECEIVABLE_IMPORT)
+              }
+            />
+          </div>
         )}
         {data && (
           <CardPagination
             page={data.page}
             totalPages={totalPages}
+            summary={`${data.total.toLocaleString('vi-VN')} khoản phải thu`}
             onPageChange={setPage}
           />
         )}

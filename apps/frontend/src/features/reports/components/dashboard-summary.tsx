@@ -53,6 +53,7 @@ export function DashboardSummary({
           value={formatRate(summary.overdueRate)}
           icon={Clock}
           variant="warning"
+          empty={summary.totalOutstanding === 0}
         />
         <MetricCard
           label="Khớp tự động"

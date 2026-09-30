@@ -317,6 +317,9 @@ describe('ReportsPage', () => {
     await waitFor(() =>
       expect(screen.getByText('Chưa có khách hàng còn công nợ')).toBeTruthy(),
     );
+    // Nothing owed: an overdue rate of "0%" beside "Chưa có dữ liệu" cards
+    // read as a measured result rather than no data.
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
     expect(screen.queryByText(/bộ lọc/)).toBeNull();
 
     apiRequest.mockImplementation(({ url }: { url: string }) => {

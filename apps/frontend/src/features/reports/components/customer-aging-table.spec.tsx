@@ -61,4 +61,28 @@ describe('CustomerAgingTable', () => {
     expect(screen.getByText('106.000.000 ₫')).toHaveClass('bg-card');
     expect(screen.getByText('62.000.000 ₫')).toHaveClass('text-right');
   });
+
+  it('shows the tax code under the customer name so every bucket column fits', () => {
+    render(<CustomerAgingTable page={buildPage()} />);
+
+    // A separate tax-code column pushed "Quá hạn trên 60 ngày" under the
+    // sticky total at 1440px with real (multi-billion) amounts.
+    expect(
+      screen.queryByRole('columnheader', { name: 'Mã số thuế' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('0309999005').closest('td')).toBe(
+      screen.getByText('Công ty TNHH Dược phẩm ABC').closest('td'),
+    );
+  });
+
+  it('shades the sticky total edge so a clipped table reads as scrollable', () => {
+    render(<CustomerAgingTable page={buildPage()} />);
+
+    expect(
+      screen.getByRole('columnheader', { name: 'Tổng còn lại' }),
+    ).toHaveClass('shadow-[-8px_0_8px_-8px_rgb(0_0_0/0.25)]');
+    expect(screen.getByText('106.000.000 ₫')).toHaveClass(
+      'shadow-[-8px_0_8px_-8px_rgb(0_0_0/0.25)]',
+    );
+  });
 });

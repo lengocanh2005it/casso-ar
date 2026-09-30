@@ -1,4 +1,5 @@
 import { Activity } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/layout/empty-state';
 import { formatActivityType } from '@/lib/collection-activity-labels';
 import { formatDateTime } from '@/lib/format';
@@ -13,6 +14,7 @@ export function RecentActivityFeed({
     return (
       <EmptyState
         density="compact"
+        className="flex-1"
         icon={Activity}
         title="Chưa có hoạt động"
         description="Các cập nhật thu tiền và xử lý công nợ sẽ hiển thị tại đây."
@@ -25,9 +27,14 @@ export function RecentActivityFeed({
       {items.map((item) => (
         <li key={item.id} className="px-3 py-3 text-sm">
           <div className="flex items-center justify-between gap-4">
-            <span className="font-medium">
+            {/* The stored description reads "… cho khoản phải thu" without
+                saying which one, so the title opens that receivable. */}
+            <Link
+              to={`/receivables/${item.receivableId}`}
+              className="font-medium text-primary pointer-hover:hover:underline"
+            >
               {formatActivityType(item.activityType)}
-            </span>
+            </Link>
             <time
               dateTime={item.createdAt}
               className="shrink-0 text-xs text-muted-foreground"
