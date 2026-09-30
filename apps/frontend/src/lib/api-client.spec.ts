@@ -23,6 +23,15 @@ function tokenWithExpiry(expiresAt: number): string {
   return `header.${btoa(JSON.stringify({ exp: expiresAt }))}.signature`;
 }
 
+// An axios timeout rejects with no `response`, which is what makes the token
+// manager treat it as transient rather than a dead session.
+const TIMEOUT_ERROR = {
+  code: 'ECONNABORTED',
+  message: 'timeout of 10000ms exceeded',
+  config: {},
+  request: {},
+};
+
 describe('AuthTokenManager', () => {
   let manager: AuthTokenManager;
 
@@ -195,15 +204,7 @@ describe('AuthTokenManager', () => {
     ['a network error', new Error('Network Error')],
     ['a 500 response', { response: { status: 500 } }],
     ['a 429 response', { response: { status: 429 } }],
-    [
-      'a timeout',
-      {
-        code: 'ECONNABORTED',
-        message: 'timeout of 10000ms exceeded',
-        config: {},
-        request: {},
-      },
-    ],
+    ['a timeout', TIMEOUT_ERROR],
   ])(
     'keeps the session when a refresh fails with %s',
     async (_label, error) => {
@@ -304,12 +305,7 @@ describe('AuthTokenManager refresh across tabs', () => {
   it('lets the next tab refresh after an earlier one fails', async () => {
     installFakeLocks();
     postMock
-      .mockRejectedValueOnce({
-        code: 'ECONNABORTED',
-        message: 'timeout of 10000ms exceeded',
-        config: {},
-        request: {},
-      })
+      .mockRejectedValueOnce(TIMEOUT_ERROR)
       .mockResolvedValueOnce({ data: { accessToken: 'token-b' } });
     const tabA = new AuthTokenManager();
     const tabB = new AuthTokenManager();

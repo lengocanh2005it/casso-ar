@@ -49,7 +49,9 @@ const REFRESH_LOCK_NAME = 'casso:refresh';
 // A refresh must be quick, so a request that never gets an answer is treated
 // as a transient network failure: it aborts, releases the shared lock so the
 // next tab can try, and leaves the session hint alone for the next load to
-// retry. Not configurable — the same call as the rotation grace window.
+// retry. Not configurable, and unrelated to the rotation grace window that
+// shares its value: that one bounds how long the server honours a replayed
+// token, this one bounds how long the client waits for a response.
 const REFRESH_TIMEOUT_MS = 10 * 1000;
 
 // Non-sensitive hint only — the real refresh token stays in an httpOnly
