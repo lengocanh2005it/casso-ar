@@ -230,7 +230,7 @@ they never rewrite an earlier snapshot.
 | PAYMENT_ALLOCATE | ✓ | ✓ | ✓ | — | — |
 | PAYMENT_ALLOCATE_UNDO | ✓ | ✓ | — | — | — |
 | RECEIVABLE_IMPORT | ✓ | ✓ | ✓ | ✓ (assigned to importer) | — |
-| CUSTOMER_READ | ✓ | ✓ | ✓ | ✓ (owned customer profile) | ✓ |
+| CUSTOMER_READ | ✓ | ✓ | ✓ | ✓ (customer with receivable assigned to current SALES_REP) | ✓ |
 | EMAIL_TEMPLATE_READ | ✓ | ✓ | ✓ | — | ✓ |
 | REPORT_READ | ✓ | ✓ | ✓ | ✓ (org aggregates; own customer rows) | ✓ |
 | BANK_CONNECTION_MANAGE | ✓ | — | — | — | — |
@@ -239,7 +239,7 @@ they never rewrite an earlier snapshot.
 
 **SALES_REP:** can only view receivables assigned to them — `Receivable.salesRepresentativeId = ctx.userId`. A receivable with a null `salesRepresentativeId` (unassigned) is visible to no `SALES_REP`. The rule holds on every `RECEIVABLE_READ` path, list and single-receivable detail alike.
 
-**SALES_REP customer visibility:** a customer profile is visible when at least one receivable for that customer is assigned to the sales representative, regardless of receivable status; this does not grant access to receivables assigned to another representative.
+**Customer visible to SALES_REP:** a customer profile is visible when at least one receivable for that customer is assigned to the current sales representative in the current organization, regardless of receivable status. Receivable-derived customer summaries include only receivables assigned to that representative; this does not grant access to other representatives' receivables.
 
 ## API Conventions
 
