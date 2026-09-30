@@ -48,7 +48,10 @@ export const DASHBOARD_SUMMARY_REPOSITORY = Symbol(
 export interface IDashboardSummaryRepository {
   getOutstandingSummary(organizationId: string): Promise<OutstandingSummary>;
   getForecast(organizationId: string): Promise<ForecastSummary>;
-  getTopOverdueCustomers(organizationId: string): Promise<TopOverdueCustomer[]>;
+  getTopOverdueCustomers(
+    organizationId: string,
+    salesRepresentativeId?: string,
+  ): Promise<TopOverdueCustomer[]>;
   getAutoMatchStats(
     organizationId: string,
     period: DashboardPeriod,

@@ -66,6 +66,14 @@ A B2B SaaS platform for automating accounts receivable management and collection
 | **AI matching recommendation** | A nullable, immutable-once-evaluated JSONB result for an ambiguous `60–89` transaction. It recommends one deterministic candidate or abstains; it never allocates money or changes transaction status. |
 | **Current AI recommendation** | A recommendation whose receivable is still among the persisted candidates and remains open with positive balance. `isCurrent` is derived at read time; the stored evaluation is retained as history. |
 
+## Reporting Terms
+
+| Term | Meaning |
+|------|---------|
+| **Organization-wide report aggregate** | A receivables metric calculated across the current organization, regardless of sales-representative assignment. |
+| **SALES_REP customer-level report** | Customer rows and rankings derived only from receivables assigned to the current representative; a customer appears only when those receivables produce a positive reportable balance. |
+| **SALES_REP aging export** | An aging-bucket summary calculated only from receivables assigned to the current representative. |
+
 ## Receivable State Machine
 
 ```
@@ -232,7 +240,7 @@ they never rewrite an earlier snapshot.
 | RECEIVABLE_IMPORT | ✓ | ✓ | ✓ | ✓ (assigned to importer) | — |
 | CUSTOMER_READ | ✓ | ✓ | ✓ | ✓ (customer with receivable assigned to current SALES_REP) | ✓ |
 | EMAIL_TEMPLATE_READ | ✓ | ✓ | ✓ | — | ✓ |
-| REPORT_READ | ✓ | ✓ | ✓ | ✓ (org aggregates; own customer rows) | ✓ |
+| REPORT_READ | ✓ | ✓ | ✓ | ✓ (org aggregates; assigned customer rows and aging export) | ✓ |
 | BANK_CONNECTION_MANAGE | ✓ | — | — | — | — |
 | SUBSCRIPTION_MANAGE | ✓ | ✓ | — | — | — |
 | USER_MANAGE | ✓ | ✓ | — | — | — |

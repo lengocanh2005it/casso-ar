@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
+import { Role } from '../../organizations/domain/membership';
 import {
   DASHBOARD_SUMMARY_REPOSITORY,
   type DashboardPeriod,
@@ -34,12 +35,20 @@ export class DashboardSummaryQueryService {
 
   async getSummary(period?: DashboardPeriod): Promise<DashboardSummary> {
     const organizationId = this.tenantContext.getOrganizationId();
+    const user = this.tenantContext.getCurrentUser();
     const effectivePeriod = period ?? currentMonthPeriod();
+    const topOverdueCustomersPromise =
+      user?.role === Role.SALES_REP
+        ? this.dashboardSummaryRepo.getTopOverdueCustomers(
+            organizationId,
+            user.userId,
+          )
+        : this.dashboardSummaryRepo.getTopOverdueCustomers(organizationId);
     const [outstanding, forecast, topOverdueCustomers, autoMatch, reminder] =
       await Promise.all([
         this.dashboardSummaryRepo.getOutstandingSummary(organizationId),
         this.dashboardSummaryRepo.getForecast(organizationId),
-        this.dashboardSummaryRepo.getTopOverdueCustomers(organizationId),
+        topOverdueCustomersPromise,
         this.dashboardSummaryRepo.getAutoMatchStats(
           organizationId,
           effectivePeriod,

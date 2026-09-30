@@ -22,5 +22,8 @@ export interface AgingBucketCount {
 export const AGING_REPORT_REPOSITORY = Symbol('AGING_REPORT_REPOSITORY');
 
 export interface IAgingReportRepository {
-  findBucketCounts(organizationId: string): Promise<AgingBucketCount[]>;
+  findBucketCounts(
+    organizationId: string,
+    salesRepresentativeId?: string,
+  ): Promise<AgingBucketCount[]>;
 }

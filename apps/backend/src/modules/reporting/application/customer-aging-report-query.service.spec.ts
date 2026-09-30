@@ -20,6 +20,7 @@ describe('CustomerAgingReportQueryService', () => {
     };
     const tenantContext = {
       getOrganizationId: () => tenantId,
+      getCurrentUser: () => undefined,
     } as never as TenantContextService;
     const service = new CustomerAgingReportQueryService(repo, tenantContext);
     return { service, repo };

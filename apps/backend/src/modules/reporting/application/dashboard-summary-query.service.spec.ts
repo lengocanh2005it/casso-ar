@@ -50,6 +50,7 @@ function buildService(
   };
   const tenantContext = {
     getOrganizationId: () => 'org-1',
+    getCurrentUser: () => undefined,
   } as never as TenantContextService;
   return {
     repo,

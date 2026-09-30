@@ -94,8 +94,16 @@ export class TypeOrmCustomerAgingReportRepository
   async findPage(
     organizationId: string,
     filters: CustomerAgingFilters,
+    salesRepresentativeId?: string,
   ): Promise<CustomerAgingPage> {
     const params: unknown[] = [organizationId];
+
+    let ownershipPredicate = '';
+    if (salesRepresentativeId !== undefined) {
+      params.push(salesRepresentativeId);
+      ownershipPredicate = `
+      AND r."salesRepresentativeId" = $${params.length}`;
+    }
 
     let searchPredicate = '';
     if (filters.search) {
@@ -123,7 +131,7 @@ export class TypeOrmCustomerAgingReportRepository
     params.push(filters.limit, (filters.page - 1) * filters.limit);
     const limitIndex = params.length - 1;
 
-    const baseSql = `WITH ${ACTIVE_RECEIVABLES_CTE}${searchPredicate}),
+    const baseSql = `WITH ${ACTIVE_RECEIVABLES_CTE}${ownershipPredicate}${searchPredicate}),
 ${GROUPED_CTE}`;
     const sql = `${baseSql}
 ${SELECT_PIVOT}
