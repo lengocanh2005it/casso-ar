@@ -54,8 +54,12 @@ export function ExceptionsPage() {
     page,
     debouncedSearch || undefined,
   );
+  // Placeholder rows belong to the previous page/search: clear the selection
+  // so skip / prepaid / match cannot act on them under the new context.
   const bulkSelection = useBulkSelection(
-    (data?.items ?? []).map((item) => item.transaction.id),
+    isPlaceholderData
+      ? []
+      : (data?.items ?? []).map((item) => item.transaction.id),
   );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
   // An empty placeholder is the previous search's result; its empty state

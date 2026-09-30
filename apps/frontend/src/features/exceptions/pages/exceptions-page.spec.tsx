@@ -179,6 +179,53 @@ describe('ExceptionsPage', () => {
     ).toHaveAttribute('inert');
   });
 
+  it('drops the bulk selection while the next page loads', async () => {
+    apiRequest.mockReset();
+    apiRequest
+      .mockResolvedValueOnce({
+        items: [
+          {
+            transaction: {
+              id: 'tx-1',
+              providerTransactionId: 'TX-1',
+              amount: 10_000,
+              transactionDateTime: '2026-08-01',
+              counterpartyAccountNumber: '001',
+              counterpartyName: 'Công ty A',
+              transferContent: 'note',
+              status: 'PENDING_REVIEW',
+              version: 1,
+            },
+            topCandidate: null,
+          },
+        ],
+        total: 45,
+        page: 1,
+        limit: 20,
+      })
+      .mockReturnValueOnce(new Promise(() => {}));
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    fireEvent.click((await screen.findAllByRole('checkbox'))[1]);
+    expect(await screen.findByText('Đã chọn 1')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sau' }));
+
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(2));
+    // Skip / prepaid / match must not act on the previous page's rows.
+    await waitFor(() =>
+      expect(screen.queryByText('Đã chọn 1')).not.toBeInTheDocument(),
+    );
+  });
+
   it('does not flash the "nothing to review" state while an empty search is cleared', async () => {
     apiRequest.mockReset();
     apiRequest

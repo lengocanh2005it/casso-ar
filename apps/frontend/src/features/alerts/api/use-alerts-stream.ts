@@ -62,12 +62,17 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-export function useAlertsStream(enabled: boolean): void {
+// `streamScope` identifies whose alerts the stream carries (e.g.
+// `${userId}:${organizationId}`); null disables streaming. Tabs share one
+// stream per scope, so another account or organization open in the same
+// browser gets its own stream instead of queuing behind the first one.
+export function useAlertsStream(streamScope: string | null): void {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!streamScope) return;
 
+    const lockName = `${STREAM_LOCK_NAME}:${streamScope}`;
     const controller = new AbortController();
     const { signal } = controller;
     const invalidateAlerts = () =>
@@ -77,7 +82,7 @@ export function useAlertsStream(enabled: boolean): void {
     const channel =
       typeof BroadcastChannel === 'undefined'
         ? null
-        : new BroadcastChannel(STREAM_LOCK_NAME);
+        : new BroadcastChannel(lockName);
     if (channel) channel.onmessage = invalidateAlerts;
 
     // 'stable' (the stream stayed open a while) lets a healthy connection
@@ -135,9 +140,7 @@ export function useAlertsStream(enabled: boolean): void {
     // other API requests. Other tabs queue on the lock and take over when the
     // holding tab closes (aborting a queued request rejects it — ignored).
     if ('locks' in navigator) {
-      navigator.locks
-        .request(STREAM_LOCK_NAME, { signal }, run)
-        .catch(() => undefined);
+      navigator.locks.request(lockName, { signal }, run).catch(() => undefined);
     } else {
       void run();
     }
@@ -146,5 +149,5 @@ export function useAlertsStream(enabled: boolean): void {
       controller.abort();
       channel?.close();
     };
-  }, [queryClient, enabled]);
+  }, [queryClient, streamScope]);
 }

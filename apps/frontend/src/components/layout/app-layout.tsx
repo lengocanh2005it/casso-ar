@@ -14,7 +14,9 @@ export function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const { user } = useAuth();
   const { pathname } = useLocation();
-  useAlertsStream(user?.role === 'OWNER');
+  useAlertsStream(
+    user?.role === 'OWNER' ? `${user.id}:${user.organizationId}` : null,
+  );
 
   // Every page grows past the viewport by default (min-h-full) so main's
   // own overflow-auto scrolling keeps its bottom padding visible. Copilot

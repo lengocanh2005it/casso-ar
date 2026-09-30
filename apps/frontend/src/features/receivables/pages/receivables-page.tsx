@@ -48,7 +48,9 @@ export function ReceivablesPage() {
         receivable.status === ReceivableStatus.PARTIALLY_PAID,
     )
     .map((receivable) => receivable.id);
-  const bulkSelection = useBulkSelection(eligibleIds);
+  // Placeholder rows belong to the previous page/filter: clear the selection
+  // so the bulk bar cannot act on them under the new context.
+  const bulkSelection = useBulkSelection(isPlaceholderData ? [] : eligibleIds);
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
   const canExport = hasPermission(
     user?.role ?? null,

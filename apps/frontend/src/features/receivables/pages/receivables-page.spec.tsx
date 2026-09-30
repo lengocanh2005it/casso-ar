@@ -175,6 +175,59 @@ describe('ReceivablesPage', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('drops the bulk selection while the next page loads', async () => {
+    apiRequest.mockReset();
+    apiRequest
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: 'receivable-1',
+            customerId: 'customer-1',
+            invoiceId: 'invoice-1',
+            invoiceNumber: 'INV-001',
+            originalAmount: 20_000_000,
+            paidAmount: 0,
+            remainingAmount: 20_000_000,
+            dueDate: '2026-08-20T00:00:00.000Z',
+            status: 'OPEN',
+            salesRepresentativeId: null,
+            createdAt: '2026-08-01T00:00:00.000Z',
+            closedAt: null,
+            isOverdue: false,
+            isDisputed: false,
+            disputeId: null,
+          },
+        ],
+        total: 40,
+        page: 1,
+        limit: 20,
+      })
+      .mockReturnValueOnce(new Promise(() => {}));
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ReceivablesPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(
+      await screen.findByRole('checkbox', { name: 'Chọn INV-001' }),
+    );
+    expect(await screen.findByText('Đã chọn 1')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sau' }));
+
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(2));
+    // The dimmed rows are inert, but the bar below them could still write
+    // off / cancel the previous page's rows under the new page or filter.
+    await waitFor(() =>
+      expect(screen.queryByText('Đã chọn 1')).not.toBeInTheDocument(),
+    );
+  });
+
   it('exports the current filters as CSV', async () => {
     apiRequest.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
     apiRequestWithHeaders.mockResolvedValue({

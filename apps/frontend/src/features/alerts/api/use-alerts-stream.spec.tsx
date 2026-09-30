@@ -29,20 +29,23 @@ afterEach(() => {
 // holder at a time, queued requests run when the holder's callback settles,
 // and aborting a queued request rejects it.
 function installFakeLocks() {
-  let held = false;
-  const queue: Array<() => void> = [];
+  // Per lock name, like the real Web Locks API.
+  const locks = new Map<string, { held: boolean; queue: Array<() => void> }>();
   const request = (
-    _name: string,
+    name: string,
     options: { signal?: AbortSignal },
     callback: () => Promise<unknown>,
   ) =>
     new Promise((resolve, reject) => {
+      const lock = locks.get(name) ?? { held: false, queue: [] };
+      locks.set(name, lock);
+      const { queue } = lock;
       const run = () => {
-        held = true;
+        lock.held = true;
         callback()
           .then(resolve, reject)
           .finally(() => {
-            held = false;
+            lock.held = false;
             queue.shift()?.();
           });
       };
@@ -53,7 +56,7 @@ function installFakeLocks() {
           reject(new DOMException('Aborted', 'AbortError'));
         }
       });
-      if (held) queue.push(run);
+      if (lock.held) queue.push(run);
       else run();
     });
   vi.stubGlobal('navigator', { ...navigator, locks: { request } });
@@ -76,7 +79,7 @@ function wrapper({ children }: { children: ReactNode }) {
 
 describe('useAlertsStream', () => {
   it('opens an authenticated fetch stream without putting the token in the URL', async () => {
-    renderHook(() => useAlertsStream(true), { wrapper });
+    renderHook(() => useAlertsStream('user-1:org-1'), { wrapper });
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     expect(fetchMock).toHaveBeenCalledWith(
@@ -92,7 +95,7 @@ describe('useAlertsStream', () => {
   });
 
   it('does not open a stream when enabled is false', async () => {
-    renderHook(() => useAlertsStream(false), { wrapper });
+    renderHook(() => useAlertsStream(null), { wrapper });
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(fetchMock).not.toHaveBeenCalled();
@@ -114,7 +117,7 @@ describe('useAlertsStream', () => {
     });
     const queryClient = new QueryClient();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
-    renderHook(() => useAlertsStream(true), {
+    renderHook(() => useAlertsStream('user-1:org-1'), {
       wrapper: ({ children }) => (
         <QueryClientProvider client={queryClient}>
           {children}
@@ -138,7 +141,7 @@ describe('useAlertsStream', () => {
           },
         }),
       }));
-      const { unmount } = renderHook(() => useAlertsStream(true), {
+      const { unmount } = renderHook(() => useAlertsStream('user-1:org-1'), {
         wrapper,
       });
 
@@ -170,7 +173,7 @@ describe('useAlertsStream', () => {
       }));
       const queryClient = new QueryClient();
       const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
-      const { unmount } = renderHook(() => useAlertsStream(true), {
+      const { unmount } = renderHook(() => useAlertsStream('user-1:org-1'), {
         wrapper: ({ children }) => (
           <QueryClientProvider client={queryClient}>
             {children}
@@ -193,7 +196,7 @@ describe('useAlertsStream', () => {
     vi.useFakeTimers();
     try {
       getValidAccessToken.mockResolvedValue(null);
-      const { unmount } = renderHook(() => useAlertsStream(true), {
+      const { unmount } = renderHook(() => useAlertsStream('user-1:org-1'), {
         wrapper,
       });
 
@@ -213,8 +216,12 @@ describe('useAlertsStream', () => {
 
     // Each tab held its own stream, and at six tabs Chrome's per-host
     // HTTP/1.1 connection limit starved every other API request.
-    const firstTab = renderHook(() => useAlertsStream(true), { wrapper });
-    const secondTab = renderHook(() => useAlertsStream(true), { wrapper });
+    const firstTab = renderHook(() => useAlertsStream('user-1:org-1'), {
+      wrapper,
+    });
+    const secondTab = renderHook(() => useAlertsStream('user-1:org-1'), {
+      wrapper,
+    });
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -223,6 +230,24 @@ describe('useAlertsStream', () => {
     firstTab.unmount();
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     secondTab.unmount();
+  });
+
+  it('gives each account its own stream instead of queuing behind another account', async () => {
+    installFakeLocks();
+    fetchMock.mockImplementation(async () => openStream());
+
+    // A tab signed in as another owner (or another organization) used to
+    // wait forever on the origin-wide lock held by the first account's tab.
+    const ownerA = renderHook(() => useAlertsStream('user-a:org-a'), {
+      wrapper,
+    });
+    const ownerB = renderHook(() => useAlertsStream('user-b:org-b'), {
+      wrapper,
+    });
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    ownerA.unmount();
+    ownerB.unmount();
   });
 
   it('relays stream messages to tabs that do not hold the stream', async () => {
@@ -243,9 +268,11 @@ describe('useAlertsStream', () => {
     const followerClient = new QueryClient();
     const followerInvalidate = vi.spyOn(followerClient, 'invalidateQueries');
 
-    const leader = renderHook(() => useAlertsStream(true), { wrapper });
+    const leader = renderHook(() => useAlertsStream('user-1:org-1'), {
+      wrapper,
+    });
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-    const follower = renderHook(() => useAlertsStream(true), {
+    const follower = renderHook(() => useAlertsStream('user-1:org-1'), {
       wrapper: ({ children }) => (
         <QueryClientProvider client={followerClient}>
           {children}
@@ -271,7 +298,9 @@ describe('useAlertsStream', () => {
 
   it('aborts the stream on unmount', async () => {
     fetchMock.mockResolvedValue(openStream());
-    const { unmount } = renderHook(() => useAlertsStream(true), { wrapper });
+    const { unmount } = renderHook(() => useAlertsStream('user-1:org-1'), {
+      wrapper,
+    });
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     const signal = fetchMock.mock.calls[0]?.[1]?.signal as AbortSignal;
