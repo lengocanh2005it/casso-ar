@@ -19,6 +19,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { SkipThrottle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import {
   AuditActionType,
@@ -205,7 +206,14 @@ export class AuthController {
   }
 
   @Public()
-  @UseGuards(AuthCompositeRateLimitGuard)
+  // Deliberately not AuthCompositeRateLimitGuard: refresh runs on every full
+  // page load, so the 20-per-15-minute `ip` budget and the shared auth
+  // abuse-escalation lockout both misfire on normal traffic — a reloading user
+  // or an office NAT gets logged out, then locked out of login as well (#410).
+  // Refresh keeps only the `default` 100/min per IP flood cap, keyed by IP
+  // because token rotation makes a cookie-based key unstable. ADR-0030.
+  @SkipThrottle({ ip: true })
+  @UseGuards(ThrottlerGuard)
   @Post('refresh')
   @ApiOperation({
     summary: 'Refresh the access token using the refresh cookie',

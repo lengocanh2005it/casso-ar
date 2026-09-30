@@ -402,6 +402,60 @@ describe('Auth flow (integration)', () => {
     });
   });
 
+  describe('refresh rate limit (issue #410)', () => {
+    async function loginCookie(): Promise<string> {
+      await clearRateLimitState();
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email: 'ap@congtyb.vn', password: 'S3curePass!' })
+        .expect(201);
+      return response.headers['set-cookie'][0];
+    }
+
+    it('serves 50 sequential page-load refreshes past the 20-per-15-minute cutoff and leaves login working', async () => {
+      let cookie = await loginCookie();
+
+      for (let reload = 0; reload < 50; reload += 1) {
+        const response = await request(app.getHttpServer())
+          .post('/api/v1/auth/refresh')
+          .set('Cookie', cookie)
+          .expect(201);
+        expect(response.body.accessToken).toBeDefined();
+        cookie = response.headers['set-cookie'][0];
+      }
+
+      // 50 refreshes under the 100/min budget is well past the old 20/15m
+      // cutoff, so a shared escalation counter would now be blocking login.
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email: 'ap@congtyb.vn', password: 'S3curePass!' })
+        .expect(201);
+    });
+
+    it('caps refresh floods at 100 per minute without locking the IP out of auth', async () => {
+      await clearRateLimitState();
+
+      for (let attempt = 1; attempt <= 100; attempt += 1) {
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/refresh')
+          .expect(401);
+      }
+
+      const throttled = await request(app.getHttpServer())
+        .post('/api/v1/auth/refresh')
+        .expect(429);
+      expect(throttled.body).toMatchObject({
+        statusCode: 429,
+        errorCode: 'RATE_LIMIT_EXCEEDED',
+      });
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email: 'ap@congtyb.vn', password: 'S3curePass!' })
+        .expect(201);
+    });
+  });
+
   it('email dimension rate-limits login and returns the standard 429 envelope', async () => {
     await clearRateLimitState();
 
