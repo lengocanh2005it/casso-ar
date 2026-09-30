@@ -4,17 +4,55 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 
 export function EmailDraftPreview({
   subject,
   recipientEmail,
   bodyHtml,
+  compact = false,
 }: {
   subject: string;
   recipientEmail: string;
   bodyHtml: string;
+  compact?: boolean;
 }) {
   const [mode, setMode] = useState<'preview' | 'code'>('preview');
+  const previewHtml = `<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      body {
+        padding: 16px;
+        background: #f1f5f9;
+        color: #334155;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      .email-content {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 24px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #fff;
+      }
+      .email-content > :first-child { margin-top: 0; }
+      .email-content > :last-child { margin-bottom: 0; }
+      img { max-width: 100%; height: auto; }
+      table { max-width: 100%; border-collapse: collapse; }
+      @media (max-width: 480px) {
+        body { padding: 8px; }
+        .email-content { padding: 12px; }
+      }
+    </style>
+  </head>
+  <body><div class="email-content">${bodyHtml}</div></body>
+</html>`;
 
   async function copyHtml() {
     try {
@@ -26,14 +64,23 @@ export function EmailDraftPreview({
   }
 
   return (
-    <Card className="border-muted bg-muted/20 shadow-none">
-      <CardHeader className="space-y-1 pb-3">
-        <CardTitle className="break-words text-sm">{subject}</CardTitle>
-        <p className="break-words text-xs text-muted-foreground">
-          {recipientEmail}
-        </p>
-      </CardHeader>
-      <CardContent className="pt-0">
+    <Card
+      className={cn(
+        'shadow-none',
+        compact
+          ? 'rounded-none border-0 bg-transparent p-0 shadow-none'
+          : 'border-muted bg-muted/20',
+      )}
+    >
+      {!compact && (
+        <CardHeader className="space-y-1 pb-3">
+          <CardTitle className="break-words text-sm">{subject}</CardTitle>
+          <p className="break-words text-xs text-muted-foreground">
+            {recipientEmail}
+          </p>
+        </CardHeader>
+      )}
+      <CardContent className={cn('pt-0', compact && 'p-0')}>
         <Tabs
           value={mode}
           onValueChange={(value) => setMode(value as 'preview' | 'code')}
@@ -59,8 +106,11 @@ export function EmailDraftPreview({
             <iframe
               title="Xem trước email"
               sandbox=""
-              srcDoc={bodyHtml}
-              className="h-64 w-full rounded-md border bg-white"
+              srcDoc={previewHtml}
+              className={cn(
+                'w-full rounded-md border bg-muted',
+                compact ? 'h-72' : 'h-64',
+              )}
             />
           </TabsContent>
           <TabsContent value="code">

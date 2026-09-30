@@ -126,7 +126,9 @@ describe('CopilotPage', () => {
     renderPage();
 
     await waitFor(() =>
-      expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/bạn muốn xử lý công nợ nào/i),
+      ).toBeInTheDocument(),
     );
     expect(screen.getByRole('button', { name: /send/i })).toBeDisabled();
     const composer = screen.getByLabelText(/enter question/i);
@@ -142,7 +144,9 @@ describe('CopilotPage', () => {
     renderPage({ withLocationProbe: true });
 
     await waitFor(() =>
-      expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/bạn muốn xử lý công nợ nào/i),
+      ).toBeInTheDocument(),
     );
 
     await waitFor(() => expect(screen.getByRole('dialog')).toHaveFocus());
@@ -168,7 +172,9 @@ describe('CopilotPage', () => {
     renderPage();
 
     await waitFor(() =>
-      expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/bạn muốn xử lý công nợ nào/i),
+      ).toBeInTheDocument(),
     );
 
     expect(
@@ -186,7 +192,9 @@ describe('CopilotPage', () => {
     const { rerenderPage } = renderPage();
 
     await waitFor(() =>
-      expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/bạn muốn xử lý công nợ nào/i),
+      ).toBeInTheDocument(),
     );
     fireEvent.click(screen.getByRole('button', { name: /mở lịch sử chat/i }));
     expect(
@@ -247,7 +255,9 @@ describe('CopilotPage', () => {
     const { queryClient } = renderPage();
     const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
     await waitFor(() =>
-      expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/bạn muốn xử lý công nợ nào/i),
+      ).toBeInTheDocument(),
     );
 
     fireEvent.change(screen.getByLabelText(/enter question/i), {
@@ -291,7 +301,9 @@ describe('CopilotPage', () => {
     );
     renderPage();
     await waitFor(() =>
-      expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/bạn muốn xử lý công nợ nào/i),
+      ).toBeInTheDocument(),
     );
 
     fireEvent.change(screen.getByLabelText(/enter question/i), {
@@ -302,7 +314,9 @@ describe('CopilotPage', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /dừng/i })).toBeInTheDocument(),
     );
-    expect(screen.getByText('Đang xử lý…')).toBeInTheDocument();
+    expect(
+      screen.getByRole('status', { name: 'Copilot đang trả lời' }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /dừng/i }));
     releaseFetch();
 
@@ -340,7 +354,9 @@ describe('CopilotPage', () => {
     // The chat welcome state and the drafts panel are both visible at once —
     // there is no tab to switch between them any more.
     await waitFor(() =>
-      expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/bạn muốn xử lý công nợ nào/i),
+      ).toBeInTheDocument(),
     );
     await waitFor(() =>
       expect(
@@ -369,7 +385,9 @@ describe('CopilotPage', () => {
     renderPage();
 
     await waitFor(() =>
-      expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/bạn muốn xử lý công nợ nào/i),
+      ).toBeInTheDocument(),
     );
     fireEvent.change(screen.getByLabelText(/enter question/i), {
       target: { value: 'Tóm tắt công nợ' },
@@ -386,7 +404,9 @@ describe('CopilotPage', () => {
     renderPage();
 
     await waitFor(() =>
-      expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/bạn muốn xử lý công nợ nào/i),
+      ).toBeInTheDocument(),
     );
 
     expect(
@@ -416,7 +436,9 @@ describe('CopilotPage', () => {
     renderPage();
 
     await waitFor(() =>
-      expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/bạn muốn xử lý công nợ nào/i),
+      ).toBeInTheDocument(),
     );
     fireEvent.change(screen.getByLabelText(/enter question/i), {
       target: { value: 'Tóm tắt công nợ' },

@@ -37,7 +37,11 @@ describe('EmailDraftPreview', () => {
     const iframe = screen.getByTitle('Xem trước email') as HTMLIFrameElement;
     expect(iframe).toBeInTheDocument();
     expect(iframe.getAttribute('sandbox')).toBe('');
-    expect(iframe.srcdoc).toBe(bodyHtml);
+    expect(iframe.srcdoc).toContain('<style>');
+    expect(iframe.srcdoc).toContain(
+      'font-family: Arial, Helvetica, sans-serif;',
+    );
+    expect(iframe.srcdoc).toContain(bodyHtml);
   });
 
   it('switches to escaped HTML-code view and back', () => {

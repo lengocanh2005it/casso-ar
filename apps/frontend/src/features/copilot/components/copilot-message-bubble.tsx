@@ -20,9 +20,11 @@ function renderAssistantContent(content: string) {
 export function CopilotMessageBubble({
   message,
   isStreaming = false,
+  isWaitingForResponse = false,
 }: {
   message: Pick<CopilotMessage, 'role' | 'content' | 'isPartial'>;
   isStreaming?: boolean;
+  isWaitingForResponse?: boolean;
 }) {
   if (message.role === 'USER') {
     return (
@@ -34,7 +36,14 @@ export function CopilotMessageBubble({
     );
   }
 
-  if (!message.content && !isStreaming && !message.isPartial) return null;
+  if (
+    !message.content &&
+    !isStreaming &&
+    !message.isPartial &&
+    !isWaitingForResponse
+  ) {
+    return null;
+  }
 
   return (
     <div className="flex min-w-0 items-start gap-2">
@@ -43,8 +52,19 @@ export function CopilotMessageBubble({
       </div>
       <div className="min-w-0 max-w-[80%]">
         <p className="break-words whitespace-pre-wrap rounded-lg bg-muted px-3 py-2 text-sm">
-          {renderAssistantContent(message.content)}
-          {isStreaming && (
+          {isWaitingForResponse ? (
+            <span
+              aria-hidden="true"
+              className="flex h-5 items-center gap-1 px-0.5"
+            >
+              <span className="size-2 animate-bounce rounded-full bg-primary/70 [animation-delay:-0.3s] motion-reduce:animate-none" />
+              <span className="size-2 animate-bounce rounded-full bg-primary/70 [animation-delay:-0.15s] motion-reduce:animate-none" />
+              <span className="size-2 animate-bounce rounded-full bg-primary/70 motion-reduce:animate-none" />
+            </span>
+          ) : (
+            renderAssistantContent(message.content)
+          )}
+          {isStreaming && !isWaitingForResponse && (
             <span
               aria-hidden="true"
               className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-foreground/70 align-middle"

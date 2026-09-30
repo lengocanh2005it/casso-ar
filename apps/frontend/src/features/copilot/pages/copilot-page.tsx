@@ -169,7 +169,7 @@ export function CopilotPage() {
         >
           <aside
             className={cn(
-              'hidden shrink-0 overflow-hidden border-r border-border bg-muted/20 transition-[width] duration-200 md:block',
+              'hidden shrink-0 overflow-hidden border-r border-border bg-muted/20 transition-[width] duration-200 2xl:block',
               historyCollapsed ? 'w-0 border-0' : 'w-56',
             )}
           >
@@ -192,7 +192,7 @@ export function CopilotPage() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="md:hidden"
+                  className="2xl:hidden"
                   onClick={() => setHistorySheetOpen(true)}
                   aria-label="Mở lịch sử chat"
                 >
@@ -202,7 +202,7 @@ export function CopilotPage() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="hidden md:inline-flex"
+                  className="hidden 2xl:inline-flex"
                   onClick={() => setHistoryCollapsed((current) => !current)}
                   aria-label={
                     historyCollapsed
@@ -222,7 +222,7 @@ export function CopilotPage() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="md:hidden"
+                  className="2xl:hidden"
                   onClick={() => setDraftsSheetOpen(true)}
                   aria-label="Mở bản nháp email"
                 >
@@ -232,7 +232,7 @@ export function CopilotPage() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="hidden md:inline-flex"
+                  className="hidden 2xl:inline-flex"
                   onClick={() => setDraftsCollapsed((current) => !current)}
                   aria-label={
                     draftsCollapsed
@@ -330,17 +330,17 @@ export function CopilotPage() {
 
           <aside
             className={cn(
-              'hidden shrink-0 overflow-hidden border-l border-border bg-muted/20 transition-[width] duration-200 md:block',
-              draftsCollapsed ? 'w-0 border-0' : 'w-72',
+              'hidden shrink-0 overflow-hidden border-l border-border bg-muted/20 transition-[width] duration-200 2xl:block',
+              draftsCollapsed ? 'w-0 border-0' : 'w-96',
             )}
           >
-            <div className={cn('h-full w-72', draftsCollapsed && 'invisible')}>
+            <div className={cn('h-full w-96', draftsCollapsed && 'invisible')}>
               {draftsPanel}
             </div>
           </aside>
           {hasCopilotAccess && (
             <Sheet open={draftsSheetOpen} onOpenChange={setDraftsSheetOpen}>
-              <SheetContent side="right" className="w-80 p-0">
+              <SheetContent side="right" className="w-[90vw] max-w-sm p-0">
                 {draftsPanel}
               </SheetContent>
             </Sheet>
