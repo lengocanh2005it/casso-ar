@@ -159,8 +159,25 @@ describe('AuthTokenManager', () => {
     manager.markLogoutInitiated();
     await manager.clearStaleRefreshSession();
 
-    expect(postMock).toHaveBeenCalledWith('/api/v1/auth/logout');
+    expect(postMock).toHaveBeenCalledWith(
+      '/api/v1/auth/logout',
+      {},
+      expect.objectContaining({ timeout: 5_000 }),
+    );
     await expect(manager.getValidAccessToken()).resolves.toBeNull();
+  });
+
+  it('settles logout when the logout request times out', async () => {
+    postMock.mockRejectedValue(new Error('timeout of 5000ms exceeded'));
+
+    manager.markLogoutInitiated();
+    await expect(manager.clearStaleRefreshSession()).resolves.toBeUndefined();
+
+    expect(postMock).toHaveBeenCalledWith(
+      '/api/v1/auth/logout',
+      {},
+      expect.objectContaining({ timeout: 5_000 }),
+    );
   });
 
   it('has no known session before any login has ever happened', () => {

@@ -53,6 +53,7 @@ const REFRESH_LOCK_NAME = 'casso:refresh';
 // shares its value: that one bounds how long the server honours a replayed
 // token, this one bounds how long the client waits for a response.
 const REFRESH_TIMEOUT_MS = 10 * 1000;
+const LOGOUT_TIMEOUT_MS = 5 * 1000;
 
 // Non-sensitive hint only — the real refresh token stays in an httpOnly
 // cookie the client can't read. Lets restoreSession() skip the refresh
@@ -169,7 +170,7 @@ export class AuthTokenManager {
 
     if (!this.logoutPromise) {
       this.logoutPromise = axiosClient
-        .post('/api/v1/auth/logout')
+        .post('/api/v1/auth/logout', {}, { timeout: LOGOUT_TIMEOUT_MS })
         .then(() => undefined)
         .catch(() => undefined)
         .finally(() => {
