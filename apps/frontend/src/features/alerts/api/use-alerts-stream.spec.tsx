@@ -122,9 +122,9 @@ describe('useAlertsStream', () => {
       ),
     });
 
-    await vi.waitFor(() =>
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['alerts'] }),
-    );
+    // One refresh when the stream opens, one more for the message.
+    await vi.waitFor(() => expect(invalidateSpy).toHaveBeenCalledTimes(2));
+    expect(invalidateSpy).toHaveBeenLastCalledWith({ queryKey: ['alerts'] });
   });
 
   it('reconnects after the server closes the stream', async () => {
@@ -148,6 +148,41 @@ describe('useAlertsStream', () => {
       // until the user reloaded the page.
       await vi.advanceTimersByTimeAsync(30_000);
       expect(fetchMock.mock.calls.length).toBeGreaterThan(1);
+      // A stream that closes right after opening (a buffering proxy, a
+      // handler failing after headers) must back off, not retry every 1s.
+      expect(fetchMock.mock.calls.length).toBeLessThanOrEqual(6);
+      unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('refreshes alerts in every tab when a stream (re)opens, covering the gap', async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock.mockImplementation(async () => ({
+        ok: true,
+        body: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.close();
+          },
+        }),
+      }));
+      const queryClient = new QueryClient();
+      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+      const { unmount } = renderHook(() => useAlertsStream(true), {
+        wrapper: ({ children }) => (
+          <QueryClientProvider client={queryClient}>
+            {children}
+          </QueryClientProvider>
+        ),
+      });
+
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(1);
+      // No message arrived, but alerts raised while the stream was down (or
+      // while another tab was taking it over) were otherwise never fetched.
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['alerts'] });
       unmount();
     } finally {
       vi.useRealTimers();
@@ -218,13 +253,18 @@ describe('useAlertsStream', () => {
       ),
     });
 
+    // Let the on-open refresh settle so the assertion below is about the
+    // relayed message, not the open.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const callsBeforeMessage = followerInvalidate.mock.calls.length;
     push?.();
 
     await vi.waitFor(() =>
-      expect(followerInvalidate).toHaveBeenCalledWith({
-        queryKey: ['alerts'],
-      }),
+      expect(followerInvalidate.mock.calls.length).toBe(callsBeforeMessage + 1),
     );
+    expect(followerInvalidate).toHaveBeenLastCalledWith({
+      queryKey: ['alerts'],
+    });
     leader.unmount();
     follower.unmount();
   });

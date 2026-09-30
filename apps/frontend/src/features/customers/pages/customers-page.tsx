@@ -24,6 +24,9 @@ export function CustomersPage() {
     page,
   );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
+  // An empty placeholder is the previous search's result; its empty state
+  // would describe the wrong search, so show the skeleton instead.
+  const showsEmptyPlaceholder = isPlaceholderData && data?.items.length === 0;
 
   return (
     <div className="space-y-5">
@@ -56,15 +59,16 @@ export function CustomersPage() {
         />
       </div>
       <SectionCard className="overflow-hidden">
-        {isPending && <TableSkeleton rows={5} />}
+        {(isPending || showsEmptyPlaceholder) && <TableSkeleton rows={5} />}
         {isError && (
           <p role="alert" aria-live="polite" className="text-destructive">
             Không thể tải danh sách khách hàng.
           </p>
         )}
-        {data && (
+        {data && !showsEmptyPlaceholder && (
           <div
             aria-busy={isPlaceholderData}
+            inert={isPlaceholderData}
             className={cn(
               'transition-opacity motion-reduce:transition-none',
               isPlaceholderData && 'opacity-60',
@@ -82,7 +86,7 @@ export function CustomersPage() {
         )}
         {data && (
           <CardPagination
-            page={data.page}
+            page={page}
             totalPages={totalPages}
             summary={`${data.total.toLocaleString('vi-VN')} khách hàng`}
             onPageChange={setPage}

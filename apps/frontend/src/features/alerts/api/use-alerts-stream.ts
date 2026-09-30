@@ -45,18 +45,20 @@ async function consumeAlertStream(
 const STREAM_LOCK_NAME = 'casso-ar:alerts-stream';
 const MIN_RECONNECT_DELAY_MS = 1_000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
+const STABLE_STREAM_MS = 15_000;
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timer);
-        resolve();
-      },
-      { once: true },
-    );
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      // Otherwise one listener per reconnect piles up on the signal.
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener('abort', onAbort, { once: true });
   });
 }
 
@@ -78,11 +80,11 @@ export function useAlertsStream(enabled: boolean): void {
         : new BroadcastChannel(STREAM_LOCK_NAME);
     if (channel) channel.onmessage = invalidateAlerts;
 
-    // 'connected' lets a healthy stream that later drops reconnect quickly;
-    // 'signed-out' ends the loop so a logged-out tab stops calling refresh.
-    async function connectOnce(): Promise<
-      'connected' | 'failed' | 'signed-out'
-    > {
+    // 'stable' (the stream stayed open a while) lets a healthy connection
+    // that later drops reconnect quickly; a stream that closes right after
+    // opening counts as 'failed' so it backs off. 'signed-out' ends the loop
+    // so a logged-out tab stops calling refresh.
+    async function connectOnce(): Promise<'stable' | 'failed' | 'signed-out'> {
       const token = await authTokenManager.getValidAccessToken();
       if (!token) return 'signed-out';
       if (signal.aborted) return 'failed';
@@ -98,11 +100,16 @@ export function useAlertsStream(enabled: boolean): void {
 
         if (!response.ok || !response.body) return 'failed';
 
-        await consumeAlertStream(response.body, signal, () => {
+        const openedAt = Date.now();
+        const refreshEveryTab = () => {
           invalidateAlerts();
           channel?.postMessage('alert');
-        });
-        return 'connected';
+        };
+        // Alerts raised while no stream was open (backoff, or another tab
+        // taking over the lock) never arrive as messages; refetch on open.
+        refreshEveryTab();
+        await consumeAlertStream(response.body, signal, refreshEveryTab);
+        return Date.now() - openedAt >= STABLE_STREAM_MS ? 'stable' : 'failed';
       } catch {
         return 'failed';
       }
@@ -116,7 +123,7 @@ export function useAlertsStream(enabled: boolean): void {
         const outcome = await connectOnce();
         if (signal.aborted || outcome === 'signed-out') return;
         delay =
-          outcome === 'connected'
+          outcome === 'stable'
             ? MIN_RECONNECT_DELAY_MS
             : Math.min(delay * 2, MAX_RECONNECT_DELAY_MS);
         await sleep(delay, signal);

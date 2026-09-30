@@ -173,6 +173,40 @@ describe('ExceptionsPage', () => {
       screen.getAllByText('Công ty A')[0].closest('[aria-busy]'),
     ).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByRole('button', { name: 'Sau' })).toBeInTheDocument();
+    expect(screen.getByText('Trang 2 / 3 · 45 giao dịch')).toBeInTheDocument();
+    expect(
+      screen.getAllByText('Công ty A')[0].closest('[aria-busy]'),
+    ).toHaveAttribute('inert');
+  });
+
+  it('does not flash the "nothing to review" state while an empty search is cleared', async () => {
+    apiRequest.mockReset();
+    apiRequest
+      .mockResolvedValueOnce({ items: [], total: 0, page: 1, limit: 20 })
+      .mockReturnValueOnce(new Promise(() => {}));
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/exceptions?search=zzz']}>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(
+      await screen.findByText('Không tìm thấy giao dịch phù hợp.'),
+    ).toBeInTheDocument();
+
+    fireEvent.change(
+      screen.getByPlaceholderText('Tìm tên, số tài khoản, nội dung…'),
+      { target: { value: '' } },
+    );
+
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(2));
+    expect(
+      screen.queryByText('Không có giao dịch cần xử lý.'),
+    ).not.toBeInTheDocument();
   });
 
   it('shows the transfer content column with a fallback when it is blank', async () => {

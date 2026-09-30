@@ -20,13 +20,15 @@ export function useReceivables(
   filters: ReceivableFilters,
   page = 1,
   limit = 20,
+  { keepPreviousPage = false }: { keepPreviousPage?: boolean } = {},
 ) {
   return useQuery({
     queryKey: ['receivables', filters, page, limit],
     queryFn: () => fetchReceivables(filters, page, limit),
-    // Keep the current rows (and the pager) mounted while the next page or
-    // filter loads, instead of collapsing the table into a skeleton.
-    placeholderData: keepPreviousData,
+    // Opt-in for the paged list: keeps its rows and pager mounted while the
+    // next page loads. Off by default so a screen scoped to one customer
+    // never shows another customer's receivables while loading.
+    placeholderData: keepPreviousPage ? keepPreviousData : undefined,
   });
 }
 

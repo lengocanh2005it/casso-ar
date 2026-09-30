@@ -177,6 +177,40 @@ describe('CustomersPage', () => {
       screen.getByText('Công ty B').closest('[aria-busy]'),
     ).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByRole('button', { name: 'Sau' })).toBeInTheDocument();
+    expect(screen.getByText('Trang 2 / 2 · 40 khách hàng')).toBeInTheDocument();
+    expect(
+      screen.getByText('Công ty B').closest('[aria-busy]'),
+    ).toHaveAttribute('inert');
     currentPage = '1';
+  });
+
+  it('does not flash the "no customers yet" state while an empty search is cleared', async () => {
+    apiRequest.mockReset();
+    apiRequest
+      .mockResolvedValueOnce({ items: [], total: 0, page: 1, limit: 20 })
+      .mockReturnValueOnce(new Promise(() => {}));
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const tree = () => (
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <CustomersPage />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    currentSearch = 'zzz';
+    const { rerender } = render(tree());
+    expect(
+      await screen.findByText('Chưa có khách hàng phù hợp'),
+    ).toBeInTheDocument();
+
+    currentSearch = '';
+    rerender(tree());
+
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(2));
+    expect(
+      screen.queryByText('Chưa có khách hàng nào'),
+    ).not.toBeInTheDocument();
   });
 });

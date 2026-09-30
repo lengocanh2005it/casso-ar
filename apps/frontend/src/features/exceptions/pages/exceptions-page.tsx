@@ -58,6 +58,9 @@ export function ExceptionsPage() {
     (data?.items ?? []).map((item) => item.transaction.id),
   );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
+  // An empty placeholder is the previous search's result; its empty state
+  // would describe the wrong search, so show the skeleton instead.
+  const showsEmptyPlaceholder = isPlaceholderData && data?.items.length === 0;
 
   return (
     <div className="space-y-5">
@@ -94,23 +97,25 @@ export function ExceptionsPage() {
             className="pl-9"
           />
         </div>
-        {isPending && <TableSkeleton rows={5} />}
+        {(isPending || showsEmptyPlaceholder) && <TableSkeleton rows={5} />}
         {isError && (
           <p role="status" aria-live="polite" className="text-destructive">
             Không thể tải danh sách giao dịch cần xử lý. Vui lòng thử lại.
           </p>
         )}
-        {data && data.items.length === 0 && (
+        {/* Worded from the search the data was fetched for (debounced),
+            not the box's current text. */}
+        {data && data.items.length === 0 && !showsEmptyPlaceholder && (
           <div role="status" aria-live="polite">
             <EmptyState
-              icon={search ? SearchX : CheckCheck}
+              icon={debouncedSearch ? SearchX : CheckCheck}
               title={
-                search
+                debouncedSearch
                   ? 'Không tìm thấy giao dịch phù hợp.'
                   : 'Không có giao dịch cần xử lý.'
               }
               description={
-                search
+                debouncedSearch
                   ? 'Thử thay đổi từ khóa để xem thêm giao dịch.'
                   : 'Mọi khoản tiền về đã được khớp. Giao dịch cần đối soát sẽ xuất hiện tại đây.'
               }
@@ -120,6 +125,7 @@ export function ExceptionsPage() {
         {data && data.items.length > 0 && (
           <div
             aria-busy={isPlaceholderData}
+            inert={isPlaceholderData}
             className={cn(
               'transition-opacity motion-reduce:transition-none',
               isPlaceholderData && 'opacity-60',
@@ -251,7 +257,7 @@ export function ExceptionsPage() {
         )}
         {data && (
           <CardPagination
-            page={data.page}
+            page={page}
             totalPages={totalPages}
             summary={`${data.total.toLocaleString('vi-VN')} giao dịch`}
             onPageChange={setPage}

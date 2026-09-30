@@ -35,7 +35,12 @@ export function ReceivablesPage() {
   const { data, isPending, isError, isPlaceholderData } = useReceivables(
     { status, customerId, search: debouncedSearch || undefined },
     page,
+    20,
+    { keepPreviousPage: true },
   );
+  // An empty placeholder is the previous filter's result; its empty state
+  // would describe the wrong filter, so show the skeleton instead.
+  const showsEmptyPlaceholder = isPlaceholderData && data?.items.length === 0;
   const eligibleIds = (data?.items ?? [])
     .filter(
       (receivable) =>
@@ -122,15 +127,16 @@ export function ReceivablesPage() {
         />
       </div>
       <SectionCard className="overflow-hidden">
-        {isPending && <TableSkeleton rows={5} />}
+        {(isPending || showsEmptyPlaceholder) && <TableSkeleton rows={5} />}
         {isError && (
           <p role="status" aria-live="polite" className="text-destructive">
             Không thể tải danh sách công nợ. Vui lòng thử lại.
           </p>
         )}
-        {data && (
+        {data && !showsEmptyPlaceholder && (
           <div
             aria-busy={isPlaceholderData}
+            inert={isPlaceholderData}
             className={cn(
               'transition-opacity motion-reduce:transition-none',
               isPlaceholderData && 'opacity-60',
@@ -155,7 +161,7 @@ export function ReceivablesPage() {
         )}
         {data && (
           <CardPagination
-            page={data.page}
+            page={page}
             totalPages={totalPages}
             summary={`${data.total.toLocaleString('vi-VN')} khoản phải thu`}
             onPageChange={setPage}

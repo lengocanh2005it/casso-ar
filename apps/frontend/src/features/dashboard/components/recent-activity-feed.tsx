@@ -1,4 +1,5 @@
 import { Activity } from 'lucide-react';
+import { useId } from 'react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/layout/empty-state';
 import { formatActivityType } from '@/lib/collection-activity-labels';
@@ -10,6 +11,7 @@ export function RecentActivityFeed({
 }: {
   items: OrganizationActivityItem[];
 }) {
+  const idPrefix = useId();
   if (items.length === 0) {
     return (
       <EmptyState
@@ -31,6 +33,7 @@ export function RecentActivityFeed({
                 saying which one, so the title opens that receivable. */}
             <Link
               to={`/receivables/${item.receivableId}`}
+              aria-describedby={`${idPrefix}-${item.id}`}
               className="font-medium text-primary pointer-hover:hover:underline"
             >
               {formatActivityType(item.activityType)}
@@ -42,7 +45,10 @@ export function RecentActivityFeed({
               {formatDateTime(item.createdAt)}
             </time>
           </div>
-          <p className="mt-0.5 break-words text-muted-foreground">
+          <p
+            id={`${idPrefix}-${item.id}`}
+            className="mt-0.5 break-words text-muted-foreground"
+          >
             {item.description}
           </p>
         </li>

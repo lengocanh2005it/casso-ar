@@ -20,6 +20,15 @@ export function CardPagination({
   const inputId = useId();
   if (totalPages <= 1) return null;
 
+  function jumpTo(raw: string) {
+    const typed = Number(raw);
+    // Number('') is 0 and would clamp to page 1; an unchanged value is a
+    // plain blur, not a request to move.
+    if (raw.trim() === '' || !Number.isInteger(typed)) return;
+    const target = Math.min(totalPages, Math.max(1, typed));
+    if (target !== page) onPageChange(target);
+  }
+
   return (
     <div className="-mx-6 mt-4 flex flex-wrap items-center justify-between gap-3 border-t bg-muted/20 px-6 py-3 text-sm text-muted-foreground">
       <span className="tabular-nums">
@@ -28,15 +37,14 @@ export function CardPagination({
       </span>
       <div className="flex flex-wrap items-center gap-2">
         {/* Large lists (hundreds of pages) are unreachable one "Sau" at a time. */}
+        {/* noValidate: native max validation would block submit, so the
+            clamp below never ran for out-of-range input. */}
         <form
+          noValidate
           className="flex items-center gap-2"
           onSubmit={(event) => {
             event.preventDefault();
-            const typed = Number(
-              new FormData(event.currentTarget).get('page') ?? '',
-            );
-            if (!Number.isInteger(typed)) return;
-            onPageChange(Math.min(totalPages, Math.max(1, typed)));
+            jumpTo(String(new FormData(event.currentTarget).get('page') ?? ''));
           }}
         >
           <label htmlFor={inputId} className="sr-only">
@@ -51,6 +59,8 @@ export function CardPagination({
             min={1}
             max={totalPages}
             defaultValue={page}
+            // The iOS number pad has no Enter key; leaving the field jumps.
+            onBlur={(event) => jumpTo(event.currentTarget.value)}
             className="h-8 w-16 text-center tabular-nums"
           />
         </form>

@@ -57,9 +57,12 @@ describe('RecentActivityFeed', () => {
     );
 
     // The description alone ("… cho khoản phải thu") never said which one.
-    expect(
-      screen.getByRole('link', { name: /Nhận thanh toán/ }),
-    ).toHaveAttribute('href', '/receivables/rec-1');
+    const link = screen.getByRole('link', { name: /Nhận thanh toán/ });
+    expect(link).toHaveAttribute('href', '/receivables/rec-1');
+    // Every link reads "Nhận thanh toán"; screen readers need the detail.
+    expect(link).toHaveAccessibleDescription(
+      'Đã nhận thanh toán 5.000.000 ₫ cho khoản phải thu',
+    );
   });
 
   it('renders the date as machine-readable time with a breakable description', () => {
