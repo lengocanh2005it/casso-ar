@@ -30,6 +30,74 @@ describe('CardPagination', () => {
     expect(onPageChange).toHaveBeenLastCalledWith(3);
   });
 
+  it('jumps straight to the first and last page', () => {
+    const onPageChange = vi.fn();
+    render(
+      <CardPagination
+        page={150}
+        totalPages={300}
+        onPageChange={onPageChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Trang đầu' }));
+    expect(onPageChange).toHaveBeenLastCalledWith(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Trang cuối' }));
+    expect(onPageChange).toHaveBeenLastCalledWith(300);
+  });
+
+  it('jumps to a typed page number, clamped to the valid range', () => {
+    const onPageChange = vi.fn();
+    render(
+      <CardPagination page={1} totalPages={300} onPageChange={onPageChange} />,
+    );
+    const input = screen.getByRole('spinbutton', { name: 'Đến trang' });
+
+    fireEvent.change(input, { target: { value: '120' } });
+    fireEvent.submit(input);
+    expect(onPageChange).toHaveBeenLastCalledWith(120);
+
+    fireEvent.change(input, { target: { value: '999' } });
+    fireEvent.submit(input);
+    expect(onPageChange).toHaveBeenLastCalledWith(300);
+  });
+
+  it('jumps when the page field loses focus, since the iOS number pad has no Enter key', () => {
+    const onPageChange = vi.fn();
+    render(
+      <CardPagination page={1} totalPages={300} onPageChange={onPageChange} />,
+    );
+    const input = screen.getByRole('spinbutton', { name: 'Đến trang' });
+
+    fireEvent.change(input, { target: { value: '42' } });
+    fireEvent.blur(input);
+
+    expect(onPageChange).toHaveBeenLastCalledWith(42);
+  });
+
+  it('ignores an empty or unchanged page field instead of jumping to page 1', () => {
+    const onPageChange = vi.fn();
+    render(
+      <CardPagination page={7} totalPages={300} onPageChange={onPageChange} />,
+    );
+    const input = screen.getByRole('spinbutton', { name: 'Đến trang' });
+
+    fireEvent.blur(input);
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.submit(input);
+
+    expect(onPageChange).not.toHaveBeenCalled();
+  });
+
+  it('lets the clamp handle out-of-range input instead of browser validation', () => {
+    render(<CardPagination page={1} totalPages={3} onPageChange={vi.fn()} />);
+
+    // Native max validation blocked submit, so 999 + Enter never clamped.
+    expect(
+      screen.getByRole('spinbutton', { name: 'Đến trang' }).closest('form'),
+    ).toHaveAttribute('novalidate');
+  });
+
   it('disables the edge buttons on the first and last page', () => {
     render(<CardPagination page={3} totalPages={3} onPageChange={vi.fn()} />);
 

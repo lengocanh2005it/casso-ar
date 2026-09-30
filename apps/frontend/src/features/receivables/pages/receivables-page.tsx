@@ -13,6 +13,7 @@ import { useBulkSelection } from '@/lib/use-bulk-selection';
 import { useCsvExport } from '@/lib/use-csv-export';
 import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
+import { cn } from '@/lib/utils';
 import { exportReceivablesCsv } from '../api/receivables-api';
 import { useReceivables } from '../api/use-receivables';
 import { CreateReceivableDialog } from '../components/create-receivable-dialog';
@@ -31,10 +32,15 @@ export function ReceivablesPage() {
   const search = searchParams.get('search') ?? '';
   const debouncedSearch = useDebouncedValue(search, 250);
   const page = Number(searchParams.get('page') ?? '1');
-  const { data, isPending, isError } = useReceivables(
+  const { data, isPending, isError, isPlaceholderData } = useReceivables(
     { status, customerId, search: debouncedSearch || undefined },
     page,
+    20,
+    { keepPreviousPage: true },
   );
+  // An empty placeholder is the previous filter's result; its empty state
+  // would describe the wrong filter, so show the skeleton instead.
+  const showsEmptyPlaceholder = isPlaceholderData && data?.items.length === 0;
   const eligibleIds = (data?.items ?? [])
     .filter(
       (receivable) =>
@@ -121,30 +127,43 @@ export function ReceivablesPage() {
         />
       </div>
       <SectionCard className="overflow-hidden">
-        {isPending && <TableSkeleton rows={5} />}
+        {(isPending || showsEmptyPlaceholder) && <TableSkeleton rows={5} />}
         {isError && (
           <p role="status" aria-live="polite" className="text-destructive">
             Không thể tải danh sách công nợ. Vui lòng thử lại.
           </p>
         )}
-        {data && (
-          <ReceivableTable
-            receivables={data.items}
-            selectedIds={bulkSelection.selectedIds}
-            onToggle={bulkSelection.toggle}
-            onToggleAll={bulkSelection.toggleAll}
-            allSelected={bulkSelection.allSelected}
-            isFiltered={Boolean(status || customerId || debouncedSearch)}
-            canCreate={
-              hasPermission(user?.role ?? null, Permission.RECEIVABLE_WRITE) ||
-              hasPermission(user?.role ?? null, Permission.RECEIVABLE_IMPORT)
-            }
-          />
+        {data && !showsEmptyPlaceholder && (
+          <div
+            aria-busy={isPlaceholderData}
+            inert={isPlaceholderData}
+            className={cn(
+              'transition-opacity motion-reduce:transition-none',
+              isPlaceholderData && 'opacity-60',
+            )}
+          >
+            <ReceivableTable
+              receivables={data.items}
+              selectedIds={bulkSelection.selectedIds}
+              onToggle={bulkSelection.toggle}
+              onToggleAll={bulkSelection.toggleAll}
+              allSelected={bulkSelection.allSelected}
+              isFiltered={Boolean(status || customerId || debouncedSearch)}
+              canCreate={
+                hasPermission(
+                  user?.role ?? null,
+                  Permission.RECEIVABLE_WRITE,
+                ) ||
+                hasPermission(user?.role ?? null, Permission.RECEIVABLE_IMPORT)
+              }
+            />
+          </div>
         )}
         {data && (
           <CardPagination
-            page={data.page}
+            page={page}
             totalPages={totalPages}
+            summary={`${data.total.toLocaleString('vi-VN')} khoản phải thu`}
             onPageChange={setPage}
           />
         )}

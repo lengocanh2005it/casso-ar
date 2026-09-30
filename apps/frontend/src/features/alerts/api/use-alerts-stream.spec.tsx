@@ -15,6 +15,7 @@ vi.mock('@/lib/api-client', () => ({
 }));
 
 beforeEach(() => {
+  getValidAccessToken.mockReset();
   getValidAccessToken.mockResolvedValue('test-token');
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
@@ -23,6 +24,47 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
 });
+
+// Minimal exclusive Web Locks stand-in (jsdom has no navigator.locks): one
+// holder at a time, queued requests run when the holder's callback settles,
+// and aborting a queued request rejects it.
+function installFakeLocks() {
+  let held = false;
+  const queue: Array<() => void> = [];
+  const request = (
+    _name: string,
+    options: { signal?: AbortSignal },
+    callback: () => Promise<unknown>,
+  ) =>
+    new Promise((resolve, reject) => {
+      const run = () => {
+        held = true;
+        callback()
+          .then(resolve, reject)
+          .finally(() => {
+            held = false;
+            queue.shift()?.();
+          });
+      };
+      options.signal?.addEventListener('abort', () => {
+        const index = queue.indexOf(run);
+        if (index >= 0) {
+          queue.splice(index, 1);
+          reject(new DOMException('Aborted', 'AbortError'));
+        }
+      });
+      if (held) queue.push(run);
+      else run();
+    });
+  vi.stubGlobal('navigator', { ...navigator, locks: { request } });
+}
+
+function openStream() {
+  return {
+    ok: true,
+    body: new ReadableStream<Uint8Array>({ start() {} }),
+  };
+}
 
 function wrapper({ children }: { children: ReactNode }) {
   const queryClient = new QueryClient();
@@ -80,27 +122,160 @@ describe('useAlertsStream', () => {
       ),
     });
 
-    await vi.waitFor(() =>
-      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['alerts'] }),
-    );
+    // One refresh when the stream opens, one more for the message.
+    await vi.waitFor(() => expect(invalidateSpy).toHaveBeenCalledTimes(2));
+    expect(invalidateSpy).toHaveBeenLastCalledWith({ queryKey: ['alerts'] });
   });
 
-  it('aborts the stream on unmount', async () => {
-    let closeStream: (() => void) | undefined;
-    fetchMock.mockResolvedValue({
+  it('reconnects after the server closes the stream', async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock.mockImplementation(async () => ({
+        ok: true,
+        body: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.close();
+          },
+        }),
+      }));
+      const { unmount } = renderHook(() => useAlertsStream(true), {
+        wrapper,
+      });
+
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      // A backend restart or proxy idle timeout used to end live alerts
+      // until the user reloaded the page.
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(1);
+      // A stream that closes right after opening (a buffering proxy, a
+      // handler failing after headers) must back off, not retry every 1s.
+      expect(fetchMock.mock.calls.length).toBeLessThanOrEqual(6);
+      unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('refreshes alerts in every tab when a stream (re)opens, covering the gap', async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock.mockImplementation(async () => ({
+        ok: true,
+        body: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.close();
+          },
+        }),
+      }));
+      const queryClient = new QueryClient();
+      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+      const { unmount } = renderHook(() => useAlertsStream(true), {
+        wrapper: ({ children }) => (
+          <QueryClientProvider client={queryClient}>
+            {children}
+          </QueryClientProvider>
+        ),
+      });
+
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(fetchMock.mock.calls.length).toBeGreaterThan(1);
+      // No message arrived, but alerts raised while the stream was down (or
+      // while another tab was taking it over) were otherwise never fetched.
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['alerts'] });
+      unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('stops retrying once there is no session to stream for', async () => {
+    vi.useFakeTimers();
+    try {
+      getValidAccessToken.mockResolvedValue(null);
+      const { unmount } = renderHook(() => useAlertsStream(true), {
+        wrapper,
+      });
+
+      await vi.advanceTimersByTimeAsync(120_000);
+      // Each retry would call the refresh endpoint for a logged-out user.
+      expect(getValidAccessToken).toHaveBeenCalledTimes(1);
+      expect(fetchMock).not.toHaveBeenCalled();
+      unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps a single stream across tabs and hands it over when the holder closes', async () => {
+    installFakeLocks();
+    fetchMock.mockImplementation(async () => openStream());
+
+    // Each tab held its own stream, and at six tabs Chrome's per-host
+    // HTTP/1.1 connection limit starved every other API request.
+    const firstTab = renderHook(() => useAlertsStream(true), { wrapper });
+    const secondTab = renderHook(() => useAlertsStream(true), { wrapper });
+
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    firstTab.unmount();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    secondTab.unmount();
+  });
+
+  it('relays stream messages to tabs that do not hold the stream', async () => {
+    installFakeLocks();
+    const encoder = new TextEncoder();
+    let push: (() => void) | undefined;
+    fetchMock.mockImplementation(async () => ({
       ok: true,
       body: new ReadableStream<Uint8Array>({
         start(controller) {
-          closeStream = () => controller.close();
+          push = () =>
+            controller.enqueue(
+              encoder.encode('data: {"type":"alert.created"}\n\n'),
+            );
         },
       }),
+    }));
+    const followerClient = new QueryClient();
+    const followerInvalidate = vi.spyOn(followerClient, 'invalidateQueries');
+
+    const leader = renderHook(() => useAlertsStream(true), { wrapper });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    const follower = renderHook(() => useAlertsStream(true), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={followerClient}>
+          {children}
+        </QueryClientProvider>
+      ),
     });
+
+    // Let the on-open refresh settle so the assertion below is about the
+    // relayed message, not the open.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const callsBeforeMessage = followerInvalidate.mock.calls.length;
+    push?.();
+
+    await vi.waitFor(() =>
+      expect(followerInvalidate.mock.calls.length).toBe(callsBeforeMessage + 1),
+    );
+    expect(followerInvalidate).toHaveBeenLastCalledWith({
+      queryKey: ['alerts'],
+    });
+    leader.unmount();
+    follower.unmount();
+  });
+
+  it('aborts the stream on unmount', async () => {
+    fetchMock.mockResolvedValue(openStream());
     const { unmount } = renderHook(() => useAlertsStream(true), { wrapper });
 
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     const signal = fetchMock.mock.calls[0]?.[1]?.signal as AbortSignal;
     unmount();
-    closeStream?.();
 
     expect(signal.aborted).toBe(true);
   });

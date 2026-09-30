@@ -64,13 +64,17 @@ export function AppLayout() {
               {user && !user.bankingLinked && (
                 <div
                   role="status"
-                  className="mb-4 flex flex-col gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100"
+                  className="mb-4 flex flex-col gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:px-4 sm:py-3 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100"
                 >
+                  {/* On phones this banner used to take ~a quarter of the
+                      screen on every page; keep only the headline + action. */}
                   <div>
                     <p className="font-medium">
                       Tổ chức chưa có kết nối ngân hàng đang hoạt động.
                     </p>
-                    <p>Tự động đồng bộ giao dịch hiện không khả dụng.</p>
+                    <p className="max-sm:hidden">
+                      Tự động đồng bộ giao dịch hiện không khả dụng.
+                    </p>
                   </div>
                   {hasPermission(
                     user.role,

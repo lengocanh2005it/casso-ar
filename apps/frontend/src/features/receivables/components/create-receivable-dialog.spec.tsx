@@ -86,6 +86,26 @@ describe('CreateReceivableDialog', () => {
     expect(screen.queryByLabelText(/mã khách hàng/i)).not.toBeInTheDocument();
   });
 
+  it('hides the previous customer options once the search box is cleared', async () => {
+    mockCustomerSearch(() => Promise.resolve({ id: 'r1' }));
+    renderDialog();
+
+    fireEvent.click(screen.getByText('Tạo khoản phải thu'));
+    fireEvent.change(screen.getByLabelText('Tìm khách hàng'), {
+      target: { value: 'An Phát' },
+    });
+    await screen.findByRole('combobox', { name: 'Khách hàng' });
+    fireEvent.change(screen.getByLabelText('Tìm khách hàng'), {
+      target: { value: '' },
+    });
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('combobox', { name: 'Khách hàng' }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
   it('creates a receivable with the form values on submit', async () => {
     mockCustomerSearch(() => Promise.resolve({ id: 'r1' }));
     renderDialog();

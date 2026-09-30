@@ -1,4 +1,6 @@
 import { Activity } from 'lucide-react';
+import { useId } from 'react';
+import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/layout/empty-state';
 import { formatActivityType } from '@/lib/collection-activity-labels';
 import { formatDateTime } from '@/lib/format';
@@ -9,10 +11,12 @@ export function RecentActivityFeed({
 }: {
   items: OrganizationActivityItem[];
 }) {
+  const idPrefix = useId();
   if (items.length === 0) {
     return (
       <EmptyState
         density="compact"
+        className="flex-1"
         icon={Activity}
         title="Chưa có hoạt động"
         description="Các cập nhật thu tiền và xử lý công nợ sẽ hiển thị tại đây."
@@ -25,9 +29,15 @@ export function RecentActivityFeed({
       {items.map((item) => (
         <li key={item.id} className="px-3 py-3 text-sm">
           <div className="flex items-center justify-between gap-4">
-            <span className="font-medium">
+            {/* The stored description reads "… cho khoản phải thu" without
+                saying which one, so the title opens that receivable. */}
+            <Link
+              to={`/receivables/${item.receivableId}`}
+              aria-describedby={`${idPrefix}-${item.id}`}
+              className="font-medium text-primary pointer-hover:hover:underline"
+            >
               {formatActivityType(item.activityType)}
-            </span>
+            </Link>
             <time
               dateTime={item.createdAt}
               className="shrink-0 text-xs text-muted-foreground"
@@ -35,7 +45,10 @@ export function RecentActivityFeed({
               {formatDateTime(item.createdAt)}
             </time>
           </div>
-          <p className="mt-0.5 break-words text-muted-foreground">
+          <p
+            id={`${idPrefix}-${item.id}`}
+            className="mt-0.5 break-words text-muted-foreground"
+          >
             {item.description}
           </p>
         </li>

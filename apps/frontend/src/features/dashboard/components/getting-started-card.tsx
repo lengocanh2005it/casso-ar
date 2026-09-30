@@ -8,9 +8,15 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 
+const CONNECT_BANK_STEP = {
+  to: '/bank-connections',
+  title: 'Kết nối ngân hàng',
+  hint: 'Liên kết tài khoản nhận tiền để giao dịch về được đồng bộ tự động.',
+};
+
 // Order matters: invoice import is what creates customers and receivables,
 // and only then can incoming bank money be matched against them.
-const STEPS = [
+const IMPORT_AND_RECONCILE_STEPS = [
   {
     to: '/receivables',
     title: 'Nhập hóa đơn từ file',
@@ -21,9 +27,20 @@ const STEPS = [
     title: 'Đối soát tiền về',
     hint: 'Giao dịch từ tài khoản đã kết nối tự khớp vào công nợ; khoản chưa khớp chờ bạn xử lý.',
   },
-] as const;
+];
 
-export function GettingStartedCard() {
+export function GettingStartedCard({
+  bankingLinked,
+  canConnectBank,
+}: {
+  bankingLinked: boolean;
+  canConnectBank: boolean;
+}) {
+  const steps =
+    !bankingLinked && canConnectBank
+      ? [CONNECT_BANK_STEP, ...IMPORT_AND_RECONCILE_STEPS]
+      : IMPORT_AND_RECONCILE_STEPS;
+
   return (
     <Card className="border-primary/20 bg-primary/5">
       <CardHeader>
@@ -32,13 +49,20 @@ export function GettingStartedCard() {
           <CardTitle>Bắt đầu theo dõi công nợ</CardTitle>
         </div>
         <CardDescription>
-          Tài khoản ngân hàng đã kết nối. Còn hai bước để Casso AR tự thu hồi
-          công nợ cho bạn.
+          {bankingLinked
+            ? 'Tài khoản ngân hàng đã kết nối. Còn hai bước để Casso AR tự thu hồi công nợ cho bạn.'
+            : 'Hoàn thành các bước sau để Casso AR tự thu hồi công nợ cho bạn.'}
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ol className="grid gap-3 md:grid-cols-2">
-          {STEPS.map((step, index) => (
+        <ol
+          className={
+            steps.length === 3
+              ? 'grid gap-3 md:grid-cols-3'
+              : 'grid gap-3 md:grid-cols-2'
+          }
+        >
+          {steps.map((step, index) => (
             <li key={step.to}>
               <Link
                 to={step.to}

@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import type {
   CreateCustomerBankAccountInput,
   UpdateCustomerBankAccountInput,
@@ -25,6 +30,9 @@ export function useCustomers(search = '', page = 1, enabled = true) {
     queryKey: ['customers', search, page],
     queryFn: () => fetchCustomers(search, page),
     enabled,
+    // Only while enabled: a disabled picker (empty search box) must not keep
+    // showing the previous term's customers.
+    placeholderData: enabled ? keepPreviousData : undefined,
   });
 }
 

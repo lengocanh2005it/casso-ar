@@ -123,8 +123,90 @@ describe('ExceptionsPage', () => {
     expect(row).toHaveClass('max-md:grid');
     // Pagination used to float below the card on this page only.
     expect(
-      screen.getByText('Trang 1 / 3').closest('[data-slot="card"]'),
+      screen
+        .getByText('Trang 1 / 3 · 45 giao dịch')
+        .closest('[data-slot="card"]'),
     ).not.toBeNull();
+  });
+
+  it('keeps the current page and pagination on screen while the next page loads', async () => {
+    apiRequest.mockReset();
+    apiRequest
+      .mockResolvedValueOnce({
+        items: [
+          {
+            transaction: {
+              id: 'tx-1',
+              providerTransactionId: 'TX-1',
+              amount: 10_000,
+              transactionDateTime: '2026-08-01',
+              counterpartyAccountNumber: '001',
+              counterpartyName: 'Công ty A',
+              transferContent: 'note',
+              status: 'PENDING_REVIEW',
+              version: 1,
+            },
+            topCandidate: null,
+          },
+        ],
+        total: 45,
+        page: 1,
+        limit: 20,
+      })
+      .mockReturnValueOnce(new Promise(() => {}));
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sau' }));
+
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(2));
+    expect(
+      screen.getAllByText('Công ty A')[0].closest('[aria-busy]'),
+    ).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('button', { name: 'Sau' })).toBeInTheDocument();
+    expect(screen.getByText('Trang 2 / 3 · 45 giao dịch')).toBeInTheDocument();
+    expect(
+      screen.getAllByText('Công ty A')[0].closest('[aria-busy]'),
+    ).toHaveAttribute('inert');
+  });
+
+  it('does not flash the "nothing to review" state while an empty search is cleared', async () => {
+    apiRequest.mockReset();
+    apiRequest
+      .mockResolvedValueOnce({ items: [], total: 0, page: 1, limit: 20 })
+      .mockReturnValueOnce(new Promise(() => {}));
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/exceptions?search=zzz']}>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(
+      await screen.findByText('Không tìm thấy giao dịch phù hợp.'),
+    ).toBeInTheDocument();
+
+    fireEvent.change(
+      screen.getByPlaceholderText('Tìm tên, số tài khoản, nội dung…'),
+      { target: { value: '' } },
+    );
+
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(2));
+    expect(
+      screen.queryByText('Không có giao dịch cần xử lý.'),
+    ).not.toBeInTheDocument();
   });
 
   it('shows the transfer content column with a fallback when it is blank', async () => {

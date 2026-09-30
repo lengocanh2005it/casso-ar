@@ -7,7 +7,9 @@ import { Input } from '@/components/ui/input';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
+import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
+import { cn } from '@/lib/utils';
 import { useCustomers } from '../api/use-customers';
 import { CustomerTable } from '../components/customer-table';
 
@@ -15,9 +17,16 @@ export function CustomersPage() {
   const { user } = useAuth();
   const { searchParams, setParam, setPage } = useUrlQueryParams();
   const search = searchParams.get('search') ?? '';
+  const debouncedSearch = useDebouncedValue(search, 250);
   const page = Number(searchParams.get('page') ?? '1');
-  const { data, isPending, isError } = useCustomers(search, page);
+  const { data, isPending, isError, isPlaceholderData } = useCustomers(
+    debouncedSearch,
+    page,
+  );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
+  // An empty placeholder is the previous search's result; its empty state
+  // would describe the wrong search, so show the skeleton instead.
+  const showsEmptyPlaceholder = isPlaceholderData && data?.items.length === 0;
 
   return (
     <div className="space-y-5">
@@ -50,26 +59,36 @@ export function CustomersPage() {
         />
       </div>
       <SectionCard className="overflow-hidden">
-        {isPending && <TableSkeleton rows={5} />}
+        {(isPending || showsEmptyPlaceholder) && <TableSkeleton rows={5} />}
         {isError && (
           <p role="alert" aria-live="polite" className="text-destructive">
             Không thể tải danh sách khách hàng.
           </p>
         )}
-        {data && (
-          <CustomerTable
-            customers={data.items}
-            isFiltered={Boolean(search)}
-            canImport={hasPermission(
-              user?.role ?? null,
-              Permission.RECEIVABLE_IMPORT,
+        {data && !showsEmptyPlaceholder && (
+          <div
+            aria-busy={isPlaceholderData}
+            inert={isPlaceholderData}
+            className={cn(
+              'transition-opacity motion-reduce:transition-none',
+              isPlaceholderData && 'opacity-60',
             )}
-          />
+          >
+            <CustomerTable
+              customers={data.items}
+              isFiltered={Boolean(debouncedSearch)}
+              canImport={hasPermission(
+                user?.role ?? null,
+                Permission.RECEIVABLE_IMPORT,
+              )}
+            />
+          </div>
         )}
         {data && (
           <CardPagination
-            page={data.page}
+            page={page}
             totalPages={totalPages}
+            summary={`${data.total.toLocaleString('vi-VN')} khách hàng`}
             onPageChange={setPage}
           />
         )}

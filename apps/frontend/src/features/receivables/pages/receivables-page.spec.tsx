@@ -78,6 +78,103 @@ describe('ReceivablesPage', () => {
     );
   });
 
+  it('keeps the current page and pagination on screen while the next page loads', async () => {
+    apiRequest.mockReset();
+    apiRequest
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: 'receivable-1',
+            customerId: 'customer-1',
+            invoiceId: 'invoice-1',
+            invoiceNumber: 'INV-001',
+            originalAmount: 20_000_000,
+            paidAmount: 0,
+            remainingAmount: 20_000_000,
+            dueDate: '2026-08-20T00:00:00.000Z',
+            status: 'OPEN',
+            salesRepresentativeId: null,
+            createdAt: '2026-08-01T00:00:00.000Z',
+            closedAt: null,
+            isOverdue: false,
+            isDisputed: false,
+            disputeId: null,
+          },
+        ],
+        total: 40,
+        page: 1,
+        limit: 20,
+      })
+      .mockReturnValueOnce(new Promise(() => {}));
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ReceivablesPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByText('Trang 1 / 2 · 40 khoản phải thu'),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sau' }));
+
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(2));
+    expect(screen.getByText('INV-001')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sau' })).toBeInTheDocument();
+    // The pager follows the requested page, not the placeholder's page,
+    // so a second "Sau" moves on instead of re-requesting page 2.
+    expect(
+      screen.getByText('Trang 2 / 2 · 40 khoản phải thu'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('INV-001').closest('[aria-busy]')).toHaveAttribute(
+      'aria-busy',
+      'true',
+    );
+    // Dimmed rows belong to the previous page/filter: not actionable.
+    expect(screen.getByText('INV-001').closest('[aria-busy]')).toHaveAttribute(
+      'inert',
+    );
+  });
+
+  it('does not flash the "no receivables yet" state while an empty search is cleared', async () => {
+    apiRequest.mockReset();
+    apiRequest
+      .mockResolvedValueOnce({ items: [], total: 0, page: 1, limit: 20 })
+      .mockReturnValueOnce(new Promise(() => {}));
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/receivables?search=zzz']}>
+          <ReceivablesPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(
+      await screen.findByText('Không có khoản phải thu phù hợp'),
+    ).toBeInTheDocument();
+
+    fireEvent.change(
+      screen.getByRole('searchbox', { name: 'Tìm kiếm công nợ' }),
+      {
+        target: { value: '' },
+      },
+    );
+
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(2));
+    // The placeholder is the old (filtered, empty) result; judged against
+    // the new, unfiltered state it read as "this org has no receivables".
+    expect(
+      screen.queryByText('Chưa có khoản phải thu nào'),
+    ).not.toBeInTheDocument();
+  });
+
   it('exports the current filters as CSV', async () => {
     apiRequest.mockResolvedValue({ items: [], total: 0, page: 1, limit: 20 });
     apiRequestWithHeaders.mockResolvedValue({

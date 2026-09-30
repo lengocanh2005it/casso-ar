@@ -120,7 +120,15 @@ export function DashboardPage() {
         }
       />
 
-      {isNewOrganization && <GettingStartedCard />}
+      {isNewOrganization && (
+        <GettingStartedCard
+          bankingLinked={user?.bankingLinked ?? false}
+          canConnectBank={hasPermission(
+            user?.role ?? null,
+            Permission.BANK_CONNECTION_MANAGE,
+          )}
+        />
+      )}
 
       {reviewCountQuery.isError ? (
         <p role="status" className="text-sm text-destructive">
@@ -170,6 +178,7 @@ export function DashboardPage() {
               value={formatRate(summaryQuery.data.overdueRate)}
               icon={Clock}
               variant="warning"
+              empty={summaryQuery.data.totalOutstanding === 0}
               className="animate-fade-up motion-reduce:animate-none [animation-delay:80ms]"
             />
             <MetricCard
@@ -246,7 +255,9 @@ export function DashboardPage() {
           )}
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:280ms]">
+            {/* The grid stretches both cards to the taller one; flex-1 lets an
+                empty feed fill that height instead of leaving a blank block. */}
+            <Card className="flex flex-col animate-fade-up motion-reduce:animate-none [animation-delay:280ms]">
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Activity className="size-4 text-success" />
@@ -256,7 +267,7 @@ export function DashboardPage() {
                   Các sự kiện mới nhất trong hệ thống
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex flex-1 flex-col">
                 {activityQuery.isPending ? (
                   <div
                     role="status"
@@ -288,7 +299,7 @@ export function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:320ms]">
+            <Card className="flex flex-col animate-fade-up motion-reduce:animate-none [animation-delay:320ms]">
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Users className="size-4 text-destructive" />
@@ -298,10 +309,11 @@ export function DashboardPage() {
                   Top khách hàng có tổng công nợ quá hạn cao nhất
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex flex-1 flex-col">
                 {summaryQuery.data.topOverdueCustomers.length === 0 ? (
                   <EmptyState
                     density="compact"
+                    className="flex-1"
                     icon={Users}
                     title="Chưa có khách hàng quá hạn"
                     description="Danh sách sẽ xuất hiện khi có khoản quá hạn cần theo dõi."
