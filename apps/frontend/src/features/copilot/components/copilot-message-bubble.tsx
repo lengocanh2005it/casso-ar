@@ -1,5 +1,21 @@
 import { Bot, StopCircle } from 'lucide-react';
+import type { ReactNode } from 'react';
 import type { CopilotMessage } from '../types';
+
+function renderAssistantContent(content: string) {
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+
+  for (const match of content.matchAll(/\*\*([\s\S]+?)\*\*/g)) {
+    const start = match.index ?? cursor;
+    parts.push(content.slice(cursor, start));
+    parts.push(<strong key={start}>{match[1]}</strong>);
+    cursor = start + match[0].length;
+  }
+
+  parts.push(content.slice(cursor));
+  return parts;
+}
 
 export function CopilotMessageBubble({
   message,
@@ -18,6 +34,8 @@ export function CopilotMessageBubble({
     );
   }
 
+  if (!message.content && !isStreaming && !message.isPartial) return null;
+
   return (
     <div className="flex min-w-0 items-start gap-2">
       <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
@@ -25,7 +43,7 @@ export function CopilotMessageBubble({
       </div>
       <div className="min-w-0 max-w-[80%]">
         <p className="break-words whitespace-pre-wrap rounded-lg bg-muted px-3 py-2 text-sm">
-          {message.content}
+          {renderAssistantContent(message.content)}
           {isStreaming && (
             <span
               aria-hidden="true"

@@ -1,4 +1,5 @@
 import { Permission, PlanId } from '@casso-ar/shared-types';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Bot,
   CircleAlert,
@@ -33,6 +34,7 @@ import { PendingActionCard } from '../components/pending-action-card';
 import { UsageIndicator } from '../components/usage-indicator';
 
 export function CopilotPage() {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [draft, setDraft] = useState('');
@@ -93,7 +95,10 @@ export function CopilotPage() {
     isLoadingHistory,
     quotaExceededMessage,
   } = useCopilotChat(canSendManual, activeConversationId, {
-    onTurnComplete: refreshConversations,
+    onTurnComplete: () => {
+      void refreshConversations();
+      void queryClient.invalidateQueries({ queryKey: ['copilot-usage'] });
+    },
   });
 
   function onSubmit(event: FormEvent) {
@@ -260,6 +265,7 @@ export function CopilotPage() {
                 <MessageList
                   messages={messages}
                   streamingContent={streamingContent}
+                  isWaitingForResponse={isSending && !streamingContent}
                 />
               )}
               {pendingAction && canSendManual && (

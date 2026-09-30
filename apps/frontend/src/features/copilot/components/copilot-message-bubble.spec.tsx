@@ -40,6 +40,56 @@ describe('CopilotMessageBubble', () => {
     expect(screen.queryByText(/đã dừng/i)).not.toBeInTheDocument();
   });
 
+  it('renders bold Markdown safely in completed assistant messages', () => {
+    const content = '**Tổng còn lại**\n<script>alert(1)</script>';
+    const { container } = render(
+      <CopilotMessageBubble
+        message={{ role: 'ASSISTANT', content, isPartial: false }}
+      />,
+    );
+
+    expect(container.querySelector('strong')).toHaveTextContent('Tổng còn lại');
+    expect(container.querySelector('script')).not.toBeInTheDocument();
+    expect(container.querySelector('p')?.textContent).toBe(
+      'Tổng còn lại\n<script>alert(1)</script>',
+    );
+  });
+
+  it('renders bold Markdown safely while assistant text is streaming', () => {
+    const { container } = render(
+      <CopilotMessageBubble
+        message={{ role: 'ASSISTANT', content: '**Đang xử lý**' }}
+        isStreaming
+      />,
+    );
+
+    expect(container.querySelector('strong')).toHaveTextContent('Đang xử lý');
+    expect(container.querySelector('script')).not.toBeInTheDocument();
+  });
+
+  it('keeps Markdown markers literal in user messages', () => {
+    render(
+      <CopilotMessageBubble
+        message={{ role: 'USER', content: '**nguyên văn**' }}
+      />,
+    );
+
+    expect(screen.getByText('**nguyên văn**')).toBeInTheDocument();
+    expect(
+      screen.queryByText('nguyên văn', { selector: 'strong' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not render an empty assistant bubble', () => {
+    const { container } = render(
+      <CopilotMessageBubble
+        message={{ role: 'ASSISTANT', content: '', isPartial: false }}
+      />,
+    );
+
+    expect(container.firstChild).toBeNull();
+  });
+
   it('wraps a long unbroken assistant value without truncating it', () => {
     const content = `https://example.com/${'transaction-id-'.repeat(12)}`;
     render(
