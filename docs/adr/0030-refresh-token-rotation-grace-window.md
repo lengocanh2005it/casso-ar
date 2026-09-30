@@ -71,7 +71,16 @@ requests per 15 minutes and the shared auth abuse-escalation lockout. This
 allows repeated page loads without letting refresh failures lock users out of
 login; requests count regardless of whether the refresh cookie is valid. A
 per-cookie limit was rejected because successful refreshes rotate the cookie,
-so each request would move to a new key. Implementation is pending.
+so each request would move to a new key.
+
+Shipped in #410 as `@SkipThrottle({ ip: true })` plus the plain
+`ThrottlerGuard` on `POST /auth/refresh`, instead of
+`AuthCompositeRateLimitGuard`. Swapping the guard is what drops the escalation
+counter from the refresh path entirely — it would otherwise still read and
+write the shared per-IP counter. The other auth endpoints keep the composite
+guard and their existing limits. The 100/min budget is the intended ceiling:
+aggregate refresh traffic above it from users behind one NAT can still receive
+429, but it no longer escalates into a login lockout.
 
 If a token was rotated twice inside the window (T1 -> T2 -> T5) and a late
 request still carries T1, its successor T2 is revoked, so it is treated as
