@@ -837,6 +837,56 @@ describe('Aging dashboard reporting (integration)', () => {
     });
   });
 
+  it('omits SALES_REP customers whose assigned receivables have no positive balance', async () => {
+    const zeroBalanceCustomer = {
+      id: randomUUID(),
+      organizationId,
+      name: 'Zero Balance Aging Customer',
+      taxCode: 'ZERO-AGING-001',
+      email: 'zero-aging@example.com',
+      phone: '0940000000',
+      defaultPaymentTermDays: 30,
+      creditLimit: 100_000_000,
+      priority: 3,
+      createdAt: new Date(),
+    };
+    const zeroBalanceReceivable = {
+      id: randomUUID(),
+      organizationId,
+      customerId: zeroBalanceCustomer.id,
+      invoiceId: null,
+      originalAmount: 1_000,
+      paidAmount: 1_000,
+      dueDate: addDays(new Date(`${today}T00:00:00.000Z`), -2),
+      status: ReceivableStatus.OPEN,
+      salesRepresentativeId: salesRepAId,
+      createdAt: new Date(),
+      closedAt: null,
+      version: 1,
+    };
+    const customerRepository = dataSource.getRepository(CustomerOrmEntity);
+    const receivableRepository = dataSource.getRepository(ReceivableOrmEntity);
+    await customerRepository.save(zeroBalanceCustomer);
+    await receivableRepository.save(zeroBalanceReceivable);
+
+    try {
+      const response = await request(app?.getHttpServer())
+        .get('/api/v1/reports/aging/customers')
+        .set('Authorization', `Bearer ${salesRepAToken}`)
+        .expect(200);
+
+      expect(
+        response.body.items.map(
+          (item: { customerId: string }) => item.customerId,
+        ),
+      ).toEqual([customerId]);
+      expect(response.body.total).toBe(1);
+    } finally {
+      await receivableRepository.delete(zeroBalanceReceivable.id);
+      await customerRepository.delete(zeroBalanceCustomer.id);
+    }
+  });
+
   it('applies customer aging search, bucket filters, and pagination within the SALES_REP scope', async () => {
     const [otherRepSearch, otherRepBucket, secondPage] = await Promise.all([
       request(app?.getHttpServer())
