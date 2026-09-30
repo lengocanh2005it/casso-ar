@@ -578,7 +578,19 @@ describe('Aging dashboard reporting (integration)', () => {
       priority: index + 3,
       createdAt: new Date(),
     }));
-    await customerRepository.save(competingCustomers);
+    const zeroBalanceCustomer = {
+      id: randomUUID(),
+      organizationId,
+      name: 'Zero Balance Customer',
+      taxCode: 'ZERO-BALANCE',
+      email: 'zero-balance@example.com',
+      phone: '0920000011',
+      defaultPaymentTermDays: 30,
+      creditLimit: 100_000_000,
+      priority: 20,
+      createdAt: new Date(),
+    };
+    await customerRepository.save([...competingCustomers, zeroBalanceCustomer]);
     const competingReceivables = competingCustomers.map((customer, index) => ({
       id: randomUUID(),
       organizationId,
@@ -593,7 +605,24 @@ describe('Aging dashboard reporting (integration)', () => {
       closedAt: null,
       version: 1,
     }));
-    await receivableRepository.save(competingReceivables);
+    const zeroBalanceReceivable = {
+      id: randomUUID(),
+      organizationId,
+      customerId: zeroBalanceCustomer.id,
+      invoiceId: null,
+      originalAmount: 1_000,
+      paidAmount: 1_000,
+      dueDate: addDays(new Date(`${today}T00:00:00.000Z`), -2),
+      status: ReceivableStatus.OPEN,
+      salesRepresentativeId: salesRepAId,
+      createdAt: new Date(),
+      closedAt: null,
+      version: 1,
+    };
+    await receivableRepository.save([
+      ...competingReceivables,
+      zeroBalanceReceivable,
+    ]);
 
     try {
       const [
@@ -650,10 +679,14 @@ describe('Aging dashboard reporting (integration)', () => {
       expect(ownerTopCustomers).toHaveLength(10);
     } finally {
       await receivableRepository.delete(
-        competingReceivables.map((receivable) => receivable.id),
+        [...competingReceivables, zeroBalanceReceivable].map(
+          (receivable) => receivable.id,
+        ),
       );
       await customerRepository.delete(
-        competingCustomers.map((customer) => customer.id),
+        [...competingCustomers, zeroBalanceCustomer].map(
+          (customer) => customer.id,
+        ),
       );
     }
   });
@@ -924,17 +957,54 @@ describe('Aging dashboard reporting (integration)', () => {
   });
 
   it('isolates customer aging rows by organization', async () => {
-    const response = await request(app?.getHttpServer())
-      .get('/api/v1/reports/aging/customers')
-      .set('Authorization', `Bearer ${otherOrgToken}`)
-      .expect(200);
+    const otherOrgCustomer = {
+      id: randomUUID(),
+      organizationId: otherOrgId,
+      name: 'Other Organization Customer',
+      taxCode: 'OTHER-ORG-001',
+      email: 'other-organization@example.com',
+      phone: '0930000000',
+      defaultPaymentTermDays: 30,
+      creditLimit: 100_000_000,
+      priority: 1,
+      createdAt: new Date(),
+    };
+    const otherOrgReceivable = {
+      id: randomUUID(),
+      organizationId: otherOrgId,
+      customerId: otherOrgCustomer.id,
+      invoiceId: null,
+      originalAmount: 1_200,
+      paidAmount: 0,
+      dueDate: addDays(new Date(`${today}T00:00:00.000Z`), -3),
+      status: ReceivableStatus.OPEN,
+      salesRepresentativeId: null,
+      createdAt: new Date(),
+      closedAt: null,
+      version: 1,
+    };
+    const customerRepository = dataSource.getRepository(CustomerOrmEntity);
+    const receivableRepository = dataSource.getRepository(ReceivableOrmEntity);
+    await customerRepository.save(otherOrgCustomer);
+    await receivableRepository.save(otherOrgReceivable);
 
-    expect(response.body).toEqual({
-      items: [],
-      total: 0,
-      page: 1,
-      limit: 20,
-    });
+    try {
+      const response = await request(app?.getHttpServer())
+        .get('/api/v1/reports/aging/customers')
+        .set('Authorization', `Bearer ${otherOrgToken}`)
+        .expect(200);
+
+      expect(response.body.items).toHaveLength(1);
+      expect(response.body.items[0]).toMatchObject({
+        customerId: otherOrgCustomer.id,
+        customerName: 'Other Organization Customer',
+        totalRemaining: 1_200,
+      });
+      expect(response.body.total).toBe(1);
+    } finally {
+      await receivableRepository.delete(otherOrgReceivable.id);
+      await customerRepository.delete(otherOrgCustomer.id);
+    }
   });
 
   it('rejects unauthenticated trend requests', async () => {

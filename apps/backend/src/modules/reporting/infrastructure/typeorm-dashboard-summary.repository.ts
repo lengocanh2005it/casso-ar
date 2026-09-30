@@ -100,7 +100,8 @@ export class TypeOrmDashboardSummaryRepository
   ): Promise<TopOverdueCustomer[]> {
     const ownershipPredicate =
       salesRepresentativeId !== undefined
-        ? `AND r."salesRepresentativeId" = $2`
+        ? `AND r."salesRepresentativeId" = $2
+          AND r."originalAmount" > r."paidAmount"`
         : '';
     const params =
       salesRepresentativeId !== undefined
