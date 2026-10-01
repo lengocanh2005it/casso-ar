@@ -17,6 +17,7 @@ export interface OverdueReceivableFilters {
   salesRepresentativeId?: string;
   customerIdIn?: string[];
   invoiceIdIn?: string[];
+  after?: { dueDate: Date; id: string };
   limit: number;
 }
 

@@ -148,6 +148,48 @@ describe('TypeOrmReceivableRepository', () => {
   });
 
   describe('findOverdueCandidates', () => {
+    it('applies the keyset cursor after due date and ID while keeping stable ordering', async () => {
+      const qb = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      };
+      const ormRepo = { createQueryBuilder: jest.fn().mockReturnValue(qb) };
+      const tenantContext = new TenantContextService();
+      const repo = new TypeOrmReceivableRepository(
+        ormRepo as any,
+        tenantContext,
+      );
+      const afterDueDate = new Date('2026-09-01T00:00:00.000Z');
+
+      await tenantContext.run(
+        { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+        () =>
+          repo.findOverdueCandidates({
+            organizationId: 'org-1',
+            referenceDate: new Date('2026-10-01T00:00:00.000Z'),
+            after: { dueDate: afterDueDate, id: 'rcv-10' },
+            limit: 11,
+          }),
+      );
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        '(r.dueDate > :afterDueDate OR (r.dueDate = :afterDueDate AND r.id > :afterId))',
+        { afterDueDate, afterId: 'rcv-10' },
+      );
+      expect(qb.where).toHaveBeenCalledWith(
+        'r.organizationId = :organizationId',
+        { organizationId: 'org-1' },
+      );
+      expect(qb.orderBy).toHaveBeenCalledWith('r.dueDate', 'ASC');
+      expect(qb.addOrderBy).toHaveBeenCalledWith('r.id', 'ASC');
+      expect(qb.take).toHaveBeenCalledWith(11);
+    });
+
     it('queries overdue candidates with correct predicates, columns, order, and limit, mapping to domain instances', async () => {
       const qb = {
         select: jest.fn().mockReturnThis(),

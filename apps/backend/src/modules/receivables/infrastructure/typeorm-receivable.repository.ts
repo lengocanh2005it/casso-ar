@@ -264,6 +264,16 @@ export class TypeOrmReceivableRepository
       }
     }
 
+    if (filters.after) {
+      qb.andWhere(
+        '(r.dueDate > :afterDueDate OR (r.dueDate = :afterDueDate AND r.id > :afterId))',
+        {
+          afterDueDate: filters.after.dueDate,
+          afterId: filters.after.id,
+        },
+      );
+    }
+
     qb.orderBy('r.dueDate', 'ASC')
       .addOrderBy('r.id', 'ASC')
       .take(filters.limit);

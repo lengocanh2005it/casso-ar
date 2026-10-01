@@ -198,6 +198,8 @@ describe('Copilot read tools', () => {
             dueDate: '2026-08-10T00:00:00.000Z',
           },
         ],
+        hasMore: false,
+        nextCursor: null,
       });
 
       expect(receivableRepo.findOverdueCandidates).toHaveBeenCalledWith({
@@ -206,10 +208,63 @@ describe('Copilot read tools', () => {
         salesRepresentativeId: undefined,
         customerIdIn: undefined,
         invoiceIdIn: undefined,
-        limit: 20,
+        after: undefined,
+        limit: 11,
       });
       expect(customerRepo.findByIds).toHaveBeenCalledWith(['cust-1', 'cust-2']);
       expect(invoiceRepo.findByIds).toHaveBeenCalledWith(['inv-1']);
+    });
+
+    it('returns only 10 overdue receivables and a cursor from the 10th when more exist', async () => {
+      const candidates = Array.from(
+        { length: 11 },
+        (_, index) =>
+          new Receivable({
+            ...rec1,
+            id: `rec-${index + 1}`,
+            dueDate: new Date(Date.UTC(2026, 7, index + 1)),
+          }),
+      );
+      const receivableRepo = {
+        findOverdueCandidates: jest.fn().mockResolvedValue(candidates),
+      };
+      const customerRepo = {
+        findByIds: jest
+          .fn()
+          .mockResolvedValue(
+            new Map([['cust-1', { id: 'cust-1', name: 'Công ty Alpha' }]]),
+          ),
+      };
+      const invoiceRepo = {
+        findByIds: jest
+          .fn()
+          .mockResolvedValue(
+            new Map([['inv-1', { id: 'inv-1', invoiceNumber: 'INV-001' }]]),
+          ),
+      };
+      const tenantContext = new TenantContextService();
+      const tool = new FindOverdueReceivablesTool(
+        receivableRepo as any,
+        customerRepo as any,
+        invoiceRepo as any,
+        tenantContext,
+      );
+
+      const result = await tenantContext.run(
+        { userId: 'u-1', organizationId: 'org-1', role: Role.FINANCE_MANAGER },
+        () => tool.execute({}, fixedNow),
+      );
+
+      expect(receivableRepo.findOverdueCandidates).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 11 }),
+      );
+      expect(result.items).toHaveLength(10);
+      expect(result.items[9].receivableId).toBe('rec-10');
+      expect(result.hasMore).toBe(true);
+      expect(result.nextCursor).toEqual({
+        dueDate: '2026-08-10T00:00:00.000Z',
+        receivableId: 'rec-10',
+      });
     });
 
     it('searches customer names and invoice numbers in parallel and passes resolved ID sets to receivable repo', async () => {
@@ -233,6 +288,11 @@ describe('Copilot read tools', () => {
           ),
       };
       const tenantContext = new TenantContextService();
+      const cursor = {
+        dueDate: '2026-08-01T00:00:00.000Z',
+        receivableId: 'rec-1',
+      };
+      const input = { search: 'Alpha', cursor };
 
       const tool = new FindOverdueReceivablesTool(
         receivableRepo as any,
@@ -243,7 +303,7 @@ describe('Copilot read tools', () => {
 
       const result = await tenantContext.run(
         { userId: 'u-1', organizationId: 'org-1', role: Role.FINANCE_MANAGER },
-        () => tool.execute({ search: 'Alpha' }, fixedNow),
+        () => tool.execute(input, fixedNow),
       );
 
       expect(customerRepo.findIdsBySearch).toHaveBeenCalledWith(
@@ -260,9 +320,11 @@ describe('Copilot read tools', () => {
         salesRepresentativeId: undefined,
         customerIdIn: ['cust-1'],
         invoiceIdIn: ['inv-1'],
-        limit: 20,
+        after: { dueDate: new Date(cursor.dueDate), id: cursor.receivableId },
+        limit: 11,
       });
       expect(result.items).toHaveLength(1);
+      expect(result).toMatchObject({ hasMore: false, nextCursor: null });
     });
 
     it('returns empty items without querying receivables when search yields no customer or invoice match', async () => {
@@ -291,23 +353,23 @@ describe('Copilot read tools', () => {
         () => tool.execute({ search: 'NonExistent' }, fixedNow),
       );
 
-      expect(result).toEqual({ items: [] });
+      expect(result).toEqual({ items: [], hasMore: false, nextCursor: null });
       expect(receivableRepo.findOverdueCandidates).not.toHaveBeenCalled();
     });
 
-    it('throws VALIDATION_ERROR when limit is above 20, below 1, or non-integer', async () => {
-      const tool = new FindOverdueReceivablesTool(
-        {} as any,
-        {} as any,
-        {} as any,
-        new TenantContextService(),
-      );
+    it('throws VALIDATION_ERROR when limit is above 10, below 1, or non-integer', async () => {
       const tenantContext = new TenantContextService();
+      const tool = new FindOverdueReceivablesTool(
+        { findOverdueCandidates: jest.fn().mockResolvedValue([]) } as any,
+        {} as any,
+        {} as any,
+        tenantContext,
+      );
 
       await expect(
         tenantContext.run(
           { userId: 'u-1', organizationId: 'org-1', role: Role.OWNER },
-          () => tool.execute({ limit: 25 }),
+          () => tool.execute({ limit: 11 }),
         ),
       ).rejects.toThrow(
         expect.objectContaining({

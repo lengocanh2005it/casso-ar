@@ -22,9 +22,23 @@ export const FIND_OVERDUE_RECEIVABLES_SCHEMA: CopilotJsonSchema = {
     limit: {
       type: 'integer',
       minimum: 1,
-      maximum: 20,
+      maximum: 10,
       description:
-        'Maximum number of overdue receivables to return (default 20, max 20).',
+        'Maximum number of overdue receivables to return (default 10, max 10).',
+    },
+    cursor: {
+      type: 'object',
+      properties: {
+        dueDate: {
+          type: 'string',
+          description: 'ISO-8601 due date from the previous page.',
+        },
+        receivableId: {
+          type: 'string',
+          description: 'Internal continuation key.',
+        },
+      },
+      required: ['dueDate', 'receivableId'],
     },
   },
   required: [],
@@ -33,6 +47,7 @@ export const FIND_OVERDUE_RECEIVABLES_SCHEMA: CopilotJsonSchema = {
 export interface FindOverdueReceivablesInput {
   search?: string;
   limit?: number;
+  cursor?: { dueDate: string; receivableId: string };
 }
 
 export interface OverdueReceivableCandidate {
@@ -45,6 +60,8 @@ export interface OverdueReceivableCandidate {
 
 export interface FindOverdueReceivablesResult {
   items: OverdueReceivableCandidate[];
+  hasMore: boolean;
+  nextCursor: { dueDate: string; receivableId: string } | null;
 }
 
 @Injectable()
@@ -70,11 +87,11 @@ export class FindOverdueReceivablesTool {
         typeof input.limit !== 'number' ||
         !Number.isInteger(input.limit) ||
         input.limit < 1 ||
-        input.limit > 20
+        input.limit > 10
       ) {
         throw new AppError(
           ErrorCode.VALIDATION_ERROR,
-          'Limit must be an integer between 1 and 20.',
+          'Limit must be an integer between 1 and 10.',
         );
       }
     }
@@ -84,7 +101,7 @@ export class FindOverdueReceivablesTool {
     const salesRepresentativeId =
       currentUser?.role === Role.SALES_REP ? currentUser.userId : undefined;
 
-    const limit = input.limit ?? 20;
+    const limit = input.limit ?? 10;
 
     let customerIdIn: string[] | undefined;
     let invoiceIdIn: string[] | undefined;
@@ -100,7 +117,7 @@ export class FindOverdueReceivablesTool {
       ]);
 
       if (matchedCustomerIds.length === 0 && matchedInvoiceIds.length === 0) {
-        return { items: [] };
+        return { items: [], hasMore: false, nextCursor: null };
       }
 
       customerIdIn = matchedCustomerIds;
@@ -113,21 +130,34 @@ export class FindOverdueReceivablesTool {
       salesRepresentativeId,
       customerIdIn,
       invoiceIdIn,
-      limit,
+      after: input.cursor
+        ? {
+            dueDate: new Date(input.cursor.dueDate),
+            id: input.cursor.receivableId,
+          }
+        : undefined,
+      limit: limit + 1,
     });
 
     if (receivables.length === 0) {
-      return { items: [] };
+      return { items: [], hasMore: false, nextCursor: null };
     }
 
-    const uniqueCustomerIds = [
-      ...new Set(receivables.map((r) => r.customerId)),
-    ];
+    const hasMore = receivables.length > limit;
+    const page = receivables.slice(0, limit);
+    const last = page.at(-1);
+    const nextCursor =
+      hasMore && last
+        ? {
+            dueDate: last.dueDate.toISOString(),
+            receivableId: last.id,
+          }
+        : null;
+
+    const uniqueCustomerIds = [...new Set(page.map((r) => r.customerId))];
     const uniqueInvoiceIds = [
       ...new Set(
-        receivables
-          .map((r) => r.invoiceId)
-          .filter((id): id is string => id !== null),
+        page.map((r) => r.invoiceId).filter((id): id is string => id !== null),
       ),
     ];
 
@@ -140,25 +170,23 @@ export class FindOverdueReceivablesTool {
         : Promise.resolve(new Map()),
     ]);
 
-    const items: OverdueReceivableCandidate[] = receivables.map(
-      (receivable) => {
-        const customer = customersMap.get(receivable.customerId);
-        const customerName = customer?.name || 'Khách hàng không xác định';
-        const invoice = receivable.invoiceId
-          ? invoicesMap.get(receivable.invoiceId)
-          : undefined;
-        const invoiceNumber = invoice?.invoiceNumber ?? null;
+    const items: OverdueReceivableCandidate[] = page.map((receivable) => {
+      const customer = customersMap.get(receivable.customerId);
+      const customerName = customer?.name || 'Khách hàng không xác định';
+      const invoice = receivable.invoiceId
+        ? invoicesMap.get(receivable.invoiceId)
+        : undefined;
+      const invoiceNumber = invoice?.invoiceNumber ?? null;
 
-        return {
-          receivableId: receivable.id,
-          customerName,
-          invoiceNumber,
-          remainingAmount: receivable.remainingAmount,
-          dueDate: receivable.dueDate.toISOString(),
-        };
-      },
-    );
+      return {
+        receivableId: receivable.id,
+        customerName,
+        invoiceNumber,
+        remainingAmount: receivable.remainingAmount,
+        dueDate: receivable.dueDate.toISOString(),
+      };
+    });
 
-    return { items };
+    return { items, hasMore, nextCursor };
   }
 }
