@@ -90,10 +90,8 @@ describe('CopilotChatUseCase', () => {
     // looking for these exact labels. When the prompt left the wording open,
     // the model renamed "Hạn thanh toán" to "Ngày đáo hạn" and split one
     // receivable across several lines, which broke the card layout.
-    expect(SYSTEM_PROMPT).toContain(
-      '"N. <tên khách hàng> - Số hóa đơn: <số hoá đơn> - Số tiền còn lại: <số tiền> VNĐ - Hạn thanh toán: <dd/mm/yyyy>"',
-    );
-    expect(SYSTEM_PROMPT).toContain('never split it across lines');
+    expect(SYSTEM_PROMPT).toContain('Never split a receivable across lines');
+    expect(SYSTEM_PROMPT).toContain('never rename or drop those labels');
     expect(SYSTEM_PROMPT).toContain('"Chưa có số hóa đơn"');
   });
 

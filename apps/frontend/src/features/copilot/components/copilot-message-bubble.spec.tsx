@@ -277,18 +277,19 @@ describe('CopilotMessageBubble', () => {
     expect(screen.getByRole('listitem')).toHaveTextContent('0');
   });
 
-  it('leaves a bullet line as prose instead of dropping it', () => {
+  it('renders a bulleted receivable as a row and keeps the bullet out of the name', () => {
     const content =
       '- Công ty A - Số hóa đơn: HD-1 - Số tiền còn lại: 1.000.000';
 
-    const { container } = render(
+    render(
       <CopilotMessageBubble
         message={{ role: 'ASSISTANT', content, isPartial: false }}
       />,
     );
 
-    expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
-    expect(container.textContent).toContain(content);
+    const item = screen.getByRole('listitem');
+    expect(item.querySelector('p')?.textContent).toBe('1.Công ty A');
+    expect(item).toHaveTextContent('1.000.000');
   });
 
   it('reads a row whose labels the model phrased differently', () => {
@@ -306,7 +307,7 @@ describe('CopilotMessageBubble', () => {
     const items = screen.getAllByRole('listitem');
     expect(items).toHaveLength(2);
     expect(items[0]).toHaveTextContent('29/04/2026');
-    expect(items[0]).toHaveTextContent('13,000,000');
+    expect(items[0]).toHaveTextContent('13.000.000');
     expect(items[0]).not.toHaveTextContent('VNĐ');
     expect(items[1]).toHaveTextContent('HD-2026-0047');
   });
@@ -334,8 +335,103 @@ describe('CopilotMessageBubble', () => {
     expect(items).toHaveLength(2);
     expect(items[0]).toHaveTextContent('Công ty TNHH Dược phẩm Tâm An');
     expect(items[0]).toHaveTextContent('HD-2026-0037');
-    expect(items[0]).toHaveTextContent('13,000,000');
+    expect(items[0]).toHaveTextContent('13.000.000');
     expect(items[0]).toHaveTextContent('29/04/2026');
     expect(items[1]).toHaveTextContent('Hợp tác xã Nông nghiệp Đồng Tâm');
+  });
+
+  it('reads a row when the model copies the lettered position from the prompt', () => {
+    const content =
+      'N. Công ty TNHH Dược phẩm Tâm An - Số hóa đơn: HD-2026-0037 - Số tiền còn lại: 13.000.000 VNĐ - Hạn thanh toán: 29/04/2026';
+
+    render(
+      <CopilotMessageBubble
+        message={{ role: 'ASSISTANT', content, isPartial: false }}
+      />,
+    );
+
+    expect(screen.getByRole('listitem')).toHaveTextContent('HD-2026-0037');
+  });
+
+  it.each([
+    ['1)', '1) Công ty A - Số hóa đơn: HD-1 - Số tiền còn lại: 1.000.000'],
+    ['N)', 'N) Công ty A - Số hóa đơn: HD-1 - Số tiền còn lại: 1.000.000'],
+    ['no space', '1.Công ty A - Số hóa đơn: HD-1 - Số tiền còn lại: 1.000.000'],
+  ])('reads a row marked with "%s"', (_label, content) => {
+    render(
+      <CopilotMessageBubble
+        message={{ role: 'ASSISTANT', content, isPartial: false }}
+      />,
+    );
+
+    const item = screen.getByRole('listitem');
+    expect(item.querySelector('p')?.textContent).toBe('1.Công ty A');
+    expect(item).toHaveTextContent('1.000.000');
+  });
+
+  it('reads a receivable line the model wrote without any list marker', () => {
+    const content =
+      'Công ty A - Số hóa đơn: HD-1 - Số tiền còn lại: 1.000.000 - Đến hạn: 29/04/2026';
+
+    render(
+      <CopilotMessageBubble
+        message={{ role: 'ASSISTANT', content, isPartial: false }}
+      />,
+    );
+
+    const item = screen.getByRole('listitem');
+    expect(item).toHaveTextContent('Công ty A');
+    expect(item).toHaveTextContent('29/04/2026');
+  });
+
+  it('normalises a space-separated amount to the Vietnamese grouping', () => {
+    const content =
+      '1. Công ty A - Số hóa đơn: HD-1 - Số tiền còn lại: 13 000 000 VNĐ - Hạn thanh toán: 29/04/2026';
+
+    render(
+      <CopilotMessageBubble
+        message={{ role: 'ASSISTANT', content, isPartial: false }}
+      />,
+    );
+
+    const item = screen.getByRole('listitem');
+    expect(item).toHaveTextContent('13.000.000');
+    expect(item).not.toHaveTextContent('VNĐ');
+  });
+
+  it('joins a block whose fields are indented under a bullet', () => {
+    const content = [
+      '1. Công ty A',
+      '   • Số hóa đơn: HD-1',
+      '   • Số tiền còn lại: 1.000.000',
+      '   • Đến hạn: 29/04/2026',
+    ].join('\n');
+
+    render(
+      <CopilotMessageBubble
+        message={{ role: 'ASSISTANT', content, isPartial: false }}
+      />,
+    );
+
+    const items = screen.getAllByRole('listitem');
+    expect(items).toHaveLength(1);
+    expect(items[0]).toHaveTextContent('HD-1');
+    expect(items[0]).toHaveTextContent('1.000.000');
+    expect(items[0]).toHaveTextContent('29/04/2026');
+  });
+
+  it('never leaves a dangling field label when a value is missing', () => {
+    const content =
+      '1. Công ty A - Số hóa đơn: HD-1 - Số tiền còn lại: 1.000.000';
+
+    render(
+      <CopilotMessageBubble
+        message={{ role: 'ASSISTANT', content, isPartial: false }}
+      />,
+    );
+
+    const item = screen.getByRole('listitem');
+    expect(item).not.toHaveTextContent('Hạn:');
+    expect(item).toHaveTextContent('HD-1');
   });
 });

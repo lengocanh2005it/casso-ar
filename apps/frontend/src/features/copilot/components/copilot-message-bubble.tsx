@@ -79,13 +79,13 @@ function renderAssistantContent(content: string) {
  * between prompt and parser — have the tool return structured rows if the
  * model keeps drifting.
  */
-const LIST_ITEM_RE = /^\s*\d+\.\s*(.+)$/;
+const LIST_ITEM_RE = /^\s*(?:\d+|[A-Za-z])[.)]\s*(.+)$/;
 const SURROUNDING_NOISE = /^[\s\-–—:|*]+|[\s\-–—:|*]+$/gu;
 
 const LABELS = {
-  invoice: ['số hoá đơn:', 'số hóa đơn:'],
+  invoice: ['số hoá đơn:', 'số hóa đơn:', 'hoá đơn:', 'hóa đơn:'],
   amount: ['số tiền còn lại:', 'số tiền:'],
-  due: ['hạn thanh toán:', 'ngày đáo hạn:'],
+  due: ['hạn thanh toán:', 'ngày đáo hạn:', 'đến hạn:', 'hạn:'],
 } as const;
 
 type Field = keyof typeof LABELS;
@@ -95,6 +95,12 @@ interface FieldMatch {
   start: number;
   valueStart: number;
 }
+
+/**
+ * A bullet or a stray Markdown star must not leak into the customer name, and
+ * a list position must never be glued onto it either.
+ */
+const LEADING_MARKER = /^(?:\s*(?:\d+|[A-Za-z])[.)]\s*|\s*[-–—•*]\s*)+/;
 
 function locateFields(text: string): FieldMatch[] {
   const lower = text.toLowerCase();
@@ -117,6 +123,14 @@ function trimSeparators(value: string): string {
   return value.replaceAll('**', '').replace(SURROUNDING_NOISE, '').trim();
 }
 
+function cleanCustomerName(value: string): string {
+  return value
+    .replaceAll('**', '')
+    .replace(LEADING_MARKER, '')
+    .replace(SURROUNDING_NOISE, '')
+    .trim();
+}
+
 function buildReceivableRow(text: string): CopilotReceivableRow | null {
   const fields = locateFields(text);
   if (fields.length === 0) return null;
@@ -127,18 +141,21 @@ function buildReceivableRow(text: string): CopilotReceivableRow | null {
     values.set(field.field, trimSeparators(text.slice(field.valueStart, end)));
   });
 
-  const customerName = trimSeparators(text.slice(0, fields[0].start));
-  const remainingAmount = /\d[\d.,]*/.exec(values.get('amount') ?? '')?.[0];
+  const customerName = cleanCustomerName(text.slice(0, fields[0].start));
+  const amountValue = values.get('amount') ?? '';
+  const remainingAmount = /\d[\d.,]*(?:\s\d{3})*/
+    .exec(amountValue)?.[0]
+    .replace(/[.,]$/, '');
   if (!customerName || !remainingAmount) return null;
 
-  const invoice = values.get('invoice') ?? '';
-  const dueDate = values.get('due') ?? '';
+  const invoice = trimSeparators(values.get('invoice') ?? '');
+  const dueDate = trimSeparators(values.get('due') ?? '');
 
   return {
     customerName,
     invoiceNumber:
       !invoice || invoice.toLowerCase().startsWith('chưa có') ? null : invoice,
-    remainingAmount: remainingAmount.replace(/\.$/, ''),
+    remainingAmount,
     dueDate: /[\d/-]+/.test(dueDate)
       ? (/[\d/.-]+/.exec(dueDate)?.[0] ?? '')
       : '',
@@ -148,7 +165,16 @@ function buildReceivableRow(text: string): CopilotReceivableRow | null {
 function isContinuationLine(line: string): boolean {
   const [first] = locateFields(line);
   if (!first) return false;
-  return line.slice(0, first.start).replace(SURROUNDING_NOISE, '') === '';
+  return line.slice(0, first.start).replace(LEADING_MARKER, '').trim() === '';
+}
+
+/**
+ * A receivable block opens on a list marker, or on any line that already
+ * carries the fields. buildReceivableRow is the real gate, so ordinary
+ * numbered prose ("1. Bước đầu tiên…") still falls back to a paragraph.
+ */
+function looksLikeRowStart(line: string): boolean {
+  return LIST_ITEM_RE.test(line) || locateFields(line).length > 0;
 }
 
 interface Segment {
@@ -196,6 +222,9 @@ function splitIntoSegments(content: string): Segment[] {
     if (listMatch) {
       closePending();
       pending = { source: line, parts: [listMatch[1].trim()] };
+    } else if (looksLikeRowStart(line)) {
+      closePending();
+      pending = { source: line, parts: [line.trim()] };
     } else {
       closePending();
       buffer.push(line);

@@ -8,6 +8,20 @@ export interface CopilotReceivableRow {
 }
 
 /**
+ * The model writes the amount in whatever shape it feels like — "13000000",
+ * "13,000,000", "13.000.000 VNĐ" — so normalise it here instead of trusting
+ * the prompt. VND never has a fractional part, so drop the decimals rather
+ * than rendering "13.000.000,00".
+ */
+const VND_FORMAT = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 });
+
+function formatAmount(value: string): string {
+  const digits = /\d[\d.,\s]*/.exec(value)?.[0].replaceAll(/\D/g, '');
+  if (!digits) return value.trim();
+  return VND_FORMAT.format(Number(digits));
+}
+
+/**
  * The model's numbered list runs to a single long line per customer, which
  * wraps badly and hides the invoice number behind the sidebar. Split the same
  * figures into labelled fields so every value stays readable and wrapped.
@@ -44,13 +58,17 @@ export function CopilotReceivableList({
               <Wallet aria-hidden="true" className="size-3.5 shrink-0" />
               <span>Còn lại:</span>
               <span className="font-semibold text-primary">
-                {row.remainingAmount}
+                {formatAmount(row.remainingAmount)}
               </span>
             </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span>Hạn:</span>
-              <span className="font-medium text-foreground">{row.dueDate}</span>
-            </span>
+            {row.dueDate && (
+              <span className="inline-flex items-center gap-1.5">
+                <span>Hạn:</span>
+                <span className="font-medium text-foreground">
+                  {row.dueDate}
+                </span>
+              </span>
+            )}
           </div>
         </li>
       ))}

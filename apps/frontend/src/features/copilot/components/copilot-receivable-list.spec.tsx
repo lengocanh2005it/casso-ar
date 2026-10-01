@@ -72,4 +72,26 @@ describe('CopilotReceivableList', () => {
 
     expect(container.firstChild).toBeNull();
   });
+
+  it.each([
+    ['13000000', '13.000.000'],
+    ['13000000 VNĐ', '13.000.000'],
+    ['13,000,000', '13.000.000'],
+    ['0', '0'],
+  ])('groups the digits of "%s" into %s', (input, expected) => {
+    render(
+      <CopilotReceivableList
+        rows={[
+          {
+            customerName: 'Công ty A',
+            invoiceNumber: 'HD-1',
+            remainingAmount: input,
+            dueDate: '29/04/2026',
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText(expected)).toBeInTheDocument();
+  });
 });
