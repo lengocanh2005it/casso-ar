@@ -955,7 +955,7 @@ export function buildSeedInvoicePlans(
   const allReceivablePlans = [...receivablePlans, ...disputedReceivablePlans];
   const linkedReceivableIndexes = new Set<number>();
 
-  return plans.map((plan, index) => {
+  const matched = plans.map((plan, index) => {
     const receivableIndex =
       plan.status === InvoiceStatus.ISSUED
         ? allReceivablePlans.findIndex(
@@ -975,6 +975,28 @@ export function buildSeedInvoicePlans(
       receivableIndex: receivableIndex >= 0 ? receivableIndex : null,
     };
   });
+
+  // Every receivable must carry an invoice number — Copilot surfaces it next
+  // to the overdue amount, and an unlinked receivable renders as "Chưa có số
+  // hóa đơn" with no way to explain why.
+  let syntheticSeq = 0;
+  for (const [receivableIndex, receivable] of allReceivablePlans.entries()) {
+    if (linkedReceivableIndexes.has(receivableIndex)) continue;
+    syntheticSeq += 1;
+    linkedReceivableIndexes.add(receivableIndex);
+    matched.push({
+      customerIndex: receivable.customerIndex,
+      invoiceNumber: `HD-${now.getFullYear()}-${String(syntheticSeq).padStart(4, '0')}`,
+      issueDate: monthsAgo(now, 2),
+      totalAmount: receivable.originalAmount,
+      taxAmount: 0,
+      sourceType: 'MANUAL',
+      status: InvoiceStatus.ISSUED,
+      receivableIndex,
+    });
+  }
+
+  return matched;
 }
 
 // ── Bank transactions ────────────────────────────────────────────
