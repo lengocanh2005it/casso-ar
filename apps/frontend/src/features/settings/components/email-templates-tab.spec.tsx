@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { EmailTemplatesTab } from './email-templates-tab';
 
@@ -76,6 +82,27 @@ describe('EmailTemplatesTab', () => {
       screen.queryByRole('button', { name: /xem trước mẫu email/i }),
     ).toBeNull();
     expect(screen.queryByRole('button', { name: /tạo mẫu/i })).toBeNull();
+  });
+
+  it('labels template details and distinguishes custom templates', async () => {
+    useAuth.mockReturnValue({ user: { role: 'OWNER' } });
+    apiRequest.mockResolvedValueOnce([
+      { ...template, id: 't2', name: 'Custom reminder', isDefault: false },
+    ]);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <EmailTemplatesTab />
+      </QueryClientProvider>,
+    );
+
+    const row = await screen.findByRole('row', { name: /Custom reminder/i });
+    expect(within(row).getByText('Tiêu đề')).toBeTruthy();
+    expect(within(row).getByText('Loại')).toBeTruthy();
+    expect(within(row).getByText('Tùy chỉnh')).toBeTruthy();
   });
 
   it('refreshes attachments in the open editor after upload', async () => {
