@@ -1,4 +1,5 @@
 import { Permission, PlanId } from '@casso-ar/shared-types';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Bot,
   CircleAlert,
@@ -33,6 +34,7 @@ import { PendingActionCard } from '../components/pending-action-card';
 import { UsageIndicator } from '../components/usage-indicator';
 
 export function CopilotPage() {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [draft, setDraft] = useState('');
@@ -93,7 +95,10 @@ export function CopilotPage() {
     isLoadingHistory,
     quotaExceededMessage,
   } = useCopilotChat(canSendManual, activeConversationId, {
-    onTurnComplete: refreshConversations,
+    onTurnComplete: () => {
+      void refreshConversations();
+      void queryClient.invalidateQueries({ queryKey: ['copilot-usage'] });
+    },
   });
 
   function onSubmit(event: FormEvent) {
@@ -164,7 +169,7 @@ export function CopilotPage() {
         >
           <aside
             className={cn(
-              'hidden shrink-0 overflow-hidden border-r border-border bg-muted/20 transition-[width] duration-200 md:block',
+              'hidden shrink-0 overflow-hidden border-r border-border bg-muted/20 transition-[width] duration-200 2xl:block',
               historyCollapsed ? 'w-0 border-0' : 'w-56',
             )}
           >
@@ -181,13 +186,13 @@ export function CopilotPage() {
           )}
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="flex min-h-12 items-center justify-between gap-2 px-3 pt-2">
+            <div className="flex min-h-12 items-center justify-between gap-2 px-3 py-2">
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="md:hidden"
+                  className="2xl:hidden"
                   onClick={() => setHistorySheetOpen(true)}
                   aria-label="Mở lịch sử chat"
                 >
@@ -197,7 +202,7 @@ export function CopilotPage() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="hidden md:inline-flex"
+                  className="hidden 2xl:inline-flex"
                   onClick={() => setHistoryCollapsed((current) => !current)}
                   aria-label={
                     historyCollapsed
@@ -217,7 +222,7 @@ export function CopilotPage() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="md:hidden"
+                  className="2xl:hidden"
                   onClick={() => setDraftsSheetOpen(true)}
                   aria-label="Mở bản nháp email"
                 >
@@ -227,7 +232,7 @@ export function CopilotPage() {
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="hidden md:inline-flex"
+                  className="hidden 2xl:inline-flex"
                   onClick={() => setDraftsCollapsed((current) => !current)}
                   aria-label={
                     draftsCollapsed
@@ -244,7 +249,15 @@ export function CopilotPage() {
               </div>
             </div>
 
-            <div className="mx-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto p-5">
+            {/* The welcome card carries its own border and padding, so the
+                scroll container skips its own padding to leave room for it. */}
+            <div
+              className={
+                isEmptyConversation
+                  ? 'mx-3 flex min-h-0 flex-1 flex-col overflow-hidden'
+                  : 'mx-3 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-5'
+              }
+            >
               {isLoadingHistory ? (
                 <div className="flex flex-1 items-center justify-center">
                   <LoaderCircle
@@ -260,6 +273,7 @@ export function CopilotPage() {
                 <MessageList
                   messages={messages}
                   streamingContent={streamingContent}
+                  isWaitingForResponse={isSending && !streamingContent}
                 />
               )}
               {pendingAction && canSendManual && (
@@ -324,17 +338,17 @@ export function CopilotPage() {
 
           <aside
             className={cn(
-              'hidden shrink-0 overflow-hidden border-l border-border bg-muted/20 transition-[width] duration-200 md:block',
-              draftsCollapsed ? 'w-0 border-0' : 'w-72',
+              'hidden shrink-0 overflow-hidden border-l border-border bg-muted/20 transition-[width] duration-200 2xl:block',
+              draftsCollapsed ? 'w-0 border-0' : 'w-96',
             )}
           >
-            <div className={cn('h-full w-72', draftsCollapsed && 'invisible')}>
+            <div className={cn('h-full w-96', draftsCollapsed && 'invisible')}>
               {draftsPanel}
             </div>
           </aside>
           {hasCopilotAccess && (
             <Sheet open={draftsSheetOpen} onOpenChange={setDraftsSheetOpen}>
-              <SheetContent side="right" className="w-80 p-0">
+              <SheetContent side="right" className="w-[90vw] max-w-sm p-0">
                 {draftsPanel}
               </SheetContent>
             </Sheet>

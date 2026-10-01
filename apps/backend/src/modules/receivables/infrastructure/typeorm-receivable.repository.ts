@@ -264,9 +264,26 @@ export class TypeOrmReceivableRepository
       }
     }
 
-    qb.orderBy('r.dueDate', 'ASC')
-      .addOrderBy('r.id', 'ASC')
-      .take(filters.limit);
+    if (filters.after) {
+      qb.andWhere(
+        '(r.dueDate > :afterDueDate OR (r.dueDate = :afterDueDate AND r.id > :afterId))',
+        {
+          afterDueDate: filters.after.dueDate,
+          afterId: filters.after.id,
+        },
+      );
+    }
+
+    // amount_desc still needs the (dueDate, id) tie-break so the continuation
+    // cursor keeps landing on a deterministic row.
+    if (filters.sortBy === 'amount_desc') {
+      qb.orderBy('(r.originalAmount - r.paidAmount)', 'DESC')
+        .addOrderBy('r.dueDate', 'ASC')
+        .addOrderBy('r.id', 'ASC');
+    } else {
+      qb.orderBy('r.dueDate', 'ASC').addOrderBy('r.id', 'ASC');
+    }
+    qb.take(filters.limit);
 
     const rows = await qb.getMany();
     return rows.map(toDomain);

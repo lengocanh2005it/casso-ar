@@ -257,4 +257,52 @@ describe('useCopilotChat', () => {
 
     expect(result.current.messages.at(-1)).toMatchObject({ role: 'USER' });
   });
+
+  it('reports the turn as complete when the stream is aborted mid-answer', async () => {
+    let rejectStream: (reason: unknown) => void = () => {};
+    streamCopilotMessage.mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectStream = reject;
+        }),
+    );
+    const onTurnComplete = vi.fn();
+    const { result } = renderHook(() =>
+      useCopilotChat(true, 'conversation-1', { onTurnComplete }),
+    );
+
+    let sendPromise: Promise<void>;
+    act(() => {
+      sendPromise = result.current.send('Câu hỏi dài');
+    });
+    act(() => {
+      result.current.stop();
+      rejectStream(new DOMException('aborted', 'AbortError'));
+    });
+
+    await act(async () => {
+      await sendPromise;
+    });
+
+    expect(onTurnComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not report a turn that was rejected before it was persisted', async () => {
+    streamCopilotMessage.mockRejectedValue(
+      new CopilotStreamRequestError(
+        'Câu hỏi không hợp lệ.',
+        'VALIDATION_ERROR',
+      ),
+    );
+    const onTurnComplete = vi.fn();
+    const { result } = renderHook(() =>
+      useCopilotChat(true, 'conversation-1', { onTurnComplete }),
+    );
+
+    await act(async () => {
+      await result.current.send('Câu hỏi dài');
+    });
+
+    expect(onTurnComplete).not.toHaveBeenCalled();
+  });
 });

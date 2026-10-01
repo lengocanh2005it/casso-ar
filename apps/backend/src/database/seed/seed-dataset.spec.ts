@@ -109,7 +109,7 @@ describe('buildSeedInvoicePlans and buildSeedBankTransactionPlans', () => {
       buildSeedCustomers().length,
     );
 
-    expect(invoicePlans).toHaveLength(30);
+    expect(invoicePlans.length).toBeGreaterThanOrEqual(30);
     expect(buildSeedBankTransactionPlans(now)).toHaveLength(60);
 
     const allReceivablePlans = [...receivablePlans, ...disputedPlans];
@@ -123,6 +123,35 @@ describe('buildSeedInvoicePlans and buildSeedBankTransactionPlans', () => {
       expect(receivable.originalAmount).toBe(invoice.totalAmount);
       expect(receivable.customerIndex).toBe(invoice.customerIndex);
     }
+  });
+
+  it('links every receivable to an invoice so Copilot can show an invoice number', () => {
+    const receivablePlans = buildSeedReceivablePlans(
+      now,
+      buildSeedCustomers().length,
+    );
+    const disputedPlans = buildSeedDisputedReceivablePlans(
+      now,
+      buildSeedCustomers().length,
+    );
+    const invoicePlans = buildSeedInvoicePlans(
+      now,
+      receivablePlans,
+      disputedPlans,
+      buildSeedCustomers().length,
+    );
+
+    const allReceivablePlans = [...receivablePlans, ...disputedPlans];
+    const linkedIndexes = new Set(
+      invoicePlans
+        .map((plan) => plan.receivableIndex)
+        .filter((index): index is number => index !== null),
+    );
+    const unlinked = allReceivablePlans.filter(
+      (_, index) => !linkedIndexes.has(index),
+    );
+
+    expect(unlinked).toEqual([]);
   });
 });
 

@@ -84,6 +84,12 @@ export function useCopilotChat(
     const controller = new AbortController();
     abortControllerRef.current = controller;
     let streamedText = '';
+    // The backend persists (and counts) the user's message before it writes any
+    // SSE header, so a 2xx response - and every way that response can go wrong
+    // afterwards (abort, dropped stream) - still consumed a turn. Only a
+    // non-2xx CopilotStreamRequestError proves the write never happened, so
+    // assume counted and let that one branch opt out.
+    let turnCounted = true;
 
     try {
       await streamCopilotMessage(
@@ -96,7 +102,6 @@ export function useCopilotChat(
           } else if (event.type === 'done') {
             setMessages((current) => [...current, event.data.message]);
             setPendingAction(event.data.pendingAction);
-            options.onTurnComplete?.();
           } else if (event.type === 'error') {
             toast.error(event.message);
           }
@@ -117,22 +122,27 @@ export function useCopilotChat(
             },
           ]);
         }
-      } else if (
-        error instanceof CopilotStreamRequestError &&
-        error.errorCode === 'PLAN_LIMIT_EXCEEDED'
-      ) {
-        // The message was never persisted (the quota check runs before the
-        // write) — drop the optimistic bubble so the chat doesn't show a
-        // question that was never actually sent.
-        setMessages((current) =>
-          current.filter((message) => message.id !== optimisticMessageId),
-        );
-        setQuotaExceededMessage(error.message);
-        toast.error(error.message);
+      } else if (error instanceof CopilotStreamRequestError) {
+        // Rejected with a non-2xx status: the write never reached the database,
+        // so the turn was not counted.
+        turnCounted = false;
+
+        if (error.errorCode === 'PLAN_LIMIT_EXCEEDED') {
+          // The quota check runs before the write — drop the optimistic bubble
+          // so the chat doesn't show a question that was never actually sent.
+          setMessages((current) =>
+            current.filter((message) => message.id !== optimisticMessageId),
+          );
+          setQuotaExceededMessage(error.message);
+          toast.error(error.message);
+        } else {
+          toast.error('Không thể gửi câu hỏi cho Copilot.');
+        }
       } else {
         toast.error('Không thể gửi câu hỏi cho Copilot.');
       }
     } finally {
+      if (turnCounted) options.onTurnComplete?.();
       setStreamingContent('');
       setIsSending(false);
       abortControllerRef.current = null;

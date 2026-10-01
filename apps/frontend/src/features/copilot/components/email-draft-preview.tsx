@@ -5,15 +5,29 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createEmailPreviewDocument } from '@/lib/email-preview-document';
+import { cn } from '@/lib/utils';
+
+// The draft body is stored as a single-line HTML string, so the code tab
+// would render as one long unreadable row. Break it before block-level tags
+// and between tags so the markup reads as a document.
+function formatHtmlForDisplay(html: string): string {
+  return html
+    .replace(/>\s*</g, '>\n<')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
 
 export function EmailDraftPreview({
   subject,
   recipientEmail,
   bodyHtml,
+  compact = false,
 }: {
   subject: string;
   recipientEmail: string;
   bodyHtml: string;
+  compact?: boolean;
 }) {
   const [mode, setMode] = useState<'preview' | 'code'>('preview');
 
@@ -27,14 +41,23 @@ export function EmailDraftPreview({
   }
 
   return (
-    <Card className="border-muted bg-muted/20 shadow-none">
-      <CardHeader className="space-y-1 pb-3">
-        <CardTitle className="break-words text-sm">{subject}</CardTitle>
-        <p className="break-words text-xs text-muted-foreground">
-          {recipientEmail}
-        </p>
-      </CardHeader>
-      <CardContent className="pt-0">
+    <Card
+      className={cn(
+        'shadow-none',
+        compact
+          ? 'rounded-none border-0 bg-transparent p-0 shadow-none'
+          : 'border-muted bg-muted/20',
+      )}
+    >
+      {!compact && (
+        <CardHeader className="space-y-1 pb-3">
+          <CardTitle className="break-words text-sm">{subject}</CardTitle>
+          <p className="break-words text-xs text-muted-foreground">
+            {recipientEmail}
+          </p>
+        </CardHeader>
+      )}
+      <CardContent className={cn('pt-0', compact && 'p-0')}>
         <Tabs
           value={mode}
           onValueChange={(value) => setMode(value as 'preview' | 'code')}
@@ -61,12 +84,15 @@ export function EmailDraftPreview({
               title="Xem trước email"
               sandbox=""
               srcDoc={createEmailPreviewDocument(bodyHtml)}
-              className="h-64 w-full rounded-md border bg-white"
+              className={cn(
+                'w-full rounded-md border bg-muted',
+                compact ? 'h-72' : 'h-64',
+              )}
             />
           </TabsContent>
           <TabsContent value="code">
-            <pre className="max-h-64 overflow-auto rounded-md border bg-muted p-3 text-xs">
-              <code>{bodyHtml}</code>
+            <pre className="max-h-64 overflow-auto rounded-md border bg-muted p-3 text-xs leading-relaxed">
+              <code>{formatHtmlForDisplay(bodyHtml)}</code>
             </pre>
           </TabsContent>
         </Tabs>
