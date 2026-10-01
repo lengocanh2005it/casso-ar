@@ -16,7 +16,11 @@ const MUTED = '#64748b';
 const BORDER = '#e2e8f0';
 const SURFACE = '#f8fafc';
 
-function detailRow(label: string, value: string, emphasis = false): string {
+export function detailRow(
+  label: string,
+  value: string,
+  emphasis = false,
+): string {
   return (
     '<tr>' +
     `<td style="padding:11px 0;border-bottom:1px solid ${BORDER};color:${MUTED};font-size:14px;line-height:1.5;">${label}</td>` +
@@ -25,7 +29,7 @@ function detailRow(label: string, value: string, emphasis = false): string {
   );
 }
 
-function detailCard(rows: string): string {
+export function detailCard(rows: string): string {
   return (
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" ' +
     `style="margin:0 0 26px;background:${SURFACE};border:1px solid ${BORDER};border-radius:10px;">` +
@@ -38,11 +42,11 @@ function detailCard(rows: string): string {
   );
 }
 
-function paragraph(html: string): string {
+export function paragraph(html: string): string {
   return `<p style="margin:0 0 18px;color:${INK};font-size:15px;line-height:1.7;">${html}</p>`;
 }
 
-function emailShell(content: string): string {
+export function emailShell(content: string): string {
   return (
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" ' +
     'style="background:#f1f5f9;padding:28px 14px;">' +
@@ -67,11 +71,11 @@ function emailShell(content: string): string {
   );
 }
 
-function greeting(): string {
+export function greeting(): string {
   return paragraph('Kính gửi <strong>{{customerName}}</strong>,');
 }
 
-function closing(): string {
+export function closing(): string {
   return paragraph('Trân trọng,<br/>{{organizationName}}');
 }
 
