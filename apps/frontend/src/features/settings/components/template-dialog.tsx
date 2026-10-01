@@ -135,7 +135,7 @@ export function TemplateDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:overflow-hidden">
+        <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-1 overflow-y-auto lg:auto-rows-auto lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:overflow-hidden">
           <section
             aria-label="Thông tin và nội dung email"
             className="min-h-0 space-y-5 border-b p-5 sm:p-7 lg:overflow-y-auto lg:border-r lg:border-b-0"

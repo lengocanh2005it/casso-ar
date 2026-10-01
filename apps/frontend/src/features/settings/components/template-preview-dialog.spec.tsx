@@ -44,4 +44,16 @@ describe('TemplatePreviewDialog', () => {
     expect(screen.getByText(subject)).toHaveClass('truncate');
     expect(screen.getByText(subject)).toHaveAttribute('title', subject);
   });
+
+  it('gives the email its own readable viewport', () => {
+    render(
+      <TemplatePreviewDialog template={null} open onOpenChange={vi.fn()} />,
+    );
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.className).toContain('sm:max-w-3xl');
+    expect(
+      screen.getByTitle('Bản xem trước nội dung email').className,
+    ).toContain('h-[min(60vh,560px)]');
+  });
 });

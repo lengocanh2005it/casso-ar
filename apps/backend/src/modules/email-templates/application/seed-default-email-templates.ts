@@ -51,8 +51,8 @@ export function emailShell(content: string): string {
     '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" ' +
     'style="background:#f1f5f9;padding:28px 14px;">' +
     '<tr><td align="center">' +
-    '<table role="presentation" width="600" cellpadding="0" cellspacing="0" ' +
-    'style="width:600px;max-width:100%;background:#ffffff;border-radius:14px;">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" ' +
+    'style="width:100%;max-width:600px;background:#ffffff;border-radius:14px;">' +
     '<tr><td style="padding:26px 32px 22px;border-bottom:1px solid ' +
     BORDER +
     ';">' +

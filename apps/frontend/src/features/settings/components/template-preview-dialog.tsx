@@ -27,7 +27,7 @@ export function TemplatePreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader className="min-w-0">
           <DialogTitle>Xem trước mẫu email</DialogTitle>
           <DialogDescription
@@ -48,13 +48,15 @@ export function TemplatePreviewDialog({
           </p>
         )}
         {preview.data && (
-          <div className="min-w-0 space-y-3 rounded-lg border p-4">
-            <h3 className="truncate font-medium" title={preview.data.subject}>
-              {preview.data.subject}
-            </h3>
+          <div className="min-w-0 overflow-hidden rounded-md border bg-background shadow-sm">
+            <div className="border-b bg-muted/30 px-5 py-4">
+              <h3 className="truncate font-medium" title={preview.data.subject}>
+                {preview.data.subject}
+              </h3>
+            </div>
             <iframe
               title="Bản xem trước nội dung email"
-              className="min-h-48 w-full rounded border"
+              className="block h-[min(60vh,560px)] w-full bg-white"
               sandbox=""
               srcDoc={createEmailPreviewDocument(preview.data.bodyHtml)}
             />

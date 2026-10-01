@@ -11,6 +11,14 @@ describe('buildDefaultEmailTemplates', () => {
     }
   });
 
+  it('uses a fluid email canvas that fits narrow previews', () => {
+    for (const template of templates) {
+      expect(template.bodyHtml).toContain('width="100%"');
+      expect(template.bodyHtml).toContain('max-width:600px');
+      expect(template.bodyHtml).not.toContain('width="600"');
+    }
+  });
+
   it('keeps the four seeded reminder stages wired to their rules', () => {
     expect(templates.map((t) => t.reminderStage)).toEqual([
       'Nhắc trước hạn 3 ngày',

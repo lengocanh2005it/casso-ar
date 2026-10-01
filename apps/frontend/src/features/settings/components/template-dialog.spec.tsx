@@ -23,6 +23,16 @@ const template: EmailTemplate = {
 };
 
 describe('TemplateDialog', () => {
+  it('keeps the mobile editor and preview in content-sized rows', () => {
+    render(<TemplateDialog template={template} open onOpenChange={vi.fn()} />);
+
+    const editor = screen.getByRole('region', {
+      name: 'Thông tin và nội dung email',
+    });
+    expect(editor.parentElement?.className).toContain('auto-rows-max');
+    expect(editor.parentElement?.className).toContain('lg:auto-rows-auto');
+  });
+
   it('previews unsaved HTML and sample variables while editing', () => {
     render(<TemplateDialog template={null} open onOpenChange={vi.fn()} />);
 
