@@ -249,7 +249,15 @@ export function CopilotPage() {
               </div>
             </div>
 
-            <div className="mx-3 flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto p-5">
+            {/* The welcome card carries its own border and padding, so the
+                scroll container skips its own padding to leave room for it. */}
+            <div
+              className={
+                isEmptyConversation
+                  ? 'mx-3 flex min-h-0 flex-1 flex-col overflow-hidden'
+                  : 'mx-3 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-5'
+              }
+            >
               {isLoadingHistory ? (
                 <div className="flex flex-1 items-center justify-center">
                   <LoaderCircle

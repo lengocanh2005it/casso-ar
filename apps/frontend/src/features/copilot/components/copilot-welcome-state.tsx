@@ -30,7 +30,7 @@ export function CopilotWelcomeState({
   onSuggestionClick: (text: string) => void;
 }) {
   return (
-    <div className="relative isolate my-auto flex flex-col gap-5 rounded-3xl border border-primary/10 bg-gradient-to-br from-primary/5 via-background to-secondary/60 px-4 py-6 sm:px-6">
+    <div className="relative isolate flex flex-1 flex-col justify-center gap-4 overflow-x-clip rounded-3xl border border-primary/10 bg-gradient-to-br from-primary/5 via-background to-secondary/60 px-4 py-5 sm:px-6">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -right-16 -top-20 -z-10 size-64 rounded-full bg-primary/10 blur-3xl"
