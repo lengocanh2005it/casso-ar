@@ -140,9 +140,13 @@ export function AllocateCreditDialog({
                 setError(null);
               }}
               disabled={!receivable}
+              className="h-10 text-right font-semibold tabular-nums"
             />
-            <span className="text-xs text-muted-foreground">
-              Tối đa: {formatVND(maxAmount)}
+            <span className="text-xs text-muted-foreground tabular-nums">
+              Tối đa:{' '}
+              <span className="font-semibold text-foreground tabular-nums">
+                {formatVND(maxAmount)}
+              </span>
             </span>
           </label>
           {error && (

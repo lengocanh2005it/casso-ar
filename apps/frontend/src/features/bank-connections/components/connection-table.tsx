@@ -211,7 +211,7 @@ export function ConnectionTable({
                 <TableCell className="min-w-40 max-w-56 break-words font-medium">
                   {connection.bankName}
                 </TableCell>
-                <TableCell className="min-w-44 max-w-56 break-all">
+                <TableCell className="min-w-44 max-w-56 break-all text-right tabular-nums">
                   {connection.accountNumber}
                 </TableCell>
                 <TableCell>
@@ -224,7 +224,7 @@ export function ConnectionTable({
                     {statusLabels[connection.status]}
                   </Badge>
                 </TableCell>
-                <TableCell className="whitespace-nowrap">
+                <TableCell className="whitespace-nowrap text-right tabular-nums">
                   {connection.lastSyncAt
                     ? formatDateTime(connection.lastSyncAt)
                     : '—'}
@@ -237,7 +237,7 @@ export function ConnectionTable({
                           <Button
                             variant="outline"
                             size="sm"
-                            aria-label="Disconnect bank"
+                            aria-label={`Ngắt kết nối ${connection.bankName} — ${connection.accountNumber}`}
                             onClick={() => setPendingId(connection.id)}
                           >
                             Ngắt kết nối

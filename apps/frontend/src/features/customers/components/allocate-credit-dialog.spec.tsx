@@ -136,4 +136,23 @@ describe('AllocateCreditDialog', () => {
       'Khoản phải thu không thuộc cùng khách hàng với khoản thanh toán.',
     );
   });
+
+  it('emphasises only the actionable allocation ceiling', async () => {
+    renderDialog();
+
+    // Per the #346 money-hierarchy rule the dialog's one actionable number is
+    // the max allocatable amount; the unallocated balance is context.
+    fireEvent.click(screen.getByRole('combobox', { name: /khoản phải thu/i }));
+    fireEvent.click(screen.getByRole('option', { name: /INV-1/i }));
+
+    const ceiling = screen.getByText(/Tối đa:/);
+    expect(ceiling).toHaveClass('tabular-nums');
+    expect(ceiling.querySelector('span')).toHaveClass(
+      'font-semibold',
+      'tabular-nums',
+    );
+    expect(screen.getByText(/còn 1\.500\.000 ₫ chưa phân bổ/)).not.toHaveClass(
+      'font-semibold',
+    );
+  });
 });

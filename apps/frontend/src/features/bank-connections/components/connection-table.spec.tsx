@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { formatDateTime } from '@/lib/format';
 import type { BankConnection } from '../types';
 import { ConnectionActions, ConnectionTable } from './connection-table';
 
@@ -54,10 +55,10 @@ describe('ConnectionTable', () => {
     expect(screen.getByText('Casso Bank')).toBeInTheDocument();
     expect(screen.getByText('0123456789')).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /disconnect/i }),
+      screen.getByRole('button', { name: /ngắt kết nối/i }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /reconnect/i }),
+      screen.queryByRole('button', { name: /kết nối lại/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -95,7 +96,7 @@ describe('ConnectionTable', () => {
       screen.getByRole('button', { name: /đổi api key/i }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /disconnect/i }),
+      screen.queryByRole('button', { name: /ngắt kết nối/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -156,5 +157,30 @@ describe('ConnectionTable', () => {
 
     expect(screen.getByTestId('empty-state')).toBeInTheDocument();
     expect(screen.getByText('Chưa có kết nối ngân hàng')).toBeInTheDocument();
+  });
+
+  it('aligns the account number and last-sync columns like other money/date tables', () => {
+    useAuth.mockReturnValue({ user: { role: 'OWNER' } });
+
+    render(<ConnectionTable connections={[connection]} />);
+
+    // Monospaced digits right-aligned, matching the receivables/exceptions
+    // tables so numbers line up column-to-column instead of ragged-left.
+    const accountCell = screen.getByText('0123456789').closest('td');
+    expect(accountCell).toHaveClass('text-right', 'tabular-nums');
+    const syncCell = screen
+      .getByText(formatDateTime(connection.lastSyncAt ?? '2026-08-10'))
+      .closest('td');
+    expect(syncCell).toHaveClass('text-right', 'tabular-nums');
+  });
+
+  it('names the disconnect action with the bank instead of a generic label', () => {
+    useAuth.mockReturnValue({ user: { role: 'OWNER' } });
+
+    render(<ConnectionTable connections={[connection]} />);
+
+    expect(
+      screen.getByRole('button', { name: /ngắt kết nối.*casso bank/i }),
+    ).toBeInTheDocument();
   });
 });
