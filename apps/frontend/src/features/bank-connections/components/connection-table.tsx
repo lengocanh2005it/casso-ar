@@ -197,9 +197,11 @@ export function ConnectionTable({
       <TableHeader>
         <TableRow>
           <TableHead className="min-w-40">Ngân hàng</TableHead>
-          <TableHead className="min-w-44">Số tài khoản</TableHead>
+          <TableHead className="min-w-44 text-right">Số tài khoản</TableHead>
           <TableHead className="min-w-36">Trạng thái</TableHead>
-          <TableHead className="min-w-36">Đồng bộ gần nhất</TableHead>
+          <TableHead className="min-w-36 text-right">
+            Đồng bộ gần nhất
+          </TableHead>
           {canManage && <TableHead className="min-w-32">Thao tác</TableHead>}
         </TableRow>
       </TableHeader>
@@ -211,7 +213,7 @@ export function ConnectionTable({
                 <TableCell className="min-w-40 max-w-56 break-words font-medium">
                   {connection.bankName}
                 </TableCell>
-                <TableCell className="min-w-44 max-w-56 break-all">
+                <TableCell className="min-w-44 max-w-56 break-all text-right tabular-nums">
                   {connection.accountNumber}
                 </TableCell>
                 <TableCell>
@@ -224,7 +226,7 @@ export function ConnectionTable({
                     {statusLabels[connection.status]}
                   </Badge>
                 </TableCell>
-                <TableCell className="whitespace-nowrap">
+                <TableCell className="whitespace-nowrap text-right tabular-nums">
                   {connection.lastSyncAt
                     ? formatDateTime(connection.lastSyncAt)
                     : '—'}
@@ -237,7 +239,7 @@ export function ConnectionTable({
                           <Button
                             variant="outline"
                             size="sm"
-                            aria-label="Ngắt kết nối ngân hàng"
+                            aria-label={`Ngắt kết nối ${connection.bankName} — ${connection.accountNumber}`}
                             onClick={() => setPendingId(connection.id)}
                           >
                             Ngắt kết nối

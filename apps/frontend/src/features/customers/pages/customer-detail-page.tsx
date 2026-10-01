@@ -5,6 +5,7 @@ import { BackLink } from '@/components/layout/back-link';
 import { EmptyState } from '@/components/layout/empty-state';
 import { PageHeading } from '@/components/layout/page-heading';
 import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
+import { TruncatedText } from '@/components/shared/truncated-text';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -225,7 +226,9 @@ export function CustomerDetailPage() {
           tone="info"
         />
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* md: is viewport-based, and the 256px sidebar leaves each of these
+          cards ~220px at 768px, too narrow for a two-column meta grid. */}
+      <div className="@container grid gap-4 @3xl:grid-cols-2">
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -233,18 +236,35 @@ export function CustomerDetailPage() {
               <CardTitle>Thông tin liên hệ</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="grid gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
+          {/* Container query, not sm: at 1024px this card is only ~350px wide
+              and a viewport-based 2-column grid truncates email and amounts. */}
+          <CardContent className="@container grid gap-x-4 gap-y-3 text-sm @md/grid-cols-2">
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Email</p>
-              <p className="mt-1 truncate">{customer.email ?? '—'}</p>
+              <TruncatedText
+                value={customer.email}
+                className="mt-1 block truncate"
+              >
+                {customer.email ?? '—'}
+              </TruncatedText>
             </div>
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Số điện thoại</p>
-              <p className="mt-1 truncate">{customer.phone ?? '—'}</p>
+              <TruncatedText
+                value={customer.phone}
+                className="mt-1 block truncate"
+              >
+                {customer.phone ?? '—'}
+              </TruncatedText>
             </div>
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Mã số thuế</p>
-              <p className="mt-1 truncate">{customer.taxCode ?? '—'}</p>
+              <TruncatedText
+                value={customer.taxCode}
+                className="mt-1 block truncate"
+              >
+                {customer.taxCode ?? '—'}
+              </TruncatedText>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Ngày tạo</p>
@@ -259,7 +279,7 @@ export function CustomerDetailPage() {
               <CardTitle>Điều khoản công nợ</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="grid gap-x-4 gap-y-3 text-sm sm:grid-cols-3">
+          <CardContent className="@container grid gap-x-4 gap-y-3 text-sm @md/grid-cols-3">
             <div>
               <p className="text-xs text-muted-foreground">Hạn thanh toán</p>
               <Badge variant="outline" className="mt-1">
@@ -281,7 +301,9 @@ export function CustomerDetailPage() {
           </CardContent>
         </Card>
       </div>
-      <div className="grid items-start gap-4 lg:grid-cols-3">
+      {/* Split into 3 columns only from xl: below that the 256px sidebar
+          leaves ~700px, i.e. 224px per column — too narrow to read. */}
+      <div className="grid items-start gap-4 xl:grid-cols-3">
         <div className="grid gap-4 lg:col-span-2">
           {receivablesCard}
           <Card>

@@ -159,7 +159,7 @@ export function CustomerBankAccountDialog({
           <DialogDescription>
             {isEdit
               ? 'Nhập số tài khoản ngân hàng mới để thay thế số tài khoản hiện tại.'
-              : 'Nhập số tài khoản ngân hàng để liên kết với khách hàng.'}
+              : 'Nhập số tài khoản ngân hàng để liên kết với khách hàng. Một tài khoản có thể thuộc nhiều khách hàng (một bên trả hộ).'}
           </DialogDescription>
         </DialogHeader>
         {crossCustomerNames ? (

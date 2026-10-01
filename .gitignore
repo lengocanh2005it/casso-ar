@@ -8,6 +8,7 @@ stats.html
 .env
 .turbo
 *.tsbuildinfo
+*.log
 .worktrees
 .superpowers
 /backups

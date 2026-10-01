@@ -98,7 +98,9 @@ describe('DashboardPage', () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByText('100.000.000 ₫')).toBeTruthy());
+    // Money KPI cards abbreviate to triệu/tỷ so a long VND figure cannot be
+    // clipped in a narrow card; the exact figure is the hover/title value.
+    await waitFor(() => expect(screen.getByText('100tr')).toBeTruthy());
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByTestId('header-icon')).toHaveClass('text-primary');
     expect(screen.getByText('7', { selector: 'span' })).toBeTruthy();
@@ -149,7 +151,7 @@ describe('DashboardPage', () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByText('100.000.000 ₫')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('100tr')).toBeTruthy());
     // Brand-new organizations were greeted with "đã quay trở lại!" too.
     expect(screen.queryByText(/quay trở lại/)).not.toBeInTheDocument();
     expect(

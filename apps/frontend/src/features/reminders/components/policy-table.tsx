@@ -119,7 +119,7 @@ export function PolicyTable({
                   {policy.isActive ? 'Đang hoạt động' : 'Đã tắt'}
                 </Badge>
               )}
-            </TableCell>{' '}
+            </TableCell>
             <TableCell>{policy.rules.length}</TableCell>
             <TableCell>
               {policy.escalationThresholdDays === null

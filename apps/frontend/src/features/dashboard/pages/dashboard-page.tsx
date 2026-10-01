@@ -16,6 +16,7 @@ import { PageHeading } from '@/components/layout/page-heading';
 import { MetricCard } from '@/components/metric-card';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
 import { TrendMonthsSelect } from '@/components/shared/trend-months-select';
+import { TruncatedName } from '@/components/shared/truncated-text';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -160,6 +161,7 @@ export function DashboardPage() {
               label="Tổng công nợ còn lại"
               description="Tất cả công nợ chưa thanh toán"
               value={formatVND(summaryQuery.data.totalOutstanding)}
+              amount={summaryQuery.data.totalOutstanding}
               icon={CircleDollarSign}
               variant="default"
               className="animate-fade-up motion-reduce:animate-none"
@@ -168,6 +170,7 @@ export function DashboardPage() {
               label="Công nợ quá hạn"
               description="Công nợ đã vượt ngày đến hạn"
               value={formatVND(summaryQuery.data.totalOverdue)}
+              amount={summaryQuery.data.totalOverdue}
               icon={AlertTriangle}
               variant="danger"
               className="animate-fade-up motion-reduce:animate-none [animation-delay:40ms]"
@@ -330,12 +333,10 @@ export function DashboardPage() {
                             name={customer.customerName}
                             size="sm"
                           />
-                          <span
-                            className="min-w-0 truncate font-medium"
-                            title={customer.customerName}
-                          >
-                            {customer.customerName}
-                          </span>
+                          <TruncatedName
+                            name={customer.customerName}
+                            className="font-medium"
+                          />
                         </div>
                         <span className="shrink-0 rounded-lg bg-destructive/10 px-2.5 py-1 font-semibold tabular-nums text-destructive">
                           {formatVND(customer.totalOverdue)}

@@ -134,11 +134,10 @@ describe('ReportsPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Phân bổ tuổi nợ')).toBeInTheDocument();
     expect(screen.getByText('Công nợ theo khách hàng')).toBeInTheDocument();
-    await waitFor(() =>
-      expect(
-        screen.getAllByText(/100.000.000 ₫/).length,
-      ).toBeGreaterThanOrEqual(2),
-    );
+    // The summary KPI abbreviates its amount, so only the aging table spells
+    // the same figure out in full — assert both shapes exist.
+    expect(screen.getByText('100tr')).toBeTruthy();
+    expect(screen.getByText('100.000.000 ₫')).toBeTruthy();
     expect(screen.getAllByText('Quá hạn 31–60 ngày').length).toBeGreaterThan(0);
   });
 

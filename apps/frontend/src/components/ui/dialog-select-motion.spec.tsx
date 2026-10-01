@@ -65,4 +65,23 @@ describe('dialog and select motion preferences', () => {
       document.querySelector('[data-slot="select-trigger"] svg'),
     ).toHaveAttribute('aria-hidden', 'true');
   });
+
+  it('lets grid children and file inputs shrink instead of widening the dialog', () => {
+    render(
+      <Dialog open>
+        <DialogContent>
+          <DialogTitle>Nhập hóa đơn</DialogTitle>
+          <DialogDescription>Chọn file</DialogDescription>
+          <input type="file" aria-label="File hóa đơn" />
+        </DialogContent>
+      </Dialog>,
+    );
+
+    // A grid track defaults to `auto`, so a file input's intrinsic width used
+    // to push the whole dialog past the viewport on phones.
+    expect(document.querySelector('[data-slot="dialog-content"]')).toHaveClass(
+      '[&>*]:min-w-0',
+      '[&_input[type=file]]:max-w-full',
+    );
+  });
 });

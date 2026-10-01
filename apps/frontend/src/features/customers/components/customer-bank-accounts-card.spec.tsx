@@ -173,12 +173,10 @@ describe('CustomerBankAccountsCard', () => {
 
     expect(await screen.findByText('******2233')).toBeInTheDocument();
     expect(
-      screen.getByText('Tài khoản ngân hàng của khách (không bắt buộc)'),
+      screen.getByText('Tài khoản ngân hàng của khách'),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /hệ thống sẽ ghi nhớ sau khi bạn xác nhận một giao dịch khớp/,
-      ),
+      screen.getByText(/Không bắt buộc — dùng để tự động khớp giao dịch/),
     ).toBeInTheDocument();
   });
 
@@ -190,7 +188,7 @@ describe('CustomerBankAccountsCard', () => {
 
     await screen.findByText('******2233');
     const description = screen.getByText(
-      /hệ thống sẽ ghi nhớ sau khi bạn xác nhận một giao dịch khớp/,
+      /Không bắt buộc — dùng để tự động khớp giao dịch/,
     );
     const header = description.closest('[data-slot="card-header"]');
     // On a phone the old side-by-side header squeezed this text to ~150px.
@@ -369,16 +367,5 @@ describe('CustomerBankAccountsCard', () => {
         headers: { 'Idempotency-Key': expect.any(String) },
       });
     });
-  });
-
-  it('explains that one account may belong to several customers', async () => {
-    useAuth.mockReturnValue({ user: { role: Role.OWNER } });
-    apiRequest.mockResolvedValueOnce({ items: [], total: 0 });
-
-    renderCard();
-
-    expect(
-      await screen.findByText(/một tài khoản có thể thuộc nhiều khách hàng/i),
-    ).toBeInTheDocument();
   });
 });

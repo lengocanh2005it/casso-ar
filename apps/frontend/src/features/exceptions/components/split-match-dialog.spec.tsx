@@ -385,6 +385,36 @@ describe('SplitMatchDialog', () => {
       screen.getByRole('button', { name: /ghi nhận công nợ/i }).parentElement,
     ).toHaveClass('flex-col');
   });
+
+  it('keeps the dialog title, description and close button reachable on a short viewport', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    renderDialog();
+
+    await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
+
+    // A candidate-heavy dialog must scroll inside its own body instead of
+    // growing past the viewport and pushing the title and close button off
+    // screen. Assert on the scroll container's class, not pixel maths, so the
+    // guarantee survives jsdom's zero-height layout.
+    expect(document.querySelector('[data-slot="dialog-content"]')).toHaveClass(
+      'max-h-[85vh]',
+      'overflow-hidden',
+      'flex',
+      'flex-col',
+    );
+    expect(
+      [...document.querySelectorAll('[data-slot="dialog-content"] div')].find(
+        (el) => el.classList.contains('overflow-y-auto'),
+      ),
+    ).toBeDefined();
+    // The description belongs to the header so it inherits the header's
+    // left alignment instead of the dialog's centred grid default.
+    expect(
+      document.querySelector(
+        '[data-slot="dialog-header"] [data-slot="dialog-description"]',
+      ),
+    ).not.toBeNull();
+  });
 });
 
 function renderWithPayer(opts?: {

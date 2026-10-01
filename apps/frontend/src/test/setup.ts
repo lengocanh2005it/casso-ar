@@ -19,6 +19,18 @@ globalThis.IntersectionObserver =
   globalThis.IntersectionObserver ??
   (MockIntersectionObserver as unknown as typeof IntersectionObserver);
 
+// jsdom has no ResizeObserver either — Radix Popper (Tooltip, Popover,
+// Select, DropdownMenu) mounts it to position its floating content.
+class MockResizeObserver {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+
+globalThis.ResizeObserver =
+  globalThis.ResizeObserver ??
+  (MockResizeObserver as unknown as typeof ResizeObserver);
+
 // The default 1000ms is too tight when vitest runs the full suite in parallel:
 // a starved worker can take seconds to paint a lazy route/chart, so `findBy*`
 // and `waitFor` time out even though the assertion is correct. This is why

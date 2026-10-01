@@ -113,6 +113,40 @@ describe('AllocateCreditDialog', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('rejects an over-ceiling amount while typing, before the user submits', () => {
+    renderDialog();
+
+    fireEvent.click(screen.getByRole('combobox', { name: /khoản phải thu/i }));
+    fireEvent.click(screen.getByRole('option', { name: /INV-1/i }));
+    fireEvent.change(screen.getByLabelText(/số tiền phân bổ/i), {
+      target: { value: '1000001' },
+    });
+
+    // The ceiling is 1.000.000 (min of the 1.500.000 unallocated payment and
+    // the 1.000.000 remaining balance). Silent rejection on submit alone
+    // leaves the field looking valid while holding an impossible value.
+    expect(screen.getByRole('alert')).toHaveTextContent('không được vượt quá');
+    expect(screen.getByLabelText(/số tiền phân bổ/i)).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+  });
+
+  it('clears the ceiling error once the amount is corrected', () => {
+    renderDialog();
+
+    fireEvent.click(screen.getByRole('combobox', { name: /khoản phải thu/i }));
+    fireEvent.click(screen.getByRole('option', { name: /INV-1/i }));
+    const input = screen.getByLabelText(/số tiền phân bổ/i);
+
+    fireEvent.change(input, { target: { value: '1000001' } });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: '1000000' } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(input).toHaveAttribute('aria-invalid', 'false');
+  });
+
   it('posts a valid allocation and shows backend allocation errors inline', async () => {
     postWithIdempotency.mockRejectedValueOnce({
       response: { data: { errorCode: 'CUSTOMER_MISMATCH' } },
@@ -134,6 +168,26 @@ describe('AllocateCreditDialog', () => {
     );
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Khoản phải thu không thuộc cùng khách hàng với khoản thanh toán.',
+    );
+  });
+
+  it('emphasises only the actionable allocation ceiling', async () => {
+    renderDialog();
+
+    // Per the #346 money-hierarchy rule the dialog's one actionable number is
+    // the max allocatable amount. The editable input and the unallocated
+    // balance are context — bolding them would put several bold money values
+    // in one small dialog, which is the mistake #346 fixed.
+    fireEvent.click(screen.getByRole('combobox', { name: /khoản phải thu/i }));
+    fireEvent.click(screen.getByRole('option', { name: /INV-1/i }));
+
+    const ceiling = screen.getByText(/Tối đa:/);
+    expect(ceiling.querySelector('span')).toHaveClass(
+      'font-semibold',
+      'tabular-nums',
+    );
+    expect(screen.getByLabelText(/số tiền phân bổ/i)).not.toHaveClass(
+      'font-semibold',
     );
   });
 });

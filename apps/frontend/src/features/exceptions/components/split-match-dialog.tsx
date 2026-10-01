@@ -220,7 +220,9 @@ export function SplitMatchDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      {/* Candidate-heavy transactions grow tall: cap the dialog and scroll the
+          body so the title, description and close button stay on screen. */}
+      <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-xl">
         <DialogHeader>
           <DialogTitle className="min-w-0 pr-6">
             Xử lý giao dịch{' '}
@@ -232,12 +234,12 @@ export function SplitMatchDialog({
             </span>{' '}
             — {formatVND(tx.amount)}
           </DialogTitle>
+          <DialogDescription>
+            Xem lại các khoản phải thu gợi ý trước khi phân bổ giao dịch ngân
+            hàng này.
+          </DialogDescription>
         </DialogHeader>
-        <DialogDescription>
-          Xem lại các khoản phải thu gợi ý trước khi phân bổ giao dịch ngân hàng
-          này.
-        </DialogDescription>
-        <div className="space-y-3">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain">
           <AiRecommendationNotice recommendation={aiRecommendation} />
           {payer &&
             (payer.accountNumberMasked || payer.linkedCustomers.length > 0) && (
@@ -333,11 +335,13 @@ export function SplitMatchDialog({
                     Mã kỹ thuật: <TruncatedCopyId id={candidate.receivableId} />
                   </p>
                 </div>
-                <label
-                  htmlFor={`allocation-${candidate.receivableId}`}
-                  className="flex items-center gap-2 text-sm"
-                >
-                  Số tiền phân bổ
+                <div className="shrink-0 space-y-1.5">
+                  <label
+                    htmlFor={`allocation-${candidate.receivableId}`}
+                    className="block text-xs font-medium text-muted-foreground"
+                  >
+                    Số tiền phân bổ
+                  </label>
                   <Input
                     name={`allocation-${candidate.receivableId}`}
                     autoComplete="off"
@@ -346,7 +350,7 @@ export function SplitMatchDialog({
                     type="number"
                     min={0}
                     step={1}
-                    className="w-full sm:w-40"
+                    className="h-10 w-full text-right tabular-nums sm:w-40"
                     value={amounts[candidate.receivableId] ?? ''}
                     onChange={(event) => {
                       setAmounts((current) => ({
@@ -356,13 +360,19 @@ export function SplitMatchDialog({
                       setAllocationError(null);
                     }}
                   />
-                </label>
+                </div>
               </div>
             );
           })}
           <p className="text-sm">
-            Đã phân bổ: <span className="tabular-nums">{formatVND(total)}</span>{' '}
-            / {formatVND(tx.amount)}
+            Đã phân bổ:{' '}
+            <span className="font-semibold tabular-nums">
+              {formatVND(total)}
+            </span>{' '}
+            /{' '}
+            <span className="tabular-nums text-muted-foreground">
+              {formatVND(tx.amount)}
+            </span>
           </p>
           {allocationError && (
             <p
