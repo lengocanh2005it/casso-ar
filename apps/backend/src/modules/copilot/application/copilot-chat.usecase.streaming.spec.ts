@@ -131,7 +131,7 @@ describe('CopilotChatUseCase.executeStreaming', () => {
     expect(deps.aiProvider.streamChatCompletion).toHaveBeenCalledWith(
       expect.any(Array),
       expect.any(Array),
-      { maxOutputTokens: 4096 },
+      { maxOutputTokens: 2048 },
     );
   });
 

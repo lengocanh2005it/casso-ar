@@ -55,7 +55,7 @@ import { SendReminderEmailTool } from './tools/send-reminder-email.tool';
 const PROMPT_VERSION = 'copilot-v2';
 const MODEL_CALL_TIMEOUT_MS = 15_000;
 const MODEL_CALL_RETRY_BACKOFF_MS = 500;
-const MAX_OUTPUT_TOKENS = 4096;
+const MAX_OUTPUT_TOKENS = 2048;
 const MAX_TOOL_ITERATIONS = 5;
 const SYSTEM_PROMPT = [
   'You are Casso AR Copilot, the Casso AR assistant for accounts receivable and collections. When greeting or asked who you are, identify yourself by that exact name and concisely explain your purpose in Vietnamese: tra cứu khoản phải thu, theo dõi công nợ quá hạn, xem lịch sử thanh toán và soạn email nhắc thanh toán.',
@@ -66,7 +66,7 @@ const SYSTEM_PROMPT = [
   'Never expose internal UUIDs, tool names, schema field names, raw provider errors, or implementation details in user-facing text. Summarize recoverable tool errors in Vietnamese without repeating technical error messages.',
   'If the user wants to send a reminder email, call draftReminderEmail first to create a draft, then call sendReminderEmail to propose sending it — the user must separately confirm the actual send; you do not send it yourself.',
   'Before calling draftReminderEmail, you must already have the real remaining amount and due date for the receivable from a prior findOverdueReceivables or getReceivableSummary call (or from data already in this conversation) — write the subject and bodyHtml yourself, in Vietnamese unless the user explicitly requests English, using only those real figures; never invent an amount or date.',
-  'When looking up overdue receivables with findOverdueReceivables: if 0 items are returned, explain in Vietnamese that no matching overdue receivable was found and do not call draftReminderEmail; if 1 item is returned, you may proceed to draft the reminder email; if multiple items are returned, present them as a numbered list with customer name, invoice number (or "Chưa có số hóa đơn" if null), remaining amount, and due date so the user can choose. If 20 items are returned, the result is ambiguous and you must ask the user to narrow down by customer name or invoice number without guessing. Never display internal UUIDs (like receivableId or customerId) in user-facing text.',
+  'When looking up overdue receivables with findOverdueReceivables: if 0 items are returned, explain in Vietnamese that no matching overdue receivable was found and do not call draftReminderEmail; if exactly 1 item is returned and hasMore is false, you may proceed to draft the reminder email; if multiple items are returned, present only the returned items as a numbered list with customer name, invoice number (or "Chưa có số hóa đơn" if null), remaining amount, and due date so the user can choose. List at most the returned 10 overdue receivables. If hasMore is true, say more results are available and invite the user to say "xem tiếp"; do not state an exact total. When the user asks to continue, call findOverdueReceivables with the nextCursor and search term from the most recent matching result. If hasMore is true, do not infer that the visible rows are the only matches or draft/send a reminder until the user selects one. Never show the cursor or internal IDs. Never display internal UUIDs (like receivableId or customerId) in user-facing text.',
   'You have neither permission nor tools to write off receivables, allocate payments, or handle disputes — if the user asks, direct them to the standard interface.',
 ].join(' ');
 
@@ -144,6 +144,22 @@ function requiredString(input: Record<string, unknown>, key: string): string {
     );
   }
   return value;
+}
+
+function isValidOverdueCursor(
+  value: unknown,
+): value is { dueDate: string; receivableId: string } {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false;
+  }
+  return (
+    'dueDate' in value &&
+    typeof value.dueDate === 'string' &&
+    Number.isFinite(Date.parse(value.dueDate)) &&
+    'receivableId' in value &&
+    typeof value.receivableId === 'string' &&
+    value.receivableId.length > 0
+  );
 }
 
 function isDraftReminderEmailResult(
@@ -328,16 +344,24 @@ export class CopilotChatUseCase {
           (typeof limit !== 'number' ||
             !Number.isInteger(limit) ||
             limit < 1 ||
-            limit > 20)
+            limit > 10)
         ) {
           throw new AppError(
             ErrorCode.VALIDATION_ERROR,
-            'Tham số limit phải là số nguyên từ 1 đến 20.',
+            'Tham số limit phải là số nguyên từ 1 đến 10.',
+          );
+        }
+        const cursor = input.cursor;
+        if (cursor !== undefined && !isValidOverdueCursor(cursor)) {
+          throw new AppError(
+            ErrorCode.VALIDATION_ERROR,
+            'Cursor không hợp lệ.',
           );
         }
         return this.findOverdueReceivablesTool.execute({
           search: search !== undefined ? search : undefined,
           limit: limit !== undefined ? limit : undefined,
+          cursor,
         });
       }
       case DraftReminderEmailTool.NAME:

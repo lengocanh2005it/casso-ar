@@ -182,7 +182,7 @@ describe('CopilotChatUseCase', () => {
     expect(result.message.content).toContain('overdue');
     expect(aiProvider.createChatCompletion).toHaveBeenCalledTimes(3);
     for (const call of aiProvider.createChatCompletion.mock.calls) {
-      expect(call[2]).toEqual({ maxOutputTokens: 4096 });
+      expect(call[2]).toEqual({ maxOutputTokens: 2048 });
     }
     expect(deps.summaryTool.execute).toHaveBeenCalledWith({
       customerId: 'cust-1',
@@ -911,7 +911,11 @@ describe('CopilotChatUseCase', () => {
     );
   });
 
-  it('dispatches findOverdueReceivables with optional search and limit arguments', async () => {
+  it('dispatches findOverdueReceivables with search, limit, and continuation cursor', async () => {
+    const cursor = {
+      dueDate: '2026-09-01T00:00:00.000Z',
+      receivableId: 'rcv-10',
+    };
     const aiProvider = { createChatCompletion: jest.fn() };
     aiProvider.createChatCompletion
       .mockResolvedValueOnce({
@@ -920,7 +924,7 @@ describe('CopilotChatUseCase', () => {
           {
             id: 'tool-od',
             name: 'findOverdueReceivables',
-            arguments: { search: 'Alpha', limit: 5 },
+            arguments: { search: 'Alpha', limit: 5, cursor },
           },
         ],
         inputTokens: 10,
@@ -968,53 +972,76 @@ describe('CopilotChatUseCase', () => {
     expect(deps.findOverdueReceivablesTool.execute).toHaveBeenCalledWith({
       search: 'Alpha',
       limit: 5,
+      cursor,
     });
     expect(result.message.content).toContain('Alpha');
   });
 
-  it('feeds back a validation error when findOverdueReceivables receives invalid argument types', async () => {
-    const aiProvider = { createChatCompletion: jest.fn() };
-    aiProvider.createChatCompletion.mockResolvedValue({
-      content: null,
-      toolCalls: [
-        {
-          id: 'tool-od-err',
-          name: 'findOverdueReceivables',
-          arguments: { search: 123, limit: 'invalid' },
-        },
-      ],
-      inputTokens: 10,
-      outputTokens: 5,
-    });
-    const deps = buildDeps();
-    const useCase = new CopilotChatUseCase(
-      aiProvider as any,
-      buildRegistry(),
-      deps.summaryTool as any,
-      deps.timelineTool as any,
-      deps.paymentHistoryTool as any,
-      deps.findOverdueReceivablesTool as any,
-      deps.draftTool as any,
-      deps.conversationRepo as any,
-      deps.pendingActionRepo as any,
-      deps.usageLogRepo as any,
-      deps.planLimitService as any,
-      deps.dataSource as any,
-      deps.tenantContext as any,
-    );
+  it.each([
+    { search: 123, limit: 'invalid' },
+    { search: 'Alpha', limit: 11 },
+    {
+      search: 'Alpha',
+      cursor: { dueDate: 'not-a-date', receivableId: 'rcv-10' },
+    },
+    { search: 'Alpha', cursor: { dueDate: '2026-09-01T00:00:00.000Z' } },
+    {
+      search: 'Alpha',
+      cursor: { dueDate: '2026-09-01T00:00:00.000Z', receivableId: 10 },
+    },
+  ])(
+    'feeds back a validation error for malformed overdue tool arguments %#',
+    async (toolArguments) => {
+      const aiProvider = { createChatCompletion: jest.fn() };
+      aiProvider.createChatCompletion.mockResolvedValue({
+        content: null,
+        toolCalls: [
+          {
+            id: 'tool-od-err',
+            name: 'findOverdueReceivables',
+            arguments: toolArguments,
+          },
+        ],
+        inputTokens: 10,
+        outputTokens: 5,
+      });
+      const deps = buildDeps();
+      const useCase = new CopilotChatUseCase(
+        aiProvider as any,
+        buildRegistry(),
+        deps.summaryTool as any,
+        deps.timelineTool as any,
+        deps.paymentHistoryTool as any,
+        deps.findOverdueReceivablesTool as any,
+        deps.draftTool as any,
+        deps.conversationRepo as any,
+        deps.pendingActionRepo as any,
+        deps.usageLogRepo as any,
+        deps.planLimitService as any,
+        deps.dataSource as any,
+        deps.tenantContext as any,
+      );
 
-    await expect(
-      useCase.execute({ conversationId: 'conversation-1', userMessage: 'hi' }),
-    ).rejects.toMatchObject({ errorCode: ErrorCode.INTERNAL_SERVER_ERROR });
+      await expect(
+        useCase.execute({
+          conversationId: 'conversation-1',
+          userMessage: 'hi',
+        }),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.INTERNAL_SERVER_ERROR });
 
-    const secondCallMessages = aiProvider.createChatCompletion.mock.calls[1][0];
-    const toolMessage = secondCallMessages.find(
-      (message: { role: string }) => message.role === 'tool',
-    );
-    expect(JSON.parse(toolMessage.content)).toMatchObject({
-      errorCode: ErrorCode.VALIDATION_ERROR,
-    });
-  });
+      const secondCallMessages =
+        aiProvider.createChatCompletion.mock.calls[1][0];
+      const toolMessage = secondCallMessages.find(
+        (message: { role: string }) => message.role === 'tool',
+      );
+      expect(typeof toolMessage?.content).toBe('string');
+      if (typeof toolMessage?.content !== 'string') return;
+      expect(JSON.parse(toolMessage.content)).toMatchObject({
+        errorCode: ErrorCode.VALIDATION_ERROR,
+      });
+      expect(deps.findOverdueReceivablesTool.execute).not.toHaveBeenCalled();
+    },
+  );
 
   it('includes Casso AR identity and Vietnamese-default language policy in the system message', async () => {
     const aiProvider = {
@@ -1146,6 +1173,14 @@ describe('CopilotChatUseCase', () => {
     expect(systemMessage?.content).toContain('tool names');
     expect(systemMessage?.content).toContain('schema field names');
     expect(systemMessage?.content).toContain('raw provider errors');
+    expect(systemMessage?.content).toContain('returned 10 overdue receivables');
+    expect(systemMessage?.content).toContain('hasMore');
+    expect(systemMessage?.content).toContain('xem tiếp');
+    expect(systemMessage?.content).toContain('do not state an exact total');
+    expect(systemMessage?.content).toContain('most recent matching result');
+    expect(systemMessage?.content).toContain(
+      'Never show the cursor or internal IDs',
+    );
   });
 
   it('requires Vietnamese clarification before drafting without receivable context', async () => {
