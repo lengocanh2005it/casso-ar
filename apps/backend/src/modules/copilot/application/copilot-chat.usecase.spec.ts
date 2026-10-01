@@ -977,6 +977,312 @@ describe('CopilotChatUseCase', () => {
     expect(result.message.content).toContain('Alpha');
   });
 
+  it('persists the overdue tool result so a later turn can continue from its cursor', async () => {
+    const nextCursor = {
+      dueDate: '2026-08-01T00:00:00.000Z',
+      receivableId: 'rec-1',
+    };
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion
+      .mockResolvedValueOnce({
+        content: null,
+        toolCalls: [
+          {
+            id: 'tool-1',
+            name: 'findOverdueReceivables',
+            arguments: { limit: 10 },
+          },
+        ],
+        inputTokens: 10,
+        outputTokens: 5,
+      })
+      .mockResolvedValueOnce({
+        content: 'Có thêm khoản khác, nói "xem tiếp" để xem tiếp.',
+        toolCalls: [],
+        inputTokens: 20,
+        outputTokens: 10,
+      });
+    // Simulate a real database: every appended message is readable afterwards.
+    const persisted: unknown[] = [];
+    const deps = buildDeps({
+      conversationRepo: {
+        findOrCreate: jest
+          .fn()
+          .mockResolvedValue({ id: 'conversation-1', userId: 'user-1' }),
+        listMessages: jest.fn().mockImplementation(async () => [...persisted]),
+        appendMessage: jest.fn().mockImplementation(async (message) => {
+          persisted.push(message);
+          return {
+            id: 'message-1',
+            organizationId: 'org-1',
+            ...message,
+          };
+        }),
+      },
+    });
+    deps.findOverdueReceivablesTool.execute.mockResolvedValue({
+      items: [
+        {
+          receivableId: 'rec-1',
+          customerName: 'Alpha Corp',
+          invoiceNumber: 'INV-100',
+          remainingAmount: 5_000_000,
+          dueDate: '2026-08-01T00:00:00.000Z',
+        },
+      ],
+      hasMore: true,
+      nextCursor,
+    });
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Khách hàng nào có công nợ quá hạn?',
+    });
+
+    expect(persisted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: 'ASSISTANT',
+          toolCalls: expect.arrayContaining([
+            expect.objectContaining({
+              name: 'findOverdueReceivables',
+              output: expect.objectContaining({ nextCursor }),
+            }),
+          ]),
+        }),
+      ]),
+    );
+  });
+
+  it('replays persisted tool results as tool messages when rebuilding history', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion
+      .mockResolvedValueOnce({
+        content: null,
+        toolCalls: [
+          {
+            id: 'tool-2',
+            name: 'findOverdueReceivables',
+            arguments: {
+              cursor: {
+                dueDate: '2026-08-01T00:00:00.000Z',
+                receivableId: 'rec-1',
+              },
+            },
+          },
+        ],
+        inputTokens: 5,
+        outputTokens: 5,
+      })
+      .mockResolvedValueOnce({
+        content: 'Không còn khoản quá hạn nào nữa.',
+        toolCalls: [],
+        inputTokens: 5,
+        outputTokens: 5,
+      });
+    const deps = buildDeps({
+      conversationRepo: {
+        findOrCreate: jest
+          .fn()
+          .mockResolvedValue({ id: 'conversation-1', userId: 'user-1' }),
+        listMessages: jest.fn().mockResolvedValue([
+          {
+            id: 'message-0',
+            organizationId: 'org-1',
+            conversationId: 'conversation-1',
+            role: 'USER',
+            content: 'Khách hàng nào có công nợ quá hạn?',
+            toolCalls: null,
+            createdAt: new Date(),
+          },
+          {
+            id: 'message-1',
+            organizationId: 'org-1',
+            conversationId: 'conversation-1',
+            role: 'ASSISTANT',
+            content: 'Có thêm khoản khác, nói "xem tiếp" để xem tiếp.',
+            toolCalls: [
+              {
+                id: 'tool-1',
+                name: 'findOverdueReceivables',
+                input: {},
+                output: {
+                  items: [],
+                  hasMore: true,
+                  nextCursor: {
+                    dueDate: '2026-08-01T00:00:00.000Z',
+                    receivableId: 'rec-1',
+                  },
+                },
+              },
+            ],
+            createdAt: new Date(),
+          },
+        ]),
+        appendMessage: jest
+          .fn()
+          .mockImplementation((message) =>
+            Promise.resolve({
+              id: 'message-2',
+              organizationId: 'org-1',
+              ...message,
+            }),
+          ),
+      },
+    });
+    deps.findOverdueReceivablesTool.execute.mockResolvedValue({
+      items: [],
+      hasMore: false,
+      nextCursor: null,
+    });
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'xem tiếp',
+    });
+
+    // The replayed history must hand the model the previous tool result, so it
+    // can continue from the cursor instead of re-querying page one.
+    const replayedHistory = aiProvider.createChatCompletion.mock.calls[0][0];
+    expect(replayedHistory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: 'tool',
+          toolCallId: 'tool-1',
+          content: expect.stringContaining('"nextCursor"'),
+        }),
+      ]),
+    );
+  });
+
+  it('replays an assistant tool call and its result in the order the provider requires', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion.mockResolvedValue({
+      content: 'Đã hết khoản quá hạn nào nữa.',
+      toolCalls: [],
+      inputTokens: 5,
+      outputTokens: 5,
+    });
+    const deps = buildDeps({
+      conversationRepo: {
+        findOrCreate: jest
+          .fn()
+          .mockResolvedValue({ id: 'conversation-1', userId: 'user-1' }),
+        listMessages: jest.fn().mockResolvedValue([
+          {
+            id: 'message-0',
+            organizationId: 'org-1',
+            conversationId: 'conversation-1',
+            role: 'USER',
+            content: 'Ai đang có công nợ cao nhất?',
+            toolCalls: null,
+            createdAt: new Date(),
+          },
+          {
+            id: 'message-1',
+            organizationId: 'org-1',
+            conversationId: 'conversation-1',
+            role: 'ASSISTANT',
+            content: '',
+            toolCalls: [
+              {
+                id: 'tool-1',
+                name: 'getReceivableSummary',
+                input: { customerId: 'cust-1' },
+                output: { totalOutstanding: 9_000_000 },
+              },
+              {
+                id: 'tool-2',
+                name: 'getPaymentTimeline',
+                input: { customerId: 'cust-1' },
+                output: { payments: [] },
+              },
+            ],
+            createdAt: new Date(),
+          },
+        ]),
+        appendMessage: jest
+          .fn()
+          .mockImplementation((message) =>
+            Promise.resolve({
+              id: 'message-2',
+              organizationId: 'org-1',
+              ...message,
+            }),
+          ),
+      },
+    });
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Còn khoản nào nữa không?',
+    });
+
+    // OpenAI rejects a request whose assistant tool_calls are not each followed
+    // by a matching tool message, so the replay has to interleave them.
+    const replayedHistory = (
+      aiProvider.createChatCompletion.mock.calls[0][0] as Array<{
+        role: string;
+        toolCallId?: string;
+        toolCalls?: Array<{ id: string }>;
+      }>
+    ).filter((message) => message.role !== 'system');
+
+    expect(replayedHistory.map((message) => message.role)).toEqual([
+      'user',
+      'assistant',
+      'tool',
+      'tool',
+    ]);
+    expect(replayedHistory[2].toolCallId).toBe('tool-1');
+    expect(replayedHistory[3].toolCallId).toBe('tool-2');
+  });
+
   it.each([
     { search: 123, limit: 'invalid' },
     { search: 'Alpha', limit: 11 },
@@ -1177,7 +1483,18 @@ describe('CopilotChatUseCase', () => {
     expect(systemMessage?.content).toContain('hasMore');
     expect(systemMessage?.content).toContain('xem tiếp');
     expect(systemMessage?.content).toContain('do not state an exact total');
-    expect(systemMessage?.content).toContain('most recent matching result');
+    // Continuation must be a mandatory tool call, otherwise the model answers
+    // "xem tiếp" by re-printing rows that are already in the conversation.
+    expect(systemMessage?.content).toContain('Paging is mandatory');
+    expect(systemMessage?.content).toContain(
+      'you MUST call findOverdueReceivables again',
+    );
+    expect(systemMessage?.content).toContain(
+      'from the most recent tool result',
+    );
+    expect(systemMessage?.content).toContain(
+      'Never answer a continuation request by repeating',
+    );
     expect(systemMessage?.content).toContain(
       'Never show the cursor or internal IDs',
     );

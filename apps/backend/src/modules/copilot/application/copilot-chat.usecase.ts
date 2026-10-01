@@ -66,7 +66,9 @@ const SYSTEM_PROMPT = [
   'Never expose internal UUIDs, tool names, schema field names, raw provider errors, or implementation details in user-facing text. Summarize recoverable tool errors in Vietnamese without repeating technical error messages.',
   'If the user wants to send a reminder email, call draftReminderEmail first to create a draft, then call sendReminderEmail to propose sending it — the user must separately confirm the actual send; you do not send it yourself.',
   'Before calling draftReminderEmail, you must already have the real remaining amount and due date for the receivable from a prior findOverdueReceivables or getReceivableSummary call (or from data already in this conversation) — write the subject and bodyHtml yourself, in Vietnamese unless the user explicitly requests English, using only those real figures; never invent an amount or date.',
-  'When looking up overdue receivables with findOverdueReceivables: if 0 items are returned, explain in Vietnamese that no matching overdue receivable was found and do not call draftReminderEmail; if exactly 1 item is returned and hasMore is false, you may proceed to draft the reminder email; if multiple items are returned, present only the returned items as a numbered list with customer name, invoice number (or "Chưa có số hóa đơn" if null), remaining amount, and due date so the user can choose. List at most the returned 10 overdue receivables. If hasMore is true, say more results are available and invite the user to say "xem tiếp"; do not state an exact total. When the user asks to continue, call findOverdueReceivables with the nextCursor and search term from the most recent matching result. If hasMore is true, do not infer that the visible rows are the only matches or draft/send a reminder until the user selects one. Never show the cursor or internal IDs. Never display internal UUIDs (like receivableId or customerId) in user-facing text.',
+  'When looking up overdue receivables with findOverdueReceivables: if 0 items are returned, explain in Vietnamese that no matching overdue receivable was found and do not call draftReminderEmail; if exactly 1 item is returned and hasMore is false, you may proceed to draft the reminder email; if multiple items are returned, present only the returned items as a numbered list with customer name, invoice number (or "Chưa có số hóa đơn" if null), remaining amount, and due date so the user can choose. List at most the returned 10 overdue receivables. If hasMore is true, say more results are available and invite the user to say "xem tiếp"; do not state an exact total.',
+  'Paging is mandatory: when the user asks to continue ("xem tiếp", "tiếp", "xem thêm", or any equivalent) after a findOverdueReceivables result with hasMore true, you MUST call findOverdueReceivables again, passing the nextCursor from the most recent tool result. Never answer a continuation request by repeating, summarizing, or reformatting rows that are already in the conversation — a reply without a fresh tool call is always wrong for a continuation request. If the user does not ask to continue, answer from the data already available and do not call the tool again.',
+  'If hasMore is true, do not infer that the visible rows are the only matches or draft/send a reminder until the user selects one. Never show the cursor or internal IDs. Never display internal UUIDs (like receivableId or customerId) in user-facing text.',
   'You have neither permission nor tools to write off receivables, allocate payments, or handle disputes — if the user asks, direct them to the standard interface.',
 ].join(' ');
 
@@ -455,24 +457,66 @@ export class CopilotChatUseCase {
     }
   }
 
-  private toAiHistory(messages: CopilotMessageRecord[]): AIChatMessage[] {
-    return messages.map((message): AIChatMessage => {
-      if (message.role === 'TOOL') {
-        return {
-          role: 'tool',
-          content: message.content,
-          toolCallId: message.toolCalls?.[0]?.id,
-        };
+  // Same accumulator as trackDraftToolCalls, but for every tool that is not a
+  // send/draft call. Their outputs are what a later turn needs to pick up where
+  // this one stopped (a continuation cursor, a page of results), so they are
+  // persisted alongside the answer instead of being dropped once the turn ends.
+  private trackReadToolCalls(
+    calls: AIToolCall[],
+    toolResults: Array<{ id: string; result: unknown }>,
+    readToolCalls: ToolCallRecord[],
+  ): void {
+    for (const call of calls) {
+      if (
+        call.name === SendReminderEmailTool.NAME ||
+        call.name === DraftReminderEmailTool.NAME
+      ) {
+        continue;
       }
-      return {
+      const toolResult = toolResults.find((r) => r.id === call.id);
+      readToolCalls.push({
+        id: call.id,
+        name: call.name,
+        input: call.arguments,
+        output: toolResult?.result ?? null,
+      });
+    }
+  }
+
+  private toAiHistory(messages: CopilotMessageRecord[]): AIChatMessage[] {
+    // flatMap, not map: an assistant message carrying toolCalls must be
+    // followed by one 'tool' message per call, or the provider rejects the
+    // request (tool_calls without matching tool results).
+    return messages.flatMap((message): AIChatMessage[] => {
+      if (message.role === 'TOOL') {
+        return [
+          {
+            role: 'tool',
+            content: message.content,
+            toolCallId: message.toolCalls?.[0]?.id,
+          },
+        ];
+      }
+      const toolCalls = message.toolCalls ?? [];
+      const assistant: AIChatMessage = {
         role: message.role === 'ASSISTANT' ? 'assistant' : 'user',
         content: message.content,
-        toolCalls: message.toolCalls?.map((call) => ({
+        toolCalls: toolCalls.map((call) => ({
           id: call.id,
           name: call.name,
           arguments: asArguments(call.input),
         })),
       };
+      return [
+        assistant,
+        ...toolCalls.map(
+          (call): AIChatMessage => ({
+            role: 'tool',
+            content: JSON.stringify(call.output ?? null),
+            toolCallId: call.id,
+          }),
+        ),
+      ];
     });
   }
 
@@ -495,6 +539,11 @@ export class CopilotChatUseCase {
     ];
     const tools = this.toolRegistry.getTools(canSendReminders);
     const draftToolCalls: ToolCallRecord[] = [];
+    // Read tools are re-run every turn, but their results still have to be
+    // carried across turns: a continuation cursor (findOverdueReceivables'
+    // nextCursor) exists only in this history. Without it "xem tiếp" restarts
+    // from page one.
+    const readToolCalls: ToolCallRecord[] = [];
 
     for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
       const response = await this.callModelWithRetry(
@@ -551,7 +600,10 @@ export class CopilotChatUseCase {
           conversationId: input.conversationId,
           role: 'ASSISTANT',
           content: response.content ?? '',
-          toolCalls: draftToolCalls.length > 0 ? draftToolCalls : null,
+          toolCalls:
+            draftToolCalls.length + readToolCalls.length > 0
+              ? [...readToolCalls, ...draftToolCalls]
+              : null,
           createdAt: new Date(),
         });
         return { message: saved, pendingAction: null };
@@ -569,6 +621,7 @@ export class CopilotChatUseCase {
         })),
       );
       this.trackDraftToolCalls(response.toolCalls, toolResults, draftToolCalls);
+      this.trackReadToolCalls(response.toolCalls, toolResults, readToolCalls);
       messages.push({
         role: 'assistant',
         content: response.content,
@@ -626,6 +679,7 @@ export class CopilotChatUseCase {
         parameters: { ...tool.function.parameters },
       }));
       const draftToolCalls: ToolCallRecord[] = [];
+      const readToolCalls: ToolCallRecord[] = [];
 
       for (
         let iteration = 0;
@@ -718,7 +772,10 @@ export class CopilotChatUseCase {
             conversationId: input.conversationId,
             role: 'ASSISTANT',
             content,
-            toolCalls: draftToolCalls.length > 0 ? draftToolCalls : null,
+            toolCalls:
+              draftToolCalls.length + readToolCalls.length > 0
+                ? [...readToolCalls, ...draftToolCalls]
+                : null,
             createdAt: new Date(),
           });
           yield { type: 'done', message: saved, pendingAction: null };
@@ -737,6 +794,7 @@ export class CopilotChatUseCase {
           })),
         );
         this.trackDraftToolCalls(toolCalls, toolResults, draftToolCalls);
+        this.trackReadToolCalls(toolCalls, toolResults, readToolCalls);
         messages.push({
           role: 'assistant',
           content: content || null,
