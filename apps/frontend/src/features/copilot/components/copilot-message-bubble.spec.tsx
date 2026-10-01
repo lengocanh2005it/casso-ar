@@ -434,4 +434,18 @@ describe('CopilotMessageBubble', () => {
     expect(item).not.toHaveTextContent('Hạn:');
     expect(item).toHaveTextContent('HD-1');
   });
+
+  it('keeps a highlighted invoice number on one line', () => {
+    render(
+      <CopilotMessageBubble
+        message={{
+          role: 'ASSISTANT',
+          content: 'Số hóa đơn: **HD-2026-0028**.',
+          isPartial: false,
+        }}
+      />,
+    );
+
+    expect(screen.getByText('HD-2026-0028')).toHaveClass('whitespace-nowrap');
+  });
 });

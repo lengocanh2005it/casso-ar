@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 
 export const HIGHLIGHT_CLASS =
-  'rounded bg-primary/15 px-1 py-0.5 font-semibold text-primary ring-1 ring-primary/25';
+  // Invoice numbers and dates must not split across lines at the hyphens.
+  'inline-block rounded bg-primary/15 px-1 py-0.5 text-center font-semibold whitespace-nowrap text-primary ring-1 ring-primary/25';
 
 /**
  * VND amounts and dd/mm/yyyy dates are what a collections user scans for, so we
