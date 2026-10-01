@@ -123,7 +123,7 @@ export class OpenAiChatProviderAdapter implements IAIChatProvider {
   ) {
     return {
       model: this.model,
-      max_tokens: 1024,
+      max_tokens: options?.maxOutputTokens ?? 1024,
       messages: messages.map((message) => this.toOpenAiMessage(message)),
       tools: tools.length
         ? tools.map((tool) => ({

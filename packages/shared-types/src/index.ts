@@ -1,3 +1,9 @@
+export {
+  COPILOT_NO_INVOICE_LABEL,
+  COPILOT_RECEIVABLE_FIELD_ALIASES,
+  COPILOT_RECEIVABLE_FIELDS,
+  type CopilotReceivableField,
+} from './copilot-receivable-labels';
 export { type InvoiceSourceType, InvoiceStatus } from './invoice-status';
 export type { MembershipStatus } from './membership-status';
 export type { OwnershipTransferStatus } from './ownership-transfer-status';

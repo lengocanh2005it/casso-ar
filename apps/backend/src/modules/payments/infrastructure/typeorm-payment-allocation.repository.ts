@@ -102,7 +102,11 @@ export class TypeOrmPaymentAllocationRepository
       .innerJoin(
         'receivables',
         'receivable',
-        'receivable.id = allocation."receivableId"',
+        // receivables.id is uuid while payment_allocations.receivableId is
+        // varchar, so Postgres rejects `uuid = varchar` at plan time. Cast the
+        // uuid side, matching the joins in
+        // typeorm-receivable-balance-history-query.ts.
+        'receivable.id::text = allocation."receivableId"',
       )
       .where('allocation."organizationId" = :organizationId', {
         organizationId,

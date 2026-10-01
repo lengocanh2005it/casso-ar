@@ -32,12 +32,13 @@ describe('DraftsList', () => {
     });
   });
 
-  it('renders the draft body inside an EmailDraftPreview card', async () => {
+  it('shows the subject, recipient, status, and email preview together', async () => {
     renderWithClient(<DraftsList canSendManual={false} />);
 
     expect(await screen.findByText('Nhắc thanh toán')).toBeInTheDocument();
     expect(screen.getByText('ap@abc.vn')).toBeInTheDocument();
-    expect(screen.getByText('Bản nháp email')).toBeInTheDocument();
+    expect(screen.getByText('Chưa gửi đề xuất')).toBeInTheDocument();
+    expect(screen.queryByText('Bản nháp email')).not.toBeInTheDocument();
     expect(screen.getByTitle('Xem trước email')).toBeInTheDocument();
   });
 

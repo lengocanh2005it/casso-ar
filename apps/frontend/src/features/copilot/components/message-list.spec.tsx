@@ -3,6 +3,18 @@ import { describe, expect, it } from 'vitest';
 import { MessageList } from './message-list';
 
 describe('MessageList', () => {
+  it('shows an accessible animated typing indicator while waiting for a reply', () => {
+    const { container } = render(
+      <MessageList messages={[]} isWaitingForResponse />,
+    );
+
+    expect(
+      screen.getByRole('status', { name: 'Copilot đang trả lời' }),
+    ).toBeInTheDocument();
+    expect(container.querySelectorAll('.animate-bounce')).toHaveLength(3);
+    expect(screen.queryByText(/đang xử lý/i)).not.toBeInTheDocument();
+  });
+
   it('renders an EmailDraftPreview card for a message carrying a draft', () => {
     render(
       <MessageList

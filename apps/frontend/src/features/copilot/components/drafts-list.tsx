@@ -107,18 +107,24 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
         const isDeleting = deletingDraftId === draft.id;
 
         return (
-          <Card key={draft.id} className="shadow-none">
-            <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
-              <CardTitle className="min-w-0 break-words text-sm">
-                Bản nháp email
-              </CardTitle>
+          <Card key={draft.id} className="gap-3 p-4 shadow-none">
+            <CardHeader className="flex flex-col items-start gap-2 px-0 pb-0">
+              <div className="min-w-0">
+                <CardTitle className="break-words text-base leading-snug">
+                  {draft.subject}
+                </CardTitle>
+                <p className="mt-1 break-all text-sm text-muted-foreground">
+                  {draft.recipientEmail}
+                </p>
+              </div>
               <Badge variant="secondary">{STATUS_LABEL[draft.status]}</Badge>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm">
+            <CardContent className="space-y-3 px-0 pt-0 text-sm">
               <EmailDraftPreview
                 subject={draft.subject}
                 recipientEmail={draft.recipientEmail}
                 bodyHtml={draft.bodyHtml}
+                compact
               />
               {canSendManual && (
                 <div className="flex flex-wrap gap-2">
