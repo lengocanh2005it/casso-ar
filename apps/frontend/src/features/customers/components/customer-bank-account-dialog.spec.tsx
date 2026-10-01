@@ -138,6 +138,14 @@ describe('CustomerBankAccountDialog', () => {
     expect(postWithIdempotency).not.toHaveBeenCalled();
   });
 
+  it('explains that one account may belong to several customers', () => {
+    renderCreateDialog();
+
+    expect(
+      screen.getByText(/một tài khoản có thể thuộc nhiều khách hàng/i),
+    ).toBeInTheDocument();
+  });
+
   it('submits a valid account number on create and closes dialog on success', async () => {
     postWithIdempotency.mockResolvedValueOnce({
       id: 'account-1',

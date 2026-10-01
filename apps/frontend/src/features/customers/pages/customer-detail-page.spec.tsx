@@ -112,9 +112,12 @@ describe('CustomerDetailPage', () => {
     const contactCard = screen
       .getByText('Thông tin liên hệ')
       .closest('[data-slot="card"]');
+    // Container query, not sm: the card is only ~220px wide at a 768px
+    // viewport (256px sidebar), where a viewport-based two-column grid
+    // truncates the email and the credit limit.
     expect(
       contactCard?.querySelector('[data-slot="card-content"]'),
-    ).toHaveClass('grid', 'sm:grid-cols-2');
+    ).toHaveClass('grid', '@container', '@md/grid-cols-2');
 
     // Two independent stacks (main: receivables + activity, side: credit +
     // bank accounts) so a short card never stretches to its neighbour's
@@ -126,7 +129,7 @@ describe('CustomerDetailPage', () => {
     expect(card('Lịch sử hoạt động')?.parentElement).toBe(mainStack);
     expect(card('Số dư tín dụng')?.parentElement).toBe(sideStack);
     expect(mainStack?.parentElement).toBe(sideStack?.parentElement);
-    expect(mainStack?.parentElement).toHaveClass('grid', 'lg:grid-cols-3');
+    expect(mainStack?.parentElement).toHaveClass('grid', 'xl:grid-cols-3');
 
     // Receivable rows say what the amount is and when it is due.
     const row = screen

@@ -108,14 +108,17 @@ export function CustomerBankAccountsCard({
     <>
       <Card>
         <CardHeader className="flex flex-col gap-1.5 pb-4">
-          <div className="flex w-full items-start justify-between gap-3">
-            <div className="flex min-w-0 items-start gap-2">
+          {/* In the customer-detail sidebar this card is ~358px wide, so a
+              title+button row squeezed the title to 154px and wrapped it over
+              four lines. Stack them once the row no longer fits. */}
+          <div className="flex w-full flex-wrap items-start justify-between gap-x-3 gap-y-2">
+            <div className="flex min-w-[12rem] flex-1 items-start gap-2">
               <Landmark
                 aria-hidden="true"
                 className="mt-0.5 size-4 shrink-0 text-info"
               />
               <CardTitle className="leading-snug">
-                Tài khoản ngân hàng của khách (không bắt buộc)
+                Tài khoản ngân hàng của khách
               </CardTitle>
             </div>
             {canManage && (
@@ -130,10 +133,8 @@ export function CustomerBankAccountsCard({
             )}
           </div>
           <CardDescription>
-            Chỉ để hỗ trợ tự động khớp giao dịch chuyển khoản với khách hàng.
-            Bạn có thể thêm tài khoản đã biết ở đây, hoặc hệ thống sẽ ghi nhớ
-            sau khi bạn xác nhận một giao dịch khớp. Một tài khoản có thể thuộc
-            nhiều khách hàng (một bên trả hộ).
+            Không bắt buộc — dùng để tự động khớp giao dịch chuyển khoản với
+            khách hàng. Không có vẫn khớp thủ công được.
           </CardDescription>
         </CardHeader>
         <CardContent>
