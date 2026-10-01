@@ -50,7 +50,7 @@ function ChartLoadingFallback({
           <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
             {hasTopOrganizations
               ? 'Đang tải biểu đồ…'
-              : 'Chưa có dữ liệu usage.'}
+              : 'Chưa có dữ liệu sử dụng.'}
           </p>
         </CardContent>
       </Card>
@@ -65,7 +65,7 @@ function ChartLoadingFallback({
         </CardHeader>
         <CardContent className="h-64">
           <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            {hasTrend ? 'Đang tải biểu đồ…' : 'Chưa có dữ liệu usage.'}
+            {hasTrend ? 'Đang tải biểu đồ…' : 'Chưa có dữ liệu sử dụng.'}
           </p>
         </CardContent>
       </Card>

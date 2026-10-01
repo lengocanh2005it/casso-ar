@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { createEmailPreviewDocument } from '@/lib/email-preview-document';
 import type { EmailTemplate } from '@/lib/use-email-templates';
 import {
   useCreateTemplate,
@@ -23,8 +24,8 @@ import {
 const SAMPLE_RENDER_DATA: Record<string, string> = {
   customerName: 'ABC Company Ltd.',
   invoiceNumber: 'INV-2026-0088',
-  originalAmount: '50000000',
-  remainingAmount: '20000000',
+  originalAmount: '50.000.000 ₫',
+  remainingAmount: '20.000.000 ₫',
   dueDate: '2026-08-10',
   daysOverdue: '5',
   organizationName: 'Casso AR Demo',
@@ -60,14 +61,6 @@ function renderSampleVariables(value: string): string {
         : sample.replace(/[&<>"']/g, (character) => HTML_ENTITIES[character]);
     },
   );
-}
-
-function createPreviewDocument(bodyHtml: string): string {
-  const content = bodyHtml.trim()
-    ? bodyHtml
-    : '<p style="color:#64748b">Nội dung email sẽ hiển thị ở đây.</p>';
-
-  return `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'; object-src 'none'"><style>html,body{margin:0;min-height:100%;background:#fff}body{font:15px/1.65 Arial,sans-serif;color:#1f2937}.email-content{padding:24px;overflow-wrap:anywhere}.email-content img{max-width:100%;height:auto}</style></head><body><main class="email-content">${content}</main></body></html>`;
 }
 
 export function TemplateDialog({
@@ -142,7 +135,7 @@ export function TemplateDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:overflow-hidden">
+        <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-1 overflow-y-auto lg:auto-rows-auto lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:overflow-hidden">
           <section
             aria-label="Thông tin và nội dung email"
             className="min-h-0 space-y-5 border-b p-5 sm:p-7 lg:overflow-y-auto lg:border-r lg:border-b-0"
@@ -293,14 +286,25 @@ export function TemplateDialog({
                     ref={fileInputRef}
                     type="file"
                     accept="application/pdf,image/png,image/jpeg"
-                    aria-label="Chọn file đính kèm"
+                    aria-label="Chọn tệp gửi kèm"
                     disabled={
                       uploadAttachment.isPending ||
                       template.attachments.length >= 5
                     }
                     onChange={handleFileChange}
-                    className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:font-medium file:text-secondary-foreground pointer-hover:file:hover:bg-secondary/80"
+                    className="hidden"
                   />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={
+                      uploadAttachment.isPending ||
+                      template.attachments.length >= 5
+                    }
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Chọn tệp gửi kèm
+                  </Button>
                   {uploadAttachment.isPending && (
                     <p role="status" className="text-xs text-muted-foreground">
                       Đang tải file lên…
@@ -349,7 +353,7 @@ export function TemplateDialog({
                 title="Bản xem trước nội dung email"
                 className="h-[440px] w-full bg-white"
                 sandbox=""
-                srcDoc={createPreviewDocument(previewBody)}
+                srcDoc={createEmailPreviewDocument(previewBody)}
               />
             </div>
             <p className="text-xs leading-relaxed text-muted-foreground">

@@ -237,7 +237,7 @@ export function ConnectionTable({
                           <Button
                             variant="outline"
                             size="sm"
-                            aria-label="Disconnect bank"
+                            aria-label="Ngắt kết nối ngân hàng"
                             onClick={() => setPendingId(connection.id)}
                           >
                             Ngắt kết nối

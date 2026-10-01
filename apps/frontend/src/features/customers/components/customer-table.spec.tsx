@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { CustomerTable } from './customer-table';
@@ -44,5 +44,34 @@ describe('CustomerTable', () => {
     expect(
       screen.queryByRole('link', { name: 'Nhập hóa đơn' }),
     ).not.toBeInTheDocument();
+  });
+
+  it('keeps customer details in a readable mobile row layout', () => {
+    render(
+      <MemoryRouter>
+        <CustomerTable
+          customers={[
+            {
+              id: 'customer-1',
+              name: 'Công ty TNHH Giải pháp Kho vận Việt Trung',
+              taxCode: '0319999016',
+              email: 'accounting@example.vn',
+              phone: null,
+              defaultPaymentTermDays: 30,
+              creditLimit: null,
+              priority: null,
+              createdAt: '2026-09-29T07:53:00.000Z',
+            },
+          ]}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByRole('row')[1]).toHaveClass('max-md:grid');
+    const customerRow = screen.getAllByRole('row')[1];
+    expect(within(customerRow).getByText('Mã số thuế')).toBeInTheDocument();
+    expect(
+      within(customerRow).getByText('Điều khoản thanh toán'),
+    ).toBeInTheDocument();
   });
 });

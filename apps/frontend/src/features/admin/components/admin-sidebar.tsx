@@ -6,7 +6,7 @@ import {
 import { AdminSidebarFooter } from './admin-sidebar-footer';
 
 const ADMIN_NAV_ITEMS: SidebarShellItem[] = [
-  { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/admin/dashboard', label: 'Tổng quan', icon: LayoutDashboard },
   { to: '/admin/organizations', label: 'Tổ chức', icon: Building2 },
   { to: '/admin/ai-usage', label: 'Sử dụng AI', icon: BarChart3 },
 ];

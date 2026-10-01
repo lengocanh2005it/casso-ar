@@ -1,5 +1,13 @@
 import { CustomerGroup } from '../../modules/customers/domain/customer-group';
 import {
+  closing,
+  detailCard,
+  detailRow,
+  emailShell,
+  greeting,
+  paragraph,
+} from '../../modules/email-templates/application/seed-default-email-templates';
+import {
   type InvoiceSourceType,
   InvoiceStatus,
 } from '../../modules/invoices/domain/invoice';
@@ -1106,62 +1114,108 @@ export interface SeedEmailTemplatePlan {
 export function buildSeedEmailTemplatePlans(): SeedEmailTemplatePlan[] {
   return [
     {
-      name: 'Invoice Reminder',
+      name: 'Nhắc thanh toán hóa đơn',
       subject: 'Nhắc thanh toán hóa đơn {{invoiceNumber}}',
-      bodyHtml:
-        '<p>Kính gửi {{customerName}},</p>' +
-        '<p>Hóa đơn {{invoiceNumber}} với số tiền {{remainingAmount}} sẽ đến hạn vào {{dueDate}}. Vui lòng thanh toán đúng hạn.</p>' +
-        '<p>Trân trọng,<br/>{{organizationName}}</p>',
+      bodyHtml: emailShell(
+        greeting() +
+          paragraph(
+            'Hóa đơn <strong>{{invoiceNumber}}</strong> sẽ đến hạn vào {{dueDate}}. ' +
+              'Vui lòng thanh toán đúng hạn.',
+          ) +
+          detailCard(
+            detailRow('Số hóa đơn', '{{invoiceNumber}}') +
+              detailRow('Ngày đến hạn', '{{dueDate}}') +
+              detailRow('Còn phải thu', '{{remainingAmount}}', true),
+          ) +
+          closing(),
+      ),
       reminderStage: 'pre-due',
       isDefault: false,
     },
     {
-      name: 'Payment Confirmation',
+      name: 'Xác nhận thanh toán',
       subject: 'Xác nhận thanh toán {{invoiceNumber}}',
-      bodyHtml:
-        '<p>Kính gửi {{customerName}},</p>' +
-        '<p>Chúng tôi đã nhận được thanh toán {{paidAmount}} cho hóa đơn {{invoiceNumber}}. Số tiền còn lại là {{remainingAmount}}.</p>' +
-        '<p>Trân trọng,<br/>{{organizationName}}</p>',
+      bodyHtml: emailShell(
+        greeting() +
+          paragraph(
+            'Chúng tôi đã ghi nhận thanh toán cho hóa đơn <strong>{{invoiceNumber}}</strong>. ' +
+              'Xin Quý khách kiểm tra lại thông tin bên dưới.',
+          ) +
+          detailCard(
+            detailRow('Số hóa đơn', '{{invoiceNumber}}') +
+              detailRow('Còn phải thu', '{{remainingAmount}}', true),
+          ) +
+          closing(),
+      ),
       reminderStage: null,
       isDefault: false,
     },
     {
-      name: 'Overdue Notice',
+      name: 'Thông báo quá hạn',
       subject: 'Thông báo quá hạn: Hóa đơn {{invoiceNumber}}',
-      bodyHtml:
-        '<p>Kính gửi {{customerName}},</p>' +
-        '<p>Hóa đơn {{invoiceNumber}} đã quá hạn {{daysOverdue}} ngày với số tiền {{remainingAmount}}. Vui lòng thanh toán ngay.</p>' +
-        '<p>Trân trọng,<br/>{{organizationName}}</p>',
+      bodyHtml: emailShell(
+        greeting() +
+          paragraph(
+            'Hóa đơn <strong>{{invoiceNumber}}</strong> đã quá hạn {{daysOverdue}} ngày. ' +
+              'Vui lòng thanh toán ngay.',
+          ) +
+          detailCard(
+            detailRow('Số hóa đơn', '{{invoiceNumber}}') +
+              detailRow('Ngày quá hạn', '{{daysOverdue}} ngày') +
+              detailRow('Còn phải thu', '{{remainingAmount}}', true),
+          ) +
+          closing(),
+      ),
       reminderStage: 'overdue-1',
       isDefault: false,
     },
     {
-      name: 'Welcome',
+      name: 'Chào mừng khách hàng',
       subject: 'Chào mừng {{customerName}} đến với {{organizationName}}',
-      bodyHtml:
-        '<p>Kính gửi {{customerName}},</p>' +
-        '<p>Cảm ơn bạn đã sử dụng dịch vụ của {{organizationName}}. Nếu có thắc mắc, vui lòng liên hệ chúng tôi.</p>' +
-        '<p>Trân trọng,<br/>{{organizationName}}</p>',
+      bodyHtml: emailShell(
+        greeting() +
+          paragraph(
+            'Cảm ơn Quý khách đã sử dụng dịch vụ của {{organizationName}}. ' +
+              'Nếu có thắc mắc, vui lòng liên hệ để được hỗ trợ.',
+          ) +
+          closing(),
+      ),
       reminderStage: null,
       isDefault: false,
     },
     {
-      name: 'Monthly Statement',
-      subject: 'Bảng kê tháng {{month}} - {{customerName}}',
-      bodyHtml:
-        '<p>Kính gửi {{customerName}},</p>' +
-        '<p>Đây là bảng kê giao dịch tháng {{month}}. Tổng số phát sinh: {{totalAmount}}. Số tiền đã thanh toán: {{paidAmount}}. Số tiền còn nợ: {{remainingAmount}}.</p>' +
-        '<p>Trân trọng,<br/>{{organizationName}}</p>',
+      name: 'Bảng kê công nợ',
+      subject: 'Bảng kê công nợ {{invoiceNumber}}',
+      bodyHtml: emailShell(
+        greeting() +
+          paragraph(
+            'Dưới đây là tổng hợp công nợ của Quý khách tính đến {{dueDate}}.',
+          ) +
+          detailCard(
+            detailRow('Số hóa đơn', '{{invoiceNumber}}') +
+              detailRow('Tổng phát sinh', '{{originalAmount}}') +
+              detailRow('Còn phải thu', '{{remainingAmount}}', true),
+          ) +
+          closing(),
+      ),
       reminderStage: null,
       isDefault: false,
     },
     {
-      name: 'Payment Receipt',
-      subject: 'Biên lai thanh toán #{{receiptNumber}}',
-      bodyHtml:
-        '<p>Kính gửi {{customerName}},</p>' +
-        '<p>Biên lai thanh toán số {{receiptNumber}} ngày {{paymentDate}} với số tiền {{paidAmount}} đã được xác nhận.</p>' +
-        '<p>Trân trọng,<br/>{{organizationName}}</p>',
+      name: 'Biên lai thanh toán',
+      subject: 'Biên lai thanh toán hóa đơn {{invoiceNumber}}',
+      bodyHtml: emailShell(
+        greeting() +
+          paragraph(
+            'Biên lai thanh toán cho hóa đơn <strong>{{invoiceNumber}}</strong> đã được xác nhận.',
+          ) +
+          detailCard(
+            detailRow('Số hóa đơn', '{{invoiceNumber}}') +
+              detailRow('Ngày thanh toán', '{{dueDate}}') +
+              detailRow('Số tiền còn lại', '{{remainingAmount}}', true),
+          ) +
+          closing(),
+      ),
       reminderStage: null,
       isDefault: false,
     },

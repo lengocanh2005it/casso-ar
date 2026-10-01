@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { createEmailPreviewDocument } from '@/lib/email-preview-document';
 import { cn } from '@/lib/utils';
 
 // The draft body is stored as a single-line HTML string, so the code tab
@@ -29,41 +30,6 @@ export function EmailDraftPreview({
   compact?: boolean;
 }) {
   const [mode, setMode] = useState<'preview' | 'code'>('preview');
-  const previewHtml = `<!doctype html>
-<html lang="vi">
-  <head>
-    <meta charset="utf-8">
-    <style>
-      * { box-sizing: border-box; }
-      html, body { margin: 0; min-height: 100%; }
-      body {
-        padding: 16px;
-        background: #f1f5f9;
-        color: #334155;
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 14px;
-        line-height: 1.6;
-      }
-      .email-content {
-        max-width: 600px;
-        margin: 0 auto;
-        padding: 24px;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        background: #fff;
-      }
-      .email-content > :first-child { margin-top: 0; }
-      .email-content > :last-child { margin-bottom: 0; }
-      img { max-width: 100%; height: auto; }
-      table { max-width: 100%; border-collapse: collapse; }
-      @media (max-width: 480px) {
-        body { padding: 8px; }
-        .email-content { padding: 12px; }
-      }
-    </style>
-  </head>
-  <body><div class="email-content">${bodyHtml}</div></body>
-</html>`;
 
   async function copyHtml() {
     try {
@@ -117,7 +83,7 @@ export function EmailDraftPreview({
             <iframe
               title="Xem trước email"
               sandbox=""
-              srcDoc={previewHtml}
+              srcDoc={createEmailPreviewDocument(bodyHtml)}
               className={cn(
                 'w-full rounded-md border bg-muted',
                 compact ? 'h-72' : 'h-64',

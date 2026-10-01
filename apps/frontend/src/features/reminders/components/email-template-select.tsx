@@ -37,7 +37,7 @@ export function EmailTemplateSelect({
     return (
       <Select disabled>
         <SelectTrigger id={id} aria-label={ariaLabel} className="w-full">
-          <SelectValue placeholder="Đang tải template…" />
+          <SelectValue placeholder="Đang tải mẫu email…" />
         </SelectTrigger>
         <SelectContent />
       </Select>
@@ -49,7 +49,7 @@ export function EmailTemplateSelect({
       <div className="space-y-1">
         <Select disabled>
           <SelectTrigger id={id} aria-label={ariaLabel} className="w-full">
-            <SelectValue placeholder="Không tải được danh sách template." />
+            <SelectValue placeholder="Không tải được danh sách mẫu email." />
           </SelectTrigger>
           <SelectContent />
         </Select>
@@ -73,7 +73,7 @@ export function EmailTemplateSelect({
       <div className="space-y-1">
         <Select disabled>
           <SelectTrigger id={id} aria-label={ariaLabel} className="w-full">
-            <SelectValue placeholder="Chưa có email template." />
+            <SelectValue placeholder="Chưa có mẫu email nào." />
           </SelectTrigger>
           <SelectContent />
         </Select>
@@ -92,7 +92,7 @@ export function EmailTemplateSelect({
   return (
     <Select value={value || undefined} onValueChange={onChange}>
       <SelectTrigger id={id} aria-label={ariaLabel} className="w-full">
-        <SelectValue placeholder="Chọn email template" />
+        <SelectValue placeholder="Chọn mẫu email" />
       </SelectTrigger>
       <SelectContent>
         {hasOrphanedValue && (

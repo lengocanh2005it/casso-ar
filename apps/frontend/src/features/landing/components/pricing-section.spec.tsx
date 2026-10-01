@@ -61,8 +61,11 @@ describe('PricingSection', () => {
     renderWithProviders();
 
     await waitFor(() =>
-      expect(screen.getByText('Business')).toBeInTheDocument(),
+      expect(screen.getByText('Chuyên nghiệp')).toBeInTheDocument(),
     );
+    expect(
+      screen.getByText('Mọi tính năng của gói Khởi đầu'),
+    ).toBeInTheDocument();
     expect(screen.getByText(/999.000/)).toBeInTheDocument();
     expect(screen.getByText('Phổ biến nhất')).toBeInTheDocument();
   });

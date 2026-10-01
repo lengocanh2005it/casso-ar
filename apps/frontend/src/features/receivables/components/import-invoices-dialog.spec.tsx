@@ -13,6 +13,21 @@ vi.mock('@/contexts/auth-context', () => ({
 }));
 
 describe('ImportInvoicesDialog', () => {
+  it('shows the selected invoice filename beside a localized picker', () => {
+    render(<ImportInvoicesDialog />);
+    fireEvent.click(screen.getByText('Nhập hóa đơn'));
+    fireEvent.change(screen.getByLabelText('File hóa đơn'), {
+      target: {
+        files: [new File(['invoice'], 'invoices.csv', { type: 'text/csv' })],
+      },
+    });
+
+    expect(
+      screen.getByRole('button', { name: 'Chọn tệp hóa đơn' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('invoices.csv')).toBeInTheDocument();
+  });
+
   it('renders failed rows after uploading a file', async () => {
     importInvoices.mockResolvedValue({
       totalRows: 3,

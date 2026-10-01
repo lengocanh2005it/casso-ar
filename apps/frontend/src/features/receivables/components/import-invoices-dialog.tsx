@@ -1,5 +1,5 @@
 import { Permission } from '@casso-ar/shared-types';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,6 +40,7 @@ export function ImportInvoicesDialog() {
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!hasPermission(user?.role ?? null, Permission.RECEIVABLE_IMPORT)) {
     return null;
@@ -84,13 +85,29 @@ export function ImportInvoicesDialog() {
         </DialogDescription>
         {!result ? (
           <div className="space-y-3">
-            <input
-              name="invoiceFile"
-              aria-label="File hóa đơn"
-              type="file"
-              accept=".xlsx,.csv"
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-            />
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                ref={fileInputRef}
+                name="invoiceFile"
+                aria-label="File hóa đơn"
+                type="file"
+                accept=".xlsx,.csv"
+                disabled={uploading}
+                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Chọn tệp hóa đơn
+              </Button>
+              <span className="min-w-0 break-all text-sm text-muted-foreground">
+                {file?.name ?? 'Chưa chọn tệp'}
+              </span>
+            </div>
             <Button onClick={onUpload} disabled={!file || uploading}>
               {uploading ? 'Đang tải lên…' : 'Tải lên'}
             </Button>

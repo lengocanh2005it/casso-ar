@@ -38,9 +38,7 @@ describe('EmailDraftPreview', () => {
     expect(iframe).toBeInTheDocument();
     expect(iframe.getAttribute('sandbox')).toBe('');
     expect(iframe.srcdoc).toContain('<style>');
-    expect(iframe.srcdoc).toContain(
-      'font-family: Arial, Helvetica, sans-serif;',
-    );
+    expect(iframe.srcdoc).toContain("default-src 'none'");
     expect(iframe.srcdoc).toContain(bodyHtml);
   });
 

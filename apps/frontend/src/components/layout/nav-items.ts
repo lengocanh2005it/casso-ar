@@ -23,7 +23,7 @@ export interface NavItem {
 }
 
 export const navItems: NavItem[] = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/dashboard', label: 'Tổng quan', icon: LayoutDashboard },
   { to: '/customers', label: 'Khách hàng', icon: Users },
   { to: '/receivables', label: 'Công nợ', icon: FileText },
   { to: '/bank-connections', label: 'Kết nối ngân hàng', icon: Landmark },

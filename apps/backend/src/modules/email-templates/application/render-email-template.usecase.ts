@@ -20,6 +20,19 @@ export interface RenderedEmail {
   bodyHtml: string;
 }
 
+/** Template values after formatting: money is a readable string, not an integer. */
+type TemplateVariables = Omit<
+  EmailTemplateRenderData,
+  'originalAmount' | 'remainingAmount'
+> & {
+  originalAmount: string;
+  remainingAmount: string;
+};
+
+function formatVnd(amount: number): string {
+  return `${amount.toLocaleString('vi-VN')} ₫`;
+}
+
 @Injectable()
 export class RenderEmailTemplateUseCase {
   constructor(
@@ -31,11 +44,17 @@ export class RenderEmailTemplateUseCase {
     template: EmailTemplate,
     data: EmailTemplateRenderData,
   ): RenderedEmail {
-    const subject = this.templateCompiler.compile(template.subject, {
+    const formatted: TemplateVariables = {
       ...data,
+      // Customers must never see raw VND integers (20000000) in an email.
+      originalAmount: formatVnd(data.originalAmount),
+      remainingAmount: formatVnd(data.remainingAmount),
+    };
+    const subject = this.templateCompiler.compile(template.subject, {
+      ...formatted,
     });
     const bodyHtml = this.templateCompiler.compile(template.bodyHtml, {
-      ...data,
+      ...formatted,
     });
     return { subject, bodyHtml };
   }

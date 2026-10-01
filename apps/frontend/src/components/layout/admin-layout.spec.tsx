@@ -48,7 +48,7 @@ describe('AdminLayout', () => {
       'id',
       'admin-main-content',
     );
-    expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveClass(
+    expect(screen.getByRole('link', { name: 'Tổng quan' })).toHaveClass(
       'pointer-hover:hover:bg-primary/5',
     );
   });

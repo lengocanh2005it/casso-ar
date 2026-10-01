@@ -234,10 +234,10 @@ export function PolicyDialog({
                   />
                 </Label>
                 <Label className="block min-w-0 space-y-2">
-                  <span className="block text-xs">Email template</span>
+                  <span className="block text-xs">Mẫu email</span>
                   <EmailTemplateSelect
                     id={`emailTemplateId-${index}`}
-                    ariaLabel={`Email template ${index + 1}`}
+                    ariaLabel={`Mẫu email ${index + 1}`}
                     value={rule.emailTemplateId}
                     onChange={(templateId) =>
                       setRule(index, 'emailTemplateId', templateId)
