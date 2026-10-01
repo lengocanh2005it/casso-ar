@@ -30,11 +30,13 @@ export function CopilotWelcomeState({
   onSuggestionClick: (text: string) => void;
 }) {
   return (
-    <div className="relative isolate flex flex-1 flex-col justify-center gap-4 overflow-x-clip rounded-3xl border border-primary/10 bg-gradient-to-br from-primary/5 via-background to-secondary/60 px-4 py-5 sm:px-6">
+    <div className="relative isolate flex flex-1 flex-col justify-center gap-4 rounded-lg border border-primary/10 bg-gradient-to-br from-primary/5 via-background to-secondary/60 px-4 py-5 sm:px-6">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-16 -top-20 -z-10 size-64 rounded-full bg-primary/10 blur-3xl"
-      />
+        className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-lg"
+      >
+        <div className="absolute -right-16 -top-20 size-64 rounded-full bg-primary/10 blur-3xl" />
+      </div>
       <div className="flex flex-col items-center text-center">
         <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-chart-2 text-primary-foreground shadow-lg shadow-primary/20 ring-8 ring-primary/5">
           <Sparkles className="size-6" aria-hidden="true" />
