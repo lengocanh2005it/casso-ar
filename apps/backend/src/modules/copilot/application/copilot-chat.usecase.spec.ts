@@ -1,6 +1,6 @@
 import { ErrorCode } from '../../../common/errors/error-code';
 import { Role } from '../../organizations/domain/membership';
-import { CopilotChatUseCase } from './copilot-chat.usecase';
+import { CopilotChatUseCase, SYSTEM_PROMPT } from './copilot-chat.usecase';
 import { CopilotToolRegistry } from './copilot-tool-registry';
 
 function buildRegistry(): CopilotToolRegistry {
@@ -85,6 +85,18 @@ function buildDeps(overrides: Record<string, unknown> = {}) {
 }
 
 describe('CopilotChatUseCase', () => {
+  it('pins the overdue list format so the UI can parse each row', () => {
+    // The frontend renders each numbered receivable as a labelled row by
+    // looking for these exact labels. When the prompt left the wording open,
+    // the model renamed "Hạn thanh toán" to "Ngày đáo hạn" and split one
+    // receivable across several lines, which broke the card layout.
+    expect(SYSTEM_PROMPT).toContain(
+      '"N. <tên khách hàng> - Số hóa đơn: <số hoá đơn> - Số tiền còn lại: <số tiền> VNĐ - Hạn thanh toán: <dd/mm/yyyy>"',
+    );
+    expect(SYSTEM_PROMPT).toContain('never split it across lines');
+    expect(SYSTEM_PROMPT).toContain('"Chưa có số hóa đơn"');
+  });
+
   it('rejects a conversation owned by another user before reading or appending', async () => {
     const aiProvider = { createChatCompletion: jest.fn() };
     const deps = buildDeps({
@@ -1134,15 +1146,13 @@ describe('CopilotChatUseCase', () => {
             createdAt: new Date(),
           },
         ]),
-        appendMessage: jest
-          .fn()
-          .mockImplementation((message) =>
-            Promise.resolve({
-              id: 'message-2',
-              organizationId: 'org-1',
-              ...message,
-            }),
-          ),
+        appendMessage: jest.fn().mockImplementation((message) =>
+          Promise.resolve({
+            id: 'message-2',
+            organizationId: 'org-1',
+            ...message,
+          }),
+        ),
       },
     });
     deps.findOverdueReceivablesTool.execute.mockResolvedValue({
@@ -1231,15 +1241,13 @@ describe('CopilotChatUseCase', () => {
             createdAt: new Date(),
           },
         ]),
-        appendMessage: jest
-          .fn()
-          .mockImplementation((message) =>
-            Promise.resolve({
-              id: 'message-2',
-              organizationId: 'org-1',
-              ...message,
-            }),
-          ),
+        appendMessage: jest.fn().mockImplementation((message) =>
+          Promise.resolve({
+            id: 'message-2',
+            organizationId: 'org-1',
+            ...message,
+          }),
+        ),
       },
     });
     const useCase = new CopilotChatUseCase(

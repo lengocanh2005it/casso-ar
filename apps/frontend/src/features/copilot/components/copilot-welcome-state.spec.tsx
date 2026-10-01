@@ -27,4 +27,12 @@ describe('CopilotWelcomeState', () => {
       screen.getByRole('button', { name: /soạn email nhắc thanh toán/i }),
     ).toBeInTheDocument();
   });
+
+  it('caps its own height so the panel never outgrows a short viewport', () => {
+    const { container } = render(
+      <CopilotWelcomeState onSuggestionClick={vi.fn()} />,
+    );
+
+    expect(container.firstChild).toHaveClass('max-h-full', 'overflow-y-auto');
+  });
 });
