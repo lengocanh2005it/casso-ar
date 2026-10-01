@@ -181,6 +181,9 @@ describe('CopilotChatUseCase', () => {
     expect(result.pendingAction).toBeNull();
     expect(result.message.content).toContain('overdue');
     expect(aiProvider.createChatCompletion).toHaveBeenCalledTimes(3);
+    expect(
+      aiProvider.createChatCompletion.mock.calls.map((call) => call[2]),
+    ).toEqual(Array(3).fill({ maxOutputTokens: 4096 }));
     expect(deps.summaryTool.execute).toHaveBeenCalledWith({
       customerId: 'cust-1',
     });

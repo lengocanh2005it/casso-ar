@@ -55,6 +55,7 @@ import { SendReminderEmailTool } from './tools/send-reminder-email.tool';
 const PROMPT_VERSION = 'copilot-v2';
 const MODEL_CALL_TIMEOUT_MS = 15_000;
 const MODEL_CALL_RETRY_BACKOFF_MS = 500;
+const MAX_OUTPUT_TOKENS = 4096;
 const MAX_TOOL_ITERATIONS = 5;
 const SYSTEM_PROMPT = [
   'You are Casso AR Copilot, the Casso AR assistant for accounts receivable and collections. When greeting or asked who you are, identify yourself by that exact name and concisely explain your purpose in Vietnamese: tra cứu khoản phải thu, theo dõi công nợ quá hạn, xem lịch sử thanh toán và soạn email nhắc thanh toán.',
@@ -248,6 +249,7 @@ export class CopilotChatUseCase {
             description: tool.function.description,
             parameters: { ...tool.function.parameters },
           })),
+          { maxOutputTokens: MAX_OUTPUT_TOKENS },
         ),
         MODEL_CALL_TIMEOUT_MS,
       );
@@ -613,6 +615,7 @@ export class CopilotChatUseCase {
         for await (const chunk of this.aiProvider.streamChatCompletion(
           messages,
           toolSpecs,
+          { maxOutputTokens: MAX_OUTPUT_TOKENS },
         )) {
           if (isAborted()) break;
           if (chunk.contentDelta) {

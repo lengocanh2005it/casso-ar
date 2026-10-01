@@ -128,6 +128,11 @@ describe('CopilotChatUseCase.executeStreaming', () => {
         toolCalls: null,
       }),
     );
+    expect(deps.aiProvider.streamChatCompletion).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.any(Array),
+      { maxOutputTokens: 4096 },
+    );
   });
 
   it('resolves a tool call before continuing to a second, final iteration', async () => {

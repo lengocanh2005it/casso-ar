@@ -81,6 +81,19 @@ describe('OpenAiChatProviderAdapter', () => {
     });
   });
 
+  it('uses the output token limit requested by the caller', async () => {
+    mockCreateCompletion.mockResolvedValue({
+      choices: [{ message: { content: 'Done', tool_calls: [] } }],
+    });
+    const adapter = new OpenAiChatProviderAdapter();
+
+    await adapter.createChatCompletion([], [], { maxOutputTokens: 4096 });
+
+    expect(mockCreateCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({ max_tokens: 4096 }),
+    );
+  });
+
   it('rejects malformed tool arguments', async () => {
     mockCreateCompletion.mockResolvedValue({
       choices: [
