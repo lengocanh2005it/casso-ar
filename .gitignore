@@ -12,6 +12,7 @@ stats.html
 .worktrees
 .superpowers
 /backups
+.audit-shots/
 apps/backend/uploads/
 dev-*.log
 dev-*.err.log
