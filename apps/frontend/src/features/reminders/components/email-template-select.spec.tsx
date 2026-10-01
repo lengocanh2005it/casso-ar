@@ -41,7 +41,7 @@ function renderSelect(value: string, onChange = vi.fn()) {
         <EmailTemplateSelect
           value={value}
           onChange={onChange}
-          ariaLabel="Email template 1"
+          ariaLabel="Mẫu email 1"
         />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -58,7 +58,7 @@ describe('EmailTemplateSelect', () => {
     apiRequest.mockReturnValue(new Promise(() => {}));
     renderSelect('');
     expect(
-      screen.getByRole('combobox', { name: 'Email template 1' }),
+      screen.getByRole('combobox', { name: 'Mẫu email 1' }),
     ).toBeDisabled();
   });
 
@@ -67,7 +67,7 @@ describe('EmailTemplateSelect', () => {
     renderSelect('');
     await waitFor(() =>
       expect(
-        screen.getByRole('combobox', { name: 'Email template 1' }),
+        screen.getByRole('combobox', { name: 'Mẫu email 1' }),
       ).toBeDisabled(),
     );
     await waitFor(() =>
@@ -80,7 +80,7 @@ describe('EmailTemplateSelect', () => {
     renderSelect('');
     await waitFor(() =>
       expect(
-        screen.getByRole('combobox', { name: 'Email template 1' }),
+        screen.getByRole('combobox', { name: 'Mẫu email 1' }),
       ).toBeDisabled(),
     );
     expect(
@@ -92,7 +92,7 @@ describe('EmailTemplateSelect', () => {
     apiRequest.mockResolvedValue([template1, template2]);
     renderSelect('');
     fireEvent.click(
-      await screen.findByRole('combobox', { name: 'Email template 1' }),
+      await screen.findByRole('combobox', { name: 'Mẫu email 1' }),
     );
     expect(
       screen.getByRole('option', { name: 'Nhắc trước hạn — DAY_3_BEFORE' }),
@@ -104,7 +104,7 @@ describe('EmailTemplateSelect', () => {
     apiRequest.mockResolvedValue([template1, template2]);
     const { onChange } = renderSelect('');
     fireEvent.click(
-      await screen.findByRole('combobox', { name: 'Email template 1' }),
+      await screen.findByRole('combobox', { name: 'Mẫu email 1' }),
     );
     fireEvent.click(screen.getByRole('option', { name: 'Nhắc quá hạn' }));
     expect(onChange).toHaveBeenCalledWith('t2');
@@ -114,7 +114,7 @@ describe('EmailTemplateSelect', () => {
     apiRequest.mockResolvedValue([template1]);
     renderSelect('missing-id');
     fireEvent.click(
-      await screen.findByRole('combobox', { name: 'Email template 1' }),
+      await screen.findByRole('combobox', { name: 'Mẫu email 1' }),
     );
     const orphanOption = screen.getByRole('option', {
       name: /Mẫu email đã bị xóa/,

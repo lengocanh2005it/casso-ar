@@ -34,6 +34,7 @@ export interface AIStreamChunk {
 export interface CreateChatCompletionOptions {
   signal?: AbortSignal;
   toolChoice?: 'auto' | 'required' | 'none';
+  maxOutputTokens?: number;
 }
 
 export interface IAIChatProvider {

@@ -8,7 +8,7 @@ describe('AdminUsageCharts', () => {
 
     expect(screen.getByText(/tổ chức dùng ai nhiều nhất/i)).toBeInTheDocument();
     expect(screen.getByText(/xu hướng dùng ai theo ngày/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/chưa có dữ liệu usage/i)).toHaveLength(2);
+    expect(screen.getAllByText(/chưa có dữ liệu sử dụng/i)).toHaveLength(2);
     expect(screen.getAllByTestId('empty-state')).toHaveLength(2);
   });
 });

@@ -55,7 +55,7 @@ describe('PolicyDialog', () => {
 
   it('blocks submit with a toast when no template is selected for a rule', async () => {
     renderDialog();
-    await screen.findByRole('combobox', { name: /Email template 1/i });
+    await screen.findByRole('combobox', { name: /Mẫu email 1/i });
 
     fireEvent.click(screen.getByRole('button', { name: 'Lưu chính sách' }));
 
@@ -67,7 +67,7 @@ describe('PolicyDialog', () => {
   it('submits the selected template UUID as emailTemplateId', async () => {
     renderDialog();
     fireEvent.click(
-      await screen.findByRole('combobox', { name: /Email template 1/i }),
+      await screen.findByRole('combobox', { name: /Mẫu email 1/i }),
     );
     fireEvent.click(screen.getByRole('option', { name: /Nhắc trước hạn/i }));
 
@@ -105,7 +105,7 @@ describe('PolicyDialog', () => {
     renderDialog(policy);
 
     const trigger = await screen.findByRole('combobox', {
-      name: /Email template 1/i,
+      name: /Mẫu email 1/i,
     });
     await waitFor(() =>
       expect(trigger).toHaveTextContent('Nhắc trước hạn — DAY_3_BEFORE'),

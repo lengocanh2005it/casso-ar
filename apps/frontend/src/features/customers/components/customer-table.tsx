@@ -49,7 +49,7 @@ export function CustomerTable({
 
   return (
     <Table>
-      <TableHeader>
+      <TableHeader className="max-md:hidden">
         <TableRow>
           <TableHead>Tên khách hàng</TableHead>
           <TableHead>Mã số thuế</TableHead>
@@ -59,27 +59,39 @@ export function CustomerTable({
       </TableHeader>
       <TableBody>
         {customers.map((customer) => (
-          <TableRow key={customer.id}>
-            <TableCell className="max-w-64 break-words">
-              <div className="flex items-center gap-2">
+          <TableRow
+            key={customer.id}
+            className="max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-3 max-md:gap-y-2 max-md:px-1 max-md:py-3"
+          >
+            <TableCell className="max-w-64 break-words max-md:col-span-2 max-md:col-start-1 max-md:row-start-1 max-md:max-w-none max-md:p-0">
+              <div className="flex min-w-0 items-center gap-2">
                 <InitialsAvatar name={customer.name} size="sm" />
                 <Link
                   to={`/customers/${customer.id}`}
-                  className="font-medium text-primary pointer-hover:hover:underline"
+                  className="min-w-0 break-words font-medium text-primary pointer-hover:hover:underline"
                 >
                   {customer.name}
                 </Link>
               </div>
             </TableCell>
-            <TableCell className="max-w-48 break-words">
+            <TableCell className="max-w-48 break-words max-md:col-start-1 max-md:row-start-2 max-md:max-w-none max-md:p-0 max-md:text-xs">
+              <span className="mb-0.5 block text-muted-foreground md:hidden">
+                Mã số thuế
+              </span>
               {customer.taxCode ?? '—'}
             </TableCell>
-            <TableCell>
+            <TableCell className="max-md:col-start-2 max-md:row-start-2 max-md:p-0 max-md:text-right max-md:text-xs">
+              <span className="mb-0.5 block text-muted-foreground md:hidden">
+                Điều khoản thanh toán
+              </span>
               <Badge variant="outline">
                 {customer.defaultPaymentTermDays} ngày
               </Badge>
             </TableCell>
-            <TableCell>{formatDateTime(customer.createdAt)}</TableCell>
+            <TableCell className="max-md:col-span-2 max-md:col-start-1 max-md:row-start-3 max-md:p-0 max-md:text-xs max-md:text-muted-foreground">
+              <span className="mr-1 md:hidden">Ngày tạo:</span>
+              {formatDateTime(customer.createdAt)}
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>

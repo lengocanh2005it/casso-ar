@@ -63,9 +63,9 @@ describe('AdminAiUsagePage', () => {
     expect(screen.getByLabelText(/từ ngày/i)).toHaveAttribute('name', 'from');
     expect(screen.getByLabelText(/đến ngày/i)).toHaveAttribute('name', 'to');
     expect(
-      screen.getByRole('form', { name: /lọc usage/i }),
+      screen.getByRole('form', { name: /lọc mức sử dụng/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/chưa có dữ liệu usage/i)).toBeInTheDocument();
+    expect(screen.getByText(/chưa có dữ liệu sử dụng/i)).toBeInTheDocument();
   });
 
   it('announces a failed query with a next step', async () => {
@@ -81,7 +81,7 @@ describe('AdminAiUsagePage', () => {
     fireEvent.click(screen.getByRole('button', { name: /xem/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      /không thể tải dữ liệu usage/i,
+      /không thể tải dữ liệu sử dụng/i,
     );
   });
 });

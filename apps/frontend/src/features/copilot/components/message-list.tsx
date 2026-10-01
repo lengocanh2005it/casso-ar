@@ -5,9 +5,11 @@ import { EmailDraftPreview } from './email-draft-preview';
 export function MessageList({
   messages,
   streamingContent,
+  isWaitingForResponse = false,
 }: {
   messages: CopilotMessage[];
   streamingContent?: string;
+  isWaitingForResponse?: boolean;
 }) {
   return (
     <div className="space-y-3">
@@ -24,6 +26,14 @@ export function MessageList({
           ))}
         </div>
       ))}
+      {isWaitingForResponse && !streamingContent && (
+        <div aria-label="Copilot đang trả lời" role="status">
+          <CopilotMessageBubble
+            message={{ role: 'ASSISTANT', content: '' }}
+            isWaitingForResponse
+          />
+        </div>
+      )}
       {streamingContent && (
         <CopilotMessageBubble
           message={{ role: 'ASSISTANT', content: streamingContent }}

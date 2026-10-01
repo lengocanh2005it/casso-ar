@@ -90,37 +90,53 @@ export function EmailTemplatesTab() {
         />
       )}
       {templatesQuery.data && templatesQuery.data.length > 0 && (
-        <Table>
-          <TableHeader>
+        <Table className="block md:table">
+          <TableHeader className="sr-only md:not-sr-only md:table-header-group">
             <TableRow>
               <TableHead>Tên</TableHead>
               <TableHead>Tiêu đề</TableHead>
-              <TableHead>Mặc định</TableHead>
+              <TableHead>Loại</TableHead>
               {canWrite && <TableHead>Thao tác</TableHead>}
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <TableBody className="block md:table-row-group">
             {templatesQuery.data.map((template) => (
-              <TableRow key={template.id}>
-                <TableCell className="max-w-56 break-words font-medium">
+              <TableRow
+                key={template.id}
+                className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 px-3 py-3 md:table-row md:px-0 md:py-0"
+              >
+                <TableCell className="col-span-2 min-w-0 max-w-56 break-words px-0 py-1 font-medium md:table-cell md:px-2 md:py-2">
                   <div className="flex items-center gap-2">
                     <HeaderIcon icon={Mail} />
                     {template.name}
                   </div>
                 </TableCell>
-                <TableCell className="max-w-72 break-words">
+                <TableCell className="col-span-2 flex min-w-0 max-w-72 flex-col gap-1 break-words px-0 py-1 md:table-cell md:px-2 md:py-2">
+                  <span className="text-xs font-normal text-muted-foreground md:hidden">
+                    Tiêu đề
+                  </span>
                   {template.subject}
                 </TableCell>
-                <TableCell>
-                  {template.isDefault && <Badge>Mặc định</Badge>}
+                <TableCell
+                  className={`${canWrite ? '' : 'col-span-2'} flex flex-col items-start gap-1 px-0 py-1 md:table-cell md:px-2 md:py-2`}
+                >
+                  <span className="text-xs font-normal text-muted-foreground md:hidden">
+                    Loại
+                  </span>
+                  <Badge variant={template.isDefault ? 'default' : 'outline'}>
+                    {template.isDefault ? 'Mặc định' : 'Tùy chỉnh'}
+                  </Badge>
                 </TableCell>
                 {canWrite && (
-                  <TableCell>
-                    <div className="flex flex-wrap gap-2">
+                  <TableCell className="min-w-0 px-0 py-1 text-right md:table-cell md:px-2 md:py-2">
+                    <span className="mb-1 block text-xs font-normal text-muted-foreground md:hidden">
+                      Thao tác
+                    </span>
+                    <div className="flex flex-wrap justify-end gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        aria-label="Preview template"
+                        aria-label="Xem trước mẫu email"
                         onClick={() => setPreviewing(template)}
                       >
                         Xem trước

@@ -46,6 +46,7 @@ describe('Sidebar', () => {
 
     expect(screen.getByRole('complementary')).toHaveClass('transition-[width]');
     expect(screen.getByText('Lịch sử công nợ')).toHaveClass('min-w-0');
+    expect(screen.getByRole('link', { name: 'Tổng quan' })).toBeInTheDocument();
   });
 
   it('shows the receivable balance history entry to an owner', () => {

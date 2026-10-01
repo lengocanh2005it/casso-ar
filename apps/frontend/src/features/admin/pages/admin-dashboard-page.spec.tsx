@@ -63,7 +63,7 @@ describe('AdminDashboardPage', () => {
     expect(screen.getByTestId('header-icon')).toBeInTheDocument();
     expect(await screen.findByText('3')).toBeInTheDocument();
     expect(screen.getByText('Tổng số tổ chức')).toBeInTheDocument();
-    expect(screen.getAllByText(/chưa có dữ liệu usage/i)).toHaveLength(2);
+    expect(screen.getAllByText(/chưa có dữ liệu sử dụng/i)).toHaveLength(2);
   });
 
   it('announces a failed dashboard load and offers retry', async () => {

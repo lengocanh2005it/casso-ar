@@ -13,3 +13,7 @@ stats.html
 .superpowers
 /backups
 apps/backend/uploads/
+dev-*.log
+dev-*.err.log
+runtime-*.log
+runtime-*.err.log

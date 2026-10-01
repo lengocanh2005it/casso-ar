@@ -25,6 +25,8 @@ describe('BillingTab', () => {
 
     render(<BillingTab />);
 
+    expect(screen.getByText('Khởi đầu')).toBeInTheDocument();
+    expect(screen.getByText('Chuyên nghiệp')).toBeInTheDocument();
     const upgradeButtons = screen.getAllByRole('button', { name: 'Nâng cấp' });
     expect(upgradeButtons).toHaveLength(2); // BUSINESS, ENTERPRISE (not FREE, not current STARTER)
   });

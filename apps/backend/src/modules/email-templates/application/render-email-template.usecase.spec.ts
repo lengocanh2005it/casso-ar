@@ -40,8 +40,27 @@ describe('RenderEmailTemplateUseCase', () => {
 
     expect(result.subject).toBe('Invoice INV-001 — Casso AR');
     expect(result.bodyHtml).toBe(
-      '<p>Company B, owes 40 / 100, due 2026-08-10, 5 days overdue</p>',
+      '<p>Company B, owes 40 ₫ / 100 ₫, due 2026-08-10, 5 days overdue</p>',
     );
+  });
+
+  it('formats money as readable VND so customers never see raw integers', () => {
+    const template = buildTemplate(
+      'Hóa đơn {{invoiceNumber}}',
+      '<p>Còn lại {{remainingAmount}} / {{originalAmount}}</p>',
+    );
+
+    const result = useCase.render(template, {
+      customerName: 'ABC',
+      invoiceNumber: 'INV-2026-0088',
+      originalAmount: 50_000_000,
+      remainingAmount: 20_000_000,
+      dueDate: '2026-08-10',
+      daysOverdue: 0,
+      organizationName: 'Casso',
+    });
+
+    expect(result.bodyHtml).toBe('<p>Còn lại 20.000.000 ₫ / 50.000.000 ₫</p>');
   });
 
   it('HTML-escapes variable values to prevent XSS (e.g. a customerName imported from Excel)', () => {

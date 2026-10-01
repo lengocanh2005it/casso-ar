@@ -779,6 +779,8 @@ Success = a single document a new developer can read and know exactly what to pi
 
 **Current status (2026-08-16):** Casso Admin Platform (#98) shipped via PR #177. Copilot Draft Library (#136), its edit/delete follow-up (#171), Receivable Balance History (#172), member-level block/unblock (#178), Receivable Balance History Audit Dashboard (#176), both halves of #181 (member block/unblock UI — org-facing via PR #185, Admin Platform operator workspace via PR #190), Public Landing Page (#143) via PR #188, and Admin Platform pending invite resend/revoke actions (#189) via PR #191 are done. Three unrelated e2e failures are deferred to a separate issue.
 
+- #351 — Copilot whole-page UI audit and follow-up fixes, including sub-issue #440 (safe bold Markdown in assistant responses). **Status: done. Shipped: 2026-10-01 — PR #443 (open for review).**
+
 **In progress:**
 - #262 — Frontend for business identity verification at signup (backend #245 shipped via PR #263; branch `lengocanh2005it/feat-262-fe-business-verification`).
 - #369 — Audit infra: `relatedReceivableId` correlation for receivable-relevant audit events, the prerequisite for #360's contextual receivable audit trail; plan `docs/superpowers/plans/2026-08-26-audit-related-receivable-id.md`; PR #370 open (not yet merged), branch `chore/audit-related-receivable-id`.
