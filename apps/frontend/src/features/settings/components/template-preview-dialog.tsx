@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { createEmailPreviewDocument } from '@/lib/email-preview-document';
 import type { EmailTemplate } from '@/lib/use-email-templates';
 import { usePreviewTemplate } from '../api/use-settings';
 
@@ -55,7 +56,7 @@ export function TemplatePreviewDialog({
               title="Email body preview"
               className="min-h-48 w-full rounded border"
               sandbox=""
-              srcDoc={preview.data.bodyHtml}
+              srcDoc={createEmailPreviewDocument(preview.data.bodyHtml)}
             />
           </div>
         )}

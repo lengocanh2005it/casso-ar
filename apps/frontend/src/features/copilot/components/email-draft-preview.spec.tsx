@@ -37,7 +37,10 @@ describe('EmailDraftPreview', () => {
     const iframe = screen.getByTitle('Xem trước email') as HTMLIFrameElement;
     expect(iframe).toBeInTheDocument();
     expect(iframe.getAttribute('sandbox')).toBe('');
-    expect(iframe.srcdoc).toBe(bodyHtml);
+    expect(iframe.srcdoc).toContain(
+      '<p>Kính gửi ABC, còn lại 1.000.000 VND.</p>',
+    );
+    expect(iframe.srcdoc).toContain("default-src 'none'");
   });
 
   it('switches to escaped HTML-code view and back', () => {

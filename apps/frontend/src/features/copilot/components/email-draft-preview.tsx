@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { createEmailPreviewDocument } from '@/lib/email-preview-document';
 
 export function EmailDraftPreview({
   subject,
@@ -59,7 +60,7 @@ export function EmailDraftPreview({
             <iframe
               title="Xem trước email"
               sandbox=""
-              srcDoc={bodyHtml}
+              srcDoc={createEmailPreviewDocument(bodyHtml)}
               className="h-64 w-full rounded-md border bg-white"
             />
           </TabsContent>
