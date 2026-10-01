@@ -350,7 +350,7 @@ export function SplitMatchDialog({
                     type="number"
                     min={0}
                     step={1}
-                    className="h-10 w-full text-right font-semibold tabular-nums sm:w-40"
+                    className="h-10 w-full text-right tabular-nums sm:w-40"
                     value={amounts[candidate.receivableId] ?? ''}
                     onChange={(event) => {
                       setAmounts((current) => ({

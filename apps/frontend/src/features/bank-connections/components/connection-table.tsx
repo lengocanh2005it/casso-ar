@@ -197,9 +197,11 @@ export function ConnectionTable({
       <TableHeader>
         <TableRow>
           <TableHead className="min-w-40">Ngân hàng</TableHead>
-          <TableHead className="min-w-44">Số tài khoản</TableHead>
+          <TableHead className="min-w-44 text-right">Số tài khoản</TableHead>
           <TableHead className="min-w-36">Trạng thái</TableHead>
-          <TableHead className="min-w-36">Đồng bộ gần nhất</TableHead>
+          <TableHead className="min-w-36 text-right">
+            Đồng bộ gần nhất
+          </TableHead>
           {canManage && <TableHead className="min-w-32">Thao tác</TableHead>}
         </TableRow>
       </TableHeader>

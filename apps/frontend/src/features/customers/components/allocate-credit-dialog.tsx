@@ -140,7 +140,7 @@ export function AllocateCreditDialog({
                 setError(null);
               }}
               disabled={!receivable}
-              className="h-10 text-right font-semibold tabular-nums"
+              className="h-10 text-right tabular-nums"
             />
             <span className="text-xs text-muted-foreground tabular-nums">
               Tối đa:{' '}

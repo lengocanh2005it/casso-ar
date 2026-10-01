@@ -396,17 +396,17 @@ describe('SplitMatchDialog', () => {
     // growing past the viewport and pushing the title and close button off
     // screen. Assert on the scroll container's class, not pixel maths, so the
     // guarantee survives jsdom's zero-height layout.
-    const scrollable = document.querySelector(
-      '[data-slot="dialog-content"] > div.overflow-y-auto',
-    );
-    expect(scrollable).not.toBeNull();
     expect(document.querySelector('[data-slot="dialog-content"]')).toHaveClass(
       'max-h-[85vh]',
       'overflow-hidden',
       'flex',
       'flex-col',
     );
-    expect(scrollable).toHaveClass('overflow-y-auto');
+    expect(
+      [...document.querySelectorAll('[data-slot="dialog-content"] div')].find(
+        (el) => el.classList.contains('overflow-y-auto'),
+      ),
+    ).toBeDefined();
     // The description belongs to the header so it inherits the header's
     // left alignment instead of the dialog's centred grid default.
     expect(

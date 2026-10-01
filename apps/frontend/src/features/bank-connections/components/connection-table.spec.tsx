@@ -169,9 +169,19 @@ describe('ConnectionTable', () => {
     const accountCell = screen.getByText('0123456789').closest('td');
     expect(accountCell).toHaveClass('text-right', 'tabular-nums');
     const syncCell = screen
-      .getByText(formatDateTime(connection.lastSyncAt ?? '2026-08-10'))
+      .getByText(formatDateTime(connection.lastSyncAt ?? ''))
       .closest('td');
     expect(syncCell).toHaveClass('text-right', 'tabular-nums');
+
+    // Headers must follow their cells, otherwise the label sits left over
+    // right-aligned data — the same half-pattern #346 was fixing.
+    const [accountHead, syncHead] = screen
+      .getAllByRole('columnheader')
+      .filter((h) =>
+        ['Số tài khoản', 'Đồng bộ gần nhất'].includes(h.textContent ?? ''),
+      );
+    expect(accountHead).toHaveClass('text-right');
+    expect(syncHead).toHaveClass('text-right');
   });
 
   it('names the disconnect action with the bank instead of a generic label', () => {

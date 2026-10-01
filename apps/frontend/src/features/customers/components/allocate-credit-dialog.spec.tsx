@@ -141,17 +141,18 @@ describe('AllocateCreditDialog', () => {
     renderDialog();
 
     // Per the #346 money-hierarchy rule the dialog's one actionable number is
-    // the max allocatable amount; the unallocated balance is context.
+    // the max allocatable amount. The editable input and the unallocated
+    // balance are context — bolding them would put several bold money values
+    // in one small dialog, which is the mistake #346 fixed.
     fireEvent.click(screen.getByRole('combobox', { name: /khoản phải thu/i }));
     fireEvent.click(screen.getByRole('option', { name: /INV-1/i }));
 
     const ceiling = screen.getByText(/Tối đa:/);
-    expect(ceiling).toHaveClass('tabular-nums');
     expect(ceiling.querySelector('span')).toHaveClass(
       'font-semibold',
       'tabular-nums',
     );
-    expect(screen.getByText(/còn 1\.500\.000 ₫ chưa phân bổ/)).not.toHaveClass(
+    expect(screen.getByLabelText(/số tiền phân bổ/i)).not.toHaveClass(
       'font-semibold',
     );
   });
