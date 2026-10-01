@@ -113,6 +113,40 @@ describe('AllocateCreditDialog', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('rejects an over-ceiling amount while typing, before the user submits', () => {
+    renderDialog();
+
+    fireEvent.click(screen.getByRole('combobox', { name: /khoản phải thu/i }));
+    fireEvent.click(screen.getByRole('option', { name: /INV-1/i }));
+    fireEvent.change(screen.getByLabelText(/số tiền phân bổ/i), {
+      target: { value: '1000001' },
+    });
+
+    // The ceiling is 1.000.000 (min of the 1.500.000 unallocated payment and
+    // the 1.000.000 remaining balance). Silent rejection on submit alone
+    // leaves the field looking valid while holding an impossible value.
+    expect(screen.getByRole('alert')).toHaveTextContent('không được vượt quá');
+    expect(screen.getByLabelText(/số tiền phân bổ/i)).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+  });
+
+  it('clears the ceiling error once the amount is corrected', () => {
+    renderDialog();
+
+    fireEvent.click(screen.getByRole('combobox', { name: /khoản phải thu/i }));
+    fireEvent.click(screen.getByRole('option', { name: /INV-1/i }));
+    const input = screen.getByLabelText(/số tiền phân bổ/i);
+
+    fireEvent.change(input, { target: { value: '1000001' } });
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: '1000000' } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(input).toHaveAttribute('aria-invalid', 'false');
+  });
+
   it('posts a valid allocation and shows backend allocation errors inline', async () => {
     postWithIdempotency.mockRejectedValueOnce({
       response: { data: { errorCode: 'CUSTOMER_MISMATCH' } },

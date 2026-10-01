@@ -58,6 +58,11 @@ export function AllocateCreditDialog({
     Number.isInteger(parsedAmount) &&
     parsedAmount > 0 &&
     parsedAmount <= maxAmount;
+  const overCeiling =
+    amount !== '' && Number.isInteger(parsedAmount) && parsedAmount > maxAmount;
+  const overCeilingMessage = `Số tiền phân bổ không được vượt quá ${formatVND(
+    maxAmount,
+  )} và phải là số nguyên dương.`;
 
   function submit() {
     if (!receivable) {
@@ -65,9 +70,7 @@ export function AllocateCreditDialog({
       return;
     }
     if (!validAmount) {
-      setError(
-        `Số tiền phân bổ không được vượt quá ${formatVND(maxAmount)} và phải là số nguyên dương.`,
-      );
+      setError(overCeilingMessage);
       return;
     }
 
@@ -136,9 +139,15 @@ export function AllocateCreditDialog({
               step={1}
               value={amount}
               onChange={(event) => {
-                setAmount(event.target.value);
-                setError(null);
+                const next = event.target.value;
+                setAmount(next);
+                if (receivable && Number(next) > maxAmount) {
+                  setError(overCeilingMessage);
+                } else {
+                  setError(null);
+                }
               }}
+              aria-invalid={overCeiling}
               disabled={!receivable}
               className="h-10 text-right tabular-nums"
             />
