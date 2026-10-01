@@ -1,4 +1,5 @@
 import { FileText, Wallet } from 'lucide-react';
+import { renderHighlighted } from './copilot-highlight';
 
 export interface CopilotReceivableRow {
   customerName: string;
@@ -44,28 +45,33 @@ export function CopilotReceivableList({
             <span className="mr-1.5 text-xs font-semibold text-muted-foreground">
               {index + 1}.
             </span>
-            {row.customerName}
+            {renderHighlighted(row.customerName, `n${index}`)}
           </p>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <span className="inline-flex min-w-0 items-center gap-1.5">
               <FileText aria-hidden="true" className="size-3.5 shrink-0" />
               <span className="shrink-0">Hoá đơn:</span>
               <span className="min-w-0 break-words font-medium text-foreground">
-                {row.invoiceNumber ?? 'Chưa có số hoá đơn'}
+                {row.invoiceNumber
+                  ? renderHighlighted(row.invoiceNumber, `i${index}`)
+                  : 'Chưa có số hoá đơn'}
               </span>
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Wallet aria-hidden="true" className="size-3.5 shrink-0" />
               <span>Còn lại:</span>
               <span className="font-semibold text-primary">
-                {formatAmount(row.remainingAmount)}
+                {renderHighlighted(
+                  formatAmount(row.remainingAmount),
+                  `a${index}`,
+                )}
               </span>
             </span>
             {row.dueDate && (
               <span className="inline-flex items-center gap-1.5">
                 <span>Hạn:</span>
                 <span className="font-medium text-foreground">
-                  {row.dueDate}
+                  {renderHighlighted(row.dueDate, `d${index}`)}
                 </span>
               </span>
             )}

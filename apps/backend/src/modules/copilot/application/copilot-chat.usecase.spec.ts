@@ -1,3 +1,7 @@
+import {
+  COPILOT_NO_INVOICE_LABEL,
+  COPILOT_RECEIVABLE_FIELDS,
+} from '@casso-ar/shared-types';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { Role } from '../../organizations/domain/membership';
 import { CopilotChatUseCase, SYSTEM_PROMPT } from './copilot-chat.usecase';
@@ -92,7 +96,15 @@ describe('CopilotChatUseCase', () => {
     // receivable across several lines, which broke the card layout.
     expect(SYSTEM_PROMPT).toContain('Never split a receivable across lines');
     expect(SYSTEM_PROMPT).toContain('never rename or drop those labels');
-    expect(SYSTEM_PROMPT).toContain('"Chưa có số hóa đơn"');
+    expect(SYSTEM_PROMPT).toContain(`"${COPILOT_NO_INVOICE_LABEL}"`);
+  });
+
+  it('writes the exact labels the frontend parser reads back', () => {
+    // The prompt and the parser must not drift: a renamed label makes a row
+    // silently fall back to a paragraph instead of a labelled card.
+    for (const label of Object.values(COPILOT_RECEIVABLE_FIELDS)) {
+      expect(SYSTEM_PROMPT).toContain(`"${label}"`);
+    }
   });
 
   it('rejects a conversation owned by another user before reading or appending', async () => {

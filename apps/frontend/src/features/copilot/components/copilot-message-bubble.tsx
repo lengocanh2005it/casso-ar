@@ -1,53 +1,15 @@
+import {
+  COPILOT_RECEIVABLE_FIELD_ALIASES,
+  type CopilotReceivableField,
+} from '@casso-ar/shared-types';
 import { Bot, StopCircle } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { CopilotMessage } from '../types';
+import { HIGHLIGHT_CLASS, renderHighlighted } from './copilot-highlight';
 import {
   CopilotReceivableList,
   type CopilotReceivableRow,
 } from './copilot-receivable-list';
-
-const HIGHLIGHT_CLASS =
-  'rounded bg-primary/15 px-1 py-0.5 font-semibold text-primary ring-1 ring-primary/25';
-
-/**
- * VND amounts and dd/mm/yyyy dates are what a collections user scans for, so we
- * highlight them in the UI rather than trusting the model to mark every value.
- */
-const HIGHLIGHT_PATTERN =
-  /((?:Công ty|Hợp tác xã|Doanh nghiệp)[^:\n]{2,100}(?=:)|\d{1,2}\/\d{1,2}\/\d{4}|\d[\d.,]*(?:\s(?:VNĐ|đ|VND))?)/g;
-
-const CURRENCY_SUFFIX = /(?:\s(?:VNĐ|đ|VND))$/i;
-
-function isHighlightable(token: string): boolean {
-  if (/^(?:Công ty|Hợp tác xã|Doanh nghiệp)/.test(token)) return true;
-  if (/\//.test(token)) return /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(token);
-  return CURRENCY_SUFFIX.test(token) || /\d{1,3}(?:[.,]\d{3})+/.test(token);
-}
-
-function renderHighlighted(text: string, keyPrefix: string): ReactNode[] {
-  const nodes: ReactNode[] = [];
-  let cursor = 0;
-  let index = 0;
-
-  for (const match of text.matchAll(HIGHLIGHT_PATTERN)) {
-    const token = match[0];
-    if (!isHighlightable(token)) continue;
-    const start = match.index ?? cursor;
-    if (start > cursor) nodes.push(text.slice(cursor, start));
-    nodes.push(
-      <mark
-        key={`${keyPrefix}-${start}-${index++}`}
-        className={HIGHLIGHT_CLASS}
-      >
-        {token}
-      </mark>,
-    );
-    cursor = start + token.length;
-  }
-
-  nodes.push(text.slice(cursor));
-  return nodes;
-}
 
 function renderAssistantContent(content: string) {
   const parts: ReactNode[] = [];
@@ -75,23 +37,13 @@ function renderAssistantContent(content: string) {
  * their own lines. So locate the labels instead of matching one rigid shape:
  * whatever sits before the first label is the customer name, and each value
  * runs up to the next label. A block only becomes a row once it carries an
- * amount; everything else stays prose. ponytail: the labels are duplicated
- * between prompt and parser — have the tool return structured rows if the
- * model keeps drifting.
+ * amount; everything else stays prose.
  */
 const LIST_ITEM_RE = /^\s*(?:\d+|[A-Za-z])[.)]\s*(.+)$/;
 const SURROUNDING_NOISE = /^[\s\-–—:|*]+|[\s\-–—:|*]+$/gu;
 
-const LABELS = {
-  invoice: ['số hoá đơn:', 'số hóa đơn:', 'hoá đơn:', 'hóa đơn:'],
-  amount: ['số tiền còn lại:', 'số tiền:'],
-  due: ['hạn thanh toán:', 'ngày đáo hạn:', 'đến hạn:', 'hạn:'],
-} as const;
-
-type Field = keyof typeof LABELS;
-
 interface FieldMatch {
-  field: Field;
+  field: CopilotReceivableField;
   start: number;
   valueStart: number;
 }
@@ -104,11 +56,13 @@ const LEADING_MARKER = /^(?:\s*(?:\d+|[A-Za-z])[.)]\s*|\s*[-–—•*]\s*)+/;
 
 function locateFields(text: string): FieldMatch[] {
   const lower = text.toLowerCase();
-  const earliest = new Map<Field, FieldMatch>();
+  const earliest = new Map<CopilotReceivableField, FieldMatch>();
 
-  for (const field of Object.keys(LABELS) as Field[]) {
-    for (const label of LABELS[field]) {
-      const start = lower.indexOf(label);
+  for (const [field, labels] of Object.entries(
+    COPILOT_RECEIVABLE_FIELD_ALIASES,
+  ) as [CopilotReceivableField, readonly string[]][]) {
+    for (const label of labels) {
+      const start = lower.indexOf(label.toLowerCase());
       if (start < 0) continue;
       const seen = earliest.get(field);
       if (seen && seen.start <= start) continue;
@@ -135,7 +89,7 @@ function buildReceivableRow(text: string): CopilotReceivableRow | null {
   const fields = locateFields(text);
   if (fields.length === 0) return null;
 
-  const values = new Map<Field, string>();
+  const values = new Map<CopilotReceivableField, string>();
   fields.forEach((field, index) => {
     const end = fields[index + 1]?.start ?? text.length;
     values.set(field.field, trimSeparators(text.slice(field.valueStart, end)));

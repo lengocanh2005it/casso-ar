@@ -94,4 +94,23 @@ describe('CopilotReceivableList', () => {
 
     expect(screen.getByText(expected)).toBeInTheDocument();
   });
+
+  it('highlights the figures inside each row so they scan like prose', () => {
+    const { container } = render(<CopilotReceivableList rows={rows} />);
+
+    const marks = container.querySelectorAll('mark');
+    expect(marks.length).toBeGreaterThan(0);
+    expect(screen.getByText('13.000.000').tagName).toBe('MARK');
+    expect(
+      screen.getAllByText('29/04/2026').every((el) => el.tagName === 'MARK'),
+    ).toBe(true);
+  });
+
+  it('leaves the placeholder for a missing invoice out of the highlight', () => {
+    const { container } = render(<CopilotReceivableList rows={rows} />);
+
+    expect(
+      [...container.querySelectorAll('mark')].map((el) => el.textContent),
+    ).not.toContain('Chưa có số hoá đơn');
+  });
 });
