@@ -66,4 +66,11 @@ describe('ProfileDialog', () => {
       });
     });
   });
+
+  it('shows the subscription tier in Vietnamese', () => {
+    render(<ProfileDialog open onOpenChange={vi.fn()} />);
+
+    expect(screen.getByText('Chuyên nghiệp')).toBeInTheDocument();
+    expect(screen.queryByText('BUSINESS')).not.toBeInTheDocument();
+  });
 });

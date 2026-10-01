@@ -9,10 +9,10 @@ import { useInitiatePlanUpgrade } from '../api/use-settings';
 import { PaymentDialog } from './payment-dialog';
 
 const planLabels: Record<PlanId, string> = {
-  [PlanId.FREE]: 'Free',
-  [PlanId.STARTER]: 'Starter',
-  [PlanId.BUSINESS]: 'Business',
-  [PlanId.ENTERPRISE]: 'Enterprise',
+  [PlanId.FREE]: 'Miễn phí',
+  [PlanId.STARTER]: 'Khởi đầu',
+  [PlanId.BUSINESS]: 'Chuyên nghiệp',
+  [PlanId.ENTERPRISE]: 'Doanh nghiệp',
 };
 
 // Ascending tier order — index position doubles as the upgrade-eligibility rule.

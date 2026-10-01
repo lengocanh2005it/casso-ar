@@ -286,14 +286,25 @@ export function TemplateDialog({
                     ref={fileInputRef}
                     type="file"
                     accept="application/pdf,image/png,image/jpeg"
-                    aria-label="Chọn file đính kèm"
+                    aria-label="Chọn tệp gửi kèm"
                     disabled={
                       uploadAttachment.isPending ||
                       template.attachments.length >= 5
                     }
                     onChange={handleFileChange}
-                    className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:font-medium file:text-secondary-foreground pointer-hover:file:hover:bg-secondary/80"
+                    className="hidden"
                   />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={
+                      uploadAttachment.isPending ||
+                      template.attachments.length >= 5
+                    }
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Chọn tệp gửi kèm
+                  </Button>
                   {uploadAttachment.isPending && (
                     <p role="status" className="text-xs text-muted-foreground">
                       Đang tải file lên…

@@ -109,7 +109,7 @@ export const LANDING_SHOWCASE_SCREENS = [
     description:
       'Toàn bộ công nợ, dòng tiền và giao dịch chờ đối soát gói gọn trong một trang tổng quan.',
     image: '/showcase-dashboard.jpg',
-    alt: 'Giao diện Dashboard tổng quan công nợ của Casso AR',
+    alt: 'Giao diện tổng quan công nợ của Casso AR',
     icon: LayoutDashboard,
   },
   {
@@ -145,26 +145,26 @@ export const LANDING_STEPS = [
 ] as const;
 
 export const PLAN_LABELS: Record<PlanId, string> = {
-  [PlanId.FREE]: 'Free',
-  [PlanId.STARTER]: 'Starter',
-  [PlanId.BUSINESS]: 'Business',
-  [PlanId.ENTERPRISE]: 'Enterprise',
+  [PlanId.FREE]: 'Miễn phí',
+  [PlanId.STARTER]: 'Khởi đầu',
+  [PlanId.BUSINESS]: 'Chuyên nghiệp',
+  [PlanId.ENTERPRISE]: 'Doanh nghiệp',
 };
 
 export const PLAN_FEATURE_COPY: Record<PlanId, string[]> = {
   [PlanId.FREE]: ['Theo dõi công nợ cơ bản', 'Đối chiếu giao dịch ngân hàng'],
   [PlanId.STARTER]: [
-    'Mọi tính năng gói Free',
+    'Mọi tính năng của gói Miễn phí',
     'Nhắc nợ tự động qua email',
     'Báo cáo tuổi nợ',
   ],
   [PlanId.BUSINESS]: [
-    'Mọi tính năng gói Starter',
+    'Mọi tính năng của gói Khởi đầu',
     'Phân quyền theo vai trò trong công ty',
     'Gửi email nhắc nợ từ địa chỉ công ty bạn',
   ],
   [PlanId.ENTERPRISE]: [
-    'Mọi tính năng gói Business',
+    'Mọi tính năng của gói Chuyên nghiệp',
     'Không giới hạn số kết nối ngân hàng',
     'Hỗ trợ ưu tiên',
   ],

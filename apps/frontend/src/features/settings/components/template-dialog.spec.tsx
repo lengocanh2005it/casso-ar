@@ -23,6 +23,14 @@ const template: EmailTemplate = {
 };
 
 describe('TemplateDialog', () => {
+  it('uses a localized attachment picker action', () => {
+    render(<TemplateDialog template={template} open onOpenChange={vi.fn()} />);
+
+    expect(
+      screen.getByRole('button', { name: 'Chọn tệp gửi kèm' }),
+    ).toBeInTheDocument();
+  });
+
   it('keeps the mobile editor and preview in content-sized rows', () => {
     render(<TemplateDialog template={template} open onOpenChange={vi.fn()} />);
 

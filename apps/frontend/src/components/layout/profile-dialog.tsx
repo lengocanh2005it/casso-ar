@@ -21,10 +21,11 @@ import { ChangePasswordForm } from '@/features/profile/components/change-passwor
 
 function getPlanLabel(plan: string): string {
   const labels: Record<string, string> = {
-    FREE: 'Free',
-    STARTER: 'Starter',
-    GROWTH: 'Growth',
-    ENTERPRISE: 'Enterprise',
+    FREE: 'Miễn phí',
+    STARTER: 'Khởi đầu',
+    GROWTH: 'Chuyên nghiệp',
+    BUSINESS: 'Chuyên nghiệp',
+    ENTERPRISE: 'Doanh nghiệp',
   };
   return labels[plan] ?? plan;
 }
@@ -169,6 +170,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
+                      aria-label="Đổi ảnh đại diện"
                       className="absolute bottom-0 right-0 flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md hover:bg-primary/90"
                     >
                       <Camera className="size-4" />

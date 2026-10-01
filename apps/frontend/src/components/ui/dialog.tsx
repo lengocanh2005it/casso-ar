@@ -70,7 +70,7 @@ function DialogContent({
             className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-[opacity,transform] duration-150 ease-out motion-reduce:transition-none motion-reduce:active:scale-100 pointer-hover:hover:opacity-100 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-hidden disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             <XIcon aria-hidden="true" />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">Đóng hộp thoại</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
@@ -108,7 +108,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
+          <Button variant="outline">Đóng</Button>
         </DialogPrimitive.Close>
       )}
     </div>

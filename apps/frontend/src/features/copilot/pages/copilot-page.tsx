@@ -366,7 +366,7 @@ export function CopilotPage() {
               className="mt-2 text-sm text-muted-foreground"
               id="copilot-gate-description"
             >
-              Tính năng Copilot yêu cầu gói Starter hoặc cao hơn.
+              Bạn cần gói Khởi đầu trở lên để dùng Copilot.
             </p>
             {canUpgrade ? (
               <Button

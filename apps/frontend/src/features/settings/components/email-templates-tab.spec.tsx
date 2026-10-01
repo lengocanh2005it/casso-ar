@@ -118,7 +118,7 @@ describe('EmailTemplatesTab', () => {
       expect(screen.getByText('Due date reminder')).toBeTruthy(),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Sửa' }));
-    fireEvent.change(screen.getByLabelText('Chọn file đính kèm'), {
+    fireEvent.change(screen.getByLabelText('Chọn tệp gửi kèm'), {
       target: {
         files: [new File(['image'], 'brand.png', { type: 'image/png' })],
       },
