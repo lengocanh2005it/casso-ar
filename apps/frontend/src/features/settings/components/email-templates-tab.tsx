@@ -120,7 +120,7 @@ export function EmailTemplatesTab() {
                       <Button
                         variant="outline"
                         size="sm"
-                        aria-label="Preview template"
+                        aria-label="Xem trước mẫu email"
                         onClick={() => setPreviewing(template)}
                       >
                         Xem trước

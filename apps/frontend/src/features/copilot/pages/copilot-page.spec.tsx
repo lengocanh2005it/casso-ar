@@ -128,7 +128,7 @@ describe('CopilotPage', () => {
       expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
     );
     expect(screen.getByRole('button', { name: /send/i })).toBeDisabled();
-    const composer = screen.getByLabelText(/enter question/i);
+    const composer = screen.getByLabelText(/nhập câu hỏi/i);
     expect(composer).toHaveClass('focus-visible:ring-[3px]');
     expect(composer).not.toHaveClass('focus-visible:ring-0');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -244,7 +244,7 @@ describe('CopilotPage', () => {
       expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
     );
 
-    fireEvent.change(screen.getByLabelText(/enter question/i), {
+    fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
       target: { value: 'Send reminder email for r1' },
     });
     fireEvent.click(screen.getByRole('button', { name: /send/i }));
@@ -278,7 +278,7 @@ describe('CopilotPage', () => {
       expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
     );
 
-    fireEvent.change(screen.getByLabelText(/enter question/i), {
+    fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
       target: { value: 'Câu hỏi dài' },
     });
     fireEvent.click(screen.getByRole('button', { name: /send/i }));
@@ -354,7 +354,7 @@ describe('CopilotPage', () => {
     await waitFor(() =>
       expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
     );
-    fireEvent.change(screen.getByLabelText(/enter question/i), {
+    fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
       target: { value: 'Tóm tắt công nợ' },
     });
     fireEvent.click(screen.getByRole('button', { name: /send/i }));
@@ -362,7 +362,7 @@ describe('CopilotPage', () => {
     await waitFor(() =>
       expect(screen.getByText(/đã đạt giới hạn gói free/i)).toBeInTheDocument(),
     );
-    expect(screen.getByLabelText(/enter question/i)).toBeDisabled();
+    expect(screen.getByLabelText(/nhập câu hỏi/i)).toBeDisabled();
   });
 
   it('allows the chat column to shrink inside the Copilot flex layout', async () => {
@@ -401,7 +401,7 @@ describe('CopilotPage', () => {
     await waitFor(() =>
       expect(screen.getByText(/hỏi copilot về công nợ/i)).toBeInTheDocument(),
     );
-    fireEvent.change(screen.getByLabelText(/enter question/i), {
+    fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
       target: { value: 'Tóm tắt công nợ' },
     });
     fireEvent.click(screen.getByRole('button', { name: /send/i }));

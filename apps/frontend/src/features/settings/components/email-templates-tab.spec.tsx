@@ -48,7 +48,9 @@ describe('EmailTemplatesTab', () => {
     await waitFor(() =>
       expect(screen.getByText('Due date reminder')).toBeTruthy(),
     );
-    fireEvent.click(screen.getByRole('button', { name: /preview/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /xem trước mẫu email/i }),
+    );
     await waitFor(() =>
       expect(screen.getByText('Payment reminder INV-1')).toBeTruthy(),
     );
@@ -70,7 +72,9 @@ describe('EmailTemplatesTab', () => {
     await waitFor(() =>
       expect(screen.getByText('Due date reminder')).toBeTruthy(),
     );
-    expect(screen.queryByRole('button', { name: /preview/i })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: /xem trước mẫu email/i }),
+    ).toBeNull();
     expect(screen.queryByRole('button', { name: /tạo mẫu/i })).toBeNull();
   });
 

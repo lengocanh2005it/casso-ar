@@ -53,7 +53,7 @@ export function TemplatePreviewDialog({
               {preview.data.subject}
             </h3>
             <iframe
-              title="Email body preview"
+              title="Bản xem trước nội dung email"
               className="min-h-48 w-full rounded border"
               sandbox=""
               srcDoc={createEmailPreviewDocument(preview.data.bodyHtml)}

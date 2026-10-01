@@ -46,7 +46,7 @@ export function AdminAiUsagePage() {
         tone="info"
       />
       <form
-        aria-label="Lọc usage"
+        aria-label="Lọc mức sử dụng"
         onSubmit={handleSubmit}
         className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-4"
       >
@@ -87,7 +87,7 @@ export function AdminAiUsagePage() {
       </form>
       {usageQuery.isError && (
         <p role="alert" aria-live="polite" className="text-sm text-destructive">
-          Không thể tải dữ liệu usage. Kiểm tra khoảng thời gian và thử lại.
+          Không thể tải dữ liệu sử dụng. Kiểm tra khoảng thời gian và thử lại.
         </p>
       )}
       <div className="overflow-hidden rounded-xl border bg-card">
@@ -108,7 +108,7 @@ export function AdminAiUsagePage() {
                   colSpan={5}
                   className="py-8 text-center text-muted-foreground"
                 >
-                  Chưa có dữ liệu usage trong khoảng thời gian đã chọn.
+                  Chưa có dữ liệu sử dụng trong khoảng thời gian đã chọn.
                 </TableCell>
               </TableRow>
             ) : (

@@ -54,7 +54,7 @@ describe('ConnectionTable', () => {
     expect(screen.getByText('Casso Bank')).toBeInTheDocument();
     expect(screen.getByText('0123456789')).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /disconnect/i }),
+      screen.getByRole('button', { name: /ngắt kết nối/i }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /reconnect/i }),
@@ -95,7 +95,7 @@ describe('ConnectionTable', () => {
       screen.getByRole('button', { name: /đổi api key/i }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /disconnect/i }),
+      screen.queryByRole('button', { name: /ngắt kết nối/i }),
     ).not.toBeInTheDocument();
   });
 

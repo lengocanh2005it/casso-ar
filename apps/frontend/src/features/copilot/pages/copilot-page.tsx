@@ -287,7 +287,7 @@ export function CopilotPage() {
               <Input
                 name="question"
                 autoComplete="off"
-                aria-label="Enter question"
+                aria-label="Nhập câu hỏi"
                 placeholder="Hỏi về công nợ…"
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}

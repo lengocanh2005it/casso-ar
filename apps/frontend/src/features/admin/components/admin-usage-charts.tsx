@@ -60,7 +60,7 @@ export function AdminUsageCharts({
               <EmptyState
                 density="compact"
                 icon={BarChart3}
-                title="Chưa có dữ liệu usage."
+                title="Chưa có dữ liệu sử dụng."
               />
             </div>
           ) : (
@@ -92,7 +92,7 @@ export function AdminUsageCharts({
               <EmptyState
                 density="compact"
                 icon={BarChart3}
-                title="Chưa có dữ liệu usage."
+                title="Chưa có dữ liệu sử dụng."
               />
             </div>
           ) : (
