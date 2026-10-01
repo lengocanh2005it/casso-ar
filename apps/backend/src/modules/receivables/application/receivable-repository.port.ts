@@ -18,8 +18,17 @@ export interface OverdueReceivableFilters {
   customerIdIn?: string[];
   invoiceIdIn?: string[];
   after?: { dueDate: Date; id: string };
+  sortBy?: OverdueReceivableSort;
   limit: number;
 }
+
+/**
+ * due_date_asc is the default because the "xem tiếp" cursor is a keyset on
+ * (dueDate, id) and only stays stable under that ordering. amount_desc exists
+ * for ranking questions ("ai nợ nhiều nhất"), which cannot be answered by
+ * scanning an earliest-due-date page.
+ */
+export type OverdueReceivableSort = 'due_date_asc' | 'amount_desc';
 
 export interface IReceivableRepository {
   findById(id: string): Promise<Receivable | null>;

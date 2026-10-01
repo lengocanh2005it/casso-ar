@@ -274,9 +274,16 @@ export class TypeOrmReceivableRepository
       );
     }
 
-    qb.orderBy('r.dueDate', 'ASC')
-      .addOrderBy('r.id', 'ASC')
-      .take(filters.limit);
+    // amount_desc still needs the (dueDate, id) tie-break so the continuation
+    // cursor keeps landing on a deterministic row.
+    if (filters.sortBy === 'amount_desc') {
+      qb.orderBy('(r.originalAmount - r.paidAmount)', 'DESC')
+        .addOrderBy('r.dueDate', 'ASC')
+        .addOrderBy('r.id', 'ASC');
+    } else {
+      qb.orderBy('r.dueDate', 'ASC').addOrderBy('r.id', 'ASC');
+    }
+    qb.take(filters.limit);
 
     const rows = await qb.getMany();
     return rows.map(toDomain);

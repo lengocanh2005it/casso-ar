@@ -107,6 +107,22 @@ describe('CopilotChatUseCase', () => {
     }
   });
 
+  it('routes comparison questions to findOverdueReceivables instead of refusing', () => {
+    // The tool description used to frame findOverdueReceivables as only a
+    // reminder-target picker, so the model refused analytics questions like
+    // "khách hàng nào nợ nhiều nhất" even though the tool answers them.
+    expect(SYSTEM_PROMPT).toContain('never reply that you "cannot find"');
+    expect(SYSTEM_PROMPT).toContain('sortBy "amount_desc"');
+    expect(SYSTEM_PROMPT).toContain('A ranking page cannot be continued');
+  });
+
+  it('tells the model to follow receivableId into the per-customer tools', () => {
+    // getReceivableSummary/getPaymentHistory/getCollectionActivityTimeline
+    // all key on customerId, which no tool exposed before this fix, so those
+    // three advertised capabilities were unreachable.
+    expect(SYSTEM_PROMPT).toContain('customerId');
+  });
+
   it('rejects a conversation owned by another user before reading or appending', async () => {
     const aiProvider = { createChatCompletion: jest.fn() };
     const deps = buildDeps({

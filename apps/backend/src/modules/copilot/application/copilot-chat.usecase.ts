@@ -4,7 +4,7 @@ import {
   Permission,
   ROLE_PERMISSIONS,
 } from '@casso-ar/shared-types';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import {
@@ -68,6 +68,8 @@ export const SYSTEM_PROMPT = [
   'Use a professional, neutral enterprise tone with concise, action-oriented responses without sounding casual or promotional. Avoid unnecessary first-person phrasing such as "tôi". Prefer the terms công nợ, khoản phải thu, thanh toán, quá hạn, khách hàng, and email nhắc thanh toán.',
   'Format answers for quick scanning: wrap every customer name, invoice number, amount, and due date in **double asterisks** so the interface can highlight them, and place at most one relevant emoji at the start of a reply or list item (for example 💰 for amounts and results, 📅 for dates and deadlines, ⚠️ for overdue items, ✉️ for email drafts). Never place an emoji inside a customer name, amount, or date, and never add emoji to every sentence.',
   'Use only structured JSON returned by read tools and facts already present in the conversation. Never invent customer, receivable, invoice, amount, due-date, payment-history, or recipient data.',
+  'Every question about receivables is answerable with your tools — never reply that you "cannot find", "cannot search", or lack the information. If a question asks who owes the most, who is most overdue, or what the total is, call findOverdueReceivables with sortBy "amount_desc" and answer from the result; if you have not called a read tool yet this turn, call it before answering. A ranking page cannot be continued, so do not offer "xem tiếp" for it.',
+  'findOverdueReceivables returns customerId on every item. Pass that customerId to getReceivableSummary, getPaymentHistory and getCollectionActivityTimeline to follow up on one customer. Never show a customerId or receivableId to the user.',
   'If the user asks to prepare a reminder without identifying a customer or receivable, ask in Vietnamese for the customer name or invoice number; do not guess, select an arbitrary receivable, or create a draft.',
   'Never expose internal UUIDs, tool names, schema field names, raw provider errors, or implementation details in user-facing text. Summarize recoverable tool errors in Vietnamese without repeating technical error messages.',
   'If the user wants to send a reminder email, call draftReminderEmail first to create a draft, then call sendReminderEmail to propose sending it — the user must separately confirm the actual send; you do not send it yourself.',
@@ -186,6 +188,8 @@ type ToolCallRecord = NonNullable<CopilotMessageRecord['toolCalls']>[number];
 
 @Injectable()
 export class CopilotChatUseCase {
+  private readonly logger = new Logger(CopilotChatUseCase.name);
+
   constructor(
     @Inject(AI_CHAT_PROVIDER)
     private readonly aiProvider: IAIChatProvider,
@@ -366,10 +370,22 @@ export class CopilotChatUseCase {
             'Cursor không hợp lệ.',
           );
         }
+        const sortBy = input.sortBy;
+        if (
+          sortBy !== undefined &&
+          sortBy !== 'due_date_asc' &&
+          sortBy !== 'amount_desc'
+        ) {
+          throw new AppError(
+            ErrorCode.VALIDATION_ERROR,
+            'Tham số sortBy chỉ nhận "due_date_asc" hoặc "amount_desc".',
+          );
+        }
         return this.findOverdueReceivablesTool.execute({
           search: search !== undefined ? search : undefined,
           limit: limit !== undefined ? limit : undefined,
           cursor,
+          sortBy,
         });
       }
       case DraftReminderEmailTool.NAME:
@@ -623,7 +639,16 @@ export class CopilotChatUseCase {
             call.arguments,
             user.organizationId,
             user.userId,
-          ).catch((error: unknown) => toToolErrorPayload(error)),
+          ).catch((error: unknown) => {
+            this.logger.error({
+              message: 'Copilot tool call failed',
+              toolName: call.name,
+              organizationId: user.organizationId,
+              userId: user.userId,
+              error: error instanceof Error ? error.stack : String(error),
+            });
+            return toToolErrorPayload(error);
+          }),
         })),
       );
       this.trackDraftToolCalls(response.toolCalls, toolResults, draftToolCalls);
@@ -796,7 +821,16 @@ export class CopilotChatUseCase {
               call.arguments,
               user.organizationId,
               user.userId,
-            ).catch((error: unknown) => toToolErrorPayload(error)),
+            ).catch((error: unknown) => {
+              this.logger.error({
+                message: 'Copilot tool call failed',
+                toolName: call.name,
+                organizationId: user.organizationId,
+                userId: user.userId,
+                error: error instanceof Error ? error.stack : String(error),
+              });
+              return toToolErrorPayload(error);
+            }),
           })),
         );
         this.trackDraftToolCalls(toolCalls, toolResults, draftToolCalls);

@@ -91,7 +91,7 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
   registry.register({
     name: FindOverdueReceivablesTool.NAME,
     description:
-      'Find overdue receivables for the current organization to choose a reminder target (returns candidate id, customer name, invoice number, remaining amount, due date).',
+      'Search overdue receivables for the current organization. Use it for lists, totals and rankings (largest debt, most overdue) as well as for picking a reminder target. Returns receivableId, customerId, customer name, invoice number, remaining amount and due date per item.',
     inputSchema: FIND_OVERDUE_RECEIVABLES_SCHEMA,
     requiresReminderPermission: false,
   });

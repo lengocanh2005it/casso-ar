@@ -185,6 +185,7 @@ describe('Copilot read tools', () => {
         items: [
           {
             receivableId: 'rec-1',
+            customerId: 'cust-1',
             customerName: 'Công ty Alpha',
             invoiceNumber: 'INV-001',
             remainingAmount: 8_000_000,
@@ -192,6 +193,7 @@ describe('Copilot read tools', () => {
           },
           {
             receivableId: 'rec-2',
+            customerId: 'cust-2',
             customerName: 'Công ty Beta',
             invoiceNumber: null,
             remainingAmount: 5_000_000,
@@ -209,10 +211,152 @@ describe('Copilot read tools', () => {
         customerIdIn: undefined,
         invoiceIdIn: undefined,
         after: undefined,
+        sortBy: 'due_date_asc',
         limit: 11,
       });
       expect(customerRepo.findByIds).toHaveBeenCalledWith(['cust-1', 'cust-2']);
       expect(invoiceRepo.findByIds).toHaveBeenCalledWith(['inv-1']);
+    });
+
+    it('asks the repository for the largest debt first when the model wants a ranking', async () => {
+      // Sorting was hardcoded to dueDate ASC, so "ai nợ nhiều nhất" only
+      // returned the truth by coincidence in seed data. Once a customer had
+      // many overdue rows the model would answer from the wrong page.
+      const receivableRepo = {
+        findOverdueCandidates: jest.fn().mockResolvedValue([rec1]),
+      };
+      const customerRepo = {
+        findByIds: jest
+          .fn()
+          .mockResolvedValue(
+            new Map([['cust-1', { id: 'cust-1', name: 'Công ty Alpha' }]]),
+          ),
+      };
+      const invoiceRepo = {
+        findByIds: jest
+          .fn()
+          .mockResolvedValue(
+            new Map([['inv-1', { id: 'inv-1', invoiceNumber: 'INV-001' }]]),
+          ),
+      };
+      const tenantContext = new TenantContextService();
+      const tool = new FindOverdueReceivablesTool(
+        receivableRepo as any,
+        customerRepo as any,
+        invoiceRepo as any,
+        tenantContext,
+      );
+
+      await tenantContext.run(
+        { userId: 'u-1', organizationId: 'org-1', role: Role.FINANCE_MANAGER },
+        () => tool.execute({ sortBy: 'amount_desc' }, fixedNow),
+      );
+
+      expect(receivableRepo.findOverdueCandidates).toHaveBeenCalledWith(
+        expect.objectContaining({ sortBy: 'amount_desc' }),
+      );
+    });
+
+    it('defaults to the earliest due date so paging keeps working', async () => {
+      const receivableRepo = {
+        findOverdueCandidates: jest.fn().mockResolvedValue([]),
+      };
+      const tenantContext = new TenantContextService();
+      const tool = new FindOverdueReceivablesTool(
+        receivableRepo as any,
+        {} as any,
+        {} as any,
+        tenantContext,
+      );
+
+      await tenantContext.run(
+        { userId: 'u-1', organizationId: 'org-1', role: Role.FINANCE_MANAGER },
+        () => tool.execute({}, fixedNow),
+      );
+
+      expect(receivableRepo.findOverdueCandidates).toHaveBeenCalledWith(
+        expect.objectContaining({ sortBy: 'due_date_asc' }),
+      );
+    });
+
+    it('forces the due-date ordering when a cursor is present', async () => {
+      // The cursor is a keyset on (dueDate, id); combining it with an
+      // amount ordering would slice the wrong window on "xem tiếp".
+      const receivableRepo = {
+        findOverdueCandidates: jest.fn().mockResolvedValue([]),
+      };
+      const tenantContext = new TenantContextService();
+      const tool = new FindOverdueReceivablesTool(
+        receivableRepo as any,
+        {} as any,
+        {} as any,
+        tenantContext,
+      );
+
+      await tenantContext.run(
+        { userId: 'u-1', organizationId: 'org-1', role: Role.FINANCE_MANAGER },
+        () =>
+          tool.execute(
+            {
+              sortBy: 'amount_desc',
+              cursor: {
+                dueDate: fixedNow.toISOString(),
+                receivableId: 'rec-1',
+              },
+            },
+            fixedNow,
+          ),
+      );
+
+      expect(receivableRepo.findOverdueCandidates).toHaveBeenCalledWith(
+        expect.objectContaining({ sortBy: 'due_date_asc' }),
+      );
+    });
+
+    it('never advertises more results on a ranking page', async () => {
+      // A ranking page has no (dueDate, id) cursor, so saying "xem tiếp"
+      // would drop the user into an unrelated due-date page.
+      const candidates = Array.from(
+        { length: 11 },
+        (_, index) =>
+          new Receivable({
+            ...rec1,
+            id: `rec-${index + 1}`,
+            dueDate: new Date(Date.UTC(2026, 7, index + 1)),
+          }),
+      );
+      const receivableRepo = {
+        findOverdueCandidates: jest.fn().mockResolvedValue(candidates),
+      };
+      const customerRepo = {
+        findByIds: jest
+          .fn()
+          .mockResolvedValue(
+            new Map([['cust-1', { id: 'cust-1', name: 'Công ty Alpha' }]]),
+          ),
+      };
+      const invoiceRepo = {
+        findByIds: jest
+          .fn()
+          .mockResolvedValue(
+            new Map([['inv-1', { id: 'inv-1', invoiceNumber: 'INV-001' }]]),
+          ),
+      };
+      const tenantContext = new TenantContextService();
+      const tool = new FindOverdueReceivablesTool(
+        receivableRepo as any,
+        customerRepo as any,
+        invoiceRepo as any,
+        tenantContext,
+      );
+
+      const result = await tenantContext.run(
+        { userId: 'u-1', organizationId: 'org-1', role: Role.FINANCE_MANAGER },
+        () => tool.execute({ sortBy: 'amount_desc' }, fixedNow),
+      );
+
+      expect(result.items).toHaveLength(10);
+      expect(result).toMatchObject({ hasMore: false, nextCursor: null });
     });
 
     it('returns only 10 overdue receivables and a cursor from the 10th when more exist', async () => {
@@ -321,6 +465,7 @@ describe('Copilot read tools', () => {
         customerIdIn: ['cust-1'],
         invoiceIdIn: ['inv-1'],
         after: { dueDate: new Date(cursor.dueDate), id: cursor.receivableId },
+        sortBy: 'due_date_asc',
         limit: 11,
       });
       expect(result.items).toHaveLength(1);

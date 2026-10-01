@@ -190,6 +190,44 @@ describe('TypeOrmReceivableRepository', () => {
       expect(qb.take).toHaveBeenCalledWith(11);
     });
 
+    it('orders by remaining amount when the caller wants the largest debt', async () => {
+      // The list UI depends on dueDate ASC for the "xem tiếp" cursor, so the
+      // amount ordering has to be opt-in rather than replacing the default.
+      const qb = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      };
+      const ormRepo = { createQueryBuilder: jest.fn().mockReturnValue(qb) };
+      const tenantContext = new TenantContextService();
+      const repo = new TypeOrmReceivableRepository(
+        ormRepo as any,
+        tenantContext,
+      );
+
+      await tenantContext.run(
+        { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+        () =>
+          repo.findOverdueCandidates({
+            organizationId: 'org-1',
+            referenceDate: new Date('2026-10-01T00:00:00.000Z'),
+            sortBy: 'amount_desc',
+            limit: 11,
+          }),
+      );
+
+      expect(qb.orderBy).toHaveBeenCalledWith(
+        '(r.originalAmount - r.paidAmount)',
+        'DESC',
+      );
+      expect(qb.addOrderBy).toHaveBeenCalledWith('r.dueDate', 'ASC');
+      expect(qb.addOrderBy).toHaveBeenCalledWith('r.id', 'ASC');
+    });
+
     it('queries overdue candidates with correct predicates, columns, order, and limit, mapping to domain instances', async () => {
       const qb = {
         select: jest.fn().mockReturnThis(),

@@ -8,7 +8,10 @@ import type { IInvoiceRepository } from '../../../invoices/application/invoice-r
 import { INVOICE_REPOSITORY } from '../../../invoices/application/invoice-repository.port';
 import { Role } from '../../../organizations/domain/membership';
 import type { IReceivableRepository } from '../../../receivables/application/receivable-repository.port';
-import { RECEIVABLE_REPOSITORY } from '../../../receivables/application/receivable-repository.port';
+import {
+  type OverdueReceivableSort,
+  RECEIVABLE_REPOSITORY,
+} from '../../../receivables/application/receivable-repository.port';
 import type { CopilotJsonSchema } from '../copilot-tool-registry';
 
 export const FIND_OVERDUE_RECEIVABLES_SCHEMA: CopilotJsonSchema = {
@@ -40,6 +43,12 @@ export const FIND_OVERDUE_RECEIVABLES_SCHEMA: CopilotJsonSchema = {
       },
       required: ['dueDate', 'receivableId'],
     },
+    sortBy: {
+      type: 'string',
+      enum: ['due_date_asc', 'amount_desc'],
+      description:
+        'Ordering for the page. Use amount_desc for ranking questions such as "khách hàng nào nợ nhiều nhất"; leave unset (due_date_asc) for lists and for continuing a previous page.',
+    },
   },
   required: [],
 };
@@ -48,10 +57,12 @@ export interface FindOverdueReceivablesInput {
   search?: string;
   limit?: number;
   cursor?: { dueDate: string; receivableId: string };
+  sortBy?: OverdueReceivableSort;
 }
 
 export interface OverdueReceivableCandidate {
   receivableId: string;
+  customerId: string;
   customerName: string;
   invoiceNumber: string | null;
   remainingAmount: number;
@@ -102,6 +113,9 @@ export class FindOverdueReceivablesTool {
       currentUser?.role === Role.SALES_REP ? currentUser.userId : undefined;
 
     const limit = input.limit ?? 10;
+    const sortBy = input.cursor
+      ? 'due_date_asc'
+      : (input.sortBy ?? 'due_date_asc');
 
     let customerIdIn: string[] | undefined;
     let invoiceIdIn: string[] | undefined;
@@ -136,6 +150,11 @@ export class FindOverdueReceivablesTool {
             id: input.cursor.receivableId,
           }
         : undefined,
+      // ponytail: the cursor is a keyset on (dueDate, id), so it only
+      // paginates the due-date ordering. Ranking pages are single-shot —
+      // upgrade to a (remainingAmount, id) cursor if ranking ever needs to
+      // page too.
+      sortBy,
       limit: limit + 1,
     });
 
@@ -143,7 +162,9 @@ export class FindOverdueReceivablesTool {
       return { items: [], hasMore: false, nextCursor: null };
     }
 
-    const hasMore = receivables.length > limit;
+    // A ranking page has no valid next cursor, so it must not advertise one:
+    // saying "xem tiếp" there would drop the user into a due-date page.
+    const hasMore = sortBy === 'due_date_asc' && receivables.length > limit;
     const page = receivables.slice(0, limit);
     const last = page.at(-1);
     const nextCursor =
@@ -180,6 +201,11 @@ export class FindOverdueReceivablesTool {
 
       return {
         receivableId: receivable.id,
+        // getReceivableSummary, getPaymentHistory and
+        // getCollectionActivityTimeline all key on customerId. Without it
+        // here the model had no way to reach those three tools, since the
+        // prompt forbids showing UUIDs to the user.
+        customerId: receivable.customerId,
         customerName,
         invoiceNumber,
         remainingAmount: receivable.remainingAmount,

@@ -44,7 +44,7 @@ describe('TypeOrmPaymentAllocationRepository.findByCustomerId', () => {
     expect(query.innerJoin).toHaveBeenCalledWith(
       'receivables',
       'receivable',
-      'receivable.id = allocation."receivableId"',
+      'receivable.id::text = allocation."receivableId"',
     );
     expect(query.where).toHaveBeenCalledWith(
       'allocation."organizationId" = :organizationId',
