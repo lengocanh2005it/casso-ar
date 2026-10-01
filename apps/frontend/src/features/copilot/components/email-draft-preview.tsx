@@ -6,6 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
+// The draft body is stored as a single-line HTML string, so the code tab
+// would render as one long unreadable row. Break it before block-level tags
+// and between tags so the markup reads as a document.
+function formatHtmlForDisplay(html: string): string {
+  return html
+    .replace(/>\s*</g, '>\n<')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export function EmailDraftPreview({
   subject,
   recipientEmail,
@@ -114,8 +125,8 @@ export function EmailDraftPreview({
             />
           </TabsContent>
           <TabsContent value="code">
-            <pre className="max-h-64 overflow-auto rounded-md border bg-muted p-3 text-xs">
-              <code>{bodyHtml}</code>
+            <pre className="max-h-64 overflow-auto rounded-md border bg-muted p-3 text-xs leading-relaxed">
+              <code>{formatHtmlForDisplay(bodyHtml)}</code>
             </pre>
           </TabsContent>
         </Tabs>

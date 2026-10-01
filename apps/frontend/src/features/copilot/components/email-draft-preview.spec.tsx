@@ -56,10 +56,28 @@ describe('EmailDraftPreview', () => {
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Mã HTML' }));
 
     expect(screen.queryByTitle('Xem trước email')).not.toBeInTheDocument();
-    expect(screen.getByText(bodyHtml)).toBeInTheDocument();
+    expect(screen.getByText(/<p>Kính gửi ABC/).textContent).toBe(
+      '<p>Kính gửi ABC, còn lại 1.000.000 VND.</p>\n<script>alert(1)</script>',
+    );
 
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Xem trước' }));
     expect(screen.getByTitle('Xem trước email')).toBeInTheDocument();
+  });
+
+  it('breaks <br> tags onto their own lines so the code tab reads as a document', () => {
+    render(
+      <EmailDraftPreview
+        subject="Nhắc thanh toán"
+        recipientEmail="ap@abc.vn"
+        bodyHtml="Kính gửi,<br />Trân trọng,<br />Ban Kế toán"
+      />,
+    );
+
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Mã HTML' }));
+
+    expect(screen.getByText(/Kính gửi/).textContent).toBe(
+      'Kính gửi,\nTrân trọng,\nBan Kế toán',
+    );
   });
 
   it('copies the HTML source to the clipboard', () => {
