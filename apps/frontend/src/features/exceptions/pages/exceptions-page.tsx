@@ -175,7 +175,7 @@ export function ExceptionsPage() {
                         }
                       />
                     </TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums max-md:col-start-2 max-md:row-start-3 max-md:p-0 max-md:text-xs max-md:text-muted-foreground">
+                    <TableCell className="whitespace-nowrap tabular-nums max-md:col-start-2 max-md:row-start-3 max-md:p-0 max-md:text-xs max-md:text-muted-foreground max-md:whitespace-normal">
                       {formatDateTime(row.transaction.transactionDateTime)}
                     </TableCell>
                     <TableCell className="max-w-64 max-md:col-start-2 max-md:row-start-1 max-md:max-w-none max-md:p-0">

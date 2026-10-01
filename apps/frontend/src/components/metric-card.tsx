@@ -43,7 +43,7 @@ export function MetricCard({
 }) {
   return (
     <Card
-      className={`border-l-4 ${BORDER_COLORS[variant]} transition-shadow hover:shadow-md ${className ?? ''}`}
+      className={`@container border-l-4 ${BORDER_COLORS[variant]} transition-shadow hover:shadow-md ${className ?? ''}`}
     >
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
@@ -60,7 +60,15 @@ export function MetricCard({
         {empty ? (
           <p className="text-sm text-muted-foreground">Chưa có dữ liệu</p>
         ) : (
-          <p className="text-2xl font-semibold tabular-nums text-foreground">
+          // A VND figure runs long, and these grids put 2 cards per row from
+          // 640px and 4 from 1280px — either can leave the amount track
+          // narrower than 24px type, which clipped the digits. Step the type
+          // down to fit instead of hiding the number.
+          // A VND figure runs long, and these grids put 2 cards per row from
+          // 640px and 4 from 1280px — either can leave the amount track
+          // narrower than 24px type, which clipped the digits. Step the type
+          // down to fit instead of hiding the number.
+          <p className="text-xl font-semibold tabular-nums text-foreground @xs:text-2xl">
             {value}
           </p>
         )}

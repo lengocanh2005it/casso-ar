@@ -68,4 +68,27 @@ describe('MetricCard', () => {
     expect(screen.queryByText('—')).not.toBeInTheDocument();
     expect(screen.getByText('Chưa có dữ liệu')).toBeInTheDocument();
   });
+
+  it('steps the amount down when its card is too narrow for 24px type', () => {
+    const { container } = render(
+      <MetricCard
+        label="Tổng công nợ còn lại"
+        description="Tất cả công nợ chưa thanh toán"
+        value="616.000.000 ₫"
+        icon={CircleDollarSign}
+      />,
+    );
+
+    // The dashboard and reports grids put 2 cards per row from 640px and 4
+    // from 1280px, which left a 219px track — 24px digits clipped mid-number.
+    // The card, not the viewport, is the thing the amount has to fit inside.
+    const card = container.querySelector('[data-slot="card"]');
+    expect(card).toHaveClass('@container');
+    expect(card?.className).not.toContain('truncate');
+
+    const amount = screen.getByText('616.000.000 ₫');
+    // 20px floor, 24px once the card itself is wide enough.
+    expect(amount).toHaveClass('text-xl');
+    expect(amount.className).toContain('@xs:text-2xl');
+  });
 });
