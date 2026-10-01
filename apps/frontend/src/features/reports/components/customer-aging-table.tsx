@@ -1,4 +1,5 @@
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
+import { TruncatedName } from '@/components/shared/truncated-text';
 import {
   Table,
   TableBody,
@@ -60,12 +61,7 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
               <div className="flex min-w-0 items-center gap-2">
                 <InitialsAvatar name={row.customerName} size="sm" />
                 <div className="min-w-0">
-                  <span
-                    className="block min-w-0 truncate"
-                    title={row.customerName}
-                  >
-                    {row.customerName}
-                  </span>
+                  <TruncatedName name={row.customerName} className="block" />
                   <span className="block truncate text-xs text-muted-foreground tabular-nums">
                     {row.taxCode}
                   </span>

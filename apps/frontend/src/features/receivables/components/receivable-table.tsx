@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/layout/empty-state';
 import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
+import { TruncatedName } from '@/components/shared/truncated-text';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -130,12 +131,10 @@ export function ReceivableTable({
                     size="sm"
                     className="max-md:hidden"
                   />
-                  <span
-                    className="block min-w-0 truncate max-md:font-medium"
-                    title={customerName}
-                  >
-                    {customerName}
-                  </span>
+                  <TruncatedName
+                    name={customerName}
+                    className="block max-md:font-medium"
+                  />
                 </div>
               </TableCell>
               <TableCell className="text-right whitespace-nowrap tabular-nums max-md:hidden">

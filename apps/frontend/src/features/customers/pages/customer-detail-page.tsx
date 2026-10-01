@@ -5,6 +5,7 @@ import { BackLink } from '@/components/layout/back-link';
 import { EmptyState } from '@/components/layout/empty-state';
 import { PageHeading } from '@/components/layout/page-heading';
 import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
+import { TruncatedText } from '@/components/shared/truncated-text';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -240,15 +241,30 @@ export function CustomerDetailPage() {
           <CardContent className="@container grid gap-x-4 gap-y-3 text-sm @md/grid-cols-2">
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Email</p>
-              <p className="mt-1 truncate">{customer.email ?? '—'}</p>
+              <TruncatedText
+                value={customer.email}
+                className="mt-1 block truncate"
+              >
+                {customer.email ?? '—'}
+              </TruncatedText>
             </div>
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Số điện thoại</p>
-              <p className="mt-1 truncate">{customer.phone ?? '—'}</p>
+              <TruncatedText
+                value={customer.phone}
+                className="mt-1 block truncate"
+              >
+                {customer.phone ?? '—'}
+              </TruncatedText>
             </div>
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Mã số thuế</p>
-              <p className="mt-1 truncate">{customer.taxCode ?? '—'}</p>
+              <TruncatedText
+                value={customer.taxCode}
+                className="mt-1 block truncate"
+              >
+                {customer.taxCode ?? '—'}
+              </TruncatedText>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Ngày tạo</p>

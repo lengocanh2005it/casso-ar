@@ -16,6 +16,7 @@ import { PageHeading } from '@/components/layout/page-heading';
 import { MetricCard } from '@/components/metric-card';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
 import { TrendMonthsSelect } from '@/components/shared/trend-months-select';
+import { TruncatedName } from '@/components/shared/truncated-text';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -330,12 +331,10 @@ export function DashboardPage() {
                             name={customer.customerName}
                             size="sm"
                           />
-                          <span
-                            className="min-w-0 truncate font-medium"
-                            title={customer.customerName}
-                          >
-                            {customer.customerName}
-                          </span>
+                          <TruncatedName
+                            name={customer.customerName}
+                            className="font-medium"
+                          />
                         </div>
                         <span className="shrink-0 rounded-lg bg-destructive/10 px-2.5 py-1 font-semibold tabular-nums text-destructive">
                           {formatVND(customer.totalOverdue)}
