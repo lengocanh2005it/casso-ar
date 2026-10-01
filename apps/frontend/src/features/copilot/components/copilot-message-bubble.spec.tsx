@@ -101,4 +101,53 @@ describe('CopilotMessageBubble', () => {
     expect(screen.getByText(content)).toHaveClass('break-words');
     expect(screen.getByText(content)).toHaveTextContent(content);
   });
+
+  it('highlights amounts and due dates in an assistant answer', () => {
+    const content =
+      'Công ty TNHH Dược phẩm Tâm An còn 13.000.000 VNĐ, đến hạn 29/04/2026.';
+    render(
+      <CopilotMessageBubble
+        message={{ role: 'ASSISTANT', content, isPartial: false }}
+      />,
+    );
+
+    expect(screen.getByText('13.000.000 VNĐ').tagName).toBe('MARK');
+    expect(screen.getByText(/29\/04\/2026/).tagName).toBe('MARK');
+  });
+
+  it('highlights a customer name in an unformatted list item', () => {
+    render(
+      <CopilotMessageBubble
+        message={{
+          role: 'ASSISTANT',
+          content: '1. Công ty TNHH Dược phẩm Tâm An: còn 13.000.000 VNĐ',
+        }}
+      />,
+    );
+
+    expect(screen.getByText('Công ty TNHH Dược phẩm Tâm An').tagName).toBe(
+      'MARK',
+    );
+  });
+
+  it('does not highlight an amount inside a user message', () => {
+    render(
+      <CopilotMessageBubble
+        message={{ role: 'USER', content: 'Còn bao nhiêu 13.000.000 VNĐ?' }}
+      />,
+    );
+
+    expect(document.querySelector('mark')).toBeNull();
+  });
+
+  it('leaves ordinary prose untouched when no figure is present', () => {
+    const { container } = render(
+      <CopilotMessageBubble
+        message={{ role: 'ASSISTANT', content: 'Xin chào bạn' }}
+      />,
+    );
+
+    expect(container.querySelector('mark')).toBeNull();
+    expect(container.querySelector('strong')).toBeNull();
+  });
 });
