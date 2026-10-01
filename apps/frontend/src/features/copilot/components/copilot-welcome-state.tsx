@@ -30,13 +30,13 @@ export function CopilotWelcomeState({
   onSuggestionClick: (text: string) => void;
 }) {
   return (
-    <div className="relative isolate flex flex-1 flex-col justify-center gap-7 overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-br from-primary/5 via-background to-secondary/60 px-4 py-6 sm:px-6 sm:py-8">
+    <div className="relative isolate my-auto flex flex-col gap-5 rounded-3xl border border-primary/10 bg-gradient-to-br from-primary/5 via-background to-secondary/60 px-4 py-6 sm:px-6">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -right-16 -top-20 -z-10 size-64 rounded-full bg-primary/10 blur-3xl"
       />
       <div className="flex flex-col items-center text-center">
-        <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-chart-2 text-primary-foreground shadow-lg shadow-primary/20 ring-8 ring-primary/5">
+        <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-chart-2 text-primary-foreground shadow-lg shadow-primary/20 ring-8 ring-primary/5">
           <Sparkles className="size-6" aria-hidden="true" />
         </div>
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
@@ -61,7 +61,7 @@ export function CopilotWelcomeState({
               key={question}
               type="button"
               onClick={() => onSuggestionClick(question)}
-              className="group flex min-h-24 items-start gap-3 rounded-2xl border border-border/80 bg-background/90 p-4 text-left shadow-sm shadow-primary/5 transition-[border-color,background-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/35 hover:bg-background hover:shadow-md hover:shadow-primary/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="group flex min-h-20 items-start gap-3 rounded-2xl border border-border/80 bg-background/90 p-4 text-left shadow-sm shadow-primary/5 transition-[border-color,background-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/35 hover:bg-background hover:shadow-md hover:shadow-primary/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                 <Icon className="size-4" aria-hidden="true" />
