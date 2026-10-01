@@ -161,6 +161,7 @@ export function DashboardPage() {
               label="Tổng công nợ còn lại"
               description="Tất cả công nợ chưa thanh toán"
               value={formatVND(summaryQuery.data.totalOutstanding)}
+              amount={summaryQuery.data.totalOutstanding}
               icon={CircleDollarSign}
               variant="default"
               className="animate-fade-up motion-reduce:animate-none"
@@ -169,6 +170,7 @@ export function DashboardPage() {
               label="Công nợ quá hạn"
               description="Công nợ đã vượt ngày đến hạn"
               value={formatVND(summaryQuery.data.totalOverdue)}
+              amount={summaryQuery.data.totalOverdue}
               icon={AlertTriangle}
               variant="danger"
               className="animate-fade-up motion-reduce:animate-none [animation-delay:40ms]"

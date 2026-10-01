@@ -1,5 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
+import { TruncatedText } from '@/components/shared/truncated-text';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatVND, formatVNDCompact } from '@/lib/format';
 
 const ICON_COLORS = {
   default: 'text-primary',
@@ -28,6 +30,7 @@ export function MetricCard({
   label,
   description,
   value,
+  amount,
   icon: Icon,
   variant = 'default',
   className,
@@ -36,6 +39,9 @@ export function MetricCard({
   label: string;
   description: string;
   value: string;
+  /** Present only for money cards. Lets a long VND figure fall back to
+   * triệu/tỷ in a narrow card while `value` stays the exact record. */
+  amount?: number;
   icon: LucideIcon;
   variant?: MetricCardVariant;
   className?: string;
@@ -60,16 +66,21 @@ export function MetricCard({
         {empty ? (
           <p className="text-sm text-muted-foreground">Chưa có dữ liệu</p>
         ) : (
-          // A VND figure runs long, and these grids put 2 cards per row from
-          // 640px and 4 from 1280px — either can leave the amount track
-          // narrower than 24px type, which clipped the digits. Step the type
-          // down to fit instead of hiding the number.
-          // A VND figure runs long, and these grids put 2 cards per row from
-          // 640px and 4 from 1280px — either can leave the amount track
-          // narrower than 24px type, which clipped the digits. Step the type
-          // down to fit instead of hiding the number.
           <p className="text-xl font-semibold tabular-nums text-foreground @xs:text-2xl">
-            {value}
+            {amount === undefined ? (
+              value
+            ) : (
+              // A VND figure runs long, and these grids put 2 cards per row
+              // from 640px and 4 from 1280px — either can leave the amount
+              // track narrower than 24px type, which clipped the digits.
+              // Stepping the type down only covers so much, so money cards
+              // also get a triệu/tỷ abbreviation with the exact figure on
+              // hover. Non-money cards (counts, percentages) keep their
+              // plain value.
+              <TruncatedText value={formatVND(amount)}>
+                {formatVNDCompact(amount)}
+              </TruncatedText>
+            )}
           </p>
         )}
       </CardContent>

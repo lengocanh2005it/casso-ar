@@ -37,6 +37,7 @@ export function DashboardSummary({
           label="Tổng công nợ còn lại"
           description="Tất cả công nợ chưa thanh toán"
           value={formatVND(summary.totalOutstanding)}
+          amount={summary.totalOutstanding}
           icon={CircleDollarSign}
           variant="default"
         />
@@ -44,6 +45,7 @@ export function DashboardSummary({
           label="Công nợ quá hạn"
           description="Công nợ đã vượt ngày đến hạn"
           value={formatVND(summary.totalOverdue)}
+          amount={summary.totalOverdue}
           icon={AlertTriangle}
           variant="danger"
         />
@@ -83,6 +85,7 @@ export function DashboardSummary({
           label="Dự báo thu 7 ngày"
           description="Dự kiến thu trong 7 ngày tới"
           value={formatVND(summary.cashForecast.forecast7d)}
+          amount={summary.cashForecast.forecast7d}
           icon={TrendingUp}
           variant="success"
         />
@@ -90,6 +93,7 @@ export function DashboardSummary({
           label="Dự báo thu 14 ngày"
           description="Dự kiến thu trong 14 ngày tới"
           value={formatVND(summary.cashForecast.forecast14d)}
+          amount={summary.cashForecast.forecast14d}
           icon={TrendingUp}
           variant="success"
         />
@@ -97,6 +101,7 @@ export function DashboardSummary({
           label="Dự báo thu 30 ngày"
           description="Dự kiến thu trong 30 ngày tới"
           value={formatVND(summary.cashForecast.forecast30d)}
+          amount={summary.cashForecast.forecast30d}
           icon={TrendingUp}
           variant="success"
         />

@@ -48,6 +48,7 @@ export function ReceivableBalanceHistoryKpis({
         label="Số dư còn lại mới nhất"
         description="Tổng còn lại tại thay đổi gần nhất"
         value={formatVND(summary?.latestRemainingAmount ?? 0)}
+        amount={summary?.latestRemainingAmount ?? 0}
         icon={CircleDollarSign}
         variant="success"
       />

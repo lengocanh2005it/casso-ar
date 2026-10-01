@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { formatVND } from '@/lib/format';
 import { ReceivableBalanceHistoryKpis } from './receivable-balance-history-kpis';
 
 describe('ReceivableBalanceHistoryKpis', () => {
@@ -27,6 +28,10 @@ describe('ReceivableBalanceHistoryKpis', () => {
         'border-l-4',
       );
     }
-    expect(screen.getByText('616.000.000 ₫')).toBeInTheDocument();
+    expect(screen.getByText('616tr')).toBeInTheDocument();
+    expect(screen.getByText('616tr')).toHaveAttribute(
+      'title',
+      formatVND(616_000_000),
+    );
   });
 });
