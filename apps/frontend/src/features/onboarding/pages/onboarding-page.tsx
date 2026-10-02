@@ -50,7 +50,7 @@ export function OnboardingPage() {
   }
 
   return (
-    <AuthStatusCard widthClassName="max-w-lg">
+    <AuthStatusCard widthClassName="max-w-lg lg:w-[32rem]">
       <div className="space-y-5 text-left">
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">

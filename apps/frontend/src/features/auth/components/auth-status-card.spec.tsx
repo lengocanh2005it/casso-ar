@@ -15,32 +15,24 @@ describe('AuthStatusCard', () => {
 
     expect(screen.getByRole('link', { name: /casso ar/i })).toBeVisible();
     expect(screen.getByText('Kiểm tra email')).toBeVisible();
-    expect(screen.getByTestId('auth-surface')).toHaveClass('from-emerald-50');
+    expect(screen.getByRole('main')).toBeVisible();
   });
 
-  it('narrows the card by default and widens it on request', () => {
-    const { rerender } = render(
+  it('fills the empty desktop gutters with the product promise', () => {
+    render(
       <MemoryRouter>
         <AuthStatusCard>
-          <p>Nội dung</p>
+          <p>Kiểm tra email</p>
         </AuthStatusCard>
       </MemoryRouter>,
     );
 
-    expect(screen.getByTestId('auth-surface').firstElementChild).toHaveClass(
-      'max-w-md',
-    );
-
-    rerender(
-      <MemoryRouter>
-        <AuthStatusCard widthClassName="max-w-lg">
-          <p>Nội dung</p>
-        </AuthStatusCard>
-      </MemoryRouter>,
-    );
-
-    const card = screen.getByTestId('auth-surface').firstElementChild;
-    expect(card).toHaveClass('max-w-lg');
-    expect(card).not.toHaveClass('max-w-md');
+    const aside = screen.getByRole('complementary', {
+      name: 'Casso AR giải quyết gì',
+      hidden: true,
+    });
+    expect(aside).toHaveTextContent('đối chiếu');
+    expect(aside).toHaveTextContent('Nhắc nợ');
+    expect(aside).toHaveTextContent('Báo cáo');
   });
 });

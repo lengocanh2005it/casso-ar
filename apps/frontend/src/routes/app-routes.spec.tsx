@@ -96,7 +96,9 @@ describe('application routes', () => {
         screen.getByRole('heading', { name: /nhận lời mời/i }),
       ).toBeVisible(),
     );
-    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+    // The auth surface has its own aside, but the app shell's sidebar
+    // (the one that names the current organization) must stay absent.
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
   });
 
   it('exposes the standalone admin login route', async () => {

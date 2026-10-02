@@ -124,9 +124,14 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
 
   if (state === 'rejected') {
     return (
-      <div role="alert" className="space-y-2 text-center">
-        <h2 className="text-lg font-semibold">Đăng ký chưa được chấp thuận</h2>
-        <p className="text-sm text-muted-foreground">{rejectedMessage}</p>
+      <div
+        role="alert"
+        className="space-y-2 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-center"
+      >
+        <h2 className="text-lg font-semibold text-destructive">
+          Đăng ký chưa được chấp thuận
+        </h2>
+        <p className="text-sm text-foreground">{rejectedMessage}</p>
         <Link
           to="/login"
           className="text-primary pointer-hover:hover:underline"
