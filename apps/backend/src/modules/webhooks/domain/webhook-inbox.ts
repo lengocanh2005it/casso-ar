@@ -36,6 +36,7 @@ export class WebhookInbox {
   }
 
   markFailed(errorMessage: string): WebhookInbox {
+    if (this.status === 'PROCESSED') return this;
     return new WebhookInbox({
       ...this,
       status: 'FAILED',
