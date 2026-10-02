@@ -64,4 +64,33 @@ describe('password recovery pages', () => {
       data: { token: 'reset-token', newPassword: 'newsecret123' },
     });
   });
+
+  it('offers a way to request a new link when the token is rejected', async () => {
+    apiRequest.mockRejectedValue({ response: { data: {} } });
+
+    render(
+      <MemoryRouter initialEntries={['/reset-password?token=expired-token']}>
+        <Routes>
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText(/mật khẩu mới/i), {
+      target: { value: 'newsecret123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /đặt lại mật khẩu/i }));
+
+    // A rejected link must not leave the user stuck on a form that cannot
+    // succeed — they need a route back to request another one.
+    await waitFor(() =>
+      expect(
+        screen.getByText(/liên kết đã hết hạn hoặc không hợp lệ/i),
+      ).toBeVisible(),
+    );
+    const escapeHatch = screen.getByRole('link', {
+      name: /yêu cầu liên kết mới/i,
+    });
+    expect(escapeHatch).toHaveAttribute('href', '/forgot-password');
+  });
 });

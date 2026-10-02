@@ -56,4 +56,34 @@ describe('invite acceptance', () => {
       },
     });
   });
+
+  it('offers a way back to login when the invite is rejected', async () => {
+    apiRequest.mockRejectedValue({ response: { data: {} } });
+
+    render(
+      <MemoryRouter initialEntries={['/invite-accept?token=expired-token']}>
+        <Routes>
+          <Route path="/invite-accept" element={<InviteAcceptPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText(/họ và tên/i), {
+      target: { value: 'Invitee Name' },
+    });
+    fireEvent.change(screen.getByLabelText(/mật khẩu/i), {
+      target: { value: 'secret123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /tham gia/i }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/lời mời đã hết hạn hoặc không hợp lệ/i),
+      ).toBeVisible(),
+    );
+    const escapeHatch = screen.getByRole('link', {
+      name: /quay lại đăng nhập/i,
+    });
+    expect(escapeHatch).toHaveAttribute('href', '/login');
+  });
 });
