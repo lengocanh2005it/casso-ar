@@ -9,7 +9,7 @@ export function CtaSection() {
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Sẵn sàng quản lý công nợ dễ dàng hơn?
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-primary-foreground/90">
+          <p className="mx-auto mt-4 max-w-xl text-primary-foreground">
             Tạo tài khoản miễn phí và bắt đầu ngay hôm nay.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -24,7 +24,7 @@ export function CtaSection() {
             <Button
               size="lg"
               variant="outline"
-              className="h-12 w-full border-primary-foreground/40 bg-transparent text-primary-foreground pointer-hover:hover:bg-primary-foreground/10 sm:w-auto"
+              className="h-12 w-full border-primary-foreground/40 bg-transparent text-primary-foreground pointer-hover:hover:bg-transparent pointer-hover:hover:border-primary-foreground/80 pointer-hover:hover:shadow-sm pointer-hover:hover:text-primary-foreground sm:w-auto"
               asChild
             >
               <Link to="/login">Đã có tài khoản</Link>

@@ -39,8 +39,8 @@ describe('CtaSection', () => {
     const copy = screen.getByText(
       'Tạo tài khoản miễn phí và bắt đầu ngay hôm nay.',
     );
-    expect(copy).toHaveClass('text-primary-foreground/90');
-    expect(copy).not.toHaveClass('dark:text-white/90');
+    expect(copy).toHaveClass('text-primary-foreground');
+    expect(copy).not.toHaveClass('dark:text-white');
 
     const signup = screen.getByRole('link', { name: /dùng thử miễn phí/i });
     expect(signup).not.toHaveClass(
@@ -50,7 +50,17 @@ describe('CtaSection', () => {
     );
 
     const login = screen.getByRole('link', { name: /đã có tài khoản/i });
-    expect(login).toHaveClass('text-primary-foreground');
+    expect(login).toHaveClass(
+      'text-primary-foreground',
+      'pointer-hover:hover:bg-transparent',
+      'pointer-hover:hover:border-primary-foreground/80',
+      'pointer-hover:hover:shadow-sm',
+      'pointer-hover:hover:text-primary-foreground',
+    );
+    expect(login).not.toHaveClass(
+      'pointer-hover:hover:bg-accent',
+      'pointer-hover:hover:text-accent-foreground',
+    );
     expect(login).not.toHaveClass(
       'dark:border-white/40',
       'dark:text-white',

@@ -1,8 +1,27 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { ProductShowcase } from './product-showcase';
 
 describe('ProductShowcase', () => {
+  it('exposes an anchor target for the landing navigation', () => {
+    const { container } = render(<ProductShowcase />);
+
+    expect(container.querySelector('section#san-pham')).toHaveClass(
+      'scroll-mt-24',
+    );
+  });
+
+  it('highlights Casso AR in the showcase heading', () => {
+    render(<ProductShowcase />);
+
+    const heading = screen.getByRole('heading', {
+      name: 'Xem Casso AR hoạt động',
+    });
+
+    expect(screen.getByText('Casso AR')).toHaveClass('text-primary');
+    expect(heading).toBeInTheDocument();
+  });
+
   it('shows the first screen by default with a matching image and tab highlighted', () => {
     render(<ProductShowcase />);
 
@@ -11,6 +30,7 @@ describe('ProductShowcase', () => {
       'Giao diện Lịch nhắc tự động của Casso AR',
     );
     expect(image).toBeInTheDocument();
+    expect(image).toHaveAttribute('src', '/showcase-reminders.png');
     expect(screen.getByRole('tab', { name: /lịch nhắc/i })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -34,6 +54,38 @@ describe('ProductShowcase', () => {
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText('Không cần nhắc lại')).not.toBeInTheDocument();
+  });
+
+  it('moves one shared green indicator to the active tab', () => {
+    render(<ProductShowcase />);
+
+    const indicator = screen.getByTestId('showcase-tab-indicator');
+    expect(screen.getByRole('tab', { name: /lịch nhắc/i })).toContainElement(
+      indicator,
+    );
+    expect(screen.getAllByTestId('showcase-tab-indicator')).toHaveLength(1);
+
+    fireEvent.mouseDown(screen.getByRole('tab', { name: /tổng quan/i }), {
+      button: 0,
+      ctrlKey: false,
+    });
+
+    expect(screen.getByRole('tab', { name: /tổng quan/i })).toContainElement(
+      screen.getByTestId('showcase-tab-indicator'),
+    );
+    expect(screen.getAllByTestId('showcase-tab-indicator')).toHaveLength(1);
+  });
+
+  it('keeps the active tab label white while hovered', () => {
+    render(<ProductShowcase />);
+
+    const activeTab = screen.getByRole('tab', { name: /lịch nhắc/i });
+    fireEvent.mouseEnter(activeTab);
+
+    expect(activeTab).toHaveAttribute('data-state', 'active');
+    expect(screen.getByText('Lịch nhắc')).toHaveClass(
+      'group-data-[state=active]:text-primary-foreground',
+    );
   });
 
   it('renders one tab per showcase screen', () => {
@@ -76,6 +128,12 @@ describe('ProductShowcase', () => {
     }
   });
 
+  it('keeps the showcase tabs in one row on narrow screens', () => {
+    render(<ProductShowcase />);
+
+    expect(screen.getByRole('tablist')).toHaveClass('flex-nowrap');
+  });
+
   it('activates a tab when it receives focus, so arrow keys can sweep the group', () => {
     // Radix Tabs uses automatic activation: focusing a tab selects it. jsdom
     // cannot run the roving-focus keydown path (it needs real layout), so the
@@ -84,10 +142,91 @@ describe('ProductShowcase', () => {
     render(<ProductShowcase />);
 
     const copilot = screen.getByRole('tab', { name: /copilot/i });
-    copilot.focus();
-    fireEvent.focus(copilot);
+    act(() => {
+      copilot.focus();
+      fireEvent.focus(copilot);
+    });
 
     expect(copilot).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText('Không cần đoán')).toBeInTheDocument();
+  });
+
+  it('automatically cycles through screens every 2.5 seconds', () => {
+    vi.useFakeTimers();
+    const view = render(<ProductShowcase />);
+
+    try {
+      act(() => vi.advanceTimersByTime(2500));
+      expect(screen.getByRole('tab', { name: /tổng quan/i })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+      expect(screen.getByText('Không cần Excel')).toBeInTheDocument();
+
+      act(() => vi.advanceTimersByTime(2500));
+      expect(screen.getByRole('tab', { name: /copilot/i })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+
+      act(() => vi.advanceTimersByTime(2500));
+      expect(screen.getByRole('tab', { name: /lịch nhắc/i })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it('pauses the automatic cycle while the showcase is hovered', () => {
+    vi.useFakeTimers();
+    const view = render(<ProductShowcase />);
+    const tabList = screen.getByRole('tablist');
+
+    try {
+      fireEvent.mouseEnter(tabList);
+      act(() => vi.advanceTimersByTime(5000));
+      expect(screen.getByRole('tab', { name: /lịch nhắc/i })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+
+      fireEvent.mouseLeave(tabList);
+      act(() => vi.advanceTimersByTime(2500));
+      expect(screen.getByRole('tab', { name: /tổng quan/i })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it('pauses while a tab has keyboard focus, then resumes after focus leaves', () => {
+    vi.useFakeTimers();
+    const view = render(<ProductShowcase />);
+    const copilot = screen.getByRole('tab', { name: /copilot/i });
+
+    try {
+      act(() => {
+        copilot.focus();
+        fireEvent.focus(copilot);
+      });
+      act(() => vi.advanceTimersByTime(5000));
+      expect(copilot).toHaveAttribute('aria-selected', 'true');
+
+      fireEvent.blur(copilot, { relatedTarget: document.body });
+      act(() => vi.advanceTimersByTime(2500));
+      expect(screen.getByRole('tab', { name: /lịch nhắc/i })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
   });
 });
