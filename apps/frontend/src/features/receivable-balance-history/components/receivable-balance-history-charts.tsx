@@ -19,7 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { CHART_TICK, hasChartValue } from '@/lib/chart';
+import { CHART_TICK, CHART_TOOLTIP_STYLE, hasChartValue } from '@/lib/chart';
 import type {
   ReceivableBalanceHistoryDailyPoint,
   ReceivableBalanceHistorySourcePoint,
@@ -126,7 +126,7 @@ export function ReceivableBalanceHistoryCharts({
                     axisLine={false}
                     tick={CHART_TICK}
                   />
-                  <Tooltip />
+                  <Tooltip {...CHART_TOOLTIP_STYLE} />
                   <Bar dataKey="transitions" fill="var(--primary)" radius={4} />
                 </BarChart>
               </ResponsiveContainer>
@@ -179,7 +179,7 @@ export function ReceivableBalanceHistoryCharts({
                       <Cell key={point.name} fill={point.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip {...CHART_TOOLTIP_STYLE} />
                 </PieChart>
               </ResponsiveContainer>
             </div>

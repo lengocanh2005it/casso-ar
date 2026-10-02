@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { STICKY_EDGE } from '@/lib/chart';
 import { formatVND } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { AgingBucket, CustomerAgingPage } from '../types';
@@ -25,10 +26,6 @@ const BUCKET_TONE: Record<AgingBucket, string> = {
   OVERDUE_31_60: 'text-destructive',
   OVERDUE_60_PLUS: 'text-destructive font-semibold',
 };
-
-// Left shadow on the sticky total: when the table is wider than the card the
-// bucket columns slide under it, and without an edge nothing says so.
-const STICKY_EDGE = 'shadow-[-8px_0_8px_-8px_rgb(0_0_0/0.25)]';
 
 export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
   return (

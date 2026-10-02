@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { STICKY_EDGE } from '@/lib/chart';
 import type { CustomerAgingPage } from '../types';
 import { CustomerAgingTable } from './customer-aging-table';
 
@@ -80,9 +81,7 @@ describe('CustomerAgingTable', () => {
 
     expect(
       screen.getByRole('columnheader', { name: 'Tổng còn lại' }),
-    ).toHaveClass('shadow-[-8px_0_8px_-8px_rgb(0_0_0/0.25)]');
-    expect(screen.getByText('106.000.000 ₫')).toHaveClass(
-      'shadow-[-8px_0_8px_-8px_rgb(0_0_0/0.25)]',
-    );
+    ).toHaveClass(STICKY_EDGE);
+    expect(screen.getByText('106.000.000 ₫')).toHaveClass(STICKY_EDGE);
   });
 });
