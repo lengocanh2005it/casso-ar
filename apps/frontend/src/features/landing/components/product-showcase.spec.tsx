@@ -20,7 +20,12 @@ describe('ProductShowcase', () => {
   it('switches screen, title, and image when another tab is clicked', () => {
     render(<ProductShowcase />);
 
-    fireEvent.click(screen.getByRole('tab', { name: /copilot/i }));
+    // Radix Tabs activate on mousedown, not click, so `fireEvent.click` alone
+    // leaves the panel unchanged.
+    fireEvent.mouseDown(screen.getByRole('tab', { name: /copilot/i }), {
+      button: 0,
+      ctrlKey: false,
+    });
 
     expect(screen.getByText('Không cần đoán')).toBeInTheDocument();
     expect(
@@ -35,5 +40,32 @@ describe('ProductShowcase', () => {
     render(<ProductShowcase />);
 
     expect(screen.getAllByRole('tab')).toHaveLength(3);
+  });
+
+  it('wires each tab to the panel it controls', () => {
+    // A hand-rolled `role="tab"` with no `aria-controls` breaks the ARIA
+    // contract: assistive tech announces a tab with nothing to reveal.
+    render(<ProductShowcase />);
+
+    const [first] = screen.getAllByRole('tab');
+    const panelId = first.getAttribute('aria-controls');
+
+    expect(panelId).toBeTruthy();
+    expect(document.getElementById(panelId as string)).toBeInTheDocument();
+  });
+
+  it('activates a tab when it receives focus, so arrow keys can sweep the group', () => {
+    // Radix Tabs uses automatic activation: focusing a tab selects it. jsdom
+    // cannot run the roving-focus keydown path (it needs real layout), so the
+    // keyboard sweep is verified in the browser; this test pins the behavior
+    // the sweep depends on.
+    render(<ProductShowcase />);
+
+    const copilot = screen.getByRole('tab', { name: /copilot/i });
+    copilot.focus();
+    fireEvent.focus(copilot);
+
+    expect(copilot).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('Không cần đoán')).toBeInTheDocument();
   });
 });

@@ -43,7 +43,11 @@ export function HeroSection() {
         aria-hidden="true"
         className="absolute inset-x-0 top-12 -z-10 mx-auto h-80 max-w-5xl rounded-full bg-primary/10 blur-3xl"
       />
-      <div className="mx-auto grid w-full max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-20 lg:px-8">
+      {/* `grid-cols-1` uses a `minmax(auto, 1fr)` track that refuses to shrink
+          below its content, so the rotating headline (which cannot break at
+          390px) pushed the whole hero 43px past the viewport. An explicit
+          `minmax(0, 1fr)` track can shrink, so the text wraps instead. */}
+      <div className="mx-auto grid w-full max-w-7xl grid-cols-[minmax(0,1fr)] items-center gap-12 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-20 lg:px-8">
         <div className="text-center lg:text-left">
           <Logo
             className="mb-4 rounded-full border border-border/70 bg-card px-3 py-1.5"

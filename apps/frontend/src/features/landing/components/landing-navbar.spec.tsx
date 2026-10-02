@@ -80,4 +80,22 @@ describe('LandingNavbar', () => {
       screen.getByRole('button', { name: /giao diện/i }),
     ).toBeInTheDocument();
   });
+
+  it('keeps the inline nav closed until the header can fit it', () => {
+    // At 768px the five nav links plus both CTAs measured 894px wide, so the
+    // row overflowed by ~126px and `overflow-hidden` clipped the signup link
+    // with no scrollbar to reveal it. The inline nav must wait for `lg`.
+    render(
+      <ThemeProvider>
+        <MemoryRouter>
+          <LandingNavbar />
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByRole('navigation')).toHaveClass('lg:flex');
+    expect(screen.getByRole('button', { name: /mở menu/i })).toHaveClass(
+      'lg:hidden',
+    );
+  });
 });
