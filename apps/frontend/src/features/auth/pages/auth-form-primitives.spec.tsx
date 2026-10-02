@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '@/contexts/auth-context';
@@ -7,6 +7,8 @@ import { InviteAcceptPage } from './invite-accept-page';
 import { LoginPage } from './login-page';
 import { ResetPasswordPage } from './reset-password-page';
 import { SignupPage } from './signup-page';
+
+const { apiRequest } = vi.hoisted(() => ({ apiRequest: vi.fn() }));
 
 vi.mock('@/lib/api-client', async () => {
   const { getApiErrorCode, getApiErrorMessage } = await import(
@@ -21,7 +23,7 @@ vi.mock('@/lib/api-client', async () => {
       markLogoutInitiated: vi.fn(),
       clearStaleRefreshSession: vi.fn(),
     },
-    apiRequest: vi.fn(),
+    apiRequest,
     getApiErrorCode,
     getApiErrorMessage,
   };
@@ -38,6 +40,12 @@ function renderInRouter(element: React.ReactElement, path: string) {
 }
 
 describe('auth pages use the shared form primitives', () => {
+  it('exposes the auth surface as a main landmark for screen readers', () => {
+    renderInRouter(<LoginPage />, '/login');
+
+    expect(screen.getByRole('main')).toBe(screen.getByTestId('auth-surface'));
+  });
+
   it('login renders shared Inputs for email and password', () => {
     renderInRouter(<LoginPage />, '/login');
 
@@ -89,5 +97,26 @@ describe('auth pages use the shared form primitives', () => {
       'data-slot',
       'input',
     );
+  });
+
+  it('signup renders shared Inputs on the account details step', async () => {
+    renderInRouter(<SignupPage />, '/signup');
+
+    // A tax code that resolves to no organization skips the confirm step and
+    // lands on the form, so this covers the 4 inputs the tax-code step lacks.
+    apiRequest.mockRejectedValue(new Error('lookup unavailable'));
+    fireEvent.change(screen.getByLabelText(/mã số thuế/i), {
+      target: { value: '0101234567' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /tiếp tục/i }));
+
+    await screen.findByLabelText(/tên tổ chức/i);
+
+    for (const label of [/tên tổ chức/i, /họ và tên/i, /email/i, /mật khẩu/i]) {
+      expect(screen.getByLabelText(label)).toHaveAttribute(
+        'data-slot',
+        'input',
+      );
+    }
   });
 });

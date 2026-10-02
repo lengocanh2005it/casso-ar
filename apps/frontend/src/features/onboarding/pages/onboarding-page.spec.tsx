@@ -102,6 +102,21 @@ describe('OnboardingPage', () => {
     expect(logout).toHaveBeenCalledOnce();
   });
 
+  it('renders inside the shared auth surface with room for the account picker', () => {
+    usePreviewCassoFlowAccountsMock.mockReturnValue({} as never);
+    useConfirmCassoFlowMock.mockReturnValue({} as never);
+
+    renderPage({ role: 'OWNER', bankingLinked: false });
+
+    // Onboarding is part of the pre-login flow, so it must share
+    // AuthStatusCard rather than re-declare its own gradient shell — but keep
+    // the wider card, because CassoFlowAccountPicker shows account rows.
+    const surface = screen.getByTestId('auth-surface');
+    expect(surface).toBeInTheDocument();
+    expect(surface).toHaveClass('min-h-svh');
+    expect(surface.firstElementChild).toHaveClass('max-w-lg');
+  });
+
   it('refreshes the profile and navigates to dashboard after connecting', async () => {
     const previewMutation = {
       mutateAsync: vi.fn().mockResolvedValue({

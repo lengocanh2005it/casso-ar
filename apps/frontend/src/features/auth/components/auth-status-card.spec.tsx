@@ -17,4 +17,30 @@ describe('AuthStatusCard', () => {
     expect(screen.getByText('Kiểm tra email')).toBeVisible();
     expect(screen.getByTestId('auth-surface')).toHaveClass('from-emerald-50');
   });
+
+  it('narrows the card by default and widens it on request', () => {
+    const { rerender } = render(
+      <MemoryRouter>
+        <AuthStatusCard>
+          <p>Nội dung</p>
+        </AuthStatusCard>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId('auth-surface').firstElementChild).toHaveClass(
+      'max-w-md',
+    );
+
+    rerender(
+      <MemoryRouter>
+        <AuthStatusCard widthClassName="max-w-lg">
+          <p>Nội dung</p>
+        </AuthStatusCard>
+      </MemoryRouter>,
+    );
+
+    const card = screen.getByTestId('auth-surface').firstElementChild;
+    expect(card).toHaveClass('max-w-lg');
+    expect(card).not.toHaveClass('max-w-md');
+  });
 });
