@@ -669,14 +669,29 @@ describe('ProcessWebhookUseCase', () => {
               callback({}),
           ),
         };
+        let insideTenantContext = false;
         const tenant = {
-          run: jest.fn((_user: unknown, callback: () => Promise<void>) =>
-            callback(),
+          run: jest.fn(
+            async (_user: unknown, callback: () => Promise<void>) => {
+              insideTenantContext = true;
+              try {
+                return await callback();
+              } finally {
+                insideTenantContext = false;
+              }
+            },
           ),
         };
         const ledger = { record: jest.fn() };
         const ai = { evaluate: jest.fn() };
-        const logger = { log: jest.fn() };
+        // JsonLogger takes organizationId/userId from the tenant context, so
+        // the replay log must be written inside it.
+        const loggedInsideTenantContext: boolean[] = [];
+        const logger = {
+          log: jest.fn(() => {
+            loggedInsideTenantContext.push(insideTenantContext);
+          }),
+        };
         const useCase = new ProcessWebhookUseCase(
           inboxRepo as any,
           transactionRepo as any,
@@ -700,6 +715,14 @@ describe('ProcessWebhookUseCase', () => {
           }),
           'ProcessWebhookUseCase',
         );
+        expect(tenant.run).toHaveBeenCalledWith(
+          expect.objectContaining({
+            userId: 'system',
+            organizationId: 'org-1',
+          }),
+          expect.any(Function),
+        );
+        expect(loggedInsideTenantContext).toEqual([true]);
 
         expect(dataSource.transaction).not.toHaveBeenCalled();
         expect(transactionRepo.save).not.toHaveBeenCalled();

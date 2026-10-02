@@ -58,13 +58,24 @@ export class ProcessWebhookUseCase {
     // PROCESSED is terminal: BullMQ may redeliver after the business
     // transaction committed (e.g. a post-commit step threw) — replay is a no-op.
     if (inbox.status === 'PROCESSED') {
-      this.logger?.log(
+      // JsonLogger reads organizationId/userId from the tenant context, so log
+      // under the same synthetic system user as the processing path below.
+      await this.tenantContext.run(
         {
-          message: 'Webhook replay ignored: inbox already PROCESSED',
-          webhookInboxId: inbox.id,
+          userId: 'system',
           organizationId: inbox.organizationId,
+          role: Role.OWNER,
         },
-        ProcessWebhookUseCase.name,
+        async () => {
+          this.logger?.log(
+            {
+              message: 'Webhook replay ignored: inbox already PROCESSED',
+              webhookInboxId: inbox.id,
+              organizationId: inbox.organizationId,
+            },
+            ProcessWebhookUseCase.name,
+          );
+        },
       );
       return;
     }
