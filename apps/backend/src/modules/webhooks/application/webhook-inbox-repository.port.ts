@@ -18,6 +18,16 @@ export interface WebhookInboxPageQuery {
 export interface IWebhookInboxRepository {
   insert(inbox: WebhookInbox, manager?: EntityManager): Promise<void>;
   save(inbox: WebhookInbox, manager?: EntityManager): Promise<void>;
+  /**
+   * Atomically marks the inbox FAILED (retryCount + 1) unless it is already
+   * PROCESSED, which is terminal. Returns false when nothing was changed.
+   */
+  recordFailure(
+    id: string,
+    organizationId: string,
+    errorMessage: string,
+    manager?: EntityManager,
+  ): Promise<boolean>;
   findById(id: string, organizationId: string): Promise<WebhookInbox | null>;
   findPage(
     query: WebhookInboxPageQuery,

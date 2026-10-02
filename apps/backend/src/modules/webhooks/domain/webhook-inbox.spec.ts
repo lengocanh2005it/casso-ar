@@ -26,4 +26,16 @@ describe('WebhookInbox', () => {
       errorMessage: null,
     });
   });
+
+  it('keeps a PROCESSED inbox terminal: markFailed is a no-op', () => {
+    const processed = new WebhookInbox(props).markProcessed();
+    const failed = processed.markFailed('late retry error');
+    expect(failed).toBe(processed);
+    expect(failed).toMatchObject({
+      status: 'PROCESSED',
+      errorMessage: null,
+      retryCount: 0,
+    });
+    expect(failed.processedAt).not.toBeNull();
+  });
 });

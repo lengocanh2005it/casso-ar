@@ -541,4 +541,176 @@ describe('ProcessWebhookUseCase', () => {
 
     expect(paymentRepo.save).toHaveBeenCalledTimes(1);
   });
+
+  describe('failure while processing', () => {
+    it('records the failure through the conditional port so a concurrent PROCESSED is never overwritten', async () => {
+      const inboxRepo = {
+        findById: jest.fn().mockResolvedValue(inbox),
+        save: jest.fn(),
+        recordFailure: jest.fn().mockResolvedValue(true),
+      };
+      const manager = {};
+      const dataSource = {
+        transaction: jest.fn(
+          async (callback: (manager: object) => Promise<unknown>) =>
+            callback(manager),
+        ),
+      };
+      const duplicate = new Error(
+        'duplicate key value violates unique constraint',
+      );
+      const transactionRepo = {
+        save: jest.fn().mockRejectedValue(duplicate),
+        findById: jest.fn(),
+      };
+      const engine = {
+        scoreCandidates: jest.fn().mockResolvedValue([]),
+        toMatchingCandidateEntities: jest.fn(),
+      };
+      const tenant = {
+        run: jest.fn((_user: unknown, callback: () => Promise<void>) =>
+          callback(),
+        ),
+      };
+      const useCase = new ProcessWebhookUseCase(
+        inboxRepo as any,
+        transactionRepo as any,
+        engine as any,
+        { saveMany: jest.fn() } as any,
+        { save: jest.fn(), findByIdForUpdate: jest.fn() } as any,
+        {
+          allocateWithinTransaction: jest.fn(),
+          emitAllocationEvents: jest.fn(),
+        } as any,
+        dataSource as any,
+        tenant as any,
+        { record: jest.fn() } as any,
+        { evaluate: jest.fn() } as any,
+      );
+
+      await expect(useCase.execute('wh-1', 'org-1')).rejects.toBe(duplicate);
+
+      expect(inboxRepo.recordFailure).toHaveBeenCalledWith(
+        'wh-1',
+        'org-1',
+        'duplicate key value violates unique constraint',
+        manager,
+      );
+      expect(inboxRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('replay of an already PROCESSED inbox', () => {
+    const refundPayload = {
+      error: 0,
+      data: {
+        ...(inbox.rawPayload.data as Record<string, unknown>),
+        amount: -5_000_000,
+      },
+    };
+    const kinds: Array<{
+      name: string;
+      rawPayload: Record<string, unknown>;
+      candidates: unknown[];
+    }> = [
+      {
+        name: 'auto-matched',
+        rawPayload: inbox.rawPayload,
+        candidates: [
+          {
+            receivableId: 'rec-1',
+            customerId: 'cust-1',
+            totalScore: 95,
+            remainingAmount: 30_000_000,
+          },
+        ],
+      },
+      {
+        name: 'pending-review',
+        rawPayload: inbox.rawPayload,
+        candidates: [
+          { receivableId: 'rec-1', customerId: 'cust-1', totalScore: 70 },
+        ],
+      },
+      { name: 'unmatched', rawPayload: inbox.rawPayload, candidates: [] },
+      { name: 'refund', rawPayload: refundPayload, candidates: [] },
+    ];
+
+    it.each(kinds)(
+      'is a no-op for a $name transaction',
+      async ({ rawPayload, candidates }) => {
+        const processedInbox = new WebhookInbox({
+          ...inbox,
+          rawPayload,
+          status: 'PROCESSED',
+          processedAt: new Date('2026-08-05T01:00:00Z'),
+        });
+        const inboxRepo = {
+          findById: jest.fn().mockResolvedValue(processedInbox),
+          save: jest.fn(),
+          recordFailure: jest.fn(),
+        };
+        const transactionRepo = { save: jest.fn(), findById: jest.fn() };
+        const engine = {
+          scoreCandidates: jest.fn().mockResolvedValue(candidates),
+          toMatchingCandidateEntities: jest.fn().mockReturnValue([]),
+        };
+        const candidateRepo = { saveMany: jest.fn() };
+        const paymentRepo = { save: jest.fn(), findByIdForUpdate: jest.fn() };
+        const allocation = {
+          allocateWithinTransaction: jest
+            .fn()
+            .mockResolvedValue({ customerId: 'cust-1', becameClosed: false }),
+          emitAllocationEvents: jest.fn(),
+        };
+        const dataSource = {
+          transaction: jest.fn(
+            async (callback: (manager: object) => Promise<void>) =>
+              callback({}),
+          ),
+        };
+        const tenant = {
+          run: jest.fn((_user: unknown, callback: () => Promise<void>) =>
+            callback(),
+          ),
+        };
+        const ledger = { record: jest.fn() };
+        const ai = { evaluate: jest.fn() };
+        const logger = { log: jest.fn() };
+        const useCase = new ProcessWebhookUseCase(
+          inboxRepo as any,
+          transactionRepo as any,
+          engine as any,
+          candidateRepo as any,
+          paymentRepo as any,
+          allocation as any,
+          dataSource as any,
+          tenant as any,
+          ledger as any,
+          ai as any,
+          logger as any,
+        );
+
+        await expect(useCase.execute('wh-1', 'org-1')).resolves.toBeUndefined();
+        expect(logger.log).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: 'Webhook replay ignored: inbox already PROCESSED',
+            webhookInboxId: 'wh-1',
+            organizationId: 'org-1',
+          }),
+          'ProcessWebhookUseCase',
+        );
+
+        expect(dataSource.transaction).not.toHaveBeenCalled();
+        expect(transactionRepo.save).not.toHaveBeenCalled();
+        expect(candidateRepo.saveMany).not.toHaveBeenCalled();
+        expect(paymentRepo.save).not.toHaveBeenCalled();
+        expect(ledger.record).not.toHaveBeenCalled();
+        expect(allocation.allocateWithinTransaction).not.toHaveBeenCalled();
+        expect(allocation.emitAllocationEvents).not.toHaveBeenCalled();
+        expect(inboxRepo.save).not.toHaveBeenCalled();
+        expect(inboxRepo.recordFailure).not.toHaveBeenCalled();
+      },
+    );
+  });
 });

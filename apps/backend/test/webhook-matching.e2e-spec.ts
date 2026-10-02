@@ -31,6 +31,12 @@ import { Role } from '../src/modules/organizations/domain/membership';
 import { GetCustomerCreditsUseCase } from '../src/modules/payments/application/get-customer-credits.usecase';
 import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment.orm-entity';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
+import { ProcessWebhookUseCase } from '../src/modules/webhooks/application/process-webhook.usecase';
+import {
+  type IWebhookInboxRepository,
+  WEBHOOK_INBOX_REPOSITORY,
+} from '../src/modules/webhooks/application/webhook-inbox-repository.port';
+import { WebhookInbox } from '../src/modules/webhooks/domain/webhook-inbox';
 import { BankTransactionOrmEntity } from '../src/modules/webhooks/infrastructure/bank-transaction.orm-entity';
 import { MatchingCandidateOrmEntity } from '../src/modules/webhooks/infrastructure/matching-candidate.orm-entity';
 import { WebhookInboxOrmEntity } from '../src/modules/webhooks/infrastructure/webhook-inbox.orm-entity';
@@ -1029,4 +1035,235 @@ describe('Webhook matching (e2e)', () => {
     expect(paid?.status).toBe(ReceivableStatus.PAID);
     expect(Number(paid?.paidAmount)).toBe(12_000_000);
   }, 30_000);
+
+  describe('queue redelivery after the business transaction committed', () => {
+    const financialTables = [
+      'bank_transactions',
+      'matching_candidates',
+      'payments',
+      'payment_allocations',
+      'receivable_balance_history',
+      'ledger_events',
+    ] as const;
+
+    const countFinancialRows = async (): Promise<Record<string, number>> => {
+      const counts: Record<string, number> = {};
+      for (const table of financialTables) {
+        const [row] = await dataSource.query(
+          `SELECT COUNT(*)::int AS count FROM ${table} WHERE "organizationId" = $1`,
+          [organizationId],
+        );
+        counts[table] = row.count;
+      }
+      return counts;
+    };
+
+    const saveReceivedInbox = async (
+      transactionId: number,
+      data: Record<string, unknown>,
+    ): Promise<string> => {
+      const id = randomUUID();
+      await dataSource.getRepository(WebhookInboxOrmEntity).save({
+        id,
+        organizationId,
+        bankConnectionId,
+        providerTransactionId: String(transactionId),
+        rawPayload: {
+          error: 0,
+          data: {
+            id: transactionId,
+            transactionDateTime: '2026-08-05 10:00:00',
+            accountNumber: '99887766',
+            ...data,
+          },
+        },
+        receivedAt: new Date(),
+        status: 'RECEIVED',
+        processedAt: null,
+        errorMessage: null,
+        retryCount: 0,
+      });
+      return id;
+    };
+
+    const loadInbox = (id: string) =>
+      dataSource.getRepository(WebhookInboxOrmEntity).findOneByOrFail({ id });
+
+    const seedAutoMatchTarget = async (): Promise<void> => {
+      const customerId = randomUUID();
+      const invoiceId = randomUUID();
+      await dataSource.getRepository(CustomerOrmEntity).save({
+        id: customerId,
+        organizationId,
+        name: 'Company Replay',
+        taxCode: 'TAX-422',
+        email: 'company-replay@example.com',
+        phone: '0900000422',
+        defaultPaymentTermDays: 30,
+        creditLimit: 100_000_000,
+        priority: 1,
+        createdAt: new Date(),
+      });
+      await dataSource.getRepository(CustomerBankAccountOrmEntity).save({
+        id: randomUUID(),
+        organizationId,
+        customerId,
+        accountNumber: '7700110022',
+        createdAt: new Date(),
+      });
+      await dataSource.getRepository(InvoiceOrmEntity).save({
+        id: invoiceId,
+        organizationId,
+        customerId,
+        invoiceNumber: 'INV-2026-0422',
+        issueDate: new Date('2026-07-01T00:00:00.000Z'),
+        totalAmount: 20_000_000,
+        taxAmount: 0,
+        sourceType: 'MANUAL',
+        fileUrl: null,
+        status: InvoiceStatus.ISSUED,
+        createdAt: new Date(),
+      });
+      await dataSource.getRepository(ReceivableOrmEntity).save({
+        id: randomUUID(),
+        organizationId,
+        customerId,
+        invoiceId,
+        originalAmount: 20_000_000,
+        paidAmount: 0,
+        dueDate: new Date('2026-08-05T10:00:00.000Z'),
+        status: ReceivableStatus.OPEN,
+        salesRepresentativeId: null,
+        createdAt: new Date(),
+        closedAt: null,
+        version: 1,
+      });
+    };
+
+    const kinds: Array<{
+      name: string;
+      transactionId: number;
+      data: Record<string, unknown>;
+      seed?: () => Promise<void>;
+    }> = [
+      {
+        name: 'auto-matched',
+        transactionId: 1_042_201,
+        data: {
+          amount: 20_000_000,
+          description: 'Thanh toan INV-2026-0422',
+          counterAccountNumber: '7700110022',
+          counterAccountName: 'Company Replay',
+        },
+        seed: seedAutoMatchTarget,
+      },
+      {
+        name: 'unmatched',
+        transactionId: 1_042_202,
+        data: {
+          amount: 1_500_000,
+          description: 'khong ro noi dung',
+          counterAccountNumber: '5500000001',
+          counterAccountName: 'Nguoi la',
+        },
+      },
+      {
+        name: 'refund',
+        transactionId: 1_042_203,
+        data: {
+          amount: -2_500_000,
+          description: 'hoan tien',
+          counterAccountNumber: '5500000002',
+          counterAccountName: 'Nguoi nhan hoan',
+        },
+      },
+    ];
+
+    it.each(kinds)(
+      'keeps the $name inbox PROCESSED and financial records unchanged on replay',
+      async ({ transactionId, data, seed }) => {
+        const processWebhook = app.get(ProcessWebhookUseCase, {
+          strict: false,
+        });
+        await seed?.();
+        const inboxId = await saveReceivedInbox(transactionId, data);
+
+        await processWebhook.execute(inboxId, organizationId);
+        const processed = await loadInbox(inboxId);
+        const countsAfterCommit = await countFinancialRows();
+        expect(processed.status).toBe('PROCESSED');
+        expect(countsAfterCommit.bank_transactions).toBeGreaterThan(0);
+
+        await expect(
+          processWebhook.execute(inboxId, organizationId),
+        ).resolves.toBeUndefined();
+
+        expect(await loadInbox(inboxId)).toEqual(processed);
+        expect(await countFinancialRows()).toEqual(countsAfterCommit);
+      },
+      30_000,
+    );
+
+    it('never overwrites PROCESSED with FAILED when a stale RECEIVED snapshot retries after commit', async () => {
+      const processWebhook = app.get(ProcessWebhookUseCase, {
+        strict: false,
+      });
+      const inboxRepo = app.get<IWebhookInboxRepository>(
+        WEBHOOK_INBOX_REPOSITORY,
+        { strict: false },
+      );
+      const inboxId = await saveReceivedInbox(1_042_204, {
+        amount: 900_000,
+        description: 'stale snapshot',
+        counterAccountNumber: '5500000004',
+        counterAccountName: 'Nguoi cu',
+      });
+      const staleSnapshot = new WebhookInbox({
+        ...(await loadInbox(inboxId)),
+      });
+
+      await processWebhook.execute(inboxId, organizationId);
+      const processed = await loadInbox(inboxId);
+      const countsAfterCommit = await countFinancialRows();
+
+      // A concurrent attempt loaded the inbox before the first one committed.
+      const findById = jest
+        .spyOn(inboxRepo, 'findById')
+        .mockResolvedValueOnce(staleSnapshot);
+      await expect(
+        processWebhook.execute(inboxId, organizationId),
+      ).rejects.toThrow();
+      findById.mockRestore();
+
+      expect(await loadInbox(inboxId)).toEqual(processed);
+      expect(await countFinancialRows()).toEqual(countsAfterCommit);
+    }, 30_000);
+
+    it('settles two concurrent attempts on a RECEIVED inbox as PROCESSED', async () => {
+      const processWebhook = app.get(ProcessWebhookUseCase, {
+        strict: false,
+      });
+      const inboxId = await saveReceivedInbox(1_042_205, {
+        amount: 700_000,
+        description: 'concurrent attempts',
+        counterAccountNumber: '5500000005',
+        counterAccountName: 'Nguoi song song',
+      });
+
+      await Promise.allSettled([
+        processWebhook.execute(inboxId, organizationId),
+        processWebhook.execute(inboxId, organizationId),
+      ]);
+
+      const inbox = await loadInbox(inboxId);
+      expect(inbox.status).toBe('PROCESSED');
+      expect(inbox.processedAt).not.toBeNull();
+      expect(inbox.errorMessage).toBeNull();
+      expect(
+        await dataSource
+          .getRepository(BankTransactionOrmEntity)
+          .countBy({ providerTransactionId: '1042205' }),
+      ).toBe(1);
+    }, 30_000);
+  });
 });
