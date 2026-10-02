@@ -198,7 +198,7 @@ describe('CopilotPage', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /mở lịch sử chat/i }));
     expect(
-      screen.getByRole('dialog', { name: /menu điều hướng/i }),
+      screen.getByRole('dialog', { name: 'Lịch sử chat' }),
     ).toBeInTheDocument();
 
     mockUseAuth.mockReturnValue({
@@ -208,7 +208,7 @@ describe('CopilotPage', () => {
 
     await waitFor(() =>
       expect(
-        screen.queryByRole('dialog', { name: /menu điều hướng/i }),
+        screen.queryByRole('dialog', { name: 'Lịch sử chat' }),
       ).not.toBeInTheDocument(),
     );
   });
@@ -327,7 +327,7 @@ describe('CopilotPage', () => {
     );
   });
 
-  it('lists drafts in the side panel alongside the chat, without switching views', async () => {
+  it('keeps the chat full-width and loads drafts only when their drawer opens', async () => {
     apiRequest.mockImplementation((config) => {
       if (config.url === '/api/v1/copilot/drafts') {
         return Promise.resolve({
@@ -351,21 +351,47 @@ describe('CopilotPage', () => {
 
     renderPage();
 
-    // The chat welcome state and the drafts panel are both visible at once —
-    // there is no tab to switch between them any more.
     await waitFor(() =>
       expect(
         screen.getByText(/bạn muốn xử lý công nợ nào/i),
       ).toBeInTheDocument(),
     );
+    expect(
+      screen.queryByText(/nhắc thanh toán abc company/i),
+    ).not.toBeInTheDocument();
+    expect(apiRequest).not.toHaveBeenCalledWith(
+      expect.objectContaining({ url: '/api/v1/copilot/drafts' }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /mở bản nháp email/i }));
     await waitFor(() =>
       expect(
         screen.getByText(/nhắc thanh toán abc company/i),
       ).toBeInTheDocument(),
     );
+    expect(
+      screen.getByRole('dialog', { name: 'Bản nháp email' }),
+    ).toBeInTheDocument();
     expect(apiRequest).toHaveBeenCalledWith(
       expect.objectContaining({ url: '/api/v1/copilot/drafts' }),
     );
+  });
+
+  it('opens chat history as a named drawer and closes it from its header', async () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /mở lịch sử chat/i }));
+
+    let drawer = await screen.findByRole('dialog', { name: 'Lịch sử chat' });
+    expect(drawer).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
+    await waitFor(() => expect(drawer).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /mở lịch sử chat/i }));
+    drawer = await screen.findByRole('dialog', { name: 'Lịch sử chat' });
+    fireEvent.click(screen.getByRole('button', { name: /đóng lịch sử chat/i }));
+    await waitFor(() => expect(drawer).not.toBeInTheDocument());
   });
 
   it('locks the input after hitting the Copilot plan quota', async () => {

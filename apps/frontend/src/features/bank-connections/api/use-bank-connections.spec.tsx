@@ -102,7 +102,7 @@ describe('useConfirmCassoFlow', () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it('shows a generic toast for non-plan-limit errors', async () => {
+  it('leaves connection errors to the picker inline alert', async () => {
     const error = new Error('invalid key');
     confirmCassoFlow.mockRejectedValueOnce(error);
     getApiErrorCode.mockReturnValue('UNAUTHORIZED');
@@ -124,9 +124,7 @@ describe('useConfirmCassoFlow', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    expect(toastError).toHaveBeenCalledWith(
-      'Không thể kết nối Casso Flow. Vui lòng kiểm tra lại API Key.',
-    );
+    expect(toastError).not.toHaveBeenCalled();
   });
 });
 

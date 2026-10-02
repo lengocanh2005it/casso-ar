@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import { JsonLogger } from '../../../common/observability/json-logger.service';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { LedgerEventRecorderService } from '../../ledger/application/ledger-event-recorder.service';
 import { LedgerEventKind } from '../../ledger/domain/ledger-event-kind';
@@ -16,6 +17,7 @@ import { BalanceHistoryActorType } from '../../receivable-balance-history/domain
 import { BankTransaction } from '../domain/bank-transaction';
 import type { IBankTransactionRepository } from './bank-transaction-repository.port';
 import { BANK_TRANSACTION_REPOSITORY } from './bank-transaction-repository.port';
+import { AUTO_MATCH_THRESHOLD, canAutoMatch } from './can-auto-match';
 import { MatchingAiRecommendationService } from './matching-ai-recommendation.service';
 import type { IMatchingCandidateRepository } from './matching-candidate-repository.port';
 import { MATCHING_CANDIDATE_REPOSITORY } from './matching-candidate-repository.port';
@@ -24,7 +26,6 @@ import { normalizeBalanceHookPayload } from './transaction-normalizer';
 import type { IWebhookInboxRepository } from './webhook-inbox-repository.port';
 import { WEBHOOK_INBOX_REPOSITORY } from './webhook-inbox-repository.port';
 
-const AUTO_MATCH_THRESHOLD = 90;
 const EXCEPTION_QUEUE_THRESHOLD = 60;
 
 @Injectable()
@@ -44,6 +45,7 @@ export class ProcessWebhookUseCase {
     private readonly tenantContext: TenantContextService,
     private readonly ledgerRecorder: LedgerEventRecorderService,
     private readonly matchingAiRecommendation: MatchingAiRecommendationService,
+    @Optional() private readonly logger?: JsonLogger,
   ) {}
 
   async execute(webhookInboxId: string, organizationId: string): Promise<void> {
@@ -53,6 +55,30 @@ export class ProcessWebhookUseCase {
         ErrorCode.NOT_FOUND,
         `WebhookInbox ${webhookInboxId} not found`,
       );
+    // PROCESSED is terminal: BullMQ may redeliver after the business
+    // transaction committed (e.g. a post-commit step threw) — replay is a no-op.
+    if (inbox.status === 'PROCESSED') {
+      // JsonLogger reads organizationId/userId from the tenant context, so log
+      // under the same synthetic system user as the processing path below.
+      await this.tenantContext.run(
+        {
+          userId: 'system',
+          organizationId: inbox.organizationId,
+          role: Role.OWNER,
+        },
+        async () => {
+          this.logger?.log(
+            {
+              message: 'Webhook replay ignored: inbox already PROCESSED',
+              webhookInboxId: inbox.id,
+              organizationId: inbox.organizationId,
+            },
+            ProcessWebhookUseCase.name,
+          );
+        },
+      );
+      return;
+    }
     try {
       await this.tenantContext.run(
         {
@@ -92,19 +118,7 @@ export class ProcessWebhookUseCase {
             inbox.organizationId,
           );
           const top = candidates[0];
-          const clearedThreshold = candidates.filter(
-            (candidate) => candidate.totalScore >= AUTO_MATCH_THRESHOLD,
-          );
-          const ambiguousAcrossCustomers =
-            !!top &&
-            clearedThreshold.some(
-              (candidate) => candidate.customerId !== top.customerId,
-            );
-          const canAutoMatch =
-            !!top &&
-            top.totalScore >= AUTO_MATCH_THRESHOLD &&
-            transaction.amount <= top.remainingAmount &&
-            !ambiguousAcrossCustomers;
+          const autoMatchable = canAutoMatch(candidates, transaction.amount);
 
           const aiRecommendation =
             top &&
@@ -147,7 +161,7 @@ export class ProcessWebhookUseCase {
           };
           try {
             await this.dataSource.transaction(async (manager) => {
-              if (canAutoMatch && top) {
+              if (autoMatchable && top) {
                 const payment = new Payment({
                   id: randomUUID(),
                   organizationId: inbox.organizationId,
@@ -208,7 +222,7 @@ export class ProcessWebhookUseCase {
               error instanceof AppError &&
               (error.errorCode === ErrorCode.ALLOCATION_EXCEEDS_REMAINING ||
                 error.errorCode === ErrorCode.CONFLICT);
-            if (!canAutoMatch || !candidateNoLongerAllocatable) {
+            if (!autoMatchable || !candidateNoLongerAllocatable) {
               throw error;
             }
             await this.dataSource.transaction(async (manager) => {
@@ -230,6 +244,9 @@ export class ProcessWebhookUseCase {
         },
       );
     } catch (error) {
+      // recordFailure never overrides PROCESSED. A throw after commit (e.g.
+      // emitAllocationEvents) therefore leaves the inbox PROCESSED and the
+      // replay a no-op, so those events are not re-emitted — recovery is #421.
       const message =
         error instanceof Error
           ? error.message
@@ -249,7 +266,12 @@ export class ProcessWebhookUseCase {
         )
         .replace(/\b[A-Za-z0-9+/_-]{32,}={0,2}\b/g, '[redacted]');
       await this.dataSource.transaction((manager) =>
-        this.inboxRepo.save(inbox.markFailed(safeMessage), manager),
+        this.inboxRepo.recordFailure(
+          inbox.id,
+          inbox.organizationId,
+          safeMessage,
+          manager,
+        ),
       );
       throw error;
     }

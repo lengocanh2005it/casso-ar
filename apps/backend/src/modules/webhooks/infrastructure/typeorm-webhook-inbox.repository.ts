@@ -53,6 +53,30 @@ export class TypeOrmWebhookInboxRepository implements IWebhookInboxRepository {
     );
   }
 
+  async recordFailure(
+    id: string,
+    organizationId: string,
+    errorMessage: string,
+    manager?: EntityManager,
+  ): Promise<boolean> {
+    const result = await (
+      manager?.getRepository(WebhookInboxOrmEntity) ?? this.repo
+    )
+      .createQueryBuilder()
+      .update()
+      .set({
+        status: 'FAILED',
+        errorMessage: errorMessage.slice(0, 500),
+        retryCount: () => '"retryCount" + 1',
+      })
+      .where(
+        '"id" = :id AND "organizationId" = :organizationId AND "status" <> :processed',
+        { id, organizationId, processed: 'PROCESSED' },
+      )
+      .execute();
+    return (result.affected ?? 0) > 0;
+  }
+
   async findById(
     id: string,
     organizationId: string,

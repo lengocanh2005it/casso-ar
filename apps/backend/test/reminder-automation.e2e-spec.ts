@@ -9,6 +9,7 @@ import {
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
 import request from 'supertest';
+import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TenantContextService } from '../src/common/tenancy/tenant-context';
@@ -54,19 +55,25 @@ async function waitUntil(
 
 describe('Reminder automation (integration)', () => {
   let container: StartedPostgreSqlContainer | undefined;
+  let redis: StartedTestContainer | undefined;
   let app: INestApplication;
   let dataSource: DataSource;
   let jwtService: JwtService;
 
   beforeAll(async () => {
-    container = await new PostgreSqlContainer('postgres:16').start();
+    // Own Redis: the .env Redis is shared with any running dev backend, whose
+    // BullMQ workers would steal this test's queue jobs.
+    [container, redis] = await Promise.all([
+      new PostgreSqlContainer('postgres:16').start(),
+      new GenericContainer('redis:7-alpine').withExposedPorts(6379).start(),
+    ]);
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
-    process.env.REDIS_HOST = 'localhost';
-    process.env.REDIS_PORT = '6379';
+    process.env.REDIS_HOST = redis.getHost();
+    process.env.REDIS_PORT = String(redis.getMappedPort(6379));
     process.env.JWT_SECRET = 'e2e-jwt-secret';
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -102,7 +109,7 @@ describe('Reminder automation (integration)', () => {
 
   afterAll(async () => {
     await app?.close();
-    await container?.stop();
+    await Promise.all([redis?.stop(), container?.stop()]);
   });
 
   beforeEach(() => {

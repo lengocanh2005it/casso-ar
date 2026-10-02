@@ -15,7 +15,7 @@ export function StatsBand() {
             >
               Vì sao chọn Casso AR?
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-lg text-primary-foreground/80 text-pretty">
+            <p className="mx-auto mt-4 max-w-xl text-lg text-primary-foreground text-pretty">
               Những công cụ giúp bạn thu tiền đúng hạn và giảm thao tác thủ
               công.
             </p>
@@ -33,7 +33,7 @@ export function StatsBand() {
                   <div className="flex size-12 items-center justify-center rounded-xl border border-primary-foreground/20 bg-primary-foreground/10">
                     <Icon className="size-6" aria-hidden="true" />
                   </div>
-                  <p className="max-w-[16rem] text-base leading-relaxed text-primary-foreground/90">
+                  <p className="max-w-[16rem] text-base leading-relaxed text-primary-foreground">
                     {highlight.label}
                   </p>
                 </div>

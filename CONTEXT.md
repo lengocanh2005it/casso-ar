@@ -63,7 +63,7 @@ A B2B SaaS platform for automating accounts receivable management and collection
 |------|---------|
 | **Overdue receivable** | A `Receivable` whose due date has passed while it remains `OPEN` or `PARTIALLY_PAID` with a positive remaining balance. Overdue is a computed condition, not a persisted status. |
 | **Reminder candidate** | An overdue receivable presented for collection follow-up and reminder-draft selection. It is not a separate receivable type or persisted entity. |
-| **AI matching recommendation** | A nullable, immutable-once-evaluated JSONB result for an ambiguous `60–89` transaction. It recommends one deterministic candidate or abstains; it never allocates money or changes transaction status. |
+| **AI matching recommendation** | A nullable, immutable-once-evaluated JSONB result for a `60–89` transaction. It recommends one deterministic candidate or abstains; it never allocates money or changes transaction status. |
 | **Current AI recommendation** | A recommendation whose receivable is still among the persisted candidates and remains open with positive balance. `isCurrent` is derived at read time; the stored evaluation is retained as history. |
 
 ## Reporting Terms
@@ -260,14 +260,17 @@ they never rewrite an earlier snapshot.
 ## Matching Engine (Webhook → Payment)
 
 ```
-Score ≥ 90:  Auto payment allocation
-Score 60-89: Exception Queue (human review)
-Score < 60:  UNMATCHED
+Score ≥ 90 and lead ≥ 10 over the runner-up receivable: Auto payment allocation
+Score ≥ 90 but lead < 10 (ambiguous match):             Exception Queue (human review)
+Score 60-89:                                            Exception Queue (human review)
+Score < 60:                                             UNMATCHED
 
 Score components:
   referenceCodeScore (0-60) + amountScore (0-20) + customerBankAccountScore (0-10)
   + payerNameScore (0-5) + timingScore (0-5)
 ```
+
+**Candidate retrieval.** The engine scores a bounded set: with an unknown payer, the 20 open receivables nearest the transaction date on each side; with a linked payer, up to 100 open receivables per linked customer. On top of that it always adds open receivables whose invoice has an **exact invoice reference** in the transfer content (the whole number, ignoring case and separators, not inside a longer number), found by index and capped at 20 (longest invoice number first, then nearest due date), however many other open receivables exist. For a linked payer only the linked customers' hits are added (the payer link stays the authorization boundary). With an unknown payer the customer is resolved from the hits only when they all belong to one customer; hits spanning several customers are all kept as candidates and, being close in score, go to review. Lookup keys are the substrings (4-32 characters, first 200 normalized characters) of the content, matched against `upper(regexp_replace("invoiceNumber", '[^A-Za-z0-9]', '', 'g'))` through `IDX_invoices_organization_normalized_number`, and receivables are then read through `IDX_receivables_organization_invoice`; every hit is re-checked with `referenceCodeScore`.
 
 ## Batch Operations
 
@@ -275,7 +278,7 @@ Score components:
 
 - Batch size: max 50 items per request
 - Every batch item's transaction/tenant scoping and permission checks are identical to the single-item endpoint it reuses — a batch endpoint is never a separate authorization path
-- **Bulk approve match:** an Exception Queue row is eligible for one-click bulk approval only when its `topCandidate.totalScore ≥ 80` (`BULK_APPROVE_THRESHOLD`) — distinct from and lower than `AUTO_MATCH_THRESHOLD` (90, webhook auto-match), because every Exception Queue row is by definition already below 90. The full bank transaction amount is submitted as the allocation; if it exceeds the receivable's `remainingAmount` the item fails with `ALLOCATION_EXCEEDS_REMAINING` in its per-item result rather than blocking the rest of the batch.
+- **Bulk approve match:** an Exception Queue row is eligible for one-click bulk approval only when its `topCandidate.totalScore ≥ 80` (`BULK_APPROVE_THRESHOLD`) and it is not an ambiguous match (`isAmbiguous` on the queue item: top candidate leads the runner-up by < 10 points, so a human must choose the receivable) — distinct from and lower than `AUTO_MATCH_THRESHOLD` (90, webhook auto-match), because every Exception Queue row is by definition already below 90. The full bank transaction amount is submitted as the allocation; if it exceeds the receivable's `remainingAmount` the item fails with `ALLOCATION_EXCEEDS_REMAINING` in its per-item result rather than blocking the rest of the batch.
 
 ## Architecture Decisions (ADR)
 

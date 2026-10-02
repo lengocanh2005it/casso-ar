@@ -156,6 +156,33 @@ export class TypeOrmReceivableRepository
     return rows.map(toDomain);
   }
 
+  async findOpenByInvoiceIds(invoiceIds: string[]): Promise<Receivable[]> {
+    if (invoiceIds.length === 0) return [];
+    const organizationId = this.tenantContext.getOrganizationId();
+    const rows = await this.ormRepo.find({
+      where: {
+        organizationId,
+        invoiceId: In(invoiceIds),
+        status: In([ReceivableStatus.OPEN, ReceivableStatus.PARTIALLY_PAID]),
+      },
+      select: {
+        id: true,
+        organizationId: true,
+        customerId: true,
+        invoiceId: true,
+        originalAmount: true,
+        paidAmount: true,
+        dueDate: true,
+        status: true,
+        salesRepresentativeId: true,
+        createdAt: true,
+        closedAt: true,
+        version: true,
+      },
+    });
+    return rows.map(toDomain);
+  }
+
   async findOverdueByThreshold(
     organizationId: string,
     minDaysOverdue: number,

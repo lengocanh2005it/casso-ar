@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { ThemeProvider } from '@/contexts/theme-context';
@@ -79,5 +79,46 @@ describe('LandingNavbar', () => {
     expect(
       screen.getByRole('button', { name: /giao diện/i }),
     ).toBeInTheDocument();
+  });
+
+  it('keeps the inline nav closed until the header can fit it', () => {
+    // At 768px the five nav links plus both CTAs measured 894px wide, so the
+    // row overflowed by ~126px and `overflow-hidden` clipped the signup link
+    // with no scrollbar to reveal it. The inline nav must wait for `lg`.
+    render(
+      <ThemeProvider>
+        <MemoryRouter>
+          <LandingNavbar />
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByRole('navigation')).toHaveClass('lg:flex');
+    expect(screen.getByRole('button', { name: /mở menu/i })).toHaveClass(
+      'lg:hidden',
+    );
+  });
+
+  it('links to the product showcase from desktop and mobile navigation', () => {
+    render(
+      <ThemeProvider>
+        <MemoryRouter>
+          <LandingNavbar />
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByRole('link', { name: 'Sản phẩm' })).toHaveAttribute(
+      'href',
+      '#san-pham',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /mở menu/i }));
+
+    expect(
+      within(screen.getByRole('dialog')).getByRole('link', {
+        name: 'Sản phẩm',
+      }),
+    ).toHaveAttribute('href', '#san-pham');
   });
 });

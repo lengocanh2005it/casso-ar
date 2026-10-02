@@ -21,8 +21,8 @@ export function LandingPage() {
       <LandingNavbar />
       <main id="main-content">
         <HeroSection />
-        <ProductShowcase />
         <AboutSection />
+        <ProductShowcase />
         <StatsBand />
         <FeaturesSection />
         <StepsSection />

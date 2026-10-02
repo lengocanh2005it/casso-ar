@@ -14,6 +14,33 @@ beforeEach(() => {
 });
 
 describe('CassoFlowAccountPicker', () => {
+  it('shows an empty state and lets the user return to edit the API key', async () => {
+    const onPreview = vi
+      .fn()
+      .mockResolvedValue({ businessId: 'biz-1', accounts: [] });
+
+    render(
+      <CassoFlowAccountPicker
+        onPreview={onPreview}
+        onConfirm={vi.fn().mockResolvedValue({ connected: [], skipped: [] })}
+      />,
+    );
+
+    const apiKeyInput = screen.getByLabelText(/Casso Flow API Key/i);
+    fireEvent.change(apiKeyInput, { target: { value: 'first-key' } });
+    fireEvent.click(screen.getByRole('button', { name: /xem tài khoản/i }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      /không tìm thấy tài khoản ngân hàng/i,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /sửa API Key/i }));
+
+    expect(screen.getByLabelText(/Casso Flow API Key/i)).toHaveValue(
+      'first-key',
+    );
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
   it('previews accounts and submits the checked accounts', async () => {
     const onPreview = vi.fn().mockResolvedValue({
       businessId: 'biz-1',

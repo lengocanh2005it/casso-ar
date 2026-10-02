@@ -12,6 +12,7 @@ import { OnboardingPage } from './onboarding-page';
 const useAuthMock = vi.mocked(useAuth);
 const useConfirmCassoFlowMock = vi.mocked(useConfirmCassoFlow);
 const usePreviewCassoFlowAccountsMock = vi.mocked(usePreviewCassoFlowAccounts);
+const toastWarning = vi.hoisted(() => vi.fn());
 
 vi.mock('@/contexts/auth-context', () => ({
   useAuth: vi.fn(),
@@ -21,6 +22,8 @@ vi.mock('@/features/bank-connections/api/use-bank-connections', () => ({
   useConfirmCassoFlow: vi.fn(),
   usePreviewCassoFlowAccounts: vi.fn(),
 }));
+
+vi.mock('sonner', () => ({ toast: { warning: toastWarning } }));
 
 function renderPage(user: { role: string; bankingLinked: boolean }) {
   const queryClient = new QueryClient({
@@ -71,7 +74,12 @@ describe('OnboardingPage', () => {
 
     renderPage({ role: 'VIEWER', bankingLinked: false });
 
-    expect(screen.getByText('Liên kết ngân hàng')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Liên kết ngân hàng', level: 1 }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Kết nối tài khoản ngân hàng qua/i),
+    ).toBeInTheDocument();
     expect(screen.getByText('Kết nối an toàn')).toBeVisible();
     expect(screen.getByText(/owner hoặc finance manager/i)).toBeInTheDocument();
   });
@@ -148,5 +156,44 @@ describe('OnboardingPage', () => {
       expect(refreshUser).toHaveBeenCalledOnce();
     });
     expect(await screen.findByText('dashboard')).toBeInTheDocument();
+  });
+
+  it('continues to the dashboard and explains when profile refresh fails after connecting', async () => {
+    const previewMutation = {
+      mutateAsync: vi.fn().mockResolvedValue({
+        businessId: 'biz-1',
+        accounts: [
+          {
+            accountNumber: '111',
+            bankName: 'VPBank',
+            accountHolderName: 'NGUYEN VAN A',
+            status: 'AVAILABLE',
+          },
+        ],
+      }),
+    };
+    const confirmMutation = {
+      mutateAsync: vi.fn().mockResolvedValue({ connected: [], skipped: [] }),
+    };
+    usePreviewCassoFlowAccountsMock.mockReturnValue(previewMutation as never);
+    useConfirmCassoFlowMock.mockReturnValue(confirmMutation as never);
+
+    const { refreshUser } = renderPage({
+      role: 'OWNER',
+      bankingLinked: false,
+    });
+    refreshUser.mockRejectedValueOnce(new Error('Profile refresh failed'));
+
+    fireEvent.change(screen.getByLabelText(/Casso Flow API Key/i), {
+      target: { value: 'test-key' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /xem tài khoản/i }));
+    await screen.findByRole('checkbox', { name: '111' });
+    fireEvent.click(screen.getByRole('button', { name: /xác nhận/i }));
+
+    expect(await screen.findByText('dashboard')).toBeInTheDocument();
+    expect(toastWarning).toHaveBeenCalledWith(
+      expect.stringContaining('Đã kết nối ngân hàng'),
+    );
   });
 });

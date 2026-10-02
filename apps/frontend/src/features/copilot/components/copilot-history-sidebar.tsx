@@ -1,4 +1,4 @@
-import { MessageSquare, Plus } from 'lucide-react';
+import { MessageSquare, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { CopilotConversationSummary } from '../types';
@@ -9,12 +9,14 @@ export function CopilotHistorySidebar({
   isLoading,
   onSelect,
   onNewChat,
+  onClose,
 }: {
   conversations: CopilotConversationSummary[];
   activeConversationId: string;
   isLoading: boolean;
   onSelect: (id: string) => void;
   onNewChat: () => void;
+  onClose?: () => void;
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -22,15 +24,30 @@ export function CopilotHistorySidebar({
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
           Lịch sử chat
         </span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={onNewChat}
-          aria-label="Cuộc trò chuyện mới"
-        >
-          <Plus className="size-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onNewChat}
+            aria-label="Cuộc trò chuyện mới"
+            title="Cuộc trò chuyện mới"
+          >
+            <Plus className="size-4" />
+          </Button>
+          {onClose && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              aria-label="Đóng lịch sử chat"
+              title="Đóng lịch sử chat"
+            >
+              <X className="size-4" />
+            </Button>
+          )}
+        </div>
       </div>
       <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
         {isLoading && conversations.length === 0 && (

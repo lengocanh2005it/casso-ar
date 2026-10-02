@@ -87,4 +87,28 @@ export class TypeOrmMatchingCandidateRepository
     }
     return topCandidates;
   }
+
+  // ponytail: second batch query per queue page; fold into
+  // findTopByBankTransactionIds if the extra round trip ever matters.
+  async findRunnerUpScoresByBankTransactionIds(
+    bankTransactionIds: string[],
+  ): Promise<Map<string, number>> {
+    if (bankTransactionIds.length === 0) return new Map();
+    const organizationId = this.tenantContext.getOrganizationId();
+    const rows = await this.ormRepo.find({
+      select: { bankTransactionId: true, totalScore: true },
+      where: { organizationId, bankTransactionId: In(bankTransactionIds) },
+      order: { totalScore: 'DESC' },
+    });
+    const seenTop = new Set<string>();
+    const runnerUpScores = new Map<string, number>();
+    for (const row of rows) {
+      if (!seenTop.has(row.bankTransactionId)) {
+        seenTop.add(row.bankTransactionId);
+      } else if (!runnerUpScores.has(row.bankTransactionId)) {
+        runnerUpScores.set(row.bankTransactionId, row.totalScore);
+      }
+    }
+    return runnerUpScores;
+  }
 }

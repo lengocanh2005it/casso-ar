@@ -121,6 +121,14 @@ export function CassoFlowAccountPicker({
     }
   }
 
+  function handleEditApiKey() {
+    setAccounts(null);
+    setSelected([]);
+    setMissingAccountNumbers([]);
+    setSkipped([]);
+    setError(null);
+  }
+
   if (!accounts) {
     return (
       <form onSubmit={handlePreview} className="space-y-4 pt-2">
@@ -131,7 +139,11 @@ export function CassoFlowAccountPicker({
           </p>
         )}
         <div className="flex justify-end pt-2">
-          <Button type="submit" disabled={!apiKey.trim() || isPending}>
+          <Button
+            type="submit"
+            className="disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+            disabled={!apiKey.trim() || isPending}
+          >
             {isPending ? 'Đang kiểm tra…' : 'Xem tài khoản'}
           </Button>
         </div>
@@ -147,55 +159,65 @@ export function CassoFlowAccountPicker({
           sẽ giữ nguyên trạng thái hiện tại.
         </p>
       )}
-      <fieldset className="space-y-3">
-        <legend className="text-sm font-medium">
-          Chọn tài khoản ngân hàng
-        </legend>
-        <ScrollArea className="max-h-64">
-          <div className="space-y-3 pr-3">
-            {accounts.map((account) => {
-              const selectable = isSelectable(account);
-              return (
-                <label
-                  key={account.accountNumber}
-                  className="flex items-start gap-3 rounded-md border p-3"
-                >
-                  <input
-                    type="checkbox"
-                    aria-label={account.accountNumber}
-                    checked={selected.includes(account.accountNumber)}
-                    disabled={!selectable || isPending}
-                    onChange={(event) =>
-                      setSelected((current) =>
-                        event.target.checked
-                          ? [...current, account.accountNumber]
-                          : current.filter(
-                              (number) => number !== account.accountNumber,
-                            ),
-                      )
-                    }
-                    className="mt-1 size-4"
-                  />
-                  <span className="min-w-0 text-sm">
-                    <span className="block break-words font-medium">
-                      {account.bankName}
+      {accounts.length === 0 ? (
+        <p
+          role="status"
+          className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground"
+        >
+          Không tìm thấy tài khoản ngân hàng từ API Key này. Hãy kiểm tra lại
+          quyền truy cập hoặc nhập API Key khác.
+        </p>
+      ) : (
+        <fieldset className="space-y-3">
+          <legend className="text-sm font-medium">
+            Chọn tài khoản ngân hàng
+          </legend>
+          <ScrollArea className="max-h-64">
+            <div className="space-y-3 pr-3">
+              {accounts.map((account) => {
+                const selectable = isSelectable(account);
+                return (
+                  <label
+                    key={account.accountNumber}
+                    className="flex items-start gap-3 rounded-md border p-3"
+                  >
+                    <input
+                      type="checkbox"
+                      aria-label={account.accountNumber}
+                      checked={selected.includes(account.accountNumber)}
+                      disabled={!selectable || isPending}
+                      onChange={(event) =>
+                        setSelected((current) =>
+                          event.target.checked
+                            ? [...current, account.accountNumber]
+                            : current.filter(
+                                (number) => number !== account.accountNumber,
+                              ),
+                        )
+                      }
+                      className="mt-1 size-4"
+                    />
+                    <span className="min-w-0 text-sm">
+                      <span className="block break-words font-medium">
+                        {account.bankName}
+                      </span>
+                      <span
+                        className="block min-w-0 truncate"
+                        title={account.accountNumber}
+                      >
+                        {account.accountNumber}
+                      </span>
+                      <span className="block break-words text-muted-foreground">
+                        {account.accountHolderName} · {statusMessage(account)}
+                      </span>
                     </span>
-                    <span
-                      className="block min-w-0 truncate"
-                      title={account.accountNumber}
-                    >
-                      {account.accountNumber}
-                    </span>
-                    <span className="block break-words text-muted-foreground">
-                      {account.accountHolderName} · {statusMessage(account)}
-                    </span>
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-        </ScrollArea>
-      </fieldset>
+                  </label>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        </fieldset>
+      )}
 
       {skipped.length > 0 && (
         <div
@@ -221,10 +243,25 @@ export function CassoFlowAccountPicker({
         </p>
       )}
 
-      <div className="flex justify-end gap-2 pt-2">
-        <Button type="submit" disabled={selected.length === 0 || isPending}>
-          {isPending ? 'Đang kết nối…' : 'Xác nhận'}
+      <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full sm:w-auto"
+          disabled={isPending}
+          onClick={handleEditApiKey}
+        >
+          Sửa API Key
         </Button>
+        {accounts.length > 0 && (
+          <Button
+            type="submit"
+            className="w-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 sm:w-auto"
+            disabled={selected.length === 0 || isPending}
+          >
+            {isPending ? 'Đang kết nối…' : 'Xác nhận'}
+          </Button>
+        )}
       </div>
     </form>
   );

@@ -57,7 +57,7 @@ export function LandingNavbar() {
         <Link
           to="/"
           aria-label="Casso AR — Trang chủ"
-          className="inline-flex shrink-0 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Logo
             className="hidden sm:inline-flex"
@@ -66,7 +66,10 @@ export function LandingNavbar() {
           <Logo variant="icon" className="h-9 sm:hidden" />
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
+        {/* `lg`, not `md`: at 768px the five nav links plus both CTAs measure
+            ~894px, so the row overflowed and `overflow-hidden` clipped the
+            signup link with no scrollbar to reach it. */}
+        <nav className="hidden items-center gap-1 lg:flex">
           {LANDING_NAV_LINKS.map((link) => (
             <Button
               key={link.href}
@@ -104,7 +107,7 @@ export function LandingNavbar() {
               <Button
                 variant="outline"
                 size="icon"
-                className="md:hidden"
+                className="size-11 lg:hidden"
                 aria-label="Mở menu"
               >
                 <Menu aria-hidden="true" className="size-4" />
