@@ -88,6 +88,21 @@ describe('ProductShowcase', () => {
     );
   });
 
+  it('keeps the active showcase pill green and borderless in dark mode', () => {
+    render(<ProductShowcase />);
+
+    const activeTab = screen.getByRole('tab', { name: /lịch nhắc/i });
+
+    expect(activeTab).toHaveClass(
+      'dark:data-[state=active]:border-transparent',
+      'dark:data-[state=active]:bg-transparent',
+      'dark:data-[state=active]:text-primary-foreground',
+    );
+    expect(screen.getByTestId('showcase-tab-indicator')).toHaveClass(
+      'bg-primary',
+    );
+  });
+
   it('renders one tab per showcase screen', () => {
     render(<ProductShowcase />);
 

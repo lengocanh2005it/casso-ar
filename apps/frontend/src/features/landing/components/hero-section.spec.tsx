@@ -46,6 +46,18 @@ describe('HeroSection', () => {
     expect(assurance).toHaveClass('text-left');
   });
 
+  it('keeps reassurance details at full muted-text contrast', () => {
+    render(
+      <MemoryRouter>
+        <HeroSection />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(/không cần thẻ/i)).not.toHaveClass(
+      'text-muted-foreground/70',
+    );
+  });
+
   it('fills exactly one viewport so the next section starts at the fold', () => {
     // Sizing the hero to its content left 230px of "Xem Casso AR hoạt động"
     // inside the first screen, so the hero and the section below it shared one

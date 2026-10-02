@@ -121,7 +121,7 @@ export function ProductShowcase() {
                   <TabsTrigger
                     key={screen.id}
                     value={screen.id}
-                    className="group isolate h-auto min-h-11 flex-auto whitespace-nowrap rounded-full px-1 py-2 text-xs font-medium data-[state=active]:bg-transparent data-[state=active]:text-primary-foreground data-[state=active]:shadow-none sm:px-4 sm:text-sm"
+                    className="group isolate h-auto min-h-11 flex-auto whitespace-nowrap rounded-full px-1 py-2 text-xs font-medium data-[state=active]:bg-transparent data-[state=active]:text-primary-foreground data-[state=active]:shadow-none dark:data-[state=active]:border-transparent dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-primary-foreground sm:px-4 sm:text-sm"
                   >
                     {activeScreen === screen.id && (
                       <motion.span

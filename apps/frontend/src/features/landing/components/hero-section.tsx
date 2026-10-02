@@ -112,10 +112,7 @@ export function HeroSection() {
                 />
                 <span>
                   {assurance.label}
-                  <span className="text-muted-foreground/70">
-                    {' '}
-                    — {assurance.detail}
-                  </span>
+                  <span> — {assurance.detail}</span>
                 </span>
               </li>
             ))}
