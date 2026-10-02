@@ -61,6 +61,8 @@ export interface Payer {
 export interface PendingReviewItem {
   transaction: BankTransaction;
   topCandidate: MatchingCandidate | null;
+  /** Top candidate leads the runner-up by < 10 points: a human must choose. */
+  isAmbiguous?: boolean;
   aiRecommendation?: AiRecommendation | null;
   payer: Payer;
 }

@@ -17,6 +17,7 @@ import { BalanceHistoryActorType } from '../../receivable-balance-history/domain
 import { BankTransaction } from '../domain/bank-transaction';
 import type { IBankTransactionRepository } from './bank-transaction-repository.port';
 import { BANK_TRANSACTION_REPOSITORY } from './bank-transaction-repository.port';
+import { AUTO_MATCH_THRESHOLD, canAutoMatch } from './can-auto-match';
 import { MatchingAiRecommendationService } from './matching-ai-recommendation.service';
 import type { IMatchingCandidateRepository } from './matching-candidate-repository.port';
 import { MATCHING_CANDIDATE_REPOSITORY } from './matching-candidate-repository.port';
@@ -25,7 +26,6 @@ import { normalizeBalanceHookPayload } from './transaction-normalizer';
 import type { IWebhookInboxRepository } from './webhook-inbox-repository.port';
 import { WEBHOOK_INBOX_REPOSITORY } from './webhook-inbox-repository.port';
 
-const AUTO_MATCH_THRESHOLD = 90;
 const EXCEPTION_QUEUE_THRESHOLD = 60;
 
 @Injectable()
@@ -118,19 +118,7 @@ export class ProcessWebhookUseCase {
             inbox.organizationId,
           );
           const top = candidates[0];
-          const clearedThreshold = candidates.filter(
-            (candidate) => candidate.totalScore >= AUTO_MATCH_THRESHOLD,
-          );
-          const ambiguousAcrossCustomers =
-            !!top &&
-            clearedThreshold.some(
-              (candidate) => candidate.customerId !== top.customerId,
-            );
-          const canAutoMatch =
-            !!top &&
-            top.totalScore >= AUTO_MATCH_THRESHOLD &&
-            transaction.amount <= top.remainingAmount &&
-            !ambiguousAcrossCustomers;
+          const autoMatchable = canAutoMatch(candidates, transaction.amount);
 
           const aiRecommendation =
             top &&
@@ -173,7 +161,7 @@ export class ProcessWebhookUseCase {
           };
           try {
             await this.dataSource.transaction(async (manager) => {
-              if (canAutoMatch && top) {
+              if (autoMatchable && top) {
                 const payment = new Payment({
                   id: randomUUID(),
                   organizationId: inbox.organizationId,
@@ -234,7 +222,7 @@ export class ProcessWebhookUseCase {
               error instanceof AppError &&
               (error.errorCode === ErrorCode.ALLOCATION_EXCEEDS_REMAINING ||
                 error.errorCode === ErrorCode.CONFLICT);
-            if (!canAutoMatch || !candidateNoLongerAllocatable) {
+            if (!autoMatchable || !candidateNoLongerAllocatable) {
               throw error;
             }
             await this.dataSource.transaction(async (manager) => {

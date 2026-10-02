@@ -87,6 +87,12 @@ export class PayerResponseDto {
 export class UnmatchedBankTransactionResponseDto {
   transaction: BankTransactionResponseDto;
   topCandidate: MatchingCandidateResponseDto | null;
+  @ApiProperty({
+    type: Boolean,
+    description:
+      'True when the top candidate leads the runner-up by less than 10 points; a human must choose the receivable.',
+  })
+  isAmbiguous: boolean;
   @ApiProperty({ type: AiMatchingRecommendationResponseDto, nullable: true })
   aiRecommendation: AiMatchingRecommendationResponseDto | null;
   @ApiProperty({ type: PayerResponseDto })
@@ -170,6 +176,7 @@ function toUnmatchedItemResponse(
     topCandidate: item.topCandidate
       ? toMatchingCandidateResponse(item.topCandidate)
       : null,
+    isAmbiguous: item.isAmbiguous,
     aiRecommendation: item.aiRecommendation,
     payer: item.payer,
   };

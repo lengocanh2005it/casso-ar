@@ -424,7 +424,7 @@ describe('ProcessWebhookUseCase', () => {
           {
             receivableId: 'rec-2',
             customerId: 'cust-1',
-            totalScore: 92,
+            totalScore: 70,
             remainingAmount: 40_000_000,
           },
         ]),
@@ -483,7 +483,7 @@ describe('ProcessWebhookUseCase', () => {
     },
   );
 
-  it('still auto-matches when the second-best candidate is the same customer', async () => {
+  it('routes to PENDING_REVIEW when the runner-up of the same customer is within the lead margin', async () => {
     const inboxRepo = {
       findById: jest.fn().mockResolvedValue(inbox),
       save: jest.fn(),
@@ -509,9 +509,7 @@ describe('ProcessWebhookUseCase', () => {
     const paymentRepo = { save: jest.fn() };
     const candidateRepo = { saveMany: jest.fn() };
     const allocation = {
-      allocateWithinTransaction: jest
-        .fn()
-        .mockResolvedValue({ customerId: 'cust-1', becameClosed: false }),
+      allocateWithinTransaction: jest.fn(),
       emitAllocationEvents: jest.fn(),
     };
     const dataSource = {
@@ -519,6 +517,7 @@ describe('ProcessWebhookUseCase', () => {
         async (callback: (manager: object) => Promise<void>) => callback({}),
       ),
     };
+    const ai = { evaluate: jest.fn() };
     const tenant = {
       run: jest.fn((_user: unknown, callback: () => Promise<void>) =>
         callback(),
@@ -534,12 +533,21 @@ describe('ProcessWebhookUseCase', () => {
       dataSource as any,
       tenant as any,
       { record: jest.fn() } as any,
-      { evaluate: jest.fn() } as any,
+      ai as any,
     );
 
     await useCase.execute('wh-1', 'org-1');
 
-    expect(paymentRepo.save).toHaveBeenCalledTimes(1);
+    expect(transactionRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'PENDING_REVIEW' }),
+      expect.anything(),
+    );
+    expect(candidateRepo.saveMany).toHaveBeenCalledTimes(1);
+    expect(paymentRepo.save).not.toHaveBeenCalled();
+    expect(allocation.allocateWithinTransaction).not.toHaveBeenCalled();
+    expect(allocation.emitAllocationEvents).not.toHaveBeenCalled();
+    // AI stays advisory and only runs for 60-89; this one is ambiguous at 90+.
+    expect(ai.evaluate).not.toHaveBeenCalled();
   });
 
   describe('failure while processing', () => {

@@ -20,6 +20,7 @@ import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 import { BankTransactionOrmEntity } from '../src/modules/webhooks/infrastructure/bank-transaction.orm-entity';
+import { MatchingCandidateOrmEntity } from '../src/modules/webhooks/infrastructure/matching-candidate.orm-entity';
 
 describe('Exception Queue (e2e)', () => {
   let container: StartedPostgreSqlContainer;
@@ -249,4 +250,56 @@ describe('Exception Queue (e2e)', () => {
       allocatedAmount: 5_000_000,
     });
   }, 20_000);
+  it('flags a pending-review transaction ambiguous only when the top candidate leads by less than 10 points', async () => {
+    const customerId = await createCustomer();
+    const saveCandidates = async (
+      bankTransactionId: string,
+      scores: number[],
+    ): Promise<void> => {
+      for (const totalScore of scores) {
+        await dataSource.getRepository(MatchingCandidateOrmEntity).save({
+          id: randomUUID(),
+          organizationId,
+          bankTransactionId,
+          receivableId: await createReceivable(customerId, 1_000_000),
+          customerId,
+          referenceCodeScore: 0,
+          amountScore: 0,
+          customerBankAccountScore: 0,
+          payerNameScore: 0,
+          timingScore: 0,
+          totalScore,
+          createdAt: new Date(),
+        });
+      }
+    };
+    const narrow = await createReviewTransaction(1_000_000);
+    const exactMargin = await createReviewTransaction(1_000_000);
+    const clear = await createReviewTransaction(1_000_000);
+    const single = await createReviewTransaction(1_000_000);
+    const none = await createReviewTransaction(1_000_000);
+    await saveCandidates(narrow, [91, 95, 40]);
+    await saveCandidates(exactMargin, [85, 95]);
+    await saveCandidates(clear, [60, 95]);
+    await saveCandidates(single, [85]);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/bank-transactions/unmatched?limit=100')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    const ambiguousById = new Map<string, boolean>(
+      response.body.items.map(
+        (entry: { transaction: { id: string }; isAmbiguous: boolean }) => [
+          entry.transaction.id,
+          entry.isAmbiguous,
+        ],
+      ),
+    );
+    expect(ambiguousById.get(narrow)).toBe(true);
+    expect(ambiguousById.get(exactMargin)).toBe(false);
+    expect(ambiguousById.get(clear)).toBe(false);
+    expect(ambiguousById.get(single)).toBe(false);
+    expect(ambiguousById.get(none)).toBe(false);
+  }, 30_000);
 });

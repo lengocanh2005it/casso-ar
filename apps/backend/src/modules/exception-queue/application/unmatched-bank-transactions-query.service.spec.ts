@@ -8,6 +8,9 @@ describe('UnmatchedBankTransactionsQueryService', () => {
       countByStatus: jest.fn().mockResolvedValue(2),
     };
     const matchingCandidateRepo = {
+      findRunnerUpScoresByBankTransactionIds: jest
+        .fn()
+        .mockResolvedValue(new Map()),
       findTopByBankTransactionIds: jest
         .fn()
         .mockResolvedValue(new Map([['bt-1', { id: 'mc-1', totalScore: 80 }]])),
@@ -39,6 +42,7 @@ describe('UnmatchedBankTransactionsQueryService', () => {
             remainingAmount: null,
             dueDate: null,
           },
+          isAmbiguous: false,
           aiRecommendation: null,
           payer: {
             accountNumberMasked: '',
@@ -49,6 +53,7 @@ describe('UnmatchedBankTransactionsQueryService', () => {
         {
           transaction: { id: 'bt-2' },
           topCandidate: null,
+          isAmbiguous: false,
           aiRecommendation: null,
           payer: {
             accountNumberMasked: '',
@@ -66,12 +71,77 @@ describe('UnmatchedBankTransactionsQueryService', () => {
     ).toHaveBeenCalledWith(['bt-1', 'bt-2']);
   });
 
+  it('flags a transaction ambiguous when its top candidate leads the runner-up by less than 10 points', async () => {
+    const transactions = [
+      { id: 'bt-tie' },
+      { id: 'bt-narrow' },
+      { id: 'bt-exact-margin' },
+      { id: 'bt-clear' },
+      { id: 'bt-single' },
+      { id: 'bt-none' },
+    ];
+    const matchingCandidateRepo = {
+      findTopByBankTransactionIds: jest.fn().mockResolvedValue(
+        new Map([
+          ['bt-tie', { id: 'mc-1', totalScore: 95 }],
+          ['bt-narrow', { id: 'mc-2', totalScore: 95 }],
+          ['bt-exact-margin', { id: 'mc-3', totalScore: 95 }],
+          ['bt-clear', { id: 'mc-4', totalScore: 95 }],
+          ['bt-single', { id: 'mc-5', totalScore: 85 }],
+        ]),
+      ),
+      findRunnerUpScoresByBankTransactionIds: jest.fn().mockResolvedValue(
+        new Map([
+          ['bt-tie', 95],
+          ['bt-narrow', 86],
+          ['bt-exact-margin', 85],
+          ['bt-clear', 60],
+        ]),
+      ),
+    };
+    const service = new UnmatchedBankTransactionsQueryService(
+      {
+        findManyByStatus: jest.fn().mockResolvedValue(transactions),
+        countByStatus: jest.fn().mockResolvedValue(transactions.length),
+      } as never,
+      matchingCandidateRepo as never,
+      {
+        findByIds: jest.fn().mockResolvedValue(new Map()),
+        findOpenByIds: jest.fn().mockResolvedValue([]),
+      } as never,
+      { findByIds: jest.fn().mockResolvedValue(new Map()) } as never,
+      { findByIds: jest.fn().mockResolvedValue(new Map()) } as never,
+      { findActiveByAccountNumbers: jest.fn().mockResolvedValue([]) } as never,
+    );
+
+    const page = await service.execute();
+
+    expect(
+      Object.fromEntries(
+        page.items.map((item) => [item.transaction.id, item.isAmbiguous]),
+      ),
+    ).toEqual({
+      'bt-tie': true,
+      'bt-narrow': true,
+      'bt-exact-margin': false,
+      'bt-clear': false,
+      'bt-single': false,
+      'bt-none': false,
+    });
+    expect(
+      matchingCandidateRepo.findRunnerUpScoresByBankTransactionIds,
+    ).toHaveBeenCalledWith(transactions.map((transaction) => transaction.id));
+  });
+
   it('delegates paging to the repository via skip/take instead of loading the full queue', async () => {
     const bankTransactionRepo = {
       findManyByStatus: jest.fn().mockResolvedValue([]),
       countByStatus: jest.fn().mockResolvedValue(45),
     };
     const matchingCandidateRepo = {
+      findRunnerUpScoresByBankTransactionIds: jest
+        .fn()
+        .mockResolvedValue(new Map()),
       findTopByBankTransactionIds: jest.fn().mockResolvedValue(new Map()),
     };
     const receivableRepo = {
@@ -105,6 +175,9 @@ describe('UnmatchedBankTransactionsQueryService', () => {
       countByStatus: jest.fn().mockResolvedValue(0),
     };
     const matchingCandidateRepo = {
+      findRunnerUpScoresByBankTransactionIds: jest
+        .fn()
+        .mockResolvedValue(new Map()),
       findTopByBankTransactionIds: jest.fn().mockResolvedValue(new Map()),
     };
     const receivableRepo = {
@@ -150,6 +223,9 @@ describe('UnmatchedBankTransactionsQueryService', () => {
       countByStatus: jest.fn().mockResolvedValue(1),
     };
     const matchingCandidateRepo = {
+      findRunnerUpScoresByBankTransactionIds: jest
+        .fn()
+        .mockResolvedValue(new Map()),
       findTopByBankTransactionIds: jest.fn().mockResolvedValue(new Map()),
     };
     const receivableRepo = {
@@ -198,6 +274,9 @@ describe('UnmatchedBankTransactionsQueryService', () => {
       countByStatus: jest.fn().mockResolvedValue(1),
     };
     const matchingCandidateRepo = {
+      findRunnerUpScoresByBankTransactionIds: jest
+        .fn()
+        .mockResolvedValue(new Map()),
       findTopByBankTransactionIds: jest.fn().mockResolvedValue(new Map()),
     };
     const receivableRepo = {
@@ -255,6 +334,9 @@ describe('UnmatchedBankTransactionsQueryService', () => {
       countByStatus: jest.fn().mockResolvedValue(2),
     };
     const matchingCandidateRepo = {
+      findRunnerUpScoresByBankTransactionIds: jest
+        .fn()
+        .mockResolvedValue(new Map()),
       findTopByBankTransactionIds: jest.fn().mockResolvedValue(new Map()),
     };
     const receivableRepo = {
@@ -286,6 +368,9 @@ describe('UnmatchedBankTransactionsQueryService', () => {
       findById: jest.fn().mockResolvedValue({ id: 'bt-1' }),
     };
     const matchingCandidateRepo = {
+      findRunnerUpScoresByBankTransactionIds: jest
+        .fn()
+        .mockResolvedValue(new Map()),
       findByBankTransactionId: jest.fn().mockResolvedValue([
         { id: 'mc-1', receivableId: 'rec-1', customerId: 'customer-1' },
         { id: 'mc-2', receivableId: 'missing', customerId: 'missing-customer' },
@@ -373,6 +458,9 @@ describe('UnmatchedBankTransactionsQueryService', () => {
       countByStatus: jest.fn().mockResolvedValue(1),
     };
     const matchingCandidateRepo = {
+      findRunnerUpScoresByBankTransactionIds: jest
+        .fn()
+        .mockResolvedValue(new Map()),
       findTopByBankTransactionIds: jest.fn().mockResolvedValue(new Map()),
     };
     const receivableRepo = {
@@ -427,6 +515,9 @@ describe('UnmatchedBankTransactionsQueryService', () => {
       countByStatus: jest.fn().mockResolvedValue(1),
     };
     const matchingCandidateRepo = {
+      findRunnerUpScoresByBankTransactionIds: jest
+        .fn()
+        .mockResolvedValue(new Map()),
       findTopByBankTransactionIds: jest.fn().mockResolvedValue(new Map()),
     };
     const receivableRepo = {
@@ -472,6 +563,9 @@ describe('UnmatchedBankTransactionsQueryService', () => {
       countByStatus: jest.fn().mockResolvedValue(2),
     };
     const matchingCandidateRepo = {
+      findRunnerUpScoresByBankTransactionIds: jest
+        .fn()
+        .mockResolvedValue(new Map()),
       findTopByBankTransactionIds: jest.fn().mockResolvedValue(new Map()),
     };
     const receivableRepo = {

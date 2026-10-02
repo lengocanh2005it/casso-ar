@@ -26,6 +26,7 @@ import {
   BANK_TRANSACTION_REPOSITORY,
   type IBankTransactionRepository,
 } from '../../webhooks/application/bank-transaction-repository.port';
+import { hasClearLead } from '../../webhooks/application/can-auto-match';
 import {
   type IMatchingCandidateRepository,
   MATCHING_CANDIDATE_REPOSITORY,
@@ -56,6 +57,8 @@ export interface PayerView {
 export interface UnmatchedBankTransactionView {
   transaction: BankTransaction;
   topCandidate: MatchingCandidateView | null;
+  /** Derived at read time: top candidate leads the runner-up by < 10 points. */
+  isAmbiguous: boolean;
   aiRecommendation: AiMatchingRecommendationView | null;
   payer: PayerView;
 }
@@ -108,10 +111,17 @@ export class UnmatchedBankTransactionsQueryService {
       }),
       this.bankTransactionRepo.countByStatus('PENDING_REVIEW', search),
     ]);
-    const topCandidates =
-      await this.matchingCandidateRepo.findTopByBankTransactionIds(
-        pageTransactions.map((transaction) => transaction.id),
-      );
+    const pageTransactionIds = pageTransactions.map(
+      (transaction) => transaction.id,
+    );
+    const [topCandidates, runnerUpScores] = await Promise.all([
+      this.matchingCandidateRepo.findTopByBankTransactionIds(
+        pageTransactionIds,
+      ),
+      this.matchingCandidateRepo.findRunnerUpScoresByBankTransactionIds(
+        pageTransactionIds,
+      ),
+    ]);
     const candidateViews = await this.toCandidateViews([
       ...topCandidates.values(),
     ]);
@@ -180,6 +190,12 @@ export class UnmatchedBankTransactionsQueryService {
           topCandidate: candidate
             ? (candidateViewsById.get(candidate.id) ?? null)
             : null,
+          isAmbiguous:
+            !!candidate &&
+            !hasClearLead(
+              candidate.totalScore,
+              runnerUpScores.get(transaction.id) ?? null,
+            ),
           aiRecommendation: toRecommendationView(
             transaction.aiRecommendation,
             openReceivableIds,
