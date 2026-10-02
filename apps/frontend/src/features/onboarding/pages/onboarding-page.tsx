@@ -2,13 +2,13 @@ import { Permission } from '@casso-ar/shared-types';
 import { ShieldCheck } from 'lucide-react';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
 import { AuthLogoLink } from '@/features/auth/components/auth-logo-link';
@@ -53,7 +53,12 @@ export function OnboardingPage() {
   function handleCompleted() {
     void refreshUser()
       .then(() => navigate('/dashboard'))
-      .catch(() => undefined);
+      .catch(() => {
+        toast.warning(
+          'Đã kết nối ngân hàng nhưng chưa thể cập nhật trạng thái. Trang chủ sẽ tự làm mới; nếu thông báo vẫn còn, hãy tải lại trang.',
+        );
+        navigate('/dashboard');
+      });
   }
 
   return (
@@ -69,9 +74,11 @@ export function OnboardingPage() {
             </span>
             Kết nối an toàn
           </div>
-          <CardTitle className="text-2xl">Liên kết ngân hàng</CardTitle>
+          <h1 className="text-2xl font-semibold leading-none">
+            Liên kết ngân hàng
+          </h1>
           <CardDescription>
-            Kết nối một tài khoản ngân hàng qua{' '}
+            Kết nối tài khoản ngân hàng qua{' '}
             <span className="text-primary">Casso Flow</span> để bắt đầu đồng bộ
             giao dịch phát sinh mới vào{' '}
             <span className="text-primary">Casso AR</span>. Bạn có thể bỏ qua

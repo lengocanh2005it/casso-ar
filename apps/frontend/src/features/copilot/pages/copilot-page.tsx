@@ -6,20 +6,17 @@ import {
   LoaderCircle,
   Lock,
   Mail,
-  Menu,
-  PanelLeftClose,
   PanelLeftOpen,
-  PanelRightClose,
-  PanelRightOpen,
   Sparkles,
   Square,
+  X,
 } from 'lucide-react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeading } from '@/components/layout/page-heading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetClose, SheetContent } from '@/components/ui/sheet';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPlanAccess } from '@/lib/plan-access';
 import { hasPermission } from '@/lib/rbac';
@@ -38,10 +35,9 @@ export function CopilotPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [draft, setDraft] = useState('');
-  const [historySheetOpen, setHistorySheetOpen] = useState(false);
-  const [historyCollapsed, setHistoryCollapsed] = useState(false);
-  const [draftsSheetOpen, setDraftsSheetOpen] = useState(false);
-  const [draftsCollapsed, setDraftsCollapsed] = useState(false);
+  const [activeDrawer, setActiveDrawer] = useState<'history' | 'drafts' | null>(
+    null,
+  );
   const gateRef = useRef<HTMLDivElement>(null);
   const canSendManual = user
     ? hasPermission(user.role, Permission.REMINDER_SEND_MANUAL)
@@ -67,8 +63,7 @@ export function CopilotPage() {
 
   useEffect(() => {
     if (!hasCopilotAccess) {
-      setHistorySheetOpen(false);
-      setDraftsSheetOpen(false);
+      setActiveDrawer(null);
     }
   }, [hasCopilotAccess]);
 
@@ -124,20 +119,28 @@ export function CopilotPage() {
       isLoading={isLoadingConversations}
       onSelect={(id) => {
         selectConversation(id);
-        setHistorySheetOpen(false);
+        setActiveDrawer(null);
       }}
       onNewChat={() => {
         startNewConversation();
-        setHistorySheetOpen(false);
+        setActiveDrawer(null);
       }}
+      onClose={() => setActiveDrawer(null)}
     />
   );
   const draftsPanel = (
     <div className="flex h-full flex-col">
-      <div className="border-b border-border bg-muted/20 px-3 py-3">
+      <div className="flex items-center justify-between border-b border-border bg-muted/20 px-4 py-3">
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
           Bản nháp email
         </span>
+        <SheetClose
+          aria-label="Đóng bản nháp email"
+          title="Đóng bản nháp email"
+          className="inline-flex size-9 items-center justify-center rounded-md text-foreground/80 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <X aria-hidden="true" className="size-4" />
+        </SheetClose>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         <DraftsList canSendManual={canSendManual} />
@@ -167,19 +170,17 @@ export function CopilotPage() {
           aria-label="Không gian làm việc Copilot"
           className="flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl border border-border bg-card"
         >
-          <aside
-            className={cn(
-              'hidden shrink-0 overflow-hidden border-r border-border bg-muted/20 transition-[width] duration-200 2xl:block',
-              historyCollapsed ? 'w-0 border-0' : 'w-56',
-            )}
-          >
-            <div className={cn('h-full w-56', historyCollapsed && 'invisible')}>
-              {historySidebar}
-            </div>
-          </aside>
           {hasCopilotAccess && (
-            <Sheet open={historySheetOpen} onOpenChange={setHistorySheetOpen}>
-              <SheetContent side="left" className="w-64 p-0">
+            <Sheet
+              open={activeDrawer === 'history'}
+              onOpenChange={(open) => !open && setActiveDrawer(null)}
+            >
+              <SheetContent
+                side="left"
+                accessibleTitle="Lịch sử chat"
+                accessibleDescription="Danh sách cuộc trò chuyện Copilot."
+                className="w-[min(90vw,24rem)] max-w-none p-0"
+              >
                 {historySidebar}
               </SheetContent>
             </Sheet>
@@ -187,66 +188,26 @@ export function CopilotPage() {
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="flex min-h-12 items-center justify-between gap-2 px-3 py-2">
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="2xl:hidden"
-                  onClick={() => setHistorySheetOpen(true)}
-                  aria-label="Mở lịch sử chat"
-                >
-                  <Menu className="size-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="hidden 2xl:inline-flex"
-                  onClick={() => setHistoryCollapsed((current) => !current)}
-                  aria-label={
-                    historyCollapsed
-                      ? 'Mở lịch sử chat'
-                      : 'Thu gọn lịch sử chat'
-                  }
-                >
-                  {historyCollapsed ? (
-                    <PanelLeftOpen className="size-4" />
-                  ) : (
-                    <PanelLeftClose className="size-4" />
-                  )}
-                </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="2xl:hidden"
-                  onClick={() => setDraftsSheetOpen(true)}
-                  aria-label="Mở bản nháp email"
-                >
-                  <Mail className="size-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="hidden 2xl:inline-flex"
-                  onClick={() => setDraftsCollapsed((current) => !current)}
-                  aria-label={
-                    draftsCollapsed
-                      ? 'Mở bản nháp email'
-                      : 'Thu gọn bản nháp email'
-                  }
-                >
-                  {draftsCollapsed ? (
-                    <PanelRightOpen className="size-4" />
-                  ) : (
-                    <PanelRightClose className="size-4" />
-                  )}
-                </Button>
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setActiveDrawer('history')}
+                aria-label="Mở lịch sử chat"
+                title="Lịch sử chat"
+              >
+                <PanelLeftOpen aria-hidden="true" className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setActiveDrawer('drafts')}
+                aria-label="Mở bản nháp email"
+                title="Bản nháp email"
+              >
+                <Mail aria-hidden="true" className="size-4" />
+              </Button>
             </div>
 
             {/* The welcome card carries its own border and padding, so the
@@ -336,19 +297,17 @@ export function CopilotPage() {
             </form>
           </div>
 
-          <aside
-            className={cn(
-              'hidden shrink-0 overflow-hidden border-l border-border bg-muted/20 transition-[width] duration-200 2xl:block',
-              draftsCollapsed ? 'w-0 border-0' : 'w-96',
-            )}
-          >
-            <div className={cn('h-full w-96', draftsCollapsed && 'invisible')}>
-              {draftsPanel}
-            </div>
-          </aside>
           {hasCopilotAccess && (
-            <Sheet open={draftsSheetOpen} onOpenChange={setDraftsSheetOpen}>
-              <SheetContent side="right" className="w-[90vw] max-w-sm p-0">
+            <Sheet
+              open={activeDrawer === 'drafts'}
+              onOpenChange={(open) => !open && setActiveDrawer(null)}
+            >
+              <SheetContent
+                side="right"
+                accessibleTitle="Bản nháp email"
+                accessibleDescription="Danh sách email nhắc thanh toán đã soạn."
+                className="w-[min(92vw,32rem)] max-w-none p-0"
+              >
                 {draftsPanel}
               </SheetContent>
             </Sheet>

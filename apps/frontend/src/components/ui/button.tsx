@@ -4,12 +4,12 @@ import type * as React from 'react';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[color,transform] duration-150 ease-out active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[background-color,border-color,box-shadow,color,transform] duration-150 ease-out active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring',
   {
     variants: {
       variant: {
         default:
-          'bg-primary text-primary-foreground shadow-xs pointer-hover:hover:bg-primary/90',
+          'bg-primary text-primary-foreground shadow-xs pointer-hover:hover:bg-primary pointer-hover:hover:shadow-sm',
         destructive:
           'bg-destructive text-destructive-foreground shadow-xs pointer-hover:hover:bg-destructive/90',
         outline:

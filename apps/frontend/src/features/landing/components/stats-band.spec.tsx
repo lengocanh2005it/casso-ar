@@ -31,12 +31,12 @@ describe('StatsBand', () => {
     const copy = screen.getByText(
       'Những công cụ giúp bạn thu tiền đúng hạn và giảm thao tác thủ công.',
     );
-    expect(copy).toHaveClass('text-primary-foreground/80');
-    expect(copy).not.toHaveClass('dark:text-white/80');
+    expect(copy).toHaveClass('text-primary-foreground');
+    expect(copy).not.toHaveClass('dark:text-white');
 
     const highlightLabel = screen.getByText(LANDING_STAT_HIGHLIGHTS[0].label);
-    expect(highlightLabel).toHaveClass('text-primary-foreground/90');
-    expect(highlightLabel).not.toHaveClass('dark:text-white/90');
+    expect(highlightLabel).toHaveClass('text-primary-foreground');
+    expect(highlightLabel).not.toHaveClass('dark:text-white');
     expect(
       screen.getByRole('heading', { name: 'Vì sao chọn Casso AR?' }),
     ).toHaveAttribute('id', 'stats-band-title');

@@ -43,6 +43,14 @@ describe('LandingPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Ba bước là xong')).toBeInTheDocument();
     expect(screen.getByText('Gói dịch vụ linh hoạt')).toBeInTheDocument();
+
+    const sectionIds = Array.from(
+      document.querySelectorAll('main section'),
+      (section) => section.id,
+    );
+    expect(sectionIds.indexOf('gioi-thieu')).toBeLessThan(
+      sectionIds.indexOf('san-pham'),
+    );
   });
 
   it('keeps the content sections compact and visually separated', () => {

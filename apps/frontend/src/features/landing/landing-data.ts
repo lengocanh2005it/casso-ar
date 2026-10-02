@@ -12,6 +12,7 @@ import {
 
 export const LANDING_NAV_LINKS = [
   { href: '#gioi-thieu', label: 'Giới thiệu' },
+  { href: '#san-pham', label: 'Sản phẩm' },
   { href: '#tinh-nang', label: 'Tính năng' },
   { href: '#cach-hoat-dong', label: 'Cách hoạt động' },
   { href: '#bang-gia', label: 'Bảng giá' },
@@ -21,6 +22,14 @@ export const LANDING_HEADLINE_PHRASES = [
   'không cần nhắc lại',
   'không cần Excel',
   'không cần đoán',
+] as const;
+
+// Factual product guarantees only — no customer names or logos, which would
+// be unverifiable claims on a marketing page.
+export const LANDING_HERO_ASSURANCES = [
+  { label: 'Dùng thử miễn phí', detail: 'không cần thẻ' },
+  { label: 'Không giới hạn khách hàng', detail: 'theo dõi miễn phí' },
+  { label: 'Đối soát tự động', detail: 'ngay khi tiền về' },
 ] as const;
 
 export const LANDING_ABOUT = {
@@ -98,7 +107,7 @@ export const LANDING_SHOWCASE_SCREENS = [
     title: 'Không cần nhắc lại',
     description:
       'Đặt chính sách một lần, hệ thống tự động gửi email nhắc thanh toán đúng lịch.',
-    image: '/showcase-reminders.jpg',
+    image: '/showcase-reminders.png',
     alt: 'Giao diện Lịch nhắc tự động của Casso AR',
     icon: BellRing,
   },
@@ -108,7 +117,7 @@ export const LANDING_SHOWCASE_SCREENS = [
     title: 'Không cần Excel',
     description:
       'Toàn bộ công nợ, dòng tiền và giao dịch chờ đối soát gói gọn trong một trang tổng quan.',
-    image: '/showcase-dashboard.jpg',
+    image: '/showcase-dashboard.png',
     alt: 'Giao diện tổng quan công nợ của Casso AR',
     icon: LayoutDashboard,
   },
@@ -118,7 +127,7 @@ export const LANDING_SHOWCASE_SCREENS = [
     title: 'Không cần đoán',
     description:
       'Hỏi Copilot bằng ngôn ngữ tự nhiên, nhận câu trả lời tức thì từ dữ liệu công nợ thật.',
-    image: '/showcase-copilot.jpg',
+    image: '/showcase-copilot.png',
     alt: 'Giao diện Copilot — trợ lý AI thu hồi công nợ của Casso AR',
     icon: Sparkles,
   },

@@ -33,12 +33,16 @@ function SheetClose(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof Dialog.Content> {
   side?: 'top' | 'right' | 'bottom' | 'left';
+  accessibleTitle?: string;
+  accessibleDescription?: string;
 }
 
 function SheetContent({
   className,
   children,
   side = 'left',
+  accessibleTitle = 'Menu điều hướng',
+  accessibleDescription = 'Điều hướng ứng dụng',
   ...props
 }: SheetContentProps) {
   const sideClasses: Record<string, string> = {
@@ -60,9 +64,9 @@ function SheetContent({
         )}
         {...props}
       >
-        <Dialog.Title className="sr-only">Menu điều hướng</Dialog.Title>
+        <Dialog.Title className="sr-only">{accessibleTitle}</Dialog.Title>
         <Dialog.Description className="sr-only">
-          Điều hướng ứng dụng
+          {accessibleDescription}
         </Dialog.Description>
         {children}
       </Dialog.Content>
