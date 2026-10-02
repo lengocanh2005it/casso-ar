@@ -84,7 +84,7 @@ export function AppLayout() {
                   ) ? (
                     <Link
                       to="/bank-connections"
-                      className="inline-flex min-h-10 items-center font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      className="inline-flex min-h-10 items-center font-medium underline underline-offset-4 transition-colors pointer-hover:hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                     >
                       Quản lý kết nối ngân hàng
                     </Link>
