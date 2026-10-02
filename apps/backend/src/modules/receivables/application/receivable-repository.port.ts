@@ -40,6 +40,7 @@ export interface IReceivableRepository {
   save(receivable: Receivable, manager?: EntityManager): Promise<void>;
   findOpenByCustomerId(customerId: string): Promise<Receivable[]>;
   findOpenByIds(ids: string[]): Promise<Receivable[]>;
+  findOpenByInvoiceIds(invoiceIds: string[]): Promise<Receivable[]>;
   findOpenTopNByOrganization(
     organizationId: string,
     limit: number,

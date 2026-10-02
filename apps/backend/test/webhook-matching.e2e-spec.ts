@@ -14,6 +14,7 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { TenantContextService } from '../src/common/tenancy/tenant-context';
 import { configureApp } from '../src/configure-app';
+import { AddExactInvoiceReferenceIndexes20261002000000 } from '../src/database/migrations/20261002000000-add-exact-invoice-reference-indexes';
 import { CreateCustomerBankAccountUseCase } from '../src/modules/bank-accounts/application/create-customer-bank-account.usecase';
 import {
   CUSTOMER_BANK_ACCOUNT_REPOSITORY,
@@ -25,11 +26,19 @@ import { BankConnectionOrmEntity } from '../src/modules/bank-connections/infrast
 import { CassoFlowAuthorizationOrmEntity } from '../src/modules/bank-connections/infrastructure/casso-flow-authorization.orm-entity';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
 import { MatchBankTransactionUseCase } from '../src/modules/exception-queue/application/match-bank-transaction.usecase';
+import {
+  type IInvoiceRepository,
+  INVOICE_REPOSITORY,
+} from '../src/modules/invoices/application/invoice-repository.port';
 import { InvoiceStatus } from '../src/modules/invoices/domain/invoice';
 import { InvoiceOrmEntity } from '../src/modules/invoices/infrastructure/invoice.orm-entity';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { GetCustomerCreditsUseCase } from '../src/modules/payments/application/get-customer-credits.usecase';
 import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment.orm-entity';
+import {
+  type IReceivableRepository,
+  RECEIVABLE_REPOSITORY,
+} from '../src/modules/receivables/application/receivable-repository.port';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { ProcessWebhookUseCase } from '../src/modules/webhooks/application/process-webhook.usecase';
 import {
@@ -1410,5 +1419,321 @@ describe('Webhook matching (e2e)', () => {
       expect(shortCode.status).toBe(ReceivableStatus.OPEN);
       expect(Number(shortCode.paidAmount)).toBe(0);
     }, 30_000);
+  });
+
+  describe('exact invoice reference beyond the scan caps (#420)', () => {
+    beforeAll(async () => {
+      // The e2e schema comes from synchronize; the expression index only exists
+      // through its migration, so run it to exercise the real lookup plan.
+      await new AddExactInvoiceReferenceIndexes20261002000000().up(
+        dataSource.createQueryRunner(),
+      );
+    });
+
+    const seedCustomer = async (name: string): Promise<string> => {
+      const id = randomUUID();
+      await dataSource.getRepository(CustomerOrmEntity).save({
+        id,
+        organizationId,
+        name,
+        taxCode: `TAX-${id.slice(0, 8)}`,
+        email: `${id}@example.com`,
+        phone: '0900000420',
+        defaultPaymentTermDays: 30,
+        creditLimit: 1_000_000_000,
+        priority: 1,
+        createdAt: new Date(),
+      });
+      return id;
+    };
+
+    const seedOpenReceivables = async (
+      customerId: string,
+      rows: Array<{ invoiceNumber: string; amount: number; dueDate: Date }>,
+      owner = organizationId,
+    ): Promise<string[]> => {
+      const invoices = rows.map((row) => ({
+        id: randomUUID(),
+        organizationId: owner,
+        customerId,
+        invoiceNumber: row.invoiceNumber,
+        issueDate: new Date('2026-07-01T00:00:00.000Z'),
+        totalAmount: row.amount,
+        taxAmount: 0,
+        sourceType: 'MANUAL' as const,
+        fileUrl: null,
+        status: InvoiceStatus.ISSUED,
+        createdAt: new Date(),
+      }));
+      await dataSource.getRepository(InvoiceOrmEntity).save(invoices);
+      const receivables = rows.map((row, index) => ({
+        id: randomUUID(),
+        organizationId: owner,
+        customerId,
+        invoiceId: invoices[index].id,
+        originalAmount: row.amount,
+        paidAmount: 0,
+        dueDate: row.dueDate,
+        status: ReceivableStatus.OPEN,
+        salesRepresentativeId: null,
+        createdAt: new Date(),
+        closedAt: null,
+        version: 1,
+      }));
+      await dataSource.getRepository(ReceivableOrmEntity).save(receivables);
+      return receivables.map((receivable) => receivable.id);
+    };
+
+    const daysAround = (offset: number): Date =>
+      new Date(Date.UTC(2026, 7, 5 + offset, 12));
+
+    const loadReceivable = (id: string) =>
+      dataSource.getRepository(ReceivableOrmEntity).findOneByOrFail({ id });
+
+    it('finds an exact reference outside the org-wide date window and matches it', async () => {
+      const processWebhook = app.get(ProcessWebhookUseCase, {
+        strict: false,
+      });
+      const fillerCustomer = await seedCustomer('Filler Customer');
+      const fillers = [];
+      for (let day = 1; day <= 25; day++) {
+        fillers.push({
+          invoiceNumber: `FILL-AFTER-${day}`,
+          amount: 5_000_000,
+          dueDate: daysAround(day),
+        });
+        fillers.push({
+          invoiceNumber: `FILL-BEFORE-${day}`,
+          amount: 5_000_000,
+          dueDate: daysAround(-day),
+        });
+      }
+      await seedOpenReceivables(fillerCustomer, fillers);
+      const targetCustomer = await seedCustomer('Company Reference');
+      const [targetId] = await seedOpenReceivables(targetCustomer, [
+        {
+          invoiceNumber: 'INV-2026-0420',
+          amount: 12_000_000,
+          dueDate: daysAround(28),
+        },
+      ]);
+      const inboxId = await saveReceivedInbox(1_042_001, {
+        amount: 12_000_000,
+        description: 'Thanh toan INV-2026-0420',
+        counterAccountNumber: '5500420001',
+        counterAccountName: 'Company Reference',
+      });
+
+      await processWebhook.execute(inboxId, organizationId);
+
+      const transaction = await dataSource
+        .getRepository(BankTransactionOrmEntity)
+        .findOneByOrFail({ providerTransactionId: '1042001' });
+      expect(transaction.status).toBe('MATCHED');
+      const target = await loadReceivable(targetId);
+      expect(target.status).toBe(ReceivableStatus.PAID);
+      expect(Number(target.paidAmount)).toBe(12_000_000);
+    }, 60_000);
+
+    it('finds an exact reference of a linked customer beyond the per-customer limit', async () => {
+      const processWebhook = app.get(ProcessWebhookUseCase, {
+        strict: false,
+      });
+      const receivableRepo = app.get<IReceivableRepository>(
+        RECEIVABLE_REPOSITORY,
+        { strict: false },
+      );
+      const customerId = await seedCustomer('Company Linked');
+      await dataSource.getRepository(CustomerBankAccountOrmEntity).save({
+        id: randomUUID(),
+        organizationId,
+        customerId,
+        accountNumber: '5500420002',
+        createdAt: new Date(),
+      });
+      await seedOpenReceivables(
+        customerId,
+        Array.from({ length: 110 }, (_, index) => ({
+          invoiceNumber: `LINKED-${index}`,
+          amount: 5_000_000,
+          dueDate: daysAround(5),
+        })),
+      );
+      const [targetId] = await seedOpenReceivables(customerId, [
+        {
+          invoiceNumber: 'INV-2026-0421',
+          amount: 9_000_000,
+          dueDate: daysAround(15),
+        },
+      ]);
+      // Premise: the plain per-customer query (take 100) does not return it.
+      const limited = await tenantContext.run(
+        { userId: 'e2e-user', organizationId, role: Role.OWNER },
+        () => receivableRepo.findOpenByCustomerId(customerId),
+      );
+      expect(limited).toHaveLength(100);
+      expect(limited.map((receivable) => receivable.id)).not.toContain(
+        targetId,
+      );
+      const inboxId = await saveReceivedInbox(1_042_002, {
+        amount: 9_000_000,
+        description: 'INV-2026-0421',
+        counterAccountNumber: '5500420002',
+        counterAccountName: 'Company Linked',
+      });
+
+      await processWebhook.execute(inboxId, organizationId);
+
+      const transaction = await dataSource
+        .getRepository(BankTransactionOrmEntity)
+        .findOneByOrFail({ providerTransactionId: '1042002' });
+      expect(transaction.status).toBe('MATCHED');
+      expect((await loadReceivable(targetId)).status).toBe(
+        ReceivableStatus.PAID,
+      );
+    }, 60_000);
+
+    it('never uses another tenant’s receivable, even with the same invoice number', async () => {
+      const processWebhook = app.get(ProcessWebhookUseCase, {
+        strict: false,
+      });
+      const otherOrganizationId = randomUUID();
+      const otherCustomerId = randomUUID();
+      await dataSource.getRepository(CustomerOrmEntity).save({
+        id: otherCustomerId,
+        organizationId: otherOrganizationId,
+        name: 'Other Tenant Customer',
+        taxCode: 'TAX-OTHER-420',
+        email: 'other-tenant-420@example.com',
+        phone: '0900000421',
+        defaultPaymentTermDays: 30,
+        creditLimit: 1_000_000_000,
+        priority: 1,
+        createdAt: new Date(),
+      });
+      const [otherReceivableId] = await seedOpenReceivables(
+        otherCustomerId,
+        [
+          {
+            invoiceNumber: 'INV-2026-0777',
+            amount: 8_000_000,
+            dueDate: daysAround(10),
+          },
+        ],
+        otherOrganizationId,
+      );
+      const inboxId = await saveReceivedInbox(1_042_003, {
+        amount: 8_000_000,
+        description: 'Thanh toan INV-2026-0777',
+        counterAccountNumber: '5500420003',
+        counterAccountName: 'Other Tenant Customer',
+      });
+
+      await processWebhook.execute(inboxId, organizationId);
+
+      const transaction = await dataSource
+        .getRepository(BankTransactionOrmEntity)
+        .findOneByOrFail({ providerTransactionId: '1042003' });
+      expect(transaction.status).toBe('UNMATCHED');
+      expect(
+        await dataSource
+          .getRepository(MatchingCandidateOrmEntity)
+          .countBy({ bankTransactionId: transaction.id }),
+      ).toBe(0);
+      const untouched = await loadReceivable(otherReceivableId);
+      expect(untouched.status).toBe(ReceivableStatus.OPEN);
+      expect(Number(untouched.paidAmount)).toBe(0);
+    }, 60_000);
+
+    describe('tenant scoping of each lookup step', () => {
+      const otherOrganizationId = randomUUID();
+      let otherInvoiceId: string;
+      let otherReceivableId: string;
+
+      beforeAll(async () => {
+        const customerId = randomUUID();
+        await dataSource.getRepository(CustomerOrmEntity).save({
+          id: customerId,
+          organizationId: otherOrganizationId,
+          name: 'Scoping Tenant Customer',
+          taxCode: 'TAX-SCOPE-420',
+          email: 'scope-420@example.com',
+          phone: '0900000422',
+          defaultPaymentTermDays: 30,
+          creditLimit: 1_000_000_000,
+          priority: 1,
+          createdAt: new Date(),
+        });
+        [otherReceivableId] = await seedOpenReceivables(
+          customerId,
+          [
+            {
+              invoiceNumber: 'INV-2026-0778',
+              amount: 7_000_000,
+              dueDate: daysAround(12),
+            },
+          ],
+          otherOrganizationId,
+        );
+        otherInvoiceId = (await loadReceivable(otherReceivableId))
+          .invoiceId as string;
+      });
+
+      const as = <T>(organization: string, work: () => Promise<T>) =>
+        tenantContext.run(
+          {
+            userId: 'e2e-user',
+            organizationId: organization,
+            role: Role.OWNER,
+          },
+          work,
+        );
+
+      it('finds invoice ids by reference key only inside the given organization', async () => {
+        const invoiceRepo = app.get<IInvoiceRepository>(INVOICE_REPOSITORY, {
+          strict: false,
+        });
+
+        await expect(
+          as(organizationId, () =>
+            invoiceRepo.findIdsByReferenceKeys(['INV20260778'], 50),
+          ),
+        ).resolves.toEqual([]);
+        await expect(
+          as(otherOrganizationId, () =>
+            invoiceRepo.findIdsByReferenceKeys(['INV20260778'], 50),
+          ),
+        ).resolves.toEqual([otherInvoiceId]);
+      });
+
+      it('finds open receivables by invoice id only inside the current organization', async () => {
+        const receivableRepo = app.get<IReceivableRepository>(
+          RECEIVABLE_REPOSITORY,
+          { strict: false },
+        );
+
+        await expect(
+          as(organizationId, () =>
+            receivableRepo.findOpenByInvoiceIds([otherInvoiceId]),
+          ),
+        ).resolves.toEqual([]);
+        const owned = await as(otherOrganizationId, () =>
+          receivableRepo.findOpenByInvoiceIds([otherInvoiceId]),
+        );
+        expect(owned.map((receivable) => receivable.id)).toEqual([
+          otherReceivableId,
+        ]);
+      });
+    });
+
+    it('creates both lookup indexes', async () => {
+      const rows: Array<{ indexname: string }> = await dataSource.query(
+        `SELECT indexname FROM pg_indexes WHERE indexname IN ('IDX_invoices_organization_normalized_number', 'IDX_receivables_organization_invoice')`,
+      );
+      expect(rows.map((row) => row.indexname).sort()).toEqual([
+        'IDX_invoices_organization_normalized_number',
+        'IDX_receivables_organization_invoice',
+      ]);
+    });
   });
 });

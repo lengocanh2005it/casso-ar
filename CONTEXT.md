@@ -270,6 +270,8 @@ Score components:
   + payerNameScore (0-5) + timingScore (0-5)
 ```
 
+**Candidate retrieval.** The engine scores a bounded set: with an unknown payer, the 20 open receivables nearest the transaction date on each side; with a linked payer, up to 100 open receivables per linked customer. On top of that it always adds open receivables whose invoice has an **exact invoice reference** in the transfer content (the whole number, ignoring case and separators, not inside a longer number), found by index and capped at 20 (longest invoice number first, then nearest due date), however many other open receivables exist. For a linked payer only the linked customers' hits are added (the payer link stays the authorization boundary). With an unknown payer the customer is resolved from the hits only when they all belong to one customer; hits spanning several customers are all kept as candidates and, being close in score, go to review. Lookup keys are the substrings (4-32 characters, first 200 normalized characters) of the content, matched against `upper(regexp_replace("invoiceNumber", '[^A-Za-z0-9]', '', 'g'))` through `IDX_invoices_organization_normalized_number`, and receivables are then read through `IDX_receivables_organization_invoice`; every hit is re-checked with `referenceCodeScore`.
+
 ## Batch Operations
 
 `Batch operation` (backend) vs `Bulk selection`/`Bulk action bar` (frontend): a batch operation is one API request carrying multiple items (e.g. `POST /bank-transactions/batch-skip`), each processed independently with a per-item result (see Business Rule 11). A bulk action bar is the UI surface a user drives to trigger one.
