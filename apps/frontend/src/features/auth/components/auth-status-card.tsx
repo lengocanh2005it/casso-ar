@@ -17,7 +17,7 @@ export function AuthStatusCard({
       className="flex min-h-svh items-center justify-center bg-gradient-to-br from-emerald-50 via-background to-teal-50 p-4 dark:from-emerald-950/20 dark:via-background dark:to-teal-950/20 sm:p-6"
     >
       <div
-        className={`w-full space-y-5 rounded-xl border-primary/10 bg-card/95 p-6 text-center shadow-lg shadow-primary/5 backdrop-blur sm:p-7 ${widthClassName}`}
+        className={`w-full space-y-5 rounded-xl border-primary/10 bg-card p-6 text-center shadow-xl shadow-primary/20 backdrop-blur sm:p-7 ${widthClassName}`}
       >
         <AuthLogoLink />
         {children}
