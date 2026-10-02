@@ -1,6 +1,7 @@
 import { History } from 'lucide-react';
 import { EmptyState } from '@/components/layout/empty-state';
 import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
+import { TruncatedText } from '@/components/shared/truncated-text';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -59,8 +60,13 @@ export function ExecutionsTable({
 
           return (
             <TableRow key={execution.id}>
-              <TableCell className="font-medium">
-                <p>{receivableLabel}</p>
+              <TableCell className="max-w-64 font-medium">
+                <TruncatedText
+                  className="block min-w-0 truncate"
+                  value={receivableLabel}
+                >
+                  {receivableLabel}
+                </TruncatedText>
                 <p className="text-xs font-normal text-muted-foreground">
                   Mã kỹ thuật: <TruncatedCopyId id={execution.receivableId} />
                 </p>
