@@ -5,11 +5,12 @@
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
-    "type-check": "tsc --noEmit",
+    "lint": "biome check .",
+    "type-check": "tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/tsc-type-check.tsbuildinfo",
     "test": "jest",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed": "ts-node src/database/seed/seed.ts",
-    "arch-check": "depcruise --config .dependency-cruiser.cjs src && node scripts/check-application-exceptions.mjs && node --test scripts/check-cross-module-infrastructure.test.mjs && node scripts/check-cross-module-infrastructure.mjs && node scripts/check-controller-docs.mjs && node --test scripts/check-controller-docs.test.mjs"
+    "arch-check": "depcruise --cache --config .dependency-cruiser.cjs src && node scripts/check-application-exceptions.mjs && node --test scripts/check-cross-module-infrastructure.test.mjs && node scripts/check-cross-module-infrastructure.mjs && node scripts/check-controller-docs.mjs && node --test scripts/check-controller-docs.test.mjs"
   },
   "dependencies": {
     "@casso-ar/shared-types": "workspace:*",
