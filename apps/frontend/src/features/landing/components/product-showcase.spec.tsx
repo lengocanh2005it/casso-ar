@@ -66,6 +66,16 @@ describe('ProductShowcase', () => {
     expect(list).toHaveClass('group-data-[orientation=horizontal]/tabs:h-auto');
   });
 
+  it('gives every tab the 44px touch target the header nav already uses', () => {
+    // The pills rendered 38px tall, below the 44px the rest of the page's
+    // controls use and below the 44px touch-target guidance (WCAG 2.5.5).
+    render(<ProductShowcase />);
+
+    for (const tab of screen.getAllByRole('tab')) {
+      expect(tab).toHaveClass('min-h-11');
+    }
+  });
+
   it('activates a tab when it receives focus, so arrow keys can sweep the group', () => {
     // Radix Tabs uses automatic activation: focusing a tab selects it. jsdom
     // cannot run the roving-focus keydown path (it needs real layout), so the

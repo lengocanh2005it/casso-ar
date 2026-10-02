@@ -8,7 +8,7 @@ export function LandingFooter() {
         <Link
           to="/"
           aria-label="Casso AR — Trang chủ"
-          className="inline-flex items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex min-h-11 items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Logo className="h-7" wordmarkClassName="text-primary" />
         </Link>

@@ -57,7 +57,7 @@ export function LandingNavbar() {
         <Link
           to="/"
           aria-label="Casso AR — Trang chủ"
-          className="inline-flex shrink-0 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Logo
             className="hidden sm:inline-flex"
@@ -107,7 +107,7 @@ export function LandingNavbar() {
               <Button
                 variant="outline"
                 size="icon"
-                className="lg:hidden"
+                className="size-11 lg:hidden"
                 aria-label="Mở menu"
               >
                 <Menu aria-hidden="true" className="size-4" />
