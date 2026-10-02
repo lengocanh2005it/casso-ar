@@ -49,7 +49,13 @@ export function TruncatedText({
   );
 }
 
-/** Convenience wrapper for the common truncate + customer-name shape. */
+/**
+ * Convenience wrapper for the common truncate + customer-name shape.
+ *
+ * `block` is load-bearing, not decoration: `truncate` relies on
+ * `overflow:hidden`, which an inline span ignores — the text then escapes its
+ * cell and paints over the next column.
+ */
 export function TruncatedName({
   name,
   className,
@@ -58,7 +64,10 @@ export function TruncatedName({
   className?: string;
 }) {
   return (
-    <TruncatedText className={cn('min-w-0 truncate', className)} value={name}>
+    <TruncatedText
+      className={cn('block min-w-0 truncate', className)}
+      value={name}
+    >
       {name}
     </TruncatedText>
   );

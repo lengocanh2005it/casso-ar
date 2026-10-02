@@ -74,4 +74,36 @@ describe('CustomerTable', () => {
       within(customerRow).getByText('Điều khoản thanh toán'),
     ).toBeInTheDocument();
   });
+
+  it('keeps rows one line tall when a customer name runs to 200 characters', () => {
+    const longName =
+      'Công ty Trách nhiệm Hữu hạn Một Thành viên Thương mại Dịch vụ Sản xuất Xuất Nhập Khẩu Tổng hợp Vật liệu Xây dựng và Nội thất Việt Nam Số 10 — Chi nhánh Vùng Miền Trời Nước Sài Gòn Miền Bắc Miền Trung';
+
+    render(
+      <MemoryRouter>
+        <CustomerTable
+          customers={[
+            {
+              id: 'customer-long',
+              name: longName,
+              taxCode: '0319999016',
+              email: 'accounting@example.vn',
+              phone: null,
+              defaultPaymentTermDays: 30,
+              creditLimit: null,
+              priority: null,
+              createdAt: '2026-09-29T07:53:00.000Z',
+            },
+          ]}
+        />
+      </MemoryRouter>,
+    );
+
+    // A 200-character legal name must not wrap onto seven lines and stretch
+    // the row to ~137px; it stays clipped to a single line with the full value
+    // still reachable on hover and on touch via title.
+    const nameCell = screen.getByText(longName);
+    expect(nameCell).toHaveClass('truncate');
+    expect(nameCell).toHaveAttribute('title', longName);
+  });
 });

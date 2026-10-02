@@ -4,6 +4,10 @@ import { memo, useCallback, useState } from 'react';
 import { SectionCard } from '@/components/layout/section-card';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
 import {
+  TruncatedName,
+  TruncatedText,
+} from '@/components/shared/truncated-text';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -131,13 +135,17 @@ const MembersTable = memo(function MembersTable({
           const isBlocked = member.status === 'BLOCKED';
           return (
             <TableRow key={member.id}>
-              <TableCell className="break-words">
-                <div className="flex items-center gap-2">
+              <TableCell>
+                <div className="flex min-w-0 items-center gap-2">
                   <InitialsAvatar name={member.name} size="sm" />
-                  {member.name}
+                  <TruncatedName name={member.name} className="font-medium" />
                 </div>
               </TableCell>
-              <TableCell className="break-words">{member.email}</TableCell>
+              <TableCell className="break-words">
+                <TruncatedText value={member.email}>
+                  {member.email}
+                </TruncatedText>
+              </TableCell>
               <TableCell>
                 {canManage && !isSelf ? (
                   <Select

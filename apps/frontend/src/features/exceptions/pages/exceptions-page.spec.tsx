@@ -354,6 +354,49 @@ describe('ExceptionsPage', () => {
     expect(contentEl).toHaveAttribute('title', longContent);
   });
 
+  it('keeps a 200-character payer name from wrapping one word per line', async () => {
+    const longName =
+      'Công ty Trách nhiệm Hữu hạn Một Thành viên Thương mại Dịch vụ Sản xuất Xuất Nhập Khẩu Tổng hợp Vật liệu Xây dựng và Nội thất Việt Nam Số 30 — Chi nhánh Vùng Miền Trời Nước Sài Gòn Miền Bắc Miền Trung';
+    apiRequest.mockResolvedValue({
+      items: [
+        {
+          transaction: {
+            id: 'tx-long',
+            providerTransactionId: 'TX-LONG',
+            amount: 987_654_321_000,
+            transactionDateTime: '2026-08-01',
+            counterpartyAccountNumber: '001',
+            counterpartyName: longName,
+            transferContent: 'Thanh toan',
+            status: 'PENDING_REVIEW',
+            version: 1,
+          },
+          topCandidate: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // `break-words` inside a narrow column pushed this to ~20 lines and a
+    // ~397px row; the payer name must stay on one clipped line.
+    const nameEl = await screen.findByText(longName);
+    expect(nameEl).toHaveClass('truncate');
+    expect(nameEl).toHaveAttribute('title', longName);
+  });
+
   it('shows a current AI recommendation as a qualitative advisory badge', async () => {
     apiRequest.mockResolvedValue({
       items: [

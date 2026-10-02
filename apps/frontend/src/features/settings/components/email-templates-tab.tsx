@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { EmptyState } from '@/components/layout/empty-state';
 import { HeaderIcon } from '@/components/layout/header-icon';
 import { SectionCard } from '@/components/layout/section-card';
+import { TruncatedText } from '@/components/shared/truncated-text';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -106,16 +107,26 @@ export function EmailTemplatesTab() {
                 className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 px-3 py-3 md:table-row md:px-0 md:py-0"
               >
                 <TableCell className="col-span-2 min-w-0 max-w-56 break-words px-0 py-1 font-medium md:table-cell md:px-2 md:py-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <HeaderIcon icon={Mail} />
-                    {template.name}
+                    <TruncatedText
+                      className="min-w-0 truncate"
+                      value={template.name}
+                    >
+                      {template.name}
+                    </TruncatedText>
                   </div>
                 </TableCell>
                 <TableCell className="col-span-2 flex min-w-0 max-w-72 flex-col gap-1 break-words px-0 py-1 md:table-cell md:px-2 md:py-2">
                   <span className="text-xs font-normal text-muted-foreground md:hidden">
                     Tiêu đề
                   </span>
-                  {template.subject}
+                  <TruncatedText
+                    className="line-clamp-2"
+                    value={template.subject}
+                  >
+                    {template.subject}
+                  </TruncatedText>
                 </TableCell>
                 <TableCell
                   className={`${canWrite ? '' : 'col-span-2'} flex flex-col items-start gap-1 px-0 py-1 md:table-cell md:px-2 md:py-2`}
