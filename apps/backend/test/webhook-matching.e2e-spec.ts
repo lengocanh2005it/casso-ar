@@ -1036,6 +1036,37 @@ describe('Webhook matching (e2e)', () => {
     expect(Number(paid?.paidAmount)).toBe(12_000_000);
   }, 30_000);
 
+  const saveReceivedInbox = async (
+    transactionId: number,
+    data: Record<string, unknown>,
+  ): Promise<string> => {
+    const id = randomUUID();
+    await dataSource.getRepository(WebhookInboxOrmEntity).save({
+      id,
+      organizationId,
+      bankConnectionId,
+      providerTransactionId: String(transactionId),
+      rawPayload: {
+        error: 0,
+        data: {
+          id: transactionId,
+          transactionDateTime: '2026-08-05 10:00:00',
+          accountNumber: '99887766',
+          ...data,
+        },
+      },
+      receivedAt: new Date(),
+      status: 'RECEIVED',
+      processedAt: null,
+      errorMessage: null,
+      retryCount: 0,
+    });
+    return id;
+  };
+
+  const loadInbox = (id: string) =>
+    dataSource.getRepository(WebhookInboxOrmEntity).findOneByOrFail({ id });
+
   describe('queue redelivery after the business transaction committed', () => {
     const financialTables = [
       'bank_transactions',
@@ -1057,37 +1088,6 @@ describe('Webhook matching (e2e)', () => {
       }
       return counts;
     };
-
-    const saveReceivedInbox = async (
-      transactionId: number,
-      data: Record<string, unknown>,
-    ): Promise<string> => {
-      const id = randomUUID();
-      await dataSource.getRepository(WebhookInboxOrmEntity).save({
-        id,
-        organizationId,
-        bankConnectionId,
-        providerTransactionId: String(transactionId),
-        rawPayload: {
-          error: 0,
-          data: {
-            id: transactionId,
-            transactionDateTime: '2026-08-05 10:00:00',
-            accountNumber: '99887766',
-            ...data,
-          },
-        },
-        receivedAt: new Date(),
-        status: 'RECEIVED',
-        processedAt: null,
-        errorMessage: null,
-        retryCount: 0,
-      });
-      return id;
-    };
-
-    const loadInbox = (id: string) =>
-      dataSource.getRepository(WebhookInboxOrmEntity).findOneByOrFail({ id });
 
     const seedAutoMatchTarget = async (): Promise<void> => {
       const customerId = randomUUID();
@@ -1264,6 +1264,151 @@ describe('Webhook matching (e2e)', () => {
           .getRepository(BankTransactionOrmEntity)
           .countBy({ providerTransactionId: '1042205' }),
       ).toBe(1);
+    }, 30_000);
+  });
+  describe('receivable ambiguity (#419)', () => {
+    const seedCustomerWithInvoices = async (input: {
+      name: string;
+      payerAccount: string;
+      invoices: Array<{ invoiceNumber: string; amount: number }>;
+    }): Promise<{ customerId: string; receivableIds: string[] }> => {
+      const customerId = randomUUID();
+      await dataSource.getRepository(CustomerOrmEntity).save({
+        id: customerId,
+        organizationId,
+        name: input.name,
+        taxCode: `TAX-${input.payerAccount}`,
+        email: `${input.payerAccount}@example.com`,
+        phone: '0900000419',
+        defaultPaymentTermDays: 30,
+        creditLimit: 100_000_000,
+        priority: 1,
+        createdAt: new Date(),
+      });
+      await dataSource.getRepository(CustomerBankAccountOrmEntity).save({
+        id: randomUUID(),
+        organizationId,
+        customerId,
+        accountNumber: input.payerAccount,
+        createdAt: new Date(),
+      });
+      const receivableIds: string[] = [];
+      for (const { invoiceNumber, amount } of input.invoices) {
+        const invoiceId = randomUUID();
+        const receivableId = randomUUID();
+        await dataSource.getRepository(InvoiceOrmEntity).save({
+          id: invoiceId,
+          organizationId,
+          customerId,
+          invoiceNumber,
+          issueDate: new Date('2026-07-01T00:00:00.000Z'),
+          totalAmount: amount,
+          taxAmount: 0,
+          sourceType: 'MANUAL',
+          fileUrl: null,
+          status: InvoiceStatus.ISSUED,
+          createdAt: new Date(),
+        });
+        await dataSource.getRepository(ReceivableOrmEntity).save({
+          id: receivableId,
+          organizationId,
+          customerId,
+          invoiceId,
+          originalAmount: amount,
+          paidAmount: 0,
+          dueDate: new Date('2026-08-05T10:00:00.000Z'),
+          status: ReceivableStatus.OPEN,
+          salesRepresentativeId: null,
+          createdAt: new Date(),
+          closedAt: null,
+          version: 1,
+        });
+        receivableIds.push(receivableId);
+      }
+      return { customerId, receivableIds };
+    };
+
+    it('routes a transfer that fits two receivables of the same customer to PENDING_REVIEW', async () => {
+      const processWebhook = app.get(ProcessWebhookUseCase, {
+        strict: false,
+      });
+      const { receivableIds } = await seedCustomerWithInvoices({
+        name: 'Company Twin',
+        payerAccount: '7700419001',
+        invoices: [
+          { invoiceNumber: 'INV-2026-0451', amount: 18_000_000 },
+          { invoiceNumber: 'INV-2026-0452', amount: 18_000_000 },
+        ],
+      });
+      const inboxId = await saveReceivedInbox(1_041_901, {
+        amount: 18_000_000,
+        description: 'Thanh toan INV-2026-0451 INV-2026-0452',
+        counterAccountNumber: '7700419001',
+        counterAccountName: 'Company Twin',
+      });
+
+      await processWebhook.execute(inboxId, organizationId);
+
+      const transaction = await dataSource
+        .getRepository(BankTransactionOrmEntity)
+        .findOneByOrFail({ providerTransactionId: '1041901' });
+      expect(transaction.status).toBe('PENDING_REVIEW');
+      expect(
+        await dataSource
+          .getRepository(MatchingCandidateOrmEntity)
+          .countBy({ bankTransactionId: transaction.id }),
+      ).toBe(2);
+      expect(
+        await dataSource
+          .getRepository(PaymentOrmEntity)
+          .countBy({ bankTransactionId: transaction.id }),
+      ).toBe(0);
+      for (const id of receivableIds) {
+        const receivable = await dataSource
+          .getRepository(ReceivableOrmEntity)
+          .findOneByOrFail({ id });
+        expect(receivable.status).toBe(ReceivableStatus.OPEN);
+        expect(Number(receivable.paidAmount)).toBe(0);
+      }
+      expect((await loadInbox(inboxId)).status).toBe('PROCESSED');
+    }, 30_000);
+
+    it('allocates to INV-2026-10 only when INV-2026-1 is also open for the same customer', async () => {
+      const processWebhook = app.get(ProcessWebhookUseCase, {
+        strict: false,
+      });
+      const { receivableIds } = await seedCustomerWithInvoices({
+        name: 'Company Overlap',
+        payerAccount: '7700419002',
+        invoices: [
+          { invoiceNumber: 'INV-2026-1', amount: 25_000_000 },
+          { invoiceNumber: 'INV-2026-10', amount: 25_000_000 },
+        ],
+      });
+      const [shortCodeReceivableId, longCodeReceivableId] = receivableIds;
+      const inboxId = await saveReceivedInbox(1_041_902, {
+        amount: 25_000_000,
+        description: 'Thanh toan INV-2026-10',
+        counterAccountNumber: '7700419002',
+        counterAccountName: 'Company Overlap',
+      });
+
+      await processWebhook.execute(inboxId, organizationId);
+
+      const transaction = await dataSource
+        .getRepository(BankTransactionOrmEntity)
+        .findOneByOrFail({ providerTransactionId: '1041902' });
+      expect(transaction.status).toBe('MATCHED');
+      const longCode = await dataSource
+        .getRepository(ReceivableOrmEntity)
+        .findOneByOrFail({ id: longCodeReceivableId });
+      expect(longCode.status).toBe(ReceivableStatus.PAID);
+      expect(Number(longCode.paidAmount)).toBe(25_000_000);
+      const shortCode = await dataSource
+        .getRepository(ReceivableOrmEntity)
+        .findOneByOrFail({ id: shortCodeReceivableId });
+      expect(shortCode.status).toBe(ReceivableStatus.OPEN);
+      expect(Number(shortCode.paidAmount)).toBe(0);
     }, 30_000);
   });
 });

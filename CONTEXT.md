@@ -63,7 +63,7 @@ A B2B SaaS platform for automating accounts receivable management and collection
 |------|---------|
 | **Overdue receivable** | A `Receivable` whose due date has passed while it remains `OPEN` or `PARTIALLY_PAID` with a positive remaining balance. Overdue is a computed condition, not a persisted status. |
 | **Reminder candidate** | An overdue receivable presented for collection follow-up and reminder-draft selection. It is not a separate receivable type or persisted entity. |
-| **AI matching recommendation** | A nullable, immutable-once-evaluated JSONB result for an ambiguous `60–89` transaction. It recommends one deterministic candidate or abstains; it never allocates money or changes transaction status. |
+| **AI matching recommendation** | A nullable, immutable-once-evaluated JSONB result for a `60–89` transaction. It recommends one deterministic candidate or abstains; it never allocates money or changes transaction status. |
 | **Current AI recommendation** | A recommendation whose receivable is still among the persisted candidates and remains open with positive balance. `isCurrent` is derived at read time; the stored evaluation is retained as history. |
 
 ## Reporting Terms
@@ -260,9 +260,10 @@ they never rewrite an earlier snapshot.
 ## Matching Engine (Webhook → Payment)
 
 ```
-Score ≥ 90:  Auto payment allocation
-Score 60-89: Exception Queue (human review)
-Score < 60:  UNMATCHED
+Score ≥ 90 and lead ≥ 10 over the runner-up receivable: Auto payment allocation
+Score ≥ 90 but lead < 10 (ambiguous match):             Exception Queue (human review)
+Score 60-89:                                            Exception Queue (human review)
+Score < 60:                                             UNMATCHED
 
 Score components:
   referenceCodeScore (0-60) + amountScore (0-20) + customerBankAccountScore (0-10)
