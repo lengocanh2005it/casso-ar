@@ -42,13 +42,7 @@ export function useConfirmCassoFlow() {
     mutationFn: confirmCassoFlow,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey });
-      void refreshUser();
-    },
-    onError: (error) => {
-      if (getApiErrorCode(error) === 'PLAN_LIMIT_EXCEEDED') return;
-      toast.error(
-        'Không thể kết nối Casso Flow. Vui lòng kiểm tra lại API Key.',
-      );
+      void refreshUser().catch(() => undefined);
     },
   });
 }
