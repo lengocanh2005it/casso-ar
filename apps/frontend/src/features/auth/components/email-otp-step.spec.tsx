@@ -101,6 +101,11 @@ describe('EmailOtpStep', () => {
         data: { email: 'lengocanh@gmail.com' },
       }),
     );
+    expect(
+      await screen.findByText(
+        'Nếu email này cần xác thực, hệ thống sẽ gửi mã mới. Hãy kiểm tra hộp thư.',
+      ),
+    ).toBeVisible();
   });
 
   it('disables resend and shows a countdown after a successful resend', async () => {

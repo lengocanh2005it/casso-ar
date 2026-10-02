@@ -123,7 +123,6 @@ export function SignupPage() {
     return (
       <AuthStatusCard>
         <div className="space-y-5 text-left">
-          <h1 className="text-xl font-semibold">Xác thực email</h1>
           <EmailOtpStep email={email} onVerified={onVerified} />
         </div>
       </AuthStatusCard>

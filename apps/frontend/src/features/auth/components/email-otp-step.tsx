@@ -144,6 +144,9 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4 text-left">
+      {/* The heading lives here, not in the page: the terminal states below
+          replace this whole form, and must not inherit "Xác thực email". */}
+      <h1 className="text-xl font-semibold">Xác thực email</h1>
       <p className="text-sm text-muted-foreground">
         Mã đã được gửi tới email{' '}
         <span className="font-medium text-foreground">{maskEmail(email)}</span>.
@@ -155,7 +158,8 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
       <InlineFormError message={confirmError} />
       {resendSent && (
         <p className="text-sm text-muted-foreground" role="status">
-          Đã gửi lại mã. Hãy kiểm tra hộp thư của bạn.
+          Nếu email này cần xác thực, hệ thống sẽ gửi mã mới. Hãy kiểm tra hộp
+          thư.
         </p>
       )}
 
@@ -175,6 +179,10 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
         remainingSeconds={remainingSeconds}
         onClick={onResend}
       />
+
+      <Button variant="link" className="h-auto p-0 text-sm" asChild>
+        <Link to="/login">← Quay lại đăng nhập</Link>
+      </Button>
     </form>
   );
 }
