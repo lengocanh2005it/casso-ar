@@ -139,11 +139,11 @@ export class TypeOrmInvoiceRepository implements IInvoiceRepository {
   // The expression must match the IDX_invoices_organization_normalized_number
   // expression index exactly, or the planner cannot use it.
   async findIdsByReferenceKeys(
-    organizationId: string,
     keys: string[],
     limit: number,
   ): Promise<string[]> {
     if (keys.length === 0) return [];
+    const organizationId = this.tenantContext.getOrganizationId();
     const normalizedNumber = `regexp_replace(invoice."invoiceNumber", '[^A-Za-z0-9]', '', 'g')`;
     const rows = await this.repo
       .createQueryBuilder('invoice')

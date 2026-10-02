@@ -433,9 +433,8 @@ describe('MatchingEngineService', () => {
       );
 
       expect(invoiceRepo.findIdsByReferenceKeys).toHaveBeenCalledWith(
-        'org-1',
         expect.arrayContaining(['INV20260012']),
-        50,
+        500,
       );
       expect(receivableRepo.findOpenByInvoiceIds).toHaveBeenCalledWith([
         'inv-target',

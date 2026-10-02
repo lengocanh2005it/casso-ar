@@ -1695,17 +1695,13 @@ describe('Webhook matching (e2e)', () => {
         });
 
         await expect(
-          invoiceRepo.findIdsByReferenceKeys(
-            organizationId,
-            ['INV20260778'],
-            50,
+          as(organizationId, () =>
+            invoiceRepo.findIdsByReferenceKeys(['INV20260778'], 50),
           ),
         ).resolves.toEqual([]);
         await expect(
-          invoiceRepo.findIdsByReferenceKeys(
-            otherOrganizationId,
-            ['INV20260778'],
-            50,
+          as(otherOrganizationId, () =>
+            invoiceRepo.findIdsByReferenceKeys(['INV20260778'], 50),
           ),
         ).resolves.toEqual([otherInvoiceId]);
       });

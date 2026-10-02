@@ -22,10 +22,13 @@ import { timingScore } from './scoring/timing-score';
 import type { NormalizedTransaction } from './transaction-normalizer';
 
 const ORG_WIDE_SCAN_LIMIT = 20;
-// ponytail: bounds for the exact invoice-reference lookup — invoices fetched
-// by key, then at most this many open receivables kept. Raise if a single
-// transfer legitimately references more invoices than that.
-const EXACT_REFERENCE_INVOICE_LIMIT = 50;
+// ponytail: bounds for the exact invoice-reference lookup. Invoices matching
+// the content keys are fetched longest number first (closed ones included,
+// as invoices carry no status here), then open receivables are filtered and
+// at most 20 kept. Past 500 matching invoices the shortest numbers are
+// dropped; only crafted content gets there. Raise it, or page the invoice
+// ids until enough open receivables are found, if that ever matters.
+const EXACT_REFERENCE_INVOICE_LIMIT = 500;
 const EXACT_REFERENCE_RECEIVABLE_LIMIT = 20;
 
 function mergeById(first: Receivable[], second: Receivable[]): Receivable[] {
@@ -75,10 +78,8 @@ export class MatchingEngineService {
 
     // Open receivables whose complete invoice number is in the transfer content,
     // found by index even when they fall outside the scan caps below.
-    const exactReferenceHits = await this.findExactReferenceReceivables(
-      transaction,
-      organizationId,
-    );
+    const exactReferenceHits =
+      await this.findExactReferenceReceivables(transaction);
 
     let receivables: Receivable[];
     if (accountIsKnown) {
@@ -240,12 +241,10 @@ export class MatchingEngineService {
 
   private async findExactReferenceReceivables(
     transaction: NormalizedTransaction,
-    organizationId: string,
   ): Promise<Receivable[]> {
     const keys = referenceKeysFromContent(transaction.transferContent);
     if (keys.length === 0) return [];
     const invoiceIds = await this.invoiceRepo.findIdsByReferenceKeys(
-      organizationId,
       keys,
       EXACT_REFERENCE_INVOICE_LIMIT,
     );
