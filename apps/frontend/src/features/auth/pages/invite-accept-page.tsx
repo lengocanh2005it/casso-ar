@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { apiRequest } from '@/lib/api-client';
 import { AuthStatusCard } from '../components/auth-status-card';
@@ -70,21 +72,22 @@ export function InviteAcceptPage() {
           </p>
         </div>
 
-        <label className="block space-y-1">
-          <span className="text-sm font-medium">Họ và tên</span>
-          <input
+        <div className="space-y-2">
+          <Label htmlFor="name">Họ và tên</Label>
+          <Input
+            id="name"
             name="name"
             required
             autoComplete="name"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
-        </label>
+        </div>
 
-        <label className="block space-y-1">
-          <span className="text-sm font-medium">Mật khẩu</span>
-          <input
+        <div className="space-y-2">
+          <Label htmlFor="password">Mật khẩu</Label>
+          <Input
+            id="password"
             type="password"
             name="password"
             required
@@ -92,9 +95,8 @@ export function InviteAcceptPage() {
             autoComplete="new-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
-        </label>
+        </div>
 
         <InlineFormError message={error} />
 

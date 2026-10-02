@@ -4,6 +4,8 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { InlineFormError } from '@/components/ui/inline-form-error';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { useAuth } from '@/contexts/auth-context';
 import {
@@ -206,35 +208,36 @@ export function SignupPage() {
             </p>
           )}
 
-          <label className="block space-y-1">
-            <span className="text-sm font-medium">Tên tổ chức</span>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="organizationName">Tên tổ chức</Label>
+            <Input
+              id="organizationName"
               name="organizationName"
               required
               autoComplete="organization"
               placeholder="VD: Công ty TNHH ABC"
               value={organizationName}
               onChange={(event) => setOrganizationName(event.target.value)}
-              className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
-          </label>
+          </div>
 
-          <label className="block space-y-1">
-            <span className="text-sm font-medium">Họ và tên</span>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="name">Họ và tên</Label>
+            <Input
+              id="name"
               name="name"
               required
               autoComplete="name"
               placeholder="VD: Nguyễn Văn A"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
-          </label>
+          </div>
 
-          <label className="block space-y-1">
-            <span className="text-sm font-medium">Email</span>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
               type="email"
               name="email"
               required
@@ -243,13 +246,13 @@ export function SignupPage() {
               placeholder="ban@congty.com"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
-          </label>
+          </div>
 
-          <label className="block space-y-1">
-            <span className="text-sm font-medium">Mật khẩu</span>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="password">Mật khẩu</Label>
+            <Input
+              id="password"
               type="password"
               name="password"
               required
@@ -258,9 +261,8 @@ export function SignupPage() {
               placeholder="Ít nhất 8 ký tự"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
-          </label>
+          </div>
 
           <InlineFormError message={formError} />
 
@@ -310,9 +312,10 @@ export function SignupPage() {
           </p>
         </div>
 
-        <label className="block space-y-1">
-          <span className="text-sm font-medium">Mã số thuế</span>
-          <input
+        <div className="space-y-2">
+          <Label htmlFor="taxCode">Mã số thuế</Label>
+          <Input
+            id="taxCode"
             name="taxCode"
             required
             inputMode="numeric"
@@ -323,9 +326,8 @@ export function SignupPage() {
               setTaxCode(event.target.value);
               if (taxCodeError) setTaxCodeError(null);
             }}
-            className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
-        </label>
+        </div>
 
         <InlineFormError message={taxCodeError} />
 

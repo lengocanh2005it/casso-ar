@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { useAuth } from '@/contexts/auth-context';
 import { getApiErrorCode, getApiErrorMessage } from '@/lib/api-client';
@@ -71,9 +73,10 @@ export function LoginPage() {
           </p>
         </div>
 
-        <label className="block space-y-1">
-          <span className="text-sm font-medium">Email</span>
-          <input
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
             type="email"
             name="email"
             required
@@ -82,13 +85,13 @@ export function LoginPage() {
             placeholder="ban@congty.com"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
-        </label>
+        </div>
 
-        <label className="block space-y-1">
-          <span className="text-sm font-medium">Mật khẩu</span>
-          <input
+        <div className="space-y-2">
+          <Label htmlFor="password">Mật khẩu</Label>
+          <Input
+            id="password"
             type="password"
             name="password"
             required
@@ -96,9 +99,8 @@ export function LoginPage() {
             placeholder="Nhập mật khẩu"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
-        </label>
+        </div>
 
         <InlineFormError message={error} />
 
