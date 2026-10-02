@@ -23,6 +23,14 @@ export const LANDING_HEADLINE_PHRASES = [
   'không cần đoán',
 ] as const;
 
+// Factual product guarantees only — no customer names or logos, which would
+// be unverifiable claims on a marketing page.
+export const LANDING_HERO_ASSURANCES = [
+  { label: 'Dùng thử miễn phí', detail: 'không cần thẻ' },
+  { label: 'Không giới hạn khách hàng', detail: 'theo dõi miễn phí' },
+  { label: 'Đối soát tự động', detail: 'ngay khi tiền về' },
+] as const;
+
 export const LANDING_ABOUT = {
   paragraphSegments: [
     { text: 'Casso AR', bold: true },

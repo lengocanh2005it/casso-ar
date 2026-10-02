@@ -1,9 +1,13 @@
 import { useReducedMotion } from 'framer-motion';
+import { Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Typewriter from 'typewriter-effect';
 import { Logo } from '@/components/logo';
 import { Button } from '@/components/ui/button';
-import { LANDING_HEADLINE_PHRASES } from '../landing-data';
+import {
+  LANDING_HEADLINE_PHRASES,
+  LANDING_HERO_ASSURANCES,
+} from '../landing-data';
 import { HeroDemoCard } from './hero-demo-card';
 
 const TYPEWRITER_OPTIONS = {
@@ -38,7 +42,7 @@ export function HeroSection() {
   const reducedMotion = useReducedMotion();
 
   return (
-    <section className="relative isolate flex min-h-svh items-center overflow-hidden pt-16">
+    <section className="relative isolate flex items-center overflow-hidden pt-28 pb-16 sm:pt-32 sm:pb-20">
       <div
         aria-hidden="true"
         className="absolute inset-x-0 top-12 -z-10 mx-auto h-80 max-w-5xl rounded-full bg-primary/10 blur-3xl"
@@ -94,6 +98,26 @@ export function HeroSection() {
               </a>
             </Button>
           </div>
+          <ul
+            aria-label="Cam kết khi dùng thử"
+            className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-muted-foreground"
+          >
+            {LANDING_HERO_ASSURANCES.map((assurance) => (
+              <li key={assurance.label} className="flex items-center gap-2">
+                <Check
+                  className="size-4 shrink-0 text-primary"
+                  aria-hidden="true"
+                />
+                <span>
+                  {assurance.label}
+                  <span className="text-muted-foreground/70">
+                    {' '}
+                    — {assurance.detail}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div className="mx-auto w-full max-w-md">

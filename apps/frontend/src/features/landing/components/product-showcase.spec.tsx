@@ -54,6 +54,18 @@ describe('ProductShowcase', () => {
     expect(document.getElementById(panelId as string)).toBeInTheDocument();
   });
 
+  it('sizes the tab bar to fit its triggers so the pills are not clipped', () => {
+    // The base TabsList pins itself to `h-9` (36px) and clips overflow on Y.
+    // The pill triggers are 38px tall, so the top and bottom 1px of every
+    // pill was cut off and they read as squashed together. The bar now lets
+    // its height follow the triggers and stops clipping them.
+    render(<ProductShowcase />);
+
+    const list = screen.getByRole('tablist');
+    expect(list).toHaveClass('overflow-visible');
+    expect(list).toHaveClass('group-data-[orientation=horizontal]/tabs:h-auto');
+  });
+
   it('activates a tab when it receives focus, so arrow keys can sweep the group', () => {
     // Radix Tabs uses automatic activation: focusing a tab selects it. jsdom
     // cannot run the roving-focus keydown path (it needs real layout), so the

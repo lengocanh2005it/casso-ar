@@ -61,7 +61,7 @@ export function ProductShowcase() {
         <Tabs defaultValue={LANDING_SHOWCASE_SCREENS[0].id} className="mt-8">
           <TabsList
             aria-label="Chọn màn hình Casso AR để xem"
-            className="mx-auto flex h-auto w-fit max-w-full flex-wrap items-center justify-center gap-1.5 rounded-full border border-border/70 bg-muted/40 p-1.5"
+            className="mx-auto flex h-auto w-fit max-w-full flex-wrap items-center justify-center gap-1.5 overflow-visible rounded-full border border-border/70 bg-muted/40 p-1.5 group-data-[orientation=horizontal]/tabs:h-auto"
           >
             {LANDING_SHOWCASE_SCREENS.map((screen) => {
               const Icon = screen.icon;
