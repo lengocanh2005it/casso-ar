@@ -7,7 +7,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from '@/App';
 import { AuthProvider } from '@/contexts/auth-context';
 import { ThemeProvider } from '@/contexts/theme-context';
@@ -59,6 +59,18 @@ function CurrentRoutePath() {
 }
 
 describe('application routes', () => {
+  // Cold-transforming a lazy page's module graph is CPU-bound and can take
+  // seconds on a starved worker. Pay it here, against the hook budget, so the
+  // per-test `waitFor` only measures rendering instead of module loading.
+  beforeAll(async () => {
+    await Promise.all([
+      import('@/features/landing'),
+      import('@/features/customers/pages/customers-page'),
+      import('@/features/dashboard/pages/dashboard-page'),
+      import('@/features/onboarding/pages/onboarding-page'),
+    ]);
+  }, 60_000);
+
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
