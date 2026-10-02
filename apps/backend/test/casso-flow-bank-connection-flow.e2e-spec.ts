@@ -7,6 +7,7 @@ import {
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
 import request from 'supertest';
+import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
@@ -22,6 +23,7 @@ import { signCassoWebhookPayload } from './helpers/casso-webhook-signature';
 
 describe('Casso Flow bank connection flow (integration)', () => {
   let container: StartedPostgreSqlContainer;
+  let redis: StartedTestContainer;
   let app: INestApplication;
   let dataSource: DataSource;
 
@@ -31,7 +33,14 @@ describe('Casso Flow bank connection flow (integration)', () => {
     process.env.CASSO_FLOW_WEBHOOK_URL =
       'http://localhost/api/v1/webhooks/casso-balance-hook';
 
-    container = await new PostgreSqlContainer('postgres:16').start();
+    // Own Redis: the default .env Redis is shared with any running dev backend,
+    // whose BullMQ worker would steal this test's webhook-processing job.
+    [container, redis] = await Promise.all([
+      new PostgreSqlContainer('postgres:16').start(),
+      new GenericContainer('redis:7-alpine').withExposedPorts(6379).start(),
+    ]);
+    process.env.REDIS_HOST = redis.getHost();
+    process.env.REDIS_PORT = String(redis.getMappedPort(6379));
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
     process.env.DB_USERNAME = container.getUsername();
@@ -63,7 +72,7 @@ describe('Casso Flow bank connection flow (integration)', () => {
 
   afterAll(async () => {
     await app.close();
-    await container.stop();
+    await Promise.all([redis.stop(), container.stop()]);
   });
 
   it('resolves an inbound webhook to the right connection via accountNumber + V2 signature', async () => {
