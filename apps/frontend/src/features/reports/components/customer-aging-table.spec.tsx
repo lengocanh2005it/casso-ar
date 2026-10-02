@@ -35,6 +35,17 @@ describe('CustomerAgingTable', () => {
     expect(zeroCell.className).toMatch(/text-muted-foreground/);
   });
 
+  it('keeps the muted zero cell at full opacity so it stays readable', () => {
+    render(<CustomerAgingTable page={buildPage()} />);
+
+    // text-muted-foreground/50 lands at 2.64 (dark) / 2.06 (light) on a card,
+    // under the 4.5 WCAG AA floor for 14px text. Alpha belongs on the surface,
+    // never on the ink.
+    const zeroCell = screen.getAllByText(/^0\s*.$/)[0];
+    expect(zeroCell.className).toMatch(/text-muted-foreground(?!\/)/);
+    expect(zeroCell.className).not.toMatch(/text-muted-foreground\/\d+/);
+  });
+
   it('colors overdue-60-plus amounts as the most severe tone', () => {
     render(<CustomerAgingTable page={buildPage()} />);
 

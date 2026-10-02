@@ -75,7 +75,7 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
                   className={cn(
                     'text-right whitespace-nowrap tabular-nums',
                     amount === 0
-                      ? 'text-muted-foreground/50'
+                      ? 'text-muted-foreground'
                       : BUCKET_TONE[bucket],
                   )}
                 >
