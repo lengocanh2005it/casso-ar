@@ -270,6 +270,16 @@ describe('signup and email verification', () => {
     expect(
       screen.getByText(/tổ chức của bạn đang chờ được duyệt/i),
     ).toBeVisible();
+    // The page-level "Xác thực email" heading describes a step the user has
+    // already finished — it must not linger above the terminal state.
+    expect(
+      screen.queryByRole('heading', { name: 'Xác thực email' }),
+    ).toBeNull();
+    // The terminal state keeps one way out, not two links to the same page.
+    const loginLinks = screen
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('href') === '/login');
+    expect(loginLinks).toHaveLength(1);
   });
 
   it('shows a rejected state with the API message when the organization was rejected', async () => {
@@ -303,5 +313,12 @@ describe('signup and email verification', () => {
         screen.getByText(/đăng ký tổ chức của bạn chưa được chấp thuận/i),
       ).toBeVisible(),
     );
+    expect(
+      screen.queryByRole('heading', { name: 'Xác thực email' }),
+    ).toBeNull();
+    const loginLinks = screen
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('href') === '/login');
+    expect(loginLinks).toHaveLength(1);
   });
 });

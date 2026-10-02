@@ -5,6 +5,7 @@ import { PageHeading } from '@/components/layout/page-heading';
 import { SectionCard } from '@/components/layout/section-card';
 import { CardPagination } from '@/components/shared/card-pagination';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
+import { TruncatedName } from '@/components/shared/truncated-text';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -186,8 +187,10 @@ export function ExceptionsPage() {
                           className="max-md:hidden"
                         />
                         <div className="min-w-0 space-y-1">
-                          <p className="font-medium break-words">
-                            {row.transaction.counterpartyName ?? '—'}
+                          <p className="min-w-0 font-medium">
+                            <TruncatedName
+                              name={row.transaction.counterpartyName ?? '—'}
+                            />
                           </p>
                           {row.payer?.accountNumberMasked && (
                             <p className="text-xs text-muted-foreground tabular-nums">

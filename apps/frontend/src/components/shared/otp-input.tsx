@@ -36,6 +36,7 @@ export function OtpInput({ length = 6, value, onChange }: OtpInputProps) {
             inputRefs.current[i] = el;
           }}
           type="text"
+          aria-label={`Chữ số ${i + 1} trong mã OTP`}
           inputMode="numeric"
           maxLength={1}
           value={value[i] ?? ''}

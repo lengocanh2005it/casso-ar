@@ -10,7 +10,7 @@ import {
   YAxis,
 } from 'recharts';
 import { EmptyState } from '@/components/layout/empty-state';
-import { CHART_TICK, hasChartValue } from '@/lib/chart';
+import { CHART_TICK, CHART_TOOLTIP_STYLE, hasChartValue } from '@/lib/chart';
 import { formatVND, formatVNDCompact } from '@/lib/format';
 import type { AgingBucket, AgingReport } from '../types';
 import { AGING_BUCKET_LABELS } from './customer-aging-filters';
@@ -87,6 +87,7 @@ export function AgingChart({ report }: { report: AgingReport }) {
             tickFormatter={(value: number) => formatVNDCompact(value)}
           />
           <Tooltip
+            {...CHART_TOOLTIP_STYLE}
             formatter={(value) => [formatVND(Number(value)), 'Còn lại']}
             labelFormatter={(label) =>
               isAgingBucket(label) ? formatAgingBucketTick(label) : label

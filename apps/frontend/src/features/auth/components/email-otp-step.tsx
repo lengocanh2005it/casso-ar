@@ -30,6 +30,12 @@ interface EmailOtpStepProps {
 const DEFAULT_REJECTED_MESSAGE =
   'Đăng ký tổ chức của bạn chưa được chấp thuận.';
 
+const PENDING_NEXT_STEPS = [
+  'Chúng tôi kiểm tra thông tin tổ chức của bạn.',
+  'Bạn nhận email kết quả ngay khi có quyết định.',
+  'Sau khi được duyệt, đăng nhập để bắt đầu thiết lập.',
+] as const;
+
 type StepState = 'otp' | 'pending-review' | 'rejected';
 
 export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
@@ -106,27 +112,47 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
 
   if (state === 'pending-review') {
     return (
-      <div role="status" className="space-y-2 text-center">
-        <h2 className="text-lg font-semibold">Email đã được xác minh</h2>
-        <p className="text-sm text-muted-foreground">
-          Tổ chức của bạn đang chờ được duyệt — chúng tôi sẽ gửi email khi có
-          kết quả.
-        </p>
-        <Link
-          to="/login"
-          className="text-primary pointer-hover:hover:underline"
-        >
-          Đến trang đăng nhập
-        </Link>
+      <div
+        role="status"
+        className="animate-fade-up motion-reduce:animate-none space-y-5 text-left"
+      >
+        <div className="space-y-2 text-center">
+          <h2 className="text-lg font-semibold">Email đã được xác minh</h2>
+          <p className="text-sm text-muted-foreground">
+            Tổ chức của bạn đang chờ được duyệt — chúng tôi sẽ gửi email khi có
+            kết quả.
+          </p>
+        </div>
+        <ul className="space-y-2.5">
+          {PENDING_NEXT_STEPS.map((step, index) => (
+            <li key={step} className="flex gap-3 text-sm">
+              <span
+                aria-hidden="true"
+                className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary"
+              >
+                {index + 1}
+              </span>
+              <span className="text-foreground">{step}</span>
+            </li>
+          ))}
+        </ul>
+        <Button variant="link" className="h-auto p-0 text-sm" asChild>
+          <Link to="/login">Đến trang đăng nhập</Link>
+        </Button>
       </div>
     );
   }
 
   if (state === 'rejected') {
     return (
-      <div role="alert" className="space-y-2 text-center">
-        <h2 className="text-lg font-semibold">Đăng ký chưa được chấp thuận</h2>
-        <p className="text-sm text-muted-foreground">{rejectedMessage}</p>
+      <div
+        role="alert"
+        className="animate-fade-up motion-reduce:animate-none space-y-2 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-center"
+      >
+        <h2 className="text-lg font-semibold text-destructive">
+          Đăng ký chưa được chấp thuận
+        </h2>
+        <p className="text-sm text-foreground">{rejectedMessage}</p>
         <Link
           to="/login"
           className="text-primary pointer-hover:hover:underline"
@@ -139,6 +165,9 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4 text-left">
+      {/* The heading lives here, not in the page: the terminal states below
+          replace this whole form, and must not inherit "Xác thực email". */}
+      <h1 className="text-xl font-semibold">Xác thực email</h1>
       <p className="text-sm text-muted-foreground">
         Mã đã được gửi tới email{' '}
         <span className="font-medium text-foreground">{maskEmail(email)}</span>.
@@ -149,8 +178,12 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
 
       <InlineFormError message={confirmError} />
       {resendSent && (
-        <p className="text-sm text-muted-foreground" role="status">
-          Đã gửi lại mã. Hãy kiểm tra hộp thư của bạn.
+        <p
+          className="animate-banner-in motion-reduce:animate-none text-sm text-muted-foreground"
+          role="status"
+        >
+          Nếu email này cần xác thực, hệ thống sẽ gửi mã mới. Hãy kiểm tra hộp
+          thư.
         </p>
       )}
 
@@ -170,6 +203,10 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
         remainingSeconds={remainingSeconds}
         onClick={onResend}
       />
+
+      <Button variant="link" className="h-auto p-0 text-sm" asChild>
+        <Link to="/login">← Quay lại đăng nhập</Link>
+      </Button>
     </form>
   );
 }

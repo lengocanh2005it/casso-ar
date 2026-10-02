@@ -2,6 +2,7 @@ import { SearchX, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/layout/empty-state';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
+import { TruncatedName } from '@/components/shared/truncated-text';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -63,14 +64,14 @@ export function CustomerTable({
             key={customer.id}
             className="max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-3 max-md:gap-y-2 max-md:px-1 max-md:py-3"
           >
-            <TableCell className="max-w-64 break-words max-md:col-span-2 max-md:col-start-1 max-md:row-start-1 max-md:max-w-none max-md:p-0">
+            <TableCell className="max-w-64 max-md:col-span-2 max-md:col-start-1 max-md:row-start-1 max-md:max-w-none max-md:p-0">
               <div className="flex min-w-0 items-center gap-2">
                 <InitialsAvatar name={customer.name} size="sm" />
                 <Link
                   to={`/customers/${customer.id}`}
-                  className="min-w-0 break-words font-medium text-primary pointer-hover:hover:underline"
+                  className="min-w-0 font-medium text-primary pointer-hover:hover:underline"
                 >
-                  {customer.name}
+                  <TruncatedName name={customer.name} />
                 </Link>
               </div>
             </TableCell>

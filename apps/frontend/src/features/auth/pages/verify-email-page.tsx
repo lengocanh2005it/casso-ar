@@ -1,5 +1,4 @@
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
 import { authTokenManager } from '@/lib/api-client';
 import { AuthStatusCard } from '../components/auth-status-card';
@@ -39,11 +38,7 @@ export function VerifyEmailPage() {
   return (
     <AuthStatusCard>
       <div className="space-y-5 text-left">
-        <h1 className="text-xl font-semibold">Xác thực email</h1>
         <EmailOtpStep email={email} onVerified={onVerified} />
-        <Button variant="link" className="h-auto p-0 text-sm" asChild>
-          <Link to="/login">← Quay lại đăng nhập</Link>
-        </Button>
       </div>
     </AuthStatusCard>
   );

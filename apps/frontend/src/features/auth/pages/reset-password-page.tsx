@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { InlineFormError } from '@/components/ui/inline-form-error';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { apiRequest } from '@/lib/api-client';
 import { AuthStatusCard } from '../components/auth-status-card';
@@ -42,7 +44,10 @@ export function ResetPasswordPage() {
   if (done) {
     return (
       <AuthStatusCard>
-        <div role="status" className="space-y-2">
+        <div
+          role="status"
+          className="animate-fade-up motion-reduce:animate-none space-y-2"
+        >
           <h1 className="text-xl font-semibold">Mật khẩu đã được đặt lại</h1>
           <Link
             to="/login"
@@ -65,9 +70,10 @@ export function ResetPasswordPage() {
           </p>
         </div>
 
-        <label className="block space-y-1">
-          <span className="text-sm font-medium">Mật khẩu mới</span>
-          <input
+        <div className="space-y-2">
+          <Label htmlFor="newPassword">Mật khẩu mới</Label>
+          <Input
+            id="newPassword"
             type="password"
             name="newPassword"
             required
@@ -76,9 +82,8 @@ export function ResetPasswordPage() {
             placeholder="Ít nhất 8 ký tự"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="h-10 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
-        </label>
+        </div>
 
         <InlineFormError message={error} />
 
@@ -90,6 +95,10 @@ export function ResetPasswordPage() {
         >
           {submitting && <Spinner />}
           {submitting ? 'Đang xử lý…' : 'Đặt lại mật khẩu'}
+        </Button>
+
+        <Button variant="link" className="h-auto p-0 text-sm" asChild>
+          <Link to="/forgot-password">Yêu cầu liên kết mới</Link>
         </Button>
       </form>
     </AuthStatusCard>

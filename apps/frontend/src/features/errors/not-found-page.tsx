@@ -59,7 +59,7 @@ export default function NotFoundPage() {
                     strokeWidth={1.75}
                     aria-hidden
                   />
-                  <span className="bg-gradient-to-br from-primary via-primary to-primary/50 bg-clip-text text-4xl font-black tracking-tighter text-transparent">
+                  <span className="bg-gradient-to-br from-primary via-primary to-primary/70 bg-clip-text text-4xl font-black tracking-tighter text-transparent">
                     404
                   </span>
                 </div>

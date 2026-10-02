@@ -9,7 +9,7 @@ import {
   YAxis,
 } from 'recharts';
 import { EmptyState } from '@/components/layout/empty-state';
-import { CHART_TICK, hasChartValue } from '@/lib/chart';
+import { CHART_TICK, CHART_TOOLTIP_STYLE, hasChartValue } from '@/lib/chart';
 import { formatVND, formatVNDCompact } from '@/lib/format';
 import type { ReportsTrend } from '../types';
 
@@ -85,6 +85,7 @@ export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {
               tickFormatter={(value: number) => formatVNDCompact(value)}
             />
             <Tooltip
+              {...CHART_TOOLTIP_STYLE}
               labelFormatter={(label) => {
                 const month = String(label);
                 return formatTrendMonthLabel(month, month === currentMonth);

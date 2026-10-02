@@ -46,4 +46,24 @@ describe('ExecutionsTable', () => {
     expect(screen.getByText('Trạng thái khác')).toBeInTheDocument();
     expect(screen.queryByText('FUTURE_STATUS')).not.toBeInTheDocument();
   });
+
+  it('clips a long customer name so the row stays one line tall', () => {
+    const longName = `Công ty TNHH Công nghệ ${'X'.repeat(200)}`;
+    const execution: ReminderExecution = {
+      id: 'execution-long',
+      receivableId: 'receivable-long',
+      reminderRuleId: null,
+      status: 'SENT',
+      sentAt: '2026-08-20T08:00:00Z',
+      skipReason: null,
+      providerMessageId: null,
+      invoiceNumber: 'PERF-2026-009999',
+      customerName: longName,
+    };
+
+    render(<ExecutionsTable executions={[execution]} />);
+
+    const label = screen.getByTitle(`PERF-2026-009999 — ${longName}`);
+    expect(label).toHaveClass('block', 'truncate');
+  });
 });

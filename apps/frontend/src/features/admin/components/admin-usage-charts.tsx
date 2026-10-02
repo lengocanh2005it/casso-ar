@@ -17,6 +17,7 @@ import {
   CardDescription,
   CardHeader,
 } from '@/components/ui/card';
+import { CHART_TICK, CHART_TOOLTIP_STYLE } from '@/lib/chart';
 import type { AiUsageAggregateItem, AiUsageTrendPoint } from '../api/admin-api';
 
 const trendDateFormatter = new Intl.DateTimeFormat('vi-VN', {
@@ -66,10 +67,27 @@ export function AdminUsageCharts({
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={topOrganizations}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="organizationName" />
-                <YAxis tickFormatter={formatNumber} />
-                <Tooltip formatter={(value) => formatNumber(Number(value))} />
+                <CartesianGrid
+                  stroke="var(--border)"
+                  strokeDasharray="3 3"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="organizationName"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={CHART_TICK}
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tick={CHART_TICK}
+                  tickFormatter={formatNumber}
+                />
+                <Tooltip
+                  {...CHART_TOOLTIP_STYLE}
+                  formatter={(value) => formatNumber(Number(value))}
+                />
                 <Bar dataKey="requestCount" fill="var(--chart-1)" />
               </BarChart>
             </ResponsiveContainer>
@@ -98,13 +116,26 @@ export function AdminUsageCharts({
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trend}>
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid
+                  stroke="var(--border)"
+                  strokeDasharray="3 3"
+                  vertical={false}
+                />
                 <XAxis
                   dataKey="date"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={CHART_TICK}
                   tickFormatter={(value: string) => formatTrendDate(value)}
                 />
-                <YAxis tickFormatter={formatNumber} />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tick={CHART_TICK}
+                  tickFormatter={formatNumber}
+                />
                 <Tooltip
+                  {...CHART_TOOLTIP_STYLE}
                   formatter={(value) => formatNumber(Number(value))}
                   labelFormatter={(value) => formatTrendDate(String(value))}
                 />
@@ -112,6 +143,8 @@ export function AdminUsageCharts({
                   type="monotone"
                   dataKey="requestCount"
                   stroke="var(--chart-2)"
+                  strokeWidth={2}
+                  dot={false}
                 />
               </LineChart>
             </ResponsiveContainer>

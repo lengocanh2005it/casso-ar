@@ -22,7 +22,7 @@ export function MobileSidebarWrapper({
           <Menu aria-hidden="true" className="size-5" />
         </button>
       </SheetTrigger>
-      <SheetContent side="left" className="p-0">
+      <SheetContent side="left" className="w-64 max-w-[calc(100vw-1rem)] p-0">
         {children}
       </SheetContent>
     </Sheet>
