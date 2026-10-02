@@ -276,7 +276,7 @@ Score components:
 
 - Batch size: max 50 items per request
 - Every batch item's transaction/tenant scoping and permission checks are identical to the single-item endpoint it reuses — a batch endpoint is never a separate authorization path
-- **Bulk approve match:** an Exception Queue row is eligible for one-click bulk approval only when its `topCandidate.totalScore ≥ 80` (`BULK_APPROVE_THRESHOLD`) — distinct from and lower than `AUTO_MATCH_THRESHOLD` (90, webhook auto-match), because every Exception Queue row is by definition already below 90. The full bank transaction amount is submitted as the allocation; if it exceeds the receivable's `remainingAmount` the item fails with `ALLOCATION_EXCEEDS_REMAINING` in its per-item result rather than blocking the rest of the batch.
+- **Bulk approve match:** an Exception Queue row is eligible for one-click bulk approval only when its `topCandidate.totalScore ≥ 80` (`BULK_APPROVE_THRESHOLD`) and it is not an ambiguous match (`isAmbiguous` on the queue item: top candidate leads the runner-up by < 10 points, so a human must choose the receivable) — distinct from and lower than `AUTO_MATCH_THRESHOLD` (90, webhook auto-match), because every Exception Queue row is by definition already below 90. The full bank transaction amount is submitted as the allocation; if it exceeds the receivable's `remainingAmount` the item fails with `ALLOCATION_EXCEEDS_REMAINING` in its per-item result rather than blocking the rest of the batch.
 
 ## Architecture Decisions (ADR)
 

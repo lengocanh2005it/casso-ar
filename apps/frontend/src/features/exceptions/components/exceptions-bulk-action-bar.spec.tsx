@@ -238,6 +238,68 @@ describe('ExceptionsBulkActionBar', () => {
     );
   });
 
+  it('leaves ambiguous rows out of approve-match even when their top score clears the threshold', async () => {
+    apiRequest.mockResolvedValue({
+      results: [{ id: 'tx-clear', status: 'success' }],
+    });
+    const row = (id: string, isAmbiguous: boolean) => ({
+      transaction: {
+        id,
+        providerTransactionId: id.toUpperCase(),
+        amount: 20_000,
+        transactionDateTime: '2026-08-01',
+        counterpartyAccountNumber: '001',
+        counterpartyName: 'A',
+        transferContent: 'note',
+        status: 'PENDING_REVIEW' as const,
+        version: 1,
+      },
+      topCandidate: {
+        id: `cand-${id}`,
+        receivableId: `rec-${id}`,
+        customerId: 'cust-1',
+        referenceCodeScore: 60,
+        amountScore: 20,
+        customerBankAccountScore: 10,
+        payerNameScore: 0,
+        timingScore: 5,
+        totalScore: 95,
+        invoiceNumber: 'INV-001',
+        customerName: 'Công ty A',
+        remainingAmount: 20_000,
+        dueDate: '2026-08-31',
+        createdAt: '2026-08-01',
+      },
+      isAmbiguous,
+      payer: mockPayer,
+    });
+    renderBar([row('tx-clear', false), row('tx-ambiguous', true)]);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Khớp giao dịch được gợi ý \(1\)/ }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Xác nhận khớp giao dịch' }),
+    );
+
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: '/api/v1/bank-transactions/batch-match',
+          data: {
+            items: [
+              {
+                bankTransactionId: 'tx-clear',
+                allocations: [{ receivableId: 'rec-tx-clear', amount: 20_000 }],
+                version: 1,
+              },
+            ],
+          },
+        }),
+      ),
+    );
+  });
+
   it('reports a transport failure when skipping selected transactions fails', async () => {
     apiRequest.mockRejectedValue(new Error('network'));
     renderBar([

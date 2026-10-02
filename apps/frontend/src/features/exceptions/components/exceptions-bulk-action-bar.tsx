@@ -76,7 +76,8 @@ export function ExceptionsBulkActionBar({
   const approvableItems = selectedItems.filter(
     (item) =>
       item.topCandidate &&
-      item.topCandidate.totalScore >= BULK_APPROVE_THRESHOLD,
+      item.topCandidate.totalScore >= BULK_APPROVE_THRESHOLD &&
+      !item.isAmbiguous,
   );
   const approveTotal = approvableItems.reduce(
     (sum, item) => sum + item.transaction.amount,
@@ -199,7 +200,7 @@ export function ExceptionsBulkActionBar({
         open={approveOpen}
         onOpenChange={setApproveOpen}
         title={`Khớp giao dịch được gợi ý cho ${approvableItems.length} giao dịch`}
-        description={`Tổng số tiền sẽ được phân bổ: ${formatVND(approveTotal)}. Chỉ áp dụng cho giao dịch có gợi ý khớp với độ tin cậy ≥ ${BULK_APPROVE_THRESHOLD}/100.`}
+        description={`Tổng số tiền sẽ được phân bổ: ${formatVND(approveTotal)}. Chỉ áp dụng cho giao dịch có gợi ý khớp với độ tin cậy ≥ ${BULK_APPROVE_THRESHOLD}/100 và dẫn đầu rõ rệt so với gợi ý thứ hai (chênh ≥ 10 điểm); giao dịch có nhiều gợi ý sát nhau cần được chọn thủ công.`}
         confirmLabel="Xác nhận khớp giao dịch"
         isPending={approveMatch.isPending}
         onConfirm={() =>

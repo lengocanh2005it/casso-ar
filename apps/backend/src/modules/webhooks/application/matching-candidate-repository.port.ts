@@ -12,6 +12,10 @@ export interface IMatchingCandidateRepository {
   findTopByBankTransactionIds(
     bankTransactionIds: string[],
   ): Promise<Map<string, MatchingCandidate>>;
+  /** Second-highest totalScore per transaction; absent when it has one candidate. */
+  findRunnerUpScoresByBankTransactionIds(
+    bankTransactionIds: string[],
+  ): Promise<Map<string, number>>;
 }
 export const MATCHING_CANDIDATE_REPOSITORY = Symbol(
   'MATCHING_CANDIDATE_REPOSITORY',

@@ -6,6 +6,17 @@ interface AutoMatchCandidate {
   remainingAmount: number;
 }
 
+// A single candidate has no runner-up, hence a clear lead. Shared with the
+// Exception Queue read model so both judge "ambiguous match" identically.
+export function hasClearLead(
+  topScore: number,
+  runnerUpScore: number | null,
+): boolean {
+  return (
+    runnerUpScore === null || topScore - runnerUpScore >= AUTO_MATCH_LEAD_MARGIN
+  );
+}
+
 // candidates must be sorted by totalScore descending (MatchingEngineService
 // guarantees it).
 export function canAutoMatch(
@@ -14,13 +25,10 @@ export function canAutoMatch(
 ): boolean {
   const top = candidates[0];
   if (!top) return false;
-  const runnerUp = candidates[1];
   // Same rule whether the runner-up belongs to the same or another customer.
-  const hasClearLead =
-    !runnerUp || top.totalScore - runnerUp.totalScore >= AUTO_MATCH_LEAD_MARGIN;
   return (
     top.totalScore >= AUTO_MATCH_THRESHOLD &&
     transactionAmount <= top.remainingAmount &&
-    hasClearLead
+    hasClearLead(top.totalScore, candidates[1]?.totalScore ?? null)
   );
 }
