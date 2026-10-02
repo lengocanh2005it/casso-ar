@@ -164,6 +164,15 @@ describe('EmailOtpStep', () => {
     await waitFor(() =>
       expect(screen.getByText(/email đã được xác minh/i)).toBeVisible(),
     );
+    // State changes swap the whole form, so the terminal block animates in
+    // instead of snapping — and respects prefers-reduced-motion.
+    const pending = screen.getByRole('status');
+    expect(pending).toHaveClass('animate-fade-up');
+    expect(pending).toHaveClass('motion-reduce:animate-none');
+    expect(screen.getByText(/kiểm tra thông tin tổ chức/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/sau khi được duyệt, đăng nhập để bắt đầu/i),
+    ).toBeInTheDocument();
     expect(
       screen.queryByText(/mã không hợp lệ hoặc đã hết hạn/i),
     ).not.toBeInTheDocument();

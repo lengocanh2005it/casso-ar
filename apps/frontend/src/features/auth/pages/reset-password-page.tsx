@@ -44,7 +44,10 @@ export function ResetPasswordPage() {
   if (done) {
     return (
       <AuthStatusCard>
-        <div role="status" className="space-y-2">
+        <div
+          role="status"
+          className="animate-fade-up motion-reduce:animate-none space-y-2"
+        >
           <h1 className="text-xl font-semibold">Mật khẩu đã được đặt lại</h1>
           <Link
             to="/login"
@@ -92,6 +95,10 @@ export function ResetPasswordPage() {
         >
           {submitting && <Spinner />}
           {submitting ? 'Đang xử lý…' : 'Đặt lại mật khẩu'}
+        </Button>
+
+        <Button variant="link" className="h-auto p-0 text-sm" asChild>
+          <Link to="/forgot-password">Yêu cầu liên kết mới</Link>
         </Button>
       </form>
     </AuthStatusCard>

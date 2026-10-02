@@ -45,7 +45,10 @@ export function InviteAcceptPage() {
   if (done) {
     return (
       <AuthStatusCard>
-        <div role="status" className="space-y-2">
+        <div
+          role="status"
+          className="animate-fade-up motion-reduce:animate-none space-y-2"
+        >
           <h1 className="text-xl font-semibold">Tham gia tổ chức thành công</h1>
           <p className="text-sm text-muted-foreground">
             Bạn có thể đăng nhập để bắt đầu sử dụng{' '}
@@ -108,6 +111,10 @@ export function InviteAcceptPage() {
         >
           {submitting && <Spinner />}
           {submitting ? 'Đang xử lý…' : 'Tham gia'}
+        </Button>
+
+        <Button variant="link" className="h-auto p-0 text-sm" asChild>
+          <Link to="/login">← Quay lại đăng nhập</Link>
         </Button>
       </form>
     </AuthStatusCard>
