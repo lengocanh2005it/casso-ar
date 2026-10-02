@@ -30,15 +30,16 @@ describe('HeroSection', () => {
     expect(screen.getByRole('list', { name: /cam kết/i })).toBeInTheDocument();
   });
 
-  it('sizes the hero to its content instead of forcing a full viewport', () => {
-    // `min-h-svh` held the hero at 900px while its content was only 462px,
-    // pushing 438px of empty page below the fold.
+  it('fills exactly one viewport so the next section starts at the fold', () => {
+    // Sizing the hero to its content left 230px of "Xem Casso AR hoạt động"
+    // inside the first screen, so the hero and the section below it shared one
+    // frame. The hero has to claim the whole viewport.
     const { container } = render(
       <MemoryRouter>
         <HeroSection />
       </MemoryRouter>,
     );
 
-    expect(container.querySelector('section')).not.toHaveClass('min-h-svh');
+    expect(container.querySelector('section')).toHaveClass('min-h-svh');
   });
 });

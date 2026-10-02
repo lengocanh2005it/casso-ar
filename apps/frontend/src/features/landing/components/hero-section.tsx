@@ -42,7 +42,7 @@ export function HeroSection() {
   const reducedMotion = useReducedMotion();
 
   return (
-    <section className="relative isolate flex items-center overflow-hidden pt-28 pb-16 sm:pt-32 sm:pb-20">
+    <section className="relative isolate flex min-h-svh items-center overflow-hidden pt-24 pb-10 sm:pt-28 sm:pb-12">
       <div
         aria-hidden="true"
         className="absolute inset-x-0 top-12 -z-10 mx-auto h-80 max-w-5xl rounded-full bg-primary/10 blur-3xl"
