@@ -135,4 +135,24 @@ export class TypeOrmInvoiceRepository implements IInvoiceRepository {
     });
     return rows.map((row) => row.id);
   }
+
+  // The expression must match the IDX_invoices_organization_normalized_number
+  // expression index exactly, or the planner cannot use it.
+  async findIdsByReferenceKeys(
+    organizationId: string,
+    keys: string[],
+    limit: number,
+  ): Promise<string[]> {
+    if (keys.length === 0) return [];
+    const normalizedNumber = `regexp_replace(invoice."invoiceNumber", '[^A-Za-z0-9]', '', 'g')`;
+    const rows = await this.repo
+      .createQueryBuilder('invoice')
+      .select('invoice.id', 'id')
+      .where('invoice."organizationId" = :organizationId', { organizationId })
+      .andWhere(`upper(${normalizedNumber}) = ANY(:keys)`, { keys })
+      .orderBy(`length(${normalizedNumber})`, 'DESC')
+      .limit(limit)
+      .getRawMany<{ id: string }>();
+    return rows.map((row) => row.id);
+  }
 }

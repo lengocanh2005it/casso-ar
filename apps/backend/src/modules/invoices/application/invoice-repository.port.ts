@@ -18,6 +18,15 @@ export interface IInvoiceRepository {
     organizationId: string,
     search: string,
   ): Promise<string[]>;
+  /**
+   * Ids of invoices whose normalized number (ASCII letters/digits, upper case)
+   * equals one of `keys`, longest number first, at most `limit`.
+   */
+  findIdsByReferenceKeys(
+    organizationId: string,
+    keys: string[],
+    limit: number,
+  ): Promise<string[]>;
   save(invoice: Invoice, manager?: EntityManager): Promise<void>;
 }
 

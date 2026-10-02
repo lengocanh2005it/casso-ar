@@ -15,6 +15,10 @@ _Avoid_: Auto-allocation
 An incoming bank transfer whose top receivable candidate does not lead the runner-up by at least 10 points, whether the competing receivables belong to the same customer or different ones. It always needs a human to choose, even when the top score is 90 or more.
 _Avoid_: Tie, Conflict
 
+**Exact invoice reference**:
+A bank transfer's content contains an open receivable's complete invoice number, ignoring case and separators and not as part of a longer number. Such a receivable is always considered for matching, however many other open receivables exist.
+_Avoid_: Invoice code match
+
 **Customer credit**:
 Received money that has not been allocated to a receivable and is held for an accountant to allocate intentionally later.
 

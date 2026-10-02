@@ -12,6 +12,7 @@ import {
 @Index(['organizationId', 'status', 'dueDate'])
 @Index(['organizationId', 'customerId', 'status'])
 @Index(['organizationId', 'salesRepresentativeId'])
+@Index('IDX_receivables_organization_invoice', ['organizationId', 'invoiceId'])
 @Index('IDX_receivables_organization_created_at', [
   'organizationId',
   'createdAt',
