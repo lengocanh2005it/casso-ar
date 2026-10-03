@@ -44,14 +44,14 @@ export function AppearanceTab() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
         {THEMES.map(({ value, label, description, icon: Icon }) => (
           <button
             key={value}
             type="button"
             onClick={() => setTheme(value)}
             className={cn(
-              'flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-[border-color,background-color] duration-150 ease-out motion-reduce:transition-none',
+              'flex flex-row items-center gap-3 rounded-lg border-2 p-3 text-left transition-[border-color,background-color] duration-150 ease-out motion-reduce:transition-none sm:flex-col sm:items-center sm:gap-2 sm:p-4 sm:text-center',
               theme === value
                 ? 'border-primary bg-primary/5'
                 : 'border-border hover:border-primary/50 hover:bg-accent/50',

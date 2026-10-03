@@ -105,6 +105,29 @@ describe('EmailTemplatesTab', () => {
     expect(within(row).getByText('Tùy chỉnh')).toBeTruthy();
   });
 
+  it('keeps the labeled template layout through tablet widths', async () => {
+    useAuth.mockReturnValue({ user: { role: 'OWNER' } });
+    apiRequest.mockResolvedValueOnce([template]);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <EmailTemplatesTab />
+      </QueryClientProvider>,
+    );
+
+    const row = await screen.findByRole('row', { name: /Due date reminder/i });
+    expect(within(row).getByText('Tiêu đề')).toBeInTheDocument();
+    expect(within(row).getByText('Loại')).toBeInTheDocument();
+    expect(
+      within(row).getByRole('button', { name: 'Xóa' }),
+    ).toBeInTheDocument();
+    expect(container.querySelector('table')).toHaveClass('block', 'xl:table');
+    expect(row).toHaveClass('xl:table-row');
+  });
+
   it('refreshes attachments in the open editor after upload', async () => {
     useAuth.mockReturnValue({ user: { role: 'OWNER' } });
     const attachment = {

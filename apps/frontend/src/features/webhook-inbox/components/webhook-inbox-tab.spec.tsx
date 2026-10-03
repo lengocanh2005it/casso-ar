@@ -107,6 +107,38 @@ describe('WebhookInboxTab', () => {
     );
   });
 
+  it('renders mobile field labels alongside webhook data and row actions', () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'OWNER', organizationId: 'org-1' },
+    } as never);
+    useWebhookInboxMock.mockReturnValue({
+      data: { items: [failedItem], total: 1 },
+      isLoading: false,
+      isError: false,
+    });
+
+    renderTab();
+
+    expect(
+      screen.getAllByText('Thời điểm nhận', { exact: true }).length,
+    ).toBeGreaterThan(1);
+    expect(
+      screen.getAllByText('Trạng thái', { exact: true }).length,
+    ).toBeGreaterThan(1);
+    expect(
+      screen.getAllByText('Mã giao dịch', { exact: true }).length,
+    ).toBeGreaterThan(1);
+    expect(
+      screen.getAllByText('Số lần thử lại', { exact: true }).length,
+    ).toBeGreaterThan(1);
+    expect(
+      screen.getByRole('button', { name: 'Chi tiết' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Xử lý lại' }),
+    ).toBeInTheDocument();
+  });
+
   it('reprocesses a FAILED webhook on confirm', async () => {
     useAuthMock.mockReturnValue({
       user: { role: 'OWNER', organizationId: 'org-1' },

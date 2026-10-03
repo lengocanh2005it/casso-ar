@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -133,6 +134,9 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Thông tin tài khoản</DialogTitle>
+          <DialogDescription className="sr-only">
+            Cập nhật thông tin cá nhân và thông tin doanh nghiệp của bạn.
+          </DialogDescription>
         </DialogHeader>
 
         {changePasswordOpen ? (

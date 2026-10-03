@@ -51,6 +51,14 @@ describe('ProfileDialog', () => {
     });
   });
 
+  it('provides an accessible description for the account dialog', () => {
+    render(<ProfileDialog open onOpenChange={vi.fn()} />);
+
+    expect(screen.getByRole('dialog')).toHaveAccessibleDescription(
+      'Cập nhật thông tin cá nhân và thông tin doanh nghiệp của bạn.',
+    );
+  });
+
   it('saves an edited profile for an authenticated user', async () => {
     render(<ProfileDialog open onOpenChange={vi.fn()} />);
 

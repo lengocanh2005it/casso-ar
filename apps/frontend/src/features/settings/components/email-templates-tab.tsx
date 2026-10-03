@@ -91,8 +91,8 @@ export function EmailTemplatesTab() {
         />
       )}
       {templatesQuery.data && templatesQuery.data.length > 0 && (
-        <Table className="block md:table">
-          <TableHeader className="sr-only md:not-sr-only md:table-header-group">
+        <Table className="block xl:table">
+          <TableHeader className="sr-only xl:not-sr-only xl:table-header-group">
             <TableRow>
               <TableHead>Tên</TableHead>
               <TableHead>Tiêu đề</TableHead>
@@ -100,13 +100,13 @@ export function EmailTemplatesTab() {
               {canWrite && <TableHead>Thao tác</TableHead>}
             </TableRow>
           </TableHeader>
-          <TableBody className="block md:table-row-group">
+          <TableBody className="block xl:table-row-group">
             {templatesQuery.data.map((template) => (
               <TableRow
                 key={template.id}
-                className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 px-3 py-3 md:table-row md:px-0 md:py-0"
+                className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 px-3 py-3 xl:table-row xl:px-0 xl:py-0"
               >
-                <TableCell className="col-span-2 min-w-0 max-w-56 break-words px-0 py-1 font-medium md:table-cell md:px-2 md:py-2">
+                <TableCell className="col-span-2 min-w-0 break-words px-0 py-1 font-medium xl:table-cell xl:px-2 xl:py-2">
                   <div className="flex min-w-0 items-center gap-2">
                     <HeaderIcon icon={Mail} />
                     <TruncatedText
@@ -117,8 +117,8 @@ export function EmailTemplatesTab() {
                     </TruncatedText>
                   </div>
                 </TableCell>
-                <TableCell className="col-span-2 flex min-w-0 max-w-72 flex-col gap-1 break-words px-0 py-1 md:table-cell md:px-2 md:py-2">
-                  <span className="text-xs font-normal text-muted-foreground md:hidden">
+                <TableCell className="col-span-2 flex min-w-0 flex-col gap-1 break-words px-0 py-1 xl:table-cell xl:px-2 xl:py-2">
+                  <span className="text-xs font-normal text-muted-foreground xl:hidden">
                     Tiêu đề
                   </span>
                   <TruncatedText
@@ -129,9 +129,9 @@ export function EmailTemplatesTab() {
                   </TruncatedText>
                 </TableCell>
                 <TableCell
-                  className={`${canWrite ? '' : 'col-span-2'} flex flex-col items-start gap-1 px-0 py-1 md:table-cell md:px-2 md:py-2`}
+                  className={`${canWrite ? '' : 'col-span-2'} flex flex-col items-start gap-1 px-0 py-1 xl:table-cell xl:px-2 xl:py-2`}
                 >
-                  <span className="text-xs font-normal text-muted-foreground md:hidden">
+                  <span className="text-xs font-normal text-muted-foreground xl:hidden">
                     Loại
                   </span>
                   <Badge variant={template.isDefault ? 'default' : 'outline'}>
@@ -139,8 +139,8 @@ export function EmailTemplatesTab() {
                   </Badge>
                 </TableCell>
                 {canWrite && (
-                  <TableCell className="min-w-0 px-0 py-1 text-right md:table-cell md:px-2 md:py-2">
-                    <span className="mb-1 block text-xs font-normal text-muted-foreground md:hidden">
+                  <TableCell className="min-w-0 px-0 py-1 text-right xl:table-cell xl:px-2 xl:py-2">
+                    <span className="mb-1 block text-xs font-normal text-muted-foreground xl:hidden">
                       Thao tác
                     </span>
                     <div className="flex flex-wrap justify-end gap-2">
