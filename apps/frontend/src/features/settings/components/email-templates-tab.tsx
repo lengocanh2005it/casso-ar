@@ -164,7 +164,11 @@ export function EmailTemplatesTab() {
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive hover:bg-destructive/5 hover:text-destructive"
+                          >
                             Xóa
                           </Button>
                         </AlertDialogTrigger>
