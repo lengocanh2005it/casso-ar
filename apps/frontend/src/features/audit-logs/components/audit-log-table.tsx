@@ -142,8 +142,8 @@ function fieldDiffRows(
 function DetailRow({ item }: { item: AuditLogItem }) {
   const rows = fieldDiffRows(item.beforeState, item.afterState);
   return (
-    <TableRow className="bg-muted/30">
-      <TableCell colSpan={5}>
+    <TableRow className="block bg-muted/30 lg:table-row">
+      <TableCell colSpan={5} className="block px-3 py-3 lg:table-cell lg:px-2">
         <div className="space-y-3 text-sm">
           <div>
             <span className="text-muted-foreground">Địa chỉ IP: </span>
@@ -152,28 +152,37 @@ function DetailRow({ item }: { item: AuditLogItem }) {
           {rows.length === 0 ? (
             <p className="text-muted-foreground">Không có thay đổi.</p>
           ) : (
-            <table className="w-full text-xs">
-              <thead>
+            <table className="block w-full text-xs lg:table">
+              <thead className="hidden lg:table-header-group">
                 <tr className="text-left text-muted-foreground">
                   <th className="pr-4 py-1 font-normal">Trường</th>
                   <th className="pr-4 py-1 font-normal">Trước</th>
                   <th className="py-1 font-normal">Sau</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="block lg:table-row-group">
                 {rows.map((row) => (
-                  <tr key={row.field}>
-                    <td className="pr-4 py-1">
+                  <tr
+                    key={row.field}
+                    className="grid grid-cols-2 gap-x-3 gap-y-1 border-b py-2 last:border-0 lg:table-row lg:border-0 lg:py-0"
+                  >
+                    <td className="col-span-2 min-w-0 break-words py-1 lg:table-cell lg:px-2">
                       {FIELD_LABELS[row.field] ?? row.field}
                     </td>
-                    <td className="pr-4 py-1">
+                    <td className="flex min-w-0 flex-col gap-1 break-words py-1 lg:table-cell lg:px-2">
+                      <span className="text-xs text-muted-foreground lg:hidden">
+                        Trước
+                      </span>
                       <FieldValue
                         field={row.field}
                         value={row.before}
                         display={item.display}
                       />
                     </td>
-                    <td className="py-1">
+                    <td className="flex min-w-0 flex-col gap-1 break-words py-1 lg:table-cell lg:px-2">
+                      <span className="text-xs text-muted-foreground lg:hidden">
+                        Sau
+                      </span>
                       <FieldValue
                         field={row.field}
                         value={row.after}
@@ -212,8 +221,8 @@ export function AuditLogTable({ items, members }: AuditLogTableProps) {
 
   return (
     <div className="overflow-x-auto rounded-xl border bg-card">
-      <Table>
-        <TableHeader>
+      <Table className="block lg:table">
+        <TableHeader className="hidden lg:table-header-group">
           <TableRow>
             <TableHead>Thời điểm</TableHead>
             <TableHead>Người thực hiện</TableHead>
@@ -224,17 +233,37 @@ export function AuditLogTable({ items, members }: AuditLogTableProps) {
             </TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
+        <TableBody className="block lg:table-row-group">
           {items.map((item) => (
             <Fragment key={item.id}>
-              <TableRow className="align-middle">
-                <TableCell>{formatDateTime(item.createdAt)}</TableCell>
-                <TableCell>{actorLabel(item.userId, members)}</TableCell>
-                <TableCell>
+              <TableRow className="grid grid-cols-1 gap-y-2 px-3 py-3 lg:table-row lg:px-0 lg:py-0">
+                <TableCell className="flex min-w-0 flex-col gap-1 px-0 py-1 lg:table-cell lg:px-2 lg:py-2">
+                  <span className="text-xs font-normal text-muted-foreground lg:hidden">
+                    Thời điểm
+                  </span>
+                  <span className="break-words">
+                    {formatDateTime(item.createdAt)}
+                  </span>
+                </TableCell>
+                <TableCell className="flex min-w-0 flex-col gap-1 px-0 py-1 lg:table-cell lg:px-2 lg:py-2">
+                  <span className="text-xs font-normal text-muted-foreground lg:hidden">
+                    Người thực hiện
+                  </span>
+                  <span className="break-words">
+                    {actorLabel(item.userId, members)}
+                  </span>
+                </TableCell>
+                <TableCell className="flex min-w-0 flex-col gap-1 px-0 py-1 lg:table-cell lg:px-2 lg:py-2">
+                  <span className="text-xs font-normal text-muted-foreground lg:hidden">
+                    Hành động
+                  </span>
                   {ACTION_TYPE_LABELS[item.actionType] ?? item.actionType}
                 </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1.5">
+                <TableCell className="flex min-w-0 flex-col gap-1 px-0 py-1 lg:table-cell lg:px-2 lg:py-2">
+                  <span className="text-xs font-normal text-muted-foreground lg:hidden">
+                    Đối tượng
+                  </span>
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                     {item.display?.entityLabel ? (
                       <>
                         <span className="text-muted-foreground">
@@ -261,7 +290,10 @@ export function AuditLogTable({ items, members }: AuditLogTableProps) {
                     )}
                   </div>
                 </TableCell>
-                <TableCell>
+                <TableCell className="flex items-center justify-between px-0 pt-1 pb-0 lg:table-cell lg:px-2 lg:py-2">
+                  <span className="text-xs font-normal text-muted-foreground lg:hidden">
+                    Thao tác
+                  </span>
                   <Button
                     variant="ghost"
                     size="sm"

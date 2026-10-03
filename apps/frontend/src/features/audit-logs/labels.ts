@@ -60,10 +60,8 @@ export const ACTION_TYPE_LABELS: Record<string, string> = {
   WEBHOOK_REPROCESS: 'Xử lý lại webhook',
 };
 
-// Field names shown in the before/after diff table's "Trường" column.
-// Not exhaustive — covers fields from the domain entities most commonly
-// audited (Receivable, PaymentAllocation, Dispute). Anything missing falls
-// back to its raw name (see FIELD_LABELS[field] ?? field).
+// Field names shown in before/after diffs. Unknown fields retain their raw key
+// so audit snapshots stay inspectable as the domain evolves.
 export const FIELD_LABELS: Record<string, string> = {
   id: 'Mã hệ thống',
   organizationId: 'Tổ chức',
@@ -76,6 +74,25 @@ export const FIELD_LABELS: Record<string, string> = {
   remainingAmount: 'Còn lại',
   unallocatedAmount: 'Chưa phân bổ',
   allocatedAmount: 'Số tiền phân bổ',
+  amount: 'Số tiền giao dịch',
+  aiRecommendation: 'Gợi ý đối soát AI',
+  bankConnectionId: 'Kết nối ngân hàng',
+  bankTransactionId: 'Giao dịch ngân hàng',
+  accountNumberMasked: 'Số tài khoản đã che',
+  counterpartyAccountNumber: 'Số tài khoản đối ứng',
+  counterpartyName: 'Tên người chuyển tiền',
+  creditLimit: 'Hạn mức tín dụng',
+  confirmedAt: 'Thời điểm xác nhận',
+  confirmedByUserId: 'Người xác nhận',
+  isActive: 'Trạng thái hoạt động',
+  payerName: 'Người chuyển tiền',
+  providerTransactionId: 'Mã giao dịch ngân hàng',
+  taxAmount: 'Tiền thuế',
+  transferContent: 'Nội dung chuyển khoản',
+  webhookInboxId: 'Webhook nhận về',
+  recommendedReceivableId: 'Khoản phải thu đề xuất',
+  confidence: 'Độ tin cậy',
+  isCurrent: 'Còn phù hợp',
   totalAmount: 'Tổng tiền',
   dueDate: 'Hạn thanh toán',
   issueDate: 'Ngày phát hành',

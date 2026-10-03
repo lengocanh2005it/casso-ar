@@ -14,6 +14,7 @@ import {
   blockMember,
   changeMemberRole,
   fetchOrganizationInvites,
+  fetchOrganizationMembers,
   fetchSmtpConfig,
   initiatePlanUpgrade,
   removeMember,
@@ -87,13 +88,53 @@ describe('removeMember', () => {
 
 describe('fetchOrganizationInvites', () => {
   it('fetches pending invites for the organization', async () => {
-    const list = { items: [], total: 0, page: 1, limit: 100 };
+    const list = { items: [], total: 0, page: 1, limit: 20 };
     apiRequest.mockResolvedValueOnce(list);
 
-    await expect(fetchOrganizationInvites('org-1')).resolves.toEqual(list);
+    await expect(fetchOrganizationInvites('org-1', 2, 20)).resolves.toEqual(
+      list,
+    );
     expect(apiRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        url: '/api/v1/organizations/org-1/invites?page=1&limit=100',
+        url: '/api/v1/organizations/org-1/invites?page=2&limit=20',
+        method: 'GET',
+      }),
+    );
+  });
+});
+
+describe('fetchOrganizationMembers', () => {
+  it('keeps the existing 100-member default for directory lookups', async () => {
+    apiRequest.mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 1,
+      limit: 100,
+    });
+
+    await fetchOrganizationMembers('org-1');
+
+    expect(apiRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: '/api/v1/organizations/org-1/members?page=1&limit=100',
+        method: 'GET',
+      }),
+    );
+  });
+
+  it('requests a page and applies the optional status filter', async () => {
+    apiRequest.mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 2,
+      limit: 20,
+    });
+
+    await fetchOrganizationMembers('org-1', 2, 20, 'BLOCKED');
+
+    expect(apiRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: '/api/v1/organizations/org-1/members?page=2&limit=20&status=BLOCKED',
         method: 'GET',
       }),
     );

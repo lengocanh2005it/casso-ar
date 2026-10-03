@@ -45,6 +45,12 @@ describe('SmtpTab', () => {
 
     renderTab();
 
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Email riêng' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Gửi email nhắc nợ từ tên miền của tổ chức.'),
+    ).toBeInTheDocument();
     expect(screen.getByText(/dành cho gói business/i)).toBeInTheDocument();
     expect(apiRequest).not.toHaveBeenCalled();
   });
@@ -57,6 +63,10 @@ describe('SmtpTab', () => {
     await waitFor(() =>
       expect(screen.getByText(/chưa cấu hình/i)).toBeInTheDocument(),
     );
+    expect(screen.queryByText('Email server riêng')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Cấu hình máy chủ gửi email nhắc nợ của tổ chức.'),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /cấu hình smtp/i }),
     ).toBeInTheDocument();
@@ -76,6 +86,7 @@ describe('SmtpTab', () => {
     await waitFor(() =>
       expect(screen.getByText('Đang hoạt động')).toBeInTheDocument(),
     );
+    expect(screen.queryByText('Email server riêng')).not.toBeInTheDocument();
     expect(screen.getByText('Đang hoạt động')).toHaveAttribute(
       'data-variant',
       'default',

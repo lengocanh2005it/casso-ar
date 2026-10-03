@@ -1,7 +1,8 @@
 import { INVITABLE_ROLES, Permission, Role } from '@casso-ar/shared-types';
 import { Users } from 'lucide-react';
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { SectionCard } from '@/components/layout/section-card';
+import { SectionHeading } from '@/components/layout/section-heading';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
 import {
   TruncatedName,
@@ -51,6 +52,7 @@ import {
 import type { MembershipStatus, OrganizationMember } from '../types';
 import { OwnershipTransferDialog } from './ownership-transfer-dialog';
 import { PendingInvitesTable } from './pending-invites-table';
+import { SettingsListPagination } from './settings-list-pagination';
 
 const roles = Object.values(Role);
 
@@ -268,17 +270,42 @@ export function UsersTab() {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>(Role.ACCOUNTANT);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [memberPage, setMemberPage] = useState(1);
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const isOwner = user?.role === Role.OWNER;
+  const status = statusFilter === 'ALL' ? undefined : statusFilter;
   const membersQuery = useOrganizationMembers(
     canView ? user?.organizationId : undefined,
+    memberPage,
+    status,
+    20,
+  );
+  const transferMembersQuery = useOrganizationMembers(
+    isOwner && transferDialogOpen ? user?.organizationId : undefined,
+    1,
+    'ACTIVE',
+    100,
   );
   const invite = useInviteMember();
   const changeRole = useChangeMemberRole(user?.organizationId);
   const removeMember = useRemoveMember(user?.organizationId);
-  const blockMember = useBlockMember(user?.organizationId);
-  const unblockMember = useUnblockMember(user?.organizationId);
+  const blockMember = useBlockMember(user?.organizationId, memberPage, status);
+  const unblockMember = useUnblockMember(
+    user?.organizationId,
+    memberPage,
+    status,
+  );
 
-  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
-  const isOwner = user?.role === Role.OWNER;
+  useEffect(() => {
+    const data = membersQuery.data;
+    if (!data) return;
+    const totalPages = Math.max(1, Math.ceil(data.total / data.limit));
+    if (memberPage > totalPages) setMemberPage(totalPages);
+  }, [memberPage, membersQuery.data]);
+  const membersPageOutOfRange =
+    membersQuery.data !== undefined &&
+    memberPage >
+      Math.max(1, Math.ceil(membersQuery.data.total / membersQuery.data.limit));
 
   const handleRoleChange = useCallback(
     (userId: string, nextRole: Role) => {
@@ -319,7 +346,7 @@ export function UsersTab() {
   }
 
   const members = membersQuery.data?.items ?? [];
-  const transferCandidates = members
+  const transferCandidates = (transferMembersQuery.data?.items ?? [])
     .filter(
       (member) =>
         member.role !== Role.OWNER &&
@@ -332,106 +359,129 @@ export function UsersTab() {
       email: member.email,
     }));
 
-  const filteredMembers =
-    statusFilter === 'ALL'
-      ? members
-      : members.filter((member) => member.status === statusFilter);
   const emptyMessage =
-    members.length === 0
+    statusFilter === 'ALL'
       ? 'Chưa có thành viên nào.'
       : 'Không có thành viên nào phù hợp với bộ lọc.';
 
   return (
-    <div className="space-y-6">
-      {canInvite && (
-        <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-4 shadow-sm">
-          <label className="space-y-1 text-sm" htmlFor="invite-email">
-            <span className="block">Email</span>
-            <Input
-              id="invite-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              spellCheck={false}
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="email@example.com"
-            />
-          </label>
-          <div className="space-y-1 text-sm">
-            <span className="block">Vai trò</span>
-            <Select
-              value={role}
-              onValueChange={(value) => {
-                const nextRole = roles.find((item) => item === value);
-                if (nextRole) setRole(nextRole);
-              }}
-            >
-              <SelectTrigger aria-label="Vai trò">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>{roleSelectItems}</SelectContent>
-            </Select>
-          </div>
-          <Button disabled={!email.trim() || invite.isPending} onClick={submit}>
-            {invite.isPending && <Spinner className="size-4" />}
-            {invite.isPending ? 'Đang mời…' : 'Mời thành viên'}
-          </Button>
-        </div>
-      )}
-      {isOwner && (
-        <OwnershipTransferDialog
-          open={transferDialogOpen}
-          onOpenChange={setTransferDialogOpen}
-          organizationId={user.organizationId}
-          candidates={transferCandidates}
-        />
-      )}
-      <SectionCard
+    <div className="space-y-4">
+      <SectionHeading
         icon={Users}
-        title="Thành viên"
-        action={
-          <div className="flex items-center gap-2">
-            {isOwner && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setTransferDialogOpen(true)}
+        title="Người dùng"
+        description="Quản lý thành viên, vai trò và lời mời trong tổ chức."
+      />
+      <div className="space-y-6">
+        {canInvite && (
+          <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-4 shadow-sm">
+            <label className="space-y-1 text-sm" htmlFor="invite-email">
+              <span className="block">Email</span>
+              <Input
+                id="invite-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                spellCheck={false}
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="email@example.com"
+              />
+            </label>
+            <div className="space-y-1 text-sm">
+              <span className="block">Vai trò</span>
+              <Select
+                value={role}
+                onValueChange={(value) => {
+                  const nextRole = roles.find((item) => item === value);
+                  if (nextRole) setRole(nextRole);
+                }}
               >
-                Chuyển quyền sở hữu
-              </Button>
-            )}
-            <Select
-              value={statusFilter}
-              onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+                <SelectTrigger aria-label="Vai trò">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>{roleSelectItems}</SelectContent>
+              </Select>
+            </div>
+            <Button
+              disabled={!email.trim() || invite.isPending}
+              onClick={submit}
             >
-              <SelectTrigger aria-label="Lọc theo trạng thái">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>{statusFilterItems}</SelectContent>
-            </Select>
+              {invite.isPending && <Spinner className="size-4" />}
+              {invite.isPending ? 'Đang mời…' : 'Mời thành viên'}
+            </Button>
           </div>
-        }
-      >
-        {membersQuery.isPending && membersLoadingMessage}
-        {membersQuery.isError && membersErrorMessage}
-        {membersQuery.data && (
-          <MembersTable
-            members={filteredMembers}
-            emptyMessage={emptyMessage}
-            canManage={canManage}
-            canBlock={canBlock}
-            currentUserId={user?.id}
-            onRoleChange={handleRoleChange}
-            onRemove={handleRemove}
-            onBlock={handleBlock}
-            onUnblock={handleUnblock}
+        )}
+        {isOwner && (
+          <OwnershipTransferDialog
+            open={transferDialogOpen}
+            onOpenChange={setTransferDialogOpen}
+            organizationId={user.organizationId}
+            candidates={transferCandidates}
           />
         )}
-      </SectionCard>
-      {canManage && (
-        <PendingInvitesTable organizationId={user?.organizationId} />
-      )}
+        <SectionCard
+          icon={Users}
+          title="Thành viên"
+          action={
+            <div className="flex items-center gap-2">
+              {isOwner && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTransferDialogOpen(true)}
+                >
+                  Chuyển quyền sở hữu
+                </Button>
+              )}
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => {
+                  setStatusFilter(value as StatusFilter);
+                  setMemberPage(1);
+                }}
+              >
+                <SelectTrigger aria-label="Lọc theo trạng thái">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>{statusFilterItems}</SelectContent>
+              </Select>
+            </div>
+          }
+        >
+          {membersQuery.isPending && membersLoadingMessage}
+          {membersQuery.isError && membersErrorMessage}
+          {membersPageOutOfRange && (
+            <p role="status" aria-live="polite">
+              Đang cập nhật danh sách thành viên…
+            </p>
+          )}
+          {membersQuery.data && !membersPageOutOfRange && (
+            <>
+              <MembersTable
+                members={members}
+                emptyMessage={emptyMessage}
+                canManage={canManage}
+                canBlock={canBlock}
+                currentUserId={user?.id}
+                onRoleChange={handleRoleChange}
+                onRemove={handleRemove}
+                onBlock={handleBlock}
+                onUnblock={handleUnblock}
+              />
+              <SettingsListPagination
+                page={memberPage}
+                total={membersQuery.data.total}
+                limit={membersQuery.data.limit}
+                label="thành viên"
+                onPageChange={setMemberPage}
+              />
+            </>
+          )}
+        </SectionCard>
+        {canManage && (
+          <PendingInvitesTable organizationId={user?.organizationId} />
+        )}
+      </div>
     </div>
   );
 }

@@ -5,10 +5,10 @@ import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { usePlans } from '@/features/plans/hooks/use-plans';
+import { PLAN_FEATURE_COPY, PLAN_LABELS } from '@/features/plans/plans-data';
 import { formatVND } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { usePlans } from '../hooks/use-plans';
-import { PLAN_FEATURE_COPY, PLAN_LABELS } from '../landing-data';
 import {
   FADE_UP_ITEM_VARIANTS,
   HOVER_SCALE,

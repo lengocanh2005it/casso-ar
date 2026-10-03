@@ -31,7 +31,7 @@ export function TemplatePreviewDialog({
         <DialogHeader className="min-w-0">
           <DialogTitle>Xem trước mẫu email</DialogTitle>
           <DialogDescription
-            className="min-w-0 truncate"
+            className="min-w-0 whitespace-normal break-words"
             title={template?.name ?? '—'}
           >
             {template?.name ?? '—'}
@@ -50,7 +50,10 @@ export function TemplatePreviewDialog({
         {preview.data && (
           <div className="min-w-0 overflow-hidden rounded-md border bg-background shadow-sm">
             <div className="border-b bg-muted/30 px-5 py-4">
-              <h3 className="truncate font-medium" title={preview.data.subject}>
+              <h3
+                className="whitespace-normal break-words font-medium"
+                title={preview.data.subject}
+              >
                 {preview.data.subject}
               </h3>
             </div>

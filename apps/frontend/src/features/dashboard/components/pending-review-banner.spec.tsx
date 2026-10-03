@@ -26,6 +26,18 @@ describe('PendingReviewBanner', () => {
     );
   });
 
+  it('moves the action below the message on narrow screens', () => {
+    render(
+      <MemoryRouter>
+        <PendingReviewBanner pendingCount={12} />
+      </MemoryRouter>,
+    );
+
+    const banner = screen.getByRole('status');
+    expect(banner).toHaveClass('flex-col', 'items-start', 'sm:flex-row');
+    expect(banner.firstElementChild).toHaveClass('min-w-0');
+  });
+
   it('announces itself as a live region when it appears', () => {
     render(
       <MemoryRouter>
@@ -33,5 +45,25 @@ describe('PendingReviewBanner', () => {
       </MemoryRouter>,
     );
     expect(screen.getByRole('status')).toHaveTextContent('2');
+  });
+
+  it('renders a count placeholder without exposing a pending count while loading', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <PendingReviewBanner pendingCount={0} loading />
+      </MemoryRouter>,
+    );
+
+    expect(
+      container.querySelector('[data-slot="skeleton"]'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/giao dịch đang chờ đối soát/),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Xử lý ngay/i })).toHaveAttribute(
+      'href',
+      '/exceptions',
+    );
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
   });
 });

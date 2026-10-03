@@ -34,18 +34,18 @@ import type { WebhookInboxItem } from '../types';
 
 function DetailRow({ item }: { item: WebhookInboxItem }) {
   return (
-    <TableRow className="bg-muted/30">
-      <TableCell colSpan={6}>
-        <dl className="grid gap-2 text-sm sm:grid-cols-2">
+    <TableRow className="block bg-muted/30 lg:table-row">
+      <TableCell colSpan={6} className="block px-3 py-3 lg:table-cell lg:px-2">
+        <dl className="grid min-w-0 gap-3 text-sm lg:grid-cols-2">
           <div>
             <dt className="text-muted-foreground">Lỗi</dt>
-            <dd className="whitespace-pre-wrap break-words">
+            <dd className="min-w-0 whitespace-pre-wrap break-words">
               {item.errorMessage ?? '—'}
             </dd>
           </div>
           <div>
             <dt className="text-muted-foreground">Dữ liệu gốc</dt>
-            <dd className="whitespace-pre-wrap break-words font-mono text-xs">
+            <dd className="min-w-0 whitespace-pre-wrap break-words font-mono text-xs">
               {JSON.stringify(item.rawPayload, null, 2)}
             </dd>
           </div>
@@ -76,8 +76,8 @@ export function WebhookInboxTable({ items }: WebhookInboxTableProps) {
 
   return (
     <div className="overflow-x-auto rounded-xl border bg-card">
-      <Table>
-        <TableHeader>
+      <Table className="block lg:table">
+        <TableHeader className="hidden lg:table-header-group">
           <TableRow>
             <TableHead>Thời điểm nhận</TableHead>
             <TableHead>Trạng thái</TableHead>
@@ -91,25 +91,44 @@ export function WebhookInboxTable({ items }: WebhookInboxTableProps) {
             </TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
+        <TableBody className="block lg:table-row-group">
           {items.map((item) => (
             <Fragment key={item.id}>
-              <TableRow className="align-middle">
-                <TableCell>{formatDateTime(item.receivedAt)}</TableCell>
-                <TableCell>
+              <TableRow className="grid grid-cols-[minmax(0,1fr)] gap-y-2 px-3 py-3 lg:table-row lg:px-0 lg:py-0">
+                <TableCell className="flex min-w-0 flex-col gap-1 px-0 py-1 lg:table-cell lg:px-2 lg:py-2">
+                  <span className="text-xs font-normal text-muted-foreground lg:hidden">
+                    Thời điểm nhận
+                  </span>
+                  <span className="break-words">
+                    {formatDateTime(item.receivedAt)}
+                  </span>
+                </TableCell>
+                <TableCell className="flex min-w-0 flex-col gap-1 px-0 py-1 lg:table-cell lg:px-2 lg:py-2">
+                  <span className="text-xs font-normal text-muted-foreground lg:hidden">
+                    Trạng thái
+                  </span>
                   <Badge
                     variant={WEBHOOK_INBOX_STATUS_BADGE_VARIANT[item.status]}
                   >
                     {WEBHOOK_INBOX_STATUS_LABELS[item.status]}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell className="flex min-w-0 flex-col gap-1 px-0 py-1 lg:table-cell lg:px-2 lg:py-2">
+                  <span className="text-xs font-normal text-muted-foreground lg:hidden">
+                    Mã giao dịch
+                  </span>
                   <TruncatedCopyId id={item.providerTransactionId} />
                 </TableCell>
-                <TableCell className="tabular-nums">
+                <TableCell className="flex min-w-0 flex-col gap-1 px-0 py-1 tabular-nums lg:table-cell lg:px-2 lg:py-2">
+                  <span className="text-xs font-normal text-muted-foreground lg:hidden">
+                    Số lần thử lại
+                  </span>
                   {item.retryCount}
                 </TableCell>
-                <TableCell>
+                <TableCell className="flex items-center justify-between gap-2 px-0 py-1 lg:table-cell lg:px-2 lg:py-2">
+                  <span className="text-xs font-normal text-muted-foreground lg:hidden">
+                    Chi tiết
+                  </span>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -119,7 +138,7 @@ export function WebhookInboxTable({ items }: WebhookInboxTableProps) {
                     Chi tiết
                   </Button>
                 </TableCell>
-                <TableCell>
+                <TableCell className="flex items-center justify-end gap-2 px-0 py-1 lg:table-cell lg:px-2 lg:py-2">
                   {item.status === 'FAILED' && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>

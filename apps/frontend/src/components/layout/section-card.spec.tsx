@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { SectionCard } from './section-card';
 
 describe('SectionCard', () => {
-  it('lets the title shrink instead of wrapping when an action is present', () => {
+  it('keeps the heading and description together beside the action', () => {
     render(
       <SectionCard
         icon={Landmark}
@@ -22,23 +22,25 @@ describe('SectionCard', () => {
       </SectionCard>,
     );
 
-    // A multi-button action previously squeezed the title column to ~27px on
-    // a 390px viewport, wrapping "Trạng thái kết nối" onto three lines. The
-    // title track must be shrinkable and the buttons must drop below it on
-    // narrow screens instead of compressing the heading.
-    const header = screen
+    const heading = screen
       .getByText('Trạng thái kết nối')
-      .closest('[data-slot="card-header"]');
-    expect(header).not.toBeNull();
-    expect(header?.className).toContain(
-      'has-data-[slot=card-action]:grid-cols-[minmax(0,1fr)_auto]',
+      .closest('[data-slot="card-heading"]');
+    const description = screen.getByText(
+      'Theo dõi quyền truy cập và lần đồng bộ gần nhất.',
+    );
+    expect(heading).toContainElement(description);
+
+    const header = heading?.closest('[data-slot="card-header"]');
+    expect(header?.className).toContain('min-[521px]:flex-row');
+    expect(header).toContainElement(
+      screen.getByRole('button', { name: 'Lịch sử' }),
     );
 
     const action = screen
       .getByRole('button', { name: 'Lịch sử' })
       .closest('[data-slot="card-action"]');
-    expect(action?.className).toContain('max-[520px]:col-span-2');
-    expect(action?.className).toContain('max-[520px]:row-start-3');
+    expect(action?.className).toContain('min-[521px]:ml-auto');
+    expect(action?.className).toContain('w-full');
   });
 
   it('keeps a full-width title when there is no action', () => {
@@ -48,11 +50,9 @@ describe('SectionCard', () => {
       </SectionCard>,
     );
 
-    // Without an action there is no second grid column, so the title spans
-    // both tracks and the header stays a plain single-column stack.
     expect(document.querySelector('[data-slot="card-action"]')).toBeNull();
     expect(
-      screen.getByText('Khoản phải thu').closest('.col-span-2'),
+      screen.getByText('Khoản phải thu').closest('[data-slot="card-heading"]'),
     ).not.toBeNull();
   });
 });

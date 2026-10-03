@@ -100,6 +100,12 @@ describe('AuditLogTab', () => {
 
     renderTab();
 
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Nhật ký' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Theo dõi thay đổi và hoạt động trong tổ chức.'),
+    ).toBeInTheDocument();
     expect(screen.getByText('FM A')).toBeInTheDocument();
   });
 
@@ -179,6 +185,41 @@ describe('AuditLogTab', () => {
     expect(screen.queryByText(/"status"/)).not.toBeInTheDocument();
   });
 
+  it('renders mobile field labels and labels both sides of expanded changes', () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'OWNER', organizationId: 'org-1' },
+    } as never);
+    mockLoadedData();
+
+    renderTab();
+
+    expect(
+      screen.getAllByText('Thời điểm', { exact: true }).length,
+    ).toBeGreaterThan(1);
+    expect(
+      screen.getAllByText('Người thực hiện', { exact: true }).length,
+    ).toBeGreaterThan(1);
+    expect(
+      screen.getAllByText('Hành động', { exact: true }).length,
+    ).toBeGreaterThan(1);
+    expect(
+      screen.getAllByText('Đối tượng', { exact: true }).length,
+    ).toBeGreaterThan(1);
+    expect(
+      screen.getByRole('button', { name: /chi tiết/i }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /chi tiết/i }));
+
+    expect(
+      screen.getAllByText('Trước', { exact: true }).length,
+    ).toBeGreaterThan(1);
+    expect(screen.getAllByText('Sau', { exact: true }).length).toBeGreaterThan(
+      1,
+    );
+    expect(screen.getByText('203.0.113.7')).toBeInTheDocument();
+  });
+
   it('truncates UUID-shaped values with a copy button in the expanded detail', () => {
     useAuthMock.mockReturnValue({
       user: { role: 'OWNER', organizationId: 'org-1' },
@@ -243,6 +284,46 @@ describe('AuditLogTab', () => {
     fireEvent.click(screen.getByRole('button', { name: /chi tiết/i }));
 
     expect(screen.getByText('500.000 ₫')).toBeInTheDocument();
+  });
+
+  it('uses Vietnamese labels for bank transaction audit fields', () => {
+    useAuthMock.mockReturnValue({
+      user: { role: 'OWNER', organizationId: 'org-1' },
+    } as never);
+    useAuditLogsMock.mockReturnValue({
+      data: {
+        items: [
+          {
+            ...logItem,
+            entityType: 'BankTransaction',
+            beforeState: null,
+            afterState: {
+              amount: 46_000_000,
+              bankConnectionId: '139b0a85-5be9-4836-96bb-32e88cdeffb1',
+              counterpartyAccountNumber: '0123456789',
+              aiRecommendation: null,
+            },
+          },
+        ],
+        total: 1,
+      },
+      isLoading: false,
+      isError: false,
+    });
+    useOrganizationMembersMock.mockReturnValue({
+      data: { items: [knownMember], total: 1, page: 1, limit: 100 },
+      isLoading: false,
+      isError: false,
+    });
+
+    renderTab();
+    fireEvent.click(screen.getByRole('button', { name: /chi tiết/i }));
+
+    expect(screen.getByText('Số tiền giao dịch')).toBeInTheDocument();
+    expect(screen.getByText('Kết nối ngân hàng')).toBeInTheDocument();
+    expect(screen.getByText('Số tài khoản đối ứng')).toBeInTheDocument();
+    expect(screen.getByText('Gợi ý đối soát AI')).toBeInTheDocument();
+    expect(screen.queryByText('amount')).not.toBeInTheDocument();
   });
 
   it('formats creditLimit and taxAmount as VND too', () => {

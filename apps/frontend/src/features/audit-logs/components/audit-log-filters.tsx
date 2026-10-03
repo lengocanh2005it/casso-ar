@@ -43,7 +43,7 @@ export function AuditLogFiltersBar({
   onChange,
 }: AuditLogFiltersProps) {
   return (
-    <div className="grid gap-4 rounded-xl border bg-card p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
+    <div className="grid gap-4 rounded-xl border bg-card p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-5">
       <div className="space-y-2">
         <Label htmlFor="audit-log-from">Từ ngày</Label>
         <Input

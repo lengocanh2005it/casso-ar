@@ -21,7 +21,6 @@ import {
   type AuthRequest,
   assertOrgMatches,
 } from '../../../common/auth/assert-org-matches';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
@@ -29,6 +28,7 @@ import { RequirePermission } from '../../../common/rbac/require-permission.decor
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { ChangeMemberRoleUseCase } from '../application/change-member-role.usecase';
 import { ListMembersUseCase } from '../application/list-members.usecase';
+import { ListMembersQueryDto } from './dto/list-members-query.dto';
 import {
   ListMembersResponseDto,
   toMemberResponse,
@@ -52,12 +52,13 @@ export class OrganizationsController {
   @RequirePermission(Permission.ORGANIZATION_READ)
   async listMembers(
     @Param('id') id: string,
-    @Query() pagination: PaginationDto,
+    @Query() pagination: ListMembersQueryDto,
   ) {
     const result = await this.listMembersUseCase.execute({
       organizationId: id,
       page: pagination.page,
       limit: pagination.limit,
+      status: pagination.status,
     });
     return {
       items: result.items.map((x) => toMemberResponse(x.membership, x.user)),

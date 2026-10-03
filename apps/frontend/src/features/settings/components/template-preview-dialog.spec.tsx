@@ -17,7 +17,7 @@ vi.mock('../api/use-settings', () => ({
 }));
 
 describe('TemplatePreviewDialog', () => {
-  it('keeps long template headings compact while retaining their full values', () => {
+  it('wraps long template names and subjects instead of clipping them', () => {
     const name = `Template-${'n'.repeat(80)}`;
     const subject = `Subject-${'s'.repeat(80)}`;
 
@@ -39,9 +39,15 @@ describe('TemplatePreviewDialog', () => {
       />,
     );
 
-    expect(screen.getByText(name)).toHaveClass('truncate');
+    expect(screen.getByText(name)).toHaveClass(
+      'whitespace-normal',
+      'break-words',
+    );
     expect(screen.getByText(name)).toHaveAttribute('title', name);
-    expect(screen.getByText(subject)).toHaveClass('truncate');
+    expect(screen.getByText(subject)).toHaveClass(
+      'whitespace-normal',
+      'break-words',
+    );
     expect(screen.getByText(subject)).toHaveAttribute('title', subject);
   });
 

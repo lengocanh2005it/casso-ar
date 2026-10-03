@@ -1,5 +1,7 @@
 import { Permission } from '@casso-ar/shared-types';
 import {
+  ChevronDown,
+  ChevronUp,
   CreditCard,
   Lock,
   Mail,
@@ -10,13 +12,15 @@ import {
   Users,
   Webhook,
 } from 'lucide-react';
-import { lazy, Suspense, useEffect, useMemo } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { PageHeading } from '@/components/layout/page-heading';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/auth-context';
 import { hasPermission } from '@/lib/rbac';
 import { useUrlQueryParams } from '@/lib/use-url-query-params';
+import { cn } from '@/lib/utils';
 import { AppearanceTab } from '../components/appearance-tab';
 import { SmtpTab } from '../components/smtp-tab';
 
@@ -136,6 +140,7 @@ import { PendingOwnershipTransferBanner } from '../components/pending-ownership-
 export function SettingsPage() {
   const { user } = useAuth();
   const tabs = useSettingsTabs();
+  const [mobileTabsExpanded, setMobileTabsExpanded] = useState(false);
   const { searchParams, setParam } = useUrlQueryParams();
   const activeTab = searchParams.get('tab');
 
@@ -153,6 +158,25 @@ export function SettingsPage() {
 
   const resolvedTab =
     tabs.find((t) => t.value === activeTab && !t.locked)?.value ?? defaultTab;
+  const compactMobileTabs = useMemo(() => {
+    const firstTabs = tabs.slice(0, 2);
+    if (firstTabs.some((tab) => tab.value === resolvedTab)) return firstTabs;
+
+    const firstTab = firstTabs[0];
+    const activeTabConfig = tabs.find((tab) => tab.value === resolvedTab);
+    return firstTab && activeTabConfig
+      ? [firstTab, activeTabConfig]
+      : firstTabs;
+  }, [resolvedTab, tabs]);
+  const compactMobileTabValues = new Set(
+    compactMobileTabs.map((tab) => tab.value),
+  );
+  const hiddenMobileTabCount = tabs.length - compactMobileTabs.length;
+
+  function handleTabChange(value: string) {
+    setMobileTabsExpanded(false);
+    setParam('tab', value);
+  }
 
   return (
     <div className="space-y-6">
@@ -164,11 +188,11 @@ export function SettingsPage() {
         tone="info"
       />
       <PendingOwnershipTransferBanner organizationId={user?.organizationId} />
-      <Tabs
-        value={resolvedTab}
-        onValueChange={(value) => setParam('tab', value)}
-      >
-        <TabsList className="w-full justify-start gap-1 overflow-x-auto rounded-lg bg-muted p-1">
+      <Tabs value={resolvedTab} onValueChange={handleTabChange}>
+        <TabsList
+          id="settings-tabs-list"
+          className="w-full justify-start gap-1 overflow-x-auto rounded-lg bg-muted p-1 max-lg:grid max-lg:!h-auto max-lg:max-w-none max-lg:grid-cols-2 max-lg:overflow-visible"
+        >
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -176,7 +200,12 @@ export function SettingsPage() {
                 key={tab.value}
                 value={tab.value}
                 disabled={tab.locked}
-                className="shrink-0 gap-1.5"
+                className={cn(
+                  'shrink-0 gap-1.5 max-lg:h-auto max-lg:min-h-10 max-lg:justify-start max-lg:whitespace-normal max-lg:px-3',
+                  !mobileTabsExpanded &&
+                    !compactMobileTabValues.has(tab.value) &&
+                    'max-lg:hidden',
+                )}
                 title={tab.label}
               >
                 <Icon className="size-3.5 shrink-0" />
@@ -186,6 +215,29 @@ export function SettingsPage() {
             );
           })}
         </TabsList>
+        <div className="lg:hidden">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-full justify-center"
+            aria-expanded={mobileTabsExpanded}
+            aria-controls="settings-tabs-list"
+            onClick={() => setMobileTabsExpanded((expanded) => !expanded)}
+          >
+            {mobileTabsExpanded ? (
+              <>
+                <ChevronUp aria-hidden="true" />
+                Thu gọn
+              </>
+            ) : (
+              <>
+                <ChevronDown aria-hidden="true" />
+                Xem thêm {hiddenMobileTabCount} mục
+              </>
+            )}
+          </Button>
+        </div>
 
         {tabs.map((tab) => (
           <TabsContent key={tab.value} value={tab.value} className="mt-4">

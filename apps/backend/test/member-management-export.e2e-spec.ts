@@ -290,6 +290,31 @@ describe('Member management + CSV export (integration)', () => {
     expect(response.body.items[0]).not.toHaveProperty('tokenHash');
   });
 
+  it('paginates members and filters the result count by status', async () => {
+    await dataSource
+      .getRepository(MembershipOrmEntity)
+      .update(
+        { organizationId: orgA, userId: financeManagerA },
+        { status: 'BLOCKED', blockedAt: new Date() },
+      );
+
+    const response = await request(app.getHttpServer())
+      .get(
+        `/api/v1/organizations/${orgA}/members?page=1&limit=1&status=BLOCKED`,
+      )
+      .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .expect(200);
+
+    expect(response.body).toMatchObject({ total: 1, page: 1, limit: 1 });
+    expect(response.body.items).toHaveLength(1);
+    expect(response.body.items[0].email).toBe('fm-a@example.com');
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/organizations/${orgA}/members?status=PENDING`)
+      .set('Authorization', `Bearer ${token(ownerA, orgA, Role.OWNER)}`)
+      .expect(400);
+  });
+
   it('exports receivables as an attachment CSV', async () => {
     const response = await request(app.getHttpServer())
       .get('/api/v1/receivables/export')

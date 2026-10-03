@@ -3,7 +3,7 @@ import { fetchPlans } from '../api/get-plans';
 
 export function usePlans() {
   return useQuery({
-    queryKey: ['landing', 'plans'],
+    queryKey: ['plans'],
     queryFn: fetchPlans,
   });
 }
