@@ -15,9 +15,9 @@ export function PendingReviewBanner({
   return (
     <div
       role="status"
-      className="animate-banner-in motion-reduce:animate-none flex items-center justify-between gap-4 rounded-lg border border-primary/30 bg-accent px-4 py-3"
+      className="animate-banner-in motion-reduce:animate-none flex flex-col items-start gap-3 rounded-lg border border-primary/30 bg-accent px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3">
         <AlertTriangle
           aria-hidden="true"
           className="size-5 shrink-0 text-primary"
@@ -31,7 +31,7 @@ export function PendingReviewBanner({
           </p>
         )}
       </div>
-      <Button asChild size="sm">
+      <Button asChild size="sm" className="ml-auto shrink-0">
         <Link to="/exceptions">Xử lý ngay</Link>
       </Button>
     </div>
