@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import { TruncatedText } from '@/components/shared/truncated-text';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatVND, formatVNDCompact } from '@/lib/format';
 
 const ICON_COLORS = {
@@ -35,6 +36,7 @@ export function MetricCard({
   variant = 'default',
   className,
   empty = false,
+  loading = false,
 }: {
   label: string;
   description: string;
@@ -46,6 +48,7 @@ export function MetricCard({
   variant?: MetricCardVariant;
   className?: string;
   empty?: boolean;
+  loading?: boolean;
 }) {
   return (
     <Card
@@ -63,7 +66,9 @@ export function MetricCard({
         </p>
       </CardHeader>
       <CardContent>
-        {empty ? (
+        {loading ? (
+          <Skeleton aria-hidden="true" className="h-7 w-24" />
+        ) : empty ? (
           <p className="text-sm text-muted-foreground">Chưa có dữ liệu</p>
         ) : (
           <p className="text-xl font-semibold tabular-nums text-foreground @xs:text-2xl">

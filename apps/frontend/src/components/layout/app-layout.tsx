@@ -33,7 +33,7 @@ export function AppLayout() {
       >
         Đi tới nội dung
       </a>
-      <div className="flex h-dvh w-full overflow-hidden bg-app-canvas">
+      <div className="fixed inset-0 flex h-dvh w-full overflow-hidden bg-app-canvas">
         <div className="hidden h-full md:block">
           <Sidebar
             collapsed={collapsed}

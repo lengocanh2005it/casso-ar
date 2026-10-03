@@ -5,6 +5,7 @@ import {
   type ThemeMode,
   useTheme,
 } from '@/contexts/theme-context';
+import { DashboardPreview } from '@/features/dashboard/components/dashboard-preview';
 import { cn } from '@/lib/utils';
 
 const THEMES: {
@@ -33,29 +34,11 @@ const THEMES: {
   },
 ];
 
-const PREVIEW_IMAGES: Record<
-  ResolvedTheme,
-  { desktop: string; mobile: string; alt: string }
-> = {
-  light: {
-    desktop: '/showcase-dashboard.png',
-    mobile: '/appearance-preview-mobile-light.jpg',
-    alt: 'Giao diện thật Casso AR chế độ sáng',
-  },
-  dark: {
-    desktop: '/appearance-preview-desktop-dark.jpg',
-    mobile: '/appearance-preview-mobile-dark.jpg',
-    alt: 'Giao diện thật Casso AR chế độ tối',
-  },
-};
-
 function AppearancePreview({
   resolvedTheme,
 }: {
   resolvedTheme: ResolvedTheme;
 }) {
-  const images = PREVIEW_IMAGES[resolvedTheme];
-
   return (
     <section
       aria-label={`Bản xem trước giao diện ${resolvedTheme === 'dark' ? 'tối' : 'sáng'}`}
@@ -74,18 +57,7 @@ function AppearancePreview({
         </span>
       </div>
 
-      <picture>
-        <source
-          data-testid="mobile-preview-source"
-          media="(max-width: 767px)"
-          srcSet={images.mobile}
-        />
-        <img
-          className="block h-auto w-full"
-          src={images.desktop}
-          alt={images.alt}
-        />
-      </picture>
+      <DashboardPreview />
     </section>
   );
 }

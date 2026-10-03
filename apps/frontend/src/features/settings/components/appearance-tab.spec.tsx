@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { AppearanceTab } from './appearance-tab';
 
@@ -10,50 +11,65 @@ const { setTheme, useTheme } = vi.hoisted(() => ({
 vi.mock('@/contexts/theme-context', () => ({ useTheme }));
 
 describe('AppearanceTab', () => {
-  it('shows the real desktop and mobile product captures for the resolved theme', () => {
+  it('previews the real dashboard layout with skeletons instead of live values', () => {
     useTheme.mockReturnValue({
       theme: 'system',
       resolvedTheme: 'dark',
       setTheme,
     });
 
-    render(<AppearanceTab />);
+    const { container } = render(
+      <MemoryRouter initialEntries={['/settings?tab=appearance']}>
+        <AppearanceTab />
+      </MemoryRouter>,
+    );
 
     expect(
       screen.getByRole('region', { name: 'Bản xem trước giao diện tối' }),
     ).toBeInTheDocument();
+    expect(screen.getByText('Trang chủ')).toBeInTheDocument();
+    expect(screen.getByText('Tổng công nợ còn lại')).toBeInTheDocument();
+    expect(screen.getByText('Cần đối soát')).toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-preview-canvas')).toHaveClass(
+      'h-[440px]',
+      'sm:h-[480px]',
+      'overflow-hidden',
+    );
+    expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBe(7);
     expect(
-      screen.getByRole('img', { name: 'Giao diện thật Casso AR chế độ tối' }),
-    ).toHaveAttribute('src', '/appearance-preview-desktop-dark.jpg');
-    expect(screen.getByTestId('mobile-preview-source')).toHaveAttribute(
-      'srcset',
-      '/appearance-preview-mobile-dark.jpg',
+      container.querySelector('[data-testid="dashboard-preview-canvas"] img'),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-preview-canvas')).toHaveAttribute(
+      'inert',
     );
-    expect(screen.getByTestId('mobile-preview-source')).toHaveAttribute(
-      'media',
-      '(max-width: 767px)',
-    );
+    expect(screen.queryByText('616tr')).not.toBeInTheDocument();
+    expect(screen.queryByText('320,8tr')).not.toBeInTheDocument();
+    expect(screen.queryByText('52%')).not.toBeInTheDocument();
+    expect(screen.queryByText('admin@antam.test')).not.toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /Hệ thống.*Đang dùng/ }),
     ).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('uses the existing real light dashboard capture on desktop and a mobile capture on small screens', () => {
+  it('keeps the real dashboard structure while previewing the light mode', () => {
     useTheme.mockReturnValue({
       theme: 'light',
       resolvedTheme: 'light',
       setTheme,
     });
 
-    render(<AppearanceTab />);
+    render(
+      <MemoryRouter initialEntries={['/settings?tab=appearance']}>
+        <AppearanceTab />
+      </MemoryRouter>,
+    );
 
     expect(
-      screen.getByRole('img', { name: 'Giao diện thật Casso AR chế độ sáng' }),
-    ).toHaveAttribute('src', '/showcase-dashboard.png');
-    expect(screen.getByTestId('mobile-preview-source')).toHaveAttribute(
-      'srcset',
-      '/appearance-preview-mobile-light.jpg',
-    );
+      screen.getByRole('region', { name: 'Bản xem trước giao diện sáng' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Trang chủ')).toBeInTheDocument();
+    expect(screen.getByText('Đang hiển thị: Sáng')).toBeInTheDocument();
+    expect(screen.queryByText('616tr')).not.toBeInTheDocument();
   });
 
   it('updates the selected appearance mode when a theme option is chosen', () => {
@@ -63,7 +79,11 @@ describe('AppearanceTab', () => {
       setTheme,
     });
 
-    render(<AppearanceTab />);
+    render(
+      <MemoryRouter initialEntries={['/settings?tab=appearance']}>
+        <AppearanceTab />
+      </MemoryRouter>,
+    );
     fireEvent.click(screen.getByRole('button', { name: /Tối/ }));
 
     expect(setTheme).toHaveBeenCalledWith('dark');

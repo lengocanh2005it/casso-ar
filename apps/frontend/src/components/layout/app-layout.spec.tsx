@@ -206,6 +206,16 @@ describe('AppLayout', () => {
     );
   });
 
+  it('keeps document scrolling outside the fixed app viewport', () => {
+    renderAppLayoutFor('OWNER', true);
+
+    const main = screen.getByRole('main');
+    const shell = main.parentElement?.parentElement;
+
+    expect(shell).toHaveClass('fixed', 'inset-0', 'overflow-hidden');
+    expect(main).toHaveClass('overflow-auto');
+  });
+
   it("keeps regular pages growing past the viewport (min-h-full), so main's bottom padding stays visible on scroll", () => {
     useAuth.mockReturnValue({ user: null, logout: vi.fn() });
     const queryClient = new QueryClient({

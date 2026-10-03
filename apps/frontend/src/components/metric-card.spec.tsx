@@ -131,4 +131,23 @@ describe('MetricCard', () => {
     expect(screen.getByText('4')).toBeInTheDocument();
     expect(screen.getByText('4')).not.toHaveAttribute('title');
   });
+
+  it('shows a value placeholder without rendering the supplied value while loading', () => {
+    const { container } = render(
+      <MetricCard
+        label="Tổng công nợ còn lại"
+        description="Tất cả công nợ chưa thanh toán"
+        value="616.000.000 ₫"
+        amount={616_000_000}
+        icon={CircleDollarSign}
+        loading
+      />,
+    );
+
+    expect(
+      container.querySelector('[data-slot="skeleton"]'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('616.000.000 ₫')).not.toBeInTheDocument();
+    expect(screen.queryByText('616tr')).not.toBeInTheDocument();
+  });
 });

@@ -28,6 +28,9 @@ interface SidebarShellProps {
   onToggleCollapsed?: () => void;
   footer?: ReactNode;
   navLabel?: string;
+  activePath?: string;
+  widthClassName?: string;
+  className?: string;
 }
 
 export function SidebarShell({
@@ -36,12 +39,16 @@ export function SidebarShell({
   onToggleCollapsed,
   footer,
   navLabel = 'Điều hướng chính',
+  activePath,
+  widthClassName,
+  className,
 }: SidebarShellProps) {
   return (
     <aside
       className={cn(
         'flex h-full flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-in-out motion-reduce:transition-none',
-        collapsed ? 'w-16' : 'w-64',
+        collapsed ? 'w-16' : (widthClassName ?? 'w-64'),
+        className,
       )}
     >
       {collapsed ? (
@@ -85,7 +92,7 @@ export function SidebarShell({
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 transition-[background-color,color] duration-150 ease-out motion-reduce:transition-none pointer-hover:hover:bg-primary/5 pointer-hover:hover:text-primary',
-                  isActive &&
+                  (activePath ? activePath === item.to : isActive) &&
                     'bg-primary/10 font-medium text-primary ring-1 ring-primary/15',
                 )
               }

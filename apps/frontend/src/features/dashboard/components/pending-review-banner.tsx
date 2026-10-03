@@ -1,13 +1,16 @@
 import { AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function PendingReviewBanner({
   pendingCount,
+  loading = false,
 }: {
   pendingCount: number;
+  loading?: boolean;
 }) {
-  if (pendingCount === 0) return null;
+  if (pendingCount === 0 && !loading) return null;
 
   return (
     <div
@@ -19,10 +22,14 @@ export function PendingReviewBanner({
           aria-hidden="true"
           className="size-5 shrink-0 text-primary"
         />
-        <p className="text-sm text-accent-foreground">
-          <span className="font-semibold tabular-nums">{pendingCount}</span>{' '}
-          giao dịch đang chờ đối soát.
-        </p>
+        {loading ? (
+          <Skeleton aria-hidden="true" className="h-4 w-44 bg-primary/20" />
+        ) : (
+          <p className="text-sm text-accent-foreground">
+            <span className="font-semibold tabular-nums">{pendingCount}</span>{' '}
+            giao dịch đang chờ đối soát.
+          </p>
+        )}
       </div>
       <Button asChild size="sm">
         <Link to="/exceptions">Xử lý ngay</Link>
