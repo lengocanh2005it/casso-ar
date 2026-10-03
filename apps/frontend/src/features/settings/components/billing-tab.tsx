@@ -1,12 +1,14 @@
 import { Permission, PlanId } from '@casso-ar/shared-types';
 import {
   Check,
+  CreditCard,
   Landmark,
   MessagesSquare,
   ReceiptText,
   RefreshCw,
 } from 'lucide-react';
 import { useState } from 'react';
+import { SectionHeading } from '@/components/layout/section-heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,6 +38,18 @@ export function BillingTab() {
   const { mutate, isPending } = useInitiatePlanUpgrade();
   const { data: catalog, isLoading, refetch } = usePlans();
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const heading = (
+    <SectionHeading
+      icon={CreditCard}
+      title="Thanh toán"
+      description="Quản lý gói dịch vụ, giới hạn sử dụng và nâng cấp."
+      action={
+        <span className="text-xs text-muted-foreground">
+          Giá thanh toán theo tháng
+        </span>
+      }
+    />
+  );
 
   function handleUpgrade(targetPlanId: PlanId) {
     const origin = window.location.origin;
@@ -51,35 +65,44 @@ export function BillingTab() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-4" role="status">
-        <span className="sr-only">Đang tải các gói dịch vụ</span>
-        {plans.map(({ id }) => (
-          <div
-            key={id}
-            aria-hidden="true"
-            className="h-64 animate-pulse rounded-lg border bg-muted/40 motion-reduce:animate-none"
-          />
-        ))}
+      <div className="space-y-4">
+        {heading}
+        <div
+          className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-4"
+          role="status"
+        >
+          <span className="sr-only">Đang tải các gói dịch vụ</span>
+          {plans.map(({ id }) => (
+            <div
+              key={id}
+              aria-hidden="true"
+              className="h-64 animate-pulse rounded-lg border bg-muted/40 motion-reduce:animate-none"
+            />
+          ))}
+        </div>
       </div>
     );
   }
 
   if (!catalog?.length) {
     return (
-      <div
-        className="flex flex-col items-start gap-3 rounded-lg border border-border p-5 sm:flex-row sm:items-center sm:justify-between"
-        role="alert"
-      >
-        <div>
-          <h3 className="font-medium">Không thể tải thông tin gói</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Thử tải lại để xem giá và giới hạn mới nhất.
-          </p>
+      <div className="space-y-4">
+        {heading}
+        <div
+          className="flex flex-col items-start gap-3 rounded-lg border border-border p-5 sm:flex-row sm:items-center sm:justify-between"
+          role="alert"
+        >
+          <div>
+            <h3 className="font-medium">Không thể tải thông tin gói</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Thử tải lại để xem giá và giới hạn mới nhất.
+            </p>
+          </div>
+          <Button variant="outline" onClick={() => void refetch()}>
+            <RefreshCw aria-hidden="true" />
+            Thử lại
+          </Button>
         </div>
-        <Button variant="outline" onClick={() => void refetch()}>
-          <RefreshCw aria-hidden="true" />
-          Thử lại
-        </Button>
       </div>
     );
   }
@@ -94,18 +117,7 @@ export function BillingTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h3 className="text-lg font-medium">Gói dịch vụ</h3>
-          <p className="text-sm text-muted-foreground">
-            So sánh giá, giới hạn và tính năng của từng gói.
-          </p>
-        </div>
-        <span className="text-xs text-muted-foreground">
-          Giá thanh toán theo tháng
-        </span>
-      </div>
-
+      {heading}
       <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-4">
         {planCards.map(({ plan, details, index }) => {
           const isCurrent = plan.id === currentPlan;

@@ -1,6 +1,7 @@
 import { Permission } from '@casso-ar/shared-types';
 import { Webhook } from 'lucide-react';
 import { SectionCard } from '@/components/layout/section-card';
+import { SectionHeading } from '@/components/layout/section-heading';
 import { Button } from '@/components/ui/button';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
@@ -79,12 +80,13 @@ export function WebhookInboxTab() {
 
   return (
     <div className="space-y-4">
-      <WebhookInboxFiltersBar values={values} onChange={updateFilterValues} />
-      <SectionCard
+      <SectionHeading
         icon={Webhook}
         title="Webhook"
-        description="Webhook nhận từ Casso Flow / Casso Balance Hook."
-      >
+        description="Theo dõi giao dịch nhận từ Casso Flow / Casso Balance Hook."
+      />
+      <WebhookInboxFiltersBar values={values} onChange={updateFilterValues} />
+      <SectionCard>
         {inboxQuery.isLoading ? (
           <TableSkeleton rows={5} />
         ) : inboxQuery.isError ? (

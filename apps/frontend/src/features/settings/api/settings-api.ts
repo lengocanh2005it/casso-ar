@@ -7,6 +7,7 @@ import type {
   EmailTemplateInput,
   EmailTemplatePreview,
   MemberStatusResponse,
+  MembershipStatus,
   OrganizationInviteList,
   OrganizationMemberList,
   OwnershipTransfer,
@@ -107,9 +108,17 @@ export function previewEmailTemplate(
 
 export function fetchOrganizationMembers(
   organizationId: string,
+  page = 1,
+  limit = 20,
+  status?: MembershipStatus,
 ): Promise<OrganizationMemberList> {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+  if (status) params.set('status', status);
   return apiRequest<OrganizationMemberList>({
-    url: `/api/v1/organizations/${organizationId}/members?page=1&limit=100`,
+    url: `/api/v1/organizations/${organizationId}/members?${params.toString()}`,
     method: 'GET',
   });
 }
@@ -150,9 +159,11 @@ export function removeMember(
 
 export function fetchOrganizationInvites(
   organizationId: string,
+  page = 1,
+  limit = 20,
 ): Promise<OrganizationInviteList> {
   return apiRequest<OrganizationInviteList>({
-    url: `/api/v1/organizations/${organizationId}/invites?page=1&limit=100`,
+    url: `/api/v1/organizations/${organizationId}/invites?page=${page}&limit=${limit}`,
     method: 'GET',
   });
 }

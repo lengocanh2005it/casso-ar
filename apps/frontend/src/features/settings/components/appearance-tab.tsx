@@ -1,5 +1,5 @@
 import { Check, Monitor, Moon, Palette, Sun } from 'lucide-react';
-import { HeaderIcon } from '@/components/layout/header-icon';
+import { SectionHeading } from '@/components/layout/section-heading';
 import {
   type ResolvedTheme,
   type ThemeMode,
@@ -67,15 +67,11 @@ export function AppearanceTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <HeaderIcon icon={Palette} tone="info" />
-        <div>
-          <h3 className="text-lg font-medium">Giao diện</h3>
-          <p className="text-sm text-muted-foreground">
-            Chọn chế độ hiển thị cho ứng dụng.
-          </p>
-        </div>
-      </div>
+      <SectionHeading
+        icon={Palette}
+        title="Giao diện"
+        description="Chọn chế độ hiển thị cho ứng dụng."
+      />
 
       <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)]">
         <fieldset className="grid content-start grid-cols-3 gap-1.5 sm:gap-2 xl:grid-cols-1">

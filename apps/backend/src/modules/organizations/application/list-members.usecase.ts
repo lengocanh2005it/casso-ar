@@ -6,7 +6,7 @@ import {
   type IUserRepository,
   USER_REPOSITORY,
 } from '../../users/application/user-repository.port';
-import type { Membership } from '../domain/membership';
+import type { Membership, MembershipStatus } from '../domain/membership';
 import {
   type IMembershipRepository,
   MEMBERSHIP_REPOSITORY,
@@ -16,6 +16,7 @@ export interface ListMembersInput {
   organizationId: string;
   page: number;
   limit: number;
+  status?: MembershipStatus;
 }
 
 export interface MembershipWithUser {
@@ -49,11 +50,17 @@ export class ListMembersUseCase {
       );
     }
 
-    const { organizationId, page, limit } = input;
+    const { organizationId, page, limit, status } = input;
+    const filters = status ? { status } : undefined;
 
     const [memberships, total] = await Promise.all([
-      this.membershipRepo.findPageByOrganization(organizationId, page, limit),
-      this.membershipRepo.countByOrganization(organizationId),
+      this.membershipRepo.findPageByOrganization(
+        organizationId,
+        page,
+        limit,
+        filters,
+      ),
+      this.membershipRepo.countByOrganization(organizationId, filters),
     ]);
 
     const userIds = memberships.map((m) => m.userId);

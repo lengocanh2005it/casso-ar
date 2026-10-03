@@ -25,6 +25,12 @@ describe('AppearanceTab', () => {
     );
 
     expect(
+      screen.getByRole('heading', { level: 2, name: 'Giao diện' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Chọn chế độ hiển thị cho ứng dụng.'),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole('region', { name: 'Bản xem trước giao diện tối' }),
     ).toBeInTheDocument();
     expect(screen.getByText('Trang chủ')).toBeInTheDocument();

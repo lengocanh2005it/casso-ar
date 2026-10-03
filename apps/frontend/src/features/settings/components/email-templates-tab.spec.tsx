@@ -51,14 +51,17 @@ describe('EmailTemplatesTab', () => {
       </QueryClientProvider>,
     );
 
-    const title = screen.getByText('Mẫu email');
-    const heading = title.closest('[data-slot="card-heading"]');
+    const title = screen.getByRole('heading', {
+      level: 2,
+      name: 'Mẫu email',
+    });
+    const heading = title.closest('[data-slot="section-heading"]');
     expect(heading).toContainElement(
       screen.getByText(
         'Quản lý nội dung email dùng trong các chính sách nhắc.',
       ),
     );
-    expect(heading?.parentElement).toContainElement(
+    expect(heading).toContainElement(
       screen.getByRole('button', { name: 'Tạo mẫu email' }),
     );
 

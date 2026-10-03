@@ -54,6 +54,32 @@ describe('ListMembersUseCase', () => {
     });
   });
 
+  it('applies the requested status to both page rows and the total count', async () => {
+    const { membershipRepo, userRepo, tenantContext } = buildDeps();
+    const useCase = new ListMembersUseCase(
+      membershipRepo as any,
+      userRepo as any,
+      tenantContext as any,
+    );
+
+    await useCase.execute({
+      organizationId: 'org-1',
+      page: 2,
+      limit: 20,
+      status: 'BLOCKED',
+    });
+
+    expect(membershipRepo.findPageByOrganization).toHaveBeenCalledWith(
+      'org-1',
+      2,
+      20,
+      { status: 'BLOCKED' },
+    );
+    expect(membershipRepo.countByOrganization).toHaveBeenCalledWith('org-1', {
+      status: 'BLOCKED',
+    });
+  });
+
   it('excludes orphaned memberships (user deleted) from the results', async () => {
     const { membershipRepo, userRepo, tenantContext } = buildDeps();
     membershipRepo.findPageByOrganization.mockResolvedValue([

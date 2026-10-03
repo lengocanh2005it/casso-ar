@@ -1,6 +1,7 @@
 import { Permission } from '@casso-ar/shared-types';
 import { ScrollText } from 'lucide-react';
 import { SectionCard } from '@/components/layout/section-card';
+import { SectionHeading } from '@/components/layout/section-heading';
 import { AuditLogPagination } from '@/components/shared/audit-log-pagination';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/auth-context';
@@ -64,16 +65,17 @@ export function AuditLogTab() {
 
   return (
     <div className="space-y-4">
+      <SectionHeading
+        icon={ScrollText}
+        title="Nhật ký"
+        description="Theo dõi thay đổi và hoạt động trong tổ chức."
+      />
       <AuditLogFiltersBar
         values={values}
         members={members}
         onChange={updateFilterValues}
       />
-      <SectionCard
-        icon={ScrollText}
-        title="Nhật ký"
-        description="Lịch sử thao tác trong tổ chức."
-      >
+      <SectionCard>
         {logsQuery.isLoading ? (
           <TableSkeleton rows={5} />
         ) : logsQuery.isError ? (

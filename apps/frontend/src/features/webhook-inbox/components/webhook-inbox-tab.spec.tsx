@@ -99,6 +99,14 @@ describe('WebhookInboxTab', () => {
 
     renderTab();
 
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Webhook' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Theo dõi giao dịch nhận từ Casso Flow / Casso Balance Hook.',
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText('Thất bại')).toBeInTheDocument();
     expect(screen.getByText('Đã xử lý')).toBeInTheDocument();
     expect(screen.getAllByText('TXN-001…')).toHaveLength(2);

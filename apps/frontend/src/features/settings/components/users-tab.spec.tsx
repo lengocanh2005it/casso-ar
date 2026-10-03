@@ -56,23 +56,35 @@ function mockApi({
   members = [ownerMember, accountantMember],
   invites = [],
 }: {
-  members?: unknown[];
+  members?: { status: string }[];
   invites?: unknown[];
 } = {}) {
   apiRequest.mockImplementation((config: { url: string }) => {
     if (config.url.includes('/invites')) {
+      const url = new URL(config.url, 'http://localhost');
+      const page = Number(url.searchParams.get('page') ?? 1);
+      const limit = Number(url.searchParams.get('limit') ?? 20);
+      const start = (page - 1) * limit;
       return Promise.resolve({
-        items: invites,
+        items: invites.slice(start, start + limit),
         total: invites.length,
-        page: 1,
-        limit: 100,
+        page,
+        limit,
       });
     }
+    const url = new URL(config.url, 'http://localhost');
+    const page = Number(url.searchParams.get('page') ?? 1);
+    const limit = Number(url.searchParams.get('limit') ?? 20);
+    const status = url.searchParams.get('status');
+    const filtered = status
+      ? members.filter((member) => member.status === status)
+      : members;
+    const start = (page - 1) * limit;
     return Promise.resolve({
-      items: members,
-      total: members.length,
-      page: 1,
-      limit: 100,
+      items: filtered.slice(start, start + limit),
+      total: filtered.length,
+      page,
+      limit,
     });
   });
 }
@@ -102,6 +114,12 @@ describe('UsersTab', () => {
     mockApi();
     renderTab();
 
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Người dùng' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Quản lý thành viên, vai trò và lời mời trong tổ chức.'),
+    ).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('Kế toán')).toBeTruthy());
 
     fireEvent.click(screen.getByRole('combobox', { name: 'Vai trò' }));
@@ -262,9 +280,124 @@ describe('UsersTab', () => {
     );
     fireEvent.click(await screen.findByRole('option', { name: 'Đã chặn' }));
 
+    await screen.findByText('Sales bị chặn');
     const membersTable = screen.getByRole('table');
-    expect(within(membersTable).queryByText('Kế toán')).toBeNull();
-    expect(within(membersTable).getByText('Sales bị chặn')).toBeTruthy();
+    await waitFor(() => {
+      expect(within(membersTable).queryByText('Kế toán')).toBeNull();
+      expect(within(membersTable).getByText('Sales bị chặn')).toBeTruthy();
+    });
+    expect(apiRequest).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        url: '/api/v1/organizations/org-1/members?page=1&limit=20&status=BLOCKED',
+        method: 'GET',
+      }),
+    );
+  });
+
+  it('paginates members and pending invites independently when both exceed 20', async () => {
+    useAuth.mockReturnValue({
+      user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
+    });
+    const manyMembers = Array.from({ length: 45 }, (_, index) => ({
+      ...accountantMember,
+      id: `member-${index + 1}`,
+      userId: `user-${index + 1}`,
+      email: `member-${index + 1}@example.test`,
+      name: `Thành viên ${index + 1}`,
+    }));
+    const manyInvites = Array.from({ length: 43 }, (_, index) => ({
+      id: `invite-${index + 1}`,
+      email: `invite-${index + 1}@example.test`,
+      role: 'ACCOUNTANT',
+      invitedAt: '2026-08-01T00:00:00.000Z',
+      expiresAt: '2026-09-01T00:00:00.000Z',
+    }));
+    mockApi({ members: manyMembers, invites: manyInvites });
+    renderTab();
+
+    await waitFor(() => {
+      expect(screen.getByText('member-1@example.test')).toBeTruthy();
+      expect(screen.getByText('invite-1@example.test')).toBeTruthy();
+    });
+    expect(screen.queryByText('member-21@example.test')).toBeNull();
+    expect(screen.queryByText('invite-21@example.test')).toBeNull();
+    expect(screen.getByText(/1–20 \/ 45 thành viên/)).toBeTruthy();
+    expect(screen.getByText(/1–20 \/ 43 lời mời/)).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Trang thành viên tiếp theo' }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText('member-21@example.test')).toBeTruthy(),
+    );
+    expect(screen.queryByText('member-1@example.test')).toBeNull();
+    expect(screen.getByText('invite-1@example.test')).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Trang lời mời tiếp theo' }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText('invite-21@example.test')).toBeTruthy(),
+    );
+    expect(screen.queryByText('invite-1@example.test')).toBeNull();
+    expect(screen.getByText('member-21@example.test')).toBeTruthy();
+  });
+
+  it('returns to the last valid invites page after revoking its final row', async () => {
+    useAuth.mockReturnValue({
+      user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
+    });
+    let invites = Array.from({ length: 21 }, (_, index) => ({
+      id: `invite-${index + 1}`,
+      email: `invite-${index + 1}@example.test`,
+      role: 'ACCOUNTANT',
+      invitedAt: '2026-08-01T00:00:00.000Z',
+      expiresAt: '2026-09-01T00:00:00.000Z',
+    }));
+    apiRequest.mockImplementation(
+      (config: { url: string; method?: string }) => {
+        const url = new URL(config.url, 'http://localhost');
+        if (url.pathname.includes('/invites') && config.method === 'DELETE') {
+          const inviteId = url.pathname.split('/').at(-1);
+          invites = invites.filter((invite) => invite.id !== inviteId);
+          return Promise.resolve(undefined);
+        }
+        if (url.pathname.includes('/invites')) {
+          const page = Number(url.searchParams.get('page') ?? 1);
+          const limit = Number(url.searchParams.get('limit') ?? 20);
+          const start = (page - 1) * limit;
+          return Promise.resolve({
+            items: invites.slice(start, start + limit),
+            total: invites.length,
+            page,
+            limit,
+          });
+        }
+        return Promise.resolve({
+          items: [ownerMember, accountantMember],
+          total: 2,
+          page: 1,
+          limit: 20,
+        });
+      },
+    );
+    renderTab();
+
+    await screen.findByText('invite-1@example.test');
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Trang lời mời tiếp theo' }),
+    );
+    await screen.findByText('invite-21@example.test');
+    const inviteRow = screen
+      .getByText('invite-21@example.test')
+      .closest('tr') as HTMLElement;
+    fireEvent.click(within(inviteRow).getByRole('button', { name: 'Thu hồi' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+
+    await screen.findByText('invite-1@example.test');
+    expect(screen.queryByText('invite-21@example.test')).toBeNull();
+    expect(screen.getByText(/1–20 \/ 20 lời mời/)).toBeTruthy();
+    expect(screen.queryByText('Không có lời mời nào đang chờ.')).toBeNull();
   });
 
   it('flips the member to blocked optimistically while the request is pending', async () => {

@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { emailTemplatesKey } from '@/lib/use-email-templates';
 import type {
   EmailTemplateInput,
+  MembershipStatus,
   OrganizationMemberList,
   SmtpConfigInput,
 } from '../types';
@@ -147,10 +148,16 @@ export function useDeleteTemplateAttachment() {
   });
 }
 
-export function useOrganizationMembers(organizationId: string | undefined) {
+export function useOrganizationMembers(
+  organizationId: string | undefined,
+  page = 1,
+  status?: MembershipStatus,
+  limit = 20,
+) {
   return useQuery({
-    queryKey: ['organization-members', organizationId],
-    queryFn: () => fetchOrganizationMembers(organizationId ?? ''),
+    queryKey: ['organization-members', organizationId, page, limit, status],
+    queryFn: () =>
+      fetchOrganizationMembers(organizationId ?? '', page, limit, status),
     enabled: Boolean(organizationId),
   });
 }
@@ -226,10 +233,18 @@ type MemberStatusAction = 'block' | 'unblock';
 function useMemberStatusMutation(
   organizationId: string | undefined,
   action: MemberStatusAction,
+  page: number,
+  statusFilter: MembershipStatus | undefined,
 ) {
   const queryClient = useQueryClient();
   const isBlock = action === 'block';
-  const queryKey = ['organization-members', organizationId];
+  const queryKey = [
+    'organization-members',
+    organizationId,
+    page,
+    20,
+    statusFilter,
+  ];
   return useMutation({
     mutationFn: (userId: string) =>
       isBlock
@@ -239,11 +254,19 @@ function useMemberStatusMutation(
       await queryClient.cancelQueries({ queryKey });
       const previous =
         queryClient.getQueryData<OrganizationMemberList>(queryKey);
-      queryClient.setQueryData<OrganizationMemberList>(queryKey, (current) =>
-        current
-          ? {
-              ...current,
-              items: current.items.map((member) =>
+      queryClient.setQueryData<OrganizationMemberList>(queryKey, (current) => {
+        if (!current) return current;
+        const nextStatus = isBlock ? 'BLOCKED' : 'ACTIVE';
+        const movesOutOfFilter =
+          statusFilter !== undefined && statusFilter !== nextStatus;
+        return {
+          ...current,
+          total: movesOutOfFilter
+            ? Math.max(0, current.total - 1)
+            : current.total,
+          items: movesOutOfFilter
+            ? current.items.filter((member) => member.userId !== userId)
+            : current.items.map((member) =>
                 member.userId === userId
                   ? isBlock
                     ? {
@@ -254,9 +277,8 @@ function useMemberStatusMutation(
                     : { ...member, status: 'ACTIVE', blockedAt: null }
                   : member,
               ),
-            }
-          : current,
-      );
+        };
+      });
       return { previous, queryKey };
     },
     onSuccess: () => {
@@ -279,26 +301,38 @@ function useMemberStatusMutation(
         ),
       );
     },
-    onSettled: (_data, _error, _userId, context) => {
+    onSettled: () => {
       void queryClient.invalidateQueries({
-        queryKey: context?.queryKey ?? queryKey,
+        queryKey: ['organization-members', organizationId],
       });
     },
   });
 }
 
-export function useBlockMember(organizationId: string | undefined) {
-  return useMemberStatusMutation(organizationId, 'block');
+export function useBlockMember(
+  organizationId: string | undefined,
+  page: number,
+  statusFilter: MembershipStatus | undefined,
+) {
+  return useMemberStatusMutation(organizationId, 'block', page, statusFilter);
 }
 
-export function useUnblockMember(organizationId: string | undefined) {
-  return useMemberStatusMutation(organizationId, 'unblock');
+export function useUnblockMember(
+  organizationId: string | undefined,
+  page: number,
+  statusFilter: MembershipStatus | undefined,
+) {
+  return useMemberStatusMutation(organizationId, 'unblock', page, statusFilter);
 }
 
-export function useOrganizationInvites(organizationId: string | undefined) {
+export function useOrganizationInvites(
+  organizationId: string | undefined,
+  page = 1,
+  limit = 20,
+) {
   return useQuery({
-    queryKey: ['organization-invites', organizationId],
-    queryFn: () => fetchOrganizationInvites(organizationId ?? ''),
+    queryKey: ['organization-invites', organizationId, page, limit],
+    queryFn: () => fetchOrganizationInvites(organizationId ?? '', page, limit),
     enabled: Boolean(organizationId),
   });
 }

@@ -100,6 +100,12 @@ describe('AuditLogTab', () => {
 
     renderTab();
 
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Nhật ký' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Theo dõi thay đổi và hoạt động trong tổ chức.'),
+    ).toBeInTheDocument();
     expect(screen.getByText('FM A')).toBeInTheDocument();
   });
 

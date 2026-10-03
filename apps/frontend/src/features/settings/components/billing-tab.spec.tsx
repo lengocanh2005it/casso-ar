@@ -59,6 +59,12 @@ describe('BillingTab', () => {
 
     render(<BillingTab />);
 
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Thanh toán' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Quản lý gói dịch vụ, giới hạn sử dụng và nâng cấp.'),
+    ).toBeInTheDocument();
     expect(screen.getByText(/299\.000/)).toBeInTheDocument();
     expect(screen.getByText('500').closest('li')).toHaveTextContent(
       '500 khoản phải thu/tháng',
