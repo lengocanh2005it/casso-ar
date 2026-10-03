@@ -40,6 +40,32 @@ function formatLimit(value: number | undefined): string {
   return value === undefined ? UNAVAILABLE : numberFormatter.format(value);
 }
 
+function CatalogAlert({
+  title,
+  description,
+  onRetry,
+}: {
+  title: string;
+  description: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div
+      className="flex flex-col items-start gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between"
+      role="alert"
+    >
+      <div>
+        <h3 className="font-medium">{title}</h3>
+        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      </div>
+      <Button variant="outline" onClick={onRetry}>
+        <RefreshCw aria-hidden="true" />
+        Thử lại
+      </Button>
+    </div>
+  );
+}
+
 export function BillingTab() {
   const { user } = useAuth();
   const currentPlan = user?.subscriptionPlan ?? PlanId.FREE;
@@ -104,49 +130,30 @@ export function BillingTab() {
       {heading}
 
       {!hasCatalog && (
-        <div
-          className="flex flex-col items-start gap-3 rounded-lg border border-border p-5 sm:flex-row sm:items-center sm:justify-between"
-          role="alert"
-        >
-          <div>
-            <h3 className="font-medium">Không thể tải thông tin gói</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {isError
-                ? 'Thử tải lại để xem giá và giới hạn mới nhất.'
-                : 'Chưa có thông tin giá và giới hạn cho các gói.'}
-            </p>
-          </div>
-          <Button variant="outline" onClick={() => void refetch()}>
-            <RefreshCw aria-hidden="true" />
-            Thử lại
-          </Button>
-        </div>
+        <CatalogAlert
+          title="Không thể tải thông tin gói"
+          description={
+            isError
+              ? 'Thử tải lại để xem giá và giới hạn mới nhất.'
+              : 'Chưa có thông tin giá và giới hạn cho các gói.'
+          }
+          onRetry={() => void refetch()}
+        />
       )}
 
       {isError && hasCatalog && (
-        <div
-          className="flex flex-col items-start gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between"
-          role="alert"
-        >
-          <div>
-            <h3 className="font-medium">Chưa cập nhật được giá và giới hạn</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Đang hiển thị thông tin gói đã tải trước đó, có thể chưa còn chính
-              xác.
-            </p>
-          </div>
-          <Button variant="outline" onClick={() => void refetch()}>
-            <RefreshCw aria-hidden="true" />
-            Thử lại
-          </Button>
-        </div>
+        <CatalogAlert
+          title="Chưa cập nhật được giá và giới hạn"
+          description="Đang hiển thị thông tin gói đã tải trước đó, có thể chưa còn chính xác."
+          onRetry={() => void refetch()}
+        />
       )}
 
       <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-4">
         {plans.map((plan, index) => {
-          const details = catalogById.get(plan.id);
+          const catalogEntry = catalogById.get(plan.id);
           const isCurrent = plan.id === currentPlan;
-          const price = formatPrice(details?.priceVnd);
+          const price = formatPrice(catalogEntry?.priceVnd);
 
           return (
             <Card
@@ -168,11 +175,12 @@ export function BillingTab() {
                     <span className="text-2xl font-semibold tabular-nums tracking-tight">
                       {price}
                     </span>
-                    {details !== undefined && details.priceVnd > 0 && (
-                      <span className="text-sm text-muted-foreground">
-                        /tháng
-                      </span>
-                    )}
+                    {catalogEntry !== undefined &&
+                      catalogEntry.priceVnd > 0 && (
+                        <span className="text-sm text-muted-foreground">
+                          /tháng
+                        </span>
+                      )}
                   </div>
                 </div>
               </CardHeader>
@@ -186,7 +194,7 @@ export function BillingTab() {
                     />
                     <span>
                       <strong className="font-medium">
-                        {formatLimit(details?.receivableMonthlyLimit)}
+                        {formatLimit(catalogEntry?.receivableMonthlyLimit)}
                       </strong>{' '}
                       khoản phải thu/tháng
                     </span>
@@ -198,7 +206,7 @@ export function BillingTab() {
                     />
                     <span>
                       <strong className="font-medium">
-                        {formatLimit(details?.bankConnectionLimit)}
+                        {formatLimit(catalogEntry?.bankConnectionLimit)}
                       </strong>{' '}
                       kết nối ngân hàng
                     </span>
@@ -210,7 +218,7 @@ export function BillingTab() {
                     />
                     <span>
                       <strong className="font-medium">
-                        {formatLimit(details?.copilotChatMonthlyLimit)}
+                        {formatLimit(catalogEntry?.copilotChatMonthlyLimit)}
                       </strong>{' '}
                       lượt hỏi đáp AI/tháng
                     </span>
