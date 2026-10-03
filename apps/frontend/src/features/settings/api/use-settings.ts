@@ -152,7 +152,7 @@ export function useOrganizationMembers(
   organizationId: string | undefined,
   page = 1,
   status?: MembershipStatus,
-  limit = 20,
+  limit = 100,
 ) {
   return useQuery({
     queryKey: ['organization-members', organizationId, page, limit, status],

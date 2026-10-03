@@ -109,7 +109,7 @@ export function previewEmailTemplate(
 export function fetchOrganizationMembers(
   organizationId: string,
   page = 1,
-  limit = 20,
+  limit = 100,
   status?: MembershipStatus,
 ): Promise<OrganizationMemberList> {
   const params = new URLSearchParams({

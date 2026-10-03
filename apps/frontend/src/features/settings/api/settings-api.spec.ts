@@ -104,6 +104,24 @@ describe('fetchOrganizationInvites', () => {
 });
 
 describe('fetchOrganizationMembers', () => {
+  it('keeps the existing 100-member default for directory lookups', async () => {
+    apiRequest.mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 1,
+      limit: 100,
+    });
+
+    await fetchOrganizationMembers('org-1');
+
+    expect(apiRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: '/api/v1/organizations/org-1/members?page=1&limit=100',
+        method: 'GET',
+      }),
+    );
+  });
+
   it('requests a page and applies the optional status filter', async () => {
     apiRequest.mockResolvedValueOnce({
       items: [],

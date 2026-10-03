@@ -278,6 +278,7 @@ export function UsersTab() {
     canView ? user?.organizationId : undefined,
     memberPage,
     status,
+    20,
   );
   const transferMembersQuery = useOrganizationMembers(
     isOwner && transferDialogOpen ? user?.organizationId : undefined,
