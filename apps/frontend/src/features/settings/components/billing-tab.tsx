@@ -20,6 +20,7 @@ import { PaymentDialog } from './payment-dialog';
 
 const numberFormatter = new Intl.NumberFormat('vi-VN');
 
+// Keep these in ascending tier order; index position controls upgrade eligibility.
 const plans = [
   { id: PlanId.FREE },
   { id: PlanId.STARTER },
