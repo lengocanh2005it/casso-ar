@@ -137,12 +137,16 @@ describe('BillingTab', () => {
     expect(screen.getByText('Chuyên nghiệp')).toBeInTheDocument();
     expect(screen.getByText('Doanh nghiệp')).toBeInTheDocument();
     expect(screen.getAllByText('Giá gói')).toHaveLength(4);
-    const metricLines = screen
-      .getAllByRole('listitem')
-      .map((item) => item.textContent);
-    expect(metricLines).toContain('— khoản phải thu/tháng');
-    expect(metricLines).toContain('— kết nối ngân hàng');
-    expect(metricLines).toContain('— lượt hỏi đáp AI/tháng');
+    expect(
+      screen
+        .getAllByText('khoản phải thu/tháng')
+        .map((node) => node.closest('li')?.textContent),
+    ).toEqual(Array(4).fill('— khoản phải thu/tháng'));
+    expect(
+      screen
+        .getAllByText('kết nối ngân hàng')
+        .map((node) => node.closest('li')?.textContent),
+    ).toEqual(Array(4).fill('— kết nối ngân hàng'));
 
     const [firstUpgradeButton] = screen.getAllByRole('button', {
       name: 'Nâng cấp',
@@ -170,6 +174,35 @@ describe('BillingTab', () => {
     expect(screen.getByText('Chuyên nghiệp')).toBeInTheDocument();
     const upgradeButtons = screen.getAllByRole('button', { name: 'Nâng cấp' });
     expect(upgradeButtons).toHaveLength(2); // BUSINESS, ENTERPRISE (not FREE, not current STARTER)
+  });
+
+  it('keeps cached catalog figures and flags them as stale when a refresh fails', () => {
+    const refetch = vi.fn();
+    useAuth.mockReturnValue({
+      user: { role: 'OWNER', subscriptionPlan: 'FREE' },
+      refreshUser: vi.fn(),
+    });
+    useInitiatePlanUpgrade.mockReturnValue({ mutate, isPending: false });
+    usePlans.mockReturnValue({
+      data: planCatalog,
+      isLoading: false,
+      isError: true,
+      refetch,
+    });
+
+    render(<BillingTab />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Chưa cập nhật được giá và giới hạn',
+    );
+    expect(screen.getByText(/299\.000/)).toBeInTheDocument();
+    expect(
+      screen.getAllByRole('listitem').map((item) => item.textContent),
+    ).toContain('500 khoản phải thu/tháng');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+
+    expect(refetch).toHaveBeenCalledOnce();
   });
 
   it('hides every upgrade button when the user lacks SUBSCRIPTION_MANAGE', () => {
