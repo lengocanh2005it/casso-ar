@@ -15,13 +15,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
 import { usePlans } from '@/features/plans/hooks/use-plans';
 import { PLAN_FEATURE_COPY, PLAN_LABELS } from '@/features/plans/plans-data';
-import { formatVND } from '@/lib/format';
+import { formatPlanPrice, formatUnavailable } from '@/lib/format';
 import { hasPermission } from '@/lib/rbac';
 import { useInitiatePlanUpgrade } from '../api/use-settings';
 import { PaymentDialog } from './payment-dialog';
-
-const numberFormatter = new Intl.NumberFormat('vi-VN');
-const UNAVAILABLE = '—';
 
 // Keep these in ascending tier order; index position controls upgrade eligibility.
 const plans = [
@@ -30,15 +27,6 @@ const plans = [
   { id: PlanId.BUSINESS },
   { id: PlanId.ENTERPRISE },
 ];
-
-function formatPrice(priceVnd: number | undefined): string {
-  if (priceVnd === undefined) return UNAVAILABLE;
-  return priceVnd === 0 ? 'Miễn phí' : formatVND(priceVnd);
-}
-
-function formatLimit(value: number | undefined): string {
-  return value === undefined ? UNAVAILABLE : numberFormatter.format(value);
-}
 
 function CatalogAlert({
   title,
@@ -153,7 +141,7 @@ export function BillingTab() {
         {plans.map((plan, index) => {
           const catalogEntry = catalogById.get(plan.id);
           const isCurrent = plan.id === currentPlan;
-          const price = formatPrice(catalogEntry?.priceVnd);
+          const price = formatPlanPrice(catalogEntry?.priceVnd);
 
           return (
             <Card
@@ -194,7 +182,9 @@ export function BillingTab() {
                     />
                     <span>
                       <strong className="font-medium">
-                        {formatLimit(catalogEntry?.receivableMonthlyLimit)}
+                        {formatUnavailable(
+                          catalogEntry?.receivableMonthlyLimit,
+                        )}
                       </strong>{' '}
                       khoản phải thu/tháng
                     </span>
@@ -206,7 +196,7 @@ export function BillingTab() {
                     />
                     <span>
                       <strong className="font-medium">
-                        {formatLimit(catalogEntry?.bankConnectionLimit)}
+                        {formatUnavailable(catalogEntry?.bankConnectionLimit)}
                       </strong>{' '}
                       kết nối ngân hàng
                     </span>
@@ -218,7 +208,9 @@ export function BillingTab() {
                     />
                     <span>
                       <strong className="font-medium">
-                        {formatLimit(catalogEntry?.copilotChatMonthlyLimit)}
+                        {formatUnavailable(
+                          catalogEntry?.copilotChatMonthlyLimit,
+                        )}
                       </strong>{' '}
                       lượt hỏi đáp AI/tháng
                     </span>

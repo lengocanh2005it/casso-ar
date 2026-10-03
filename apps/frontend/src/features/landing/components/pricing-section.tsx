@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePlans } from '@/features/plans/hooks/use-plans';
 import { PLAN_FEATURE_COPY, PLAN_LABELS } from '@/features/plans/plans-data';
-import { formatVND } from '@/lib/format';
+import { formatPlanPrice } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import {
   FADE_UP_ITEM_VARIANTS,
@@ -90,9 +90,7 @@ export function PricingSection() {
                         </CardTitle>
                         <div className="mt-2">
                           <span className="text-[1.75rem] font-bold leading-none tracking-tight tabular-nums">
-                            {plan.priceVnd === 0
-                              ? 'Miễn phí'
-                              : formatVND(plan.priceVnd)}
+                            {formatPlanPrice(plan.priceVnd)}
                           </span>
                           {plan.priceVnd > 0 ? (
                             <span className="text-base text-muted-foreground">
