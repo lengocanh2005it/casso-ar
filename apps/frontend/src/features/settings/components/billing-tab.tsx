@@ -11,11 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
-import { usePlans } from '@/features/landing/hooks/use-plans';
-import {
-  PLAN_FEATURE_COPY,
-  PLAN_LABELS,
-} from '@/features/landing/landing-data';
+import { usePlans } from '@/features/plans/hooks/use-plans';
+import { PLAN_FEATURE_COPY, PLAN_LABELS } from '@/features/plans/plans-data';
 import { formatVND } from '@/lib/format';
 import { hasPermission } from '@/lib/rbac';
 import { useInitiatePlanUpgrade } from '../api/use-settings';

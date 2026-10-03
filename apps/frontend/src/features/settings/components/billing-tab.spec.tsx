@@ -15,7 +15,7 @@ const { usePlans } = vi.hoisted(() => ({ usePlans: vi.fn() }));
 vi.mock('@/contexts/auth-context', () => ({ useAuth }));
 vi.mock('../api/use-settings', () => ({ useInitiatePlanUpgrade }));
 vi.mock('./payment-dialog', () => ({ PaymentDialog }));
-vi.mock('@/features/landing/hooks/use-plans', () => ({ usePlans }));
+vi.mock('@/features/plans/hooks/use-plans', () => ({ usePlans }));
 
 const planCatalog = [
   {
