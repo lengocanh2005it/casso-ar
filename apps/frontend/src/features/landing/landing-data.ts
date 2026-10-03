@@ -174,7 +174,6 @@ export const PLAN_FEATURE_COPY: Record<PlanId, string[]> = {
   ],
   [PlanId.ENTERPRISE]: [
     'Mọi tính năng của gói Chuyên nghiệp',
-    'Không giới hạn số kết nối ngân hàng',
     'Hỗ trợ ưu tiên',
   ],
 };
