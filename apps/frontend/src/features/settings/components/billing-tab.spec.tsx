@@ -114,6 +114,48 @@ describe('BillingTab', () => {
     expect(refetch).toHaveBeenCalledOnce();
   });
 
+  it('keeps plan cards and upgrade actions usable when the catalog fails cold', () => {
+    const refetch = vi.fn();
+    useAuth.mockReturnValue({
+      user: { role: 'OWNER', subscriptionPlan: 'FREE' },
+      refreshUser: vi.fn(),
+    });
+    useInitiatePlanUpgrade.mockReturnValue({ mutate, isPending: false });
+    usePlans.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch,
+    });
+
+    render(<BillingTab />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Không thể tải thông tin gói',
+    );
+    expect(screen.getByText('Khởi đầu')).toBeInTheDocument();
+    expect(screen.getByText('Chuyên nghiệp')).toBeInTheDocument();
+    expect(screen.getByText('Doanh nghiệp')).toBeInTheDocument();
+    expect(screen.getAllByText('Giá gói')).toHaveLength(4);
+    const metricLines = screen
+      .getAllByRole('listitem')
+      .map((item) => item.textContent);
+    expect(metricLines).toContain('— khoản phải thu/tháng');
+    expect(metricLines).toContain('— kết nối ngân hàng');
+    expect(metricLines).toContain('— lượt hỏi đáp AI/tháng');
+
+    const [firstUpgradeButton] = screen.getAllByRole('button', {
+      name: 'Nâng cấp',
+    });
+    expect(screen.getAllByRole('button', { name: 'Nâng cấp' })).toHaveLength(3);
+    fireEvent.click(firstUpgradeButton);
+
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ targetPlanId: 'STARTER' }),
+      expect.anything(),
+    );
+  });
+
   it('shows an upgrade button only on plans above the current plan, for a user with SUBSCRIPTION_MANAGE', () => {
     useAuth.mockReturnValue({
       user: { role: 'OWNER', subscriptionPlan: 'STARTER' },
