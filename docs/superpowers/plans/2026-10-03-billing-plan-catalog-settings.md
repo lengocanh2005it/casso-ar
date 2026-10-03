@@ -37,32 +37,17 @@ In the existing successful catalog-render test, assert the agreed label on each 
 expect(screen.getAllByText('Giá gói')).toHaveLength(4);
 expect(screen.getAllByText('Miễn phí')).toHaveLength(2);
 expect(screen.getByText(/299\.000/)).toBeInTheDocument();
-expect(screen.getByText(/999\.000/)).toBeInTheDocument();
+expect(screen.getByText(/^999\.000/)).toBeInTheDocument();
 expect(screen.getByText(/2\.999\.000/)).toBeInTheDocument();
-expect(screen.getByText('50').closest('li')).toHaveTextContent(
-  '50 khoản phải thu/tháng',
-);
-expect(screen.getByText('500').closest('li')).toHaveTextContent(
-  '500 khoản phải thu/tháng',
-);
-expect(screen.getByText('5.000').closest('li')).toHaveTextContent(
-  '5.000 khoản phải thu/tháng',
-);
-expect(screen.getByText('15.000').closest('li')).toHaveTextContent(
-  '15.000 khoản phải thu/tháng',
-);
-expect(screen.getByText('1').closest('li')).toHaveTextContent(
-  '1 kết nối ngân hàng',
-);
-expect(screen.getByText('2').closest('li')).toHaveTextContent(
-  '2 kết nối ngân hàng',
-);
-expect(screen.getByText('5').closest('li')).toHaveTextContent(
-  '5 kết nối ngân hàng',
-);
-expect(screen.getByText('10').closest('li')).toHaveTextContent(
-  '10 kết nối ngân hàng',
-);
+const metricLines = screen.getAllByRole('listitem').map((item) => item.textContent);
+expect(metricLines).toContain('50 khoản phải thu/tháng');
+expect(metricLines).toContain('500 khoản phải thu/tháng');
+expect(metricLines).toContain('5.000 khoản phải thu/tháng');
+expect(metricLines).toContain('15.000 khoản phải thu/tháng');
+expect(metricLines).toContain('1 kết nối ngân hàng');
+expect(metricLines).toContain('2 kết nối ngân hàng');
+expect(metricLines).toContain('5 kết nối ngân hàng');
+expect(metricLines).toContain('10 kết nối ngân hàng');
 expect(screen.queryByText('Không giới hạn số kết nối ngân hàng'))
   .not.toBeInTheDocument();
 ```

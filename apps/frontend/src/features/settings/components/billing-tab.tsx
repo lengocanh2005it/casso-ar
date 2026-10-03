@@ -138,15 +138,18 @@ export function BillingTab() {
                   {PLAN_LABELS[plan.id]}
                   {isCurrent && <Badge>Gói hiện tại</Badge>}
                 </CardTitle>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-semibold tabular-nums tracking-tight">
-                    {price}
-                  </span>
-                  {details.priceVnd > 0 && (
-                    <span className="text-sm text-muted-foreground">
-                      /tháng
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Giá gói</p>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl font-semibold tabular-nums tracking-tight">
+                      {price}
                     </span>
-                  )}
+                    {details.priceVnd > 0 && (
+                      <span className="text-sm text-muted-foreground">
+                        /tháng
+                      </span>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
 

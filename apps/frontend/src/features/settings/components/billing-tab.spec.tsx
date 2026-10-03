@@ -65,13 +65,22 @@ describe('BillingTab', () => {
     expect(
       screen.getByText('Quản lý gói dịch vụ, giới hạn sử dụng và nâng cấp.'),
     ).toBeInTheDocument();
+    expect(screen.getAllByText('Giá gói')).toHaveLength(4);
+    expect(screen.getAllByText('Miễn phí')).toHaveLength(2);
     expect(screen.getByText(/299\.000/)).toBeInTheDocument();
-    expect(screen.getByText('500').closest('li')).toHaveTextContent(
-      '500 khoản phải thu/tháng',
-    );
-    expect(screen.getByText('2').closest('li')).toHaveTextContent(
-      '2 kết nối ngân hàng',
-    );
+    expect(screen.getByText(/^999\.000/)).toBeInTheDocument();
+    expect(screen.getByText(/2\.999\.000/)).toBeInTheDocument();
+    const metricLines = screen
+      .getAllByRole('listitem')
+      .map((item) => item.textContent);
+    expect(metricLines).toContain('50 khoản phải thu/tháng');
+    expect(metricLines).toContain('500 khoản phải thu/tháng');
+    expect(metricLines).toContain('5.000 khoản phải thu/tháng');
+    expect(metricLines).toContain('15.000 khoản phải thu/tháng');
+    expect(metricLines).toContain('1 kết nối ngân hàng');
+    expect(metricLines).toContain('2 kết nối ngân hàng');
+    expect(metricLines).toContain('5 kết nối ngân hàng');
+    expect(metricLines).toContain('10 kết nối ngân hàng');
     expect(screen.getByText('100').closest('li')).toHaveTextContent(
       '100 lượt hỏi đáp AI/tháng',
     );
