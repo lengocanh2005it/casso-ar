@@ -22,6 +22,11 @@ _Avoid_: Invoice code match
 **Customer credit**:
 Received money that has not been allocated to a receivable and is held for an accountant to allocate intentionally later.
 
+## Billing plans
+
+**Plan catalog**:
+The set of subscription plans and the prices and usage limits that define each plan.
+
 ## Bank notifications
 
 **Webhook inbox**:
