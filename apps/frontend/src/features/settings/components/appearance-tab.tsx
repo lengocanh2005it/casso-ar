@@ -78,7 +78,8 @@ export function AppearanceTab() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)]">
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:grid-cols-1">
+        <fieldset className="grid content-start grid-cols-3 gap-1.5 sm:gap-2 xl:grid-cols-1">
+          <legend className="sr-only">Chế độ giao diện</legend>
           {THEMES.map(({ value, label, description, icon: Icon }) => {
             const selected = theme === value;
 
@@ -89,7 +90,8 @@ export function AppearanceTab() {
                 aria-pressed={selected}
                 onClick={() => setTheme(value)}
                 className={cn(
-                  'flex min-h-16 items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors motion-reduce:transition-none',
+                  'relative flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg border px-1.5 py-1.5 text-center transition-colors motion-reduce:transition-none',
+                  'sm:flex-row sm:justify-start sm:gap-3 sm:px-3 sm:py-2.5 sm:text-left',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   selected
                     ? 'border-primary bg-primary/5'
@@ -98,22 +100,24 @@ export function AppearanceTab() {
               >
                 <span
                   className={cn(
-                    'flex size-9 shrink-0 items-center justify-center rounded-md',
+                    'flex size-7 shrink-0 items-center justify-center rounded-md sm:size-9',
                     selected
                       ? 'bg-primary/10 text-primary'
                       : 'bg-muted text-muted-foreground',
                   )}
                 >
-                  <Icon className="size-5" aria-hidden="true" />
+                  <Icon className="size-4 sm:size-5" aria-hidden="true" />
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">{label}</span>
-                  <span className="block text-xs text-muted-foreground">
+                <span className="flex min-w-0 flex-col items-center sm:flex-1 sm:items-start">
+                  <span className="block text-xs font-medium sm:text-sm">
+                    {label}
+                  </span>
+                  <span className="sr-only block text-xs text-muted-foreground sm:not-sr-only">
                     {description}
                   </span>
                 </span>
                 {selected && (
-                  <span className="flex shrink-0 items-center text-primary">
+                  <span className="absolute right-1.5 top-1.5 flex shrink-0 items-center text-primary sm:static">
                     <span className="sr-only">Đang dùng</span>
                     <Check className="size-3.5" aria-hidden="true" />
                   </span>
@@ -121,7 +125,7 @@ export function AppearanceTab() {
               </button>
             );
           })}
-        </div>
+        </fieldset>
 
         <AppearancePreview resolvedTheme={resolvedTheme} />
       </div>

@@ -72,6 +72,34 @@ describe('AppearanceTab', () => {
     expect(screen.queryByText('616tr')).not.toBeInTheDocument();
   });
 
+  it('keeps theme choices compact in a single row on narrow screens', () => {
+    useTheme.mockReturnValue({
+      theme: 'system',
+      resolvedTheme: 'light',
+      setTheme,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/settings?tab=appearance']}>
+        <AppearanceTab />
+      </MemoryRouter>,
+    );
+
+    const options = screen.getByRole('group', { name: 'Chế độ giao diện' });
+    expect(options).toHaveClass(
+      'grid-cols-3',
+      'xl:grid-cols-1',
+      'content-start',
+    );
+
+    const lightOption = screen.getByRole('button', { name: /Sáng/ });
+    expect(lightOption).toHaveClass('flex-col', 'min-h-16');
+    expect(screen.getByText('Giao diện sáng')).toHaveClass(
+      'sr-only',
+      'sm:not-sr-only',
+    );
+  });
+
   it('updates the selected appearance mode when a theme option is chosen', () => {
     useTheme.mockReturnValue({
       theme: 'light',
