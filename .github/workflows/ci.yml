@@ -14,16 +14,29 @@ jobs:
     name: verify (${{ matrix.name }})
     runs-on: ubuntu-latest
 
+    # Together these legs run every task of `pnpm verify` + `pnpm build`
+    # (lint, type-check, test, arch-check, build) exactly once:
+    #   backend         - all of @casso-ar/backend
+    #   other           - every package except backend, minus the frontend tests
+    #   frontend-test-N - the frontend vitest suite, split into 3 shards
+    # `other` excludes backend/frontend by name only, so a newly added package
+    # is covered without editing this file.
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: backend
-            filter: '@casso-ar/backend'
-          # Everything else, so a newly added package is covered without
-          # editing this file.
-          - name: frontend
-            filter: '!@casso-ar/backend'
+            command: pnpm turbo run lint type-check test arch-check build --filter='@casso-ar/backend'
+          - name: other
+            command: >-
+              pnpm turbo run lint type-check arch-check build --filter='!@casso-ar/backend' &&
+              pnpm turbo run test --filter='!@casso-ar/backend' --filter='!@casso-ar/frontend'
+          - name: frontend-test-1
+            command: pnpm turbo run test --filter='@casso-ar/frontend' -- --shard=1/3
+          - name: frontend-test-2
+            command: pnpm turbo run test --filter='@casso-ar/frontend' -- --shard=2/3
+          - name: frontend-test-3
+            command: pnpm turbo run test --filter='@casso-ar/frontend' -- --shard=3/3
 
     env:
       # main always re-runs everything; PRs reuse cached results for packages
@@ -56,7 +69,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Same task set as `pnpm verify` followed by `pnpm build`, split by package
-      # so the two halves run on separate runners.
-      - name: Verify and build
-        run: pnpm turbo run lint type-check test arch-check build --filter='${{ matrix.filter }}'
+      - name: Run ${{ matrix.name }}
+        run: ${{ matrix.command }}
