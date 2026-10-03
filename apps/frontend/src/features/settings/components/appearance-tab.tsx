@@ -33,38 +33,19 @@ const THEMES: {
   },
 ];
 
-const PREVIEW_COLORS: Record<
+const PREVIEW_IMAGES: Record<
   ResolvedTheme,
-  {
-    canvas: string;
-    surface: string;
-    line: string;
-    muted: string;
-    text: string;
-    subtleText: string;
-    accent: string;
-    accentText: string;
-  }
+  { desktop: string; mobile: string; alt: string }
 > = {
   light: {
-    canvas: 'bg-slate-50',
-    surface: 'bg-white',
-    line: 'border-slate-200',
-    muted: 'bg-slate-100',
-    text: 'text-slate-900',
-    subtleText: 'text-slate-500',
-    accent: 'bg-emerald-50',
-    accentText: 'text-emerald-700',
+    desktop: '/showcase-dashboard.png',
+    mobile: '/appearance-preview-mobile-light.jpg',
+    alt: 'Giao diện thật Casso AR chế độ sáng',
   },
   dark: {
-    canvas: 'bg-[#161d19]',
-    surface: 'bg-[#202923]',
-    line: 'border-[#36433a]',
-    muted: 'bg-[#2b362f]',
-    text: 'text-[#f1f5f2]',
-    subtleText: 'text-[#a6b3a9]',
-    accent: 'bg-[#244333]',
-    accentText: 'text-[#8bd3a7]',
+    desktop: '/appearance-preview-desktop-dark.jpg',
+    mobile: '/appearance-preview-mobile-dark.jpg',
+    alt: 'Giao diện thật Casso AR chế độ tối',
   },
 };
 
@@ -73,7 +54,7 @@ function AppearancePreview({
 }: {
   resolvedTheme: ResolvedTheme;
 }) {
-  const colors = PREVIEW_COLORS[resolvedTheme];
+  const images = PREVIEW_IMAGES[resolvedTheme];
 
   return (
     <section
@@ -93,110 +74,18 @@ function AppearancePreview({
         </span>
       </div>
 
-      <div
-        className={cn(
-          'grid min-h-56 grid-cols-[76px_minmax(0,1fr)] sm:grid-cols-[112px_minmax(0,1fr)]',
-          colors.canvas,
-          colors.text,
-        )}
-      >
-        <aside
-          className={cn('border-r p-2.5 sm:p-3', colors.line, colors.surface)}
-        >
-          <div className="mb-4 flex items-center gap-1.5">
-            <span className="flex size-5 items-center justify-center rounded bg-emerald-600 text-[10px] font-bold text-white">
-              C
-            </span>
-            <span className="hidden text-[10px] font-semibold sm:inline">
-              Casso AR
-            </span>
-          </div>
-          <div className="space-y-1.5 text-[9px] sm:text-[10px]">
-            <div className={cn('rounded px-1.5 py-1.5', colors.subtleText)}>
-              Tổng quan
-            </div>
-            <div
-              className={cn(
-                'rounded px-1.5 py-1.5 font-medium',
-                colors.accent,
-                colors.accentText,
-              )}
-            >
-              Công nợ
-            </div>
-            <div className={cn('rounded px-1.5 py-1.5', colors.subtleText)}>
-              Ngân hàng
-            </div>
-          </div>
-        </aside>
-
-        <div className="min-w-0 p-3 sm:p-4">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div>
-              <p className={cn('text-[9px] sm:text-[10px]', colors.subtleText)}>
-                QUẢN LÝ CÔNG NỢ
-              </p>
-              <p className="mt-0.5 text-xs font-semibold sm:text-sm">
-                Bảng công nợ
-              </p>
-            </div>
-            <span className="rounded border border-emerald-600 bg-emerald-600 px-2 py-1 text-[9px] font-medium text-white sm:text-[10px]">
-              Thêm khoản phải thu
-            </span>
-          </div>
-
-          <div className="mb-3 grid grid-cols-2 gap-2">
-            {['Khách hàng', 'Trạng thái'].map((label) => (
-              <div
-                key={label}
-                className={cn(
-                  'rounded border p-2',
-                  colors.line,
-                  colors.surface,
-                )}
-              >
-                <p className={cn('text-[9px]', colors.subtleText)}>{label}</p>
-                <div
-                  className={cn('mt-2 h-2 w-2/3 rounded-sm', colors.muted)}
-                />
-              </div>
-            ))}
-          </div>
-
-          <div
-            className={cn(
-              'overflow-hidden rounded border',
-              colors.line,
-              colors.surface,
-            )}
-          >
-            <div
-              className={cn(
-                'grid grid-cols-[1.3fr_1fr_0.7fr] gap-2 border-b px-2 py-1.5 text-[8px] sm:text-[9px]',
-                colors.line,
-                colors.subtleText,
-              )}
-            >
-              <span>Khách hàng</span>
-              <span>Số tiền</span>
-              <span>Trạng thái</span>
-            </div>
-            {[0, 1].map((row) => (
-              <div
-                key={row}
-                className={cn(
-                  'grid grid-cols-[1.3fr_1fr_0.7fr] items-center gap-2 px-2 py-2',
-                  row === 0 ? `border-b ${colors.line}` : '',
-                )}
-              >
-                <div className={cn('h-2 rounded-sm', colors.muted)} />
-                <div className={cn('h-2 rounded-sm', colors.muted)} />
-                <div className="h-3 rounded-full bg-emerald-500/15" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      <picture>
+        <source
+          data-testid="mobile-preview-source"
+          media="(max-width: 767px)"
+          srcSet={images.mobile}
+        />
+        <img
+          className="block h-auto w-full"
+          src={images.desktop}
+          alt={images.alt}
+        />
+      </picture>
     </section>
   );
 }

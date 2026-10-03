@@ -62,6 +62,7 @@ export function EmailTemplatesTab() {
       action={
         canWrite && (
           <Button
+            className="w-full min-[521px]:w-auto"
             onClick={() => {
               setEditingId(null);
               setDialogOpen(true);

@@ -51,6 +51,17 @@ describe('EmailTemplatesTab', () => {
       </QueryClientProvider>,
     );
 
+    const title = screen.getByText('Mẫu email');
+    const heading = title.closest('[data-slot="card-heading"]');
+    expect(heading).toContainElement(
+      screen.getByText(
+        'Quản lý nội dung email dùng trong các chính sách nhắc.',
+      ),
+    );
+    expect(heading?.parentElement).toContainElement(
+      screen.getByRole('button', { name: 'Tạo mẫu email' }),
+    );
+
     await waitFor(() =>
       expect(screen.getByText('Due date reminder')).toBeTruthy(),
     );
