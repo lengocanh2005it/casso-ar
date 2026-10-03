@@ -11,7 +11,24 @@ permissions:
 
 jobs:
   verify:
+    name: verify (${{ matrix.name }})
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: backend
+            filter: '@casso-ar/backend'
+          # Everything else, so a newly added package is covered without
+          # editing this file.
+          - name: frontend
+            filter: '!@casso-ar/backend'
+
+    env:
+      # main always re-runs everything; PRs reuse cached results for packages
+      # whose inputs did not change.
+      TURBO_FORCE: ${{ github.event_name == 'push' }}
 
     steps:
       - name: Check out repository
@@ -28,11 +45,18 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - name: Restore Turborepo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ matrix.name }}-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ matrix.name }}-${{ runner.os }}-
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify
-        run: pnpm verify
-
-      - name: Build
-        run: pnpm build
+      # Same task set as `pnpm verify` followed by `pnpm build`, split by package
+      # so the two halves run on separate runners.
+      - name: Verify and build
+        run: pnpm turbo run lint type-check test arch-check build --filter='${{ matrix.filter }}'
