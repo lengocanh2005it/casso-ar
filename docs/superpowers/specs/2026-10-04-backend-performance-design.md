@@ -47,7 +47,7 @@ Use the existing `http_request_duration_seconds` histogram to select a route wit
 
 ## Alternatives Considered
 
-1. **SWC with type checking (recommended):** Faster transpilation while retaining the TypeScript check and Swagger compiler plugin behavior.
+1. **SWC with type checking (evaluated and rejected):** Its measured median was `40.447s` versus `18.892s` for TypeScript, and 10 schemas still differed after loading generated Swagger metadata; it failed the 20% improvement threshold.
 2. **SWC without type checking:** Likely faster, but removes compiler diagnostics from the dev command and does not run the Swagger CLI transformation required by this project.
 3. **Change TypeORM synchronization or defer Swagger setup:** Could reduce bootstrap work, but changes local schema or documentation behavior and is not justified before separately measuring those stages.
 
