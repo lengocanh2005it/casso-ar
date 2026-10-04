@@ -95,4 +95,25 @@ describe('CustomerAgingTable', () => {
     ).toHaveClass(STICKY_EDGE);
     expect(screen.getByText('106.000.000 ₫')).toHaveClass(STICKY_EDGE);
   });
+
+  it('stops pinning the total column on narrow screens so cells stop overlapping', () => {
+    render(<CustomerAgingTable page={buildPage()} />);
+
+    // Measured at 390px: the seven columns total 902px inside a 293px
+    // scroller, and the pinned total settled at left:213 while the bucket
+    // before it ran to x:822 — a 609px overlap that painted 45 text-on-text
+    // collisions. `sticky right-0` only reads as "keep the total in view"
+    // while the row is wider than the scroller AND the browser has room to
+    // pin against. Under `max-md` the table is far wider than any phone, so
+    // the pin stops helping and starts covering the bucket amounts.
+    expect(
+      screen.getByRole('columnheader', { name: 'Tổng còn lại' }),
+    ).toHaveClass('max-md:static');
+    expect(screen.getByText('106.000.000 ₫')).toHaveClass('max-md:static');
+
+    // The shadow is only meaningful while the column is actually pinned.
+    expect(
+      screen.getByRole('columnheader', { name: 'Tổng còn lại' }),
+    ).toHaveClass('max-md:shadow-none');
+  });
 });

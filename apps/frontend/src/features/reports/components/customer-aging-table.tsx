@@ -43,7 +43,14 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
           ))}
           <TableHead
             className={cn(
-              'sticky right-0 border-l bg-muted text-right',
+              // Pinning the total keeps it in view while a reviewer scrolls
+              // the bucket columns on a desktop. On a phone the seven
+              // columns are ~3x the viewport, so the pin lands on top of the
+              // bucket amounts instead of beside them — measured at 390px the
+              // pinned cell sat at left:213 while the column before it ran to
+              // x:822, a 609px overlap. Below md the total scrolls like every
+              // other column and the edge shadow comes off with it.
+              'sticky right-0 border-l bg-muted text-right max-md:static max-md:shadow-none',
               STICKY_EDGE,
             )}
           >
@@ -85,7 +92,7 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
             })}
             <TableCell
               className={cn(
-                'sticky right-0 border-l bg-card text-right font-semibold whitespace-nowrap tabular-nums',
+                'sticky right-0 border-l bg-card text-right font-semibold whitespace-nowrap tabular-nums max-md:static',
                 STICKY_EDGE,
               )}
             >

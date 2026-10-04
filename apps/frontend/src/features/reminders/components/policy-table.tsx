@@ -89,7 +89,11 @@ export function PolicyTable({
                   {/* Folded in from columns that do not fit a phone: counts and
                       the escalation window are what tell two otherwise
                       identical "4 rules / 30 days" rows apart. */}
-                  <p className="text-xs text-muted-foreground max-md:whitespace-nowrap">
+                  {/* Two short facts, not a label: wrapping keeps both
+                      readable when the card is ~161px wide. Holding them on
+                      one line clipped the trailing "30 ngày" with no
+                      ellipsis and no tooltip. */}
+                  <p className="text-xs text-muted-foreground max-md:whitespace-normal">
                     {policy.rules.length} quy tắc · leo thang{' '}
                     {policy.escalationThresholdDays === null
                       ? '—'

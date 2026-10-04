@@ -281,7 +281,13 @@ export function ExceptionsPage() {
                       <Button
                         variant="link"
                         size="sm"
-                        className="max-md:h-auto max-md:px-0"
+                        // The card layout gives the row no vertical padding
+                        // of its own, so the button's own padding IS the hit
+                        // area. Stripping it (`max-md:h-auto max-md:px-0`)
+                        // measured at 29x16px on a 390px screen — below even
+                        // the 24px floor. The link tone stays; the target is
+                        // padded back out.
+                        className="max-md:min-h-9 max-md:px-2"
                         onClick={() => setSelected(row)}
                       >
                         Xử lý

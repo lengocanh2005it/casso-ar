@@ -84,4 +84,21 @@ describe('PolicyTable', () => {
       2,
     );
   });
+
+  it('lets the folded counts wrap instead of clipping them on a phone', () => {
+    renderTable();
+
+    // `max-md:whitespace-nowrap` kept this line single-row, but at 390px the
+    // card gives it 161px and "4 quy tắc · leo thang 30 ngày" needs ~172 —
+    // so the tail was sliced off with no ellipsis and no tooltip. The status
+    // chip is the only thing here that genuinely must stay on one line.
+    const folded = screen
+      .getAllByText(/4 quy tắc · leo thang 30 ngày/)
+      .map((node) => node.closest('p'));
+
+    for (const line of folded) {
+      expect(line?.className).not.toContain('max-md:whitespace-nowrap');
+      expect(line?.className).toContain('max-md:whitespace-normal');
+    }
+  });
 });

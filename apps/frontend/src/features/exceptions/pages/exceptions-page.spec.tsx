@@ -659,4 +659,51 @@ describe('ExceptionsPage', () => {
     expect(amountCell?.className).not.toContain('hidden');
     expect(actionHeader?.className).not.toContain('hidden');
   });
+
+  // `max-md:h-auto max-md:px-0` was meant to tighten the action into the
+  // card layout, but it also stripped its vertical padding: measured at
+  // 390px the button rendered 29x16px, far under the 44px touch target and
+  // under the 24px minimum even. The link tone is fine; the hit area is not.
+  it('keeps the mobile action button tappable instead of collapsing to 16px', async () => {
+    apiRequest.mockResolvedValue({
+      items: [
+        {
+          transaction: {
+            id: 'tx-1',
+            providerTransactionId: 'TX-1',
+            amount: 23_000_000,
+            transactionDateTime: '2026-08-01',
+            counterpartyAccountNumber: '001',
+            counterpartyName: 'Công ty TNHH Giải pháp Kho vận Việt Trung',
+            transferContent: 'Đặt cọc hợp đồng',
+            status: 'PENDING_REVIEW',
+            version: 1,
+          },
+          topCandidate: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const action = await screen.findByRole('button', { name: 'Xử lý' });
+
+    // It stays a link-toned button in the card, but the hit area is padded
+    // back out instead of collapsing to the glyph's own line box.
+    expect(action.className).not.toContain('max-md:h-auto');
+    expect(action.className).toContain('max-md:min-h-9');
+    expect(action.className).toContain('max-md:px-2');
+  });
 });
