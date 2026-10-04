@@ -653,11 +653,64 @@ describe('ExceptionsPage', () => {
     const amountCell = cells.find((td) =>
       td.textContent?.includes('23.000.000'),
     );
-    const actionHeader = headers.find((th) =>
-      th.querySelector('.sr-only')?.textContent?.includes('Thao tác'),
+    const actionHeader = headers.find(
+      (th) => th.textContent?.trim() === 'Hành động',
     );
     expect(amountCell?.className).not.toContain('hidden');
-    expect(actionHeader?.className).not.toContain('hidden');
+    // Action is never one of the columns dropped between md and lg; it only
+    // hides below md, where the row is a card and the action sits beside
+    // the amount instead of under a header.
+    expect(actionHeader?.className).not.toContain('md:max-lg:hidden');
+  });
+
+  it('labels the action column so the trailing "Xử lý" links have a header', async () => {
+    apiRequest.mockResolvedValue({
+      items: [
+        {
+          transaction: {
+            id: 'tx-1',
+            providerTransactionId: 'TX-1',
+            amount: 23_000_000,
+            transactionDateTime: '2026-08-01',
+            counterpartyAccountNumber: '001',
+            counterpartyName: 'Công ty TNHH Giải pháp Kho vận Việt Trung',
+            transferContent: 'Đặt cọc hợp đồng',
+            status: 'PENDING_REVIEW',
+            version: 1,
+          },
+          topCandidate: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByText('23.000.000 ₫');
+
+    // The column used to render only an `sr-only` "Thao tác", so a screen
+    // full of trailing "Xử lý" links had no visible header above them. A
+    // visible label costs ~80px and only matters once the row is a table
+    // again, so it stays hidden on the phone card layout.
+    const actionHeader = screen.getByRole('columnheader', {
+      name: 'Hành động',
+    });
+    expect(actionHeader).toHaveClass('max-md:hidden');
+    expect(actionHeader).not.toHaveClass('sr-only');
+
+    // The header must not claim more width than the single word it labels.
+    expect(actionHeader).toHaveClass('w-[6.5rem]', 'text-right');
   });
 
   // `max-md:h-auto max-md:px-0` was meant to tighten the action into the

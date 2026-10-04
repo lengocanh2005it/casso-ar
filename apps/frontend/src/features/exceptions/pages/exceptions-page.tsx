@@ -174,8 +174,13 @@ export function ExceptionsPage() {
                   <TableHead className="w-[6rem] whitespace-nowrap md:max-lg:hidden">
                     Điểm cao nhất
                   </TableHead>
-                  <TableHead className="w-[5rem]">
-                    <span className="sr-only">Thao tác</span>
+                  {/* The row ends in a "Xử lý" link; an sr-only-only header
+                      left a column of them with nothing above it. The label
+                      only makes sense once the row is a table again, so it
+                      stays hidden on the phone card layout where the action
+                      sits next to the amount instead. */}
+                  <TableHead className="w-[6.5rem] text-right whitespace-nowrap max-md:hidden">
+                    Hành động
                   </TableHead>
                 </TableRow>
               </TableHeader>
