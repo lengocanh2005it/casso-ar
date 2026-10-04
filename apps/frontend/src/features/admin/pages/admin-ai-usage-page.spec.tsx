@@ -112,8 +112,10 @@ describe('AdminAiUsagePage', () => {
 
     const [from, to] = vi.mocked(adminApi.getAiUsage).mock.calls[0];
     expect(to).toBe(new Date().toISOString().slice(0, 10));
+    // The API counts both ends of the range, so seven days back is six days of
+    // subtraction — seven would have asked for eight calendar dates.
     expect(from).toBe(
-      new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+      new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
     );
     // The inputs are pre-filled with the range actually being queried.
     expect(screen.getByLabelText(/từ ngày/i)).toHaveValue(from);

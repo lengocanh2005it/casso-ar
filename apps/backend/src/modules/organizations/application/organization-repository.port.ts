@@ -18,6 +18,7 @@ export interface OrganizationListItem {
 export interface IOrganizationRepository {
   findById(id: string, manager?: EntityManager): Promise<Organization | null>;
   findAllIds(): Promise<string[]>;
+  countByStatus(): Promise<Record<OrganizationStatus, number>>;
   findAllPaginated(
     page: number,
     limit: number,

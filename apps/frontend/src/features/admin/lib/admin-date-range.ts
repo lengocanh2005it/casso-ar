@@ -11,7 +11,11 @@ export function last7DayRange(now: Date = new Date()): {
   from: string;
   to: string;
 } {
-  const from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  // The API treats `from` as the start of its day and `to` through the end of
+  // its own, so both ends are counted. Walking back seven days would hand it
+  // eight distinct calendar dates while the charts read "7 ngày".
+  const from = new Date(now.getTime());
+  from.setDate(from.getDate() - 6);
   return {
     from: toLocalDateInputValue(from),
     to: toLocalDateInputValue(now),

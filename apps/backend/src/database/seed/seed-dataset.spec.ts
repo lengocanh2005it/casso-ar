@@ -7,7 +7,30 @@ import {
   buildSeedOperatorUserProps,
   buildSeedReceivablePlans,
   SEED_OPERATOR_EMAIL,
+  seedAiUsageLogId,
 } from './seed-dataset';
+
+describe('seedAiUsageLogId', () => {
+  it('returns the same id for the same conversation across runs', () => {
+    // The row id is the only conflict target `ai_usage_logs` offers, so a
+    // random UUID made every rerun append another copy of all 14 calls.
+    expect(seedAiUsageLogId('seed-conversation-1')).toBe(
+      seedAiUsageLogId('seed-conversation-1'),
+    );
+  });
+
+  it('gives different conversations different ids', () => {
+    expect(seedAiUsageLogId('seed-conversation-1')).not.toBe(
+      seedAiUsageLogId('seed-conversation-2'),
+    );
+  });
+
+  it('produces a value the uuid column accepts', () => {
+    expect(seedAiUsageLogId('seed-conversation-1')).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+  });
+});
 
 describe('buildSeedAiUsagePlans', () => {
   const now = new Date('2026-10-03T12:00:00Z');
@@ -21,7 +44,10 @@ describe('buildSeedAiUsagePlans', () => {
   });
 
   it('covers the 7-day window the admin dashboard queries', () => {
-    const cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    // Seven calendar days, inclusive of both ends — the same range the admin
+    // dashboards request. Spreading over daysAgo 0..6 is what keeps every row
+    // inside it.
+    const cutoff = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
     for (const plan of plans) {
       expect(plan.createdAt.getTime()).toBeLessThanOrEqual(now.getTime());
       expect(plan.createdAt.getTime()).toBeGreaterThanOrEqual(cutoff.getTime());
@@ -30,6 +56,23 @@ describe('buildSeedAiUsagePlans', () => {
       plans.map((p) => p.createdAt.toISOString().slice(0, 10)),
     );
     expect(distinctDays.size).toBeGreaterThanOrEqual(5);
+  });
+
+  it('never stamps a row in the future, whatever time of day the seed runs', () => {
+    // setHours() scattered rows across 09:00–16:00 local, so seeding early in
+    // the morning produced timestamps up to seven hours ahead of "now" and the
+    // charts silently dropped them. CI runs in UTC and failed on exactly this.
+    for (const seedInstant of [
+      new Date('2026-10-03T00:15:00Z'),
+      new Date('2026-10-03T09:05:00Z'),
+      new Date('2026-10-03T23:50:00Z'),
+    ]) {
+      for (const plan of buildSeedAiUsagePlans(seedInstant)) {
+        expect(plan.createdAt.getTime()).toBeLessThanOrEqual(
+          seedInstant.getTime(),
+        );
+      }
+    }
   });
 
   it('keeps every row a valid AI usage log', () => {

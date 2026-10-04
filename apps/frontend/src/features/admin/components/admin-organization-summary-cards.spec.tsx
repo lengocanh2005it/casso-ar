@@ -23,25 +23,15 @@ describe('AdminOrganizationSummaryCards', () => {
     vi.clearAllMocks();
   });
 
-  it('shows total org count and locked count from listOrganizations', async () => {
-    vi.mocked(adminApi.listOrganizations).mockResolvedValue({
-      items: [
-        {
-          id: 'org-1',
-          name: 'Acme',
-          status: 'LOCKED',
-          createdAt: '2026-08-01T00:00:00.000Z',
-        },
-        {
-          id: 'org-2',
-          name: 'Beta',
-          status: 'ACTIVE',
-          createdAt: '2026-08-01T00:00:00.000Z',
-        },
-      ],
+  it('shows total org count and locked count from the summary endpoint', async () => {
+    vi.mocked(adminApi.getOrganizationSummary).mockResolvedValue({
       total: 2,
-      page: 1,
-      limit: 100,
+      statusCounts: {
+        ACTIVE: 1,
+        LOCKED: 1,
+        PENDING_REVIEW: 0,
+        REJECTED: 0,
+      },
     });
 
     renderCards();
@@ -58,11 +48,14 @@ describe('AdminOrganizationSummaryCards', () => {
   });
 
   it('lays the cards out as a four-up grid so the row fills the width', async () => {
-    vi.mocked(adminApi.listOrganizations).mockResolvedValue({
-      items: [],
+    vi.mocked(adminApi.getOrganizationSummary).mockResolvedValue({
       total: 0,
-      page: 1,
-      limit: 100,
+      statusCounts: {
+        ACTIVE: 0,
+        LOCKED: 0,
+        PENDING_REVIEW: 0,
+        REJECTED: 0,
+      },
     });
 
     const { container } = renderCards();
@@ -77,24 +70,14 @@ describe('AdminOrganizationSummaryCards', () => {
   });
 
   it('surfaces organizations awaiting review so the row carries its weight', async () => {
-    vi.mocked(adminApi.listOrganizations).mockResolvedValue({
-      items: [
-        {
-          id: 'org-1',
-          name: 'Acme',
-          status: 'PENDING_REVIEW',
-          createdAt: '2026-08-01T00:00:00.000Z',
-        },
-        {
-          id: 'org-2',
-          name: 'Beta',
-          status: 'ACTIVE',
-          createdAt: '2026-08-01T00:00:00.000Z',
-        },
-      ],
+    vi.mocked(adminApi.getOrganizationSummary).mockResolvedValue({
       total: 2,
-      page: 1,
-      limit: 100,
+      statusCounts: {
+        ACTIVE: 1,
+        LOCKED: 0,
+        PENDING_REVIEW: 1,
+        REJECTED: 0,
+      },
     });
 
     renderCards();
@@ -107,8 +90,36 @@ describe('AdminOrganizationSummaryCards', () => {
     ).toHaveTextContent('1');
   });
 
+  it('reads whole-installation counts rather than counting a single page', async () => {
+    vi.mocked(adminApi.getOrganizationSummary).mockResolvedValue({
+      // The list endpoint caps at 100 rows. Filtering that page reported "2
+      // active" for an installation that actually has 200.
+      total: 250,
+      statusCounts: {
+        ACTIVE: 200,
+        LOCKED: 30,
+        PENDING_REVIEW: 15,
+        REJECTED: 5,
+      },
+    });
+
+    renderCards();
+
+    await screen.findByText('Tổng số tổ chức');
+    expect(
+      screen.getByText('Tổ chức đang hoạt động').closest('[data-slot="card"]'),
+    ).toHaveTextContent('200');
+    expect(
+      screen.getByText('Tổ chức đang bị khóa').closest('[data-slot="card"]'),
+    ).toHaveTextContent('30');
+    expect(
+      screen.getByText('Tổ chức chờ duyệt').closest('[data-slot="card"]'),
+    ).toHaveTextContent('15');
+    expect(screen.getByText('250')).toBeInTheDocument();
+  });
+
   it('announces a loading failure with a next step', async () => {
-    vi.mocked(adminApi.listOrganizations).mockRejectedValue(
+    vi.mocked(adminApi.getOrganizationSummary).mockRejectedValue(
       new Error('network'),
     );
 

@@ -13,6 +13,7 @@ import { BlockMemberByOperatorUseCase } from './application/block-member-by-oper
 import { GetAiUsageAggregateUseCase } from './application/get-ai-usage-aggregate.usecase';
 import { GetAiUsageTrendUseCase } from './application/get-ai-usage-trend.usecase';
 import { GetOrganizationUseCase } from './application/get-organization.usecase';
+import { GetOrganizationSummaryUseCase } from './application/get-organization-summary.usecase';
 import { ListOrganizationMembersUseCase } from './application/list-organization-members.usecase';
 import { ListOrganizationsUseCase } from './application/list-organizations.usecase';
 import { LockOrganizationUseCase } from './application/lock-organization.usecase';
@@ -44,6 +45,7 @@ import { AdminController } from './presentation/admin.controller';
       useClass: TypeOrmOperatorAuditLogRepository,
     },
     ListOrganizationsUseCase,
+    GetOrganizationSummaryUseCase,
     LockOrganizationUseCase,
     UnlockOrganizationUseCase,
     ApproveOrganizationUseCase,

@@ -8,11 +8,14 @@ import { AdminDashboardPage } from './admin-dashboard-page';
 vi.mock('../api/admin-api');
 
 function mockOrganizationStatus() {
-  vi.mocked(adminApi.listOrganizations).mockResolvedValue({
-    items: [],
+  vi.mocked(adminApi.getOrganizationSummary).mockResolvedValue({
     total: 3,
-    page: 1,
-    limit: 100,
+    statusCounts: {
+      ACTIVE: 2,
+      LOCKED: 0,
+      PENDING_REVIEW: 1,
+      REJECTED: 0,
+    },
   });
 }
 

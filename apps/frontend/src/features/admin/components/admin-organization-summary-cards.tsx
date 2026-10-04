@@ -1,23 +1,19 @@
 import { Building2, Clock, Lock, ShieldCheck } from 'lucide-react';
 import { MetricCard } from '@/components/metric-card';
-import type { OrganizationListItem } from '../api/admin-api';
 import { useAdminOrganizationStatus } from '../api/use-admin';
 
 const numberFormatter = new Intl.NumberFormat('vi-VN');
 
-type OrganizationStatus = OrganizationListItem['status'];
-
 export function AdminOrganizationSummaryCards() {
   const organizationQuery = useAdminOrganizationStatus();
   const total = organizationQuery.data?.total ?? null;
-  const organizations = organizationQuery.data?.items ?? null;
-  const countByStatus = (status: OrganizationStatus) =>
-    organizations
-      ? organizations.filter((org) => org.status === status).length
-      : null;
-  const locked = countByStatus('LOCKED');
-  const pending = countByStatus('PENDING_REVIEW');
-  const active = countByStatus('ACTIVE');
+  // Server-aggregated, not counted from `items`: the response carries one page
+  // (max 100 rows), so filtering it under-reported every figure once an
+  // installation outgrew that page while `total` kept counting everything.
+  const statusCounts = organizationQuery.data?.statusCounts ?? null;
+  const locked = statusCounts?.LOCKED ?? null;
+  const pending = statusCounts?.PENDING_REVIEW ?? null;
+  const active = statusCounts?.ACTIVE ?? null;
 
   if (organizationQuery.isError) {
     return (
