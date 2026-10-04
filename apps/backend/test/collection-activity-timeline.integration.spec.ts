@@ -11,6 +11,7 @@ import {
 } from '@testcontainers/postgresql';
 import type { Queue } from 'bullmq';
 import request from 'supertest';
+import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
@@ -31,6 +32,7 @@ import { signCassoWebhookPayload } from './helpers/casso-webhook-signature';
 
 describe('Collection Activity Timeline (integration)', () => {
   let container: StartedPostgreSqlContainer;
+  let redis: StartedTestContainer;
   let app: INestApplication;
   let dataSource: DataSource;
   let jwtService: JwtService;
@@ -42,14 +44,19 @@ describe('Collection Activity Timeline (integration)', () => {
   const userId = randomUUID();
 
   beforeAll(async () => {
-    container = await new PostgreSqlContainer('postgres:16').start();
+    // Own Redis: the default .env Redis is shared with any running dev backend,
+    // whose BullMQ worker would steal this test's webhook-processing job.
+    [container, redis] = await Promise.all([
+      new PostgreSqlContainer('postgres:16').start(),
+      new GenericContainer('redis:7-alpine').withExposedPorts(6379).start(),
+    ]);
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
-    process.env.REDIS_HOST = 'localhost';
-    process.env.REDIS_PORT = '6379';
+    process.env.REDIS_HOST = redis.getHost();
+    process.env.REDIS_PORT = String(redis.getMappedPort(6379));
     process.env.JWT_SECRET = 'collection-activity-timeline-e2e-secret';
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -135,7 +142,7 @@ describe('Collection Activity Timeline (integration)', () => {
 
   afterAll(async () => {
     await app.close();
-    await container.stop();
+    await Promise.all([redis.stop(), container.stop()]);
   });
 
   function authHeader(): string {
