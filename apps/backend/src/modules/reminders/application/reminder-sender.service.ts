@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { ReceivableStatus } from '@casso-ar/shared-types';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
@@ -44,8 +44,6 @@ function buildSkippedExecution(
 
 @Injectable()
 export class ReminderSenderService {
-  private readonly logger = new Logger(ReminderSenderService.name);
-
   constructor(
     @Inject('IReminderCandidateReader')
     private readonly candidateReader: IReminderCandidateReader,
@@ -55,6 +53,7 @@ export class ReminderSenderService {
     private readonly executionRepo: IReminderExecutionRepository,
     @Inject(I_EMAIL_SERVICE)
     private readonly emailService: IEmailService,
+    // biome-ignore lint/correctness/noUnusedPrivateClassMembers: injected for consistency with the other reminder application services; this one scopes by job.organizationId instead
     private readonly tenantContext: TenantContextService,
   ) {}
 

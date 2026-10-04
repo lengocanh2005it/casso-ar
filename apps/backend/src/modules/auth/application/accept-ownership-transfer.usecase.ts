@@ -74,11 +74,7 @@ export class AcceptOwnershipTransferUseCase {
           organizationId,
           manager,
         );
-      if (
-        !targetMembership ||
-        !targetMembership.isActive() ||
-        targetMembership.isBlocked()
-      ) {
+      if (!targetMembership?.isActive() || targetMembership.isBlocked()) {
         throw new AppError(
           ErrorCode.CONFLICT,
           'Bạn không còn đủ điều kiện nhận quyền sở hữu.',

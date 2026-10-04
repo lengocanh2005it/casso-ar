@@ -81,11 +81,7 @@ export class RequestOwnershipTransferUseCase {
         targetUserId,
         organizationId,
       );
-    if (
-      !targetMembership ||
-      !targetMembership.isActive() ||
-      targetMembership.isBlocked()
-    ) {
+    if (!targetMembership?.isActive() || targetMembership.isBlocked()) {
       throw new AppError(
         ErrorCode.VALIDATION_ERROR,
         'Người nhận phải là thành viên đang hoạt động của tổ chức.',

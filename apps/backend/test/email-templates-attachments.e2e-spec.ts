@@ -14,7 +14,6 @@ import { AUTH_EMAIL_SENDER } from '../src/modules/auth/application/auth-email-se
 import { EMAIL_PROVIDER_ADAPTER } from '../src/modules/notifications/application/email-provider-adapter.port';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { TAX_CODE_LOOKUP_ADAPTER } from '../src/modules/tax-verification/application/tax-code-lookup.port';
-import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 
 const fakeEmailProvider = {
   send: jest.fn().mockResolvedValue({ providerMessageId: 'fake-msg-id' }),

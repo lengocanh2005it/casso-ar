@@ -52,8 +52,11 @@ describe('getBullMqConfig', () => {
     it('returns increasing delay up to 2000ms', () => {
       const config = createConfig({ REDIS_MAX_RETRIES: '10' });
       const result = getBullMqConfig(config as never);
-      const retryStrategy = (result.connection as { retryStrategy: Function })
-        .retryStrategy;
+      const retryStrategy = (
+        result.connection as {
+          retryStrategy: (times: number) => number | undefined;
+        }
+      ).retryStrategy;
 
       expect(retryStrategy(1)).toBe(200);
       expect(retryStrategy(2)).toBe(400);
@@ -63,8 +66,11 @@ describe('getBullMqConfig', () => {
     it('returns undefined (stops retrying) after exceeding max retries', () => {
       const config = createConfig({ REDIS_MAX_RETRIES: '3' });
       const result = getBullMqConfig(config as never);
-      const retryStrategy = (result.connection as { retryStrategy: Function })
-        .retryStrategy;
+      const retryStrategy = (
+        result.connection as {
+          retryStrategy: (times: number) => number | undefined;
+        }
+      ).retryStrategy;
 
       expect(retryStrategy(4)).toBeUndefined();
     });
@@ -72,8 +78,11 @@ describe('getBullMqConfig', () => {
     it('does not stop retrying when within max retries', () => {
       const config = createConfig({ REDIS_MAX_RETRIES: '5' });
       const result = getBullMqConfig(config as never);
-      const retryStrategy = (result.connection as { retryStrategy: Function })
-        .retryStrategy;
+      const retryStrategy = (
+        result.connection as {
+          retryStrategy: (times: number) => number | undefined;
+        }
+      ).retryStrategy;
 
       expect(retryStrategy(5)).not.toBeUndefined();
       expect(retryStrategy(5)).toBe(1000);

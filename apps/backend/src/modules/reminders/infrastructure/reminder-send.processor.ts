@@ -1,5 +1,5 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { Role } from '../../organizations/domain/membership';
@@ -10,8 +10,6 @@ import { ReminderSenderService } from '../application/reminder-sender.service';
 @Injectable()
 @Processor(REMINDER_SEND_QUEUE)
 export class ReminderSendProcessor extends WorkerHost {
-  private readonly logger = new Logger(ReminderSendProcessor.name);
-
   constructor(
     private readonly senderService: ReminderSenderService,
     private readonly tenantContext: TenantContextService,

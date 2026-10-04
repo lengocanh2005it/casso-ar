@@ -21,7 +21,11 @@ describe('RequestIdStore', () => {
       new Promise<void>((resolve) =>
         store.run('req-a', () => {
           setTimeout(() => {
-            results.push(store.getRequestId()!);
+            const requestId = store.getRequestId();
+            if (requestId === undefined) {
+              throw new Error('expected a requestId inside the run() scope');
+            }
+            results.push(requestId);
             resolve();
           }, 10);
         }),
@@ -29,7 +33,11 @@ describe('RequestIdStore', () => {
       new Promise<void>((resolve) =>
         store.run('req-b', () => {
           setTimeout(() => {
-            results.push(store.getRequestId()!);
+            const requestId = store.getRequestId();
+            if (requestId === undefined) {
+              throw new Error('expected a requestId inside the run() scope');
+            }
+            results.push(requestId);
             resolve();
           }, 5);
         }),

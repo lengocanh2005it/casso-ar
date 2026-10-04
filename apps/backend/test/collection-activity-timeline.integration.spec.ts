@@ -178,7 +178,7 @@ describe('Collection Activity Timeline (integration)', () => {
     }
 
     expect(receivableTimelineRes).toBeDefined();
-    expect(receivableTimelineRes!.body).toMatchObject({
+    expect(receivableTimelineRes?.body).toMatchObject({
       total: 2,
       page: 1,
       limit: 20,
@@ -186,8 +186,8 @@ describe('Collection Activity Timeline (integration)', () => {
     expect(activityTypes).toEqual(
       expect.arrayContaining(['PAYMENT_RECEIVED', 'RECEIVABLE_CLOSED']),
     );
-    expect(receivableTimelineRes!.body.items).toHaveLength(2);
-    for (const activity of receivableTimelineRes!.body.items) {
+    expect(receivableTimelineRes?.body.items).toHaveLength(2);
+    for (const activity of receivableTimelineRes?.body.items ?? []) {
       expect(activity.receivableId).toBe(receivableId);
       expect(activity.customerId).toBe(customerId);
       expect(activity.organizationId).toBeUndefined();
@@ -245,7 +245,7 @@ describe('Collection Activity Timeline (integration)', () => {
     const webhookOrganizationId = randomUUID();
     const webhookBankConnectionId = randomUUID();
     const webhookCustomerId = randomUUID();
-    const webhookBankAccountId = randomUUID();
+    const _webhookBankAccountId = randomUUID();
     const webhookInvoiceId = randomUUID();
     const webhookReceivableId = randomUUID();
     const webhookTransactionId = 3_000_001;

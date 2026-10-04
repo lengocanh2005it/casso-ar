@@ -92,7 +92,6 @@ describe('permission-guard sweep (issue #109)', () => {
       )) {
         const content = readFileSync(join(presentationDir, file), 'utf8');
         if (!content.includes('RequirePermission')) continue;
-        // biome-ignore lint/security/noGlobalEval: test-only dynamic module load of controller classes
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const controllerModule = require(join(presentationDir, file));
         for (const exported of Object.values(controllerModule) as unknown[]) {

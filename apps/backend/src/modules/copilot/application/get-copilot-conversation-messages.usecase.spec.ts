@@ -1,4 +1,3 @@
-import { AppError } from '../../../common/errors/app-error';
 import { GetCopilotConversationMessagesUseCase } from './get-copilot-conversation-messages.usecase';
 
 describe('GetCopilotConversationMessagesUseCase', () => {

@@ -1,7 +1,6 @@
 import express from 'express';
 import request from 'supertest';
 import { buildSwaggerAuthMiddleware } from './setup-swagger';
-import { getSwaggerBasicAuthUsers } from './swagger.config';
 
 function buildConfig(values: Record<string, string>) {
   return {

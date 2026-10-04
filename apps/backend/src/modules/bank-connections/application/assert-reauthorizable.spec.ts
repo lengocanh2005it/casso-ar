@@ -1,4 +1,3 @@
-import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { BankConnection } from '../domain/bank-connection';
 import { assertReauthorizable } from './assert-reauthorizable';

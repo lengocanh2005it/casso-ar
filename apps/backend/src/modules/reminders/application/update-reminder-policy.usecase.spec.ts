@@ -1,15 +1,10 @@
 import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
-import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { CustomerGroup } from '../../customers/domain/customer-group';
 import type { IReminderPolicyRepository } from './reminder-policy-repository.port';
 import type { IReminderRuleRepository } from './reminder-rule-repository.port';
 import { UpdateReminderPolicyUseCase } from './update-reminder-policy.usecase';
-
-const tenantContext = {
-  getOrganizationId: jest.fn().mockReturnValue('org-1'),
-} as unknown as TenantContextService;
 
 describe('UpdateReminderPolicyUseCase', () => {
   it('loads the policy by id and rejects with NOT_FOUND when missing', async () => {

@@ -64,6 +64,7 @@ export class InitiatePlanUpgradeOrderUseCase {
 
     const link = await this.payosAdapter.createPaymentLink({
       orderCode: order.orderCode,
+      // biome-ignore lint/style/noNonNullAssertion: the target plan was validated against the catalog before this point; a miss here is a real invariant break, not an optional amount
       amount: getPlanCatalog().find((p) => p.planId === input.targetPlanId)!
         .priceVnd,
       description: `Nang cap goi ${input.targetPlanId}`,

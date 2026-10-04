@@ -65,6 +65,7 @@ export class InitiatePeriodChargeUseCase {
 
     const link = await this.payosAdapter.createPaymentLink({
       orderCode: charge.orderCode,
+      // biome-ignore lint/style/noNonNullAssertion: the plan was validated against the catalog before this point; a miss here is a real invariant break, not an optional amount
       amount: getPlanCatalog().find((p) => p.planId === subscription.planId)!
         .priceVnd,
       description: `Gia han goi ${subscription.planId}`,

@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { REMINDER_EXECUTION_REPOSITORY } from '../../../common/tokens/reminder-execution.token';
@@ -7,8 +7,6 @@ import type { IReminderExecutionRepository } from '../application/reminder-execu
 
 @Injectable()
 export class ReminderExecutionListener {
-  private readonly logger = new Logger(ReminderExecutionListener.name);
-
   constructor(
     @Inject(REMINDER_EXECUTION_REPOSITORY)
     private readonly executionRepo: IReminderExecutionRepository,

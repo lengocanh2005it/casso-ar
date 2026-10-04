@@ -1,5 +1,5 @@
 import type { Repository } from 'typeorm';
-import { FindOperator, ILike, IsNull } from 'typeorm';
+import { FindOperator, ILike } from 'typeorm';
 import { MembershipInviteOrmEntity } from './membership-invite.orm-entity';
 import { TypeOrmMembershipInviteRepository } from './typeorm-membership-invite.repository';
 

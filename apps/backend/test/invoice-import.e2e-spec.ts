@@ -251,19 +251,17 @@ describe('Invoice import (integration)', () => {
       .attach('file', buffer, { filename: 'test.xlsx' })
       .expect(201);
 
-    const inv = await dataSource.getRepository(InvoiceOrmEntity).findOne({
-      where: { organizationId: orgA, invoiceNumber: invNum },
-    });
-    expect(inv).toBeDefined();
+    const inv = await dataSource
+      .getRepository(InvoiceOrmEntity)
+      .findOneByOrFail({ organizationId: orgA, invoiceNumber: invNum });
     // ponytail: TypeORM returns bigint columns as strings
-    expect(Number(inv!.totalAmount)).toBe(5000000);
-    expect(Number(inv!.taxAmount)).toBe(500000);
+    expect(Number(inv.totalAmount)).toBe(5000000);
+    expect(Number(inv.taxAmount)).toBe(500000);
 
-    const rec = await dataSource.getRepository(ReceivableOrmEntity).findOne({
-      where: { organizationId: orgA, invoiceId: inv!.id },
-    });
-    expect(rec).toBeDefined();
-    expect(Number(rec!.originalAmount)).toBe(5000000);
+    const rec = await dataSource
+      .getRepository(ReceivableOrmEntity)
+      .findOneByOrFail({ organizationId: orgA, invoiceId: inv.id });
+    expect(Number(rec.originalAmount)).toBe(5000000);
   });
 
   it('3. CSV with UTF-8 BOM works', async () => {
@@ -281,10 +279,9 @@ describe('Invoice import (integration)', () => {
 
     expect(res.body.successCount).toBe(1);
 
-    const inv = await dataSource.getRepository(InvoiceOrmEntity).findOne({
-      where: { organizationId: orgA, invoiceNumber: invNum },
-    });
-    expect(inv).toBeDefined();
+    const inv = await dataSource
+      .getRepository(InvoiceOrmEntity)
+      .findOneByOrFail({ organizationId: orgA, invoiceNumber: invNum });
   });
 
   it('4. Existing customer matched by tax code/email and reused', async () => {
@@ -327,11 +324,10 @@ describe('Invoice import (integration)', () => {
       .attach('file', buffer, { filename: 'test.xlsx' })
       .expect(201);
 
-    const inv = await dataSource.getRepository(InvoiceOrmEntity).findOne({
-      where: { organizationId: orgA, invoiceNumber: invNum },
-    });
-    expect(inv).toBeDefined();
-    expect(inv!.customerId).toBe(custId);
+    const inv = await dataSource
+      .getRepository(InvoiceOrmEntity)
+      .findOneByOrFail({ organizationId: orgA, invoiceNumber: invNum });
+    expect(inv.customerId).toBe(custId);
 
     const custCount = await dataSource
       .getRepository(CustomerOrmEntity)
@@ -434,10 +430,13 @@ describe('Invoice import (integration)', () => {
         org: orgA,
         name: 'New Customer Only',
       })
-      .getOne();
-    expect(cust).toBeDefined();
-    expect(cust!.taxCode).toBe('');
-    expect(cust!.email).toBe('');
+      .getOne()
+      .then((row) => {
+        if (!row) throw new Error('expected the imported customer row');
+        return row;
+      });
+    expect(cust.taxCode).toBe('');
+    expect(cust.email).toBe('');
   });
 
   it('7. Duplicate invoice number (existing + same-file) are rejected', async () => {
@@ -722,16 +721,14 @@ describe('Invoice import (integration)', () => {
       .attach('file', buffer, { filename: 'test.xlsx' })
       .expect(201);
 
-    const inv = await dataSource.getRepository(InvoiceOrmEntity).findOne({
-      where: { organizationId: orgA, invoiceNumber: invNum },
-    });
-    expect(inv).toBeDefined();
+    const inv = await dataSource
+      .getRepository(InvoiceOrmEntity)
+      .findOneByOrFail({ organizationId: orgA, invoiceNumber: invNum });
 
-    const rec = await dataSource.getRepository(ReceivableOrmEntity).findOne({
-      where: { organizationId: orgA, invoiceId: inv!.id },
-    });
-    expect(rec).toBeDefined();
-    expect(rec!.salesRepresentativeId).toBe(salesRepA);
+    const rec = await dataSource
+      .getRepository(ReceivableOrmEntity)
+      .findOneByOrFail({ organizationId: orgA, invoiceId: inv.id });
+    expect(rec.salesRepresentativeId).toBe(salesRepA);
   });
 
   it('12. Same Idempotency-Key + same file returns cached result without increasing counts', async () => {
@@ -935,16 +932,15 @@ describe('Invoice import (integration)', () => {
       .attach('file', bufferB, { filename: 'test.xlsx' })
       .expect(201);
 
-    const orgAInv = await dataSource.getRepository(InvoiceOrmEntity).findOne({
-      where: { organizationId: orgA, invoiceNumber: invNum },
-    });
-    expect(Number(orgAInv!.totalAmount)).toBe(1000000);
+    const orgAInv = await dataSource
+      .getRepository(InvoiceOrmEntity)
+      .findOneByOrFail({ organizationId: orgA, invoiceNumber: invNum });
+    expect(Number(orgAInv.totalAmount)).toBe(1000000);
 
-    const orgBInv = await dataSource.getRepository(InvoiceOrmEntity).findOne({
-      where: { organizationId: orgB, invoiceNumber: invNum },
-    });
-    expect(orgBInv).toBeDefined();
-    expect(Number(orgBInv!.totalAmount)).toBe(2000000);
-    expect(orgBInv!.id).not.toBe(orgAInv!.id);
+    const orgBInv = await dataSource
+      .getRepository(InvoiceOrmEntity)
+      .findOneByOrFail({ organizationId: orgB, invoiceNumber: invNum });
+    expect(Number(orgBInv.totalAmount)).toBe(2000000);
+    expect(orgBInv.id).not.toBe(orgAInv.id);
   });
 });

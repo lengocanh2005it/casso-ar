@@ -3,7 +3,7 @@ import { VietQrTaxCodeLookupAdapter } from './vietqr-tax-code-lookup.adapter';
 
 function buildConfig(): ConfigService {
   return {
-    get: jest.fn((key: string, fallback?: string) => fallback),
+    get: jest.fn((_key: string, fallback?: string) => fallback),
   } as unknown as ConfigService;
 }
 
