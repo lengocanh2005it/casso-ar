@@ -279,7 +279,8 @@ describe('Invoice import (integration)', () => {
 
     expect(res.body.successCount).toBe(1);
 
-    const inv = await dataSource
+    // findOneByOrFail is the assertion: the import must have persisted the row
+    await dataSource
       .getRepository(InvoiceOrmEntity)
       .findOneByOrFail({ organizationId: orgA, invoiceNumber: invNum });
   });
