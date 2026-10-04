@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Reduce local backend cold-start time and make `pnpm verify` reliable under this machine's CPU limits.
+**Goal:** Make `pnpm verify` reliable under this machine's CPU limits and retain a backend cold-start change only if a same-host benchmark proves it is faster.
 
-**Architecture:** Keep API/runtime and production build behavior unchanged. Run non-test verification tasks first, then serialize package test tasks. Use the Nest SWC builder only for the backend dev script, with type checking enabled so the Swagger CLI plugin continues to generate metadata.
+**Architecture:** Keep API/runtime and production build behavior unchanged. Run non-test verification tasks first, then serialize package test tasks. Evaluate Nest SWC with type checking, and keep it only if it meets the approved speed and Swagger metadata criteria.
 
 **Tech Stack:** pnpm 11, Turborepo 2, Nest CLI 11, SWC, TypeScript, Jest, Vitest.
 
@@ -64,26 +64,26 @@ Run: `pnpm verify`
 
 Expected: lint, type checks, architecture checks, and all package test suites pass.
 
-### Task 2: Use SWC for backend dev cold starts
+### Task 2: Benchmark and gate SWC for backend dev cold starts
 
 **Files:**
-- Modify: `apps/backend/package.json`
+- Modify temporarily: `apps/backend/package.json`
 
 **Interfaces:**
 - Consumes: installed `@swc/cli`, `@swc/core`, and the existing Nest Swagger CLI plugin.
-- Produces: the backend `dev` script runs `nest start --builder swc --watch --type-check`.
+- Produces: keep the backend SWC `dev` script only if the benchmark and Swagger checks pass; otherwise restore the TypeScript command.
 
-- [ ] **Step 1: Change only the backend dev script**
+- [x] **Step 1: Measure the TypeScript baseline**
 
-Set the script to:
+Before changing the script, run the current TypeScript dev command three times. Use the same worktree, host, local Docker services, database, and port conditions for each run. Measure from command launch until `GET /api/docs-json` returns HTTP 200, and record each duration.
 
-```json
-"dev": "nest start --builder swc --watch --type-check"
-```
+Observed: `38.909s`, `18.892s`, `18.354s`; median `18.892s`, range `20.555s`.
 
-Leave the `build` and `type-check` scripts unchanged.
+- [x] **Step 2: Try SWC in a dev-only configuration**
 
-- [ ] **Step 2: Run the backend type check and build**
+The experiment used Nest SWC with `--type-check`, a dev-only compiler configuration to align compiled files with copied email assets, and generated Swagger metadata loaded before document creation. These temporary changes were reverted after the performance gate failed.
+
+- [x] **Step 3: Run the backend type check and build**
 
 Run from the repository root:
 
@@ -92,27 +92,27 @@ pnpm --filter @casso-ar/backend type-check
 pnpm --filter @casso-ar/backend build
 ```
 
-Expected: both commands exit zero.
+Expected: both commands exit zero. Observed: both passed during the experiment and again after reverting it; production build command remained unchanged.
 
-- [ ] **Step 3: Measure the TypeScript baseline**
+- [x] **Step 4: Measure three SWC starts**
 
-Before changing the script, run the current TypeScript dev command three times. Use the same worktree, host, local Docker services, database, and port conditions for each run. Measure from command launch until `GET /api/docs-json` returns HTTP 200, and record each duration.
+The three successful SWC runs returned HTTP 200 from `/api/docs-json`: `89.479s`, `40.447s`, and `20.261s`; median `40.447s`, range `69.218s`. A diagnostic run excluding generated metadata from the SWC type-check watch took `45.560s` and did not change the decision.
 
-- [ ] **Step 4: Measure three SWC starts**
+- [x] **Step 5: Verify runtime metadata**
 
-After changing the script, repeat the same three runs. In PowerShell, from `apps/backend`, set `$env:PORT='3102'` and run `pnpm dev`; stop the server with Ctrl+C after each measurement. Keep the SWC script only if its median is at least 20% faster than the TypeScript median and the gain exceeds run-to-run variation.
+After loading Nest's generated plugin metadata, `/api/docs-json` contained all 146 baseline schemas. `CreateReceivableDto`, `ReceivableResponseDto`, and `CreateCustomerBankAccountDto` matched the TypeScript document, including required and optional fields; 10 other schemas still differed. Nest startup logs showed successful startup.
 
-- [ ] **Step 5: Verify runtime metadata**
+- [x] **Step 6: Apply the performance gate**
 
-Check that `/api/docs-json` returns HTTP 200 and retains representative request and response DTO schemas, including required and optional fields. Check the Nest log for successful startup with no unresolved dependency or decorator metadata errors.
+The TypeScript median was `18.892s`; the 20%-faster target was `15.114s` or lower. SWC's `40.447s` median was slower, so restore the existing TypeScript `dev` command and do not retain the experiment.
 
 ## Checkpoint: Performance and Correctness
 
 - [x] `pnpm verify` passes.
-- [ ] Backend type check and production build pass.
-- [ ] All three SWC cold starts serve `/api/docs-json` successfully.
-- [ ] Median SWC cold start is at least 20% faster than the median of three TypeScript starts, with a gain beyond run-to-run variation.
-- [ ] No API route or database behavior was changed without a measured hotspot.
+- [x] Backend type check and production build passed during the experiment; the final `dev` and `build` scripts remain unchanged.
+- [x] All three SWC experiment starts served `/api/docs-json`; the SWC experiment was reverted.
+- [ ] SWC cold start met the approved threshold. **Not met:** median `40.447s` vs TypeScript median `18.892s`; keep TypeScript.
+- [x] No API route or database behavior was changed without a measured hotspot.
 
 ## Risks and Mitigations
 
@@ -122,6 +122,7 @@ Check that `/api/docs-json` returns HTTP 200 and retains representative request 
 | Swagger plugin metadata differs under SWC | Broken docs or DTO schemas | Inspect `/api/docs-json` after every measured start |
 | Serial package tests increase verification wall time | Slower feedback | Measure the complete `pnpm verify` duration and retain the change only if it prevents timeouts at acceptable cost |
 | TypeORM synchronization runs during local startup | Local schema may be synchronized | Keep the existing dev configuration and use the same local database only for application startup |
+| SWC metadata generation delays a clean start and changes some schemas | Slower startup or altered docs | Reject SWC unless a future setup passes the same cold-start and schema comparisons |
 
 ## Open Questions
 

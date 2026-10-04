@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-04
 
-**Status:** Approved for implementation
+**Status:** Implemented; SWC rejected by benchmark
 
 ## Goal
 
@@ -31,15 +31,15 @@ The original root `pnpm verify` run timed out the ReportsPage CSV export test wh
 
 ### Development startup
 
-Change only the backend's `dev` script to use Nest's SWC builder in watch mode with type checking enabled:
+The proposed SWC dev command was tested with type checking enabled:
 
 ```sh
 nest start --builder swc --watch --type-check
 ```
 
-This keeps the change limited to the development command. The production `build` script and application runtime configuration remain unchanged. Keep `--type-check` because SWC itself does not type-check TypeScript, and the project's Swagger CLI plugin relies on Nest's compiler-plugin processing. No new dependency is needed; `@swc/cli` and `@swc/core` are already installed.
+The experiment required a dev-only output layout so copied email assets resolved, plus loading Nest's generated Swagger metadata before document creation. Without metadata loading, 29 schemas were missing and DTOs became empty. With metadata loaded, all 146 schemas returned; three representative request/response DTO schemas matched the TypeScript document exactly, though 10 other schemas still differed.
 
-Benchmark three TypeScript starts and three SWC starts using the same worktree, Docker services, database, port conditions, and readiness probe. Compare the medians and run-to-run variation. Keep the change only if SWC is at least 20% faster and Swagger metadata remains correct.
+The TypeScript cold-start measurements were `38.909s`, `18.892s`, and `18.354s` (median `18.892s`). The successful SWC measurements were `89.479s`, `40.447s`, and `20.261s` (median `40.447s`). The SWC median was slower than TypeScript and failed the required 20% improvement threshold (`15.114s` or lower). A diagnostic run that excluded generated metadata from the SWC type-check watch still took `45.560s`; the first clean SWC start also regenerated metadata 39 times. The experiment was reverted; the existing TypeScript `dev` and production `build` commands remain in place. Do not retain SWC unless a future configuration can pass the same startup and metadata checks.
 
 ### API latency
 
@@ -54,7 +54,7 @@ Use the existing `http_request_duration_seconds` histogram to select a route wit
 ## Success Criteria
 
 - Root `pnpm verify` completes without timing out the ReportsPage CSV export test.
-- The median SWC cold start is at least 20% faster than the median of three TypeScript cold starts, with an improvement larger than run-to-run variation.
+- The median SWC cold start is at least 20% faster than the median of three TypeScript cold starts, with an improvement larger than run-to-run variation. **Not met:** SWC median `40.447s` vs TypeScript median `18.892s`; the SWC change was reverted.
 - A TypeScript type error still fails the dev type-check process.
 - `/api/docs-json` returns HTTP 200 and retains the expected DTO schemas and route documentation.
 - Production build behavior is unchanged.
