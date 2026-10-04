@@ -1259,3 +1259,58 @@ export function buildSeedReminderPolicyPlans(): SeedReminderPolicyPlan[] {
     },
   ];
 }
+
+// ── AI usage logs ───────────────────────────────────────────────
+// The admin dashboard and /admin/ai-usage both read `ai_usage_logs` over a
+// rolling 7-day window, so the demo needs rows inside that window or both
+// charts render permanently empty.
+export interface SeedAiUsagePlan {
+  organizationIndex: number;
+  conversationId: string;
+  model: string;
+  promptVersion: string;
+  inputTokens: number;
+  outputTokens: number;
+  latencyMs: number;
+  toolCallsCount: number;
+  isError: boolean;
+  createdAt: Date;
+}
+
+const SEED_AI_MODELS = [
+  'google/gemini-2.0-flash',
+  'google/gemini-2.0-flash-lite',
+  'openai/gpt-4o-mini',
+];
+
+const SEED_AI_PROMPT_VERSIONS = ['v1.2.0', 'v1.3.0', 'v2.0.0'];
+
+export function buildSeedAiUsagePlans(now: Date): SeedAiUsagePlan[] {
+  const plans: SeedAiUsagePlan[] = [];
+  // Two calls per day across 7 days, rotating organization and model so the
+  // "top organizations" bar chart and the daily trend line both have shape.
+  for (let i = 0; i < 14; i++) {
+    const daysAgo = i % 7;
+    const createdAt = new Date(now.getTime());
+    createdAt.setDate(createdAt.getDate() - daysAgo);
+    createdAt.setHours(9 + (i % 8), (i * 17) % 60, 0, 0);
+
+    const inputTokens = 800 + ((i * 431) % 3600);
+    const outputTokens = 200 + ((i * 197) % 1400);
+    plans.push({
+      organizationIndex: i % 4,
+      conversationId: `seed-conversation-${i + 1}`,
+      model: SEED_AI_MODELS[i % SEED_AI_MODELS.length],
+      promptVersion:
+        SEED_AI_PROMPT_VERSIONS[i % SEED_AI_PROMPT_VERSIONS.length],
+      inputTokens,
+      outputTokens,
+      latencyMs: 700 + ((i * 313) % 2600),
+      toolCallsCount: i % 4,
+      // Roughly one in five calls failed, so the "Lỗi" column is non-zero.
+      isError: i % 5 === 4,
+      createdAt,
+    });
+  }
+  return plans;
+}

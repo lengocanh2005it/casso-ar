@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -54,6 +55,7 @@ import {
   useToggleOrganization,
 } from '../api/use-admin';
 import { BreakerSwitch } from '../components/breaker-switch';
+import { ORGANIZATION_STATUS_LABELS } from '../lib/organization-status-labels';
 
 const ORGANIZATION_PAGE_SIZE = 50;
 
@@ -88,6 +90,10 @@ function RejectDialog({ organizationId }: { organizationId: string }) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Từ chối tổ chức</DialogTitle>
+          <DialogDescription>
+            Tổ chức sẽ không được duyệt. Nêu rõ lý do để chủ sở hữu biết cần bổ
+            sung gì.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <Label className="block space-y-2">
@@ -196,7 +202,10 @@ export function AdminOrganizationsPage() {
         tone="info"
       />
 
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-4">
+      <div
+        data-testid="admin-organization-filter"
+        className="flex w-fit flex-wrap items-center gap-3 rounded-xl border bg-card p-3 shadow-sm sm:p-4"
+      >
         <Select value={status} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-56">
             <SelectValue />
@@ -209,6 +218,12 @@ export function AdminOrganizationsPage() {
             ))}
           </SelectContent>
         </Select>
+        {/* The bar used to stretch the full content width around a single
+            224px dropdown, so it read as an abandoned box. Reporting the
+            count next to it also gives the filter row a purpose. */}
+        <p className="text-sm text-muted-foreground tabular-nums">
+          {total.toLocaleString('vi-VN')} tổ chức
+        </p>
       </div>
 
       {items.length === 0 ? (
@@ -218,15 +233,19 @@ export function AdminOrganizationsPage() {
           title="Chưa có tổ chức nào."
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-card">
+        <div
+          data-testid="admin-organization-table"
+          className="animate-fade-up overflow-hidden rounded-xl border bg-card shadow-sm motion-reduce:animate-none"
+        >
           <Table>
-            <TableHeader>
+            <TableHeader className="max-md:hidden">
               <TableRow>
                 <TableHead>Tên tổ chức</TableHead>
                 <TableHead className="font-mono">ID</TableHead>
                 <TableHead>Mã số thuế</TableHead>
                 <TableHead>Ngày tạo</TableHead>
-                <TableHead>Trạng thái</TableHead>
+                <TableHead>Trạng thái tài khoản</TableHead>
+                <TableHead>Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -236,8 +255,8 @@ export function AdminOrganizationsPage() {
                 const isPendingReview = org.status === 'PENDING_REVIEW';
 
                 return (
-                  <TableRow key={org.id}>
-                    <TableCell>
+                  <TableRow key={org.id} className="max-md:grid">
+                    <TableCell className="max-md:col-span-3 max-md:row-start-1">
                       <span
                         className="block max-w-[18rem] truncate"
                         title={org.name}
@@ -250,11 +269,25 @@ export function AdminOrganizationsPage() {
                       >
                         Thành viên
                       </Link>
+                      <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground md:hidden">
+                        {org.taxCode && <span>MST {org.taxCode}</span>}
+                        {/* The tax-code column is hidden below md, so the match
+                            flag has to ride along here or an operator on a
+                            phone cannot tell a verified tax code from a
+                            mismatched one. */}
+                        {org.taxCode && (
+                          <span>
+                            {org.taxCodeMatched ? 'Khớp' : 'Không khớp'}
+                          </span>
+                        )}
+                        <span>ID {org.id.slice(0, 8)}</span>
+                        <span>Tạo {formatDateTime(org.createdAt)}</span>
+                      </p>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="text-muted-foreground max-md:hidden">
                       <TruncatedCopyId id={org.id} />
                     </TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell className="text-sm max-md:hidden">
                       <span>{org.taxCode || '—'}</span>
                       {org.taxCode && (
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -266,15 +299,37 @@ export function AdminOrganizationsPage() {
                             {org.taxCodeMatched ? 'Khớp' : 'Không khớp'}
                           </Badge>
                           {org.taxCodeLookupName && (
-                            <span title={org.taxCodeLookupName}>
+                            <span
+                              className="min-w-0 truncate"
+                              title={org.taxCodeLookupName}
+                            >
                               {org.taxCodeLookupName}
                             </span>
                           )}
                         </div>
                       )}
                     </TableCell>
-                    <TableCell>{formatDateTime(org.createdAt)}</TableCell>
-                    <TableCell>
+                    <TableCell className="max-md:hidden">
+                      {formatDateTime(org.createdAt)}
+                    </TableCell>
+                    <TableCell className="max-md:col-start-1 max-md:row-start-2">
+                      <span className="flex items-center gap-2">
+                        <Badge
+                          variant={
+                            isPendingReview
+                              ? 'secondary'
+                              : org.status === 'LOCKED'
+                                ? 'destructive'
+                                : org.status === 'REJECTED'
+                                  ? 'destructive'
+                                  : 'default'
+                          }
+                        >
+                          {ORGANIZATION_STATUS_LABELS[org.status]}
+                        </Badge>
+                      </span>
+                    </TableCell>
+                    <TableCell className="max-md:col-start-2 max-md:row-start-2 max-md:justify-self-end">
                       {org.status === 'ACTIVE' || org.status === 'LOCKED' ? (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>

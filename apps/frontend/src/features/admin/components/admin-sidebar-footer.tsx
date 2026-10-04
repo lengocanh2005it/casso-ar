@@ -1,5 +1,6 @@
 import { LogOut, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { useAuth } from '@/contexts/auth-context';
 
 export function AdminSidebarFooter({ collapsed }: { collapsed: boolean }) {
@@ -20,6 +21,7 @@ export function AdminSidebarFooter({ collapsed }: { collapsed: boolean }) {
         >
           <ShieldCheck aria-hidden="true" className="size-4" />
         </span>
+        <ThemeToggle className="hidden lg:inline-flex" />
         <button
           type="button"
           onClick={() => void handleLogout()}
@@ -36,7 +38,8 @@ export function AdminSidebarFooter({ collapsed }: { collapsed: boolean }) {
     <div className="space-y-2 border-t border-sidebar-border px-4 py-3">
       <div className="flex items-center gap-3 text-sm text-sidebar-foreground/70">
         <ShieldCheck aria-hidden="true" className="size-4 shrink-0" />
-        Vận hành viên
+        <span className="min-w-0 truncate">Vận hành viên</span>
+        <ThemeToggle className="ml-auto" />
       </div>
       <button
         type="button"

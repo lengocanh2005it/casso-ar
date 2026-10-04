@@ -1,4 +1,5 @@
 import {
+  buildSeedAiUsagePlans,
   buildSeedBankTransactionPlans,
   buildSeedCustomers,
   buildSeedDisputedReceivablePlans,
@@ -7,6 +8,49 @@ import {
   buildSeedReceivablePlans,
   SEED_OPERATOR_EMAIL,
 } from './seed-dataset';
+
+describe('buildSeedAiUsagePlans', () => {
+  const now = new Date('2026-10-03T12:00:00Z');
+  const plans = buildSeedAiUsagePlans(now);
+
+  it('spreads usage across several organizations and models', () => {
+    expect(new Set(plans.map((p) => p.organizationIndex)).size).toBeGreaterThan(
+      1,
+    );
+    expect(new Set(plans.map((p) => p.model)).size).toBeGreaterThan(1);
+  });
+
+  it('covers the 7-day window the admin dashboard queries', () => {
+    const cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    for (const plan of plans) {
+      expect(plan.createdAt.getTime()).toBeLessThanOrEqual(now.getTime());
+      expect(plan.createdAt.getTime()).toBeGreaterThanOrEqual(cutoff.getTime());
+    }
+    const distinctDays = new Set(
+      plans.map((p) => p.createdAt.toISOString().slice(0, 10)),
+    );
+    expect(distinctDays.size).toBeGreaterThanOrEqual(5);
+  });
+
+  it('keeps every row a valid AI usage log', () => {
+    for (const plan of plans) {
+      expect(plan.model.length).toBeGreaterThan(0);
+      expect(plan.conversationId.length).toBeGreaterThan(0);
+      expect(plan.promptVersion.length).toBeGreaterThan(0);
+      expect(plan.inputTokens).not.toBeNull();
+      expect(plan.inputTokens).toBeGreaterThan(0);
+      expect(plan.outputTokens).not.toBeNull();
+      expect(plan.outputTokens).toBeGreaterThan(0);
+      expect(plan.latencyMs).toBeGreaterThan(0);
+      expect(plan.toolCallsCount).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('produces at least one failed request so the error column has data', () => {
+    expect(plans.some((p) => p.isError)).toBe(true);
+    expect(plans.some((p) => !p.isError)).toBe(true);
+  });
+});
 
 describe('buildSeedCustomers', () => {
   it('returns a varied business catalog with unique, realistic contact data', () => {

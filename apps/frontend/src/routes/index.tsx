@@ -1,6 +1,6 @@
 import { Permission } from '@casso-ar/shared-types';
 import { lazy, type ReactNode, Suspense } from 'react';
-import type { RouteObject } from 'react-router-dom';
+import { Navigate, type RouteObject } from 'react-router-dom';
 import { Spinner } from '@/components/ui/spinner';
 import {
   CardsLoadingSkeleton,
@@ -199,6 +199,10 @@ export const adminRoutes: RouteObject[] = [
       </AdminRoute>
     ),
     children: [
+      {
+        index: true,
+        element: <Navigate to="dashboard" replace />,
+      },
       {
         path: 'dashboard',
         element: withPageSuspense(<AdminDashboardPage />),

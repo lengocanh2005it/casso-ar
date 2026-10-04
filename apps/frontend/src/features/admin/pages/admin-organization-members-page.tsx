@@ -1,8 +1,10 @@
 import type { Role } from '@casso-ar/shared-types';
-import { Users } from 'lucide-react';
+import { MailPlus, Users } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { EmptyState } from '@/components/layout/empty-state';
 import { PageHeading } from '@/components/layout/page-heading';
+import { SectionCard } from '@/components/layout/section-card';
 import { InviteResendButton } from '@/components/shared/invite-resend-button';
 import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
 import {
@@ -219,8 +221,8 @@ export function AdminOrganizationMembersPage() {
         }
       />
 
-      <div className="flex flex-wrap items-end gap-2 rounded-xl border bg-card p-4">
-        <div>
+      <div className="flex flex-wrap items-end gap-4 rounded-xl border bg-card p-3 shadow-sm sm:p-4">
+        <div className="space-y-2">
           <Label htmlFor="member-search">Tìm tên hoặc email</Label>
           <Input
             id="member-search"
@@ -232,7 +234,7 @@ export function AdminOrganizationMembersPage() {
             onChange={(event) => handleSearchChange(event.target.value)}
           />
         </div>
-        <div>
+        <div className="space-y-2">
           <Label>Trạng thái thành viên</Label>
           <Select
             value={status}
@@ -254,16 +256,7 @@ export function AdminOrganizationMembersPage() {
         </div>
       </div>
 
-      <section aria-labelledby="members-heading">
-        <h2
-          id="members-heading"
-          className="flex items-center gap-2 text-lg font-semibold tracking-tight"
-        >
-          Thành viên
-          <span className="text-sm font-normal text-muted-foreground">
-            {members?.total ?? 0}
-          </span>
-        </h2>
+      <SectionCard icon={Users} title="Thành viên" className="overflow-hidden">
         {membersQuery.isPending ? (
           <TableSkeleton rows={5} />
         ) : membersQuery.isError ? (
@@ -284,11 +277,16 @@ export function AdminOrganizationMembersPage() {
             </Button>
           </div>
         ) : (members?.items.length ?? 0) === 0 ? (
-          <p className="text-sm text-muted-foreground">Chưa có thành viên.</p>
+          <EmptyState
+            density="compact"
+            icon={Users}
+            title="Chưa có thành viên."
+            description="Thành viên sẽ xuất hiện ở đây sau khi được thêm vào tổ chức."
+          />
         ) : (
-          <div className="overflow-hidden rounded-xl border bg-card">
+          <div>
             <Table>
-              <TableHeader>
+              <TableHeader className="max-md:hidden">
                 <TableRow>
                   <TableHead>Tên</TableHead>
                   <TableHead>Email</TableHead>
@@ -301,16 +299,23 @@ export function AdminOrganizationMembersPage() {
                 {members?.items.map((member) => {
                   const isBlocked = member.status === 'BLOCKED';
                   return (
-                    <TableRow key={member.id}>
-                      <TableCell>
+                    <TableRow key={member.id} className="max-md:grid">
+                      <TableCell className="max-md:col-span-2 max-md:row-start-1">
                         <span
                           className="block max-w-[18rem] truncate"
                           title={member.name}
                         >
                           {member.name}
                         </span>
+                        <span
+                          className="mt-0.5 block max-w-[18rem] truncate text-xs text-muted-foreground md:hidden"
+                          title={member.email}
+                          translate="no"
+                        >
+                          {member.email}
+                        </span>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="max-md:hidden">
                         <span
                           className="block max-w-[18rem] truncate"
                           title={member.email}
@@ -319,13 +324,15 @@ export function AdminOrganizationMembersPage() {
                           {member.email}
                         </span>
                       </TableCell>
-                      <TableCell>{ROLE_LABELS[member.role]}</TableCell>
-                      <TableCell>
+                      <TableCell className="max-md:col-start-1 max-md:row-start-2">
+                        {ROLE_LABELS[member.role]}
+                      </TableCell>
+                      <TableCell className="max-md:col-start-2 max-md:row-start-2 max-md:justify-self-end">
                         <Badge variant={isBlocked ? 'destructive' : 'default'}>
                           {isBlocked ? 'Bị chặn' : 'Hoạt động'}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="max-md:col-span-2 max-md:row-start-3">
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <BreakerSwitch
@@ -374,18 +381,13 @@ export function AdminOrganizationMembersPage() {
             </Table>
           </div>
         )}
-      </section>
+      </SectionCard>
 
-      <section aria-labelledby="invites-heading">
-        <h2
-          id="invites-heading"
-          className="flex items-center gap-2 text-lg font-semibold tracking-tight"
-        >
-          Lời mời đang chờ
-          <span className="text-sm font-normal text-muted-foreground">
-            {pendingInvites?.total ?? 0}
-          </span>
-        </h2>
+      <SectionCard
+        icon={MailPlus}
+        title="Lời mời đang chờ"
+        className="overflow-hidden [animation-delay:40ms]"
+      >
         {membersQuery.isPending ? (
           <TableSkeleton rows={3} />
         ) : membersQuery.isError ? (
@@ -397,13 +399,16 @@ export function AdminOrganizationMembersPage() {
             Không thể tải lời mời đang chờ. Vui lòng thử lại.
           </p>
         ) : (pendingInvites?.items.length ?? 0) === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Chưa có lời mời đang chờ.
-          </p>
+          <EmptyState
+            density="compact"
+            icon={MailPlus}
+            title="Chưa có lời mời đang chờ."
+            description="Lời mời chưa được chấp nhận sẽ xuất hiện ở đây."
+          />
         ) : (
-          <div className="overflow-hidden rounded-xl border bg-card">
+          <div>
             <Table>
-              <TableHeader>
+              <TableHeader className="max-md:hidden">
                 <TableRow>
                   <TableHead>Email</TableHead>
                   <TableHead>Vai trò</TableHead>
@@ -418,8 +423,8 @@ export function AdminOrganizationMembersPage() {
                     new Date(invite.expiresAt).getTime() < Date.now();
                   const isRevoking = revokingInviteId === invite.id;
                   return (
-                    <TableRow key={invite.id}>
-                      <TableCell>
+                    <TableRow key={invite.id} className="max-md:grid">
+                      <TableCell className="max-md:col-span-2 max-md:row-start-1">
                         <span
                           className="block max-w-[18rem] truncate"
                           title={invite.email}
@@ -427,10 +432,17 @@ export function AdminOrganizationMembersPage() {
                         >
                           {invite.email}
                         </span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground md:hidden">
+                          {ROLE_LABELS[invite.role]}
+                        </span>
                       </TableCell>
-                      <TableCell>{ROLE_LABELS[invite.role]}</TableCell>
-                      <TableCell>{formatDateTime(invite.invitedAt)}</TableCell>
-                      <TableCell>
+                      <TableCell className="max-md:hidden">
+                        {ROLE_LABELS[invite.role]}
+                      </TableCell>
+                      <TableCell className="max-md:col-start-1 max-md:row-start-2">
+                        {formatDateTime(invite.invitedAt)}
+                      </TableCell>
+                      <TableCell className="max-md:col-start-2 max-md:row-start-2">
                         <span className="flex items-center gap-2">
                           {formatDateTime(invite.expiresAt)}
                           {isExpired && (
@@ -438,7 +450,7 @@ export function AdminOrganizationMembersPage() {
                           )}
                         </span>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="max-md:col-span-2 max-md:row-start-3">
                         <div className="flex flex-wrap gap-2">
                           <InviteResendButton
                             cooldownKey={buildInvitationCooldownKey(
@@ -503,7 +515,7 @@ export function AdminOrganizationMembersPage() {
             </Table>
           </div>
         )}
-      </section>
+      </SectionCard>
 
       {overallTotal > 0 && (
         <footer className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">

@@ -100,4 +100,16 @@ describe('AdminDashboardPage', () => {
     expect(adminApi.getAiUsage).toHaveBeenCalledTimes(1);
     expect(adminApi.getAiUsageTrend).toHaveBeenCalledTimes(1);
   });
+
+  it('uses the brand header tone so the landing page reads as primary', () => {
+    mockOrganizationStatus();
+    vi.mocked(adminApi.getAiUsage).mockResolvedValue({ items: [] });
+    vi.mocked(adminApi.getAiUsageTrend).mockResolvedValue({ items: [] });
+
+    renderPage();
+
+    // The enterprise app marks its landing page `brand`; the admin overview
+    // is the same idea and should not read as a secondary list screen.
+    expect(screen.getByTestId('header-icon')).toHaveClass('text-primary');
+  });
 });
