@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   formatDate,
   formatDateTime,
+  formatPlanPrice,
+  formatUnavailable,
   formatVND,
   formatVNDCompact,
 } from './format';
@@ -31,5 +33,19 @@ describe('format helpers', () => {
   it('leaves small amounts unabbreviated', () => {
     expect(formatVNDCompact(0)).toBe('0');
     expect(formatVNDCompact(750_000)).toBe('750.000');
+  });
+
+  it('renders a free plan price as a word rather than a zero amount', () => {
+    expect(formatPlanPrice(0)).toBe('Miễn phí');
+  });
+
+  it('renders a paid plan price as its VND amount', () => {
+    expect(formatPlanPrice(299_000)).toBe(formatVND(299_000));
+  });
+
+  it('marks an unavailable figure instead of showing a zero or a blank', () => {
+    expect(formatUnavailable(undefined)).toBe('—');
+    expect(formatUnavailable(5_000)).toBe('5.000');
+    expect(formatUnavailable(0)).toBe('0');
   });
 });

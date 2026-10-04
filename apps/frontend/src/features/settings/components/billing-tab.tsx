@@ -15,12 +15,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
 import { usePlans } from '@/features/plans/hooks/use-plans';
 import { PLAN_FEATURE_COPY, PLAN_LABELS } from '@/features/plans/plans-data';
-import { formatVND } from '@/lib/format';
+import { formatPlanPrice, formatUnavailable } from '@/lib/format';
 import { hasPermission } from '@/lib/rbac';
 import { useInitiatePlanUpgrade } from '../api/use-settings';
 import { PaymentDialog } from './payment-dialog';
-
-const numberFormatter = new Intl.NumberFormat('vi-VN');
 
 // Keep these in ascending tier order; index position controls upgrade eligibility.
 const plans = [
@@ -30,13 +28,39 @@ const plans = [
   { id: PlanId.ENTERPRISE },
 ];
 
+function CatalogAlert({
+  title,
+  description,
+  onRetry,
+}: {
+  title: string;
+  description: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div
+      className="flex flex-col items-start gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between"
+      role="alert"
+    >
+      <div>
+        <h3 className="font-medium">{title}</h3>
+        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      </div>
+      <Button variant="outline" onClick={onRetry}>
+        <RefreshCw aria-hidden="true" />
+        Thử lại
+      </Button>
+    </div>
+  );
+}
+
 export function BillingTab() {
   const { user } = useAuth();
   const currentPlan = user?.subscriptionPlan ?? PlanId.FREE;
   const currentPlanIndex = plans.findIndex((plan) => plan.id === currentPlan);
   const canUpgrade = hasPermission(user?.role, Permission.SUBSCRIPTION_MANAGE);
   const { mutate, isPending } = useInitiatePlanUpgrade();
-  const { data: catalog, isLoading, refetch } = usePlans();
+  const { data: catalog, isLoading, isError, refetch } = usePlans();
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const heading = (
     <SectionHeading
@@ -84,45 +108,40 @@ export function BillingTab() {
     );
   }
 
-  if (!catalog?.length) {
-    return (
-      <div className="space-y-4">
-        {heading}
-        <div
-          className="flex flex-col items-start gap-3 rounded-lg border border-border p-5 sm:flex-row sm:items-center sm:justify-between"
-          role="alert"
-        >
-          <div>
-            <h3 className="font-medium">Không thể tải thông tin gói</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Thử tải lại để xem giá và giới hạn mới nhất.
-            </p>
-          </div>
-          <Button variant="outline" onClick={() => void refetch()}>
-            <RefreshCw aria-hidden="true" />
-            Thử lại
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   const catalogById = new Map(
-    catalog.map((entry) => [entry.planId, entry] as const),
+    (catalog ?? []).map((entry) => [entry.planId, entry] as const),
   );
-  const planCards = plans.flatMap((plan, index) => {
-    const details = catalogById.get(plan.id);
-    return details ? [{ plan, details, index }] : [];
-  });
+  const hasCatalog = Boolean(catalog?.length);
 
   return (
     <div className="space-y-4">
       {heading}
+
+      {!hasCatalog && (
+        <CatalogAlert
+          title="Không thể tải thông tin gói"
+          description={
+            isError
+              ? 'Thử tải lại để xem giá và giới hạn mới nhất.'
+              : 'Chưa có thông tin giá và giới hạn cho các gói.'
+          }
+          onRetry={() => void refetch()}
+        />
+      )}
+
+      {isError && hasCatalog && (
+        <CatalogAlert
+          title="Chưa cập nhật được giá và giới hạn"
+          description="Đang hiển thị thông tin gói đã tải trước đó, có thể chưa còn chính xác."
+          onRetry={() => void refetch()}
+        />
+      )}
+
       <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-4">
-        {planCards.map(({ plan, details, index }) => {
+        {plans.map((plan, index) => {
+          const catalogEntry = catalogById.get(plan.id);
           const isCurrent = plan.id === currentPlan;
-          const price =
-            details.priceVnd === 0 ? 'Miễn phí' : formatVND(details.priceVnd);
+          const price = formatPlanPrice(catalogEntry?.priceVnd);
 
           return (
             <Card
@@ -138,15 +157,19 @@ export function BillingTab() {
                   {PLAN_LABELS[plan.id]}
                   {isCurrent && <Badge>Gói hiện tại</Badge>}
                 </CardTitle>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-semibold tabular-nums tracking-tight">
-                    {price}
-                  </span>
-                  {details.priceVnd > 0 && (
-                    <span className="text-sm text-muted-foreground">
-                      /tháng
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Giá gói</p>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl font-semibold tabular-nums tracking-tight">
+                      {price}
                     </span>
-                  )}
+                    {catalogEntry !== undefined &&
+                      catalogEntry.priceVnd > 0 && (
+                        <span className="text-sm text-muted-foreground">
+                          /tháng
+                        </span>
+                      )}
+                  </div>
                 </div>
               </CardHeader>
 
@@ -159,7 +182,9 @@ export function BillingTab() {
                     />
                     <span>
                       <strong className="font-medium">
-                        {numberFormatter.format(details.receivableMonthlyLimit)}
+                        {formatUnavailable(
+                          catalogEntry?.receivableMonthlyLimit,
+                        )}
                       </strong>{' '}
                       khoản phải thu/tháng
                     </span>
@@ -171,7 +196,7 @@ export function BillingTab() {
                     />
                     <span>
                       <strong className="font-medium">
-                        {numberFormatter.format(details.bankConnectionLimit)}
+                        {formatUnavailable(catalogEntry?.bankConnectionLimit)}
                       </strong>{' '}
                       kết nối ngân hàng
                     </span>
@@ -183,8 +208,8 @@ export function BillingTab() {
                     />
                     <span>
                       <strong className="font-medium">
-                        {numberFormatter.format(
-                          details.copilotChatMonthlyLimit,
+                        {formatUnavailable(
+                          catalogEntry?.copilotChatMonthlyLimit,
                         )}
                       </strong>{' '}
                       lượt hỏi đáp AI/tháng
