@@ -43,6 +43,7 @@ import { BlockMemberByOperatorUseCase } from '../application/block-member-by-ope
 import { GetAiUsageAggregateUseCase } from '../application/get-ai-usage-aggregate.usecase';
 import { GetAiUsageTrendUseCase } from '../application/get-ai-usage-trend.usecase';
 import { GetOrganizationUseCase } from '../application/get-organization.usecase';
+import { GetOrganizationSummaryUseCase } from '../application/get-organization-summary.usecase';
 import { ListOrganizationMembersUseCase } from '../application/list-organization-members.usecase';
 import { ListOrganizationsUseCase } from '../application/list-organizations.usecase';
 import { LockOrganizationUseCase } from '../application/lock-organization.usecase';
@@ -59,6 +60,7 @@ import {
   AdminMembersResponseDto,
   AdminOrganizationItemResponseDto,
   AdminOrganizationStatusResponseDto,
+  AdminOrganizationSummaryResponseDto,
   AdminOrganizationsResponseDto,
   toAdminOrganizationItemResponse,
 } from './dto/admin-response.dto';
@@ -77,6 +79,7 @@ interface AdminRequest extends Request {
 export class AdminController {
   constructor(
     private readonly listOrganizationsUseCase: ListOrganizationsUseCase,
+    private readonly getOrganizationSummaryUseCase: GetOrganizationSummaryUseCase,
     private readonly lockOrganizationUseCase: LockOrganizationUseCase,
     private readonly unlockOrganizationUseCase: UnlockOrganizationUseCase,
     private readonly approveOrganizationUseCase: ApproveOrganizationUseCase,
@@ -108,6 +111,18 @@ export class AdminController {
       limit: query.limit,
       status: query.status,
     });
+  }
+
+  // Declared before `organizations/:id` so the literal path is not swallowed
+  // by the parameter route.
+  @Get('organizations/summary')
+  @ApiOperation({
+    summary: 'Count organizations by status across the whole installation',
+  })
+  @ApiOkResponse({ type: AdminOrganizationSummaryResponseDto })
+  @ApiErrorResponse(ErrorCode.UNAUTHORIZED, ErrorCode.FORBIDDEN)
+  async getOrganizationSummary() {
+    return this.getOrganizationSummaryUseCase.execute();
   }
 
   @Get('organizations/:id')

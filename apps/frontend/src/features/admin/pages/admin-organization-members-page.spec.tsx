@@ -165,6 +165,48 @@ describe('AdminOrganizationMembersPage', () => {
   });
 
   describe('member table', () => {
+    it('separates each filter label from its control', async () => {
+      mockReads();
+
+      renderPage();
+
+      expect(await screen.findByText('Nguyễn Văn A')).toBeInTheDocument();
+
+      // Radix's Label carries no bottom margin, so a bare wrapper would let the
+      // caption sit flush against the input it names.
+      for (const label of [
+        screen.getByText('Tìm tên hoặc email'),
+        screen.getByText('Trạng thái thành viên'),
+      ]) {
+        expect(label.parentElement).toHaveClass('space-y-2');
+      }
+    });
+
+    it('collapses both table headers on small screens so role, status and actions stay reachable', async () => {
+      mockReads();
+
+      renderPage();
+
+      expect(await screen.findByText('Nguyễn Văn A')).toBeInTheDocument();
+
+      // Both the members table (5 columns) and the pending-invites table
+      // (5 columns) overflow a 390px viewport, so their headers drop out and
+      // the remaining cells reflow instead of being clipped away.
+      for (const table of screen.getAllByRole('table')) {
+        const headerRow = within(table).getAllByRole('row')[0];
+        expect(headerRow.parentElement).toHaveClass('max-md:hidden');
+      }
+
+      const memberRow = screen.getByText('Nguyễn Văn A').closest('tr');
+      expect(memberRow).toHaveClass('max-md:grid');
+      // Email, role and status fold into the row rather than scrolling off.
+      expect((memberRow as HTMLElement).textContent).toContain('a@casso.vn');
+      expect((memberRow as HTMLElement).textContent).toContain('Chủ sở hữu');
+      expect(
+        screen.getByRole('switch', { name: /chặn nguyễn văn a/i }),
+      ).toBeInTheDocument();
+    });
+
     it('shows active and blocked badges scoped to each member row', async () => {
       mockReads();
 
@@ -315,9 +357,7 @@ describe('AdminOrganizationMembersPage', () => {
 
       renderPage();
 
-      expect(
-        await screen.findByRole('heading', { name: /lời mời đang chờ/i }),
-      ).toBeInTheDocument();
+      expect(await screen.findByText('Lời mời đang chờ')).toBeInTheDocument();
       expect(screen.getByText('moi@congtyb.vn')).toBeInTheDocument();
       const expiredRow = screen.getByText('het-han@congtyb.vn').closest('tr');
       expect(expiredRow).not.toBeNull();
@@ -765,6 +805,43 @@ describe('AdminOrganizationMembersPage', () => {
         await screen.findByText('Chưa có thành viên.'),
       ).toBeInTheDocument();
       expect(screen.getByText('Chưa có lời mời đang chờ.')).toBeInTheDocument();
+    });
+
+    it('frames both collections in titled cards with illustrated empty states', async () => {
+      mockReads(
+        buildResponse({
+          members: { items: [], total: 0, page: 1, limit: 50 },
+          pendingInvites: { items: [], total: 0, page: 1, limit: 50 },
+        }),
+      );
+
+      renderPage();
+
+      // Bare <h2> + a plain sentence read as an unfinished page. The enterprise
+      // equivalent puts each collection in a titled card and gives an empty
+      // collection an illustrated placeholder instead of a bare line of text.
+      const cardHeadings = await waitFor(() => {
+        const headings = document.querySelectorAll(
+          '[data-slot="card-heading"]',
+        );
+        expect(headings).toHaveLength(2);
+        return headings;
+      });
+      expect([...cardHeadings].map((heading) => heading.textContent)).toEqual([
+        'Thành viên',
+        'Lời mời đang chờ',
+      ]);
+      // Each title keeps its icon on the same line as the label.
+      expect(cardHeadings[0].querySelector('svg')).toBeInTheDocument();
+
+      const emptyStates = await screen.findAllByTestId('empty-state');
+      expect(emptyStates).toHaveLength(2);
+      for (const emptyState of emptyStates) {
+        expect(emptyState).toHaveClass('border-dashed');
+        expect(
+          emptyState.querySelector('[data-testid="empty-state-icon"]'),
+        ).toBeInTheDocument();
+      }
     });
 
     it('announces a failed member load and offers retry', async () => {

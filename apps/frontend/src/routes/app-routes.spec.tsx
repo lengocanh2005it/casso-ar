@@ -11,10 +11,12 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from '@/App';
 import { AuthProvider } from '@/contexts/auth-context';
 import { ThemeProvider } from '@/contexts/theme-context';
+import { authTokenManager } from '@/lib/api-client';
 
-const { getValidAccessToken, apiRequest } = vi.hoisted(() => ({
+const { getValidAccessToken, apiRequest, operatorToken } = vi.hoisted(() => ({
   getValidAccessToken: vi.fn(),
   apiRequest: vi.fn(),
+  operatorToken: { current: '' as string },
 }));
 
 vi.mock('@/lib/api-client', () => ({
@@ -22,11 +24,15 @@ vi.mock('@/lib/api-client', () => ({
   authTokenManager: {
     getValidAccessToken,
     hasKnownSession: () => true,
-    setAccessToken: vi.fn(),
+    setAccessToken: vi.fn((token: string) => {
+      operatorToken.current = token;
+    }),
+    getAccessToken: () => operatorToken.current || null,
     resetLogoutState: vi.fn(),
     markLogoutInitiated: vi.fn(),
     clearStaleRefreshSession: vi.fn(),
   },
+  isOperatorToken: (token: string) => operatorToken.current === token,
   apiRequest,
 }));
 
@@ -58,6 +64,12 @@ function CurrentRoutePath() {
   return <output data-testid="current-route-path">{pathname}</output>;
 }
 
+function buildOperatorToken(payload: Record<string, unknown>): string {
+  const header = btoa(JSON.stringify({ alg: 'none' }));
+  const body = btoa(JSON.stringify(payload));
+  return `${header}.${body}.`;
+}
+
 describe('application routes', () => {
   // Cold-transforming a lazy page's module graph is CPU-bound and can take
   // seconds on a starved worker. Pay it here, against the hook budget, so the
@@ -74,6 +86,7 @@ describe('application routes', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    operatorToken.current = '';
   });
 
   it('redirects an unauthenticated app route to login', async () => {
@@ -126,6 +139,26 @@ describe('application routes', () => {
       expect(
         screen.getByText(/trang đăng nhập dành cho quản trị viên/i),
       ).toBeVisible(),
+    );
+  });
+
+  it('sends the bare admin path to the dashboard instead of an empty shell', async () => {
+    // The admin shell is operator-only, so stand up an operator token first —
+    // otherwise AdminRoute sends the visitor to /admin/login and the assertion
+    // would pass for the wrong reason.
+    authTokenManager.setAccessToken(
+      buildOperatorToken({ isOperator: true, exp: Date.now() / 1000 + 3600 }),
+    );
+
+    renderAppRoutesAt('/admin');
+
+    // "/admin" has no index route. Without an explicit redirect the admin
+    // layout renders with an empty <Outlet/>, so an operator who types or
+    // bookmarks the portal root gets a blank page under a working sidebar.
+    await waitFor(() =>
+      expect(screen.getByTestId('current-route-path')).toHaveTextContent(
+        '/admin/dashboard',
+      ),
     );
   });
 

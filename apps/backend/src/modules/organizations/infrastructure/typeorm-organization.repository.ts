@@ -15,6 +15,13 @@ import { OrganizationOrmEntity } from './organization.orm-entity';
 
 const TAX_CODE_UNIQUE_CONSTRAINT = 'UQ_organizations_tax_code';
 
+const ALL_STATUSES: readonly OrganizationStatus[] = [
+  'ACTIVE',
+  'LOCKED',
+  'PENDING_REVIEW',
+  'REJECTED',
+];
+
 const SELECT_COLUMNS = {
   id: true,
   name: true,
@@ -70,6 +77,28 @@ export class TypeOrmOrganizationRepository implements IOrganizationRepository {
   async findAllIds(): Promise<string[]> {
     const rows = await this.repo.find({ select: { id: true } });
     return rows.map((row) => row.id);
+  }
+
+  async countByStatus(): Promise<Record<OrganizationStatus, number>> {
+    // One grouped query rather than a count per status. Callers use this for
+    // summary tiles, which must reflect the whole installation — deriving them
+    // from one page of rows under-reported past the page limit.
+    const rows = await this.repo
+      .createQueryBuilder('organization')
+      .select('organization.status', 'status')
+      .addSelect('COUNT(*)', 'count')
+      .groupBy('organization.status')
+      .getRawMany<{ status: OrganizationStatus; count: string }>();
+
+    const counts = Object.fromEntries(
+      ALL_STATUSES.map((status) => [status, 0]),
+    ) as Record<OrganizationStatus, number>;
+    for (const row of rows) {
+      if (row.status in counts) {
+        counts[row.status] = Number(row.count);
+      }
+    }
+    return counts;
   }
 
   async findAllPaginated(

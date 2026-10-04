@@ -11,6 +11,7 @@ import {
 import { Spinner } from '@/components/ui/spinner';
 import { useAdminAiUsage, useAdminAiUsageTrend } from '../api/use-admin';
 import { AdminOrganizationSummaryCards } from '../components/admin-organization-summary-cards';
+import { last7DayRange } from '../lib/admin-date-range';
 
 const adminUsageChartsImport = import('../components/admin-usage-charts');
 const AdminUsageCharts = lazy(() =>
@@ -18,15 +19,6 @@ const AdminUsageCharts = lazy(() =>
     default: module.AdminUsageCharts,
   })),
 );
-
-function last7DayRange(): { from: string; to: string } {
-  const to = new Date();
-  const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000);
-  return {
-    from: from.toISOString().slice(0, 10),
-    to: to.toISOString().slice(0, 10),
-  };
-}
 
 function ChartLoadingFallback({
   hasTopOrganizations,
@@ -36,7 +28,7 @@ function ChartLoadingFallback({
   hasTrend: boolean;
 }) {
   return (
-    <>
+    <div className="grid gap-4 xl:grid-cols-2">
       <Card>
         <CardHeader>
           <h2 className="text-balance leading-none font-semibold">
@@ -69,7 +61,7 @@ function ChartLoadingFallback({
           </p>
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 }
 
@@ -93,7 +85,7 @@ export function AdminDashboardPage() {
         title="Tổng quan"
         description="Theo dõi tổ chức và mức sử dụng AI trên toàn hệ thống."
         icon={LayoutDashboard}
-        tone="info"
+        tone="brand"
       />
       <AdminOrganizationSummaryCards />
       {isLoading ? (

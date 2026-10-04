@@ -8,6 +8,7 @@ import {
   getAdminOrganization,
   getAiUsage,
   getAiUsageTrend,
+  getOrganizationSummary,
   listOrganizationMembers,
   listOrganizations,
   lockOrganization,
@@ -36,7 +37,12 @@ export function useAdminOrganizations(
 }
 
 export function useAdminOrganizationStatus() {
-  return useAdminOrganizations(1, 100);
+  // Dedicated aggregate endpoint rather than the paginated list: the tiles
+  // describe the whole installation, and one page caps out at 100 rows.
+  return useQuery({
+    queryKey: [...adminOrganizationsQueryKey, 'summary'],
+    queryFn: getOrganizationSummary,
+  });
 }
 
 export function useAdminAiUsage(

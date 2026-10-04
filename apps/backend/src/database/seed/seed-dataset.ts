@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { CustomerGroup } from '../../modules/customers/domain/customer-group';
 import {
   closing,
@@ -1258,4 +1259,82 @@ export function buildSeedReminderPolicyPlans(): SeedReminderPolicyPlan[] {
       ],
     },
   ];
+}
+
+// ── AI usage logs ───────────────────────────────────────────────
+// The admin dashboard and /admin/ai-usage both read `ai_usage_logs` over a
+// rolling 7-day window, so the demo needs rows inside that window or both
+// charts render permanently empty.
+export interface SeedAiUsagePlan {
+  organizationIndex: number;
+  conversationId: string;
+  model: string;
+  promptVersion: string;
+  inputTokens: number;
+  outputTokens: number;
+  latencyMs: number;
+  toolCallsCount: number;
+  isError: boolean;
+  createdAt: Date;
+}
+
+const SEED_AI_MODELS = [
+  'google/gemini-2.0-flash',
+  'google/gemini-2.0-flash-lite',
+  'openai/gpt-4o-mini',
+];
+
+const SEED_AI_PROMPT_VERSIONS = ['v1.2.0', 'v1.3.0', 'v2.0.0'];
+
+// `ai_usage_logs` has no unique constraint besides its UUID primary key, so
+// that key is the only conflict target an idempotent insert can use. Deriving
+// it from the conversation id makes a reseed collide instead of appending a
+// second copy of every synthetic call.
+export function seedAiUsageLogId(conversationId: string): string {
+  const hex = createHash('sha256')
+    .update(`casso-ar-seed-ai-usage:${conversationId}`)
+    .digest('hex');
+  // Shape the digest as a v4 UUID so it satisfies the column's uuid type.
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    `4${hex.slice(13, 16)}`,
+    `${((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16) + hex.slice(17, 20)}`,
+    hex.slice(20, 32),
+  ].join('-');
+}
+
+export function buildSeedAiUsagePlans(now: Date): SeedAiUsagePlan[] {
+  const plans: SeedAiUsagePlan[] = [];
+  // Two calls per day across 7 days, rotating organization and model so the
+  // "top organizations" bar chart and the daily trend line both have shape.
+  for (let i = 0; i < 14; i++) {
+    const daysAgo = i % 7;
+    const createdAt = new Date(now.getTime());
+    createdAt.setUTCDate(createdAt.getUTCDate() - daysAgo);
+    createdAt.setUTCHours(9 + (i % 8), (i * 17) % 60, 0, 0);
+    // A row dated in the future is invisible to every chart, so an early
+    // morning seed used to leave the dashboard empty and the suite red in CI.
+    if (createdAt.getTime() > now.getTime()) {
+      createdAt.setTime(now.getTime() - (i + 1) * 60_000);
+    }
+
+    const inputTokens = 800 + ((i * 431) % 3600);
+    const outputTokens = 200 + ((i * 197) % 1400);
+    plans.push({
+      organizationIndex: i % 4,
+      conversationId: `seed-conversation-${i + 1}`,
+      model: SEED_AI_MODELS[i % SEED_AI_MODELS.length],
+      promptVersion:
+        SEED_AI_PROMPT_VERSIONS[i % SEED_AI_PROMPT_VERSIONS.length],
+      inputTokens,
+      outputTokens,
+      latencyMs: 700 + ((i * 313) % 2600),
+      toolCallsCount: i % 4,
+      // Roughly one in five calls failed, so the "Lỗi" column is non-zero.
+      isError: i % 5 === 4,
+      createdAt,
+    });
+  }
+  return plans;
 }

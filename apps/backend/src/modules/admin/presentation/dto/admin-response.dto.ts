@@ -61,6 +61,23 @@ export class AdminOrganizationStatusResponseDto {
   status: 'ACTIVE' | 'LOCKED' | 'PENDING_REVIEW' | 'REJECTED';
 }
 
+export class AdminOrganizationSummaryResponseDto {
+  @ApiProperty({ example: 7 })
+  total: number;
+
+  // Whole-installation counts. The list endpoint is paginated, so deriving the
+  // dashboard tiles from one page under-reported past the page limit.
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: { type: 'number' },
+    example: { ACTIVE: 5, LOCKED: 0, PENDING_REVIEW: 2, REJECTED: 0 },
+  })
+  statusCounts: Record<
+    'ACTIVE' | 'LOCKED' | 'PENDING_REVIEW' | 'REJECTED',
+    number
+  >;
+}
+
 export class AdminAiUsageItemResponseDto {
   @ApiProperty()
   organizationId: string;

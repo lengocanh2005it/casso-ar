@@ -63,6 +63,7 @@ import {
 import { BankTransaction } from '../../modules/webhooks/domain/bank-transaction';
 import { WebhookInbox } from '../../modules/webhooks/domain/webhook-inbox';
 import {
+  buildSeedAiUsagePlans,
   buildSeedBankTransactionPlans,
   buildSeedCustomers,
   buildSeedDisputedReceivablePlans,
@@ -73,6 +74,7 @@ import {
   buildSeedReminderPolicyPlans,
   SEED_OPERATOR_EMAIL,
   SEED_OPERATOR_PASSWORD,
+  seedAiUsageLogId,
 } from './seed-dataset';
 import { assertNotProduction } from './seed-guard';
 
@@ -99,6 +101,43 @@ async function seedOperator(userRepo: IUserRepository): Promise<void> {
   );
 }
 
+// The admin dashboard and /admin/ai-usage both read `ai_usage_logs` over a
+// rolling 7-day window, so the demo needs rows inside that window or both
+// charts render permanently empty. Row ids come from seedAiUsageLogId, so a
+// rerun collides on the primary key instead of appending a second copy of
+// every call and inflating every usage chart.
+async function seedAiUsageLogs(
+  dataSource: DataSource,
+  organizationIds: string[],
+): Promise<void> {
+  if (organizationIds.length === 0) return;
+  for (const plan of buildSeedAiUsagePlans(new Date())) {
+    const organizationId =
+      organizationIds[plan.organizationIndex % organizationIds.length];
+    await dataSource.query(
+      `INSERT INTO "ai_usage_logs"
+       ("id", "organizationId", "conversationId", "model", "promptVersion",
+        "inputTokens", "outputTokens", "latencyMs", "toolCallsCount",
+        "isError", "createdAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       ON CONFLICT ("id") DO NOTHING`,
+      [
+        seedAiUsageLogId(plan.conversationId),
+        organizationId,
+        plan.conversationId,
+        plan.model,
+        plan.promptVersion,
+        plan.inputTokens,
+        plan.outputTokens,
+        plan.latencyMs,
+        plan.toolCallsCount,
+        plan.isError,
+        plan.createdAt,
+      ],
+    );
+  }
+}
+
 async function main() {
   assertNotProduction(process.env.NODE_ENV);
 
@@ -107,8 +146,16 @@ async function main() {
     const userRepo = app.get<IUserRepository>(USER_REPOSITORY);
     await seedOperator(userRepo);
 
+    const organizationRepo = app.get<IOrganizationRepository>(
+      ORGANIZATION_REPOSITORY,
+    );
+    const dataSource = app.get(DataSource);
+
     const existing = await userRepo.findByEmail(SEED_OWNER_EMAIL);
     if (existing) {
+      // Reruns skip provisioning, but the AI usage tables are chart-only demo
+      // data with no other dependency, so they still need topping up here.
+      await seedAiUsageLogs(dataSource, await organizationRepo.findAllIds());
       console.log(
         `Already seeded (owner ${SEED_OWNER_EMAIL} exists) — skipping.`,
       );
@@ -129,10 +176,12 @@ async function main() {
 
     // The synthetic tax code is not backed by VietQR, so provisioning lands
     // the org in PENDING_REVIEW — force-approve it so the demo owner can log in.
-    const organizationRepo = app.get<IOrganizationRepository>(
-      ORGANIZATION_REPOSITORY,
-    );
     await organizationRepo.save(organization.approve());
+
+    // Must follow provisioning: on a clean database findAllIds() returns an
+    // empty array until the demo organization exists, so seeding earlier left
+    // both admin charts empty until a second seed run.
+    await seedAiUsageLogs(dataSource, await organizationRepo.findAllIds());
 
     const tenantContext = app.get(TenantContextService);
     const customerRepo = app.get<ICustomerRepository>(CUSTOMER_REPOSITORY);
@@ -142,7 +191,6 @@ async function main() {
     );
     const createReceivable = app.get(CreateReceivableUseCase);
     const allocatePayment = app.get(AllocatePaymentUseCase);
-    const dataSource = app.get(DataSource);
     const invoiceRepo = app.get<IInvoiceRepository>(INVOICE_REPOSITORY);
     const bankTransactionRepo = app.get<IBankTransactionRepository>(
       BANK_TRANSACTION_REPOSITORY,

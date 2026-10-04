@@ -35,6 +35,54 @@ function formatNumber(value: number): string {
   return numberFormatter.format(value);
 }
 
+// The usage endpoint reports one row per (organization × model) because the
+// detail table needs that split. The "busiest organizations" chart answers a
+// different question, so roll the rows up and keep the heaviest callers.
+export const MAX_ORGANIZATION_BARS = 6;
+
+interface OrganizationUsage {
+  organizationId: string;
+  organizationName: string;
+  axisLabel: string;
+  requestCount: number;
+}
+
+// Vietnamese legal names reach 60+ characters, which no axis width can hold
+// without squeezing the bars out of the card. Trim the middle — the tail is
+// the part that tells two similar company names apart — and let the tooltip
+// carry the full name.
+const AXIS_LABEL_MAX = 26;
+
+export function toAxisLabel(organizationName: string): string {
+  if (organizationName.length <= AXIS_LABEL_MAX) return organizationName;
+  const head = Math.ceil((AXIS_LABEL_MAX - 1) / 2);
+  const tail = AXIS_LABEL_MAX - 1 - head;
+  return `${organizationName.slice(0, head)}…${organizationName.slice(-tail)}`;
+}
+
+export function rollUpByOrganization(
+  rows: ReadonlyArray<AiUsageAggregateItem>,
+): OrganizationUsage[] {
+  const totals = new Map<string, OrganizationUsage>();
+  for (const row of rows) {
+    const existing = totals.get(row.organizationId);
+    if (existing) {
+      existing.requestCount += row.requestCount;
+      continue;
+    }
+    totals.set(row.organizationId, {
+      organizationId: row.organizationId,
+      organizationName: row.organizationName,
+      axisLabel: toAxisLabel(row.organizationName),
+      requestCount: row.requestCount,
+    });
+  }
+
+  return [...totals.values()]
+    .sort((a, b) => b.requestCount - a.requestCount)
+    .slice(0, MAX_ORGANIZATION_BARS);
+}
+
 interface AdminUsageChartsProps {
   topOrganizations: AiUsageAggregateItem[];
   trend: AiUsageTrendPoint[];
@@ -44,9 +92,11 @@ export function AdminUsageCharts({
   topOrganizations,
   trend,
 }: AdminUsageChartsProps) {
+  const organizationUsage = rollUpByOrganization(topOrganizations);
+
   return (
-    <>
-      <Card>
+    <div className="grid gap-4 xl:grid-cols-2">
+      <Card className="animate-fade-up motion-reduce:animate-none">
         <CardHeader>
           <h2 className="text-balance leading-none font-semibold">
             Tổ chức dùng AI nhiều nhất (7 ngày)
@@ -56,7 +106,7 @@ export function AdminUsageCharts({
           </CardDescription>
         </CardHeader>
         <CardContent className="h-64">
-          {topOrganizations.length === 0 ? (
+          {organizationUsage.length === 0 ? (
             <div className="flex h-full items-center justify-center">
               <EmptyState
                 density="compact"
@@ -66,36 +116,56 @@ export function AdminUsageCharts({
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={topOrganizations}>
+              {/* Horizontal bars: Vietnamese legal names need the vertical
+                  axis, and as columns they collided until Recharts dropped
+                  most of the ticks. */}
+              <BarChart
+                data={organizationUsage}
+                layout="vertical"
+                margin={{ left: 8, right: 16 }}
+              >
                 <CartesianGrid
                   stroke="var(--border)"
                   strokeDasharray="3 3"
-                  vertical={false}
+                  horizontal={false}
                 />
                 <XAxis
-                  dataKey="organizationName"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={CHART_TICK}
-                />
-                <YAxis
+                  type="number"
                   tickLine={false}
                   axisLine={false}
                   tick={CHART_TICK}
                   tickFormatter={formatNumber}
                 />
+                <YAxis
+                  type="category"
+                  dataKey="axisLabel"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={CHART_TICK}
+                  width={200}
+                />
                 <Tooltip
                   {...CHART_TOOLTIP_STYLE}
-                  formatter={(value) => formatNumber(Number(value))}
+                  formatter={(value) => [
+                    formatNumber(Number(value)),
+                    'Lượt gọi',
+                  ]}
+                  labelFormatter={(_, payload) =>
+                    String(payload?.[0]?.payload?.organizationName ?? '')
+                  }
                 />
-                <Bar dataKey="requestCount" fill="var(--chart-1)" />
+                <Bar
+                  dataKey="requestCount"
+                  name="Lượt gọi"
+                  fill="var(--chart-1)"
+                />
               </BarChart>
             </ResponsiveContainer>
           )}
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="animate-fade-up motion-reduce:animate-none [animation-delay:80ms]">
         <CardHeader>
           <h2 className="text-balance leading-none font-semibold">
             Xu hướng dùng AI theo ngày (7 ngày)
@@ -136,12 +206,16 @@ export function AdminUsageCharts({
                 />
                 <Tooltip
                   {...CHART_TOOLTIP_STYLE}
-                  formatter={(value) => formatNumber(Number(value))}
+                  formatter={(value) => [
+                    formatNumber(Number(value)),
+                    'Lượt gọi',
+                  ]}
                   labelFormatter={(value) => formatTrendDate(String(value))}
                 />
                 <Line
                   type="monotone"
                   dataKey="requestCount"
+                  name="Lượt gọi"
                   stroke="var(--chart-2)"
                   strokeWidth={2}
                   dot={false}
@@ -151,6 +225,6 @@ export function AdminUsageCharts({
           )}
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 }

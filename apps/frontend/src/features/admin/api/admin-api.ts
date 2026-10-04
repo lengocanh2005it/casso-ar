@@ -8,10 +8,15 @@ export type AdminOrganizationStatusFilter =
   | 'PENDING_REVIEW'
   | 'REJECTED';
 
+export type AdminOrganizationStatus = Exclude<
+  AdminOrganizationStatusFilter,
+  'ALL'
+>;
+
 export interface OrganizationListItem {
   id: string;
   name: string;
-  status: 'ACTIVE' | 'LOCKED' | 'PENDING_REVIEW' | 'REJECTED';
+  status: AdminOrganizationStatus;
   taxCode?: string;
   taxCodeMatched?: boolean;
   taxCodeLookupName?: string | null;
@@ -94,6 +99,16 @@ export function listOrganizations(
     url: '/api/v1/admin/organizations',
     method: 'GET',
     params: { page, limit, status },
+  });
+}
+
+export function getOrganizationSummary(): Promise<{
+  total: number;
+  statusCounts: Record<AdminOrganizationStatus, number>;
+}> {
+  return apiRequest({
+    url: '/api/v1/admin/organizations/summary',
+    method: 'GET',
   });
 }
 
