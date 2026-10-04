@@ -9,6 +9,7 @@ import {
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
 import request from 'supertest';
+import type { StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
@@ -19,6 +20,7 @@ import type { IPayosPaymentAdapter } from '../src/modules/payos/application/payo
 import { PAYOS_PAYMENT_ADAPTER } from '../src/modules/payos/application/payos-payment-adapter.port';
 import { PlanUpgradeOrderOrmEntity } from '../src/modules/payos/infrastructure/plan-upgrade-order.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
+import { startTestRedis } from './helpers/test-redis';
 
 const CHECKSUM_KEY = 'e2e-payos-checksum-key';
 
@@ -39,19 +41,19 @@ const fakeAdapter: IPayosPaymentAdapter = {
 
 describe('PayOS plan upgrade (integration)', () => {
   let container: StartedPostgreSqlContainer;
+  let redis: StartedTestContainer;
   let app: INestApplication;
   let dataSource: DataSource;
   let jwtService: JwtService;
 
   beforeAll(async () => {
+    redis = await startTestRedis();
     container = await new PostgreSqlContainer('postgres:16').start();
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
-    process.env.REDIS_HOST = 'localhost';
-    process.env.REDIS_PORT = '6379';
     process.env.JWT_SECRET = 'e2e-jwt-secret';
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -92,7 +94,7 @@ describe('PayOS plan upgrade (integration)', () => {
 
   afterAll(async () => {
     await app.close();
-    await container.stop();
+    await Promise.all([redis.stop(), container.stop()]);
   }, 60_000);
 
   async function setUpOrg(organizationId: string, role: Role) {

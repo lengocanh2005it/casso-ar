@@ -9,6 +9,7 @@ import {
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
 import request from 'supertest';
+import type { StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
@@ -19,9 +20,11 @@ import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
 import { OrganizationOrmEntity } from '../src/modules/organizations/infrastructure/organization.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
+import { startTestRedis } from './helpers/test-redis';
 
 describe('Bank connections audit events (e2e)', () => {
   let container: StartedPostgreSqlContainer;
+  let redis: StartedTestContainer;
   let app: INestApplication;
   let dataSource: DataSource;
   let jwtService: JwtService;
@@ -59,10 +62,9 @@ describe('Bank connections audit events (e2e)', () => {
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
     process.env.JWT_SECRET = 'e2e-jwt-secret';
-    process.env.REDIS_HOST = 'localhost';
-    process.env.REDIS_PORT = '6379';
     process.env.RESEND_API_KEY = 'e2e-resend-key';
 
+    redis = await startTestRedis();
     container = await new PostgreSqlContainer('postgres:16').start();
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
@@ -98,7 +100,7 @@ describe('Bank connections audit events (e2e)', () => {
 
   afterAll(async () => {
     await app.close();
-    await container.stop();
+    await Promise.all([redis.stop(), container.stop()]);
   });
 
   it('lets FINANCE_MANAGER manage connections and records their audit history', async () => {

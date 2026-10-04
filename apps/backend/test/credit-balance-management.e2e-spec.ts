@@ -9,6 +9,7 @@ import {
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
 import request from 'supertest';
+import type { StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
@@ -19,9 +20,11 @@ import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 import { BankTransactionOrmEntity } from '../src/modules/webhooks/infrastructure/bank-transaction.orm-entity';
+import { startTestRedis } from './helpers/test-redis';
 
 describe('Customer credit balance (e2e)', () => {
   let container: StartedPostgreSqlContainer;
+  let redis: StartedTestContainer;
   let app: INestApplication;
   let dataSource: DataSource;
   let jwtService: JwtService;
@@ -33,14 +36,13 @@ describe('Customer credit balance (e2e)', () => {
   const otherOrgOwnerId = '00000000-4000-8000-0000-0000000000b2';
 
   beforeAll(async () => {
+    redis = await startTestRedis();
     container = await new PostgreSqlContainer('postgres:16').start();
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
-    process.env.REDIS_HOST = 'localhost';
-    process.env.REDIS_PORT = '6379';
     process.env.JWT_SECRET = 'credit-balance-e2e-secret';
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -130,7 +132,7 @@ describe('Customer credit balance (e2e)', () => {
 
   afterAll(async () => {
     await app.close();
-    await container.stop();
+    await Promise.all([redis.stop(), container.stop()]);
   });
 
   function token(userId: string, organizationId: string): string {

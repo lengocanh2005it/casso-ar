@@ -12,6 +12,7 @@ import {
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
 import request from 'supertest';
+import type { StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { JwtAuthGuard } from '../src/common/auth/jwt-auth.guard';
@@ -19,6 +20,7 @@ import { configureApp } from '../src/configure-app';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
+import { startTestRedis } from './helpers/test-redis';
 
 @Controller('_test-protected')
 class TestProtectedController {
@@ -31,6 +33,7 @@ class TestProtectedController {
 
 describe('JwtAuthGuard (e2e)', () => {
   let container: StartedPostgreSqlContainer;
+  let redis: StartedTestContainer;
   let app: INestApplication;
   let jwtService: JwtService;
 
@@ -38,14 +41,13 @@ describe('JwtAuthGuard (e2e)', () => {
   const userId = '00000000-0000-0000-0000-0000000000f2';
 
   beforeAll(async () => {
+    redis = await startTestRedis();
     container = await new PostgreSqlContainer('postgres:16').start();
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
-    process.env.REDIS_HOST = 'localhost';
-    process.env.REDIS_PORT = '6379';
     process.env.JWT_SECRET = 'e2e-jwt-secret';
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -101,7 +103,7 @@ describe('JwtAuthGuard (e2e)', () => {
 
   afterAll(async () => {
     await app.close();
-    await container.stop();
+    await Promise.all([redis.stop(), container.stop()]);
   });
 
   it('rejects requests with no Authorization header', () => {

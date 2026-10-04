@@ -9,6 +9,7 @@ import {
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
 import request from 'supertest';
+import type { StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { AuditLogOrmEntity } from '../src/common/audit/audit-log.orm-entity';
@@ -19,9 +20,11 @@ import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 import { BankTransactionOrmEntity } from '../src/modules/webhooks/infrastructure/bank-transaction.orm-entity';
+import { startTestRedis } from './helpers/test-redis';
 
 describe('Batch Operations (e2e)', () => {
   let container: StartedPostgreSqlContainer;
+  let redis: StartedTestContainer;
   let app: INestApplication;
   let dataSource: DataSource;
   let token: string;
@@ -29,6 +32,7 @@ describe('Batch Operations (e2e)', () => {
   const userId = '00000000-0000-4000-8000-000000000202';
 
   beforeAll(async () => {
+    redis = await startTestRedis();
     container = await new PostgreSqlContainer('postgres:16').start();
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
@@ -36,8 +40,6 @@ describe('Batch Operations (e2e)', () => {
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
     process.env.JWT_SECRET = 'batch-operations-e2e-secret';
-    process.env.REDIS_HOST = 'localhost';
-    process.env.REDIS_PORT = '6379';
     process.env.RESEND_API_KEY = 'batch-operations-e2e-resend-key';
 
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
@@ -85,7 +87,7 @@ describe('Batch Operations (e2e)', () => {
 
   afterAll(async () => {
     await app.close();
-    await container.stop();
+    await Promise.all([redis.stop(), container.stop()]);
   });
 
   async function createReviewTransaction(amount: number): Promise<string> {

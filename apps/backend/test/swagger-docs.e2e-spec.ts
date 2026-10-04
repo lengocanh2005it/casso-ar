@@ -8,6 +8,7 @@ import {
 } from '@testcontainers/postgresql';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
+import type { StartedTestContainer } from 'testcontainers';
 import { AppModule } from '../src/app.module';
 import {
   SWAGGER_PATH,
@@ -15,22 +16,23 @@ import {
 } from '../src/common/swagger/setup-swagger';
 import { configureApp } from '../src/configure-app';
 import { WEBHOOK_JOB_QUEUE } from '../src/modules/webhooks/application/webhook-job-queue.port';
+import { startTestRedis } from './helpers/test-redis';
 
 jest.setTimeout(60_000);
 
 describe('Swagger / OpenAPI docs (integration)', () => {
   let container: StartedPostgreSqlContainer;
+  let redis: StartedTestContainer;
   let app: INestApplication;
 
   beforeAll(async () => {
+    redis = await startTestRedis();
     container = await new PostgreSqlContainer('postgres:16').start();
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
-    process.env.REDIS_HOST = 'localhost';
-    process.env.REDIS_PORT = '6379';
     process.env.JWT_SECRET = 'swagger-e2e-jwt-secret';
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -67,7 +69,7 @@ describe('Swagger / OpenAPI docs (integration)', () => {
 
   afterAll(async () => {
     await app.close();
-    await container.stop();
+    await Promise.all([redis.stop(), container.stop()]);
   });
 
   it('serves the Swagger UI at /api/docs', async () => {

@@ -10,6 +10,7 @@ import {
 } from '@testcontainers/postgresql';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import request from 'supertest';
+import type { StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { ErrorCode } from '../src/common/errors/error-code';
@@ -26,6 +27,7 @@ import { ReminderExecutionStatus } from '../src/modules/reminders/domain/reminde
 import { ReminderExecutionOrmEntity } from '../src/modules/reminders/infrastructure/reminder-execution.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 import { BankTransactionOrmEntity } from '../src/modules/webhooks/infrastructure/bank-transaction.orm-entity';
+import { startTestRedis } from './helpers/test-redis';
 
 const REPORTING_TIMEZONE = 'Asia/Ho_Chi_Minh';
 const organizationId = '00000000-0000-4000-8000-000000000151';
@@ -76,6 +78,7 @@ function localDateTime(monthKey: string, day: number, hour = 10): Date {
 
 describe('Aging dashboard reporting (integration)', () => {
   let container: StartedPostgreSqlContainer | undefined;
+  let redis: StartedTestContainer | undefined;
   let app: INestApplication | undefined;
   let dataSource: DataSource;
   let jwtService: JwtService;
@@ -85,14 +88,13 @@ describe('Aging dashboard reporting (integration)', () => {
   let salesRepAToken: string;
 
   beforeAll(async () => {
+    redis = await startTestRedis();
     container = await new PostgreSqlContainer('postgres:16').start();
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
-    process.env.REDIS_HOST = 'localhost';
-    process.env.REDIS_PORT = '6379';
     process.env.JWT_SECRET = 'e2e-jwt-secret';
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -507,7 +509,7 @@ describe('Aging dashboard reporting (integration)', () => {
 
   afterAll(async () => {
     await app?.close();
-    await container?.stop();
+    await Promise.all([redis?.stop(), container?.stop()]);
   });
 
   it('rejects unauthenticated aging report requests', async () => {

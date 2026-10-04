@@ -9,6 +9,7 @@ import {
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
 import request from 'supertest';
+import type { StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
@@ -17,9 +18,11 @@ import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
+import { startTestRedis } from './helpers/test-redis';
 
 describe('Dispute lifecycle (integration)', () => {
   let container: StartedPostgreSqlContainer;
+  let redis: StartedTestContainer;
   let app: INestApplication;
   let dataSource: DataSource;
   let jwtService: JwtService;
@@ -29,6 +32,7 @@ describe('Dispute lifecycle (integration)', () => {
   const receivableId = randomUUID();
 
   beforeAll(async () => {
+    redis = await startTestRedis();
     container = await new PostgreSqlContainer('postgres:16').start();
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
@@ -36,8 +40,6 @@ describe('Dispute lifecycle (integration)', () => {
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
     process.env.JWT_SECRET = 'dispute-lifecycle-e2e-secret';
-    process.env.REDIS_HOST = 'localhost';
-    process.env.REDIS_PORT = '6379';
     process.env.RESEND_API_KEY = 'dispute-lifecycle-e2e-resend-key';
 
     const moduleRef = await Test.createTestingModule({
@@ -111,7 +113,7 @@ describe('Dispute lifecycle (integration)', () => {
 
   afterAll(async () => {
     if (app) await app.close();
-    if (container) await container.stop();
+    await Promise.all([redis?.stop(), container?.stop()]);
   });
 
   it('opens, exposes computed dispute state, rejects duplicates, and resolves', async () => {

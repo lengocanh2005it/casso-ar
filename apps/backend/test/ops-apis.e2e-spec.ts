@@ -10,6 +10,7 @@ import {
 } from '@testcontainers/postgresql';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
+import type { StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import {
@@ -23,9 +24,11 @@ import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 import { WEBHOOK_JOB_QUEUE } from '../src/modules/webhooks/application/webhook-job-queue.port';
 import { WebhookInboxOrmEntity } from '../src/modules/webhooks/infrastructure/webhook-inbox.orm-entity';
+import { startTestRedis } from './helpers/test-redis';
 
 describe('Audit logs + webhook inbox admin APIs (integration)', () => {
   let container: StartedPostgreSqlContainer;
+  let redis: StartedTestContainer;
   let app: INestApplication;
   let dataSource: DataSource;
   let jwtService: JwtService;
@@ -67,14 +70,13 @@ describe('Audit logs + webhook inbox admin APIs (integration)', () => {
   }
 
   beforeAll(async () => {
+    redis = await startTestRedis();
     container = await new PostgreSqlContainer('postgres:16').start();
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
     process.env.DB_USERNAME = container.getUsername();
     process.env.DB_PASSWORD = container.getPassword();
     process.env.DB_DATABASE = container.getDatabase();
-    process.env.REDIS_HOST = 'localhost';
-    process.env.REDIS_PORT = '6379';
     process.env.JWT_SECRET = 'ops-apis-e2e-jwt-secret';
     process.env.ACCESS_TOKEN_ENCRYPTION_KEY =
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -254,7 +256,7 @@ describe('Audit logs + webhook inbox admin APIs (integration)', () => {
 
   afterAll(async () => {
     await app.close();
-    await container.stop();
+    await Promise.all([redis.stop(), container.stop()]);
   });
 
   it('GET /audit-logs returns only the caller organization logs', async () => {
