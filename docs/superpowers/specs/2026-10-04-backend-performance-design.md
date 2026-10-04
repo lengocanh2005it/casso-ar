@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-04
 
-**Status:** Draft for review
+**Status:** Approved for implementation
 
 ## Goal
 
@@ -25,6 +25,10 @@ These are small local samples, not a production latency guarantee. `GET /api/v1/
 
 ## Proposed Design
 
+### Verification runner reliability
+
+The original root `pnpm verify` run timed out the ReportsPage CSV export test while running lint, type checks, architecture checks, and package tests together. The focused test, the full frontend suite on its own, and workspace tests with Turbo concurrency set to one all passed. Treat this as test-runner resource contention. Run lint/type-check/architecture checks in one phase, then run package tests with Turbo concurrency set to one. Keep the existing Vitest timeout rather than increasing it to mask worker starvation.
+
 ### Development startup
 
 Change only the backend's `dev` script to use Nest's SWC builder in watch mode with type checking enabled:
@@ -35,7 +39,7 @@ nest start --builder swc --watch --type-check
 
 This keeps the change limited to the development command. The production `build` script and application runtime configuration remain unchanged. Keep `--type-check` because SWC itself does not type-check TypeScript, and the project's Swagger CLI plugin relies on Nest's compiler-plugin processing. No new dependency is needed; `@swc/cli` and `@swc/core` are already installed.
 
-Benchmark three cold starts using the same worktree, Docker services, database, and port conditions. Compare median time from command start to an HTTP 200 from `/api/docs-json` against the observed 22-second TypeScript baseline. Keep the change only if the improvement is clearly beyond run-to-run variation and Swagger metadata remains correct.
+Benchmark three TypeScript starts and three SWC starts using the same worktree, Docker services, database, port conditions, and readiness probe. Compare the medians and run-to-run variation. Keep the change only if SWC is at least 20% faster and Swagger metadata remains correct.
 
 ### API latency
 
@@ -49,7 +53,8 @@ Use the existing `http_request_duration_seconds` histogram to select a route wit
 
 ## Success Criteria
 
-- The median of three cold starts is materially faster than the 22-second baseline.
+- Root `pnpm verify` completes without timing out the ReportsPage CSV export test.
+- The median SWC cold start is at least 20% faster than the median of three TypeScript cold starts, with an improvement larger than run-to-run variation.
 - A TypeScript type error still fails the dev type-check process.
 - `/api/docs-json` returns HTTP 200 and retains the expected DTO schemas and route documentation.
 - Production build behavior is unchanged.
