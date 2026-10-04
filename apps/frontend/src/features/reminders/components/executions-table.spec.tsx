@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { hoverTooltip } from '@/test/tooltip';
 import type { ReminderExecution } from '../types';
 import { ExecutionsTable } from './executions-table';
 
@@ -47,7 +48,7 @@ describe('ExecutionsTable', () => {
     expect(screen.queryByText('FUTURE_STATUS')).not.toBeInTheDocument();
   });
 
-  it('clips a long customer name so the row stays one line tall', () => {
+  it('clips a long customer name so the row stays one line tall', async () => {
     const longName = `Công ty TNHH Công nghệ ${'X'.repeat(200)}`;
     const execution: ReminderExecution = {
       id: 'execution-long',
@@ -63,7 +64,10 @@ describe('ExecutionsTable', () => {
 
     render(<ExecutionsTable executions={[execution]} />);
 
-    const label = screen.getByTitle(`PERF-2026-009999 — ${longName}`);
+    const label = screen.getByText(`PERF-2026-009999 — ${longName}`);
     expect(label).toHaveClass('block', 'truncate');
+    await expect(hoverTooltip(label)).resolves.toBe(
+      `PERF-2026-009999 — ${longName}`,
+    );
   });
 });

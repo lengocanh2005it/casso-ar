@@ -5,7 +5,10 @@ import { PageHeading } from '@/components/layout/page-heading';
 import { SectionCard } from '@/components/layout/section-card';
 import { CardPagination } from '@/components/shared/card-pagination';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
-import { TruncatedName } from '@/components/shared/truncated-text';
+import {
+  TruncatedName,
+  TruncatedText,
+} from '@/components/shared/truncated-text';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -137,6 +140,14 @@ export function ExceptionsPage() {
             )}
           >
             <Table>
+              {/* Seven columns cannot fit between 768px and ~1280px. Fixed
+                  widths clipped the names to a few characters and table-auto
+                  pushed the amount and "Xử lý" off-screen, so this queue
+                  drops the two advisory columns on narrow desktops: the
+                  score and the transfer content are both repeated inside the
+                  "Xử lý" dialog, while the payer, amount and action are what
+                  a reviewer scans. Below md the rows become cards and show
+                  everything again. */}
               <TableHeader className="max-md:hidden">
                 <TableRow>
                   <TableHead className="w-10">
@@ -146,12 +157,24 @@ export function ExceptionsPage() {
                       onCheckedChange={bulkSelection.toggleAll}
                     />
                   </TableHead>
-                  <TableHead>Ngày giờ</TableHead>
-                  <TableHead>Người chuyển khoản</TableHead>
-                  <TableHead>Nội dung chuyển khoản</TableHead>
-                  <TableHead className="text-right">Số tiền</TableHead>
-                  <TableHead>Điểm cao nhất</TableHead>
-                  <TableHead>
+                  <TableHead className="w-[6.75rem] whitespace-nowrap max-lg:w-auto">
+                    Ngày giờ
+                  </TableHead>
+                  <TableHead className="min-w-0">Người chuyển khoản</TableHead>
+                  <TableHead className="min-w-0 md:max-lg:hidden">
+                    Nội dung chuyển khoản
+                  </TableHead>
+                  <TableHead className="w-[6.75rem] text-right whitespace-nowrap max-lg:w-auto">
+                    Số tiền
+                  </TableHead>
+                  {/* Score and action are a badge and a word: they must not
+                      eat the columns a user actually reads. Both return at
+                      lg, and both stay visible below md where the row is a
+                      card that has room for them. */}
+                  <TableHead className="w-[6rem] whitespace-nowrap md:max-lg:hidden">
+                    Điểm cao nhất
+                  </TableHead>
+                  <TableHead className="w-[5rem]">
                     <span className="sr-only">Thao tác</span>
                   </TableHead>
                 </TableRow>
@@ -179,12 +202,20 @@ export function ExceptionsPage() {
                     <TableCell className="whitespace-nowrap tabular-nums max-md:col-start-2 max-md:row-start-3 max-md:p-0 max-md:text-xs max-md:text-muted-foreground max-md:whitespace-normal">
                       {formatDateTime(row.transaction.transactionDateTime)}
                     </TableCell>
-                    <TableCell className="max-w-64 max-md:col-start-2 max-md:row-start-1 max-md:max-w-none max-md:p-0">
+                    <TableCell className="min-w-0 max-md:col-start-2 max-md:row-start-1 max-md:p-0">
                       <div className="flex min-w-0 items-start gap-2">
                         <InitialsAvatar
                           name={row.transaction.counterpartyName ?? '—'}
                           size="sm"
-                          className="max-md:hidden"
+                          /* Between md and lg the avatar pushed the name down to
+                             ~71px ("Công ty ...") and overlapped the date
+                             column. The name and masked account already
+                             identify the payer, and below md the row is a
+                             card where the avatar was hidden anyway.
+                             `hidden lg:block` (not `max-lg:hidden`) because
+                             the avatar ships its own `flex`, which
+                             tailwind-merge ranks above a plain `hidden`. */
+                          className="hidden lg:block"
                         />
                         <div className="min-w-0 space-y-1">
                           <p className="min-w-0 font-medium">
@@ -213,14 +244,14 @@ export function ExceptionsPage() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-64 break-words max-md:col-span-2 max-md:col-start-2 max-md:row-start-2 max-md:max-w-none max-md:p-0 max-md:text-sm">
+                    <TableCell className="min-w-0 md:max-lg:hidden max-md:col-span-2 max-md:row-start-2 max-md:col-start-2 max-md:p-0 max-md:text-sm">
                       {row.transaction.transferContent?.trim() ? (
-                        <span
+                        <TruncatedText
                           className="line-clamp-2"
-                          title={row.transaction.transferContent}
+                          value={row.transaction.transferContent}
                         >
                           {row.transaction.transferContent}
-                        </span>
+                        </TruncatedText>
                       ) : (
                         <span className="italic text-muted-foreground">
                           Không có nội dung
@@ -230,7 +261,7 @@ export function ExceptionsPage() {
                     <TableCell className="text-right font-semibold whitespace-nowrap tabular-nums max-md:col-start-3 max-md:row-start-1 max-md:self-start max-md:p-0">
                       {formatVND(row.transaction.amount)}
                     </TableCell>
-                    <TableCell className="max-md:col-start-2 max-md:row-start-3 max-md:justify-self-end max-md:p-0">
+                    <TableCell className="md:max-lg:hidden max-md:col-start-2 max-md:row-start-3 max-md:justify-self-end max-md:p-0">
                       <div className="flex flex-col items-start gap-1 max-md:flex-row max-md:items-center">
                         {row.topCandidate ? (
                           <Badge variant="outline">

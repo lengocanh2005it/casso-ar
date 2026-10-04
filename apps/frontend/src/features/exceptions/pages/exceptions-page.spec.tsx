@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
+import { hoverTooltip } from '@/test/tooltip';
 import { ExceptionsPage } from './exceptions-page';
 
 const apiRequest = vi.fn();
@@ -313,7 +314,7 @@ describe('ExceptionsPage', () => {
     expect(screen.getByText('Không có nội dung')).toBeInTheDocument();
   });
 
-  it('clamps long transfer content to 2 lines but keeps the full text reachable via title', async () => {
+  it('clamps long transfer content to 2 lines but keeps the full text reachable', async () => {
     const longContent =
       'Thanh toan hoa don INV-001 cho don hang thang 8 nam 2026, vui long lien he ke toan neu co sai sot ve so tien hoac noi dung giao dich';
     apiRequest.mockResolvedValue({
@@ -351,7 +352,7 @@ describe('ExceptionsPage', () => {
 
     const contentEl = await screen.findByText(longContent);
     expect(contentEl).toHaveClass('line-clamp-2');
-    expect(contentEl).toHaveAttribute('title', longContent);
+    await expect(hoverTooltip(contentEl)).resolves.toBe(longContent);
   });
 
   it('keeps a 200-character payer name from wrapping one word per line', async () => {
@@ -394,7 +395,7 @@ describe('ExceptionsPage', () => {
     // ~397px row; the payer name must stay on one clipped line.
     const nameEl = await screen.findByText(longName);
     expect(nameEl).toHaveClass('truncate');
-    expect(nameEl).toHaveAttribute('title', longName);
+    await expect(hoverTooltip(nameEl)).resolves.toBe(longName);
   });
 
   it('shows a current AI recommendation as a qualitative advisory badge', async () => {
@@ -575,5 +576,87 @@ describe('ExceptionsPage', () => {
     expect(await screen.findByText('••••6789')).toBeInTheDocument();
     expect(screen.getByText('Công ty B')).toBeInTheDocument();
     expect(screen.getByText(/người chuyển khoản/i)).toBeInTheDocument();
+  });
+
+  // Narrowing the two text columns was tried first and was not enough: auto
+  // table layout honours `max-w-*` as a floor for the content's min-content,
+  // so at 1024px the name still held ~301px and the table scrolled sideways
+  // with the amount clipped mid-number and "Xử lý" off-screen. Between md and
+  // lg the queue now drops the two advisory columns (score and transfer
+  // content), both of which repeat inside the "Xử lý" dialog.
+  it('drops the two advisory columns between md and lg so amount and action stay on screen', async () => {
+    apiRequest.mockResolvedValue({
+      items: [
+        {
+          transaction: {
+            id: 'tx-1',
+            providerTransactionId: 'TX-1',
+            amount: 23_000_000,
+            transactionDateTime: '2026-08-01',
+            counterpartyAccountNumber: '001',
+            counterpartyName: 'Công ty TNHH Giải pháp Kho vận Việt Trung',
+            transferContent: 'Đặt cọc hợp đồng',
+            status: 'PENDING_REVIEW',
+            version: 1,
+          },
+          topCandidate: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByText('23.000.000 ₫');
+
+    const headers = screen.getAllByRole('columnheader');
+    const payerHeader = headers.find(
+      (th) => th.textContent === 'Người chuyển khoản',
+    );
+    const contentHeader = headers.find(
+      (th) => th.textContent === 'Nội dung chuyển khoản',
+    );
+    const scoreHeader = headers.find(
+      (th) => th.textContent === 'Điểm cao nhất',
+    );
+
+    // The payer column is the one that must survive to stay scannable.
+    expect(payerHeader?.className).toContain('min-w-0');
+    expect(payerHeader?.className).not.toContain('max-lg:hidden');
+
+    // The two advisory columns are the ones that go.
+    expect(contentHeader?.className).toContain('md:max-lg:hidden');
+    expect(scoreHeader?.className).toContain('md:max-lg:hidden');
+
+    const cells = screen
+      .getAllByRole('row')
+      .slice(1)
+      .flatMap((row) => [...row.querySelectorAll('td')]);
+    const payerCell = cells.find((td) => td.textContent?.includes('Giải pháp'));
+    const contentCell = cells.find((td) => td.textContent?.includes('Đặt cọc'));
+    expect(payerCell?.className).toContain('min-w-0');
+    expect(payerCell?.className).not.toContain('max-lg:hidden');
+    expect(contentCell?.className).toContain('md:max-lg:hidden');
+
+    // Amount and action are never hidden at any width.
+    const amountCell = cells.find((td) =>
+      td.textContent?.includes('23.000.000'),
+    );
+    const actionHeader = headers.find((th) =>
+      th.querySelector('.sr-only')?.textContent?.includes('Thao tác'),
+    );
+    expect(amountCell?.className).not.toContain('hidden');
+    expect(actionHeader?.className).not.toContain('hidden');
   });
 });

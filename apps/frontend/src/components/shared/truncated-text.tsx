@@ -20,8 +20,11 @@ type TruncatedTextProps = {
  *
  * Only use when the element is actually clipped — `value` is what a visitor
  * would otherwise have to guess, and a tooltip over already-visible text is
- * noise. Keeps the native `title` too: it is the fallback for touch and for
- * anyone whose browser never fires pointer events on the span.
+ * noise.
+ *
+ * Exactly one tooltip: Radix renders into a portal, and adding the native
+ * `title` attribute on top of it raised a second, near-identical bubble a
+ * fraction of a second later, so hovering showed the same string twice.
  */
 export function TruncatedText({
   children,
@@ -39,9 +42,7 @@ export function TruncatedText({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className={className} title={content}>
-            {children}
-          </span>
+          <span className={className}>{children}</span>
         </TooltipTrigger>
         <TooltipContent>{content}</TooltipContent>
       </Tooltip>
