@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { encryptToken } from '../../bank-connections/application/token-encryption';
+import { WebhookInbox } from '../domain/webhook-inbox';
 import { ReceiveWebhookUseCase } from './receive-webhook.usecase';
 import { DuplicateWebhookError } from './webhook-inbox-repository.port';
 
@@ -62,8 +63,14 @@ function buildUseCase(overrides: {
   authorizationRepo?: Record<string, jest.Mock>;
   queue?: Record<string, jest.Mock>;
   dataSource?: Record<string, jest.Mock>;
+  tenantContext?: Record<string, jest.Mock>;
+  logger?: Record<string, jest.Mock>;
 }) {
-  const inboxRepo = { insert: jest.fn(), ...overrides.inboxRepo };
+  const inboxRepo = {
+    insert: jest.fn(),
+    findByProviderTransactionId: jest.fn().mockResolvedValue(null),
+    ...overrides.inboxRepo,
+  };
   const connectionRepo = {
     findByAccountNumber: jest.fn().mockResolvedValue(connectionWith()),
     ...overrides.connectionRepo,
@@ -79,6 +86,18 @@ function buildUseCase(overrides: {
     ),
     ...overrides.dataSource,
   };
+  const tenantContext = {
+    run: jest.fn(async (_user: unknown, work: () => Promise<unknown>) =>
+      work(),
+    ),
+    ...overrides.tenantContext,
+  };
+  const logger = {
+    error: jest.fn(),
+    warn: jest.fn(),
+    log: jest.fn(),
+    ...overrides.logger,
+  };
   const useCase = new ReceiveWebhookUseCase(
     inboxRepo as never,
     connectionRepo as never,
@@ -86,8 +105,18 @@ function buildUseCase(overrides: {
     dataSource as never,
     encryptionKey,
     authorizationRepo as never,
+    tenantContext as never,
+    logger as never,
   );
-  return { useCase, inboxRepo, connectionRepo, authorizationRepo, queue };
+  return {
+    useCase,
+    inboxRepo,
+    connectionRepo,
+    authorizationRepo,
+    queue,
+    tenantContext,
+    logger,
+  };
 }
 
 describe('ReceiveWebhookUseCase', () => {
@@ -155,9 +184,23 @@ describe('ReceiveWebhookUseCase', () => {
   });
 
   it('returns duplicate without enqueueing a webhook already protected by the unique key', async () => {
-    const { useCase, queue } = buildUseCase({
+    const { useCase, queue, inboxRepo } = buildUseCase({
       inboxRepo: {
         insert: jest.fn().mockRejectedValue(new DuplicateWebhookError('TX-1')),
+        findByProviderTransactionId: jest.fn().mockResolvedValue(
+          new WebhookInbox({
+            id: 'inbox-1',
+            organizationId: 'org-1',
+            bankConnectionId: 'conn-1',
+            providerTransactionId: 'TX-1',
+            rawPayload,
+            receivedAt: new Date(),
+            status: 'PROCESSED',
+            processedAt: new Date(),
+            errorMessage: null,
+            retryCount: 0,
+          }),
+        ),
       },
     });
 
@@ -166,5 +209,103 @@ describe('ReceiveWebhookUseCase', () => {
       duplicate: true,
     });
     expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(inboxRepo.findByProviderTransactionId).toHaveBeenCalledWith(
+      'TX-1',
+      'org-1',
+    );
+  });
+});
+
+describe('ReceiveWebhookUseCase (#421 enqueue recovery)', () => {
+  const receivedInbox = (overrides: Record<string, unknown> = {}) =>
+    new WebhookInbox({
+      id: 'inbox-1',
+      organizationId: 'org-1',
+      bankConnectionId: 'conn-1',
+      providerTransactionId: 'TX-1',
+      rawPayload,
+      receivedAt: new Date(),
+      status: 'RECEIVED',
+      processedAt: null,
+      errorMessage: null,
+      retryCount: 0,
+      ...overrides,
+    });
+
+  const duplicateDelivery = (existing: WebhookInbox | null) =>
+    buildUseCase({
+      inboxRepo: {
+        insert: jest.fn().mockRejectedValue(new DuplicateWebhookError('TX-1')),
+        findByProviderTransactionId: jest.fn().mockResolvedValue(existing),
+      },
+    });
+
+  it('repairs the missing enqueue when a duplicate delivery finds a RECEIVED inbox', async () => {
+    const { useCase, queue } = duplicateDelivery(receivedInbox());
+
+    await expect(useCase.execute(input)).resolves.toEqual({
+      received: true,
+      duplicate: true,
+    });
+    expect(queue.enqueue).toHaveBeenCalledWith({
+      webhookInboxId: 'inbox-1',
+      organizationId: 'org-1',
+      jobId: 'tx-TX-1',
+    });
+  });
+
+  it('reuses the deterministic job id so a still-queued job is not duplicated', async () => {
+    const { useCase, queue } = duplicateDelivery(receivedInbox());
+
+    await useCase.execute(input);
+
+    expect(queue.enqueue).toHaveBeenCalledTimes(1);
+    expect(queue.enqueue.mock.calls[0][0].jobId).toBe('tx-TX-1');
+  });
+
+  it('does not requeue an inbox that already FAILED processing', async () => {
+    const { useCase, queue } = duplicateDelivery(
+      receivedInbox({ status: 'FAILED', errorMessage: 'boom' }),
+    );
+
+    await expect(useCase.execute(input)).resolves.toEqual({
+      received: true,
+      duplicate: true,
+    });
+    expect(queue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('still throws when the repair enqueue also fails, so the provider keeps retrying', async () => {
+    const { useCase, queue, logger } = duplicateDelivery(receivedInbox());
+    queue.enqueue.mockRejectedValue(new Error('redis unreachable'));
+
+    await expect(useCase.execute(input)).rejects.toThrow('redis unreachable');
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Webhook inbox persisted but could not be enqueued',
+        organizationId: 'org-1',
+      }),
+      expect.anything(),
+      'ReceiveWebhookUseCase',
+    );
+  });
+
+  it('logs and rethrows when the first enqueue fails, leaving the inbox RECEIVED and recoverable', async () => {
+    const { useCase, queue, inboxRepo, logger } = buildUseCase({});
+    queue.enqueue.mockRejectedValue(new Error('redis down'));
+
+    await expect(useCase.execute(input)).rejects.toThrow('redis down');
+
+    expect(inboxRepo.insert).toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Webhook inbox persisted but could not be enqueued',
+        webhookInboxId: expect.any(String),
+        providerTransactionId: 'TX-1',
+        organizationId: 'org-1',
+      }),
+      expect.anything(),
+      'ReceiveWebhookUseCase',
+    );
   });
 });

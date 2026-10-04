@@ -16,6 +16,7 @@ import { MATCHING_CANDIDATE_REPOSITORY } from './application/matching-candidate-
 import { MatchingEngineService } from './application/matching-engine.service';
 import { ProcessWebhookUseCase } from './application/process-webhook.usecase';
 import { ReceiveWebhookUseCase } from './application/receive-webhook.usecase';
+import { RecoverStaleWebhookInboxesUseCase } from './application/recover-stale-webhook-inboxes.usecase';
 import { ReprocessWebhookUseCase } from './application/reprocess-webhook.usecase';
 import { WEBHOOK_INBOX_REPOSITORY } from './application/webhook-inbox-repository.port';
 import { WEBHOOK_JOB_QUEUE } from './application/webhook-job-queue.port';
@@ -69,6 +70,7 @@ import { WebhooksController } from './presentation/webhooks.controller';
     MatchingAiRecommendationService,
     ProcessWebhookUseCase,
     ReceiveWebhookUseCase,
+    RecoverStaleWebhookInboxesUseCase,
     ListWebhookInboxUseCase,
     ReprocessWebhookUseCase,
     WebhookProcessor,

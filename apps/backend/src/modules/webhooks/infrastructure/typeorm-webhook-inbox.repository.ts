@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
+import { LessThan } from 'typeorm';
 import { deleteOlderThan } from '../../../common/database/delete-older-than';
 import { isUniqueViolation } from '../../../common/database/unique-violation';
 import type {
@@ -83,6 +84,29 @@ export class TypeOrmWebhookInboxRepository implements IWebhookInboxRepository {
   ): Promise<WebhookInbox | null> {
     const row = await this.repo.findOne({ where: { id, organizationId } });
     return row ? new WebhookInbox(row) : null;
+  }
+
+  async findByProviderTransactionId(
+    providerTransactionId: string,
+    organizationId: string,
+  ): Promise<WebhookInbox | null> {
+    const row = await this.repo.findOne({
+      where: { providerTransactionId, organizationId },
+    });
+    return row ? new WebhookInbox(row) : null;
+  }
+
+  async findStaleReceived(
+    cutoff: Date,
+    limit: number,
+  ): Promise<WebhookInbox[]> {
+    const rows = await this.repo.find({
+      select: WEBHOOK_INBOX_SELECT,
+      where: { status: 'RECEIVED', receivedAt: LessThan(cutoff) },
+      order: { receivedAt: 'ASC' },
+      take: limit,
+    });
+    return rows.map((row) => new WebhookInbox(row));
   }
 
   async findPage(

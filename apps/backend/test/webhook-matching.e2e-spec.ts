@@ -35,12 +35,14 @@ import { InvoiceOrmEntity } from '../src/modules/invoices/infrastructure/invoice
 import { Role } from '../src/modules/organizations/domain/membership';
 import { GetCustomerCreditsUseCase } from '../src/modules/payments/application/get-customer-credits.usecase';
 import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment.orm-entity';
+import { PaymentAllocationOrmEntity } from '../src/modules/payments/infrastructure/payment-allocation.orm-entity';
 import {
   type IReceivableRepository,
   RECEIVABLE_REPOSITORY,
 } from '../src/modules/receivables/application/receivable-repository.port';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { ProcessWebhookUseCase } from '../src/modules/webhooks/application/process-webhook.usecase';
+import { RecoverStaleWebhookInboxesUseCase } from '../src/modules/webhooks/application/recover-stale-webhook-inboxes.usecase';
 import {
   type IWebhookInboxRepository,
   WEBHOOK_INBOX_REPOSITORY,
@@ -1275,6 +1277,127 @@ describe('Webhook matching (e2e)', () => {
       ).toBe(1);
     }, 30_000);
   });
+
+  describe('enqueue failure recovery (#421)', () => {
+    it('re-enqueues a persisted RECEIVED inbox whose enqueue never landed, processing it exactly once', async () => {
+      const recover = app.get(RecoverStaleWebhookInboxesUseCase, {
+        strict: false,
+      });
+      const processWebhook = app.get(ProcessWebhookUseCase, {
+        strict: false,
+      });
+      const receivableId = randomUUID();
+      const customerId = randomUUID();
+      const invoiceId = randomUUID();
+      const payerAccountNumber = '8800421001';
+
+      await dataSource.getRepository(CustomerOrmEntity).save({
+        id: customerId,
+        organizationId,
+        name: 'Recovered Customer',
+        taxCode: `TAX-${customerId.slice(0, 8)}`,
+        email: `${customerId}@example.com`,
+        phone: '0900000421',
+        defaultPaymentTermDays: 30,
+        creditLimit: 1_000_000_000,
+        priority: 1,
+        createdAt: new Date(),
+      });
+      await dataSource.getRepository(CustomerBankAccountOrmEntity).save({
+        id: randomUUID(),
+        organizationId,
+        customerId,
+        accountNumber: payerAccountNumber,
+        createdAt: new Date(),
+      });
+      await dataSource.getRepository(InvoiceOrmEntity).save({
+        id: invoiceId,
+        organizationId,
+        customerId,
+        invoiceNumber: 'INV-2026-1421',
+        issueDate: new Date('2026-07-01T00:00:00.000Z'),
+        totalAmount: 12_000_000,
+        taxAmount: 0,
+        sourceType: 'MANUAL',
+        fileUrl: null,
+        status: InvoiceStatus.ISSUED,
+        createdAt: new Date(),
+      });
+      await dataSource.getRepository(ReceivableOrmEntity).save({
+        id: receivableId,
+        organizationId,
+        customerId,
+        invoiceId,
+        originalAmount: 12_000_000,
+        paidAmount: 0,
+        dueDate: new Date('2026-08-05T10:00:00.000Z'),
+        status: ReceivableStatus.OPEN,
+        salesRepresentativeId: null,
+        createdAt: new Date(),
+        closedAt: null,
+        version: 1,
+      });
+
+      // Persisted as RECEIVED but the queue was down when the hook arrived:
+      // this is the state the old receive path left behind permanently.
+      const inboxId = await saveReceivedInbox(1_042_301, {
+        amount: 12_000_000,
+        description: 'Thanh toan INV-2026-1421',
+        counterAccountNumber: payerAccountNumber,
+        counterAccountName: 'Recovered Customer',
+      });
+      await dataSource.getRepository(WebhookInboxOrmEntity).update(inboxId, {
+        receivedAt: new Date(Date.now() - 15 * 60 * 1000),
+      });
+      expect((await loadInbox(inboxId)).status).toBe('RECEIVED');
+
+      await recover.recover(new Date());
+
+      const deadline = Date.now() + 10_000;
+      let receivable: ReceivableOrmEntity | null = null;
+      while (Date.now() < deadline) {
+        receivable = await dataSource
+          .getRepository(ReceivableOrmEntity)
+          .findOneBy({ id: receivableId });
+        if (receivable?.status === ReceivableStatus.PAID) break;
+        await delay(100);
+      }
+
+      expect((await loadInbox(inboxId)).status).toBe('PROCESSED');
+      expect(receivable?.status).toBe(ReceivableStatus.PAID);
+      expect(Number(receivable?.paidAmount)).toBe(12_000_000);
+      // The recovery job and any later duplicate must not double-book the
+      // provider transaction.
+      expect(
+        await dataSource
+          .getRepository(BankTransactionOrmEntity)
+          .countBy({ providerTransactionId: '1042301' }),
+      ).toBe(1);
+      expect(
+        await dataSource.getRepository(PaymentOrmEntity).countBy({
+          organizationId,
+          bankTransactionId: (
+            await dataSource
+              .getRepository(BankTransactionOrmEntity)
+              .findOneByOrFail({ providerTransactionId: '1042301' })
+          ).id,
+        }),
+      ).toBe(1);
+
+      // A replay through the processor itself stays a no-op.
+      await processWebhook.execute(inboxId, organizationId);
+      const afterReplay = await dataSource
+        .getRepository(ReceivableOrmEntity)
+        .findOneByOrFail({ id: receivableId });
+      expect(Number(afterReplay.paidAmount)).toBe(12_000_000);
+      expect(
+        await dataSource
+          .getRepository(PaymentAllocationOrmEntity)
+          .countBy({ receivableId }),
+      ).toBe(1);
+    }, 45_000);
+  });
+
   describe('receivable ambiguity (#419)', () => {
     const seedCustomerWithInvoices = async (input: {
       name: string;
