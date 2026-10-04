@@ -244,9 +244,11 @@ export class ProcessWebhookUseCase {
         },
       );
     } catch (error) {
-      // recordFailure never overrides PROCESSED. A throw after commit (e.g.
-      // emitAllocationEvents) therefore leaves the inbox PROCESSED and the
-      // replay a no-op, so those events are not re-emitted — recovery is #421.
+      // recordFailure never overrides PROCESSED, so a throw after commit leaves
+      // the inbox PROCESSED and a replay is a no-op. emitAllocationEvents
+      // cannot take that path: it publishes fire-and-forget
+      // (EventPublisher#emit) and every listener swallows its own failures,
+      // so a listener problem never reaches this catch.
       const message =
         error instanceof Error
           ? error.message
