@@ -80,7 +80,10 @@ describe('InitiatePlanUpgradeOrderUseCase', () => {
       cancelUrl: 'https://app.casso.vn/billing?status=cancelled',
     });
 
-    expect(result.checkoutUrl).toBe('https://pay.payos.vn/x');
+    expect(result).toEqual({
+      checkoutUrl: 'https://pay.payos.vn/x',
+      orderCode: '1001',
+    });
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
     expect(orderRepo.create).toHaveBeenCalledWith(
       {

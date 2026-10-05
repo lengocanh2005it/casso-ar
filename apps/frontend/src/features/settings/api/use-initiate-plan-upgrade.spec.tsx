@@ -32,6 +32,7 @@ describe('useInitiatePlanUpgrade', () => {
   it('resolves with the checkout URL on success', async () => {
     initiatePlanUpgrade.mockResolvedValueOnce({
       checkoutUrl: 'https://pay.payos.vn/web/abc123',
+      orderCode: '1001',
     });
 
     const { result } = renderWithQueryClient();
@@ -51,6 +52,7 @@ describe('useInitiatePlanUpgrade', () => {
     );
     expect(result.current.data).toEqual({
       checkoutUrl: 'https://pay.payos.vn/web/abc123',
+      orderCode: '1001',
     });
   });
 

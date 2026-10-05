@@ -72,4 +72,20 @@ describe('SettingsPage mobile navigation', () => {
       screen.getByRole('button', { name: 'Xem thêm 5 mục' }),
     ).toHaveAttribute('aria-expanded', 'false');
   });
+
+  it('blocks Billing for users without SUBSCRIPTION_MANAGE', () => {
+    useAuth.mockReturnValue({ user: { role: 'VIEWER' } });
+    useUrlQueryParams.mockReturnValue({
+      searchParams: new URLSearchParams('tab=billing'),
+      setParam,
+    });
+
+    render(<SettingsPage />);
+
+    expect(screen.getByRole('tab', { name: 'Thanh toán' })).toBeDisabled();
+    expect(setParam).toHaveBeenCalledWith('tab', 'appearance');
+    expect(
+      screen.queryByText('Lịch sử thanh toán gói'),
+    ).not.toBeInTheDocument();
+  });
 });

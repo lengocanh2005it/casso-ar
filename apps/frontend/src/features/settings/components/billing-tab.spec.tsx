@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BillingTab } from './billing-tab';
 
 const { useAuth } = vi.hoisted(() => ({ useAuth: vi.fn() }));
@@ -7,13 +8,19 @@ const { mutate, useInitiatePlanUpgrade } = vi.hoisted(() => ({
   mutate: vi.fn(),
   useInitiatePlanUpgrade: vi.fn(),
 }));
+const { usePlanPaymentHistory } = vi.hoisted(() => ({
+  usePlanPaymentHistory: vi.fn(),
+}));
 const { PaymentDialog } = vi.hoisted(() => ({
   PaymentDialog: vi.fn(() => null),
 }));
 const { usePlans } = vi.hoisted(() => ({ usePlans: vi.fn() }));
 
 vi.mock('@/contexts/auth-context', () => ({ useAuth }));
-vi.mock('../api/use-settings', () => ({ useInitiatePlanUpgrade }));
+vi.mock('../api/use-settings', () => ({
+  useInitiatePlanUpgrade,
+  usePlanPaymentHistory,
+}));
 vi.mock('./payment-dialog', () => ({ PaymentDialog }));
 vi.mock('@/features/plans/hooks/use-plans', () => ({ usePlans }));
 
@@ -48,7 +55,22 @@ const planCatalog = [
   },
 ];
 
+function renderBillingTab() {
+  return render(<BillingTab />, { wrapper: MemoryRouter });
+}
+
 describe('BillingTab', () => {
+  beforeEach(() => {
+    usePlanPaymentHistory.mockClear();
+    usePlanPaymentHistory.mockReturnValue({
+      data: { items: [], total: 0, page: 1, limit: 20 },
+      isLoading: false,
+      isError: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    });
+  });
+
   it('shows catalog prices and all plan limits with value details', () => {
     useAuth.mockReturnValue({
       user: { role: 'OWNER', subscriptionPlan: 'STARTER' },
@@ -57,7 +79,7 @@ describe('BillingTab', () => {
     useInitiatePlanUpgrade.mockReturnValue({ mutate, isPending: false });
     usePlans.mockReturnValue({ data: planCatalog, isLoading: false });
 
-    render(<BillingTab />);
+    renderBillingTab();
 
     expect(
       screen.getByRole('heading', { level: 2, name: 'Thanh toán' }),
@@ -104,7 +126,7 @@ describe('BillingTab', () => {
       refetch,
     });
 
-    const { rerender } = render(<BillingTab />);
+    const { rerender } = renderBillingTab();
     expect(screen.getByRole('status')).toHaveTextContent('Đang tải các gói');
 
     usePlans.mockReturnValue({ isLoading: false, isError: true, refetch });
@@ -128,7 +150,7 @@ describe('BillingTab', () => {
       refetch,
     });
 
-    render(<BillingTab />);
+    renderBillingTab();
 
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Không thể tải thông tin gói',
@@ -155,7 +177,11 @@ describe('BillingTab', () => {
     fireEvent.click(firstUpgradeButton);
 
     expect(mutate).toHaveBeenCalledWith(
-      expect.objectContaining({ targetPlanId: 'STARTER' }),
+      expect.objectContaining({
+        targetPlanId: 'STARTER',
+        returnUrl: `${window.location.origin}/settings?tab=billing`,
+        cancelUrl: `${window.location.origin}/settings?tab=billing`,
+      }),
       expect.anything(),
     );
   });
@@ -168,7 +194,7 @@ describe('BillingTab', () => {
     useInitiatePlanUpgrade.mockReturnValue({ mutate, isPending: false });
     usePlans.mockReturnValue({ data: planCatalog, isLoading: false });
 
-    render(<BillingTab />);
+    renderBillingTab();
 
     expect(screen.getByText('Khởi đầu')).toBeInTheDocument();
     expect(screen.getByText('Chuyên nghiệp')).toBeInTheDocument();
@@ -190,7 +216,7 @@ describe('BillingTab', () => {
       refetch,
     });
 
-    render(<BillingTab />);
+    renderBillingTab();
 
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Chưa cập nhật được giá và giới hạn',
@@ -213,11 +239,34 @@ describe('BillingTab', () => {
     useInitiatePlanUpgrade.mockReturnValue({ mutate, isPending: false });
     usePlans.mockReturnValue({ data: planCatalog, isLoading: false });
 
-    render(<BillingTab />);
+    renderBillingTab();
 
     expect(
       screen.queryByRole('button', { name: 'Nâng cấp' }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Lịch sử thanh toán gói'),
+    ).not.toBeInTheDocument();
+    expect(usePlanPaymentHistory).not.toHaveBeenCalled();
+  });
+
+  it('shows payment history below plan cards for users with SUBSCRIPTION_MANAGE', () => {
+    useAuth.mockReturnValue({
+      user: { role: 'OWNER', subscriptionPlan: 'STARTER' },
+      refreshUser: vi.fn(),
+    });
+    useInitiatePlanUpgrade.mockReturnValue({ mutate, isPending: false });
+    usePlans.mockReturnValue({ data: planCatalog, isLoading: false });
+
+    renderBillingTab();
+
+    const lastPlanFeature = screen.getByText('Hỗ trợ ưu tiên');
+    const historyTitle = screen.getByText('Lịch sử thanh toán gói');
+    expect(
+      lastPlanFeature.compareDocumentPosition(historyTitle) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(usePlanPaymentHistory).toHaveBeenCalledWith({ page: 1, limit: 20 });
   });
 
   it('initiates a checkout order for the clicked plan', () => {
@@ -228,7 +277,7 @@ describe('BillingTab', () => {
     useInitiatePlanUpgrade.mockReturnValue({ mutate, isPending: false });
     usePlans.mockReturnValue({ data: planCatalog, isLoading: false });
 
-    render(<BillingTab />);
+    renderBillingTab();
 
     const [firstUpgradeButton] = screen.getAllByRole('button', {
       name: 'Nâng cấp',

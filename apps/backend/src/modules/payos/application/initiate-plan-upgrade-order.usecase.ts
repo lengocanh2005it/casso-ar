@@ -26,6 +26,7 @@ export interface InitiatePlanUpgradeOrderInput {
 
 export interface InitiatePlanUpgradeOrderResult {
   checkoutUrl: string;
+  orderCode: string;
 }
 
 @Injectable()
@@ -94,6 +95,9 @@ export class InitiatePlanUpgradeOrderUseCase {
       input.organizationId,
     );
 
-    return { checkoutUrl: link.checkoutUrl };
+    return {
+      checkoutUrl: link.checkoutUrl,
+      orderCode: String(order.orderCode),
+    };
   }
 }

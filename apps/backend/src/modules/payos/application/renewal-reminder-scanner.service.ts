@@ -93,8 +93,8 @@ export class RenewalReminderScannerService {
       async () => {
         const { checkoutUrl } = await this.initiateCharge.execute({
           organizationId: subscription.organizationId,
-          returnUrl: 'https://app.casso.vn/billing?status=success',
-          cancelUrl: 'https://app.casso.vn/billing?status=cancelled',
+          returnUrl: 'https://app.casso.vn/settings?tab=billing',
+          cancelUrl: 'https://app.casso.vn/settings?tab=billing',
         });
 
         const membership = await this.membershipRepo.findOwnerByOrganization(
