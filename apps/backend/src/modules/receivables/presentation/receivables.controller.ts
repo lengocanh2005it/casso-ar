@@ -13,7 +13,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
-  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -30,6 +29,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { BatchCancelReceivableUseCase } from '../application/batch-cancel-receivable.usecase';
 import { BatchWriteOffReceivableUseCase } from '../application/batch-write-off-receivable.usecase';
 import { CancelReceivableUseCase } from '../application/cancel-receivable.usecase';
@@ -129,7 +129,7 @@ export class ReceivablesController {
 
   @Post()
   @ApiOperation({ summary: 'Create a receivable' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: ReceivableResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -176,7 +176,7 @@ export class ReceivablesController {
 
   @Post(':id/write-off')
   @ApiOperation({ summary: 'Write off a receivable' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: ReceivableResponseDto })
   @ApiErrorResponse(
     ErrorCode.RECEIVABLE_NOT_FOUND,
@@ -201,7 +201,7 @@ export class ReceivablesController {
 
   @Post('batch-write-off')
   @ApiOperation({ summary: 'Write off multiple receivables' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({
     description: 'Per-item results (success items include the receivable)',
   })
@@ -236,7 +236,7 @@ export class ReceivablesController {
 
   @Post(':id/cancel')
   @ApiOperation({ summary: 'Cancel a receivable' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: ReceivableResponseDto })
   @ApiErrorResponse(
     ErrorCode.RECEIVABLE_NOT_FOUND,
@@ -263,7 +263,7 @@ export class ReceivablesController {
 
   @Post('batch-cancel')
   @ApiOperation({ summary: 'Cancel multiple receivables' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({
     description: 'Per-item results (success items include the receivable)',
   })

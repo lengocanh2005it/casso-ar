@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
@@ -9,6 +11,7 @@ import {
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import type { StartedTestContainer } from 'testcontainers';
+import * as ts from 'typescript';
 import { AppModule } from '../src/app.module';
 import {
   SWAGGER_PATH,
@@ -19,6 +22,171 @@ import { WEBHOOK_JOB_QUEUE } from '../src/modules/webhooks/application/webhook-j
 import { startTestRedis } from './helpers/test-redis';
 
 jest.setTimeout(60_000);
+
+interface IdempotentOperation {
+  method: string;
+  path: string;
+}
+
+interface OpenApiErrorSchema {
+  properties?: Record<string, { example?: unknown }>;
+  required?: string[];
+}
+
+interface OpenApiOperation {
+  parameters?: Array<{ in?: string; name?: string; required?: boolean }>;
+  responses?: Record<
+    string,
+    { content?: { 'application/json'?: { schema?: OpenApiErrorSchema } } }
+  >;
+}
+
+const HTTP_METHODS: Record<string, string> = {
+  Delete: 'delete',
+  Patch: 'patch',
+  Post: 'post',
+  Put: 'put',
+};
+// Make changes to the wrapped-route inventory explicit in this contract test.
+const EXPECTED_IDEMPOTENT_ROUTE_COUNT = 57;
+
+function decoratorCall(
+  node: ts.Node,
+  name: string,
+): ts.CallExpression | undefined {
+  const decorators = ts.canHaveDecorators(node)
+    ? (ts.getDecorators(node) ?? [])
+    : [];
+  return decorators
+    .map((decorator) => decorator.expression)
+    .find(
+      (expression): expression is ts.CallExpression =>
+        ts.isCallExpression(expression) &&
+        ((ts.isIdentifier(expression.expression) &&
+          expression.expression.text === name) ||
+          (ts.isPropertyAccessExpression(expression.expression) &&
+            expression.expression.name.text === name)),
+    );
+}
+
+function staticRoutePaths(expression?: ts.Expression): string[] {
+  if (!expression) return [''];
+  if (ts.isStringLiteralLike(expression)) return [expression.text];
+  if (ts.isArrayLiteralExpression(expression)) {
+    return expression.elements.map((element) => {
+      if (!ts.isStringLiteralLike(element)) {
+        throw new Error(
+          `Expected a static route path, got ${element.getText()}`,
+        );
+      }
+      return element.text;
+    });
+  }
+  throw new Error(
+    `Expected a static controller route, got ${expression.getText()}`,
+  );
+}
+
+function idempotencyProperty(
+  classDeclaration: ts.ClassDeclaration,
+): string | undefined {
+  const constructorDeclaration = classDeclaration.members.find(
+    ts.isConstructorDeclaration,
+  );
+  const parameter = constructorDeclaration?.parameters.find(
+    (candidate) =>
+      candidate.type?.getText().split('.').at(-1) === 'IdempotencyService',
+  );
+  return parameter && ts.isIdentifier(parameter.name)
+    ? parameter.name.text
+    : undefined;
+}
+
+function usesIdempotency(
+  method: ts.MethodDeclaration,
+  serviceProperty: string,
+): boolean {
+  let found = false;
+  const visit = (node: ts.Node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      ['execute', 'executeForOrganization'].includes(node.expression.name.text)
+    ) {
+      const receiver = node.expression.expression;
+      if (
+        ts.isPropertyAccessExpression(receiver) &&
+        receiver.expression.kind === ts.SyntaxKind.ThisKeyword &&
+        receiver.name.text === serviceProperty
+      ) {
+        found = true;
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  if (method.body) visit(method.body);
+  return found;
+}
+
+function findControllerFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) return findControllerFiles(path);
+    return entry.isFile() && entry.name.endsWith('.controller.ts')
+      ? [path]
+      : [];
+  });
+}
+
+function findIdempotentOperations(): IdempotentOperation[] {
+  // Scan controller calls instead of maintaining a list of wrapped routes.
+  const sourceDirectory = join(__dirname, '../src/modules');
+  const operations: IdempotentOperation[] = [];
+
+  for (const filePath of findControllerFiles(sourceDirectory)) {
+    const source = ts.createSourceFile(
+      filePath,
+      readFileSync(filePath, 'utf8'),
+      ts.ScriptTarget.Latest,
+      true,
+    );
+
+    for (const statement of source.statements) {
+      if (!ts.isClassDeclaration(statement)) continue;
+      const serviceProperty = idempotencyProperty(statement);
+      if (!serviceProperty) continue;
+      const controllerPaths = staticRoutePaths(
+        decoratorCall(statement, 'Controller')?.arguments[0],
+      );
+
+      for (const member of statement.members) {
+        if (
+          !ts.isMethodDeclaration(member) ||
+          !usesIdempotency(member, serviceProperty)
+        ) {
+          continue;
+        }
+
+        for (const [decoratorName, method] of Object.entries(HTTP_METHODS)) {
+          const route = decoratorCall(member, decoratorName);
+          if (!route) continue;
+          for (const controllerPrefix of controllerPaths) {
+            for (const methodPath of staticRoutePaths(route.arguments[0])) {
+              const path = ['api/v1', controllerPrefix, methodPath]
+                .map((part) => part.replace(/^\/+|\/+$/g, ''))
+                .filter(Boolean)
+                .join('/')
+                .replace(/:([A-Za-z0-9_]+)/g, '{$1}');
+              operations.push({ method, path: `/${path}` });
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return operations;
+}
 
 describe('Swagger / OpenAPI docs (integration)', () => {
   let container: StartedPostgreSqlContainer;
@@ -249,6 +417,39 @@ describe('Swagger / OpenAPI docs (integration)', () => {
           expect.arrayContaining(['statusCode', 'errorCode', 'message']),
         );
       }
+    }
+  });
+
+  it('documents required idempotency keys and their missing-key response on every wrapped route', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`${SWAGGER_PATH}-json`)
+      .expect(200);
+    const operations = findIdempotentOperations();
+    expect(operations).toHaveLength(EXPECTED_IDEMPOTENT_ROUTE_COUNT);
+
+    for (const { method, path } of operations) {
+      const operation = res.body.paths[path]?.[method] as
+        | OpenApiOperation
+        | undefined;
+      expect(operation).toBeDefined();
+
+      const idempotencyHeader = operation?.parameters?.find(
+        (parameter) =>
+          parameter.in === 'header' &&
+          parameter.name?.toLowerCase() === 'idempotency-key',
+      );
+      expect(idempotencyHeader?.required).toBe(true);
+
+      const missingKeySchema =
+        operation?.responses?.['409']?.content?.['application/json']?.schema;
+      expect(missingKeySchema).toBeDefined();
+      expect(missingKeySchema?.properties?.statusCode?.example).toBe(409);
+      expect(missingKeySchema?.properties?.errorCode?.example).toBe(
+        'VALIDATION_ERROR',
+      );
+      expect(missingKeySchema?.required).toEqual(
+        expect.arrayContaining(['statusCode', 'errorCode', 'message']),
+      );
     }
   });
 });

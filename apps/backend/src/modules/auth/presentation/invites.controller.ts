@@ -17,7 +17,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
-  ApiHeader,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
@@ -40,6 +39,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import {
   type IOrganizationRepository,
@@ -154,7 +154,7 @@ export class InvitesController {
 
   @Delete('organizations/:id/invites/:inviteId')
   @ApiOperation({ summary: 'Revoke a pending invite' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiNoContentResponse({ description: 'Invite revoked' })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -182,7 +182,7 @@ export class InvitesController {
 
   @Delete('organizations/:id/members/:userId')
   @ApiOperation({ summary: 'Remove a member from an organization' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiNoContentResponse({ description: 'Member removed' })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -209,7 +209,7 @@ export class InvitesController {
 
   @Post('organizations/:id/members/:userId/block')
   @ApiOperation({ summary: 'Block a member’s access to an organization' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiOkResponse({
     description: 'Membership blocked',
     type: MemberStatusResponseDto,
@@ -251,7 +251,7 @@ export class InvitesController {
 
   @Post('organizations/:id/members/:userId/unblock')
   @ApiOperation({ summary: 'Unblock a member’s access to an organization' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiOkResponse({
     description: 'Membership unblocked',
     type: MemberStatusResponseDto,
@@ -292,7 +292,7 @@ export class InvitesController {
 
   @Post('organizations/:id/invites/:inviteId/resend')
   @ApiOperation({ summary: 'Resend a pending invite email' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiOkResponse({
     description: 'Invite resent',
     schema: successResponseSchema(),

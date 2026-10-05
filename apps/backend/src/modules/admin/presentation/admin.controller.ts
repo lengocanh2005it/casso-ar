@@ -16,7 +16,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
-  ApiHeader,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
@@ -33,6 +32,7 @@ import {
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import {
   type IOrganizationRepository,
@@ -254,7 +254,7 @@ export class AdminController {
 
   @Delete('organizations/:orgId/invites/:inviteId')
   @ApiOperation({ summary: 'Revoke a pending invite as an Operator' })
-  @ApiHeader({ name: 'idempotency-key', required: true })
+  @ApiIdempotencyKey()
   @ApiNoContentResponse({ description: 'Invite revoked' })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -287,7 +287,7 @@ export class AdminController {
 
   @Post('organizations/:orgId/invites/:inviteId/resend')
   @ApiOperation({ summary: 'Resend a pending invite email as an Operator' })
-  @ApiHeader({ name: 'idempotency-key', required: true })
+  @ApiIdempotencyKey()
   @ApiOkResponse({
     description: 'Invite resent',
     schema: successResponseSchema(),

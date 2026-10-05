@@ -11,7 +11,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
-  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -28,6 +27,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { WebhookRateLimitGuard } from '../../webhooks/presentation/webhook-rate-limit.guard';
 import { InitiatePeriodChargeUseCase } from '../application/initiate-period-charge.usecase';
@@ -80,7 +80,7 @@ export class PayosController {
 
   @Post('plan-upgrade-orders')
   @ApiOperation({ summary: 'Create a PayOS checkout order for a plan upgrade' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: PlanUpgradeOrderResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -116,7 +116,7 @@ export class PayosController {
   @ApiOperation({
     summary: 'Create a PayOS checkout order for the period charge',
   })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: PeriodChargeResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,

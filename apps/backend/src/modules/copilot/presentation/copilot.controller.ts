@@ -15,7 +15,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
-  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -31,6 +30,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import { CancelPendingActionUseCase } from '../application/cancel-pending-action.usecase';
 import { ConfirmPendingActionUseCase } from '../application/confirm-pending-action.usecase';
@@ -110,7 +110,7 @@ export class CopilotController {
 
   @Post('drafts/:id/reopen')
   @ApiOperation({ summary: 'Reopen a Copilot draft into a conversation' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: ReopenCopilotDraftResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -140,7 +140,7 @@ export class CopilotController {
 
   @Patch('drafts/:id')
   @ApiOperation({ summary: 'Update a Copilot email draft' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiOkResponse({ type: CopilotDraftDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -173,7 +173,7 @@ export class CopilotController {
 
   @Delete('drafts/:id')
   @ApiOperation({ summary: 'Delete a Copilot email draft' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiOkResponse({
     description: 'The Copilot email draft was deleted.',
     schema: { ...successResponseSchema(), required: ['success'] },
@@ -235,7 +235,7 @@ export class CopilotController {
 
   @Post('conversations/:id/messages')
   @ApiOperation({ summary: 'Send a message to a Copilot conversation' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: CopilotChatResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -277,7 +277,7 @@ export class CopilotController {
     summary:
       'Stream a message to a Copilot conversation over Server-Sent Events',
   })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
     ErrorCode.UNAUTHORIZED,
@@ -383,7 +383,7 @@ export class CopilotController {
 
   @Post('actions/:actionId/confirm')
   @ApiOperation({ summary: 'Confirm a pending Copilot action' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: CopilotPendingActionDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -410,7 +410,7 @@ export class CopilotController {
 
   @Post('actions/:actionId/cancel')
   @ApiOperation({ summary: 'Cancel a pending Copilot action' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: CopilotPendingActionDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
