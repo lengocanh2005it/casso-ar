@@ -2,6 +2,7 @@ import { ScrollText } from 'lucide-react';
 import { Fragment } from 'react';
 import { EmptyState } from '@/components/layout/empty-state';
 import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
+import { TruncatedText } from '@/components/shared/truncated-text';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -75,7 +76,7 @@ function formatDateField(field: string, value: unknown): string | null {
 function ReferenceValue({ id, label }: { id: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span title={label}>{label}</span>
+      <TruncatedText value={label}>{label}</TruncatedText>
       <TruncatedCopyId id={id} />
     </span>
   );
@@ -271,12 +272,12 @@ export function AuditLogTable({ items, members }: AuditLogTableProps) {
                             item.entityType}
                           :
                         </span>
-                        <span
+                        <TruncatedText
                           className="max-w-64 truncate"
-                          title={item.display.entityLabel}
+                          value={item.display.entityLabel}
                         >
                           {item.display.entityLabel}
-                        </span>
+                        </TruncatedText>
                       </>
                     ) : (
                       <span>

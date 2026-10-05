@@ -14,6 +14,7 @@ import {
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeading } from '@/components/layout/page-heading';
+import { TooltipLabel } from '@/components/shared/tooltip-label';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetClose, SheetContent } from '@/components/ui/sheet';
@@ -134,13 +135,14 @@ export function CopilotPage() {
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
           Bản nháp email
         </span>
-        <SheetClose
-          aria-label="Đóng bản nháp email"
-          title="Đóng bản nháp email"
-          className="inline-flex size-9 items-center justify-center rounded-md text-foreground/80 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <X aria-hidden="true" className="size-4" />
-        </SheetClose>
+        <TooltipLabel label="Đóng bản nháp email">
+          <SheetClose
+            aria-label="Đóng bản nháp email"
+            className="inline-flex size-9 items-center justify-center rounded-md text-foreground/80 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <X aria-hidden="true" className="size-4" />
+          </SheetClose>
+        </TooltipLabel>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         <DraftsList canSendManual={canSendManual} />
@@ -188,26 +190,28 @@ export function CopilotPage() {
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="flex min-h-12 items-center justify-between gap-2 px-3 py-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => setActiveDrawer('history')}
-                aria-label="Mở lịch sử chat"
-                title="Lịch sử chat"
-              >
-                <PanelLeftOpen aria-hidden="true" className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => setActiveDrawer('drafts')}
-                aria-label="Mở bản nháp email"
-                title="Bản nháp email"
-              >
-                <Mail aria-hidden="true" className="size-4" />
-              </Button>
+              <TooltipLabel label="Mở lịch sử chat">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setActiveDrawer('history')}
+                  aria-label="Mở lịch sử chat"
+                >
+                  <PanelLeftOpen aria-hidden="true" className="size-4" />
+                </Button>
+              </TooltipLabel>
+              <TooltipLabel label="Mở bản nháp email">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setActiveDrawer('drafts')}
+                  aria-label="Mở bản nháp email"
+                >
+                  <Mail aria-hidden="true" className="size-4" />
+                </Button>
+              </TooltipLabel>
             </div>
 
             {/* The welcome card carries its own border and padding, so the

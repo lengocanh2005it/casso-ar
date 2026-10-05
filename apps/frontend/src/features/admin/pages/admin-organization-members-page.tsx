@@ -7,6 +7,7 @@ import { PageHeading } from '@/components/layout/page-heading';
 import { SectionCard } from '@/components/layout/section-card';
 import { InviteResendButton } from '@/components/shared/invite-resend-button';
 import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
+import { TruncatedText } from '@/components/shared/truncated-text';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -301,28 +302,28 @@ export function AdminOrganizationMembersPage() {
                   return (
                     <TableRow key={member.id} className="max-md:grid">
                       <TableCell className="max-md:col-span-2 max-md:row-start-1">
-                        <span
+                        <TruncatedText
                           className="block max-w-[18rem] truncate"
-                          title={member.name}
+                          value={member.name}
                         >
                           {member.name}
-                        </span>
-                        <span
+                        </TruncatedText>
+                        <TruncatedText
                           className="mt-0.5 block max-w-[18rem] truncate text-xs text-muted-foreground md:hidden"
-                          title={member.email}
+                          value={member.email}
                           translate="no"
                         >
                           {member.email}
-                        </span>
+                        </TruncatedText>
                       </TableCell>
                       <TableCell className="max-md:hidden">
-                        <span
+                        <TruncatedText
                           className="block max-w-[18rem] truncate"
-                          title={member.email}
+                          value={member.email}
                           translate="no"
                         >
                           {member.email}
-                        </span>
+                        </TruncatedText>
                       </TableCell>
                       <TableCell className="max-md:col-start-1 max-md:row-start-2">
                         {ROLE_LABELS[member.role]}
@@ -425,13 +426,13 @@ export function AdminOrganizationMembersPage() {
                   return (
                     <TableRow key={invite.id} className="max-md:grid">
                       <TableCell className="max-md:col-span-2 max-md:row-start-1">
-                        <span
+                        <TruncatedText
                           className="block max-w-[18rem] truncate"
-                          title={invite.email}
+                          value={invite.email}
                           translate="no"
                         >
                           {invite.email}
-                        </span>
+                        </TruncatedText>
                         <span className="mt-0.5 block text-xs text-muted-foreground md:hidden">
                           {ROLE_LABELS[invite.role]}
                         </span>

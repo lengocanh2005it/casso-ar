@@ -54,7 +54,9 @@ describe('ReceivablePayments', () => {
     expect(await screen.findByText('Công ty An Phát')).toBeInTheDocument();
     expect(await screen.findByText('Nguyễn Minh Anh')).toBeInTheDocument();
     expect(screen.queryByText(bankTransactionId)).not.toBeInTheDocument();
-    expect(screen.getByTitle(bankTransactionId)).toHaveTextContent('77b1de38…');
+    expect(
+      screen.getByRole('button', { name: `Sao chép mã ${bankTransactionId}` }),
+    ).toHaveTextContent('77b1de38…');
     expect(screen.queryByText('user-1')).not.toBeInTheDocument();
   });
 

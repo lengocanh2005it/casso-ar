@@ -1,10 +1,11 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { formatVND } from '@/lib/format';
+import { hoverTooltip } from '@/test/tooltip';
 import { ReceivableBalanceHistoryKpis } from './receivable-balance-history-kpis';
 
 describe('ReceivableBalanceHistoryKpis', () => {
-  it('uses the same metric card as the dashboard and reports', () => {
+  it('uses the same metric card as the dashboard and reports', async () => {
     render(
       <ReceivableBalanceHistoryKpis
         isLoading={false}
@@ -29,8 +30,7 @@ describe('ReceivableBalanceHistoryKpis', () => {
       );
     }
     expect(screen.getByText('616tr')).toBeInTheDocument();
-    expect(screen.getByText('616tr')).toHaveAttribute(
-      'title',
+    await expect(hoverTooltip(screen.getByText('616tr'))).resolves.toBe(
       formatVND(616_000_000),
     );
   });

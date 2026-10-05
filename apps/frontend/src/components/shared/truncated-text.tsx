@@ -1,11 +1,6 @@
 import * as React from 'react';
 
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { TooltipLabel } from '@/components/shared/tooltip-label';
 import { cn } from '@/lib/utils';
 
 type TruncatedTextProps = {
@@ -13,6 +8,8 @@ type TruncatedTextProps = {
   className?: string;
   /** The full value. When omitted the text is already in the DOM, so a tooltip would only repeat it. */
   value?: string | null;
+  /** Machine names must not be auto-translated by the browser. */
+  translate?: 'yes' | 'no';
 };
 
 /**
@@ -20,32 +17,35 @@ type TruncatedTextProps = {
  *
  * Only use when the element is actually clipped — `value` is what a visitor
  * would otherwise have to guess, and a tooltip over already-visible text is
- * noise. Keeps the native `title` too: it is the fallback for touch and for
- * anyone whose browser never fires pointer events on the span.
+ * noise.
+ *
+ * Exactly one tooltip: Radix renders into a portal, and adding the native
+ * `title` attribute on top of it raised a second, near-identical bubble a
+ * fraction of a second later, so hovering showed the same string twice.
  */
 export function TruncatedText({
   children,
   className,
   value,
+  translate,
 }: TruncatedTextProps) {
   const content =
     value ?? (typeof children === 'string' ? children : undefined);
 
   if (!content) {
-    return <span className={className}>{children}</span>;
+    return (
+      <span className={className} translate={translate}>
+        {children}
+      </span>
+    );
   }
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className={className} title={content}>
-            {children}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>{content}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <TooltipLabel label={content}>
+      <span className={className} translate={translate}>
+        {children}
+      </span>
+    </TooltipLabel>
   );
 }
 

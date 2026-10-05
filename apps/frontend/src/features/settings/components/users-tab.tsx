@@ -112,7 +112,7 @@ const MembersTable = memo(function MembersTable({
 
   return (
     <Table>
-      <TableHeader>
+      <TableHeader className="max-lg:hidden">
         <TableRow>
           <TableHead>Tên</TableHead>
           <TableHead>Email</TableHead>
@@ -121,12 +121,12 @@ const MembersTable = memo(function MembersTable({
           {showActions && <TableHead>Thao tác</TableHead>}
         </TableRow>
       </TableHeader>
-      <TableBody>
+      <TableBody className="max-lg:flex max-lg:flex-col max-lg:gap-3">
         {members.length === 0 && (
-          <TableRow>
+          <TableRow className="max-lg:grid max-lg:grid-cols-1 max-lg:rounded-lg max-lg:border">
             <TableCell
               colSpan={colSpan}
-              className="text-center text-muted-foreground"
+              className="text-center text-muted-foreground max-lg:p-3"
             >
               {emptyMessage}
             </TableCell>
@@ -136,19 +136,28 @@ const MembersTable = memo(function MembersTable({
           const isSelf = member.userId === currentUserId;
           const isBlocked = member.status === 'BLOCKED';
           return (
-            <TableRow key={member.id}>
-              <TableCell>
+            <TableRow
+              key={member.id}
+              className="max-lg:grid max-lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] max-lg:items-start max-lg:gap-x-3 max-lg:gap-y-3 max-lg:rounded-lg max-lg:border max-lg:bg-background max-lg:p-3"
+            >
+              <TableCell className="max-lg:col-span-2 max-lg:min-w-0 max-lg:p-0">
                 <div className="flex min-w-0 items-center gap-2">
                   <InitialsAvatar name={member.name} size="sm" />
                   <TruncatedName name={member.name} className="font-medium" />
                 </div>
               </TableCell>
-              <TableCell className="break-words">
+              <TableCell className="min-w-0 break-words max-lg:col-span-2 max-lg:p-0">
+                <span className="mb-1 block text-xs text-muted-foreground lg:hidden">
+                  Email
+                </span>
                 <TruncatedText value={member.email}>
                   {member.email}
                 </TruncatedText>
               </TableCell>
-              <TableCell>
+              <TableCell className="min-w-0 max-lg:col-start-1 max-lg:row-start-3 max-lg:p-0">
+                <span className="mb-1 block text-xs text-muted-foreground lg:hidden">
+                  Vai trò
+                </span>
                 {canManage && !isSelf ? (
                   <Select
                     value={member.role}
@@ -157,7 +166,10 @@ const MembersTable = memo(function MembersTable({
                       if (nextRole) onRoleChange(member.userId, nextRole);
                     }}
                   >
-                    <SelectTrigger aria-label={`Vai trò của ${member.name}`}>
+                    <SelectTrigger
+                      aria-label={`Vai trò của ${member.name}`}
+                      className="max-lg:w-full"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>{roleSelectItems}</SelectContent>
@@ -166,7 +178,10 @@ const MembersTable = memo(function MembersTable({
                   ROLE_LABELS[member.role]
                 )}
               </TableCell>
-              <TableCell>
+              <TableCell className="max-lg:col-start-2 max-lg:row-start-3 max-lg:p-0 max-lg:text-right">
+                <span className="mb-1 block text-xs text-muted-foreground lg:hidden">
+                  Trạng thái
+                </span>
                 {isBlocked ? (
                   <Badge
                     variant="destructive"
@@ -181,13 +196,26 @@ const MembersTable = memo(function MembersTable({
                 )}
               </TableCell>
               {showActions && (
-                <TableCell>
+                <TableCell className="min-w-0 max-lg:col-span-2 max-lg:col-start-1 max-lg:row-start-4 max-lg:p-0">
+                  {!isSelf && (
+                    <span className="mb-2 block text-xs text-muted-foreground lg:hidden">
+                      Thao tác
+                    </span>
+                  )}
                   <div className="flex flex-wrap gap-2">
                     {canManage && !isSelf && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm">
-                            Xoá {member.name}
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            aria-label={`Xoá ${member.name}`}
+                            className="max-lg:flex-1"
+                          >
+                            <span className="lg:hidden">Xoá</span>
+                            <span className="hidden lg:inline">
+                              Xoá {member.name}
+                            </span>
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -214,8 +242,18 @@ const MembersTable = memo(function MembersTable({
                     {canBlock && !isSelf && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            {isBlocked ? 'Bỏ chặn' : 'Chặn'} {member.name}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            aria-label={`${isBlocked ? 'Bỏ chặn' : 'Chặn'} ${member.name}`}
+                            className="max-lg:flex-1"
+                          >
+                            <span className="lg:hidden">
+                              {isBlocked ? 'Bỏ chặn' : 'Chặn'}
+                            </span>
+                            <span className="hidden lg:inline">
+                              {isBlocked ? 'Bỏ chặn' : 'Chặn'} {member.name}
+                            </span>
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -374,7 +412,7 @@ export function UsersTab() {
       <div className="space-y-6">
         {canInvite && (
           <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-4 shadow-sm">
-            <label className="space-y-1 text-sm" htmlFor="invite-email">
+            <label className="space-y-2 text-sm" htmlFor="invite-email">
               <span className="block">Email</span>
               <Input
                 id="invite-email"
@@ -387,7 +425,7 @@ export function UsersTab() {
                 placeholder="email@example.com"
               />
             </label>
-            <div className="space-y-1 text-sm">
+            <div className="space-y-2 text-sm">
               <span className="block">Vai trò</span>
               <Select
                 value={role}

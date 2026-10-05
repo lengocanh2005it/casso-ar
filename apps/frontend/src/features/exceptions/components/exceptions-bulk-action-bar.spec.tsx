@@ -144,6 +144,7 @@ describe('ExceptionsBulkActionBar', () => {
     const input = screen.getByLabelText('Tìm khách hàng');
     expect(input).toHaveAttribute('name', 'customerSearch');
     expect(input).toHaveAttribute('autocomplete', 'off');
+    expect(input.parentElement).toHaveClass('grid', 'gap-2');
   });
 
   it('only enables approve-match for rows at or above the confidence threshold, and confirms before sending', async () => {

@@ -23,7 +23,9 @@ describe('PendingActionCard', () => {
       screen.getByText('INV-2026-001 — Công ty An Phát'),
     ).toBeInTheDocument();
     expect(screen.getByText('Mã kỹ thuật:')).toBeInTheDocument();
-    expect(screen.getByTitle(receivableId)).toHaveTextContent('77b1de38…');
+    expect(
+      screen.getByRole('button', { name: `Sao chép mã ${receivableId}` }),
+    ).toHaveTextContent('77b1de38…');
     expect(
       screen.getByText('Xác nhận gửi email nhắc thanh toán'),
     ).toBeInTheDocument();

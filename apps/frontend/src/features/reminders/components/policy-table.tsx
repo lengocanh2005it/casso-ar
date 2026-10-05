@@ -28,6 +28,13 @@ function customerGroupLabel(customerGroup: string): string {
   return CUSTOMER_GROUP_LABELS[customerGroup] ?? 'Nhóm khách hàng khác';
 }
 
+// Below md each row becomes a 3-column card (group | status | action) so the
+// queue matches the receivables and exceptions tables instead of scrolling a
+// 6-column grid sideways on a phone. "Số quy tắc", "Ngưỡng leo thang" and
+// "Ngày tạo" fold into the details column as secondary lines.
+const MOBILE_ROW =
+  'max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:items-center max-md:gap-x-3 max-md:gap-y-1.5 max-md:px-1 max-md:py-3';
+
 export function PolicyTable({
   policies,
   onEdit,
@@ -55,7 +62,7 @@ export function PolicyTable({
 
   return (
     <Table>
-      <TableHeader>
+      <TableHeader className="max-md:hidden">
         <TableRow>
           <TableHead>Nhóm khách hàng</TableHead>
           <TableHead>Trạng thái</TableHead>
@@ -67,20 +74,41 @@ export function PolicyTable({
       </TableHeader>
       <TableBody>
         {policies.map((policy) => (
-          <TableRow key={policy.id}>
-            <TableCell className="font-medium">
+          <TableRow key={policy.id} className={MOBILE_ROW}>
+            <TableCell className="max-w-64 font-medium max-md:col-start-1 max-md:max-w-none max-md:p-0">
               <div className="flex items-center gap-2">
                 <InitialsAvatar
                   name={customerGroupLabel(policy.customerGroup)}
                   size="sm"
+                  className="max-md:hidden"
                 />
-                {customerGroupLabel(policy.customerGroup)}
+                <div className="min-w-0 space-y-1">
+                  <p className="min-w-0 font-medium">
+                    {customerGroupLabel(policy.customerGroup)}
+                  </p>
+                  {/* Folded in from columns that do not fit a phone: counts and
+                      the escalation window are what tell two otherwise
+                      identical "4 rules / 30 days" rows apart. */}
+                  {/* Two short facts, not a label: wrapping keeps both
+                      readable when the card is ~161px wide. Holding them on
+                      one line clipped the trailing "30 ngày" with no
+                      ellipsis and no tooltip. */}
+                  <p className="hidden text-xs text-muted-foreground max-md:block max-md:whitespace-normal">
+                    {policy.rules.length} quy tắc · leo thang{' '}
+                    {policy.escalationThresholdDays === null
+                      ? '—'
+                      : `${policy.escalationThresholdDays} ngày`}
+                  </p>
+                  <p className="hidden text-xs text-muted-foreground max-md:block max-md:whitespace-nowrap">
+                    Tạo {formatDateTime(policy.createdAt)}
+                  </p>
+                </div>
               </div>
             </TableCell>
-            <TableCell>
+            <TableCell className="max-md:col-start-2 max-md:row-start-1 max-md:justify-self-end max-md:p-0">
               {canWrite ? (
                 // The switch is the state; the text beside it just names it.
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 max-md:flex-col-reverse max-md:items-end">
                   <Switch
                     aria-label={`Bật chính sách ${customerGroupLabel(policy.customerGroup)}`}
                     checked={policy.isActive}
@@ -101,8 +129,8 @@ export function PolicyTable({
                   <span
                     className={
                       policy.isActive
-                        ? 'text-sm font-medium text-success'
-                        : 'text-sm text-muted-foreground'
+                        ? 'text-sm font-medium whitespace-nowrap text-success'
+                        : 'text-sm whitespace-nowrap text-muted-foreground'
                     }
                   >
                     {policy.isActive ? 'Đang hoạt động' : 'Đã tắt'}
@@ -120,21 +148,26 @@ export function PolicyTable({
                 </Badge>
               )}
             </TableCell>
-            <TableCell>{policy.rules.length}</TableCell>
-            <TableCell>
+            <TableCell className="max-md:hidden">
+              {policy.rules.length}
+            </TableCell>
+            <TableCell className="max-md:hidden">
               {policy.escalationThresholdDays === null
                 ? '—'
                 : `${policy.escalationThresholdDays} ngày`}
             </TableCell>
-            <TableCell>{formatDateTime(policy.createdAt)}</TableCell>
+            <TableCell className="max-md:hidden">
+              {formatDateTime(policy.createdAt)}
+            </TableCell>
             {canWrite && (
-              <TableCell>
+              <TableCell className="max-md:col-start-2 max-md:row-start-2 max-md:justify-self-end max-md:p-0">
                 {onEdit && (
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     onClick={() => onEdit(policy)}
+                    className="max-md:min-h-9 max-md:px-3"
                   >
                     Sửa
                   </Button>

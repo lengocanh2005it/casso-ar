@@ -48,10 +48,14 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
 }) {
+  const previouslyFocused = React.useRef<HTMLElement | null>(null);
+
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -65,6 +69,21 @@ function DialogContent({
           '[&>*]:min-w-0 [&_input[type=file]]:max-w-full',
           className,
         )}
+        onOpenAutoFocus={(event) => {
+          previouslyFocused.current =
+            document.activeElement instanceof HTMLElement
+              ? document.activeElement
+              : null;
+          onOpenAutoFocus?.(event);
+        }}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event);
+          const target = previouslyFocused.current;
+          if (!event.defaultPrevented && target?.isConnected) {
+            event.preventDefault();
+            target.focus({ preventScroll: true });
+          }
+        }}
         {...props}
       >
         {children}

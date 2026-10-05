@@ -212,10 +212,23 @@ export function ReceivableBalanceHistoryPage() {
           tone="info"
         />
         <div
-          className="rounded-xl border bg-card py-16 text-center text-muted-foreground"
+          className="flex flex-col items-center gap-3 rounded-xl border bg-card py-16 text-center text-muted-foreground"
           role="alert"
         >
           Không thể tải dữ liệu lịch sử công nợ. Vui lòng thử lại sau.
+          <Button
+            type="button"
+            variant="outline"
+            disabled={listQuery.isFetching || summaryQuery.isFetching}
+            onClick={() => {
+              void listQuery.refetch();
+              void summaryQuery.refetch();
+            }}
+          >
+            {listQuery.isFetching || summaryQuery.isFetching
+              ? 'Đang thử lại…'
+              : 'Thử lại'}
+          </Button>
         </div>
       </div>
     );

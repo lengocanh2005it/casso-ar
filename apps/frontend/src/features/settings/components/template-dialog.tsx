@@ -204,7 +204,6 @@ export function TemplateDialog({
                   <li
                     key={variable.name}
                     className="inline-flex items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-xs"
-                    title={variable.label}
                   >
                     <code className="font-mono text-foreground">
                       {'{{'}

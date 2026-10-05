@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
+import { hoverTooltip } from '@/test/tooltip';
 import { ExceptionsPage } from './exceptions-page';
 
 const apiRequest = vi.fn();
@@ -84,7 +85,7 @@ describe('ExceptionsPage', () => {
     expect(await screen.findByText('Đã chọn 1')).toBeInTheDocument();
   });
 
-  it('stacks transactions into cards on phones and paginates inside the list card', async () => {
+  it('stacks transactions into cards below desktop width and paginates inside the list card', async () => {
     apiRequest.mockResolvedValue({
       items: [
         {
@@ -119,8 +120,14 @@ describe('ExceptionsPage', () => {
     );
 
     const [headerRow, row] = await screen.findAllByRole('row');
-    expect(headerRow.parentElement).toHaveClass('max-md:hidden');
-    expect(row).toHaveClass('max-md:grid');
+    expect(headerRow.parentElement).toHaveClass('max-lg:hidden');
+    expect(row).toHaveClass('max-lg:grid');
+    expect(screen.getByRole('columnheader', { name: 'Ngày giờ' })).toHaveClass(
+      'w-[10rem]',
+    );
+    const avatar = screen.getByText('CT').closest('.rounded-full');
+    expect(avatar?.parentElement).toHaveClass('hidden', 'lg:block');
+    expect(avatar).toHaveClass('flex', 'items-center', 'justify-center');
     // Pagination used to float below the card on this page only.
     expect(
       screen
@@ -313,7 +320,7 @@ describe('ExceptionsPage', () => {
     expect(screen.getByText('Không có nội dung')).toBeInTheDocument();
   });
 
-  it('clamps long transfer content to 2 lines but keeps the full text reachable via title', async () => {
+  it('clamps long transfer content to 2 lines but keeps the full text reachable', async () => {
     const longContent =
       'Thanh toan hoa don INV-001 cho don hang thang 8 nam 2026, vui long lien he ke toan neu co sai sot ve so tien hoac noi dung giao dich';
     apiRequest.mockResolvedValue({
@@ -351,7 +358,7 @@ describe('ExceptionsPage', () => {
 
     const contentEl = await screen.findByText(longContent);
     expect(contentEl).toHaveClass('line-clamp-2');
-    expect(contentEl).toHaveAttribute('title', longContent);
+    await expect(hoverTooltip(contentEl)).resolves.toBe(longContent);
   });
 
   it('keeps a 200-character payer name from wrapping one word per line', async () => {
@@ -394,7 +401,7 @@ describe('ExceptionsPage', () => {
     // ~397px row; the payer name must stay on one clipped line.
     const nameEl = await screen.findByText(longName);
     expect(nameEl).toHaveClass('truncate');
-    expect(nameEl).toHaveAttribute('title', longName);
+    await expect(hoverTooltip(nameEl)).resolves.toBe(longName);
   });
 
   it('shows a current AI recommendation as a qualitative advisory badge', async () => {
@@ -575,5 +582,226 @@ describe('ExceptionsPage', () => {
     expect(await screen.findByText('••••6789')).toBeInTheDocument();
     expect(screen.getByText('Công ty B')).toBeInTheDocument();
     expect(screen.getByText(/người chuyển khoản/i)).toBeInTheDocument();
+  });
+
+  it('caps pathological masked account strings while keeping their final digits', async () => {
+    apiRequest.mockResolvedValue({
+      items: [
+        {
+          transaction: {
+            id: 'tx-long-account',
+            providerTransactionId: 'TX-LONG-ACCOUNT',
+            amount: 10_000,
+            transactionDateTime: '2026-08-01',
+            counterpartyAccountNumber: '001',
+            counterpartyName: 'Công ty A',
+            transferContent: 'note',
+            status: 'PENDING_REVIEW',
+            version: 1,
+          },
+          topCandidate: null,
+          payer: {
+            accountNumberMasked: `${'*'.repeat(46)}3210`,
+            name: 'Công ty A',
+            linkedCustomers: [],
+          },
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText('********3210')).toBeInTheDocument();
+    expect(screen.queryByText(`${'*'.repeat(46)}3210`)).not.toBeInTheDocument();
+  });
+
+  // Below lg the queue uses cards; from lg to xl the score and transfer
+  // content columns are hidden because both are repeated in the review dialog.
+  it('drops the two advisory columns between lg and xl so amount and action stay on screen', async () => {
+    apiRequest.mockResolvedValue({
+      items: [
+        {
+          transaction: {
+            id: 'tx-1',
+            providerTransactionId: 'TX-1',
+            amount: 23_000_000,
+            transactionDateTime: '2026-08-01',
+            counterpartyAccountNumber: '001',
+            counterpartyName: 'Công ty TNHH Giải pháp Kho vận Việt Trung',
+            transferContent: 'Đặt cọc hợp đồng',
+            status: 'PENDING_REVIEW',
+            version: 1,
+          },
+          topCandidate: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByText('23.000.000 ₫');
+
+    const headers = screen.getAllByRole('columnheader');
+    const payerHeader = headers.find(
+      (th) => th.textContent === 'Người chuyển khoản',
+    );
+    const contentHeader = headers.find(
+      (th) => th.textContent === 'Nội dung chuyển khoản',
+    );
+    const scoreHeader = headers.find(
+      (th) => th.textContent === 'Điểm cao nhất',
+    );
+
+    // The payer column is the one that must survive to stay scannable.
+    expect(payerHeader?.className).toContain('min-w-0');
+    expect(payerHeader?.className).not.toContain('max-lg:hidden');
+
+    // The two advisory columns are the ones that go.
+    expect(contentHeader?.className).toContain('lg:max-xl:hidden');
+    expect(scoreHeader?.className).toContain('lg:max-xl:hidden');
+
+    const cells = screen
+      .getAllByRole('row')
+      .slice(1)
+      .flatMap((row) => [...row.querySelectorAll('td')]);
+    const payerCell = cells.find((td) => td.textContent?.includes('Giải pháp'));
+    const contentCell = cells.find((td) => td.textContent?.includes('Đặt cọc'));
+    expect(payerCell?.className).toContain('min-w-0');
+    expect(payerCell?.className).not.toContain('max-lg:hidden');
+    expect(contentCell?.className).toContain('lg:max-xl:hidden');
+
+    // Amount and action are never hidden at any width.
+    const amountCell = cells.find((td) =>
+      td.textContent?.includes('23.000.000'),
+    );
+    const actionHeader = headers.find(
+      (th) => th.textContent?.trim() === 'Hành động',
+    );
+    expect(amountCell?.className).not.toContain('hidden');
+    // Action is never one of the columns dropped between lg and xl; it only
+    // hides below lg, where the row is a card and the action sits beside
+    // the amount instead of under a header.
+    expect(actionHeader?.className).not.toContain('md:max-lg:hidden');
+  });
+
+  it('labels the action column so the trailing "Xử lý" links have a header', async () => {
+    apiRequest.mockResolvedValue({
+      items: [
+        {
+          transaction: {
+            id: 'tx-1',
+            providerTransactionId: 'TX-1',
+            amount: 23_000_000,
+            transactionDateTime: '2026-08-01',
+            counterpartyAccountNumber: '001',
+            counterpartyName: 'Công ty TNHH Giải pháp Kho vận Việt Trung',
+            transferContent: 'Đặt cọc hợp đồng',
+            status: 'PENDING_REVIEW',
+            version: 1,
+          },
+          topCandidate: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByText('23.000.000 ₫');
+
+    // The column used to render only an `sr-only` "Thao tác", so a screen
+    // full of trailing "Xử lý" links had no visible header above them. A
+    // visible label costs ~80px and only matters once the row is a table
+    // again, so it stays hidden on the phone card layout.
+    const actionHeader = screen.getByRole('columnheader', {
+      name: 'Hành động',
+    });
+    expect(actionHeader).toHaveClass('max-lg:hidden');
+    expect(actionHeader).not.toHaveClass('sr-only');
+
+    // The header must not claim more width than the single word it labels.
+    expect(actionHeader).toHaveClass('w-[6.5rem]', 'text-right');
+  });
+
+  // `max-lg:h-auto max-lg:px-0` was meant to tighten the action into the
+  // card layout, but it also stripped its vertical padding: measured at
+  // 390px the button rendered 29x16px, far under the 44px touch target and
+  // under the 24px minimum even. The link tone is fine; the hit area is not.
+  it('keeps the mobile action button tappable instead of collapsing to 16px', async () => {
+    apiRequest.mockResolvedValue({
+      items: [
+        {
+          transaction: {
+            id: 'tx-1',
+            providerTransactionId: 'TX-1',
+            amount: 23_000_000,
+            transactionDateTime: '2026-08-01',
+            counterpartyAccountNumber: '001',
+            counterpartyName: 'Công ty TNHH Giải pháp Kho vận Việt Trung',
+            transferContent: 'Đặt cọc hợp đồng',
+            status: 'PENDING_REVIEW',
+            version: 1,
+          },
+          topCandidate: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const action = await screen.findByRole('button', { name: 'Xử lý' });
+
+    // It stays a link-toned button in the card, but the hit area is padded
+    // back out instead of collapsing to the glyph's own line box.
+    expect(action.className).not.toContain('max-lg:h-auto');
+    expect(action.className).toContain('max-lg:min-h-9');
+    expect(action.className).toContain('max-lg:px-2');
   });
 });
