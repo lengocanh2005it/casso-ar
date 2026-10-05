@@ -23,6 +23,12 @@ export class PlanUpgradeOrderOrmEntity {
   @Column({ type: 'enum', enum: PlanId })
   targetPlanId: PlanId;
 
+  @Column('bigint', { nullable: true })
+  quotedAmount: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  payosPaymentLinkId: string | null;
+
   @Column({ type: 'enum', enum: PlanUpgradeOrderStatus })
   status: PlanUpgradeOrderStatus;
 

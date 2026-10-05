@@ -26,10 +26,12 @@ import type { IPayosPaymentAdapter } from '../src/modules/payos/application/payo
 import { PAYOS_PAYMENT_ADAPTER } from '../src/modules/payos/application/payos-payment-adapter.port';
 import { RenewalReminderScannerService } from '../src/modules/payos/application/renewal-reminder-scanner.service';
 import { PeriodChargeOrmEntity } from '../src/modules/payos/infrastructure/period-charge.orm-entity';
+import { PlanPaymentHistoryOrmEntity } from '../src/modules/payos/infrastructure/plan-payment-history.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 import { startTestRedis } from './helpers/test-redis';
 
 const CHECKSUM_KEY = 'e2e-payos-checksum-key';
+const paymentLinks = new Map<string, { orderCode: number; amount: number }>();
 
 function signWebhookData(data: Record<string, unknown>): string {
   const query = Object.keys(data)
@@ -40,10 +42,37 @@ function signWebhookData(data: Record<string, unknown>): string {
 }
 
 const fakeAdapter: IPayosPaymentAdapter = {
-  createPaymentLink: async (input) => ({
-    checkoutUrl: `https://pay.payos.vn/${input.orderCode}`,
-    orderCode: input.orderCode,
-  }),
+  createPaymentLink: async (input) => {
+    const paymentLinkId = `test-link-${input.orderCode}`;
+    paymentLinks.set(paymentLinkId, {
+      orderCode: input.orderCode,
+      amount: input.amount,
+    });
+    return {
+      checkoutUrl: `https://pay.payos.vn/${input.orderCode}`,
+      orderCode: input.orderCode,
+      paymentLinkId,
+    };
+  },
+  getPaymentLink: async (paymentLinkId) => {
+    const link = paymentLinks.get(paymentLinkId);
+    if (!link) throw new Error('payment link not found');
+    return {
+      paymentLinkId,
+      orderCode: link.orderCode,
+      amount: link.amount,
+      amountPaid: link.amount,
+      amountRemaining: 0,
+      status: 'PAID',
+      transactions: [
+        {
+          reference: 'e2e-bank-ref',
+          amount: link.amount,
+          transactionDateTime: '2026-10-05 10:00:00',
+        },
+      ],
+    };
+  },
 };
 
 const noOpEmailQueue: IEmailQueue = {
@@ -173,6 +202,9 @@ describe('Renewal & non-renewal downgrade (integration)', () => {
       description: 'Gia han goi STARTER',
       code: '00',
       desc: 'success',
+      paymentLinkId: charge.payosPaymentLinkId,
+      reference: 'e2e-bank-ref',
+      transactionDateTime: '2026-10-05 10:00:00',
     };
     await request(app.getHttpServer())
       .post('/api/v1/payos/webhook')
@@ -189,6 +221,12 @@ describe('Renewal & non-renewal downgrade (integration)', () => {
       .getRepository(PeriodChargeOrmEntity)
       .findOneOrFail({ where: { organizationId } });
     expect(paidCharge.status).toBe('PAID');
+    const receipts = await dataSource
+      .getRepository(PlanPaymentHistoryOrmEntity)
+      .findBy({ organizationId });
+    expect(receipts).toHaveLength(1);
+    expect(receipts[0].sourceType).toBe('PERIOD_CHARGE');
+    expect(receipts[0].initialOutcome).toBe('ACCEPTED');
 
     // Subscription plan is unchanged by a renewal — only the charge status moved.
     const subscriptionRow = await dataSource

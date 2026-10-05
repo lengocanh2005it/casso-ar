@@ -23,6 +23,8 @@ function toDomain(row: PlanUpgradeOrderOrmEntity): PlanUpgradeOrder {
     orderCode: toDomainOrderCode(row.orderCode),
     organizationId: row.organizationId,
     targetPlanId: row.targetPlanId,
+    quotedAmount: row.quotedAmount,
+    payosPaymentLinkId: row.payosPaymentLinkId,
     status: row.status,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -35,6 +37,8 @@ function toOrm(order: PlanUpgradeOrder): PlanUpgradeOrderOrmEntity {
     orderCode: String(order.orderCode),
     organizationId: order.organizationId,
     targetPlanId: order.targetPlanId,
+    quotedAmount: order.quotedAmount,
+    payosPaymentLinkId: order.payosPaymentLinkId,
     status: order.status,
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
@@ -54,11 +58,16 @@ export class TypeOrmPlanUpgradeOrderRepository
     super(repo, tenantContext);
   }
 
-  async create(input: CreatePlanUpgradeOrderInput): Promise<PlanUpgradeOrder> {
+  async create(
+    input: CreatePlanUpgradeOrderInput,
+    manager: EntityManager,
+  ): Promise<PlanUpgradeOrder> {
     const now = new Date();
-    const saved = await this.ormRepo.save({
+    const saved = await manager.getRepository(PlanUpgradeOrderOrmEntity).save({
       organizationId: input.organizationId,
       targetPlanId: input.targetPlanId,
+      quotedAmount: input.quotedAmount,
+      payosPaymentLinkId: null,
       status: PlanUpgradeOrderStatus.PENDING,
       createdAt: now,
       updatedAt: now,
@@ -75,6 +84,21 @@ export class TypeOrmPlanUpgradeOrderRepository
       .createQueryBuilder('o')
       .setLock('pessimistic_write')
       .where('o.orderCode = :orderCode', { orderCode: String(orderCode) })
+      .getOne();
+    return row ? toDomain(row) : null;
+  }
+
+  async lockAndFindByIdAndOrganizationId(
+    id: string,
+    organizationId: string,
+    manager: EntityManager,
+  ): Promise<PlanUpgradeOrder | null> {
+    const row = await manager
+      .getRepository(PlanUpgradeOrderOrmEntity)
+      .createQueryBuilder('o')
+      .setLock('pessimistic_write')
+      .where('o.id = :id', { id })
+      .andWhere('o.organizationId = :organizationId', { organizationId })
       .getOne();
     return row ? toDomain(row) : null;
   }

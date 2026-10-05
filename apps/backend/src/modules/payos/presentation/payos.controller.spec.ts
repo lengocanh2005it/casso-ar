@@ -1,9 +1,8 @@
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
-import { ConfirmPeriodChargeUseCase } from '../application/confirm-period-charge.usecase';
-import { ConfirmPlanUpgradeOrderUseCase } from '../application/confirm-plan-upgrade-order.usecase';
 import { InitiatePeriodChargeUseCase } from '../application/initiate-period-charge.usecase';
 import { InitiatePlanUpgradeOrderUseCase } from '../application/initiate-plan-upgrade-order.usecase';
+import { ProcessPlanPaymentWebhookUseCase } from '../application/process-plan-payment-webhook.usecase';
 import { PayosController } from './payos.controller';
 
 describe('PayosController', () => {
@@ -11,15 +10,12 @@ describe('PayosController', () => {
     const initiateUseCase = {
       execute: jest.fn().mockResolvedValue({ checkoutUrl: 'https://x' }),
     } as unknown as InitiatePlanUpgradeOrderUseCase;
-    const confirmUseCase = {
+    const processWebhookUseCase = {
       execute: jest.fn().mockResolvedValue(undefined),
-    } as unknown as ConfirmPlanUpgradeOrderUseCase;
+    } as unknown as ProcessPlanPaymentWebhookUseCase;
     const initiateChargeUseCase = {
       execute: jest.fn().mockResolvedValue({ checkoutUrl: 'https://y' }),
     } as unknown as InitiatePeriodChargeUseCase;
-    const confirmChargeUseCase = {
-      execute: jest.fn().mockResolvedValue(undefined),
-    } as unknown as ConfirmPeriodChargeUseCase;
     const tenantContext = {
       getOrganizationId: jest.fn().mockReturnValue('org-1'),
     } as unknown as TenantContextService;
@@ -29,18 +25,16 @@ describe('PayosController', () => {
 
     const controller = new PayosController(
       initiateUseCase,
-      confirmUseCase,
+      processWebhookUseCase,
       initiateChargeUseCase,
-      confirmChargeUseCase,
       tenantContext,
       idempotency,
     );
-    return { controller, confirmUseCase, confirmChargeUseCase };
+    return { controller, processWebhookUseCase };
   }
 
-  it('receiveWebhook calls BOTH confirm use cases (orderCode spaces are disjoint, so at most one ever matches a real row)', async () => {
-    const { controller, confirmUseCase, confirmChargeUseCase } =
-      buildController();
+  it('passes the signed inner data to the receipt processor', async () => {
+    const { controller, processWebhookUseCase } = buildController();
 
     await controller.receiveWebhook({
       code: '00',
@@ -56,13 +50,12 @@ describe('PayosController', () => {
       signature: 'sig',
     });
 
-    expect(confirmUseCase.execute).toHaveBeenCalledWith({
-      orderCode: 100_000_001,
-      paymentSucceeded: true,
-    });
-    expect(confirmChargeUseCase.execute).toHaveBeenCalledWith({
-      orderCode: 100_000_001,
-      paymentSucceeded: true,
+    expect(processWebhookUseCase.execute).toHaveBeenCalledWith({
+      signature: 'sig',
+      data: expect.objectContaining({
+        orderCode: 100_000_001,
+        code: '00',
+      }),
     });
   });
 });

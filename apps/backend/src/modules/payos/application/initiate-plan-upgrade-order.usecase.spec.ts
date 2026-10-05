@@ -1,4 +1,5 @@
 import { PlanId, PlanUpgradeOrderStatus } from '@casso-ar/shared-types';
+import { DataSource } from 'typeorm';
 import type { ISubscriptionRepository } from '../../billing/application/subscription-repository.port';
 import { Subscription } from '../../billing/domain/subscription';
 import { PlanUpgradeOrder } from '../domain/plan-upgrade-order';
@@ -28,12 +29,15 @@ describe('InitiatePlanUpgradeOrderUseCase', () => {
           orderCode: 1001,
           organizationId: 'org-1',
           targetPlanId: PlanId.STARTER,
+          quotedAmount: 299000,
+          payosPaymentLinkId: null,
           status: PlanUpgradeOrderStatus.PENDING,
           createdAt: new Date(),
           updatedAt: new Date(),
         }),
       ),
       lockAndFindByOrderCode: jest.fn(),
+      lockAndFindByIdAndOrganizationId: jest.fn(),
       save: jest.fn(),
       existsPaidWithinRange: jest.fn(),
     };
@@ -41,18 +45,34 @@ describe('InitiatePlanUpgradeOrderUseCase', () => {
       createPaymentLink: jest.fn().mockResolvedValue({
         checkoutUrl: 'https://pay.payos.vn/x',
         orderCode: 1001,
+        paymentLinkId: 'payos-link-1',
       }),
+      getPaymentLink: jest.fn(),
     };
+    const manager = {};
+    const dataSource = {
+      transaction: jest.fn((callback: (manager: unknown) => unknown) =>
+        callback(manager),
+      ),
+    } as unknown as DataSource;
     const useCase = new InitiatePlanUpgradeOrderUseCase(
       orderRepo,
       subscriptionRepo,
       adapter,
+      dataSource,
     );
-    return { useCase, subscriptionRepo, orderRepo, adapter };
+    return {
+      useCase,
+      subscriptionRepo,
+      orderRepo,
+      adapter,
+      dataSource,
+      manager,
+    };
   }
 
   it('creates an order and returns the PayOS checkout URL for a valid upgrade', async () => {
-    const { useCase, orderRepo, adapter } = buildDeps();
+    const { useCase, orderRepo, adapter, dataSource, manager } = buildDeps();
     const result = await useCase.execute({
       organizationId: 'org-1',
       targetPlanId: PlanId.STARTER,
@@ -61,12 +81,22 @@ describe('InitiatePlanUpgradeOrderUseCase', () => {
     });
 
     expect(result.checkoutUrl).toBe('https://pay.payos.vn/x');
-    expect(orderRepo.create).toHaveBeenCalledWith({
-      organizationId: 'org-1',
-      targetPlanId: PlanId.STARTER,
-    });
+    expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+    expect(orderRepo.create).toHaveBeenCalledWith(
+      {
+        organizationId: 'org-1',
+        targetPlanId: PlanId.STARTER,
+        quotedAmount: 299000,
+      },
+      manager,
+    );
     expect(adapter.createPaymentLink).toHaveBeenCalledWith(
       expect.objectContaining({ orderCode: 1001, amount: 299000 }),
+    );
+    expect(orderRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ payosPaymentLinkId: 'payos-link-1' }),
+      undefined,
+      'org-1',
     );
   });
 

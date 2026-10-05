@@ -18,12 +18,14 @@ describe('PeriodPaymentStatusService', () => {
     const chargeRepo: jest.Mocked<IPeriodChargeRepository> = {
       create: jest.fn(),
       lockAndFindByOrderCode: jest.fn(),
+      lockAndFindByIdAndOrganizationId: jest.fn(),
       save: jest.fn(),
       findLatestByOrganizationAndPeriodStart: jest.fn(),
     };
     const upgradeOrderRepo: jest.Mocked<IPlanUpgradeOrderRepository> = {
       create: jest.fn(),
       lockAndFindByOrderCode: jest.fn(),
+      lockAndFindByIdAndOrganizationId: jest.fn(),
       save: jest.fn(),
       existsPaidWithinRange: jest.fn(),
     };
@@ -44,6 +46,8 @@ describe('PeriodPaymentStatusService', () => {
         planId: PlanId.STARTER,
         periodStart: new Date('2026-08-01T00:00:00Z'),
         periodEnd: new Date('2026-09-01T00:00:00Z'),
+        quotedAmount: null,
+        payosPaymentLinkId: null,
         status: PeriodChargeStatus.PAID,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -90,6 +94,8 @@ describe('PeriodPaymentStatusService', () => {
         planId: PlanId.STARTER,
         periodStart: new Date('2026-08-01T00:00:00Z'),
         periodEnd: new Date('2026-09-01T00:00:00Z'),
+        quotedAmount: null,
+        payosPaymentLinkId: null,
         status: PeriodChargeStatus.FAILED,
         createdAt: new Date(),
         updatedAt: new Date(),

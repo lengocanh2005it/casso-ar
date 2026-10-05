@@ -1,0 +1,19 @@
+# 32. Plan payment receipts are separate from entitlement
+
+Date: 2026-10-05
+
+Status: Accepted design; not yet implemented. The user accepted all recommendations for issue #464.
+
+The checkout quote is frozen when either payment-link creation path creates a `PlanUpgradeOrder` or `PeriodCharge`. A PayOS confirmation uses the authenticated inner `data.code` and a positive safe-integer VND amount. It does not look up the current catalog price. A missing or unknown quote cannot be reconstructed from today's catalog.
+
+Money evidence and subscription entitlement are separate outcomes. Each distinguishable incoming transfer can have one immutable plan-payment-history receipt, even when the order has already reached a terminal status. `PAID` is the only source-order status that grants entitlement. Add terminal `REVIEW_REQUIRED` to both source status types; its receipt outcome is separately `REVIEW_REQUIRED`. A failed notification with no received money may mark a still-pending source `FAILED`, but creates no receipt.
+
+Automatically accept a receipt only when the amount matches the frozen quote, the provider transfer identity is verified as stable for retries, and the payment is still eligible under the organization subscription lock. Upgrades must still be strictly higher than the current tier. A period charge must still match the current tier and exact period. Amount mismatch, missing quote, uncertain transfer identity, additional transfer, or stale/inapplicable payment is recorded for review and cannot change the subscription. Persist the receipt and review outcome even when entitlement is rejected; do not roll back received-money evidence for a business-rule rejection. For an accepted receipt, write the receipt, source status, subscription change and audit record atomically.
+
+Do not use an order code or exact-body fingerprint as a transfer identity. The current PayOS payment-link transaction shape exposes no immutable transaction ID, so use the stable payment-link ID as transfer identity only when the authoritative snapshot contains exactly one transaction and it matches the signed callback. Multiple transactions on a link have no verified per-transfer key and remain review-required with no transfer identity. An exact-body delivery fingerprint may suppress only a byte-identical webhook replay. When transfer identity cannot be established, retain minimum authenticated evidence as review-required without claiming it is a distinct transfer or granting access. A signed PayOS sample or unknown order code is not money evidence and creates no history row.
+
+The webhook has no request tenant context. Resolve a known source using its PayOS order code, then derive `organizationId` from that row and scope every write to it. Validate authenticated provider data at the boundary; never use the unsigned outer success code. Store only the minimum signed evidence needed for review and omit account numbers and unrelated provider fields. Keep provider API calls outside database transactions.
+
+An atomic migration backfills historical `PAID` rows from both source tables, preserving each explicit organization, external PayOS order code, source provenance and local `updatedAt` confirmation time. Their received amount, quote and transfer identity stay unknown. Legacy-source deduplication is separate from runtime transfer-identity deduplication, so it cannot suppress later receipts for the same order.
+
+Before rollout, stop new checkout creation, drain old webhook writers, apply the backfill and deploy the new writer before resuming. Callbacks arriving during this cutover must remain retryable or be durably buffered; verify the actual PayOS delivery behavior before scheduling the pause. See [the history design](../superpowers/specs/2026-10-05-billing-payment-history-design.md) and [the #464 write design](../superpowers/specs/2026-10-05-billing-payment-history-write-design.md).

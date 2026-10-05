@@ -28,10 +28,9 @@ import { RequirePermission } from '../../../common/rbac/require-permission.decor
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { WebhookRateLimitGuard } from '../../webhooks/presentation/webhook-rate-limit.guard';
-import { ConfirmPeriodChargeUseCase } from '../application/confirm-period-charge.usecase';
-import { ConfirmPlanUpgradeOrderUseCase } from '../application/confirm-plan-upgrade-order.usecase';
 import { InitiatePeriodChargeUseCase } from '../application/initiate-period-charge.usecase';
 import { InitiatePlanUpgradeOrderUseCase } from '../application/initiate-plan-upgrade-order.usecase';
+import { ProcessPlanPaymentWebhookUseCase } from '../application/process-plan-payment-webhook.usecase';
 import { InitiatePeriodChargeDto } from './dto/initiate-period-charge.dto';
 import { InitiatePlanUpgradeOrderDto } from './dto/initiate-plan-upgrade-order.dto';
 import { PayosWebhookDto } from './dto/payos-webhook.dto';
@@ -45,9 +44,8 @@ import { PayosWebhookAuthGuard } from './payos-webhook-auth.guard';
 export class PayosController {
   constructor(
     private readonly initiateUseCase: InitiatePlanUpgradeOrderUseCase,
-    private readonly confirmUseCase: ConfirmPlanUpgradeOrderUseCase,
+    private readonly processWebhookUseCase: ProcessPlanPaymentWebhookUseCase,
     private readonly initiateChargeUseCase: InitiatePeriodChargeUseCase,
-    private readonly confirmChargeUseCase: ConfirmPeriodChargeUseCase,
     private readonly tenantContext: TenantContextService,
     private readonly idempotency: IdempotencyService,
   ) {}
@@ -140,14 +138,10 @@ export class PayosController {
   async receiveWebhook(
     @Body() payload: PayosWebhookDto,
   ): Promise<{ received: true }> {
-    const input = {
-      orderCode: payload.data.orderCode,
-      paymentSucceeded: payload.code === '00',
-    };
-    // Both use cases no-op if the orderCode isn't theirs (Task 6's offset
-    // makes the two spaces disjoint, so at most one of these ever matches).
-    await this.confirmUseCase.execute(input);
-    await this.confirmChargeUseCase.execute(input);
+    await this.processWebhookUseCase.execute({
+      signature: payload.signature,
+      data: payload.data,
+    });
     return { received: true };
   }
 }

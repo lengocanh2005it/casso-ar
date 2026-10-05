@@ -7,12 +7,21 @@ export interface CreatePeriodChargeInput {
   planId: PlanId;
   periodStart: Date;
   periodEnd: Date;
+  quotedAmount: number;
 }
 
 export interface IPeriodChargeRepository {
-  create(input: CreatePeriodChargeInput): Promise<PeriodCharge>;
+  create(
+    input: CreatePeriodChargeInput,
+    manager: EntityManager,
+  ): Promise<PeriodCharge>;
   lockAndFindByOrderCode(
     orderCode: number,
+    manager: EntityManager,
+  ): Promise<PeriodCharge | null>;
+  lockAndFindByIdAndOrganizationId(
+    id: string,
+    organizationId: string,
     manager: EntityManager,
   ): Promise<PeriodCharge | null>;
   save(

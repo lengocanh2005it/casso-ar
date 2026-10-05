@@ -1,5 +1,6 @@
 import { PlanId } from '@casso-ar/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
@@ -35,6 +36,7 @@ export class InitiatePeriodChargeUseCase {
     private readonly subscriptionRepo: ISubscriptionRepository,
     @Inject(PAYOS_PAYMENT_ADAPTER)
     private readonly payosAdapter: IPayosPaymentAdapter,
+    private readonly dataSource: DataSource,
   ) {}
 
   async execute(
@@ -56,22 +58,42 @@ export class InitiatePeriodChargeUseCase {
       );
     }
 
-    const charge = await this.chargeRepo.create({
-      organizationId: input.organizationId,
-      planId: subscription.planId,
-      periodStart: subscription.currentPeriodStart,
-      periodEnd: subscription.currentPeriodEnd,
-    });
+    const currentPlan = getPlanCatalog().find(
+      (p) => p.planId === subscription.planId,
+    );
+    if (!currentPlan) {
+      throw new AppError(
+        ErrorCode.INVALID_PLAN_TRANSITION,
+        `Không tìm thấy cấu hình gói ${subscription.planId}.`,
+      );
+    }
+    const quotedAmount = currentPlan.priceVnd;
+    const charge = await this.dataSource.transaction((manager) =>
+      this.chargeRepo.create(
+        {
+          organizationId: input.organizationId,
+          planId: subscription.planId,
+          periodStart: subscription.currentPeriodStart,
+          periodEnd: subscription.currentPeriodEnd,
+          quotedAmount,
+        },
+        manager,
+      ),
+    );
 
     const link = await this.payosAdapter.createPaymentLink({
       orderCode: charge.orderCode,
-      // biome-ignore lint/style/noNonNullAssertion: the plan was validated against the catalog before this point; a miss here is a real invariant break, not an optional amount
-      amount: getPlanCatalog().find((p) => p.planId === subscription.planId)!
-        .priceVnd,
+      amount: quotedAmount,
       description: `Gia han goi ${subscription.planId}`,
       returnUrl: input.returnUrl,
       cancelUrl: input.cancelUrl,
     });
+
+    await this.chargeRepo.save(
+      charge.withPayosPaymentLinkId(link.paymentLinkId),
+      undefined,
+      input.organizationId,
+    );
 
     return { checkoutUrl: link.checkoutUrl };
   }

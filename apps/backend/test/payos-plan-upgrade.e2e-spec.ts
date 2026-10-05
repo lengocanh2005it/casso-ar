@@ -18,11 +18,13 @@ import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
 import type { IPayosPaymentAdapter } from '../src/modules/payos/application/payos-payment-adapter.port';
 import { PAYOS_PAYMENT_ADAPTER } from '../src/modules/payos/application/payos-payment-adapter.port';
+import { PlanPaymentHistoryOrmEntity } from '../src/modules/payos/infrastructure/plan-payment-history.orm-entity';
 import { PlanUpgradeOrderOrmEntity } from '../src/modules/payos/infrastructure/plan-upgrade-order.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 import { startTestRedis } from './helpers/test-redis';
 
 const CHECKSUM_KEY = 'e2e-payos-checksum-key';
+const paymentLinks = new Map<string, { orderCode: number; amount: number }>();
 
 function signWebhookData(data: Record<string, unknown>): string {
   const query = Object.keys(data)
@@ -33,10 +35,37 @@ function signWebhookData(data: Record<string, unknown>): string {
 }
 
 const fakeAdapter: IPayosPaymentAdapter = {
-  createPaymentLink: async (input) => ({
-    checkoutUrl: `https://pay.payos.vn/${input.orderCode}`,
-    orderCode: input.orderCode,
-  }),
+  createPaymentLink: async (input) => {
+    const paymentLinkId = `test-link-${input.orderCode}`;
+    paymentLinks.set(paymentLinkId, {
+      orderCode: input.orderCode,
+      amount: input.amount,
+    });
+    return {
+      checkoutUrl: `https://pay.payos.vn/${input.orderCode}`,
+      orderCode: input.orderCode,
+      paymentLinkId,
+    };
+  },
+  getPaymentLink: async (paymentLinkId) => {
+    const link = paymentLinks.get(paymentLinkId);
+    if (!link) throw new Error('payment link not found');
+    return {
+      paymentLinkId,
+      orderCode: link.orderCode,
+      amount: link.amount,
+      amountPaid: link.amount,
+      amountRemaining: 0,
+      status: 'PAID',
+      transactions: [
+        {
+          reference: 'e2e-bank-ref',
+          amount: link.amount,
+          transactionDateTime: '2026-10-05 10:00:00',
+        },
+      ],
+    };
+  },
 };
 
 describe('PayOS plan upgrade (integration)', () => {
@@ -169,6 +198,9 @@ describe('PayOS plan upgrade (integration)', () => {
       description: 'Nang cap goi STARTER',
       code: '00',
       desc: 'success',
+      paymentLinkId: order.payosPaymentLinkId,
+      reference: 'e2e-bank-ref',
+      transactionDateTime: '2026-10-05 10:00:00',
     };
     const webhookRes = await request(app.getHttpServer())
       .post('/api/v1/payos/webhook')
@@ -197,6 +229,12 @@ describe('PayOS plan upgrade (integration)', () => {
       .getRepository(PlanUpgradeOrderOrmEntity)
       .findOneOrFail({ where: { organizationId } });
     expect(orderRow.status).toBe('PAID');
+    const receipts = await dataSource
+      .getRepository(PlanPaymentHistoryOrmEntity)
+      .findBy({ organizationId });
+    expect(receipts).toHaveLength(1);
+    expect(receipts[0].initialOutcome).toBe('ACCEPTED');
+    expect(String(receipts[0].receivedAmount)).toBe('299000');
   });
 
   it('replaying the same PAID webhook is a no-op (idempotent)', async () => {
@@ -225,6 +263,9 @@ describe('PayOS plan upgrade (integration)', () => {
       description: 'x',
       code: '00',
       desc: 'success',
+      paymentLinkId: order.payosPaymentLinkId,
+      reference: 'e2e-bank-ref',
+      transactionDateTime: '2026-10-05 10:00:00',
     };
     const body = {
       code: '00',
@@ -247,6 +288,74 @@ describe('PayOS plan upgrade (integration)', () => {
       .getRepository(SubscriptionOrmEntity)
       .findOneOrFail({ where: { organizationId } });
     expect(subRow.planId).toBe(PlanId.STARTER);
+    expect(
+      await dataSource
+        .getRepository(PlanPaymentHistoryOrmEntity)
+        .countBy({ organizationId }),
+    ).toBe(1);
+  });
+
+  it('records a mismatched amount for review without granting the plan', async () => {
+    const organizationId = '00000000-0000-4000-8000-000000000503';
+    const { token } = await setUpOrg(organizationId, Role.OWNER);
+    await seedFreeSubscription(organizationId);
+
+    await request(app.getHttpServer())
+      .post('/api/v1/payos/plan-upgrade-orders')
+      .set('Authorization', `Bearer ${token}`)
+      .set('idempotency-key', 'test-key-3')
+      .send({
+        targetPlanId: PlanId.STARTER,
+        returnUrl: 'https://app.casso.vn/billing',
+        cancelUrl: 'https://app.casso.vn/billing',
+      })
+      .expect(201);
+
+    const order = await dataSource
+      .getRepository(PlanUpgradeOrderOrmEntity)
+      .findOneOrFail({ where: { organizationId } });
+    const webhookData = {
+      orderCode: Number(order.orderCode),
+      amount: 298000,
+      description: 'x',
+      code: '00',
+      desc: 'success',
+      paymentLinkId: order.payosPaymentLinkId,
+      reference: 'e2e-bank-ref',
+      transactionDateTime: '2026-10-05 10:00:00',
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/v1/payos/webhook')
+      .send({
+        code: '00',
+        desc: 'success',
+        success: true,
+        data: webhookData,
+        signature: signWebhookData(webhookData),
+      })
+      .expect(200);
+
+    expect(order.payosPaymentLinkId).toBeTruthy();
+    expect(
+      (
+        await dataSource
+          .getRepository(SubscriptionOrmEntity)
+          .findOneOrFail({ where: { organizationId } })
+      ).planId,
+    ).toBe(PlanId.FREE);
+    expect(
+      (
+        await dataSource
+          .getRepository(PlanUpgradeOrderOrmEntity)
+          .findOneOrFail({ where: { organizationId } })
+      ).status,
+    ).toBe('REVIEW_REQUIRED');
+    const receipt = await dataSource
+      .getRepository(PlanPaymentHistoryOrmEntity)
+      .findOneOrFail({ where: { organizationId } });
+    expect(receipt.initialOutcome).toBe('REVIEW_REQUIRED');
+    expect(String(receipt.receivedAmount)).toBe('298000');
   });
 
   it('rejects a webhook with a bad signature', async () => {

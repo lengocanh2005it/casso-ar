@@ -1,5 +1,6 @@
 import { PlanId } from '@casso-ar/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import {
@@ -36,6 +37,7 @@ export class InitiatePlanUpgradeOrderUseCase {
     private readonly subscriptionRepo: ISubscriptionRepository,
     @Inject(PAYOS_PAYMENT_ADAPTER)
     private readonly payosAdapter: IPayosPaymentAdapter,
+    private readonly dataSource: DataSource,
   ) {}
 
   async execute(
@@ -57,20 +59,40 @@ export class InitiatePlanUpgradeOrderUseCase {
       );
     }
 
-    const order = await this.orderRepo.create({
-      organizationId: input.organizationId,
-      targetPlanId: input.targetPlanId,
-    });
+    const targetPlan = getPlanCatalog().find(
+      (p) => p.planId === input.targetPlanId,
+    );
+    if (!targetPlan) {
+      throw new AppError(
+        ErrorCode.INVALID_PLAN_TRANSITION,
+        `Không tìm thấy cấu hình gói ${input.targetPlanId}.`,
+      );
+    }
+    const quotedAmount = targetPlan.priceVnd;
+    const order = await this.dataSource.transaction((manager) =>
+      this.orderRepo.create(
+        {
+          organizationId: input.organizationId,
+          targetPlanId: input.targetPlanId,
+          quotedAmount,
+        },
+        manager,
+      ),
+    );
 
     const link = await this.payosAdapter.createPaymentLink({
       orderCode: order.orderCode,
-      // biome-ignore lint/style/noNonNullAssertion: the target plan was validated against the catalog before this point; a miss here is a real invariant break, not an optional amount
-      amount: getPlanCatalog().find((p) => p.planId === input.targetPlanId)!
-        .priceVnd,
+      amount: quotedAmount,
       description: `Nang cap goi ${input.targetPlanId}`,
       returnUrl: input.returnUrl,
       cancelUrl: input.cancelUrl,
     });
+
+    await this.orderRepo.save(
+      order.withPayosPaymentLinkId(link.paymentLinkId),
+      undefined,
+      input.organizationId,
+    );
 
     return { checkoutUrl: link.checkoutUrl };
   }

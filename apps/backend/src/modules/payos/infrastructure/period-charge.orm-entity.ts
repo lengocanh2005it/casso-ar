@@ -29,6 +29,12 @@ export class PeriodChargeOrmEntity {
   @Column({ type: 'timestamptz' })
   periodEnd: Date;
 
+  @Column('bigint', { nullable: true })
+  quotedAmount: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  payosPaymentLinkId: string | null;
+
   @Column({ type: 'enum', enum: PeriodChargeStatus })
   status: PeriodChargeStatus;
 
