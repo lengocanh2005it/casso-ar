@@ -32,7 +32,7 @@ describe('CustomerAgingTable', () => {
     render(<CustomerAgingTable page={buildPage()} />);
 
     const zeroCell = screen.getAllByText(/^0\s*.$/)[0];
-    expect(zeroCell.className).toMatch(/text-muted-foreground/);
+    expect(zeroCell.closest('td')?.className).toMatch(/text-muted-foreground/);
   });
 
   it('keeps the muted zero cell at full opacity so it stays readable', () => {
@@ -42,24 +42,26 @@ describe('CustomerAgingTable', () => {
     // under the 4.5 WCAG AA floor for 14px text. Alpha belongs on the surface,
     // never on the ink.
     const zeroCell = screen.getAllByText(/^0\s*.$/)[0];
-    expect(zeroCell.className).toMatch(/text-muted-foreground(?!\/)/);
-    expect(zeroCell.className).not.toMatch(/text-muted-foreground\/\d+/);
+    const tone = zeroCell.closest('td')?.className ?? '';
+    expect(tone).toMatch(/text-muted-foreground(?!\/)/);
+    expect(tone).not.toMatch(/text-muted-foreground\/\d+/);
   });
 
   it('colors overdue-60-plus amounts as the most severe tone', () => {
     render(<CustomerAgingTable page={buildPage()} />);
 
     const severeCell = screen.getByText(/44\.000\.000/);
-    expect(severeCell.className).toMatch(/text-destructive/);
+    expect(severeCell.closest('td')?.className).toMatch(/text-destructive/);
   });
 
   it('does not mute or recolor a non-zero not-due amount', () => {
     render(<CustomerAgingTable page={buildPage()} />);
 
     const notDueCell = screen.getByText(/62\.000\.000/);
-    expect(notDueCell.className).not.toMatch(/text-muted-foreground/);
-    expect(notDueCell.className).not.toMatch(/text-destructive/);
-    expect(notDueCell.className).not.toMatch(/text-warning/);
+    const tone = notDueCell.closest('td')?.className ?? '';
+    expect(tone).not.toMatch(/text-muted-foreground/);
+    expect(tone).not.toMatch(/text-destructive/);
+    expect(tone).not.toMatch(/text-warning/);
   });
 
   it('fits bucket headers and keeps the sticky total opaque on the card', () => {
@@ -70,8 +72,12 @@ describe('CustomerAgingTable', () => {
       screen.getByRole('columnheader', { name: 'Quá hạn trên 60 ngày' }),
     ).toHaveClass('whitespace-normal', 'text-right');
     // bg-background differed from the card surface in dark mode.
-    expect(screen.getByText('106.000.000 ₫')).toHaveClass('bg-card');
-    expect(screen.getByText('62.000.000 ₫')).toHaveClass('text-right');
+    expect(screen.getByText('106.000.000 ₫').closest('td')).toHaveClass(
+      'bg-card',
+    );
+    expect(screen.getByText('62.000.000 ₫').closest('td')).toHaveClass(
+      'text-right',
+    );
   });
 
   it('shows the tax code under the customer name so every bucket column fits', () => {
@@ -93,6 +99,109 @@ describe('CustomerAgingTable', () => {
     expect(
       screen.getByRole('columnheader', { name: 'Tổng còn lại' }),
     ).toHaveClass(STICKY_EDGE);
-    expect(screen.getByText('106.000.000 ₫')).toHaveClass(STICKY_EDGE);
+    expect(screen.getByText('106.000.000 ₫').closest('td')).toHaveClass(
+      STICKY_EDGE,
+    );
+  });
+
+  it('stops pinning the total column on narrow screens so cells stop overlapping', () => {
+    render(<CustomerAgingTable page={buildPage()} />);
+
+    // Measured at 390px: the seven columns total 902px inside a 293px
+    // scroller, and the pinned total settled at left:213 while the bucket
+    // before it ran to x:822 — a 609px overlap that painted 45 text-on-text
+    // collisions. `sticky right-0` only reads as "keep the total in view"
+    // while the row is wider than the scroller AND the browser has room to
+    // pin against. Under `max-md` the table is far wider than any phone, so
+    // the pin stops helping and starts covering the bucket amounts.
+    expect(
+      screen.getByRole('columnheader', { name: 'Tổng còn lại' }),
+    ).toHaveClass('max-md:static');
+    expect(screen.getByText('106.000.000 ₫').closest('td')).toHaveClass(
+      'max-md:col-start-2',
+    );
+
+    // The shadow is only meaningful while the column is actually pinned.
+    expect(
+      screen.getByRole('columnheader', { name: 'Tổng còn lại' }),
+    ).toHaveClass('max-md:shadow-none');
+  });
+
+  it('turns each row into a card on a phone instead of a 7-column scroll', () => {
+    render(<CustomerAgingTable page={buildPage()} />);
+
+    // Seven money columns measured 902px inside a 293px scroller at 390px.
+    // Below md the buckets fold into a stacked list under the customer, so
+    // the row is readable without a sideways swipe.
+    const row = screen.getAllByRole('row')[1];
+    expect(row).toHaveClass('max-md:grid');
+
+    // The header only makes sense while the row is a real table, so the
+    // whole <thead> goes — same rule as the customers table.
+    expect(screen.getAllByRole('row')[0].closest('thead')).toHaveClass(
+      'max-md:hidden',
+    );
+
+    // The customer cell is the card's title row and must be allowed to wrap.
+    const customerCell = screen
+      .getByText('Công ty TNHH Dược phẩm ABC')
+      .closest('td');
+    //
+    // It used to span both grid columns, which freed it from column 1's
+    // width. A two-line name then grew underneath the total — measured at
+    // 390px the tax code and the amount overlapped by 16px, which is the
+    // "chữ bị đè" the report screenshot shows. The total sits in
+    // col-start-2 / row-start-1, so the name has to stay inside col-start-1.
+    expect(customerCell?.className).toContain('max-md:col-start-1');
+    expect(customerCell?.className).not.toContain('max-md:col-span-2');
+  });
+
+  it('lets a long customer name wrap on the card instead of being clipped', () => {
+    render(
+      <CustomerAgingTable
+        page={{
+          items: [
+            {
+              ...buildPage().items[0],
+              customerName: 'Công ty TNHH Dược phẩm Tâm An',
+            },
+          ],
+          total: 1,
+          page: 1,
+          limit: 20,
+        }}
+      />,
+    );
+
+    // Measured at 390px the name clipped to "Công ty TNHH Dược phẩm Tâ…",
+    // hiding the last two words. `truncate` protects a table cell from
+    // spilling into its neighbour, but the card gives the name the full
+    // width, so below md it wraps instead.
+    const name = screen.getByText('Công ty TNHH Dược phẩm Tâm An');
+    expect(name.className).toContain('max-md:whitespace-normal');
+    expect(name.className).toContain('max-md:break-words');
+  });
+
+  it('spaces the bucket rows the same way as the other mobile cards', () => {
+    render(<CustomerAgingTable page={buildPage()} />);
+
+    // Five bucket rows at 8px spacing read as one dense block next to the
+    // 12px padding used by /bank-connections and /receivable-balance-history.
+    const row = screen.getAllByRole('row')[1];
+    expect(row.className).toContain('max-md:gap-y-3');
+    expect(row.className).toContain('max-md:py-4');
+  });
+
+  it('drops the sticky-edge shadow from the total cell on a card', () => {
+    render(<CustomerAgingTable page={buildPage()} />);
+
+    // `STICKY_EDGE` is a left-edge shadow that marks a pinned column while
+    // the row is scrolled sideways. Below md the column is not pinned, so
+    // the shadow had nothing to describe and painted a grey smear to the
+    // left of the total. The header cell already dropped it; the body cell
+    // — the one the reader actually sees the amount in — had kept it.
+    expect(screen.getByText('106.000.000 ₫').closest('td')).toHaveClass(
+      'max-md:shadow-none',
+    );
   });
 });

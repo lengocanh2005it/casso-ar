@@ -5,7 +5,10 @@ import { PageHeading } from '@/components/layout/page-heading';
 import { SectionCard } from '@/components/layout/section-card';
 import { CardPagination } from '@/components/shared/card-pagination';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
-import { TruncatedName } from '@/components/shared/truncated-text';
+import {
+  TruncatedName,
+  TruncatedText,
+} from '@/components/shared/truncated-text';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -51,10 +54,8 @@ export function ExceptionsPage() {
   const search = searchParams.get('search') ?? '';
   const debouncedSearch = useDebouncedValue(search, 250);
   const [selected, setSelected] = useState<PendingReviewItem | null>(null);
-  const { data, isPending, isError, isPlaceholderData } = usePendingReview(
-    page,
-    debouncedSearch || undefined,
-  );
+  const { data, isPending, isError, isPlaceholderData, refetch, isFetching } =
+    usePendingReview(page, debouncedSearch || undefined);
   // Placeholder rows belong to the previous page/search: clear the selection
   // so skip / prepaid / match cannot act on them under the new context.
   const bulkSelection = useBulkSelection(
@@ -104,9 +105,20 @@ export function ExceptionsPage() {
         </div>
         {(isPending || showsEmptyPlaceholder) && <TableSkeleton rows={5} />}
         {isError && (
-          <p role="status" aria-live="polite" className="text-destructive">
-            Không thể tải danh sách giao dịch cần xử lý. Vui lòng thử lại.
-          </p>
+          <div role="alert" className="flex flex-wrap items-center gap-3">
+            <p className="text-destructive">
+              Không thể tải danh sách giao dịch cần xử lý. Vui lòng thử lại.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isFetching}
+              onClick={() => void refetch()}
+            >
+              {isFetching ? 'Đang thử lại…' : 'Thử lại'}
+            </Button>
+          </div>
         )}
         {/* Worded from the search the data was fetched for (debounced),
             not the box's current text. */}
@@ -136,8 +148,11 @@ export function ExceptionsPage() {
               isPlaceholderData && 'opacity-60',
             )}
           >
-            <Table>
-              <TableHeader className="max-md:hidden">
+            <Table className="lg:table-fixed">
+              {/* Cards keep the payer, amount and action readable until the
+                  app shell has enough room for a table. At lg, hide advisory
+                  columns until xl; both are also available in the review dialog. */}
+              <TableHeader className="max-lg:hidden">
                 <TableRow>
                   <TableHead className="w-10">
                     <Checkbox
@@ -146,25 +161,40 @@ export function ExceptionsPage() {
                       onCheckedChange={bulkSelection.toggleAll}
                     />
                   </TableHead>
-                  <TableHead>Ngày giờ</TableHead>
-                  <TableHead>Người chuyển khoản</TableHead>
-                  <TableHead>Nội dung chuyển khoản</TableHead>
-                  <TableHead className="text-right">Số tiền</TableHead>
-                  <TableHead>Điểm cao nhất</TableHead>
-                  <TableHead>
-                    <span className="sr-only">Thao tác</span>
+                  <TableHead className="w-[10rem] whitespace-nowrap">
+                    Ngày giờ
+                  </TableHead>
+                  <TableHead className="min-w-0">Người chuyển khoản</TableHead>
+                  <TableHead className="min-w-0 lg:max-xl:hidden">
+                    Nội dung chuyển khoản
+                  </TableHead>
+                  <TableHead className="w-44 text-right whitespace-nowrap">
+                    Số tiền
+                  </TableHead>
+                  {/* Score and action stay compact; score returns at xl and
+                      action returns once the table layout starts at lg. */}
+                  <TableHead className="w-[7.5rem] whitespace-nowrap lg:max-xl:hidden">
+                    Điểm cao nhất
+                  </TableHead>
+                  {/* The row ends in a "Xử lý" link; an sr-only-only header
+                      left a column of them with nothing above it. The label
+                      only makes sense once the row is a table again, so it
+                      stays hidden on the phone card layout where the action
+                      sits next to the amount instead. */}
+                  <TableHead className="w-[6.5rem] text-right whitespace-nowrap max-lg:hidden">
+                    Hành động
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.items.map((row) => (
-                  // Below md: [☐] payer ........ amount / content / date · score · Xử lý
+                  // Below lg: [☐] payer ........ amount / content / date · score · Xử lý
                   <TableRow
                     key={row.transaction.id}
-                    className="max-md:grid max-md:grid-cols-[auto_minmax(0,1fr)_auto] max-md:items-center max-md:gap-x-3 max-md:gap-y-1.5 max-md:px-1 max-md:py-3"
+                    className="max-lg:grid max-lg:grid-cols-[auto_minmax(0,1fr)_auto] max-lg:items-center max-lg:gap-x-3 max-lg:gap-y-1.5 max-lg:px-1 max-lg:py-3"
                   >
                     <TableCell
-                      className="max-md:col-start-1 max-md:row-span-3 max-md:row-start-1 max-md:self-start max-md:p-0"
+                      className="max-lg:col-start-1 max-lg:row-span-3 max-lg:row-start-1 max-lg:self-start max-lg:p-0"
                       onClick={(event) => event.stopPropagation()}
                       onKeyDown={(event) => event.stopPropagation()}
                     >
@@ -176,16 +206,17 @@ export function ExceptionsPage() {
                         }
                       />
                     </TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums max-md:col-start-2 max-md:row-start-3 max-md:p-0 max-md:text-xs max-md:text-muted-foreground max-md:whitespace-normal">
+                    <TableCell className="whitespace-nowrap tabular-nums max-lg:col-start-2 max-lg:row-start-3 max-lg:p-0 max-lg:text-xs max-lg:text-muted-foreground max-lg:whitespace-normal">
                       {formatDateTime(row.transaction.transactionDateTime)}
                     </TableCell>
-                    <TableCell className="max-w-64 max-md:col-start-2 max-md:row-start-1 max-md:max-w-none max-md:p-0">
+                    <TableCell className="min-w-0 max-lg:col-start-2 max-lg:row-start-1 max-lg:p-0">
                       <div className="flex min-w-0 items-start gap-2">
-                        <InitialsAvatar
-                          name={row.transaction.counterpartyName ?? '—'}
-                          size="sm"
-                          className="max-md:hidden"
-                        />
+                        <div className="hidden lg:block">
+                          <InitialsAvatar
+                            name={row.transaction.counterpartyName ?? '—'}
+                            size="sm"
+                          />
+                        </div>
                         <div className="min-w-0 space-y-1">
                           <p className="min-w-0 font-medium">
                             <TruncatedName
@@ -193,8 +224,10 @@ export function ExceptionsPage() {
                             />
                           </p>
                           {row.payer?.accountNumberMasked && (
-                            <p className="text-xs text-muted-foreground tabular-nums">
-                              {row.payer.accountNumberMasked}
+                            <p className="min-w-0 max-w-full break-all text-xs text-muted-foreground tabular-nums">
+                              {row.payer.accountNumberMasked.length > 16
+                                ? `${'*'.repeat(8)}${row.payer.accountNumberMasked.slice(-4)}`
+                                : row.payer.accountNumberMasked}
                             </p>
                           )}
                           {(row.payer?.linkedCustomers ?? []).length > 0 && (
@@ -213,31 +246,31 @@ export function ExceptionsPage() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-64 break-words max-md:col-span-2 max-md:col-start-2 max-md:row-start-2 max-md:max-w-none max-md:p-0 max-md:text-sm">
+                    <TableCell className="min-w-0 lg:max-xl:hidden max-lg:col-span-2 max-lg:row-start-2 max-lg:col-start-2 max-lg:p-0 max-lg:text-sm">
                       {row.transaction.transferContent?.trim() ? (
-                        <span
+                        <TruncatedText
                           className="line-clamp-2"
-                          title={row.transaction.transferContent}
+                          value={row.transaction.transferContent}
                         >
                           {row.transaction.transferContent}
-                        </span>
+                        </TruncatedText>
                       ) : (
                         <span className="italic text-muted-foreground">
                           Không có nội dung
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right font-semibold whitespace-nowrap tabular-nums max-md:col-start-3 max-md:row-start-1 max-md:self-start max-md:p-0">
+                    <TableCell className="text-right font-semibold whitespace-nowrap tabular-nums max-lg:col-start-3 max-lg:row-start-1 max-lg:self-start max-lg:p-0">
                       {formatVND(row.transaction.amount)}
                     </TableCell>
-                    <TableCell className="max-md:col-start-2 max-md:row-start-3 max-md:justify-self-end max-md:p-0">
-                      <div className="flex flex-col items-start gap-1 max-md:flex-row max-md:items-center">
+                    <TableCell className="lg:max-xl:hidden max-lg:col-start-2 max-lg:row-start-3 max-lg:justify-self-end max-lg:p-0">
+                      <div className="flex flex-col items-start gap-1 max-lg:flex-row max-lg:items-center">
                         {row.topCandidate ? (
                           <Badge variant="outline">
                             {row.topCandidate.totalScore}/100
                           </Badge>
                         ) : (
-                          <span className="text-muted-foreground max-md:hidden">
+                          <span className="text-muted-foreground max-lg:hidden">
                             —
                           </span>
                         )}
@@ -246,11 +279,17 @@ export function ExceptionsPage() {
                         />
                       </div>
                     </TableCell>
-                    <TableCell className="text-right max-md:col-start-3 max-md:row-start-3 max-md:p-0">
+                    <TableCell className="text-right max-lg:col-start-3 max-lg:row-start-3 max-lg:p-0">
                       <Button
                         variant="link"
                         size="sm"
-                        className="max-md:h-auto max-md:px-0"
+                        // The card layout gives the row no vertical padding
+                        // of its own, so the button's own padding IS the hit
+                        // area. Stripping it (`max-lg:h-auto max-lg:px-0`)
+                        // measured at 29x16px on a 390px screen — below even
+                        // the 24px floor. The link tone stays; the target is
+                        // padded back out.
+                        className="max-lg:min-h-9 max-lg:px-2"
                         onClick={() => setSelected(row)}
                       >
                         Xử lý

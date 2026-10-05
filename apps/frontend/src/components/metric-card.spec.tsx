@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { CircleDollarSign } from 'lucide-react';
 import { describe, expect, it } from 'vitest';
 import { formatVND } from '@/lib/format';
+import { hoverTooltip } from '@/test/tooltip';
 import { MetricCard } from './metric-card';
 
 describe('MetricCard', () => {
@@ -93,7 +94,7 @@ describe('MetricCard', () => {
     expect(amount.className).toContain('@xs:text-2xl');
   });
 
-  it('shortens a long money amount to triệu/tỷ and keeps the full figure on hover', () => {
+  it('shortens a long money amount to triệu/tỷ and keeps the full figure on hover', async () => {
     const { container } = render(
       <MetricCard
         label="Tổng công nợ còn lại"
@@ -112,8 +113,9 @@ describe('MetricCard', () => {
     // The exact figure stays reachable — the abbreviation is not the record.
     // formatVND() emits U+00A0 before ₫, so compare against the helper rather
     // than a hand-typed string that differs by that one invisible byte.
-    expect(container.querySelector('[data-tooltip-trigger]')).toHaveAttribute(
-      'title',
+    const trigger = container.querySelector('[data-tooltip-trigger]');
+    expect(trigger).toBeInTheDocument();
+    await expect(hoverTooltip(trigger)).resolves.toBe(
       formatVND(12_450_000_000),
     );
   });

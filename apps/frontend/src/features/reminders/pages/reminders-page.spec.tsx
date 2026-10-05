@@ -79,4 +79,33 @@ describe('RemindersPage', () => {
       expect.objectContaining({ replace: true }),
     );
   });
+
+  it('retries a failed policy load from its error state', async () => {
+    let policyAttempts = 0;
+    apiRequest.mockImplementation((config: { url: string }) => {
+      if (config.url === '/api/v1/reminder-policies') {
+        policyAttempts += 1;
+        return policyAttempts === 1
+          ? Promise.reject(new Error('Network error'))
+          : Promise.resolve([]);
+      }
+      return Promise.resolve({ items: [], total: 0, page: 1, limit: 20 });
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <RemindersPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const retry = await screen.findByRole('button', { name: 'Thử lại' });
+    fireEvent.click(retry);
+
+    await waitFor(() => expect(policyAttempts).toBe(2));
+    await waitFor(() => expect(retry).not.toBeInTheDocument());
+  });
 });

@@ -29,6 +29,8 @@ export function RemindersPage() {
     data: policies,
     isPending: policiesPending,
     isError: policiesError,
+    refetch: refetchPolicies,
+    isFetching: policiesFetching,
   } = useReminderPolicies();
   const executionsQuery = useReminderExecutions({
     receivableId: receivableId.trim() || undefined,
@@ -76,9 +78,18 @@ export function RemindersPage() {
           </p>
         )}
         {policiesError && (
-          <p role="alert" aria-live="polite" className="text-destructive">
-            Không thể tải chính sách nhắc.
-          </p>
+          <div role="alert" className="flex flex-wrap items-center gap-3">
+            <p className="text-destructive">Không thể tải chính sách nhắc.</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={policiesFetching}
+              onClick={() => void refetchPolicies()}
+            >
+              {policiesFetching ? 'Đang thử lại…' : 'Thử lại'}
+            </Button>
+          </div>
         )}
         {policies && <PolicyTable policies={policies} onEdit={openEdit} />}
       </SectionCard>
@@ -109,9 +120,20 @@ export function RemindersPage() {
             </p>
           )}
           {executionsQuery.isError && (
-            <p role="alert" aria-live="polite" className="text-destructive">
-              Không thể tải lịch sử thực thi.
-            </p>
+            <div role="alert" className="flex flex-wrap items-center gap-3">
+              <p className="text-destructive">
+                Không thể tải lịch sử thực thi.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={executionsQuery.isFetching}
+                onClick={() => void executionsQuery.refetch()}
+              >
+                {executionsQuery.isFetching ? 'Đang thử lại…' : 'Thử lại'}
+              </Button>
+            </div>
           )}
           {executionsQuery.data && (
             <ExecutionsTable executions={executionsQuery.data.items} />

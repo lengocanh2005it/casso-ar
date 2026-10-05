@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Logo } from '@/components/logo';
+import { TooltipLabel } from '@/components/shared/tooltip-label';
 import { cn } from '@/lib/utils';
 
 export interface SidebarShellItem {
@@ -85,32 +86,38 @@ export function SidebarShell({
         {items.map((item) => {
           const Icon = item.icon;
           return (
-            <NavLink
+            <TooltipLabel
               key={item.to}
-              to={item.to}
-              title={collapsed ? item.label : undefined}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 transition-[background-color,color] duration-150 ease-out motion-reduce:transition-none pointer-hover:hover:bg-primary/5 pointer-hover:hover:text-primary',
-                  (activePath ? activePath === item.to : isActive) &&
-                    'bg-primary/10 font-medium text-primary ring-1 ring-primary/15',
-                )
-              }
+              // Only a collapsed rail hides the label, so only then does the
+              // reader need it back.
+              label={collapsed ? item.label : undefined}
+              side="right"
             >
-              <Icon aria-hidden="true" className="size-4 shrink-0" />
-              {!collapsed && (
-                <span className="min-w-0 truncate">{item.label}</span>
-              )}
-              {!collapsed && item.badgeCount !== undefined && (
-                <Badge count={item.badgeCount} />
-              )}
-              {!collapsed && item.locked && (
-                <Lock
-                  aria-hidden="true"
-                  className="ml-auto size-3.5 text-muted-foreground"
-                />
-              )}
-            </NavLink>
+              <NavLink
+                to={item.to}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 transition-[background-color,color] duration-150 ease-out motion-reduce:transition-none pointer-hover:hover:bg-primary/5 pointer-hover:hover:text-primary',
+                    (activePath ? activePath === item.to : isActive) &&
+                      'bg-primary/10 font-medium text-primary ring-1 ring-primary/15',
+                  )
+                }
+              >
+                <Icon aria-hidden="true" className="size-4 shrink-0" />
+                {!collapsed && (
+                  <span className="min-w-0 truncate">{item.label}</span>
+                )}
+                {!collapsed && item.badgeCount !== undefined && (
+                  <Badge count={item.badgeCount} />
+                )}
+                {!collapsed && item.locked && (
+                  <Lock
+                    aria-hidden="true"
+                    className="ml-auto size-3.5 text-muted-foreground"
+                  />
+                )}
+              </NavLink>
+            </TooltipLabel>
           );
         })}
       </nav>

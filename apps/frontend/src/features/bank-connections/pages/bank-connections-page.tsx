@@ -1,6 +1,7 @@
 import { Landmark } from 'lucide-react';
 import { PageHeading } from '@/components/layout/page-heading';
 import { SectionCard } from '@/components/layout/section-card';
+import { Button } from '@/components/ui/button';
 import { usePollConnections } from '../api/use-bank-connections';
 import { ConnectDialog } from '../components/connect-dialog';
 import {
@@ -42,9 +43,18 @@ export function BankConnectionsPage() {
           </p>
         )}
         {connectionsQuery.isError && (
-          <p role="alert" aria-live="polite" className="text-destructive">
-            Không thể tải kết nối ngân hàng.
-          </p>
+          <div role="alert" className="flex flex-wrap items-center gap-3">
+            <p className="text-destructive">Không thể tải kết nối ngân hàng.</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={connectionsQuery.isFetching}
+              onClick={() => void connectionsQuery.refetch()}
+            >
+              {connectionsQuery.isFetching ? 'Đang thử lại…' : 'Thử lại'}
+            </Button>
+          </div>
         )}
         {connectionsQuery.data && (
           <ConnectionTable connections={connectionsQuery.data.items} />

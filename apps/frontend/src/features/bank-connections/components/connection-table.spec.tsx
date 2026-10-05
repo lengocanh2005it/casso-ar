@@ -193,4 +193,60 @@ describe('ConnectionTable', () => {
       screen.getByRole('button', { name: /ngắt kết nối.*casso bank/i }),
     ).toBeInTheDocument();
   });
+
+  it('drops the forced min-width so a phone does not scroll the table sideways', () => {
+    useAuth.mockReturnValue({ user: { role: 'OWNER' } });
+
+    render(<ConnectionTable connections={[connection]} />);
+
+    // `min-w-180` alone is what forced a 720px table into a ~290px phone
+    // viewport. Below md the row becomes a card instead, so the width floor
+    // has to go with it or the scroller stays no matter how the row lays out.
+    const table = screen.getByRole('table');
+    expect(table).not.toHaveClass('min-w-180');
+
+    const row = screen.getAllByRole('row')[1];
+    expect(row).toHaveClass('max-md:grid');
+
+    // Bank + account become the card's title block; status and last-sync
+    // fold under it; the disconnect button sits on its own row.
+    const bankCell = screen.getByText('Casso Bank').closest('td');
+    expect(bankCell?.className).toContain('max-md:col-span-2');
+
+    const statusCell = screen.getByText('Đang hoạt động').closest('td');
+    expect(statusCell?.className).toContain('max-md:col-start-1');
+
+    // The header only makes sense while the row is still a real table, so
+    // the whole <thead> goes — same rule as the customers table.
+    expect(screen.getAllByRole('row')[0].closest('thead')).toHaveClass(
+      'max-md:hidden',
+    );
+  });
+
+  it('gives the connection card breathing room and an unlabelled title line', () => {
+    useAuth.mockReturnValue({ user: { role: 'OWNER' } });
+
+    render(<ConnectionTable connections={[connection]} />);
+
+    // Five stacked label/value rows at 8px spacing and a 2px label margin
+    // left each label sitting on the value above it. The card now uses 12px
+    // row spacing, 16px vertical padding and 4px under each label.
+    const row = screen.getAllByRole('row')[1];
+    expect(row.className).toContain('max-md:gap-y-3');
+    expect(row.className).toContain('max-md:py-4');
+
+    // The bank name is the card's title — labelling it repeats what position
+    // and font weight already say, so only the three secondary fields and
+    // the action row carry a label.
+    const labels = [...row.querySelectorAll('.md\\:hidden')].map((el) =>
+      (el.textContent || '').trim(),
+    );
+    expect(labels).toEqual([
+      'Số tài khoản',
+      'Trạng thái',
+      'Đồng bộ gần nhất',
+      'Thao tác',
+    ]);
+    expect(labels).not.toContain('Ngân hàng');
+  });
 });

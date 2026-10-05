@@ -27,10 +27,17 @@ const BUCKET_TONE: Record<AgingBucket, string> = {
   OVERDUE_60_PLUS: 'text-destructive font-semibold',
 };
 
+// Below md each row becomes a card: customer on the title line, the five
+// buckets as a label/value list under it, total on the right of the title.
+// Seven money columns measured 902px inside a 293px scroller on a phone, so
+// the sideways swipe was the only way to read a customer's aging.
+const MOBILE_ROW =
+  'max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:items-center max-md:gap-x-3 max-md:gap-y-3 max-md:border-b-0 max-md:border-t max-md:px-1 max-md:py-4';
+
 export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
   return (
     <Table>
-      <TableHeader>
+      <TableHeader className="max-md:hidden">
         <TableRow>
           <TableHead>Khách hàng</TableHead>
           {AGING_BUCKET_ORDER.map((bucket) => (
@@ -43,7 +50,14 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
           ))}
           <TableHead
             className={cn(
-              'sticky right-0 border-l bg-muted text-right',
+              // Pinning the total keeps it in view while a reviewer scrolls
+              // the bucket columns on a desktop. On a phone the seven
+              // columns are ~3x the viewport, so the pin lands on top of the
+              // bucket amounts instead of beside them — measured at 390px the
+              // pinned cell sat at left:213 while the column before it ran to
+              // x:822, a 609px overlap. Below md the total scrolls like every
+              // other column and the edge shadow comes off with it.
+              'sticky right-0 border-l bg-muted text-right max-md:static max-md:shadow-none',
               STICKY_EDGE,
             )}
           >
@@ -53,12 +67,15 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
       </TableHeader>
       <TableBody>
         {page.items.map((row) => (
-          <TableRow key={row.customerId}>
-            <TableCell className="max-w-56">
-              <div className="flex min-w-0 items-center gap-2">
+          <TableRow key={row.customerId} className={MOBILE_ROW}>
+            <TableCell className="max-w-56 max-md:col-start-1 max-md:row-start-1 max-md:max-w-none">
+              <div className="flex min-w-0 items-center gap-2 max-md:items-start">
                 <InitialsAvatar name={row.customerName} size="sm" />
                 <div className="min-w-0">
-                  <TruncatedName name={row.customerName} className="block" />
+                  <TruncatedName
+                    name={row.customerName}
+                    className="block max-md:whitespace-normal max-md:break-words"
+                  />
                   <span className="block truncate text-xs text-muted-foreground tabular-nums">
                     {row.taxCode}
                   </span>
@@ -73,19 +90,26 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
                 <TableCell
                   key={bucket}
                   className={cn(
-                    'text-right whitespace-nowrap tabular-nums',
+                    'text-right whitespace-nowrap tabular-nums max-md:col-span-2 max-md:col-start-1 max-md:flex max-md:items-center max-md:justify-between max-md:gap-3 max-md:whitespace-normal',
                     amount === 0
                       ? 'text-muted-foreground'
                       : BUCKET_TONE[bucket],
                   )}
                 >
-                  {formatVND(amount)}
+                  <span className="hidden max-md:block max-md:text-xs max-md:text-muted-foreground">
+                    {AGING_BUCKET_LABELS[bucket]}
+                  </span>
+                  <span>{formatVND(amount)}</span>
                 </TableCell>
               );
             })}
             <TableCell
               className={cn(
-                'sticky right-0 border-l bg-card text-right font-semibold whitespace-nowrap tabular-nums',
+                // `max-md:shadow-none` matters here even though the column is
+                // not pinned below md: STICKY_EDGE paints a grey left-edge
+                // smear, and without this it sat beside the total amount as a
+                // stray shadow. The header cell already dropped it below md.
+                'sticky right-0 border-l bg-card text-right font-semibold whitespace-nowrap tabular-nums max-md:col-start-2 max-md:row-start-1 max-md:border-l-0 max-md:bg-transparent max-md:pl-0 max-md:shadow-none',
                 STICKY_EDGE,
               )}
             >

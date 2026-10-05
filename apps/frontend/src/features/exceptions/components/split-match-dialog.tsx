@@ -2,6 +2,7 @@ import { Permission } from '@casso-ar/shared-types';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
+import { TruncatedText } from '@/components/shared/truncated-text';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -224,14 +225,14 @@ export function SplitMatchDialog({
           body so the title, description and close button stay on screen. */}
       <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="min-w-0 pr-6">
+          <DialogTitle className="min-w-0 pr-6 leading-snug">
             Xử lý giao dịch{' '}
-            <span
+            <TruncatedText
               className="inline-block max-w-full truncate align-bottom"
-              title={transactionLabel}
+              value={transactionLabel}
             >
               {transactionLabel}
-            </span>{' '}
+            </TruncatedText>{' '}
             — {formatVND(tx.amount)}
           </DialogTitle>
           <DialogDescription>
@@ -239,7 +240,7 @@ export function SplitMatchDialog({
             hàng này.
           </DialogDescription>
         </DialogHeader>
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain">
           <AiRecommendationNotice recommendation={aiRecommendation} />
           {payer &&
             (payer.accountNumberMasked || payer.linkedCustomers.length > 0) && (
@@ -318,9 +319,12 @@ export function SplitMatchDialog({
                   {candidate.totalScore}/100
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm" title={candidateLabel}>
+                  <TruncatedText
+                    className="truncate text-sm"
+                    value={candidateLabel}
+                  >
                     {candidateLabel}
-                  </p>
+                  </TruncatedText>
                   <p className="text-xs text-muted-foreground">
                     Còn lại:{' '}
                     {candidate.remainingAmount === null
@@ -335,7 +339,7 @@ export function SplitMatchDialog({
                     Mã kỹ thuật: <TruncatedCopyId id={candidate.receivableId} />
                   </p>
                 </div>
-                <div className="shrink-0 space-y-1.5">
+                <div className="shrink-0 space-y-2">
                   <label
                     htmlFor={`allocation-${candidate.receivableId}`}
                     className="block text-xs font-medium text-muted-foreground"
@@ -383,8 +387,8 @@ export function SplitMatchDialog({
               {allocationError}
             </p>
           )}
-          <label htmlFor="customer-search" className="block text-sm">
-            Tìm khách hàng để ghi nhận công nợ
+          <label htmlFor="customer-search" className="grid gap-2 text-sm">
+            <span>Tìm khách hàng để ghi nhận công nợ</span>
             <Input
               name="customerSearch"
               autoComplete="off"
@@ -417,7 +421,7 @@ export function SplitMatchDialog({
               </SelectContent>
             </Select>
           )}
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
             <Button
               variant="outline"
               disabled={!prepaidCustomerId || prepaid.isPending}

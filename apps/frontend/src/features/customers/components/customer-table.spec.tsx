@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
+import { hoverTooltip } from '@/test/tooltip';
 import { CustomerTable } from './customer-table';
 
 describe('CustomerTable', () => {
@@ -75,7 +76,7 @@ describe('CustomerTable', () => {
     ).toBeInTheDocument();
   });
 
-  it('keeps rows one line tall when a customer name runs to 200 characters', () => {
+  it('keeps rows one line tall when a customer name runs to 200 characters', async () => {
     const longName =
       'Công ty Trách nhiệm Hữu hạn Một Thành viên Thương mại Dịch vụ Sản xuất Xuất Nhập Khẩu Tổng hợp Vật liệu Xây dựng và Nội thất Việt Nam Số 10 — Chi nhánh Vùng Miền Trời Nước Sài Gòn Miền Bắc Miền Trung';
 
@@ -101,9 +102,9 @@ describe('CustomerTable', () => {
 
     // A 200-character legal name must not wrap onto seven lines and stretch
     // the row to ~137px; it stays clipped to a single line with the full value
-    // still reachable on hover and on touch via title.
+    // still reachable in a tooltip.
     const nameCell = screen.getByText(longName);
     expect(nameCell).toHaveClass('truncate');
-    expect(nameCell).toHaveAttribute('title', longName);
+    await expect(hoverTooltip(nameCell)).resolves.toBe(longName);
   });
 });

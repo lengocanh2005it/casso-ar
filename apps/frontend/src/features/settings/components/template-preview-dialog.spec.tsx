@@ -43,12 +43,12 @@ describe('TemplatePreviewDialog', () => {
       'whitespace-normal',
       'break-words',
     );
-    expect(screen.getByText(name)).toHaveAttribute('title', name);
+    expect(screen.getByText(name)).not.toHaveAttribute('title');
     expect(screen.getByText(subject)).toHaveClass(
       'whitespace-normal',
       'break-words',
     );
-    expect(screen.getByText(subject)).toHaveAttribute('title', subject);
+    expect(screen.getByText(subject)).not.toHaveAttribute('title');
   });
 
   it('gives the email its own readable viewport', () => {

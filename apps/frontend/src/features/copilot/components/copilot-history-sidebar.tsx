@@ -1,4 +1,5 @@
 import { MessageSquare, Plus, X } from 'lucide-react';
+import { TooltipLabel } from '@/components/shared/tooltip-label';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { CopilotConversationSummary } from '../types';
@@ -25,27 +26,29 @@ export function CopilotHistorySidebar({
           Lịch sử chat
         </span>
         <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={onNewChat}
-            aria-label="Cuộc trò chuyện mới"
-            title="Cuộc trò chuyện mới"
-          >
-            <Plus className="size-4" />
-          </Button>
-          {onClose && (
+          <TooltipLabel label="Cuộc trò chuyện mới">
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              onClick={onClose}
-              aria-label="Đóng lịch sử chat"
-              title="Đóng lịch sử chat"
+              onClick={onNewChat}
+              aria-label="Cuộc trò chuyện mới"
             >
-              <X className="size-4" />
+              <Plus className="size-4" />
             </Button>
+          </TooltipLabel>
+          {onClose && (
+            <TooltipLabel label="Đóng lịch sử chat">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                aria-label="Đóng lịch sử chat"
+              >
+                <X className="size-4" />
+              </Button>
+            </TooltipLabel>
           )}
         </div>
       </div>
@@ -71,19 +74,22 @@ export function CopilotHistorySidebar({
           </div>
         )}
         {conversations.map((conversation) => (
-          <button
+          <TooltipLabel
             key={conversation.id}
-            type="button"
-            title={conversation.title ?? undefined}
-            onClick={() => onSelect(conversation.id)}
-            className={cn(
-              'block w-full truncate rounded-md border border-transparent px-2.5 py-2.5 text-left text-sm text-foreground/90 hover:bg-muted',
-              conversation.id === activeConversationId &&
-                'border-border bg-muted font-medium text-foreground',
-            )}
+            label={conversation.title ?? undefined}
           >
-            {conversation.title}
-          </button>
+            <button
+              type="button"
+              onClick={() => onSelect(conversation.id)}
+              className={cn(
+                'block w-full truncate rounded-md border border-transparent px-2.5 py-2.5 text-left text-sm text-foreground/90 hover:bg-muted',
+                conversation.id === activeConversationId &&
+                  'border-border bg-muted font-medium text-foreground',
+              )}
+            >
+              {conversation.title}
+            </button>
+          </TooltipLabel>
         ))}
       </div>
     </div>

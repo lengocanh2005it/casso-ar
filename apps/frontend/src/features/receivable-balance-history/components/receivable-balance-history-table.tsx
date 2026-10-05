@@ -2,7 +2,9 @@ import { History } from 'lucide-react';
 import { Fragment } from 'react';
 import { EmptyState } from '@/components/layout/empty-state';
 import { ReceivableStatusBadge } from '@/components/receivable-status-badge';
+import { TooltipLabel } from '@/components/shared/tooltip-label';
 import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
+import { TruncatedText } from '@/components/shared/truncated-text';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -42,8 +44,8 @@ const REASON_CODE_LABELS: Record<string, string> = {
 
 function DetailRow({ item }: { item: ReceivableBalanceHistoryListItem }) {
   return (
-    <TableRow className="bg-muted/30">
-      <TableCell colSpan={7}>
+    <TableRow className="bg-muted/30 max-md:grid">
+      <TableCell colSpan={7} className="max-md:col-span-2">
         <dl className="grid gap-2 text-sm sm:grid-cols-3">
           <div>
             <dt className="text-muted-foreground">Mã tham chiếu</dt>
@@ -94,7 +96,7 @@ export function ReceivableBalanceHistoryTable({ items }: TableProps) {
   return (
     <div className="overflow-x-auto rounded-xl border bg-card">
       <Table>
-        <TableHeader>
+        <TableHeader className="max-md:hidden">
           <TableRow>
             <TableHead>Thời điểm</TableHead>
             <TableHead>Mã hóa đơn</TableHead>
@@ -108,68 +110,107 @@ export function ReceivableBalanceHistoryTable({ items }: TableProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((item) => (
-            <Fragment key={item.id}>
-              <TableRow className="align-middle">
-                <TableCell>{formatDateTime(item.effectiveAt)}</TableCell>
-                <TableCell className="max-w-48">
-                  <span
-                    className="block max-w-48 truncate"
-                    title={item.invoiceNumber ?? undefined}
-                  >
-                    {item.invoiceNumber ?? 'Khoản phải thu'}
-                  </span>
-                </TableCell>
-                <TableCell className="max-w-48">
-                  <span
-                    className="block max-w-48 truncate"
-                    title={item.customerName ?? undefined}
-                  >
-                    {item.customerName ?? 'Chưa có tên khách hàng'}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <ReceivableStatusBadge status={item.status} />
-                </TableCell>
-                <TableCell className="tabular-nums font-semibold">
-                  {formatVND(item.remainingAmount)}
-                </TableCell>
-                <TableCell>
-                  <div
-                    className="min-w-0 max-w-56 truncate text-sm"
-                    title={item.actorDisplayName ?? undefined}
-                  >
-                    <span>
-                      {CHANGE_SOURCE_LABELS[item.changeSource] ??
-                        'Nguồn thay đổi khác'}
+          {items.map((item) => {
+            const actorLine = `${
+              CHANGE_SOURCE_LABELS[item.changeSource] ?? 'Nguồn thay đổi khác'
+            } • ${
+              item.actorType
+                ? `${ACTOR_LABELS[item.actorType] ?? 'Tác nhân khác'}${
+                    item.actorDisplayName ? ` (${item.actorDisplayName})` : ''
+                  }`
+                : 'Không rõ'
+            }`;
+
+            return (
+              <Fragment key={item.id}>
+                {/* Below md: timestamp / balance as an unlabelled title line,
+                  then the four secondary fields with breathing room between
+                  them. A label on all seven fields stacked into a 309px card
+                  with 8px between rows, so each label sat on the value above
+                  it — /exceptions and /customers give the title line no label
+                  for the same reason. */}
+                <TableRow className="align-middle max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:items-center max-md:gap-x-3 max-md:gap-y-3 max-md:border-b-0 max-md:border-t max-md:px-1 max-md:py-4">
+                  <TableCell className="max-md:col-start-1 max-md:row-start-1 max-md:p-0 max-md:text-sm max-md:text-muted-foreground max-md:whitespace-nowrap">
+                    {formatDateTime(item.effectiveAt)}
+                  </TableCell>
+                  <TableCell className="max-w-48 max-md:col-span-2 max-md:col-start-1 max-md:row-start-2 max-md:max-w-none max-md:p-0 max-md:text-sm">
+                    <span className="mb-1 block text-xs text-muted-foreground md:hidden">
+                      Mã hóa đơn
                     </span>
-                    <span className="text-muted-foreground">
-                      {' '}
-                      •{' '}
-                      {item.actorType
-                        ? `${ACTOR_LABELS[item.actorType] ?? 'Tác nhân khác'}${
-                            item.actorDisplayName
-                              ? ` (${item.actorDisplayName})`
-                              : ''
-                          }`
-                        : 'Không rõ'}
+                    <TruncatedText
+                      className="block max-w-48 truncate max-md:max-w-none max-md:whitespace-normal max-md:break-words"
+                      value={item.invoiceNumber}
+                    >
+                      {item.invoiceNumber ?? 'Khoản phải thu'}
+                    </TruncatedText>
+                  </TableCell>
+                  <TableCell className="max-w-48 max-md:col-span-2 max-md:col-start-1 max-md:row-start-3 max-md:max-w-none max-md:p-0 max-md:text-sm">
+                    <span className="mb-1 block text-xs text-muted-foreground md:hidden">
+                      Khách hàng
                     </span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-expanded={expandedId === item.id}
-                    onClick={() => toggleExpanded(item.id)}
-                  >
-                    Chi tiết
-                  </Button>
-                </TableCell>
-              </TableRow>
-              {expandedId === item.id && <DetailRow item={item} />}
-            </Fragment>
-          ))}
+                    <TruncatedText
+                      // `truncate` stops a table cell spilling into the next
+                      // column. On a card the cell owns the full width, so the
+                      // same class hides whole words ("…Nông nghiệp Đ...") with
+                      // no way to read them. Below md there is room to wrap.
+                      className="block max-w-48 truncate max-md:max-w-none max-md:whitespace-normal max-md:break-words"
+                      value={item.customerName}
+                    >
+                      {item.customerName ?? 'Chưa có tên khách hàng'}
+                    </TruncatedText>
+                  </TableCell>
+                  <TableCell className="max-md:col-start-1 max-md:row-start-4 max-md:p-0 max-md:text-sm">
+                    <span className="mb-1 block text-xs text-muted-foreground md:hidden">
+                      Trạng thái
+                    </span>
+                    <ReceivableStatusBadge status={item.status} />
+                  </TableCell>
+                  <TableCell className="tabular-nums font-semibold max-md:col-start-2 max-md:row-start-1 max-md:p-0 max-md:text-right max-md:text-base">
+                    {formatVND(item.remainingAmount)}
+                  </TableCell>
+                  <TableCell className="max-md:col-span-2 max-md:col-start-1 max-md:row-start-5 max-md:p-0 max-md:text-sm">
+                    <span className="mb-1 block text-xs text-muted-foreground md:hidden">
+                      Nguồn / Tác nhân
+                    </span>
+                    <div className="min-w-0 max-w-56 truncate text-sm max-md:max-w-none max-md:whitespace-normal max-md:break-words">
+                      <TooltipLabel label={actorLine}>
+                        <span className="block">
+                          <span>
+                            {CHANGE_SOURCE_LABELS[item.changeSource] ??
+                              'Nguồn thay đổi khác'}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {' '}
+                            •{' '}
+                            {item.actorType
+                              ? `${ACTOR_LABELS[item.actorType] ?? 'Tác nhân khác'}${
+                                  item.actorDisplayName
+                                    ? ` (${item.actorDisplayName})`
+                                    : ''
+                                }`
+                              : 'Không rõ'}
+                          </span>
+                        </span>
+                      </TooltipLabel>
+                    </div>
+                  </TableCell>
+                  <TableCell className="max-md:col-span-2 max-md:col-start-1 max-md:row-start-6 max-md:p-0">
+                    {/* No "Chi tiết" label here: the button below already says
+                      it, so the label rendered the word twice in a row. */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-expanded={expandedId === item.id}
+                      onClick={() => toggleExpanded(item.id)}
+                    >
+                      Chi tiết
+                    </Button>
+                  </TableCell>
+                </TableRow>
+                {expandedId === item.id && <DetailRow item={item} />}
+              </Fragment>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

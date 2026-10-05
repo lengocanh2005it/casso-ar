@@ -374,7 +374,10 @@ describe('AdminOrganizationsPage', () => {
     // that row 85px tall against a 58px baseline and broke the scan rhythm.
     // The full name stays reachable through the tooltip.
     expect(lookupName).toHaveClass('truncate');
-    expect(lookupName).toHaveAttribute('title', longLookupName);
+    // The reveal moved from the native `title` bubble to the app tooltip, so
+    // hovering shows one themed popup instead of two stacked ones.
+    expect(lookupName).not.toHaveAttribute('title');
+    expect(lookupName).toHaveAttribute('data-tooltip-trigger');
   });
 
   it('rejects a pending organization with a required reason', async () => {
