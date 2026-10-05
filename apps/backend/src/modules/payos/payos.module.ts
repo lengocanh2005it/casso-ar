@@ -7,6 +7,7 @@ import { UsersModule } from '../users/users.module';
 import { WebhooksModule } from '../webhooks/webhooks.module';
 import { InitiatePeriodChargeUseCase } from './application/initiate-period-charge.usecase';
 import { InitiatePlanUpgradeOrderUseCase } from './application/initiate-plan-upgrade-order.usecase';
+import { ListPlanPaymentHistoryUseCase } from './application/list-plan-payment-history.usecase';
 import { NonRenewalDowngradeScannerService } from './application/non-renewal-downgrade-scanner.service';
 import { PAYOS_PAYMENT_ADAPTER } from './application/payos-payment-adapter.port';
 import { PERIOD_CHARGE_REPOSITORY } from './application/period-charge-repository.port';
@@ -53,6 +54,7 @@ import { PayosController } from './presentation/payos.controller';
     { provide: PAYOS_PAYMENT_ADAPTER, useClass: PayosAdapter },
     InitiatePlanUpgradeOrderUseCase,
     InitiatePeriodChargeUseCase,
+    ListPlanPaymentHistoryUseCase,
     ProcessPlanPaymentWebhookUseCase,
     PeriodPaymentStatusService,
     RenewalReminderScannerService,
