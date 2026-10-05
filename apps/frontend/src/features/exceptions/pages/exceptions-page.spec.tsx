@@ -122,10 +122,12 @@ describe('ExceptionsPage', () => {
     const [headerRow, row] = await screen.findAllByRole('row');
     expect(headerRow.parentElement).toHaveClass('max-lg:hidden');
     expect(row).toHaveClass('max-lg:grid');
-    expect(screen.getByText('CT').closest('.rounded-full')).toHaveClass(
-      'hidden',
-      'lg:flex',
+    expect(screen.getByRole('columnheader', { name: 'Ngày giờ' })).toHaveClass(
+      'w-[10rem]',
     );
+    const avatar = screen.getByText('CT').closest('.rounded-full');
+    expect(avatar?.parentElement).toHaveClass('hidden', 'lg:block');
+    expect(avatar).toHaveClass('flex', 'items-center', 'justify-center');
     // Pagination used to float below the card on this page only.
     expect(
       screen

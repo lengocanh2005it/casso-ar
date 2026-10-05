@@ -152,7 +152,7 @@ export function ExceptionsPage() {
                       onCheckedChange={bulkSelection.toggleAll}
                     />
                   </TableHead>
-                  <TableHead className="w-[6.75rem] whitespace-nowrap">
+                  <TableHead className="w-[10rem] whitespace-nowrap">
                     Ngày giờ
                   </TableHead>
                   <TableHead className="min-w-0">Người chuyển khoản</TableHead>
@@ -202,19 +202,12 @@ export function ExceptionsPage() {
                     </TableCell>
                     <TableCell className="min-w-0 max-lg:col-start-2 max-lg:row-start-1 max-lg:p-0">
                       <div className="flex min-w-0 items-start gap-2">
-                        <InitialsAvatar
-                          name={row.transaction.counterpartyName ?? '—'}
-                          size="sm"
-                          /* At lg the avatar pushed the name down to
-                             ~71px ("Công ty ...") and overlapped the date
-                             column. The name and masked account already
-                             identify the payer, and below lg the row is a
-                             card where the avatar was hidden anyway.
-                             `hidden lg:flex` to keep initials centered at desktop width.
-                             the avatar ships its own `flex`, which
-                             tailwind-merge ranks above a plain `hidden`. */
-                          className="hidden lg:flex"
-                        />
+                        <div className="hidden lg:block">
+                          <InitialsAvatar
+                            name={row.transaction.counterpartyName ?? '—'}
+                            size="sm"
+                          />
+                        </div>
                         <div className="min-w-0 space-y-1">
                           <p className="min-w-0 font-medium">
                             <TruncatedName
