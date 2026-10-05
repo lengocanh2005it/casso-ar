@@ -1,11 +1,6 @@
 import * as React from 'react';
 
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { TooltipLabel } from '@/components/shared/tooltip-label';
 import { cn } from '@/lib/utils';
 
 type TruncatedTextProps = {
@@ -13,6 +8,8 @@ type TruncatedTextProps = {
   className?: string;
   /** The full value. When omitted the text is already in the DOM, so a tooltip would only repeat it. */
   value?: string | null;
+  /** Machine names must not be auto-translated by the browser. */
+  translate?: 'yes' | 'no';
 };
 
 /**
@@ -30,23 +27,25 @@ export function TruncatedText({
   children,
   className,
   value,
+  translate,
 }: TruncatedTextProps) {
   const content =
     value ?? (typeof children === 'string' ? children : undefined);
 
   if (!content) {
-    return <span className={className}>{children}</span>;
+    return (
+      <span className={className} translate={translate}>
+        {children}
+      </span>
+    );
   }
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className={className}>{children}</span>
-        </TooltipTrigger>
-        <TooltipContent>{content}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <TooltipLabel label={content}>
+      <span className={className} translate={translate}>
+        {children}
+      </span>
+    </TooltipLabel>
   );
 }
 

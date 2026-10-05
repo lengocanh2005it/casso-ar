@@ -1,6 +1,7 @@
 import { BarChart3 } from 'lucide-react';
 import { type FormEvent, useEffect, useState } from 'react';
 import { PageHeading } from '@/components/layout/page-heading';
+import { TruncatedText } from '@/components/shared/truncated-text';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -135,19 +136,19 @@ export function AdminAiUsagePage() {
                   className="max-md:grid"
                 >
                   <TableCell className="max-md:col-span-2 max-md:row-start-1">
-                    <span
+                    <TruncatedText
                       className="block max-w-[18rem] truncate"
-                      title={item.organizationName}
+                      value={item.organizationName}
                     >
                       {item.organizationName || 'Không có tên tổ chức'}
-                    </span>
-                    <span
+                    </TruncatedText>
+                    <TruncatedText
                       className="mt-0.5 block max-w-[14rem] truncate text-xs text-muted-foreground md:hidden"
-                      title={item.model}
+                      value={item.model}
                       translate="no"
                     >
                       {item.model || 'Không xác định'}
-                    </span>
+                    </TruncatedText>
                     <span className="mt-1 flex flex-wrap gap-x-4 text-xs text-muted-foreground md:hidden">
                       <span>
                         Lượt gọi: {numberFormatter.format(item.requestCount)}
@@ -161,13 +162,13 @@ export function AdminAiUsagePage() {
                     </span>
                   </TableCell>
                   <TableCell className="max-md:hidden">
-                    <span
+                    <TruncatedText
                       className="block max-w-[14rem] truncate"
-                      title={item.model}
+                      value={item.model}
                       translate="no"
                     >
                       {item.model || 'Không xác định'}
-                    </span>
+                    </TruncatedText>
                   </TableCell>
                   <TableCell className="font-mono tabular-nums max-md:hidden">
                     {numberFormatter.format(item.requestCount)}

@@ -1,6 +1,7 @@
 import { LogOut, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
+import { TooltipLabel } from '@/components/shared/tooltip-label';
 import { useAuth } from '@/contexts/auth-context';
 
 export function AdminSidebarFooter({ collapsed }: { collapsed: boolean }) {
@@ -15,12 +16,11 @@ export function AdminSidebarFooter({ collapsed }: { collapsed: boolean }) {
   if (collapsed) {
     return (
       <div className="flex flex-col items-center gap-2 border-t border-sidebar-border px-2 py-3">
-        <span
-          className="flex w-full items-center justify-center rounded-md p-1.5 text-sidebar-foreground/70"
-          title="Vận hành viên"
-        >
-          <ShieldCheck aria-hidden="true" className="size-4" />
-        </span>
+        <TooltipLabel label="Vận hành viên" side="right">
+          <span className="flex w-full items-center justify-center rounded-md p-1.5 text-sidebar-foreground/70">
+            <ShieldCheck aria-hidden="true" className="size-4" />
+          </span>
+        </TooltipLabel>
         <ThemeToggle className="hidden lg:inline-flex" />
         <button
           type="button"

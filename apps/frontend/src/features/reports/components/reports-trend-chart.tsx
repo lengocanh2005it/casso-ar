@@ -19,8 +19,14 @@ const monthFormatter = new Intl.DateTimeFormat('vi-VN', {
   timeZone: 'UTC',
 });
 
+// Axis ticks stay terse. At 390px the last slot is ~139px, and
+// "Tháng 10/2026 (tạm tính)" rendered 140px — it spilled into its
+// neighbour. The month reads fine as "10/2026"; the "provisional" caveat now
+// lives in the caption below the chart, where it has room to be a sentence.
+// The tooltip still has the width to spell it out, so it keeps the long form.
 export function formatTrendMonthLabel(key: string, isCurrent = false): string {
-  return `Tháng ${monthFormatter.format(new Date(`${key}-01T00:00:00Z`))}${isCurrent ? ' (tạm tính)' : ''}`;
+  const month = monthFormatter.format(new Date(`${key}-01T00:00:00Z`));
+  return isCurrent ? `Tháng ${month} (tạm tính)` : month;
 }
 
 const SERIES = [
@@ -73,9 +79,10 @@ export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {
               tickLine={false}
               axisLine={false}
               tick={CHART_TICK}
-              tickFormatter={(value: string) =>
-                formatTrendMonthLabel(value, value === currentMonth)
-              }
+              // No `isCurrent` here on purpose: the "(tạm tính)" suffix made
+              // the label 140px in a ~139px slot at 390px. The caveat lives in
+              // the caption under the chart and in the tooltip.
+              tickFormatter={(value: string) => formatTrendMonthLabel(value)}
             />
             <YAxis
               width={64}
@@ -131,9 +138,11 @@ export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {
           Một số tháng trước thời điểm theo dõi lịch sử chưa có dữ liệu công nợ.
         </p>
       )}
-      <p className="text-sm text-muted-foreground">
-        Tháng hiện tại là số liệu tạm thời đến thời điểm hiện tại.
-      </p>
+      {currentMonth && (
+        <p className="text-sm text-muted-foreground">
+          {`Tháng ${monthFormatter.format(new Date(`${currentMonth}-01T00:00:00Z`))} là tháng hiện tại nên số liệu là tạm tính.`}
+        </p>
+      )}
     </div>
   );
 }

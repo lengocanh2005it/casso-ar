@@ -223,7 +223,10 @@ describe('CassoFlowAccountPicker', () => {
 
     const account = await screen.findByText(accountNumber);
     expect(account).toHaveClass('truncate');
-    expect(account).toHaveAttribute('title', accountNumber);
+    // The full number is revealed through the app tooltip, not a native
+    // `title` bubble that ignored the light/dark tokens.
+    expect(account).not.toHaveAttribute('title');
+    expect(account.closest('[data-tooltip-trigger]')).toBeInTheDocument();
     expect(screen.getByText(new RegExp(accountHolderName))).toHaveClass(
       'break-words',
     );

@@ -265,7 +265,10 @@ describe('SplitMatchDialog', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Còn lại: 50\.000\.000/)).toBeInTheDocument();
     expect(screen.getAllByText(/Hạn thanh toán: 31\/08\/2026/)).toHaveLength(2);
-    expect(screen.getByTitle('r1')).toHaveAttribute('title', 'r1');
+    // The reveal moved from the native `title` bubble to the app tooltip.
+    expect(
+      screen.getByRole('button', { name: /sao chép mã r1/i }),
+    ).toBeInTheDocument();
   });
 
   it('uses business fallbacks when candidate metadata is missing', async () => {
@@ -377,10 +380,12 @@ describe('SplitMatchDialog', () => {
     await waitFor(() => expect(screen.getByText('80/100')).toBeInTheDocument());
 
     const providerId = screen.getByText(providerTransactionId);
-    const receivable = screen.getByTitle(receivableId);
+    const receivable = screen.getByRole('button', {
+      name: `Sao chép mã ${receivableId}`,
+    });
     expect(providerId).toHaveClass('truncate');
-    expect(providerId).toHaveAttribute('title', providerTransactionId);
-    expect(receivable).toHaveAttribute('title', receivableId);
+    expect(providerId).not.toHaveAttribute('title');
+    expect(receivable).not.toHaveAttribute('title');
     expect(
       screen.getByRole('button', { name: /ghi nhận công nợ/i }).parentElement,
     ).toHaveClass('flex-col');

@@ -193,8 +193,8 @@ export function ConnectionTable({
   }
 
   return (
-    <Table className="min-w-180">
-      <TableHeader>
+    <Table>
+      <TableHeader className="max-md:hidden">
         <TableRow>
           <TableHead className="min-w-40">Ngân hàng</TableHead>
           <TableHead className="min-w-44 text-right">Số tài khoản</TableHead>
@@ -209,14 +209,27 @@ export function ConnectionTable({
         {groups.map(([authorizationId, group]) => (
           <Fragment key={authorizationId}>
             {group.map((connection) => (
-              <TableRow key={connection.id}>
-                <TableCell className="min-w-40 max-w-56 break-words font-medium">
+              // Below md: bank name as an unlabelled title, then the three
+              // secondary fields with real spacing between them. Labeling
+              // every row left each label 2px above the value it described,
+              // which read as one dense block.
+              <TableRow
+                key={connection.id}
+                className="max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:items-center max-md:gap-x-3 max-md:gap-y-3 max-md:border-b-0 max-md:border-t max-md:px-1 max-md:py-4"
+              >
+                <TableCell className="min-w-40 max-w-56 break-words font-medium max-md:col-span-2 max-md:col-start-1 max-md:row-start-1 max-md:max-w-none max-md:p-0 max-md:text-base">
                   {connection.bankName}
                 </TableCell>
-                <TableCell className="min-w-44 max-w-56 break-all text-right tabular-nums">
+                <TableCell className="min-w-44 max-w-56 break-all text-right tabular-nums max-md:col-span-2 max-md:col-start-1 max-md:row-start-2 max-md:max-w-none max-md:p-0 max-md:text-sm max-md:text-right">
+                  <span className="mb-1 block text-xs text-muted-foreground md:hidden">
+                    Số tài khoản
+                  </span>
                   {connection.accountNumber}
                 </TableCell>
-                <TableCell>
+                <TableCell className="max-md:col-start-1 max-md:row-start-3 max-md:p-0 max-md:text-sm">
+                  <span className="mb-1 block text-xs text-muted-foreground md:hidden">
+                    Trạng thái
+                  </span>
                   <Badge
                     variant={
                       connection.status === 'ERROR' ? 'destructive' : 'outline'
@@ -226,13 +239,19 @@ export function ConnectionTable({
                     {statusLabels[connection.status]}
                   </Badge>
                 </TableCell>
-                <TableCell className="whitespace-nowrap text-right tabular-nums">
+                <TableCell className="whitespace-nowrap text-right tabular-nums max-md:col-start-2 max-md:row-start-3 max-md:p-0 max-md:text-sm">
+                  <span className="mb-1 block text-xs text-muted-foreground md:hidden">
+                    Đồng bộ gần nhất
+                  </span>
                   {connection.lastSyncAt
                     ? formatDateTime(connection.lastSyncAt)
                     : '—'}
                 </TableCell>
                 {canManage && (
-                  <TableCell className="min-w-32">
+                  <TableCell className="min-w-32 max-md:col-span-2 max-md:col-start-1 max-md:row-start-4 max-md:p-0 max-md:text-sm">
+                    <span className="mb-1 block text-xs text-muted-foreground md:hidden">
+                      Thao tác
+                    </span>
                     {connection.status === 'ACTIVE' && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>

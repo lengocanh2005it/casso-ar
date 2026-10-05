@@ -215,6 +215,8 @@ describe('ReceivableBalanceHistoryPage', () => {
 
     renderPage();
 
+    // The value now renders inside TruncatedText's own span, which is where
+    // the clipping classes live.
     expect(screen.getByText('INV-AUDIT-001')).toHaveClass('truncate');
     expect(screen.getByText('Công ty A')).toHaveClass('truncate');
   });

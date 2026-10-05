@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TruncatedText } from '@/components/shared/truncated-text';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { dispatchGlobalEvent, GLOBAL_EVENTS } from '@/lib/global-events';
@@ -201,12 +202,13 @@ export function CassoFlowAccountPicker({
                       <span className="block break-words font-medium">
                         {account.bankName}
                       </span>
-                      <span
+                      <TruncatedText
                         className="block min-w-0 truncate"
-                        title={account.accountNumber}
+                        value={account.accountNumber}
+                        translate="no"
                       >
                         {account.accountNumber}
-                      </span>
+                      </TruncatedText>
                       <span className="block break-words text-muted-foreground">
                         {account.accountHolderName} · {statusMessage(account)}
                       </span>

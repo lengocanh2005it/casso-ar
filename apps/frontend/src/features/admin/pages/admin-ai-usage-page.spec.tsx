@@ -111,11 +111,17 @@ describe('AdminAiUsagePage', () => {
     await waitFor(() => expect(adminApi.getAiUsage).toHaveBeenCalledTimes(1));
 
     const [from, to] = vi.mocked(adminApi.getAiUsage).mock.calls[0];
-    expect(to).toBe(new Date().toISOString().slice(0, 10));
+    // Local calendar days, not UTC: `toISOString()` would read as yesterday
+    // for an operator east of Greenwich before 07:00 local.
+    const today = new Date();
+    const todayValue = `${today.getFullYear()}-${`${today.getMonth() + 1}`.padStart(2, '0')}-${`${today.getDate()}`.padStart(2, '0')}`;
+    expect(to).toBe(todayValue);
     // The API counts both ends of the range, so seven days back is six days of
     // subtraction — seven would have asked for eight calendar dates.
+    const sixDaysAgo = new Date(today);
+    sixDaysAgo.setDate(sixDaysAgo.getDate() - 6);
     expect(from).toBe(
-      new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+      `${sixDaysAgo.getFullYear()}-${`${sixDaysAgo.getMonth() + 1}`.padStart(2, '0')}-${`${sixDaysAgo.getDate()}`.padStart(2, '0')}`,
     );
     // The inputs are pre-filled with the range actually being queried.
     expect(screen.getByLabelText(/từ ngày/i)).toHaveValue(from);

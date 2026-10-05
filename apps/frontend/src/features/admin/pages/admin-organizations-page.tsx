@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { EmptyState } from '@/components/layout/empty-state';
 import { PageHeading } from '@/components/layout/page-heading';
 import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
+import { TruncatedText } from '@/components/shared/truncated-text';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -257,12 +258,12 @@ export function AdminOrganizationsPage() {
                 return (
                   <TableRow key={org.id} className="max-md:grid">
                     <TableCell className="max-md:col-span-3 max-md:row-start-1">
-                      <span
+                      <TruncatedText
                         className="block max-w-[18rem] truncate"
-                        title={org.name}
+                        value={org.name}
                       >
                         {org.name || 'Không có tên tổ chức'}
-                      </span>
+                      </TruncatedText>
                       <Link
                         to={`/admin/organizations/${org.id}/members`}
                         className="rounded-md text-sm font-medium text-primary pointer-hover:hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -299,12 +300,12 @@ export function AdminOrganizationsPage() {
                             {org.taxCodeMatched ? 'Khớp' : 'Không khớp'}
                           </Badge>
                           {org.taxCodeLookupName && (
-                            <span
+                            <TruncatedText
                               className="min-w-0 truncate"
-                              title={org.taxCodeLookupName}
+                              value={org.taxCodeLookupName}
                             >
                               {org.taxCodeLookupName}
-                            </span>
+                            </TruncatedText>
                           )}
                         </div>
                       )}

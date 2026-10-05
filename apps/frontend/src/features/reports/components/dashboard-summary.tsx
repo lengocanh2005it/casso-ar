@@ -11,6 +11,7 @@ import {
 import { EmptyState } from '@/components/layout/empty-state';
 import { MetricCard } from '@/components/metric-card';
 import { InitialsAvatar } from '@/components/shared/initials-avatar';
+import { TruncatedText } from '@/components/shared/truncated-text';
 import {
   Card,
   CardContent,
@@ -134,12 +135,12 @@ export function DashboardSummary({
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <InitialsAvatar name={customer.customerName} size="sm" />
-                    <span
+                    <TruncatedText
                       className="min-w-0 truncate font-medium"
-                      title={customer.customerName}
+                      value={customer.customerName}
                     >
                       {customer.customerName}
-                    </span>
+                    </TruncatedText>
                   </div>
                   <span className="shrink-0 rounded-lg bg-destructive/10 px-2.5 py-1 font-semibold tabular-nums text-destructive">
                     {formatVND(customer.totalOverdue)}

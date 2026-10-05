@@ -251,7 +251,9 @@ describe('AuditLogTab', () => {
 
     expect(screen.getByText('Khách hàng')).toBeInTheDocument();
     expect(screen.queryByText(customerId)).not.toBeInTheDocument();
-    const copyButton = screen.getByTitle(customerId);
+    const copyButton = screen.getByRole('button', {
+      name: `Sao chép mã ${customerId}`,
+    });
     expect(copyButton).toHaveTextContent('139b0a85…');
   });
 
@@ -431,7 +433,9 @@ describe('AuditLogTab', () => {
     fireEvent.click(screen.getByRole('button', { name: /chi tiết/i }));
 
     expect(screen.getByText('Công ty ABC')).toBeInTheDocument();
-    expect(screen.getByTitle(customerId)).toHaveTextContent('139b0a85…');
+    expect(
+      screen.getByRole('button', { name: `Sao chép mã ${customerId}` }),
+    ).toHaveTextContent('139b0a85…');
   });
 
   it('maps URL search params to the audit log query', () => {

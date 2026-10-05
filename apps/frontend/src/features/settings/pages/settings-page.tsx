@@ -206,7 +206,6 @@ export function SettingsPage() {
                     !compactMobileTabValues.has(tab.value) &&
                     'max-lg:hidden',
                 )}
-                title={tab.label}
               >
                 <Icon className="size-3.5 shrink-0" />
                 <span>{tab.label}</span>

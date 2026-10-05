@@ -236,9 +236,7 @@ describe('ReportsPage', () => {
       screen.getByRole('img', { name: 'Biểu đồ xu hướng công nợ và thu hồi' }),
     ).toBeTruthy();
     expect(
-      screen.getByText(
-        'Tháng hiện tại là số liệu tạm thời đến thời điểm hiện tại.',
-      ),
+      screen.getByText(/là tháng hiện tại nên số liệu là tạm tính/i),
     ).toBeTruthy();
     // On phones the range select sits under the title instead of squeezing it.
     expect(
