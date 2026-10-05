@@ -77,6 +77,32 @@ describe('ReportsTrendChart', () => {
     expect(legend).toHaveTextContent('Đã thu');
   });
 
+  it('provides exact chart values in a screen-reader table', () => {
+    render(
+      <ReportsTrendChart
+        trend={{
+          months: 3,
+          items: [
+            { month: '2026-07', outstanding: 4_000_000, collected: 3_000_000 },
+            { month: '2026-08', outstanding: null, collected: 5_000_000 },
+          ],
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole('table', {
+        name: 'Giá trị biểu đồ xu hướng công nợ và thu hồi',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /7\/2026/ })).toHaveTextContent(
+      '4.000.000 ₫',
+    );
+    expect(screen.getByRole('row', { name: /8\/2026/ })).toHaveTextContent(
+      'Chưa có dữ liệu',
+    );
+  });
+
   it('shows an empty state instead of bare axes when every month is zero', () => {
     render(
       <ReportsTrendChart

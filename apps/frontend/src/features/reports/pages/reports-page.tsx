@@ -144,9 +144,22 @@ export function ReportsPage() {
 
   if (summaryQuery.isError || agingQuery.isError) {
     return (
-      <p role="alert" aria-live="polite" className="text-destructive">
-        Không thể tải dữ liệu báo cáo.
-      </p>
+      <div role="alert" className="flex flex-wrap items-center gap-3">
+        <p className="text-destructive">Không thể tải dữ liệu báo cáo.</p>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={summaryQuery.isFetching || agingQuery.isFetching}
+          onClick={() => {
+            void summaryQuery.refetch();
+            void agingQuery.refetch();
+          }}
+        >
+          {summaryQuery.isFetching || agingQuery.isFetching
+            ? 'Đang thử lại…'
+            : 'Thử lại'}
+        </Button>
+      </div>
     );
   }
 
@@ -225,9 +238,19 @@ export function ReportsPage() {
             </p>
           )}
           {customerAgingQuery.isError && (
-            <p role="alert" aria-live="polite" className="text-destructive">
-              Không thể tải báo cáo công nợ khách hàng.
-            </p>
+            <div role="alert" className="flex flex-wrap items-center gap-3">
+              <p className="text-destructive">
+                Không thể tải báo cáo công nợ khách hàng.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={customerAgingQuery.isFetching}
+                onClick={() => void customerAgingQuery.refetch()}
+              >
+                {customerAgingQuery.isFetching ? 'Đang thử lại…' : 'Thử lại'}
+              </Button>
+            </div>
           )}
           {customerAgingQuery.data &&
             customerAgingQuery.data.total === 0 &&
@@ -282,9 +305,19 @@ export function ReportsPage() {
             </p>
           )}
           {trendQuery.isError && (
-            <p role="alert" aria-live="polite" className="text-destructive">
-              Không thể tải dữ liệu xu hướng.
-            </p>
+            <div role="alert" className="flex flex-wrap items-center gap-3">
+              <p className="text-destructive">
+                Không thể tải dữ liệu xu hướng.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={trendQuery.isFetching}
+                onClick={() => void trendQuery.refetch()}
+              >
+                {trendQuery.isFetching ? 'Đang thử lại…' : 'Thử lại'}
+              </Button>
+            </div>
           )}
           {trendQuery.data && (
             <Suspense fallback={<ChartLoadingFallback />}>

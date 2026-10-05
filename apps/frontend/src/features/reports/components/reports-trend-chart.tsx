@@ -118,6 +118,33 @@ export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {
           </LineChart>
         </ResponsiveContainer>
       </div>
+      <table className="sr-only">
+        <caption>Giá trị biểu đồ xu hướng công nợ và thu hồi</caption>
+        <thead>
+          <tr>
+            <th scope="col">Tháng</th>
+            <th scope="col">Công nợ còn lại</th>
+            <th scope="col">Đã thu</th>
+          </tr>
+        </thead>
+        <tbody>
+          {trend.items.map((point) => (
+            <tr key={point.month}>
+              <th scope="row">{formatTrendMonthLabel(point.month)}</th>
+              <td>
+                {point.outstanding === null
+                  ? 'Chưa có dữ liệu'
+                  : formatVND(point.outstanding)}
+              </td>
+              <td>
+                {point.collected === null
+                  ? 'Chưa có dữ liệu'
+                  : formatVND(point.collected)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       <ul
         aria-label="Chú giải biểu đồ"
         className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground"

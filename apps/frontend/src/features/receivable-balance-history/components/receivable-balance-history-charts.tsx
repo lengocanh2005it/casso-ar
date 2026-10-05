@@ -95,42 +95,65 @@ export function ReceivableBalanceHistoryCharts({
               className="h-64"
             />
           ) : (
-            <div
-              role="img"
-              aria-label="Biểu đồ số thay đổi theo ngày"
-              className="h-64 w-full"
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={dailySeries}
-                  margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                >
-                  <CartesianGrid
-                    stroke="var(--border)"
-                    strokeDasharray="4 4"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="date"
-                    tickFormatter={formatChartDate}
-                    interval="preserveStartEnd"
-                    minTickGap={12}
-                    tickLine={false}
-                    axisLine={false}
-                    tick={CHART_TICK}
-                  />
-                  <YAxis
-                    width={40}
-                    allowDecimals={false}
-                    tickLine={false}
-                    axisLine={false}
-                    tick={CHART_TICK}
-                  />
-                  <Tooltip {...CHART_TOOLTIP_STYLE} />
-                  <Bar dataKey="transitions" fill="var(--primary)" radius={4} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <>
+              <div
+                role="img"
+                aria-label="Biểu đồ số thay đổi theo ngày"
+                className="h-64 w-full"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={dailySeries}
+                    margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                  >
+                    <CartesianGrid
+                      stroke="var(--border)"
+                      strokeDasharray="4 4"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={formatChartDate}
+                      interval="preserveStartEnd"
+                      minTickGap={12}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={CHART_TICK}
+                    />
+                    <YAxis
+                      width={40}
+                      allowDecimals={false}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={CHART_TICK}
+                    />
+                    <Tooltip {...CHART_TOOLTIP_STYLE} />
+                    <Bar
+                      dataKey="transitions"
+                      fill="var(--primary)"
+                      radius={4}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <table className="sr-only">
+                <caption>Số lần thay đổi công nợ theo ngày</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Ngày</th>
+                    <th scope="col">Số lần thay đổi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dailySeries.map((point) => (
+                    <tr key={point.date}>
+                      <th scope="row">{formatChartDate(point.date)}</th>
+                      <td>{point.transitions}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
           )}
         </CardContent>
       </Card>

@@ -39,4 +39,22 @@ describe('ReceivableBalanceHistoryCharts', () => {
       'card-title',
     );
   });
+
+  it('provides daily chart values in a screen-reader table', () => {
+    render(
+      <ReceivableBalanceHistoryCharts
+        dailySeries={[
+          { date: '2026-09-01', transitions: 3 },
+          { date: '2026-09-02', transitions: 7 },
+        ]}
+        sourceDistribution={[]}
+      />,
+    );
+
+    expect(
+      screen.getByRole('table', { name: 'Số lần thay đổi công nợ theo ngày' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: '01/09 3' })).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: '02/09 7' })).toBeInTheDocument();
+  });
 });

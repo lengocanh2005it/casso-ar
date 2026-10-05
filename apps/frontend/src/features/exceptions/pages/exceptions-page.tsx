@@ -54,10 +54,8 @@ export function ExceptionsPage() {
   const search = searchParams.get('search') ?? '';
   const debouncedSearch = useDebouncedValue(search, 250);
   const [selected, setSelected] = useState<PendingReviewItem | null>(null);
-  const { data, isPending, isError, isPlaceholderData } = usePendingReview(
-    page,
-    debouncedSearch || undefined,
-  );
+  const { data, isPending, isError, isPlaceholderData, refetch, isFetching } =
+    usePendingReview(page, debouncedSearch || undefined);
   // Placeholder rows belong to the previous page/search: clear the selection
   // so skip / prepaid / match cannot act on them under the new context.
   const bulkSelection = useBulkSelection(
@@ -107,9 +105,20 @@ export function ExceptionsPage() {
         </div>
         {(isPending || showsEmptyPlaceholder) && <TableSkeleton rows={5} />}
         {isError && (
-          <p role="status" aria-live="polite" className="text-destructive">
-            Không thể tải danh sách giao dịch cần xử lý. Vui lòng thử lại.
-          </p>
+          <div role="alert" className="flex flex-wrap items-center gap-3">
+            <p className="text-destructive">
+              Không thể tải danh sách giao dịch cần xử lý. Vui lòng thử lại.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isFetching}
+              onClick={() => void refetch()}
+            >
+              {isFetching ? 'Đang thử lại…' : 'Thử lại'}
+            </Button>
+          </div>
         )}
         {/* Worded from the search the data was fetched for (debounced),
             not the box's current text. */}
