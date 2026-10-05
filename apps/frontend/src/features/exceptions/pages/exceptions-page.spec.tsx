@@ -122,6 +122,10 @@ describe('ExceptionsPage', () => {
     const [headerRow, row] = await screen.findAllByRole('row');
     expect(headerRow.parentElement).toHaveClass('max-lg:hidden');
     expect(row).toHaveClass('max-lg:grid');
+    expect(screen.getByText('CT').closest('.rounded-full')).toHaveClass(
+      'hidden',
+      'lg:flex',
+    );
     // Pagination used to float below the card on this page only.
     expect(
       screen

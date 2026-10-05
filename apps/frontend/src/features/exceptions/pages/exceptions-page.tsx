@@ -210,10 +210,10 @@ export function ExceptionsPage() {
                              column. The name and masked account already
                              identify the payer, and below lg the row is a
                              card where the avatar was hidden anyway.
-                             `hidden lg:block` (not `max-lg:hidden`) because
+                             `hidden lg:flex` to keep initials centered at desktop width.
                              the avatar ships its own `flex`, which
                              tailwind-merge ranks above a plain `hidden`. */
-                          className="hidden lg:block"
+                          className="hidden lg:flex"
                         />
                         <div className="min-w-0 space-y-1">
                           <p className="min-w-0 font-medium">
