@@ -24,7 +24,20 @@ import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-enti
 import { startTestRedis } from './helpers/test-redis';
 
 const CHECKSUM_KEY = 'e2e-payos-checksum-key';
-const paymentLinks = new Map<string, { orderCode: number; amount: number }>();
+const paymentLinks = new Map<
+  string,
+  {
+    orderCode: number;
+    amount: number;
+    amountPaid?: number;
+    amountRemaining?: number;
+    transactions?: Array<{
+      reference: string;
+      amount: number;
+      transactionDateTime: string;
+    }>;
+  }
+>();
 
 function signWebhookData(data: Record<string, unknown>): string {
   const query = Object.keys(data)
@@ -54,10 +67,10 @@ const fakeAdapter: IPayosPaymentAdapter = {
       paymentLinkId,
       orderCode: link.orderCode,
       amount: link.amount,
-      amountPaid: link.amount,
-      amountRemaining: 0,
+      amountPaid: link.amountPaid ?? link.amount,
+      amountRemaining: link.amountRemaining ?? 0,
       status: 'PAID',
-      transactions: [
+      transactions: link.transactions ?? [
         {
           reference: 'e2e-bank-ref',
           amount: link.amount,
@@ -293,6 +306,102 @@ describe('PayOS plan upgrade (integration)', () => {
         .getRepository(PlanPaymentHistoryOrmEntity)
         .countBy({ organizationId }),
     ).toBe(1);
+  });
+
+  it('dedupes identical ambiguous deliveries and keeps distinct deliveries for review', async () => {
+    const organizationId = '00000000-0000-4000-8000-000000000504';
+    const { token } = await setUpOrg(organizationId, Role.OWNER);
+    await seedFreeSubscription(organizationId);
+
+    await request(app.getHttpServer())
+      .post('/api/v1/payos/plan-upgrade-orders')
+      .set('Authorization', `Bearer ${token}`)
+      .set('idempotency-key', 'test-key-4')
+      .send({
+        targetPlanId: PlanId.STARTER,
+        returnUrl: 'https://app.casso.vn/billing',
+        cancelUrl: 'https://app.casso.vn/billing',
+      })
+      .expect(201);
+
+    const order = await dataSource
+      .getRepository(PlanUpgradeOrderOrmEntity)
+      .findOneOrFail({ where: { organizationId } });
+    if (!order.payosPaymentLinkId) {
+      throw new Error('Expected the checkout to store a PayOS payment link ID');
+    }
+    paymentLinks.set(order.payosPaymentLinkId, {
+      orderCode: Number(order.orderCode),
+      amount: 299000,
+      amountPaid: 598000,
+      amountRemaining: 0,
+      transactions: [
+        {
+          reference: 'e2e-bank-ref-1',
+          amount: 299000,
+          transactionDateTime: '2026-10-05 10:00:00',
+        },
+        {
+          reference: 'e2e-bank-ref-2',
+          amount: 299000,
+          transactionDateTime: '2026-10-05 10:01:00',
+        },
+      ],
+    });
+
+    const orderCode = Number(order.orderCode);
+    const sendWebhook = (data: Record<string, unknown>) =>
+      request(app.getHttpServer())
+        .post('/api/v1/payos/webhook')
+        .send({
+          code: '00',
+          desc: 'success',
+          success: true,
+          data,
+          signature: signWebhookData(data),
+        })
+        .expect(200);
+    const firstData = {
+      orderCode,
+      amount: 299000,
+      description: 'first transfer',
+      code: '00',
+      desc: 'success',
+      paymentLinkId: order.payosPaymentLinkId,
+      reference: 'e2e-bank-ref-1',
+      transactionDateTime: '2026-10-05 10:00:00',
+    };
+    const secondData = {
+      ...firstData,
+      description: 'second transfer',
+      reference: 'e2e-bank-ref-2',
+      transactionDateTime: '2026-10-05 10:01:00',
+    };
+
+    await sendWebhook(firstData);
+    await sendWebhook(firstData);
+    await sendWebhook(secondData);
+
+    const receipts = await dataSource
+      .getRepository(PlanPaymentHistoryOrmEntity)
+      .findBy({ organizationId });
+    expect(receipts).toHaveLength(2);
+    expect(receipts.map((receipt) => receipt.initialOutcome)).toEqual([
+      'REVIEW_REQUIRED',
+      'REVIEW_REQUIRED',
+    ]);
+    expect(receipts.map((receipt) => receipt.transferIdentity)).toEqual([
+      null,
+      null,
+    ]);
+    expect(
+      new Set(receipts.map((receipt) => receipt.deliveryFingerprint)).size,
+    ).toBe(2);
+
+    const subscription = await dataSource
+      .getRepository(SubscriptionOrmEntity)
+      .findOneOrFail({ where: { organizationId } });
+    expect(subscription.planId).toBe(PlanId.FREE);
   });
 
   it('records a mismatched amount for review without granting the plan', async () => {

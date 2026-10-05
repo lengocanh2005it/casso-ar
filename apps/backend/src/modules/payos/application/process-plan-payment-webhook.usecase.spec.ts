@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import {
+  PeriodChargeStatus,
   PlanId,
+  PlanPaymentHistorySourceType,
   PlanPaymentReceiptOutcome,
   PlanUpgradeOrderStatus,
 } from '@casso-ar/shared-types';
@@ -9,6 +11,7 @@ import type { IAuditLogRepository } from '../../../common/audit/audit-log-reposi
 import type { ChangeSubscriptionPlanUseCase } from '../../billing/application/change-subscription-plan.usecase';
 import type { ISubscriptionRepository } from '../../billing/application/subscription-repository.port';
 import { Subscription } from '../../billing/domain/subscription';
+import { PeriodCharge } from '../domain/period-charge';
 import { PlanUpgradeOrder } from '../domain/plan-upgrade-order';
 import type { IPayosPaymentAdapter } from './payos-payment-adapter.port';
 import type { IPeriodChargeRepository } from './period-charge-repository.port';
@@ -384,6 +387,82 @@ describe('ProcessPlanPaymentWebhookUseCase', () => {
         initialOutcome: PlanPaymentReceiptOutcome.REVIEW_REQUIRED,
       }),
       expect.anything(),
+    );
+    expect(changePlanUseCase.execute).not.toHaveBeenCalled();
+  });
+
+  it('routes a period charge to review after the subscription is downgraded to FREE', async () => {
+    const {
+      useCase,
+      orderRepo,
+      chargeRepo,
+      subscriptionRepo,
+      historyRepo,
+      adapter,
+      changePlanUseCase,
+      manager,
+    } = buildDeps();
+    const subscription = Subscription.createFree(
+      'sub-1',
+      'org-1',
+      new Date('2026-10-01'),
+    );
+    const charge = new PeriodCharge({
+      id: 'charge-1',
+      orderCode: 2001,
+      organizationId: 'org-1',
+      planId: PlanId.STARTER,
+      periodStart: subscription.currentPeriodStart,
+      periodEnd: subscription.currentPeriodEnd,
+      quotedAmount: 299000,
+      payosPaymentLinkId: 'charge-link',
+      status: PeriodChargeStatus.PENDING,
+      createdAt: new Date('2026-10-01T00:00:00Z'),
+      updatedAt: new Date('2026-10-01T00:00:00Z'),
+    });
+    orderRepo.lockAndFindByOrderCode.mockResolvedValue(null);
+    chargeRepo.lockAndFindByOrderCode.mockResolvedValue(charge);
+    chargeRepo.lockAndFindByIdAndOrganizationId.mockResolvedValue(charge);
+    subscriptionRepo.lockAndFindByOrganizationId.mockResolvedValue(
+      subscription,
+    );
+    adapter.getPaymentLink.mockResolvedValue({
+      paymentLinkId: 'charge-link',
+      orderCode: 2001,
+      amount: 299000,
+      amountPaid: 299000,
+      amountRemaining: 0,
+      status: 'PAID',
+      transactions: [
+        {
+          reference: 'charge-ref',
+          amount: 299000,
+          transactionDateTime: '2026-10-05 10:00:00',
+        },
+      ],
+    });
+
+    await useCase.execute({
+      ...webhook,
+      data: {
+        ...webhook.data,
+        orderCode: 2001,
+        paymentLinkId: 'charge-link',
+        reference: 'charge-ref',
+      },
+    });
+
+    expect(historyRepo.insertIfAbsent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceType: PlanPaymentHistorySourceType.PERIOD_CHARGE,
+        initialOutcome: PlanPaymentReceiptOutcome.REVIEW_REQUIRED,
+      }),
+      manager,
+    );
+    expect(chargeRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ status: PeriodChargeStatus.REVIEW_REQUIRED }),
+      manager,
+      'org-1',
     );
     expect(changePlanUseCase.execute).not.toHaveBeenCalled();
   });

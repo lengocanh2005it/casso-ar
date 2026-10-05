@@ -342,6 +342,8 @@ export class ProcessPlanPaymentWebhookUseCase {
           providerReference: input.data.reference ?? null,
           providerTransactionTime: input.data.transactionDateTime ?? null,
           transferIdentity,
+          // ponytail: this dedupes identical signed deliveries only; identical
+          // distinct transfers can collapse until PayOS exposes a stable ID.
           deliveryFingerprint: hash(input.signature),
           initialOutcome: outcome,
           provenance: PlanPaymentHistoryProvenance.PAYOS_WEBHOOK,
