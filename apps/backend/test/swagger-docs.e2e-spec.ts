@@ -13,6 +13,7 @@ import request from 'supertest';
 import type { StartedTestContainer } from 'testcontainers';
 import * as ts from 'typescript';
 import { AppModule } from '../src/app.module';
+import { ErrorCode } from '../src/common/errors/error-code';
 import {
   SWAGGER_PATH,
   setupSwagger,
@@ -29,7 +30,7 @@ interface IdempotentOperation {
 }
 
 interface OpenApiErrorSchema {
-  properties?: Record<string, { example?: unknown }>;
+  properties?: Record<string, { enum?: unknown[]; example?: unknown }>;
   required?: string[];
 }
 
@@ -37,7 +38,10 @@ interface OpenApiOperation {
   parameters?: Array<{ in?: string; name?: string; required?: boolean }>;
   responses?: Record<
     string,
-    { content?: { 'application/json'?: { schema?: OpenApiErrorSchema } } }
+    {
+      content?: { 'application/json'?: { schema?: OpenApiErrorSchema } };
+      description?: string;
+    }
   >;
 }
 
@@ -451,5 +455,30 @@ describe('Swagger / OpenAPI docs (integration)', () => {
         expect.arrayContaining(['statusCode', 'errorCode', 'message']),
       );
     }
+  });
+
+  it('preserves existing 409 error codes on idempotent routes', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`${SWAGGER_PATH}-json`)
+      .expect(200);
+
+    const allocate = res.body.paths['/api/v1/payments/{id}/allocate']
+      .post as OpenApiOperation;
+    const conflictResponse = allocate.responses?.['409'];
+    const errorCodeSchema =
+      conflictResponse?.content?.['application/json']?.schema?.properties
+        ?.errorCode;
+
+    expect(conflictResponse?.description).toContain(ErrorCode.CONFLICT);
+    expect(conflictResponse?.description).toContain(
+      ErrorCode.IDEMPOTENCY_KEY_REUSED,
+    );
+    expect(errorCodeSchema?.enum).toEqual(
+      expect.arrayContaining([
+        ErrorCode.VALIDATION_ERROR,
+        ErrorCode.CONFLICT,
+        ErrorCode.IDEMPOTENCY_KEY_REUSED,
+      ]),
+    );
   });
 });

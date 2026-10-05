@@ -1,12 +1,16 @@
-import { applyDecorators } from '@nestjs/common';
+import { applyDecorators, SetMetadata } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
 import { ErrorCode } from '../errors/error-code';
 import { STATUS_BY_ERROR_CODE } from '../errors/status-by-error-code';
 
+export const API_ERROR_CODES_METADATA = Symbol('API_ERROR_CODES_METADATA');
+
 export function errorResponseSchema(
   errorCode: ErrorCode,
   statusOverride?: number,
+  additionalErrorCodes: ErrorCode[] = [],
 ) {
+  const errorCodes = [...new Set([errorCode, ...additionalErrorCodes])];
   return {
     type: 'object' as const,
     required: ['statusCode', 'errorCode', 'message'],
@@ -15,7 +19,11 @@ export function errorResponseSchema(
         type: 'number' as const,
         example: statusOverride ?? STATUS_BY_ERROR_CODE[errorCode] ?? 500,
       },
-      errorCode: { type: 'string' as const, example: errorCode },
+      errorCode: {
+        type: 'string' as const,
+        example: errorCode,
+        ...(errorCodes.length > 1 ? { enum: errorCodes } : {}),
+      },
       message: { type: 'string' as const },
       details: {},
     },
@@ -36,6 +44,7 @@ export function ApiErrorResponse(...errorCodes: ErrorCode[]): MethodDecorator {
   }
 
   return applyDecorators(
+    SetMetadata(API_ERROR_CODES_METADATA, errorCodes),
     ...[...byStatus.entries()].map(([status, codes]) =>
       ApiResponse({
         status,
