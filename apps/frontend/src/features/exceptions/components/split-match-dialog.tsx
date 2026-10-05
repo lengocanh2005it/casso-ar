@@ -225,7 +225,7 @@ export function SplitMatchDialog({
           body so the title, description and close button stay on screen. */}
       <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="min-w-0 pr-6">
+          <DialogTitle className="min-w-0 pr-6 leading-snug">
             Xử lý giao dịch{' '}
             <TruncatedText
               className="inline-block max-w-full truncate align-bottom"
@@ -339,7 +339,7 @@ export function SplitMatchDialog({
                     Mã kỹ thuật: <TruncatedCopyId id={candidate.receivableId} />
                   </p>
                 </div>
-                <div className="shrink-0 space-y-1.5">
+                <div className="shrink-0 space-y-2">
                   <label
                     htmlFor={`allocation-${candidate.receivableId}`}
                     className="block text-xs font-medium text-muted-foreground"

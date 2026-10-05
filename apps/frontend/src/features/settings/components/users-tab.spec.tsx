@@ -120,6 +120,12 @@ describe('UsersTab', () => {
     expect(
       screen.getByText('Quản lý thành viên, vai trò và lời mời trong tổ chức.'),
     ).toBeInTheDocument();
+    expect(screen.getByLabelText('Email').parentElement).toHaveClass(
+      'space-y-2',
+    );
+    expect(
+      screen.getByRole('combobox', { name: 'Vai trò' }).closest('.space-y-2'),
+    ).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('Kế toán')).toBeTruthy());
 
     fireEvent.click(screen.getByRole('combobox', { name: 'Vai trò' }));
@@ -217,6 +223,39 @@ describe('UsersTab', () => {
     expect(
       within(activeRow as HTMLElement).getByText('Đang hoạt động'),
     ).toBeTruthy();
+  });
+
+  it('shows member rows as labeled cards on narrow screens', async () => {
+    useAuth.mockReturnValue({
+      user: { id: 'owner-1', role: 'OWNER', organizationId: 'org-1' },
+    });
+    mockApi();
+    renderTab();
+
+    const email = await screen.findByText('ke-toan@congtyb.vn');
+    const row = email.closest('tr');
+    expect(row).not.toBeNull();
+    expect(row).toHaveClass('max-lg:grid');
+    expect(within(row as HTMLElement).getByText('Email')).toHaveClass(
+      'lg:hidden',
+    );
+    expect(within(row as HTMLElement).getByText('Vai trò')).toHaveClass(
+      'lg:hidden',
+    );
+    expect(within(row as HTMLElement).getByText('Trạng thái')).toHaveClass(
+      'lg:hidden',
+    );
+    const removeButton = within(row as HTMLElement).getByRole('button', {
+      name: 'Xoá Kế toán',
+    });
+    expect(within(removeButton).getByText('Xoá')).toHaveClass('lg:hidden');
+    const ownerEmail = screen.getByText('owner@congtyb.vn');
+    expect(
+      within(ownerEmail.closest('tr') as HTMLElement).queryByText('Thao tác'),
+    ).toBeNull();
+    expect(
+      screen.getByRole('columnheader', { name: 'Tên' }).closest('thead'),
+    ).toHaveClass('max-lg:hidden');
   });
 
   it('shows a blocked badge and lets an OWNER unblock a blocked member', async () => {

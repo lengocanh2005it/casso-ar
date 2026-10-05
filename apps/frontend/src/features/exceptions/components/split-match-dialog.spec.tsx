@@ -156,6 +156,10 @@ describe('SplitMatchDialog', () => {
 
     expect(screen.getByText('Nội dung chuyển khoản')).toBeInTheDocument();
     expect(screen.getByText('Payment for INV-001')).toBeInTheDocument();
+    const allocationInput = await screen.findByLabelText(
+      'Số tiền phân bổ cho INV-2026-001',
+    );
+    expect(allocationInput.parentElement).toHaveClass('space-y-2');
     expect(
       screen.getByLabelText('Tìm khách hàng để ghi nhận công nợ').parentElement,
     ).toHaveClass('grid', 'gap-2');
@@ -413,6 +417,9 @@ describe('SplitMatchDialog', () => {
       'flex',
       'flex-col',
     );
+    expect(
+      screen.getByRole('heading', { name: /xử lý giao dịch/i }),
+    ).toHaveClass('leading-snug');
     expect(
       [...document.querySelectorAll('[data-slot="dialog-content"] div')].find(
         (el) => el.classList.contains('overflow-y-auto'),

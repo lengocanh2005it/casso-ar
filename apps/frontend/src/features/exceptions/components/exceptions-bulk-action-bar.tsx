@@ -136,9 +136,9 @@ export function ExceptionsBulkActionBar({
           </DialogDescription>
           <label
             htmlFor="bulk-prepaid-customer-search"
-            className="block text-sm"
+            className="grid gap-2 text-sm"
           >
-            Tìm khách hàng
+            <span>Tìm khách hàng</span>
             <Input
               id="bulk-prepaid-customer-search"
               name="customerSearch"
