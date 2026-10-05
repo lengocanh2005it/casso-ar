@@ -26,11 +26,33 @@ export interface CreatePlanPaymentHistoryInput {
   confirmedAt: Date;
 }
 
+export interface PlanPaymentHistoryPageQuery {
+  organizationId: string;
+  page: number;
+  limit: number;
+}
+
+export interface PlanPaymentHistoryListItem {
+  sourceType: PlanPaymentHistorySourceType;
+  orderCode: string;
+  planId: PlanId;
+  receivedAmount: number | null;
+  initialOutcome: PlanPaymentReceiptOutcome;
+  provenance: PlanPaymentHistoryProvenance;
+  confirmedAt: Date;
+}
+
+export interface PlanPaymentHistoryPage {
+  items: PlanPaymentHistoryListItem[];
+  total: number;
+}
+
 export interface IPlanPaymentHistoryRepository {
   insertIfAbsent(
     input: CreatePlanPaymentHistoryInput,
     manager: EntityManager,
   ): Promise<boolean>;
+  findPage(query: PlanPaymentHistoryPageQuery): Promise<PlanPaymentHistoryPage>;
 }
 
 export const PLAN_PAYMENT_HISTORY_REPOSITORY = Symbol(

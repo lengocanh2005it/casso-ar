@@ -1,5 +1,11 @@
 import { createHmac } from 'node:crypto';
-import { PlanId, SubscriptionStatus } from '@casso-ar/shared-types';
+import {
+  PlanId,
+  PlanPaymentHistoryProvenance,
+  PlanPaymentHistorySourceType,
+  PlanPaymentReceiptOutcome,
+  SubscriptionStatus,
+} from '@casso-ar/shared-types';
 import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
@@ -248,6 +254,188 @@ describe('PayOS plan upgrade (integration)', () => {
     expect(receipts).toHaveLength(1);
     expect(receipts[0].initialOutcome).toBe('ACCEPTED');
     expect(String(receipts[0].receivedAmount)).toBe('299000');
+  });
+
+  it('lists tenant-scoped plan payment history with stable pagination', async () => {
+    const organizationId = '00000000-0000-4000-8000-000000000551';
+    const otherOrganizationId = '00000000-0000-4000-8000-000000000552';
+    const salesOrganizationId = '00000000-0000-4000-8000-000000000553';
+    const { token } = await setUpOrg(organizationId, Role.OWNER);
+    await setUpOrg(otherOrganizationId, Role.OWNER);
+    const { token: salesToken } = await setUpOrg(
+      salesOrganizationId,
+      Role.SALES_REP,
+    );
+    const confirmedAt = new Date('2026-10-05T10:00:00.000Z');
+    const repo = dataSource.getRepository(PlanPaymentHistoryOrmEntity);
+    await repo.save([
+      {
+        id: '10000000-0000-4000-8000-000000000001',
+        organizationId,
+        sourceType: PlanPaymentHistorySourceType.PLAN_UPGRADE_ORDER,
+        sourceId: '20000000-0000-4000-8000-000000000001',
+        orderCode: '9007199254740993',
+        planId: PlanId.STARTER,
+        periodStart: null,
+        periodEnd: null,
+        receivedAmount: null,
+        quotedAmount: null,
+        payosPaymentLinkId: null,
+        providerReference: null,
+        providerTransactionTime: null,
+        transferIdentity: null,
+        deliveryFingerprint: null,
+        initialOutcome: PlanPaymentReceiptOutcome.ACCEPTED,
+        provenance: PlanPaymentHistoryProvenance.LEGACY_BACKFILL,
+        confirmedAt: new Date('2026-10-04T10:00:00.000Z'),
+        createdAt: new Date('2026-10-04T10:00:00.000Z'),
+      },
+      {
+        id: '10000000-0000-4000-8000-000000000002',
+        organizationId,
+        sourceType: PlanPaymentHistorySourceType.PERIOD_CHARGE,
+        sourceId: '20000000-0000-4000-8000-000000000002',
+        orderCode: '90000002',
+        planId: PlanId.STARTER,
+        periodStart: null,
+        periodEnd: null,
+        receivedAmount: 299000,
+        quotedAmount: 299000,
+        payosPaymentLinkId: 'test-link-a',
+        providerReference: 'private-reference',
+        providerTransactionTime: '2026-10-05 10:00:00',
+        transferIdentity: 'private-identity',
+        deliveryFingerprint: 'private-fingerprint',
+        initialOutcome: PlanPaymentReceiptOutcome.ACCEPTED,
+        provenance: PlanPaymentHistoryProvenance.PAYOS_WEBHOOK,
+        confirmedAt,
+        createdAt: confirmedAt,
+      },
+      {
+        id: '10000000-0000-4000-8000-000000000003',
+        organizationId,
+        sourceType: PlanPaymentHistorySourceType.PLAN_UPGRADE_ORDER,
+        sourceId: '20000000-0000-4000-8000-000000000003',
+        orderCode: '90000003',
+        planId: PlanId.BUSINESS,
+        periodStart: null,
+        periodEnd: null,
+        receivedAmount: 599000,
+        quotedAmount: 299000,
+        payosPaymentLinkId: 'test-link-b',
+        providerReference: null,
+        providerTransactionTime: null,
+        transferIdentity: null,
+        deliveryFingerprint: null,
+        initialOutcome: PlanPaymentReceiptOutcome.REVIEW_REQUIRED,
+        provenance: PlanPaymentHistoryProvenance.PAYOS_WEBHOOK,
+        confirmedAt,
+        createdAt: confirmedAt,
+      },
+      {
+        id: '10000000-0000-4000-8000-000000000004',
+        organizationId: otherOrganizationId,
+        sourceType: PlanPaymentHistorySourceType.PLAN_UPGRADE_ORDER,
+        sourceId: '20000000-0000-4000-8000-000000000004',
+        orderCode: '90000004',
+        planId: PlanId.BUSINESS,
+        periodStart: null,
+        periodEnd: null,
+        receivedAmount: 599000,
+        quotedAmount: 299000,
+        payosPaymentLinkId: null,
+        providerReference: null,
+        providerTransactionTime: null,
+        transferIdentity: null,
+        deliveryFingerprint: null,
+        initialOutcome: PlanPaymentReceiptOutcome.REVIEW_REQUIRED,
+        provenance: PlanPaymentHistoryProvenance.PAYOS_WEBHOOK,
+        confirmedAt: new Date('2026-10-06T10:00:00.000Z'),
+        createdAt: confirmedAt,
+      },
+    ]);
+
+    const firstPage = await request(app.getHttpServer())
+      .get(
+        `/api/v1/payos/payment-history?page=1&limit=2&organizationId=${otherOrganizationId}`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(firstPage.body).toMatchObject({ total: 3, page: 1, limit: 2 });
+    expect(firstPage.body.items).toEqual([
+      {
+        paymentKind: PlanPaymentHistorySourceType.PLAN_UPGRADE_ORDER,
+        orderCode: '90000003',
+        planId: PlanId.BUSINESS,
+        receivedAmount: 599000,
+        initialOutcome: PlanPaymentReceiptOutcome.REVIEW_REQUIRED,
+        provenance: PlanPaymentHistoryProvenance.PAYOS_WEBHOOK,
+        confirmedAt: confirmedAt.toISOString(),
+      },
+      {
+        paymentKind: PlanPaymentHistorySourceType.PERIOD_CHARGE,
+        orderCode: '90000002',
+        planId: PlanId.STARTER,
+        receivedAmount: 299000,
+        initialOutcome: PlanPaymentReceiptOutcome.ACCEPTED,
+        provenance: PlanPaymentHistoryProvenance.PAYOS_WEBHOOK,
+        confirmedAt: confirmedAt.toISOString(),
+      },
+    ]);
+    expect(Object.keys(firstPage.body.items[0]).sort()).toEqual(
+      [
+        'confirmedAt',
+        'initialOutcome',
+        'orderCode',
+        'paymentKind',
+        'planId',
+        'provenance',
+        'receivedAmount',
+      ].sort(),
+    );
+
+    const secondPage = await request(app.getHttpServer())
+      .get('/api/v1/payos/payment-history?page=2&limit=2')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(secondPage.body.total).toBe(3);
+    expect(secondPage.body.items).toEqual([
+      {
+        paymentKind: PlanPaymentHistorySourceType.PLAN_UPGRADE_ORDER,
+        orderCode: '9007199254740993',
+        planId: PlanId.STARTER,
+        receivedAmount: null,
+        initialOutcome: PlanPaymentReceiptOutcome.ACCEPTED,
+        provenance: PlanPaymentHistoryProvenance.LEGACY_BACKFILL,
+        confirmedAt: '2026-10-04T10:00:00.000Z',
+      },
+    ]);
+
+    const defaultPage = await request(app.getHttpServer())
+      .get('/api/v1/payos/payment-history')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(defaultPage.body).toMatchObject({
+      total: 3,
+      page: 1,
+      limit: 20,
+    });
+    expect(defaultPage.body.items).toHaveLength(3);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/payos/payment-history')
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/payos/payment-history')
+      .set('Authorization', `Bearer ${salesToken}`)
+      .expect(403);
+    const invalidPage = await request(app.getHttpServer())
+      .get('/api/v1/payos/payment-history?limit=101')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+    expect(invalidPage.body.errorCode).toBe('VALIDATION_ERROR');
   });
 
   it('replaying the same PAID webhook is a no-op (idempotent)', async () => {

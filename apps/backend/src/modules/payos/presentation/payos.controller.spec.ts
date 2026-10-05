@@ -1,7 +1,14 @@
+import {
+  PlanId,
+  PlanPaymentHistoryProvenance,
+  PlanPaymentHistorySourceType,
+  PlanPaymentReceiptOutcome,
+} from '@casso-ar/shared-types';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { InitiatePeriodChargeUseCase } from '../application/initiate-period-charge.usecase';
 import { InitiatePlanUpgradeOrderUseCase } from '../application/initiate-plan-upgrade-order.usecase';
+import { ListPlanPaymentHistoryUseCase } from '../application/list-plan-payment-history.usecase';
 import { ProcessPlanPaymentWebhookUseCase } from '../application/process-plan-payment-webhook.usecase';
 import { PayosController } from './payos.controller';
 
@@ -16,6 +23,24 @@ describe('PayosController', () => {
     const initiateChargeUseCase = {
       execute: jest.fn().mockResolvedValue({ checkoutUrl: 'https://y' }),
     } as unknown as InitiatePeriodChargeUseCase;
+    const listPaymentHistoryUseCase = {
+      execute: jest.fn().mockResolvedValue({
+        items: [
+          {
+            sourceType: PlanPaymentHistorySourceType.PLAN_UPGRADE_ORDER,
+            orderCode: '90000001',
+            planId: PlanId.STARTER,
+            receivedAmount: null,
+            initialOutcome: PlanPaymentReceiptOutcome.ACCEPTED,
+            provenance: PlanPaymentHistoryProvenance.LEGACY_BACKFILL,
+            confirmedAt: new Date('2026-10-01T12:00:00.000Z'),
+          },
+        ],
+        total: 1,
+        page: 2,
+        limit: 5,
+      }),
+    } as unknown as ListPlanPaymentHistoryUseCase;
     const tenantContext = {
       getOrganizationId: jest.fn().mockReturnValue('org-1'),
     } as unknown as TenantContextService;
@@ -27,11 +52,39 @@ describe('PayosController', () => {
       initiateUseCase,
       processWebhookUseCase,
       initiateChargeUseCase,
+      listPaymentHistoryUseCase,
       tenantContext,
       idempotency,
     );
-    return { controller, processWebhookUseCase };
+    return { controller, processWebhookUseCase, listPaymentHistoryUseCase };
   }
+
+  it('passes pagination to the history use case and maps the response', async () => {
+    const { controller, listPaymentHistoryUseCase } = buildController();
+
+    await expect(
+      controller.listPaymentHistory({ page: 2, limit: 5 }),
+    ).resolves.toEqual({
+      items: [
+        {
+          paymentKind: PlanPaymentHistorySourceType.PLAN_UPGRADE_ORDER,
+          orderCode: '90000001',
+          planId: PlanId.STARTER,
+          receivedAmount: null,
+          initialOutcome: PlanPaymentReceiptOutcome.ACCEPTED,
+          provenance: PlanPaymentHistoryProvenance.LEGACY_BACKFILL,
+          confirmedAt: '2026-10-01T12:00:00.000Z',
+        },
+      ],
+      total: 1,
+      page: 2,
+      limit: 5,
+    });
+    expect(listPaymentHistoryUseCase.execute).toHaveBeenCalledWith({
+      page: 2,
+      limit: 5,
+    });
+  });
 
   it('passes the signed inner data to the receipt processor', async () => {
     const { controller, processWebhookUseCase } = buildController();
