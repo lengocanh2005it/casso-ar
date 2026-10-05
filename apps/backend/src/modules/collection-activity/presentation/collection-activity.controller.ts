@@ -11,7 +11,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
-  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -23,6 +22,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { GetCustomerTimelineUseCase } from '../application/get-customer-timeline.usecase';
 import { GetOrganizationTimelineUseCase } from '../application/get-organization-timeline.usecase';
@@ -50,7 +50,7 @@ export class CollectionActivityController {
 
   @Post('receivables/:id/activities')
   @ApiOperation({ summary: 'Record a manual collection activity' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: CollectionActivityResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,

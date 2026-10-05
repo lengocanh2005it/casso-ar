@@ -11,7 +11,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
-  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -28,6 +27,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { BatchMarkPrepaidBankTransactionUseCase } from '../application/batch-mark-prepaid-bank-transaction.usecase';
 import { BatchMatchBankTransactionUseCase } from '../application/batch-match-bank-transaction.usecase';
@@ -107,7 +107,7 @@ export class ExceptionQueueController {
 
   @Post(':id/match')
   @ApiOperation({ summary: 'Match a bank transaction to receivables' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: BankTransactionResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -148,7 +148,7 @@ export class ExceptionQueueController {
 
   @Post('batch-match')
   @ApiOperation({ summary: 'Match multiple bank transactions' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({
     description: 'Per-item results (success items include the transaction)',
   })
@@ -181,7 +181,7 @@ export class ExceptionQueueController {
 
   @Post(':id/skip')
   @ApiOperation({ summary: 'Skip a bank transaction' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: BankTransactionResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -208,7 +208,7 @@ export class ExceptionQueueController {
 
   @Post('batch-skip')
   @ApiOperation({ summary: 'Skip multiple bank transactions' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({
     description: 'Per-item results (success items include the transaction)',
   })
@@ -241,7 +241,7 @@ export class ExceptionQueueController {
 
   @Post(':id/mark-prepaid')
   @ApiOperation({ summary: 'Mark a bank transaction as prepaid' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({
     description: 'Updated transaction and the created credit payment',
     schema: {
@@ -290,7 +290,7 @@ export class ExceptionQueueController {
 
   @Post('batch-mark-prepaid')
   @ApiOperation({ summary: 'Mark multiple bank transactions as prepaid' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({
     description:
       'Per-item results (success items include transaction and payment)',

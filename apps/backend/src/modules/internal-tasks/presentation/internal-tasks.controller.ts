@@ -11,7 +11,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
-  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -23,6 +22,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { CreateManualTaskUseCase } from '../application/create-manual-task.usecase';
 import { DismissTaskUseCase } from '../application/dismiss-task.usecase';
@@ -72,7 +72,7 @@ export class InternalTasksController {
 
   @Post('receivables/:id/tasks')
   @ApiOperation({ summary: 'Create a manual internal task on a receivable' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: InternalTaskResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -108,7 +108,7 @@ export class InternalTasksController {
 
   @Post('tasks/:id/resolve')
   @ApiOperation({ summary: 'Resolve an internal task' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: InternalTaskResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -140,7 +140,7 @@ export class InternalTasksController {
 
   @Post('tasks/:id/dismiss')
   @ApiOperation({ summary: 'Dismiss an internal task' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: InternalTaskResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,

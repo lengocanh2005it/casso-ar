@@ -7,12 +7,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiCreatedResponse,
-  ApiHeader,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   AuditActionType,
   AuditEntityType,
@@ -24,6 +19,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { OpenDisputeUseCase } from '../application/open-dispute.usecase';
 import { ResolveDisputeUseCase } from '../application/resolve-dispute.usecase';
@@ -46,7 +42,7 @@ export class DisputesController {
 
   @Post('receivables/:receivableId/disputes')
   @ApiOperation({ summary: 'Open a dispute on a receivable' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: DisputeResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -80,7 +76,7 @@ export class DisputesController {
 
   @Post('disputes/:id/resolve')
   @ApiOperation({ summary: 'Resolve a dispute' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: DisputeResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,

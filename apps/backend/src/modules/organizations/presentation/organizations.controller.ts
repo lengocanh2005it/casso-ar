@@ -11,12 +11,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiHeader,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   type AuthRequest,
   assertOrgMatches,
@@ -26,6 +21,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { ChangeMemberRoleUseCase } from '../application/change-member-role.usecase';
 import { ListMembersUseCase } from '../application/list-members.usecase';
 import { ListMembersQueryDto } from './dto/list-members-query.dto';
@@ -70,7 +66,7 @@ export class OrganizationsController {
 
   @Patch(':id/members/:userId')
   @ApiOperation({ summary: 'Change a member role in an organization' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiOkResponse({
     description: 'Updated membership',
     schema: {

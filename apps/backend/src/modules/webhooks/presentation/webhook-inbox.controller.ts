@@ -10,17 +10,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiHeader,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { ListWebhookInboxUseCase } from '../application/list-webhook-inbox.usecase';
 import { ReprocessWebhookUseCase } from '../application/reprocess-webhook.usecase';
 import { WebhookInbox } from '../domain/webhook-inbox';
@@ -76,7 +72,7 @@ export class WebhookInboxController {
 
   @Post(':id/reprocess')
   @ApiOperation({ summary: 'Reprocess a failed webhook notification' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiOkResponse({ type: WebhookInboxItemResponse })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,

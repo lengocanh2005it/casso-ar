@@ -15,7 +15,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
-  ApiHeader,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
@@ -32,6 +31,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { CreateCustomerBankAccountUseCase } from '../application/create-customer-bank-account.usecase';
 import { DeactivateCustomerBankAccountUseCase } from '../application/deactivate-customer-bank-account.usecase';
@@ -75,7 +75,7 @@ export class CustomerBankAccountsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a bank account for a customer' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: CustomerBankAccountResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -116,7 +116,7 @@ export class CustomerBankAccountsController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a customer bank account' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiOkResponse({ type: CustomerBankAccountResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -158,7 +158,7 @@ export class CustomerBankAccountsController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Deactivate a customer bank account' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiNoContentResponse({ description: 'Bank account deactivated' })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,

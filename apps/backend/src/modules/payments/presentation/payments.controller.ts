@@ -7,18 +7,14 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiCreatedResponse,
-  ApiHeader,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
 import { IdempotencyService } from '../../../common/idempotency/idempotency.service';
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { BalanceHistoryActorType } from '../../receivable-balance-history/domain/balance-history-actor-type';
@@ -39,7 +35,7 @@ export class PaymentsController {
 
   @Post(':id/allocate')
   @ApiOperation({ summary: 'Allocate a payment to a receivable' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({
     description: 'Allocation succeeded',
     schema: successResponseSchema(),
@@ -88,7 +84,7 @@ export class PaymentsController {
 
   @Post('allocations/:allocationId/undo')
   @ApiOperation({ summary: 'Undo a payment allocation' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({
     description: 'Allocation undone',
     schema: successResponseSchema(),

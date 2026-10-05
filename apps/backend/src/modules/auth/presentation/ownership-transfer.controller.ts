@@ -11,12 +11,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiHeader,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   type AuthRequest,
   assertOrgMatches,
@@ -27,6 +22,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { AcceptOwnershipTransferUseCase } from '../application/accept-ownership-transfer.usecase';
 import { CancelOwnershipTransferUseCase } from '../application/cancel-ownership-transfer.usecase';
 import { ConfirmOwnershipTransferUseCase } from '../application/confirm-ownership-transfer.usecase';
@@ -63,7 +59,7 @@ export class OwnershipTransferController {
 
   @Post('organizations/:id/ownership-transfers')
   @ApiOperation({ summary: 'Request an ownership transfer to another member' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiOkResponse({ type: OwnershipTransferResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -99,7 +95,7 @@ export class OwnershipTransferController {
 
   @Post('organizations/:id/ownership-transfers/:requestId/confirm')
   @ApiOperation({ summary: 'Confirm an ownership transfer request with OTP' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiOkResponse({ type: OwnershipTransferResponseDto })
   @ApiErrorResponse(
     ErrorCode.UNAUTHORIZED,
@@ -136,7 +132,7 @@ export class OwnershipTransferController {
 
   @Post('organizations/:id/ownership-transfers/:requestId/cancel')
   @ApiOperation({ summary: 'Cancel a pending ownership transfer' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiOkResponse({ type: OwnershipTransferResponseDto })
   @ApiErrorResponse(
     ErrorCode.FORBIDDEN,
@@ -170,7 +166,7 @@ export class OwnershipTransferController {
 
   @Post('organizations/:id/ownership-transfers/:requestId/accept')
   @ApiOperation({ summary: 'Accept an ownership transfer targeted at you' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiOkResponse({ type: OwnershipTransferResponseDto })
   @ApiErrorResponse(
     ErrorCode.FORBIDDEN,
@@ -203,7 +199,7 @@ export class OwnershipTransferController {
 
   @Post('organizations/:id/ownership-transfers/:requestId/decline')
   @ApiOperation({ summary: 'Decline an ownership transfer targeted at you' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiOkResponse({ type: OwnershipTransferResponseDto })
   @ApiErrorResponse(
     ErrorCode.FORBIDDEN,

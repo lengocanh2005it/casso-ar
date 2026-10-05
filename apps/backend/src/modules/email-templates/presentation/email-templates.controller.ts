@@ -19,7 +19,6 @@ import {
   ApiBody,
   ApiConsumes,
   ApiCreatedResponse,
-  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -35,6 +34,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import { MAX_ATTACHMENT_SIZE_BYTES } from '../application/attachment-limits';
 import { CreateEmailTemplateUseCase } from '../application/create-email-template.usecase';
@@ -86,7 +86,7 @@ export class EmailTemplatesController {
 
   @Post()
   @ApiOperation({ summary: 'Create an email template' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: EmailTemplateResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -119,7 +119,7 @@ export class EmailTemplatesController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update an email template' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiOkResponse({ type: EmailTemplateResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -153,7 +153,7 @@ export class EmailTemplatesController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete an email template' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiOkResponse({
     description: 'Template deleted',
     schema: successResponseSchema(),
@@ -215,7 +215,7 @@ export class EmailTemplatesController {
       properties: { file: { type: 'string', format: 'binary' } },
     },
   })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: EmailTemplateAttachmentResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -259,7 +259,7 @@ export class EmailTemplatesController {
 
   @Delete(':id/attachments/:attachmentId')
   @ApiOperation({ summary: 'Delete an email template attachment' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiOkResponse({
     description: 'Attachment deleted',
     schema: successResponseSchema(),

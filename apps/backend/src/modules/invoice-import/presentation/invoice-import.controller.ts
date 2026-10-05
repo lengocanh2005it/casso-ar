@@ -13,7 +13,6 @@ import {
   ApiBody,
   ApiConsumes,
   ApiCreatedResponse,
-  ApiHeader,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
@@ -23,6 +22,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { ImportInvoicesUseCase } from '../application/import-invoices.usecase';
 import { getImportRequestFingerprint } from '../application/import-request-fingerprint';
 import { ImportInvoicesResponseDto } from './dto/import-invoices-response.dto';
@@ -49,7 +49,7 @@ export class InvoiceImportController {
       },
     },
   })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: ImportInvoicesResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,

@@ -14,7 +14,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
-  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -32,6 +31,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { ConnectCassoFlowUseCase } from '../application/connect-casso-flow.usecase';
@@ -129,7 +129,7 @@ export class BankConnectionsController {
   @ApiOperation({
     summary: 'Connect the selected bank accounts from a Casso Flow API Key',
   })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: ConnectCassoFlowResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -187,7 +187,7 @@ export class BankConnectionsController {
 
   @Post('authorizations/:id/casso-flow/confirm')
   @ApiOperation({ summary: "Rotate one CassoFlowAuthorization's API Key" })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: RotateCassoFlowAuthorizationResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -224,7 +224,7 @@ export class BankConnectionsController {
 
   @Post('authorizations/:id/reveal-key')
   @ApiOperation({ summary: "Reveal one CassoFlowAuthorization's full API Key" })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: RevealCassoFlowApiKeyResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -261,7 +261,7 @@ export class BankConnectionsController {
 
   @Post(':id/disconnect')
   @ApiOperation({ summary: 'Disconnect a bank connection' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({
     description: 'Connection disconnected',
     schema: successResponseSchema(),

@@ -11,7 +11,6 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
-  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -27,6 +26,7 @@ import { IdempotencyService } from '../../../common/idempotency/idempotency.serv
 import { PermissionGuard } from '../../../common/rbac/permission.guard';
 import { RequirePermission } from '../../../common/rbac/require-permission.decorator';
 import { ApiErrorResponse } from '../../../common/swagger/api-error-response.decorator';
+import { ApiIdempotencyKey } from '../../../common/swagger/api-idempotency-key.decorator';
 import { successResponseSchema } from '../../../common/swagger/success-response-schema';
 import { DeleteSmtpConfigUseCase } from '../application/delete-smtp-config.usecase';
 import { GetSmtpConfigUseCase } from '../application/get-smtp-config.usecase';
@@ -62,7 +62,7 @@ export class SmtpConfigController {
 
   @Post()
   @ApiOperation({ summary: 'Test and save the organization SMTP config' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiCreatedResponse({ type: SmtpConfigResponseDto })
   @ApiErrorResponse(
     ErrorCode.VALIDATION_ERROR,
@@ -88,7 +88,7 @@ export class SmtpConfigController {
 
   @Delete()
   @ApiOperation({ summary: 'Delete the organization SMTP config' })
-  @ApiHeader({ name: 'idempotency-key', required: false })
+  @ApiIdempotencyKey()
   @ApiOkResponse({
     description: 'SMTP config deleted',
     schema: successResponseSchema(),
