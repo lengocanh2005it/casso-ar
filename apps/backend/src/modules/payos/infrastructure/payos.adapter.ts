@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { PayOS } from '@payos/node';
+import { NotFoundError, PayOS } from '@payos/node';
 import type {
   CreatePaymentLinkInput,
   CreatePaymentLinkResult,
   IPayosPaymentAdapter,
+  PayosPaymentLinkSnapshot,
 } from '../application/payos-payment-adapter.port';
 
 @Injectable()
@@ -28,6 +29,34 @@ export class PayosAdapter implements IPayosPaymentAdapter {
       returnUrl: input.returnUrl,
       cancelUrl: input.cancelUrl,
     });
-    return { checkoutUrl: link.checkoutUrl, orderCode: link.orderCode };
+    return {
+      checkoutUrl: link.checkoutUrl,
+      orderCode: link.orderCode,
+      paymentLinkId: link.paymentLinkId,
+    };
+  }
+
+  async getPaymentLink(
+    paymentLinkId: string,
+  ): Promise<PayosPaymentLinkSnapshot | null> {
+    try {
+      const link = await this.client.paymentRequests.get(paymentLinkId);
+      return {
+        paymentLinkId: link.id,
+        orderCode: link.orderCode,
+        amount: link.amount,
+        amountPaid: link.amountPaid,
+        amountRemaining: link.amountRemaining,
+        status: link.status,
+        transactions: link.transactions.map((transaction) => ({
+          reference: transaction.reference,
+          amount: transaction.amount,
+          transactionDateTime: transaction.transactionDateTime,
+        })),
+      };
+    } catch (error) {
+      if (error instanceof NotFoundError) return null;
+      throw error;
+    }
   }
 }

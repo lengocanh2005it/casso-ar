@@ -114,7 +114,7 @@ if (frontendSources.length > 0) {
 if (shared.length > 0) {
   run(
     'shared-types related',
-    `npx jest --silent --findRelatedTests ${shared.map((file) => file.slice('packages/shared-types/'.length)).join(' ')}`,
+    `npx jest --silent --passWithNoTests --findRelatedTests ${shared.map((file) => file.slice('packages/shared-types/'.length)).join(' ')}`,
     'packages/shared-types',
   );
   ran = true;

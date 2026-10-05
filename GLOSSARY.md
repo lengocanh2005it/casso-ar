@@ -44,8 +44,12 @@ Evidence of one distinct incoming transfer for a plan upgrade payment or period 
 _Avoid_: Payment order, checkout attempt
 
 **Plan payment under review**:
-Evidence of money received for a plan payment whose identity, amount or intended plan change cannot be accepted automatically. Receipt of the money does not itself grant or renew plan access.
+Evidence of a plan payment receipt whose transfer identity, received amount or current eligibility cannot be accepted automatically. Receipt of the money does not itself grant or renew plan access.
 _Avoid_: Failed payment, unpaid attempt
+
+**Received amount**:
+The integer VND reported for a plan payment transfer in authenticated PayOS transaction data. It is distinct from the checkout quote and from the total amount received across an order.
+_Avoid_: Plan price, checkout quote
 
 **Initial payment confirmation outcome**:
 The result of checking a plan payment receipt when it is first confirmed. It records whether the receipt was accepted automatically or required review at that moment, rather than the current progress of a review task.

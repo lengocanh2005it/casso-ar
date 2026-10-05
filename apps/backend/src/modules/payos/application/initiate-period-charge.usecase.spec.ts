@@ -1,4 +1,5 @@
 import { PlanId } from '@casso-ar/shared-types';
+import { DataSource } from 'typeorm';
 import type { ISubscriptionRepository } from '../../billing/application/subscription-repository.port';
 import { Subscription } from '../../billing/domain/subscription';
 import { PeriodCharge } from '../domain/period-charge';
@@ -26,6 +27,8 @@ describe('InitiatePeriodChargeUseCase', () => {
             planId: input.planId,
             periodStart: input.periodStart,
             periodEnd: input.periodEnd,
+            quotedAmount: input.quotedAmount,
+            payosPaymentLinkId: null,
             status: 'PENDING' as never,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -33,6 +36,7 @@ describe('InitiatePeriodChargeUseCase', () => {
         ),
       ),
       lockAndFindByOrderCode: jest.fn(),
+      lockAndFindByIdAndOrganizationId: jest.fn(),
       save: jest.fn(),
       findLatestByOrganizationAndPeriodStart: jest.fn(),
     };
@@ -40,14 +44,30 @@ describe('InitiatePeriodChargeUseCase', () => {
       createPaymentLink: jest.fn().mockResolvedValue({
         checkoutUrl: 'https://pay.payos.vn/100000001',
         orderCode: 100_000_001,
+        paymentLinkId: 'payos-link-1',
       }),
+      getPaymentLink: jest.fn(),
     };
+    const manager = {};
+    const dataSource = {
+      transaction: jest.fn((callback: (manager: unknown) => unknown) =>
+        callback(manager),
+      ),
+    } as unknown as DataSource;
     const useCase = new InitiatePeriodChargeUseCase(
       chargeRepo,
       subscriptionRepo,
       adapter,
+      dataSource,
     );
-    return { useCase, chargeRepo, subscriptionRepo, adapter };
+    return {
+      useCase,
+      chargeRepo,
+      subscriptionRepo,
+      adapter,
+      dataSource,
+      manager,
+    };
   }
 
   it('creates a PeriodCharge for the current period and returns a checkout URL', async () => {
@@ -56,7 +76,8 @@ describe('InitiatePeriodChargeUseCase', () => {
       'org-1',
       new Date('2026-08-01T00:00:00Z'),
     );
-    const { useCase, chargeRepo, adapter } = buildDeps(subscription);
+    const { useCase, chargeRepo, adapter, dataSource, manager } =
+      buildDeps(subscription);
 
     const result = await useCase.execute({
       organizationId: 'org-1',
@@ -65,12 +86,17 @@ describe('InitiatePeriodChargeUseCase', () => {
     });
 
     expect(result.checkoutUrl).toBe('https://pay.payos.vn/100000001');
-    expect(chargeRepo.create).toHaveBeenCalledWith({
-      organizationId: 'org-1',
-      planId: PlanId.STARTER,
-      periodStart: subscription.currentPeriodStart,
-      periodEnd: subscription.currentPeriodEnd,
-    });
+    expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+    expect(chargeRepo.create).toHaveBeenCalledWith(
+      {
+        organizationId: 'org-1',
+        planId: PlanId.STARTER,
+        periodStart: subscription.currentPeriodStart,
+        periodEnd: subscription.currentPeriodEnd,
+        quotedAmount: 299000,
+      },
+      manager,
+    );
     expect(adapter.createPaymentLink).toHaveBeenCalledWith(
       expect.objectContaining({ orderCode: 100_000_001, amount: 299_000 }),
     );

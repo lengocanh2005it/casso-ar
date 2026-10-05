@@ -7,6 +7,8 @@ export interface PeriodChargeProps {
   planId: PlanId;
   periodStart: Date;
   periodEnd: Date;
+  quotedAmount: number | null;
+  payosPaymentLinkId: string | null;
   status: PeriodChargeStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -19,6 +21,8 @@ export class PeriodCharge {
   readonly planId: PlanId;
   readonly periodStart: Date;
   readonly periodEnd: Date;
+  readonly quotedAmount: number | null;
+  readonly payosPaymentLinkId: string | null;
   readonly status: PeriodChargeStatus;
   readonly createdAt: Date;
   readonly updatedAt: Date;
@@ -30,6 +34,8 @@ export class PeriodCharge {
     this.planId = props.planId;
     this.periodStart = props.periodStart;
     this.periodEnd = props.periodEnd;
+    this.quotedAmount = props.quotedAmount;
+    this.payosPaymentLinkId = props.payosPaymentLinkId;
     this.status = props.status;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
@@ -43,10 +49,22 @@ export class PeriodCharge {
     });
   }
 
+  withPayosPaymentLinkId(paymentLinkId: string): PeriodCharge {
+    return new PeriodCharge({ ...this, payosPaymentLinkId: paymentLinkId });
+  }
+
   markFailed(): PeriodCharge {
     return new PeriodCharge({
       ...this,
       status: PeriodChargeStatus.FAILED,
+      updatedAt: new Date(),
+    });
+  }
+
+  markReviewRequired(): PeriodCharge {
+    return new PeriodCharge({
+      ...this,
+      status: PeriodChargeStatus.REVIEW_REQUIRED,
       updatedAt: new Date(),
     });
   }

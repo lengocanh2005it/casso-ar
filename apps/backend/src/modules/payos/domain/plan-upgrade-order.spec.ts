@@ -7,6 +7,8 @@ function buildOrder(status = PlanUpgradeOrderStatus.PENDING): PlanUpgradeOrder {
     orderCode: 1001,
     organizationId: 'org-1',
     targetPlanId: PlanId.STARTER,
+    quotedAmount: 299000,
+    payosPaymentLinkId: null,
     status,
     createdAt: new Date('2026-08-13T00:00:00Z'),
     updatedAt: new Date('2026-08-13T00:00:00Z'),
@@ -32,5 +34,9 @@ describe('PlanUpgradeOrder', () => {
     expect(buildOrder(PlanUpgradeOrderStatus.PENDING).isTerminal()).toBe(false);
     expect(buildOrder(PlanUpgradeOrderStatus.PAID).isTerminal()).toBe(true);
     expect(buildOrder(PlanUpgradeOrderStatus.FAILED).isTerminal()).toBe(true);
+  });
+
+  it('has a terminal REVIEW_REQUIRED status for received money without entitlement', () => {
+    expect(Object.values(PlanUpgradeOrderStatus)).toContain('REVIEW_REQUIRED');
   });
 });

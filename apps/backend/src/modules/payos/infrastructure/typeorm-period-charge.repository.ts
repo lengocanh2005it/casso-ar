@@ -36,6 +36,8 @@ function toDomain(row: PeriodChargeOrmEntity): PeriodCharge {
     planId: row.planId,
     periodStart: row.periodStart,
     periodEnd: row.periodEnd,
+    quotedAmount: row.quotedAmount,
+    payosPaymentLinkId: row.payosPaymentLinkId,
     status: row.status,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -50,6 +52,8 @@ function toOrm(charge: PeriodCharge): PeriodChargeOrmEntity {
     planId: charge.planId,
     periodStart: charge.periodStart,
     periodEnd: charge.periodEnd,
+    quotedAmount: charge.quotedAmount,
+    payosPaymentLinkId: charge.payosPaymentLinkId,
     status: charge.status,
     createdAt: charge.createdAt,
     updatedAt: charge.updatedAt,
@@ -69,13 +73,18 @@ export class TypeOrmPeriodChargeRepository
     super(repo, tenantContext);
   }
 
-  async create(input: CreatePeriodChargeInput): Promise<PeriodCharge> {
+  async create(
+    input: CreatePeriodChargeInput,
+    manager: EntityManager,
+  ): Promise<PeriodCharge> {
     const now = new Date();
-    const saved = await this.ormRepo.save({
+    const saved = await manager.getRepository(PeriodChargeOrmEntity).save({
       organizationId: input.organizationId,
       planId: input.planId,
       periodStart: input.periodStart,
       periodEnd: input.periodEnd,
+      quotedAmount: input.quotedAmount,
+      payosPaymentLinkId: null,
       status: PeriodChargeStatus.PENDING,
       createdAt: now,
       updatedAt: now,
@@ -94,6 +103,21 @@ export class TypeOrmPeriodChargeRepository
       .createQueryBuilder('c')
       .setLock('pessimistic_write')
       .where('c.orderCode = :orderCode', { orderCode: String(raw) })
+      .getOne();
+    return row ? toDomain(row) : null;
+  }
+
+  async lockAndFindByIdAndOrganizationId(
+    id: string,
+    organizationId: string,
+    manager: EntityManager,
+  ): Promise<PeriodCharge | null> {
+    const row = await manager
+      .getRepository(PeriodChargeOrmEntity)
+      .createQueryBuilder('c')
+      .setLock('pessimistic_write')
+      .where('c.id = :id', { id })
+      .andWhere('c.organizationId = :organizationId', { organizationId })
       .getOne();
     return row ? toDomain(row) : null;
   }

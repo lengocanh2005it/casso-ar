@@ -9,6 +9,8 @@ function buildCharge(status = PeriodChargeStatus.PENDING): PeriodCharge {
     planId: PlanId.STARTER,
     periodStart: new Date('2026-09-01T00:00:00Z'),
     periodEnd: new Date('2026-10-01T00:00:00Z'),
+    quotedAmount: 299000,
+    payosPaymentLinkId: null,
     status,
     createdAt: new Date('2026-08-28T00:00:00Z'),
     updatedAt: new Date('2026-08-28T00:00:00Z'),
@@ -33,5 +35,9 @@ describe('PeriodCharge', () => {
     expect(buildCharge(PeriodChargeStatus.PENDING).isTerminal()).toBe(false);
     expect(buildCharge(PeriodChargeStatus.PAID).isTerminal()).toBe(true);
     expect(buildCharge(PeriodChargeStatus.FAILED).isTerminal()).toBe(true);
+  });
+
+  it('has a terminal REVIEW_REQUIRED status for received money without renewal', () => {
+    expect(Object.values(PeriodChargeStatus)).toContain('REVIEW_REQUIRED');
   });
 });

@@ -5,12 +5,21 @@ import type { PlanUpgradeOrder } from '../domain/plan-upgrade-order';
 export interface CreatePlanUpgradeOrderInput {
   organizationId: string;
   targetPlanId: PlanId;
+  quotedAmount: number;
 }
 
 export interface IPlanUpgradeOrderRepository {
-  create(input: CreatePlanUpgradeOrderInput): Promise<PlanUpgradeOrder>;
+  create(
+    input: CreatePlanUpgradeOrderInput,
+    manager: EntityManager,
+  ): Promise<PlanUpgradeOrder>;
   lockAndFindByOrderCode(
     orderCode: number,
+    manager: EntityManager,
+  ): Promise<PlanUpgradeOrder | null>;
+  lockAndFindByIdAndOrganizationId(
+    id: string,
+    organizationId: string,
     manager: EntityManager,
   ): Promise<PlanUpgradeOrder | null>;
   save(

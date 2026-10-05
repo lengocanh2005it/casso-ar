@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  Allow,
   IsBoolean,
   IsNumber,
   IsOptional,
@@ -11,8 +12,8 @@ export class PayosWebhookDataDto {
   @IsNumber()
   orderCode: number;
 
-  @IsNumber()
-  amount: number;
+  @Allow()
+  amount: unknown;
 
   @IsString()
   description: string;
@@ -26,6 +27,14 @@ export class PayosWebhookDataDto {
   @IsString()
   @IsOptional()
   reference?: string;
+
+  @IsString()
+  @IsOptional()
+  paymentLinkId?: string;
+
+  @IsString()
+  @IsOptional()
+  transactionDateTime?: string;
 }
 
 export class PayosWebhookDto {
