@@ -40,3 +40,6 @@ export const STATUS_BY_ERROR_CODE: Readonly<
   [ErrorCode.EMAIL_NOT_VERIFIED]: 403,
   [ErrorCode.ATTACHMENT_NOT_FOUND]: 404,
 };
+
+// IdempotencyService reports a missing key as VALIDATION_ERROR with HTTP 409.
+export const IDEMPOTENCY_KEY_MISSING_STATUS = 409;
