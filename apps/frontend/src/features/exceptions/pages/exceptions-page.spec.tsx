@@ -85,7 +85,7 @@ describe('ExceptionsPage', () => {
     expect(await screen.findByText('Đã chọn 1')).toBeInTheDocument();
   });
 
-  it('stacks transactions into cards on phones and paginates inside the list card', async () => {
+  it('stacks transactions into cards below desktop width and paginates inside the list card', async () => {
     apiRequest.mockResolvedValue({
       items: [
         {
@@ -120,8 +120,8 @@ describe('ExceptionsPage', () => {
     );
 
     const [headerRow, row] = await screen.findAllByRole('row');
-    expect(headerRow.parentElement).toHaveClass('max-md:hidden');
-    expect(row).toHaveClass('max-md:grid');
+    expect(headerRow.parentElement).toHaveClass('max-lg:hidden');
+    expect(row).toHaveClass('max-lg:grid');
     // Pagination used to float below the card on this page only.
     expect(
       screen
@@ -578,13 +578,52 @@ describe('ExceptionsPage', () => {
     expect(screen.getByText(/người chuyển khoản/i)).toBeInTheDocument();
   });
 
-  // Narrowing the two text columns was tried first and was not enough: auto
-  // table layout honours `max-w-*` as a floor for the content's min-content,
-  // so at 1024px the name still held ~301px and the table scrolled sideways
-  // with the amount clipped mid-number and "Xử lý" off-screen. Between md and
-  // lg the queue now drops the two advisory columns (score and transfer
-  // content), both of which repeat inside the "Xử lý" dialog.
-  it('drops the two advisory columns between md and lg so amount and action stay on screen', async () => {
+  it('caps pathological masked account strings while keeping their final digits', async () => {
+    apiRequest.mockResolvedValue({
+      items: [
+        {
+          transaction: {
+            id: 'tx-long-account',
+            providerTransactionId: 'TX-LONG-ACCOUNT',
+            amount: 10_000,
+            transactionDateTime: '2026-08-01',
+            counterpartyAccountNumber: '001',
+            counterpartyName: 'Công ty A',
+            transferContent: 'note',
+            status: 'PENDING_REVIEW',
+            version: 1,
+          },
+          topCandidate: null,
+          payer: {
+            accountNumberMasked: `${'*'.repeat(46)}3210`,
+            name: 'Công ty A',
+            linkedCustomers: [],
+          },
+        },
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+    });
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ExceptionsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText('********3210')).toBeInTheDocument();
+    expect(screen.queryByText(`${'*'.repeat(46)}3210`)).not.toBeInTheDocument();
+  });
+
+  // Below lg the queue uses cards; from lg to xl the score and transfer
+  // content columns are hidden because both are repeated in the review dialog.
+  it('drops the two advisory columns between lg and xl so amount and action stay on screen', async () => {
     apiRequest.mockResolvedValue({
       items: [
         {
@@ -636,8 +675,8 @@ describe('ExceptionsPage', () => {
     expect(payerHeader?.className).not.toContain('max-lg:hidden');
 
     // The two advisory columns are the ones that go.
-    expect(contentHeader?.className).toContain('md:max-lg:hidden');
-    expect(scoreHeader?.className).toContain('md:max-lg:hidden');
+    expect(contentHeader?.className).toContain('lg:max-xl:hidden');
+    expect(scoreHeader?.className).toContain('lg:max-xl:hidden');
 
     const cells = screen
       .getAllByRole('row')
@@ -647,7 +686,7 @@ describe('ExceptionsPage', () => {
     const contentCell = cells.find((td) => td.textContent?.includes('Đặt cọc'));
     expect(payerCell?.className).toContain('min-w-0');
     expect(payerCell?.className).not.toContain('max-lg:hidden');
-    expect(contentCell?.className).toContain('md:max-lg:hidden');
+    expect(contentCell?.className).toContain('lg:max-xl:hidden');
 
     // Amount and action are never hidden at any width.
     const amountCell = cells.find((td) =>
@@ -657,8 +696,8 @@ describe('ExceptionsPage', () => {
       (th) => th.textContent?.trim() === 'Hành động',
     );
     expect(amountCell?.className).not.toContain('hidden');
-    // Action is never one of the columns dropped between md and lg; it only
-    // hides below md, where the row is a card and the action sits beside
+    // Action is never one of the columns dropped between lg and xl; it only
+    // hides below lg, where the row is a card and the action sits beside
     // the amount instead of under a header.
     expect(actionHeader?.className).not.toContain('md:max-lg:hidden');
   });
@@ -706,14 +745,14 @@ describe('ExceptionsPage', () => {
     const actionHeader = screen.getByRole('columnheader', {
       name: 'Hành động',
     });
-    expect(actionHeader).toHaveClass('max-md:hidden');
+    expect(actionHeader).toHaveClass('max-lg:hidden');
     expect(actionHeader).not.toHaveClass('sr-only');
 
     // The header must not claim more width than the single word it labels.
     expect(actionHeader).toHaveClass('w-[6.5rem]', 'text-right');
   });
 
-  // `max-md:h-auto max-md:px-0` was meant to tighten the action into the
+  // `max-lg:h-auto max-lg:px-0` was meant to tighten the action into the
   // card layout, but it also stripped its vertical padding: measured at
   // 390px the button rendered 29x16px, far under the 44px touch target and
   // under the 24px minimum even. The link tone is fine; the hit area is not.
@@ -755,8 +794,8 @@ describe('ExceptionsPage', () => {
 
     // It stays a link-toned button in the card, but the hit area is padded
     // back out instead of collapsing to the glyph's own line box.
-    expect(action.className).not.toContain('max-md:h-auto');
-    expect(action.className).toContain('max-md:min-h-9');
-    expect(action.className).toContain('max-md:px-2');
+    expect(action.className).not.toContain('max-lg:h-auto');
+    expect(action.className).toContain('max-lg:min-h-9');
+    expect(action.className).toContain('max-lg:px-2');
   });
 });

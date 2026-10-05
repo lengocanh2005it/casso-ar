@@ -139,16 +139,11 @@ export function ExceptionsPage() {
               isPlaceholderData && 'opacity-60',
             )}
           >
-            <Table>
-              {/* Seven columns cannot fit between 768px and ~1280px. Fixed
-                  widths clipped the names to a few characters and table-auto
-                  pushed the amount and "Xử lý" off-screen, so this queue
-                  drops the two advisory columns on narrow desktops: the
-                  score and the transfer content are both repeated inside the
-                  "Xử lý" dialog, while the payer, amount and action are what
-                  a reviewer scans. Below md the rows become cards and show
-                  everything again. */}
-              <TableHeader className="max-md:hidden">
+            <Table className="lg:table-fixed">
+              {/* Cards keep the payer, amount and action readable until the
+                  app shell has enough room for a table. At lg, hide advisory
+                  columns until xl; both are also available in the review dialog. */}
+              <TableHeader className="max-lg:hidden">
                 <TableRow>
                   <TableHead className="w-10">
                     <Checkbox
@@ -157,21 +152,19 @@ export function ExceptionsPage() {
                       onCheckedChange={bulkSelection.toggleAll}
                     />
                   </TableHead>
-                  <TableHead className="w-[6.75rem] whitespace-nowrap max-lg:w-auto">
+                  <TableHead className="w-[6.75rem] whitespace-nowrap">
                     Ngày giờ
                   </TableHead>
                   <TableHead className="min-w-0">Người chuyển khoản</TableHead>
-                  <TableHead className="min-w-0 md:max-lg:hidden">
+                  <TableHead className="min-w-0 lg:max-xl:hidden">
                     Nội dung chuyển khoản
                   </TableHead>
-                  <TableHead className="w-[6.75rem] text-right whitespace-nowrap max-lg:w-auto">
+                  <TableHead className="w-44 text-right whitespace-nowrap">
                     Số tiền
                   </TableHead>
-                  {/* Score and action are a badge and a word: they must not
-                      eat the columns a user actually reads. Both return at
-                      lg, and both stay visible below md where the row is a
-                      card that has room for them. */}
-                  <TableHead className="w-[6rem] whitespace-nowrap md:max-lg:hidden">
+                  {/* Score and action stay compact; score returns at xl and
+                      action returns once the table layout starts at lg. */}
+                  <TableHead className="w-[7.5rem] whitespace-nowrap lg:max-xl:hidden">
                     Điểm cao nhất
                   </TableHead>
                   {/* The row ends in a "Xử lý" link; an sr-only-only header
@@ -179,20 +172,20 @@ export function ExceptionsPage() {
                       only makes sense once the row is a table again, so it
                       stays hidden on the phone card layout where the action
                       sits next to the amount instead. */}
-                  <TableHead className="w-[6.5rem] text-right whitespace-nowrap max-md:hidden">
+                  <TableHead className="w-[6.5rem] text-right whitespace-nowrap max-lg:hidden">
                     Hành động
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.items.map((row) => (
-                  // Below md: [☐] payer ........ amount / content / date · score · Xử lý
+                  // Below lg: [☐] payer ........ amount / content / date · score · Xử lý
                   <TableRow
                     key={row.transaction.id}
-                    className="max-md:grid max-md:grid-cols-[auto_minmax(0,1fr)_auto] max-md:items-center max-md:gap-x-3 max-md:gap-y-1.5 max-md:px-1 max-md:py-3"
+                    className="max-lg:grid max-lg:grid-cols-[auto_minmax(0,1fr)_auto] max-lg:items-center max-lg:gap-x-3 max-lg:gap-y-1.5 max-lg:px-1 max-lg:py-3"
                   >
                     <TableCell
-                      className="max-md:col-start-1 max-md:row-span-3 max-md:row-start-1 max-md:self-start max-md:p-0"
+                      className="max-lg:col-start-1 max-lg:row-span-3 max-lg:row-start-1 max-lg:self-start max-lg:p-0"
                       onClick={(event) => event.stopPropagation()}
                       onKeyDown={(event) => event.stopPropagation()}
                     >
@@ -204,18 +197,18 @@ export function ExceptionsPage() {
                         }
                       />
                     </TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums max-md:col-start-2 max-md:row-start-3 max-md:p-0 max-md:text-xs max-md:text-muted-foreground max-md:whitespace-normal">
+                    <TableCell className="whitespace-nowrap tabular-nums max-lg:col-start-2 max-lg:row-start-3 max-lg:p-0 max-lg:text-xs max-lg:text-muted-foreground max-lg:whitespace-normal">
                       {formatDateTime(row.transaction.transactionDateTime)}
                     </TableCell>
-                    <TableCell className="min-w-0 max-md:col-start-2 max-md:row-start-1 max-md:p-0">
+                    <TableCell className="min-w-0 max-lg:col-start-2 max-lg:row-start-1 max-lg:p-0">
                       <div className="flex min-w-0 items-start gap-2">
                         <InitialsAvatar
                           name={row.transaction.counterpartyName ?? '—'}
                           size="sm"
-                          /* Between md and lg the avatar pushed the name down to
+                          /* At lg the avatar pushed the name down to
                              ~71px ("Công ty ...") and overlapped the date
                              column. The name and masked account already
-                             identify the payer, and below md the row is a
+                             identify the payer, and below lg the row is a
                              card where the avatar was hidden anyway.
                              `hidden lg:block` (not `max-lg:hidden`) because
                              the avatar ships its own `flex`, which
@@ -229,8 +222,10 @@ export function ExceptionsPage() {
                             />
                           </p>
                           {row.payer?.accountNumberMasked && (
-                            <p className="text-xs text-muted-foreground tabular-nums">
-                              {row.payer.accountNumberMasked}
+                            <p className="min-w-0 max-w-full break-all text-xs text-muted-foreground tabular-nums">
+                              {row.payer.accountNumberMasked.length > 16
+                                ? `${'*'.repeat(8)}${row.payer.accountNumberMasked.slice(-4)}`
+                                : row.payer.accountNumberMasked}
                             </p>
                           )}
                           {(row.payer?.linkedCustomers ?? []).length > 0 && (
@@ -249,7 +244,7 @@ export function ExceptionsPage() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="min-w-0 md:max-lg:hidden max-md:col-span-2 max-md:row-start-2 max-md:col-start-2 max-md:p-0 max-md:text-sm">
+                    <TableCell className="min-w-0 lg:max-xl:hidden max-lg:col-span-2 max-lg:row-start-2 max-lg:col-start-2 max-lg:p-0 max-lg:text-sm">
                       {row.transaction.transferContent?.trim() ? (
                         <TruncatedText
                           className="line-clamp-2"
@@ -263,17 +258,17 @@ export function ExceptionsPage() {
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right font-semibold whitespace-nowrap tabular-nums max-md:col-start-3 max-md:row-start-1 max-md:self-start max-md:p-0">
+                    <TableCell className="text-right font-semibold whitespace-nowrap tabular-nums max-lg:col-start-3 max-lg:row-start-1 max-lg:self-start max-lg:p-0">
                       {formatVND(row.transaction.amount)}
                     </TableCell>
-                    <TableCell className="md:max-lg:hidden max-md:col-start-2 max-md:row-start-3 max-md:justify-self-end max-md:p-0">
-                      <div className="flex flex-col items-start gap-1 max-md:flex-row max-md:items-center">
+                    <TableCell className="lg:max-xl:hidden max-lg:col-start-2 max-lg:row-start-3 max-lg:justify-self-end max-lg:p-0">
+                      <div className="flex flex-col items-start gap-1 max-lg:flex-row max-lg:items-center">
                         {row.topCandidate ? (
                           <Badge variant="outline">
                             {row.topCandidate.totalScore}/100
                           </Badge>
                         ) : (
-                          <span className="text-muted-foreground max-md:hidden">
+                          <span className="text-muted-foreground max-lg:hidden">
                             —
                           </span>
                         )}
@@ -282,17 +277,17 @@ export function ExceptionsPage() {
                         />
                       </div>
                     </TableCell>
-                    <TableCell className="text-right max-md:col-start-3 max-md:row-start-3 max-md:p-0">
+                    <TableCell className="text-right max-lg:col-start-3 max-lg:row-start-3 max-lg:p-0">
                       <Button
                         variant="link"
                         size="sm"
                         // The card layout gives the row no vertical padding
                         // of its own, so the button's own padding IS the hit
-                        // area. Stripping it (`max-md:h-auto max-md:px-0`)
+                        // area. Stripping it (`max-lg:h-auto max-lg:px-0`)
                         // measured at 29x16px on a 390px screen — below even
                         // the 24px floor. The link tone stays; the target is
                         // padded back out.
-                        className="max-md:min-h-9 max-md:px-2"
+                        className="max-lg:min-h-9 max-lg:px-2"
                         onClick={() => setSelected(row)}
                       >
                         Xử lý
