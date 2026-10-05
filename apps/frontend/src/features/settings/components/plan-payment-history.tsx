@@ -50,6 +50,7 @@ export function PlanPaymentHistory({
   const items = historyQuery.data?.items ?? [];
   const total = historyQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+  const isPageOutOfRange = page > totalPages;
   const returnOrderCode = searchParams.get('orderCode');
   const checkoutOpen = Boolean(checkoutUrl);
   const checkoutSessionKey = checkoutUrl
@@ -102,6 +103,10 @@ export function PlanPaymentHistory({
     returnedOrderQuery.refetch,
     shouldLoadFirstPageForTrackedOrder,
   ]);
+
+  useEffect(() => {
+    if (historyQuery.data && isPageOutOfRange) setPage(totalPages);
+  }, [historyQuery.data, isPageOutOfRange, setPage, totalPages]);
 
   useEffect(() => {
     if (!shouldClearPayosReturn) return;
@@ -183,9 +188,25 @@ export function PlanPaymentHistory({
         </div>
       )}
 
+      {!historyQuery.isLoading && !historyQuery.isError && total === 0 && (
+        <p role="status">Chưa có lịch sử thanh toán.</p>
+      )}
+
       {!historyQuery.isLoading &&
         !historyQuery.isError &&
-        items.length === 0 && <p role="status">Chưa có lịch sử thanh toán.</p>}
+        items.length === 0 &&
+        total > 0 &&
+        !isPageOutOfRange && (
+          <>
+            <p role="status">Không có khoản thanh toán ở trang này.</p>
+            <CardPagination
+              page={page}
+              totalPages={totalPages}
+              summary={`${total} khoản thanh toán`}
+              onPageChange={setPage}
+            />
+          </>
+        )}
 
       {!historyQuery.isLoading && !historyQuery.isError && items.length > 0 && (
         <>

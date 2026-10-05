@@ -157,6 +157,27 @@ describe('PlanPaymentHistory', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
+  it('returns to the last available page when the URL page is out of range', async () => {
+    usePlanPaymentHistory.mockImplementation(({ page }: { page: number }) => ({
+      data: page === 3 ? { items: [], total: 5, page, limit: 20 } : historyPage,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    }));
+
+    render(
+      <MemoryRouter initialEntries={['/settings?tab=billing&page=3']}>
+        <PlanPaymentHistory />
+        <LocationText />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('9007199254740993')).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent(
+      '/settings?tab=billing&page=1',
+    );
+  });
+
   it('shows a retry action when loading payment history fails', () => {
     const refetch = vi.fn();
     usePlanPaymentHistory.mockReturnValue({
@@ -218,8 +239,8 @@ describe('PlanPaymentHistory', () => {
     usePlanPaymentHistory.mockImplementation((query) => ({
       data:
         query.page === 1
-          ? historyPage
-          : { ...historyPage, items: [], total: 2 },
+          ? { ...historyPage, total: 21 }
+          : { ...historyPage, items: [], total: 21, page: 2 },
       isLoading: false,
       isError: false,
       refetch,
@@ -239,6 +260,7 @@ describe('PlanPaymentHistory', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(
       '/settings?tab=billing&page=2',
     );
+    expect(screen.getByRole('button', { name: 'Trước' })).toBeEnabled();
     expect(usePlanPaymentHistory).toHaveBeenCalledWith(
       { page: 1, limit: 20 },
       true,
@@ -253,8 +275,13 @@ describe('PlanPaymentHistory', () => {
     usePlanPaymentHistory.mockImplementation((query) => ({
       data:
         query.page === 2
-          ? { ...historyPage, items: [historyPage.items[0]], page: 2 }
-          : { ...historyPage, items: [], total: 2 },
+          ? {
+              ...historyPage,
+              items: [historyPage.items[0]],
+              total: 21,
+              page: 2,
+            }
+          : { ...historyPage, items: [], total: 21 },
       isLoading: false,
       isError: false,
       refetch,

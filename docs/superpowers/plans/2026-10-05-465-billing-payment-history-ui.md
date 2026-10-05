@@ -49,6 +49,7 @@
 - [x] Add tests for loading, empty, error/retry, and page navigation updating the URL and request page.
 - [x] Run the focused tests and confirm each new behavior fails before the implementation.
 - [x] Implement the section with shared shadcn Table and `CardPagination`; page is URL-backed and limit remains the standard fixed 20.
+- [x] Clamp stale URL pages to the last available history page so an empty out-of-range result cannot hide existing receipts.
 - [x] Mount the section below plan cards only for `SUBSCRIPTION_MANAGE`; verify the existing Settings tab gate remains effective.
 - [x] Run the focused Billing and Settings tests and frontend type-check.
 
