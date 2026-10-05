@@ -240,7 +240,7 @@ export function SplitMatchDialog({
             hàng này.
           </DialogDescription>
         </DialogHeader>
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain">
           <AiRecommendationNotice recommendation={aiRecommendation} />
           {payer &&
             (payer.accountNumberMasked || payer.linkedCustomers.length > 0) && (
@@ -387,8 +387,8 @@ export function SplitMatchDialog({
               {allocationError}
             </p>
           )}
-          <label htmlFor="customer-search" className="block text-sm">
-            Tìm khách hàng để ghi nhận công nợ
+          <label htmlFor="customer-search" className="grid gap-2 text-sm">
+            <span>Tìm khách hàng để ghi nhận công nợ</span>
             <Input
               name="customerSearch"
               autoComplete="off"
@@ -421,7 +421,7 @@ export function SplitMatchDialog({
               </SelectContent>
             </Select>
           )}
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
             <Button
               variant="outline"
               disabled={!prepaidCustomerId || prepaid.isPending}

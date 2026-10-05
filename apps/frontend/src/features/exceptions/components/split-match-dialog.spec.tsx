@@ -156,6 +156,12 @@ describe('SplitMatchDialog', () => {
 
     expect(screen.getByText('Nội dung chuyển khoản')).toBeInTheDocument();
     expect(screen.getByText('Payment for INV-001')).toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Tìm khách hàng để ghi nhận công nợ').parentElement,
+    ).toHaveClass('grid', 'gap-2');
+    expect(
+      screen.getByRole('button', { name: 'Khớp giao dịch' }).parentElement,
+    ).toHaveClass('gap-3');
   });
 
   it('titles the dialog with the counterparty name instead of the raw provider id', async () => {
