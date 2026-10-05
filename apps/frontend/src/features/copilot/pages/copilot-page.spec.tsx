@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { hoverTooltip } from '@/test/tooltip';
 import { CopilotPage } from './copilot-page';
 
 const { apiRequest, mockUseAuth } = vi.hoisted(() => ({
@@ -392,6 +393,24 @@ describe('CopilotPage', () => {
     drawer = await screen.findByRole('dialog', { name: 'Lịch sử chat' });
     fireEvent.click(screen.getByRole('button', { name: /đóng lịch sử chat/i }));
     await waitFor(() => expect(drawer).not.toBeInTheDocument());
+  });
+
+  it('shows a hover label for the history drawer button', async () => {
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    await expect(
+      hoverTooltip(screen.getByRole('button', { name: 'Mở lịch sử chat' })),
+    ).resolves.toBe('Mở lịch sử chat');
+  });
+
+  it('shows a hover label for the drafts drawer button', async () => {
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    await expect(
+      hoverTooltip(screen.getByRole('button', { name: 'Mở bản nháp email' })),
+    ).resolves.toBe('Mở bản nháp email');
   });
 
   it('locks the input after hitting the Copilot plan quota', async () => {

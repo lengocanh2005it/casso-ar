@@ -93,7 +93,7 @@ export function PolicyTable({
                       readable when the card is ~161px wide. Holding them on
                       one line clipped the trailing "30 ngày" with no
                       ellipsis and no tooltip. */}
-                  <p className="text-xs text-muted-foreground max-md:whitespace-normal">
+                  <p className="hidden text-xs text-muted-foreground max-md:block max-md:whitespace-normal">
                     {policy.rules.length} quy tắc · leo thang{' '}
                     {policy.escalationThresholdDays === null
                       ? '—'
@@ -167,7 +167,7 @@ export function PolicyTable({
                     variant="ghost"
                     size="sm"
                     onClick={() => onEdit(policy)}
-                    className="max-md:h-auto max-md:px-0"
+                    className="max-md:min-h-9 max-md:px-3"
                   >
                     Sửa
                   </Button>

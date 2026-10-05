@@ -190,24 +190,28 @@ export function CopilotPage() {
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             <div className="flex min-h-12 items-center justify-between gap-2 px-3 py-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => setActiveDrawer('history')}
-                aria-label="Mở lịch sử chat"
-              >
-                <PanelLeftOpen aria-hidden="true" className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => setActiveDrawer('drafts')}
-                aria-label="Mở bản nháp email"
-              >
-                <Mail aria-hidden="true" className="size-4" />
-              </Button>
+              <TooltipLabel label="Mở lịch sử chat">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setActiveDrawer('history')}
+                  aria-label="Mở lịch sử chat"
+                >
+                  <PanelLeftOpen aria-hidden="true" className="size-4" />
+                </Button>
+              </TooltipLabel>
+              <TooltipLabel label="Mở bản nháp email">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setActiveDrawer('drafts')}
+                  aria-label="Mở bản nháp email"
+                >
+                  <Mail aria-hidden="true" className="size-4" />
+                </Button>
+              </TooltipLabel>
             </div>
 
             {/* The welcome card carries its own border and padding, so the

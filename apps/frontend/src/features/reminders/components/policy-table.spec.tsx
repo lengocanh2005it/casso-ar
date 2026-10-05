@@ -10,7 +10,7 @@ vi.mock('@/lib/api-client', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
 }));
 vi.mock('@/contexts/auth-context', () => ({
-  useAuth: () => ({ user: { role: 'ACCOUNTANT' } }),
+  useAuth: () => ({ user: { role: 'OWNER' } }),
 }));
 
 const rule = (index: number): ReminderRule => ({
@@ -45,7 +45,7 @@ function renderTable() {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <PolicyTable policies={POLICIES} />
+      <PolicyTable policies={POLICIES} onEdit={vi.fn()} />
     </QueryClientProvider>,
   );
 }
@@ -99,6 +99,21 @@ describe('PolicyTable', () => {
     for (const line of folded) {
       expect(line?.className).not.toContain('max-md:whitespace-nowrap');
       expect(line?.className).toContain('max-md:whitespace-normal');
+    }
+  });
+
+  it('shows folded facts only on mobile and preserves the edit hit area', () => {
+    renderTable();
+
+    const foldedFacts = screen.getAllByText(/4 quy tắc · leo thang 30 ngày/);
+    for (const line of foldedFacts) {
+      expect(line).toHaveClass('hidden', 'max-md:block');
+    }
+
+    const editButtons = screen.getAllByRole('button', { name: 'Sửa' });
+    expect(editButtons).toHaveLength(2);
+    for (const button of editButtons) {
+      expect(button).toHaveClass('max-md:min-h-9', 'max-md:px-3');
     }
   });
 });
