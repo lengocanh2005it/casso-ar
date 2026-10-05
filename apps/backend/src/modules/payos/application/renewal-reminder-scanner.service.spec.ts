@@ -79,9 +79,11 @@ describe('RenewalReminderScannerService', () => {
 
     await service.scan(new Date('2026-08-28T00:00:00Z'));
 
-    expect(initiateCharge.execute).toHaveBeenCalledWith(
-      expect.objectContaining({ organizationId: 'org-1' }),
-    );
+    expect(initiateCharge.execute).toHaveBeenCalledWith({
+      organizationId: 'org-1',
+      returnUrl: 'https://app.casso.vn/settings?tab=billing',
+      cancelUrl: 'https://app.casso.vn/settings?tab=billing',
+    });
     expect(emailQueue.add).toHaveBeenCalledWith(
       'send-owner-alert',
       expect.objectContaining({

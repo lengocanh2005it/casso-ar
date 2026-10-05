@@ -15,6 +15,7 @@ import {
   changeMemberRole,
   fetchOrganizationInvites,
   fetchOrganizationMembers,
+  fetchPlanPaymentHistory,
   fetchSmtpConfig,
   initiatePlanUpgrade,
   removeMember,
@@ -192,6 +193,7 @@ describe('initiatePlanUpgrade', () => {
   it('posts the target plan and redirect URLs via postWithIdempotency', async () => {
     postWithIdempotency.mockResolvedValueOnce({
       checkoutUrl: 'https://pay.payos.vn/web/abc123',
+      orderCode: '1001',
     });
 
     const result = await initiatePlanUpgrade(
@@ -208,7 +210,27 @@ describe('initiatePlanUpgrade', () => {
         cancelUrl: 'http://localhost:5173/settings?tab=billing&status=cancel',
       },
     );
-    expect(result).toEqual({ checkoutUrl: 'https://pay.payos.vn/web/abc123' });
+    expect(result).toEqual({
+      checkoutUrl: 'https://pay.payos.vn/web/abc123',
+      orderCode: '1001',
+    });
+  });
+});
+
+describe('fetchPlanPaymentHistory', () => {
+  it('gets the requested history page with the shared pagination query', async () => {
+    const response = { items: [], total: 41, page: 2, limit: 20 };
+    apiRequest.mockResolvedValueOnce(response);
+
+    await expect(
+      fetchPlanPaymentHistory({ page: 2, limit: 20 }),
+    ).resolves.toEqual(response);
+
+    expect(apiRequest).toHaveBeenCalledWith({
+      url: '/api/v1/payos/payment-history',
+      method: 'GET',
+      params: { page: 2, limit: 20 },
+    });
   });
 });
 

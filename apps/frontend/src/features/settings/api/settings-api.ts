@@ -11,6 +11,8 @@ import type {
   OrganizationInviteList,
   OrganizationMemberList,
   OwnershipTransfer,
+  PlanPaymentHistoryPage,
+  PlanPaymentHistoryQuery,
   SmtpConfig,
   SmtpConfigInput,
 } from '../types';
@@ -203,11 +205,21 @@ export function initiatePlanUpgrade(
   targetPlanId: string,
   returnUrl: string,
   cancelUrl: string,
-): Promise<{ checkoutUrl: string }> {
+): Promise<{ checkoutUrl: string; orderCode: string }> {
   return postWithIdempotency('/api/v1/payos/plan-upgrade-orders', {
     targetPlanId,
     returnUrl,
     cancelUrl,
+  });
+}
+
+export function fetchPlanPaymentHistory(
+  query: PlanPaymentHistoryQuery,
+): Promise<PlanPaymentHistoryPage> {
+  return apiRequest<PlanPaymentHistoryPage>({
+    url: '/api/v1/payos/payment-history',
+    method: 'GET',
+    params: { page: query.page, limit: query.limit },
   });
 }
 

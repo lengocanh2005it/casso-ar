@@ -6,6 +6,7 @@ import type {
   EmailTemplateInput,
   MembershipStatus,
   OrganizationMemberList,
+  PlanPaymentHistoryQuery,
   SmtpConfigInput,
 } from '../types';
 import {
@@ -23,6 +24,7 @@ import {
   fetchOrganizationInvites,
   fetchOrganizationMembers,
   fetchPendingOwnershipTransferForMe,
+  fetchPlanPaymentHistory,
   fetchSmtpConfig,
   getResponseErrorMessage,
   initiatePlanUpgrade,
@@ -39,6 +41,24 @@ import {
 } from './settings-api';
 
 const smtpConfigKey = ['smtp-config'];
+const PLAN_PAYMENT_HISTORY_KEY = ['plan-payment-history'];
+
+export function usePlanPaymentHistory(
+  query: PlanPaymentHistoryQuery,
+  enabled = true,
+) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: [
+      ...PLAN_PAYMENT_HISTORY_KEY,
+      user?.organizationId,
+      query.page,
+      query.limit,
+    ],
+    queryFn: () => fetchPlanPaymentHistory(query),
+    enabled: enabled && Boolean(user?.organizationId),
+  });
+}
 
 export function useSmtpConfig(enabled = true) {
   return useQuery({

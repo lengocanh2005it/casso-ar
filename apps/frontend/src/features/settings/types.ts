@@ -1,10 +1,36 @@
 import type {
   MembershipStatus,
   OwnershipTransferStatus,
+  PlanId,
+  PlanPaymentHistoryProvenance,
+  PlanPaymentHistorySourceType,
+  PlanPaymentReceiptOutcome,
   Role,
 } from '@casso-ar/shared-types';
 
 export type { MembershipStatus };
+
+export interface PlanPaymentHistoryItem {
+  paymentKind: PlanPaymentHistorySourceType;
+  orderCode: string;
+  planId: PlanId;
+  receivedAmount: number | null;
+  initialOutcome: PlanPaymentReceiptOutcome;
+  provenance: PlanPaymentHistoryProvenance;
+  confirmedAt: string;
+}
+
+export interface PlanPaymentHistoryPage {
+  items: PlanPaymentHistoryItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface PlanPaymentHistoryQuery {
+  page: number;
+  limit: number;
+}
 
 export interface EmailTemplateInput {
   name: string;

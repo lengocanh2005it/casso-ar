@@ -19,6 +19,7 @@ import { formatPlanPrice, formatUnavailable } from '@/lib/format';
 import { hasPermission } from '@/lib/rbac';
 import { useInitiatePlanUpgrade } from '../api/use-settings';
 import { PaymentDialog } from './payment-dialog';
+import { PlanPaymentHistory } from './plan-payment-history';
 
 // Keep these in ascending tier order; index position controls upgrade eligibility.
 const plans = [
@@ -61,7 +62,10 @@ export function BillingTab() {
   const canUpgrade = hasPermission(user?.role, Permission.SUBSCRIPTION_MANAGE);
   const { mutate, isPending } = useInitiatePlanUpgrade();
   const { data: catalog, isLoading, isError, refetch } = usePlans();
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [checkout, setCheckout] = useState<{
+    checkoutUrl: string;
+    orderCode: string;
+  } | null>(null);
   const heading = (
     <SectionHeading
       icon={CreditCard}
@@ -80,10 +84,10 @@ export function BillingTab() {
     mutate(
       {
         targetPlanId,
-        returnUrl: `${origin}/settings?tab=billing&status=success`,
-        cancelUrl: `${origin}/settings?tab=billing&status=cancel`,
+        returnUrl: `${origin}/settings?tab=billing`,
+        cancelUrl: `${origin}/settings?tab=billing`,
       },
-      { onSuccess: (result) => setCheckoutUrl(result.checkoutUrl) },
+      { onSuccess: setCheckout },
     );
   }
 
@@ -251,11 +255,18 @@ export function BillingTab() {
         })}
       </div>
 
-      {checkoutUrl && (
+      {canUpgrade && (
+        <PlanPaymentHistory
+          checkoutUrl={checkout?.checkoutUrl}
+          checkoutOrderCode={checkout?.orderCode}
+        />
+      )}
+
+      {checkout && (
         <PaymentDialog
           open
-          onOpenChange={(open) => !open && setCheckoutUrl(null)}
-          checkoutUrl={checkoutUrl}
+          onOpenChange={(open) => !open && setCheckout(null)}
+          checkoutUrl={checkout.checkoutUrl}
         />
       )}
     </div>
