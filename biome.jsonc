@@ -13,7 +13,16 @@
     }
   },
   "files": {
-    "includes": ["**", "!**/*.css", "!**/dist"]
+    // Playwright writes failure artifacts into these directories, and Biome
+    // does not read .gitignore, so they must be excluded explicitly or a failing
+    // `test:viewport` run breaks the next `pnpm verify`.
+    "includes": [
+      "**",
+      "!**/*.css",
+      "!**/dist",
+      "!**/test-results",
+      "!**/playwright-report"
+    ]
   },
   "overrides": [
     {

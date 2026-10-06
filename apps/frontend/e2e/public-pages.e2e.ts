@@ -2,16 +2,17 @@ import { expect, test } from '@playwright/test';
 import {
   assertMinTapTarget,
   assertNoHorizontalScroll,
-  settleFonts,
+  openRoute,
 } from './layout-invariants';
 
+const LANDING_READY = '[aria-label="Casso AR — Trang chủ"]';
+const LOGIN_READY = '#email';
 const MOBILE_NAV_TRIGGER = '[aria-label="Mở menu"]';
 const TAP_TARGET_PX = 44;
 
 test.describe('landing page', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await settleFonts(page);
+    await openRoute(page, '/', LANDING_READY);
   });
 
   test('never scrolls horizontally', async ({ page }) => {
@@ -32,8 +33,7 @@ test.describe('landing page', () => {
 
 test.describe('login page', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
-    await settleFonts(page);
+    await openRoute(page, '/login', LOGIN_READY);
   });
 
   test('never scrolls horizontally', async ({ page }) => {
@@ -41,7 +41,7 @@ test.describe('login page', () => {
   });
 
   test('renders the email and password fields', async ({ page }) => {
-    await expect(page.locator('#email')).toBeVisible();
+    await expect(page.locator(LOGIN_READY)).toBeVisible();
     await expect(page.locator('#password')).toBeVisible();
   });
 });

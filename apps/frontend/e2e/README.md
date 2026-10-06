@@ -14,6 +14,23 @@ Invariants are asserted with `expect(...).toBe*()`, never with a raw
 font-loading and animation timing. `reducedMotion: 'reduce'` is set globally; the
 app already honours it with `motion-reduce:` and `useReducedMotion`.
 
+## Always navigate with `openRoute`
+
+```ts
+await openRoute(page, '/', '[aria-label="Casso AR — Trang chủ"]');
+```
+
+Do not call `page.goto()` directly before measuring. `goto` resolves on the `load`
+event, which fires before React mounts. A cold guest route shows `AuthLoading`
+while the auth effect resolves, and the page itself is lazy-loaded behind a
+Suspense fallback. Both placeholders are narrow, so measuring during either
+window reads a zero overflow delta and the assertion passes without ever having
+looked at the real layout — a silently passing test, which is the exact failure
+this harness exists to prevent. `document.fonts.ready` does not help: it is
+already resolved at that point.
+
+Pass a `readySelector` that exists only on the fully rendered route.
+
 ## Setup
 
 ```bash

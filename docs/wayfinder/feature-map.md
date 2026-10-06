@@ -583,6 +583,8 @@ Success = a single document a new developer can read and know exactly what to pi
 - **Key rules**:
   - A **layout invariant** is a property that must hold at a given viewport width. jsdom cannot assert one (no layout engine, so `max-md:` reflow never applies), which is how the 137px row-height regression shipped. Defined in `apps/frontend/e2e/README.md`
   - Invariants are asserted through `expect(...).toBe*()` only, never a one-shot `boundingBox()` comparison — `expect` polls, which absorbs font-load and animation timing
+  - Always navigate through `openRoute(page, path, readySelector)`, never a bare `page.goto()`. `goto` resolves on `load`, before React mounts: a cold guest route shows `AuthLoading` while the auth effect resolves and the page itself is lazy behind a Suspense fallback. Both placeholders are narrow, so measuring in that window reads a zero overflow delta and the assertion passes without ever seeing the real layout — a silently passing test, the exact failure this harness exists to prevent. `document.fonts.ready` does not help; it is already resolved by then
+  - `biome.jsonc` excludes `**/test-results` and `**/playwright-report`. Biome does not read `.gitignore`, so a failing `test:viewport` run would otherwise leave artifacts that break the next `pnpm verify`
   - Widths are the named `phone` 390 / `md-edge` 767 / `desktop` 1024 projects. 767 is the last pixel where Tailwind v4's `max-md:` still applies; asserting at 768 would test the width where the variant is already off
   - Chromium only, bundled via `test:viewport:install`. `PLAYWRIGHT_CHANNEL` is an unset-by-default escape hatch for networks that block `cdn.playwright.dev`, so CI still gets the pinned build
   - `retries: 0` — a flaky layout assertion is a bug to fix, not a retry
@@ -593,6 +595,7 @@ Success = a single document a new developer can read and know exactly what to pi
   - Local-only until #457, per Plan #22's `test:e2e` contract
 - **Scope**: the pipeline, not the coverage. Covers the guest routes `/` and `/login`, which render with the API down. Authenticated and operator-portal routes are #455, data-table row-height reflow is #456 (including the stress seed — see the #354 note), CI promotion is #457
 - **Known gaps**: `assertNoHorizontalScroll` cannot catch content clipped by an `overflow-hidden` ancestor, which has no scrollbar and no width delta — the landing navbar clipped its own signup link that way before `lg:` moved that row's breakpoint. Tracked in #455/#456
+- **Review note** (PR #479, Codex): the first version of the suite measured straight after `page.goto()` and both horizontal-scroll tests were passing **vacuously** — confirmed by probe (`overflow: 0` while `realPageMounted: false`, both immediately after `goto` and after `fonts.ready`). Fixed with `openRoute`. Worth noting that the earlier injected-overflow guard did not catch this: it proved the *measurement* was real, not that the *content* was the real page. The two are independent failure modes and the second is the more dangerous one
 
 ---
 
