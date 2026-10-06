@@ -4,6 +4,12 @@ This glossary names the business concepts used to track receivables and incoming
 
 ## Payments and matching
 
+**Payment allocation**:
+Assignment of an amount from a received payment to a receivable. One payment can fund multiple receivables, and one receivable can receive allocations from multiple payments.
+
+**Allocation undo**:
+Reversal of an active payment allocation that preserves the original allocation and the reason for undo.
+
 **Near-match overpayment**:
 An incoming bank transfer that exceeds a candidate receivable's remaining balance but still appears to be a plausible payment for it.
 

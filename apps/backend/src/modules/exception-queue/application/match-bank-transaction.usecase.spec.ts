@@ -62,7 +62,7 @@ function buildUseCase(
   };
   const receivableRepo = {
     findByIdForUpdate: jest.fn((id: string) =>
-      Promise.resolve(options.receivables?.[id] ?? null),
+      Promise.resolve(options.receivables?.[id.toLowerCase()] ?? null),
     ),
   };
   const paymentRepo = { save: jest.fn() };
@@ -243,6 +243,69 @@ describe('MatchBankTransactionUseCase', () => {
         becameClosed: false,
       },
     );
+  });
+
+  it('locks receivables by ID while applying allocations in request order', async () => {
+    const { useCase, receivableRepo, allocatePaymentUseCase } = buildUseCase({
+      receivables: {
+        'rec-1': buildReceivable('rec-1'),
+        'rec-2': buildReceivable('rec-2'),
+      },
+    });
+
+    await useCase.execute({
+      ...input,
+      allocations: [
+        { receivableId: 'rec-2', amount: 5_000_000 },
+        { receivableId: 'rec-1', amount: 5_000_000 },
+      ],
+    });
+
+    expect(
+      receivableRepo.findByIdForUpdate.mock.calls.map(([receivableId]) =>
+        String(receivableId),
+      ),
+    ).toEqual(['rec-1', 'rec-2']);
+    expect(
+      allocatePaymentUseCase.allocateWithinTransaction.mock.calls.map(
+        ([, allocation]) => allocation.receivableId,
+      ),
+    ).toEqual(['rec-2', 'rec-1']);
+  });
+
+  it('locks equivalent UUIDs in the same order regardless of casing', async () => {
+    const receivableIdA = 'a0000000-0000-4000-8000-000000000001';
+    const receivableIdB = 'b0000000-0000-4000-8000-000000000002';
+    const { useCase, receivableRepo, allocatePaymentUseCase } = buildUseCase({
+      receivables: {
+        [receivableIdA]: buildReceivable(receivableIdA),
+        [receivableIdB]: buildReceivable(receivableIdB),
+      },
+    });
+
+    const lockOrders: string[][] = [];
+    for (const allocations of [
+      [
+        { receivableId: receivableIdA.toUpperCase(), amount: 5_000_000 },
+        { receivableId: receivableIdB, amount: 5_000_000 },
+      ],
+      [
+        { receivableId: receivableIdB.toUpperCase(), amount: 5_000_000 },
+        { receivableId: receivableIdA, amount: 5_000_000 },
+      ],
+    ]) {
+      await useCase.execute({ ...input, allocations });
+      lockOrders.push(
+        receivableRepo.findByIdForUpdate.mock.calls.map(([id]) => String(id)),
+      );
+      receivableRepo.findByIdForUpdate.mockClear();
+      allocatePaymentUseCase.emitAllocationEvents.mockClear();
+    }
+
+    expect(lockOrders).toEqual([
+      [receivableIdA, receivableIdB],
+      [receivableIdA, receivableIdB],
+    ]);
   });
 
   it('rejects receivables belonging to different customers', async () => {

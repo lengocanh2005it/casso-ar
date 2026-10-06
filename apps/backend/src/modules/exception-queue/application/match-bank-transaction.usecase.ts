@@ -114,26 +114,31 @@ export class MatchBankTransactionUseCase {
 
         const lockedReceivables = new Map<string, Receivable>();
         const requestedByReceivable = new Map<string, number>();
-        for (const allocation of input.allocations) {
-          if (!lockedReceivables.has(allocation.receivableId)) {
-            const receivable = await this.receivableRepo.findByIdForUpdate(
-              allocation.receivableId,
-              manager,
-            );
-            if (!receivable) {
-              throw new AppError(
-                ErrorCode.RECEIVABLE_NOT_FOUND,
-                'Không tìm thấy khoản phải thu.',
-                { receivableId: allocation.receivableId },
-              );
-            }
-            lockedReceivables.set(allocation.receivableId, receivable);
+        const receivableIds = [
+          ...new Set(
+            input.allocations.map((allocation) =>
+              allocation.receivableId.toLowerCase(),
+            ),
+          ),
+        ].sort();
+        for (const receivableId of receivableIds) {
+          const receivable = await this.receivableRepo.findByIdForUpdate(
+            receivableId,
+            manager,
+          );
+          if (receivable) {
+            lockedReceivables.set(receivableId, receivable);
           }
-          const receivable = lockedReceivables.get(allocation.receivableId);
+        }
+
+        for (const allocation of input.allocations) {
+          const receivableId = allocation.receivableId.toLowerCase();
+          const receivable = lockedReceivables.get(receivableId);
           if (!receivable) {
             throw new AppError(
               ErrorCode.RECEIVABLE_NOT_FOUND,
               'Không tìm thấy khoản phải thu.',
+              { receivableId: allocation.receivableId },
             );
           }
           if (
@@ -147,8 +152,7 @@ export class MatchBankTransactionUseCase {
             );
           }
           const requestedAmount =
-            (requestedByReceivable.get(allocation.receivableId) ?? 0) +
-            allocation.amount;
+            (requestedByReceivable.get(receivableId) ?? 0) + allocation.amount;
           if (requestedAmount > receivable.remainingAmount) {
             throw new AppError(
               ErrorCode.ALLOCATION_EXCEEDS_REMAINING,
@@ -156,11 +160,11 @@ export class MatchBankTransactionUseCase {
               { receivableId: allocation.receivableId },
             );
           }
-          requestedByReceivable.set(allocation.receivableId, requestedAmount);
+          requestedByReceivable.set(receivableId, requestedAmount);
         }
 
         const firstReceivable = lockedReceivables.get(
-          input.allocations[0].receivableId,
+          input.allocations[0].receivableId.toLowerCase(),
         );
         if (!firstReceivable) {
           throw new AppError(

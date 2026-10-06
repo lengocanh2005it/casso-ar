@@ -42,14 +42,21 @@ describe('AllocatePaymentUseCase', () => {
   it('allocates payment to receivable and saves both inside a transaction', async () => {
     const receivable = buildReceivable();
     const payment = buildPayment();
+    const lockOrder: string[] = [];
 
     const receivableRepo = {
-      findByIdForUpdate: jest.fn().mockResolvedValue(receivable),
+      findByIdForUpdate: jest.fn().mockImplementation(async () => {
+        lockOrder.push('receivable');
+        return receivable;
+      }),
       save: jest.fn(),
       findById: jest.fn(),
     };
     const paymentRepo = {
-      findByIdForUpdate: jest.fn().mockResolvedValue(payment),
+      findByIdForUpdate: jest.fn().mockImplementation(async () => {
+        lockOrder.push('payment');
+        return payment;
+      }),
       save: jest.fn(),
     };
     const allocationRepo = { save: jest.fn() };
@@ -89,6 +96,7 @@ describe('AllocatePaymentUseCase', () => {
       },
     });
 
+    expect(lockOrder).toEqual(['receivable', 'payment']);
     expect(receivableRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
         paidAmount: 30_000_000,

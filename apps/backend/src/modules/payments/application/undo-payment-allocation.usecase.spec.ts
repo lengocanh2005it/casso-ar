@@ -49,19 +49,30 @@ describe('UndoPaymentAllocationUseCase', () => {
       version: 1,
     });
     const manager = {} as EntityManager;
+    const lockOrder: string[] = [];
+    const findAllocationByIdForUpdate = jest
+      .fn()
+      .mockImplementationOnce(async () => {
+        lockOrder.push('allocation');
+        return allocation;
+      })
+      .mockResolvedValueOnce(allocation.undo('user-1', 'duplicate'));
     const allocationRepo = {
-      findByIdForUpdate: jest
-        .fn()
-        .mockResolvedValueOnce(allocation)
-        .mockResolvedValueOnce(allocation.undo('user-1', 'duplicate')),
+      findByIdForUpdate: findAllocationByIdForUpdate,
       save: jest.fn(),
     };
     const paymentRepo = {
-      findByIdForUpdate: jest.fn().mockResolvedValue(payment),
+      findByIdForUpdate: jest.fn().mockImplementation(async () => {
+        lockOrder.push('payment');
+        return payment;
+      }),
       save: jest.fn(),
     };
     const receivableRepo = {
-      findByIdForUpdate: jest.fn().mockResolvedValue(receivable),
+      findByIdForUpdate: jest.fn().mockImplementation(async () => {
+        lockOrder.push('receivable');
+        return receivable;
+      }),
       save: jest.fn(),
     };
     const auditLogRepo = { create: jest.fn() };
@@ -85,6 +96,7 @@ describe('UndoPaymentAllocationUseCase', () => {
       deletedByUserId: 'user-2',
       undoReason: 'Correction',
     });
+    expect(lockOrder).toEqual(['allocation', 'receivable', 'payment']);
     expect(paymentRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ allocatedAmount: 0 }),
       manager,
