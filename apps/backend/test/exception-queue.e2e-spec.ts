@@ -23,6 +23,7 @@ import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-enti
 import { BankTransactionOrmEntity } from '../src/modules/webhooks/infrastructure/bank-transaction.orm-entity';
 import { MatchingCandidateOrmEntity } from '../src/modules/webhooks/infrastructure/matching-candidate.orm-entity';
 import { startTestRedis } from './helpers/test-redis';
+import { createTwoPartyStartGate } from './helpers/two-party-start-gate';
 
 describe('Exception Queue (e2e)', () => {
   let container: StartedPostgreSqlContainer;
@@ -252,6 +253,68 @@ describe('Exception Queue (e2e)', () => {
       allocatedAmount: 5_000_000,
     });
   }, 20_000);
+
+  it('matches concurrent transactions over the same receivables requested in reverse order', async () => {
+    const customerId = await createCustomer();
+    const receivableIdA = await createReceivable(customerId, 100_000_000);
+    const receivableIdB = await createReceivable(customerId, 100_000_000);
+    const transactionIdA = await createReviewTransaction(20_000_000);
+    const transactionIdB = await createReviewTransaction(20_000_000);
+    const [versionA, versionB] = await Promise.all([
+      fetchVersionViaApi(transactionIdA),
+      fetchVersionViaApi(transactionIdB),
+    ]);
+
+    const startTogether = createTwoPartyStartGate();
+    const match = async (
+      transactionId: string,
+      version: number,
+      receivables: string[],
+    ) => {
+      await startTogether();
+      return request(app.getHttpServer())
+        .post(`/api/v1/bank-transactions/${transactionId}/match`)
+        .set('Authorization', `Bearer ${token}`)
+        .set('Idempotency-Key', `reverse-order-${transactionId}`)
+        .send({
+          allocations: receivables.map((receivableId) => ({
+            receivableId,
+            amount: 5_000_000,
+          })),
+          version,
+        });
+    };
+
+    const [first, second] = await Promise.all([
+      match(transactionIdA, versionA, [
+        receivableIdA.toUpperCase(),
+        receivableIdB,
+      ]),
+      match(transactionIdB, versionB, [
+        receivableIdB.toUpperCase(),
+        receivableIdA,
+      ]),
+    ]);
+    expect([first.status, second.status]).toEqual([201, 201]);
+
+    for (const receivableId of [receivableIdA, receivableIdB]) {
+      const receivable = await dataSource
+        .getRepository(ReceivableOrmEntity)
+        .findOneByOrFail({ id: receivableId, organizationId });
+      expect(Number(receivable.paidAmount)).toBe(10_000_000);
+    }
+    for (const transactionId of [transactionIdA, transactionIdB]) {
+      const bankTransaction = await dataSource
+        .getRepository(BankTransactionOrmEntity)
+        .findOneByOrFail({ id: transactionId, organizationId });
+      const payment = await dataSource
+        .getRepository(PaymentOrmEntity)
+        .findOneByOrFail({ bankTransactionId: transactionId, organizationId });
+      expect(bankTransaction.status).toBe('MATCHED');
+      expect(Number(payment.allocatedAmount)).toBe(10_000_000);
+    }
+  }, 20_000);
+
   it('flags a pending-review transaction ambiguous only when the top candidate leads by less than 10 points', async () => {
     const customerId = await createCustomer();
     const saveCandidates = async (

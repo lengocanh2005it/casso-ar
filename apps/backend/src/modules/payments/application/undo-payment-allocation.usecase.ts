@@ -72,12 +72,12 @@ export class UndoPaymentAllocationUseCase {
         );
       }
 
-      const payment = await this.paymentRepo.findByIdForUpdate(
-        allocation.paymentId,
-        manager,
-      );
       const receivable = await this.receivableRepo.findByIdForUpdate(
         allocation.receivableId,
+        manager,
+      );
+      const payment = await this.paymentRepo.findByIdForUpdate(
+        allocation.paymentId,
         manager,
       );
       if (!payment) {

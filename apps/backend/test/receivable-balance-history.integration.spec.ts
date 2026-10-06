@@ -15,6 +15,7 @@ import { ErrorCode } from '../src/common/errors/error-code';
 import { TenantContextService } from '../src/common/tenancy/tenant-context';
 import { AddReceivableBalanceHistoryRolloutBaseline20260822000000 } from '../src/database/migrations/20260822000000-add-receivable-balance-history-rollout-baseline';
 import { CustomerOrmEntity } from '../src/modules/customers/infrastructure/customer.orm-entity';
+import { LedgerEventRecorderService } from '../src/modules/ledger/application/ledger-event-recorder.service';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
 import { AllocatePaymentUseCase } from '../src/modules/payments/application/allocate-payment.usecase';
@@ -38,6 +39,7 @@ import { CreateReceivableUseCase } from '../src/modules/receivables/application/
 import { WriteOffReceivableUseCase } from '../src/modules/receivables/application/write-off-receivable.usecase';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
+import { createTwoPartyStartGate } from './helpers/two-party-start-gate';
 
 const REPORTING_TIMEZONE = 'Asia/Ho_Chi_Minh';
 const organizationId = '00000000-0000-4000-8000-000000000151';
@@ -67,6 +69,7 @@ describe('Receivable balance history (integration)', () => {
   let writeOffReceivable: WriteOffReceivableUseCase;
   let allocatePayment: AllocatePaymentUseCase;
   let undoPaymentAllocation: UndoPaymentAllocationUseCase;
+  let ledgerRecorder: LedgerEventRecorderService;
   let historyQuery: IReceivableBalanceHistoryQuery;
   let historyRepo: IReceivableBalanceHistoryRepository;
 
@@ -200,6 +203,7 @@ describe('Receivable balance history (integration)', () => {
     writeOffReceivable = moduleRef.get(WriteOffReceivableUseCase);
     allocatePayment = moduleRef.get(AllocatePaymentUseCase);
     undoPaymentAllocation = moduleRef.get(UndoPaymentAllocationUseCase);
+    ledgerRecorder = moduleRef.get(LedgerEventRecorderService);
     historyQuery = moduleRef.get(RECEIVABLE_BALANCE_HISTORY_QUERY);
     historyRepo = moduleRef.get(RECEIVABLE_BALANCE_HISTORY_REPOSITORY);
 
@@ -431,6 +435,214 @@ describe('Receivable balance history (integration)', () => {
       expect(reopened.status).toBe(ReceivableStatus.OPEN);
       expect(Number(reopened.paidAmount)).toBe(0);
     });
+
+    it('completes a new allocation and concurrent undo on the same payment and receivable', async () => {
+      const receivable = await asTenant(organizationId, () =>
+        createReceivable.execute({
+          customerId,
+          invoiceId: null,
+          originalAmount: 50_000_000,
+          dueDate: new Date('2026-09-01'),
+          salesRepresentativeId: null,
+        }),
+      );
+      const paymentId = await createPayment(
+        organizationId,
+        customerId,
+        50_000_000,
+      );
+      await asTenant(organizationId, () =>
+        allocatePayment.execute({
+          paymentId,
+          receivableId: receivable.id,
+          amount: 10_000_000,
+          allocatedByUserId: userId,
+          provenance: {
+            actorType: BalanceHistoryActorType.USER,
+            actorUserId: userId,
+          },
+        }),
+      );
+
+      const [{ id: existingAllocationId }] = (await dataSource.query(
+        `SELECT id FROM payment_allocations
+         WHERE "organizationId" = $1 AND "paymentId" = $2
+           AND "receivableId" = $3 AND "deletedAt" IS NULL`,
+        [organizationId, paymentId, receivable.id],
+      )) as Array<{ id: string }>;
+
+      const startTogether = createTwoPartyStartGate();
+
+      await Promise.all([
+        (async () => {
+          await startTogether();
+          await asTenant(organizationId, () =>
+            allocatePayment.execute({
+              paymentId,
+              receivableId: receivable.id,
+              amount: 15_000_000,
+              allocatedByUserId: userId,
+              provenance: {
+                actorType: BalanceHistoryActorType.USER,
+                actorUserId: userId,
+              },
+            }),
+          );
+        })(),
+        (async () => {
+          await startTogether();
+          await asTenant(organizationId, () =>
+            undoPaymentAllocation.execute({
+              allocationId: existingAllocationId,
+              deletedByUserId: userId,
+              undoReason: 'Concurrent correction',
+            }),
+          );
+        })(),
+      ]);
+
+      const savedReceivable = await dataSource
+        .getRepository(ReceivableOrmEntity)
+        .findOneByOrFail({ id: receivable.id, organizationId });
+      const savedPayment = await dataSource
+        .getRepository(PaymentOrmEntity)
+        .findOneByOrFail({ id: paymentId, organizationId });
+      expect(Number(savedReceivable.paidAmount)).toBe(15_000_000);
+      expect(Number(savedPayment.allocatedAmount)).toBe(15_000_000);
+
+      const allocations = (await dataSource.query(
+        `SELECT "allocatedAmount", "deletedAt" FROM payment_allocations
+         WHERE "organizationId" = $1 AND "paymentId" = $2
+           AND "receivableId" = $3`,
+        [organizationId, paymentId, receivable.id],
+      )) as Array<{ allocatedAmount: string; deletedAt: Date | null }>;
+      expect(allocations).toHaveLength(2);
+      expect(
+        allocations.filter((allocation) => allocation.deletedAt === null),
+      ).toHaveLength(1);
+      expect(
+        allocations.filter((allocation) => allocation.deletedAt !== null),
+      ).toHaveLength(1);
+      expect(
+        Number(
+          allocations.find((allocation) => allocation.deletedAt === null)
+            ?.allocatedAmount,
+        ),
+      ).toBe(15_000_000);
+      expect(
+        Number(
+          allocations.find((allocation) => allocation.deletedAt !== null)
+            ?.allocatedAmount,
+        ),
+      ).toBe(10_000_000);
+
+      const history = await dataSource
+        .getRepository(ReceivableBalanceHistoryOrmEntity)
+        .findBy({ organizationId, receivableId: receivable.id });
+      expect(history.map((entry) => entry.changeSource).sort()).toEqual([
+        BalanceHistoryChangeSource.ALLOCATE,
+        BalanceHistoryChangeSource.ALLOCATE,
+        BalanceHistoryChangeSource.CREATE,
+        BalanceHistoryChangeSource.UNDO,
+      ]);
+      const allocationLedgerEvents = await dataSource.query(
+        `SELECT kind FROM ledger_events
+         WHERE "organizationId" = $1 AND "subjectId" IN ($2, $3)
+           AND kind IN (
+             'RECEIVABLE_ALLOCATED', 'PAYMENT_ALLOCATED',
+             'RECEIVABLE_ALLOCATION_UNDONE', 'PAYMENT_ALLOCATION_UNDONE'
+           )`,
+        [organizationId, receivable.id, paymentId],
+      );
+      expect(allocationLedgerEvents).toHaveLength(6);
+    }, 20_000);
+
+    it('rolls back allocation, rollups, balance history, and ledger writes after an in-transaction failure', async () => {
+      const receivable = await asTenant(organizationId, () =>
+        createReceivable.execute({
+          customerId,
+          invoiceId: null,
+          originalAmount: 10_000_000,
+          dueDate: new Date('2026-09-01'),
+          salesRepresentativeId: null,
+        }),
+      );
+      const paymentId = await createPayment(
+        organizationId,
+        customerId,
+        10_000_000,
+      );
+      const historyBefore = await dataSource
+        .getRepository(ReceivableBalanceHistoryOrmEntity)
+        .countBy({ organizationId, receivableId: receivable.id });
+      const allocationsBefore = (await dataSource.query(
+        `SELECT COUNT(*)::int AS count FROM payment_allocations
+         WHERE "organizationId" = $1 AND "paymentId" = $2`,
+        [organizationId, paymentId],
+      )) as Array<{ count: number }>;
+      const ledgerBefore = (await dataSource.query(
+        `SELECT COUNT(*)::int AS count FROM ledger_events
+         WHERE "organizationId" = $1 AND "subjectId" IN ($2, $3)`,
+        [organizationId, receivable.id, paymentId],
+      )) as Array<{ count: number }>;
+
+      const recordLedgerEvent = ledgerRecorder.record.bind(ledgerRecorder);
+      let ledgerWrites = 0;
+      const ledgerSpy = jest
+        .spyOn(ledgerRecorder, 'record')
+        .mockImplementation(async (input) => {
+          await recordLedgerEvent(input);
+          ledgerWrites += 1;
+          if (ledgerWrites === 2) {
+            throw new Error('Injected failure after ledger writes');
+          }
+        });
+      try {
+        await expect(
+          asTenant(organizationId, () =>
+            allocatePayment.execute({
+              paymentId,
+              receivableId: receivable.id,
+              amount: 5_000_000,
+              allocatedByUserId: userId,
+              provenance: {
+                actorType: BalanceHistoryActorType.USER,
+                actorUserId: userId,
+              },
+            }),
+          ),
+        ).rejects.toThrow('Injected failure after ledger writes');
+      } finally {
+        ledgerSpy.mockRestore();
+      }
+
+      expect(ledgerWrites).toBe(2);
+      const savedReceivable = await dataSource
+        .getRepository(ReceivableOrmEntity)
+        .findOneByOrFail({ id: receivable.id, organizationId });
+      const savedPayment = await dataSource
+        .getRepository(PaymentOrmEntity)
+        .findOneByOrFail({ id: paymentId, organizationId });
+      expect(Number(savedReceivable.paidAmount)).toBe(0);
+      expect(Number(savedPayment.allocatedAmount)).toBe(0);
+      expect(
+        await dataSource
+          .getRepository(ReceivableBalanceHistoryOrmEntity)
+          .countBy({ organizationId, receivableId: receivable.id }),
+      ).toBe(historyBefore);
+      const allocationsAfter = (await dataSource.query(
+        `SELECT COUNT(*)::int AS count FROM payment_allocations
+         WHERE "organizationId" = $1 AND "paymentId" = $2`,
+        [organizationId, paymentId],
+      )) as Array<{ count: number }>;
+      const ledgerAfter = (await dataSource.query(
+        `SELECT COUNT(*)::int AS count FROM ledger_events
+         WHERE "organizationId" = $1 AND "subjectId" IN ($2, $3)`,
+        [organizationId, receivable.id, paymentId],
+      )) as Array<{ count: number }>;
+      expect(allocationsAfter[0].count).toBe(allocationsBefore[0].count);
+      expect(ledgerAfter[0].count).toBe(ledgerBefore[0].count);
+    }, 20_000);
 
     it('records a CANCELLED row for an unpaid receivable', async () => {
       const receivable = await asTenant(organizationId, () =>
