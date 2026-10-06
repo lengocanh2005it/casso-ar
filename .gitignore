@@ -8,6 +8,9 @@ stats.html
 .env
 .turbo
 *.tsbuildinfo
+# Playwright viewport harness output (pnpm test:viewport)
+apps/frontend/test-results/
+apps/frontend/playwright-report/
 *.log
 .worktrees
 .superpowers

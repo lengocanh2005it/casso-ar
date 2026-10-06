@@ -7,6 +7,7 @@
       "outputs": ["dist/**"]
     },
     "dev": {
+      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
     },
@@ -19,6 +20,10 @@
     },
     "test:e2e": {
       "dependsOn": ["^build"]
+    },
+    "test:viewport": {
+      "dependsOn": ["^build"],
+      "env": ["PLAYWRIGHT_CHANNEL"]
     },
     "arch-check": {}
   }
