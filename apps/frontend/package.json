@@ -9,7 +9,9 @@
     "dev": "vite",
     "lint": "biome check .",
     "type-check": "tsc -b --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:viewport": "playwright test",
+    "test:viewport:install": "playwright install chromium"
   },
   "dependencies": {
     "@casso-ar/shared-types": "workspace:*",
@@ -32,9 +34,11 @@
     "web-vitals": "^6.2.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "4.3.3",
     "@testing-library/jest-dom": "6.6.3",
     "@testing-library/react": "16.1.0",
+    "@types/node": "22.10.2",
     "@types/react": "19.0.2",
     "@types/react-dom": "19.0.2",
     "@vitejs/plugin-react": "4.3.4",

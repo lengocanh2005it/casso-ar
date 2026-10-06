@@ -171,12 +171,22 @@ await this.repo.findOne({ where: { id } }); // missing organizationId
 - Use `@nestjs/testing` for module setup
 - Use testcontainers for real Postgres
 
+### Viewport tests (frontend)
+
+- File: `*.e2e.ts` in `apps/frontend/e2e/`, run with Playwright against a real browser
+- jsdom has no layout engine, so `max-md:` reflow never applies — layout behaviour must be asserted here, not in a `*.spec.tsx`
+- Layout invariants are defined in `apps/frontend/e2e/README.md`; reuse them rather than re-measuring
+- Not part of `pnpm verify` or CI yet
+
 ### Test commands
 
 ```bash
 npx jest                          # Run all unit tests
 npx jest --testPathPattern <name> # Run specific test
 npx tsc --noEmit                  # Type check
+
+pnpm turbo run test:viewport                              # Frontend viewport tests
+pnpm --filter @casso-ar/frontend test:viewport:install    # Download the browser once
 ```
 
 ### Verification before completion

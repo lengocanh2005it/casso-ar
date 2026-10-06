@@ -38,6 +38,10 @@ export default defineConfig(({ mode }) => ({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // Vitest's default include is `**/*.{test,spec}.?(c|m)[jt]s?(x)`, which would
+    // collect any `*.spec.ts` under e2e/ and fail it as a jsdom test. Playwright
+    // files use the `*.e2e.ts` suffix, so exclude the directory outright.
+    exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
     // Default 5000ms is smaller than the `waitFor(..., { timeout: 15_000 })`
     // some lazy-route/chart specs already need, so a starved worker's test was
     // killed before its own wait could finish. Align the per-test and per-hook

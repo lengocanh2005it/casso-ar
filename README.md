@@ -109,6 +109,7 @@ pnpm test                 # Run all tests
 pnpm lint                 # Lint all packages
 pnpm format               # Format with Biome
 pnpm verify               # lint + type-check + test
+pnpm turbo run test:viewport   # Browser viewport/layout tests (see apps/frontend/e2e/README.md)
 ```
 
 ## License
