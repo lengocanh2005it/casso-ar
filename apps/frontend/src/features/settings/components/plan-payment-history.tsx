@@ -2,7 +2,7 @@ import {
   PlanPaymentHistorySourceType,
   PlanPaymentReceiptOutcome,
 } from '@casso-ar/shared-types';
-import { History, RefreshCw } from 'lucide-react';
+import { ArrowLeftRight, History, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { SectionCard } from '@/components/layout/section-card';
 import { CardPagination } from '@/components/shared/card-pagination';
@@ -210,7 +210,11 @@ export function PlanPaymentHistory({
 
       {!historyQuery.isLoading && !historyQuery.isError && items.length > 0 && (
         <>
-          <Table>
+          <p className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground xl:hidden">
+            <ArrowLeftRight aria-hidden="true" className="size-3.5 shrink-0" />
+            Nếu bảng rộng hơn màn hình, vuốt ngang để xem các cột còn lại
+          </p>
+          <Table className="[&_td]:px-1 [&_th]:px-1 xl:[&_td]:px-2 xl:[&_th]:px-2">
             <TableCaption className="sr-only">
               Lịch sử thanh toán gói của tổ chức
             </TableCaption>
@@ -241,11 +245,12 @@ export function PlanPaymentHistory({
                   <TableCell>{PAYMENT_KIND_LABELS[item.paymentKind]}</TableCell>
                   <TableCell>
                     <Badge
-                      variant={
+                      variant="secondary"
+                      className={
                         item.initialOutcome ===
                         PlanPaymentReceiptOutcome.REVIEW_REQUIRED
-                          ? 'destructive'
-                          : 'secondary'
+                          ? 'border-warning/30 bg-warning/15 text-warning-strong'
+                          : undefined
                       }
                     >
                       {PAYMENT_OUTCOME_LABELS[item.initialOutcome]}

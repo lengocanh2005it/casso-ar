@@ -181,8 +181,8 @@ stable existing selector.
 
 - **Other routes and components.** Auth/onboarding and the four data tables are
   covered; other routes need route-specific layout assertions.
-- **CI.** Deliberately not in `pnpm verify` or `.github/workflows/ci.yml` yet;
-  tracked in #457.
+- **`pnpm verify`.** Viewport tests run separately as the required `viewport`
+  GitHub Actions check.
 
 Auth/onboarding clipping is checked by `assertInsideContainer` and
 `assertHitTestable`; data-table text containment is checked by the data-table
