@@ -151,7 +151,9 @@ export function SignupPage() {
               <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider block">
                 Tên tổ chức
               </span>
-              <span className="font-semibold text-foreground">
+              {/* A 200-character tax-registry name has no spaces to wrap at,
+                  so it pushes the whole document sideways without this. */}
+              <span className="font-semibold break-words text-foreground">
                 {resolvedName}
               </span>
             </div>

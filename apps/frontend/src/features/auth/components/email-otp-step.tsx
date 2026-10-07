@@ -170,8 +170,12 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
       <h1 className="text-xl font-semibold">Xác thực email</h1>
       <p className="text-sm text-muted-foreground">
         Mã đã được gửi tới email{' '}
-        <span className="font-medium text-foreground">{maskEmail(email)}</span>.
-        Vui lòng nhập mã bên dưới.
+        {/* The masked domain can be 60+ unbroken characters, which
+            overflowed the card at every width. */}
+        <span className="font-medium break-all text-foreground">
+          {maskEmail(email)}
+        </span>
+        . Vui lòng nhập mã bên dưới.
       </p>
 
       <OtpInput value={otp} onChange={setOtp} />

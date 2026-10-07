@@ -41,6 +41,27 @@ export const DEFAULT_USER: StubbedUser = {
 
 type RouteHandler = Parameters<Page['route']>[1];
 
+/**
+ * Matches an API call by pathname, not a glob.
+ *
+ * A glob ending in `api/**` also swallows the Vite dev server's own module
+ * requests — the app imports from `features/reports/api/use-reports.ts` and
+ * `features/alerts/api/use-alerts-stream.ts` — so it silently answers 501 for
+ * source files and the page never mounts.
+ */
+export const API_CALL = /^https?:\/\/[^/]+\/api\//;
+
+const escapeRegExp = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Exact-match one API pathname. The query string is deliberately outside the
+ * anchor so a lookup with a query string still matches. Paths are given
+ * relative to `/api/`, so `v1/auth/me`.
+ */
+const matcher = (path: string) =>
+  new RegExp(`^https?://[^/]+/api/${escapeRegExp(path)}(?:\\?.*)?$`);
+
 /** Fails loudly instead of letting an unstubbed call reach a dead backend. */
 const UNMATCHED = async (route: Parameters<RouteHandler>[0]) => {
   await route.fulfill({
@@ -71,7 +92,7 @@ export interface StubApiOptions {
   user?: StubbedUser;
   /** POST /api/v1/auth/refresh — mints the access token `/me` then rides on. */
   accessToken?: string;
-  /** Extra routes, keyed by the path only (`/api/v1/invites/accept`). */
+  /** Extra routes, keyed by API path (`v1/invites/accept`). */
   routes?: Record<string, RouteHandler | { status?: number; body: unknown }>;
   /**
    * Abort every unmatched `/api/**` request instead of answering 501. Useful
@@ -91,22 +112,25 @@ export async function stubApi(
     passthrough = false,
   } = options;
 
-  await page.route('**/api/v1/auth/me', json(user));
-  await page.route('**/api/v1/auth/refresh', json({ accessToken }));
+  // Registered first so the specific stubs below win: Playwright matches
+  // handlers in reverse registration order, so a catch-all added last would
+  // shadow every one of them.
+  if (!passthrough) {
+    await page.route(API_CALL, UNMATCHED);
+  }
+
+  await page.route(matcher('v1/auth/me'), json(user));
+  await page.route(matcher('v1/auth/refresh'), json({ accessToken }));
   // The 60s session poll and the dashboard prefetch both land here on any
-  // authenticated route; a bare user payload keeps them harmless.
-  await page.route('**/api/v1/reports/dashboard-summary', json({}));
+  // authenticated route; a bare payload keeps them harmless.
+  await page.route(matcher('v1/reports/dashboard-summary'), json({}));
 
   for (const [path, handler] of Object.entries(routes)) {
     const resolved =
       typeof handler === 'function'
         ? handler
         : json(handler.body, handler.status ?? 200);
-    await page.route(`**${path}`, resolved);
-  }
-
-  if (!passthrough) {
-    await page.route('**/api/**', UNMATCHED);
+    await page.route(matcher(path), resolved);
   }
 }
 
