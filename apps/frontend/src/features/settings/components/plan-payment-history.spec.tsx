@@ -107,13 +107,21 @@ describe('PlanPaymentHistory', () => {
     expect(
       screen.getByRole('columnheader', { name: 'Mã đơn PayOS' }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Nếu bảng rộng hơn màn hình, vuốt ngang để xem các cột còn lại',
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText('Chuyên nghiệp')).toBeInTheDocument();
     expect(screen.getByText('Nâng cấp gói')).toBeInTheDocument();
     expect(screen.getByText('Đã xác nhận')).toBeInTheDocument();
     expect(screen.getByText('999.000 ₫')).toBeInTheDocument();
     expect(screen.getByText('14:05 20/08/2026')).toBeInTheDocument();
     expect(screen.getByText('Không có dữ liệu')).toBeInTheDocument();
-    expect(screen.getByText('Cần đối soát')).toBeInTheDocument();
+    expect(screen.getByText('Cần đối soát')).toHaveClass(
+      'bg-warning/15',
+      'text-warning-strong',
+    );
     expect(screen.getByText('Gia hạn gói')).toBeInTheDocument();
     expect(screen.getByText('9007199254740993')).toBeInTheDocument();
   });
