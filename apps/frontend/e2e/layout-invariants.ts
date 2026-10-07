@@ -273,6 +273,8 @@ export async function assertDarkModeContrast(page: Page): Promise<void> {
   expect(failures, 'dark-mode text must meet WCAG AA contrast').toEqual([]);
 
   const chartFailures = await page.evaluate(() => {
+    type ParsedColor = { channels: number[]; alpha: number };
+
     const parseColor = (value: string) => {
       const oklch = value.match(
         /^oklch\(([\d.]+)(%?)\s+([\d.]+)(%?)\s+([\d.]+)(?:deg)?(?:\s*\/\s*([\d.]+)(%?))?\)$/u,
@@ -310,6 +312,25 @@ export async function assertDarkModeContrast(page: Page): Promise<void> {
         ? { channels: values.slice(0, 3), alpha: values[3] ?? 1 }
         : null;
     };
+    const composite = (
+      foreground: ParsedColor,
+      background: ParsedColor,
+    ): ParsedColor => {
+      const alpha =
+        foreground.alpha + background.alpha * (1 - foreground.alpha);
+      if (alpha === 0) return { channels: [0, 0, 0], alpha: 0 };
+      return {
+        channels: foreground.channels.map(
+          (channel, index) =>
+            (channel * foreground.alpha +
+              background.channels[index] *
+                background.alpha *
+                (1 - foreground.alpha)) /
+            alpha,
+        ),
+        alpha,
+      };
+    };
     const luminance = (channels: number[]) => {
       const linear = channels.map((channel) => {
         const value = channel / 255;
@@ -319,24 +340,30 @@ export async function assertDarkModeContrast(page: Page): Promise<void> {
       });
       return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
     };
-    const ratio = (foreground: string, background: string) => {
+    const ratio = (foreground: string, background: ParsedColor | null) => {
       const fg = parseColor(foreground);
-      const bg = parseColor(background);
-      if (!fg || !bg || fg.alpha < 0.99 || bg.alpha < 0.99) return null;
-      const values = [luminance(fg.channels), luminance(bg.channels)].sort(
-        (a, b) => b - a,
-      );
+      if (!fg || !background || background.alpha < 0.99) return null;
+      const visibleForeground = composite(fg, background);
+      if (visibleForeground.alpha < 0.99) return null;
+      const values = [
+        luminance(visibleForeground.channels),
+        luminance(background.channels),
+      ].sort((a, b) => b - a);
       return (values[0] + 0.05) / (values[1] + 0.05);
     };
-    const surfaceColor = (element: Element): string | null => {
+    const surfaceColor = (element: Element): ParsedColor | null => {
+      const backgrounds: ParsedColor[] = [];
       let current: Element | null = element;
       while (current) {
-        const background = getComputedStyle(current).backgroundColor;
-        const color = parseColor(background);
-        if (color && color.alpha >= 0.99) return background;
+        const color = parseColor(getComputedStyle(current).backgroundColor);
+        if (color && color.alpha > 0) backgrounds.push(color);
         current = current.parentElement;
       }
-      return null;
+      let surface: ParsedColor = { channels: [0, 0, 0], alpha: 0 };
+      for (const background of backgrounds.reverse()) {
+        surface = composite(background, surface);
+      }
+      return surface.alpha >= 0.99 ? surface : null;
     };
     const failures: string[] = [];
     for (const label of document.querySelectorAll('svg text, svg tspan')) {
@@ -347,7 +374,7 @@ export async function assertDarkModeContrast(page: Page): Promise<void> {
       const contrast = background ? ratio(foreground, background) : null;
       if (contrast !== null && contrast < 4.5) {
         failures.push(
-          `chart label “${label.textContent?.trim()}” ${foreground} on ${background} (${contrast.toFixed(2)}:1)`,
+          `chart label “${label.textContent?.trim()}” ${foreground} on rgb(${background?.channels.join(', ')}) (${contrast.toFixed(2)}:1)`,
         );
       }
     }
@@ -370,7 +397,7 @@ export async function assertDarkModeContrast(page: Page): Promise<void> {
       const contrast = background ? ratio(foreground, background) : null;
       if (contrast !== null && contrast < 3) {
         failures.push(
-          `control ${control.tagName.toLowerCase()} ${foreground} on ${background} (${contrast.toFixed(2)}:1)`,
+          `control ${control.tagName.toLowerCase()} ${foreground} on rgb(${background?.channels.join(', ')}) (${contrast.toFixed(2)}:1)`,
         );
       }
     }

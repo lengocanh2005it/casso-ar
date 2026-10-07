@@ -82,7 +82,7 @@ async function setTheme(page: Page, theme: 'light' | 'dark') {
 async function openAppSurface(
   page: Page,
   path: string,
-  readySelector: string,
+  waitForFixture: (page: Page) => Promise<void>,
   routes: NonNullable<StubApiOptions['routes']>,
   theme: 'light' | 'dark' = 'light',
   accessToken?: string,
@@ -100,7 +100,8 @@ async function openAppSurface(
       ...routes,
     },
   });
-  await openRoute(page, path, readySelector);
+  await openRoute(page, path, 'h1');
+  await waitForFixture(page);
 }
 
 async function openDashboard(
@@ -111,7 +112,18 @@ async function openDashboard(
   await openAppSurface(
     page,
     '/dashboard',
-    'h1',
+    async (readyPage) => {
+      await expect(
+        readyPage.locator('.recharts-responsive-container svg').first(),
+      ).toBeVisible();
+      if (activityCount === 0) {
+        await expect(readyPage.getByText('Chưa có hoạt động')).toBeVisible();
+      } else {
+        await expect(
+          readyPage.getByText(`Tạo khoản phải thu ${activityCount}`),
+        ).toBeVisible();
+      }
+    },
     {
       'v1/reports/dashboard-summary': { body: SUMMARY },
       'v1/reports/trend': { body: TREND },
@@ -143,14 +155,14 @@ test.describe('dashboard viewport layout', () => {
     test(`${label} activity stays within the viewport`, async ({ page }) => {
       await openDashboard(page, count);
 
-      await assertNoHorizontalScroll(page);
-      await assertChartsFit(page);
       await expect(page.getByText('Hoạt động gần đây')).toBeVisible();
       if (count > 0) {
         await expect(
           page.getByText(`Tạo khoản phải thu ${count}`),
         ).toBeVisible();
       }
+      await assertNoHorizontalScroll(page);
+      await assertChartsFit(page);
     });
   }
 
@@ -173,27 +185,41 @@ test.describe('reports viewport layout', () => {
     ['full page', 20],
   ] as const) {
     test(`${label} customer aging stays readable`, async ({ page }) => {
-      await openAppSurface(page, '/reports', 'h1', {
-        'v1/reports/dashboard-summary': { body: SUMMARY },
-        'v1/reports/aging': { body: AGING_REPORT },
-        'v1/reports/aging/customers': {
-          body: {
-            items: Array.from({ length: count }, (_, index) =>
-              customerAgingItem(index + 1),
+      await openAppSurface(
+        page,
+        '/reports',
+        async (readyPage) => {
+          await expect(
+            readyPage.getByText(
+              count === 0
+                ? 'Chưa có khách hàng còn công nợ'
+                : `Khách hàng ${count}`,
+              { exact: count > 0 },
             ),
-            total: count,
-            page: 1,
-            limit: 20,
-          },
+          ).toBeVisible();
+          await expect(
+            readyPage.locator('.recharts-responsive-container svg').first(),
+          ).toBeVisible();
         },
-        'v1/reports/trend': { body: { ...TREND, months: 12 } },
-      });
+        {
+          'v1/reports/dashboard-summary': { body: SUMMARY },
+          'v1/reports/aging': { body: AGING_REPORT },
+          'v1/reports/aging/customers': {
+            body: {
+              items: Array.from({ length: count }, (_, index) =>
+                customerAgingItem(index + 1),
+              ),
+              total: count,
+              page: 1,
+              limit: 20,
+            },
+          },
+          'v1/reports/trend': { body: { ...TREND, months: 12 } },
+        },
+      );
       await expect(
         page.getByRole('heading', { name: 'Báo cáo' }),
       ).toBeVisible();
-      await assertNoHorizontalScroll(page);
-      await assertChartsFit(page);
-
       if (count === 0) {
         await expect(
           page.getByText('Chưa có khách hàng còn công nợ'),
@@ -203,6 +229,8 @@ test.describe('reports viewport layout', () => {
           page.getByText(`Khách hàng ${count}`, { exact: true }),
         ).toBeVisible();
       }
+      await assertNoHorizontalScroll(page);
+      await assertChartsFit(page);
     });
   }
 
@@ -213,7 +241,14 @@ test.describe('reports viewport layout', () => {
       await openAppSurface(
         page,
         '/reports',
-        'h1',
+        async (readyPage) => {
+          await expect(
+            readyPage.getByText('Khách hàng 1', { exact: true }),
+          ).toBeVisible();
+          await expect(
+            readyPage.locator('.recharts-responsive-container svg').first(),
+          ).toBeVisible();
+        },
         {
           'v1/reports/dashboard-summary': { body: SUMMARY },
           'v1/reports/aging': { body: AGING_REPORT },
@@ -231,6 +266,9 @@ test.describe('reports viewport layout', () => {
       );
       await expect(
         page.getByRole('heading', { name: 'Báo cáo' }),
+      ).toBeVisible();
+      await expect(
+        page.getByText('Khách hàng 1', { exact: true }),
       ).toBeVisible();
       await assertNoHorizontalScroll(page);
       await assertChartsFit(page);
@@ -258,23 +296,33 @@ test.describe('bank connections viewport layout', () => {
     ['full page', 20],
   ] as const) {
     test(`${label} connections stay readable`, async ({ page }) => {
-      await openAppSurface(page, '/bank-connections', 'h1', {
-        'v1/bank-connections': {
-          body: {
-            items: Array.from({ length: count }, (_, index) =>
-              bankConnection(index + 1),
+      await openAppSurface(
+        page,
+        '/bank-connections',
+        async (readyPage) => {
+          await expect(
+            readyPage.getByText(
+              count === 0 ? 'Chưa có kết nối ngân hàng' : `Ngân hàng ${count}`,
+              { exact: count > 0 },
             ),
-            total: count,
-            page: 1,
-            limit: 100,
+          ).toBeVisible();
+        },
+        {
+          'v1/bank-connections': {
+            body: {
+              items: Array.from({ length: count }, (_, index) =>
+                bankConnection(index + 1),
+              ),
+              total: count,
+              page: 1,
+              limit: 100,
+            },
           },
         },
-      });
+      );
       await expect(
         page.getByRole('heading', { name: 'Kết nối ngân hàng' }),
       ).toBeVisible();
-      await assertNoHorizontalScroll(page);
-
       if (count === 0) {
         await expect(page.getByText('Chưa có kết nối ngân hàng')).toBeVisible();
       } else {
@@ -282,6 +330,7 @@ test.describe('bank connections viewport layout', () => {
           page.getByText(`Ngân hàng ${count}`, { exact: true }),
         ).toBeVisible();
       }
+      await assertNoHorizontalScroll(page);
     });
   }
 
@@ -291,7 +340,11 @@ test.describe('bank connections viewport layout', () => {
     await openAppSurface(
       page,
       '/bank-connections',
-      'h1',
+      async (readyPage) => {
+        await expect(
+          readyPage.getByText('Ngân hàng 1', { exact: true }),
+        ).toBeVisible();
+      },
       {
         'v1/bank-connections': {
           body: { items: [bankConnection(1)], total: 1, page: 1, limit: 100 },
@@ -299,6 +352,7 @@ test.describe('bank connections viewport layout', () => {
       },
       'dark',
     );
+    await expect(page.getByText('Ngân hàng 1', { exact: true })).toBeVisible();
     await assertNoHorizontalScroll(page);
     await assertDarkModeContrast(page);
   });
@@ -335,7 +389,11 @@ async function openCopilot(page: Page, count: number, theme: 'light' | 'dark') {
   await openAppSurface(
     page,
     '/copilot',
-    'h1',
+    async (readyPage) => {
+      await expect(
+        readyPage.getByText('Đã dùng 2/50 lượt Copilot trong tháng này'),
+      ).toBeVisible();
+    },
     {
       'v1/copilot/usage': {
         body: {
@@ -484,6 +542,8 @@ const SETTINGS_TABS = [
   ['Webhook', 'webhook-inbox'],
 ] as const;
 
+type SettingsTab = (typeof SETTINGS_TABS)[number][1];
+
 function settingsRoutes(count: number): NonNullable<StubApiOptions['routes']> {
   return {
     'v1/plans': { body: [] },
@@ -535,6 +595,64 @@ function settingsRoutes(count: number): NonNullable<StubApiOptions['routes']> {
   };
 }
 
+async function waitForSettingsFixture(
+  page: Page,
+  tab: SettingsTab,
+  count: number,
+): Promise<void> {
+  if (tab === 'appearance') {
+    await expect(
+      page.getByText('Chọn chế độ hiển thị cho ứng dụng.'),
+    ).toBeVisible();
+  } else if (tab === 'billing') {
+    await expect(
+      page.getByText('Chưa có thông tin giá và giới hạn cho các gói.'),
+    ).toBeVisible();
+    await expect(page.getByText('Chưa có lịch sử thanh toán.')).toBeVisible();
+  } else if (tab === 'users') {
+    if (count === 0) {
+      await expect(page.getByText('Chưa có thành viên nào.')).toBeVisible();
+      await expect(
+        page.getByText('Không có lời mời nào đang chờ.'),
+      ).toBeVisible();
+    } else {
+      await expect(
+        page.getByText(`Thành viên ${count}`, { exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByText(`invite${count}@example.test`, { exact: true }),
+      ).toBeVisible();
+    }
+  } else if (tab === 'templates') {
+    await expect(
+      page.getByText(count === 0 ? 'Chưa có mẫu email' : `Mẫu email ${count}`, {
+        exact: count > 0,
+      }),
+    ).toBeVisible();
+  } else if (tab === 'smtp') {
+    await expect(
+      page.getByText('Chưa cấu hình — email nhắc nợ đang gửi từ casso.vn.'),
+    ).toBeVisible();
+  } else if (tab === 'audit-log') {
+    await expect(
+      page.getByText(
+        count === 0
+          ? 'Chưa có nhật ký nào trong khoảng thời gian này.'
+          : `Khoản phải thu ${count}`,
+        { exact: count > 0 },
+      ),
+    ).toBeVisible();
+  } else {
+    if (count === 0) {
+      await expect(page.getByText('Chưa có webhook nào.')).toBeVisible();
+    } else {
+      await expect(
+        page.getByRole('button', { name: `Sao chép mã transaction-${count}` }),
+      ).toBeVisible();
+    }
+  }
+}
+
 test.describe('settings viewport layout', () => {
   for (const [label, count] of [
     ['empty', 0],
@@ -547,7 +665,8 @@ test.describe('settings viewport layout', () => {
       await openAppSurface(
         page,
         '/settings?tab=appearance',
-        'h1',
+        async (readyPage) =>
+          waitForSettingsFixture(readyPage, 'appearance', count),
         settingsRoutes(count),
       );
       await expect(
@@ -560,53 +679,9 @@ test.describe('settings viewport layout', () => {
           await page.getByRole('button', { name: /Xem thêm/u }).click();
         }
         await trigger.click();
-        await expect(
-          page.getByRole('heading', { name: label, exact: true }),
-        ).toBeVisible();
+        await expect(trigger).toHaveAttribute('aria-selected', 'true');
+        await waitForSettingsFixture(page, tab, count);
         await assertNoHorizontalScroll(page);
-
-        if (tab === 'users' && count > 0) {
-          await expect(
-            page.getByText(`Thành viên ${count}`, { exact: true }),
-          ).toBeVisible();
-          await expect(
-            page.getByText(`invite${count}@example.test`, { exact: true }),
-          ).toBeVisible();
-        }
-        if (tab === 'users' && count === 0) {
-          await expect(page.getByText('Chưa có thành viên nào.')).toBeVisible();
-          await expect(
-            page.getByText('Không có lời mời nào đang chờ.'),
-          ).toBeVisible();
-        }
-        if (tab === 'templates' && count > 0) {
-          await expect(
-            page.getByText(`Mẫu email ${count}`, { exact: true }),
-          ).toBeVisible();
-        }
-        if (tab === 'templates' && count === 0) {
-          await expect(page.getByText('Chưa có mẫu email')).toBeVisible();
-        }
-        if (tab === 'audit-log' && count === 0) {
-          await expect(
-            page.getByText('Chưa có nhật ký nào trong khoảng thời gian này.'),
-          ).toBeVisible();
-        }
-        if (tab === 'audit-log' && count > 0) {
-          await expect(
-            page.getByText(`Khoản phải thu ${count}`, { exact: true }),
-          ).toBeVisible();
-        }
-        if (tab === 'webhook-inbox' && count === 0) {
-          await expect(page.getByText('Chưa có webhook nào.')).toBeVisible();
-        }
-        if (tab === 'webhook-inbox' && count > 0) {
-          await expect(
-            page.getByRole('button', {
-              name: `Sao chép mã transaction-${count}`,
-            }),
-          ).toBeVisible();
-        }
       }
     });
   }
@@ -615,23 +690,36 @@ test.describe('settings viewport layout', () => {
     await openAppSurface(
       page,
       '/settings?tab=appearance',
-      'h1',
+      async (readyPage) => waitForSettingsFixture(readyPage, 'appearance', 1),
       settingsRoutes(1),
       'dark',
     );
-    for (const [label] of SETTINGS_TABS) {
+    for (const [label, tab] of SETTINGS_TABS) {
       const trigger = page.getByRole('tab', { name: label });
       if (!(await trigger.isVisible())) {
         await page.getByRole('button', { name: /Xem thêm/u }).click();
       }
       await trigger.click();
-      await expect(
-        page.getByRole('heading', { name: label, exact: true }),
-      ).toBeVisible();
+      await expect(trigger).toHaveAttribute('aria-selected', 'true');
+      await waitForSettingsFixture(page, tab, 1);
       await assertNoHorizontalScroll(page);
       await assertDarkModeContrast(page);
     }
   });
+});
+
+test('dark-mode contrast check rejects translucent low-contrast control edges', async ({
+  page,
+}) => {
+  await page.setContent(`
+    <html>
+      <body style="background: rgb(24, 24, 27)">
+        <input aria-label="contrast probe" style="border: 1px solid rgba(255, 255, 255, 0.01); background: transparent; color: white" />
+      </body>
+    </html>
+  `);
+
+  await expect(assertDarkModeContrast(page)).rejects.toThrow(/control input/u);
 });
 
 const operatorToken = `e30.${btoa(JSON.stringify({ isOperator: true, exp: 4_102_444_800 }))}.`;
@@ -755,7 +843,19 @@ test.describe('operator viewport layout', () => {
       await openAppSurface(
         page,
         '/admin/dashboard',
-        'h1',
+        async (readyPage) => {
+          await expect(
+            readyPage.getByTestId('admin-summary-grid'),
+          ).not.toContainText('–');
+          await expect(
+            readyPage
+              .getByText(
+                count === 0 ? 'Chưa có dữ liệu sử dụng.' : `Tổ chức ${count}`,
+                { exact: count > 0 },
+              )
+              .first(),
+          ).toBeVisible();
+        },
         routes,
         'light',
         operatorToken,
@@ -819,7 +919,14 @@ test.describe('operator viewport layout', () => {
     await openAppSurface(
       page,
       '/admin/dashboard',
-      'h1',
+      async (readyPage) => {
+        await expect(
+          readyPage.getByTestId('admin-summary-grid'),
+        ).not.toContainText('–');
+        await expect(
+          readyPage.getByText('Tổ chức 1', { exact: true }),
+        ).toBeVisible();
+      },
       routes,
       'dark',
       operatorToken,
@@ -829,14 +936,24 @@ test.describe('operator viewport layout', () => {
     await assertDarkModeContrast(page);
 
     await openRoute(page, '/admin/organizations', 'h1');
+    await expect(
+      page.getByRole('link', { name: 'Thành viên' }).last(),
+    ).toHaveAttribute('href', '/admin/organizations/org-1/members');
     await assertNoHorizontalScroll(page);
     await assertDarkModeContrast(page);
 
     await openRoute(page, '/admin/organizations/org-1/members', 'h1');
+    await expect(
+      page
+        .getByText('member1@example.test', { exact: true })
+        .filter({ visible: true })
+        .first(),
+    ).toBeVisible();
     await assertNoHorizontalScroll(page);
     await assertDarkModeContrast(page);
 
     await openRoute(page, '/admin/ai-usage', 'h1');
+    await expect(page.getByText('Tổ chức 1', { exact: true })).toBeVisible();
     await assertNoHorizontalScroll(page);
     await assertDarkModeContrast(page);
   });

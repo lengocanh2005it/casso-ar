@@ -57,45 +57,52 @@ export function PaymentActivityChart({ trend }: { trend: ReportsTrend }) {
   const currentMonth = trend.items.at(-1)?.month;
 
   return (
-    <div className="h-72 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={trend.items}
-          margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
-        >
-          <CartesianGrid
-            stroke="var(--border)"
-            strokeDasharray="4 4"
-            vertical={false}
-          />
-          <XAxis
-            dataKey="month"
-            interval="preserveStartEnd"
-            minTickGap={12}
-            tickLine={false}
-            axisLine={false}
-            tick={CHART_TICK}
-            tickFormatter={(value: string) => formatTrendMonthLabel(value)}
-          />
-          <YAxis
-            width={80}
-            tickLine={false}
-            axisLine={false}
-            tick={CHART_TICK}
-            tickFormatter={(value: number) =>
-              formatVND(value).replace(/\s₫$/u, '')
-            }
-          />
-          <Tooltip content={<PaymentTooltip currentMonth={currentMonth} />} />
-          <Bar
-            dataKey="collected"
-            name="Đã thu"
-            fill="var(--chart-2)"
-            radius={[4, 4, 0, 0]}
-            maxBarSize={32}
-          />
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="space-y-2">
+      <div className="h-72 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={trend.items}
+            margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+          >
+            <CartesianGrid
+              stroke="var(--border)"
+              strokeDasharray="4 4"
+              vertical={false}
+            />
+            <XAxis
+              dataKey="month"
+              interval="preserveStartEnd"
+              minTickGap={12}
+              tickLine={false}
+              axisLine={false}
+              tick={CHART_TICK}
+              tickFormatter={(value: string) => formatTrendMonthLabel(value)}
+            />
+            <YAxis
+              width={80}
+              tickLine={false}
+              axisLine={false}
+              tick={CHART_TICK}
+              tickFormatter={(value: number) =>
+                formatVND(value).replace(/\s₫$/u, '')
+              }
+            />
+            <Tooltip content={<PaymentTooltip currentMonth={currentMonth} />} />
+            <Bar
+              dataKey="collected"
+              name="Đã thu"
+              fill="var(--chart-2)"
+              radius={[4, 4, 0, 0]}
+              maxBarSize={32}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      {currentMonth && (
+        <p className="text-sm text-muted-foreground">
+          {`Tháng ${formatTrendMonthLabel(currentMonth)} là tháng hiện tại nên số liệu là tạm tính.`}
+        </p>
+      )}
     </div>
   );
 }
