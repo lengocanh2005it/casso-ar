@@ -37,6 +37,36 @@ jobs:
       - name: Run viewport tests
         run: pnpm --filter @casso-ar/frontend test:viewport
 
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.20.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build backend dependencies
+        run: pnpm turbo run build --filter='@casso-ar/backend...'
+
+      - name: Prepare backend test environment
+        run: cp apps/backend/.env.example apps/backend/.env
+
+      - name: Run backend e2e tests
+        run: pnpm --filter @casso-ar/backend test:e2e
+
   verify:
     name: verify (${{ matrix.name }})
     runs-on: ubuntu-latest

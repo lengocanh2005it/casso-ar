@@ -60,8 +60,9 @@ Do not write integration tests for every simple CRUD operation (basic Customer/I
 
 ## 5. CI contract
 
-- CI (`.github/workflows/ci.yml`) runs `pnpm verify` (lint + type-check + unit `test` + `arch-check`) and `pnpm build` on every push/PR. It does **not** run `test:e2e`.
-- **2026-08-10 decision (Plan #22 grilling session):** `test:e2e` (testcontainers suites against real PostgreSQL + Redis) stays a **local-only** command (`pnpm --filter @casso-ledger/backend test:e2e`), not wired into CI — deliberately, to avoid the added time/cost of spinning testcontainers on every push. `turbo.json` still gets a `test:e2e` task so it's runnable uniformly via `pnpm turbo run test:e2e`, just never invoked by the CI workflow. Revisit if CI minutes/cost stop being a concern, or once GitHub Actions Docker-layer caching is evaluated.
+- CI (`.github/workflows/ci.yml`) runs the verify matrix, viewport suite, and backend `test:e2e` on every pull request and push to `main`. The `e2e` job is parallel to `verify` and runs `pnpm --filter @casso-ar/backend test:e2e` with Testcontainers.
+- **2026-08-10 decision (Plan #22 grilling session; superseded by issue #206 on 2026-10-07):** `test:e2e` was kept local-only to avoid the added time/cost of spinning testcontainers on every push. Issue #206 reverses that choice because money-flow regressions covered only by E2E tests were able to merge with green CI. The `e2e` job is a required check on `main`.
+- The E2E suite must provision its own external dependencies with Testcontainers; `auth-flow.e2e-spec.ts` uses the shared Redis test helper rather than relying on `localhost:6379`. The CI job copies `apps/backend/.env.example` so a clean runner has the required non-secret test configuration. Baselines (2026-10-07): local Windows Docker Desktop 43 suites, 276 passed, 1 skipped, 9m43s; GitHub Actions Ubuntu `e2e` job 3m47s (Jest test runtime 191.916s), 43 suites, 276 passed, 1 skipped.
 - Local `test:e2e` must not downgrade testcontainers to mocks or use only shared service containers that hide environment differences.
 
 ## 6. Open questions (do not block implementation)

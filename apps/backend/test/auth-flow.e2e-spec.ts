@@ -9,6 +9,7 @@ import {
 import cookieParser from 'cookie-parser';
 import type { Redis } from 'ioredis';
 import request from 'supertest';
+import type { StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { RATE_LIMIT_REDIS_CLIENT } from '../src/common/rate-limiting/rate-limit-redis-client.provider';
@@ -18,11 +19,13 @@ import { hashToken } from '../src/modules/auth/application/token-hasher';
 import { MembershipInviteOrmEntity } from '../src/modules/auth/infrastructure/membership-invite.orm-entity';
 import { PasswordResetTokenOrmEntity } from '../src/modules/auth/infrastructure/password-reset-token.orm-entity';
 import { TAX_CODE_LOOKUP_ADAPTER } from '../src/modules/tax-verification/application/tax-code-lookup.port';
+import { startTestRedis } from './helpers/test-redis';
 
 jest.setTimeout(60_000);
 
 describe('Auth flow (integration)', () => {
   let container: StartedPostgreSqlContainer;
+  let redis: StartedTestContainer;
   let app: INestApplication;
   let dataSource: DataSource;
   let throttlerStorage: ThrottlerStorageService;
@@ -45,6 +48,7 @@ describe('Auth flow (integration)', () => {
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16').start();
+    redis = await startTestRedis();
     process.env.DB_HOST = container.getHost();
     process.env.DB_PORT = String(container.getMappedPort(5432));
     process.env.DB_USERNAME = container.getUsername();
@@ -85,7 +89,7 @@ describe('Auth flow (integration)', () => {
 
   afterAll(async () => {
     await app.close();
-    await container.stop();
+    await Promise.all([container.stop(), redis.stop()]);
   });
 
   it('signup creates a pending signup, and verifying it provisions the organization and issues a session', async () => {
