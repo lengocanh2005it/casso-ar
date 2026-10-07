@@ -82,16 +82,53 @@ Every test runs at all three projects:
 | ---------- | ----- | ------------------------------------------ |
 | `phone`    | 390   | a real phone                               |
 | `md-edge`  | **767** | the last pixel where `max-md:` still applies |
+| `tablet`   | 900   | between the two breakpoints — where a `sm:`/`md:`/`lg:` layout silently breaks |
 | `desktop`  | 1024  | desktop                                    |
 
 `767` is deliberate. Tailwind v4's `md` is 768px, so `max-md:` means *below*
 768. Asserting at 768 would test the width where the variant is already off and
 pass for the wrong reason. `767` pins the narrow side of the boundary.
 
+`900` exists because the boundary widths are not where layout actually breaks.
+A defect can hide at every edge and still appear in between; the signup confirm
+step shipped a 74px document overflow that only `phone` caught, and the auth
+card's tap targets were under 44px at all four. Edges alone would have missed
+one of those.
+
+## Tap targets
+
+`assertMinTapTarget` uses two thresholds:
+
+- **44px** for inputs and buttons.
+- **24px** for inline text links, which sit in the text flow and cannot be 44px
+  tall without moving the surrounding prose. 24px is the WCAG 2.2 AA target
+  size floor (SC 2.5.8); links get vertical padding to reach it.
+
+A `<label>` that wraps a small checkbox is the real target, not the checkbox
+itself — measure the label.
+
+## Stubbing the API
+
+The harness boots only the frontend, so `/api/*` calls are intercepted by
+`fixtures/stub-api.ts`. Use `stubApi()` for guest routes and `stubSession()` for
+routes behind `ProtectedRoute`, which writes the local session hint before the
+app's first script runs.
+
+An unmatched `/api/` call answers **501**, not a silent network error, so a
+forgotten stub shows up as a failure. The catch-all matches the API *host*, not a
+path glob: `**/api/**` also swallows the dev server's own module requests
+(`features/reports/api/use-reports.ts`), which silently 501s source files and
+stops the page mounting.
+
 ## Files
 
 - `playwright.config.ts` — projects, web server, artifacts
 - `layout-invariants.ts` — the reusable assertions
+- `fixtures/stub-api.ts` — `stubApi` / `stubSession` and the long-content
+  fixtures, shared with the authenticated-route coverage in #456
+- `auth.e2e.ts` — login, all four signup steps, email verification, forgot and
+  reset password, invite acceptance, admin login
+- `onboarding.e2e.ts` — the onboarding account picker, both states
 - `*.e2e.ts` — the tests. The `.e2e.ts` suffix keeps Playwright's default
   `*.spec.ts`/`*.test.ts` match off these files and keeps Vitest's default
   `*.spec.ts` match off Playwright's; both sides pin the pattern explicitly.
@@ -104,11 +141,14 @@ stable existing selector.
 
 ## What this does not cover
 
-- **Clipped content.** `assertNoHorizontalScroll` only catches overflow. Content
-  clipped by an `overflow-hidden` ancestor has no scrollbar and no width delta, so
-  it passes. The landing navbar clipped its own signup link this way before
-  `lg:` moved that row's breakpoint. Tracked in #455/#456.
-- **Bounded row height.** Needs the long-name data path; tracked in #456.
-- **Authenticated and operator-portal routes.** Needs a session; tracked in #455.
+- **Bounded row height.** Data-table rows need seeded long-name data, so this
+  is still unverified; tracked in #456.
+- **Authenticated routes beyond onboarding.** The session stub is in place, so
+  the remaining app routes are now reachable; tracked in #456.
+- **Operator-portal routes.** `/admin/*` beyond the login screen; tracked in
+  #456.
 - **CI.** Deliberately not in `pnpm verify` or `.github/workflows/ci.yml` yet;
   tracked in #457.
+
+Clipped content *is* covered now, by `assertInsideContainer` (a child outside
+its container) and `assertHitTestable` (a control something else paints over).
