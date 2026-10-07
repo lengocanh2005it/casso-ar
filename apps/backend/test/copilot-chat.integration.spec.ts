@@ -122,7 +122,7 @@ describe('Copilot chat (integration)', () => {
   afterAll(async () => {
     await app?.close();
     await Promise.all([redis?.stop(), postgres?.stop()]);
-  });
+  }, 120_000);
 
   async function setUpOrg(copilotChatMonthlyLimit = 50) {
     const organizationId = randomUUID();
