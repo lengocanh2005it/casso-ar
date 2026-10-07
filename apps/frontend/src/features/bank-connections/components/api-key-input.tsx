@@ -27,13 +27,16 @@ export function ApiKeyInput({
           disabled={disabled}
           autoComplete="off"
           required
-          className="pr-9"
+          // `h-11` rather than the shared `Input` default `h-9`: this field is
+          // the only control on the onboarding step, and the tap-target
+          // invariant asserts 44px.
+          className="h-11 pr-11"
         />
         <button
           type="button"
           onClick={() => setShowApiKey((current) => !current)}
           aria-label={showApiKey ? 'Ẩn mã API Key' : 'Hiện mã API Key'}
-          className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground pointer-hover:hover:text-foreground"
+          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground pointer-hover:hover:text-foreground"
         >
           {showApiKey ? (
             <EyeOff className="size-4" aria-hidden="true" />

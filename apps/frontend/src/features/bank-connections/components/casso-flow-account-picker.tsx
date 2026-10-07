@@ -142,7 +142,7 @@ export function CassoFlowAccountPicker({
         <div className="flex justify-end pt-2">
           <Button
             type="submit"
-            className="disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+            className="h-11 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
             disabled={!apiKey.trim() || isPending}
           >
             {isPending ? 'Đang kiểm tra…' : 'Xem tài khoản'}
@@ -249,7 +249,7 @@ export function CassoFlowAccountPicker({
         <Button
           type="button"
           variant="outline"
-          className="w-full sm:w-auto"
+          className="h-11 w-full sm:w-auto"
           disabled={isPending}
           onClick={handleEditApiKey}
         >
@@ -258,7 +258,7 @@ export function CassoFlowAccountPicker({
         {accounts.length > 0 && (
           <Button
             type="submit"
-            className="w-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 sm:w-auto"
+            className="h-11 w-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 sm:w-auto"
             disabled={selected.length === 0 || isPending}
           >
             {isPending ? 'Đang kết nối…' : 'Xác nhận'}
