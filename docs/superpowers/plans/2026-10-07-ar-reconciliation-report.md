@@ -18,7 +18,7 @@
 - Process at most 100 subjects per cursor page; expose `nextCursor` and `complete`.
 - Use a single SQL statement per page so each page sees one consistent database snapshot.
 - A baseline is incomplete only when current balance is nonzero and neither a rollout baseline nor an opening event exists; zero balances were intentionally skipped by the rollout migration.
-- Each finding includes `organizationId` as required by issue #424 and the user-approved response contract; this is an intentional exception to the general response-DTO redaction convention.
+- The authenticated request context identifies the tenant; finding responses omit `organizationId` per the response-DTO redaction convention.
 - Follow Clean Architecture and existing controller permission/Swagger conventions; add no dependency or migration.
 
 ---
@@ -34,7 +34,7 @@
 **Interface:**
 - `IArReconciliationQuery.listPage(organizationId, cursor, limit)` returns no more than `limit` subject snapshots and a continuation cursor.
 - `ReconcileArBalancesUseCase.execute({ cursor?, limit? })` gets `organizationId` from `TenantContextService`, defaults to 20, caps at 100, and returns `{ findings, nextCursor, complete }`.
-- Each numeric finding carries organization, subject type/ID, comparison code, stored value, expected value, and signed integer delta. An incomplete-history finding has null expected/delta.
+- Each numeric finding carries subject type/ID, comparison code, stored value, expected value, and signed integer delta. An incomplete-history finding has null expected/delta.
 
 - [x] **Step 1: Write a failing use-case test** for matching receivable/payment snapshots producing no findings and for tenant ID being taken from context.
 - [x] **Step 2: Run it and confirm the missing module/interface failure.**

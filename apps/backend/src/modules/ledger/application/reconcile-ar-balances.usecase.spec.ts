@@ -8,7 +8,6 @@ describe('ReconcileArBalancesUseCase', () => {
       listPage: jest.fn().mockResolvedValue({
         subjects: [
           {
-            organizationId: 'org-current',
             subjectType: LedgerEventSubjectType.RECEIVABLE,
             subjectId: '10000000-0000-4000-8000-000000000001',
             storedRollupAmount: 100,
@@ -19,7 +18,6 @@ describe('ReconcileArBalancesUseCase', () => {
             hasOpeningEvent: false,
           },
           {
-            organizationId: 'org-current',
             subjectType: LedgerEventSubjectType.PAYMENT,
             subjectId: '20000000-0000-4000-8000-000000000001',
             storedRollupAmount: 100,
@@ -52,7 +50,6 @@ describe('ReconcileArBalancesUseCase', () => {
       listPage: jest.fn().mockResolvedValue({
         subjects: [
           {
-            organizationId: 'org-current',
             subjectType: LedgerEventSubjectType.RECEIVABLE,
             subjectId: '10000000-0000-4000-8000-000000000002',
             storedRollupAmount: 250,
@@ -74,7 +71,6 @@ describe('ReconcileArBalancesUseCase', () => {
     await expect(useCase.execute({})).resolves.toMatchObject({
       findings: [
         {
-          organizationId: 'org-current',
           subjectType: LedgerEventSubjectType.RECEIVABLE,
           subjectId: '10000000-0000-4000-8000-000000000002',
           code: ArReconciliationFindingCode.RECEIVABLE_ALLOCATION_MISMATCH,
@@ -91,7 +87,6 @@ describe('ReconcileArBalancesUseCase', () => {
       listPage: jest.fn().mockResolvedValue({
         subjects: [
           {
-            organizationId: 'org-current',
             subjectType: LedgerEventSubjectType.PAYMENT,
             subjectId: '20000000-0000-4000-8000-000000000002',
             storedRollupAmount: 100,
@@ -127,7 +122,6 @@ describe('ReconcileArBalancesUseCase', () => {
       listPage: jest.fn().mockResolvedValue({
         subjects: [
           {
-            organizationId: 'org-current',
             subjectType: LedgerEventSubjectType.RECEIVABLE,
             subjectId: '10000000-0000-4000-8000-000000000003',
             storedRollupAmount: 0,
@@ -138,7 +132,6 @@ describe('ReconcileArBalancesUseCase', () => {
             hasOpeningEvent: false,
           },
           {
-            organizationId: 'org-current',
             subjectType: LedgerEventSubjectType.PAYMENT,
             subjectId: '20000000-0000-4000-8000-000000000003',
             storedRollupAmount: 0,

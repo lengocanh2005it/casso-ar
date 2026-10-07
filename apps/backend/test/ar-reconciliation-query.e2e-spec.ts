@@ -138,7 +138,6 @@ describe('TypeOrmArReconciliationQuery (integration)', () => {
 
     expect(firstPage.subjects).toEqual([
       {
-        organizationId,
         subjectType: LedgerEventSubjectType.RECEIVABLE,
         subjectId: receivableOneId,
         storedRollupAmount: 150,
@@ -149,7 +148,6 @@ describe('TypeOrmArReconciliationQuery (integration)', () => {
         hasOpeningEvent: false,
       },
       {
-        organizationId,
         subjectType: LedgerEventSubjectType.RECEIVABLE,
         subjectId: receivableTwoId,
         storedRollupAmount: 150,
@@ -173,7 +171,6 @@ describe('TypeOrmArReconciliationQuery (integration)', () => {
 
     expect(secondPage.subjects).toEqual([
       {
-        organizationId,
         subjectType: LedgerEventSubjectType.RECEIVABLE,
         subjectId: '10000000-0000-4000-8000-000000000003',
         storedRollupAmount: 0,
@@ -184,7 +181,6 @@ describe('TypeOrmArReconciliationQuery (integration)', () => {
         hasOpeningEvent: true,
       },
       {
-        organizationId,
         subjectType: LedgerEventSubjectType.RECEIVABLE,
         subjectId: '10000000-0000-4000-8000-000000000004',
         storedRollupAmount: 0,
@@ -208,7 +204,6 @@ describe('TypeOrmArReconciliationQuery (integration)', () => {
 
     expect(thirdPage.subjects).toEqual([
       {
-        organizationId,
         subjectType: LedgerEventSubjectType.PAYMENT,
         subjectId: paymentId,
         storedRollupAmount: 200,

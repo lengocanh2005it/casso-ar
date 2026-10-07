@@ -8,9 +8,6 @@ import { LedgerEventSubjectType } from '../../domain/ledger-event-subject-type';
 export class ArReconciliationFindingResponseDto
   implements ArReconciliationFinding
 {
-  @ApiProperty({ type: String, format: 'uuid' })
-  organizationId: string;
-
   @ApiProperty({ enum: LedgerEventSubjectType })
   subjectType: LedgerEventSubjectType;
 

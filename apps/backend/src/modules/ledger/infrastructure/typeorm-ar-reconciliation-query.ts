@@ -15,7 +15,6 @@ WITH candidates AS (
     0 AS subject_order,
     'RECEIVABLE'::text AS subject_type,
     r.id AS subject_id,
-    r."organizationId" AS organization_id,
     r."paidAmount" AS stored_rollup_amount,
     CASE
       WHEN r.status IN ('CANCELLED', 'WRITTEN_OFF') THEN 0
@@ -30,7 +29,6 @@ WITH candidates AS (
     1 AS subject_order,
     'PAYMENT'::text AS subject_type,
     p.id AS subject_id,
-    p."organizationId" AS organization_id,
     p."allocatedAmount" AS stored_rollup_amount,
     p."totalAmount" - p."allocatedAmount" AS current_balance
   FROM payments p
@@ -61,8 +59,7 @@ allocation_totals AS (
     SUM(allocation."allocatedAmount") AS amount
   FROM page_subjects subject
   JOIN payment_allocations allocation
-    ON allocation."organizationId" = subject.organization_id
-    AND allocation."organizationId" = $1
+    ON allocation."organizationId" = $1
     AND allocation."receivableId" = subject.subject_id::text
     AND allocation."deletedAt" IS NULL
   WHERE subject.subject_type = 'RECEIVABLE'
@@ -76,8 +73,7 @@ allocation_totals AS (
     SUM(allocation."allocatedAmount") AS amount
   FROM page_subjects subject
   JOIN payment_allocations allocation
-    ON allocation."organizationId" = subject.organization_id
-    AND allocation."organizationId" = $1
+    ON allocation."organizationId" = $1
     AND allocation."paymentId" = subject.subject_id::text
     AND allocation."deletedAt" IS NULL
   WHERE subject.subject_type = 'PAYMENT'
@@ -102,14 +98,12 @@ ledger_totals AS (
     ) AS has_opening_event
   FROM page_subjects subject
   LEFT JOIN ledger_events event
-    ON event."organizationId" = subject.organization_id
-    AND event."organizationId" = $1
+    ON event."organizationId" = $1
     AND event."subjectType"::text = subject.subject_type
     AND event."subjectId" = subject.subject_id
   GROUP BY subject.subject_type, subject.subject_id
 )
 SELECT
-  subject.organization_id,
   subject.subject_type,
   subject.subject_id,
   subject.stored_rollup_amount,
@@ -130,7 +124,6 @@ ORDER BY subject.subject_order, subject.subject_id
 `;
 
 interface RawArReconciliationSubjectSnapshot {
-  organization_id: string;
   subject_type: LedgerEventSubjectType;
   subject_id: string;
   stored_rollup_amount: string | number;
@@ -146,7 +139,6 @@ function toSnapshot(
   row: RawArReconciliationSubjectSnapshot,
 ): ArReconciliationSubjectSnapshot {
   return {
-    organizationId: row.organization_id,
     subjectType: row.subject_type,
     subjectId: row.subject_id,
     storedRollupAmount: Number(row.stored_rollup_amount),

@@ -64,7 +64,14 @@ export class LedgerReconciliationController {
     });
 
     return {
-      findings: result.findings,
+      findings: result.findings.map((finding) => ({
+        subjectType: finding.subjectType,
+        subjectId: finding.subjectId,
+        code: finding.code,
+        storedValue: finding.storedValue,
+        expectedValue: finding.expectedValue,
+        delta: finding.delta,
+      })),
       nextCursor: serializeCursor(result.nextCursor),
       complete: result.complete,
     };

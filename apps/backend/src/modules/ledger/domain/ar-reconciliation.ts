@@ -9,7 +9,6 @@ export enum ArReconciliationFindingCode {
 }
 
 export interface ArReconciliationSubjectSnapshot {
-  organizationId: string;
   subjectType: LedgerEventSubjectType;
   subjectId: string;
   storedRollupAmount: number;
@@ -21,7 +20,6 @@ export interface ArReconciliationSubjectSnapshot {
 }
 
 export interface ArReconciliationFinding {
-  organizationId: string;
   subjectType: LedgerEventSubjectType;
   subjectId: string;
   code: ArReconciliationFindingCode;
@@ -39,7 +37,6 @@ export function reconcileArSubject(
 
   if (subject.storedRollupAmount !== subject.activeAllocationAmount) {
     findings.push({
-      organizationId: subject.organizationId,
       subjectType: subject.subjectType,
       subjectId: subject.subjectId,
       code: isReceivable
@@ -57,7 +54,6 @@ export function reconcileArSubject(
     subject.currentBalance === 0;
   if (!hasLedgerBeginning) {
     findings.push({
-      organizationId: subject.organizationId,
       subjectType: subject.subjectType,
       subjectId: subject.subjectId,
       code: ArReconciliationFindingCode.LEDGER_BASELINE_MISSING,
@@ -67,7 +63,6 @@ export function reconcileArSubject(
     });
   } else if (subject.currentBalance !== subject.ledgerMovementAmount) {
     findings.push({
-      organizationId: subject.organizationId,
       subjectType: subject.subjectType,
       subjectId: subject.subjectId,
       code: isReceivable
