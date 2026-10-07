@@ -75,9 +75,7 @@ export function PaymentActivityChart({ trend }: { trend: ReportsTrend }) {
             tickLine={false}
             axisLine={false}
             tick={CHART_TICK}
-            tickFormatter={(value: string) =>
-              formatTrendMonthLabel(value, value === currentMonth)
-            }
+            tickFormatter={(value: string) => formatTrendMonthLabel(value)}
           />
           <YAxis
             width={80}

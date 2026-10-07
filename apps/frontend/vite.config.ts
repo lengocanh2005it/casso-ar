@@ -23,6 +23,10 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
   },
+  server: {
+    port: Number(process.env.PLAYWRIGHT_PORT ?? 5173),
+    strictPort: true,
+  },
   optimizeDeps: {
     include: ['@casso-ar/shared-types'],
   },

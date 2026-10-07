@@ -73,7 +73,7 @@ const matcher = (path: string) =>
 const unmatched: string[] = [];
 
 const UNMATCHED = async (route: Parameters<RouteHandler>[0]) => {
-  const { method } = route.request();
+  const method = route.request().method();
   const { pathname } = new URL(route.request().url());
   unmatched.push(`${method} ${pathname}`);
   await route.fulfill({
