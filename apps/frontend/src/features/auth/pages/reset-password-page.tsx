@@ -98,7 +98,7 @@ export function ResetPasswordPage() {
           {submitting ? 'Đang xử lý…' : 'Đặt lại mật khẩu'}
         </Button>
 
-        <Button variant="link" className="h-auto p-0 text-sm" asChild>
+        <Button variant="link" className="h-auto py-1 text-sm" asChild>
           <Link to="/forgot-password">Yêu cầu liên kết mới</Link>
         </Button>
       </form>

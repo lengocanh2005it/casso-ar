@@ -93,6 +93,10 @@ test.describe('onboarding — account picker', () => {
   });
 
   test('leaves every control reachable', async ({ page }) => {
+    // "Xem tài khoản" is disabled while the API key is empty, and a disabled
+    // control has `pointer-events: none` — fill the field first so the
+    // assertion measures a button a user can click.
+    await page.locator(API_KEY_READY).fill('AK_CS.test');
     await assertReachable(page, [
       API_KEY_READY,
       'button[aria-label="Hiện mã API Key"]',

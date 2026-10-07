@@ -150,7 +150,11 @@ export async function assertHitTestable(
           const y = box.top + box.height / 2;
           const hit = document.elementFromPoint(x, y);
           if (!hit) return 'nothing at centre';
-          if (hit === el || el.contains(hit) || hit.contains(el)) return 'hit';
+          // Only the element itself or a descendant counts. Accepting an
+          // ancestor would report a hit for any `pointer-events: none`
+          // element, and `disabled` buttons carry exactly that — so a
+          // control that cannot be clicked at all would pass.
+          if (hit === el || el.contains(hit)) return 'hit';
           return `covered by ${hit.tagName.toLowerCase()}.${
             hit.className?.toString().split(' ')[0] ?? ''
           }`;

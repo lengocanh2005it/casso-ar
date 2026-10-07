@@ -112,6 +112,12 @@ matrix, that overflow was invisible.
 A `<label>` that wraps a small checkbox is the real target, not the checkbox
 itself — measure the label.
 
+`assertHitTestable` accepts only the element or one of its descendants. An
+ancestor does not count: `disabled` controls carry `pointer-events: none`, so
+`elementFromPoint` returns an ancestor and a control that cannot be clicked at
+all would otherwise pass. Fill a field before asserting a button that is
+disabled until the field has a value.
+
 ## Stubbing the API
 
 The harness boots only the frontend, so `/api/*` calls are intercepted by

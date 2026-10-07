@@ -64,7 +64,11 @@ const CONTROLS = {
     'button[type="submit"]',
     'a[href="/login"]',
   ],
-  resetPassword: ['input[name="newPassword"]', 'button[type="submit"]'],
+  resetPassword: [
+    'input[name="newPassword"]',
+    'button[type="submit"]',
+    'a[href="/forgot-password"]',
+  ],
   inviteAccept: [
     'input[name="name"]',
     'input[name="password"]',
@@ -254,6 +258,14 @@ test.describe('signup — OTP step', () => {
   });
 
   test('leaves the OTP fields and submit reachable', async ({ page }) => {
+    // The submit button is `disabled` until six digits are entered, and a
+    // disabled control carries `pointer-events: none`. Fill the code first,
+    // so the assertion measures the button a user can actually click.
+    for (const index of [1, 2, 3, 4, 5, 6]) {
+      await page
+        .locator(`input[aria-label="Chữ số ${index} trong mã OTP"]`)
+        .fill(String(index));
+    }
     await assertReachable(page, CONTROLS.otp);
   });
 
@@ -271,6 +283,11 @@ test.describe('email verification', () => {
       'h1',
     );
     await assertCardLayout(page, AUTH_CARD);
+    for (const index of [1, 2, 3, 4, 5, 6]) {
+      await page
+        .locator(`input[aria-label="Chữ số ${index} trong mã OTP"]`)
+        .fill(String(index));
+    }
     await assertReachable(page, CONTROLS.otp);
   });
 
