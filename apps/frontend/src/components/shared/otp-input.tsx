@@ -8,6 +8,9 @@ interface OtpInputProps {
 }
 
 export function OtpInput({ length = 6, value, onChange }: OtpInputProps) {
+  // `size-11`, not `size-10`: a 40px field is under the 44px tap-target
+  // floor the auth viewport suite asserts. `size-11` also keeps six fields
+  // plus five gaps inside the narrowest auth card.
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   function handleChange(index: number, digit: string) {
@@ -42,7 +45,7 @@ export function OtpInput({ length = 6, value, onChange }: OtpInputProps) {
           value={value[i] ?? ''}
           onChange={(e) => handleChange(i, e.target.value)}
           onKeyDown={(e) => handleKeyDown(i, e)}
-          className="size-10 text-center text-lg"
+          className="size-11 text-center text-lg"
         />
       ))}
     </div>

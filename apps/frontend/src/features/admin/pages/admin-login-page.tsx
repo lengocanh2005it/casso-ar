@@ -62,6 +62,7 @@ export function AdminLoginPage() {
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
+                className="h-11"
                 id="email"
                 name="email"
                 autoComplete="email"
@@ -74,6 +75,7 @@ export function AdminLoginPage() {
             <div className="space-y-2">
               <Label htmlFor="password">Mật khẩu</Label>
               <Input
+                className="h-11"
                 id="password"
                 name="password"
                 autoComplete="current-password"
@@ -84,7 +86,11 @@ export function AdminLoginPage() {
               />
             </div>
             <InlineFormError message={error} />
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              className="h-11 w-full"
+              disabled={isSubmitting}
+            >
               {isSubmitting ? (
                 <>
                   <Spinner className="size-4" />

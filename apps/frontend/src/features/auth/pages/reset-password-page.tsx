@@ -73,6 +73,7 @@ export function ResetPasswordPage() {
         <div className="space-y-2">
           <Label htmlFor="newPassword">Mật khẩu mới</Label>
           <Input
+            className="h-11"
             id="newPassword"
             type="password"
             name="newPassword"
@@ -91,7 +92,7 @@ export function ResetPasswordPage() {
           type="submit"
           disabled={submitting}
           aria-busy={submitting}
-          className="w-full"
+          className="h-11 w-full"
         >
           {submitting && <Spinner />}
           {submitting ? 'Đang xử lý…' : 'Đặt lại mật khẩu'}

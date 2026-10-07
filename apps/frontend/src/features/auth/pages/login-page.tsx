@@ -76,6 +76,7 @@ export function LoginPage() {
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input
+            className="h-11"
             id="email"
             type="email"
             name="email"
@@ -91,6 +92,7 @@ export function LoginPage() {
         <div className="space-y-2">
           <Label htmlFor="password">Mật khẩu</Label>
           <Input
+            className="h-11"
             id="password"
             type="password"
             name="password"
@@ -108,7 +110,7 @@ export function LoginPage() {
           type="submit"
           disabled={submitting}
           aria-busy={submitting}
-          className="w-full"
+          className="h-11 w-full"
         >
           {submitting && <Spinner />}
           {submitting ? 'Đang xử lý…' : 'Đăng nhập'}
@@ -117,13 +119,13 @@ export function LoginPage() {
         <div className="flex justify-between text-sm">
           <Link
             to="/signup"
-            className="text-primary pointer-hover:hover:underline"
+            className="inline-block py-1 text-primary pointer-hover:hover:underline"
           >
             Tạo tài khoản
           </Link>
           <Link
             to="/forgot-password"
-            className="text-primary pointer-hover:hover:underline"
+            className="inline-block py-1 text-primary pointer-hover:hover:underline"
           >
             Quên mật khẩu?
           </Link>

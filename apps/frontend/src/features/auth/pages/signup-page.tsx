@@ -151,9 +151,11 @@ export function SignupPage() {
               <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider block">
                 Tên tổ chức
               </span>
-              {/* A 200-character tax-registry name has no spaces to wrap at,
-                  so it pushes the whole document sideways without this. */}
-              <span className="font-semibold break-words text-foreground">
+              {/* A 200-character tax-registry name has no spaces to wrap at. It needs
+                  `break-all`, not `break-words`: only a break-anywhere value
+                  lowers the element's min-content width, and the card sits in
+                  a grid track that cannot shrink below that. */}
+              <span className="font-semibold break-all text-foreground">
                 {resolvedName}
               </span>
             </div>
@@ -162,7 +164,7 @@ export function SignupPage() {
           <div className="space-y-3">
             <Button
               type="button"
-              className="w-full"
+              className="h-11 w-full"
               onClick={onConfirmOrganization}
             >
               Đúng, đây là tổ chức của tôi
@@ -171,7 +173,7 @@ export function SignupPage() {
             <Button
               type="button"
               variant="outline"
-              className="w-full"
+              className="h-11 w-full"
               onClick={goToFormWithoutPrefill}
             >
               Không phải tổ chức của tôi
@@ -180,7 +182,7 @@ export function SignupPage() {
             <Button
               type="button"
               variant="ghost"
-              className="w-full"
+              className="h-11 w-full"
               onClick={() => setStep('taxCode')}
             >
               Quay lại
@@ -212,6 +214,7 @@ export function SignupPage() {
           <div className="space-y-2">
             <Label htmlFor="organizationName">Tên tổ chức</Label>
             <Input
+              className="h-11"
               id="organizationName"
               name="organizationName"
               required
@@ -225,6 +228,7 @@ export function SignupPage() {
           <div className="space-y-2">
             <Label htmlFor="name">Họ và tên</Label>
             <Input
+              className="h-11"
               id="name"
               name="name"
               required
@@ -238,6 +242,7 @@ export function SignupPage() {
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
+              className="h-11"
               id="email"
               type="email"
               name="email"
@@ -253,6 +258,7 @@ export function SignupPage() {
           <div className="space-y-2">
             <Label htmlFor="password">Mật khẩu</Label>
             <Input
+              className="h-11"
               id="password"
               type="password"
               name="password"
@@ -271,7 +277,7 @@ export function SignupPage() {
             type="submit"
             disabled={submitting}
             aria-busy={submitting}
-            className="w-full"
+            className="h-11 w-full"
           >
             {submitting && <Spinner />}
             {submitting ? 'Đang xử lý…' : 'Tạo tài khoản'}
@@ -280,7 +286,7 @@ export function SignupPage() {
           <Button
             type="button"
             variant="ghost"
-            className="w-full"
+            className="h-11 w-full"
             disabled={submitting}
             onClick={() => {
               setStep(cameFromConfirming ? 'confirming' : 'taxCode');
@@ -316,6 +322,7 @@ export function SignupPage() {
         <div className="space-y-2">
           <Label htmlFor="taxCode">Mã số thuế</Label>
           <Input
+            className="h-11"
             id="taxCode"
             name="taxCode"
             required
@@ -336,7 +343,7 @@ export function SignupPage() {
           type="submit"
           disabled={taxCodeLoading}
           aria-busy={taxCodeLoading}
-          className="w-full"
+          className="h-11 w-full"
         >
           {taxCodeLoading && <Spinner />}
           {taxCodeLoading ? 'Đang kiểm tra…' : 'Tiếp tục'}

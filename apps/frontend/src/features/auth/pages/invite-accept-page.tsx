@@ -56,7 +56,7 @@ export function InviteAcceptPage() {
           </p>
           <Link
             to="/login"
-            className="text-primary pointer-hover:hover:underline"
+            className="inline-block py-1 text-primary pointer-hover:hover:underline"
           >
             Đến trang đăng nhập
           </Link>
@@ -78,6 +78,7 @@ export function InviteAcceptPage() {
         <div className="space-y-2">
           <Label htmlFor="name">Họ và tên</Label>
           <Input
+            className="h-11"
             id="name"
             name="name"
             required
@@ -90,6 +91,7 @@ export function InviteAcceptPage() {
         <div className="space-y-2">
           <Label htmlFor="password">Mật khẩu</Label>
           <Input
+            className="h-11"
             id="password"
             type="password"
             name="password"
@@ -107,13 +109,13 @@ export function InviteAcceptPage() {
           type="submit"
           disabled={submitting}
           aria-busy={submitting}
-          className="w-full"
+          className="h-11 w-full"
         >
           {submitting && <Spinner />}
           {submitting ? 'Đang xử lý…' : 'Tham gia'}
         </Button>
 
-        <Button variant="link" className="h-auto p-0 text-sm" asChild>
+        <Button variant="link" className="h-auto py-1 text-sm" asChild>
           <Link to="/login">← Quay lại đăng nhập</Link>
         </Button>
       </form>
