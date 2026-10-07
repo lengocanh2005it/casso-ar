@@ -30,7 +30,10 @@ export function OtpInput({ length = 6, value, onChange }: OtpInputProps) {
   }
 
   return (
-    <div className="flex gap-2">
+    // `gap-1` (4px), not `gap-2` (8px): six 44px boxes plus five 8px gaps need
+    // 304px, and the auth card only offers 280px of content at a 360px
+    // viewport. `gap-1` needs 284px, which fits down to 350px.
+    <div className="flex gap-1">
       {Array.from({ length }, (_, i) => (
         <Input
           // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length OTP input, never reorders

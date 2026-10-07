@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 /**
  * API stubs for viewport tests.
@@ -62,17 +62,27 @@ const escapeRegExp = (value: string) =>
 const matcher = (path: string) =>
   new RegExp(`^https?://[^/]+/api/${escapeRegExp(path)}(?:\\?.*)?$`);
 
-/** Fails loudly instead of letting an unstubbed call reach a dead backend. */
+/**
+ * Records every call the suite did not stub.
+ *
+ * A 501 alone does not fail a test: an unstubbed call is usually a background
+ * fetch that never blocks the ready selector, so the suite stayed green with a
+ * forgotten stub. The recorded calls are asserted empty in an `afterEach` that
+ * `stubApi` installs, which is the only place that turns them into a failure.
+ */
+const unmatched: string[] = [];
+
 const UNMATCHED = async (route: Parameters<RouteHandler>[0]) => {
+  const { method } = route.request();
+  const { pathname } = new URL(route.request().url());
+  unmatched.push(`${method} ${pathname}`);
   await route.fulfill({
     status: 501,
     contentType: 'application/json',
     body: JSON.stringify({
       statusCode: 501,
       errorCode: 'STUB_API_UNMATCHED',
-      message: `stub-api:unmatched ${route.request().method()} ${
-        new URL(route.request().url()).pathname
-      }`,
+      message: `stub-api:unmatched ${method} ${pathname}`,
     }),
   });
 };
@@ -133,6 +143,21 @@ export async function stubApi(
     await page.route(matcher(path), resolved);
   }
 }
+
+// Importing this module for its `stubApi` export also installs the hooks —
+// they are registered at collection time, which is what Playwright requires.
+// A test file that never stubs the API does not import this module and is
+// unaffected.
+test.beforeEach(() => {
+  unmatched.length = 0;
+});
+
+test.afterEach(() => {
+  expect(
+    unmatched,
+    'these API calls were not stubbed; add them to the stubApi options',
+  ).toEqual([]);
+});
 
 /**
  * Give the page a session so `useAuth` restores a user on load.

@@ -80,6 +80,7 @@ Every test runs at all three projects:
 
 | Project    | Width | Why                                        |
 | ---------- | ----- | ------------------------------------------ |
+| `phone-sm` | **360** | common Android width — the narrowest that still fits the OTP row |
 | `phone`    | 390   | a real phone                               |
 | `md-edge`  | **767** | the last pixel where `max-md:` still applies |
 | `tablet`   | 900   | between the two breakpoints — where a `sm:`/`md:`/`lg:` layout silently breaks |
@@ -94,6 +95,10 @@ A defect can hide at every edge and still appear in between; the signup confirm
 step shipped a 74px document overflow that only `phone` caught, and the auth
 card's tap targets were under 44px at all four. Edges alone would have missed
 one of those.
+
+`360` was added after review: six 44px OTP boxes plus five 8px gaps need 304px,
+and the auth card offers 280px at that width. With only `phone` 390 in the
+matrix, that overflow was invisible.
 
 ## Tap targets
 
@@ -114,9 +119,14 @@ The harness boots only the frontend, so `/api/*` calls are intercepted by
 routes behind `ProtectedRoute`, which writes the local session hint before the
 app's first script runs.
 
-An unmatched `/api/` call answers **501**, not a silent network error, so a
-forgotten stub shows up as a failure. The catch-all matches the API *host*, not a
-path glob: `**/api/**` also swallows the dev server's own module requests
+An unmatched `/api/` call answers **501** *and* is recorded; importing this
+module installs an `afterEach` that fails the test if the record is not empty.
+The 501 alone is not enough — an unstubbed call is usually a background fetch
+that never blocks the ready selector, so the suite would otherwise stay green
+with a forgotten stub.
+
+The catch-all matches the API *host*, not a path glob: `**/api/**` also swallows
+the dev server's own module requests
 (`features/reports/api/use-reports.ts`), which silently 501s source files and
 stops the page mounting.
 

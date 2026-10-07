@@ -24,6 +24,10 @@ export default defineConfig({
   },
   projects: [
     { name: 'phone', use: { viewport: { width: 390, height: 844 } } },
+    // Common Android width, and the narrowest that still fits six 44px OTP
+    // boxes in the auth card. Shipping only 390 let a 304px OTP row overflow
+    // here by 8px unnoticed.
+    { name: 'phone-sm', use: { viewport: { width: 360, height: 800 } } },
     { name: 'md-edge', use: { viewport: { width: 767, height: 900 } } },
     { name: 'tablet', use: { viewport: { width: 900, height: 900 } } },
     { name: 'desktop', use: { viewport: { width: 1024, height: 900 } } },
