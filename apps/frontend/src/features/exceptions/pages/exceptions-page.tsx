@@ -191,7 +191,7 @@ export function ExceptionsPage() {
                   // Below lg: [☐] payer ........ amount / content / date · score · Xử lý
                   <TableRow
                     key={row.transaction.id}
-                    className="max-lg:grid max-lg:grid-cols-[auto_minmax(0,1fr)_auto] max-lg:items-center max-lg:gap-x-3 max-lg:gap-y-1.5 max-lg:px-1 max-lg:py-3"
+                    className="max-lg:grid max-lg:grid-cols-[auto_minmax(0,1fr)_auto] max-lg:items-center max-lg:gap-x-3 max-lg:gap-y-1 max-lg:px-1 max-lg:py-1.5"
                   >
                     <TableCell
                       className="max-lg:col-start-1 max-lg:row-span-3 max-lg:row-start-1 max-lg:self-start max-lg:p-0"
