@@ -29,8 +29,12 @@ warning tokens, matching the non-final review state in both themes.
 Desktop and rightmost-column checks confirmed VND amounts, unknown legacy
 amounts, plan labels, confirmation outcomes, and long PayOS codes remain
 readable. Page two has four rows and reports “Trang 2 / 2 · 24 khoản thanh
-toán”. Loading, empty, error/retry, and out-of-range-page behavior are covered
-by the existing component tests.
+toán”. Loading, empty, and error/retry were also inspected in the browser: the
+empty state with zero fixture rows, the loading state while the local history
+query was held, and the error state while the local history table was
+temporarily unavailable. The table was restored immediately, then the 24
+fixture rows were reseeded and verified. Out-of-range-page behavior remains
+covered by the existing component tests.
 
 ## Evidence
 
@@ -45,3 +49,9 @@ by the existing component tests.
 ![After: mobile pagination controls](after-page-2-footer-mobile.jpg)
 
 ![After: desktop light theme](after-desktop-light.jpg)
+
+![Empty history state beside the plan cards](empty-desktop-light.jpg)
+
+![Loading history state beside the plan cards](loading-desktop-light.jpg)
+
+![History error state with retry action](error-desktop-light.jpg)
