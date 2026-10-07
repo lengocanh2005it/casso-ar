@@ -76,6 +76,7 @@ export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {
               dataKey="month"
               interval="preserveStartEnd"
               minTickGap={12}
+              padding={{ left: 8, right: 12 }}
               tickLine={false}
               axisLine={false}
               tick={CHART_TICK}

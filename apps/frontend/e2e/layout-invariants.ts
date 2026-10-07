@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, type Page } from '@playwright/test';
 
 async function settleFonts(page: Page): Promise<void> {
@@ -225,6 +226,187 @@ export async function assertInsideContainer(
       },
     )
     .toBe('inside');
+}
+
+export async function assertChartsFit(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.locator('.recharts-responsive-container').evaluateAll((charts) => {
+          const overflow: string[] = [];
+          charts.forEach((chart, index) => {
+            const host = chart.getBoundingClientRect();
+            const content = chart.querySelectorAll(
+              'svg.recharts-surface, svg text',
+            );
+            for (const element of content) {
+              const box = element.getBoundingClientRect();
+              if (box.width === 0 && box.height === 0) continue;
+              // SVG text bounds can land a fraction of a CSS pixel past the
+              // rounded container edge; allow one pixel for that rounding.
+              if (box.left < host.left - 1 || box.right > host.right + 1) {
+                overflow.push(
+                  `chart ${index}: ${element.textContent?.trim() || element.tagName.toLowerCase()} (${Math.round(box.left - host.left)}/${Math.round(box.right - host.right)})`,
+                );
+              }
+            }
+          });
+          return overflow.join(', ');
+        }),
+      {
+        message: 'chart surfaces and labels must stay inside their containers',
+      },
+    )
+    .toBe('');
+}
+
+export async function assertDarkModeContrast(page: Page): Promise<void> {
+  const { violations } = await new AxeBuilder({ page })
+    .withRules(['color-contrast'])
+    .analyze();
+  const failures = violations.flatMap((violation) =>
+    violation.nodes.map(
+      (node) =>
+        `${node.target.join(', ')}: ${node.failureSummary ?? violation.help}`,
+    ),
+  );
+  expect(failures, 'dark-mode text must meet WCAG AA contrast').toEqual([]);
+
+  const chartFailures = await page.evaluate(() => {
+    type ParsedColor = { channels: number[]; alpha: number };
+
+    const parseColor = (value: string) => {
+      const oklch = value.match(
+        /^oklch\(([\d.]+)(%?)\s+([\d.]+)(%?)\s+([\d.]+)(?:deg)?(?:\s*\/\s*([\d.]+)(%?))?\)$/u,
+      );
+      if (oklch) {
+        const lightness = Number(oklch[1]) / (oklch[2] ? 100 : 1);
+        const chroma = Number(oklch[3]) / (oklch[4] ? 100 : 1);
+        const hue = (Number(oklch[5]) * Math.PI) / 180;
+        const a = chroma * Math.cos(hue);
+        const b = chroma * Math.sin(hue);
+        const l = (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+        const m = (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+        const s = (lightness - 0.0894841775 * a - 1.291485548 * b) ** 3;
+        const linearChannels = [
+          4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+          -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+          -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+        ];
+        return {
+          channels: linearChannels.map((channel) => {
+            const linear = Math.max(0, Math.min(1, channel));
+            return (
+              255 *
+              (linear <= 0.0031308
+                ? linear * 12.92
+                : 1.055 * linear ** (1 / 2.4) - 0.055)
+            );
+          }),
+          alpha: oklch[6] ? Number(oklch[6]) / (oklch[7] ? 100 : 1) : 1,
+        };
+      }
+      if (!value.startsWith('rgb')) return null;
+      const values = value.match(/[\d.]+/gu)?.map(Number);
+      return values && values.length >= 3
+        ? { channels: values.slice(0, 3), alpha: values[3] ?? 1 }
+        : null;
+    };
+    const composite = (
+      foreground: ParsedColor,
+      background: ParsedColor,
+    ): ParsedColor => {
+      const alpha =
+        foreground.alpha + background.alpha * (1 - foreground.alpha);
+      if (alpha === 0) return { channels: [0, 0, 0], alpha: 0 };
+      return {
+        channels: foreground.channels.map(
+          (channel, index) =>
+            (channel * foreground.alpha +
+              background.channels[index] *
+                background.alpha *
+                (1 - foreground.alpha)) /
+            alpha,
+        ),
+        alpha,
+      };
+    };
+    const luminance = (channels: number[]) => {
+      const linear = channels.map((channel) => {
+        const value = channel / 255;
+        return value <= 0.04045
+          ? value / 12.92
+          : ((value + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+    };
+    const ratio = (foreground: string, background: ParsedColor | null) => {
+      const fg = parseColor(foreground);
+      if (!fg || !background || background.alpha < 0.99) return null;
+      const visibleForeground = composite(fg, background);
+      if (visibleForeground.alpha < 0.99) return null;
+      const values = [
+        luminance(visibleForeground.channels),
+        luminance(background.channels),
+      ].sort((a, b) => b - a);
+      return (values[0] + 0.05) / (values[1] + 0.05);
+    };
+    const surfaceColor = (element: Element): ParsedColor | null => {
+      const backgrounds: ParsedColor[] = [];
+      let current: Element | null = element;
+      while (current) {
+        const color = parseColor(getComputedStyle(current).backgroundColor);
+        if (color && color.alpha > 0) backgrounds.push(color);
+        current = current.parentElement;
+      }
+      let surface: ParsedColor = { channels: [0, 0, 0], alpha: 0 };
+      for (const background of backgrounds.reverse()) {
+        surface = composite(background, surface);
+      }
+      return surface.alpha >= 0.99 ? surface : null;
+    };
+    const failures: string[] = [];
+    for (const label of document.querySelectorAll('svg text, svg tspan')) {
+      const box = label.getBoundingClientRect();
+      if (box.width === 0 || box.height === 0) continue;
+      const foreground = getComputedStyle(label).fill;
+      const background = surfaceColor(label);
+      const contrast = background ? ratio(foreground, background) : null;
+      if (contrast !== null && contrast < 4.5) {
+        failures.push(
+          `chart label “${label.textContent?.trim()}” ${foreground} on rgb(${background?.channels.join(', ')}) (${contrast.toFixed(2)}:1)`,
+        );
+      }
+    }
+    for (const control of document.querySelectorAll(
+      'button[aria-label] svg, [role="button"][aria-label] svg, [role="combobox"], input:not([type="hidden"]), textarea',
+    )) {
+      const box = control.getBoundingClientRect();
+      if (box.width === 0 || box.height === 0) continue;
+      const style = getComputedStyle(control);
+      const foreground =
+        control instanceof SVGElement
+          ? style.stroke === 'none'
+            ? style.fill
+            : style.stroke
+          : style.borderTopColor;
+      const background =
+        control instanceof SVGElement
+          ? surfaceColor(control.parentElement ?? control)
+          : surfaceColor(control);
+      const contrast = background ? ratio(foreground, background) : null;
+      if (contrast !== null && contrast < 3) {
+        failures.push(
+          `control ${control.tagName.toLowerCase()} ${foreground} on rgb(${background?.channels.join(', ')}) (${contrast.toFixed(2)}:1)`,
+        );
+      }
+    }
+    return failures;
+  });
+  expect(
+    chartFailures,
+    'chart labels need 4.5:1 and visible control edges/icons need 3:1 contrast',
+  ).toEqual([]);
 }
 
 /**

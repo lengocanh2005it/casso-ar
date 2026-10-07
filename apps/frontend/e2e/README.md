@@ -37,9 +37,9 @@ Pass a `readySelector` that exists only on the fully rendered route.
 pnpm --filter @casso-ar/frontend test:viewport:install
 ```
 
-Downloads Playwright's bundled chromium (~150MB). No backend or database is
-needed: guest routes render with the API down, while authenticated routes use
-fixed browser-side API and session stubs.
+Downloads Playwright's bundled Chromium (~150MB). No backend or database is needed: guest routes render with the API down,
+while authenticated routes use deterministic browser-side API and session
+stubs.
 
 If your network blocks `cdn.playwright.dev`, point Playwright at a browser
 already installed on the machine instead of downloading one:
@@ -57,7 +57,17 @@ pnpm --filter @casso-ar/frontend test:viewport
 ```
 
 A dev server is started on :5173 and torn down afterwards. If one is already
-running locally it is reused instead.
+running locally it is reused instead. Authenticated routes use API and session
+stubs; the operator suite uses a fixture token. No backend or database is
+needed. CI installs Chromium and its system dependencies before the suite.
+
+If another worktree is using that port, set a private port for this run in
+PowerShell before starting Playwright:
+
+```powershell
+$env:PLAYWRIGHT_PORT = '5174'
+pnpm --filter @casso-ar/frontend test:viewport
+```
 
 Run a single test by name:
 
@@ -158,12 +168,22 @@ Run only this coverage with:
 pnpm --filter @casso-ar/frontend test:viewport -- --grep "data tables"
 ```
 
+Authenticated app and operator routes use deterministic API responses. Unmatched
+API requests fail the test. `retries` stays at zero locally and in CI; there is
+no flake allowance.
+
+Dark-mode checks run axe's `color-contrast` rule on each covered route. SVG chart
+labels and visible chart/control boundaries also get direct browser contrast
+checks because axe does not inspect every non-text chart element.
+
 ## Files
 
 - `playwright.config.ts` — projects, web server, artifacts
 - `layout-invariants.ts` — the reusable assertions
 - `fixtures/stub-api.ts` — `stubApi` / `stubSession` for guest and protected routes
 - `fixtures/data-table-api-fixture.ts` — fixed auth and table payloads for #456
+- `app-surfaces.e2e.ts` — dashboard, reports, bank connections, Copilot,
+  settings tabs, and operator pages in empty, one-item, and full-page states
 - `auth.e2e.ts` — login, all four signup steps, email verification, forgot and
   reset password, invite acceptance, admin login
 - `onboarding.e2e.ts` — the onboarding account picker, both states
@@ -177,13 +197,20 @@ Add it to `layout-invariants.ts`, then call it from a test. Do not add
 `data-testid` attributes to app components for this; use the accessible name or a
 stable existing selector.
 
-## What this does not cover
+## CI
 
-- **Other routes and components.** Auth/onboarding and the four data tables are
-  covered; other routes need route-specific layout assertions.
-- **`pnpm verify`.** Viewport tests run separately as the required `viewport`
-  GitHub Actions check.
+The standalone `viewport` job runs on every pull request and push to `main`.
+It is a required branch check outside `pnpm verify`. Playwright uses `retries: 0`;
+failures must be fixed rather than retried or snapshotted away.
+
+Clipped content is checked with `assertInsideContainer` and `assertChartsFit`;
+`assertHitTestable` catches controls that another element paints over.
 
 Auth/onboarding clipping is checked by `assertInsideContainer` and
 `assertHitTestable`; data-table text containment is checked by the data-table
 coverage above.
+
+## What this does not cover
+
+- **Other routes and components.** The routes and components listed above are
+  covered; other routes need route-specific layout assertions.

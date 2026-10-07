@@ -84,4 +84,16 @@ describe('PaymentActivityChart', () => {
 
     expect(screen.getByText('Chưa có khoản thu nào')).toBeInTheDocument();
   });
+
+  it('keeps a visible provisional note for the latest collection month', () => {
+    render(
+      <PaymentActivityChart
+        trend={trend([1, 1, 1, 1, 1, 1], [0, 0, 0, 0, 0, 1])}
+      />,
+    );
+
+    expect(
+      screen.getByText(/là tháng hiện tại nên số liệu là tạm tính/i),
+    ).toBeInTheDocument();
+  });
 });

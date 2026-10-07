@@ -9,7 +9,8 @@
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": ["PLAYWRIGHT_PORT"]
     },
     "lint": {},
     "type-check": {
@@ -23,7 +24,7 @@
     },
     "test:viewport": {
       "dependsOn": ["^build"],
-      "env": ["PLAYWRIGHT_CHANNEL"]
+      "env": ["PLAYWRIGHT_CHANNEL", "PLAYWRIGHT_PORT"]
     },
     "arch-check": {}
   }
