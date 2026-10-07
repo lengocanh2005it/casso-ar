@@ -51,6 +51,107 @@ export async function assertNoHorizontalOverflowIn(
     .toBe(0);
 }
 
+export async function assertRowHeightAtMost(
+  page: Page,
+  selector: string,
+  maxHeightPx: number,
+): Promise<void> {
+  const rows = page.locator(selector);
+  await expect(rows.first()).toBeVisible();
+  await expect
+    .poll(
+      () =>
+        rows.evaluateAll((elements) =>
+          Math.max(
+            ...elements.map(
+              (element) => element.getBoundingClientRect().height,
+            ),
+          ),
+        ),
+      {
+        message: `rows matching ${selector} must be at most ${maxHeightPx}px tall`,
+      },
+    )
+    .toBeLessThanOrEqual(maxHeightPx);
+}
+
+export async function assertCellContentWithinCell(
+  page: Page,
+  tableSelector: string,
+): Promise<void> {
+  const violations = await page.locator(tableSelector).evaluateAll((tables) => {
+    const failures: string[] = [];
+
+    for (const [tableIndex, table] of tables.entries()) {
+      const cells = Array.from(table.querySelectorAll('tbody td'));
+
+      for (const [cellIndex, cell] of cells.entries()) {
+        const cellBounds = cell.getBoundingClientRect();
+        const cellLabel = `table ${tableIndex + 1}, cell ${cellIndex + 1}`;
+        const visibleElements = Array.from(
+          cell.querySelectorAll<HTMLElement>('*'),
+        );
+
+        for (const element of visibleElements) {
+          const style = getComputedStyle(element);
+          if (style.display === 'none' || style.visibility === 'hidden')
+            continue;
+
+          const bounds = element.getBoundingClientRect();
+          if (bounds.width === 0 && bounds.height === 0) continue;
+          if (
+            bounds.left < cellBounds.left - 1 ||
+            bounds.right > cellBounds.right + 1
+          ) {
+            failures.push(
+              `${cellLabel}: <${element.tagName.toLowerCase()}> exceeds the cell`,
+            );
+          }
+        }
+
+        const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+        let node = walker.nextNode();
+        while (node) {
+          if (node.textContent?.trim()) {
+            let ancestor = node.parentElement;
+            let clippedInsideCell = false;
+            while (ancestor && ancestor !== cell) {
+              const overflowX = getComputedStyle(ancestor).overflowX;
+              if (['auto', 'clip', 'hidden', 'scroll'].includes(overflowX)) {
+                clippedInsideCell = true;
+                break;
+              }
+              ancestor = ancestor.parentElement;
+            }
+
+            if (!clippedInsideCell) {
+              const range = document.createRange();
+              range.selectNodeContents(node);
+              for (const bounds of Array.from(range.getClientRects())) {
+                if (
+                  bounds.left < cellBounds.left - 1 ||
+                  bounds.right > cellBounds.right + 1
+                ) {
+                  failures.push(`${cellLabel}: visible text exceeds the cell`);
+                  break;
+                }
+              }
+            }
+          }
+          node = walker.nextNode();
+        }
+      }
+    }
+
+    return failures;
+  });
+
+  expect(
+    violations,
+    `cell content in ${tableSelector} must stay within each cell`,
+  ).toEqual([]);
+}
+
 export async function assertMinTapTarget(
   page: Page,
   selector: string,

@@ -62,7 +62,7 @@ export function CustomerTable({
         {customers.map((customer) => (
           <TableRow
             key={customer.id}
-            className="max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-3 max-md:gap-y-2 max-md:px-1 max-md:py-3"
+            className="max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:gap-x-3 max-md:gap-y-1 max-md:px-1 max-md:py-2"
           >
             <TableCell className="max-w-64 max-md:col-span-2 max-md:col-start-1 max-md:row-start-1 max-md:max-w-none max-md:p-0">
               <div className="flex min-w-0 items-center gap-2">

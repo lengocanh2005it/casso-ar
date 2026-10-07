@@ -13,5 +13,12 @@
     "esModuleInterop": true,
     "noEmit": true
   },
-  "include": ["e2e", "playwright.config.ts"]
+  "include": [
+    "e2e",
+    "playwright.config.ts",
+    "src/features/customers/types.ts",
+    "src/features/exceptions/types.ts",
+    "src/features/receivables/types.ts",
+    "src/features/reminders/types.ts"
+  ]
 }

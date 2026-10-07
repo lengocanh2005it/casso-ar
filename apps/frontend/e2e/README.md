@@ -38,7 +38,8 @@ pnpm --filter @casso-ar/frontend test:viewport:install
 ```
 
 Downloads Playwright's bundled chromium (~150MB). No backend or database is
-needed: the covered routes are guest-only and render with the API down.
+needed: guest routes render with the API down, while authenticated routes use
+fixed browser-side API and session stubs.
 
 If your network blocks `cdn.playwright.dev`, point Playwright at a browser
 already installed on the machine instead of downloading one:
@@ -76,7 +77,7 @@ Failures leave a screenshot, a trace, and an `error-context.md` under
 
 ## Viewport widths
 
-Every test runs at all three projects:
+Every test runs at all five projects:
 
 | Project    | Width | Why                                        |
 | ---------- | ----- | ------------------------------------------ |
@@ -136,12 +137,33 @@ the dev server's own module requests
 (`features/reports/api/use-reports.ts`), which silently 501s source files and
 stops the page mounting.
 
+## Data-table coverage
+
+`data-tables.e2e.ts` exercises `/customers`, `/receivables`, `/exceptions`, and
+the reminder execution history on all five viewport projects. The test installs
+fixed API responses in the browser; it needs no backend or database. Its three
+customer names are over 200 characters and are reused in related table rows.
+
+At 360px, 390px, and 767px, customer and receivable rows use their `md` card
+layout. Exception rows preserve their `lg` card layout through 900px; their
+header stays hidden there too. Reminder executions keep a regular table and its
+own horizontal scroll area at narrow widths. All four tables must keep rows at
+or below 120px below 1024px and 64px at 1024px, keep cell content inside its
+cell, and avoid document-level horizontal scroll. The customer name must remain
+truncated while its full value is available through the app tooltip.
+
+Run only this coverage with:
+
+```bash
+pnpm --filter @casso-ar/frontend test:viewport -- --grep "data tables"
+```
+
 ## Files
 
 - `playwright.config.ts` — projects, web server, artifacts
 - `layout-invariants.ts` — the reusable assertions
-- `fixtures/stub-api.ts` — `stubApi` / `stubSession` and the long-content
-  fixtures, shared with the authenticated-route coverage in #456
+- `fixtures/stub-api.ts` — `stubApi` / `stubSession` for guest and protected routes
+- `fixtures/data-table-api-fixture.ts` — fixed auth and table payloads for #456
 - `auth.e2e.ts` — login, all four signup steps, email verification, forgot and
   reset password, invite acceptance, admin login
 - `onboarding.e2e.ts` — the onboarding account picker, both states
@@ -157,14 +179,11 @@ stable existing selector.
 
 ## What this does not cover
 
-- **Bounded row height.** Data-table rows need seeded long-name data, so this
-  is still unverified; tracked in #456.
-- **Authenticated routes beyond onboarding.** The session stub is in place, so
-  the remaining app routes are now reachable; tracked in #456.
-- **Operator-portal routes.** `/admin/*` beyond the login screen; tracked in
-  #456.
+- **Other routes and components.** Auth/onboarding and the four data tables are
+  covered; other routes need route-specific layout assertions.
 - **CI.** Deliberately not in `pnpm verify` or `.github/workflows/ci.yml` yet;
   tracked in #457.
 
-Clipped content *is* covered now, by `assertInsideContainer` (a child outside
-its container) and `assertHitTestable` (a control something else paints over).
+Auth/onboarding clipping is checked by `assertInsideContainer` and
+`assertHitTestable`; data-table text containment is checked by the data-table
+coverage above.
