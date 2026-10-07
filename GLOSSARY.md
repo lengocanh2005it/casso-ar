@@ -78,3 +78,9 @@ _Avoid_: Webhook log, webhook event
 **Webhook inbox recovery**:
 Getting a persisted `RECEIVED` webhook inbox back onto the queue after its enqueue failed, so it is never left scheduled for nothing. Three paths, all rescheduling under the same deterministic `tx-<providerTransactionId>` job id so a still-pending job is deduplicated: the receive path logs and rethrows so the provider retries, a duplicate provider delivery re-enqueues an inbox still in `RECEIVED`, and a periodic sweep re-enqueues inboxes left `RECEIVED` past the stale window when the provider never retries.
 _Avoid_: Webhook replay, retry
+
+## AR ledger and reconciliation
+
+**AR reconciliation finding**:
+A finding that identifies one failed comparison of a receivable or payment balance against its supporting records.
+_Avoid_: Reconciliation status

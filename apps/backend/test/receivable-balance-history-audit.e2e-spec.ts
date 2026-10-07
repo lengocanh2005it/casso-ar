@@ -426,24 +426,32 @@ describe('Receivable balance history audit (e2e)', () => {
       await request(app.getHttpServer()).get(endpoint).expect(401);
     }
 
-    // Ledger events share the same RECEIVABLE_AUDIT_READ gate.
-    const ledgerEndpoint = `/api/v1/ledger/events?subjectType=RECEIVABLE&subjectId=${receivableAId}&page=1&limit=20`;
-    await request(app.getHttpServer())
-      .get(ledgerEndpoint)
-      .set(
-        'Authorization',
-        `Bearer ${tokenFor(accountantA, orgA, Role.ACCOUNTANT)}`,
-      )
-      .expect(403);
-    await request(app.getHttpServer())
-      .get(ledgerEndpoint)
-      .set('Authorization', `Bearer ${tokenFor(salesA, orgA, Role.SALES_REP)}`)
-      .expect(403);
-    await request(app.getHttpServer())
-      .get(ledgerEndpoint)
-      .set('Authorization', `Bearer ${tokenFor(viewerA, orgA, Role.VIEWER)}`)
-      .expect(200);
-    await request(app.getHttpServer()).get(ledgerEndpoint).expect(401);
+    // Ledger reports share the same RECEIVABLE_AUDIT_READ gate.
+    const ledgerEndpoints = [
+      `/api/v1/ledger/events?subjectType=RECEIVABLE&subjectId=${receivableAId}&page=1&limit=20`,
+      '/api/v1/ledger/reconciliation',
+    ];
+    for (const endpoint of ledgerEndpoints) {
+      await request(app.getHttpServer())
+        .get(endpoint)
+        .set(
+          'Authorization',
+          `Bearer ${tokenFor(accountantA, orgA, Role.ACCOUNTANT)}`,
+        )
+        .expect(403);
+      await request(app.getHttpServer())
+        .get(endpoint)
+        .set(
+          'Authorization',
+          `Bearer ${tokenFor(salesA, orgA, Role.SALES_REP)}`,
+        )
+        .expect(403);
+      await request(app.getHttpServer())
+        .get(endpoint)
+        .set('Authorization', `Bearer ${tokenFor(viewerA, orgA, Role.VIEWER)}`)
+        .expect(200);
+      await request(app.getHttpServer()).get(endpoint).expect(401);
+    }
   });
 
   it('rejects invalid filter values with the standard validation shape', async () => {
