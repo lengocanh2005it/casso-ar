@@ -13,7 +13,6 @@ jobs:
   viewport:
     name: viewport
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -35,8 +34,8 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter @casso-ar/frontend exec playwright install --with-deps chromium
 
-      - name: Run viewport suite
-        run: pnpm turbo run test:viewport --filter=@casso-ar/frontend
+      - name: Run viewport tests
+        run: pnpm --filter @casso-ar/frontend test:viewport
 
   verify:
     name: verify (${{ matrix.name }})

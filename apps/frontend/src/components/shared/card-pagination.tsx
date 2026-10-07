@@ -61,12 +61,13 @@ export function CardPagination({
             defaultValue={page}
             // The iOS number pad has no Enter key; leaving the field jumps.
             onBlur={(event) => jumpTo(event.currentTarget.value)}
-            className="h-8 w-16 text-center tabular-nums"
+            className="h-11 w-16 text-center tabular-nums xl:h-8"
           />
         </form>
         <Button
           variant="outline"
           size="sm"
+          className="h-11 min-w-11 xl:h-8 xl:min-w-0"
           aria-label="Trang đầu"
           disabled={page <= 1}
           onClick={() => onPageChange(1)}
@@ -76,6 +77,7 @@ export function CardPagination({
         <Button
           variant="outline"
           size="sm"
+          className="h-11 xl:h-8"
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
         >
@@ -84,6 +86,7 @@ export function CardPagination({
         <Button
           variant="outline"
           size="sm"
+          className="h-11 xl:h-8"
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
         >
@@ -92,6 +95,7 @@ export function CardPagination({
         <Button
           variant="outline"
           size="sm"
+          className="h-11 min-w-11 xl:h-8 xl:min-w-0"
           aria-label="Trang cuối"
           disabled={page >= totalPages}
           onClick={() => onPageChange(totalPages)}

@@ -200,8 +200,8 @@ stable existing selector.
 ## CI
 
 The standalone `viewport` job runs on every pull request and push to `main`.
-It is a required branch check and stays outside `pnpm verify`. Playwright uses
-`retries: 0`; failures must be fixed rather than retried or snapshotted away.
+It is a required branch check outside `pnpm verify`. Playwright uses `retries: 0`;
+failures must be fixed rather than retried or snapshotted away.
 
 Clipped content is checked with `assertInsideContainer` and `assertChartsFit`;
 `assertHitTestable` catches controls that another element paints over.
@@ -209,3 +209,8 @@ Clipped content is checked with `assertInsideContainer` and `assertChartsFit`;
 Auth/onboarding clipping is checked by `assertInsideContainer` and
 `assertHitTestable`; data-table text containment is checked by the data-table
 coverage above.
+
+## What this does not cover
+
+- **Other routes and components.** The routes and components listed above are
+  covered; other routes need route-specific layout assertions.
