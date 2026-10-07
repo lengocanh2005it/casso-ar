@@ -43,7 +43,7 @@ export function ForgotPasswordPage() {
           </p>
           <Link
             to="/login"
-            className="text-primary pointer-hover:hover:underline"
+            className="inline-block py-1 text-primary pointer-hover:hover:underline"
           >
             Đến trang đăng nhập
           </Link>
@@ -65,6 +65,7 @@ export function ForgotPasswordPage() {
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input
+            className="h-11"
             id="email"
             type="email"
             name="email"
@@ -83,7 +84,7 @@ export function ForgotPasswordPage() {
           type="submit"
           disabled={submitting}
           aria-busy={submitting}
-          className="w-full"
+          className="h-11 w-full"
         >
           {submitting && <Spinner />}
           {submitting ? 'Đang gửi…' : 'Gửi liên kết'}
@@ -91,7 +92,7 @@ export function ForgotPasswordPage() {
 
         <Link
           to="/login"
-          className="block text-sm text-primary pointer-hover:hover:underline"
+          className="block py-1 text-sm text-primary pointer-hover:hover:underline"
         >
           ← Quay lại đăng nhập
         </Link>

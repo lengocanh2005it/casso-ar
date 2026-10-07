@@ -136,7 +136,7 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
             </li>
           ))}
         </ul>
-        <Button variant="link" className="h-auto p-0 text-sm" asChild>
+        <Button variant="link" className="h-auto py-1 text-sm" asChild>
           <Link to="/login">Đến trang đăng nhập</Link>
         </Button>
       </div>
@@ -155,7 +155,7 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
         <p className="text-sm text-foreground">{rejectedMessage}</p>
         <Link
           to="/login"
-          className="text-primary pointer-hover:hover:underline"
+          className="inline-block py-1 text-primary pointer-hover:hover:underline"
         >
           Đến trang đăng nhập
         </Link>
@@ -170,8 +170,12 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
       <h1 className="text-xl font-semibold">Xác thực email</h1>
       <p className="text-sm text-muted-foreground">
         Mã đã được gửi tới email{' '}
-        <span className="font-medium text-foreground">{maskEmail(email)}</span>.
-        Vui lòng nhập mã bên dưới.
+        {/* The masked domain can be 60+ unbroken characters, which
+            overflowed the card at every width. */}
+        <span className="font-medium break-all text-foreground">
+          {maskEmail(email)}
+        </span>
+        . Vui lòng nhập mã bên dưới.
       </p>
 
       <OtpInput value={otp} onChange={setOtp} />
@@ -191,7 +195,7 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
         type="submit"
         disabled={otp.length !== 6 || confirming}
         aria-busy={confirming}
-        className="w-full"
+        className="h-11 w-full"
       >
         {confirming && <Spinner />}
         {confirming ? 'Đang xác nhận…' : 'Xác nhận'}
@@ -204,7 +208,7 @@ export function EmailOtpStep({ email, onVerified }: EmailOtpStepProps) {
         onClick={onResend}
       />
 
-      <Button variant="link" className="h-auto p-0 text-sm" asChild>
+      <Button variant="link" className="h-auto py-1 text-sm" asChild>
         <Link to="/login">← Quay lại đăng nhập</Link>
       </Button>
     </form>

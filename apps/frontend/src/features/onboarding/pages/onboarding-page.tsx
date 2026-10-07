@@ -94,7 +94,7 @@ export function OnboardingPage() {
         <Button
           type="button"
           variant="outline"
-          className="w-full"
+          className="h-11 w-full"
           onClick={() => navigate('/dashboard')}
         >
           Bỏ qua, đến trang chủ
