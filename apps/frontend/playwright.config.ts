@@ -25,6 +25,7 @@ export default defineConfig({
   projects: [
     { name: 'phone', use: { viewport: { width: 390, height: 844 } } },
     { name: 'md-edge', use: { viewport: { width: 767, height: 900 } } },
+    { name: 'tablet', use: { viewport: { width: 900, height: 900 } } },
     { name: 'desktop', use: { viewport: { width: 1024, height: 900 } } },
   ],
   webServer: {
