@@ -61,6 +61,9 @@ jobs:
       - name: Build backend dependencies
         run: pnpm turbo run build --filter='@casso-ar/backend...'
 
+      - name: Prepare backend test environment
+        run: cp apps/backend/.env.example apps/backend/.env
+
       - name: Run backend e2e tests
         run: pnpm --filter @casso-ar/backend test:e2e
 

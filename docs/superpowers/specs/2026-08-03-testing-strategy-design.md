@@ -62,7 +62,7 @@ Do not write integration tests for every simple CRUD operation (basic Customer/I
 
 - CI (`.github/workflows/ci.yml`) runs the verify matrix, viewport suite, and backend `test:e2e` on every pull request and push to `main`. The `e2e` job is parallel to `verify` and runs `pnpm --filter @casso-ar/backend test:e2e` with Testcontainers.
 - **2026-08-10 decision (Plan #22 grilling session; superseded by issue #206 on 2026-10-07):** `test:e2e` was kept local-only to avoid the added time/cost of spinning testcontainers on every push. Issue #206 reverses that choice because money-flow regressions covered only by E2E tests were able to merge with green CI. The `e2e` job is a required check on `main`.
-- The E2E suite must provision its own external dependencies with Testcontainers; `auth-flow.e2e-spec.ts` uses the shared Redis test helper rather than relying on `localhost:6379`. Local Windows Docker Desktop baseline (2026-10-07): 43 suites, 276 passed, 1 skipped, 9m43s. Record the hosted Ubuntu runtime after its first CI run.
+- The E2E suite must provision its own external dependencies with Testcontainers; `auth-flow.e2e-spec.ts` uses the shared Redis test helper rather than relying on `localhost:6379`. The CI job copies `apps/backend/.env.example` so a clean runner has the required non-secret test configuration. Local Windows Docker Desktop baseline (2026-10-07): 43 suites, 276 passed, 1 skipped, 9m43s. Record the hosted Ubuntu runtime after its first passing CI run.
 - Local `test:e2e` must not downgrade testcontainers to mocks or use only shared service containers that hide environment differences.
 
 ## 6. Open questions (do not block implementation)
