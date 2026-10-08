@@ -1,4 +1,5 @@
 import { ReceivableStatus } from '@casso-ar/shared-types';
+import { Logger } from '@nestjs/common';
 import { Role } from '../../organizations/domain/membership';
 import { Receivable } from '../../receivables/domain/receivable';
 import { CollectionActivityType } from '../domain/collection-activity';
@@ -117,6 +118,12 @@ describe('CollectionActivityListener', () => {
     const tenantContext = {
       run: (_user: unknown, cb: () => unknown) => cb(),
       getOrganizationId: () => 'org-1',
+      getCurrentUser: () => ({
+        userId: 'user-2',
+        organizationId: 'org-1',
+        role: Role.FINANCE_MANAGER,
+        requestId: 'req-1',
+      }),
     };
     const listener = new CollectionActivityListener(
       activityRepo as any,
@@ -124,18 +131,32 @@ describe('CollectionActivityListener', () => {
       tenantContext as any,
     );
 
-    await expect(
-      listener.onPaymentAllocationUndone({
-        allocationId: 'alloc-1',
-        paymentId: 'pay-1',
-        receivableId: 'rec-1',
-        customerId: 'cust-1',
-        organizationId: 'org-1',
-        amount: 30_000_000,
-        undoneByUserId: 'user-2',
-        undoReason: 'Sai lệch đối soát',
-      }),
-    ).resolves.toBeUndefined();
+    const errorLog = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    try {
+      await expect(
+        listener.onPaymentAllocationUndone({
+          allocationId: 'alloc-1',
+          paymentId: 'pay-1',
+          receivableId: 'rec-1',
+          customerId: 'cust-1',
+          organizationId: 'org-1',
+          amount: 30_000_000,
+          undoneByUserId: 'user-2',
+          undoReason: 'Sai lệch đối soát',
+        }),
+      ).resolves.toBeUndefined();
+      expect(errorLog).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: 'org-1',
+          userId: 'user-2',
+          requestId: 'req-1',
+        }),
+      );
+    } finally {
+      errorLog.mockRestore();
+    }
   });
 
   it('writes a RECEIVABLE_CLOSED row on receivable.closed', async () => {
@@ -343,6 +364,7 @@ describe('CollectionActivityListener', () => {
     const tenantContext = {
       run: (_user: unknown, cb: () => unknown) => cb(),
       getOrganizationId: () => 'org-1',
+      getCurrentUser: () => undefined,
     };
 
     const listener = new CollectionActivityListener(
@@ -377,6 +399,7 @@ describe('CollectionActivityListener', () => {
     const tenantContext = {
       run: (_user: unknown, cb: () => unknown) => cb(),
       getOrganizationId: () => 'org-1',
+      getCurrentUser: () => undefined,
     };
 
     const listener = new CollectionActivityListener(

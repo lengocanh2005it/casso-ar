@@ -3,6 +3,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import type { PaymentAllocationUndoneEvent } from '../../../common/events/payment-allocation-undone.event';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { Role } from '../../organizations/domain/membership';
 import {
@@ -28,17 +29,6 @@ export interface PaymentAllocatedEvent {
   // auto-match, exception-queue match) with no human allocator — matches
   // PaymentAllocation.allocatedByUserId.
   allocatedByUserId: string | null;
-}
-
-export interface PaymentAllocationUndoneEvent {
-  allocationId: string;
-  paymentId: string;
-  receivableId: string;
-  customerId: string;
-  organizationId: string;
-  amount: number;
-  undoneByUserId: string;
-  undoReason: string;
 }
 
 export interface ReceivableClosedEvent {
@@ -245,10 +235,13 @@ export class CollectionActivityListener {
     try {
       await fn();
     } catch (error) {
+      const user = this.tenantContext.getCurrentUser();
       this.logger.error({
         message: `Failed to record collection activity for event "${eventName}"`,
         receivableId,
         organizationId,
+        userId: user?.userId,
+        requestId: user?.requestId,
         error: error instanceof Error ? error.message : String(error),
       });
     }

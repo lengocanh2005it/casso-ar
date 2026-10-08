@@ -16,6 +16,7 @@ import {
   EVENT_PUBLISHER,
   type IEventPublisher,
 } from '../../../common/events/event-publisher.port';
+import type { PaymentAllocationUndoneEvent } from '../../../common/events/payment-allocation-undone.event';
 import { LedgerEventRecorderService } from '../../ledger/application/ledger-event-recorder.service';
 import { LedgerEventKind } from '../../ledger/domain/ledger-event-kind';
 import { LedgerEventSubjectType } from '../../ledger/domain/ledger-event-subject-type';
@@ -60,7 +61,7 @@ export class UndoPaymentAllocationUseCase {
   ) {}
 
   async execute(input: UndoPaymentAllocationInput): Promise<void> {
-    let activityEvent: Record<string, unknown> | undefined;
+    let activityEvent: PaymentAllocationUndoneEvent | undefined;
 
     await this.dataSource.transaction(async (manager: EntityManager) => {
       const allocation = await this.allocationRepo.findByIdForUpdate(
