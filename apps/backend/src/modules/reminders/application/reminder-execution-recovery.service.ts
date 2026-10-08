@@ -1,12 +1,11 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
 import { TenantContextService } from '../../../common/tenancy/tenant-context';
 import { REMINDER_EXECUTION_REPOSITORY } from '../../../common/tokens/reminder-execution.token';
-import {
-  type IOrganizationRepository,
-  ORGANIZATION_REPOSITORY,
-} from '../../organizations/application/organization-repository.port';
 import { Role } from '../../organizations/domain/membership';
+import {
+  type IReminderExecutionRecoveryWorklist,
+  REMINDER_EXECUTION_RECOVERY_WORKLIST,
+} from './reminder-execution-recovery-worklist.port';
 import type { IReminderExecutionRepository } from './reminder-execution-repository.port';
 import { ReminderSenderService } from './reminder-sender.service';
 
@@ -18,18 +17,20 @@ export class ReminderExecutionRecoveryService {
   private readonly logger = new Logger(ReminderExecutionRecoveryService.name);
 
   constructor(
-    @Inject(ORGANIZATION_REPOSITORY)
-    private readonly organizationRepo: IOrganizationRepository,
+    @Inject(REMINDER_EXECUTION_RECOVERY_WORKLIST)
+    private readonly recoveryWorklist: IReminderExecutionRecoveryWorklist,
     @Inject(REMINDER_EXECUTION_REPOSITORY)
     private readonly executionRepo: IReminderExecutionRepository,
     private readonly reminderSender: ReminderSenderService,
     private readonly tenantContext: TenantContextService,
   ) {}
 
-  @Cron('*/1 * * * *')
   async recoverStalePending(now: Date = new Date()): Promise<void> {
     const cutoff = new Date(now.getTime() - RECOVERY_INTERVAL_MS);
-    const organizationIds = await this.organizationRepo.findAllIds();
+    const organizationIds =
+      await this.recoveryWorklist.findOrganizationIdsWithStalePendingBefore(
+        cutoff,
+      );
 
     for (const organizationId of organizationIds) {
       try {

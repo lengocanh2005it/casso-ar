@@ -1,11 +1,11 @@
 import type { TenantContextService } from '../../../common/tenancy/tenant-context';
-import type { IOrganizationRepository } from '../../organizations/application/organization-repository.port';
 import { Role } from '../../organizations/domain/membership';
 import {
   ReminderExecution,
   ReminderExecutionStatus,
 } from '../domain/reminder-execution';
 import { ReminderExecutionRecoveryService } from './reminder-execution-recovery.service';
+import type { IReminderExecutionRecoveryWorklist } from './reminder-execution-recovery-worklist.port';
 import type { IReminderExecutionRepository } from './reminder-execution-repository.port';
 import type { ReminderSenderService } from './reminder-sender.service';
 
@@ -29,11 +29,13 @@ function makeExecution(
 }
 
 describe('ReminderExecutionRecoveryService', () => {
-  it('scans each organization under owner tenant context with a one-minute cutoff and limit 100', async () => {
+  it('scans only worklisted organizations under owner tenant context with a one-minute cutoff and limit 100', async () => {
     const now = new Date('2026-08-03T12:34:56.000Z');
     const orgIds = ['org-1', 'org-2'];
-    const organizationRepo = {
-      findAllIds: jest.fn().mockResolvedValue(orgIds),
+    const worklist = {
+      findOrganizationIdsWithStalePendingBefore: jest
+        .fn()
+        .mockResolvedValue(orgIds),
     };
     const executionRepo = {
       findPendingAutomatedBefore: jest.fn().mockResolvedValue([]),
@@ -43,7 +45,7 @@ describe('ReminderExecutionRecoveryService', () => {
       run: jest.fn((_context, callback) => callback()),
     };
     const service = new ReminderExecutionRecoveryService(
-      organizationRepo as unknown as IOrganizationRepository,
+      worklist as unknown as IReminderExecutionRecoveryWorklist,
       executionRepo as unknown as IReminderExecutionRepository,
       sender as unknown as ReminderSenderService,
       tenantContext as unknown as TenantContextService,
@@ -52,6 +54,9 @@ describe('ReminderExecutionRecoveryService', () => {
     await service.recoverStalePending(now);
 
     const cutoff = new Date(now.getTime() - 60_000);
+    expect(
+      worklist.findOrganizationIdsWithStalePendingBefore,
+    ).toHaveBeenCalledWith(cutoff);
     expect(tenantContext.run).toHaveBeenNthCalledWith(
       1,
       { userId: 'system', organizationId: 'org-1', role: Role.OWNER },
@@ -74,6 +79,29 @@ describe('ReminderExecutionRecoveryService', () => {
     );
   });
 
+  it('does not query tenant executions when the worklist is empty', async () => {
+    const worklist = {
+      findOrganizationIdsWithStalePendingBefore: jest
+        .fn()
+        .mockResolvedValue([]),
+    };
+    const executionRepo = {
+      findPendingAutomatedBefore: jest.fn(),
+    };
+    const tenantContext = { run: jest.fn() };
+    const service = new ReminderExecutionRecoveryService(
+      worklist as unknown as IReminderExecutionRecoveryWorklist,
+      executionRepo as unknown as IReminderExecutionRepository,
+      { send: jest.fn() } as unknown as ReminderSenderService,
+      tenantContext as unknown as TenantContextService,
+    );
+
+    await service.recoverStalePending(new Date('2026-08-03T12:00:00.000Z'));
+
+    expect(executionRepo.findPendingAutomatedBefore).not.toHaveBeenCalled();
+    expect(tenantContext.run).not.toHaveBeenCalled();
+  });
+
   it('recovers at most the 100 oldest rule-based executions returned for an organization', async () => {
     const executions = Array.from({ length: 103 }, (_, index) =>
       makeExecution(`exec-${index}`),
@@ -87,8 +115,10 @@ describe('ReminderExecutionRecoveryService', () => {
     };
     const service = new ReminderExecutionRecoveryService(
       {
-        findAllIds: jest.fn().mockResolvedValue(['org-1']),
-      } as unknown as IOrganizationRepository,
+        findOrganizationIdsWithStalePendingBefore: jest
+          .fn()
+          .mockResolvedValue(['org-1']),
+      } as unknown as IReminderExecutionRecoveryWorklist,
       executionRepo as unknown as IReminderExecutionRepository,
       sender as unknown as ReminderSenderService,
       tenantContext as unknown as TenantContextService,
@@ -123,8 +153,10 @@ describe('ReminderExecutionRecoveryService', () => {
     };
     const service = new ReminderExecutionRecoveryService(
       {
-        findAllIds: jest.fn().mockResolvedValue(['org-1']),
-      } as unknown as IOrganizationRepository,
+        findOrganizationIdsWithStalePendingBefore: jest
+          .fn()
+          .mockResolvedValue(['org-1']),
+      } as unknown as IReminderExecutionRecoveryWorklist,
       executionRepo as unknown as IReminderExecutionRepository,
       sender as unknown as ReminderSenderService,
       tenantContext as unknown as TenantContextService,
@@ -152,8 +184,10 @@ describe('ReminderExecutionRecoveryService', () => {
     };
     const service = new ReminderExecutionRecoveryService(
       {
-        findAllIds: jest.fn().mockResolvedValue(['org-1']),
-      } as unknown as IOrganizationRepository,
+        findOrganizationIdsWithStalePendingBefore: jest
+          .fn()
+          .mockResolvedValue(['org-1']),
+      } as unknown as IReminderExecutionRecoveryWorklist,
       executionRepo as unknown as IReminderExecutionRepository,
       sender as unknown as ReminderSenderService,
       tenantContext as unknown as TenantContextService,
@@ -178,8 +212,10 @@ describe('ReminderExecutionRecoveryService', () => {
     };
     const service = new ReminderExecutionRecoveryService(
       {
-        findAllIds: jest.fn().mockResolvedValue(['org-1', 'org-2']),
-      } as unknown as IOrganizationRepository,
+        findOrganizationIdsWithStalePendingBefore: jest
+          .fn()
+          .mockResolvedValue(['org-1', 'org-2']),
+      } as unknown as IReminderExecutionRecoveryWorklist,
       executionRepo as unknown as IReminderExecutionRepository,
       sender as unknown as ReminderSenderService,
       tenantContext as unknown as TenantContextService,

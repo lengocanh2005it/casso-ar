@@ -18,6 +18,10 @@ import { configureApp } from '../src/configure-app';
 import { SubscriptionOrmEntity } from '../src/modules/billing/infrastructure/subscription.orm-entity';
 import { EMAIL_PROVIDER_ADAPTER } from '../src/modules/notifications/application/email-provider-adapter.port';
 import { EMAIL_PROVIDER_RESOLVER } from '../src/modules/notifications/application/email-provider-resolver.port';
+import {
+  EMAIL_QUEUE_PORT,
+  type IEmailQueue,
+} from '../src/modules/notifications/application/email-queue.port';
 import { EMAIL_QUEUE } from '../src/modules/notifications/infrastructure/email-queue.constants';
 import { EmailQueueProcessor } from '../src/modules/notifications/infrastructure/email-queue.processor';
 import { Role } from '../src/modules/organizations/domain/membership';
@@ -323,40 +327,51 @@ describe('BYO SMTP configuration and fallback (e2e)', () => {
     });
 
     resendAdapter.send.mockClear();
+    await queue.pause();
     const processor = app.get(EmailQueueProcessor);
-    await processor.onFailed({
-      id: reminderExecutionId,
-      name: 'send-reminder-email',
-      data: {
-        reminderExecutionId,
-        receivableId: randomUUID(),
-        organizationId,
-        to: 'customer@example.com',
-        replyTo: 'wrong-reply-to@example.com',
-        subject: 'Reminder',
-        html: '<p>Reminder</p>',
-      },
-      attemptsMade: 3,
-      opts: { attempts: 3 },
-    } as Job);
+    const isCurrentFailure = jest
+      .spyOn(
+        app.get<IEmailQueue>(EMAIL_QUEUE_PORT),
+        'isReminderJobFailureCurrent',
+      )
+      .mockResolvedValue(true);
+    let fallback: Job | undefined;
+    try {
+      await processor.onFailed({
+        id: reminderExecutionId,
+        name: 'send-reminder-email',
+        data: {
+          reminderExecutionId,
+          receivableId: randomUUID(),
+          organizationId,
+          to: 'customer@example.com',
+          replyTo: 'wrong-reply-to@example.com',
+          subject: 'Reminder',
+          html: '<p>Reminder</p>',
+        },
+        attemptsMade: 3,
+        opts: { attempts: 3 },
+      } as Job);
+      expect(isCurrentFailure).toHaveBeenCalledWith(reminderExecutionId, 3);
 
-    const failedConfig = await dataSource
-      .getRepository(OrganizationSmtpConfigOrmEntity)
-      .findOneByOrFail({ id: config.id });
-    expect(failedConfig.status).toBe(SmtpConfigStatus.FAILED);
-    expect(resendAdapter.send).toHaveBeenCalledTimes(1);
-    expect(resendAdapter.send.mock.calls[0][0]).toBe(
-      `smtp-owner-${organizationId}@example.com`,
-    );
-    const pending = await dataSource
-      .getRepository(ReminderExecutionOrmEntity)
-      .findOneByOrFail({ id: reminderExecutionId });
-    expect(pending.status).toBe(ReminderExecutionStatus.PENDING);
+      const failedConfig = await dataSource
+        .getRepository(OrganizationSmtpConfigOrmEntity)
+        .findOneByOrFail({ id: config.id });
+      expect(failedConfig.status).toBe(SmtpConfigStatus.FAILED);
+      expect(resendAdapter.send).toHaveBeenCalledTimes(1);
+      expect(resendAdapter.send.mock.calls[0][0]).toBe(
+        `smtp-owner-${organizationId}@example.com`,
+      );
+      const pending = await dataSource
+        .getRepository(ReminderExecutionOrmEntity)
+        .findOneByOrFail({ id: reminderExecutionId });
+      expect(pending.status).toBe(ReminderExecutionStatus.PENDING);
 
-    const fallback = await queue.getJob(
-      `${reminderExecutionId}-resend-fallback`,
-    );
-    expect(fallback).not.toBeNull();
+      fallback = await queue.getJob(`${reminderExecutionId}-resend-fallback`);
+      expect(fallback).not.toBeNull();
+    } finally {
+      await queue.resume();
+    }
     await waitForExecutionStatus(
       reminderExecutionId,
       ReminderExecutionStatus.SENT,

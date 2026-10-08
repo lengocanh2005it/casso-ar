@@ -4,7 +4,7 @@
 
 **Goal:** Recover rule-based reminder executions left `PENDING` after email enqueue failure, retaining one execution and deterministic BullMQ job identities.
 
-**Architecture:** `ReminderSenderService` resumes an existing pending execution after checking email queue state, revalidates the receivable and rule, and reuses the execution ID. A one-minute per-organization recovery service calls that same public sender seam for at most 100 stale executions; TypeORM scopes the scan by the current tenant, and `BullMqEmailQueue` serializes recovery with final-failure handling under a renewable per-execution Redis lock before inspecting or retrying original/fallback jobs.
+**Architecture:** `ReminderSenderService` resumes an existing pending execution after checking email queue state, revalidates the receivable and rule, and reuses the execution ID. An index-backed worklist returns only organization IDs with stale automated executions; the one-minute application recovery service enters each tenant context and recovers at most 100 rows through the public sender seam. An infrastructure scheduler owns the cron decorator. `BullMqEmailQueue` serializes recovery with final-failure handling under a renewable per-execution Redis lock before inspecting or retrying original/fallback jobs.
 
 **Tech Stack:** NestJS 11, TypeORM 1.1, BullMQ 6.0.8, PostgreSQL, Jest 30, pnpm 11.20.0.
 
@@ -12,6 +12,7 @@
 
 - `presentation → application → domain`, `infrastructure → application`; application ports do not import BullMQ or TypeORM concrete classes.
 - Every execution query and write is scoped by `organizationId` from `TenantContextService`.
+- The system worklist returns only organization IDs from stale automated pending rows; execution data is re-read only after entering the corresponding tenant context.
 - Every status transition is transactional and conditional on the execution still being `PENDING`.
 - Existing job IDs are reused: `<executionId>` for the reminder and `<executionId>-resend-fallback` for SMTP fallback.
 - The recovery cron runs once per minute, waits one minute after `createdAt`, and handles at most 100 oldest rule-based executions per organization.
@@ -186,16 +187,20 @@ Expected: sender and queue-port integration behavior passes with the same execut
 **Files:**
 - Create: `apps/backend/src/modules/reminders/application/reminder-execution-recovery.service.ts`
 - Create: `apps/backend/src/modules/reminders/application/reminder-execution-recovery.service.spec.ts`
+- Create: `apps/backend/src/modules/reminders/application/reminder-execution-recovery-worklist.port.ts`
+- Create: `apps/backend/src/modules/reminders/infrastructure/reminder-execution-recovery.scheduler.ts` and its spec
+- Create: `apps/backend/src/modules/reminders/infrastructure/typeorm-reminder-execution-recovery-worklist.ts` and its spec
 - Modify: `apps/backend/src/modules/reminders/reminders.module.ts`
 
 **Interfaces:**
-- Add `ReminderExecutionRecoveryService.recoverStalePending(now = new Date()): Promise<void>` and cron `*/1 * * * *`.
-- Read organization IDs, enter the existing system-owner tenant context per organization, select the 100 oldest automated pending rows with `createdAt <= now - one minute`, and call the public sender seam using the persisted rule/receivable/date.
+- Add `ReminderExecutionRecoveryService.recoverStalePending(now = new Date()): Promise<void>`; invoke it every minute through an infrastructure scheduler adapter.
+- Build an index-backed worklist of distinct organization IDs with automated pending rows where `createdAt <= now - one minute`. The worklist returns IDs only; enter the existing system-owner tenant context before loading execution rows.
+- For each worklisted organization, select the 100 oldest automated pending rows and call the public sender seam using the persisted rule/receivable/date.
 - Catch each execution failure, log its organization/execution context, and continue to later rows. Catch an organization failure and continue to the next organization.
 
 - [x] **Step 1: Write failing recovery-service tests**
 
-Cover the one-minute cutoff, a maximum of 100 oldest rows per organization, `reminderRuleId = null` excluded by the repository contract, tenant context for each organization, continuing after one failed sender call, and organization-level failure isolation.
+Cover the one-minute cutoff, worklist-selected organization IDs, a maximum of 100 oldest rows per organization, `reminderRuleId = null` excluded by the repository contract, tenant context for each organization, continuing after one failed sender call, and organization-level failure isolation. Test the TypeORM worklist's stale predicates and distinct ID-only selection; test that the infrastructure scheduler delegates its minute tick.
 
 - [x] **Step 2: Run the new recovery-service spec and confirm expected failures**
 
@@ -248,4 +253,4 @@ Run `/domain-check` using the repository instructions, then `git diff --check` a
 
 - [x] **Step 4: Update the spec with implemented behavior and observed validation**
 
-Record the implementation refinements and observed verification results in the design spec. Final fresh verification is being repeated after this documentation update.
+Record the implementation refinements and observed verification results in the design spec. Final validation after review feedback: `pnpm verify` passed; backend unit tests passed 399 suites / 1698 tests; backend e2e passed 44 suites / 277 tests (1 skipped); focused recovery specs passed 8/8; SMTP config e2e passed 5/5; backend type-check and architecture check passed.
