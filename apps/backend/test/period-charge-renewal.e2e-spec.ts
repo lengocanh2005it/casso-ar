@@ -78,6 +78,15 @@ const fakeAdapter: IPayosPaymentAdapter = {
 const noOpEmailQueue: IEmailQueue = {
   add: async () => undefined,
   recoverReminderDelivery: async () => 'MISSING',
+  runWithReceivableDeliveryLock: async <T>(
+    _organizationId: string,
+    _receivableId: string,
+    operation: () => Promise<T>,
+  ) => ({
+    acquired: true as const,
+    value: await operation(),
+    leaseLost: false,
+  }),
   runWithReminderDeliveryLock: async <T>(
     _executionId: string,
     operation: () => Promise<T>,

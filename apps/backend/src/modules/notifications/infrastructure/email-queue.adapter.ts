@@ -82,9 +82,34 @@ export class BullMqEmailQueue implements IEmailQueue {
     operation: () => Promise<T>,
     waitForLockMs = 0,
   ): Promise<ReminderDeliveryLockResult<T>> {
+    return this.runWithDeliveryLock(
+      `reminder-delivery-lock:${executionId}`,
+      operation,
+      waitForLockMs,
+    );
+  }
+
+  async runWithReceivableDeliveryLock<T>(
+    organizationId: string,
+    receivableId: string,
+    operation: () => Promise<T>,
+    waitForLockMs = 0,
+  ): Promise<ReminderDeliveryLockResult<T>> {
+    return this.runWithDeliveryLock(
+      `reminder-receivable-delivery-lock:${organizationId}:${receivableId}`,
+      operation,
+      waitForLockMs,
+    );
+  }
+
+  private async runWithDeliveryLock<T>(
+    resourceKey: string,
+    operation: () => Promise<T>,
+    waitForLockMs: number,
+  ): Promise<ReminderDeliveryLockResult<T>> {
     const redis = await this.queue.getBackend().client;
     ensureReminderLockCommands(redis);
-    const lockKey = this.queue.toKey(`reminder-delivery-lock:${executionId}`);
+    const lockKey = this.queue.toKey(resourceKey);
     const token = randomUUID();
     const deadline = Date.now() + Math.max(0, waitForLockMs);
 

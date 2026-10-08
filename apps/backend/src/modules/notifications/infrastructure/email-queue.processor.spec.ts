@@ -54,6 +54,16 @@ function buildDeps() {
     resolver: { resolve: jest.fn() },
     executionRepo: {
       getStatus: jest.fn().mockResolvedValue('PENDING'),
+      findById: jest.fn().mockResolvedValue({
+        id: 'exec-1',
+        organizationId: 'org-1',
+        receivableId: 'rec-1',
+        reminderRuleId: null,
+        minIntervalDays: null,
+        status: 'PENDING',
+      }),
+      findLatestSentByReceivableIds: jest.fn().mockResolvedValue(new Map()),
+      markSkippedIfPending: jest.fn(),
       updateSendResult: jest.fn(),
     },
     smtpConfigRepo: {
@@ -82,6 +92,17 @@ function buildDeps() {
     },
     emailQueue: {
       add: jest.fn(),
+      runWithReceivableDeliveryLock: jest.fn(
+        async (
+          _organizationId: string,
+          _receivableId: string,
+          operation: () => Promise<unknown>,
+        ): Promise<ReminderDeliveryLockResult<unknown>> => ({
+          acquired: true,
+          value: await operation(),
+          leaseLost: false,
+        }),
+      ),
       runWithReminderDeliveryLock: jest.fn(
         async (
           _executionId: string,
@@ -229,6 +250,219 @@ describe('EmailQueueProcessor', () => {
       'bullmq:exec-1',
       expect.any(Function),
     );
+    expect(deps.emailQueue.runWithReceivableDeliveryLock).toHaveBeenCalledWith(
+      'org-1',
+      'rec-1',
+      expect.any(Function),
+      expect.any(Number),
+    );
+    expect(
+      deps.executionRepo.findLatestSentByReceivableIds,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('suppresses a delayed automated job when a manual send falls inside its captured interval', async () => {
+    const now = new Date('2026-10-08T12:00:00.000Z');
+    jest.useFakeTimers().setSystemTime(now);
+    try {
+      const deps = buildDeps();
+      const emailProvider = {
+        send: jest.fn().mockResolvedValue({ providerMessageId: 'msg-1' }),
+      };
+      deps.resolver.resolve.mockResolvedValue(emailProvider);
+      deps.executionRepo.findById.mockResolvedValue({
+        id: 'exec-1',
+        organizationId: 'org-1',
+        receivableId: 'rec-1',
+        reminderRuleId: 'rule-1',
+        minIntervalDays: 7,
+        status: 'PENDING',
+      });
+      deps.executionRepo.findLatestSentByReceivableIds.mockResolvedValue(
+        new Map([
+          ['rec-1', { sentAt: new Date(now.getTime() - 24 * 60 * 60 * 1000) }],
+        ]),
+      );
+
+      await buildProcessor(deps).process(buildJob());
+
+      expect(deps.executionRepo.markSkippedIfPending).toHaveBeenCalledWith(
+        'exec-1',
+        'RATE_LIMITED',
+      );
+      expect(emailProvider.send).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('allows automated delivery at the exact elapsed-time threshold', async () => {
+    const now = new Date('2026-10-08T12:00:00.000Z');
+    jest.useFakeTimers().setSystemTime(now);
+    try {
+      const deps = buildDeps();
+      const emailProvider = {
+        send: jest.fn().mockResolvedValue({ providerMessageId: 'msg-1' }),
+      };
+      deps.resolver.resolve.mockResolvedValue(emailProvider);
+      deps.executionRepo.findById.mockResolvedValue({
+        id: 'exec-1',
+        organizationId: 'org-1',
+        receivableId: 'rec-1',
+        reminderRuleId: 'rule-1',
+        minIntervalDays: 7,
+        status: 'PENDING',
+      });
+      deps.executionRepo.findLatestSentByReceivableIds.mockResolvedValue(
+        new Map([
+          [
+            'rec-1',
+            { sentAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
+          ],
+        ]),
+      );
+
+      await buildProcessor(deps).process(buildJob());
+
+      expect(emailProvider.send).toHaveBeenCalledTimes(1);
+      expect(deps.executionRepo.markSkippedIfPending).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('suppresses one millisecond before the exact elapsed-time threshold', async () => {
+    const now = new Date('2026-10-08T12:00:00.000Z');
+    jest.useFakeTimers().setSystemTime(now);
+    try {
+      const deps = buildDeps();
+      const emailProvider = { send: jest.fn() };
+      deps.resolver.resolve.mockResolvedValue(emailProvider);
+      deps.executionRepo.findById.mockResolvedValue({
+        id: 'exec-1',
+        organizationId: 'org-1',
+        receivableId: 'rec-1',
+        reminderRuleId: 'rule-1',
+        minIntervalDays: 7,
+        status: 'PENDING',
+      });
+      deps.executionRepo.findLatestSentByReceivableIds.mockResolvedValue(
+        new Map([
+          [
+            'rec-1',
+            { sentAt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000 + 1) },
+          ],
+        ]),
+      );
+
+      await buildProcessor(deps).process(buildJob());
+
+      expect(deps.executionRepo.markSkippedIfPending).toHaveBeenCalledWith(
+        'exec-1',
+        'RATE_LIMITED',
+      );
+      expect(emailProvider.send).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('does not suppress an automated reminder with a zero-day interval', async () => {
+    const now = new Date('2026-10-08T12:00:00.000Z');
+    jest.useFakeTimers().setSystemTime(now);
+    try {
+      const deps = buildDeps();
+      const emailProvider = {
+        send: jest.fn().mockResolvedValue({ providerMessageId: 'msg-1' }),
+      };
+      deps.resolver.resolve.mockResolvedValue(emailProvider);
+      deps.executionRepo.findById.mockResolvedValue({
+        id: 'exec-1',
+        organizationId: 'org-1',
+        receivableId: 'rec-1',
+        reminderRuleId: 'rule-1',
+        minIntervalDays: 0,
+        status: 'PENDING',
+      });
+      deps.executionRepo.findLatestSentByReceivableIds.mockResolvedValue(
+        new Map([['rec-1', { sentAt: new Date(now.getTime() + 1) }]]),
+      );
+
+      await buildProcessor(deps).process(buildJob());
+
+      expect(emailProvider.send).toHaveBeenCalledTimes(1);
+      expect(deps.executionRepo.markSkippedIfPending).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('marks an automated execution FAILED when no legacy interval can be recovered', async () => {
+    const deps = buildDeps();
+    deps.executionRepo.findById.mockResolvedValue({
+      id: 'exec-1',
+      organizationId: 'org-1',
+      receivableId: 'rec-1',
+      reminderRuleId: 'deleted-rule',
+      minIntervalDays: null,
+      status: 'PENDING',
+    });
+    const emailProvider = {
+      send: jest.fn().mockResolvedValue({ providerMessageId: 'msg-1' }),
+    };
+    deps.resolver.resolve.mockResolvedValue(emailProvider);
+
+    await buildProcessor(deps).process(buildJob());
+
+    expect(deps.executionRepo.updateSendResult).toHaveBeenCalledWith(
+      'exec-1',
+      'FAILED',
+      null,
+      expect.stringContaining('configuration cannot be recovered'),
+    );
+    expect(emailProvider.send).not.toHaveBeenCalled();
+    expect(
+      deps.executionRepo.findLatestSentByReceivableIds,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('rechecks execution status after acquiring the receivable lock', async () => {
+    const deps = buildDeps();
+    deps.executionRepo.findById.mockResolvedValue({
+      id: 'exec-1',
+      organizationId: 'org-1',
+      receivableId: 'rec-1',
+      reminderRuleId: null,
+      minIntervalDays: null,
+      status: 'SENT',
+    });
+    const emailProvider = {
+      send: jest.fn().mockResolvedValue({ providerMessageId: 'msg-1' }),
+    };
+    deps.resolver.resolve.mockResolvedValue(emailProvider);
+
+    await buildProcessor(deps).process(buildJob());
+
+    expect(deps.executionRepo.findById).toHaveBeenCalledWith('exec-1');
+    expect(emailProvider.send).not.toHaveBeenCalled();
+    expect(deps.executionRepo.updateSendResult).not.toHaveBeenCalled();
+  });
+
+  it('throws for BullMQ retry when it cannot acquire the receivable lock', async () => {
+    const deps = buildDeps();
+    deps.emailQueue.runWithReceivableDeliveryLock.mockResolvedValue({
+      acquired: false,
+    });
+    const emailProvider = {
+      send: jest.fn().mockResolvedValue({ providerMessageId: 'msg-1' }),
+    };
+    deps.resolver.resolve.mockResolvedValue(emailProvider);
+
+    await expect(buildProcessor(deps).process(buildJob())).rejects.toThrow(
+      'Could not acquire reminder delivery lock',
+    );
+    expect(emailProvider.send).not.toHaveBeenCalled();
+    expect(deps.executionRepo.markSkippedIfPending).not.toHaveBeenCalled();
   });
 
   it('passes the job fromName through to the provider (issue #96)', async () => {
@@ -258,7 +492,14 @@ describe('EmailQueueProcessor', () => {
     };
     const deps = buildDeps();
     deps.resolver.resolve.mockResolvedValue(emailProvider);
-    deps.executionRepo.getStatus.mockResolvedValue('SENT');
+    deps.executionRepo.findById.mockResolvedValue({
+      id: 'exec-1',
+      organizationId: 'org-1',
+      receivableId: 'rec-1',
+      reminderRuleId: null,
+      minIntervalDays: null,
+      status: 'SENT',
+    });
     const processor = buildProcessor(deps);
 
     await processor.process(buildJob());
@@ -507,6 +748,7 @@ describe('EmailQueueProcessor — provider resolution', () => {
       name: 'send-reminder-email',
       data: {
         reminderExecutionId: 'exec-1',
+        receivableId: 'rec-1',
         organizationId: 'org-1',
         to: 'a@b.com',
         subject: 'Hi',
@@ -567,6 +809,7 @@ describe('EmailQueueProcessor — provider resolution', () => {
       name: 'send-reminder-email',
       data: {
         reminderExecutionId: 'exec-1',
+        receivableId: 'rec-1',
         organizationId: 'org-1',
         to: 'a@b.com',
         subject: 'Hi',

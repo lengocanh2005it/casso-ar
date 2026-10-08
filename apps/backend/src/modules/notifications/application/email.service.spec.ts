@@ -121,12 +121,14 @@ describe('EmailService', () => {
       receivableId: 'rec-1',
       templateId: 'tpl-1',
       reminderExecutionId: 'exec-1',
+      minIntervalDays: 7,
     });
 
     expect(queue.add).toHaveBeenCalledWith(
       'send-reminder-email',
       expect.objectContaining({
         reminderExecutionId: 'exec-1',
+        minIntervalDays: 7,
         organizationId: 'org-1',
         to: 'ap@congtyb.vn',
         replyTo: 'owner@congtyb.vn',

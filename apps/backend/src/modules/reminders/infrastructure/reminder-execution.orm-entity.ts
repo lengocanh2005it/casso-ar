@@ -35,6 +35,9 @@ export class ReminderExecutionOrmEntity {
   @Column('uuid', { nullable: true })
   reminderRuleId: string | null;
 
+  @Column('integer', { nullable: true })
+  minIntervalDays: number | null;
+
   @Column({ type: 'date' })
   executionDate: Date;
 

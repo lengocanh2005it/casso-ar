@@ -14,7 +14,11 @@ export interface IReminderExecutionRepository {
     receivableId: string,
     reminderRuleId: string | null,
     executionDate: Date,
-  ): Promise<{ id: string; status: ReminderExecutionStatus } | null>;
+  ): Promise<{
+    id: string;
+    status: ReminderExecutionStatus;
+    minIntervalDays: number | null;
+  } | null>;
   findById(id: string): Promise<ReminderExecution | null>;
   findPendingAutomatedBefore(
     createdBefore: Date,

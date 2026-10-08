@@ -9,6 +9,7 @@ describe('TypeOrmReminderExecutionRepository.findPendingAutomatedBefore', () => 
         organizationId: 'org-current',
         receivableId: 'receivable-1',
         reminderRuleId: 'rule-1',
+        minIntervalDays: 13,
         executionDate: '2026-10-08',
         sentAt: null,
         status: 'PENDING',
@@ -63,6 +64,88 @@ describe('TypeOrmReminderExecutionRepository.findPendingAutomatedBefore', () => 
       new Date('2026-10-08T00:00:00.000Z'),
     );
     expect(result[0]).not.toBe(rows[0]);
+    expect(result[0].minIntervalDays).toBe(13);
+  });
+});
+
+describe('TypeOrmReminderExecutionRepository.findByKey', () => {
+  it('loads the captured interval for a pending execution under the current tenant', async () => {
+    const row = { id: 'execution-1', status: 'PENDING', minIntervalDays: 13 };
+    const queryBuilder = {
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(row),
+    };
+    const getRepository = jest.fn().mockReturnValue({
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+    });
+    const repo = new TypeOrmReminderExecutionRepository(
+      { getRepository } as any,
+      { getOrganizationId: jest.fn().mockReturnValue('org-current') } as any,
+    );
+
+    const result = await repo.findByKey(
+      'receivable-1',
+      'rule-1',
+      new Date('2026-10-08'),
+    );
+
+    expect(queryBuilder.select).toHaveBeenCalledWith([
+      'e.id',
+      'e.status',
+      'e.minIntervalDays',
+    ]);
+    expect(result).toEqual({
+      id: 'execution-1',
+      status: 'PENDING',
+      minIntervalDays: 13,
+    });
+  });
+});
+
+describe('TypeOrmReminderExecutionRepository.findLatestSentByReceivableIds', () => {
+  it('includes SENT history across rules and manual executions for the current tenant', async () => {
+    const queryBuilder = {
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      getRawMany: jest
+        .fn()
+        .mockResolvedValue([
+          { receivableId: 'receivable-1', sentAt: '2026-10-08T11:00:00.000Z' },
+        ]),
+    };
+    const getRepository = jest.fn().mockReturnValue({
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+    });
+    const tenantContext = {
+      getOrganizationId: jest.fn().mockReturnValue('org-current'),
+    };
+    const repo = new TypeOrmReminderExecutionRepository(
+      { getRepository } as any,
+      tenantContext as any,
+    );
+
+    const result = await repo.findLatestSentByReceivableIds(['receivable-1']);
+
+    expect(queryBuilder.where).toHaveBeenCalledWith(
+      'e."organizationId" = :organizationId',
+      { organizationId: 'org-current' },
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith('e.status = :status', {
+      status: 'SENT',
+    });
+    expect(
+      queryBuilder.andWhere.mock.calls.some(([condition]) =>
+        condition.includes('reminderRuleId'),
+      ),
+    ).toBe(false);
+    expect(result.get('receivable-1')?.sentAt).toEqual(
+      new Date('2026-10-08T11:00:00.000Z'),
+    );
   });
 });
 

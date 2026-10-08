@@ -8,6 +8,7 @@ import {
   PostgreSqlContainer,
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
+import type { Job } from 'bullmq';
 import request from 'supertest';
 import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
@@ -21,6 +22,12 @@ import { DisputeStatus } from '../src/modules/disputes/domain/dispute';
 import { DisputeOrmEntity } from '../src/modules/disputes/infrastructure/dispute.orm-entity';
 import { EmailTemplateOrmEntity } from '../src/modules/email-templates/infrastructure/email-template.orm-entity';
 import { EMAIL_PROVIDER_ADAPTER } from '../src/modules/notifications/application/email-provider-adapter.port';
+import {
+  EMAIL_QUEUE_PORT,
+  type IEmailQueue,
+  type ReminderEmailJob,
+} from '../src/modules/notifications/application/email-queue.port';
+import { EmailQueueProcessor } from '../src/modules/notifications/infrastructure/email-queue.processor';
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
 import { OrganizationOrmEntity } from '../src/modules/organizations/infrastructure/organization.orm-entity';
@@ -295,6 +302,57 @@ describe('Reminder automation (integration)', () => {
     );
   }
 
+  async function saveReminderExecution(input: {
+    id: string;
+    organizationId: string;
+    receivableId: string;
+    reminderRuleId: string | null;
+    minIntervalDays: number | null;
+    status: ReminderExecutionStatus;
+    executionDate?: Date;
+    sentAt?: Date | null;
+  }): Promise<void> {
+    await dataSource.getRepository(ReminderExecutionOrmEntity).save({
+      id: input.id,
+      organizationId: input.organizationId,
+      receivableId: input.receivableId,
+      reminderRuleId: input.reminderRuleId,
+      minIntervalDays: input.minIntervalDays,
+      executionDate:
+        input.executionDate ?? new Date('2026-10-08T00:00:00.000Z'),
+      sentAt: input.sentAt ?? null,
+      status: input.status,
+      skipReason: null,
+      providerMessageId:
+        input.status === ReminderExecutionStatus.SENT ? 'prior-send' : null,
+      failureReason: null,
+      createdAt: new Date(),
+    });
+  }
+
+  function buildReminderEmailJob(input: {
+    id: string;
+    organizationId: string;
+    receivableId: string;
+    minIntervalDays?: number;
+  }): Job<ReminderEmailJob> {
+    return {
+      id: `email-${input.id}`,
+      name: 'send-reminder-email',
+      data: {
+        reminderExecutionId: input.id,
+        receivableId: input.receivableId,
+        organizationId: input.organizationId,
+        ...(input.minIntervalDays === undefined
+          ? {}
+          : { minIntervalDays: input.minIntervalDays }),
+        to: 'ap@congtyc.vn',
+        subject: 'Payment reminder',
+        html: '<p>Due</p>',
+      },
+    } as unknown as Job<ReminderEmailJob>;
+  }
+
   it('scan() skips a receivable with an open dispute even at the exact offset', async () => {
     const organizationId = '00000000-0000-4000-8000-000000000700';
     const openedByUserId = '00000000-0000-4000-8000-000000000100';
@@ -445,6 +503,149 @@ describe('Reminder automation (integration)', () => {
       () => executionRepo.findPage({ receivableId, page: 1, limit: 10 }),
     );
     expect(executions.items[0]?.providerMessageId).toBeTruthy();
+  }, 20_000);
+
+  it('suppresses a delayed job using a manual SENT execution from the same receivable', async () => {
+    const organizationId = '00000000-0000-4000-8000-001700000000';
+    const { customerId } = await setUpOrg(organizationId);
+    const receivableId = await createReceivable(organizationId, customerId);
+    const priorExecutionId = randomUUID();
+    const pendingExecutionId = randomUUID();
+    const now = new Date();
+
+    await saveReminderExecution({
+      id: priorExecutionId,
+      organizationId,
+      receivableId,
+      reminderRuleId: null,
+      minIntervalDays: null,
+      status: ReminderExecutionStatus.SENT,
+      sentAt: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+    });
+    await saveReminderExecution({
+      id: pendingExecutionId,
+      organizationId,
+      receivableId,
+      reminderRuleId: randomUUID(),
+      minIntervalDays: 7,
+      status: ReminderExecutionStatus.PENDING,
+    });
+
+    await app.get(EmailQueueProcessor).process(
+      buildReminderEmailJob({
+        id: pendingExecutionId,
+        organizationId,
+        receivableId,
+      }),
+    );
+
+    const execution = await dataSource
+      .getRepository(ReminderExecutionOrmEntity)
+      .findOneByOrFail({ id: pendingExecutionId });
+    expect(execution.status).toBe(ReminderExecutionStatus.SKIPPED);
+    expect(execution.skipReason).toBe(ReminderSkipReason.RATE_LIMITED);
+    expect(fakeEmailProvider.send).not.toHaveBeenCalled();
+  });
+
+  it('serializes concurrent sends across different rules and dates for one receivable', async () => {
+    const organizationId = '00000000-0000-4000-8000-001800000000';
+    const { customerId } = await setUpOrg(organizationId);
+    const receivableId = await createReceivable(organizationId, customerId);
+    const firstExecutionId = randomUUID();
+    const secondExecutionId = randomUUID();
+    await saveReminderExecution({
+      id: firstExecutionId,
+      organizationId,
+      receivableId,
+      reminderRuleId: randomUUID(),
+      minIntervalDays: 7,
+      executionDate: new Date('2026-10-07T00:00:00.000Z'),
+      status: ReminderExecutionStatus.PENDING,
+    });
+    await saveReminderExecution({
+      id: secondExecutionId,
+      organizationId,
+      receivableId,
+      reminderRuleId: randomUUID(),
+      minIntervalDays: 7,
+      executionDate: new Date('2026-10-08T00:00:00.000Z'),
+      status: ReminderExecutionStatus.PENDING,
+    });
+
+    let releaseProvider: (() => void) | undefined;
+    let providerStarted: (() => void) | undefined;
+    const firstProviderCall = new Promise<void>((resolve) => {
+      providerStarted = resolve;
+    });
+    fakeEmailProvider.send.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseProvider = () => resolve({ providerMessageId: 'first-send' });
+          providerStarted?.();
+        }),
+    );
+
+    const emailQueue = app.get<IEmailQueue>(EMAIL_QUEUE_PORT);
+    const runWithReceivableDeliveryLock =
+      emailQueue.runWithReceivableDeliveryLock.bind(emailQueue);
+    let lockRequests = 0;
+    let secondLockRequested: (() => void) | undefined;
+    const secondLock = new Promise<void>((resolve) => {
+      secondLockRequested = resolve;
+    });
+    const lockSpy = jest
+      .spyOn(emailQueue, 'runWithReceivableDeliveryLock')
+      .mockImplementation(
+        (organizationIdArg, receivableIdArg, operation, waitForLockMs) => {
+          lockRequests += 1;
+          if (lockRequests === 2) secondLockRequested?.();
+          return runWithReceivableDeliveryLock(
+            organizationIdArg,
+            receivableIdArg,
+            operation,
+            waitForLockMs,
+          );
+        },
+      );
+
+    const processor = app.get(EmailQueueProcessor);
+    const first = processor.process(
+      buildReminderEmailJob({
+        id: firstExecutionId,
+        organizationId,
+        receivableId,
+      }),
+    );
+    await firstProviderCall;
+    const second = processor.process(
+      buildReminderEmailJob({
+        id: secondExecutionId,
+        organizationId,
+        receivableId,
+      }),
+    );
+    try {
+      await secondLock;
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(fakeEmailProvider.send).toHaveBeenCalledTimes(1);
+    } finally {
+      lockSpy.mockRestore();
+      releaseProvider?.();
+    }
+    await Promise.all([first, second]);
+
+    const [firstExecution, secondExecution] = await Promise.all([
+      dataSource
+        .getRepository(ReminderExecutionOrmEntity)
+        .findOneByOrFail({ id: firstExecutionId }),
+      dataSource
+        .getRepository(ReminderExecutionOrmEntity)
+        .findOneByOrFail({ id: secondExecutionId }),
+    ]);
+    expect(firstExecution.status).toBe(ReminderExecutionStatus.SENT);
+    expect(secondExecution.status).toBe(ReminderExecutionStatus.SKIPPED);
+    expect(secondExecution.skipReason).toBe(ReminderSkipReason.RATE_LIMITED);
+    expect(fakeEmailProvider.send).toHaveBeenCalledTimes(1);
   }, 20_000);
 
   it('a reminder rule created for one organization is invisible under another organization tenant context', async () => {

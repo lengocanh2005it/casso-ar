@@ -19,7 +19,10 @@ import {
 } from '../../organizations/application/membership-repository.port';
 import { Role } from '../../organizations/domain/membership';
 import type { IReminderExecutionRepository } from '../../reminders/application/reminder-execution-repository.port';
-import { ReminderExecutionStatus } from '../../reminders/domain/reminder-execution';
+import {
+  ReminderExecutionStatus,
+  ReminderSkipReason,
+} from '../../reminders/domain/reminder-execution';
 import {
   type ISmtpConfigRepository,
   SMTP_CONFIG_REPOSITORY,
@@ -44,6 +47,8 @@ import { SMTP_CONFIG_FAILED } from '../application/smtp-config-failed.event';
 import { EMAIL_QUEUE } from './email-queue.constants';
 
 const REMINDER_FAILURE_LOCK_WAIT_MS = 30_000;
+const REMINDER_RECEIVABLE_LOCK_WAIT_MS = 30_000;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 interface ReminderFailureOutcome {
   isCurrent: boolean;
@@ -160,54 +165,127 @@ export class EmailQueueProcessor extends WorkerHost {
       forceProvider,
       fromName,
       attachmentRefs,
+      minIntervalDays,
     } = job.data;
 
     await this.tenantContext.run(
       { userId: 'system', organizationId, role: Role.OWNER },
       async () => {
-        const status = await this.executionRepo.getStatus(reminderExecutionId);
-        if (status !== ReminderExecutionStatus.PENDING) {
+        const lock = await this.emailQueue.runWithReceivableDeliveryLock(
+          organizationId,
+          job.data.receivableId,
+          async () => {
+            const execution =
+              await this.executionRepo.findById(reminderExecutionId);
+            if (
+              !execution ||
+              execution.status !== ReminderExecutionStatus.PENDING
+            ) {
+              this.logger.warn({
+                message:
+                  'Skipping email send because the execution is no longer pending',
+                reminderExecutionId,
+                status: execution?.status ?? 'unknown',
+                organizationId,
+                userId: 'system',
+                requestId: getJobRequestId(job),
+              });
+              return;
+            }
+
+            const intervalDays = execution.minIntervalDays ?? minIntervalDays;
+            if (
+              execution.reminderRuleId !== null &&
+              intervalDays === undefined
+            ) {
+              const failureReason =
+                'Automated reminder has no captured minimum interval and its original rule configuration cannot be recovered.';
+              await this.executionRepo.updateSendResult(
+                reminderExecutionId,
+                'FAILED',
+                null,
+                failureReason,
+              );
+              this.eventEmitter.emit('reminder.execution.completed', {
+                id: reminderExecutionId,
+                status: 'FAILED',
+                providerMessageId: null,
+                organizationId,
+              });
+              return;
+            }
+
+            if (
+              execution.reminderRuleId !== null &&
+              intervalDays !== undefined &&
+              intervalDays > 0
+            ) {
+              const latestSent =
+                await this.executionRepo.findLatestSentByReceivableIds([
+                  execution.receivableId,
+                ]);
+              const previousSentAt = latestSent.get(
+                execution.receivableId,
+              )?.sentAt;
+              if (
+                previousSentAt &&
+                Date.now() - previousSentAt.getTime() <
+                  intervalDays * MS_PER_DAY
+              ) {
+                await this.executionRepo.markSkippedIfPending(
+                  reminderExecutionId,
+                  ReminderSkipReason.RATE_LIMITED,
+                );
+                return;
+              }
+            }
+
+            const attachments = await this.buildEmailAttachments(
+              attachmentRefs,
+              html,
+            );
+            const adapter = await this.resolver.resolve(
+              organizationId,
+              forceProvider,
+            );
+            const result = await adapter.send(
+              to,
+              subject,
+              html,
+              { reminderExecutionId },
+              replyTo,
+              fromName,
+              attachments ? { attachments } : undefined,
+            );
+            await this.executionRepo.updateSendResult(
+              reminderExecutionId,
+              'SENT',
+              result.providerMessageId,
+            );
+            this.eventEmitter.emit('reminder.execution.completed', {
+              id: reminderExecutionId,
+              status: 'SENT',
+              providerMessageId: result.providerMessageId,
+              organizationId,
+            });
+          },
+          REMINDER_RECEIVABLE_LOCK_WAIT_MS,
+        );
+        if (!lock.acquired) {
+          throw new Error(
+            'Could not acquire reminder delivery lock; BullMQ should retry this email job.',
+          );
+        }
+        if (lock.leaseLost) {
           this.logger.warn({
             message:
-              'Skipping email send because the execution is no longer pending',
+              'Reminder delivery lock lease was lost after the guarded send operation',
             reminderExecutionId,
-            status: status ?? 'unknown',
             organizationId,
             userId: 'system',
             requestId: getJobRequestId(job),
           });
-          return;
         }
-
-        const attachments = await this.buildEmailAttachments(
-          attachmentRefs,
-          html,
-        );
-
-        const adapter = await this.resolver.resolve(
-          organizationId,
-          forceProvider,
-        );
-        const result = await adapter.send(
-          to,
-          subject,
-          html,
-          { reminderExecutionId },
-          replyTo,
-          fromName,
-          attachments ? { attachments } : undefined,
-        );
-        await this.executionRepo.updateSendResult(
-          reminderExecutionId,
-          'SENT',
-          result.providerMessageId,
-        );
-        this.eventEmitter.emit('reminder.execution.completed', {
-          id: reminderExecutionId,
-          status: 'SENT',
-          providerMessageId: result.providerMessageId,
-          organizationId,
-        });
       },
     );
   }

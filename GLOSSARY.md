@@ -36,6 +36,9 @@ An immutable timeline entry about collection work or a receivable change. It exp
 **Reminder execution**:
 One dated attempt to send a payment reminder for a receivable under a reminder rule. Its outcome is sent, skipped, or failed.
 
+**Reminder minimum interval**:
+The minimum elapsed time between successful reminder emails for one receivable. Every successful reminder for that receivable, including manual or Copilot reminders, starts the interval; an automated reminder uses the value configured on its matched rule.
+
 **Reminder delivery recovery**:
 Resuming delivery for an automated reminder execution left pending because its email job was not accepted. Recovery preserves that execution's identity so a retry does not create another active delivery.
 

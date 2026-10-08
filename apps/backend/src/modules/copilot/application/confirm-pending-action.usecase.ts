@@ -93,6 +93,7 @@ export class ConfirmPendingActionUseCase {
       organizationId: action.organizationId,
       receivableId: action.payload.receivableId,
       reminderRuleId: null,
+      minIntervalDays: null,
       executionDate: now,
       sentAt: null,
       status: ReminderExecutionStatus.PENDING,

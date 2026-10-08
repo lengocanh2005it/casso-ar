@@ -18,6 +18,7 @@ function makeExecution(
     organizationId: 'org-1',
     receivableId: `receivable-${id}`,
     reminderRuleId,
+    minIntervalDays: reminderRuleId ? 7 : null,
     executionDate: new Date('2026-08-03T00:00:00.000Z'),
     sentAt: null,
     status: ReminderExecutionStatus.PENDING,

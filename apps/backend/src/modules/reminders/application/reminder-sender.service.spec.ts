@@ -125,15 +125,17 @@ describe('ReminderSenderService', () => {
       receivableId: 'rec-1',
       reminderRuleId: 'rule-1',
       executionDate: '2026-08-03',
+      minIntervalDays: 11,
     });
 
     expect(executionRepo.insertIfAbsent).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'PENDING' }),
+      expect.objectContaining({ status: 'PENDING', minIntervalDays: 11 }),
     );
     expect(emailService.sendReminderEmail).toHaveBeenCalledWith({
       receivableId: 'rec-1',
       templateId: 'template-1',
       reminderExecutionId: expect.any(String),
+      minIntervalDays: 11,
     });
   });
 
@@ -179,9 +181,11 @@ describe('ReminderSenderService', () => {
       recoverReminderDelivery: jest.fn().mockResolvedValue('MISSING'),
     };
     const executionRepo = {
-      findByKey: jest
-        .fn()
-        .mockResolvedValue({ id: 'exec-existing', status: 'PENDING' }),
+      findByKey: jest.fn().mockResolvedValue({
+        id: 'exec-existing',
+        status: 'PENDING',
+        minIntervalDays: 13,
+      }),
       insertIfAbsent: jest.fn(),
       save: jest.fn(),
     } as any;
@@ -202,6 +206,7 @@ describe('ReminderSenderService', () => {
       receivableId: 'rec-1',
       templateId: 'template-1',
       reminderExecutionId: 'exec-existing',
+      minIntervalDays: 13,
     });
   });
 
@@ -466,11 +471,13 @@ describe('ReminderSenderService', () => {
       receivableId: 'rec-1',
       templateId: 'template-1',
       reminderExecutionId: insertedExecutionId,
+      minIntervalDays: 7,
     });
     expect(emailService.sendReminderEmail).toHaveBeenNthCalledWith(2, {
       receivableId: 'rec-1',
       templateId: 'template-1',
       reminderExecutionId: insertedExecutionId,
+      minIntervalDays: 7,
     });
     expect(executionRepo.insertIfAbsent).toHaveBeenCalledTimes(1);
   });
@@ -512,10 +519,11 @@ describe('ReminderSenderService', () => {
       receivableId: 'rec-1',
       templateId: 'template-1',
       reminderExecutionId: 'winner-exec',
+      minIntervalDays: 7,
     });
   });
 
-  it('throws a NOT_FOUND AppError when the reminder rule no longer exists', async () => {
+  it('records a legacy job as FAILED when its deleted rule interval cannot be recovered', async () => {
     const candidate = {
       receivableId: 'rec-1',
       status: ReceivableStatus.OPEN,
@@ -544,18 +552,22 @@ describe('ReminderSenderService', () => {
       } as unknown as TenantContextService,
     );
 
-    await expect(
-      service.send({
-        organizationId: 'org-1',
-        receivableId: 'rec-1',
-        reminderRuleId: 'rule-missing',
-        executionDate: '2026-08-03',
+    await service.send({
+      organizationId: 'org-1',
+      receivableId: 'rec-1',
+      reminderRuleId: 'rule-missing',
+      executionDate: '2026-08-03',
+    });
+
+    expect(executionRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'FAILED',
+        reminderRuleId: null,
+        minIntervalDays: null,
+        failureReason: expect.stringContaining(
+          'minimum interval configuration',
+        ),
       }),
-    ).rejects.toMatchObject(
-      new AppError(
-        ErrorCode.NOT_FOUND,
-        'Reminder rule rule-missing not found — configuration error',
-      ),
     );
     expect(emailService.sendReminderEmail).not.toHaveBeenCalled();
   });
