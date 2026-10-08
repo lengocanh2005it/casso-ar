@@ -33,6 +33,12 @@ Received money that has not been allocated to a receivable and is held for an ac
 **Collection activity**:
 An immutable timeline entry about collection work or a receivable change. It explains the receivable's history; the underlying payment and receivable records remain the financial source of truth.
 
+**Reminder execution**:
+One dated attempt to send a payment reminder for a receivable under a reminder rule. Its outcome is sent, skipped, or failed.
+
+**Reminder delivery recovery**:
+Resuming delivery for an automated reminder execution left pending because its email job was not accepted. Recovery preserves that execution's identity so a retry does not create another active delivery.
+
 ## Billing plans
 
 **Plan catalog**:

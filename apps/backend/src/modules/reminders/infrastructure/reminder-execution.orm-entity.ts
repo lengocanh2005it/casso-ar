@@ -15,6 +15,13 @@ import {
 @Index(['receivableId', 'reminderRuleId', 'executionDate'], { unique: true })
 @Index(['organizationId', 'status', 'sentAt'])
 @Index('IDX_reminder_executions_created_at', ['createdAt'])
+@Index(
+  'IDX_reminder_executions_pending_recovery',
+  ['organizationId', 'createdAt'],
+  {
+    where: `"status" = 'PENDING' AND "reminderRuleId" IS NOT NULL`,
+  },
+)
 export class ReminderExecutionOrmEntity {
   @PrimaryColumn('uuid')
   id: string;

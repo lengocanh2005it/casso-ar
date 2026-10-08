@@ -14,6 +14,7 @@ import { CreateReminderPolicyUseCase } from './application/create-reminder-polic
 import { I_EMAIL_SERVICE } from './application/i-email-service.port';
 import { ListReminderExecutionsUseCase } from './application/list-reminder-executions.usecase';
 import { ListReminderPoliciesUseCase } from './application/list-reminder-policies.usecase';
+import { ReminderExecutionRecoveryService } from './application/reminder-execution-recovery.service';
 import {
   REMINDER_SEND_QUEUE,
   ReminderSchedulerService,
@@ -65,6 +66,7 @@ import {
     ListReminderExecutionsUseCase,
     ReminderSenderService,
     ReminderSchedulerService,
+    ReminderExecutionRecoveryService,
     ReminderSendProcessor,
     ReminderExecutionListener,
   ],

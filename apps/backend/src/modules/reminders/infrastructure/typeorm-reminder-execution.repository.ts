@@ -8,6 +8,7 @@ import type { IReminderExecutionRepository } from '../application/reminder-execu
 import {
   ReminderExecution,
   ReminderExecutionStatus,
+  ReminderSkipReason,
 } from '../domain/reminder-execution';
 import { ReminderExecutionOrmEntity } from './reminder-execution.orm-entity';
 
@@ -82,6 +83,49 @@ export class TypeOrmReminderExecutionRepository
       .getRepository(ReminderExecutionOrmEntity)
       .findOne({ where: { id, organizationId } });
     return row ? new ReminderExecution(row) : null;
+  }
+
+  async findPendingAutomatedBefore(
+    createdBefore: Date,
+    limit: number,
+  ): Promise<ReminderExecution[]> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const rows = await this.dataSource
+      .getRepository(ReminderExecutionOrmEntity)
+      .createQueryBuilder('e')
+      .select([
+        'e.id',
+        'e.organizationId',
+        'e.receivableId',
+        'e.reminderRuleId',
+        'e.executionDate',
+        'e.sentAt',
+        'e.status',
+        'e.skipReason',
+        'e.providerMessageId',
+        'e.failureReason',
+        'e.createdAt',
+      ])
+      .where('e."organizationId" = :organizationId', { organizationId })
+      .andWhere('e.status = :pending', {
+        pending: ReminderExecutionStatus.PENDING,
+      })
+      .andWhere('e."reminderRuleId" IS NOT NULL')
+      .andWhere('e."createdAt" <= :createdBefore', { createdBefore })
+      .orderBy('e."createdAt"', 'ASC')
+      .take(limit)
+      .getMany();
+
+    return rows.map(
+      (row) =>
+        new ReminderExecution({
+          ...row,
+          executionDate:
+            row.executionDate instanceof Date
+              ? row.executionDate
+              : new Date(`${row.executionDate}T00:00:00.000Z`),
+        }),
+    );
   }
 
   async insertIfAbsent(execution: ReminderExecution): Promise<boolean> {
@@ -162,6 +206,7 @@ export class TypeOrmReminderExecutionRepository
     id: string,
     status: 'SENT' | 'FAILED',
     providerMessageId: string | null,
+    failureReason?: string,
   ): Promise<void> {
     const organizationId = this.tenantContext.getOrganizationId();
     const nextStatus =
@@ -179,8 +224,32 @@ export class TypeOrmReminderExecutionRepository
           sentAt: status === 'SENT' ? new Date() : null,
           failureReason:
             status === 'FAILED'
-              ? 'Email delivery failed after max attempts'
+              ? (failureReason ?? 'Email delivery failed after max attempts')
               : null,
+        })
+        .where('id = :id', { id })
+        .andWhere('"organizationId" = :organizationId', { organizationId })
+        .andWhere('status = :pending', {
+          pending: ReminderExecutionStatus.PENDING,
+        })
+        .execute();
+    });
+  }
+
+  async markSkippedIfPending(
+    id: string,
+    skipReason: ReminderSkipReason,
+  ): Promise<void> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    await this.dataSource.transaction(async (manager) => {
+      await manager
+        .getRepository(ReminderExecutionOrmEntity)
+        .createQueryBuilder()
+        .update()
+        .set({
+          status: ReminderExecutionStatus.SKIPPED,
+          skipReason,
+          failureReason: null,
         })
         .where('id = :id', { id })
         .andWhere('"organizationId" = :organizationId', { organizationId })

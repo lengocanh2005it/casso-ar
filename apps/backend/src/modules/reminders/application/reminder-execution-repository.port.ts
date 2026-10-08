@@ -2,6 +2,7 @@ import type { EntityManager } from 'typeorm';
 import type {
   ReminderExecution,
   ReminderExecutionStatus,
+  ReminderSkipReason,
 } from '../domain/reminder-execution';
 
 export interface IReminderExecutionRepository {
@@ -15,6 +16,10 @@ export interface IReminderExecutionRepository {
     executionDate: Date,
   ): Promise<{ id: string; status: ReminderExecutionStatus } | null>;
   findById(id: string): Promise<ReminderExecution | null>;
+  findPendingAutomatedBefore(
+    createdBefore: Date,
+    limit: number,
+  ): Promise<ReminderExecution[]>;
   insertIfAbsent(execution: ReminderExecution): Promise<boolean>;
   save(execution: ReminderExecution, manager?: EntityManager): Promise<void>;
   findPage(input: {
@@ -27,6 +32,11 @@ export interface IReminderExecutionRepository {
     id: string,
     status: 'SENT' | 'FAILED',
     providerMessageId: string | null,
+    failureReason?: string,
+  ): Promise<void>;
+  markSkippedIfPending(
+    id: string,
+    skipReason: ReminderSkipReason,
   ): Promise<void>;
   deleteOlderThan(cutoff: Date): Promise<number>;
 }

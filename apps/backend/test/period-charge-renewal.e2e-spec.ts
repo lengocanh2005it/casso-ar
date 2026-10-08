@@ -77,6 +77,16 @@ const fakeAdapter: IPayosPaymentAdapter = {
 
 const noOpEmailQueue: IEmailQueue = {
   add: async () => undefined,
+  recoverReminderDelivery: async () => 'MISSING',
+  runWithReminderDeliveryLock: async <T>(
+    _executionId: string,
+    operation: () => Promise<T>,
+  ) => ({
+    acquired: true as const,
+    value: await operation(),
+    leaseLost: false,
+  }),
+  isReminderJobFailureCurrent: async () => false,
 };
 
 describe('Renewal & non-renewal downgrade (integration)', () => {
