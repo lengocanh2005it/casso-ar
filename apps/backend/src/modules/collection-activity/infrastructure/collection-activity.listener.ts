@@ -30,6 +30,17 @@ export interface PaymentAllocatedEvent {
   allocatedByUserId: string | null;
 }
 
+export interface PaymentAllocationUndoneEvent {
+  allocationId: string;
+  paymentId: string;
+  receivableId: string;
+  customerId: string;
+  organizationId: string;
+  amount: number;
+  undoneByUserId: string;
+  undoReason: string;
+}
+
 export interface ReceivableClosedEvent {
   receivableId: string;
   customerId: string;
@@ -75,6 +86,32 @@ export class CollectionActivityListener {
           description: `Đã nhận thanh toán ${payload.amount.toLocaleString('vi-VN')} ₫ cho khoản phải thu`,
           metadata: { paymentId: payload.paymentId, amount: payload.amount },
           createdByUserId: payload.allocatedByUserId,
+        }),
+    );
+  }
+
+  @OnEvent('payment.allocation-undone')
+  async onPaymentAllocationUndone(
+    payload: PaymentAllocationUndoneEvent,
+  ): Promise<void> {
+    await this.safely(
+      'payment.allocation-undone',
+      payload.receivableId,
+      payload.organizationId,
+      () =>
+        this.write({
+          organizationId: payload.organizationId,
+          receivableId: payload.receivableId,
+          customerId: payload.customerId,
+          activityType: CollectionActivityType.ALLOCATION_UNDONE,
+          description: `Đã hoàn tác phân bổ ${payload.amount.toLocaleString('vi-VN')} ₫ cho khoản phải thu. Lý do: ${payload.undoReason}`,
+          metadata: {
+            allocationId: payload.allocationId,
+            paymentId: payload.paymentId,
+            amount: payload.amount,
+            undoReason: payload.undoReason,
+          },
+          createdByUserId: payload.undoneByUserId,
         }),
     );
   }
@@ -195,7 +232,7 @@ export class CollectionActivityListener {
   }
 
   // A denormalized display log must never take down the business flow that
-  // produced it. All 6 events above are emitted fire-and-forget
+  // produced it. All events above are emitted fire-and-forget
   // (EventEmitter2#emit, not #emitAsync) with no app-wide unhandledRejection
   // handler, so any throw here (repo failure, receivable lookup miss, ...)
   // would otherwise surface as an unhandled rejection. Log and swallow.

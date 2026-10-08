@@ -66,6 +66,78 @@ describe('CollectionActivityListener', () => {
     );
   });
 
+  it('writes an ALLOCATION_UNDONE row on payment.allocation-undone', async () => {
+    const activityRepo = { create: jest.fn() };
+    const receivableRepo = { findById: jest.fn() };
+    const tenantContext = {
+      run: (_user: unknown, cb: () => unknown) => cb(),
+      getOrganizationId: () => 'org-1',
+    };
+    const listener = new CollectionActivityListener(
+      activityRepo as any,
+      receivableRepo as any,
+      tenantContext as any,
+    );
+
+    await listener.onPaymentAllocationUndone({
+      allocationId: 'alloc-1',
+      paymentId: 'pay-1',
+      receivableId: 'rec-1',
+      customerId: 'cust-1',
+      organizationId: 'org-1',
+      amount: 30_000_000,
+      undoneByUserId: 'user-2',
+      undoReason: 'Sai lệch đối soát',
+    });
+
+    expect(activityRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: 'org-1',
+        receivableId: 'rec-1',
+        customerId: 'cust-1',
+        activityType: 'ALLOCATION_UNDONE',
+        createdByUserId: 'user-2',
+        description:
+          'Đã hoàn tác phân bổ 30.000.000 ₫ cho khoản phải thu. Lý do: Sai lệch đối soát',
+        metadata: {
+          allocationId: 'alloc-1',
+          paymentId: 'pay-1',
+          amount: 30_000_000,
+          undoReason: 'Sai lệch đối soát',
+        },
+      }),
+    );
+  });
+
+  it('swallows an activity repository failure for payment.allocation-undone', async () => {
+    const activityRepo = {
+      create: jest.fn().mockRejectedValue(new Error('db unavailable')),
+    };
+    const receivableRepo = { findById: jest.fn() };
+    const tenantContext = {
+      run: (_user: unknown, cb: () => unknown) => cb(),
+      getOrganizationId: () => 'org-1',
+    };
+    const listener = new CollectionActivityListener(
+      activityRepo as any,
+      receivableRepo as any,
+      tenantContext as any,
+    );
+
+    await expect(
+      listener.onPaymentAllocationUndone({
+        allocationId: 'alloc-1',
+        paymentId: 'pay-1',
+        receivableId: 'rec-1',
+        customerId: 'cust-1',
+        organizationId: 'org-1',
+        amount: 30_000_000,
+        undoneByUserId: 'user-2',
+        undoReason: 'Sai lệch đối soát',
+      }),
+    ).resolves.toBeUndefined();
+  });
+
   it('writes a RECEIVABLE_CLOSED row on receivable.closed', async () => {
     const activityRepo = {
       create: jest.fn(),

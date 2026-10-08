@@ -3,6 +3,7 @@ const ACTIVITY_TYPE_LABELS: Record<string, string> = {
   EMAIL_SENT: 'Đã gửi email nhắc nợ',
   EMAIL_FAILED: 'Gửi email thất bại',
   PAYMENT_RECEIVED: 'Nhận thanh toán',
+  ALLOCATION_UNDONE: 'Hoàn tác phân bổ',
   RECEIVABLE_CLOSED: 'Đã đóng công nợ',
   DISPUTE_OPENED: 'Mở tranh chấp',
   DISPUTE_RESOLVED: 'Đã giải quyết tranh chấp',

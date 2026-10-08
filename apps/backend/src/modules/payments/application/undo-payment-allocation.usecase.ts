@@ -12,6 +12,10 @@ import {
 } from '../../../common/audit/audit-log-repository.port';
 import { AppError } from '../../../common/errors/app-error';
 import { ErrorCode } from '../../../common/errors/error-code';
+import {
+  EVENT_PUBLISHER,
+  type IEventPublisher,
+} from '../../../common/events/event-publisher.port';
 import { LedgerEventRecorderService } from '../../ledger/application/ledger-event-recorder.service';
 import { LedgerEventKind } from '../../ledger/domain/ledger-event-kind';
 import { LedgerEventSubjectType } from '../../ledger/domain/ledger-event-subject-type';
@@ -51,9 +55,13 @@ export class UndoPaymentAllocationUseCase {
     private readonly dataSource: DataSource,
     private readonly historyRecorder: ReceivableBalanceHistoryRecorderService,
     private readonly ledgerRecorder: LedgerEventRecorderService,
+    @Inject(EVENT_PUBLISHER)
+    private readonly eventPublisher: IEventPublisher,
   ) {}
 
   async execute(input: UndoPaymentAllocationInput): Promise<void> {
+    let activityEvent: Record<string, unknown> | undefined;
+
     await this.dataSource.transaction(async (manager: EntityManager) => {
       const allocation = await this.allocationRepo.findByIdForUpdate(
         input.allocationId,
@@ -151,6 +159,21 @@ export class UndoPaymentAllocationUseCase {
         }),
         manager,
       );
+
+      activityEvent = {
+        allocationId: allocation.id,
+        paymentId: allocation.paymentId,
+        receivableId: allocation.receivableId,
+        customerId: receivable.customerId,
+        organizationId: allocation.organizationId,
+        amount: allocation.allocatedAmount,
+        undoneByUserId: input.deletedByUserId,
+        undoReason: input.undoReason,
+      };
     });
+
+    if (activityEvent) {
+      this.eventPublisher.emit('payment.allocation-undone', activityEvent);
+    }
   }
 }

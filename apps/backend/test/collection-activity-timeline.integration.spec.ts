@@ -25,6 +25,7 @@ import { InvoiceOrmEntity } from '../src/modules/invoices/infrastructure/invoice
 import { Role } from '../src/modules/organizations/domain/membership';
 import { MembershipOrmEntity } from '../src/modules/organizations/infrastructure/membership.orm-entity';
 import { PaymentOrmEntity } from '../src/modules/payments/infrastructure/payment.orm-entity';
+import { PaymentAllocationOrmEntity } from '../src/modules/payments/infrastructure/payment-allocation.orm-entity';
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { UserOrmEntity } from '../src/modules/users/infrastructure/user.orm-entity';
 import { WEBHOOK_PROCESSING_QUEUE } from '../src/modules/webhooks/infrastructure/webhooks-queue.constants';
@@ -200,25 +201,116 @@ describe('Collection Activity Timeline (integration)', () => {
       expect(activity.organizationId).toBeUndefined();
     }
 
-    // 3. GET /customers/:id/timeline shows the same two rows (denormalized, no UNION needed)
-    const customerTimelineRes = await request(app.getHttpServer())
-      .get(`/api/v1/customers/${customerId}/timeline`)
-      .set('Authorization', authHeader())
-      .expect(200);
-
-    const customerActivityTypes = customerTimelineRes.body.items.map(
-      (a: { activityType: string }) => a.activityType,
-    );
-    expect(customerActivityTypes).toEqual(
-      expect.arrayContaining(['PAYMENT_RECEIVED', 'RECEIVABLE_CLOSED']),
-    );
-
-    // 4. Confirm the receivable itself really is PAID (sanity check on the source of truth)
+    // 3. Confirm the receivable is PAID before the undo changes its balance.
     const receivableRow = await dataSource.query(
       'SELECT status FROM receivables WHERE id = $1',
       [receivableId],
     );
     expect(receivableRow[0].status).toBe('PAID');
+
+    const allocation = await dataSource
+      .getRepository(PaymentAllocationOrmEntity)
+      .findOneBy({ organizationId, paymentId, receivableId });
+    expect(allocation).not.toBeNull();
+    if (!allocation) throw new Error('Expected the payment allocation');
+
+    const undoReason = 'Nhập sai số tiền';
+    const undoPath = `/api/v1/payments/allocations/${allocation.id}/undo`;
+    await request(app.getHttpServer())
+      .post(undoPath)
+      .set('Authorization', authHeader())
+      .set('Idempotency-Key', 'collection-activity-timeline-undo')
+      .send({ undoReason })
+      .expect(201);
+
+    // A completed same-key retry replays the saved success. A new key reaches
+    // the use case, which rejects the already-undone allocation.
+    await request(app.getHttpServer())
+      .post(undoPath)
+      .set('Authorization', authHeader())
+      .set('Idempotency-Key', 'collection-activity-timeline-undo')
+      .send({ undoReason })
+      .expect(201);
+    const duplicateUndoRes = await request(app.getHttpServer())
+      .post(undoPath)
+      .set('Authorization', authHeader())
+      .set('Idempotency-Key', 'collection-activity-timeline-undo-new-key')
+      .send({ undoReason })
+      .expect(409);
+    expect(duplicateUndoRes.body.errorCode).toBe('ALLOCATION_ALREADY_UNDONE');
+
+    const undoDeadline = Date.now() + 10_000;
+    let undoTimelineRes: request.Response | undefined;
+    let undoActivityTypes: string[] = [];
+    while (Date.now() < undoDeadline) {
+      undoTimelineRes = await request(app.getHttpServer())
+        .get(`/api/v1/receivables/${receivableId}/timeline`)
+        .set('Authorization', authHeader())
+        .expect(200);
+      undoActivityTypes = undoTimelineRes.body.items.map(
+        (activity: { activityType: string }) => activity.activityType,
+      );
+      if (undoActivityTypes.includes('ALLOCATION_UNDONE')) break;
+      await delay(100);
+    }
+
+    expect(undoActivityTypes).toEqual(
+      expect.arrayContaining([
+        'PAYMENT_RECEIVED',
+        'RECEIVABLE_CLOSED',
+        'ALLOCATION_UNDONE',
+      ]),
+    );
+    expect(undoTimelineRes?.body.items).toHaveLength(3);
+    const paymentActivity = undoTimelineRes?.body.items.find(
+      (activity: { activityType: string }) =>
+        activity.activityType === 'PAYMENT_RECEIVED',
+    );
+    expect(paymentActivity).toMatchObject({
+      activityType: 'PAYMENT_RECEIVED',
+      metadata: { paymentId, amount: 30_000_000 },
+    });
+    const undoActivity = undoTimelineRes?.body.items.find(
+      (activity: { activityType: string }) =>
+        activity.activityType === 'ALLOCATION_UNDONE',
+    );
+    expect(undoActivity).toMatchObject({
+      receivableId,
+      customerId,
+      activityType: 'ALLOCATION_UNDONE',
+      createdByUserId: userId,
+      description:
+        'Đã hoàn tác phân bổ 30.000.000 ₫ cho khoản phải thu. Lý do: Nhập sai số tiền',
+      metadata: {
+        allocationId: allocation.id,
+        paymentId,
+        amount: 30_000_000,
+        undoReason,
+      },
+    });
+
+    const customerTimelineRes = await request(app.getHttpServer())
+      .get(`/api/v1/customers/${customerId}/timeline`)
+      .set('Authorization', authHeader())
+      .expect(200);
+    expect(customerTimelineRes.body.items).toHaveLength(3);
+    expect(
+      customerTimelineRes.body.items.map(
+        (activity: { activityType: string }) => activity.activityType,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'PAYMENT_RECEIVED',
+        'RECEIVABLE_CLOSED',
+        'ALLOCATION_UNDONE',
+      ]),
+    );
+
+    const finalReceivableRow = await dataSource.query(
+      'SELECT status FROM receivables WHERE id = $1',
+      [receivableId],
+    );
+    expect(finalReceivableRow[0].status).toBe('OPEN');
   });
 
   it('records a manual MANUAL_CALL activity via POST /receivables/:id/activities', async () => {
