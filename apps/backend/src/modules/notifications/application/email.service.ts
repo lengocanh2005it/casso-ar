@@ -165,4 +165,8 @@ export class EmailService {
       );
     }
   }
+
+  async recoverReminderDelivery(executionId: string) {
+    return this.emailQueue.recoverReminderDelivery(executionId);
+  }
 }

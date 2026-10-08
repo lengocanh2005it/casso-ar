@@ -1,4 +1,155 @@
+import { ReminderSkipReason } from '../domain/reminder-execution';
 import { TypeOrmReminderExecutionRepository } from './typeorm-reminder-execution.repository';
+
+describe('TypeOrmReminderExecutionRepository.findPendingAutomatedBefore', () => {
+  it('loads the oldest pending rule-based executions for the current tenant within the limit', async () => {
+    const rows = [
+      {
+        id: 'execution-oldest',
+        organizationId: 'org-current',
+        receivableId: 'receivable-1',
+        reminderRuleId: 'rule-1',
+        executionDate: '2026-10-08',
+        sentAt: null,
+        status: 'PENDING',
+        skipReason: null,
+        providerMessageId: null,
+        failureReason: null,
+        createdAt: new Date('2026-10-08T00:00:00.000Z'),
+      },
+    ];
+    const queryBuilder = {
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue(rows),
+    };
+    const createQueryBuilder = jest.fn().mockReturnValue(queryBuilder);
+    const getRepository = jest.fn().mockReturnValue({ createQueryBuilder });
+    const tenantContext = {
+      getOrganizationId: jest.fn().mockReturnValue('org-current'),
+    };
+    const repo = new TypeOrmReminderExecutionRepository(
+      { getRepository } as any,
+      tenantContext as any,
+    );
+    const cutoff = new Date('2026-10-08T00:01:00.000Z');
+
+    const result = await repo.findPendingAutomatedBefore(cutoff, 100);
+
+    expect(tenantContext.getOrganizationId).toHaveBeenCalledTimes(1);
+    expect(queryBuilder.where).toHaveBeenCalledWith(
+      'e."organizationId" = :organizationId',
+      { organizationId: 'org-current' },
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith('e.status = :pending', {
+      pending: 'PENDING',
+    });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'e."reminderRuleId" IS NOT NULL',
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'e."createdAt" <= :createdBefore',
+      { createdBefore: cutoff },
+    );
+    expect(queryBuilder.orderBy).toHaveBeenCalledWith('e."createdAt"', 'ASC');
+    expect(queryBuilder.take).toHaveBeenCalledWith(100);
+    expect(result).toEqual([
+      expect.objectContaining({ id: 'execution-oldest' }),
+    ]);
+    expect(result[0].executionDate).toEqual(
+      new Date('2026-10-08T00:00:00.000Z'),
+    );
+    expect(result[0]).not.toBe(rows[0]);
+  });
+});
+
+describe('TypeOrmReminderExecutionRepository.markSkippedIfPending', () => {
+  it('marks only the current tenant pending execution as skipped in a transaction', async () => {
+    const queryBuilder = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    const getRepository = jest.fn().mockReturnValue({
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+    });
+    const manager = { getRepository };
+    const transaction = jest.fn(async (work) => await work(manager));
+    const repo = new TypeOrmReminderExecutionRepository(
+      { transaction } as any,
+      { getOrganizationId: jest.fn().mockReturnValue('org-current') } as any,
+    );
+
+    await repo.markSkippedIfPending('execution-1', ReminderSkipReason.DISPUTED);
+
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(queryBuilder.set).toHaveBeenCalledWith({
+      status: 'SKIPPED',
+      skipReason: 'DISPUTED',
+      failureReason: null,
+    });
+    expect(queryBuilder.where).toHaveBeenCalledWith('id = :id', {
+      id: 'execution-1',
+    });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      '"organizationId" = :organizationId',
+      { organizationId: 'org-current' },
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith('status = :pending', {
+      pending: 'PENDING',
+    });
+  });
+});
+
+describe('TypeOrmReminderExecutionRepository.updateSendResult', () => {
+  it('persists the supplied failure reason only while the tenant execution is pending', async () => {
+    const queryBuilder = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    const getRepository = jest.fn().mockReturnValue({
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+    });
+    const transaction = jest.fn(async (work) => await work({ getRepository }));
+    const repo = new TypeOrmReminderExecutionRepository(
+      { transaction } as any,
+      { getOrganizationId: jest.fn().mockReturnValue('org-current') } as any,
+    );
+
+    await repo.updateSendResult(
+      'execution-1',
+      'FAILED',
+      null,
+      'Reminder rule was removed before delivery',
+    );
+
+    expect(queryBuilder.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'FAILED',
+        providerMessageId: null,
+        failureReason: 'Reminder rule was removed before delivery',
+      }),
+    );
+    expect(queryBuilder.where).toHaveBeenCalledWith('id = :id', {
+      id: 'execution-1',
+    });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      '"organizationId" = :organizationId',
+      { organizationId: 'org-current' },
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith('status = :pending', {
+      pending: 'PENDING',
+    });
+  });
+});
 
 describe('TypeOrmReminderExecutionRepository.deleteOlderThan', () => {
   it('deletes rows older than the cutoff and returns the deleted count', async () => {

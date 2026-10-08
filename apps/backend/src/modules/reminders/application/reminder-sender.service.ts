@@ -12,7 +12,10 @@ import {
 } from '../domain/reminder-execution';
 import type { IEmailService } from './i-email-service.port';
 import { I_EMAIL_SERVICE } from './i-email-service.port';
-import type { IReminderCandidateReader } from './reminder-candidate-reader.port';
+import type {
+  IReminderCandidateReader,
+  ReminderCandidate,
+} from './reminder-candidate-reader.port';
 import type { IReminderExecutionRepository } from './reminder-execution-repository.port';
 import type { IReminderRuleRepository } from './reminder-rule-repository.port';
 
@@ -42,6 +45,21 @@ function buildSkippedExecution(
   });
 }
 
+function getSkipReason(
+  candidate: ReminderCandidate | null,
+): ReminderSkipReason | null {
+  if (
+    !candidate ||
+    candidate.status === ReceivableStatus.PAID ||
+    candidate.status === ReceivableStatus.WRITTEN_OFF ||
+    candidate.status === ReceivableStatus.CANCELLED
+  ) {
+    return ReminderSkipReason.ALREADY_PAID;
+  }
+  if (candidate.isDisputed) return ReminderSkipReason.DISPUTED;
+  return null;
+}
+
 @Injectable()
 export class ReminderSenderService {
   constructor(
@@ -63,28 +81,25 @@ export class ReminderSenderService {
       job.reminderRuleId,
       new Date(job.executionDate),
     );
-    if (existing) return;
+    if (existing) {
+      if (existing.status === ReminderExecutionStatus.PENDING) {
+        await this.recoverPendingExecution(job, existing.id);
+      }
+      return;
+    }
 
     const candidate = await this.candidateReader.findByReceivableId(
       job.receivableId,
     );
 
-    if (
-      !candidate ||
-      candidate.status === ReceivableStatus.PAID ||
-      candidate.status === ReceivableStatus.WRITTEN_OFF ||
-      candidate.status === ReceivableStatus.CANCELLED
-    ) {
-      await this.executionRepo.save(
-        buildSkippedExecution(job, ReminderSkipReason.ALREADY_PAID),
-      );
+    const skipReason = getSkipReason(candidate);
+    if (skipReason === ReminderSkipReason.ALREADY_PAID) {
+      await this.executionRepo.save(buildSkippedExecution(job, skipReason));
       return;
     }
 
-    if (candidate.isDisputed) {
-      await this.executionRepo.save(
-        buildSkippedExecution(job, ReminderSkipReason.DISPUTED),
-      );
+    if (skipReason === ReminderSkipReason.DISPUTED) {
+      await this.executionRepo.save(buildSkippedExecution(job, skipReason));
       return;
     }
 
@@ -111,12 +126,86 @@ export class ReminderSenderService {
     });
 
     const claimed = await this.executionRepo.insertIfAbsent(execution);
-    if (!claimed) return;
+    if (!claimed) {
+      const winner = await this.executionRepo.findByKey(
+        job.receivableId,
+        job.reminderRuleId,
+        new Date(job.executionDate),
+      );
+      if (winner?.status === ReminderExecutionStatus.PENDING) {
+        await this.recoverPendingExecution(job, winner.id);
+      }
+      return;
+    }
 
     await this.emailService.sendReminderEmail({
       receivableId: job.receivableId,
       templateId: rule.emailTemplateId,
       reminderExecutionId: execution.id,
     });
+  }
+
+  private async recoverPendingExecution(
+    job: SendReminderJob,
+    executionId: string,
+  ): Promise<void> {
+    const recovery =
+      await this.emailService.recoverReminderDelivery(executionId);
+    if (recovery === 'COMPLETED' || recovery === 'EXHAUSTED') {
+      const reason =
+        recovery === 'COMPLETED'
+          ? 'Email delivery completed while the reminder execution remained pending; delivery outcome is unknown.'
+          : 'Email delivery exhausted its configured retries during recovery.';
+      await this.executionRepo.updateSendResult(
+        executionId,
+        'FAILED',
+        null,
+        reason,
+      );
+      return;
+    }
+    if (recovery !== 'MISSING') return;
+
+    const candidate = await this.candidateReader.findByReceivableId(
+      job.receivableId,
+    );
+    const skipReason = getSkipReason(candidate);
+    if (skipReason) {
+      await this.executionRepo.markSkippedIfPending(executionId, skipReason);
+      return;
+    }
+
+    const rule = await this.ruleRepo.findById(job.reminderRuleId);
+    if (!rule) {
+      await this.executionRepo.updateSendResult(
+        executionId,
+        'FAILED',
+        null,
+        `Reminder rule ${job.reminderRuleId} was deleted before delivery recovery.`,
+      );
+      return;
+    }
+
+    try {
+      await this.emailService.sendReminderEmail({
+        receivableId: job.receivableId,
+        templateId: rule.emailTemplateId,
+        reminderExecutionId: executionId,
+      });
+    } catch (error) {
+      if (
+        error instanceof AppError &&
+        error.errorCode === ErrorCode.NOT_FOUND
+      ) {
+        await this.executionRepo.updateSendResult(
+          executionId,
+          'FAILED',
+          null,
+          `Reminder email data is unavailable during recovery: ${error.message}`,
+        );
+        return;
+      }
+      throw error;
+    }
   }
 }

@@ -14,6 +14,8 @@ import { CreateReminderPolicyUseCase } from './application/create-reminder-polic
 import { I_EMAIL_SERVICE } from './application/i-email-service.port';
 import { ListReminderExecutionsUseCase } from './application/list-reminder-executions.usecase';
 import { ListReminderPoliciesUseCase } from './application/list-reminder-policies.usecase';
+import { ReminderExecutionRecoveryService } from './application/reminder-execution-recovery.service';
+import { REMINDER_EXECUTION_RECOVERY_WORKLIST } from './application/reminder-execution-recovery-worklist.port';
 import {
   REMINDER_SEND_QUEUE,
   ReminderSchedulerService,
@@ -21,10 +23,12 @@ import {
 import { ReminderSenderService } from './application/reminder-sender.service';
 import { UpdateReminderPolicyUseCase } from './application/update-reminder-policy.usecase';
 import { ReminderExecutionListener } from './infrastructure/reminder-execution.listener';
+import { ReminderExecutionRecoveryScheduler } from './infrastructure/reminder-execution-recovery.scheduler';
 import { ReminderPolicyOrmEntity } from './infrastructure/reminder-policy.orm-entity';
 import { ReminderRuleOrmEntity } from './infrastructure/reminder-rule.orm-entity';
 import { ReminderSendProcessor } from './infrastructure/reminder-send.processor';
 import { TypeOrmReminderCandidateReader } from './infrastructure/typeorm-reminder-candidate.reader';
+import { TypeOrmReminderExecutionRecoveryWorklist } from './infrastructure/typeorm-reminder-execution-recovery-worklist';
 import { TypeOrmReminderPolicyRepository } from './infrastructure/typeorm-reminder-policy.repository';
 import { TypeOrmReminderRuleRepository } from './infrastructure/typeorm-reminder-rule.repository';
 import {
@@ -65,6 +69,13 @@ import {
     ListReminderExecutionsUseCase,
     ReminderSenderService,
     ReminderSchedulerService,
+    ReminderExecutionRecoveryService,
+    ReminderExecutionRecoveryScheduler,
+    TypeOrmReminderExecutionRecoveryWorklist,
+    {
+      provide: REMINDER_EXECUTION_RECOVERY_WORKLIST,
+      useExisting: TypeOrmReminderExecutionRecoveryWorklist,
+    },
     ReminderSendProcessor,
     ReminderExecutionListener,
   ],

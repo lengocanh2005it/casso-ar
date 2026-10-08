@@ -1,4 +1,5 @@
 import { SmtpConfigStatus } from '../../smtp-config/domain/organization-smtp-config';
+import type { ReminderDeliveryLockResult } from '../application/email-queue.port';
 import { EmailQueueProcessor } from './email-queue.processor';
 
 function buildJob(
@@ -79,7 +80,20 @@ function buildDeps() {
       run: jest.fn((_id: string, callback: () => Promise<void>) => callback()),
       getRequestId: jest.fn().mockReturnValue('request-1'),
     },
-    emailQueue: { add: jest.fn() },
+    emailQueue: {
+      add: jest.fn(),
+      runWithReminderDeliveryLock: jest.fn(
+        async (
+          _executionId: string,
+          operation: () => Promise<unknown>,
+        ): Promise<ReminderDeliveryLockResult<unknown>> => ({
+          acquired: true,
+          value: await operation(),
+          leaseLost: false,
+        }),
+      ),
+      isReminderJobFailureCurrent: jest.fn().mockResolvedValue(true),
+    },
     storage: {
       exists: jest.fn().mockResolvedValue(true),
       read: jest.fn().mockResolvedValue(Buffer.from('file-bytes')),
@@ -280,6 +294,37 @@ describe('EmailQueueProcessor', () => {
       expect.any(Function),
     );
   });
+
+  it('skips stale final-failure events after another recovery already moved the job', async () => {
+    const deps = buildDeps();
+    deps.emailQueue.isReminderJobFailureCurrent.mockResolvedValue(false);
+
+    await buildProcessor(deps).onFailed(
+      buildJob({ attemptsMade: 3, attempts: 3 }),
+    );
+
+    expect(deps.emailQueue.runWithReminderDeliveryLock).toHaveBeenCalledWith(
+      'exec-1',
+      expect.any(Function),
+      expect.any(Number),
+    );
+    expect(deps.executionRepo.updateSendResult).not.toHaveBeenCalled();
+    expect(deps.emailQueue.add).not.toHaveBeenCalled();
+  });
+
+  it('defers failure side effects when another recovery holds the execution lock', async () => {
+    const deps = buildDeps();
+    deps.emailQueue.runWithReminderDeliveryLock.mockResolvedValue({
+      acquired: false,
+    });
+
+    await buildProcessor(deps).onFailed(
+      buildJob({ attemptsMade: 3, attempts: 3 }),
+    );
+
+    expect(deps.executionRepo.updateSendResult).not.toHaveBeenCalled();
+    expect(deps.emailQueue.add).not.toHaveBeenCalled();
+  });
 });
 
 describe('EmailQueueProcessor — provider resolution', () => {
@@ -306,6 +351,7 @@ describe('EmailQueueProcessor — provider resolution', () => {
         forceProvider === 'RESEND' ? warningAdapter : { send: jest.fn() },
     );
     deps.smtpConfigRepo.findByOrganizationId.mockResolvedValue({
+      id: 'smtp-1',
       status: SmtpConfigStatus.CONNECTED,
       organizationId: 'org-1',
       isConnected: jest.fn().mockReturnValue(true),
@@ -352,6 +398,9 @@ describe('EmailQueueProcessor — provider resolution', () => {
         forceProvider: 'RESEND',
       }),
       expect.objectContaining({ jobId: 'exec-1-resend-fallback' }),
+    );
+    expect(deps.emailQueue.add.mock.invocationCallOrder[0]).toBeLessThan(
+      deps.membershipRepo.findOwnerByOrganization.mock.invocationCallOrder[0],
     );
   });
 

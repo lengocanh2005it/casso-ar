@@ -7,6 +7,30 @@ import { Receivable } from '../../receivables/domain/receivable';
 import { EmailService } from './email.service';
 
 describe('EmailService', () => {
+  it('delegates reminder delivery recovery to the email queue', async () => {
+    const queue = {
+      recoverReminderDelivery: jest.fn().mockResolvedValue('RETRIED'),
+    };
+    const service = new EmailService(
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      queue as any,
+      {} as any,
+      {} as any,
+    );
+
+    await expect(service.recoverReminderDelivery('exec-1')).resolves.toBe(
+      'RETRIED',
+    );
+    expect(queue.recoverReminderDelivery).toHaveBeenCalledWith('exec-1');
+  });
+
   it('renders a reminder from tenant-scoped data and enqueues it with retry settings', async () => {
     const receivable = new Receivable({
       id: 'rec-1',

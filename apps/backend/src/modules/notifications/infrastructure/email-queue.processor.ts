@@ -43,6 +43,13 @@ import {
 import { SMTP_CONFIG_FAILED } from '../application/smtp-config-failed.event';
 import { EMAIL_QUEUE } from './email-queue.constants';
 
+const REMINDER_FAILURE_LOCK_WAIT_MS = 30_000;
+
+interface ReminderFailureOutcome {
+  isCurrent: boolean;
+  transitionedSmtpConfigId?: string;
+}
+
 function getJobRequestId(job: Job): string {
   return `bullmq:${job.id ?? randomUUID()}`;
 }
@@ -262,101 +269,146 @@ export class EmailQueueProcessor extends WorkerHost {
       const data = job.data as ReminderEmailJob;
       const { reminderExecutionId, organizationId } = data;
 
-      if (data.forceProvider === 'RESEND') {
-        await this.markExecutionFailed(reminderExecutionId, organizationId);
+      const lock = await this.emailQueue.runWithReminderDeliveryLock(
+        reminderExecutionId,
+        () => this.handleFinalReminderFailure(job, data),
+        REMINDER_FAILURE_LOCK_WAIT_MS,
+      );
+      if (!lock.acquired) {
+        this.logger.warn({
+          message:
+            'Reminder failure handler could not acquire the execution recovery lock; the next sweep will retry',
+          organizationId,
+          userId: 'system',
+          requestId: getJobRequestId(job),
+          reminderExecutionId,
+        });
         return;
       }
+      if (!lock.value.isCurrent) return;
+      if (lock.leaseLost) {
+        this.logger.warn({
+          message:
+            'Reminder failure handler lost its recovery lock lease after completing guarded side effects',
+          organizationId,
+          userId: 'system',
+          requestId: getJobRequestId(job),
+          reminderExecutionId,
+        });
+      }
 
-      await this.tenantContext.run(
-        { userId: 'system', organizationId, role: Role.OWNER },
-        async () => {
-          const config =
-            await this.smtpConfigRepo.findByOrganizationId(organizationId);
-          if (config?.isConnected()) {
-            // `transitioned` is false when another reminder job for the same
-            // org already flipped this config CONNECTED -> FAILED (concurrent
-            // exhaustion race). Either way THIS reminder must still be
-            // rescued via the Resend fallback below — only the one-time
-            // warning email is guarded by the transition, so it's sent
-            // exactly once regardless of which job wins the race.
-            const transitioned =
-              await this.smtpConfigRepo.markFailedIfVersionMatches(
-                config.markFailed(),
-              );
-
-            if (transitioned) {
-              const ownerMembership =
-                await this.membershipRepo.findOwnerByOrganization(
-                  organizationId,
-                );
-              const owner = ownerMembership
-                ? await this.userRepo.findById(ownerMembership.userId)
-                : null;
-              if (owner?.email) {
-                try {
-                  const warningAdapter = await this.resolver.resolve(
-                    organizationId,
-                    'RESEND',
-                  );
-                  const warning = buildCassoEmail({
-                    title: 'Thông báo về máy chủ email riêng',
-                    greeting: 'Kính chào Quý khách,',
-                    paragraphs: [
-                      'Casso không thể gửi email nhắc nợ qua máy chủ email riêng của bạn. Các email nhắc nợ tạm thời sẽ được gửi qua Casso cho đến khi bạn cấu hình lại.',
-                    ],
-                  });
-                  await warningAdapter.send(
-                    owner.email,
-                    'Email server riêng của bạn đang gặp sự cố',
-                    warning.html,
-                    { emailType: 'SMTP_CONNECTION_FAILED_WARNING' },
-                    undefined,
-                    undefined,
-                    { text: warning.text, attachments: warning.attachments },
-                  );
-                } catch (error) {
-                  this.logger.error({
-                    message: 'SMTP failure warning email could not be sent',
-                    organizationId,
-                    userId: 'system',
-                    requestId: getJobRequestId(job),
-                    error:
-                      error instanceof Error ? error.message : String(error),
-                  });
-                }
-              }
-
-              this.eventEmitter.emit(SMTP_CONFIG_FAILED, {
-                organizationId,
-                smtpConfigId: config.id,
-              });
-            }
-
-            await this.emailQueue.add(
-              'send-reminder-email',
-              { ...data, forceProvider: 'RESEND' },
-              {
-                jobId: `${reminderExecutionId}-resend-fallback`,
-                attempts: 3,
-                backoff: { type: 'exponential', delay: 5000 },
-              },
-            );
-            this.logger.warn({
-              message: transitioned
-                ? 'SMTP config exhausted retries; flipped to FAILED and requeued via Resend'
-                : 'SMTP config already FAILED by a concurrent job; requeued this reminder via Resend',
-              organizationId,
-              userId: 'system',
-              requestId: getJobRequestId(job),
-              reminderExecutionId,
-            });
-            return;
-          }
-
-          await this.markExecutionFailed(reminderExecutionId, organizationId);
-        },
-      );
+      if (lock.value.transitionedSmtpConfigId) {
+        await this.sendSmtpFailureWarning(job, organizationId);
+        this.eventEmitter.emit(SMTP_CONFIG_FAILED, {
+          organizationId,
+          smtpConfigId: lock.value.transitionedSmtpConfigId,
+        });
+      }
     });
+  }
+
+  private async handleFinalReminderFailure(
+    job: Job,
+    data: ReminderEmailJob,
+  ): Promise<ReminderFailureOutcome> {
+    const reminderExecutionId = data.reminderExecutionId;
+    const organizationId = data.organizationId;
+    const jobId = job.id ?? reminderExecutionId;
+    const isCurrent = await this.emailQueue.isReminderJobFailureCurrent(
+      jobId,
+      job.attemptsMade,
+    );
+    if (!isCurrent) return { isCurrent: false };
+
+    if (data.forceProvider === 'RESEND') {
+      await this.markExecutionFailed(reminderExecutionId, organizationId);
+      return { isCurrent: true };
+    }
+
+    return this.tenantContext.run(
+      { userId: 'system', organizationId, role: Role.OWNER },
+      async () => {
+        const config =
+          await this.smtpConfigRepo.findByOrganizationId(organizationId);
+        if (!config?.isConnected()) {
+          await this.markExecutionFailed(reminderExecutionId, organizationId);
+          return { isCurrent: true };
+        }
+
+        // `transitioned` guards the one-time warning; every reminder still
+        // receives the stable Resend fallback job even when another execution
+        // already failed the organization SMTP config.
+        const transitioned =
+          await this.smtpConfigRepo.markFailedIfVersionMatches(
+            config.markFailed(),
+          );
+        await this.emailQueue.add(
+          'send-reminder-email',
+          { ...data, forceProvider: 'RESEND' },
+          {
+            jobId: `${reminderExecutionId}-resend-fallback`,
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 5000 },
+          },
+        );
+        this.logger.warn({
+          message: transitioned
+            ? 'SMTP config exhausted retries; flipped to FAILED and requeued via Resend'
+            : 'SMTP config already FAILED by a concurrent job; requeued this reminder via Resend',
+          organizationId,
+          userId: 'system',
+          requestId: getJobRequestId(job),
+          reminderExecutionId,
+        });
+        return {
+          isCurrent: true,
+          ...(transitioned ? { transitionedSmtpConfigId: config.id } : {}),
+        };
+      },
+    );
+  }
+
+  private async sendSmtpFailureWarning(
+    job: Job,
+    organizationId: string,
+  ): Promise<void> {
+    const ownerMembership =
+      await this.membershipRepo.findOwnerByOrganization(organizationId);
+    const owner = ownerMembership
+      ? await this.userRepo.findById(ownerMembership.userId)
+      : null;
+    if (!owner?.email) return;
+
+    try {
+      const warningAdapter = await this.resolver.resolve(
+        organizationId,
+        'RESEND',
+      );
+      const warning = buildCassoEmail({
+        title: 'Thông báo về máy chủ email riêng',
+        greeting: 'Kính chào Quý khách,',
+        paragraphs: [
+          'Casso không thể gửi email nhắc nợ qua máy chủ email riêng của bạn. Các email nhắc nợ tạm thời sẽ được gửi qua Casso cho đến khi bạn cấu hình lại.',
+        ],
+      });
+      await warningAdapter.send(
+        owner.email,
+        'Email server riêng của bạn đang gặp sự cố',
+        warning.html,
+        { emailType: 'SMTP_CONNECTION_FAILED_WARNING' },
+        undefined,
+        undefined,
+        { text: warning.text, attachments: warning.attachments },
+      );
+    } catch (error) {
+      this.logger.error({
+        message: 'SMTP failure warning email could not be sent',
+        organizationId,
+        userId: 'system',
+        requestId: getJobRequestId(job),
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   private async markExecutionFailed(

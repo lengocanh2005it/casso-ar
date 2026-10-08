@@ -47,7 +47,30 @@ export interface OwnerAlertEmailJob {
   attachments?: EmailAttachment[];
 }
 
+export type ReminderDeliveryRecoveryResult =
+  | 'MISSING'
+  | 'IN_FLIGHT'
+  | 'RETRIED'
+  | 'COMPLETED'
+  | 'EXHAUSTED';
+
+export type ReminderDeliveryLockResult<T> =
+  | { acquired: true; value: T; leaseLost: boolean }
+  | { acquired: false };
+
 export interface IEmailQueue {
+  runWithReminderDeliveryLock<T>(
+    executionId: string,
+    operation: () => Promise<T>,
+    waitForLockMs?: number,
+  ): Promise<ReminderDeliveryLockResult<T>>;
+  isReminderJobFailureCurrent(
+    jobId: string,
+    attemptsMade: number,
+  ): Promise<boolean>;
+  recoverReminderDelivery(
+    executionId: string,
+  ): Promise<ReminderDeliveryRecoveryResult>;
   add(
     name: 'send-reminder-email',
     data: ReminderEmailJob,

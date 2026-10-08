@@ -20,9 +20,14 @@ const rule = new ReminderRule({
 
 function createSender(deps: {
   candidate: any;
-  emailService: Pick<IEmailService, 'sendReminderEmail'>;
+  emailService: Pick<IEmailService, 'sendReminderEmail'> &
+    Partial<Pick<IEmailService, 'recoverReminderDelivery'>>;
   executionRepo: IReminderExecutionRepository;
 }) {
+  const emailService: IEmailService = {
+    recoverReminderDelivery: jest.fn().mockResolvedValue('MISSING'),
+    ...deps.emailService,
+  };
   return new ReminderSenderService(
     {
       findByReceivableId: jest.fn().mockResolvedValue(deps.candidate),
@@ -31,7 +36,7 @@ function createSender(deps: {
       findById: jest.fn().mockResolvedValue(rule),
     } as unknown as IReminderRuleRepository,
     deps.executionRepo,
-    deps.emailService,
+    emailService,
     {
       run: async (_user: unknown, cb: () => Promise<void>) => await cb(),
     } as unknown as TenantContextService,
@@ -45,7 +50,10 @@ describe('ReminderSenderService', () => {
       status: ReceivableStatus.PAID,
       isDisputed: false,
     };
-    const emailService = { sendReminderEmail: jest.fn() };
+    const emailService = {
+      sendReminderEmail: jest.fn(),
+      recoverReminderDelivery: jest.fn(),
+    };
     const executionRepo = {
       findByKey: jest.fn().mockResolvedValue(null),
       insertIfAbsent: jest.fn().mockResolvedValue(true),
@@ -129,17 +137,20 @@ describe('ReminderSenderService', () => {
     });
   });
 
-  it('does not re-dispatch when execution already exists', async () => {
+  it('does not touch a terminal execution that already exists', async () => {
     const candidate = {
       receivableId: 'rec-1',
       status: ReceivableStatus.OPEN,
       isDisputed: false,
     };
-    const emailService = { sendReminderEmail: jest.fn() };
+    const emailService = {
+      sendReminderEmail: jest.fn(),
+      recoverReminderDelivery: jest.fn(),
+    };
     const executionRepo = {
       findByKey: jest
         .fn()
-        .mockResolvedValue({ id: 'exec-existing', status: 'PENDING' }),
+        .mockResolvedValue({ id: 'exec-existing', status: 'SENT' }),
       insertIfAbsent: jest.fn().mockResolvedValue(false),
       save: jest.fn(),
     } as any;
@@ -153,7 +164,355 @@ describe('ReminderSenderService', () => {
     });
 
     expect(emailService.sendReminderEmail).not.toHaveBeenCalled();
+    expect(emailService.recoverReminderDelivery).not.toHaveBeenCalled();
     expect(executionRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('resumes an existing pending execution with its original ID when queue jobs are absent', async () => {
+    const candidate = {
+      receivableId: 'rec-1',
+      status: ReceivableStatus.OPEN,
+      isDisputed: false,
+    };
+    const emailService = {
+      sendReminderEmail: jest.fn().mockResolvedValue(undefined),
+      recoverReminderDelivery: jest.fn().mockResolvedValue('MISSING'),
+    };
+    const executionRepo = {
+      findByKey: jest
+        .fn()
+        .mockResolvedValue({ id: 'exec-existing', status: 'PENDING' }),
+      insertIfAbsent: jest.fn(),
+      save: jest.fn(),
+    } as any;
+    const service = createSender({ candidate, emailService, executionRepo });
+
+    await service.send({
+      organizationId: 'org-1',
+      receivableId: 'rec-1',
+      reminderRuleId: 'rule-1',
+      executionDate: '2026-08-03',
+    });
+
+    expect(emailService.recoverReminderDelivery).toHaveBeenCalledWith(
+      'exec-existing',
+    );
+    expect(executionRepo.insertIfAbsent).not.toHaveBeenCalled();
+    expect(emailService.sendReminderEmail).toHaveBeenCalledWith({
+      receivableId: 'rec-1',
+      templateId: 'template-1',
+      reminderExecutionId: 'exec-existing',
+    });
+  });
+
+  it('leaves an existing execution alone while its email job is in flight', async () => {
+    const emailService = {
+      sendReminderEmail: jest.fn(),
+      recoverReminderDelivery: jest.fn().mockResolvedValue('IN_FLIGHT'),
+    };
+    const executionRepo = {
+      findByKey: jest
+        .fn()
+        .mockResolvedValue({ id: 'exec-existing', status: 'PENDING' }),
+      updateSendResult: jest.fn(),
+      markSkippedIfPending: jest.fn(),
+      insertIfAbsent: jest.fn(),
+      save: jest.fn(),
+    } as any;
+    const service = createSender({
+      candidate: null,
+      emailService,
+      executionRepo,
+    });
+
+    await service.send({
+      organizationId: 'org-1',
+      receivableId: 'rec-1',
+      reminderRuleId: 'rule-1',
+      executionDate: '2026-08-03',
+    });
+
+    expect(emailService.sendReminderEmail).not.toHaveBeenCalled();
+    expect(executionRepo.updateSendResult).not.toHaveBeenCalled();
+    expect(executionRepo.markSkippedIfPending).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['COMPLETED', 'outcome is unknown'],
+    ['EXHAUSTED', 'configured retries'],
+  ] as const)(
+    'marks the same execution FAILED when queue recovery returns %s',
+    async (recovery, reason) => {
+      const emailService = {
+        sendReminderEmail: jest.fn(),
+        recoverReminderDelivery: jest.fn().mockResolvedValue(recovery),
+      };
+      const executionRepo = {
+        findByKey: jest
+          .fn()
+          .mockResolvedValue({ id: 'exec-existing', status: 'PENDING' }),
+        updateSendResult: jest.fn(),
+        markSkippedIfPending: jest.fn(),
+        insertIfAbsent: jest.fn(),
+        save: jest.fn(),
+      } as any;
+      const service = createSender({
+        candidate: null,
+        emailService,
+        executionRepo,
+      });
+
+      await service.send({
+        organizationId: 'org-1',
+        receivableId: 'rec-1',
+        reminderRuleId: 'rule-1',
+        executionDate: '2026-08-03',
+      });
+
+      expect(executionRepo.updateSendResult).toHaveBeenCalledWith(
+        'exec-existing',
+        'FAILED',
+        null,
+        expect.stringContaining(reason),
+      );
+      expect(emailService.sendReminderEmail).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    [
+      {
+        receivableId: 'rec-1',
+        status: ReceivableStatus.PAID,
+        isDisputed: false,
+      },
+      'ALREADY_PAID',
+    ],
+    [
+      {
+        receivableId: 'rec-1',
+        status: ReceivableStatus.OPEN,
+        isDisputed: true,
+      },
+      'DISPUTED',
+    ],
+  ] as const)(
+    'marks the same pending execution SKIPPED when current eligibility changes',
+    async (candidate, skipReason) => {
+      const emailService = {
+        sendReminderEmail: jest.fn(),
+        recoverReminderDelivery: jest.fn().mockResolvedValue('MISSING'),
+      };
+      const executionRepo = {
+        findByKey: jest
+          .fn()
+          .mockResolvedValue({ id: 'exec-existing', status: 'PENDING' }),
+        updateSendResult: jest.fn(),
+        markSkippedIfPending: jest.fn(),
+        insertIfAbsent: jest.fn(),
+        save: jest.fn(),
+      } as any;
+      const service = createSender({ candidate, emailService, executionRepo });
+
+      await service.send({
+        organizationId: 'org-1',
+        receivableId: 'rec-1',
+        reminderRuleId: 'rule-1',
+        executionDate: '2026-08-03',
+      });
+
+      expect(executionRepo.markSkippedIfPending).toHaveBeenCalledWith(
+        'exec-existing',
+        skipReason,
+      );
+      expect(executionRepo.save).not.toHaveBeenCalled();
+      expect(emailService.sendReminderEmail).not.toHaveBeenCalled();
+    },
+  );
+
+  it('marks the pending execution FAILED when its rule was deleted', async () => {
+    const emailService = {
+      sendReminderEmail: jest.fn(),
+      recoverReminderDelivery: jest.fn().mockResolvedValue('MISSING'),
+    };
+    const executionRepo = {
+      findByKey: jest
+        .fn()
+        .mockResolvedValue({ id: 'exec-existing', status: 'PENDING' }),
+      updateSendResult: jest.fn(),
+      markSkippedIfPending: jest.fn(),
+      insertIfAbsent: jest.fn(),
+      save: jest.fn(),
+    } as any;
+    const service = new ReminderSenderService(
+      {
+        findByReceivableId: jest.fn().mockResolvedValue({
+          receivableId: 'rec-1',
+          status: ReceivableStatus.OPEN,
+          isDisputed: false,
+        }),
+      } as unknown as IReminderCandidateReader,
+      { findById: jest.fn().mockResolvedValue(null) } as any,
+      executionRepo,
+      emailService as unknown as IEmailService,
+      {
+        run: async (_user: unknown, cb: () => Promise<void>) => await cb(),
+      } as any,
+    );
+
+    await service.send({
+      organizationId: 'org-1',
+      receivableId: 'rec-1',
+      reminderRuleId: 'rule-deleted',
+      executionDate: '2026-08-03',
+    });
+
+    expect(executionRepo.updateSendResult).toHaveBeenCalledWith(
+      'exec-existing',
+      'FAILED',
+      null,
+      expect.stringContaining('rule-deleted'),
+    );
+    expect(emailService.sendReminderEmail).not.toHaveBeenCalled();
+  });
+
+  it('marks the pending execution FAILED when its email template was deleted', async () => {
+    const emailService = {
+      recoverReminderDelivery: jest.fn().mockResolvedValue('MISSING'),
+      sendReminderEmail: jest
+        .fn()
+        .mockRejectedValue(
+          new AppError(ErrorCode.NOT_FOUND, 'template deleted'),
+        ),
+    };
+    const executionRepo = {
+      findByKey: jest
+        .fn()
+        .mockResolvedValue({ id: 'exec-existing', status: 'PENDING' }),
+      updateSendResult: jest.fn(),
+      markSkippedIfPending: jest.fn(),
+      insertIfAbsent: jest.fn(),
+      save: jest.fn(),
+    } as any;
+    const service = createSender({
+      candidate: {
+        receivableId: 'rec-1',
+        status: ReceivableStatus.OPEN,
+        isDisputed: false,
+      },
+      emailService,
+      executionRepo,
+    });
+
+    await service.send({
+      organizationId: 'org-1',
+      receivableId: 'rec-1',
+      reminderRuleId: 'rule-1',
+      executionDate: '2026-08-03',
+    });
+
+    expect(executionRepo.updateSendResult).toHaveBeenCalledWith(
+      'exec-existing',
+      'FAILED',
+      null,
+      expect.stringContaining('template deleted'),
+    );
+  });
+
+  it('reuses the execution ID on the next attempt after enqueue failure', async () => {
+    let insertedExecutionId: string | undefined;
+    const emailService = {
+      recoverReminderDelivery: jest.fn().mockResolvedValue('MISSING'),
+      sendReminderEmail: jest
+        .fn()
+        .mockRejectedValueOnce(new Error('enqueue failed'))
+        .mockResolvedValueOnce(undefined),
+    };
+    const executionRepo = {
+      findByKey: jest
+        .fn()
+        .mockImplementation(() =>
+          insertedExecutionId
+            ? { id: insertedExecutionId, status: 'PENDING' }
+            : null,
+        ),
+      insertIfAbsent: jest.fn().mockImplementation((execution) => {
+        insertedExecutionId = execution.id;
+        return true;
+      }),
+      save: jest.fn(),
+    } as any;
+    const service = createSender({
+      candidate: {
+        receivableId: 'rec-1',
+        status: ReceivableStatus.OPEN,
+        isDisputed: false,
+      },
+      emailService,
+      executionRepo,
+    });
+    const job = {
+      organizationId: 'org-1',
+      receivableId: 'rec-1',
+      reminderRuleId: 'rule-1',
+      executionDate: '2026-08-03',
+    };
+
+    await expect(service.send(job)).rejects.toThrow('enqueue failed');
+    await service.send(job);
+
+    expect(insertedExecutionId).toBeDefined();
+    expect(emailService.sendReminderEmail).toHaveBeenNthCalledWith(1, {
+      receivableId: 'rec-1',
+      templateId: 'template-1',
+      reminderExecutionId: insertedExecutionId,
+    });
+    expect(emailService.sendReminderEmail).toHaveBeenNthCalledWith(2, {
+      receivableId: 'rec-1',
+      templateId: 'template-1',
+      reminderExecutionId: insertedExecutionId,
+    });
+    expect(executionRepo.insertIfAbsent).toHaveBeenCalledTimes(1);
+  });
+
+  it('recovers the pending execution inserted by a concurrent sender', async () => {
+    const emailService = {
+      recoverReminderDelivery: jest.fn().mockResolvedValue('MISSING'),
+      sendReminderEmail: jest.fn().mockResolvedValue(undefined),
+    };
+    const executionRepo = {
+      findByKey: jest
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'winner-exec', status: 'PENDING' }),
+      insertIfAbsent: jest.fn().mockResolvedValue(false),
+      save: jest.fn(),
+    } as any;
+    const service = createSender({
+      candidate: {
+        receivableId: 'rec-1',
+        status: ReceivableStatus.OPEN,
+        isDisputed: false,
+      },
+      emailService,
+      executionRepo,
+    });
+
+    await service.send({
+      organizationId: 'org-1',
+      receivableId: 'rec-1',
+      reminderRuleId: 'rule-1',
+      executionDate: '2026-08-03',
+    });
+
+    expect(emailService.recoverReminderDelivery).toHaveBeenCalledWith(
+      'winner-exec',
+    );
+    expect(emailService.sendReminderEmail).toHaveBeenCalledWith({
+      receivableId: 'rec-1',
+      templateId: 'template-1',
+      reminderExecutionId: 'winner-exec',
+    });
   });
 
   it('throws a NOT_FOUND AppError when the reminder rule no longer exists', async () => {
@@ -162,7 +521,10 @@ describe('ReminderSenderService', () => {
       status: ReceivableStatus.OPEN,
       isDisputed: false,
     };
-    const emailService = { sendReminderEmail: jest.fn() };
+    const emailService = {
+      sendReminderEmail: jest.fn(),
+      recoverReminderDelivery: jest.fn(),
+    };
     const executionRepo = {
       findByKey: jest.fn().mockResolvedValue(null),
       insertIfAbsent: jest.fn(),
