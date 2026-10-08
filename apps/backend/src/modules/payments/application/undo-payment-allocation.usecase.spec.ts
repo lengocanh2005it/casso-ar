@@ -56,7 +56,8 @@ describe('UndoPaymentAllocationUseCase', () => {
         lockOrder.push('allocation');
         return allocation;
       })
-      .mockResolvedValueOnce(allocation.undo('user-1', 'duplicate'));
+      .mockResolvedValueOnce(allocation.undo('user-1', 'duplicate'))
+      .mockResolvedValueOnce(allocation);
     const allocationRepo = {
       findByIdForUpdate: findAllocationByIdForUpdate,
       save: jest.fn(),
@@ -78,8 +79,25 @@ describe('UndoPaymentAllocationUseCase', () => {
     const auditLogRepo = { create: jest.fn() };
     const recorder = { record: jest.fn() };
     const ledgerRecorder = { record: jest.fn() };
+    let transactionCommitted = false;
+    const emittedEvents: Array<{
+      transactionCommitted: boolean;
+      eventName: string;
+      payload: Record<string, unknown>;
+    }> = [];
+    const eventPublisher = {
+      emit: jest.fn((eventName: string, payload: Record<string, unknown>) => {
+        emittedEvents.push({ transactionCommitted, eventName, payload });
+      }),
+      emitAsync: jest.fn(),
+    };
     const dataSource = {
-      transaction: jest.fn((callback) => callback(manager)),
+      transaction: jest.fn(async (callback) => {
+        transactionCommitted = false;
+        const result = await callback(manager);
+        transactionCommitted = true;
+        return result;
+      }),
     };
     const useCase = new UndoPaymentAllocationUseCase(
       allocationRepo as any,
@@ -89,6 +107,7 @@ describe('UndoPaymentAllocationUseCase', () => {
       dataSource as any,
       recorder as any,
       ledgerRecorder as any,
+      eventPublisher as any,
     );
 
     await useCase.execute({
@@ -96,6 +115,22 @@ describe('UndoPaymentAllocationUseCase', () => {
       deletedByUserId: 'user-2',
       undoReason: 'Correction',
     });
+    expect(emittedEvents).toEqual([
+      {
+        transactionCommitted: true,
+        eventName: 'payment.allocation-undone',
+        payload: {
+          allocationId: 'alloc-1',
+          paymentId: 'pay-1',
+          receivableId: 'rec-1',
+          customerId: 'cust-1',
+          organizationId: 'org-1',
+          amount: 30_000_000,
+          undoneByUserId: 'user-2',
+          undoReason: 'Correction',
+        },
+      },
+    ]);
     expect(lockOrder).toEqual(['allocation', 'receivable', 'payment']);
     expect(paymentRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ allocatedAmount: 0 }),
@@ -136,8 +171,27 @@ describe('UndoPaymentAllocationUseCase', () => {
     ).rejects.toMatchObject({
       errorCode: ErrorCode.ALLOCATION_ALREADY_UNDONE,
     });
+    expect(eventPublisher.emit).toHaveBeenCalledTimes(1);
     expect(auditLogRepo.create).toHaveBeenCalledTimes(1);
     expect(recorder.record).toHaveBeenCalledTimes(1);
+
+    findAllocationByIdForUpdate.mockResolvedValueOnce(allocation);
+    dataSource.transaction.mockImplementationOnce(async (callback) => {
+      transactionCommitted = false;
+      await callback(manager);
+      throw new Error('commit failed');
+    });
+    await expect(
+      useCase.execute({
+        allocationId: 'alloc-1',
+        deletedByUserId: 'user-2',
+        undoReason: 'Correction',
+      }),
+    ).rejects.toThrow('commit failed');
+    expect(eventPublisher.emit).toHaveBeenCalledTimes(1);
+    expect(emittedEvents.every((event) => event.transactionCommitted)).toBe(
+      true,
+    );
   });
 
   it('records both sides of the undo as ledger events', async () => {
@@ -198,6 +252,7 @@ describe('UndoPaymentAllocationUseCase', () => {
     const dataSource = {
       transaction: jest.fn((callback) => callback(manager)),
     };
+    const eventPublisher = { emit: jest.fn(), emitAsync: jest.fn() };
     const useCase = new UndoPaymentAllocationUseCase(
       allocationRepo as any,
       paymentRepo as any,
@@ -206,6 +261,7 @@ describe('UndoPaymentAllocationUseCase', () => {
       dataSource as any,
       historyRecorder as any,
       ledgerRecorder as any,
+      eventPublisher as any,
     );
 
     await useCase.execute({

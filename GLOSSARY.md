@@ -8,7 +8,7 @@ This glossary names the business concepts used to track receivables and incoming
 Assignment of an amount from a received payment to a receivable. One payment can fund multiple receivables, and one receivable can receive allocations from multiple payments.
 
 **Allocation undo**:
-Reversal of an active payment allocation that preserves the original allocation and the reason for undo.
+Reversal of an active payment allocation that restores the receivable balance while preserving the original allocation as history. A separate collection activity records the undone amount, actor, and reason.
 
 **Near-match overpayment**:
 An incoming bank transfer that exceeds a candidate receivable's remaining balance but still appears to be a plausible payment for it.
@@ -27,6 +27,11 @@ _Avoid_: Invoice code match
 
 **Customer credit**:
 Received money that has not been allocated to a receivable and is held for an accountant to allocate intentionally later.
+
+## Collections
+
+**Collection activity**:
+An immutable timeline entry about collection work or a receivable change. It explains the receivable's history; the underlying payment and receivable records remain the financial source of truth.
 
 ## Billing plans
 
