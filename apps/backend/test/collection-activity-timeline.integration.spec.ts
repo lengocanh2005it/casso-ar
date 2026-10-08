@@ -333,7 +333,7 @@ describe('Collection Activity Timeline (integration)', () => {
       .set('Authorization', authHeader())
       .expect(200);
 
-    expect(timelineRes.body.items).toHaveLength(3);
+    expect(timelineRes.body.items).toHaveLength(4);
   });
 
   describe('webhook auto-match path', () => {
