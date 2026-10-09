@@ -106,9 +106,11 @@ export function SplitMatchDialog({
   onOpenChange: (value: boolean) => void;
 }) {
   const { user } = useAuth();
-  const { data: candidates = [], isLoading: candidatesLoading } = useCandidates(
-    open ? tx.id : '',
-  );
+  const {
+    data: candidates = [],
+    isLoading: candidatesLoading,
+    isError: candidatesFailed,
+  } = useCandidates(open ? tx.id : '');
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [customerSearch, setCustomerSearch] = useState('');
   const [prepaidCustomerId, setPrepaidCustomerId] = useState('');
@@ -139,8 +141,13 @@ export function SplitMatchDialog({
   );
   // An UNMATCHED transaction stores no candidates at all, so the reviewer
   // picks the customer first and allocates against their open receivables.
-  const needsManualPick = !candidatesLoading && sortedCandidates.length === 0;
-  const { data: manualPickPage } = useReceivables(
+  // Only a *settled empty* candidate list means that: a failed request must
+  // not masquerade as "no suggestions".
+  const needsManualPick =
+    !candidatesLoading && !candidatesFailed && sortedCandidates.length === 0;
+  // ponytail: one page of 100 (the API's max) filtered client-side; add the
+  // list endpoint's status filter + paging if a customer ever exceeds it.
+  const { data: manualPickPage, isLoading: manualPickLoading } = useReceivables(
     { customerId: prepaidCustomerId },
     1,
     100,
@@ -183,20 +190,16 @@ export function SplitMatchDialog({
           })),
     [needsManualPick, manualPickReceivables, sortedCandidates],
   );
-  const total = useMemo(
-    () =>
-      Object.values(amounts).reduce(
-        (sum, value) => sum + Math.max(Number(value) || 0, 0),
-        0,
-      ),
-    [amounts],
-  );
   const allocations = rows
     .filter((row) => Number(amounts[row.receivableId]) > 0)
     .map((row) => ({
       receivableId: row.receivableId,
       amount: Number(amounts[row.receivableId]),
     }));
+  // Summed from the allocations, not from `amounts`: switching customer in
+  // manual-pick mode drops the old rows from `rows` but leaves their amounts
+  // behind, and a total the user is not actually sending is a lie.
+  const total = allocations.reduce((sum, item) => sum + item.amount, 0);
   const amountsAreIntegers = allocations.every((allocation) =>
     Number.isInteger(allocation.amount),
   );
@@ -358,6 +361,18 @@ export function SplitMatchDialog({
               các khoản phải thu còn mở.
             </p>
           )}
+          {needsManualPick && manualPickLoading && (
+            <p className="text-sm text-muted-foreground">Đang tải công nợ…</p>
+          )}
+          {needsManualPick &&
+            !manualPickLoading &&
+            prepaidCustomerId &&
+            manualPickReceivables.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Khách hàng này không có khoản phải thu còn mở. Hãy ghi nhận công
+                nợ nếu đó là tiền trả trước.
+              </p>
+            )}
           {rows.map((row) => {
             const receivableLabel = getReceivableDisplayName(row.invoiceNumber);
             const candidateLabel = row.customerName
@@ -467,7 +482,11 @@ export function SplitMatchDialog({
               onValueChange={setPrepaidCustomerId}
             >
               <SelectTrigger
-                aria-label="Khách hàng để ghi nhận công nợ"
+                aria-label={
+                  needsManualPick
+                    ? 'Khách hàng để chọn khoản phải thu'
+                    : 'Khách hàng để ghi nhận công nợ'
+                }
                 className="w-full"
               >
                 <SelectValue placeholder="Chọn khách hàng" />

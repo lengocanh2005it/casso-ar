@@ -100,7 +100,7 @@ export class ExceptionQueueController {
   })
   @RequirePermission(Permission.PAYMENT_ALLOCATE)
   async pendingReviewCount() {
-    return { count: await this.unmatchedQuery.countPendingReview() };
+    return { count: await this.unmatchedQuery.countQueue() };
   }
 
   @Get(':id/candidates')

@@ -88,7 +88,7 @@ export class TypeOrmBankTransactionRepository
   }
 
   async findManyByStatus(
-    status: BankTransactionStatus | BankTransactionStatus[],
+    status: BankTransactionStatus[],
     options?: { skip?: number; take?: number; search?: string },
   ): Promise<BankTransaction[]> {
     const organizationId = this.tenantContext.getOrganizationId();
@@ -102,7 +102,7 @@ export class TypeOrmBankTransactionRepository
   }
 
   async countByStatus(
-    status: BankTransactionStatus | BankTransactionStatus[],
+    status: BankTransactionStatus[],
     search?: string,
   ): Promise<number> {
     const organizationId = this.tenantContext.getOrganizationId();
@@ -117,14 +117,14 @@ export class TypeOrmBankTransactionRepository
 // organizationId + status.
 function searchWhere(
   organizationId: string,
-  status: BankTransactionStatus | BankTransactionStatus[],
+  status: BankTransactionStatus[],
   search: string | undefined,
 ):
   | FindOptionsWhere<BankTransactionOrmEntity>
   | FindOptionsWhere<BankTransactionOrmEntity>[] {
   const base: FindOptionsWhere<BankTransactionOrmEntity> = {
     organizationId,
-    status: Array.isArray(status) ? In(status) : status,
+    status: In(status),
   };
   if (!search) return base;
   const term = ILike(toLikePattern(search));

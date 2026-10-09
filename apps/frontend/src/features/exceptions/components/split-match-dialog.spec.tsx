@@ -529,6 +529,77 @@ describe('SplitMatchDialog', () => {
       ),
     );
   });
+
+  // The allocated total is summed from the submitted rows, not from the raw
+  // input map: switching customer drops the first customer's rows but its
+  // amounts used to linger and still count against the transaction.
+  it('drops the previous customer amounts from the allocated total', async () => {
+    const receivableFor = (id: string, invoiceNumber: string) => ({
+      id,
+      customerId: id === 'r9' ? 'c9' : 'c10',
+      customerName: id === 'r9' ? 'Công ty Mới' : 'Công ty Khác',
+      invoiceId: invoiceNumber,
+      invoiceNumber,
+      originalAmount: 50_000_000,
+      paidAmount: 0,
+      remainingAmount: 50_000_000,
+      dueDate: '2026-09-15T00:00:00Z',
+      status: 'OPEN',
+      isDisputed: false,
+      disputeId: null,
+      isOverdue: false,
+      salesRepresentativeId: null,
+      createdAt: '2026-08-01T00:00:00Z',
+      closedAt: null,
+    });
+    apiRequest.mockImplementation(
+      (cfg: { url: string; params?: Record<string, unknown> }) => {
+        if (cfg.url.includes('/candidates')) return Promise.resolve([]);
+        if (cfg.url === '/api/v1/customers') {
+          return Promise.resolve({
+            items: [
+              { id: 'c9', name: 'Công ty Mới' },
+              { id: 'c10', name: 'Công ty Khác' },
+            ],
+          });
+        }
+        if (cfg.url === '/api/v1/receivables') {
+          return Promise.resolve({
+            items:
+              cfg.params?.customerId === 'c10'
+                ? [receivableFor('r10', 'INV-2026-010')]
+                : [receivableFor('r9', 'INV-2026-009')],
+            total: 1,
+            page: 1,
+            limit: 100,
+          });
+        }
+        return Promise.resolve({ id: 'bt9' });
+      },
+    );
+    renderDialog(undefined, { ...tx, status: 'UNMATCHED' });
+
+    fireEvent.change(await screen.findByLabelText(/tìm khách hàng/i), {
+      target: { value: 'cong ty' },
+    });
+    fireEvent.click(await screen.findByRole('combobox'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Công ty Mới' }));
+    fireEvent.change(
+      await screen.findByLabelText('Số tiền phân bổ cho INV-2026-009'),
+      { target: { value: '50000000' } },
+    );
+
+    fireEvent.click(screen.getByRole('combobox'));
+    fireEvent.click(
+      await screen.findByRole('option', { name: 'Công ty Khác' }),
+    );
+
+    await screen.findByText('INV-2026-010 — Công ty Khác');
+    // 50.000.000 ₫ is now only the transaction amount; the total is back to 0.
+    expect(screen.getByText(/Đã phân bổ:/)).toHaveTextContent(
+      'Đã phân bổ: 0 ₫',
+    );
+  });
 });
 
 function renderWithPayer(opts?: {

@@ -411,9 +411,11 @@ describe('Exception Queue (e2e)', () => {
     expect(transaction.status).toBe('UNMATCHED');
 
     const queue = await request(app.getHttpServer())
-      .get('/api/v1/bank-transactions/unmatched?limit=100&status=UNMATCHED')
+      .get('/api/v1/bank-transactions/unmatched?limit=100')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
+    // AC: the queue list and count include UNMATCHED without any filter.
+    expect(queue.body.total).toBeGreaterThanOrEqual(1);
     const queued = queue.body.items.find(
       (entry: { transaction: { id: string } }) =>
         entry.transaction.id === transaction.id,
@@ -422,6 +424,24 @@ describe('Exception Queue (e2e)', () => {
     expect(queued.transaction.status).toBe('UNMATCHED');
     // Nothing scored high enough to suggest, so the reviewer picks by hand.
     expect(queued.topCandidate).toBeNull();
+
+    const counted = await request(app.getHttpServer())
+      .get('/api/v1/bank-transactions/pending-review-count')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(counted.body.count).toBe(queue.body.total);
+
+    const filtered = await request(app.getHttpServer())
+      .get('/api/v1/bank-transactions/unmatched?limit=100&status=UNMATCHED')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(
+      filtered.body.items.every(
+        (entry: { transaction: { status: string } }) =>
+          entry.transaction.status === 'UNMATCHED',
+      ),
+    ).toBe(true);
+    expect(filtered.body.total).toBeLessThanOrEqual(queue.body.total);
 
     await request(app.getHttpServer())
       .post(`/api/v1/bank-transactions/${transaction.id}/match`)

@@ -641,7 +641,7 @@ describe('UnmatchedBankTransactionsQueryService', () => {
       undefined,
     );
     expect(page.total).toBe(7);
-    await expect(service.countPendingReview()).resolves.toBe(7);
+    await expect(service.countQueue()).resolves.toBe(7);
     expect(bankTransactionRepo.countByStatus).toHaveBeenLastCalledWith([
       'PENDING_REVIEW',
       'UNMATCHED',

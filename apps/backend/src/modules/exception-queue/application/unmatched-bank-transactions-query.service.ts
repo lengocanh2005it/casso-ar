@@ -103,7 +103,7 @@ export class UnmatchedBankTransactionsQueryService {
     page = 1,
     limit = 20,
     search?: string,
-    status?: 'PENDING_REVIEW' | 'UNMATCHED',
+    status?: (typeof ACTIONABLE_BANK_TRANSACTION_STATUSES)[number],
   ): Promise<UnmatchedBankTransactionPage> {
     const statuses = status
       ? [status]
@@ -220,7 +220,7 @@ export class UnmatchedBankTransactionsQueryService {
     };
   }
 
-  async countPendingReview(): Promise<number> {
+  async countQueue(): Promise<number> {
     return this.bankTransactionRepo.countByStatus([
       ...ACTIONABLE_BANK_TRANSACTION_STATUSES,
     ]);
