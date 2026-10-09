@@ -162,9 +162,9 @@
 **Files:**
 - Review all implementation changes and the already accepted ADR/spec updates.
 
-- [ ] Run focused backend and frontend tests for changed slices.
-- [ ] Run full relevant backend and frontend unit suites and `pnpm verify`.
-- [ ] Run backend domain-check and applicable reporting/history integration specs.
-- [ ] Run `git diff --check`, inspect generated OpenAPI output if available, and verify no affected report money field still uses a numeric DTO/type or `Number(...)` coercion.
-- [ ] Complete Standards and Spec code reviews; resolve findings, then commit any review fixes.
-- [ ] Confirm working tree contains no unrelated changes and all changes are committed on `fix/report-aggregate-precision`.
+- [x] Run focused backend and frontend tests for changed slices.
+- [x] Run full relevant backend and frontend unit suites and `pnpm verify` (`pnpm verify` passed; full viewport suite: 382 passed, 2 operator-chart layout failures at phone/tablet on label `2026-10-50`, 1 skipped. Exact-money viewport cases passed at all five projects).
+- [x] Run backend domain-check and applicable reporting/history integration specs (27/27 reporting, 20/20 history).
+- [x] Run `git diff --check`, inspect generated OpenAPI output if available (none checked into the repo), and verify no affected report money field still uses a numeric DTO/type or `Number(...)` coercion.
+- [x] Complete Standards and Spec code reviews; both returned no findings.
+- [x] Confirm working tree contains no unrelated changes and all changes are committed on `fix/report-aggregate-precision`.
