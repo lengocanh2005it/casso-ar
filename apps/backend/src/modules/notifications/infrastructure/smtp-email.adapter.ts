@@ -1,3 +1,4 @@
+import { connect, type Socket } from 'node:net';
 import nodemailer from 'nodemailer';
 import { decryptToken } from '../../bank-connections/application/token-encryption';
 import type { OrganizationSmtpConfig } from '../../smtp-config/domain/organization-smtp-config';
@@ -20,6 +21,7 @@ interface SmtpTransport {
     to: string;
     subject: string;
     html: string;
+    messageId?: string;
     text?: string;
     replyTo?: string;
     attachments?: Array<{
@@ -30,21 +32,52 @@ interface SmtpTransport {
       contentType?: string;
     }>;
   }): Promise<{ messageId: string }>;
+  close?(): void;
 }
 
 type TransportFactory = (config: SmtpTransportConfig) => SmtpTransport;
 type DecryptFn = (value: string, key: string) => string;
 
 const defaultTransportFactory: TransportFactory = (config) => {
+  const activeSockets = new Set<Socket>();
   const transport = nodemailer.createTransport({
     host: config.host,
     port: config.port,
     auth: { user: config.username, pass: config.password },
+    getSocket: (
+      options: { host?: string; port?: number },
+      callback: (
+        error: Error | null,
+        socketOptions?: { connection: Socket },
+      ) => void,
+    ) => {
+      const socket = connect(
+        options.port ?? config.port,
+        options.host ?? config.host,
+      );
+      activeSockets.add(socket);
+      const onClose = () => activeSockets.delete(socket);
+      const onError = (error: Error) => {
+        socket.off('connect', onConnect);
+        callback(error);
+      };
+      const onConnect = () => {
+        socket.off('error', onError);
+        callback(null, { connection: socket });
+      };
+      socket.once('close', onClose);
+      socket.once('error', onError);
+      socket.once('connect', onConnect);
+    },
   });
   return {
     sendMail: async (options) => {
       const result = await transport.sendMail(options);
       return { messageId: result.messageId };
+    },
+    close: () => {
+      for (const socket of activeSockets) socket.destroy();
+      transport.close();
     },
   };
 };
@@ -86,15 +119,35 @@ export class SmtpEmailAdapter implements IEmailProviderAdapter {
         ...(contentType ? { contentType } : {}),
       }),
     );
-    const result = await transport.sendMail({
-      from: this.config.fromAddress,
-      to,
-      subject,
-      html,
-      ...(options?.text !== undefined ? { text: options.text } : {}),
-      ...(replyTo ? { replyTo } : {}),
-      ...(attachments?.length ? { attachments } : {}),
-    });
-    return { providerMessageId: result.messageId };
+    const closeOnAbort = () => transport.close?.();
+    if (options?.signal?.aborted) {
+      closeOnAbort();
+      throw options.signal.reason instanceof Error
+        ? options.signal.reason
+        : new Error('SMTP reminder send aborted');
+    }
+    options?.signal?.addEventListener('abort', closeOnAbort, { once: true });
+    try {
+      const result = await transport.sendMail({
+        from: this.config.fromAddress,
+        to,
+        subject,
+        html,
+        ...(options?.idempotencyKey
+          ? { messageId: `<${options.idempotencyKey}@casso-ar.vn>` }
+          : {}),
+        ...(options?.text !== undefined ? { text: options.text } : {}),
+        ...(replyTo ? { replyTo } : {}),
+        ...(attachments?.length ? { attachments } : {}),
+      });
+      if (options?.signal?.aborted) {
+        throw options.signal.reason instanceof Error
+          ? options.signal.reason
+          : new Error('SMTP reminder send aborted');
+      }
+      return { providerMessageId: result.messageId };
+    } finally {
+      options?.signal?.removeEventListener('abort', closeOnAbort);
+    }
   }
 }

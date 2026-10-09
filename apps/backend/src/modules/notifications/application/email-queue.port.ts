@@ -63,7 +63,7 @@ export interface IEmailQueue {
   runWithReceivableDeliveryLock<T>(
     organizationId: string,
     receivableId: string,
-    operation: () => Promise<T>,
+    operation: (signal: AbortSignal) => Promise<T>,
     waitForLockMs?: number,
   ): Promise<ReminderDeliveryLockResult<T>>;
   runWithReminderDeliveryLock<T>(

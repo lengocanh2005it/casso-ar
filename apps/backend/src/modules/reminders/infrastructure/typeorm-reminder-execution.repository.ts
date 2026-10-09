@@ -11,6 +11,8 @@ import {
   ReminderSkipReason,
 } from '../domain/reminder-execution';
 import { ReminderExecutionOrmEntity } from './reminder-execution.orm-entity';
+import { ReminderPolicyOrmEntity } from './reminder-policy.orm-entity';
+import { ReminderRuleOrmEntity } from './reminder-rule.orm-entity';
 
 @Injectable()
 export class TypeOrmReminderExecutionRepository
@@ -93,6 +95,52 @@ export class TypeOrmReminderExecutionRepository
       .getRepository(ReminderExecutionOrmEntity)
       .findOne({ where: { id, organizationId } });
     return row ? new ReminderExecution(row) : null;
+  }
+
+  async recoverMinIntervalDays(id: string): Promise<number | null> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const row = await this.dataSource
+      .getRepository(ReminderExecutionOrmEntity)
+      .createQueryBuilder('e')
+      .innerJoin(ReminderRuleOrmEntity, 'r', 'r.id = e."reminderRuleId"')
+      .innerJoin(
+        ReminderPolicyOrmEntity,
+        'p',
+        'p.id::text = r."reminderPolicyId" AND p."organizationId" = e."organizationId"::text',
+      )
+      .select('e."minIntervalDays"', 'capturedMinIntervalDays')
+      .addSelect('r."minIntervalDays"', 'ruleMinIntervalDays')
+      .where('e.id = :id', { id })
+      .andWhere('e."organizationId" = :organizationId', { organizationId })
+      .andWhere('e.status = :pending', {
+        pending: ReminderExecutionStatus.PENDING,
+      })
+      .getRawOne<{
+        capturedMinIntervalDays: number | null;
+        ruleMinIntervalDays: number;
+      }>();
+
+    if (!row) return null;
+    if (row.capturedMinIntervalDays !== null) {
+      return row.capturedMinIntervalDays;
+    }
+
+    const result = await this.dataSource
+      .getRepository(ReminderExecutionOrmEntity)
+      .createQueryBuilder()
+      .update()
+      .set({ minIntervalDays: row.ruleMinIntervalDays })
+      .where('id = :id', { id })
+      .andWhere('"organizationId" = :organizationId', { organizationId })
+      .andWhere('status = :pending', {
+        pending: ReminderExecutionStatus.PENDING,
+      })
+      .andWhere('"minIntervalDays" IS NULL')
+      .execute();
+
+    if (result.affected) return row.ruleMinIntervalDays;
+    const current = await this.findById(id);
+    return current?.minIntervalDays ?? null;
   }
 
   async findPendingAutomatedBefore(

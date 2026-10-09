@@ -104,6 +104,65 @@ describe('TypeOrmReminderExecutionRepository.findByKey', () => {
   });
 });
 
+describe('TypeOrmReminderExecutionRepository.recoverMinIntervalDays', () => {
+  it('reads the original rule under the current tenant and persists its interval on the pending execution', async () => {
+    const readBuilder = {
+      innerJoin: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getRawOne: jest.fn().mockResolvedValue({
+        capturedMinIntervalDays: null,
+        ruleMinIntervalDays: 7,
+      }),
+    };
+    const updateBuilder = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    const repository = {
+      createQueryBuilder: jest
+        .fn()
+        .mockReturnValueOnce(readBuilder)
+        .mockReturnValueOnce(updateBuilder),
+    };
+    const tenantContext = {
+      getOrganizationId: jest.fn().mockReturnValue('org-current'),
+    };
+    const repo = new TypeOrmReminderExecutionRepository(
+      { getRepository: jest.fn().mockReturnValue(repository) } as any,
+      tenantContext as any,
+    );
+
+    await expect(repo.recoverMinIntervalDays('execution-1')).resolves.toBe(7);
+
+    expect(readBuilder.andWhere).toHaveBeenCalledWith(
+      'e."organizationId" = :organizationId',
+      { organizationId: 'org-current' },
+    );
+    expect(readBuilder.andWhere).toHaveBeenCalledWith('e.status = :pending', {
+      pending: 'PENDING',
+    });
+    expect(readBuilder.innerJoin).toHaveBeenLastCalledWith(
+      expect.any(Function),
+      'p',
+      expect.stringContaining('p."organizationId" = e."organizationId"::text'),
+    );
+    expect(updateBuilder.set).toHaveBeenCalledWith({ minIntervalDays: 7 });
+    expect(updateBuilder.andWhere).toHaveBeenCalledWith(
+      '"organizationId" = :organizationId',
+      { organizationId: 'org-current' },
+    );
+    expect(updateBuilder.andWhere).toHaveBeenCalledWith(
+      '"minIntervalDays" IS NULL',
+    );
+  });
+});
+
 describe('TypeOrmReminderExecutionRepository.findLatestSentByReceivableIds', () => {
   it('includes SENT history across rules and manual executions for the current tenant', async () => {
     const queryBuilder = {

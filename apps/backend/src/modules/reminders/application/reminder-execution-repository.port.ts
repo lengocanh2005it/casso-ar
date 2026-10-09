@@ -20,6 +20,7 @@ export interface IReminderExecutionRepository {
     minIntervalDays: number | null;
   } | null>;
   findById(id: string): Promise<ReminderExecution | null>;
+  recoverMinIntervalDays(id: string): Promise<number | null>;
   findPendingAutomatedBefore(
     createdBefore: Date,
     limit: number,

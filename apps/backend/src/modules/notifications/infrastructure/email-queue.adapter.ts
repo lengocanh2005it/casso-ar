@@ -14,6 +14,7 @@ import { EMAIL_QUEUE } from './email-queue.constants';
 
 const REMINDER_DELIVERY_LOCK_TTL_MS = 30_000;
 const REMINDER_DELIVERY_LOCK_RENEW_INTERVAL_MS = 10_000;
+const REMINDER_DELIVERY_LOCK_RENEW_TIMEOUT_MS = 5_000;
 const REMINDER_FAILURE_HANDLER_LOCK_POLL_MS = 100;
 const RECENT_FAILURE_GRACE_MS = 60_000;
 
@@ -92,7 +93,7 @@ export class BullMqEmailQueue implements IEmailQueue {
   async runWithReceivableDeliveryLock<T>(
     organizationId: string,
     receivableId: string,
-    operation: () => Promise<T>,
+    operation: (signal: AbortSignal) => Promise<T>,
     waitForLockMs = 0,
   ): Promise<ReminderDeliveryLockResult<T>> {
     return this.runWithDeliveryLock(
@@ -104,7 +105,7 @@ export class BullMqEmailQueue implements IEmailQueue {
 
   private async runWithDeliveryLock<T>(
     resourceKey: string,
-    operation: () => Promise<T>,
+    operation: (signal: AbortSignal) => Promise<T>,
     waitForLockMs: number,
   ): Promise<ReminderDeliveryLockResult<T>> {
     const redis = await this.queue.getBackend().client;
@@ -138,32 +139,50 @@ export class BullMqEmailQueue implements IEmailQueue {
     redis: IRedisClient,
     lockKey: string,
     token: string,
-    operation: () => Promise<T>,
+    operation: (signal: AbortSignal) => Promise<T>,
   ): Promise<ReminderDeliveryLockResult<T>> {
     let leaseLost = false;
+    const controller = new AbortController();
+    const markLeaseLost = () => {
+      if (leaseLost) return;
+      leaseLost = true;
+      controller.abort(new Error('Reminder delivery lock lease lost'));
+    };
     let renewal: Promise<void> | undefined;
     const renewalTimer = setInterval(() => {
-      if (renewal) return;
-      renewal = redis
-        .runCommand(RENEW_LOCK_COMMAND, [
-          lockKey,
-          token,
-          REMINDER_DELIVERY_LOCK_TTL_MS,
-        ])
+      if (renewal || leaseLost) return;
+      let renewalTimeout: ReturnType<typeof setTimeout> | undefined;
+      const timedOut = new Promise<never>((_resolve, reject) => {
+        renewalTimeout = setTimeout(
+          () => reject(new Error('Reminder delivery lock renewal timed out')),
+          REMINDER_DELIVERY_LOCK_RENEW_TIMEOUT_MS,
+        );
+      });
+      renewal = Promise.race([
+        Promise.resolve().then(() =>
+          redis.runCommand(RENEW_LOCK_COMMAND, [
+            lockKey,
+            token,
+            REMINDER_DELIVERY_LOCK_TTL_MS,
+          ]),
+        ),
+        timedOut,
+      ])
         .then((result) => {
-          if (Number(result) !== 1) leaseLost = true;
+          if (Number(result) !== 1) markLeaseLost();
         })
         .catch(() => {
-          leaseLost = true;
+          markLeaseLost();
         })
         .finally(() => {
+          if (renewalTimeout) clearTimeout(renewalTimeout);
           renewal = undefined;
         });
     }, REMINDER_DELIVERY_LOCK_RENEW_INTERVAL_MS);
     renewalTimer.unref();
 
     try {
-      const value = await operation();
+      const value = await operation(controller.signal);
       if (renewal) await renewal;
       return { acquired: true, value, leaseLost };
     } finally {

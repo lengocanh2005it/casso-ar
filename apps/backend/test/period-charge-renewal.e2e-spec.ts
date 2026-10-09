@@ -81,10 +81,10 @@ const noOpEmailQueue: IEmailQueue = {
   runWithReceivableDeliveryLock: async <T>(
     _organizationId: string,
     _receivableId: string,
-    operation: () => Promise<T>,
+    operation: (signal: AbortSignal) => Promise<T>,
   ) => ({
     acquired: true as const,
-    value: await operation(),
+    value: await operation(new AbortController().signal),
     leaseLost: false,
   }),
   runWithReminderDeliveryLock: async <T>(

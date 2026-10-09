@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -174,7 +174,7 @@ export class EmailQueueProcessor extends WorkerHost {
         const lock = await this.emailQueue.runWithReceivableDeliveryLock(
           organizationId,
           job.data.receivableId,
-          async () => {
+          async (signal) => {
             const execution =
               await this.executionRepo.findById(reminderExecutionId);
             if (
@@ -193,7 +193,16 @@ export class EmailQueueProcessor extends WorkerHost {
               return;
             }
 
-            const intervalDays = execution.minIntervalDays ?? minIntervalDays;
+            let intervalDays = execution.minIntervalDays ?? minIntervalDays;
+            if (
+              execution.reminderRuleId !== null &&
+              intervalDays === undefined
+            ) {
+              intervalDays =
+                (await this.executionRepo.recoverMinIntervalDays(
+                  reminderExecutionId,
+                )) ?? undefined;
+            }
             if (
               execution.reminderRuleId !== null &&
               intervalDays === undefined
@@ -215,6 +224,7 @@ export class EmailQueueProcessor extends WorkerHost {
               return;
             }
 
+            let latestSentAt: Date | undefined;
             if (
               execution.reminderRuleId !== null &&
               intervalDays !== undefined &&
@@ -224,13 +234,10 @@ export class EmailQueueProcessor extends WorkerHost {
                 await this.executionRepo.findLatestSentByReceivableIds([
                   execution.receivableId,
                 ]);
-              const previousSentAt = latestSent.get(
-                execution.receivableId,
-              )?.sentAt;
+              latestSentAt = latestSent.get(execution.receivableId)?.sentAt;
               if (
-                previousSentAt &&
-                Date.now() - previousSentAt.getTime() <
-                  intervalDays * MS_PER_DAY
+                latestSentAt &&
+                Date.now() - latestSentAt.getTime() < intervalDays * MS_PER_DAY
               ) {
                 await this.executionRepo.markSkippedIfPending(
                   reminderExecutionId,
@@ -238,6 +245,12 @@ export class EmailQueueProcessor extends WorkerHost {
                 );
                 return;
               }
+            } else {
+              const latestSent =
+                await this.executionRepo.findLatestSentByReceivableIds([
+                  execution.receivableId,
+                ]);
+              latestSentAt = latestSent.get(execution.receivableId)?.sentAt;
             }
 
             const attachments = await this.buildEmailAttachments(
@@ -248,6 +261,16 @@ export class EmailQueueProcessor extends WorkerHost {
               organizationId,
               forceProvider,
             );
+            if (signal.aborted) {
+              throw signal.reason instanceof Error
+                ? signal.reason
+                : new Error('Reminder delivery lock lease lost');
+            }
+            const idempotencyKey = `reminder-${createHash('sha256')
+              .update(
+                `${organizationId}:${execution.receivableId}:${latestSentAt?.toISOString() ?? 'never'}`,
+              )
+              .digest('hex')}`;
             const result = await adapter.send(
               to,
               subject,
@@ -255,8 +278,17 @@ export class EmailQueueProcessor extends WorkerHost {
               { reminderExecutionId },
               replyTo,
               fromName,
-              attachments ? { attachments } : undefined,
+              {
+                ...(attachments ? { attachments } : {}),
+                signal,
+                idempotencyKey,
+              },
             );
+            if (signal.aborted) {
+              throw signal.reason instanceof Error
+                ? signal.reason
+                : new Error('Reminder delivery lock lease lost');
+            }
             await this.executionRepo.updateSendResult(
               reminderExecutionId,
               'SENT',
@@ -285,6 +317,9 @@ export class EmailQueueProcessor extends WorkerHost {
             userId: 'system',
             requestId: getJobRequestId(job),
           });
+          throw new Error(
+            'Reminder delivery lock lease was lost; BullMQ should retry this email job.',
+          );
         }
       },
     );

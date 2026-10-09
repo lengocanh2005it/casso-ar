@@ -505,6 +505,38 @@ describe('Reminder automation (integration)', () => {
     expect(executions.items[0]?.providerMessageId).toBeTruthy();
   }, 20_000);
 
+  it('recovers and persists a missing legacy email interval from its original rule', async () => {
+    const organizationId = '00000000-0000-4000-8000-001900000000';
+    const { customerId, token } = await setUpOrg(organizationId);
+    await createPolicyWithRule(token, -5, 7);
+    const receivableId = await createReceivable(organizationId, customerId);
+    const ruleId = await getRuleId(organizationId);
+    const executionId = randomUUID();
+    await saveReminderExecution({
+      id: executionId,
+      organizationId,
+      receivableId,
+      reminderRuleId: ruleId,
+      minIntervalDays: null,
+      status: ReminderExecutionStatus.PENDING,
+    });
+
+    await app.get(EmailQueueProcessor).process(
+      buildReminderEmailJob({
+        id: executionId,
+        organizationId,
+        receivableId,
+      }),
+    );
+
+    const execution = await dataSource
+      .getRepository(ReminderExecutionOrmEntity)
+      .findOneByOrFail({ id: executionId });
+    expect(execution.minIntervalDays).toBe(7);
+    expect(execution.status).toBe(ReminderExecutionStatus.SENT);
+    expect(fakeEmailProvider.send).toHaveBeenCalledTimes(1);
+  });
+
   it('suppresses a delayed job using a manual SENT execution from the same receivable', async () => {
     const organizationId = '00000000-0000-4000-8000-001700000000';
     const { customerId } = await setUpOrg(organizationId);

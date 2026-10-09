@@ -353,6 +353,93 @@ describe('BullMqEmailQueue.recoverReminderDelivery', () => {
 });
 
 describe('BullMqEmailQueue.runWithReceivableDeliveryLock', () => {
+  it('aborts the guarded operation as soon as renewal reports a lost lease', async () => {
+    jest.useFakeTimers();
+    try {
+      const queue = withRedisLock({
+        getJob: jest.fn().mockResolvedValue(undefined),
+      }) as any;
+      const runCommand = queue.redis.runCommand.getMockImplementation();
+      queue.redis.runCommand.mockImplementation(
+        async (command: string, args: unknown[]) =>
+          command.endsWith('Renew') ? 0 : runCommand?.(command, args),
+      );
+      const adapter = new BullMqEmailQueue(queue as any);
+      let signal: AbortSignal | undefined;
+      const lockedOperation = adapter.runWithReceivableDeliveryLock(
+        'org-1',
+        'receivable-1',
+        (operationSignal) =>
+          new Promise<string>((resolve) => {
+            signal = operationSignal;
+            operationSignal.addEventListener(
+              'abort',
+              () => resolve('aborted'),
+              { once: true },
+            );
+          }),
+      );
+
+      await jest.advanceTimersByTimeAsync(10_000);
+
+      await expect(lockedOperation).resolves.toMatchObject({
+        acquired: true,
+        value: 'aborted',
+        leaseLost: true,
+      });
+      expect(signal?.aborted).toBe(true);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('aborts before the lock TTL expires when renewal stops responding', async () => {
+    jest.useFakeTimers();
+    try {
+      const queue = withRedisLock({
+        getJob: jest.fn().mockResolvedValue(undefined),
+      }) as any;
+      const runCommand = queue.redis.runCommand.getMockImplementation();
+      queue.redis.runCommand.mockImplementation(
+        async (command: string, args: unknown[]) =>
+          command.endsWith('Renew')
+            ? new Promise<never>((_resolve, reject) => {
+                setTimeout(
+                  () => reject(new Error('Redis renewal timed out')),
+                  25_000,
+                );
+              })
+            : runCommand?.(command, args),
+      );
+      const adapter = new BullMqEmailQueue(queue as any);
+      let signal: AbortSignal | undefined;
+      const lockedOperation = adapter.runWithReceivableDeliveryLock(
+        'org-1',
+        'receivable-1',
+        (operationSignal) =>
+          new Promise<string>((resolve) => {
+            signal = operationSignal;
+            operationSignal.addEventListener(
+              'abort',
+              () => resolve('aborted'),
+              { once: true },
+            );
+          }),
+      );
+
+      await jest.advanceTimersByTimeAsync(15_000);
+
+      expect(signal?.aborted).toBe(true);
+      await expect(lockedOperation).resolves.toMatchObject({
+        acquired: true,
+        value: 'aborted',
+        leaseLost: true,
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('serializes sends for the same organization and receivable', async () => {
     const queue = withRedisLock({
       getJob: jest.fn().mockResolvedValue(undefined),

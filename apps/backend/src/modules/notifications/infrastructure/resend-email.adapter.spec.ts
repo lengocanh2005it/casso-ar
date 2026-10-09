@@ -50,6 +50,32 @@ describe('ResendEmailAdapter', () => {
     );
   });
 
+  it('passes the delivery cancellation signal and idempotency key to Resend', async () => {
+    sendMock.mockResolvedValue({
+      data: { id: 'resend-msg-locked' },
+      error: null,
+    });
+    const controller = new AbortController();
+
+    await new ResendEmailAdapter().send(
+      'customer@example.com',
+      'Payment reminder',
+      '<p>Due</p>',
+      { reminderExecutionId: 'exec-1' },
+      undefined,
+      undefined,
+      {
+        signal: controller.signal,
+        idempotencyKey: 'reminder-attempt-1',
+      },
+    );
+
+    expect(sendMock).toHaveBeenCalledWith(expect.any(Object), {
+      signal: controller.signal,
+      idempotencyKey: 'reminder-attempt-1',
+    });
+  });
+
   it('passes plain text and inline attachments to Resend', async () => {
     sendMock.mockResolvedValue({
       data: { id: 'resend-msg-inline' },

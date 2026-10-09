@@ -7,6 +7,8 @@ export interface EmailSendResult {
 export interface EmailSendOptions {
   text?: string;
   attachments?: EmailAttachment[];
+  signal?: AbortSignal;
+  idempotencyKey?: string;
 }
 
 export interface IEmailProviderAdapter {
