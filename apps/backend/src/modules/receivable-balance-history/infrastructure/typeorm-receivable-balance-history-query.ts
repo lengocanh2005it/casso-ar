@@ -133,7 +133,7 @@ const LIST_SQL = `
     r."customerId",
     c.name AS "customerName",
     h.status,
-    h."remainingAmount",
+    h."remainingAmount"::text AS "remainingAmount",
     h."effectiveAt",
     h."changeSource",
     h."reasonCode",
@@ -254,7 +254,7 @@ export class TypeOrmReceivableBalanceHistoryQuery
         customerId: row.customerId,
         customerName: row.customerName,
         status: row.status as ReceivableBalanceHistoryListItem['status'],
-        remainingAmount: Number(row.remainingAmount),
+        remainingAmount: row.remainingAmount,
         effectiveAt: new Date(String(row.effectiveAt)),
         changeSource:
           row.changeSource as ReceivableBalanceHistoryListItem['changeSource'],
@@ -287,7 +287,7 @@ export class TypeOrmReceivableBalanceHistoryQuery
     return {
       totalTransitions: Number(summaryRows[0]?.totalTransitions ?? 0),
       affectedReceivables: Number(summaryRows[0]?.affectedReceivables ?? 0),
-      latestRemainingAmount: Number(summaryRows[0]?.latestRemainingAmount ?? 0),
+      latestRemainingAmount: summaryRows[0]?.latestRemainingAmount ?? '0',
       dailySeries: this.fillDailySeries(dailyRows, filters),
       sourceDistribution: sourceRows.map((row) => ({
         changeSource:

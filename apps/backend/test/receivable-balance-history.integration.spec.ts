@@ -805,6 +805,48 @@ describe('Receivable balance history (integration)', () => {
     });
   });
 
+  it('returns an exact large snapshot from list and summary queries', async () => {
+    const receivable = await asTenant(organizationId, () =>
+      createReceivable.execute({
+        customerId,
+        invoiceId: null,
+        originalAmount: 1_000_000,
+        dueDate: new Date('2030-01-01'),
+        salesRepresentativeId: null,
+      }),
+    );
+    const historyId = randomUUID();
+    await dataSource.query(
+      `INSERT INTO receivable_balance_history
+        ("id", "organizationId", "receivableId", "status", "remainingAmount", "effectiveAt", "changeSource", "createdAt")
+       VALUES ($1, $2, $3, 'OPEN', $4, $5, 'CREATE', $5)`,
+      [
+        historyId,
+        organizationId,
+        receivable.id,
+        '9007199254740993',
+        new Date('2030-01-01'),
+      ],
+    );
+
+    const { page, summary } = await asTenant(organizationId, async () => ({
+      page: await historyQuery.list(
+        organizationId,
+        { receivableId: receivable.id },
+        1,
+        20,
+      ),
+      summary: await historyQuery.summarize(organizationId, {
+        receivableId: receivable.id,
+      }),
+    }));
+
+    expect(
+      page.items.find((item) => item.id === historyId)?.remainingAmount,
+    ).toBe('9007199254740993');
+    expect(summary.latestRemainingAmount).toBe('9007199254740993');
+  });
+
   describe('month-end outstanding query', () => {
     async function clearHistoryRows(
       coveredFrom = new Date('2026-07-01T00:00:00.000Z'),
@@ -903,8 +945,8 @@ describe('Receivable balance history (integration)', () => {
       expect(result).toEqual([
         { month: '2026-05', outstanding: null },
         { month: '2026-06', outstanding: null },
-        { month: '2026-07', outstanding: 6_000_000 },
-        { month: '2026-08', outstanding: 2_000_000 },
+        { month: '2026-07', outstanding: '6000000' },
+        { month: '2026-08', outstanding: '2000000' },
       ]);
     });
 
@@ -929,7 +971,7 @@ describe('Receivable balance history (integration)', () => {
 
       await expect(
         findOutstandingByMonthEnds(historyQueryOrgId, [monthEnd]),
-      ).resolves.toEqual([{ month: '2026-06', outstanding: 1_000_000 }]);
+      ).resolves.toEqual([{ month: '2026-06', outstanding: '1000000' }]);
     });
 
     it('returns zero, not null, for a covered month with no open balances', async () => {
@@ -968,7 +1010,7 @@ describe('Receivable balance history (integration)', () => {
         monthEndInTimeZone(2026, 9),
       ]);
 
-      expect(result).toEqual([{ month: '2026-09', outstanding: 0 }]);
+      expect(result).toEqual([{ month: '2026-09', outstanding: '0' }]);
     });
 
     it('sums across multiple receivables and ignores terminal latest states', async () => {
@@ -1027,7 +1069,7 @@ describe('Receivable balance history (integration)', () => {
         monthEndInTimeZone(2026, 10),
       ]);
 
-      expect(result).toEqual([{ month: '2026-10', outstanding: 7_000_000 }]);
+      expect(result).toEqual([{ month: '2026-10', outstanding: '7000000' }]);
     });
   });
 

@@ -18,7 +18,7 @@ const item = {
   customerId: 'cust-1',
   customerName: 'Công ty A',
   status: 'PAID',
-  remainingAmount: 0,
+  remainingAmount: '0',
   effectiveAt: new Date('2026-08-14T10:00:00.000Z'),
   changeSource: BalanceHistoryChangeSource.ALLOCATE,
   reasonCode: 'PAYMENT_ALLOCATED',
