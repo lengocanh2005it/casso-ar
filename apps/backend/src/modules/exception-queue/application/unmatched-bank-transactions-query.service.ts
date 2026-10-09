@@ -33,6 +33,7 @@ import {
 } from '../../webhooks/application/matching-candidate-repository.port';
 import type { AiMatchingRecommendation } from '../../webhooks/domain/ai-matching-recommendation';
 import type { BankTransaction } from '../../webhooks/domain/bank-transaction';
+import { ACTIONABLE_BANK_TRANSACTION_STATUSES } from '../../webhooks/domain/bank-transaction';
 import type { MatchingCandidate } from '../../webhooks/domain/matching-candidate';
 
 export interface AiMatchingRecommendationView {
@@ -102,14 +103,18 @@ export class UnmatchedBankTransactionsQueryService {
     page = 1,
     limit = 20,
     search?: string,
+    status?: 'PENDING_REVIEW' | 'UNMATCHED',
   ): Promise<UnmatchedBankTransactionPage> {
+    const statuses = status
+      ? [status]
+      : [...ACTIONABLE_BANK_TRANSACTION_STATUSES];
     const [pageTransactions, total] = await Promise.all([
-      this.bankTransactionRepo.findManyByStatus('PENDING_REVIEW', {
+      this.bankTransactionRepo.findManyByStatus(statuses, {
         skip: (page - 1) * limit,
         take: limit,
         ...(search ? { search } : {}),
       }),
-      this.bankTransactionRepo.countByStatus('PENDING_REVIEW', search),
+      this.bankTransactionRepo.countByStatus(statuses, search),
     ]);
     const pageTransactionIds = pageTransactions.map(
       (transaction) => transaction.id,
@@ -216,7 +221,9 @@ export class UnmatchedBankTransactionsQueryService {
   }
 
   async countPendingReview(): Promise<number> {
-    return this.bankTransactionRepo.countByStatus('PENDING_REVIEW');
+    return this.bankTransactionRepo.countByStatus([
+      ...ACTIONABLE_BANK_TRANSACTION_STATUSES,
+    ]);
   }
 
   async candidates(

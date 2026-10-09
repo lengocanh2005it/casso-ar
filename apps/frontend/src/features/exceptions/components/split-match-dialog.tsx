@@ -25,6 +25,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { createCustomerBankAccount } from '@/features/customers/api/customers-api';
 import { useCustomers } from '@/features/customers/api/use-customers';
 import { getAllocationErrorMessage } from '@/features/payments/allocation-errors';
+import { useReceivables } from '@/features/receivables/api/use-receivables';
 import { getReceivableDisplayName } from '@/features/receivables/receivable-label';
 import { getApiErrorCode, getApiErrorDetails } from '@/lib/api-client';
 import { formatDate, formatVND } from '@/lib/format';
@@ -105,7 +106,9 @@ export function SplitMatchDialog({
   onOpenChange: (value: boolean) => void;
 }) {
   const { user } = useAuth();
-  const { data: candidates = [] } = useCandidates(open ? tx.id : '');
+  const { data: candidates = [], isLoading: candidatesLoading } = useCandidates(
+    open ? tx.id : '',
+  );
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [customerSearch, setCustomerSearch] = useState('');
   const [prepaidCustomerId, setPrepaidCustomerId] = useState('');
@@ -134,6 +137,52 @@ export function SplitMatchDialog({
     () => [...candidates].sort((a, b) => b.totalScore - a.totalScore),
     [candidates],
   );
+  // An UNMATCHED transaction stores no candidates at all, so the reviewer
+  // picks the customer first and allocates against their open receivables.
+  const needsManualPick = !candidatesLoading && sortedCandidates.length === 0;
+  const { data: manualPickPage } = useReceivables(
+    { customerId: prepaidCustomerId },
+    1,
+    100,
+    {
+      enabled: open && needsManualPick && prepaidCustomerId.length > 0,
+    },
+  );
+  const manualPickReceivables = useMemo(
+    () =>
+      needsManualPick
+        ? (manualPickPage?.items ?? []).filter(
+            (receivable) =>
+              (receivable.status === 'OPEN' ||
+                receivable.status === 'PARTIALLY_PAID') &&
+              receivable.remainingAmount > 0,
+          )
+        : [],
+    [needsManualPick, manualPickPage],
+  );
+  const rows = useMemo(
+    () =>
+      needsManualPick
+        ? manualPickReceivables.map((receivable) => ({
+            receivableId: receivable.id,
+            customerId: receivable.customerId,
+            customerName: receivable.customerName ?? null,
+            invoiceNumber: receivable.invoiceNumber,
+            remainingAmount: receivable.remainingAmount,
+            dueDate: receivable.dueDate,
+            score: null,
+          }))
+        : sortedCandidates.map((candidate) => ({
+            receivableId: candidate.receivableId,
+            customerId: candidate.customerId,
+            customerName: candidate.customerName,
+            invoiceNumber: candidate.invoiceNumber,
+            remainingAmount: candidate.remainingAmount,
+            dueDate: candidate.dueDate,
+            score: candidate.totalScore,
+          })),
+    [needsManualPick, manualPickReceivables, sortedCandidates],
+  );
   const total = useMemo(
     () =>
       Object.values(amounts).reduce(
@@ -142,11 +191,11 @@ export function SplitMatchDialog({
       ),
     [amounts],
   );
-  const allocations = sortedCandidates
-    .filter((candidate) => Number(amounts[candidate.receivableId]) > 0)
-    .map((candidate) => ({
-      receivableId: candidate.receivableId,
-      amount: Number(amounts[candidate.receivableId]),
+  const allocations = rows
+    .filter((row) => Number(amounts[row.receivableId]) > 0)
+    .map((row) => ({
+      receivableId: row.receivableId,
+      amount: Number(amounts[row.receivableId]),
     }));
   const amountsAreIntegers = allocations.every((allocation) =>
     Number.isInteger(allocation.amount),
@@ -154,11 +203,9 @@ export function SplitMatchDialog({
   const valid =
     total > 0 && total <= tx.amount && amountsAreIntegers && tx.amount > 0;
 
-  const chosenCandidate = sortedCandidates.find(
-    (candidate) => Number(amounts[candidate.receivableId]) > 0,
-  );
-  const chosenCustomerId = chosenCandidate?.customerId ?? null;
-  const chosenCustomerName = chosenCandidate?.customerName ?? null;
+  const chosenRow = rows.find((row) => Number(amounts[row.receivableId]) > 0);
+  const chosenCustomerId = chosenRow?.customerId ?? null;
+  const chosenCustomerName = chosenRow?.customerName ?? null;
   const accountNumber = tx.counterpartyAccountNumber?.trim() || null;
   const linkedCustomers = payer?.linkedCustomers ?? [];
   const alreadyLinkedToChosen =
@@ -305,19 +352,28 @@ export function SplitMatchDialog({
               </p>
             )}
           </div>
-          {sortedCandidates.map((candidate) => {
-            const candidateLabel = candidate.customerName
-              ? `${getReceivableDisplayName(candidate.invoiceNumber)} — ${candidate.customerName}`
-              : getReceivableDisplayName(candidate.invoiceNumber);
+          {needsManualPick && !prepaidCustomerId && (
+            <p className="text-sm text-muted-foreground">
+              Chưa có gợi ý khớp cho giao dịch này. Hãy chọn khách hàng để xem
+              các khoản phải thu còn mở.
+            </p>
+          )}
+          {rows.map((row) => {
+            const receivableLabel = getReceivableDisplayName(row.invoiceNumber);
+            const candidateLabel = row.customerName
+              ? `${receivableLabel} — ${row.customerName}`
+              : receivableLabel;
 
             return (
               <div
-                key={candidate.receivableId}
+                key={row.receivableId}
                 className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:gap-3"
               >
-                <span className="text-sm font-medium tabular-nums">
-                  {candidate.totalScore}/100
-                </span>
+                {row.score !== null && (
+                  <span className="text-sm font-medium tabular-nums">
+                    {row.score}/100
+                  </span>
+                )}
                 <div className="min-w-0 flex-1">
                   <TruncatedText
                     className="truncate text-sm"
@@ -327,39 +383,39 @@ export function SplitMatchDialog({
                   </TruncatedText>
                   <p className="text-xs text-muted-foreground">
                     Còn lại:{' '}
-                    {candidate.remainingAmount === null
+                    {row.remainingAmount === null
                       ? 'Chưa có số dư'
-                      : formatVND(candidate.remainingAmount)}{' '}
+                      : formatVND(row.remainingAmount)}{' '}
                     · Hạn thanh toán:{' '}
-                    {candidate.dueDate
-                      ? formatDate(candidate.dueDate)
+                    {row.dueDate
+                      ? formatDate(row.dueDate)
                       : 'Chưa có hạn thanh toán'}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Mã kỹ thuật: <TruncatedCopyId id={candidate.receivableId} />
+                    Mã kỹ thuật: <TruncatedCopyId id={row.receivableId} />
                   </p>
                 </div>
                 <div className="shrink-0 space-y-2">
                   <label
-                    htmlFor={`allocation-${candidate.receivableId}`}
+                    htmlFor={`allocation-${row.receivableId}`}
                     className="block text-xs font-medium text-muted-foreground"
                   >
                     Số tiền phân bổ
                   </label>
                   <Input
-                    name={`allocation-${candidate.receivableId}`}
+                    name={`allocation-${row.receivableId}`}
                     autoComplete="off"
-                    aria-label={`Số tiền phân bổ cho ${getReceivableDisplayName(candidate.invoiceNumber)}`}
-                    id={`allocation-${candidate.receivableId}`}
+                    aria-label={`Số tiền phân bổ cho ${receivableLabel}`}
+                    id={`allocation-${row.receivableId}`}
                     type="number"
                     min={0}
                     step={1}
                     className="h-10 w-full text-right tabular-nums sm:w-40"
-                    value={amounts[candidate.receivableId] ?? ''}
+                    value={amounts[row.receivableId] ?? ''}
                     onChange={(event) => {
                       setAmounts((current) => ({
                         ...current,
-                        [candidate.receivableId]: event.target.value,
+                        [row.receivableId]: event.target.value,
                       }));
                       setAllocationError(null);
                     }}
@@ -388,7 +444,11 @@ export function SplitMatchDialog({
             </p>
           )}
           <label htmlFor="customer-search" className="grid gap-2 text-sm">
-            <span>Tìm khách hàng để ghi nhận công nợ</span>
+            <span>
+              {needsManualPick
+                ? 'Tìm khách hàng để chọn khoản phải thu'
+                : 'Tìm khách hàng để ghi nhận công nợ'}
+            </span>
             <Input
               name="customerSearch"
               autoComplete="off"
