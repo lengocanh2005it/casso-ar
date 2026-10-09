@@ -1,5 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { CHART_TICK, CHART_TOOLTIP_STYLE, STICKY_EDGE } from './chart';
+import {
+  CHART_TICK,
+  CHART_TOOLTIP_STYLE,
+  hasChartValue,
+  moneyPercent,
+  STICKY_EDGE,
+} from './chart';
+
+describe('hasChartValue', () => {
+  it('treats numeric and decimal string zero as empty', () => {
+    expect(hasChartValue([0, '0', '000', null])).toBe(false);
+    expect(hasChartValue(['9007199254740993'])).toBe(true);
+  });
+});
+
+describe('moneyPercent', () => {
+  it('keeps chart geometry bounded without converting VND to Number', () => {
+    expect(moneyPercent('9007199254740992', 9007199254740993n)).toBe(99.99);
+    expect(moneyPercent('9007199254740993', 18014398509481986n)).toBe(50);
+    expect(moneyPercent('18014398509481986', 9007199254740993n)).toBe(100);
+    expect(moneyPercent('-9007199254740993', 9007199254740993n)).toBe(0);
+  });
+});
 
 describe('CHART_TICK', () => {
   it('reads its colour from a theme token so both modes stay legible', () => {

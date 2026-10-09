@@ -26,9 +26,26 @@ export const STICKY_EDGE = 'shadow-[-8px_0_8px_-8px_var(--foreground)]';
 // A series of zeros/nulls has nothing to plot: callers show an empty state
 // instead of bare axes with a meaningless 0–4 scale.
 export function hasChartValue(
-  values: ReadonlyArray<number | null | undefined>,
+  values: ReadonlyArray<number | string | null | undefined>,
 ): boolean {
-  return values.some(
-    (value) => value !== null && value !== undefined && value !== 0,
+  return values.some((value) =>
+    typeof value === 'string'
+      ? BigInt(value) !== 0n
+      : value !== null && value !== undefined && value !== 0,
   );
+}
+
+// Only the bounded ratio enters a chart; source VND strings stay in its payload.
+export function moneyPercent(value: string, maximum: bigint): number {
+  if (maximum <= 0n) return 0;
+  const scaled = (BigInt(value) * 10_000n) / maximum;
+  const bounded = scaled < 0n ? 0n : scaled > 10_000n ? 10_000n : scaled;
+  return Number(bounded) / 100;
+}
+
+export function maxMoney(values: ReadonlyArray<string | null>): bigint {
+  return values.reduce<bigint>((max, value) => {
+    const amount = value === null ? 0n : BigInt(value);
+    return amount > max ? amount : max;
+  }, 0n);
 }

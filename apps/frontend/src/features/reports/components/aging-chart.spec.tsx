@@ -10,6 +10,14 @@ import {
 
 const xAxisProps: Array<Record<string, unknown>> = [];
 const cellFills: string[] = [];
+let chartData: Array<{ totalRemaining: string; percentage: number }> = [];
+let tooltipFormatter:
+  | ((
+      value: number,
+      name: string,
+      item: { payload: { totalRemaining: string } },
+    ) => unknown)
+  | undefined;
 
 vi.mock('recharts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('recharts')>();
@@ -26,6 +34,20 @@ vi.mock('recharts', async (importOriginal) => {
       ),
     XAxis: (props: Record<string, unknown>) => {
       xAxisProps.push(props);
+      return null;
+    },
+    BarChart: ({
+      data,
+      children,
+    }: {
+      data: typeof chartData;
+      children: ReactNode;
+    }) => {
+      chartData = data;
+      return <>{children}</>;
+    },
+    Tooltip: ({ formatter }: { formatter: typeof tooltipFormatter }) => {
+      tooltipFormatter = formatter;
       return null;
     },
     Bar: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -48,7 +70,7 @@ function report(amounts: number[]): AgingReport {
     buckets: buckets.map((bucket, i) => ({
       bucket,
       count: amounts[i] > 0 ? 1 : 0,
-      totalRemaining: amounts[i],
+      totalRemaining: String(amounts[i]),
     })),
   };
 }
@@ -63,6 +85,27 @@ describe('formatAgingBucketTick', () => {
 });
 
 describe('AgingChart', () => {
+  it('plots bounded percentages and formats the original exact tooltip amount', () => {
+    render(
+      <AgingChart
+        report={{
+          buckets: [
+            { bucket: 'NOT_DUE', count: 1, totalRemaining: '9007199254740992' },
+            {
+              bucket: 'OVERDUE_1_7',
+              count: 1,
+              totalRemaining: '9007199254740993',
+            },
+          ],
+        }}
+      />,
+    );
+    expect(chartData.map((point) => point.percentage)).toEqual([99.99, 100]);
+    expect(chartData[1].totalRemaining).toBe('9007199254740993');
+    expect(
+      tooltipFormatter?.(100, 'Còn lại', { payload: chartData[1] }),
+    ).toEqual(['9.007.199.254.740.993 ₫', 'Còn lại']);
+  });
   it('uses short tick labels so all five buckets fit and none are skipped', () => {
     xAxisProps.length = 0;
     render(<AgingChart report={report([5, 4, 3, 2, 1])} />);

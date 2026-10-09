@@ -11,7 +11,7 @@ export interface AgingReport {
   buckets: Array<{
     bucket: AgingBucket;
     count: number;
-    totalRemaining: number;
+    totalRemaining: string;
   }>;
 }
 
@@ -20,8 +20,8 @@ export interface CustomerAgingPage {
     customerId: string;
     customerName: string;
     taxCode: string;
-    buckets: Array<{ bucket: AgingBucket; totalRemaining: number }>;
-    totalRemaining: number;
+    buckets: Array<{ bucket: AgingBucket; totalRemaining: string }>;
+    totalRemaining: string;
   }>;
   total: number;
   page: number;
@@ -32,24 +32,24 @@ export interface ReportsTrend {
   months: TrendMonths;
   items: Array<{
     month: string;
-    outstanding: number | null;
-    collected: number;
+    outstanding: string | null;
+    collected: string;
   }>;
 }
 
 export interface DashboardSummary {
-  totalOutstanding: number;
-  totalOverdue: number;
+  totalOutstanding: string;
+  totalOverdue: string;
   overdueRate: number;
   cashForecast: {
-    forecast7d: number;
-    forecast14d: number;
-    forecast30d: number;
+    forecast7d: string;
+    forecast14d: string;
+    forecast30d: string;
   };
   topOverdueCustomers: Array<{
     customerId: string;
     customerName: string;
-    totalOverdue: number;
+    totalOverdue: string;
   }>;
   autoMatchRate: number | null;
   manualHandlingRate: number | null;

@@ -13,6 +13,13 @@ describe('format helpers', () => {
     expect(formatVND(50_000_000)).toBe('50.000.000 ₫');
   });
 
+  it('formats decimal money strings past Number precision exactly', () => {
+    expect(formatVND('9007199254740993')).toBe('9.007.199.254.740.993 ₫');
+    expect(formatVND('123456789012345678901234567890')).toBe(
+      '123.456.789.012.345.678.901.234.567.890 ₫',
+    );
+  });
+
   it('formats an ISO date for Vietnamese users', () => {
     expect(formatDate('2026-08-20T00:00:00.000Z')).toBe('20/08/2026');
   });

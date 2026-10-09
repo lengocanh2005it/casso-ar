@@ -66,7 +66,7 @@ const listItem = {
   customerId: 'cust-1',
   customerName: 'Công ty A',
   status: 'OPEN',
-  remainingAmount: 30_000_000,
+  remainingAmount: '30000000',
   effectiveAt: '2026-08-15T04:00:00.000Z',
   changeSource: 'UNDO',
   reasonCode: 'PAYMENT_ALLOCATION_UNDONE',
@@ -80,7 +80,7 @@ const listItem = {
 const summary = {
   totalTransitions: 4,
   affectedReceivables: 1,
-  latestRemainingAmount: 30_000_000,
+  latestRemainingAmount: '30000000',
   dailySeries: [
     { date: '2026-08-13', transitions: 1 },
     { date: '2026-08-14', transitions: 0 },

@@ -18,7 +18,7 @@ describe('ReceivableBalanceHistoryTable', () => {
               customerId: 'customer-1',
               customerName: null,
               status: ReceivableStatus.OPEN,
-              remainingAmount: 1_000_000,
+              remainingAmount: '9007199254740993',
               effectiveAt: '2026-08-26T01:00:00.000Z',
               changeSource: 'ROLLOUT_BASELINE',
               reasonCode: 'ROLLOUT_BASELINE',
@@ -36,6 +36,7 @@ describe('ReceivableBalanceHistoryTable', () => {
     expect(screen.getByText('Khoản phải thu')).toBeInTheDocument();
     expect(screen.getByText('Chưa có tên khách hàng')).toBeInTheDocument();
     expect(screen.getByText('Dữ liệu khởi tạo')).toBeInTheDocument();
+    expect(screen.getByText('9.007.199.254.740.993 ₫')).toBeInTheDocument();
     // Same wording and colour as the receivables list (was "Mở").
     expect(screen.getByText('Đang thu')).toHaveClass('text-info');
   });
@@ -53,7 +54,7 @@ describe('ReceivableBalanceHistoryTable', () => {
               customerId: 'customer-1',
               customerName: 'Công ty TNHH Thương mại Dịch vụ Hoàng Gia',
               status: ReceivableStatus.OPEN,
-              remainingAmount: 16_500_000,
+              remainingAmount: '16500000',
               effectiveAt: '2026-08-26T01:00:00.000Z',
               changeSource: 'CREATE',
               reasonCode: 'RECEIVABLE_CREATED',
@@ -101,7 +102,7 @@ describe('ReceivableBalanceHistoryTable', () => {
               customerId: 'customer-1',
               customerName: 'Công ty TNHH Thương mại Dịch vụ Hoàng Gia',
               status: ReceivableStatus.OPEN,
-              remainingAmount: 16_500_000,
+              remainingAmount: '16500000',
               effectiveAt: '2026-08-26T01:00:00.000Z',
               changeSource: 'CREATE',
               reasonCode: 'RECEIVABLE_CREATED',
@@ -151,7 +152,7 @@ describe('ReceivableBalanceHistoryTable', () => {
               customerId: 'customer-1',
               customerName: 'Công ty TNHH ABC',
               status: ReceivableStatus.OPEN,
-              remainingAmount: 16_500_000,
+              remainingAmount: '16500000',
               effectiveAt: '2026-08-26T01:00:00.000Z',
               changeSource: 'CREATE',
               reasonCode: 'RECEIVABLE_CREATED',
@@ -191,7 +192,7 @@ describe('ReceivableBalanceHistoryTable', () => {
               customerId: 'customer-1',
               customerName: 'Công ty TNHH Thương mại Dịch vụ Hoàng Gia',
               status: ReceivableStatus.OPEN,
-              remainingAmount: 16_500_000,
+              remainingAmount: '16500000',
               effectiveAt: '2026-08-26T01:00:00.000Z',
               changeSource: 'CREATE',
               reasonCode: 'RECEIVABLE_CREATED',

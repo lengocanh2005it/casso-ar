@@ -1,20 +1,111 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import type { ReactNode } from 'react';
+import { describe, expect, it, vi } from 'vitest';
 import {
   formatTrendMonthLabel,
   ReportsTrendChart,
 } from './reports-trend-chart';
 
+let chartData: Array<{
+  outstanding: string | null;
+  collected: string;
+  outstandingPercent: number | null;
+  collectedPercent: number;
+}> = [];
+let tooltipFormatter:
+  | ((
+      value: number,
+      name: string,
+      item: { dataKey: string; payload: (typeof chartData)[number] },
+    ) => unknown)
+  | undefined;
+
+vi.mock('recharts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('recharts')>();
+  return {
+    ...actual,
+    ResponsiveContainer: ({ children }: { children: ReactNode }) => (
+      <>{children}</>
+    ),
+    LineChart: ({
+      data,
+      children,
+    }: {
+      data: typeof chartData;
+      children: ReactNode;
+    }) => {
+      chartData = data;
+      return <>{children}</>;
+    },
+    Tooltip: ({ formatter }: { formatter: typeof tooltipFormatter }) => {
+      tooltipFormatter = formatter;
+      return null;
+    },
+    CartesianGrid: () => null,
+    XAxis: () => null,
+    YAxis: () => null,
+    Line: () => null,
+  };
+});
+
 describe('ReportsTrendChart', () => {
+  it('plots percentages while tooltips read original large strings', () => {
+    render(
+      <ReportsTrendChart
+        trend={{
+          months: 3,
+          items: [
+            {
+              month: '2026-07',
+              outstanding: '9007199254740992',
+              collected: '0',
+            },
+            {
+              month: '2026-08',
+              outstanding: '9007199254740993',
+              collected: '12345678901234567890',
+            },
+          ],
+        }}
+      />,
+    );
+    expect(chartData[1].collectedPercent).toBe(100);
+    expect(chartData[1].collected).toBe('12345678901234567890');
+    expect(
+      tooltipFormatter?.(100, 'Đã thu', {
+        dataKey: 'collectedPercent',
+        payload: chartData[1],
+      }),
+    ).toBe('12.345.678.901.234.567.890 ₫');
+  });
+  it('keeps exact large values in the screen-reader table', () => {
+    render(
+      <ReportsTrendChart
+        trend={{
+          months: 3,
+          items: [
+            {
+              month: '2026-07',
+              outstanding: '9007199254740993',
+              collected: '12345678901234567890',
+            },
+          ],
+        }}
+      />,
+    );
+    const row = screen.getByRole('row', { name: /7\/2026/ });
+    expect(row).toHaveTextContent('9.007.199.254.740.993 ₫');
+    expect(row).toHaveTextContent('12.345.678.901.234.567.890 ₫');
+  });
   it('labels the current month as a temporary value on the chart', () => {
     render(
       <ReportsTrendChart
         trend={{
           months: 3,
           items: [
-            { month: '2026-06', outstanding: null, collected: 0 },
-            { month: '2026-07', outstanding: 4_000_000, collected: 3_000_000 },
-            { month: '2026-08', outstanding: 7_000_000, collected: 5_000_000 },
+            { month: '2026-06', outstanding: null, collected: '0' },
+            { month: '2026-07', outstanding: '4000000', collected: '3000000' },
+            { month: '2026-08', outstanding: '7000000', collected: '5000000' },
           ],
         }}
       />,
@@ -45,8 +136,8 @@ describe('ReportsTrendChart', () => {
         trend={{
           months: 3,
           items: [
-            { month: '2026-07', outstanding: 4_000_000, collected: 3_000_000 },
-            { month: '2026-08', outstanding: 7_000_000, collected: 5_000_000 },
+            { month: '2026-07', outstanding: '4000000', collected: '3000000' },
+            { month: '2026-08', outstanding: '7000000', collected: '5000000' },
           ],
         }}
       />,
@@ -65,8 +156,8 @@ describe('ReportsTrendChart', () => {
         trend={{
           months: 3,
           items: [
-            { month: '2026-07', outstanding: 4_000_000, collected: 3_000_000 },
-            { month: '2026-08', outstanding: 7_000_000, collected: 5_000_000 },
+            { month: '2026-07', outstanding: '4000000', collected: '3000000' },
+            { month: '2026-08', outstanding: '7000000', collected: '5000000' },
           ],
         }}
       />,
@@ -83,8 +174,8 @@ describe('ReportsTrendChart', () => {
         trend={{
           months: 3,
           items: [
-            { month: '2026-07', outstanding: 4_000_000, collected: 3_000_000 },
-            { month: '2026-08', outstanding: null, collected: 5_000_000 },
+            { month: '2026-07', outstanding: '4000000', collected: '3000000' },
+            { month: '2026-08', outstanding: null, collected: '5000000' },
           ],
         }}
       />,
@@ -109,8 +200,8 @@ describe('ReportsTrendChart', () => {
         trend={{
           months: 3,
           items: [
-            { month: '2026-07', outstanding: null, collected: 0 },
-            { month: '2026-08', outstanding: 0, collected: 0 },
+            { month: '2026-07', outstanding: null, collected: '0' },
+            { month: '2026-08', outstanding: '0', collected: '0' },
           ],
         }}
       />,

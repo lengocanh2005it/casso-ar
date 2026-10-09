@@ -1,10 +1,23 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { formatVND } from '@/lib/format';
-import { hoverTooltip } from '@/test/tooltip';
 import { ReceivableBalanceHistoryKpis } from './receivable-balance-history-kpis';
 
 describe('ReceivableBalanceHistoryKpis', () => {
+  it('shows the full exact latest balance', () => {
+    render(
+      <ReceivableBalanceHistoryKpis
+        isLoading={false}
+        summary={{
+          totalTransitions: 1,
+          affectedReceivables: 1,
+          latestRemainingAmount: '9007199254740993',
+          dailySeries: [],
+          sourceDistribution: [],
+        }}
+      />,
+    );
+    expect(screen.getByText('9.007.199.254.740.993 ₫')).toBeInTheDocument();
+  });
   it('uses the same metric card as the dashboard and reports', async () => {
     render(
       <ReceivableBalanceHistoryKpis
@@ -12,7 +25,7 @@ describe('ReceivableBalanceHistoryKpis', () => {
         summary={{
           totalTransitions: 112,
           affectedReceivables: 67,
-          latestRemainingAmount: 616_000_000,
+          latestRemainingAmount: '616000000',
           dailySeries: [],
           sourceDistribution: [],
         }}
@@ -29,9 +42,6 @@ describe('ReceivableBalanceHistoryKpis', () => {
         'border-l-4',
       );
     }
-    expect(screen.getByText('616tr')).toBeInTheDocument();
-    await expect(hoverTooltip(screen.getByText('616tr'))).resolves.toBe(
-      formatVND(616_000_000),
-    );
+    expect(screen.getByText('616.000.000 ₫')).toBeInTheDocument();
   });
 });

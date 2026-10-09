@@ -1,19 +1,21 @@
 import { PieChart } from 'lucide-react';
 import { EmptyState } from '@/components/layout/empty-state';
+import { moneyPercent } from '@/lib/chart';
 import { formatVND } from '@/lib/format';
 
 interface OverdueDonutChartProps {
-  totalOutstanding: number;
-  totalOverdue: number;
+  totalOutstanding: string;
+  totalOverdue: string;
 }
 
 export function OverdueDonutChart({
   totalOutstanding,
   totalOverdue,
 }: OverdueDonutChartProps) {
-  const onTime = Math.max(0, totalOutstanding - totalOverdue);
+  const onTimeAmount = BigInt(totalOutstanding) - BigInt(totalOverdue);
+  const onTime = (onTimeAmount > 0n ? onTimeAmount : 0n).toString();
 
-  if (totalOutstanding === 0) {
+  if (totalOutstanding === '0') {
     return (
       <EmptyState
         density="compact"
@@ -25,9 +27,8 @@ export function OverdueDonutChart({
     );
   }
 
-  const overdueRate = Math.min(
-    100,
-    Math.max(0, Math.round((totalOverdue / totalOutstanding) * 100)),
+  const overdueRate = Math.round(
+    moneyPercent(totalOverdue, BigInt(totalOutstanding)),
   );
   const onTimeRate = 100 - overdueRate;
 

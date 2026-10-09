@@ -3,8 +3,10 @@ const vndFormatter = new Intl.NumberFormat('vi-VN', {
   currency: 'VND',
 });
 
-export function formatVND(amount: number): string {
-  return vndFormatter.format(amount);
+export function formatVND(amount: number | string | bigint): string {
+  return vndFormatter.format(
+    typeof amount === 'string' ? BigInt(amount) : amount,
+  );
 }
 
 const compactNumberFormatter = new Intl.NumberFormat('vi-VN', {

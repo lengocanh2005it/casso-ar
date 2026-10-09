@@ -44,13 +44,36 @@ function trend(
     months: 6,
     items: months.map((month, i) => ({
       month,
-      outstanding: outstanding[i],
-      collected: collected[i],
+      outstanding: outstanding[i] === null ? null : String(outstanding[i]),
+      collected: String(collected[i]),
     })),
   };
 }
 
 describe('ReceivableTrendChart', () => {
+  it('exposes exact monthly balances in a screen-reader table', () => {
+    render(
+      <ReceivableTrendChart
+        trend={{
+          months: 6,
+          items: [
+            {
+              month: '2026-10',
+              outstanding: '9007199254740993',
+              collected: '9007199254740994',
+            },
+          ],
+        }}
+      />,
+    );
+
+    const table = screen.getByRole('table', {
+      name: 'Chi tiết công nợ theo tháng',
+    });
+    expect(table).toHaveTextContent('9.007.199.254.740.993 ₫');
+    expect(table).toHaveTextContent('10/2026 (tạm tính)');
+  });
+
   it('shows an empty state instead of bare axes when no month has a balance', () => {
     render(
       <ReceivableTrendChart
@@ -75,6 +98,29 @@ describe('ReceivableTrendChart', () => {
 });
 
 describe('PaymentActivityChart', () => {
+  it('exposes exact monthly collections in a screen-reader table', () => {
+    render(
+      <PaymentActivityChart
+        trend={{
+          months: 6,
+          items: [
+            {
+              month: '2026-10',
+              outstanding: null,
+              collected: '9007199254740993',
+            },
+          ],
+        }}
+      />,
+    );
+
+    const table = screen.getByRole('table', {
+      name: 'Chi tiết khoản thu theo tháng',
+    });
+    expect(table).toHaveTextContent('9.007.199.254.740.993 ₫');
+    expect(table).toHaveTextContent('10/2026 (tạm tính)');
+  });
+
   it('shows an empty state instead of bare axes when nothing was collected', () => {
     render(
       <PaymentActivityChart

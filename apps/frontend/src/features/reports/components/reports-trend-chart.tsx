@@ -9,8 +9,14 @@ import {
   YAxis,
 } from 'recharts';
 import { EmptyState } from '@/components/layout/empty-state';
-import { CHART_TICK, CHART_TOOLTIP_STYLE, hasChartValue } from '@/lib/chart';
-import { formatVND, formatVNDCompact } from '@/lib/format';
+import {
+  CHART_TICK,
+  CHART_TOOLTIP_STYLE,
+  hasChartValue,
+  maxMoney,
+  moneyPercent,
+} from '@/lib/chart';
+import { formatVND } from '@/lib/format';
 import type { ReportsTrend } from '../types';
 
 const monthFormatter = new Intl.DateTimeFormat('vi-VN', {
@@ -30,8 +36,12 @@ export function formatTrendMonthLabel(key: string, isCurrent = false): string {
 }
 
 const SERIES = [
-  { key: 'outstanding', name: 'Công nợ còn lại', color: 'var(--chart-1)' },
-  { key: 'collected', name: 'Đã thu', color: 'var(--chart-2)' },
+  {
+    key: 'outstandingPercent',
+    name: 'Công nợ còn lại',
+    color: 'var(--chart-1)',
+  },
+  { key: 'collectedPercent', name: 'Đã thu', color: 'var(--chart-2)' },
 ] as const;
 
 export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {
@@ -54,17 +64,28 @@ export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {
   const hasUnavailablePoints = trend.items.some(
     (point) => point.outstanding === null,
   );
+  const maximum = maxMoney(
+    trend.items.flatMap((point) => [point.outstanding, point.collected]),
+  );
+  const chartData = trend.items.map((point) => ({
+    ...point,
+    outstandingPercent:
+      point.outstanding === null
+        ? null
+        : moneyPercent(point.outstanding, maximum),
+    collectedPercent: moneyPercent(point.collected, maximum),
+  }));
 
   return (
     <div className="space-y-2">
       <div
         role="img"
-        aria-label="Biểu đồ xu hướng công nợ và thu hồi"
+        aria-label="Biểu đồ xu hướng công nợ và thu hồi, tỷ lệ so với giá trị tháng cao nhất"
         className="h-80 w-full"
       >
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
-            data={trend.items}
+            data={chartData}
             margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
           >
             <CartesianGrid
@@ -90,7 +111,8 @@ export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {
               tickLine={false}
               axisLine={false}
               tick={CHART_TICK}
-              tickFormatter={(value: number) => formatVNDCompact(value)}
+              domain={[0, 100]}
+              tickFormatter={(value: number) => `${value}%`}
             />
             <Tooltip
               {...CHART_TOOLTIP_STYLE}
@@ -98,11 +120,15 @@ export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {
                 const month = String(label);
                 return formatTrendMonthLabel(month, month === currentMonth);
               }}
-              formatter={(value) =>
-                value === null || value === undefined
+              formatter={(_value, _name, item) => {
+                const original =
+                  item.dataKey === 'outstandingPercent'
+                    ? item.payload.outstanding
+                    : item.payload.collected;
+                return original === null
                   ? 'Chưa có dữ liệu'
-                  : formatVND(Number(value))
-              }
+                  : formatVND(original);
+              }}
             />
             {SERIES.map((series) => (
               <Line
@@ -119,6 +145,9 @@ export function ReportsTrendChart({ trend }: { trend: ReportsTrend }) {
           </LineChart>
         </ResponsiveContainer>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Trục dọc: 100% là giá trị tháng cao nhất.
+      </p>
       <table className="sr-only">
         <caption>Giá trị biểu đồ xu hướng công nợ và thu hồi</caption>
         <thead>
