@@ -419,7 +419,10 @@ describe('BYO SMTP configuration and fallback (e2e)', () => {
       { reminderExecutionId },
       undefined,
       undefined,
-      undefined,
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+        idempotencyKey: expect.stringMatching(/^reminder-/),
+      }),
     );
   }, 20_000);
 });
