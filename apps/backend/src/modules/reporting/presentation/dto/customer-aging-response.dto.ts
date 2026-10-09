@@ -6,8 +6,8 @@ export class CustomerAgingBucketResponseDto {
   @ApiProperty({ enum: AGING_BUCKETS })
   bucket: AgingBucket;
 
-  @ApiProperty({ type: Number })
-  totalRemaining: number;
+  @ApiProperty({ type: String, example: '9007199254740993' })
+  totalRemaining: string;
 }
 
 export class CustomerAgingRowResponseDto {
@@ -23,8 +23,8 @@ export class CustomerAgingRowResponseDto {
   @ApiProperty({ type: [CustomerAgingBucketResponseDto] })
   buckets: CustomerAgingBucketResponseDto[];
 
-  @ApiProperty({ type: Number })
-  totalRemaining: number;
+  @ApiProperty({ type: String, example: '9007199254740993' })
+  totalRemaining: string;
 }
 
 export class CustomerAgingResponseDto {

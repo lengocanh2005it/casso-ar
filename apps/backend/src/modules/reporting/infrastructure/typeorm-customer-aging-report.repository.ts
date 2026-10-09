@@ -76,12 +76,12 @@ const SELECT_PIVOT = `
     "customerId",
     "customerName",
     "taxCode",
-    "notDue",
-    "overdue1To7",
-    "overdue8To30",
-    "overdue31To60",
-    "overdue60Plus",
-    "totalRemaining",
+    "notDue"::text AS "notDue",
+    "overdue1To7"::text AS "overdue1To7",
+    "overdue8To30"::text AS "overdue8To30",
+    "overdue31To60"::text AS "overdue31To60",
+    "overdue60Plus"::text AS "overdue60Plus",
+    "totalRemaining"::text AS "totalRemaining",
     COUNT(*) OVER () AS "totalCount"
   FROM grouped`;
 
@@ -136,7 +136,7 @@ ${GROUPED_CTE}`;
     const sql = `${baseSql}
 ${SELECT_PIVOT}
 ${bucketPredicate}
-ORDER BY "totalRemaining" DESC, "customerName" ASC, "customerId" ASC
+ORDER BY grouped."totalRemaining" DESC, "customerName" ASC, "customerId" ASC
 LIMIT $${limitIndex} OFFSET $${limitIndex + 1}`;
 
     const rows = await this.dataSource.query<CustomerAgingPivotRow[]>(
@@ -150,9 +150,9 @@ LIMIT $${limitIndex} OFFSET $${limitIndex + 1}`;
       taxCode: row.taxCode,
       buckets: AGING_BUCKETS.map((bucket) => ({
         bucket,
-        totalRemaining: Number(row[PIVOT_COLUMN[bucket]] ?? 0),
+        totalRemaining: row[PIVOT_COLUMN[bucket]] ?? '0',
       })),
-      totalRemaining: Number(row.totalRemaining ?? 0),
+      totalRemaining: row.totalRemaining ?? '0',
     }));
 
     let total = rows.length > 0 ? Number(rows[0]?.totalCount ?? 0) : 0;

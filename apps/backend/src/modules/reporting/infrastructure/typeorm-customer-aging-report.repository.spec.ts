@@ -31,6 +31,8 @@ describe('TypeOrmCustomerAgingReportRepository', () => {
     expect(sql).toContain('),\n\n  grouped AS (');
     expect(sql).toContain('WHERE CASE $3');
     expect(sql).toContain('WHEN \'OVERDUE_60_PLUS\' THEN "overdue60Plus"');
+    expect(sql).toContain('"totalRemaining"::text AS "totalRemaining"');
+    expect(sql).toContain('ORDER BY grouped."totalRemaining" DESC');
   });
 
   it('omits search and bucket parameters when not provided', async () => {
@@ -42,7 +44,7 @@ describe('TypeOrmCustomerAgingReportRepository', () => {
     expect(params).toEqual(['org-1', 20, 0]);
   });
 
-  it('maps bigint strings and zero-fills all five buckets', async () => {
+  it('maps exact decimal strings and zero-fills all five buckets', async () => {
     const { repository } = buildRepository([
       {
         customerId: 'cust-1',
@@ -67,19 +69,41 @@ describe('TypeOrmCustomerAgingReportRepository', () => {
           customerName: 'ACME Corp',
           taxCode: '0101234567',
           buckets: [
-            { bucket: 'NOT_DUE', totalRemaining: 900 },
-            { bucket: 'OVERDUE_1_7', totalRemaining: 1500 },
-            { bucket: 'OVERDUE_8_30', totalRemaining: 2000 },
-            { bucket: 'OVERDUE_31_60', totalRemaining: 3000 },
-            { bucket: 'OVERDUE_60_PLUS', totalRemaining: 4000 },
+            { bucket: 'NOT_DUE', totalRemaining: '900' },
+            { bucket: 'OVERDUE_1_7', totalRemaining: '1500' },
+            { bucket: 'OVERDUE_8_30', totalRemaining: '2000' },
+            { bucket: 'OVERDUE_31_60', totalRemaining: '3000' },
+            { bucket: 'OVERDUE_60_PLUS', totalRemaining: '4000' },
           ],
-          totalRemaining: 11400,
+          totalRemaining: '11400',
         },
       ],
       total: 1,
       page: 1,
       limit: 20,
     });
+  });
+
+  it('preserves aggregate values above JavaScript safe integer precision', async () => {
+    const { repository } = buildRepository([
+      {
+        customerId: 'cust-1',
+        customerName: 'ACME Corp',
+        taxCode: '0101234567',
+        notDue: '9007199254740993',
+        overdue1To7: '0',
+        overdue8To30: '0',
+        overdue31To60: '0',
+        overdue60Plus: '0',
+        totalRemaining: '9007199254740993',
+        totalCount: '1',
+      },
+    ]);
+
+    const page = await repository.findPage('org-1', { page: 1, limit: 20 });
+
+    expect(page.items[0]?.buckets[0]?.totalRemaining).toBe('9007199254740993');
+    expect(page.items[0]?.totalRemaining).toBe('9007199254740993');
   });
 
   it('zero-fills buckets missing from a pivot row', async () => {
@@ -101,7 +125,7 @@ describe('TypeOrmCustomerAgingReportRepository', () => {
     const page = await repository.findPage('org-1', { page: 1, limit: 20 });
 
     expect(
-      page.items[0]?.buckets.every((bucket) => bucket.totalRemaining === 0),
+      page.items[0]?.buckets.every((bucket) => bucket.totalRemaining === '0'),
     ).toBe(true);
   });
 

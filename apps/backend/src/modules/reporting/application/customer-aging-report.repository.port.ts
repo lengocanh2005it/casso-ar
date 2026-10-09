@@ -9,7 +9,7 @@ export interface CustomerAgingFilters {
 
 export interface CustomerAgingBucketAmount {
   bucket: AgingBucket;
-  totalRemaining: number;
+  totalRemaining: string;
 }
 
 export interface CustomerAgingRow {
@@ -17,7 +17,7 @@ export interface CustomerAgingRow {
   customerName: string;
   taxCode: string;
   buckets: CustomerAgingBucketAmount[];
-  totalRemaining: number;
+  totalRemaining: string;
 }
 
 export interface CustomerAgingPage {
