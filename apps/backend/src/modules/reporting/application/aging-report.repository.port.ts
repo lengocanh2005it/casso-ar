@@ -16,7 +16,7 @@ export const AGING_BUCKETS: AgingBucket[] = [
 export interface AgingBucketCount {
   bucket: AgingBucket;
   count: number;
-  totalRemaining: number;
+  totalRemaining: string;
 }
 
 export const AGING_REPORT_REPOSITORY = Symbol('AGING_REPORT_REPOSITORY');

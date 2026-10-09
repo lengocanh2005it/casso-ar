@@ -46,7 +46,11 @@ export class ReportsController {
             properties: {
               bucket: { type: 'string' },
               count: { type: 'number' },
-              totalRemaining: { type: 'number' },
+              totalRemaining: {
+                type: 'string',
+                pattern: '^\\d+$',
+                example: '9007199254740992',
+              },
             },
           },
         },

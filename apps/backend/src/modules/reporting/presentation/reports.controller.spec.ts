@@ -11,7 +11,7 @@ describe('ReportsController', () => {
       getAgingBuckets: jest
         .fn()
         .mockResolvedValue([
-          { bucket: 'NOT_DUE', count: 1, totalRemaining: 100 },
+          { bucket: 'NOT_DUE', count: 1, totalRemaining: '100' },
         ]),
     };
     const dashboardSummaryQueryService = { getSummary: jest.fn() };
@@ -24,7 +24,7 @@ describe('ReportsController', () => {
     );
 
     await expect(controller.getAgingReport()).resolves.toEqual({
-      buckets: [{ bucket: 'NOT_DUE', count: 1, totalRemaining: 100 }],
+      buckets: [{ bucket: 'NOT_DUE', count: 1, totalRemaining: '100' }],
     });
   });
 
@@ -153,5 +153,21 @@ describe('ReportsController', () => {
       expect.objectContaining({ summary: 'List customer aging report' }),
     );
     expect(Object.keys(responses).sort()).toEqual(['200', '400', '401', '403']);
+  });
+
+  it('documents aging totals as decimal integer strings', () => {
+    const responses = Reflect.getMetadata(
+      'swagger/apiResponse',
+      ReportsController.prototype.getAgingReport,
+    );
+
+    expect(
+      responses['200'].schema.properties.buckets.items.properties
+        .totalRemaining,
+    ).toEqual({
+      type: 'string',
+      pattern: '^\\d+$',
+      example: '9007199254740992',
+    });
   });
 });
