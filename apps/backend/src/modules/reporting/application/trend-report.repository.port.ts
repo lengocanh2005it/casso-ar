@@ -10,13 +10,13 @@ export interface ReportingMonth {
 
 export interface CollectedPoint {
   month: string;
-  collected: number;
+  collected: string;
 }
 
 export interface ReportsTrendPoint {
   month: string;
-  outstanding: number | null;
-  collected: number;
+  outstanding: string | null;
+  collected: string;
 }
 
 export const TREND_REPORT_REPOSITORY = Symbol('TREND_REPORT_REPOSITORY');

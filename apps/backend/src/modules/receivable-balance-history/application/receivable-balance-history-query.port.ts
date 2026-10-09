@@ -6,7 +6,7 @@ import type { ReceivableBalanceHistoryDateFilterInput } from './receivable-balan
 
 export interface HistoricalOutstandingPoint {
   month: string; // YYYY-MM in Asia/Ho_Chi_Minh
-  outstanding: number | null;
+  outstanding: string | null;
 }
 
 export interface ReceivableBalanceHistoryListFilters {

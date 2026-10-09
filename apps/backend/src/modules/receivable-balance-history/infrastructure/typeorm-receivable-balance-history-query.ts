@@ -103,7 +103,7 @@ const MONTH_END_OUTSTANDING_SQL = `
           FILTER (WHERE lp.status IN ('OPEN', 'PARTIALLY_PAID')),
         0
       )
-    END AS outstanding
+    END::text AS outstanding
   FROM requested_months m
   LEFT JOIN covered_months cm ON cm.month_key = m.month_key
   LEFT JOIN latest_per_receivable lp ON lp.month_key = m.month_key
@@ -226,7 +226,7 @@ export class TypeOrmReceivableBalanceHistoryQuery
     );
     return rows.map((row) => ({
       month: row.month,
-      outstanding: row.outstanding === null ? null : Number(row.outstanding),
+      outstanding: row.outstanding,
     }));
   }
 

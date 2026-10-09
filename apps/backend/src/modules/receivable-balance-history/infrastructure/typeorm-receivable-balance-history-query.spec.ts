@@ -64,6 +64,7 @@ describe('TypeOrmReceivableBalanceHistoryQuery', () => {
     expect(sql).toContain('receivable_balance_history_coverage');
     expect(sql).toContain('coveredFrom');
     expect(sql).toContain('h."effectiveAt" >= c.covered_from');
+    expect(sql).toContain('END::text AS outstanding');
   });
 
   it('uses an exclusive upper bound for date filters', async () => {
@@ -84,20 +85,23 @@ describe('TypeOrmReceivableBalanceHistoryQuery', () => {
     expect(sql).not.toContain('h."effectiveAt" <= $4');
   });
 
-  it('maps bigint outstanding to numbers and keeps null for uncovered months', async () => {
+  it('preserves exact outstanding strings and null for uncovered months', async () => {
     const { queryService } = buildQuery([
       { month: '2026-06', outstanding: null },
       { month: '2026-07', outstanding: '123000' },
+      { month: '2026-08', outstanding: '9007199254740993' },
     ]);
 
     await expect(
       queryService.findOutstandingByMonthEnds('org-1', [
         new Date('2026-06-30T17:00:00.000Z'),
         new Date('2026-07-31T17:00:00.000Z'),
+        new Date('2026-08-31T17:00:00.000Z'),
       ]),
     ).resolves.toEqual([
       { month: '2026-06', outstanding: null },
-      { month: '2026-07', outstanding: 123000 },
+      { month: '2026-07', outstanding: '123000' },
+      { month: '2026-08', outstanding: '9007199254740993' },
     ]);
   });
 

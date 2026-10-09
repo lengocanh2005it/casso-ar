@@ -15,7 +15,7 @@ interface CollectedRow {
 const COLLECTED_BY_MONTH_SQL = `
   SELECT
     to_char("receivedAt" AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM') AS month,
-    COALESCE(SUM("totalAmount"), 0) AS collected
+    COALESCE(SUM("totalAmount"), 0)::text AS collected
   FROM payments
   WHERE "organizationId" = $1
     AND "receivedAt" >= $2
@@ -42,7 +42,7 @@ export class TypeOrmTrendReportRepository implements ITrendReportRepository {
 
     return rows.map((row) => ({
       month: row.month,
-      collected: Number(row.collected ?? 0),
+      collected: row.collected ?? '0',
     }));
   }
 }
