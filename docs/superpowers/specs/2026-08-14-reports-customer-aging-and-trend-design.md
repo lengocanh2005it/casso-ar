@@ -86,15 +86,17 @@ interface CustomerAgingResponse {
     taxCode: string;
     buckets: Array<{
       bucket: AgingBucket;
-      totalRemaining: number;
+      totalRemaining: string;
     }>;
-    totalRemaining: number;
+    totalRemaining: string;
   }>;
   total: number;
   page: number;
   limit: number;
 }
 ```
+
+All VND amount fields in these report responses use exact base-10 integer strings at every size (ADR-0035).
 
 The `buckets` array always contains the five buckets in canonical order. The response omits internal `organizationId` and ORM/version fields.
 
@@ -119,8 +121,8 @@ interface ReportsTrendResponse {
   months: 3 | 6 | 12;
   items: Array<{
     month: string; // YYYY-MM in Asia/Ho_Chi_Minh
-    outstanding: number | null;
-    collected: number;
+    outstanding: string | null;
+    collected: string;
   }>;
 }
 ```

@@ -29,20 +29,22 @@ HTTP contract:
 type AgingBucket = 'NOT_DUE' | 'OVERDUE_1_7' | 'OVERDUE_8_30' | 'OVERDUE_31_60' | 'OVERDUE_60_PLUS';
 
 interface AgingReportResponse {
-  buckets: Array<{ bucket: AgingBucket; count: number; totalRemaining: number }>;
+  buckets: Array<{ bucket: AgingBucket; count: number; totalRemaining: string }>;
 }
 
 interface DashboardSummaryResponse {
-  totalOutstanding: number;
-  totalOverdue: number;
+  totalOutstanding: string;
+  totalOverdue: string;
   overdueRate: number;
-  cashForecast: { forecast7d: number; forecast14d: number; forecast30d: number };
-  topOverdueCustomers: Array<{ customerId: string; customerName: string; totalOverdue: number }>;
+  cashForecast: { forecast7d: string; forecast14d: string; forecast30d: string };
+  topOverdueCustomers: Array<{ customerId: string; customerName: string; totalOverdue: string }>;
   autoMatchRate: number | null;
   manualHandlingRate: number | null;
   reminderEffectiveness: number | null;
 }
 ```
+
+VND amount fields use exact base-10 integer strings at every size; counts, rates, and other non-monetary values remain numbers (ADR-0035).
 
 `GET /api/v1/reports/dashboard-summary` accepts optional `from`/`to` query params (ISO date strings, `from <= to`, max 90-day range — validated, 400 `VALIDATION_ERROR` on violation). Defaults to the current calendar month in `Asia/Ho_Chi_Minh` when omitted. This period scopes `autoMatchRate`/`manualHandlingRate`/`reminderEffectiveness`; the other fields (`totalOutstanding`, `totalOverdue`, `overdueRate`, `cashForecast`, `topOverdueCustomers`) are always "as of now" and unaffected by the period.
 
