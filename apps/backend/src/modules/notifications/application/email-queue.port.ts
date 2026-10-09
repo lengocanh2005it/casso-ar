@@ -10,6 +10,7 @@ export interface ReminderEmailJob {
   reminderExecutionId: string;
   receivableId: string;
   organizationId: string;
+  minIntervalDays?: number;
   to: string;
   replyTo?: string;
   subject: string;
@@ -59,6 +60,12 @@ export type ReminderDeliveryLockResult<T> =
   | { acquired: false };
 
 export interface IEmailQueue {
+  runWithReceivableDeliveryLock<T>(
+    organizationId: string,
+    receivableId: string,
+    operation: (signal: AbortSignal) => Promise<T>,
+    waitForLockMs?: number,
+  ): Promise<ReminderDeliveryLockResult<T>>;
   runWithReminderDeliveryLock<T>(
     executionId: string,
     operation: () => Promise<T>,

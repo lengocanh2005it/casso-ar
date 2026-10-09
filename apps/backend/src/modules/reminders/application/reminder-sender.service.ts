@@ -24,6 +24,7 @@ export interface SendReminderJob {
   receivableId: string;
   reminderRuleId: string;
   executionDate: string;
+  minIntervalDays?: number;
 }
 
 function buildSkippedExecution(
@@ -35,6 +36,7 @@ function buildSkippedExecution(
     organizationId: job.organizationId,
     receivableId: job.receivableId,
     reminderRuleId: job.reminderRuleId,
+    minIntervalDays: job.minIntervalDays ?? null,
     executionDate: new Date(job.executionDate),
     sentAt: null,
     status: ReminderExecutionStatus.SKIPPED,
@@ -83,7 +85,11 @@ export class ReminderSenderService {
     );
     if (existing) {
       if (existing.status === ReminderExecutionStatus.PENDING) {
-        await this.recoverPendingExecution(job, existing.id);
+        await this.recoverPendingExecution(
+          job,
+          existing.id,
+          existing.minIntervalDays,
+        );
       }
       return;
     }
@@ -105,17 +111,33 @@ export class ReminderSenderService {
 
     const rule = await this.ruleRepo.findById(job.reminderRuleId);
     if (!rule) {
-      throw new AppError(
-        ErrorCode.NOT_FOUND,
-        `Reminder rule ${job.reminderRuleId} not found — configuration error`,
+      const now = new Date();
+      await this.executionRepo.save(
+        new ReminderExecution({
+          id: randomUUID(),
+          organizationId: job.organizationId,
+          receivableId: job.receivableId,
+          reminderRuleId: null,
+          minIntervalDays: job.minIntervalDays ?? null,
+          executionDate: new Date(job.executionDate),
+          sentAt: null,
+          status: ReminderExecutionStatus.FAILED,
+          skipReason: null,
+          providerMessageId: null,
+          failureReason: `Reminder rule ${job.reminderRuleId} was deleted before delivery; its email template or minimum interval configuration cannot be recovered.`,
+          createdAt: now,
+        }),
       );
+      return;
     }
 
+    const minIntervalDays = job.minIntervalDays ?? rule.minIntervalDays;
     const execution = new ReminderExecution({
       id: randomUUID(),
       organizationId: job.organizationId,
       receivableId: job.receivableId,
       reminderRuleId: job.reminderRuleId,
+      minIntervalDays,
       executionDate: new Date(job.executionDate),
       sentAt: null,
       status: ReminderExecutionStatus.PENDING,
@@ -133,7 +155,11 @@ export class ReminderSenderService {
         new Date(job.executionDate),
       );
       if (winner?.status === ReminderExecutionStatus.PENDING) {
-        await this.recoverPendingExecution(job, winner.id);
+        await this.recoverPendingExecution(
+          job,
+          winner.id,
+          winner.minIntervalDays,
+        );
       }
       return;
     }
@@ -142,12 +168,14 @@ export class ReminderSenderService {
       receivableId: job.receivableId,
       templateId: rule.emailTemplateId,
       reminderExecutionId: execution.id,
+      minIntervalDays,
     });
   }
 
   private async recoverPendingExecution(
     job: SendReminderJob,
     executionId: string,
+    persistedMinIntervalDays: number | null,
   ): Promise<void> {
     const recovery =
       await this.emailService.recoverReminderDelivery(executionId);
@@ -181,16 +209,19 @@ export class ReminderSenderService {
         executionId,
         'FAILED',
         null,
-        `Reminder rule ${job.reminderRuleId} was deleted before delivery recovery.`,
+        `Reminder rule ${job.reminderRuleId} was deleted before delivery recovery; its email template or minimum interval configuration cannot be recovered.`,
       );
       return;
     }
 
+    const minIntervalDays =
+      persistedMinIntervalDays ?? job.minIntervalDays ?? rule.minIntervalDays;
     try {
       await this.emailService.sendReminderEmail({
         receivableId: job.receivableId,
         templateId: rule.emailTemplateId,
         reminderExecutionId: executionId,
+        minIntervalDays,
       });
     } catch (error) {
       if (

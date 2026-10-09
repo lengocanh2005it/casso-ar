@@ -79,6 +79,7 @@ describe('ReminderSchedulerService', () => {
       expect.objectContaining({
         receivableId: 'rec-1',
         reminderRuleId: 'rule-5',
+        minIntervalDays: 7,
       }),
       expect.objectContaining({
         jobId: expect.stringContaining('rec-1'),
@@ -197,6 +198,117 @@ describe('ReminderSchedulerService', () => {
       }),
     );
     expect(queueAdd).not.toHaveBeenCalled();
+  });
+
+  it('records RATE_LIMITED one millisecond before the exact interval elapses', async () => {
+    const now = new Date('2026-08-03T10:00:00.000Z');
+    const sentAt = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000 + 1);
+    const executionRepo = {
+      findLatestSentByReceivableIds: jest
+        .fn()
+        .mockResolvedValue(new Map([['rec-1', { sentAt }]])),
+      insertIfAbsent: jest.fn().mockResolvedValue(true),
+      save: jest.fn(),
+    };
+    const queueAdd = jest.fn();
+    const scheduler = new ReminderSchedulerService(
+      buildPolicyRepoMock() as any,
+      { findByPolicyId: jest.fn().mockResolvedValue([rule]) } as any,
+      executionRepo as any,
+      {
+        findOpenCandidates: jest.fn().mockResolvedValue([makeCandidate()]),
+      } as any,
+      { add: queueAdd } as any,
+      {
+        run: async (_user: unknown, cb: () => Promise<void>) => await cb(),
+      } as any,
+      { emitAsync: jest.fn().mockResolvedValue([]) } as any,
+      { findAllIds: jest.fn().mockResolvedValue(['org-1']) } as any,
+    );
+
+    await scheduler.scan(now);
+
+    expect(executionRepo.insertIfAbsent).toHaveBeenCalledWith(
+      expect.objectContaining({ skipReason: 'RATE_LIMITED' }),
+    );
+    expect(queueAdd).not.toHaveBeenCalled();
+  });
+
+  it('queues at the exact interval threshold', async () => {
+    const now = new Date('2026-08-03T10:00:00.000Z');
+    const sentAt = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const queueAdd = jest.fn();
+    const scheduler = new ReminderSchedulerService(
+      buildPolicyRepoMock() as any,
+      { findByPolicyId: jest.fn().mockResolvedValue([rule]) } as any,
+      {
+        findLatestSentByReceivableIds: jest
+          .fn()
+          .mockResolvedValue(new Map([['rec-1', { sentAt }]])),
+        insertIfAbsent: jest.fn().mockResolvedValue(true),
+        save: jest.fn(),
+      } as any,
+      {
+        findOpenCandidates: jest.fn().mockResolvedValue([makeCandidate()]),
+      } as any,
+      { add: queueAdd } as any,
+      {
+        run: async (_user: unknown, cb: () => Promise<void>) => await cb(),
+      } as any,
+      { emitAsync: jest.fn().mockResolvedValue([]) } as any,
+      { findAllIds: jest.fn().mockResolvedValue(['org-1']) } as any,
+    );
+
+    await scheduler.scan(now);
+
+    expect(queueAdd).toHaveBeenCalledWith(
+      'send-reminder',
+      expect.objectContaining({ minIntervalDays: 7 }),
+      expect.any(Object),
+    );
+  });
+
+  it('does not suppress when the matched rule interval is zero', async () => {
+    const zeroIntervalRule = new ReminderRule({
+      id: 'rule-zero',
+      reminderPolicyId: policy.id,
+      offsetDays: -5,
+      emailTemplateId: 'template-1',
+      minIntervalDays: 0,
+      createdAt: new Date('2026-08-01'),
+    });
+    const now = new Date('2026-08-03T10:00:00.000Z');
+    const queueAdd = jest.fn();
+    const executionRepo = {
+      findLatestSentByReceivableIds: jest
+        .fn()
+        .mockResolvedValue(
+          new Map([['rec-1', { sentAt: new Date(now.getTime() + 1) }]]),
+        ),
+      insertIfAbsent: jest.fn(),
+      save: jest.fn(),
+    };
+    const scheduler = new ReminderSchedulerService(
+      buildPolicyRepoMock() as any,
+      {
+        findByPolicyId: jest.fn().mockResolvedValue([zeroIntervalRule]),
+      } as any,
+      executionRepo as any,
+      {
+        findOpenCandidates: jest.fn().mockResolvedValue([makeCandidate()]),
+      } as any,
+      { add: queueAdd } as any,
+      {
+        run: async (_user: unknown, cb: () => Promise<void>) => await cb(),
+      } as any,
+      { emitAsync: jest.fn().mockResolvedValue([]) } as any,
+      { findAllIds: jest.fn().mockResolvedValue(['org-1']) } as any,
+    );
+
+    await scheduler.scan(now);
+
+    expect(queueAdd).toHaveBeenCalledTimes(1);
+    expect(executionRepo.insertIfAbsent).not.toHaveBeenCalled();
   });
 
   it('batches policy, rule, and latest-sent lookups instead of querying per candidate', async () => {

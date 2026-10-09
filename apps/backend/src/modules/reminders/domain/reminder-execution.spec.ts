@@ -11,6 +11,7 @@ describe('ReminderExecution', () => {
       organizationId: 'org-1',
       receivableId: 'recv-1',
       reminderRuleId: 'rule-1',
+      minIntervalDays: 7,
       executionDate: new Date('2026-08-06'),
       sentAt: null,
       status: ReminderExecutionStatus.PENDING,
@@ -22,6 +23,7 @@ describe('ReminderExecution', () => {
 
     expect(execution.id).toBe('exec-1');
     expect(execution.status).toBe(ReminderExecutionStatus.PENDING);
+    expect(execution.minIntervalDays).toBe(7);
   });
 
   it('supports nullable reminderRuleId for manual sends', () => {
@@ -30,6 +32,7 @@ describe('ReminderExecution', () => {
       organizationId: 'org-1',
       receivableId: 'recv-1',
       reminderRuleId: null,
+      minIntervalDays: null,
       executionDate: new Date('2026-08-06'),
       sentAt: null,
       status: ReminderExecutionStatus.PENDING,
@@ -48,6 +51,7 @@ describe('ReminderExecution', () => {
       organizationId: 'org-1',
       receivableId: 'recv-1',
       reminderRuleId: 'rule-1',
+      minIntervalDays: null,
       executionDate: new Date('2026-08-06'),
       sentAt: null,
       status: ReminderExecutionStatus.SKIPPED,

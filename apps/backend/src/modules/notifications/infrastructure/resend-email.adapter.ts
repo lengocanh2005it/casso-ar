@@ -49,7 +49,7 @@ export class ResendEmailAdapter implements IEmailProviderAdapter {
         ...(contentId ? { contentId } : {}),
       }),
     );
-    const result = await this.client.emails.send({
+    const payload = {
       from,
       to,
       subject,
@@ -58,7 +58,17 @@ export class ResendEmailAdapter implements IEmailProviderAdapter {
       ...(attachments?.length ? { attachments } : {}),
       tags: Object.entries(metadata).map(([name, value]) => ({ name, value })),
       ...(replyTo ? { replyTo } : {}),
-    });
+    };
+    const requestOptions = {
+      ...(options?.idempotencyKey
+        ? { idempotencyKey: options.idempotencyKey }
+        : {}),
+      ...(options?.signal ? { signal: options.signal } : {}),
+    };
+    const result =
+      Object.keys(requestOptions).length > 0
+        ? await this.client.emails.send(payload, requestOptions)
+        : await this.client.emails.send(payload);
 
     if (result.error || !result.data?.id) {
       throw new Error(

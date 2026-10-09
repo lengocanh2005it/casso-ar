@@ -16,6 +16,7 @@ export interface ReminderExecutionProps {
   organizationId: string;
   receivableId: string;
   reminderRuleId: string | null;
+  minIntervalDays: number | null;
   executionDate: Date;
   sentAt: Date | null;
   status: ReminderExecutionStatus;
@@ -30,6 +31,7 @@ export class ReminderExecution {
   readonly organizationId: string;
   readonly receivableId: string;
   readonly reminderRuleId: string | null;
+  readonly minIntervalDays: number | null;
   readonly executionDate: Date;
   readonly sentAt: Date | null;
   readonly status: ReminderExecutionStatus;

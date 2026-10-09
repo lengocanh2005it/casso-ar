@@ -72,6 +72,44 @@ describe('SmtpEmailAdapter', () => {
     ).rejects.toThrow('connection refused');
   });
 
+  it('closes the SMTP transport when the delivery lock aborts the send', async () => {
+    let sendStarted: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => {
+      sendStarted = resolve;
+    });
+    const sendMail = jest.fn(
+      () =>
+        new Promise<{ messageId: string }>((resolve) => {
+          sendStarted?.();
+          setTimeout(() => resolve({ messageId: 'smtp-msg-1' }), 0);
+        }),
+    );
+    const close = jest.fn();
+    const transportFactory = jest.fn().mockReturnValue({ sendMail, close });
+    const adapter = new SmtpEmailAdapter(
+      buildConfig(),
+      'a'.repeat(64),
+      transportFactory,
+      () => 'plaintext',
+    );
+    const controller = new AbortController();
+    const pendingSend = adapter.send(
+      'c@example.com',
+      's',
+      '<p>h</p>',
+      {},
+      undefined,
+      undefined,
+      { signal: controller.signal },
+    );
+
+    await started;
+    controller.abort(new Error('delivery lock lease lost'));
+
+    expect(close).toHaveBeenCalledTimes(1);
+    await expect(pendingSend).rejects.toThrow('delivery lock lease lost');
+  });
+
   it('maps plain text and CID attachments to Nodemailer', async () => {
     const sendMail = jest
       .fn()

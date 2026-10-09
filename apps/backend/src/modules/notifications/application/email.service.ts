@@ -41,6 +41,7 @@ export interface SendReminderEmailInput {
   receivableId: string;
   templateId: string;
   reminderExecutionId: string;
+  minIntervalDays?: number;
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -127,6 +128,9 @@ export class EmailService {
           reminderExecutionId: input.reminderExecutionId,
           receivableId: input.receivableId,
           organizationId,
+          ...(input.minIntervalDays === undefined
+            ? {}
+            : { minIntervalDays: input.minIntervalDays }),
           to: customer.email,
           ...(owner?.email ? { replyTo: owner.email } : {}),
           subject: rendered.subject,

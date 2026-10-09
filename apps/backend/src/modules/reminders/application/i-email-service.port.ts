@@ -2,6 +2,7 @@ export interface ISendReminderEmailInput {
   receivableId: string;
   templateId: string;
   reminderExecutionId: string;
+  minIntervalDays?: number;
 }
 
 export interface IEmailService {

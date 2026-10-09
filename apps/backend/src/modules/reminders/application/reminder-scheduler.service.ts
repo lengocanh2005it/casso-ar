@@ -34,9 +34,12 @@ export interface ReminderSendJob {
   receivableId: string;
   reminderRuleId: string;
   executionDate: string;
+  minIntervalDays: number;
 }
 
 export const REMINDER_SCAN_COMPLETED = 'reminder.scan.completed';
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export interface ReminderScanCompletedEvent {
   organizationId: string;
@@ -150,16 +153,15 @@ export class ReminderSchedulerService {
 
       const latestSent = latestSentByReceivable.get(candidate.receivableId);
       if (latestSent) {
-        const daysSinceLastSend = Math.round(
-          (today.getTime() - latestSent.sentAt.getTime()) /
-            (24 * 60 * 60 * 1000),
-        );
-        if (daysSinceLastSend < matchingRule.minIntervalDays) {
+        const elapsedMs = today.getTime() - latestSent.sentAt.getTime();
+        const intervalMs = matchingRule.minIntervalDays * MS_PER_DAY;
+        if (matchingRule.minIntervalDays > 0 && elapsedMs < intervalMs) {
           await this.executionRepo.insertIfAbsent({
             id: randomUUID(),
             organizationId,
             receivableId: candidate.receivableId,
             reminderRuleId: matchingRule.id,
+            minIntervalDays: matchingRule.minIntervalDays,
             executionDate: new Date(executionDate),
             sentAt: null,
             status: ReminderExecutionStatus.SKIPPED,
@@ -181,6 +183,7 @@ export class ReminderSchedulerService {
             receivableId: candidate.receivableId,
             reminderRuleId: matchingRule.id,
             executionDate,
+            minIntervalDays: matchingRule.minIntervalDays,
           },
           {
             jobId: `reminder-${candidate.receivableId}-${matchingRule.id}-${executionDate}`,

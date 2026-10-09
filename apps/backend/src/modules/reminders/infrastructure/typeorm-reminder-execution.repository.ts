@@ -11,6 +11,8 @@ import {
   ReminderSkipReason,
 } from '../domain/reminder-execution';
 import { ReminderExecutionOrmEntity } from './reminder-execution.orm-entity';
+import { ReminderPolicyOrmEntity } from './reminder-policy.orm-entity';
+import { ReminderRuleOrmEntity } from './reminder-rule.orm-entity';
 
 @Injectable()
 export class TypeOrmReminderExecutionRepository
@@ -61,12 +63,16 @@ export class TypeOrmReminderExecutionRepository
     receivableId: string,
     reminderRuleId: string | null,
     executionDate: Date,
-  ): Promise<{ id: string; status: ReminderExecutionStatus } | null> {
+  ): Promise<{
+    id: string;
+    status: ReminderExecutionStatus;
+    minIntervalDays: number | null;
+  } | null> {
     const organizationId = this.tenantContext.getOrganizationId();
     const row = await this.dataSource
       .getRepository(ReminderExecutionOrmEntity)
       .createQueryBuilder('e')
-      .select(['e.id', 'e.status'])
+      .select(['e.id', 'e.status', 'e.minIntervalDays'])
       .where('e."receivableId" = :receivableId', { receivableId })
       .andWhere('e."organizationId" = :organizationId', { organizationId })
       .andWhere('e."reminderRuleId" IS NOT DISTINCT FROM :reminderRuleId', {
@@ -74,7 +80,13 @@ export class TypeOrmReminderExecutionRepository
       })
       .andWhere('e."executionDate" = :executionDate', { executionDate })
       .getOne();
-    return row ? { id: row.id, status: row.status } : null;
+    return row
+      ? {
+          id: row.id,
+          status: row.status,
+          minIntervalDays: row.minIntervalDays,
+        }
+      : null;
   }
 
   async findById(id: string): Promise<ReminderExecution | null> {
@@ -83,6 +95,52 @@ export class TypeOrmReminderExecutionRepository
       .getRepository(ReminderExecutionOrmEntity)
       .findOne({ where: { id, organizationId } });
     return row ? new ReminderExecution(row) : null;
+  }
+
+  async recoverMinIntervalDays(id: string): Promise<number | null> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const row = await this.dataSource
+      .getRepository(ReminderExecutionOrmEntity)
+      .createQueryBuilder('e')
+      .innerJoin(ReminderRuleOrmEntity, 'r', 'r.id = e."reminderRuleId"')
+      .innerJoin(
+        ReminderPolicyOrmEntity,
+        'p',
+        'p.id::text = r."reminderPolicyId" AND p."organizationId" = e."organizationId"::text',
+      )
+      .select('e."minIntervalDays"', 'capturedMinIntervalDays')
+      .addSelect('r."minIntervalDays"', 'ruleMinIntervalDays')
+      .where('e.id = :id', { id })
+      .andWhere('e."organizationId" = :organizationId', { organizationId })
+      .andWhere('e.status = :pending', {
+        pending: ReminderExecutionStatus.PENDING,
+      })
+      .getRawOne<{
+        capturedMinIntervalDays: number | null;
+        ruleMinIntervalDays: number;
+      }>();
+
+    if (!row) return null;
+    if (row.capturedMinIntervalDays !== null) {
+      return row.capturedMinIntervalDays;
+    }
+
+    const result = await this.dataSource
+      .getRepository(ReminderExecutionOrmEntity)
+      .createQueryBuilder()
+      .update()
+      .set({ minIntervalDays: row.ruleMinIntervalDays })
+      .where('id = :id', { id })
+      .andWhere('"organizationId" = :organizationId', { organizationId })
+      .andWhere('status = :pending', {
+        pending: ReminderExecutionStatus.PENDING,
+      })
+      .andWhere('"minIntervalDays" IS NULL')
+      .execute();
+
+    if (result.affected) return row.ruleMinIntervalDays;
+    const current = await this.findById(id);
+    return current?.minIntervalDays ?? null;
   }
 
   async findPendingAutomatedBefore(
@@ -98,6 +156,7 @@ export class TypeOrmReminderExecutionRepository
         'e.organizationId',
         'e.receivableId',
         'e.reminderRuleId',
+        'e.minIntervalDays',
         'e.executionDate',
         'e.sentAt',
         'e.status',
@@ -136,9 +195,13 @@ export class TypeOrmReminderExecutionRepository
         organizationId,
         receivableId: execution.receivableId,
         reminderRuleId: execution.reminderRuleId,
+        minIntervalDays: execution.minIntervalDays,
         executionDate: execution.executionDate,
+        sentAt: execution.sentAt,
         status: execution.status,
         skipReason: execution.skipReason,
+        providerMessageId: execution.providerMessageId,
+        failureReason: execution.failureReason,
         createdAt: new Date(),
       });
       return true;
@@ -162,9 +225,13 @@ export class TypeOrmReminderExecutionRepository
         organizationId,
         receivableId: execution.receivableId,
         reminderRuleId: execution.reminderRuleId,
+        minIntervalDays: execution.minIntervalDays,
         executionDate: execution.executionDate,
+        sentAt: execution.sentAt,
         status: execution.status,
         skipReason: execution.skipReason,
+        providerMessageId: execution.providerMessageId,
+        failureReason: execution.failureReason,
         createdAt: execution.createdAt,
       });
   }
