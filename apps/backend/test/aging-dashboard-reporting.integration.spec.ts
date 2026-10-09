@@ -572,6 +572,7 @@ describe('Aging dashboard reporting (integration)', () => {
   it('preserves exact aggregates of individually safe amounts across report endpoints', async () => {
     const amount = 3_100_000_000_000_000;
     const receivableIds = Array.from({ length: 3 }, () => randomUUID());
+    const forecastReceivableIds = Array.from({ length: 3 }, () => randomUUID());
     const paymentIds = Array.from({ length: 3 }, () => randomUUID());
     const historyIds = Array.from({ length: 3 }, () => randomUUID());
     const now = new Date();
@@ -580,8 +581,8 @@ describe('Aging dashboard reporting (integration)', () => {
     const history = dataSource.getRepository(ReceivableBalanceHistoryOrmEntity);
 
     try {
-      await receivables.save(
-        receivableIds.map((id) => ({
+      await receivables.save([
+        ...receivableIds.map((id) => ({
           id,
           organizationId,
           customerId,
@@ -595,7 +596,21 @@ describe('Aging dashboard reporting (integration)', () => {
           closedAt: null,
           version: 1,
         })),
-      );
+        ...forecastReceivableIds.map((id) => ({
+          id,
+          organizationId,
+          customerId,
+          invoiceId: null,
+          originalAmount: amount,
+          paidAmount: 0,
+          dueDate: addDays(new Date(`${today}T00:00:00.000Z`), 1),
+          status: ReceivableStatus.OPEN,
+          salesRepresentativeId: salesRepBId,
+          createdAt: now,
+          closedAt: null,
+          version: 1,
+        })),
+      ]);
       await payments.save(
         paymentIds.map((id) => ({
           id,
@@ -664,11 +679,16 @@ describe('Aging dashboard reporting (integration)', () => {
         count: 4,
         totalRemaining: '9300000000001500',
       });
+      expect(aging.body.buckets[0]).toEqual({
+        bucket: 'NOT_DUE',
+        count: 5,
+        totalRemaining: '9300000000008900',
+      });
       expect(customerAging.body.items[0]).toMatchObject({
         customerId,
-        totalRemaining: '9300000000011400',
+        totalRemaining: '18600000000011400',
         buckets: [
-          { bucket: 'NOT_DUE', totalRemaining: '900' },
+          { bucket: 'NOT_DUE', totalRemaining: '9300000000000900' },
           { bucket: 'OVERDUE_1_7', totalRemaining: '9300000000001500' },
           { bucket: 'OVERDUE_8_30', totalRemaining: '2000' },
           { bucket: 'OVERDUE_31_60', totalRemaining: '3000' },
@@ -676,12 +696,12 @@ describe('Aging dashboard reporting (integration)', () => {
         ],
       });
       expect(dashboard.body).toMatchObject({
-        totalOutstanding: '9300000000019400',
+        totalOutstanding: '18600000000019400',
         totalOverdue: '9300000000010500',
         cashForecast: {
-          forecast7d: '900',
-          forecast14d: '900',
-          forecast30d: '900',
+          forecast7d: '9300000000000900',
+          forecast14d: '9300000000000900',
+          forecast30d: '9300000000000900',
         },
         topOverdueCustomers: [{ customerId, totalOverdue: '9300000000010500' }],
       });
@@ -702,7 +722,7 @@ describe('Aging dashboard reporting (integration)', () => {
     } finally {
       await history.delete(historyIds);
       await payments.delete(paymentIds);
-      await receivables.delete(receivableIds);
+      await receivables.delete([...receivableIds, ...forecastReceivableIds]);
     }
   });
 
