@@ -6,6 +6,18 @@ import { hoverTooltip } from '@/test/tooltip';
 import { MetricCard } from './metric-card';
 
 describe('MetricCard', () => {
+  it('shows an exact string amount in the card', () => {
+    render(
+      <MetricCard
+        label="Tổng công nợ còn lại"
+        description="Tất cả công nợ chưa thanh toán"
+        value={formatVND('9007199254740993')}
+        amount="9007199254740993"
+        icon={CircleDollarSign}
+      />,
+    );
+    expect(screen.getByText('9.007.199.254.740.993 ₫')).toBeInTheDocument();
+  });
   it('uses a semantic label tone for the success variant', () => {
     render(
       <MetricCard

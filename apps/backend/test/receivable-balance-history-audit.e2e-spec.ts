@@ -484,7 +484,7 @@ describe('Receivable balance history audit (e2e)', () => {
       sequence: number;
       effectiveAt: string;
       status: string;
-      remainingAmount: number;
+      remainingAmount: string;
       changeSource: string;
       reasonCode: string | null;
       actorType: string | null;
@@ -505,7 +505,7 @@ describe('Receivable balance history audit (e2e)', () => {
       actorUserId: null,
       actorDisplayName: null,
       status: ReceivableStatus.PAID,
-      remainingAmount: 0,
+      remainingAmount: '0',
       invoiceNumber: 'INV-AUDIT-001',
     });
     expect(webhookRow.transitionReferenceId).toBeTruthy();
@@ -521,7 +521,7 @@ describe('Receivable balance history audit (e2e)', () => {
       note: null,
       transitionReferenceId: null,
     });
-    expect(legacyRow.remainingAmount).toBe(25_000_000);
+    expect(legacyRow.remainingAmount).toBe('25000000');
 
     // The undo keeps the same allocation reference but a distinct actor.
     await request(app.getHttpServer())
@@ -548,7 +548,7 @@ describe('Receivable balance history audit (e2e)', () => {
       actorType: 'USER',
       actorUserId: fmA,
       status: ReceivableStatus.OPEN,
-      remainingAmount: 30_000_000,
+      remainingAmount: '30000000',
       transitionReferenceId: allocationId,
       note: 'Nhập sai số tiền',
     });
@@ -558,7 +558,7 @@ describe('Receivable balance history audit (e2e)', () => {
     const unchangedWebhookRow = afterItems[1];
     expect(unchangedWebhookRow).toMatchObject({
       changeSource: 'ALLOCATE',
-      remainingAmount: 0,
+      remainingAmount: '0',
       transitionReferenceId: allocationId,
       effectiveAt: webhookRow.effectiveAt,
       sequence: webhookRow.sequence,
@@ -576,7 +576,7 @@ describe('Receivable balance history audit (e2e)', () => {
     expect(response.body).toMatchObject({
       totalTransitions: 4,
       affectedReceivables: 1,
-      latestRemainingAmount: 30_000_000,
+      latestRemainingAmount: '30000000',
     });
     // One receivable's latest snapshot is OPEN at 30M; legacy 25M and the
     // PAID-in-between snapshots are not summed.

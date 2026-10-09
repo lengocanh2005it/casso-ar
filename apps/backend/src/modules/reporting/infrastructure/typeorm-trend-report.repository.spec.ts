@@ -46,16 +46,21 @@ describe('TypeOrmTrendReportRepository', () => {
     expect(sql).toContain('"receivedAt"');
     expect(sql).toContain('"receivedAt" < $3');
     expect(sql).toContain('"totalAmount"');
+    expect(sql).toContain('COALESCE(SUM("totalAmount"), 0)::text AS collected');
     expect(sql).not.toContain('payment_allocations');
   });
 
-  it('maps PostgreSQL amount strings to integer numbers', async () => {
+  it('preserves PostgreSQL amount strings including totals above MAX_SAFE_INTEGER', async () => {
     const { repository } = buildRepository([
       { month: '2026-06', collected: '123000' },
+      { month: '2026-07', collected: '9007199254740993' },
     ]);
 
     await expect(
       repository.findCollectedByMonths('org-1', months),
-    ).resolves.toEqual([{ month: '2026-06', collected: 123000 }]);
+    ).resolves.toEqual([
+      { month: '2026-06', collected: '123000' },
+      { month: '2026-07', collected: '9007199254740993' },
+    ]);
   });
 });

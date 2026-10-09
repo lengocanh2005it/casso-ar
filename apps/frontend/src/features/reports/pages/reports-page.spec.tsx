@@ -22,19 +22,19 @@ function mockReports(
   topOverdueCustomers: Array<{
     customerId: string;
     customerName: string;
-    totalOverdue: number;
+    totalOverdue: string;
   }> = [],
 ) {
   apiRequest.mockImplementation(({ url }: { url: string }) => {
     if (url === '/api/v1/reports/dashboard-summary') {
       return Promise.resolve({
-        totalOutstanding: 100_000_000,
-        totalOverdue: 30_000_000,
+        totalOutstanding: '100000000',
+        totalOverdue: '30000000',
         overdueRate: 0.3,
         cashForecast: {
-          forecast7d: 10_000_000,
-          forecast14d: 20_000_000,
-          forecast30d: 30_000_000,
+          forecast7d: '10000000',
+          forecast14d: '20000000',
+          forecast30d: '30000000',
         },
         topOverdueCustomers,
         autoMatchRate: 0.8,
@@ -45,11 +45,11 @@ function mockReports(
     if (url === '/api/v1/reports/aging') {
       return Promise.resolve({
         buckets: [
-          { bucket: 'NOT_DUE', count: 3, totalRemaining: 70_000_000 },
-          { bucket: 'OVERDUE_1_7', count: 0, totalRemaining: 0 },
-          { bucket: 'OVERDUE_8_30', count: 0, totalRemaining: 0 },
-          { bucket: 'OVERDUE_31_60', count: 0, totalRemaining: 0 },
-          { bucket: 'OVERDUE_60_PLUS', count: 1, totalRemaining: 30_000_000 },
+          { bucket: 'NOT_DUE', count: 3, totalRemaining: '70000000' },
+          { bucket: 'OVERDUE_1_7', count: 0, totalRemaining: '0' },
+          { bucket: 'OVERDUE_8_30', count: 0, totalRemaining: '0' },
+          { bucket: 'OVERDUE_31_60', count: 0, totalRemaining: '0' },
+          { bucket: 'OVERDUE_60_PLUS', count: 1, totalRemaining: '30000000' },
         ],
       });
     }
@@ -61,13 +61,13 @@ function mockReports(
             customerName: 'ACME Corp',
             taxCode: '0101234567',
             buckets: [
-              { bucket: 'NOT_DUE', totalRemaining: 0 },
-              { bucket: 'OVERDUE_1_7', totalRemaining: 1_500_000 },
-              { bucket: 'OVERDUE_8_30', totalRemaining: 2_000_000 },
-              { bucket: 'OVERDUE_31_60', totalRemaining: 3_000_000 },
-              { bucket: 'OVERDUE_60_PLUS', totalRemaining: 4_900_000 },
+              { bucket: 'NOT_DUE', totalRemaining: '0' },
+              { bucket: 'OVERDUE_1_7', totalRemaining: '1500000' },
+              { bucket: 'OVERDUE_8_30', totalRemaining: '2000000' },
+              { bucket: 'OVERDUE_31_60', totalRemaining: '3000000' },
+              { bucket: 'OVERDUE_60_PLUS', totalRemaining: '4900000' },
             ],
-            totalRemaining: 11_400_000,
+            totalRemaining: '11400000',
           },
         ],
         total: 1,
@@ -82,9 +82,9 @@ function mockReports(
       return Promise.resolve({
         months: 12,
         items: [
-          { month: '2026-06', outstanding: null, collected: 0 },
-          { month: '2026-07', outstanding: 4_000_000, collected: 3_000_000 },
-          { month: '2026-08', outstanding: 7_000_000, collected: 5_000_000 },
+          { month: '2026-06', outstanding: null, collected: '0' },
+          { month: '2026-07', outstanding: '4000000', collected: '3000000' },
+          { month: '2026-08', outstanding: '7000000', collected: '5000000' },
         ],
       });
     }
@@ -134,10 +134,7 @@ describe('ReportsPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Phân bổ tuổi nợ')).toBeInTheDocument();
     expect(screen.getByText('Công nợ theo khách hàng')).toBeInTheDocument();
-    // The summary KPI abbreviates its amount, so only the aging table spells
-    // the same figure out in full — assert both shapes exist.
-    expect(screen.getByText('100tr')).toBeTruthy();
-    expect(screen.getByText('100.000.000 ₫')).toBeTruthy();
+    expect(screen.getAllByText('100.000.000 ₫').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Quá hạn 31–60 ngày').length).toBeGreaterThan(0);
   });
 
@@ -178,7 +175,7 @@ describe('ReportsPage', () => {
       {
         customerId: 'cust-overdue',
         customerName: 'Công ty A',
-        totalOverdue: 20_000_000,
+        totalOverdue: '20000000',
       },
     ]);
     renderPage();
@@ -233,7 +230,7 @@ describe('ReportsPage', () => {
       ).toBeTruthy(),
     );
     expect(
-      screen.getByRole('img', { name: 'Biểu đồ xu hướng công nợ và thu hồi' }),
+      screen.getByRole('img', { name: /Biểu đồ xu hướng công nợ và thu hồi/ }),
     ).toBeTruthy();
     expect(
       screen.getByText(/là tháng hiện tại nên số liệu là tạm tính/i),
@@ -263,7 +260,7 @@ describe('ReportsPage', () => {
       ).toBeTruthy(),
     );
     expect(
-      screen.getByRole('img', { name: 'Biểu đồ xu hướng công nợ và thu hồi' }),
+      screen.getByRole('img', { name: /Biểu đồ xu hướng công nợ và thu hồi/ }),
     ).toBeTruthy();
   });
 
@@ -293,10 +290,10 @@ describe('ReportsPage', () => {
       }
       if (url === '/api/v1/reports/dashboard-summary') {
         return Promise.resolve({
-          totalOutstanding: 0,
-          totalOverdue: 0,
+          totalOutstanding: '0',
+          totalOverdue: '0',
           overdueRate: 0,
-          cashForecast: { forecast7d: 0, forecast14d: 0, forecast30d: 0 },
+          cashForecast: { forecast7d: '0', forecast14d: '0', forecast30d: '0' },
           topOverdueCustomers: [],
           autoMatchRate: null,
           manualHandlingRate: null,
@@ -325,10 +322,10 @@ describe('ReportsPage', () => {
       }
       if (url === '/api/v1/reports/dashboard-summary') {
         return Promise.resolve({
-          totalOutstanding: 0,
-          totalOverdue: 0,
+          totalOutstanding: '0',
+          totalOverdue: '0',
           overdueRate: 0,
-          cashForecast: { forecast7d: 0, forecast14d: 0, forecast30d: 0 },
+          cashForecast: { forecast7d: '0', forecast14d: '0', forecast30d: '0' },
           topOverdueCustomers: [],
           autoMatchRate: null,
           manualHandlingRate: null,

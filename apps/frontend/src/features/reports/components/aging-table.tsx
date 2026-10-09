@@ -7,6 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { moneyPercent } from '@/lib/chart';
 import { formatVND } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { AgingBucket, AgingReport } from '../types';
@@ -40,7 +41,7 @@ export function AgingTable({
   totalOutstanding,
 }: {
   report: AgingReport;
-  totalOutstanding: number;
+  totalOutstanding: string;
 }) {
   const byBucket = new Map(
     report.buckets.map((bucket) => [bucket.bucket, bucket]),
@@ -48,10 +49,14 @@ export function AgingTable({
   const rows = AGING_BUCKETS.map((bucket) => ({
     bucket,
     count: byBucket.get(bucket)?.count ?? 0,
-    totalRemaining: byBucket.get(bucket)?.totalRemaining ?? 0,
+    totalRemaining: byBucket.get(bucket)?.totalRemaining ?? '0',
   }));
   const totalCount = rows.reduce((sum, row) => sum + row.count, 0);
-  const totalRemaining = rows.reduce((sum, row) => sum + row.totalRemaining, 0);
+  const totalRemaining = rows.reduce(
+    (sum, row) => sum + BigInt(row.totalRemaining),
+    0n,
+  );
+  const outstanding = BigInt(totalOutstanding);
 
   return (
     <Table>
@@ -77,16 +82,16 @@ export function AgingTable({
             </TableCell>
             <TableCell className="max-md:col-start-1 max-md:flex max-md:items-center max-md:justify-between max-md:gap-3 max-md:p-0">
               <span className="text-muted-foreground md:hidden">Còn lại</span>
-              <span className="tabular-nums">
+              <span className="tabular-nums max-md:break-all">
                 {formatVND(row.totalRemaining)}
               </span>
             </TableCell>
             <TableCell className="max-md:col-start-1 max-md:flex max-md:items-center max-md:justify-between max-md:gap-3 max-md:p-0">
               <span className="text-muted-foreground md:hidden">Tỷ trọng</span>
               <span>
-                {totalOutstanding > 0
+                {outstanding > 0n
                   ? percentageFormatter.format(
-                      row.totalRemaining / totalOutstanding,
+                      moneyPercent(row.totalRemaining, outstanding) / 100,
                     )
                   : percentageFormatter.format(0)}
               </span>
@@ -105,13 +110,17 @@ export function AgingTable({
           </TableCell>
           <TableCell className="max-md:col-start-1 max-md:flex max-md:items-center max-md:justify-between max-md:gap-3 max-md:p-0">
             <span className="text-muted-foreground md:hidden">Còn lại</span>
-            <span className="tabular-nums">{formatVND(totalRemaining)}</span>
+            <span className="tabular-nums max-md:break-all">
+              {formatVND(totalRemaining)}
+            </span>
           </TableCell>
           <TableCell className="max-md:col-start-1 max-md:flex max-md:items-center max-md:justify-between max-md:gap-3 max-md:p-0">
             <span className="text-muted-foreground md:hidden">Tỷ trọng</span>
             <span>
-              {totalOutstanding > 0
-                ? percentageFormatter.format(totalRemaining / totalOutstanding)
+              {outstanding > 0n
+                ? percentageFormatter.format(
+                    moneyPercent(totalRemaining.toString(), outstanding) / 100,
+                  )
                 : percentageFormatter.format(0)}
             </span>
           </TableCell>

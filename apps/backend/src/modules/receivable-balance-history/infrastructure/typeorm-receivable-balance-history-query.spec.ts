@@ -64,6 +64,7 @@ describe('TypeOrmReceivableBalanceHistoryQuery', () => {
     expect(sql).toContain('receivable_balance_history_coverage');
     expect(sql).toContain('coveredFrom');
     expect(sql).toContain('h."effectiveAt" >= c.covered_from');
+    expect(sql).toContain('END::text AS outstanding');
   });
 
   it('uses an exclusive upper bound for date filters', async () => {
@@ -84,20 +85,71 @@ describe('TypeOrmReceivableBalanceHistoryQuery', () => {
     expect(sql).not.toContain('h."effectiveAt" <= $4');
   });
 
-  it('maps bigint outstanding to numbers and keeps null for uncovered months', async () => {
+  it('preserves an exact large list snapshot', async () => {
+    const { queryService, queryMock } = buildQuery();
+    queryMock
+      .mockResolvedValueOnce([
+        {
+          id: 'h-1',
+          sequence: '1',
+          receivableId: 'rec-1',
+          invoiceNumber: null,
+          customerId: 'cust-1',
+          customerName: null,
+          status: 'OPEN',
+          remainingAmount: '9007199254740993',
+          effectiveAt: new Date('2026-08-14T10:00:00Z'),
+          changeSource: 'CREATE',
+          reasonCode: null,
+          actorType: null,
+          actorUserId: null,
+          actorDisplayName: null,
+          transitionReferenceId: null,
+          note: null,
+        },
+      ])
+      .mockResolvedValueOnce([{ total: '1' }]);
+
+    const result = await queryService.list('org-1', {}, 1, 20);
+
+    expect(result.items[0]?.remainingAmount).toBe('9007199254740993');
+  });
+
+  it('preserves an exact large summary aggregate', async () => {
+    const { queryService, queryMock } = buildQuery();
+    queryMock
+      .mockResolvedValueOnce([
+        {
+          totalTransitions: '2',
+          affectedReceivables: '2',
+          latestRemainingAmount: '9007199254740993',
+        },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await queryService.summarize('org-1', {});
+
+    expect(result.latestRemainingAmount).toBe('9007199254740993');
+  });
+
+  it('preserves exact outstanding strings and null for uncovered months', async () => {
     const { queryService } = buildQuery([
       { month: '2026-06', outstanding: null },
       { month: '2026-07', outstanding: '123000' },
+      { month: '2026-08', outstanding: '9007199254740993' },
     ]);
 
     await expect(
       queryService.findOutstandingByMonthEnds('org-1', [
         new Date('2026-06-30T17:00:00.000Z'),
         new Date('2026-07-31T17:00:00.000Z'),
+        new Date('2026-08-31T17:00:00.000Z'),
       ]),
     ).resolves.toEqual([
       { month: '2026-06', outstanding: null },
-      { month: '2026-07', outstanding: 123000 },
+      { month: '2026-07', outstanding: '123000' },
+      { month: '2026-08', outstanding: '9007199254740993' },
     ]);
   });
 

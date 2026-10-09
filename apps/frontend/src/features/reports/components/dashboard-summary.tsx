@@ -56,7 +56,7 @@ export function DashboardSummary({
           value={formatRate(summary.overdueRate)}
           icon={Clock}
           variant="warning"
-          empty={summary.totalOutstanding === 0}
+          empty={summary.totalOutstanding === '0'}
         />
         <MetricCard
           label="Khớp tự động"
@@ -142,7 +142,7 @@ export function DashboardSummary({
                       {customer.customerName}
                     </TruncatedText>
                   </div>
-                  <span className="shrink-0 rounded-lg bg-destructive/10 px-2.5 py-1 font-semibold tabular-nums text-destructive">
+                  <span className="min-w-0 max-w-[50%] break-all rounded-lg bg-destructive/10 px-2.5 py-1 text-right font-semibold tabular-nums text-destructive">
                     {formatVND(customer.totalOverdue)}
                   </span>
                 </div>

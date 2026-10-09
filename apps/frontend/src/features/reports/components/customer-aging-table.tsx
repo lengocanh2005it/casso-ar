@@ -85,13 +85,13 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
             {AGING_BUCKET_ORDER.map((bucket) => {
               const amount =
                 row.buckets.find((item) => item.bucket === bucket)
-                  ?.totalRemaining ?? 0;
+                  ?.totalRemaining ?? '0';
               return (
                 <TableCell
                   key={bucket}
                   className={cn(
-                    'text-right whitespace-nowrap tabular-nums max-md:col-span-2 max-md:col-start-1 max-md:flex max-md:items-center max-md:justify-between max-md:gap-3 max-md:whitespace-normal',
-                    amount === 0
+                    'text-right whitespace-nowrap tabular-nums max-md:col-span-2 max-md:col-start-1 max-md:flex max-md:items-center max-md:justify-between max-md:gap-3 max-md:whitespace-normal max-md:break-all',
+                    amount === '0'
                       ? 'text-muted-foreground'
                       : BUCKET_TONE[bucket],
                   )}
@@ -99,7 +99,7 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
                   <span className="hidden max-md:block max-md:text-xs max-md:text-muted-foreground">
                     {AGING_BUCKET_LABELS[bucket]}
                   </span>
-                  <span>{formatVND(amount)}</span>
+                  <span className="max-md:break-all">{formatVND(amount)}</span>
                 </TableCell>
               );
             })}
@@ -109,7 +109,7 @@ export function CustomerAgingTable({ page }: { page: CustomerAgingPage }) {
                 // not pinned below md: STICKY_EDGE paints a grey left-edge
                 // smear, and without this it sat beside the total amount as a
                 // stray shadow. The header cell already dropped it below md.
-                'sticky right-0 border-l bg-card text-right font-semibold whitespace-nowrap tabular-nums max-md:col-start-2 max-md:row-start-1 max-md:border-l-0 max-md:bg-transparent max-md:pl-0 max-md:shadow-none',
+                'sticky right-0 border-l bg-card text-right font-semibold whitespace-nowrap tabular-nums max-md:col-start-2 max-md:row-start-1 max-md:min-w-0 max-md:max-w-[45vw] max-md:border-l-0 max-md:bg-transparent max-md:pl-0 max-md:shadow-none max-md:whitespace-normal max-md:break-all',
                 STICKY_EDGE,
               )}
             >

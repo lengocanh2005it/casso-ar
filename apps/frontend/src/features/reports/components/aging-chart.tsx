@@ -10,8 +10,14 @@ import {
   YAxis,
 } from 'recharts';
 import { EmptyState } from '@/components/layout/empty-state';
-import { CHART_TICK, CHART_TOOLTIP_STYLE, hasChartValue } from '@/lib/chart';
-import { formatVND, formatVNDCompact } from '@/lib/format';
+import {
+  CHART_TICK,
+  CHART_TOOLTIP_STYLE,
+  hasChartValue,
+  maxMoney,
+  moneyPercent,
+} from '@/lib/chart';
+import { formatVND } from '@/lib/format';
 import type { AgingBucket, AgingReport } from '../types';
 import { AGING_BUCKET_LABELS } from './customer-aging-filters';
 
@@ -111,49 +117,70 @@ export function AgingChart({ report }: { report: AgingReport }) {
     );
   }
 
+  const maximum = maxMoney(
+    report.buckets.map((bucket) => bucket.totalRemaining),
+  );
+  const chartData = report.buckets.map((bucket) => ({
+    ...bucket,
+    percentage: moneyPercent(bucket.totalRemaining, maximum),
+  }));
+
   return (
-    <div className="h-80 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={report.buckets}
-          margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
-        >
-          <CartesianGrid
-            stroke="var(--border)"
-            strokeDasharray="4 4"
-            vertical={false}
-          />
-          <XAxis
-            dataKey="bucket"
-            interval={0}
-            tickLine={false}
-            axisLine={false}
-            tick={<AgingBucketTick />}
-          />
-          <YAxis
-            width={64}
-            tickLine={false}
-            axisLine={false}
-            tick={CHART_TICK}
-            tickFormatter={(value: number) => formatVNDCompact(value)}
-          />
-          <Tooltip
-            {...CHART_TOOLTIP_STYLE}
-            formatter={(value) => [formatVND(Number(value)), 'Còn lại']}
-            labelFormatter={(label) =>
-              isAgingBucket(label) ? formatAgingBucketTick(label) : label
-            }
-          />
-          <Bar dataKey="totalRemaining" name="Còn lại" radius={[4, 4, 0, 0]}>
-            {report.buckets.map((bucket) => (
-              <Cell
-                key={bucket.bucket}
-                fill={AGING_BUCKET_FILLS[bucket.bucket]}
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="space-y-2">
+      <div
+        role="img"
+        className="h-80 w-full"
+        aria-label="Biểu đồ tỷ lệ so với nhóm tuổi nợ cao nhất"
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={chartData}
+            margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
+          >
+            <CartesianGrid
+              stroke="var(--border)"
+              strokeDasharray="4 4"
+              vertical={false}
+            />
+            <XAxis
+              dataKey="bucket"
+              interval={0}
+              tickLine={false}
+              axisLine={false}
+              tick={<AgingBucketTick />}
+            />
+            <YAxis
+              width={64}
+              tickLine={false}
+              axisLine={false}
+              tick={CHART_TICK}
+              domain={[0, 100]}
+              tickFormatter={(value: number) => `${value}%`}
+            />
+            <Tooltip
+              {...CHART_TOOLTIP_STYLE}
+              formatter={(_value, _name, item) => [
+                formatVND(item.payload.totalRemaining),
+                'Còn lại',
+              ]}
+              labelFormatter={(label) =>
+                isAgingBucket(label) ? formatAgingBucketTick(label) : label
+              }
+            />
+            <Bar dataKey="percentage" name="Còn lại" radius={[4, 4, 0, 0]}>
+              {report.buckets.map((bucket) => (
+                <Cell
+                  key={bucket.bucket}
+                  fill={AGING_BUCKET_FILLS[bucket.bucket]}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Trục dọc: 100% là nhóm tuổi nợ có số tiền lớn nhất.
+      </p>
     </div>
   );
 }

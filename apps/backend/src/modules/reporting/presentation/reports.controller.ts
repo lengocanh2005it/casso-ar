@@ -46,7 +46,11 @@ export class ReportsController {
             properties: {
               bucket: { type: 'string' },
               count: { type: 'number' },
-              totalRemaining: { type: 'number' },
+              totalRemaining: {
+                type: 'string',
+                pattern: '^\\d+$',
+                example: '9007199254740992',
+              },
             },
           },
         },
@@ -130,11 +134,54 @@ export class ReportsController {
         'topOverdueCustomers',
       ],
       properties: {
-        totalOutstanding: { type: 'number' },
-        totalOverdue: { type: 'number' },
+        totalOutstanding: {
+          type: 'string',
+          pattern: '^\\d+$',
+          example: '9007199254740993',
+        },
+        totalOverdue: {
+          type: 'string',
+          pattern: '^\\d+$',
+          example: '9007199254740992',
+        },
         overdueRate: { type: 'number' },
-        cashForecast: { type: 'object' },
-        topOverdueCustomers: { type: 'array' },
+        cashForecast: {
+          type: 'object',
+          required: ['forecast7d', 'forecast14d', 'forecast30d'],
+          properties: {
+            forecast7d: {
+              type: 'string',
+              pattern: '^\\d+$',
+              example: '1000000',
+            },
+            forecast14d: {
+              type: 'string',
+              pattern: '^\\d+$',
+              example: '2000000',
+            },
+            forecast30d: {
+              type: 'string',
+              pattern: '^\\d+$',
+              example: '3000000',
+            },
+          },
+        },
+        topOverdueCustomers: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['customerId', 'customerName', 'totalOverdue'],
+            properties: {
+              customerId: { type: 'string' },
+              customerName: { type: 'string' },
+              totalOverdue: {
+                type: 'string',
+                pattern: '^\\d+$',
+                example: '9007199254740993',
+              },
+            },
+          },
+        },
         autoMatchRate: { type: 'number', nullable: true },
         manualHandlingRate: { type: 'number', nullable: true },
         reminderEffectiveness: { type: 'number', nullable: true },

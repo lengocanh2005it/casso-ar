@@ -12,13 +12,13 @@ function buildPage(): CustomerAgingPage {
         customerName: 'Công ty TNHH Dược phẩm ABC',
         taxCode: '0309999005',
         buckets: [
-          { bucket: 'NOT_DUE', totalRemaining: 62_000_000 },
-          { bucket: 'OVERDUE_1_7', totalRemaining: 0 },
-          { bucket: 'OVERDUE_8_30', totalRemaining: 0 },
-          { bucket: 'OVERDUE_31_60', totalRemaining: 0 },
-          { bucket: 'OVERDUE_60_PLUS', totalRemaining: 44_000_000 },
+          { bucket: 'NOT_DUE', totalRemaining: '62000000' },
+          { bucket: 'OVERDUE_1_7', totalRemaining: '0' },
+          { bucket: 'OVERDUE_8_30', totalRemaining: '0' },
+          { bucket: 'OVERDUE_31_60', totalRemaining: '0' },
+          { bucket: 'OVERDUE_60_PLUS', totalRemaining: '44000000' },
         ],
-        totalRemaining: 106_000_000,
+        totalRemaining: '106000000',
       },
     ],
     total: 1,
@@ -28,6 +28,13 @@ function buildPage(): CustomerAgingPage {
 }
 
 describe('CustomerAgingTable', () => {
+  it('shows exact large amounts for a customer and its buckets', () => {
+    const page = buildPage();
+    page.items[0].buckets[0].totalRemaining = '9007199254740993';
+    page.items[0].totalRemaining = '9007199254740993';
+    render(<CustomerAgingTable page={page} />);
+    expect(screen.getAllByText('9.007.199.254.740.993 ₫')).toHaveLength(2);
+  });
   it('mutes zero-amount bucket cells so real amounts stand out', () => {
     render(<CustomerAgingTable page={buildPage()} />);
 

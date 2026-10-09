@@ -5,11 +5,11 @@ export class ReportsTrendPointResponseDto {
   @ApiProperty({ example: '2026-06' })
   month: string;
 
-  @ApiProperty({ type: Number, nullable: true })
-  outstanding: number | null;
+  @ApiProperty({ type: String, nullable: true })
+  outstanding: string | null;
 
-  @ApiProperty({ type: Number })
-  collected: number;
+  @ApiProperty({ type: String })
+  collected: string;
 }
 
 export class ReportsTrendResponseDto {

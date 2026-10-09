@@ -33,8 +33,8 @@ export class ReceivableBalanceHistoryListItemDto {
   @ApiProperty({ enum: ReceivableStatus })
   status: ReceivableStatus;
 
-  @ApiProperty()
-  remainingAmount: number;
+  @ApiProperty({ type: String, example: '9007199254740993' })
+  remainingAmount: string;
 
   @ApiProperty({ type: String, example: '2026-08-14T10:00:00.000Z' })
   effectiveAt: string;
@@ -134,8 +134,8 @@ export class ReceivableBalanceHistorySummaryDto {
   @ApiProperty()
   affectedReceivables: number;
 
-  @ApiProperty()
-  latestRemainingAmount: number;
+  @ApiProperty({ type: String, example: '9007199254740993' })
+  latestRemainingAmount: string;
 
   @ApiProperty({ type: [ReceivableBalanceHistoryDailyPointDto] })
   dailySeries: ReceivableBalanceHistoryDailyPoint[];

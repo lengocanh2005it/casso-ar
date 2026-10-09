@@ -19,7 +19,7 @@ describe('ReceivableBalanceHistoryController', () => {
             customerId: 'cust-1',
             customerName: 'Công ty A',
             status: 'PAID',
-            remainingAmount: 0,
+            remainingAmount: '9007199254740993',
             effectiveAt: new Date('2026-08-14T10:00:00.000Z'),
             changeSource: 'ALLOCATE',
             reasonCode: 'PAYMENT_ALLOCATED',
@@ -37,7 +37,7 @@ describe('ReceivableBalanceHistoryController', () => {
       execute: jest.fn().mockResolvedValue({
         totalTransitions: 1,
         affectedReceivables: 1,
-        latestRemainingAmount: 0,
+        latestRemainingAmount: '9007199254740993',
         dailySeries: [{ date: '2026-08-14', transitions: 1 }],
         sourceDistribution: [{ changeSource: 'ALLOCATE', count: 1 }],
       }),
@@ -86,6 +86,7 @@ describe('ReceivableBalanceHistoryController', () => {
         {
           effectiveAt: '2026-08-14T10:00:00.000Z',
           actorDisplayName: 'Nguyễn Văn A',
+          remainingAmount: '9007199254740993',
         },
       ],
     });
@@ -122,6 +123,7 @@ describe('ReceivableBalanceHistoryController', () => {
     });
     expect(result).toMatchObject({
       totalTransitions: 1,
+      latestRemainingAmount: '9007199254740993',
       dailySeries: [{ date: '2026-08-14', transitions: 1 }],
     });
   });

@@ -41,9 +41,8 @@ export function MetricCard({
   label: string;
   description: string;
   value: string;
-  /** Present only for money cards. Lets a long VND figure fall back to
-   * triệu/tỷ in a narrow card while `value` stays the exact record. */
-  amount?: number;
+  /** Numeric amounts use compact VND in narrow cards; string amounts stay exact. */
+  amount?: number | string;
   icon: LucideIcon;
   variant?: MetricCardVariant;
   className?: string;
@@ -71,8 +70,10 @@ export function MetricCard({
         ) : empty ? (
           <p className="text-sm text-muted-foreground">Chưa có dữ liệu</p>
         ) : (
-          <p className="text-xl font-semibold tabular-nums text-foreground @xs:text-2xl">
-            {amount === undefined ? (
+          <p
+            className={`text-xl font-semibold tabular-nums text-foreground @xs:text-2xl ${typeof amount === 'string' ? 'break-all' : ''}`}
+          >
+            {amount === undefined || typeof amount === 'string' ? (
               value
             ) : (
               // A VND figure runs long, and these grids put 2 cards per row

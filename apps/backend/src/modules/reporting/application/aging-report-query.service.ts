@@ -38,7 +38,7 @@ export class AgingReportQueryService {
 
     return BUCKET_ORDER.map(
       (bucket) =>
-        byBucket.get(bucket) ?? { bucket, count: 0, totalRemaining: 0 },
+        byBucket.get(bucket) ?? { bucket, count: 0, totalRemaining: '0' },
     );
   }
 }

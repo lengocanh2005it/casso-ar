@@ -8,6 +8,7 @@ import {
   assertChartsFit,
   assertDarkModeContrast,
   assertNoHorizontalScroll,
+  assertTextInsideContainer,
   openRoute,
 } from './layout-invariants';
 
@@ -24,10 +25,10 @@ const USER: StubbedUser = {
 };
 
 const SUMMARY = {
-  totalOutstanding: 12_000_000,
-  totalOverdue: 2_000_000,
+  totalOutstanding: '12000000',
+  totalOverdue: '2000000',
   overdueRate: 1 / 6,
-  cashForecast: { forecast7d: 0, forecast14d: 0, forecast30d: 0 },
+  cashForecast: { forecast7d: '0', forecast14d: '0', forecast30d: '0' },
   topOverdueCustomers: [],
   autoMatchRate: null,
   manualHandlingRate: null,
@@ -37,17 +38,17 @@ const SUMMARY = {
 const TREND = {
   months: 6,
   items: [
-    { month: '2026-05', outstanding: 10_000_000, collected: 3_000_000 },
-    { month: '2026-06', outstanding: 12_000_000, collected: 5_000_000 },
+    { month: '2026-05', outstanding: '10000000', collected: '3000000' },
+    { month: '2026-06', outstanding: '12000000', collected: '5000000' },
   ],
 };
 
 const AGING_BUCKETS = [
-  { bucket: 'NOT_DUE', count: 3, totalRemaining: 6_000_000 },
-  { bucket: 'OVERDUE_1_7', count: 1, totalRemaining: 1_000_000 },
-  { bucket: 'OVERDUE_8_30', count: 1, totalRemaining: 2_000_000 },
-  { bucket: 'OVERDUE_31_60', count: 1, totalRemaining: 1_000_000 },
-  { bucket: 'OVERDUE_60_PLUS', count: 1, totalRemaining: 2_000_000 },
+  { bucket: 'NOT_DUE', count: 3, totalRemaining: '6000000' },
+  { bucket: 'OVERDUE_1_7', count: 1, totalRemaining: '1000000' },
+  { bucket: 'OVERDUE_8_30', count: 1, totalRemaining: '2000000' },
+  { bucket: 'OVERDUE_31_60', count: 1, totalRemaining: '1000000' },
+  { bucket: 'OVERDUE_60_PLUS', count: 1, totalRemaining: '2000000' },
 ];
 
 const AGING_REPORT = { buckets: AGING_BUCKETS };
@@ -58,9 +59,9 @@ const customerAgingItem = (id: number) => ({
   taxCode: `01000000${String(id).padStart(2, '0')}`,
   buckets: AGING_BUCKETS.map(({ bucket, totalRemaining }) => ({
     bucket,
-    totalRemaining: id === 1 ? totalRemaining : 0,
+    totalRemaining: id === 1 ? totalRemaining : '0',
   })),
-  totalRemaining: id === 1 ? 12_000_000 : 0,
+  totalRemaining: id === 1 ? '12000000' : '0',
 });
 
 const activityItem = (id: number) => ({
@@ -176,6 +177,69 @@ test.describe('dashboard viewport layout', () => {
       if (theme === 'dark') await assertDarkModeContrast(page);
     });
   }
+
+  test('keeps exact large VND totals inside dashboard cards', async ({
+    page,
+  }) => {
+    const totalOutstanding = '123456789012345678901234567890';
+    const totalOverdue = '123456789012345678901234567889';
+    await openAppSurface(
+      page,
+      '/dashboard',
+      async (readyPage) => {
+        await expect(
+          readyPage.locator('.recharts-responsive-container svg').first(),
+        ).toBeVisible();
+      },
+      {
+        'v1/reports/dashboard-summary': {
+          body: {
+            ...SUMMARY,
+            totalOutstanding,
+            totalOverdue,
+            topOverdueCustomers: [
+              {
+                customerId: 'boundary-customer',
+                customerName: 'Boundary Customer',
+                totalOverdue,
+              },
+            ],
+          },
+        },
+        'v1/reports/trend': {
+          body: {
+            months: 6,
+            items: [
+              {
+                month: '2026-10',
+                outstanding: totalOutstanding,
+                collected: totalOverdue,
+              },
+            ],
+          },
+        },
+        'v1/activity': {
+          body: { items: [], total: 0, page: 1, limit: 10 },
+        },
+      },
+    );
+
+    const outstandingCard = page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: 'Tổng công nợ còn lại' })
+      .first();
+    await assertTextInsideContainer(
+      outstandingCard.getByText(
+        /123\.456\.789\.012\.345\.678\.901\.234\.567\.890/u,
+      ),
+      '[data-slot="card"]',
+    );
+    const overdueCustomerAmount = page
+      .locator('.divide-y > div.flex')
+      .getByText(/123\.456\.789\.012\.345\.678\.901\.234\.567\.889/u);
+    await assertTextInsideContainer(overdueCustomerAmount, 'div.flex');
+    await assertNoHorizontalScroll(page);
+  });
 });
 
 test.describe('reports viewport layout', () => {
@@ -275,6 +339,162 @@ test.describe('reports viewport layout', () => {
       if (theme === 'dark') await assertDarkModeContrast(page);
     });
   }
+
+  test('keeps exact large VND values inside report cards and customer rows', async ({
+    page,
+  }) => {
+    const totalOutstanding = '123456789012345678901234567890';
+    const totalOverdue = '123456789012345678901234567889';
+    await openAppSurface(
+      page,
+      '/reports',
+      async (readyPage) => {
+        await expect(
+          readyPage.getByText('Boundary Customer', { exact: true }).first(),
+        ).toBeVisible();
+      },
+      {
+        'v1/reports/dashboard-summary': {
+          body: {
+            ...SUMMARY,
+            totalOutstanding,
+            totalOverdue,
+            topOverdueCustomers: [
+              {
+                customerId: 'boundary-customer',
+                customerName: 'Boundary Customer',
+                totalOverdue,
+              },
+            ],
+          },
+        },
+        'v1/reports/aging': {
+          body: {
+            buckets: AGING_BUCKETS.map((bucket, index) => ({
+              ...bucket,
+              totalRemaining: index === 0 ? totalOutstanding : '0',
+            })),
+          },
+        },
+        'v1/reports/aging/customers': {
+          body: {
+            items: [
+              {
+                customerId: 'boundary-customer',
+                customerName: 'Boundary Customer',
+                taxCode: 'BOUNDARY-001',
+                buckets: AGING_BUCKETS.map((bucket, index) => ({
+                  bucket: bucket.bucket,
+                  totalRemaining: index === 0 ? totalOutstanding : '0',
+                })),
+                totalRemaining: totalOutstanding,
+              },
+            ],
+            total: 1,
+            page: 1,
+            limit: 20,
+          },
+        },
+        'v1/reports/trend': { body: { ...TREND, months: 12 } },
+      },
+    );
+
+    const totalCard = page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: 'Tổng công nợ còn lại' })
+      .first();
+    await assertTextInsideContainer(
+      totalCard.getByText(/123\.456\.789\.012\.345\.678\.901\.234\.567\.890/u),
+      '[data-slot="card"]',
+    );
+    await assertTextInsideContainer(
+      page
+        .locator('.divide-y > div.flex')
+        .getByText(/123\.456\.789\.012\.345\.678\.901\.234\.567\.889/u),
+      'div.flex',
+    );
+    await assertTextInsideContainer(
+      page
+        .getByRole('row', { name: /Tổng/u })
+        .getByText(/123\.456\.789\.012\.345\.678\.901\.234\.567\.890/u),
+      'td',
+    );
+    const customerRow = page
+      .getByRole('table')
+      .filter({ hasText: 'Boundary Customer' })
+      .getByRole('row', { name: /Boundary Customer/u });
+    await assertTextInsideContainer(
+      customerRow
+        .getByText(/123\.456\.789\.012\.345\.678\.901\.234\.567\.890/u)
+        .last(),
+      'td',
+    );
+    await assertNoHorizontalScroll(page);
+  });
+});
+
+test('keeps exact large VND values inside balance-history cards and rows', async ({
+  page,
+}) => {
+  const amount = '123456789012345678901234567890';
+  const amountText = /123\.456\.789\.012\.345\.678\.901\.234\.567\.890/u;
+  await openAppSurface(
+    page,
+    '/receivable-balance-history',
+    async (readyPage) => {
+      await expect(readyPage.getByText('Boundary Customer')).toBeVisible();
+    },
+    {
+      'v1/receivable-balance-history': {
+        body: {
+          items: [
+            {
+              id: 'history-1',
+              sequence: 1,
+              receivableId: 'receivable-1',
+              invoiceNumber: null,
+              customerId: 'customer-1',
+              customerName: 'Boundary Customer',
+              status: 'OPEN',
+              remainingAmount: amount,
+              effectiveAt: '2026-10-09T10:00:00.000Z',
+              changeSource: 'CREATE',
+              reasonCode: 'RECEIVABLE_CREATED',
+              actorType: 'SYSTEM',
+              actorUserId: null,
+              actorDisplayName: null,
+              transitionReferenceId: null,
+              note: null,
+            },
+          ],
+          total: 1,
+          page: 1,
+          limit: 20,
+        },
+      },
+      'v1/receivable-balance-history/summary': {
+        body: {
+          totalTransitions: 1,
+          affectedReceivables: 1,
+          latestRemainingAmount: amount,
+          dailySeries: [{ date: '2026-10-09', transitions: 1 }],
+          sourceDistribution: [{ changeSource: 'CREATE', count: 1 }],
+        },
+      },
+    },
+  );
+
+  const amountCard = page
+    .locator('[data-slot="card"]')
+    .filter({ hasText: 'Số dư còn lại mới nhất' })
+    .first();
+  await assertTextInsideContainer(
+    amountCard.getByText(amountText),
+    '[data-slot="card"]',
+  );
+  const historyAmount = page.locator('.overflow-x-auto').getByText(amountText);
+  await assertTextInsideContainer(historyAmount, 'td');
+  await assertNoHorizontalScroll(page);
 });
 
 const bankConnection = (id: number) => ({

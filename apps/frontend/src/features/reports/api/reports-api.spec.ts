@@ -83,8 +83,8 @@ describe('fetchReportsTrend', () => {
     apiRequest.mockResolvedValueOnce({
       months: 6,
       items: [
-        { month: '2026-03', outstanding: null, collected: 0 },
-        { month: '2026-04', outstanding: 5000, collected: 1000 },
+        { month: '2026-03', outstanding: null, collected: '0' },
+        { month: '2026-04', outstanding: '5000', collected: '1000' },
       ],
     });
 

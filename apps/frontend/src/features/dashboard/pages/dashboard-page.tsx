@@ -97,7 +97,7 @@ export function DashboardPage() {
   // Only for roles that can act on the steps (FE rule: hide, never disable).
   const isNewOrganization =
     hasPermission(user?.role ?? null, Permission.RECEIVABLE_IMPORT) &&
-    summaryQuery.data?.totalOutstanding === 0 &&
+    summaryQuery.data?.totalOutstanding === '0' &&
     summaryQuery.data.topOverdueCustomers.length === 0 &&
     activityQuery.data?.items.length === 0;
 
@@ -181,7 +181,7 @@ export function DashboardPage() {
               value={formatRate(summaryQuery.data.overdueRate)}
               icon={Clock}
               variant="warning"
-              empty={summaryQuery.data.totalOutstanding === 0}
+              empty={summaryQuery.data.totalOutstanding === '0'}
               className="animate-fade-up motion-reduce:animate-none [animation-delay:80ms]"
             />
             <MetricCard
@@ -338,7 +338,7 @@ export function DashboardPage() {
                             className="font-medium"
                           />
                         </div>
-                        <span className="shrink-0 rounded-lg bg-destructive/10 px-2.5 py-1 font-semibold tabular-nums text-destructive">
+                        <span className="min-w-0 max-w-[50%] break-all rounded-lg bg-destructive/10 px-2.5 py-1 text-right font-semibold tabular-nums text-destructive">
                           {formatVND(customer.totalOverdue)}
                         </span>
                       </div>

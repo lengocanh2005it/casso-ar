@@ -6,7 +6,7 @@ import type { ReceivableBalanceHistoryDateFilterInput } from './receivable-balan
 
 export interface HistoricalOutstandingPoint {
   month: string; // YYYY-MM in Asia/Ho_Chi_Minh
-  outstanding: number | null;
+  outstanding: string | null;
 }
 
 export interface ReceivableBalanceHistoryListFilters {
@@ -32,7 +32,7 @@ export interface ReceivableBalanceHistoryListItem {
   customerId: string;
   customerName: string | null;
   status: ReceivableStatus;
-  remainingAmount: number;
+  remainingAmount: string;
   effectiveAt: Date;
   changeSource: BalanceHistoryChangeSource;
   reasonCode: BalanceHistoryReasonCode | null;
@@ -61,7 +61,7 @@ export interface ReceivableBalanceHistorySourcePoint {
 export interface ReceivableBalanceHistorySummary {
   totalTransitions: number;
   affectedReceivables: number;
-  latestRemainingAmount: number;
+  latestRemainingAmount: string;
   dailySeries: ReceivableBalanceHistoryDailyPoint[];
   sourceDistribution: ReceivableBalanceHistorySourcePoint[];
 }

@@ -99,7 +99,7 @@ export class TrendReportQueryService {
       // missing map entry (shouldn't happen — every window is queried)
       // falls back to null too, never a silent 0.
       outstanding: outstandingByMonth.get(window.key) ?? null,
-      collected: collectedByMonth.get(window.key) ?? 0,
+      collected: collectedByMonth.get(window.key) ?? '0',
     }));
 
     return { months, items };

@@ -38,7 +38,7 @@ The module exports this application-layer port (verbatim from the #135 plan):
 ```ts
 export interface HistoricalOutstandingPoint {
   month: string; // YYYY-MM in Asia/Ho_Chi_Minh
-  outstanding: number | null;
+  outstanding: string | null;
 }
 
 export interface IReceivableBalanceHistoryQuery {
@@ -170,7 +170,9 @@ One parameterized SQL query over the requested month ends:
 5. Months before the coverage epoch return
    `outstanding: null`; covered months return the sum (0 when no open balances).
 
-The row mapper converts bigint strings to numbers and `null` stays `null`. The query is
+The query preserves exact VND amounts as base-10 integer strings and `null` stays `null`.
+The list query must select the stored bigint snapshot as text before the process-wide
+bigint parser runs. Aggregate results remain PostgreSQL numeric/text values. The query is
 tenant-scoped by `$1`, selects explicit columns only, and never touches
 `payment_allocations`.
 

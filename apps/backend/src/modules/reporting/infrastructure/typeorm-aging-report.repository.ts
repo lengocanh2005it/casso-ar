@@ -10,7 +10,7 @@ import type {
 interface AgingBucketRow {
   bucket: AgingBucket;
   count: string;
-  totalRemaining: string | null;
+  totalRemaining: string;
 }
 
 const AGING_BUCKETS_SQL = `
@@ -23,7 +23,7 @@ const AGING_BUCKETS_SQL = `
       ELSE 'OVERDUE_60_PLUS'
     END AS bucket,
     COUNT(*) AS count,
-    COALESCE(SUM("originalAmount" - "paidAmount"), 0) AS "totalRemaining"
+    COALESCE(SUM("originalAmount" - "paidAmount")::text, '0') AS "totalRemaining"
   FROM receivables
   WHERE "organizationId" = $1 AND status IN ('OPEN', 'PARTIALLY_PAID')
 `;
@@ -52,7 +52,7 @@ export class TypeOrmAgingReportRepository implements IAgingReportRepository {
     return rows.map((row) => ({
       bucket: row.bucket,
       count: Number(row.count),
-      totalRemaining: Number(row.totalRemaining ?? 0),
+      totalRemaining: row.totalRemaining,
     }));
   }
 }

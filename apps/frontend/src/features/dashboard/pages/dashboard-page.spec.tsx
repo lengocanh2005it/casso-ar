@@ -22,15 +22,15 @@ vi.mock('@/lib/api-client', () => ({
 }));
 
 const summaryData = {
-  totalOutstanding: 100_000_000,
-  totalOverdue: 30_000_000,
+  totalOutstanding: '100000000',
+  totalOverdue: '30000000',
   overdueRate: 0.3,
-  cashForecast: { forecast7d: 0, forecast14d: 0, forecast30d: 0 },
+  cashForecast: { forecast7d: '0', forecast14d: '0', forecast30d: '0' },
   topOverdueCustomers: [
     {
       customerId: 'c1',
       customerName: 'Công ty A',
-      totalOverdue: 20_000_000,
+      totalOverdue: '20000000',
     },
   ],
   autoMatchRate: null,
@@ -89,6 +89,13 @@ function renderPage() {
 }
 
 describe('DashboardPage', () => {
+  it('shows the full exact report total on its money card', async () => {
+    mockApi({ ...summaryData, totalOutstanding: '9007199254740993' });
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByText('9.007.199.254.740.993 ₫')).toBeInTheDocument(),
+    );
+  });
   beforeAll(() => {
     Element.prototype.scrollIntoView = vi.fn();
   });
@@ -98,9 +105,7 @@ describe('DashboardPage', () => {
 
     renderPage();
 
-    // Money KPI cards abbreviate to triệu/tỷ so a long VND figure cannot be
-    // clipped in a narrow card; the exact figure is the hover/title value.
-    await waitFor(() => expect(screen.getByText('100tr')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('100.000.000 ₫')).toBeTruthy());
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByTestId('header-icon')).toHaveClass('text-primary');
     expect(screen.getByText('7', { selector: 'span' })).toBeTruthy();
@@ -151,7 +156,7 @@ describe('DashboardPage', () => {
 
     renderPage();
 
-    await waitFor(() => expect(screen.getByText('100tr')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('100.000.000 ₫')).toBeTruthy());
     // Brand-new organizations were greeted with "đã quay trở lại!" too.
     expect(screen.queryByText(/quay trở lại/)).not.toBeInTheDocument();
     expect(
@@ -161,8 +166,8 @@ describe('DashboardPage', () => {
 
   const newOrgSummary = {
     ...summaryData,
-    totalOutstanding: 0,
-    totalOverdue: 0,
+    totalOutstanding: '0',
+    totalOverdue: '0',
     overdueRate: 0,
     topOverdueCustomers: [],
   };

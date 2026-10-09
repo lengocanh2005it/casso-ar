@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 async function settleFonts(page: Page): Promise<void> {
   await page.evaluate(() => document.fonts.ready);
@@ -226,6 +226,37 @@ export async function assertInsideContainer(
       },
     )
     .toBe('inside');
+}
+
+export async function assertTextInsideContainer(
+  text: Locator,
+  containerSelector: string,
+): Promise<void> {
+  await expect(text).toBeVisible();
+  await expect
+    .poll(
+      () =>
+        text.evaluate((element, selector) => {
+          const container = element.closest(selector);
+          if (!container) return false;
+          const bounds = container.getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          const textBounds = Array.from(range.getClientRects());
+          return (
+            textBounds.length > 0 &&
+            textBounds.every(
+              (rect) =>
+                rect.left >= bounds.left - 1 &&
+                rect.right <= bounds.right + 1 &&
+                rect.top >= bounds.top - 1 &&
+                rect.bottom <= bounds.bottom + 1,
+            )
+          );
+        }, containerSelector),
+      { message: `text must stay inside ${containerSelector}` },
+    )
+    .toBe(true);
 }
 
 export async function assertChartsFit(page: Page): Promise<void> {

@@ -74,7 +74,7 @@ describe('fetchReceivableBalanceHistorySummary', () => {
     apiRequest.mockResolvedValueOnce({
       totalTransitions: 4,
       affectedReceivables: 1,
-      latestRemainingAmount: 30_000_000,
+      latestRemainingAmount: '30000000',
       dailySeries: [],
       sourceDistribution: [],
     });

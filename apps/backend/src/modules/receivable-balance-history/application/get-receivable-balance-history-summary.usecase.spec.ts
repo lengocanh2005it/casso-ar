@@ -87,7 +87,7 @@ describe('GetReceivableBalanceHistorySummaryUseCase', () => {
   });
 
   it('returns the summary from the query port', async () => {
-    const summary = { totalTransitions: 3, latestRemainingAmount: 0 };
+    const summary = { totalTransitions: 3, latestRemainingAmount: '0' };
     const queryMock = jest.fn().mockResolvedValue(summary);
     const useCase = buildUseCase(queryMock);
 
