@@ -573,8 +573,11 @@ describe('Aging dashboard reporting (integration)', () => {
     const amount = 3_100_000_000_000_000;
     const receivableIds = Array.from({ length: 3 }, () => randomUUID());
     const forecastReceivableIds = Array.from({ length: 3 }, () => randomUUID());
+    const allReceivableIds = [...receivableIds, ...forecastReceivableIds];
     const paymentIds = Array.from({ length: 3 }, () => randomUUID());
-    const historyIds = Array.from({ length: 3 }, () => randomUUID());
+    const historyIds = Array.from({ length: allReceivableIds.length }, () =>
+      randomUUID(),
+    );
     const now = new Date();
     const receivables = dataSource.getRepository(ReceivableOrmEntity);
     const payments = dataSource.getRepository(PaymentOrmEntity);
@@ -628,7 +631,7 @@ describe('Aging dashboard reporting (integration)', () => {
         historyIds.map((id, index) => ({
           id,
           organizationId,
-          receivableId: receivableIds[index],
+          receivableId: allReceivableIds[index],
           status: ReceivableStatus.OPEN,
           remainingAmount: amount,
           effectiveAt: now,
@@ -707,7 +710,7 @@ describe('Aging dashboard reporting (integration)', () => {
       });
       expect(trend.body.items[2]).toEqual({
         month: monthKeyOffset(0),
-        outstanding: '9300000007000000',
+        outstanding: '18600000007000000',
         collected: '9300000005000000',
       });
       expect(otherDashboard.body).toMatchObject({
@@ -722,7 +725,7 @@ describe('Aging dashboard reporting (integration)', () => {
     } finally {
       await history.delete(historyIds);
       await payments.delete(paymentIds);
-      await receivables.delete([...receivableIds, ...forecastReceivableIds]);
+      await receivables.delete(allReceivableIds);
     }
   });
 
