@@ -532,11 +532,11 @@ describe('Aging dashboard reporting (integration)', () => {
 
     expect(response.body).toEqual({
       buckets: [
-        { bucket: 'NOT_DUE', count: 2, totalRemaining: 8_900 },
-        { bucket: 'OVERDUE_1_7', count: 1, totalRemaining: 1_500 },
-        { bucket: 'OVERDUE_8_30', count: 1, totalRemaining: 2_000 },
-        { bucket: 'OVERDUE_31_60', count: 1, totalRemaining: 3_000 },
-        { bucket: 'OVERDUE_60_PLUS', count: 1, totalRemaining: 4_000 },
+        { bucket: 'NOT_DUE', count: 2, totalRemaining: '8900' },
+        { bucket: 'OVERDUE_1_7', count: 1, totalRemaining: '1500' },
+        { bucket: 'OVERDUE_8_30', count: 1, totalRemaining: '2000' },
+        { bucket: 'OVERDUE_31_60', count: 1, totalRemaining: '3000' },
+        { bucket: 'OVERDUE_60_PLUS', count: 1, totalRemaining: '4000' },
       ],
     });
   });
@@ -548,14 +548,18 @@ describe('Aging dashboard reporting (integration)', () => {
       .expect(200);
 
     expect(response.body).toMatchObject({
-      totalOutstanding: 19_400,
-      totalOverdue: 10_500,
-      cashForecast: { forecast7d: 900, forecast14d: 900, forecast30d: 900 },
+      totalOutstanding: '19400',
+      totalOverdue: '10500',
+      cashForecast: {
+        forecast7d: '900',
+        forecast14d: '900',
+        forecast30d: '900',
+      },
       topOverdueCustomers: [
         {
           customerId,
           customerName: 'Reporting Customer',
-          totalOverdue: 10_500,
+          totalOverdue: '10500',
         },
       ],
       autoMatchRate: 0.5,
@@ -563,6 +567,143 @@ describe('Aging dashboard reporting (integration)', () => {
       reminderEffectiveness: 0.5,
     });
     expect(response.body.overdueRate).toBeCloseTo(10_500 / 19_400);
+  });
+
+  it('preserves exact aggregates of individually safe amounts across report endpoints', async () => {
+    const amount = 3_100_000_000_000_000;
+    const receivableIds = Array.from({ length: 3 }, () => randomUUID());
+    const paymentIds = Array.from({ length: 3 }, () => randomUUID());
+    const historyIds = Array.from({ length: 3 }, () => randomUUID());
+    const now = new Date();
+    const receivables = dataSource.getRepository(ReceivableOrmEntity);
+    const payments = dataSource.getRepository(PaymentOrmEntity);
+    const history = dataSource.getRepository(ReceivableBalanceHistoryOrmEntity);
+
+    try {
+      await receivables.save(
+        receivableIds.map((id) => ({
+          id,
+          organizationId,
+          customerId,
+          invoiceId: null,
+          originalAmount: amount,
+          paidAmount: 0,
+          dueDate: addDays(new Date(`${today}T00:00:00.000Z`), -1),
+          status: ReceivableStatus.OPEN,
+          salesRepresentativeId: salesRepBId,
+          createdAt: now,
+          closedAt: null,
+          version: 1,
+        })),
+      );
+      await payments.save(
+        paymentIds.map((id) => ({
+          id,
+          organizationId,
+          customerId,
+          bankTransactionId: null,
+          totalAmount: amount,
+          allocatedAmount: 0,
+          payerName: 'Exact aggregate payer',
+          receivedAt: now,
+          createdAt: now,
+        })),
+      );
+      await history.save(
+        historyIds.map((id, index) => ({
+          id,
+          organizationId,
+          receivableId: receivableIds[index],
+          status: ReceivableStatus.OPEN,
+          remainingAmount: amount,
+          effectiveAt: now,
+          changeSource: BalanceHistoryChangeSource.CREATE,
+          changeReason: null,
+          createdAt: now,
+        })),
+      );
+
+      const [
+        aging,
+        customerAging,
+        dashboard,
+        trend,
+        otherDashboard,
+        otherTrend,
+      ] = await Promise.all([
+        request(app?.getHttpServer())
+          .get('/api/v1/reports/aging')
+          .set('Authorization', `Bearer ${token}`)
+          .expect(200),
+        request(app?.getHttpServer())
+          .get('/api/v1/reports/aging/customers')
+          .set('Authorization', `Bearer ${token}`)
+          .expect(200),
+        request(app?.getHttpServer())
+          .get('/api/v1/reports/dashboard-summary')
+          .set('Authorization', `Bearer ${token}`)
+          .expect(200),
+        request(app?.getHttpServer())
+          .get('/api/v1/reports/trend')
+          .set('Authorization', `Bearer ${token}`)
+          .query({ months: 3 })
+          .expect(200),
+        request(app?.getHttpServer())
+          .get('/api/v1/reports/dashboard-summary')
+          .set('Authorization', `Bearer ${otherOrgToken}`)
+          .expect(200),
+        request(app?.getHttpServer())
+          .get('/api/v1/reports/trend')
+          .set('Authorization', `Bearer ${otherOrgToken}`)
+          .query({ months: 3 })
+          .expect(200),
+      ]);
+
+      expect(aging.body.buckets[1]).toEqual({
+        bucket: 'OVERDUE_1_7',
+        count: 4,
+        totalRemaining: '9300000000001500',
+      });
+      expect(customerAging.body.items[0]).toMatchObject({
+        customerId,
+        totalRemaining: '9300000000011400',
+        buckets: [
+          { bucket: 'NOT_DUE', totalRemaining: '900' },
+          { bucket: 'OVERDUE_1_7', totalRemaining: '9300000000001500' },
+          { bucket: 'OVERDUE_8_30', totalRemaining: '2000' },
+          { bucket: 'OVERDUE_31_60', totalRemaining: '3000' },
+          { bucket: 'OVERDUE_60_PLUS', totalRemaining: '4000' },
+        ],
+      });
+      expect(dashboard.body).toMatchObject({
+        totalOutstanding: '9300000000019400',
+        totalOverdue: '9300000000010500',
+        cashForecast: {
+          forecast7d: '900',
+          forecast14d: '900',
+          forecast30d: '900',
+        },
+        topOverdueCustomers: [{ customerId, totalOverdue: '9300000000010500' }],
+      });
+      expect(trend.body.items[2]).toEqual({
+        month: monthKeyOffset(0),
+        outstanding: '9300000007000000',
+        collected: '9300000005000000',
+      });
+      expect(otherDashboard.body).toMatchObject({
+        totalOutstanding: '0',
+        totalOverdue: '0',
+      });
+      expect(otherTrend.body.items[2]).toEqual({
+        month: monthKeyOffset(0),
+        outstanding: null,
+        collected: '0',
+      });
+    } finally {
+      await history.delete(historyIds);
+      await payments.delete(paymentIds);
+      await receivables.delete(receivableIds);
+    }
   });
 
   it('ranks dashboard customers within the SALES_REP portfolio and keeps aggregates organization-wide', async () => {
@@ -672,7 +813,7 @@ describe('Aging dashboard reporting (integration)', () => {
         {
           customerId,
           customerName: 'Reporting Customer',
-          totalOverdue: 2_000,
+          totalOverdue: '2000',
         },
       ]);
       expect(salesRepAggregates).toEqual(ownerAggregates);
@@ -783,26 +924,26 @@ describe('Aging dashboard reporting (integration)', () => {
           customerName: 'Reporting Customer',
           taxCode: 'REPORTING-001',
           buckets: [
-            { bucket: 'NOT_DUE', totalRemaining: 900 },
-            { bucket: 'OVERDUE_1_7', totalRemaining: 1_500 },
-            { bucket: 'OVERDUE_8_30', totalRemaining: 2_000 },
-            { bucket: 'OVERDUE_31_60', totalRemaining: 3_000 },
-            { bucket: 'OVERDUE_60_PLUS', totalRemaining: 4_000 },
+            { bucket: 'NOT_DUE', totalRemaining: '900' },
+            { bucket: 'OVERDUE_1_7', totalRemaining: '1500' },
+            { bucket: 'OVERDUE_8_30', totalRemaining: '2000' },
+            { bucket: 'OVERDUE_31_60', totalRemaining: '3000' },
+            { bucket: 'OVERDUE_60_PLUS', totalRemaining: '4000' },
           ],
-          totalRemaining: 11_400,
+          totalRemaining: '11400',
         },
         {
           customerId: customer2Id,
           customerName: 'Beta Trading',
           taxCode: 'BETA-002',
           buckets: [
-            { bucket: 'NOT_DUE', totalRemaining: 8_000 },
-            { bucket: 'OVERDUE_1_7', totalRemaining: 0 },
-            { bucket: 'OVERDUE_8_30', totalRemaining: 0 },
-            { bucket: 'OVERDUE_31_60', totalRemaining: 0 },
-            { bucket: 'OVERDUE_60_PLUS', totalRemaining: 0 },
+            { bucket: 'NOT_DUE', totalRemaining: '8000' },
+            { bucket: 'OVERDUE_1_7', totalRemaining: '0' },
+            { bucket: 'OVERDUE_8_30', totalRemaining: '0' },
+            { bucket: 'OVERDUE_31_60', totalRemaining: '0' },
+            { bucket: 'OVERDUE_60_PLUS', totalRemaining: '0' },
           ],
-          totalRemaining: 8_000,
+          totalRemaining: '8000',
         },
       ],
       total: 2,
@@ -824,13 +965,13 @@ describe('Aging dashboard reporting (integration)', () => {
           customerName: 'Reporting Customer',
           taxCode: 'REPORTING-001',
           buckets: [
-            { bucket: 'NOT_DUE', totalRemaining: 900 },
-            { bucket: 'OVERDUE_1_7', totalRemaining: 0 },
-            { bucket: 'OVERDUE_8_30', totalRemaining: 2_000 },
-            { bucket: 'OVERDUE_31_60', totalRemaining: 0 },
-            { bucket: 'OVERDUE_60_PLUS', totalRemaining: 0 },
+            { bucket: 'NOT_DUE', totalRemaining: '900' },
+            { bucket: 'OVERDUE_1_7', totalRemaining: '0' },
+            { bucket: 'OVERDUE_8_30', totalRemaining: '2000' },
+            { bucket: 'OVERDUE_31_60', totalRemaining: '0' },
+            { bucket: 'OVERDUE_60_PLUS', totalRemaining: '0' },
           ],
-          totalRemaining: 2_900,
+          totalRemaining: '2900',
         },
       ],
       total: 1,
@@ -1050,7 +1191,7 @@ describe('Aging dashboard reporting (integration)', () => {
       expect(response.body.items[0]).toMatchObject({
         customerId: otherOrgCustomer.id,
         customerName: 'Other Organization Customer',
-        totalRemaining: 1_200,
+        totalRemaining: '1200',
       });
       expect(response.body.total).toBe(1);
     } finally {
@@ -1079,18 +1220,18 @@ describe('Aging dashboard reporting (integration)', () => {
     expect(response.body.items).toEqual([
       {
         month: twoMonthsAgo,
-        outstanding: 10_000_000,
-        collected: 20_000_000,
+        outstanding: '10000000',
+        collected: '20000000',
       },
       {
         month: oneMonthAgo,
-        outstanding: 4_000_000,
-        collected: 0,
+        outstanding: '4000000',
+        collected: '0',
       },
       {
         month: currentMonth,
-        outstanding: 7_000_000,
-        collected: 5_000_000,
+        outstanding: '7000000',
+        collected: '5000000',
       },
     ]);
   });
@@ -1106,14 +1247,14 @@ describe('Aging dashboard reporting (integration)', () => {
     expect(response.body.items).toHaveLength(6);
     const preHistory = response.body.items.slice(0, 3);
     expect(preHistory).toEqual([
-      { month: monthKeyOffset(5), outstanding: null, collected: 0 },
-      { month: monthKeyOffset(4), outstanding: null, collected: 0 },
-      { month: monthKeyOffset(3), outstanding: null, collected: 0 },
+      { month: monthKeyOffset(5), outstanding: null, collected: '0' },
+      { month: monthKeyOffset(4), outstanding: null, collected: '0' },
+      { month: monthKeyOffset(3), outstanding: null, collected: '0' },
     ]);
     expect(response.body.items[3]).toMatchObject({
       month: monthKeyOffset(2),
-      outstanding: 10_000_000,
-      collected: 20_000_000,
+      outstanding: '10000000',
+      collected: '20000000',
     });
   });
 
@@ -1133,12 +1274,12 @@ describe('Aging dashboard reporting (integration)', () => {
     expect(response.body.items[0]).toEqual({
       month: monthKeyOffset(11),
       outstanding: null,
-      collected: 0,
+      collected: '0',
     });
     expect(response.body.items[11]).toMatchObject({
       month: monthKeyOffset(0),
-      outstanding: 7_000_000,
-      collected: 5_000_000,
+      outstanding: '7000000',
+      collected: '5000000',
     });
   });
 
@@ -1163,9 +1304,9 @@ describe('Aging dashboard reporting (integration)', () => {
       .expect(200);
 
     expect(response.body.items).toEqual([
-      { month: monthKeyOffset(2), outstanding: null, collected: 0 },
-      { month: monthKeyOffset(1), outstanding: null, collected: 0 },
-      { month: monthKeyOffset(0), outstanding: null, collected: 0 },
+      { month: monthKeyOffset(2), outstanding: null, collected: '0' },
+      { month: monthKeyOffset(1), outstanding: null, collected: '0' },
+      { month: monthKeyOffset(0), outstanding: null, collected: '0' },
     ]);
   });
 });
