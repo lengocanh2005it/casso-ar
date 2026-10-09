@@ -4,20 +4,20 @@ export interface DashboardPeriod {
 }
 
 export interface OutstandingSummary {
-  totalOutstanding: number;
-  totalOverdue: number;
+  totalOutstanding: string;
+  totalOverdue: string;
 }
 
 export interface ForecastSummary {
-  forecast7d: number;
-  forecast14d: number;
-  forecast30d: number;
+  forecast7d: string;
+  forecast14d: string;
+  forecast30d: string;
 }
 
 export interface TopOverdueCustomer {
   customerId: string;
   customerName: string;
-  totalOverdue: number;
+  totalOverdue: string;
 }
 
 export interface AutoMatchStats {
@@ -31,8 +31,8 @@ export interface ReminderEffectivenessStats {
 }
 
 export interface DashboardSummary {
-  totalOutstanding: number;
-  totalOverdue: number;
+  totalOutstanding: string;
+  totalOverdue: string;
   overdueRate: number;
   cashForecast: ForecastSummary;
   topOverdueCustomers: TopOverdueCustomer[];

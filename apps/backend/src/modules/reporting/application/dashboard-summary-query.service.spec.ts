@@ -10,28 +10,29 @@ const TIMEZONE = 'Asia/Ho_Chi_Minh';
 
 function buildService(
   overrides: Partial<{
-    outstanding: { totalOutstanding: number; totalOverdue: number };
-    forecast: { forecast7d: number; forecast14d: number; forecast30d: number };
+    outstanding: { totalOutstanding: string; totalOverdue: string };
+    forecast: { forecast7d: string; forecast14d: string; forecast30d: string };
     topOverdueCustomers: Array<{
       customerId: string;
       customerName: string;
-      totalOverdue: number;
+      totalOverdue: string;
     }>;
     autoMatch: { matchedCount: number; totalCount: number };
     reminder: { paidWithin7dCount: number; sentCount: number };
   }> = {},
 ) {
   const repo: IDashboardSummaryRepository = {
-    getOutstandingSummary: jest
-      .fn()
-      .mockResolvedValue(
-        overrides.outstanding ?? { totalOutstanding: 100, totalOverdue: 30 },
-      ),
+    getOutstandingSummary: jest.fn().mockResolvedValue(
+      overrides.outstanding ?? {
+        totalOutstanding: '100',
+        totalOverdue: '30',
+      },
+    ),
     getForecast: jest.fn().mockResolvedValue(
       overrides.forecast ?? {
-        forecast7d: 10,
-        forecast14d: 20,
-        forecast30d: 30,
+        forecast7d: '10',
+        forecast14d: '20',
+        forecast30d: '30',
       },
     ),
     getTopOverdueCustomers: jest
@@ -77,7 +78,7 @@ describe('DashboardSummaryQueryService', () => {
   it('computes dashboard ratios and combines repository summaries', async () => {
     const { service } = buildService({
       topOverdueCustomers: [
-        { customerId: 'customer-1', customerName: 'ACME', totalOverdue: 30 },
+        { customerId: 'customer-1', customerName: 'ACME', totalOverdue: '30' },
       ],
     });
 
@@ -87,17 +88,40 @@ describe('DashboardSummaryQueryService', () => {
     });
 
     expect(result).toMatchObject({
-      totalOutstanding: 100,
-      totalOverdue: 30,
+      totalOutstanding: '100',
+      totalOverdue: '30',
       overdueRate: 0.3,
-      cashForecast: { forecast7d: 10, forecast14d: 20, forecast30d: 30 },
+      cashForecast: { forecast7d: '10', forecast14d: '20', forecast30d: '30' },
       topOverdueCustomers: [
-        { customerId: 'customer-1', customerName: 'ACME', totalOverdue: 30 },
+        { customerId: 'customer-1', customerName: 'ACME', totalOverdue: '30' },
       ],
       autoMatchRate: 0.8,
       reminderEffectiveness: 0.5,
     });
     expect(result.manualHandlingRate).toBeCloseTo(0.2);
+  });
+
+  it('computes a bounded numeric rate from unsafe monetary strings', async () => {
+    const { service } = buildService({
+      outstanding: {
+        totalOutstanding: '90071992547409930',
+        totalOverdue: '30023997515803310',
+      },
+    });
+
+    const result = await service.getSummary();
+
+    expect(result.totalOutstanding).toBe('90071992547409930');
+    expect(result.totalOverdue).toBe('30023997515803310');
+    expect(result.overdueRate).toBeCloseTo(1 / 3, 5);
+  });
+
+  it('returns zero overdue rate for zero outstanding amount', async () => {
+    const { service } = buildService({
+      outstanding: { totalOutstanding: '0', totalOverdue: '0' },
+    });
+
+    expect((await service.getSummary()).overdueRate).toBe(0);
   });
 
   it('returns null for period metrics with no observations', async () => {

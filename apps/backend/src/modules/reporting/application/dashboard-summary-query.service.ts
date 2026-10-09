@@ -67,14 +67,18 @@ export class DashboardSummaryQueryService {
       reminder.sentCount === 0
         ? null
         : reminder.paidWithin7dCount / reminder.sentCount;
+    const totalOutstanding = BigInt(outstanding.totalOutstanding);
+    const totalOverdue = BigInt(outstanding.totalOverdue);
+    const rateScale = 1_000_000_000n;
 
     return {
       totalOutstanding: outstanding.totalOutstanding,
       totalOverdue: outstanding.totalOverdue,
       overdueRate:
-        outstanding.totalOutstanding === 0
+        totalOutstanding === 0n
           ? 0
-          : outstanding.totalOverdue / outstanding.totalOutstanding,
+          : Number((totalOverdue * rateScale) / totalOutstanding) /
+            Number(rateScale),
       cashForecast: forecast,
       topOverdueCustomers,
       autoMatchRate,

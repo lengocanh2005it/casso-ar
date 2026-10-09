@@ -44,12 +44,12 @@ export class TypeOrmDashboardSummaryRepository
     const [row]: OutstandingSummaryRow[] = await this.dataSource.query(
       `
         SELECT
-          COALESCE(SUM("originalAmount" - "paidAmount"), 0) AS "totalOutstanding",
+          COALESCE(SUM("originalAmount" - "paidAmount"), 0)::text AS "totalOutstanding",
           COALESCE(
             SUM("originalAmount" - "paidAmount")
               FILTER (WHERE "dueDate"::date < CURRENT_DATE),
             0
-          ) AS "totalOverdue"
+          )::text AS "totalOverdue"
         FROM receivables
         WHERE "organizationId" = $1 AND status IN ('OPEN', 'PARTIALLY_PAID')
       `,
@@ -57,8 +57,8 @@ export class TypeOrmDashboardSummaryRepository
     );
 
     return {
-      totalOutstanding: Number(row?.totalOutstanding ?? 0),
-      totalOverdue: Number(row?.totalOverdue ?? 0),
+      totalOutstanding: row?.totalOutstanding ?? '0',
+      totalOverdue: row?.totalOverdue ?? '0',
     };
   }
 
@@ -70,17 +70,17 @@ export class TypeOrmDashboardSummaryRepository
             SUM("originalAmount" - "paidAmount")
               FILTER (WHERE "dueDate"::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 day'),
             0
-          ) AS "forecast7d",
+          )::text AS "forecast7d",
           COALESCE(
             SUM("originalAmount" - "paidAmount")
               FILTER (WHERE "dueDate"::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '14 day'),
             0
-          ) AS "forecast14d",
+          )::text AS "forecast14d",
           COALESCE(
             SUM("originalAmount" - "paidAmount")
               FILTER (WHERE "dueDate"::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 day'),
             0
-          ) AS "forecast30d"
+          )::text AS "forecast30d"
         FROM receivables
         WHERE "organizationId" = $1 AND status IN ('OPEN', 'PARTIALLY_PAID')
       `,
@@ -88,9 +88,9 @@ export class TypeOrmDashboardSummaryRepository
     );
 
     return {
-      forecast7d: Number(row?.forecast7d ?? 0),
-      forecast14d: Number(row?.forecast14d ?? 0),
-      forecast30d: Number(row?.forecast30d ?? 0),
+      forecast7d: row?.forecast7d ?? '0',
+      forecast14d: row?.forecast14d ?? '0',
+      forecast30d: row?.forecast30d ?? '0',
     };
   }
 
@@ -116,7 +116,7 @@ export class TypeOrmDashboardSummaryRepository
         SELECT
           r."customerId" AS "customerId",
           c.name AS "customerName",
-          COALESCE(SUM(r."originalAmount" - r."paidAmount"), 0) AS "totalOverdue"
+          COALESCE(SUM(r."originalAmount" - r."paidAmount"), 0)::text AS "totalOverdue"
         FROM receivables r
         JOIN customers c
           ON c.id::text = r."customerId" AND c."organizationId" = $1
@@ -125,7 +125,7 @@ export class TypeOrmDashboardSummaryRepository
           AND r."dueDate"::date < CURRENT_DATE
           ${ownershipPredicate}
         GROUP BY r."customerId", c.name
-        ORDER BY "totalOverdue" DESC
+        ORDER BY SUM(r."originalAmount" - r."paidAmount") DESC
         LIMIT 10
       `,
       params,
@@ -134,7 +134,7 @@ export class TypeOrmDashboardSummaryRepository
     return rows.map((row) => ({
       customerId: row.customerId,
       customerName: row.customerName,
-      totalOverdue: Number(row.totalOverdue ?? 0),
+      totalOverdue: row.totalOverdue ?? '0',
     }));
   }
 

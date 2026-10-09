@@ -31,7 +31,7 @@ describe('ReportsController', () => {
   it('converts a validated date range before calling the dashboard query service', async () => {
     const agingReportQueryService = { getAgingBuckets: jest.fn() };
     const dashboardSummaryQueryService = {
-      getSummary: jest.fn().mockResolvedValue({ totalOutstanding: 0 }),
+      getSummary: jest.fn().mockResolvedValue({ totalOutstanding: '0' }),
     };
     const controller = new ReportsController(
       agingReportQueryService as never,
@@ -168,6 +168,37 @@ describe('ReportsController', () => {
       type: 'string',
       pattern: '^\\d+$',
       example: '9007199254740992',
+    });
+  });
+
+  it('documents every dashboard monetary field as a decimal integer string', () => {
+    const responses = Reflect.getMetadata(
+      'swagger/apiResponse',
+      ReportsController.prototype.getDashboardSummary,
+    );
+    const properties = responses['200'].schema.properties;
+    const amount = { type: 'string', pattern: '^\\d+$' };
+
+    expect(properties.totalOutstanding).toEqual(
+      expect.objectContaining(amount),
+    );
+    expect(properties.totalOverdue).toEqual(expect.objectContaining(amount));
+    for (const key of ['forecast7d', 'forecast14d', 'forecast30d']) {
+      expect(properties.cashForecast.properties[key]).toEqual(
+        expect.objectContaining(amount),
+      );
+    }
+    expect(properties.topOverdueCustomers.items.properties).toEqual(
+      expect.objectContaining({
+        customerId: { type: 'string' },
+        customerName: { type: 'string' },
+        totalOverdue: expect.objectContaining(amount),
+      }),
+    );
+    expect(properties.overdueRate).toEqual({ type: 'number' });
+    expect(properties.autoMatchRate).toEqual({
+      type: 'number',
+      nullable: true,
     });
   });
 });
