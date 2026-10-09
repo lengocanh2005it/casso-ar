@@ -866,6 +866,33 @@ describe('Receivable balance history (integration)', () => {
       );
     }
 
+    it('preserves a month-end sum above the safe integer limit from individually safe snapshots', async () => {
+      await clearHistoryRows();
+      const historyIds = [randomUUID(), randomUUID(), randomUUID()];
+      const receivableIds = [randomUUID(), randomUUID(), randomUUID()];
+      await dataSource.query(
+        `INSERT INTO receivable_balance_history
+          ("id", "organizationId", "receivableId", "status", "remainingAmount", "effectiveAt", "changeSource", "createdAt")
+         SELECT snapshots.id, $1, snapshots.receivable_id, 'OPEN', $4::bigint, $5, 'CREATE', $5
+         FROM unnest($2::uuid[], $3::uuid[]) AS snapshots(id, receivable_id)`,
+        [
+          historyQueryOrgId,
+          historyIds,
+          receivableIds,
+          '3100000000000000',
+          new Date('2026-11-10T02:00:00.000Z'),
+        ],
+      );
+
+      await expect(
+        findOutstandingByMonthEnds(historyQueryOrgId, [
+          monthEndInTimeZone(2026, 11),
+        ]),
+      ).resolves.toEqual([
+        { month: '2026-11', outstanding: '9300000000000000' },
+      ]);
+    });
+
     it('returns null for pre-coverage months and sums the latest open balances', async () => {
       await clearHistoryRows();
       const receivableId = randomUUID();
