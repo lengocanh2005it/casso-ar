@@ -57,9 +57,9 @@ export class ReprocessWebhookUseCase {
       );
     }
 
-    // Deterministic job id makes re-enqueueing idempotent (BullMQ dedupes)
-    // while an attempt is still in flight; a finished job releases that id so a
-    // later reprocess schedules a new attempt instead of silently doing
+    // The deterministic dedup key makes re-enqueueing idempotent (BullMQ holds
+    // the key while an attempt is in flight) while a finished attempt releases
+    // it, so a later reprocess schedules a new attempt instead of silently doing
     // nothing. #434
     const jobId = `webhook-reprocess-${inbox.id}`;
     const result = await this.jobQueue.enqueue({

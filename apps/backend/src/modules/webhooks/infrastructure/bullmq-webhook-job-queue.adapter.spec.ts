@@ -1,66 +1,63 @@
 import { BullMqWebhookJobQueue } from './bullmq-webhook-job-queue.adapter';
 
 describe('BullMqWebhookJobQueue', () => {
-  it('enqueues a webhook job with its existing retry policy', async () => {
-    const queue = {
-      getJob: jest.fn().mockResolvedValue(undefined),
-      add: jest.fn().mockResolvedValue(undefined),
-    };
-    const jobQueue = new BullMqWebhookJobQueue(queue as any);
+  const input = {
+    webhookInboxId: 'inbox-1',
+    organizationId: 'org-1',
+    jobId: 'webhook-reprocess-inbox-1',
+  };
 
-    await jobQueue.enqueue({
+  it('schedules an attempt deduplicated on a deterministic key', async () => {
+    const added: Array<{
+      name: string;
+      data: unknown;
+      opts: Record<string, unknown>;
+    }> = [];
+    const queue = {
+      // BullMQ resolves the add with the id it actually stored.
+      add: jest.fn((name: string, data: unknown, opts: { jobId: string }) => {
+        added.push({ name, data, opts });
+        return Promise.resolve({ id: opts.jobId });
+      }),
+    };
+    const jobQueue = new BullMqWebhookJobQueue(queue as never);
+
+    await expect(jobQueue.enqueue(input)).resolves.toBe('enqueued');
+
+    const [call] = added;
+    expect(call.name).toBe('process-webhook');
+    expect(call.data).toEqual({
       webhookInboxId: 'inbox-1',
       organizationId: 'org-1',
-      jobId: 'transaction-1',
     });
-
-    expect(queue.add).toHaveBeenCalledWith(
-      'process-webhook',
-      { webhookInboxId: 'inbox-1', organizationId: 'org-1' },
-      {
-        jobId: 'transaction-1',
-        attempts: 5,
-        backoff: { type: 'exponential', delay: 5_000 },
-        // A finished job must not keep its job id occupied: the deterministic
-        // id is what makes the enqueue idempotent, and a retained completed or
-        // failed job turns every later reprocess of the same inbox into a
-        // silent no-op. #434
-        removeOnComplete: true,
-        removeOnFail: true,
-      },
-    );
+    // The deterministic key is what an in-flight attempt holds, while the actual
+    // job id is attempt-specific so a finished job never blocks a re-enqueue.
+    expect(call.opts.deduplication).toEqual({
+      id: 'webhook-reprocess-inbox-1',
+    });
+    expect(call.opts.jobId).toMatch(/^webhook-reprocess-inbox-1-/);
+    expect(call.opts.jobId).not.toBe('webhook-reprocess-inbox-1');
+    expect(call.opts.attempts).toBe(5);
+    expect(call.opts.backoff).toEqual({
+      type: 'exponential',
+      delay: 5_000,
+    });
+    // An exhausted attempt must stay in the failed set (the dead-letter queue),
+    // and a finished attempt must not occupy the deterministic key's job id.
+    expect(call.opts).not.toHaveProperty('removeOnComplete');
+    expect(call.opts).not.toHaveProperty('removeOnFail');
   });
 
-  it('reports the enqueue as scheduled', async () => {
+  it('reports an attempt already in flight as deduplicated', async () => {
     const queue = {
-      getJob: jest.fn().mockResolvedValue(undefined),
-      add: jest.fn().mockResolvedValue(undefined),
+      // A deduplicated add resolves with the in-flight job's id, not ours.
+      add: jest
+        .fn()
+        .mockResolvedValue({ id: 'webhook-reprocess-inbox-1-other' }),
     };
-    const jobQueue = new BullMqWebhookJobQueue(queue as any);
+    const jobQueue = new BullMqWebhookJobQueue(queue as never);
 
-    await expect(
-      jobQueue.enqueue({
-        webhookInboxId: 'inbox-1',
-        organizationId: 'org-1',
-        jobId: 'transaction-1',
-      }),
-    ).resolves.toBe('enqueued');
-  });
-
-  it('reports an attempt already in flight as deduplicated instead of adding again', async () => {
-    const queue = {
-      getJob: jest.fn().mockResolvedValue({ id: 'transaction-1' }),
-      add: jest.fn(),
-    };
-    const jobQueue = new BullMqWebhookJobQueue(queue as any);
-
-    await expect(
-      jobQueue.enqueue({
-        webhookInboxId: 'inbox-1',
-        organizationId: 'org-1',
-        jobId: 'transaction-1',
-      }),
-    ).resolves.toBe('deduped');
-    expect(queue.add).not.toHaveBeenCalled();
+    await expect(jobQueue.enqueue(input)).resolves.toBe('deduped');
+    expect(queue.add).toHaveBeenCalledTimes(1);
   });
 });

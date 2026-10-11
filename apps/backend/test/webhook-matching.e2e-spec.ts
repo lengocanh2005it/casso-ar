@@ -1421,7 +1421,6 @@ describe('Webhook matching (e2e)', () => {
         errorMessage: 'match failed',
         retryCount: 5,
       });
-      const jobId = `webhook-reprocess-${inboxId}`;
       const asOperator = () =>
         tenantContext.run(
           { userId: 'e2e-operator', organizationId, role: Role.OWNER },
@@ -1447,16 +1446,18 @@ describe('Webhook matching (e2e)', () => {
         await queue.resume();
       }
 
+      // The queued attempt really runs and finishes the inbox.
       await waitFor(
         async () => (await loadInbox(inboxId)).status === 'PROCESSED',
       );
-      // A finished attempt must release its job id, otherwise BullMQ silently
-      // drops every later reprocess of this inbox.
-      await waitFor(async () => (await queue.getJob(jobId)) === null);
 
-      // The inbox failed again afterwards; reprocessing the same inbox must
-      // schedule a new attempt, and that attempt really runs — it fails on the
-      // duplicate provider transaction and records the failure on the inbox.
+      // The finished attempt must release its dedup key, otherwise every later
+      // reprocess of this inbox is silently dropped. The inbox failed again
+      // afterwards, so reprocessing it must schedule a fresh attempt — and that
+      // attempt really runs: it fails on the duplicate provider transaction and
+      // records the failure on the inbox, advancing retryCount past where we
+      // left it. A lingering dedup key would make asOperator() reject with
+      // CONFLICT here instead of scheduling a new attempt. #434
       await inboxRows.update(inboxId, {
         status: 'FAILED',
         processedAt: null,
@@ -1464,7 +1465,6 @@ describe('Webhook matching (e2e)', () => {
         retryCount: 6,
       });
       await asOperator();
-      expect(await queue.getJob(jobId)).not.toBeNull();
       await waitFor(async () => (await loadInbox(inboxId)).retryCount > 6);
       expect(await loadInbox(inboxId)).toMatchObject({
         status: 'FAILED',
