@@ -10,7 +10,6 @@
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "baseUrl": "./src",
     "types": ["jest", "node"],
     "ignoreDeprecations": "6.0"
   }
