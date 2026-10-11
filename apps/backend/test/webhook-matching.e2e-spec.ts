@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { ReceivableStatus } from '@casso-ar/shared-types';
+import { getQueueToken } from '@nestjs/bullmq';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -8,10 +9,12 @@ import {
   PostgreSqlContainer,
   type StartedPostgreSqlContainer,
 } from '@testcontainers/postgresql';
+import type { Queue } from 'bullmq';
 import request from 'supertest';
 import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
+import { ErrorCode } from '../src/common/errors/error-code';
 import { TenantContextService } from '../src/common/tenancy/tenant-context';
 import { configureApp } from '../src/configure-app';
 import { AddExactInvoiceReferenceIndexes20261002000000 } from '../src/database/migrations/20261002000000-add-exact-invoice-reference-indexes';
@@ -43,6 +46,7 @@ import {
 import { ReceivableOrmEntity } from '../src/modules/receivables/infrastructure/receivable.orm-entity';
 import { ProcessWebhookUseCase } from '../src/modules/webhooks/application/process-webhook.usecase';
 import { RecoverStaleWebhookInboxesUseCase } from '../src/modules/webhooks/application/recover-stale-webhook-inboxes.usecase';
+import { ReprocessWebhookUseCase } from '../src/modules/webhooks/application/reprocess-webhook.usecase';
 import {
   type IWebhookInboxRepository,
   WEBHOOK_INBOX_REPOSITORY,
@@ -51,6 +55,7 @@ import { WebhookInbox } from '../src/modules/webhooks/domain/webhook-inbox';
 import { BankTransactionOrmEntity } from '../src/modules/webhooks/infrastructure/bank-transaction.orm-entity';
 import { MatchingCandidateOrmEntity } from '../src/modules/webhooks/infrastructure/matching-candidate.orm-entity';
 import { WebhookInboxOrmEntity } from '../src/modules/webhooks/infrastructure/webhook-inbox.orm-entity';
+import { WEBHOOK_PROCESSING_QUEUE } from '../src/modules/webhooks/infrastructure/webhooks-queue.constants';
 import { signCassoWebhookPayload } from './helpers/casso-webhook-signature';
 
 describe('Webhook matching (e2e)', () => {
@@ -1396,6 +1401,76 @@ describe('Webhook matching (e2e)', () => {
           .countBy({ receivableId }),
       ).toBe(1);
     }, 45_000);
+  });
+
+  describe('reprocessing a FAILED inbox more than once (#434)', () => {
+    it('schedules a second processing attempt once the previous reprocess job finished', async () => {
+      const reprocess = app.get(ReprocessWebhookUseCase, { strict: false });
+      const queue = app.get<Queue>(getQueueToken(WEBHOOK_PROCESSING_QUEUE), {
+        strict: false,
+      });
+      const inboxId = await saveReceivedInbox(1_042_434, {
+        amount: 3_000_000,
+        description: 'chuyen tien reprocess',
+        counterAccountNumber: '5500000434',
+        counterAccountName: 'Khach reprocess',
+      });
+      const inboxRows = dataSource.getRepository(WebhookInboxOrmEntity);
+      await inboxRows.update(inboxId, {
+        status: 'FAILED',
+        errorMessage: 'match failed',
+        retryCount: 5,
+      });
+      const asOperator = () =>
+        tenantContext.run(
+          { userId: 'e2e-operator', organizationId, role: Role.OWNER },
+          async () => reprocess.execute(inboxId),
+        );
+      const waitFor = async (done: () => Promise<boolean>) => {
+        const deadline = Date.now() + 15_000;
+        while (Date.now() < deadline) {
+          if (await done()) return;
+          await delay(100);
+        }
+      };
+
+      // With an attempt queued, reprocessing again must not create a second
+      // concurrent attempt, and must not report success. #434
+      await queue.pause();
+      try {
+        await asOperator();
+        await expect(asOperator()).rejects.toMatchObject({
+          errorCode: ErrorCode.CONFLICT,
+        });
+      } finally {
+        await queue.resume();
+      }
+
+      // The queued attempt really runs and finishes the inbox.
+      await waitFor(
+        async () => (await loadInbox(inboxId)).status === 'PROCESSED',
+      );
+
+      // The finished attempt must release its dedup key, otherwise every later
+      // reprocess of this inbox is silently dropped. The inbox failed again
+      // afterwards, so reprocessing it must schedule a fresh attempt — and that
+      // attempt really runs: it fails on the duplicate provider transaction and
+      // records the failure on the inbox, advancing retryCount past where we
+      // left it. A lingering dedup key would make asOperator() reject with
+      // CONFLICT here instead of scheduling a new attempt. #434
+      await inboxRows.update(inboxId, {
+        status: 'FAILED',
+        processedAt: null,
+        errorMessage: 'match failed again',
+        retryCount: 6,
+      });
+      await asOperator();
+      await waitFor(async () => (await loadInbox(inboxId)).retryCount > 6);
+      expect(await loadInbox(inboxId)).toMatchObject({
+        status: 'FAILED',
+        retryCount: 7,
+      });
+    }, 60_000);
   });
 
   describe('receivable ambiguity (#419)', () => {
