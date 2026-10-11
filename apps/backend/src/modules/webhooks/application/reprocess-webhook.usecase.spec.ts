@@ -31,7 +31,7 @@ function buildDeps() {
     findById: jest.fn().mockResolvedValue(buildInbox()),
     findPage: jest.fn(),
   };
-  const enqueue = jest.fn().mockResolvedValue(undefined);
+  const enqueue = jest.fn().mockResolvedValue('enqueued');
   const tenantContext = {
     getOrganizationId: jest.fn().mockReturnValue('org-1'),
     getCurrentUser: jest.fn().mockReturnValue({
@@ -112,6 +112,24 @@ describe('ReprocessWebhookUseCase', () => {
     await expect(useCase.execute('inbox-1')).resolves.toMatchObject({
       id: 'inbox-1',
     });
+  });
+
+  it('rejects reprocessing while an attempt is already scheduled', async () => {
+    const { repo, enqueue, tenantContext, auditLogRepo, logger } = buildDeps();
+    enqueue.mockResolvedValue('deduped');
+    const useCase = new ReprocessWebhookUseCase(
+      repo as never,
+      { enqueue } as never,
+      tenantContext as never,
+      auditLogRepo as never,
+      logger as never,
+    );
+
+    // Nothing was scheduled, so the endpoint must not report success. #434
+    await expect(useCase.execute('inbox-1')).rejects.toMatchObject({
+      errorCode: ErrorCode.CONFLICT,
+    });
+    expect(auditLogRepo.create).not.toHaveBeenCalled();
   });
 
   it('rejects reprocessing a webhook that is not FAILED', async () => {
