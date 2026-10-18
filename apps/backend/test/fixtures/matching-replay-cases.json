@@ -1,0 +1,1151 @@
+{
+  "$comment": [
+    "Deterministic replay corpus for the webhook matching path (issue #495).",
+    "Expectations are written by hand from the domain rules, never snapshotted",
+    "from the engine: reference 60 exact / 30 near, amount 20 exact / 10 within",
+    "1%, payer account 10, payer name 5, timing 5 (30 days). Auto-match needs",
+    "top >= 90, amount <= remaining, and a lead of >= 10 over the runner-up;",
+    "60-89 goes to the Exception Queue; below 60 is UNMATCHED.",
+    "",
+    "All transfers are dated 2026-03-10 10:00:00 (+07) so every score is a",
+    "fixed number. Cases share one organization and rely on each other only",
+    "through the org-wide scan: a receivable from another case can score at",
+    "most 20 (amount only), because reference needs this case's invoice",
+    "number, and payer/timing are gated on a linked customer. So a foreign",
+    "row can never cross the 60 threshold or the 90 auto-match bar.",
+    "",
+    "expect.candidates lists only this case's own receivables, ordered by",
+    "totalScore descending; equal scores are asserted as a set, because",
+    "scoreCandidates sorts on totalScore alone and has no tie-break."
+  ],
+  "cases": [
+    {
+      "name": "exact reference resolves the customer and auto-matches",
+      "given": {
+        "customers": [{ "key": "c1", "name": "Cong Ty Minh An" }],
+        "invoices": [
+          {
+            "key": "i1",
+            "customerKey": "c1",
+            "invoiceNumber": "HD-2026-0001",
+            "totalAmount": 5000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r1",
+            "customerKey": "c1",
+            "invoiceKey": "i1",
+            "originalAmount": 5000000,
+            "dueDate": "2026-03-01"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0001",
+        "amount": 5000000,
+        "counterAccountNumber": "9999888877",
+        "counterAccountName": "CONG TY MINH AN",
+        "description": "TT HD 2026 0001"
+      },
+      "expect": {
+        "finalStatus": "MATCHED",
+        "candidates": [{ "key": "r1", "totalScore": 90 }],
+        "persistedCandidateKeys": []
+      }
+    },
+    {
+      "name": "exact reference with a payer-name miss lands in the Exception Queue",
+      "given": {
+        "customers": [{ "key": "c2", "name": "Cong Ty Minh An" }],
+        "invoices": [
+          {
+            "key": "i2",
+            "customerKey": "c2",
+            "invoiceNumber": "HD-2026-0002",
+            "totalAmount": 5000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r2",
+            "customerKey": "c2",
+            "invoiceKey": "i2",
+            "originalAmount": 5000000,
+            "dueDate": "2026-03-01"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0002",
+        "amount": 5000000,
+        "counterAccountNumber": "9999888877",
+        "counterAccountName": "NGUYEN VAN A",
+        "description": "TT HD 2026 0002"
+      },
+      "expect": {
+        "finalStatus": "PENDING_REVIEW",
+        "candidates": [{ "key": "r2", "totalScore": 85 }],
+        "persistedCandidateKeys": ["r2"]
+      }
+    },
+    {
+      "name": "a linked payer account adds the account, payer-name and timing points",
+      "given": {
+        "customers": [{ "key": "c3", "name": "Cong Ty Hoa Binh" }],
+        "payerAccounts": [
+          { "customerKey": "c3", "accountNumber": "11112222333" }
+        ],
+        "invoices": [
+          {
+            "key": "i3",
+            "customerKey": "c3",
+            "invoiceNumber": "HD-2026-0003",
+            "totalAmount": 7000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r3",
+            "customerKey": "c3",
+            "invoiceKey": "i3",
+            "originalAmount": 7000000,
+            "dueDate": "2026-03-05"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0003",
+        "amount": 7000000,
+        "counterAccountNumber": "1111 2222 333",
+        "counterAccountName": "CONG TY HOA BINH",
+        "description": "TT HD 2026 0003"
+      },
+      "expect": {
+        "finalStatus": "MATCHED",
+        "candidates": [{ "key": "r3", "totalScore": 100 }],
+        "persistedCandidateKeys": []
+      }
+    },
+    {
+      "name": "a near reference one digit off stays below the exception threshold",
+      "given": {
+        "customers": [{ "key": "c4", "name": "Cong Ty Cuong Long" }],
+        "invoices": [
+          {
+            "key": "i4",
+            "customerKey": "c4",
+            "invoiceNumber": "HD-2026-0004",
+            "totalAmount": 3000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r4",
+            "customerKey": "c4",
+            "invoiceKey": "i4",
+            "originalAmount": 3000000,
+            "dueDate": "2026-03-01"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0004",
+        "amount": 3000000,
+        "counterAccountNumber": "9999888877",
+        "counterAccountName": "CONG TY CUONG LONG",
+        "description": "TT HD 2026 000X"
+      },
+      "expect": {
+        "finalStatus": "UNMATCHED",
+        "candidates": [{ "key": "r4", "totalScore": 50 }],
+        "persistedCandidateKeys": []
+      }
+    },
+    {
+      "name": "no reference at all scores on amount alone",
+      "given": {
+        "customers": [{ "key": "c5", "name": "Cong Ty Song Han" }],
+        "invoices": [
+          {
+            "key": "i5",
+            "customerKey": "c5",
+            "invoiceNumber": "HD-2026-0005",
+            "totalAmount": 4000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r5",
+            "customerKey": "c5",
+            "invoiceKey": "i5",
+            "originalAmount": 4000000,
+            "dueDate": "2026-03-02"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0005",
+        "amount": 4000000,
+        "counterAccountNumber": "9999888877",
+        "counterAccountName": "CONG TY SONG HAN",
+        "description": "CHUYEN KHOAN"
+      },
+      "expect": {
+        "finalStatus": "UNMATCHED",
+        "candidates": [{ "key": "r5", "totalScore": 20 }],
+        "persistedCandidateKeys": []
+      }
+    },
+    {
+      "name": "an overpayment on an exact reference still scores its reference",
+      "given": {
+        "customers": [{ "key": "c6", "name": "Cong Ty Dai Thang" }],
+        "payerAccounts": [
+          { "customerKey": "c6", "accountNumber": "2222333344" }
+        ],
+        "invoices": [
+          {
+            "key": "i6",
+            "customerKey": "c6",
+            "invoiceNumber": "HD-2026-0006",
+            "totalAmount": 5000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r6",
+            "customerKey": "c6",
+            "invoiceKey": "i6",
+            "originalAmount": 5000000,
+            "paidAmount": 4000000,
+            "dueDate": "2026-03-08",
+            "status": "PARTIALLY_PAID"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0006",
+        "amount": 9000000,
+        "counterAccountNumber": "2222333344",
+        "counterAccountName": "CONG TY DAI THANG",
+        "description": "TT HD 2026 0006"
+      },
+      "expect": {
+        "finalStatus": "PENDING_REVIEW",
+        "candidates": [{ "key": "r6", "totalScore": 80 }],
+        "persistedCandidateKeys": ["r6"]
+      }
+    },
+    {
+      "name": "an amount within one percent scores ten instead of twenty",
+      "given": {
+        "customers": [{ "key": "c7", "name": "Cong Ty Phuong Nam" }],
+        "payerAccounts": [
+          { "customerKey": "c7", "accountNumber": "3333444455" }
+        ],
+        "invoices": [
+          {
+            "key": "i7",
+            "customerKey": "c7",
+            "invoiceNumber": "HD-2026-0007",
+            "totalAmount": 10000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r7",
+            "customerKey": "c7",
+            "invoiceKey": "i7",
+            "originalAmount": 10000000,
+            "dueDate": "2026-03-09"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0007",
+        "amount": 10050000,
+        "counterAccountNumber": "3333444455",
+        "counterAccountName": "CONG TY PHUONG NAM",
+        "description": "TT HD 2026 0007"
+      },
+      "expect": {
+        "$comment": [
+          "The transfer is 50,000 over the remaining balance, so it scores a",
+          "perfect 90 and still cannot auto-match: canAutoMatch also requires the",
+          "amount to fit inside what is left to pay."
+        ],
+        "finalStatus": "PENDING_REVIEW",
+        "candidates": [{ "key": "r7", "totalScore": 90 }],
+        "persistedCandidateKeys": ["r7"]
+      }
+    },
+    {
+      "name": "two exact references of one customer tie and never auto-match",
+      "given": {
+        "customers": [{ "key": "c8", "name": "Cong Ty Gia Dinh" }],
+        "payerAccounts": [
+          { "customerKey": "c8", "accountNumber": "4444555566" }
+        ],
+        "invoices": [
+          {
+            "key": "i8a",
+            "customerKey": "c8",
+            "invoiceNumber": "HD-2026-0008",
+            "totalAmount": 2000000
+          },
+          {
+            "key": "i8b",
+            "customerKey": "c8",
+            "invoiceNumber": "HD-2026-0009",
+            "totalAmount": 2000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r8a",
+            "customerKey": "c8",
+            "invoiceKey": "i8a",
+            "originalAmount": 2000000,
+            "dueDate": "2026-03-01"
+          },
+          {
+            "key": "r8b",
+            "customerKey": "c8",
+            "invoiceKey": "i8b",
+            "originalAmount": 2000000,
+            "dueDate": "2026-03-09"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0008",
+        "amount": 2000000,
+        "counterAccountNumber": "4444555566",
+        "counterAccountName": "CONG TY GIA DINH",
+        "description": "TT HD 2026 0008 va HD 2026 0009"
+      },
+      "expect": {
+        "finalStatus": "PENDING_REVIEW",
+        "candidates": [
+          { "key": "r8a", "totalScore": 100 },
+          { "key": "r8b", "totalScore": 100 }
+        ],
+        "persistedCandidateKeys": ["r8a", "r8b"]
+      }
+    },
+    {
+      "name": "exact references of two customers leave the payer unresolved",
+      "given": {
+        "customers": [
+          { "key": "c9a", "name": "Cong Ty Ha Noi" },
+          { "key": "c9b", "name": "Cong Ty Hai Phong" }
+        ],
+        "invoices": [
+          {
+            "key": "i9a",
+            "customerKey": "c9a",
+            "invoiceNumber": "HD-2026-0010",
+            "totalAmount": 6000000
+          },
+          {
+            "key": "i9b",
+            "customerKey": "c9b",
+            "invoiceNumber": "HD-2026-0011",
+            "totalAmount": 6000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r9a",
+            "customerKey": "c9a",
+            "invoiceKey": "i9a",
+            "originalAmount": 6000000,
+            "dueDate": "2026-03-02"
+          },
+          {
+            "key": "r9b",
+            "customerKey": "c9b",
+            "invoiceKey": "i9b",
+            "originalAmount": 6000000,
+            "dueDate": "2026-03-02"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0009",
+        "amount": 6000000,
+        "counterAccountNumber": "9999888877",
+        "counterAccountName": "CONG TY HA NOI",
+        "description": "TT HD 2026 0010 va HD 2026 0011"
+      },
+      "expect": {
+        "finalStatus": "PENDING_REVIEW",
+        "candidates": [
+          { "key": "r9a", "totalScore": 80 },
+          { "key": "r9b", "totalScore": 80 }
+        ],
+        "persistedCandidateKeys": ["r9a", "r9b"]
+      }
+    },
+    {
+      "name": "an exact reference past the content prefix and outside the scan window is still a candidate",
+      "$comment": [
+        "Issue #495. Two bounds are crossed at once:",
+        "1. the reference sits at normalized character ~310, past the 200 the",
+        "   extractor used to read;",
+        "2. the receivable's due date is 2027-06-01, the 21st nearest due date",
+        "   after the transfer, so the 20-row org-wide scan never sees it.",
+        "The 20 fillers exist only to occupy that window; their invoice numbers",
+        "share no character with the content, so they score 0 on reference."
+      ],
+      "given": {
+        "customers": [{ "key": "c10", "name": "Cong Ty Ky Thuong" }],
+        "invoices": [
+          {
+            "key": "i10",
+            "customerKey": "c10",
+            "invoiceNumber": "HD-2026-0044",
+            "totalAmount": 8000000
+          },
+          {
+            "key": "f01",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9001",
+            "totalAmount": 1
+          },
+          {
+            "key": "f02",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9002",
+            "totalAmount": 1
+          },
+          {
+            "key": "f03",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9003",
+            "totalAmount": 1
+          },
+          {
+            "key": "f04",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9004",
+            "totalAmount": 1
+          },
+          {
+            "key": "f05",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9005",
+            "totalAmount": 1
+          },
+          {
+            "key": "f06",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9006",
+            "totalAmount": 1
+          },
+          {
+            "key": "f07",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9007",
+            "totalAmount": 1
+          },
+          {
+            "key": "f08",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9008",
+            "totalAmount": 1
+          },
+          {
+            "key": "f09",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9009",
+            "totalAmount": 1
+          },
+          {
+            "key": "f10",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9010",
+            "totalAmount": 1
+          },
+          {
+            "key": "f11",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9011",
+            "totalAmount": 1
+          },
+          {
+            "key": "f12",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9012",
+            "totalAmount": 1
+          },
+          {
+            "key": "f13",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9013",
+            "totalAmount": 1
+          },
+          {
+            "key": "f14",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9014",
+            "totalAmount": 1
+          },
+          {
+            "key": "f15",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9015",
+            "totalAmount": 1
+          },
+          {
+            "key": "f16",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9016",
+            "totalAmount": 1
+          },
+          {
+            "key": "f17",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9017",
+            "totalAmount": 1
+          },
+          {
+            "key": "f18",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9018",
+            "totalAmount": 1
+          },
+          {
+            "key": "f19",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9019",
+            "totalAmount": 1
+          },
+          {
+            "key": "f20",
+            "customerKey": "c10",
+            "invoiceNumber": "FILLER-9020",
+            "totalAmount": 1
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r10",
+            "customerKey": "c10",
+            "invoiceKey": "i10",
+            "originalAmount": 8000000,
+            "dueDate": "2027-06-01"
+          },
+          {
+            "key": "f01",
+            "customerKey": "c10",
+            "invoiceKey": "f01",
+            "originalAmount": 1,
+            "dueDate": "2026-03-11"
+          },
+          {
+            "key": "f02",
+            "customerKey": "c10",
+            "invoiceKey": "f02",
+            "originalAmount": 1,
+            "dueDate": "2026-03-12"
+          },
+          {
+            "key": "f03",
+            "customerKey": "c10",
+            "invoiceKey": "f03",
+            "originalAmount": 1,
+            "dueDate": "2026-03-13"
+          },
+          {
+            "key": "f04",
+            "customerKey": "c10",
+            "invoiceKey": "f04",
+            "originalAmount": 1,
+            "dueDate": "2026-03-14"
+          },
+          {
+            "key": "f05",
+            "customerKey": "c10",
+            "invoiceKey": "f05",
+            "originalAmount": 1,
+            "dueDate": "2026-03-15"
+          },
+          {
+            "key": "f06",
+            "customerKey": "c10",
+            "invoiceKey": "f06",
+            "originalAmount": 1,
+            "dueDate": "2026-03-16"
+          },
+          {
+            "key": "f07",
+            "customerKey": "c10",
+            "invoiceKey": "f07",
+            "originalAmount": 1,
+            "dueDate": "2026-03-17"
+          },
+          {
+            "key": "f08",
+            "customerKey": "c10",
+            "invoiceKey": "f08",
+            "originalAmount": 1,
+            "dueDate": "2026-03-18"
+          },
+          {
+            "key": "f09",
+            "customerKey": "c10",
+            "invoiceKey": "f09",
+            "originalAmount": 1,
+            "dueDate": "2026-03-19"
+          },
+          {
+            "key": "f10",
+            "customerKey": "c10",
+            "invoiceKey": "f10",
+            "originalAmount": 1,
+            "dueDate": "2026-03-20"
+          },
+          {
+            "key": "f11",
+            "customerKey": "c10",
+            "invoiceKey": "f11",
+            "originalAmount": 1,
+            "dueDate": "2026-03-21"
+          },
+          {
+            "key": "f12",
+            "customerKey": "c10",
+            "invoiceKey": "f12",
+            "originalAmount": 1,
+            "dueDate": "2026-03-22"
+          },
+          {
+            "key": "f13",
+            "customerKey": "c10",
+            "invoiceKey": "f13",
+            "originalAmount": 1,
+            "dueDate": "2026-03-23"
+          },
+          {
+            "key": "f14",
+            "customerKey": "c10",
+            "invoiceKey": "f14",
+            "originalAmount": 1,
+            "dueDate": "2026-03-24"
+          },
+          {
+            "key": "f15",
+            "customerKey": "c10",
+            "invoiceKey": "f15",
+            "originalAmount": 1,
+            "dueDate": "2026-03-25"
+          },
+          {
+            "key": "f16",
+            "customerKey": "c10",
+            "invoiceKey": "f16",
+            "originalAmount": 1,
+            "dueDate": "2026-03-26"
+          },
+          {
+            "key": "f17",
+            "customerKey": "c10",
+            "invoiceKey": "f17",
+            "originalAmount": 1,
+            "dueDate": "2026-03-27"
+          },
+          {
+            "key": "f18",
+            "customerKey": "c10",
+            "invoiceKey": "f18",
+            "originalAmount": 1,
+            "dueDate": "2026-03-28"
+          },
+          {
+            "key": "f19",
+            "customerKey": "c10",
+            "invoiceKey": "f19",
+            "originalAmount": 1,
+            "dueDate": "2026-03-29"
+          },
+          {
+            "key": "f20",
+            "customerKey": "c10",
+            "invoiceKey": "f20",
+            "originalAmount": 1,
+            "dueDate": "2026-03-30"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0010",
+        "amount": 8000000,
+        "counterAccountNumber": "9999888877",
+        "counterAccountName": "CONG TY KY THUONG",
+        "description": "THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  THANH TOAN HOA DON  HD 2026 0044"
+      },
+      "expect": {
+        "$comment": [
+          "The exact reference resolves the customer, and that replaces the",
+          "candidate set with the customer's open receivables — so all 20",
+          "fillers come back as real candidates of the same customer. They score",
+          "10 (payer name + timing only, no reference, no amount) and cannot",
+          "come near the 60 exception threshold or the 90 auto-match bar."
+        ],
+        "finalStatus": "PENDING_REVIEW",
+        "candidates": [
+          { "key": "r10", "totalScore": 85 },
+          { "key": "f01", "totalScore": 10 },
+          { "key": "f02", "totalScore": 10 },
+          { "key": "f03", "totalScore": 10 },
+          { "key": "f04", "totalScore": 10 },
+          { "key": "f05", "totalScore": 10 },
+          { "key": "f06", "totalScore": 10 },
+          { "key": "f07", "totalScore": 10 },
+          { "key": "f08", "totalScore": 10 },
+          { "key": "f09", "totalScore": 10 },
+          { "key": "f10", "totalScore": 10 },
+          { "key": "f11", "totalScore": 10 },
+          { "key": "f12", "totalScore": 10 },
+          { "key": "f13", "totalScore": 10 },
+          { "key": "f14", "totalScore": 10 },
+          { "key": "f15", "totalScore": 10 },
+          { "key": "f16", "totalScore": 10 },
+          { "key": "f17", "totalScore": 10 },
+          { "key": "f18", "totalScore": 10 },
+          { "key": "f19", "totalScore": 10 },
+          { "key": "f20", "totalScore": 10 }
+        ],
+        "persistedCandidateKeys": [
+          "r10",
+          "f01",
+          "f02",
+          "f03",
+          "f04",
+          "f05",
+          "f06",
+          "f07",
+          "f08",
+          "f09",
+          "f10",
+          "f11",
+          "f12",
+          "f13",
+          "f14",
+          "f15",
+          "f16",
+          "f17",
+          "f18",
+          "f19",
+          "f20"
+        ]
+      }
+    },
+    {
+      "name": "an invoice number owned by another organization is not a candidate",
+      "given": {
+        "customers": [
+          { "key": "c11", "name": "Cong Ty Xanh" },
+          {
+            "key": "c11b",
+            "name": "Cong Ty Do",
+            "organizationId": "00000000-0000-4000-8000-000000000909"
+          }
+        ],
+        "invoices": [
+          {
+            "key": "i11",
+            "customerKey": "c11",
+            "invoiceNumber": "HD-2026-0012",
+            "totalAmount": 4000000
+          },
+          {
+            "key": "i11b",
+            "customerKey": "c11b",
+            "invoiceNumber": "HD-2026-0012",
+            "totalAmount": 4000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r11",
+            "customerKey": "c11",
+            "invoiceKey": "i11",
+            "originalAmount": 4000000,
+            "dueDate": "2026-03-01"
+          },
+          {
+            "key": "r11b",
+            "customerKey": "c11b",
+            "invoiceKey": "i11b",
+            "originalAmount": 4000000,
+            "dueDate": "2026-03-01"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0011",
+        "amount": 4000000,
+        "counterAccountNumber": "9999888877",
+        "counterAccountName": "CONG TY XANH",
+        "description": "TT HD 2026 0012"
+      },
+      "expect": {
+        "finalStatus": "MATCHED",
+        "candidates": [{ "key": "r11", "totalScore": 90 }],
+        "persistedCandidateKeys": []
+      }
+    },
+    {
+      "name": "a reference glued to the surrounding text is still complete",
+      "given": {
+        "customers": [{ "key": "c12", "name": "Cong Ty Dien Thoai" }],
+        "invoices": [
+          {
+            "key": "i12",
+            "customerKey": "c12",
+            "invoiceNumber": "HD-2026-0013",
+            "totalAmount": 9000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r12",
+            "customerKey": "c12",
+            "invoiceKey": "i12",
+            "originalAmount": 9000000,
+            "dueDate": "2026-03-03"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0012",
+        "amount": 9000000,
+        "counterAccountNumber": "9999888877",
+        "counterAccountName": "CONG TY DIEN THOAI",
+        "description": "THANHTOANHD20260013"
+      },
+      "expect": {
+        "finalStatus": "MATCHED",
+        "candidates": [{ "key": "r12", "totalScore": 90 }],
+        "persistedCandidateKeys": []
+      }
+    },
+    {
+      "name": "a longer number does not satisfy a shorter exact reference",
+      "given": {
+        "customers": [
+          { "key": "c13a", "name": "Cong Ty Phuong" },
+          { "key": "c13b", "name": "Cong Ty Quang" }
+        ],
+        "invoices": [
+          {
+            "key": "i13a",
+            "customerKey": "c13a",
+            "invoiceNumber": "HD-2026-0014",
+            "totalAmount": 3000000
+          },
+          {
+            "key": "i13b",
+            "customerKey": "c13b",
+            "invoiceNumber": "HD-2026-00140",
+            "totalAmount": 3000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r13a",
+            "customerKey": "c13a",
+            "invoiceKey": "i13a",
+            "originalAmount": 3000000,
+            "dueDate": "2026-03-02"
+          },
+          {
+            "key": "r13b",
+            "customerKey": "c13b",
+            "invoiceKey": "i13b",
+            "originalAmount": 3000000,
+            "dueDate": "2026-03-02"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0013",
+        "amount": 3000000,
+        "counterAccountNumber": "9999888877",
+        "counterAccountName": "CONG TY PHUONG",
+        "description": "TT HD 2026 0014"
+      },
+      "expect": {
+        "$comment": [
+          "Resolving the customer from the exact reference replaces the candidate",
+          "set with that customer's open receivables, so the longer number is",
+          "never scored at all — not even as a near match."
+        ],
+        "finalStatus": "MATCHED",
+        "candidates": [{ "key": "r13a", "totalScore": 90 }],
+        "persistedCandidateKeys": []
+      }
+    },
+    {
+      "name": "a closed receivable is never a candidate, however exact its reference",
+      "given": {
+        "customers": [{ "key": "c14", "name": "Cong Ty Da Thu" }],
+        "invoices": [
+          {
+            "key": "i14",
+            "customerKey": "c14",
+            "invoiceNumber": "HD-2026-0015",
+            "totalAmount": 5000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r14",
+            "customerKey": "c14",
+            "invoiceKey": "i14",
+            "originalAmount": 5000000,
+            "paidAmount": 5000000,
+            "dueDate": "2026-03-01",
+            "status": "PAID"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0014",
+        "amount": 5000000,
+        "counterAccountNumber": "9999888877",
+        "counterAccountName": "CONG TY DA THU",
+        "description": "TT HD 2026 0015"
+      },
+      "expect": {
+        "finalStatus": "UNMATCHED",
+        "candidates": [],
+        "persistedCandidateKeys": []
+      }
+    },
+    {
+      "name": "a refund is ignored before any matching runs",
+      "given": {
+        "customers": [{ "key": "c15", "name": "Cong Ty Hoan" }],
+        "invoices": [
+          {
+            "key": "i15",
+            "customerKey": "c15",
+            "invoiceNumber": "HD-2026-0016",
+            "totalAmount": 5000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r15",
+            "customerKey": "c15",
+            "invoiceKey": "i15",
+            "originalAmount": 5000000,
+            "dueDate": "2026-03-01"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0015",
+        "amount": -500000,
+        "counterAccountNumber": "9999888877",
+        "counterAccountName": "CONG TY HOAN",
+        "description": "HOAN TIEN HD 2026 0016"
+      },
+      "expect": {
+        "$comment": [
+          "The engine would happily score this receivable, because the engine",
+          "knows nothing about refunds. The refund guard sits one layer above,",
+          "in ProcessWebhookUseCase, so the transfer is stored IGNORED and no",
+          "candidate is persisted. Asserting both halves is the point."
+        ],
+        "finalStatus": "IGNORED",
+        "candidates": [{ "key": "r15", "totalScore": 70 }],
+        "persistedCandidateKeys": []
+      }
+    },
+    {
+      "name": "one payer account linked to two customers ranks them against each other",
+      "given": {
+        "customers": [
+          { "key": "c16a", "name": "Cong Ty R" },
+          { "key": "c16b", "name": "Cong Ty S" }
+        ],
+        "payerAccounts": [
+          { "customerKey": "c16a", "accountNumber": "5555666677" },
+          { "customerKey": "c16b", "accountNumber": "5555666677" }
+        ],
+        "invoices": [
+          {
+            "key": "i16a",
+            "customerKey": "c16a",
+            "invoiceNumber": "HD-2026-0017",
+            "totalAmount": 3000000
+          },
+          {
+            "key": "i16b",
+            "customerKey": "c16b",
+            "invoiceNumber": "HD-2026-0018",
+            "totalAmount": 3000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r16a",
+            "customerKey": "c16a",
+            "invoiceKey": "i16a",
+            "originalAmount": 3000000,
+            "dueDate": "2026-03-02"
+          },
+          {
+            "key": "r16b",
+            "customerKey": "c16b",
+            "invoiceKey": "i16b",
+            "originalAmount": 3000000,
+            "dueDate": "2026-03-02"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0016",
+        "amount": 3000000,
+        "counterAccountNumber": "5555666677",
+        "counterAccountName": "CONG TY R",
+        "description": "TT HD 2026 0017"
+      },
+      "expect": {
+        "finalStatus": "MATCHED",
+        "candidates": [
+          { "key": "r16a", "totalScore": 100 },
+          { "key": "r16b", "totalScore": 70 }
+        ],
+        "persistedCandidateKeys": []
+      }
+    },
+    {
+      "name": "a due date past thirty days loses the timing points",
+      "given": {
+        "customers": [{ "key": "c17", "name": "Cong Ty Thanh" }],
+        "payerAccounts": [
+          { "customerKey": "c17", "accountNumber": "6666777788" }
+        ],
+        "invoices": [
+          {
+            "key": "i17",
+            "customerKey": "c17",
+            "invoiceNumber": "HD-2026-0019",
+            "totalAmount": 5000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r17",
+            "customerKey": "c17",
+            "invoiceKey": "i17",
+            "originalAmount": 5000000,
+            "dueDate": "2026-06-01"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0017",
+        "amount": 5000000,
+        "counterAccountNumber": "6666777788",
+        "counterAccountName": "CONG TY THANH",
+        "description": "TT HD 2026 0019"
+      },
+      "expect": {
+        "finalStatus": "MATCHED",
+        "candidates": [{ "key": "r17", "totalScore": 95 }],
+        "persistedCandidateKeys": []
+      }
+    },
+    {
+      "name": "two open receivables on one invoice are ranked by what is left to pay",
+      "given": {
+        "customers": [{ "key": "c18", "name": "Cong Ty Vu" }],
+        "invoices": [
+          {
+            "key": "i18",
+            "customerKey": "c18",
+            "invoiceNumber": "HD-2026-0020",
+            "totalAmount": 8000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r18a",
+            "customerKey": "c18",
+            "invoiceKey": "i18",
+            "originalAmount": 5000000,
+            "paidAmount": 1000000,
+            "dueDate": "2026-03-01",
+            "status": "PARTIALLY_PAID"
+          },
+          {
+            "key": "r18b",
+            "customerKey": "c18",
+            "invoiceKey": "i18",
+            "originalAmount": 3000000,
+            "dueDate": "2026-03-20"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0018",
+        "amount": 3000000,
+        "counterAccountNumber": "9999888877",
+        "counterAccountName": "CONG TY VU",
+        "description": "TT HD 2026 0020"
+      },
+      "expect": {
+        "finalStatus": "MATCHED",
+        "candidates": [
+          { "key": "r18b", "totalScore": 90 },
+          { "key": "r18a", "totalScore": 70 }
+        ],
+        "persistedCandidateKeys": []
+      }
+    },
+    {
+      "name": "a partially paid receivable whose remainder matches the transfer auto-matches",
+      "given": {
+        "customers": [{ "key": "c19", "name": "Cong Ty An" }],
+        "invoices": [
+          {
+            "key": "i19",
+            "customerKey": "c19",
+            "invoiceNumber": "HD-2026-0021",
+            "totalAmount": 10000000
+          }
+        ],
+        "receivables": [
+          {
+            "key": "r19",
+            "customerKey": "c19",
+            "invoiceKey": "i19",
+            "originalAmount": 10000000,
+            "paidAmount": 3000000,
+            "dueDate": "2026-03-04",
+            "status": "PARTIALLY_PAID"
+          }
+        ]
+      },
+      "webhook": {
+        "providerTransactionId": "REPLAY-0019",
+        "amount": 7000000,
+        "counterAccountNumber": "9999888877",
+        "counterAccountName": "CONG TY AN",
+        "description": "TT HD 2026 0021"
+      },
+      "expect": {
+        "finalStatus": "MATCHED",
+        "candidates": [{ "key": "r19", "totalScore": 90 }],
+        "persistedCandidateKeys": []
+      }
+    }
+  ]
+}

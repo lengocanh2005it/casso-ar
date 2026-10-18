@@ -1,9 +1,12 @@
 export const REFERENCE_KEY_MIN_LENGTH = 4;
 export const REFERENCE_KEY_MAX_LENGTH = 32;
-// ponytail: only the first 200 normalized characters are read, which caps the
-// key set (~5000 worst case). Raise it, or tokenize, if longer transfer
-// descriptions need to be searched.
-const MAX_CONTENT_LENGTH = 200;
+// ponytail: only the first 512 normalized characters are read, which caps the
+// key set (~13000 worst case, passed as one `= ANY($1)` against the invoice
+// expression index). Bank descriptions are far shorter than that; the bound is
+// defensive, not observed. Raise it only with a real sample that needs it, or
+// switch to token-first extraction with a key budget, which stops the key count
+// growing with the content length at all.
+const MAX_CONTENT_LENGTH = 512;
 
 // Every substring of the normalized content that could be a normalized invoice
 // number. Normalization (ASCII letters/digits only, upper case) mirrors the
