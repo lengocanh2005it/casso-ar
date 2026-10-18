@@ -99,6 +99,15 @@ export async function seedReplayCase(
   const receivables = new Map<string, string>();
   const unique = replayCase.webhook.providerTransactionId;
 
+  // One lookup for every child row, so a fixture can never write an invoice or
+  // a payer link under the default organization while its customer lives in
+  // another — which would silently stop being a cross-tenant case.
+  const organizationOf = (customerKey: string): string => {
+    const customer = given.customers?.find((c) => c.key === customerKey);
+    if (!customer) throw new Error(`Unknown customerKey ${customerKey}`);
+    return customer.organizationId ?? defaultOrganizationId;
+  };
+
   for (const customer of given.customers ?? []) {
     const id = randomUUID();
     customers.set(customer.key, id);
@@ -122,7 +131,7 @@ export async function seedReplayCase(
       throw new Error(`Unknown customerKey ${payerAccount.customerKey}`);
     await dataSource.getRepository(CustomerBankAccountOrmEntity).save({
       id: randomUUID(),
-      organizationId: defaultOrganizationId,
+      organizationId: organizationOf(payerAccount.customerKey),
       customerId,
       accountNumber: payerAccount.accountNumber,
       isActive: true,
@@ -132,9 +141,6 @@ export async function seedReplayCase(
   }
 
   for (const invoice of given.invoices ?? []) {
-    const customer = given.customers?.find(
-      (c) => c.key === invoice.customerKey,
-    );
     const customerId = customers.get(invoice.customerKey);
     if (!customerId)
       throw new Error(`Unknown customerKey ${invoice.customerKey}`);
@@ -142,7 +148,7 @@ export async function seedReplayCase(
     invoices.set(invoice.key, id);
     await dataSource.getRepository(InvoiceOrmEntity).save({
       id,
-      organizationId: customer?.organizationId ?? defaultOrganizationId,
+      organizationId: organizationOf(invoice.customerKey),
       customerId,
       invoiceNumber: invoice.invoiceNumber,
       issueDate: new Date('2026-01-05'),
@@ -156,9 +162,6 @@ export async function seedReplayCase(
   }
 
   for (const receivable of given.receivables ?? []) {
-    const customer = given.customers?.find(
-      (c) => c.key === receivable.customerKey,
-    );
     const customerId = customers.get(receivable.customerKey);
     const invoiceId = invoices.get(receivable.invoiceKey);
     if (!customerId)
@@ -169,7 +172,7 @@ export async function seedReplayCase(
     receivables.set(receivable.key, id);
     await dataSource.getRepository(ReceivableOrmEntity).save({
       id,
-      organizationId: customer?.organizationId ?? defaultOrganizationId,
+      organizationId: organizationOf(receivable.customerKey),
       customerId,
       invoiceId,
       originalAmount: receivable.originalAmount,

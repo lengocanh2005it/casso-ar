@@ -16,7 +16,12 @@
     "",
     "expect.candidates lists only this case's own receivables, ordered by",
     "totalScore descending; equal scores are asserted as a set, because",
-    "scoreCandidates sorts on totalScore alone and has no tie-break."
+    "scoreCandidates sorts on totalScore alone and has no tie-break.",
+    "",
+    "The weights above are deliberately written out instead of imported from",
+    "the scoring modules: a corpus that reads the weights back out of the code",
+    "asserts whatever the code currently says, which is the one thing a replay",
+    "suite must not do. Changing a weight is expected to fail this file."
   ],
   "cases": [
     {
@@ -394,10 +399,13 @@
         "Issue #495. Two bounds are crossed at once:",
         "1. the reference sits at normalized character ~310, past the 200 the",
         "   extractor used to read;",
-        "2. the receivable's due date is 2027-06-01, the 21st nearest due date",
-        "   after the transfer, so the 20-row org-wide scan never sees it.",
-        "The 20 fillers exist only to occupy that window; their invoice numbers",
-        "share no character with the content, so they score 0 on reference."
+        "2. the receivable's due date is 2027-06-01, far past every other",
+        "   fixture row, so the 20-row org-wide scan never reaches it.",
+        "The 20 fillers exist for two reasons: they push the real receivable out",
+        "of that window, and their own survival is the evidence the scan stays",
+        "bounded — on the old constant the engine saw 11 of the 21 rows this",
+        "customer owns, never all of them. Their invoice numbers share no",
+        "character with the content, so they score 0 on reference."
       ],
       "given": {
         "customers": [{ "key": "c10", "name": "Cong Ty Ky Thuong" }],

@@ -186,12 +186,6 @@ describe('Matching replay corpus (e2e)', () => {
         .sort(),
     ).toEqual([...replayCase.expect.persistedCandidateKeys].sort());
 
-    if (
-      replayCase.expect.finalStatus !== 'PENDING_REVIEW' &&
-      replayCase.expect.finalStatus !== 'UNMATCHED'
-    ) {
-      return;
-    }
     const queue = await request(app.getHttpServer())
       .get('/api/v1/bank-transactions/unmatched?limit=100')
       .set('Authorization', `Bearer ${token}`)
@@ -200,6 +194,15 @@ describe('Matching replay corpus (e2e)', () => {
       (entry: { transaction: { id: string } }) =>
         entry.transaction.id === transaction.id,
     );
+    const actionable =
+      replayCase.expect.finalStatus === 'PENDING_REVIEW' ||
+      replayCase.expect.finalStatus === 'UNMATCHED';
+    // A settled transfer is received money that has already been dealt with;
+    // leaving it in the review queue is how received money gets allocated twice.
+    if (!actionable) {
+      expect(queued).toBeUndefined();
+      return;
+    }
     expect(queued).toBeDefined();
     expect(queued.transaction.status).toBe(replayCase.expect.finalStatus);
     // UNMATCHED stores no candidate, so the reviewer has nothing suggested;
