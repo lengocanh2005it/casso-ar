@@ -25,6 +25,18 @@ _Avoid_: Tie, Conflict
 A bank transfer's content contains an open receivable's complete invoice number, ignoring case and separators and not as part of a longer number. Such a receivable is always considered for matching, however many other open receivables exist.
 _Avoid_: Invoice code match
 
+**Matching candidate**:
+An open receivable the matching engine has scored against one incoming bank transfer. Each candidate carries the five score components that produced its total, and the scores stay available for review after the transfer is decided.
+_Avoid_: Suggestion, Possible match
+
+**Candidate recall**:
+The set of receivables a transfer could actually have been matched against. It is settled before scoring: a receivable never surfaced cannot be scored, ranked, or matched, however well its reference or amount would have fitted.
+_Avoid_: Match rate, Matching accuracy
+
+**Exception Queue**:
+The accountant's review worklist of received transfers that matching did not settle — both transfers whose candidates need a human choice and transfers with no plausible candidate at all. Every row is received money waiting for an accounting decision, not missing money.
+_Avoid_: Unmatched transactions list
+
 **Customer credit**:
 Received money that has not been allocated to a receivable and is held for an accountant to allocate intentionally later.
 

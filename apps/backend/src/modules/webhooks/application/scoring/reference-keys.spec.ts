@@ -41,10 +41,17 @@ describe('referenceKeysFromContent', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it('only reads the first 200 normalized characters', () => {
-    const keys = referenceKeysFromContent(`${'X'.repeat(200)}INV12345`);
+  it('only reads the first 512 normalized characters', () => {
+    const keys = referenceKeysFromContent(`${'X'.repeat(512)}INV12345`);
     expect(keys).not.toContain('INV12345');
     expect(keys).not.toContain('INV1');
+  });
+
+  it('reads a reference that sits past the old 200 character prefix', () => {
+    // Issue #495: the exact reference sat at ~310 and was lost, so the
+    // receivable it belonged to was never scored at all.
+    const content = `${'THANH TOAN HOA DON '.repeat(20)}INV 1234`;
+    expect(referenceKeysFromContent(content)).toContain('INV1234');
   });
 
   it('ignores characters that are not ASCII letters or digits', () => {
