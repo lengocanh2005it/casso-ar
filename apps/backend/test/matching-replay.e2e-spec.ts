@@ -30,6 +30,9 @@ import {
 } from './helpers/matching-fixtures';
 import { startTestRedis } from './helpers/test-redis';
 
+// process-webhook.usecase.ts: EXCEPTION_QUEUE_THRESHOLD (module-local there)
+const EXCEPTION_QUEUE_THRESHOLD = 60;
+
 // scoreCandidates sorts on totalScore alone, with no tie-break, so two
 // candidates on the same score have no defined order. Group by score and
 // compare the members of each group as a set: pinning an order here would be
@@ -180,11 +183,31 @@ describe('Matching replay corpus (e2e)', () => {
     const persisted = await dataSource
       .getRepository(MatchingCandidateOrmEntity)
       .find({ where: { bankTransactionId: transaction.id } });
+    // Cases share one organization, so the org-wide scan hands the engine rows
+    // seeded by earlier cases too. Those earn a near-match score and are stored
+    // on purpose — a reviewer should see plausible receivables, not only the
+    // high scorers — so this case's expectation covers its own rows only.
     expect(
       persisted
-        .map((row) => keyByReceivableId.get(row.receivableId) as string)
+        .filter((row) => keyByReceivableId.has(row.receivableId))
+        .map((row) => keyByReceivableId.get(row.receivableId))
         .sort(),
     ).toEqual([...replayCase.expect.persistedCandidateKeys].sort());
+
+    // What must never appear is a foreign row that could compete for the
+    // transfer: the 60 threshold is what decides the transaction's fate, so
+    // anything at or above it has to belong to this case. Comparing the whole
+    // array instead would pass vacuously — jest's toEqual ignores `undefined`,
+    // so an unmapped foreign receivable drops out of the list silently.
+    expect(
+      persisted
+        .filter(
+          (row) =>
+            !keyByReceivableId.has(row.receivableId) &&
+            row.totalScore >= EXCEPTION_QUEUE_THRESHOLD,
+        )
+        .map((row) => `foreign ${row.receivableId} scored ${row.totalScore}`),
+    ).toEqual([]);
 
     const queue = await request(app.getHttpServer())
       .get('/api/v1/bank-transactions/unmatched?limit=100')
