@@ -21,6 +21,38 @@ const PROPS = {
 };
 
 describe('TypeOrmReceivableRepository', () => {
+  it('loads bounded same-customer open receivables in tenant-scoped stable order', async () => {
+    const ormRepo = { find: jest.fn().mockResolvedValue([PROPS]) };
+    const tenantContext = new TenantContextService();
+    const repository = new TypeOrmReceivableRepository(
+      ormRepo as any,
+      tenantContext,
+    );
+
+    const result = await tenantContext.run(
+      { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+      () => repository.findOpenByCustomerIdWithLimit('cus-1', 101),
+    );
+
+    expect(result).toEqual([new Receivable(PROPS)]);
+    expect(ormRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organizationId: 'org-1',
+          customerId: 'cus-1',
+          status: In([ReceivableStatus.OPEN, ReceivableStatus.PARTIALLY_PAID]),
+        },
+        order: { id: 'ASC' },
+        take: 101,
+        select: expect.objectContaining({
+          id: true,
+          originalAmount: true,
+          paidAmount: true,
+        }),
+      }),
+    );
+  });
+
   it('finds open receivables overdue by at least the requested threshold', async () => {
     const ormRepo = { find: jest.fn().mockResolvedValue([]) };
     const tenantContext = new TenantContextService();

@@ -6,6 +6,7 @@ import type {
   Payment,
   PendingReviewItem,
   QueueStatus,
+  ReceivableCombinationSuggestions,
 } from '../types';
 
 export interface PendingReviewPage {
@@ -38,6 +39,17 @@ export function fetchCandidates(
   return apiRequest<MatchingCandidate[]>({
     url: `/api/v1/bank-transactions/${bankTransactionId}/candidates`,
     method: 'GET',
+  });
+}
+
+export function fetchCombinationSuggestions(
+  bankTransactionId: string,
+  customerId: string,
+): Promise<ReceivableCombinationSuggestions> {
+  return apiRequest<ReceivableCombinationSuggestions>({
+    url: `/api/v1/bank-transactions/${bankTransactionId}/combination-suggestions`,
+    method: 'GET',
+    params: { customerId },
   });
 }
 

@@ -50,6 +50,24 @@ export interface MatchingCandidate {
   createdAt: string;
 }
 
+export interface ReceivableCombinationSuggestion {
+  receivableId: string;
+  customerId: string;
+  customerName: string | null;
+  invoiceNumber: string | null;
+  remainingAmount: number;
+  dueDate: string | null;
+}
+
+export interface ReceivableCombinationGroup {
+  receivables: ReceivableCombinationSuggestion[];
+}
+
+export interface ReceivableCombinationSuggestions {
+  status: 'CUSTOMER_REQUIRED' | 'COMPLETE' | 'INCOMPLETE';
+  combinations: ReceivableCombinationGroup[];
+}
+
 export interface PayerLinkedCustomer {
   customerId: string;
   customerName: string;

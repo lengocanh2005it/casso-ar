@@ -33,8 +33,15 @@ import {
 } from '../../webhooks/application/matching-candidate-repository.port';
 import type { AiMatchingRecommendation } from '../../webhooks/domain/ai-matching-recommendation';
 import type { BankTransaction } from '../../webhooks/domain/bank-transaction';
-import { ACTIONABLE_BANK_TRANSACTION_STATUSES } from '../../webhooks/domain/bank-transaction';
+import {
+  ACTIONABLE_BANK_TRANSACTION_STATUSES,
+  isActionableStatus,
+} from '../../webhooks/domain/bank-transaction';
 import type { MatchingCandidate } from '../../webhooks/domain/matching-candidate';
+import {
+  findReceivableCombinations,
+  MAX_RECEIVABLE_CANDIDATES,
+} from './receivable-combination-search';
 
 export interface AiMatchingRecommendationView {
   status: AiMatchingRecommendation['status'];
@@ -70,6 +77,24 @@ export interface MatchingCandidateView {
   customerName: string | null;
   remainingAmount: number | null;
   dueDate: Date | null;
+}
+
+export interface ReceivableCombinationSuggestionView {
+  receivableId: string;
+  customerId: string;
+  customerName: string | null;
+  invoiceNumber: string | null;
+  remainingAmount: number;
+  dueDate: Date | null;
+}
+
+export interface ReceivableCombinationGroupView {
+  receivables: ReceivableCombinationSuggestionView[];
+}
+
+export interface ReceivableCombinationSuggestionsView {
+  status: 'CUSTOMER_REQUIRED' | 'COMPLETE' | 'INCOMPLETE';
+  combinations: ReceivableCombinationGroupView[];
 }
 
 export interface UnmatchedBankTransactionPage {
@@ -242,6 +267,91 @@ export class UnmatchedBankTransactionsQueryService {
         bankTransactionId,
       ),
     );
+  }
+
+  async combinationSuggestions(
+    bankTransactionId: string,
+    selectedCustomerId?: string,
+  ): Promise<ReceivableCombinationSuggestionsView> {
+    const transaction =
+      await this.bankTransactionRepo.findById(bankTransactionId);
+    if (!transaction) {
+      throw new AppError(
+        ErrorCode.NOT_FOUND,
+        'Không tìm thấy giao dịch ngân hàng.',
+      );
+    }
+    if (!isActionableStatus(transaction.status)) {
+      throw new AppError(
+        ErrorCode.CONFLICT,
+        'Giao dịch không còn chờ xử lý trong hàng đợi ngoại lệ.',
+      );
+    }
+
+    let customerId = selectedCustomerId;
+    if (!customerId) {
+      const candidates =
+        await this.matchingCandidateRepo.findByBankTransactionId(
+          bankTransactionId,
+        );
+      const candidateCustomerIds = [
+        ...new Set(candidates.map((candidate) => candidate.customerId)),
+      ];
+      if (candidateCustomerIds.length !== 1) {
+        return { status: 'CUSTOMER_REQUIRED', combinations: [] };
+      }
+      customerId = candidateCustomerIds[0];
+    }
+
+    const receivables = await this.receivableRepo.findOpenByCustomerIdWithLimit(
+      customerId,
+      MAX_RECEIVABLE_CANDIDATES + 1,
+    );
+    const searchResult = findReceivableCombinations(
+      receivables.map((receivable) => ({
+        receivableId: receivable.id,
+        remainingAmount: receivable.remainingAmount,
+      })),
+      transaction.amount,
+    );
+    if (
+      searchResult.status === 'INCOMPLETE' ||
+      searchResult.combinations.length === 0
+    ) {
+      return { status: searchResult.status, combinations: [] };
+    }
+
+    const { customers, invoices } = await loadReceivableRelatedData(
+      receivables,
+      [customerId],
+      this.customerRepo,
+      this.invoiceRepo,
+    );
+    const receivablesById = new Map(
+      receivables.map((receivable) => [receivable.id, receivable]),
+    );
+    const combinations: ReceivableCombinationGroupView[] = [];
+    for (const combination of searchResult.combinations) {
+      const group: ReceivableCombinationSuggestionView[] = [];
+      for (const receivableId of combination) {
+        const receivable = receivablesById.get(receivableId);
+        if (!receivable) {
+          return { status: 'INCOMPLETE', combinations: [] };
+        }
+        group.push({
+          receivableId: receivable.id,
+          customerId: receivable.customerId,
+          customerName: customers.get(receivable.customerId)?.name ?? null,
+          invoiceNumber: receivable.invoiceId
+            ? (invoices.get(receivable.invoiceId)?.invoiceNumber ?? null)
+            : null,
+          remainingAmount: receivable.remainingAmount,
+          dueDate: receivable.dueDate,
+        });
+      }
+      combinations.push({ receivables: group });
+    }
+    return { status: 'COMPLETE', combinations };
   }
 
   private async toCandidateViews(

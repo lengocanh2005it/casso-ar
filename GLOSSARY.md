@@ -7,6 +7,10 @@ This glossary names the business concepts used to track receivables and incoming
 **Payment allocation**:
 Assignment of an amount from a received payment to a receivable. One payment can fund multiple receivables, and one receivable can receive allocations from multiple payments.
 
+**Receivable combination suggestion**:
+A proposed set of at least two of one uniquely identified customer's open or partially paid receivables, each at its full remaining balance, whose balances exactly total an incoming bank transfer. It remains a review proposal until a human confirms the allocations.
+_Avoid_: Automatic multi-invoice match
+
 **Allocation undo**:
 Reversal of an active payment allocation that restores the receivable balance while preserving the original allocation as history. A separate collection activity records the undone amount, actor, and reason.
 

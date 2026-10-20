@@ -168,6 +168,60 @@ describe('Exception Queue (e2e)', () => {
     return item.transaction.version;
   }
 
+  it('suggests a complete same-customer group without allocating until confirmed', async () => {
+    const customerId = await createCustomer();
+    const receivableIdA = await createReceivable(customerId, 40);
+    const receivableIdB = await createReceivable(customerId, 60);
+    await createReceivable(customerId, 100);
+    const transactionId = await createReviewTransaction(100);
+
+    const response = await request(app.getHttpServer())
+      .get(
+        `/api/v1/bank-transactions/${transactionId}/combination-suggestions?customerId=${customerId}`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.body.status).toBe('COMPLETE');
+    expect(response.body.combinations).toHaveLength(1);
+    expect(
+      response.body.combinations[0].receivables.map(
+        (receivable: { receivableId: string; remainingAmount: number }) => [
+          receivable.receivableId,
+          receivable.remainingAmount,
+        ],
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        [receivableIdA, 40],
+        [receivableIdB, 60],
+      ]),
+    );
+    expect(
+      await dataSource.getRepository(PaymentOrmEntity).countBy({
+        bankTransactionId: transactionId,
+      }),
+    ).toBe(0);
+    expect(
+      await dataSource
+        .getRepository(BankTransactionOrmEntity)
+        .findOneByOrFail({ id: transactionId }),
+    ).toMatchObject({ status: 'PENDING_REVIEW' });
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/bank-transactions/${transactionId}/match`)
+      .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', `match-combination-${transactionId}`)
+      .send({
+        allocations: [
+          { receivableId: receivableIdA, amount: 40 },
+          { receivableId: receivableIdB, amount: 60 },
+        ],
+        version: await fetchVersionViaApi(transactionId),
+      })
+      .expect(201);
+  }, 20_000);
+
   it('lets exactly one of two concurrent match requests succeed', async () => {
     const customerId = await createCustomer();
     const receivableId = await createReceivable(customerId, 30_000_000);
