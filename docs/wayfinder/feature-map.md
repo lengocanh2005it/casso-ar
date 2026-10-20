@@ -803,7 +803,7 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Frontier
 
-- #503 — Suggest same-customer receivable combinations for one transfer. **Status: in-progress.** Implement bounded exact-sum suggestions in the Exception Queue, requiring one customer scope and operator confirmation through the existing split flow.
+- #503 — Suggest same-customer receivable combinations for one transfer. **Status: done. Shipped: 2026-10-20 — PR #504 (open for review).** Implement bounded exact-sum suggestions in the Exception Queue, requiring one customer scope and operator confirmation through the existing split flow.
 
 **2026-08-23 update:** PR #325 shipped #320 and PR #326 shipped #321.
 
