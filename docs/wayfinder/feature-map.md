@@ -803,6 +803,8 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Frontier
 
+- #503 — Suggest same-customer receivable combinations for one transfer. **Status: in-progress.** Implement bounded exact-sum suggestions in the Exception Queue, requiring one customer scope and operator confirmation through the existing split flow.
+
 **2026-08-23 update:** PR #325 shipped #320 and PR #326 shipped #321.
 
 **Current status (2026-08-16):** Casso Admin Platform (#98) shipped via PR #177. Copilot Draft Library (#136), its edit/delete follow-up (#171), Receivable Balance History (#172), member-level block/unblock (#178), Receivable Balance History Audit Dashboard (#176), both halves of #181 (member block/unblock UI — org-facing via PR #185, Admin Platform operator workspace via PR #190), Public Landing Page (#143) via PR #188, and Admin Platform pending invite resend/revoke actions (#189) via PR #191 are done. Three unrelated e2e failures are deferred to a separate issue.

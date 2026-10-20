@@ -11,6 +11,7 @@ import {
   batchMarkPrepaid,
   batchSkip,
   fetchCandidates,
+  fetchCombinationSuggestions,
   fetchPendingReview,
   markPrepaid,
   skipTransaction,
@@ -34,6 +35,21 @@ export function useCandidates(bankTransactionId: string) {
     queryKey: ['bank-transaction-candidates', bankTransactionId],
     queryFn: () => fetchCandidates(bankTransactionId),
     enabled: bankTransactionId.length > 0,
+  });
+}
+
+export function useCombinationSuggestions(
+  bankTransactionId: string,
+  customerId: string,
+) {
+  return useQuery({
+    queryKey: [
+      'bank-transaction-combination-suggestions',
+      bankTransactionId,
+      customerId,
+    ],
+    queryFn: () => fetchCombinationSuggestions(bankTransactionId, customerId),
+    enabled: bankTransactionId.length > 0 && customerId.length > 0,
   });
 }
 

@@ -32,11 +32,17 @@ import { formatDate, formatVND } from '@/lib/format';
 import { hasPermission } from '@/lib/rbac';
 import {
   useCandidates,
+  useCombinationSuggestions,
   useMarkPrepaid,
   useSkipTransaction,
   useSplitMatch,
 } from '../api/use-exceptions';
-import type { AiRecommendation, BankTransaction, Payer } from '../types';
+import type {
+  AiRecommendation,
+  BankTransaction,
+  Payer,
+  ReceivableCombinationGroup,
+} from '../types';
 
 function AiRecommendationNotice({
   recommendation,
@@ -116,8 +122,10 @@ export function SplitMatchDialog({
     isError: candidatesFailed,
   } = useCandidates(open ? tx.id : '');
   const [amounts, setAmounts] = useState<Record<string, string>>({});
+  const [selectedCombination, setSelectedCombination] =
+    useState<ReceivableCombinationGroup | null>(null);
   const [customerSearch, setCustomerSearch] = useState('');
-  const [prepaidCustomerId, setPrepaidCustomerId] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [allocationError, setAllocationError] = useState<string | null>(null);
   const [rememberPayer, setRememberPayer] = useState(true);
   const { data: customerPage } = useCustomers(
@@ -132,8 +140,9 @@ export function SplitMatchDialog({
   useEffect(() => {
     if (open) {
       setAmounts({});
+      setSelectedCombination(null);
       setCustomerSearch('');
-      setPrepaidCustomerId('');
+      setSelectedCustomerId('');
       setAllocationError(null);
       setRememberPayer(true);
     }
@@ -149,19 +158,43 @@ export function SplitMatchDialog({
   // not masquerade as "no suggestions".
   const needsManualPick =
     !candidatesLoading && !candidatesFailed && sortedCandidates.length === 0;
+  const candidateCustomerIds = [
+    ...new Set(sortedCandidates.map((candidate) => candidate.customerId)),
+  ];
+  const systemCustomerIds =
+    candidatesLoading || candidatesFailed
+      ? []
+      : [
+          ...new Set([
+            ...candidateCustomerIds,
+            ...(payer?.linkedCustomers.map((customer) => customer.customerId) ??
+              []),
+          ]),
+        ];
+  const combinationCustomerId =
+    selectedCustomerId ||
+    (systemCustomerIds.length === 1 ? systemCustomerIds[0] : '');
+  const {
+    data: combinationSuggestions,
+    isLoading: combinationsLoading,
+    isError: combinationsFailed,
+  } = useCombinationSuggestions(open ? tx.id : '', combinationCustomerId);
   // Ask the server for the open statuses rather than fetching one capped page
   // and narrowing it here: a customer with many closed receivables would fill
   // the page with rows that can never be allocated to.
   const manualPickEnabled =
-    open && needsManualPick && prepaidCustomerId.length > 0;
+    open && needsManualPick && selectedCustomerId.length > 0;
   const { data: openPage, isError: openFailed } = useReceivables(
-    { customerId: prepaidCustomerId, status: ReceivableStatus.OPEN },
+    { customerId: selectedCustomerId, status: ReceivableStatus.OPEN },
     1,
     MANUAL_PICK_LIMIT,
     { enabled: manualPickEnabled },
   );
   const { data: partialPage, isError: partialFailed } = useReceivables(
-    { customerId: prepaidCustomerId, status: ReceivableStatus.PARTIALLY_PAID },
+    {
+      customerId: selectedCustomerId,
+      status: ReceivableStatus.PARTIALLY_PAID,
+    },
     1,
     MANUAL_PICK_LIMIT,
     { enabled: manualPickEnabled },
@@ -178,26 +211,36 @@ export function SplitMatchDialog({
   );
   const rows = useMemo(
     () =>
-      needsManualPick
-        ? manualPickReceivables.map((receivable) => ({
-            receivableId: receivable.id,
-            customerId: receivable.customerId,
-            customerName: receivable.customerName ?? null,
-            invoiceNumber: receivable.invoiceNumber,
-            remainingAmount: receivable.remainingAmount,
-            dueDate: receivable.dueDate,
+      selectedCombination
+        ? selectedCombination.receivables.map((receivable) => ({
+            ...receivable,
             score: null,
           }))
-        : sortedCandidates.map((candidate) => ({
-            receivableId: candidate.receivableId,
-            customerId: candidate.customerId,
-            customerName: candidate.customerName,
-            invoiceNumber: candidate.invoiceNumber,
-            remainingAmount: candidate.remainingAmount,
-            dueDate: candidate.dueDate,
-            score: candidate.totalScore,
-          })),
-    [needsManualPick, manualPickReceivables, sortedCandidates],
+        : needsManualPick
+          ? manualPickReceivables.map((receivable) => ({
+              receivableId: receivable.id,
+              customerId: receivable.customerId,
+              customerName: receivable.customerName ?? null,
+              invoiceNumber: receivable.invoiceNumber,
+              remainingAmount: receivable.remainingAmount,
+              dueDate: receivable.dueDate,
+              score: null,
+            }))
+          : sortedCandidates.map((candidate) => ({
+              receivableId: candidate.receivableId,
+              customerId: candidate.customerId,
+              customerName: candidate.customerName,
+              invoiceNumber: candidate.invoiceNumber,
+              remainingAmount: candidate.remainingAmount,
+              dueDate: candidate.dueDate,
+              score: candidate.totalScore,
+            })),
+    [
+      selectedCombination,
+      needsManualPick,
+      manualPickReceivables,
+      sortedCandidates,
+    ],
   );
   const allocations = rows
     .filter((row) => Number(amounts[row.receivableId]) > 0)
@@ -231,6 +274,9 @@ export function SplitMatchDialog({
     !alreadyLinkedToChosen &&
     otherLinkedCustomerNames.length > 0;
   const showRememberCheckbox = accountNumber !== null && !alreadyLinkedToChosen;
+  const customerPickerLabel = needsManualPick
+    ? 'Tìm khách hàng để chọn khoản phải thu'
+    : 'Tìm khách hàng để gợi ý nhóm hóa đơn hoặc ghi nhận công nợ';
 
   useEffect(() => {
     if (linkedToDifferentCustomer) {
@@ -364,7 +410,7 @@ export function SplitMatchDialog({
               </p>
             )}
           </div>
-          {needsManualPick && !prepaidCustomerId && (
+          {needsManualPick && !selectedCustomerId && (
             <p className="text-sm text-muted-foreground">
               Chưa có gợi ý khớp cho giao dịch này. Hãy chọn khách hàng để xem
               các khoản phải thu còn mở.
@@ -378,12 +424,91 @@ export function SplitMatchDialog({
           )}
           {needsManualPick &&
             !manualPickFailed &&
-            prepaidCustomerId &&
+            selectedCustomerId &&
             manualPickReceivables.length === 0 && (
               <p className="text-sm text-muted-foreground">
                 Khách hàng này không có khoản phải thu còn mở. Hãy ghi nhận công
                 nợ nếu đó là tiền trả trước.
               </p>
+            )}
+          {combinationCustomerId && combinationsLoading && (
+            <p className="text-sm text-muted-foreground">
+              Đang tìm nhóm hóa đơn khớp chính xác…
+            </p>
+          )}
+          {combinationCustomerId && combinationsFailed && (
+            <p role="alert" className="text-sm text-destructive">
+              Không tải được gợi ý nhóm hóa đơn. Bạn vẫn có thể phân bổ thủ
+              công.
+            </p>
+          )}
+          {combinationSuggestions?.status === 'INCOMPLETE' && (
+            <p role="status" className="text-sm text-muted-foreground">
+              Chưa thể tìm hết các nhóm hóa đơn trong giới hạn tìm kiếm. Hãy
+              chia giao dịch thủ công.
+            </p>
+          )}
+          {combinationSuggestions?.status === 'COMPLETE' &&
+            combinationSuggestions.combinations.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Không tìm thấy nhóm hóa đơn khớp chính xác. Bạn vẫn có thể phân
+                bổ thủ công.
+              </p>
+            )}
+          {!combinationCustomerId && systemCustomerIds.length > 1 && (
+            <p className="text-sm text-muted-foreground">
+              Chọn một khách hàng để tìm gợi ý nhóm hóa đơn.
+            </p>
+          )}
+          {combinationSuggestions?.status === 'COMPLETE' &&
+            combinationSuggestions.combinations.length > 0 && (
+              <section aria-label="Gợi ý nhóm hóa đơn" className="space-y-3">
+                <h3 className="text-sm font-medium">
+                  Gợi ý nhóm hóa đơn khớp chính xác
+                </h3>
+                {combinationSuggestions.combinations.map((group, index) => (
+                  <div
+                    key={group.receivables
+                      .map((item) => item.receivableId)
+                      .join(':')}
+                    className="rounded-lg border p-3"
+                  >
+                    <p className="mb-2 text-xs font-medium text-muted-foreground">
+                      Nhóm {index + 1}
+                    </p>
+                    <ul className="mb-3 space-y-1 text-sm">
+                      {group.receivables.map((receivable) => (
+                        <li key={receivable.receivableId}>
+                          {getReceivableDisplayName(receivable.invoiceNumber)}
+                          {' · '}
+                          {formatVND(receivable.remainingAmount)}
+                        </li>
+                      ))}
+                    </ul>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={selectedCombination === group}
+                      onClick={() => {
+                        setSelectedCombination(group);
+                        setAmounts(
+                          Object.fromEntries(
+                            group.receivables.map((item) => [
+                              item.receivableId,
+                              String(item.remainingAmount),
+                            ]),
+                          ),
+                        );
+                        setAllocationError(null);
+                      }}
+                    >
+                      {selectedCombination === group
+                        ? 'Đang dùng nhóm này'
+                        : 'Dùng nhóm này'}
+                    </Button>
+                  </div>
+                ))}
+              </section>
             )}
           {rows.map((row) => {
             const receivableLabel = getReceivableDisplayName(row.invoiceNumber);
@@ -471,11 +596,7 @@ export function SplitMatchDialog({
             </p>
           )}
           <label htmlFor="customer-search" className="grid gap-2 text-sm">
-            <span>
-              {needsManualPick
-                ? 'Tìm khách hàng để chọn khoản phải thu'
-                : 'Tìm khách hàng để ghi nhận công nợ'}
-            </span>
+            <span>{customerPickerLabel}</span>
             <Input
               name="customerSearch"
               autoComplete="off"
@@ -483,22 +604,28 @@ export function SplitMatchDialog({
               value={customerSearch}
               onChange={(event) => {
                 setCustomerSearch(event.target.value);
-                setPrepaidCustomerId('');
+                setSelectedCustomerId('');
+                if (selectedCombination) {
+                  setSelectedCombination(null);
+                  setAmounts({});
+                }
               }}
               placeholder="Tên khách hàng, mã số thuế hoặc số điện thoại…"
             />
           </label>
           {customerPage && customerPage.items.length > 0 && (
             <Select
-              value={prepaidCustomerId}
-              onValueChange={setPrepaidCustomerId}
+              value={selectedCustomerId}
+              onValueChange={(customerId) => {
+                setSelectedCustomerId(customerId);
+                if (needsManualPick || selectedCombination) {
+                  setAmounts({});
+                }
+                setSelectedCombination(null);
+              }}
             >
               <SelectTrigger
-                aria-label={
-                  needsManualPick
-                    ? 'Khách hàng để chọn khoản phải thu'
-                    : 'Khách hàng để ghi nhận công nợ'
-                }
+                aria-label={customerPickerLabel}
                 className="w-full"
               >
                 <SelectValue placeholder="Chọn khách hàng" />
@@ -515,10 +642,10 @@ export function SplitMatchDialog({
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
             <Button
               variant="outline"
-              disabled={!prepaidCustomerId || prepaid.isPending}
+              disabled={!selectedCustomerId || prepaid.isPending}
               onClick={() =>
                 prepaid.mutate(
-                  { id: tx.id, customerId: prepaidCustomerId },
+                  { id: tx.id, customerId: selectedCustomerId },
                   { onSuccess: () => onOpenChange(false) },
                 )
               }

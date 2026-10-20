@@ -50,6 +50,11 @@ import {
 } from './dto/exception-queue-response.dto';
 import { MarkPrepaidBankTransactionDto } from './dto/mark-prepaid-bank-transaction.dto';
 import { MatchBankTransactionDto } from './dto/match-bank-transaction.dto';
+import { ReceivableCombinationSuggestionsQueryDto } from './dto/receivable-combination-suggestions-query.dto';
+import {
+  ReceivableCombinationSuggestionsResponseDto,
+  toReceivableCombinationSuggestionsResponse,
+} from './dto/receivable-combination-suggestions-response.dto';
 
 @ApiTags('exception-queue')
 @Controller('bank-transactions')
@@ -111,6 +116,26 @@ export class ExceptionQueueController {
   async candidates(@Param('id') id: string) {
     const candidates = await this.unmatchedQuery.candidates(id);
     return candidates.map(toMatchingCandidateResponse);
+  }
+
+  @Get(':id/combination-suggestions')
+  @ApiOperation({
+    summary: 'Suggest exact same-customer receivable combinations',
+  })
+  @ApiOkResponse({ type: ReceivableCombinationSuggestionsResponseDto })
+  @ApiErrorResponse(
+    ErrorCode.VALIDATION_ERROR,
+    ErrorCode.NOT_FOUND,
+    ErrorCode.CONFLICT,
+  )
+  @RequirePermission(Permission.PAYMENT_ALLOCATE)
+  async combinationSuggestions(
+    @Param('id') id: string,
+    @Query() query: ReceivableCombinationSuggestionsQueryDto,
+  ) {
+    return toReceivableCombinationSuggestionsResponse(
+      await this.unmatchedQuery.combinationSuggestions(id, query.customerId),
+    );
   }
 
   @Post(':id/match')

@@ -167,7 +167,9 @@ describe('SplitMatchDialog', () => {
     );
     expect(allocationInput.parentElement).toHaveClass('space-y-2');
     expect(
-      screen.getByLabelText('Tìm khách hàng để ghi nhận công nợ').parentElement,
+      screen.getByLabelText(
+        'Tìm khách hàng để gợi ý nhóm hóa đơn hoặc ghi nhận công nợ',
+      ).parentElement,
     ).toHaveClass('grid', 'gap-2');
     expect(
       screen.getByRole('button', { name: 'Khớp giao dịch' }).parentElement,
@@ -287,6 +289,186 @@ describe('SplitMatchDialog', () => {
     ).toBeInTheDocument();
   });
 
+  it('prefills an exact combination suggestion and allocates only after confirmation', async () => {
+    apiRequest.mockImplementation((cfg: { url: string }) => {
+      if (cfg.url.includes('/candidates')) return Promise.resolve(candidates);
+      if (cfg.url.includes('/combination-suggestions')) {
+        return Promise.resolve({
+          status: 'COMPLETE',
+          combinations: [
+            {
+              receivables: [
+                {
+                  receivableId: 'r3',
+                  customerId: 'c1',
+                  customerName: 'Công ty An Phát',
+                  invoiceNumber: 'INV-2026-003',
+                  remainingAmount: 20_000_000,
+                  dueDate: '2026-08-31T00:00:00Z',
+                },
+                {
+                  receivableId: 'r4',
+                  customerId: 'c1',
+                  customerName: 'Công ty An Phát',
+                  invoiceNumber: 'INV-2026-004',
+                  remainingAmount: 30_000_000,
+                  dueDate: '2026-08-31T00:00:00Z',
+                },
+              ],
+            },
+          ],
+        });
+      }
+      return Promise.resolve({ id: 'bt9' });
+    });
+    renderDialog();
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Dùng nhóm này' }),
+    );
+    expect(
+      screen.getByLabelText('Số tiền phân bổ cho INV-2026-003'),
+    ).toHaveValue(20_000_000);
+    expect(
+      screen.getByLabelText('Số tiền phân bổ cho INV-2026-004'),
+    ).toHaveValue(30_000_000);
+    expect(
+      apiRequest.mock.calls.some(
+        ([cfg]) =>
+          (cfg as { url: string }).url ===
+          '/api/v1/bank-transactions/bt9/match',
+      ),
+    ).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: /khớp giao dịch/i }));
+    await waitFor(() =>
+      expect(apiRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: '/api/v1/bank-transactions/bt9/match',
+          method: 'POST',
+          data: expect.objectContaining({
+            allocations: [
+              { receivableId: 'r3', amount: 20_000_000 },
+              { receivableId: 'r4', amount: 30_000_000 },
+            ],
+          }),
+        }),
+      ),
+    );
+  });
+
+  it('hides groups and explains when combination search is incomplete', async () => {
+    apiRequest.mockImplementation((cfg: { url: string }) => {
+      if (cfg.url.includes('/candidates')) return Promise.resolve(candidates);
+      if (cfg.url.includes('/combination-suggestions')) {
+        return Promise.resolve({ status: 'INCOMPLETE', combinations: [] });
+      }
+      return Promise.resolve({ id: 'bt9' });
+    });
+    renderDialog();
+
+    expect(
+      await screen.findByText(/chưa thể tìm hết các nhóm hóa đơn/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Dùng nhóm này' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Số tiền phân bổ cho INV-2026-001'),
+    ).toBeInTheDocument();
+  });
+
+  it('waits for an explicit customer when candidates span customers', async () => {
+    apiRequest.mockImplementation(
+      (cfg: { url: string; params?: Record<string, unknown> }) => {
+        if (cfg.url.includes('/candidates')) {
+          return Promise.resolve([
+            ...candidates,
+            {
+              ...candidates[1],
+              id: 'mc3',
+              receivableId: 'r3',
+              customerId: 'c2',
+            },
+          ]);
+        }
+        if (cfg.url === '/api/v1/customers') {
+          return Promise.resolve({
+            items: [
+              { id: 'c1', name: 'Công ty An Phát' },
+              { id: 'c2', name: 'Công ty Khác' },
+            ],
+          });
+        }
+        if (cfg.url.includes('/combination-suggestions')) {
+          return Promise.resolve({
+            status: 'COMPLETE',
+            combinations: [
+              {
+                receivables: [
+                  {
+                    receivableId: 'r5',
+                    customerId: 'c2',
+                    customerName: 'Công ty Khác',
+                    invoiceNumber: 'INV-2026-005',
+                    remainingAmount: 20_000_000,
+                    dueDate: null,
+                  },
+                  {
+                    receivableId: 'r6',
+                    customerId: 'c2',
+                    customerName: 'Công ty Khác',
+                    invoiceNumber: 'INV-2026-006',
+                    remainingAmount: 30_000_000,
+                    dueDate: null,
+                  },
+                ],
+              },
+            ],
+          });
+        }
+        return Promise.resolve({ id: 'bt9', params: cfg.params });
+      },
+    );
+    renderDialog();
+
+    expect(
+      await screen.findByText('Chọn một khách hàng để tìm gợi ý nhóm hóa đơn.'),
+    ).toBeInTheDocument();
+    expect(
+      apiRequest.mock.calls.some(([cfg]) =>
+        (cfg as { url: string }).url.includes('/combination-suggestions'),
+      ),
+    ).toBe(false);
+
+    fireEvent.change(
+      screen.getByLabelText(
+        'Tìm khách hàng để gợi ý nhóm hóa đơn hoặc ghi nhận công nợ',
+      ),
+      { target: { value: 'cong ty khac' } },
+    );
+    fireEvent.click(await screen.findByRole('combobox'));
+    fireEvent.click(
+      await screen.findByRole('option', { name: 'Công ty Khác' }),
+    );
+
+    expect(
+      await screen.findByRole('button', { name: 'Dùng nhóm này' }),
+    ).toBeInTheDocument();
+    expect(
+      apiRequest.mock.calls.some(([cfg]) => {
+        const request = cfg as {
+          url: string;
+          params?: Record<string, unknown>;
+        };
+        return (
+          request.url.includes('/combination-suggestions') &&
+          request.params?.customerId === 'c2'
+        );
+      }),
+    ).toBe(true);
+  });
+
   it('uses business fallbacks when candidate metadata is missing', async () => {
     apiRequest.mockResolvedValue([
       {
@@ -354,8 +536,17 @@ describe('SplitMatchDialog', () => {
   });
 
   it('shows allocation errors from the backend inline', async () => {
-    apiRequest.mockResolvedValueOnce(candidates).mockRejectedValueOnce({
-      response: { data: { errorCode: 'ALLOCATION_EXCEEDS_REMAINING' } },
+    apiRequest.mockImplementation((cfg: { url: string }) => {
+      if (cfg.url.includes('/candidates')) return Promise.resolve(candidates);
+      if (cfg.url.includes('/combination-suggestions')) {
+        return Promise.resolve({ status: 'COMPLETE', combinations: [] });
+      }
+      if (cfg.url.endsWith('/match')) {
+        return Promise.reject({
+          response: { data: { errorCode: 'ALLOCATION_EXCEEDS_REMAINING' } },
+        });
+      }
+      return Promise.resolve({ id: 'bt9' });
     });
     renderDialog();
 
@@ -365,9 +556,11 @@ describe('SplitMatchDialog', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /khớp giao dịch/i }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Số tiền vượt quá công nợ còn lại của khoản phải thu.',
-    );
+    expect(
+      await screen.findByText(
+        'Số tiền vượt quá công nợ còn lại của khoản phải thu.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('keeps long identifiers accessible without widening the dialog actions', async () => {
@@ -728,6 +921,64 @@ function renderWithPayer(opts?: {
   );
   return { onOpenChange };
 }
+
+describe('combination suggestion customer scope', () => {
+  beforeEach(() => {
+    apiRequest.mockClear();
+  });
+
+  it('uses a unique linked payer customer when there are no matching candidates', async () => {
+    apiRequest.mockImplementation((cfg: { url: string }) => {
+      if (cfg.url.includes('/candidates')) return Promise.resolve([]);
+      if (cfg.url.includes('/combination-suggestions')) {
+        return Promise.resolve({ status: 'COMPLETE', combinations: [] });
+      }
+      return Promise.resolve({ id: 'bt9' });
+    });
+    renderWithPayer({
+      txOverrides: { status: 'UNMATCHED' },
+      payer: {
+        accountNumberMasked: '****6789',
+        name: 'Company C',
+        linkedCustomers: [{ customerId: 'c9', customerName: 'Công ty Mới' }],
+      },
+    });
+
+    await screen.findByText(/không tìm thấy nhóm hóa đơn khớp chính xác/i);
+    expect(
+      apiRequest.mock.calls.some(([cfg]) => {
+        const request = cfg as {
+          url: string;
+          params?: Record<string, unknown>;
+        };
+        return (
+          request.url.includes('/combination-suggestions') &&
+          request.params?.customerId === 'c9'
+        );
+      }),
+    ).toBe(true);
+  });
+
+  it('requires an operator choice when candidate and payer customer scopes conflict', async () => {
+    apiRequest.mockResolvedValue(candidates);
+    renderWithPayer({
+      payer: {
+        accountNumberMasked: '****6789',
+        name: 'Company C',
+        linkedCustomers: [{ customerId: 'c2', customerName: 'Công ty Khác' }],
+      },
+    });
+
+    expect(
+      await screen.findByText('Chọn một khách hàng để tìm gợi ý nhóm hóa đơn.'),
+    ).toBeInTheDocument();
+    expect(
+      apiRequest.mock.calls.some(([cfg]) =>
+        (cfg as { url: string }).url.includes('/combination-suggestions'),
+      ),
+    ).toBe(false);
+  });
+});
 
 describe('remember payer account', () => {
   const REMEMBER_LABEL = 'Ghi nhớ tài khoản người chuyển cho khách hàng này';

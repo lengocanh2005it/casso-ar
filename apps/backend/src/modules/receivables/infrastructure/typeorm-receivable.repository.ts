@@ -129,6 +129,37 @@ export class TypeOrmReceivableRepository
     return rows.map(toDomain);
   }
 
+  async findOpenByCustomerIdWithLimit(
+    customerId: string,
+    limit: number,
+  ): Promise<Receivable[]> {
+    const organizationId = this.tenantContext.getOrganizationId();
+    const rows = await this.ormRepo.find({
+      where: {
+        organizationId,
+        customerId,
+        status: In([ReceivableStatus.OPEN, ReceivableStatus.PARTIALLY_PAID]),
+      },
+      order: { id: 'ASC' },
+      take: limit,
+      select: {
+        id: true,
+        organizationId: true,
+        customerId: true,
+        invoiceId: true,
+        originalAmount: true,
+        paidAmount: true,
+        dueDate: true,
+        status: true,
+        salesRepresentativeId: true,
+        createdAt: true,
+        closedAt: true,
+        version: true,
+      },
+    });
+    return rows.map(toDomain);
+  }
+
   async findOpenByIds(ids: string[]): Promise<Receivable[]> {
     if (ids.length === 0) return [];
     const organizationId = this.tenantContext.getOrganizationId();
