@@ -549,4 +549,116 @@ describe('useCopilotChat', () => {
       expect(accepted).toBe(true);
     });
   });
+
+  describe('switching conversations mid-stream', () => {
+    it('aborts the old stream and never writes into the new conversation', async () => {
+      let rejectStream: (reason: unknown) => void = () => {};
+      let capturedOnEvent: ((event: unknown) => void) | null = null;
+      let capturedSignal: AbortSignal | null = null;
+      streamCopilotMessage.mockImplementation(
+        (
+          _id: string,
+          _content: string,
+          onEvent: (event: unknown) => void,
+          signal: AbortSignal,
+        ) =>
+          new Promise((_resolve, reject) => {
+            capturedOnEvent = onEvent;
+            capturedSignal = signal;
+            rejectStream = reject;
+          }),
+      );
+      const onTurnComplete = vi.fn();
+      const { result, rerender } = renderHook(
+        ({ conversationId }) =>
+          useCopilotChat(true, conversationId, { onTurnComplete }),
+        { initialProps: { conversationId: 'conversation-a' } },
+      );
+
+      let sendPromise: Promise<boolean>;
+      act(() => {
+        sendPromise = result.current.send('Câu hỏi cho A');
+      });
+      act(() => {
+        capturedOnEvent?.({ type: 'delta', text: 'Trả lời cho A' });
+      });
+
+      getCopilotConversationMessages.mockResolvedValueOnce({ items: [] });
+      rerender({ conversationId: 'conversation-b' });
+
+      // The old stream must be aborted, not left running into B.
+      expect(capturedSignal?.aborted).toBe(true);
+      expect(result.current.isSending).toBe(false);
+      expect(result.current.streamingContent).toBe('');
+
+      await act(async () => {
+        rejectStream(new DOMException('aborted', 'AbortError'));
+        await sendPromise;
+      });
+
+      expect(result.current.messages).toEqual([]);
+      expect(result.current.streamingContent).toBe('');
+      expect(result.current.pendingAction).toBeNull();
+      // The turn did reach the server, so usage/list still refresh.
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores done and error events that arrive after the switch', async () => {
+      let resolveStream: () => void = () => {};
+      let capturedOnEvent: ((event: unknown) => void) | null = null;
+      streamCopilotMessage.mockImplementation(
+        async (
+          _id: string,
+          _content: string,
+          onEvent: (event: unknown) => void,
+        ) => {
+          capturedOnEvent = onEvent;
+          await new Promise<void>((resolve) => {
+            resolveStream = resolve;
+          });
+        },
+      );
+      const { result, rerender } = renderHook(
+        ({ conversationId }) => useCopilotChat(true, conversationId),
+        { initialProps: { conversationId: 'conversation-a' } },
+      );
+
+      let sendPromise: Promise<boolean>;
+      act(() => {
+        sendPromise = result.current.send('Câu hỏi cho A');
+      });
+
+      getCopilotConversationMessages.mockResolvedValueOnce({ items: [] });
+      rerender({ conversationId: 'conversation-b' });
+
+      capturedOnEvent?.({
+        type: 'done',
+        data: {
+          message: {
+            id: 'm-old',
+            role: 'ASSISTANT',
+            content: 'Trả lời cho A',
+            createdAt: '2026-08-09T00:00:00Z',
+          },
+          pendingAction: {
+            id: 'pa-old',
+            actionType: 'SEND_REMINDER_EMAIL',
+            status: 'PENDING',
+            payload: { draftId: 'd1', receivableId: 'r1' },
+            receivableLabel: null,
+            createdAt: new Date().toISOString(),
+            resolvedAt: null,
+          },
+        },
+      });
+
+      await act(async () => {
+        resolveStream();
+        await sendPromise;
+      });
+
+      expect(result.current.messages).toEqual([]);
+      expect(result.current.pendingAction).toBeNull();
+    });
+  });
 });

@@ -32,13 +32,21 @@ export function useCopilotChat(
     string | null
   >(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const activeConversationIdRef = useRef(conversationId);
   const blockedByPendingAction =
     pendingAction !== null && canResolvePendingAction;
 
   useEffect(() => {
     let cancelled = false;
+    activeConversationIdRef.current = conversationId;
+    // A stream started for the previous conversation must stop writing into
+    // this one, and the composer must not stay locked on its behalf.
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
     setMessages([]);
     setPendingAction(null);
+    setIsSending(false);
+    setStreamingContent('');
     setIsLoadingHistory(true);
     setQuotaExceededMessage(null);
 
@@ -60,6 +68,7 @@ export function useCopilotChat(
 
     return () => {
       cancelled = true;
+      abortControllerRef.current?.abort();
     };
   }, [conversationId]);
 
@@ -98,6 +107,10 @@ export function useCopilotChat(
       return false;
     }
 
+    const sendConversationId = conversationId;
+    const isCurrentConversation = () =>
+      activeConversationIdRef.current === sendConversationId;
+
     setIsSending(true);
     setStreamingContent('');
     const optimisticMessageId = crypto.randomUUID();
@@ -126,6 +139,10 @@ export function useCopilotChat(
         conversationId,
         trimmed,
         (event) => {
+          // Everything the old conversation's stream still emits after the
+          // switch belongs to that conversation, not the visible one.
+          if (!isCurrentConversation()) return;
+
           if (event.type === 'delta') {
             streamedText += event.text;
             setStreamingContent((current) => current + event.text);
@@ -140,7 +157,7 @@ export function useCopilotChat(
       );
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        if (streamedText) {
+        if (streamedText && isCurrentConversation()) {
           setMessages((current) => [
             ...current,
             {
@@ -158,12 +175,14 @@ export function useCopilotChat(
         turnCounted = false;
 
         if (error.errorCode === 'PLAN_LIMIT_EXCEEDED') {
-          // The quota check runs before the write — drop the optimistic bubble
-          // so the chat doesn't show a question that was never actually sent.
-          setMessages((current) =>
-            current.filter((message) => message.id !== optimisticMessageId),
-          );
-          setQuotaExceededMessage(error.message);
+          if (isCurrentConversation()) {
+            // The quota check runs before the write — drop the optimistic bubble
+            // so the chat doesn't show a question that was never actually sent.
+            setMessages((current) =>
+              current.filter((message) => message.id !== optimisticMessageId),
+            );
+            setQuotaExceededMessage(error.message);
+          }
           toast.error(error.message);
         } else {
           toast.error('Không thể gửi câu hỏi cho Copilot.');
@@ -176,9 +195,13 @@ export function useCopilotChat(
       }
     } finally {
       if (turnCounted) options.onTurnComplete?.();
-      setStreamingContent('');
-      setIsSending(false);
-      abortControllerRef.current = null;
+      // The new conversation already reset this state; writing it again would
+      // clear a stream that was started there in the meantime.
+      if (isCurrentConversation()) {
+        setStreamingContent('');
+        setIsSending(false);
+        abortControllerRef.current = null;
+      }
     }
     return turnCounted;
   }
