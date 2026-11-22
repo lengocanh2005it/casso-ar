@@ -27,6 +27,9 @@ export function useCopilotChat(
   const [isSending, setIsSending] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
   const [busy, setBusy] = useState(false);
+  const [busyAction, setBusyAction] = useState<'confirm' | 'cancel' | null>(
+    null,
+  );
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [quotaExceededMessage, setQuotaExceededMessage] = useState<
     string | null
@@ -223,6 +226,7 @@ export function useCopilotChat(
   async function confirm() {
     if (!pendingAction || busy) return;
     setBusy(true);
+    setBusyAction('confirm');
     try {
       await confirmCopilotAction(pendingAction.id);
       setPendingAction(null);
@@ -233,12 +237,14 @@ export function useCopilotChat(
       }
     } finally {
       setBusy(false);
+      setBusyAction(null);
     }
   }
 
   async function cancel() {
     if (!pendingAction || busy) return;
     setBusy(true);
+    setBusyAction('cancel');
     try {
       await cancelCopilotAction(pendingAction.id);
       setPendingAction(null);
@@ -248,6 +254,7 @@ export function useCopilotChat(
       }
     } finally {
       setBusy(false);
+      setBusyAction(null);
     }
   }
 
@@ -261,6 +268,7 @@ export function useCopilotChat(
     confirm,
     cancel,
     busy,
+    busyAction,
     blockedByPendingAction,
     isLoadingHistory,
     quotaExceededMessage,

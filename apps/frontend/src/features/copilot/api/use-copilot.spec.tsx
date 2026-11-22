@@ -449,6 +449,69 @@ describe('useCopilotChat', () => {
       );
     });
 
+    it('reports which action is running while it is busy', async () => {
+      sendWithPendingAction();
+      let resolveConfirm: () => void = () => {};
+      confirmCopilotAction.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveConfirm = () => resolve({ reminderExecutionId: 'r1' });
+          }),
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      await act(async () => {
+        await result.current.send('Soạn email nhắc');
+      });
+      expect(result.current.busyAction).toBeNull();
+
+      let confirmPromise: Promise<void>;
+      act(() => {
+        confirmPromise = result.current.confirm();
+      });
+      expect(result.current.busy).toBe(true);
+      expect(result.current.busyAction).toBe('confirm');
+
+      await act(async () => {
+        resolveConfirm();
+        await confirmPromise;
+      });
+      expect(result.current.busy).toBe(false);
+      expect(result.current.busyAction).toBeNull();
+    });
+
+    it('reports cancel as the running action', async () => {
+      sendWithPendingAction();
+      let resolveCancel: () => void = () => {};
+      cancelCopilotAction.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveCancel = () => resolve(PENDING_ACTION);
+          }),
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      await act(async () => {
+        await result.current.send('Soạn email nhắc');
+      });
+
+      let cancelPromise: Promise<void>;
+      act(() => {
+        cancelPromise = result.current.cancel();
+      });
+      expect(result.current.busyAction).toBe('cancel');
+
+      await act(async () => {
+        resolveCancel();
+        await cancelPromise;
+      });
+      expect(result.current.busyAction).toBeNull();
+    });
+
     it('clears the pending action when cancel reports it is no longer pending', async () => {
       sendWithPendingAction();
       cancelCopilotAction.mockRejectedValue({

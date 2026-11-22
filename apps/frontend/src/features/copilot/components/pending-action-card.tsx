@@ -1,4 +1,4 @@
-import { CircleAlert } from 'lucide-react';
+import { CircleAlert, LoaderCircle } from 'lucide-react';
 import { TruncatedCopyId } from '@/components/shared/truncated-copy-id';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,11 +9,13 @@ export function PendingActionCard({
   onConfirm,
   onCancel,
   busy,
+  busyAction = null,
 }: {
   action: Pick<CopilotPendingAction, 'id' | 'payload' | 'receivableLabel'>;
   onConfirm: () => void;
   onCancel: () => void;
   busy: boolean;
+  busyAction?: 'confirm' | 'cancel' | null;
 }) {
   return (
     <Card className="border-primary/20 bg-primary/[0.03] shadow-none dark:border-primary/30">
@@ -37,7 +39,13 @@ export function PendingActionCard({
         </div>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" disabled={busy} onClick={onConfirm}>
-            Xác nhận gửi
+            {busyAction === 'confirm' && (
+              <LoaderCircle
+                aria-hidden="true"
+                className="animate-spin motion-reduce:animate-none"
+              />
+            )}
+            {busyAction === 'confirm' ? 'Đang gửi…' : 'Xác nhận gửi'}
           </Button>
           <Button
             size="sm"
@@ -45,7 +53,13 @@ export function PendingActionCard({
             disabled={busy}
             onClick={onCancel}
           >
-            Hủy
+            {busyAction === 'cancel' && (
+              <LoaderCircle
+                aria-hidden="true"
+                className="animate-spin motion-reduce:animate-none"
+              />
+            )}
+            {busyAction === 'cancel' ? 'Đang hủy…' : 'Hủy'}
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">

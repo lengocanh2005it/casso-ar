@@ -90,6 +90,7 @@ export function CopilotPage() {
     confirm,
     cancel,
     busy,
+    busyAction,
     blockedByPendingAction,
     isLoadingHistory,
     quotaExceededMessage,
@@ -296,6 +297,7 @@ export function CopilotPage() {
                 <PendingActionCard
                   action={pendingAction}
                   busy={busy}
+                  busyAction={busyAction}
                   onConfirm={() => void confirm()}
                   onCancel={() => void cancel()}
                 />
