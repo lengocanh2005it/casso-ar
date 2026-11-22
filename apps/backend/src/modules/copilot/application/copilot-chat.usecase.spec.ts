@@ -34,6 +34,12 @@ function buildRegistry(): CopilotToolRegistry {
     requiresReminderPermission: false,
   });
   registry.register({
+    name: 'rankReceivablesByRisk',
+    description: 'risk ranking',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+    requiresReminderPermission: false,
+  });
+  registry.register({
     name: 'draftReminderEmail',
     description: 'draft',
     inputSchema: { type: 'object', properties: {}, required: [] },
@@ -1579,5 +1585,124 @@ describe('CopilotChatUseCase', () => {
     expect(systemMessage?.content).toContain(
       'in Vietnamese unless the user explicitly requests English',
     );
+  });
+
+  it('guides the model to use risk ranking for priority and soon-overdue questions', () => {
+    expect(SYSTEM_PROMPT).toContain('rankReceivablesByRisk');
+    expect(SYSTEM_PROMPT).toContain('sắp trễ nợ');
+    expect(SYSTEM_PROMPT).toContain('never compute a score yourself');
+  });
+
+  it('dispatches rankReceivablesByRisk with a bounded limit', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion
+      .mockResolvedValueOnce({
+        content: null,
+        toolCalls: [
+          {
+            id: 'tool-risk',
+            name: 'rankReceivablesByRisk',
+            arguments: { limit: 3, search: 'Alpha' },
+          },
+        ],
+        inputTokens: 10,
+        outputTokens: 5,
+      })
+      .mockResolvedValueOnce({
+        content: 'Có 3 khoản cần ưu tiên.',
+        toolCalls: [],
+        inputTokens: 20,
+        outputTokens: 10,
+      });
+    const deps = buildDeps();
+    const rankTool = { execute: jest.fn().mockResolvedValue({ items: [] }) };
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+      undefined,
+      undefined,
+      undefined,
+      rankTool as any,
+    );
+
+    const result = await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Khoản nào sắp trễ nợ, nhắc trước cái nào?',
+    });
+
+    expect(rankTool.execute).toHaveBeenCalledWith({
+      limit: 3,
+      search: 'Alpha',
+    });
+    expect(result.message.content).toContain('3 khoản');
+  });
+
+  it('rejects an out-of-range limit before calling the risk ranking tool', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion
+      .mockResolvedValueOnce({
+        content: null,
+        toolCalls: [
+          {
+            id: 'tool-risk',
+            name: 'rankReceivablesByRisk',
+            arguments: { limit: 11 },
+          },
+        ],
+        inputTokens: 10,
+        outputTokens: 5,
+      })
+      .mockResolvedValueOnce({
+        content: 'Xin lỗi, không thể xếp hạng.',
+        toolCalls: [],
+        inputTokens: 20,
+        outputTokens: 10,
+      });
+    const deps = buildDeps();
+    const rankTool = { execute: jest.fn() };
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+      undefined,
+      undefined,
+      undefined,
+      rankTool as any,
+    );
+
+    await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Xếp hạng rủi ro',
+    });
+
+    expect(rankTool.execute).not.toHaveBeenCalled();
+    const toolMessage = (
+      aiProvider.createChatCompletion.mock.calls[1][0] as Array<{
+        role: string;
+        content: string | null;
+      }>
+    ).find((message) => message.role === 'tool');
+    expect(toolMessage?.content).toContain('VALIDATION_ERROR');
   });
 });

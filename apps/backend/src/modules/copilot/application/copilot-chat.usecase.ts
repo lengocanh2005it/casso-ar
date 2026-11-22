@@ -55,9 +55,10 @@ import { FindOverdueReceivablesTool } from './tools/find-overdue-receivables.too
 import { GetCollectionActivityTimelineTool } from './tools/get-collection-activity-timeline.tool';
 import { GetPaymentHistoryTool } from './tools/get-payment-history.tool';
 import { GetReceivableSummaryTool } from './tools/get-receivable-summary.tool';
+import { RankReceivablesByRiskTool } from './tools/rank-receivables-by-risk.tool';
 import { SendReminderEmailTool } from './tools/send-reminder-email.tool';
 
-const PROMPT_VERSION = 'copilot-v3';
+const PROMPT_VERSION = 'copilot-v4';
 const MODEL_CALL_TIMEOUT_MS = 15_000;
 const MODEL_CALL_RETRY_BACKOFF_MS = 500;
 const MAX_OUTPUT_TOKENS = 2048;
@@ -70,6 +71,7 @@ export const SYSTEM_PROMPT = [
   'Use only structured JSON returned by read tools and facts already present in the conversation. Never invent customer, receivable, invoice, amount, due-date, payment-history, or recipient data.',
   'Every question about receivables is answerable with your tools — never reply that you "cannot find", "cannot search", or lack the information. If a question asks who owes the most, who is most overdue, or what the total is, call findOverdueReceivables with sortBy "amount_desc" and answer from the result; if you have not called a read tool yet this turn, call it before answering. A ranking page cannot be continued, so do not offer "xem tiếp" for it.',
   'findOverdueReceivables returns customerId on every item. Pass that customerId to getReceivableSummary, getPaymentHistory and getCollectionActivityTimeline to follow up on one customer. Never show a customerId or receivableId to the user.',
+  'For questions about which receivables are risky, about to become overdue ("sắp trễ nợ"), or should be chased first, call rankReceivablesByRisk. Report only the riskScore, riskBand and reasons the tool returns; never compute a score yourself or invent a reason. Explain HIGH as rủi ro cao, MEDIUM as rủi ro trung bình, and LOW as rủi ro thấp — in Vietnamese without the English band names.',
   'If the user asks to prepare a reminder without identifying a customer or receivable, ask in Vietnamese for the customer name or invoice number; do not guess, select an arbitrary receivable, or create a draft.',
   'Never expose internal UUIDs, tool names, schema field names, raw provider errors, or implementation details in user-facing text. Summarize recoverable tool errors in Vietnamese without repeating technical error messages.',
   'If the user wants to send a reminder email, call draftReminderEmail first to create a draft, then call sendReminderEmail to propose sending it — the user must separately confirm the actual send; you do not send it yourself.',
@@ -214,6 +216,7 @@ export class CopilotChatUseCase {
     private readonly customerRepo?: ICustomerRepository,
     @Inject(INVOICE_REPOSITORY)
     private readonly invoiceRepo?: IInvoiceRepository,
+    private readonly rankReceivablesByRiskTool?: RankReceivablesByRiskTool,
   ) {}
 
   private enrichPendingActionPayload(
@@ -386,6 +389,38 @@ export class CopilotChatUseCase {
           limit: limit !== undefined ? limit : undefined,
           cursor,
           sortBy,
+        });
+      }
+      case RankReceivablesByRiskTool.NAME: {
+        if (!this.rankReceivablesByRiskTool) {
+          throw new AppError(
+            ErrorCode.INTERNAL_SERVER_ERROR,
+            'Công cụ xếp hạng rủi ro không khả dụng.',
+          );
+        }
+        const search = input.search;
+        if (search !== undefined && typeof search !== 'string') {
+          throw new AppError(
+            ErrorCode.VALIDATION_ERROR,
+            'Tham số search phải là chuỗi ký tự.',
+          );
+        }
+        const limit = input.limit;
+        if (
+          limit !== undefined &&
+          (typeof limit !== 'number' ||
+            !Number.isInteger(limit) ||
+            limit < 1 ||
+            limit > 10)
+        ) {
+          throw new AppError(
+            ErrorCode.VALIDATION_ERROR,
+            'Tham số limit phải là số nguyên từ 1 đến 10.',
+          );
+        }
+        return this.rankReceivablesByRiskTool.execute({
+          search: search !== undefined ? search : undefined,
+          limit: limit !== undefined ? limit : undefined,
         });
       }
       case DraftReminderEmailTool.NAME:
