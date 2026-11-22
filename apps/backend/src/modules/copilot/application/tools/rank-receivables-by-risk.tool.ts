@@ -1,3 +1,24 @@
+import { Inject, Injectable } from '@nestjs/common';
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
+import { AppError } from '../../../../common/errors/app-error';
+import { ErrorCode } from '../../../../common/errors/error-code';
+import { TenantContextService } from '../../../../common/tenancy/tenant-context';
+import { REMINDER_EXECUTION_REPOSITORY } from '../../../../common/tokens/reminder-execution.token';
+import type { ICustomerRepository } from '../../../customers/application/customer-repository.port';
+import { CUSTOMER_REPOSITORY } from '../../../customers/application/customer-repository.port';
+import type { IDisputeRepository } from '../../../disputes/application/dispute-repository.port';
+import { DISPUTE_REPOSITORY } from '../../../disputes/application/dispute-repository.port';
+import type { IInvoiceRepository } from '../../../invoices/application/invoice-repository.port';
+import { INVOICE_REPOSITORY } from '../../../invoices/application/invoice-repository.port';
+import { Role } from '../../../organizations/domain/membership';
+import type { IPaymentAllocationRepository } from '../../../payments/application/payment-allocation-repository.port';
+import { PAYMENT_ALLOCATION_REPOSITORY } from '../../../payments/application/payment-allocation-repository.port';
+import type { IReceivableRepository } from '../../../receivables/application/receivable-repository.port';
+import { RECEIVABLE_REPOSITORY } from '../../../receivables/application/receivable-repository.port';
+import type { Receivable } from '../../../receivables/domain/receivable';
+import type { IReminderExecutionRepository } from '../../../reminders/application/reminder-execution-repository.port';
+import type { CopilotJsonSchema } from '../copilot-tool-registry';
+
 export type RiskReasonCode =
   | 'OVERDUE_DEPTH'
   | 'OPEN_DISPUTE'
@@ -18,9 +39,8 @@ export interface RiskSignals {
   hasPriorSentReminder: boolean;
   latePaymentRatio: number;
   /**
-   * remainingAmount / median remaining of the same customer's open
-   * receivables. 1 means "exactly the customer's median", so only the excess
-   * above the median counts as unusually large.
+   * remainingAmount / median remaining of the customer's open receivables in
+   * the candidate set. 1 means "exactly the customer's median".
    */
   remainingToMedianRatio: number;
 }
@@ -118,4 +138,265 @@ export function scoreRisk(signals: RiskSignals): RiskScore {
   }
 
   return { riskScore, riskBand, reasons };
+}
+
+export const RANK_RECEIVABLES_BY_RISK_SCHEMA: CopilotJsonSchema = {
+  type: 'object',
+  properties: {
+    limit: {
+      type: 'integer',
+      minimum: 1,
+      maximum: 10,
+      description:
+        'Maximum number of ranked receivables to return (default 10, max 10).',
+    },
+    search: {
+      type: 'string',
+      description:
+        'Optional case-insensitive customer name or invoice number filter.',
+    },
+  },
+  required: [],
+};
+
+export interface RankedReceivable {
+  receivableId: string;
+  customerId: string;
+  customerName: string;
+  invoiceNumber: string | null;
+  remainingAmount: number;
+  dueDate: string;
+  riskScore: number;
+  riskBand: RiskBand;
+  reasons: RiskReason[];
+}
+
+export interface RankResult {
+  items: RankedReceivable[];
+}
+
+const REPORTING_TIMEZONE = 'Asia/Ho_Chi_Minh';
+const HORIZON_DAYS = 7;
+const DEFAULT_LIMIT = 10;
+const MAX_LIMIT = 10;
+const MAX_CANDIDATES = 30;
+const CANDIDATE_FACTOR = 3;
+const PAYMENT_HISTORY_LIMIT = 50;
+const MS_PER_DAY = 86_400_000;
+
+// Candidates are "overdue or due within the next 7 days in Asia/Ho_Chi_Minh",
+// so the window ends at the start of the 8th local day: that keeps the whole
+// seventh day inside the horizon instead of cutting it at the current
+// time-of-day.
+function horizonEnd(now: Date): Date {
+  const localDate = formatInTimeZone(now, REPORTING_TIMEZONE, 'yyyy-MM-dd');
+  const midnight = fromZonedTime(`${localDate}T00:00:00`, REPORTING_TIMEZONE);
+  return new Date(midnight.getTime() + (HORIZON_DAYS + 1) * MS_PER_DAY);
+}
+
+function daysSince(date: Date, now: Date): number {
+  return Math.max(0, Math.floor((now.getTime() - date.getTime()) / MS_PER_DAY));
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[middle - 1] + sorted[middle]) / 2
+    : sorted[middle];
+}
+
+@Injectable()
+export class RankReceivablesByRiskTool {
+  static readonly NAME = 'rankReceivablesByRisk';
+
+  constructor(
+    @Inject(RECEIVABLE_REPOSITORY)
+    private readonly receivableRepo: IReceivableRepository,
+    @Inject(CUSTOMER_REPOSITORY)
+    private readonly customerRepo: ICustomerRepository,
+    @Inject(INVOICE_REPOSITORY)
+    private readonly invoiceRepo: IInvoiceRepository,
+    @Inject(DISPUTE_REPOSITORY)
+    private readonly disputeRepo: IDisputeRepository,
+    @Inject(REMINDER_EXECUTION_REPOSITORY)
+    private readonly reminderRepo: IReminderExecutionRepository,
+    @Inject(PAYMENT_ALLOCATION_REPOSITORY)
+    private readonly allocationRepo: IPaymentAllocationRepository,
+    private readonly tenantContext: TenantContextService,
+  ) {}
+
+  async execute(
+    input: { limit?: number; search?: string },
+    now = new Date(),
+  ): Promise<RankResult> {
+    const limit = input.limit ?? DEFAULT_LIMIT;
+    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
+      throw new AppError(
+        ErrorCode.VALIDATION_ERROR,
+        'Tham số limit phải là số nguyên từ 1 đến 10.',
+      );
+    }
+
+    const organizationId = this.tenantContext.getOrganizationId();
+    const currentUser = this.tenantContext.getCurrentUser();
+    const salesRepresentativeId =
+      currentUser?.role === Role.SALES_REP ? currentUser.userId : undefined;
+
+    let customerIdIn: string[] | undefined;
+    let invoiceIdIn: string[] | undefined;
+    const normalizedSearch =
+      typeof input.search === 'string' ? input.search.trim() : '';
+    if (normalizedSearch.length > 0) {
+      const [customers, invoices] = await Promise.all([
+        this.customerRepo.findIdsBySearch(organizationId, normalizedSearch),
+        this.invoiceRepo.findIdsByInvoiceNumberSearch(
+          organizationId,
+          normalizedSearch,
+        ),
+      ]);
+      if (customers.length === 0 && invoices.length === 0) return { items: [] };
+      customerIdIn = customers;
+      invoiceIdIn = invoices;
+    }
+
+    // ponytail: bounded candidate window (3x the result limit, max 30).
+    // Upgrade to a streaming query if ranking ever needs more than top-N.
+    const candidateLimit = Math.min(MAX_CANDIDATES, limit * CANDIDATE_FACTOR);
+    const candidates = await this.receivableRepo.findOverdueCandidates({
+      organizationId,
+      referenceDate: horizonEnd(now),
+      salesRepresentativeId,
+      customerIdIn,
+      invoiceIdIn,
+      sortBy: 'due_date_asc',
+      limit: candidateLimit,
+    });
+    if (candidates.length === 0) return { items: [] };
+
+    const ids = candidates.map((receivable) => receivable.id);
+    const customerIds = [
+      ...new Set(candidates.map((receivable) => receivable.customerId)),
+    ];
+    const invoiceIds = [
+      ...new Set(
+        candidates
+          .map((receivable) => receivable.invoiceId)
+          .filter((id): id is string => id !== null),
+      ),
+    ];
+
+    const [disputes, reminders, customersMap, invoicesMap] = await Promise.all([
+      this.disputeRepo.findOpenDisputesByReceivableIds(ids),
+      this.reminderRepo.findLatestSentByReceivableIds(ids),
+      customerIds.length > 0
+        ? this.customerRepo.findByIds(customerIds)
+        : Promise.resolve(new Map()),
+      invoiceIds.length > 0
+        ? this.invoiceRepo.findByIds(invoiceIds)
+        : Promise.resolve(new Map()),
+    ]);
+
+    // Median over the customer's open receivables in the candidate set: one
+    // in-memory pass, no extra query. ponytail: widen to all of the customer's
+    // open receivables only if the ranking needs a whole-book baseline.
+    const remainingByCustomer = new Map<string, number[]>();
+    for (const candidate of candidates) {
+      const values = remainingByCustomer.get(candidate.customerId) ?? [];
+      values.push(candidate.remainingAmount);
+      remainingByCustomer.set(candidate.customerId, values);
+    }
+    const medianByCustomer = new Map<string, number>();
+    for (const [customerId, values] of remainingByCustomer) {
+      medianByCustomer.set(customerId, median(values));
+    }
+
+    const lateRatioByCustomer = await this.loadLatePaymentRatios(customerIds);
+
+    const ranked = candidates.map((receivable: Receivable) => {
+      const customerMedian = medianByCustomer.get(receivable.customerId) ?? 0;
+      const score = scoreRisk({
+        daysOverdue: daysSince(receivable.dueDate, now),
+        hasOpenDispute: disputes.has(receivable.id),
+        hasPriorSentReminder: reminders.has(receivable.id),
+        latePaymentRatio: lateRatioByCustomer.get(receivable.customerId) ?? 0,
+        remainingToMedianRatio:
+          customerMedian === 0
+            ? 0
+            : receivable.remainingAmount / customerMedian,
+      });
+      return {
+        receivableId: receivable.id,
+        customerId: receivable.customerId,
+        customerName:
+          customersMap.get(receivable.customerId)?.name ??
+          'Khách hàng không xác định',
+        invoiceNumber: receivable.invoiceId
+          ? (invoicesMap.get(receivable.invoiceId)?.invoiceNumber ?? null)
+          : null,
+        remainingAmount: receivable.remainingAmount,
+        dueDate: receivable.dueDate.toISOString(),
+        ...score,
+      };
+    });
+
+    ranked.sort(
+      (left, right) =>
+        right.riskScore - left.riskScore ||
+        left.dueDate.localeCompare(right.dueDate),
+    );
+
+    return { items: ranked.slice(0, limit) };
+  }
+
+  // One payment-history query per distinct customer (bounded by the candidate
+  // count), then one batch lookup for every allocated receivable, so the
+  // signal never degrades into a query per receivable.
+  private async loadLatePaymentRatios(
+    customerIds: string[],
+  ): Promise<Map<string, number>> {
+    const ratios = new Map<string, number>();
+    if (customerIds.length === 0) return ratios;
+
+    const allocationsByCustomer = await Promise.all(
+      customerIds.map(async (customerId) => ({
+        customerId,
+        allocations: (
+          await this.allocationRepo.findByCustomerId(
+            customerId,
+            PAYMENT_HISTORY_LIMIT,
+          )
+        ).filter((allocation) => allocation.isActive()),
+      })),
+    );
+
+    const allocatedReceivableIds = [
+      ...new Set(
+        allocationsByCustomer.flatMap(({ allocations }) =>
+          allocations.map((allocation) => allocation.receivableId),
+        ),
+      ),
+    ];
+    const allocatedReceivables =
+      allocatedReceivableIds.length > 0
+        ? await this.receivableRepo.findByIds(allocatedReceivableIds)
+        : new Map<string, Receivable>();
+
+    for (const { customerId, allocations } of allocationsByCustomer) {
+      let comparable = 0;
+      let late = 0;
+      for (const allocation of allocations) {
+        const target = allocatedReceivables.get(allocation.receivableId);
+        if (!target) continue;
+        comparable += 1;
+        if (allocation.allocatedAt.getTime() > target.dueDate.getTime()) {
+          late += 1;
+        }
+      }
+      ratios.set(customerId, comparable === 0 ? 0 : late / comparable);
+    }
+
+    return ratios;
+  }
 }
