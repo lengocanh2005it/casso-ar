@@ -153,6 +153,11 @@ describe('TypeOrmPaymentAllocationRepository.findByCustomerIds', () => {
     expect(sql).toContain('a."deletedAt" IS NULL');
     expect(sql).toContain('r."customerId" = ANY($2)');
     expect(sql).toContain('rn <= $3');
+    // The outer SELECT can only see the derived table alias; referring to the
+    // inner `a` alias here makes Postgres reject the whole statement.
+    const outerSelect = sql.slice(0, sql.indexOf('FROM ('));
+    expect(outerSelect).toContain('ranked.id AS "id"');
+    expect(outerSelect).not.toContain('a.');
     expect(params).toEqual(['org-1', ['customer-1', 'customer-2'], 2]);
 
     expect([...result.keys()]).toEqual(['customer-1', 'customer-2']);

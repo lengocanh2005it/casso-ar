@@ -135,17 +135,17 @@ export class TypeOrmPaymentAllocationRepository
       await this.ormRepo.manager.query(
         `
           SELECT
-            a.id AS "id",
-            a."organizationId" AS "organizationId",
-            a."paymentId" AS "paymentId",
-            a."receivableId" AS "receivableId",
-            a."allocatedAmount" AS "allocatedAmount",
-            a."allocatedAt" AS "allocatedAt",
-            a."allocatedByUserId" AS "allocatedByUserId",
-            a."deletedAt" AS "deletedAt",
-            a."deletedByUserId" AS "deletedByUserId",
-            a."undoReason" AS "undoReason",
-            a."createdAt" AS "createdAt",
+            ranked.id AS "id",
+            ranked."organizationId" AS "organizationId",
+            ranked."paymentId" AS "paymentId",
+            ranked."receivableId" AS "receivableId",
+            ranked."allocatedAmount" AS "allocatedAmount",
+            ranked."allocatedAt" AS "allocatedAt",
+            ranked."allocatedByUserId" AS "allocatedByUserId",
+            ranked."deletedAt" AS "deletedAt",
+            ranked."deletedByUserId" AS "deletedByUserId",
+            ranked."undoReason" AS "undoReason",
+            ranked."createdAt" AS "createdAt",
             ranked."customerId" AS "customerId"
           FROM (
             SELECT
