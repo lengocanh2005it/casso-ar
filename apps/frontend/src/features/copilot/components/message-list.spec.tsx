@@ -8,9 +8,7 @@ describe('MessageList', () => {
       <MessageList messages={[]} isWaitingForResponse />,
     );
 
-    expect(
-      screen.getByRole('status', { name: 'Copilot đang trả lời' }),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Copilot đang trả lời')).toBeInTheDocument();
     expect(container.querySelectorAll('.animate-bounce')).toHaveLength(3);
     expect(screen.queryByText(/đang xử lý/i)).not.toBeInTheDocument();
   });
@@ -58,5 +56,27 @@ describe('MessageList', () => {
     );
 
     expect(screen.queryByTitle('Xem trước email')).not.toBeInTheDocument();
+  });
+
+  it('exposes the conversation as one polite live log', () => {
+    const { rerender } = render(
+      <MessageList messages={[]} isSending={false} />,
+    );
+
+    const log = screen.getByRole('log', { name: 'Cuộc trò chuyện Copilot' });
+    expect(log).toHaveAttribute('aria-live', 'polite');
+    expect(log).toHaveAttribute('aria-busy', 'false');
+
+    rerender(<MessageList messages={[]} isSending />);
+    expect(log).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('does not nest a second live region inside the log', () => {
+    render(<MessageList messages={[]} isWaitingForResponse isSending />);
+
+    const log = screen.getByRole('log', { name: 'Cuộc trò chuyện Copilot' });
+    expect(log.querySelectorAll('[aria-live]')).toHaveLength(0);
+    expect(log.querySelectorAll('[role="status"]')).toHaveLength(0);
+    expect(screen.getByLabelText('Copilot đang trả lời')).toBeInTheDocument();
   });
 });

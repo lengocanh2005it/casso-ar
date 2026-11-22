@@ -258,6 +258,7 @@ export function CopilotPage() {
                   messages={messages}
                   streamingContent={streamingContent}
                   isWaitingForResponse={isSending && !streamingContent}
+                  isSending={isSending}
                 />
               )}
               {pendingAction && canSendManual && (

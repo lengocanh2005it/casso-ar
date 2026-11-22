@@ -315,9 +315,10 @@ describe('CopilotPage', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /dừng/i })).toBeInTheDocument(),
     );
+    expect(screen.getByLabelText('Copilot đang trả lời')).toBeInTheDocument();
     expect(
-      screen.getByRole('status', { name: 'Copilot đang trả lời' }),
-    ).toBeInTheDocument();
+      screen.getByRole('log', { name: 'Cuộc trò chuyện Copilot' }),
+    ).toHaveAttribute('aria-busy', 'true');
     fireEvent.click(screen.getByRole('button', { name: /dừng/i }));
     releaseFetch();
 

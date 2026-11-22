@@ -6,13 +6,24 @@ export function MessageList({
   messages,
   streamingContent,
   isWaitingForResponse = false,
+  isSending = false,
 }: {
   messages: CopilotMessage[];
   streamingContent?: string;
   isWaitingForResponse?: boolean;
+  isSending?: boolean;
 }) {
   return (
-    <div className="space-y-3">
+    // The single live region for the chat: aria-busy stops partial streaming
+    // text from being announced token by token, and the typing indicator below
+    // stays a plain labelled element so nothing is announced twice.
+    <div
+      aria-busy={isSending}
+      aria-label="Cuộc trò chuyện Copilot"
+      aria-live="polite"
+      className="space-y-3"
+      role="log"
+    >
       {messages.map((message) => (
         <div key={message.id} className="space-y-2">
           <CopilotMessageBubble message={message} />
@@ -27,7 +38,7 @@ export function MessageList({
         </div>
       ))}
       {isWaitingForResponse && !streamingContent && (
-        <div aria-label="Copilot đang trả lời" role="status">
+        <div aria-label="Copilot đang trả lời" role="img">
           <CopilotMessageBubble
             message={{ role: 'ASSISTANT', content: '' }}
             isWaitingForResponse
