@@ -6,6 +6,7 @@ import { ErrorCode } from '../../../common/errors/error-code';
 import { Role } from '../../organizations/domain/membership';
 import { CopilotChatUseCase, SYSTEM_PROMPT } from './copilot-chat.usecase';
 import { CopilotToolRegistry } from './copilot-tool-registry';
+import { RankReceivablesByRiskTool } from './tools/rank-receivables-by-risk.tool';
 
 function buildRegistry(): CopilotToolRegistry {
   const registry = new CopilotToolRegistry();
@@ -34,7 +35,7 @@ function buildRegistry(): CopilotToolRegistry {
     requiresReminderPermission: false,
   });
   registry.register({
-    name: 'rankReceivablesByRisk',
+    name: RankReceivablesByRiskTool.NAME,
     description: 'risk ranking',
     inputSchema: { type: 'object', properties: {}, required: [] },
     requiresReminderPermission: false,
@@ -1588,7 +1589,7 @@ describe('CopilotChatUseCase', () => {
   });
 
   it('guides the model to use risk ranking for priority and soon-overdue questions', () => {
-    expect(SYSTEM_PROMPT).toContain('rankReceivablesByRisk');
+    expect(SYSTEM_PROMPT).toContain(RankReceivablesByRiskTool.NAME);
     expect(SYSTEM_PROMPT).toContain('sắp trễ nợ');
     expect(SYSTEM_PROMPT).toContain('never compute a score yourself');
   });
@@ -1601,7 +1602,7 @@ describe('CopilotChatUseCase', () => {
         toolCalls: [
           {
             id: 'tool-risk',
-            name: 'rankReceivablesByRisk',
+            name: RankReceivablesByRiskTool.NAME,
             arguments: { limit: 3, search: 'Alpha' },
           },
         ],
@@ -1656,7 +1657,7 @@ describe('CopilotChatUseCase', () => {
         toolCalls: [
           {
             id: 'tool-risk',
-            name: 'rankReceivablesByRisk',
+            name: RankReceivablesByRiskTool.NAME,
             arguments: { limit: 11 },
           },
         ],

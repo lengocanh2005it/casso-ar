@@ -1,6 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { AppError } from '../../../../common/errors/app-error';
-import { ErrorCode } from '../../../../common/errors/error-code';
 import { TenantContextService } from '../../../../common/tenancy/tenant-context';
 import type { ICustomerRepository } from '../../../customers/application/customer-repository.port';
 import { CUSTOMER_REPOSITORY } from '../../../customers/application/customer-repository.port';
@@ -13,6 +11,7 @@ import {
   RECEIVABLE_REPOSITORY,
 } from '../../../receivables/application/receivable-repository.port';
 import type { CopilotJsonSchema } from '../copilot-tool-registry';
+import { validateSearchAndLimit } from './copilot-tool-input';
 
 export const FIND_OVERDUE_RECEIVABLES_SCHEMA: CopilotJsonSchema = {
   type: 'object',
@@ -93,26 +92,14 @@ export class FindOverdueReceivablesTool {
     input: FindOverdueReceivablesInput,
     now = new Date(),
   ): Promise<FindOverdueReceivablesResult> {
-    if (input.limit !== undefined) {
-      if (
-        typeof input.limit !== 'number' ||
-        !Number.isInteger(input.limit) ||
-        input.limit < 1 ||
-        input.limit > 10
-      ) {
-        throw new AppError(
-          ErrorCode.VALIDATION_ERROR,
-          'Limit must be an integer between 1 and 10.',
-        );
-      }
-    }
+    const { limit: validatedLimit } = validateSearchAndLimit(input);
 
     const organizationId = this.tenantContext.getOrganizationId();
     const currentUser = this.tenantContext.getCurrentUser();
     const salesRepresentativeId =
       currentUser?.role === Role.SALES_REP ? currentUser.userId : undefined;
 
-    const limit = input.limit ?? 10;
+    const limit = validatedLimit ?? 10;
     const sortBy = input.cursor
       ? 'due_date_asc'
       : (input.sortBy ?? 'due_date_asc');

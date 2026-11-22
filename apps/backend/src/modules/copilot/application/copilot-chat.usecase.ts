@@ -47,6 +47,7 @@ import {
   enrichSendReminderEmailPayload,
   type ICopilotPendingActionRepository,
 } from './pending-action-repository.port';
+import { validateSearchAndLimit } from './tools/copilot-tool-input';
 import {
   type DraftReminderEmailResult,
   DraftReminderEmailTool,
@@ -346,26 +347,7 @@ export class CopilotChatUseCase {
           limit: typeof input.limit === 'number' ? input.limit : undefined,
         });
       case FindOverdueReceivablesTool.NAME: {
-        const search = input.search;
-        if (search !== undefined && typeof search !== 'string') {
-          throw new AppError(
-            ErrorCode.VALIDATION_ERROR,
-            'Tham số search phải là chuỗi ký tự.',
-          );
-        }
-        const limit = input.limit;
-        if (
-          limit !== undefined &&
-          (typeof limit !== 'number' ||
-            !Number.isInteger(limit) ||
-            limit < 1 ||
-            limit > 10)
-        ) {
-          throw new AppError(
-            ErrorCode.VALIDATION_ERROR,
-            'Tham số limit phải là số nguyên từ 1 đến 10.',
-          );
-        }
+        const { search, limit } = validateSearchAndLimit(input);
         const cursor = input.cursor;
         if (cursor !== undefined && !isValidOverdueCursor(cursor)) {
           throw new AppError(
@@ -398,26 +380,7 @@ export class CopilotChatUseCase {
             'Công cụ xếp hạng rủi ro không khả dụng.',
           );
         }
-        const search = input.search;
-        if (search !== undefined && typeof search !== 'string') {
-          throw new AppError(
-            ErrorCode.VALIDATION_ERROR,
-            'Tham số search phải là chuỗi ký tự.',
-          );
-        }
-        const limit = input.limit;
-        if (
-          limit !== undefined &&
-          (typeof limit !== 'number' ||
-            !Number.isInteger(limit) ||
-            limit < 1 ||
-            limit > 10)
-        ) {
-          throw new AppError(
-            ErrorCode.VALIDATION_ERROR,
-            'Tham số limit phải là số nguyên từ 1 đến 10.',
-          );
-        }
+        const { search, limit } = validateSearchAndLimit(input);
         return this.rankReceivablesByRiskTool.execute({
           search: search !== undefined ? search : undefined,
           limit: limit !== undefined ? limit : undefined,
