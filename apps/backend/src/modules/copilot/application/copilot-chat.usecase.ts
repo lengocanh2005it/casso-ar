@@ -367,8 +367,8 @@ export class CopilotChatUseCase {
           );
         }
         return this.findOverdueReceivablesTool.execute({
-          search: search !== undefined ? search : undefined,
-          limit: limit !== undefined ? limit : undefined,
+          search,
+          limit,
           cursor,
           sortBy,
         });
@@ -382,8 +382,8 @@ export class CopilotChatUseCase {
         }
         const { search, limit } = validateSearchAndLimit(input);
         return this.rankReceivablesByRiskTool.execute({
-          search: search !== undefined ? search : undefined,
-          limit: limit !== undefined ? limit : undefined,
+          search,
+          limit,
         });
       }
       case DraftReminderEmailTool.NAME:
