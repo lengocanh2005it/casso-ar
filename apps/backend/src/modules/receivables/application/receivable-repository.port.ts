@@ -39,6 +39,13 @@ export interface IReceivableRepository {
   ): Promise<Receivable | null>;
   save(receivable: Receivable, manager?: EntityManager): Promise<void>;
   findOpenByCustomerId(customerId: string): Promise<Receivable[]>;
+  /**
+   * One query for every customer. Customers without open receivables are
+   * absent from the map.
+   */
+  findOpenByCustomerIds(
+    customerIds: string[],
+  ): Promise<Map<string, Receivable[]>>;
   findOpenByCustomerIdWithLimit(
     customerId: string,
     limit: number,

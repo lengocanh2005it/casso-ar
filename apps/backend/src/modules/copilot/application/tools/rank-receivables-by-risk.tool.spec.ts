@@ -70,6 +70,20 @@ describe('scoreRisk', () => {
     expect(result.riskBand).toBe('HIGH');
   });
 
+  it('stays inside 0-100 by construction, so no total clamp is needed', () => {
+    // The five per-signal caps sum to 90: the documented 0-100 range is a
+    // consequence of the weights, not of a Math.min(100, ...) guard.
+    const worst = scoreRisk({
+      daysOverdue: 10_000,
+      hasOpenDispute: true,
+      hasPriorSentReminder: true,
+      latePaymentRatio: 1,
+      remainingToMedianRatio: 1_000,
+    });
+    expect(worst.riskScore).toBe(90);
+    expect(worst.riskScore).toBeLessThanOrEqual(100);
+  });
+
   it('applies the documented large-balance weight min(15, floor(ratio * 5))', () => {
     const atMedian = scoreRisk({ ...base, remainingToMedianRatio: 1 });
     expect(atMedian.riskScore).toBe(5);
@@ -172,6 +186,7 @@ function buildTool(overrides: Record<string, unknown> = {}) {
       findOverdueCandidates: jest.fn().mockResolvedValue([]),
       findByIds: jest.fn().mockResolvedValue(new Map()),
       findOpenByCustomerId: jest.fn().mockResolvedValue([]),
+      findOpenByCustomerIds: jest.fn().mockResolvedValue(new Map()),
       ...(overrides.receivableRepo as Record<string, unknown> | undefined),
     },
   };
@@ -235,7 +250,9 @@ describe('RankReceivablesByRiskTool', () => {
         ),
         // Both are also the customer's only open receivables, so the median
         // is the shared 5M and each gets ratio 1 -> 5 points.
-        findOpenByCustomerId: jest.fn().mockResolvedValue([newer, older]),
+        findOpenByCustomerIds: jest
+          .fn()
+          .mockResolvedValue(new Map([['cust-1', [newer, older]]])),
       },
       disputeRepo: {
         findOpenDisputesByReceivableIds: jest
@@ -303,7 +320,9 @@ describe('RankReceivablesByRiskTool', () => {
       receivableRepo: {
         findOverdueCandidates: jest.fn().mockResolvedValue([later, earlier]),
         findByIds: jest.fn().mockResolvedValue(new Map()),
-        findOpenByCustomerId: jest.fn().mockResolvedValue([later, earlier]),
+        findOpenByCustomerIds: jest
+          .fn()
+          .mockResolvedValue(new Map([['cust-1', [later, earlier]]])),
       },
     });
 
@@ -415,6 +434,47 @@ describe('RankReceivablesByRiskTool', () => {
     expect(deps.allocationRepo.findByCustomerId).not.toHaveBeenCalled();
   });
 
+  it('loads open receivables for every distinct customer in one batch call', async () => {
+    // Three distinct customers used to mean three findOpenByCustomerId
+    // queries for the LARGE_BALANCE median.
+    const alpha = receivable({
+      id: 'rec-a',
+      customerId: 'cust-a',
+      originalAmount: 1_000_000,
+      dueDate: '2026-10-01T00:00:00.000Z',
+    });
+    const beta = receivable({
+      id: 'rec-b',
+      customerId: 'cust-b',
+      originalAmount: 2_000_000,
+      dueDate: '2026-10-02T00:00:00.000Z',
+    });
+    const gamma = receivable({
+      id: 'rec-c',
+      customerId: 'cust-c',
+      originalAmount: 3_000_000,
+      dueDate: '2026-10-03T00:00:00.000Z',
+    });
+    const { tool, deps } = buildTool({
+      receivableRepo: {
+        findOverdueCandidates: jest
+          .fn()
+          .mockResolvedValue([alpha, beta, gamma]),
+        findByIds: jest.fn().mockResolvedValue(new Map()),
+      },
+    });
+
+    await tool.execute({}, new Date('2026-11-22T00:00:00.000Z'));
+
+    expect(deps.receivableRepo.findOpenByCustomerIds).toHaveBeenCalledTimes(1);
+    expect(deps.receivableRepo.findOpenByCustomerIds).toHaveBeenCalledWith([
+      'cust-a',
+      'cust-b',
+      'cust-c',
+    ]);
+    expect(deps.receivableRepo.findOpenByCustomerId).not.toHaveBeenCalled();
+  });
+
   it('takes the customer median over all open receivables, not just the candidate window', async () => {
     // Only rec-small is a candidate, but the customer also has rec-big open.
     // Median of [10M, 30M] is 20M, so 10M is ratio 0.5 -> floor(0.5 * 5) = 2
@@ -433,17 +493,17 @@ describe('RankReceivablesByRiskTool', () => {
       receivableRepo: {
         findOverdueCandidates: jest.fn().mockResolvedValue([candidate]),
         findByIds: jest.fn().mockResolvedValue(new Map()),
-        findOpenByCustomerId: jest
+        findOpenByCustomerIds: jest
           .fn()
-          .mockResolvedValue([candidate, notYetDue]),
+          .mockResolvedValue(new Map([['cust-1', [candidate, notYetDue]]])),
       },
     });
 
     const result = await tool.execute({}, new Date('2026-11-22T00:00:00.000Z'));
 
-    expect(deps.receivableRepo.findOpenByCustomerId).toHaveBeenCalledWith(
+    expect(deps.receivableRepo.findOpenByCustomerIds).toHaveBeenCalledWith([
       'cust-1',
-    );
+    ]);
     const largeBalance = result.items[0].reasons.find(
       (reason) => reason.code === 'LARGE_BALANCE',
     );

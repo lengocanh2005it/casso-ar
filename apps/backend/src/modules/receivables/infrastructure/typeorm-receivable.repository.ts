@@ -160,6 +160,43 @@ export class TypeOrmReceivableRepository
     return rows.map(toDomain);
   }
 
+  async findOpenByCustomerIds(
+    customerIds: string[],
+  ): Promise<Map<string, Receivable[]>> {
+    const grouped = new Map<string, Receivable[]>();
+    if (customerIds.length === 0) return grouped;
+
+    const rows = await this.scopedFindMany(
+      {
+        customerId: In(customerIds),
+        status: In([ReceivableStatus.OPEN, ReceivableStatus.PARTIALLY_PAID]),
+      },
+      {
+        select: {
+          id: true,
+          organizationId: true,
+          customerId: true,
+          invoiceId: true,
+          originalAmount: true,
+          paidAmount: true,
+          dueDate: true,
+          status: true,
+          salesRepresentativeId: true,
+          createdAt: true,
+          closedAt: true,
+          version: true,
+        },
+      },
+    );
+
+    for (const row of rows) {
+      const bucket = grouped.get(row.customerId) ?? [];
+      bucket.push(toDomain(row));
+      grouped.set(row.customerId, bucket);
+    }
+    return grouped;
+  }
+
   async findOpenByIds(ids: string[]): Promise<Receivable[]> {
     if (ids.length === 0) return [];
     const organizationId = this.tenantContext.getOrganizationId();

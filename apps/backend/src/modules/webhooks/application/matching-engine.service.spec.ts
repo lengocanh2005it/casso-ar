@@ -51,6 +51,7 @@ describe('MatchingEngineService', () => {
       },
       {
         findOpenByCustomerId: jest.fn().mockResolvedValue([receivable]),
+        findOpenByCustomerIds: jest.fn().mockResolvedValue(new Map()),
         findOpenByCustomerIdWithLimit: jest.fn(),
         findOpenByIds: jest.fn(),
         findOpenByInvoiceIds: jest.fn().mockResolvedValue([]),
@@ -114,6 +115,7 @@ describe('MatchingEngineService', () => {
       },
       {
         findOpenByCustomerId,
+        findOpenByCustomerIds: jest.fn().mockResolvedValue(new Map()),
         findOpenByCustomerIdWithLimit: jest.fn(),
         findOpenByIds: jest.fn(),
         findOpenByInvoiceIds: jest.fn().mockResolvedValue([]),
@@ -221,6 +223,7 @@ describe('MatchingEngineService', () => {
       };
       receivableRepo = {
         findOpenByCustomerId: jest.fn().mockResolvedValue([]),
+        findOpenByCustomerIds: jest.fn().mockResolvedValue(new Map()),
         findOpenByCustomerIdWithLimit: jest.fn(),
         findOpenByIds: jest.fn(),
         findOpenByInvoiceIds: jest.fn().mockResolvedValue([]),
@@ -385,6 +388,7 @@ describe('MatchingEngineService', () => {
       };
       receivableRepo = {
         findOpenByCustomerId: jest.fn().mockResolvedValue([]),
+        findOpenByCustomerIds: jest.fn().mockResolvedValue(new Map()),
         findOpenByCustomerIdWithLimit: jest.fn(),
         findOpenByInvoiceIds: jest.fn().mockResolvedValue([]),
         findOpenTopNByOrganization: jest.fn().mockResolvedValue([]),

@@ -38,8 +38,8 @@ export interface RiskSignals {
   hasPriorSentReminder: boolean;
   latePaymentRatio: number;
   /**
-   * remainingAmount / median remaining of the customer's open receivables in
-   * the candidate set. 1 means "exactly the customer's median".
+   * remainingAmount / median remaining over all open receivables of the
+   * customer. 1 means "exactly the customer's median".
    */
   remainingToMedianRatio: number;
 }
@@ -58,7 +58,6 @@ const DISPUTE_POINTS = 20;
 const REMINDER_POINTS = 5;
 const HIGH_BAND_MIN = 60;
 const MEDIUM_BAND_MIN = 30;
-const TOTAL_CAP = 100;
 
 // +1e-9 keeps a mathematically integral ratio (e.g. 0.5 * 20) from flooring
 // to one point less because of binary floating-point representation.
@@ -93,10 +92,10 @@ export function scoreRisk(signals: RiskSignals): RiskScore {
     MAX_LARGE_POINTS,
   );
 
-  const riskScore = Math.min(
-    TOTAL_CAP,
-    overduePoints + disputePoints + reminderPoints + latePoints + largePoints,
-  );
+  // The per-signal caps sum to 90, so the documented 0-100 range holds by
+  // construction and needs no total clamp.
+  const riskScore =
+    overduePoints + disputePoints + reminderPoints + latePoints + largePoints;
   const riskBand: RiskBand =
     riskScore >= HIGH_BAND_MIN
       ? 'HIGH'
@@ -292,20 +291,15 @@ export class RankReceivablesByRiskTool {
 
     // The spec's baseline is every open receivable of the customer, not the
     // bounded candidate window: with a candidate-only median a lone candidate
-    // is always its own median (ratio 1 -> 5 points). ponytail: one
-    // findOpenByCustomerId per distinct customer, each capped at 100 rows by
-    // the port; add a batch port if the candidate fan-out ever grows past 30.
+    // is always its own median (ratio 1 -> 5 points). One batch call for every
+    // customer, grouped in memory.
+    const openByCustomer =
+      await this.receivableRepo.findOpenByCustomerIds(customerIds);
     const medianByCustomer = new Map<string, number>(
-      await Promise.all(
-        customerIds.map(async (customerId) => {
-          const open =
-            await this.receivableRepo.findOpenByCustomerId(customerId);
-          return [
-            customerId,
-            median(open.map((receivable) => receivable.remainingAmount)),
-          ] as const;
-        }),
-      ),
+      [...openByCustomer].map(([customerId, open]) => [
+        customerId,
+        median(open.map((receivable) => receivable.remainingAmount)),
+      ]),
     );
 
     const lateRatioByCustomer = await this.loadLatePaymentRatios(customerIds);

@@ -21,6 +21,71 @@ const PROPS = {
 };
 
 describe('TypeOrmReceivableRepository', () => {
+  describe('findOpenByCustomerIds', () => {
+    it('loads every customer in one tenant-scoped query and groups by customer id', async () => {
+      const alphaOpen = { ...PROPS, id: 'rcv-a1', customerId: 'cus-a' };
+      const alphaPaid = {
+        ...PROPS,
+        id: 'rcv-a2',
+        customerId: 'cus-a',
+        status: ReceivableStatus.OPEN,
+      };
+      const beta = { ...PROPS, id: 'rcv-b1', customerId: 'cus-b' };
+      const ormRepo = {
+        find: jest.fn().mockResolvedValue([alphaOpen, alphaPaid, beta]),
+      };
+      const tenantContext = new TenantContextService();
+      const repository = new TypeOrmReceivableRepository(
+        ormRepo as any,
+        tenantContext,
+      );
+
+      const result = await tenantContext.run(
+        { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+        () => repository.findOpenByCustomerIds(['cus-a', 'cus-b']),
+      );
+
+      // One query for every customer, tenant-scoped by the context.
+      expect(ormRepo.find).toHaveBeenCalledTimes(1);
+      expect(ormRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            organizationId: 'org-1',
+            customerId: In(['cus-a', 'cus-b']),
+            status: In([
+              ReceivableStatus.OPEN,
+              ReceivableStatus.PARTIALLY_PAID,
+            ]),
+          },
+        }),
+      );
+      expect([...result.keys()].sort()).toEqual(['cus-a', 'cus-b']);
+      expect(result.get('cus-a')?.map((item) => item.id)).toEqual([
+        'rcv-a1',
+        'rcv-a2',
+      ]);
+      expect(result.get('cus-b')?.map((item) => item.id)).toEqual(['rcv-b1']);
+      expect(result.get('cus-a')?.[0]).toBeInstanceOf(Receivable);
+    });
+
+    it('returns an empty map without querying when no customer ids are given', async () => {
+      const ormRepo = { find: jest.fn() };
+      const tenantContext = new TenantContextService();
+      const repository = new TypeOrmReceivableRepository(
+        ormRepo as any,
+        tenantContext,
+      );
+
+      const result = await tenantContext.run(
+        { userId: 'u1', organizationId: 'org-1', role: Role.OWNER },
+        () => repository.findOpenByCustomerIds([]),
+      );
+
+      expect(result.size).toBe(0);
+      expect(ormRepo.find).not.toHaveBeenCalled();
+    });
+  });
+
   it('loads bounded same-customer open receivables in tenant-scoped stable order', async () => {
     const ormRepo = { find: jest.fn().mockResolvedValue([PROPS]) };
     const tenantContext = new TenantContextService();
