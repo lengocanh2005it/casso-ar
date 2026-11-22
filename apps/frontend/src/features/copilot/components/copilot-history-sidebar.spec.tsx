@@ -48,6 +48,74 @@ describe('CopilotHistorySidebar', () => {
     expect(onNewChat).toHaveBeenCalled();
   });
 
+  it('falls back to a named conversation when the title is empty', () => {
+    render(
+      <CopilotHistorySidebar
+        conversations={[
+          { id: 'c1', title: '', createdAt: '', lastMessageAt: '' },
+        ]}
+        activeConversationId="c1"
+        isLoading={false}
+        onSelect={vi.fn()}
+        onNewChat={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Cuộc trò chuyện không tên' }),
+    ).toBeInTheDocument();
+  });
+
+  it('marks the active conversation with aria-current', () => {
+    render(
+      <CopilotHistorySidebar
+        conversations={CONVERSATIONS}
+        activeConversationId="c1"
+        isLoading={false}
+        onSelect={vi.fn()}
+        onNewChat={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Hỏi về công nợ ABC' }),
+    ).toHaveAttribute('aria-current', 'true');
+    expect(
+      screen.getByRole('button', { name: 'Soạn email nhắc thanh toán' }),
+    ).not.toHaveAttribute('aria-current');
+  });
+
+  it('gives conversation buttons a visible focus ring', () => {
+    render(
+      <CopilotHistorySidebar
+        conversations={CONVERSATIONS}
+        activeConversationId="c1"
+        isLoading={false}
+        onSelect={vi.fn()}
+        onNewChat={vi.fn()}
+      />,
+    );
+
+    const button = screen.getByRole('button', { name: 'Hỏi về công nợ ABC' });
+    expect(button).toHaveClass('focus-visible:outline-none');
+    expect(button).toHaveClass('focus-visible:ring-2');
+    expect(button).toHaveClass('focus-visible:ring-ring');
+  });
+
+  it('announces the loading state', () => {
+    render(
+      <CopilotHistorySidebar
+        conversations={[]}
+        activeConversationId="c1"
+        isLoading
+        onSelect={vi.fn()}
+        onNewChat={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('Đang tải…');
+  });
+
   it('hides the header icons from assistive technology', () => {
     render(
       <CopilotHistorySidebar
