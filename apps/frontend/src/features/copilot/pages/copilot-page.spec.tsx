@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hoverTooltip } from '@/test/tooltip';
@@ -727,5 +733,194 @@ describe('CopilotPage', () => {
       ),
     );
     expect(composer).toBeDisabled();
+  });
+
+  describe('auto-scroll', () => {
+    const geometry = { distanceFromBottom: 0 };
+
+    function stubScrollGeometry({
+      distanceFromBottom,
+    }: {
+      distanceFromBottom: number;
+    }) {
+      const scrollTo = vi.fn();
+      geometry.distanceFromBottom = distanceFromBottom;
+      Object.defineProperty(Element.prototype, 'scrollHeight', {
+        configurable: true,
+        get: () => 1000,
+      });
+      Object.defineProperty(Element.prototype, 'clientHeight', {
+        configurable: true,
+        get: () => 400,
+      });
+      Object.defineProperty(Element.prototype, 'scrollTop', {
+        configurable: true,
+        get() {
+          return 600 - geometry.distanceFromBottom;
+        },
+        set: () => {},
+      });
+      Element.prototype.scrollTo = scrollTo;
+      return scrollTo;
+    }
+
+    afterEach(() => {
+      Reflect.deleteProperty(Element.prototype, 'scrollHeight');
+      Reflect.deleteProperty(Element.prototype, 'clientHeight');
+      Reflect.deleteProperty(Element.prototype, 'scrollTop');
+      Reflect.deleteProperty(Element.prototype, 'scrollTo');
+    });
+
+    it('scrolls to the bottom when a new message arrives while near the bottom', async () => {
+      const scrollTo = stubScrollGeometry({ distanceFromBottom: 10 });
+      renderPage();
+      await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          sseResponse([
+            {
+              event: 'delta',
+              data: { text: 'Đang soạn câu trả lời.' },
+            },
+            {
+              event: 'done',
+              data: {
+                message: {
+                  id: 'm1',
+                  role: 'ASSISTANT',
+                  content: 'Đang soạn câu trả lời.',
+                  createdAt: '2026-08-09T00:00:00Z',
+                },
+                pendingAction: null,
+              },
+            },
+          ]),
+        ),
+      );
+      fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
+        target: { value: 'Tóm tắt công nợ' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+      await screen.findByText('Đang soạn câu trả lời.');
+
+      expect(scrollTo).toHaveBeenCalled();
+    });
+
+    it('scrolls while streaming text keeps growing', async () => {
+      const scrollTo = stubScrollGeometry({ distanceFromBottom: 0 });
+      renderPage();
+      await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+      let pushEvent: (event: unknown) => void = () => {};
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                pushEvent = (event) => {
+                  const typed = event as { event: string; data: unknown };
+                  controller.enqueue(
+                    new TextEncoder().encode(
+                      `event: ${typed.event}\ndata: ${JSON.stringify(typed.data)}\n\n`,
+                    ),
+                  );
+                };
+              },
+            }),
+            { status: 200 },
+          ),
+        ),
+      );
+      fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
+        target: { value: 'Tóm tắt công nợ' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+
+      await screen.findByRole('button', { name: 'Dừng' });
+      const callsBefore = scrollTo.mock.calls.length;
+      await act(async () => {
+        pushEvent({ event: 'delta', data: { text: 'Một đoạn ' } });
+      });
+      await act(async () => {
+        pushEvent({ event: 'delta', data: { text: 'nữa.' } });
+      });
+
+      expect(scrollTo.mock.calls.length).toBeGreaterThan(callsBefore);
+    });
+
+    it('scrolls instantly when the user prefers reduced motion', async () => {
+      const scrollTo = stubScrollGeometry({ distanceFromBottom: 10 });
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn().mockImplementation((query: string) => ({
+          matches: true,
+          media: query,
+        })),
+      );
+      renderPage();
+      await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          sseResponse([
+            {
+              event: 'done',
+              data: {
+                message: {
+                  id: 'm1',
+                  role: 'ASSISTANT',
+                  content: 'Đang soạn câu trả lời.',
+                  createdAt: '2026-08-09T00:00:00Z',
+                },
+                pendingAction: null,
+              },
+            },
+          ]),
+        ),
+      );
+      fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
+        target: { value: 'Tóm tắt công nợ' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+
+      await screen.findByText('Đang soạn câu trả lời.');
+      expect(scrollTo).toHaveBeenCalledWith(
+        expect.objectContaining({ behavior: 'auto' }),
+      );
+    });
+
+    it('does not yank the user down when they scrolled up to read', async () => {
+      const scrollTo = stubScrollGeometry({ distanceFromBottom: 10 });
+      renderPage();
+      await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+      const region = document.getElementById('copilot-scroll') as HTMLElement;
+      // jsdom does not compute layout, so simulate the user scrolling up:
+      // a scroll event that leaves the container 400px from the bottom.
+      geometry.distanceFromBottom = 400;
+      fireEvent.scroll(region);
+
+      expect(region.scrollHeight - region.scrollTop - region.clientHeight).toBe(
+        400,
+      );
+      // Renders before the user scrolled away may have scrolled already.
+      scrollTo.mockClear();
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockImplementation(() => new Promise(() => {})),
+      );
+      fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
+        target: { value: 'Tóm tắt công nợ' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+      await screen.findByRole('button', { name: 'Dừng' });
+
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
   });
 });

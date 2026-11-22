@@ -41,6 +41,8 @@ export function CopilotPage() {
   );
   const gateRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
   const canSendManual = user
     ? hasPermission(user.role, Permission.REMINDER_SEND_MANUAL)
     : false;
@@ -130,6 +132,32 @@ export function CopilotPage() {
       composerRef.current?.focus();
     }
   }, [isSending, blockedByPendingAction]);
+
+  function updateStickToBottom() {
+    const container = scrollRef.current;
+    if (!container) return;
+    stickToBottomRef.current =
+      container.scrollHeight - container.scrollTop - container.clientHeight <
+      80;
+  }
+
+  // Stick to the bottom only while the user is already there: scrolling up to
+  // re-read must not be yanked back by the next streaming token.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-run whenever new content can grow the list
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    if (!stickToBottomRef.current) return;
+    if (typeof container.scrollTo !== 'function') return;
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior:
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          ? 'auto'
+          : 'smooth',
+    });
+  }, [messages, streamingContent, isSending, pendingAction]);
 
   const isEmptyConversation = messages.length === 0 && !streamingContent;
   const historySidebar = (
@@ -236,6 +264,9 @@ export function CopilotPage() {
             {/* The welcome card carries its own border and padding, so the
                 scroll container skips its own padding to leave room for it. */}
             <div
+              ref={scrollRef}
+              id="copilot-scroll"
+              onScroll={updateStickToBottom}
               className={
                 isEmptyConversation
                   ? 'mx-3 flex min-h-0 flex-1 flex-col overflow-hidden'
