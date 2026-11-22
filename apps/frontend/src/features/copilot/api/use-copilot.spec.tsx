@@ -186,7 +186,7 @@ describe('useCopilotChat', () => {
     );
     const { result } = renderHook(() => useCopilotChat(true, 'conversation-1'));
 
-    let sendPromise: Promise<void>;
+    let sendPromise: Promise<boolean>;
     act(() => {
       sendPromise = result.current.send('Câu hỏi dài');
     });
@@ -213,7 +213,7 @@ describe('useCopilotChat', () => {
     );
     const { result } = renderHook(() => useCopilotChat(true, 'conversation-1'));
 
-    let sendPromise: Promise<void>;
+    let sendPromise: Promise<boolean>;
     act(() => {
       sendPromise = result.current.send('Câu hỏi dài');
     });
@@ -247,7 +247,7 @@ describe('useCopilotChat', () => {
     );
     const { result } = renderHook(() => useCopilotChat(true, 'conversation-1'));
 
-    let sendPromise: Promise<void>;
+    let sendPromise: Promise<boolean>;
     act(() => {
       sendPromise = result.current.send('Câu hỏi dài');
     });
@@ -276,7 +276,7 @@ describe('useCopilotChat', () => {
       useCopilotChat(true, 'conversation-1', { onTurnComplete }),
     );
 
-    let sendPromise: Promise<void>;
+    let sendPromise: Promise<boolean>;
     act(() => {
       sendPromise = result.current.send('Câu hỏi dài');
     });
@@ -717,9 +717,11 @@ describe('useCopilotChat', () => {
 
   describe('switching conversations mid-stream', () => {
     it('aborts the old stream and never writes into the new conversation', async () => {
-      let rejectStream: (reason: unknown) => void = () => {};
-      let capturedOnEvent: ((event: unknown) => void) | null = null;
-      let capturedSignal: AbortSignal | null = null;
+      const captured: {
+        onEvent: ((event: unknown) => void) | null;
+        signal: AbortSignal | null;
+        reject: (reason: unknown) => void;
+      } = { onEvent: null, signal: null, reject: () => {} };
       streamCopilotMessage.mockImplementation(
         (
           _id: string,
@@ -728,9 +730,9 @@ describe('useCopilotChat', () => {
           signal: AbortSignal,
         ) =>
           new Promise((_resolve, reject) => {
-            capturedOnEvent = onEvent;
-            capturedSignal = signal;
-            rejectStream = reject;
+            captured.onEvent = onEvent;
+            captured.signal = signal;
+            captured.reject = reject;
           }),
       );
       const onTurnComplete = vi.fn();
@@ -745,19 +747,19 @@ describe('useCopilotChat', () => {
         sendPromise = result.current.send('Câu hỏi cho A');
       });
       act(() => {
-        capturedOnEvent?.({ type: 'delta', text: 'Trả lời cho A' });
+        captured.onEvent?.({ type: 'delta', text: 'Trả lời cho A' });
       });
 
       getCopilotConversationMessages.mockResolvedValueOnce({ items: [] });
       rerender({ conversationId: 'conversation-b' });
 
       // The old stream must be aborted, not left running into B.
-      expect(capturedSignal?.aborted).toBe(true);
+      expect(captured.signal?.aborted).toBe(true);
       expect(result.current.isSending).toBe(false);
       expect(result.current.streamingContent).toBe('');
 
       await act(async () => {
-        rejectStream(new DOMException('aborted', 'AbortError'));
+        captured.reject(new DOMException('aborted', 'AbortError'));
         await sendPromise;
       });
 
@@ -769,17 +771,19 @@ describe('useCopilotChat', () => {
     });
 
     it('ignores done and error events that arrive after the switch', async () => {
-      let resolveStream: () => void = () => {};
-      let capturedOnEvent: ((event: unknown) => void) | null = null;
+      const captured: {
+        onEvent: ((event: unknown) => void) | null;
+        resolve: () => void;
+      } = { onEvent: null, resolve: () => {} };
       streamCopilotMessage.mockImplementation(
         async (
           _id: string,
           _content: string,
           onEvent: (event: unknown) => void,
         ) => {
-          capturedOnEvent = onEvent;
+          captured.onEvent = onEvent;
           await new Promise<void>((resolve) => {
-            resolveStream = resolve;
+            captured.resolve = resolve;
           });
         },
       );
@@ -796,7 +800,7 @@ describe('useCopilotChat', () => {
       getCopilotConversationMessages.mockResolvedValueOnce({ items: [] });
       rerender({ conversationId: 'conversation-b' });
 
-      capturedOnEvent?.({
+      captured.onEvent?.({
         type: 'done',
         data: {
           message: {
@@ -818,7 +822,7 @@ describe('useCopilotChat', () => {
       });
 
       await act(async () => {
-        resolveStream();
+        captured.resolve();
         await sendPromise;
       });
 
