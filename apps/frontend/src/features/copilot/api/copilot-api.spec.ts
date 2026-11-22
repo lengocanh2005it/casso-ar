@@ -139,6 +139,55 @@ describe('copilot-api', () => {
     vi.unstubAllGlobals();
   });
 
+  it('reports acceptance once the 2xx response arrives, before reading the stream', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          sseResponse([{ event: 'delta', data: { text: 'Xin chào' } }]),
+        ),
+    );
+    const onAccepted = vi.fn();
+    const controller = new AbortController();
+
+    await streamCopilotMessage(
+      'c1',
+      'Xin chào',
+      vi.fn(),
+      controller.signal,
+      onAccepted,
+    );
+
+    expect(onAccepted).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+  });
+
+  it('does not report acceptance when the response is rejected', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ errorCode: 'VALIDATION_ERROR' }), {
+          status: 400,
+        }),
+      ),
+    );
+    const onAccepted = vi.fn();
+    const controller = new AbortController();
+
+    await expect(
+      streamCopilotMessage(
+        'c1',
+        'Xin chào',
+        vi.fn(),
+        controller.signal,
+        onAccepted,
+      ),
+    ).rejects.toBeInstanceOf(CopilotStreamRequestError);
+    expect(onAccepted).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
   it('exports CopilotStreamRequestError as an Error subclass', () => {
     const error = new CopilotStreamRequestError('msg', 'PLAN_LIMIT_EXCEEDED');
     expect(error).toBeInstanceOf(Error);

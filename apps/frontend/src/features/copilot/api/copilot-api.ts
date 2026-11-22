@@ -106,11 +106,18 @@ export class CopilotStreamRequestError extends Error {
   }
 }
 
+// The backend persists (and bills) the user's message before it writes the
+// first SSE byte, so only a failure before this callback proves the turn was
+// never accepted. Everything after it - a dropped socket, a truncated frame -
+// happened on a turn the server already counted.
+type OnAccepted = () => void;
+
 export async function streamCopilotMessage(
   conversationId: string,
   content: string,
   onEvent: (event: CopilotStreamEvent) => void,
   signal: AbortSignal,
+  onAccepted?: OnAccepted,
 ): Promise<void> {
   const token = await authTokenManager.getValidAccessToken();
   const response = await fetch(
@@ -139,6 +146,8 @@ export async function streamCopilotMessage(
         : `Copilot stream failed with status ${response.status}`;
     throw new CopilotStreamRequestError(message, errorCode);
   }
+
+  onAccepted?.();
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();

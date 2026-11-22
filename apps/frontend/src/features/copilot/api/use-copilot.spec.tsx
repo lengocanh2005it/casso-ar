@@ -205,11 +205,19 @@ describe('useCopilotChat', () => {
     let rejectStream: (reason: unknown) => void = () => {};
     let capturedOnEvent: ((event: unknown) => void) | null = null;
     streamCopilotMessage.mockImplementation(
-      (_id: string, _content: string, onEvent: (event: unknown) => void) =>
-        new Promise((_resolve, reject) => {
+      (
+        _id: string,
+        _content: string,
+        onEvent: (event: unknown) => void,
+        _signal: AbortSignal,
+        onAccepted?: () => void,
+      ) => {
+        onAccepted?.();
+        return new Promise((_resolve, reject) => {
           capturedOnEvent = onEvent;
           rejectStream = reject;
-        }),
+        });
+      },
     );
     const { result } = renderHook(() => useCopilotChat(true, 'conversation-1'));
 
@@ -266,10 +274,18 @@ describe('useCopilotChat', () => {
   it('reports the turn as complete when the stream is aborted mid-answer', async () => {
     let rejectStream: (reason: unknown) => void = () => {};
     streamCopilotMessage.mockImplementation(
-      () =>
-        new Promise((_resolve, reject) => {
+      (
+        _id: string,
+        _content: string,
+        _onEvent: (event: unknown) => void,
+        _signal: AbortSignal,
+        onAccepted?: () => void,
+      ) => {
+        onAccepted?.();
+        return new Promise((_resolve, reject) => {
           rejectStream = reject;
-        }),
+        });
+      },
     );
     const onTurnComplete = vi.fn();
     const { result } = renderHook(() =>
@@ -541,7 +557,17 @@ describe('useCopilotChat', () => {
 
   describe('send result', () => {
     it('resolves true when the stream is accepted', async () => {
-      streamCopilotMessage.mockResolvedValue(undefined);
+      streamCopilotMessage.mockImplementation(
+        async (
+          _id: string,
+          _content: string,
+          _onEvent: (event: unknown) => void,
+          _signal: AbortSignal,
+          onAccepted?: () => void,
+        ) => {
+          onAccepted?.();
+        },
+      );
       const { result } = renderHook(() =>
         useCopilotChat(true, 'conversation-1'),
       );
@@ -587,10 +613,18 @@ describe('useCopilotChat', () => {
     it('resolves true when the user aborts after the stream was accepted', async () => {
       let rejectStream: (reason: unknown) => void = () => {};
       streamCopilotMessage.mockImplementation(
-        () =>
-          new Promise((_resolve, reject) => {
+        (
+          _id: string,
+          _content: string,
+          _onEvent: (event: unknown) => void,
+          _signal: AbortSignal,
+          onAccepted?: () => void,
+        ) => {
+          onAccepted?.();
+          return new Promise((_resolve, reject) => {
             rejectStream = reject;
-          }),
+          });
+        },
       );
       const { result } = renderHook(() =>
         useCopilotChat(true, 'conversation-1'),
@@ -610,6 +644,79 @@ describe('useCopilotChat', () => {
         accepted = await sendPromise;
       });
       expect(accepted).toBe(true);
+    });
+  });
+
+  describe('failures after the server accepted the turn', () => {
+    it('keeps the turn counted and the streamed text when the read fails mid-stream', async () => {
+      const onTurnComplete = vi.fn();
+      streamCopilotMessage.mockImplementation(
+        async (
+          _id: string,
+          _content: string,
+          onEvent: (event: unknown) => void,
+          _signal: AbortSignal,
+          onAccepted?: () => void,
+        ) => {
+          onAccepted?.();
+          onEvent({ type: 'delta', text: 'Đang phân tích' });
+          throw new TypeError('network error while reading the stream');
+        },
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1', { onTurnComplete }),
+      );
+
+      let accepted = false;
+      await act(async () => {
+        accepted = await result.current.send('Phân tích công nợ');
+      });
+
+      expect(accepted).toBe(true);
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
+      expect(result.current.messages.at(-1)).toMatchObject({
+        role: 'ASSISTANT',
+        content: 'Đang phân tích',
+        isPartial: true,
+      });
+      expect(toast.error).toHaveBeenCalledWith(
+        'Kết nối với Copilot bị gián đoạn.',
+      );
+    });
+
+    it('adds no message when the read fails before any delta', async () => {
+      const onTurnComplete = vi.fn();
+      streamCopilotMessage.mockImplementation(
+        async (
+          _id: string,
+          _content: string,
+          _onEvent: (event: unknown) => void,
+          _signal: AbortSignal,
+          onAccepted?: () => void,
+        ) => {
+          onAccepted?.();
+          throw new TypeError('network error while reading the stream');
+        },
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1', { onTurnComplete }),
+      );
+
+      let accepted = false;
+      await act(async () => {
+        accepted = await result.current.send('Phân tích công nợ');
+      });
+
+      expect(accepted).toBe(true);
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
+      expect(
+        result.current.messages.filter(
+          (message) => message.role === 'ASSISTANT',
+        ),
+      ).toHaveLength(0);
+      expect(toast.error).toHaveBeenCalledWith(
+        'Không thể gửi câu hỏi cho Copilot.',
+      );
     });
   });
 
@@ -728,12 +835,15 @@ describe('useCopilotChat', () => {
           _content: string,
           onEvent: (event: unknown) => void,
           signal: AbortSignal,
-        ) =>
-          new Promise((_resolve, reject) => {
+          onAccepted?: () => void,
+        ) => {
+          onAccepted?.();
+          return new Promise((_resolve, reject) => {
             captured.onEvent = onEvent;
             captured.signal = signal;
             captured.reject = reject;
-          }),
+          });
+        },
       );
       const onTurnComplete = vi.fn();
       const { result, rerender } = renderHook(
@@ -780,7 +890,10 @@ describe('useCopilotChat', () => {
           _id: string,
           _content: string,
           onEvent: (event: unknown) => void,
+          _signal: AbortSignal,
+          onAccepted?: () => void,
         ) => {
+          onAccepted?.();
           captured.onEvent = onEvent;
           await new Promise<void>((resolve) => {
             captured.resolve = resolve;

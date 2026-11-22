@@ -570,6 +570,41 @@ describe('CopilotPage', () => {
     await waitFor(() => expect(composer).toHaveValue('Tóm tắt công nợ'));
   });
 
+  it('keeps the composer empty and the streamed answer when the stream breaks after acceptance', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(
+                new TextEncoder().encode(
+                  `event: delta\ndata: ${JSON.stringify({ text: 'Đang phân tích' })}\n\n`,
+                ),
+              );
+            },
+            // Pull-based so the delta is delivered before the socket dies.
+            pull(controller) {
+              controller.error(new TypeError('stream cut'));
+            },
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    const composer = screen.getByLabelText(/nhập câu hỏi/i);
+    fireEvent.change(composer, { target: { value: 'Tóm tắt công nợ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+
+    // The backend already counted this turn, so the question must not be
+    // handed back for a duplicate send; the streamed text stays on screen.
+    await screen.findByText('Đang phân tích');
+    await waitFor(() => expect(composer).toHaveValue(''));
+  });
+
   it('does not overwrite text typed while the failed send was in flight', async () => {
     let rejectFetch: (reason: unknown) => void = () => {};
     vi.stubGlobal(

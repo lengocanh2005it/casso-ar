@@ -133,12 +133,27 @@ export function useCopilotChat(
     // Once a done message (or a partial stand-in) is committed, a later error
     // event must not append the same answer a second time.
     let answerCommitted = false;
-    // The backend persists (and counts) the user's message before it writes any
-    // SSE header, so a 2xx response - and every way that response can go wrong
-    // afterwards (abort, dropped stream) - still consumed a turn. Only a
-    // non-2xx CopilotStreamRequestError proves the write never happened, so
-    // assume counted and let that one branch opt out.
-    let turnCounted = true;
+    // Only the API layer knows whether the 2xx response ever arrived; a fetch
+    // that rejects and a stream that dies mid-read look the same from here.
+    let accepted = false;
+    const onAccepted = () => {
+      accepted = true;
+    };
+
+    const appendPartialAnswer = () => {
+      if (!streamedText || answerCommitted) return;
+      answerCommitted = true;
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: 'ASSISTANT',
+          content: streamedText,
+          createdAt: new Date().toISOString(),
+          isPartial: true,
+        },
+      ]);
+    };
 
     try {
       await streamCopilotMessage(
@@ -159,43 +174,27 @@ export function useCopilotChat(
           } else if (event.type === 'error') {
             // The turn failed after it started answering: keep what the user
             // already read instead of dropping it on the floor.
-            if (streamedText && !answerCommitted) {
-              answerCommitted = true;
-              setMessages((current) => [
-                ...current,
-                {
-                  id: crypto.randomUUID(),
-                  role: 'ASSISTANT',
-                  content: streamedText,
-                  createdAt: new Date().toISOString(),
-                  isPartial: true,
-                },
-              ]);
-            }
+            appendPartialAnswer();
             toast.error(event.message);
           }
         },
         controller.signal,
+        onAccepted,
       );
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        if (streamedText && isCurrentConversation()) {
-          setMessages((current) => [
-            ...current,
-            {
-              id: crypto.randomUUID(),
-              role: 'ASSISTANT',
-              content: streamedText,
-              createdAt: new Date().toISOString(),
-              isPartial: true,
-            },
-          ]);
-        }
+        if (isCurrentConversation()) appendPartialAnswer();
+      } else if (accepted) {
+        // The 2xx response arrived, so the server already persisted and counted
+        // the turn: hand the question back and keep whatever was streamed.
+        if (isCurrentConversation()) appendPartialAnswer();
+        toast.error(
+          streamedText
+            ? 'Kết nối với Copilot bị gián đoạn.'
+            : 'Không thể gửi câu hỏi cho Copilot.',
+        );
       } else if (error instanceof CopilotStreamRequestError) {
-        // Rejected with a non-2xx status: the write never reached the database,
-        // so the turn was not counted.
-        turnCounted = false;
-
+        // Rejected with a non-2xx status: the write never reached the database.
         if (error.errorCode === 'PLAN_LIMIT_EXCEEDED') {
           if (isCurrentConversation()) {
             // The quota check runs before the write — drop the optimistic bubble
@@ -210,13 +209,12 @@ export function useCopilotChat(
           toast.error('Không thể gửi câu hỏi cho Copilot.');
         }
       } else {
-        // A network failure happens before any response, so the turn was not
-        // accepted either — the page must hand the question back to the user.
-        turnCounted = false;
+        // The request never got a response, so the turn was not accepted and
+        // the page must hand the question back to the user.
         toast.error('Không thể gửi câu hỏi cho Copilot.');
       }
     } finally {
-      if (turnCounted) options.onTurnComplete?.();
+      if (accepted) options.onTurnComplete?.();
       // The new conversation already reset this state; writing it again would
       // clear a stream that was started there in the meantime.
       if (isCurrentConversation()) {
@@ -225,7 +223,7 @@ export function useCopilotChat(
         abortControllerRef.current = null;
       }
     }
-    return turnCounted;
+    return accepted;
   }
 
   function stop() {
