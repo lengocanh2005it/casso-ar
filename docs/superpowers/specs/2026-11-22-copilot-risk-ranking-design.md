@@ -61,8 +61,8 @@ Signals, all computed in code from data reachable through existing ports. Total 
 | Overdue depth | `IReceivableRepository.findOverdueCandidates` (candidate set) + `dueDate` | 30 | `min(30, floor(daysOverdue / 3))`; 0 for not-yet-due items |
 | Open dispute | `IDisputeRepository.findOpenDisputesByReceivableIds` | 20 | 20 if a receivable has an open dispute, else 0 |
 | Reminder fatigue | `IReminderExecutionRepository.findLatestSentByReceivableIds` | 15 | 5 points if the port returns a prior `SENT` execution for the receivable, else 0. The port exposes only the latest execution, so the observable count is 0 or 1; `min(15, sentCount * 5)` collapses to 0/5. `ponytail:` upgrade to a count query if per-send fatigue granularity is ever needed. |
-| Late-payment history | `IPaymentAllocationRepository.findByCustomerId` | 20 | `min(20, floor(latePaymentRatio * 20))`; "late" = allocation's `allocatedAt` after the matched receivable's `dueDate`. Needs `IReceivableRepository.findByIds` for the allocated receivables' due dates. |
-| Unusually large balance | receivable `originalAmount` | 15 | 15 if `remainingAmount > 3 * customerMedianRemaining`, else proportional `min(15, floor(ratio * 5))`; median over the customer's open receivables |
+| Late-payment history | `IPaymentAllocationRepository.findByCustomerIds` | 20 | `min(20, floor(latePaymentRatio * 20))`; "late" = allocation's `allocatedAt` after the matched receivable's `dueDate`. Needs `IReceivableRepository.findByIds` for the allocated receivables' due dates. |
+| Unusually large balance | receivable `originalAmount` | 15 | 15 if `remainingAmount > 3 * customerMedianRemaining`, else proportional `min(15, floor(ratio * 5))`; median over the customer's open receivables via `IReceivableRepository.findOpenByCustomerIds` |
 
 Bands: `HIGH >= 60`, `MEDIUM 30..59`, `LOW < 30`.
 
@@ -73,9 +73,10 @@ All money is integer VND. `riskScore` is a unitless integer. No rounding of amou
 **Batch access, no N+1** — fetch each signal once for the whole candidate set:
 - disputes: one `findOpenDisputesByReceivableIds(ids)`;
 - reminders: one `findLatestSentByReceivableIds(ids)`;
-- payment history: one `findByCustomerId(customerId, limit)` per distinct customer in the candidate set, then `findByIds` for the allocated receivables. `ponytail:` this is one query per distinct customer — bounded by the candidate count (≤ 2 × limit). Upgrade to a single repository batch query if the candidate set grows.
+- payment history: one `IPaymentAllocationRepository.findByCustomerIds(customerIds, limit)` for every distinct customer in the candidate set, then one `findByIds` for the allocated receivables;
+- open-receivable medians for the LARGE_BALANCE signal: one `IReceivableRepository.findOpenByCustomerIds(customerIds)` for every distinct customer, grouped in memory.
 
-All ports are tenant-scoped internally via `TenantContextService`; the tool passes the organization id only where the port signature requires it. No repository implementation is added, so no `organizationId` handling is introduced here.
+All ports are tenant-scoped internally via `TenantContextService`; the tool passes the organization id only where the port signature requires it. The two new batch repository methods (`findByCustomerIds`, `findOpenByCustomerIds`) keep the same tenant scoping as the existing methods — `TenantContextService` in `TypeOrmPaymentAllocationRepository`, `BaseRepository.scopedFindMany` in `TypeOrmReceivableRepository` — and add no new `organizationId` handling in the tool.
 
 ## 4. Data flow inside the copilot turn
 
@@ -109,7 +110,7 @@ Domain/application boundary: the tool lives in `application/` and depends only o
 - Each signal on/off changes the score by exactly its documented points; score capped at 100.
 - Band boundaries: 59→MEDIUM, 60→HIGH, 29→LOW, 30→MEDIUM.
 - Empty candidate set → empty `items`, no port calls.
-- Batch access: disputes called once, reminder executions called once, payment history called once per distinct customer — never once per receivable.
+- Batch access: disputes called once, reminder executions called once, payment history and open-receivable medians each called once for all distinct customers — never once per customer or per receivable.
 - Tenant: candidate query uses the context organization id.
 
 **Unit — `copilot-chat.usecase.spec.ts`**
@@ -132,6 +133,6 @@ No e2e test: no HTTP contract, no schema/migration change. Existing copilot e2e 
 ## 9. Deliberate simplifications / ceilings
 
 - Fixed weights, no learning. If weights need tuning later, move them to config — not now.
-- "Late payment history" matches allocations to receivable due dates via a per-customer lookup; it approximates "this customer tends to pay late" and can mislabel partial payments. Acceptable for a ranking hint, not a billing decision.
+- "Late payment history" matches allocations to receivable due dates via one batch lookup; it approximates "this customer tends to pay late" and can mislabel partial payments. Acceptable for a ranking hint, not a billing decision.
 - Candidate window is fixed at 7 days; no dynamic horizon.
 - Ranking is single-shot top-N; no cursor.
