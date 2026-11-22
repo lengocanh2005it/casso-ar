@@ -245,6 +245,62 @@ describe('useCopilotChat', () => {
     });
   });
 
+  it('does not append the streamed text twice when Stop follows a done event', async () => {
+    let rejectStream: (reason: unknown) => void = () => {};
+    let capturedOnEvent: ((event: unknown) => void) | null = null;
+    streamCopilotMessage.mockImplementation(
+      (
+        _id: string,
+        _content: string,
+        onEvent: (event: unknown) => void,
+        _signal: AbortSignal,
+        onAccepted?: () => void,
+      ) => {
+        onAccepted?.();
+        capturedOnEvent = onEvent;
+        return new Promise((_resolve, reject) => {
+          rejectStream = reject;
+        });
+      },
+    );
+    const { result } = renderHook(() => useCopilotChat(true, 'conversation-1'));
+
+    let sendPromise: Promise<boolean>;
+    act(() => {
+      sendPromise = result.current.send('Câu hỏi dài');
+    });
+    act(() => {
+      capturedOnEvent?.({ type: 'delta', text: 'Đang trả lời' });
+      capturedOnEvent?.({
+        type: 'done',
+        data: {
+          message: {
+            id: 'm1',
+            role: 'ASSISTANT',
+            content: 'Đang trả lời',
+            createdAt: '2026-08-09T00:00:00Z',
+          },
+          pendingAction: null,
+        },
+      });
+    });
+    act(() => {
+      result.current.stop();
+      rejectStream(new DOMException('aborted', 'AbortError'));
+    });
+
+    await act(async () => {
+      await sendPromise;
+    });
+
+    const assistantMessages = result.current.messages.filter(
+      (message) => message.role === 'ASSISTANT',
+    );
+    expect(assistantMessages).toHaveLength(1);
+    expect(assistantMessages[0]).toMatchObject({ id: 'm1' });
+    expect(assistantMessages[0].isPartial).toBeUndefined();
+  });
+
   it('does not add a partial message when aborted before any delta arrived', async () => {
     let rejectStream: (reason: unknown) => void = () => {};
     streamCopilotMessage.mockImplementation(
@@ -437,7 +493,9 @@ describe('useCopilotChat', () => {
       });
 
       expect(result.current.pendingAction).toBeNull();
-      expect(toast.info).toHaveBeenCalledWith('Đề xuất gửi email đã hết hạn.');
+      expect(toast.info).toHaveBeenCalledWith(
+        'Đề xuất gửi email không còn hiệu lực. Vui lòng kiểm tra lại.',
+      );
     });
 
     it('keeps the pending action when confirm fails for another reason', async () => {
@@ -463,6 +521,75 @@ describe('useCopilotChat', () => {
       expect(toast.error).toHaveBeenCalledWith(
         'Không thể gửi email nhắc thanh toán.',
       );
+    });
+
+    it('leaves the next conversation pending action alone when a confirm resolves late', async () => {
+      sendWithPendingAction();
+      let resolveConfirm: () => void = () => {};
+      confirmCopilotAction.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveConfirm = () => resolve({ reminderExecutionId: 'r1' });
+          }),
+      );
+      const NEXT_ACTION = {
+        id: 'pa2',
+        actionType: 'SEND_REMINDER_EMAIL',
+        status: 'PENDING',
+        payload: { draftId: 'd2', receivableId: 'r2' },
+        receivableLabel: null,
+        createdAt: new Date().toISOString(),
+        resolvedAt: null,
+      };
+      const { result, rerender } = renderHook(
+        ({ conversationId }) => useCopilotChat(true, conversationId),
+        { initialProps: { conversationId: 'conversation-a' } },
+      );
+
+      await act(async () => {
+        await result.current.send('Soạn email nhắc');
+      });
+
+      let confirmPromise: Promise<void>;
+      act(() => {
+        confirmPromise = result.current.confirm();
+      });
+
+      getCopilotConversationMessages.mockResolvedValueOnce({ items: [] });
+      rerender({ conversationId: 'conversation-b' });
+      // Conversation B has its own fresh proposal to resolve.
+      act(() => {
+        streamCopilotMessage.mockImplementationOnce(
+          async (_id, _content, onEvent, _signal, onAccepted?: () => void) => {
+            onAccepted?.();
+            onEvent({
+              type: 'done',
+              data: {
+                message: {
+                  id: 'm2',
+                  role: 'ASSISTANT',
+                  content: 'Đã soạn đề xuất khác.',
+                  createdAt: new Date().toISOString(),
+                },
+                pendingAction: NEXT_ACTION,
+              },
+            });
+          },
+        );
+      });
+      await act(async () => {
+        await result.current.send('Soạn email nhắc lần hai');
+      });
+      expect(result.current.pendingAction?.id).toBe('pa2');
+
+      await act(async () => {
+        resolveConfirm();
+        await confirmPromise;
+      });
+
+      expect(result.current.pendingAction?.id).toBe('pa2');
+      expect(result.current.busy).toBe(false);
+      expect(result.current.busyAction).toBeNull();
     });
 
     it('reports which action is running while it is busy', async () => {
@@ -551,7 +678,45 @@ describe('useCopilotChat', () => {
       });
 
       expect(result.current.pendingAction).toBeNull();
-      expect(toast.info).toHaveBeenCalledWith('Đề xuất gửi email đã hết hạn.');
+      expect(toast.info).toHaveBeenCalledWith(
+        'Đề xuất gửi email không còn hiệu lực. Vui lòng kiểm tra lại.',
+      );
+    });
+
+    it('does not expire a pending action whose createdAt cannot be parsed', async () => {
+      sendWithPendingAction();
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      streamCopilotMessage.mockImplementation(
+        async (_id, _content, onEvent) => {
+          onEvent({
+            type: 'done',
+            data: {
+              message: {
+                id: 'm1',
+                role: 'ASSISTANT',
+                content: 'Đã soạn đề xuất.',
+                createdAt: '2026-08-09T00:00:00Z',
+              },
+              pendingAction: { ...PENDING_ACTION, createdAt: 'not-a-date' },
+            },
+          });
+        },
+      );
+      await act(async () => {
+        await result.current.send('Soạn email nhắc');
+      });
+
+      await act(async () => {
+        vi.advanceTimersByTime(60 * 60 * 1000);
+      });
+
+      expect(result.current.pendingAction).not.toBeNull();
+      expect(toast.info).not.toHaveBeenCalledWith(
+        'Đề xuất gửi email đã hết hạn.',
+      );
     });
   });
 

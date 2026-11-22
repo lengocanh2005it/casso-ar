@@ -14,7 +14,11 @@ import {
 // outlives this is refused server-side, so the UI must stop blocking the
 // composer on it.
 export const PENDING_ACTION_TTL_MS = 10 * 60 * 1000;
+// Only the local TTL timer can claim expiry; a server CONFLICT also covers
+// draft mismatch and already-resolved actions, so it gets the neutral wording.
 const PENDING_ACTION_EXPIRED_MESSAGE = 'Đề xuất gửi email đã hết hạn.';
+const PENDING_ACTION_STALE_MESSAGE =
+  'Đề xuất gửi email không còn hiệu lực. Vui lòng kiểm tra lại.';
 
 export function useCopilotChat(
   canResolvePendingAction: boolean,
@@ -26,10 +30,10 @@ export function useCopilotChat(
     useState<CopilotPendingAction | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
-  const [busy, setBusy] = useState(false);
   const [busyAction, setBusyAction] = useState<'confirm' | 'cancel' | null>(
     null,
   );
+  const busy = busyAction !== null;
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [quotaExceededMessage, setQuotaExceededMessage] = useState<
     string | null
@@ -80,10 +84,13 @@ export function useCopilotChat(
   useEffect(() => {
     if (!pendingAction) return;
 
-    const expiresIn =
-      new Date(pendingAction.createdAt).getTime() +
-      PENDING_ACTION_TTL_MS -
-      Date.now();
+    const expiresAt =
+      new Date(pendingAction.createdAt).getTime() + PENDING_ACTION_TTL_MS;
+    // An unparseable timestamp proves nothing about expiry; the server's
+    // CONFLICT path still clears it when the proposal is actually dead.
+    if (Number.isNaN(expiresAt)) return;
+
+    const expiresIn = expiresAt - Date.now();
     if (expiresIn <= 0) {
       setPendingAction(null);
       toast.info(PENDING_ACTION_EXPIRED_MESSAGE);
@@ -230,49 +237,57 @@ export function useCopilotChat(
     abortControllerRef.current?.abort();
   }
 
-  // The backend answers CONFLICT for an action that is expired, already
-  // confirmed, or already cancelled; none of those can be resolved from this
-  // UI anymore, so stop blocking the composer on it.
-  const dropIfResolvedElsewhere = useCallback((error: unknown): boolean => {
-    if (getApiErrorCode(error) !== 'CONFLICT') return false;
-    setPendingAction(null);
-    toast.info(PENDING_ACTION_EXPIRED_MESSAGE);
-    return true;
+  // A confirm/cancel can outlive a conversation switch; only clear the action
+  // it was actually started for, never whatever the new conversation holds.
+  const clearPendingAction = useCallback((actionId: string) => {
+    setPendingAction((current) => (current?.id === actionId ? null : current));
   }, []);
 
-  async function confirm() {
-    if (!pendingAction || busy) return;
-    setBusy(true);
-    setBusyAction('confirm');
+  // The backend answers CONFLICT for an action that is expired, already
+  // confirmed, already cancelled, or bound to another draft; none of those can
+  // be resolved from this UI anymore, so stop blocking the composer on it.
+  const dropIfResolvedElsewhere = useCallback(
+    (error: unknown, actionId: string): boolean => {
+      if (getApiErrorCode(error) !== 'CONFLICT') return false;
+      clearPendingAction(actionId);
+      toast.info(PENDING_ACTION_STALE_MESSAGE);
+      return true;
+    },
+    [clearPendingAction],
+  );
+
+  async function resolvePendingAction(kind: 'confirm' | 'cancel') {
+    if (!pendingAction || busyAction !== null) return;
+    const actionId = pendingAction.id;
+    setBusyAction(kind);
     try {
-      await confirmCopilotAction(pendingAction.id);
-      setPendingAction(null);
-      toast.success('Đã gửi email nhắc thanh toán.');
+      if (kind === 'confirm') {
+        await confirmCopilotAction(actionId);
+        clearPendingAction(actionId);
+        toast.success('Đã gửi email nhắc thanh toán.');
+      } else {
+        await cancelCopilotAction(actionId);
+        clearPendingAction(actionId);
+      }
     } catch (error) {
-      if (!dropIfResolvedElsewhere(error)) {
-        toast.error('Không thể gửi email nhắc thanh toán.');
+      if (!dropIfResolvedElsewhere(error, actionId)) {
+        toast.error(
+          kind === 'confirm'
+            ? 'Không thể gửi email nhắc thanh toán.'
+            : 'Không thể hủy đề xuất gửi email.',
+        );
       }
     } finally {
-      setBusy(false);
       setBusyAction(null);
     }
   }
 
+  async function confirm() {
+    await resolvePendingAction('confirm');
+  }
+
   async function cancel() {
-    if (!pendingAction || busy) return;
-    setBusy(true);
-    setBusyAction('cancel');
-    try {
-      await cancelCopilotAction(pendingAction.id);
-      setPendingAction(null);
-    } catch (error) {
-      if (!dropIfResolvedElsewhere(error)) {
-        toast.error('Không thể hủy đề xuất gửi email.');
-      }
-    } finally {
-      setBusy(false);
-      setBusyAction(null);
-    }
+    await resolvePendingAction('cancel');
   }
 
   return {
