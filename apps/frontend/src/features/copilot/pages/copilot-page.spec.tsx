@@ -235,8 +235,8 @@ describe('CopilotPage', () => {
                 actionType: 'SEND_REMINDER_EMAIL',
                 status: 'PENDING',
                 payload: { draftId: 'd1', receivableId: 'r1' },
-                receivableLabel: null,
-                createdAt: '2026-08-09T00:00:00Z',
+                // Fresh: an old createdAt is expired by the 10-minute TTL.
+                createdAt: new Date().toISOString(),
                 resolvedAt: null,
               },
             },
@@ -546,5 +546,80 @@ describe('CopilotPage', () => {
 
     const stop = await screen.findByRole('button', { name: 'Dừng' });
     expect(stop.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('restores the question into an empty composer when sending fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(new TypeError('Failed to fetch')),
+    );
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    const composer = screen.getByLabelText(/nhập câu hỏi/i);
+    fireEvent.change(composer, { target: { value: 'Tóm tắt công nợ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+
+    await waitFor(() => expect(composer).toHaveValue('Tóm tắt công nợ'));
+  });
+
+  it('does not overwrite text typed while the failed send was in flight', async () => {
+    let rejectFetch: (reason: unknown) => void = () => {};
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectFetch = reject;
+          }),
+      ),
+    );
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    const composer = screen.getByLabelText(/nhập câu hỏi/i);
+    fireEvent.change(composer, { target: { value: 'Tóm tắt công nợ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+
+    await screen.findByRole('button', { name: 'Dừng' });
+    fireEvent.change(composer, { target: { value: 'Câu hỏi mới' } });
+    rejectFetch(new TypeError('Failed to fetch'));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Dừng' }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(composer).toHaveValue('Câu hỏi mới');
+  });
+
+  it('keeps the composer empty when the server accepted the question', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          {
+            event: 'done',
+            data: {
+              message: {
+                id: 'm1',
+                role: 'ASSISTANT',
+                content: 'Đây là câu trả lời.',
+                createdAt: '2026-08-09T00:00:00Z',
+              },
+            },
+          },
+        ]),
+      ),
+    );
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    const composer = screen.getByLabelText(/nhập câu hỏi/i);
+    fireEvent.change(composer, { target: { value: 'Tóm tắt công nợ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+
+    await screen.findByText('Đây là câu trả lời.');
+    expect(composer).toHaveValue('');
   });
 });

@@ -85,7 +85,9 @@ export function useCopilotChat(
     return () => clearTimeout(timer);
   }, [pendingAction]);
 
-  async function send(content: string) {
+  // Resolves true once the server accepted the turn (2xx stream, even if it is
+  // aborted later) and false when the request never reached the write.
+  async function send(content: string): Promise<boolean> {
     const trimmed = content.trim();
     if (
       !trimmed ||
@@ -93,7 +95,7 @@ export function useCopilotChat(
       blockedByPendingAction ||
       quotaExceededMessage !== null
     ) {
-      return;
+      return false;
     }
 
     setIsSending(true);
@@ -167,6 +169,9 @@ export function useCopilotChat(
           toast.error('Không thể gửi câu hỏi cho Copilot.');
         }
       } else {
+        // A network failure happens before any response, so the turn was not
+        // accepted either — the page must hand the question back to the user.
+        turnCounted = false;
         toast.error('Không thể gửi câu hỏi cho Copilot.');
       }
     } finally {
@@ -175,6 +180,7 @@ export function useCopilotChat(
       setIsSending(false);
       abortControllerRef.current = null;
     }
+    return turnCounted;
   }
 
   function stop() {

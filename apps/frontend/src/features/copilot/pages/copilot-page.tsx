@@ -109,7 +109,11 @@ export function CopilotPage() {
       return;
     }
     setDraft('');
-    void send(content);
+    void send(content).then((accepted) => {
+      // Rejected before the server took the turn: give the question back, but
+      // never clobber text the user typed while the request was in flight.
+      if (!accepted) setDraft((current) => (current ? current : content));
+    });
   }
 
   const isEmptyConversation = messages.length === 0 && !streamingContent;

@@ -475,4 +475,78 @@ describe('useCopilotChat', () => {
       expect(toast.info).toHaveBeenCalledWith('Đề xuất gửi email đã hết hạn.');
     });
   });
+
+  describe('send result', () => {
+    it('resolves true when the stream is accepted', async () => {
+      streamCopilotMessage.mockResolvedValue(undefined);
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      let accepted = false;
+      await act(async () => {
+        accepted = await result.current.send('Câu hỏi');
+      });
+
+      expect(accepted).toBe(true);
+    });
+
+    it('resolves false when the request is rejected before it is accepted', async () => {
+      streamCopilotMessage.mockRejectedValue(
+        new CopilotStreamRequestError('Lỗi máy chủ.', 'INTERNAL_SERVER_ERROR'),
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      let accepted = true;
+      await act(async () => {
+        accepted = await result.current.send('Câu hỏi');
+      });
+
+      expect(accepted).toBe(false);
+    });
+
+    it('resolves false when the network fails', async () => {
+      streamCopilotMessage.mockRejectedValue(new TypeError('Failed to fetch'));
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      let accepted = true;
+      await act(async () => {
+        accepted = await result.current.send('Câu hỏi');
+      });
+
+      expect(accepted).toBe(false);
+    });
+
+    it('resolves true when the user aborts after the stream was accepted', async () => {
+      let rejectStream: (reason: unknown) => void = () => {};
+      streamCopilotMessage.mockImplementation(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectStream = reject;
+          }),
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      let sendPromise: Promise<boolean>;
+      act(() => {
+        sendPromise = result.current.send('Câu hỏi');
+      });
+      act(() => {
+        result.current.stop();
+        rejectStream(new DOMException('aborted', 'AbortError'));
+      });
+
+      let accepted = false;
+      await act(async () => {
+        accepted = await sendPromise;
+      });
+      expect(accepted).toBe(true);
+    });
+  });
 });
