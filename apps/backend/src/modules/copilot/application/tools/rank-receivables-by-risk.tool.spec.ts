@@ -508,13 +508,16 @@ describe('RankReceivablesByRiskTool', () => {
       (reason) => reason.code === 'LARGE_BALANCE',
     );
     expect(largeBalance?.message).toBe(
-      'Số dư lớn bất thường so với các khoản cùng khách hàng',
+      'Số dư cần lưu ý theo quy mô các khoản cùng khách hàng',
     );
     // 52 days overdue (17) + 2 large-balance points.
     expect(result.items[0].riskScore).toBe(19);
   });
 
-  it('states the large-balance reason as unusual, never as simply above the median', () => {
+  it('states the large-balance reason neutrally, matching the proportional rule', () => {
+    // The score is proportional to remaining/median for every ratio >= 0.2,
+    // including balances below the median. The explanation must not claim the
+    // balance is unusually large in those cases.
     const belowMedian = scoreRisk({ ...base, remainingToMedianRatio: 0.5 });
     const aboveMedian = scoreRisk({ ...base, remainingToMedianRatio: 3 });
 
@@ -522,7 +525,7 @@ describe('RankReceivablesByRiskTool', () => {
       expect(
         score.reasons.find((reason) => reason.code === 'LARGE_BALANCE')
           ?.message,
-      ).toBe('Số dư lớn bất thường so với các khoản cùng khách hàng');
+      ).toBe('Số dư cần lưu ý theo quy mô các khoản cùng khách hàng');
     }
   });
 
@@ -570,6 +573,53 @@ describe('RankReceivablesByRiskTool', () => {
     expect(
       deps.disputeRepo.findOpenDisputesByReceivableIds,
     ).not.toHaveBeenCalled();
+  });
+
+  it('scores every eligible candidate before picking the top N', async () => {
+    // The first three receivables fill the old 30-row due-date window with
+    // low-risk items. The fourth is due one day later but has an open dispute,
+    // so it must still win when limit=1.
+    const makeLowRisk = (id: string, day: number) =>
+      receivable({
+        id,
+        originalAmount: 1_000_000,
+        dueDate: `2026-10-${String(day).padStart(2, '0')}T00:00:00.000Z`,
+      });
+    const window = Array.from({ length: 30 }, (_, index) =>
+      makeLowRisk(`rec-window-${index}`, (index % 28) + 1),
+    );
+    const highRisk = makeLowRisk('rec-disputed', 2);
+    const { tool, deps } = buildTool({
+      receivableRepo: {
+        // Simulate the repository's LIMIT: only the first `limit` rows come
+        // back. With the old 30-row cap and limit=1, the disputed item is cut.
+        findOverdueCandidates: jest
+          .fn()
+          .mockImplementation((filters) =>
+            Promise.resolve([...window, highRisk].slice(0, filters.limit)),
+          ),
+        findByIds: jest.fn().mockResolvedValue(new Map()),
+        findOpenByCustomerIds: jest.fn().mockResolvedValue(new Map()),
+      },
+      disputeRepo: {
+        findOpenDisputesByReceivableIds: jest
+          .fn()
+          .mockResolvedValue(new Map([['rec-disputed', 'disp-1']])),
+      },
+    });
+
+    const result = await tool.execute(
+      { limit: 1 },
+      new Date('2026-11-22T00:00:00.000Z'),
+    );
+
+    // The tool must not truncate candidates to a multiple of the result
+    // limit; every eligible row has to reach the scorer.
+    expect(
+      deps.receivableRepo.findOverdueCandidates.mock.calls[0][0].limit,
+    ).toBeGreaterThanOrEqual(31);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].receivableId).toBe('rec-disputed');
   });
 
   it('applies the requested limit to the returned items', async () => {

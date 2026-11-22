@@ -131,7 +131,7 @@ export function scoreRisk(signals: RiskSignals): RiskScore {
   if (largePoints > 0) {
     reasons.push({
       code: 'LARGE_BALANCE',
-      message: 'Số dư lớn bất thường so với các khoản cùng khách hàng',
+      message: 'Số dư cần lưu ý theo quy mô các khoản cùng khách hàng',
     });
   }
 
@@ -176,8 +176,12 @@ export interface RankResult {
 const REPORTING_TIMEZONE = 'Asia/Ho_Chi_Minh';
 const HORIZON_DAYS = 7;
 const DEFAULT_LIMIT = 10;
-const MAX_CANDIDATES = 30;
-const CANDIDATE_FACTOR = 3;
+// ponytail: hard ceiling on candidates loaded for scoring. Every eligible
+// receivable must reach the scorer before top-N selection — a smaller window
+// silently drops higher-risk rows. 1000 covers a realistic tenant book;
+// upgrade to server-side risk scoring or streaming pagination if an org can
+// exceed this.
+const MAX_CANDIDATES = 1000;
 const PAYMENT_HISTORY_LIMIT = 50;
 const MS_PER_DAY = 86_400_000;
 
@@ -252,9 +256,6 @@ export class RankReceivablesByRiskTool {
       invoiceIdIn = invoices;
     }
 
-    // ponytail: bounded candidate window (3x the result limit, max 30).
-    // Upgrade to a streaming query if ranking ever needs more than top-N.
-    const candidateLimit = Math.min(MAX_CANDIDATES, limit * CANDIDATE_FACTOR);
     const candidates = await this.receivableRepo.findOverdueCandidates({
       organizationId,
       referenceDate: horizonEnd(now),
@@ -262,7 +263,7 @@ export class RankReceivablesByRiskTool {
       customerIdIn,
       invoiceIdIn,
       sortBy: 'due_date_asc',
-      limit: candidateLimit,
+      limit: MAX_CANDIDATES,
     });
     if (candidates.length === 0) return { items: [] };
 

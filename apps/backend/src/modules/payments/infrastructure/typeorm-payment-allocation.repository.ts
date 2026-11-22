@@ -127,51 +127,51 @@ export class TypeOrmPaymentAllocationRepository
     if (customerIds.length === 0) return grouped;
 
     const organizationId = this.tenantContext.getOrganizationId();
-    const { entities, raw } = await this.ormRepo
-      .createQueryBuilder('allocation')
-      .select([
-        'allocation.id',
-        'allocation.organizationId',
-        'allocation.paymentId',
-        'allocation.receivableId',
-        'allocation.allocatedAmount',
-        'allocation.allocatedAt',
-        'allocation.allocatedByUserId',
-        'allocation.deletedAt',
-        'allocation.deletedByUserId',
-        'allocation.undoReason',
-        'allocation.createdAt',
-      ])
-      .innerJoin(
-        'receivables',
-        'receivable',
-        'receivable.id::text = allocation."receivableId"',
-      )
-      // The joined customer id is not an allocation column, so it only
-      // survives through the raw rows.
-      .addSelect('receivable."customerId"', 'customerId')
-      .where('allocation."organizationId" = :organizationId', {
-        organizationId,
-      })
-      .andWhere('receivable."customerId" IN (:...customerIds)', {
-        customerIds,
-      })
-      .andWhere('allocation."deletedAt" IS NULL')
-      .orderBy('allocation."allocatedAt"', 'DESC')
-      .getRawAndEntities();
+    // ROW_NUMBER() applies the per-customer limit in Postgres before any row
+    // is hydrated — a customer with a long history no longer transfers every
+    // allocation just to keep the newest `limitPerCustomer`. The tenant and
+    // soft-delete predicates sit inside the inner query, before the partition.
+    const rows: Array<PaymentAllocationOrmEntity & { customerId: string }> =
+      await this.ormRepo.manager.query(
+        `
+          SELECT
+            a.id AS "id",
+            a."organizationId" AS "organizationId",
+            a."paymentId" AS "paymentId",
+            a."receivableId" AS "receivableId",
+            a."allocatedAmount" AS "allocatedAmount",
+            a."allocatedAt" AS "allocatedAt",
+            a."allocatedByUserId" AS "allocatedByUserId",
+            a."deletedAt" AS "deletedAt",
+            a."deletedByUserId" AS "deletedByUserId",
+            a."undoReason" AS "undoReason",
+            a."createdAt" AS "createdAt",
+            ranked."customerId" AS "customerId"
+          FROM (
+            SELECT
+              a.*,
+              r."customerId",
+              ROW_NUMBER() OVER (
+                PARTITION BY r."customerId"
+                ORDER BY a."allocatedAt" DESC
+              ) AS rn
+            FROM payment_allocations a
+            INNER JOIN receivables r ON r.id::text = a."receivableId"
+            WHERE a."organizationId" = $1
+              AND a."deletedAt" IS NULL
+              AND r."customerId" = ANY($2)
+          ) ranked
+          WHERE ranked.rn <= $3
+          ORDER BY ranked."customerId", ranked."allocatedAt" DESC
+        `,
+        [organizationId, customerIds, limitPerCustomer],
+      );
 
-    // One row per customer and the per-customer slice happens in memory:
-    // a window function would push the limit into Postgres, but this keeps
-    // the same query shape as findByCustomerId and the bounded callers
-    // (<= 30 customers) make the extra rows cheap.
-    raw.forEach((row: { allocation_id: string; customerId: string }, index) => {
-      const allocation = entities[index];
-      if (!allocation) return;
+    for (const row of rows) {
       const bucket = grouped.get(row.customerId) ?? [];
-      if (bucket.length >= limitPerCustomer) return;
-      bucket.push(fromOrm(allocation));
+      bucket.push(fromOrm(row));
       grouped.set(row.customerId, bucket);
-    });
+    }
 
     return grouped;
   }

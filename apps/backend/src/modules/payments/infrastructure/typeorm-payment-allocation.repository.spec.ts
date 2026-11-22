@@ -103,46 +103,33 @@ describe('TypeOrmPaymentAllocationRepository.findByIdForUpdate', () => {
 
 describe('TypeOrmPaymentAllocationRepository.findByCustomerIds', () => {
   function row(id: string, customerId: string, allocatedAt: string) {
-    return { id, customerId, allocatedAt: new Date(allocatedAt) };
+    return {
+      id,
+      customerId,
+      organizationId: 'org-1',
+      paymentId: 'payment-1',
+      receivableId: `receivable-${id}`,
+      allocatedAmount: '1000000', // pg returns bigint columns as strings
+      allocatedAt: new Date(allocatedAt),
+      allocatedByUserId: 'user-1',
+      deletedAt: null,
+      deletedByUserId: null,
+      undoReason: null,
+      createdAt: new Date('2026-08-03'),
+    };
   }
 
-  function buildQuery(raw: Array<Record<string, unknown>>) {
-    const query = {
-      select: jest.fn().mockReturnThis(),
-      innerJoin: jest.fn().mockReturnThis(),
-      addSelect: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      andWhere: jest.fn().mockReturnThis(),
-      orderBy: jest.fn().mockReturnThis(),
-      getRawAndEntities: jest.fn().mockResolvedValue({
-        entities: raw.map((item) => ({
-          id: item.id,
-          organizationId: 'org-1',
-          paymentId: 'payment-1',
-          receivableId: `receivable-${item.id}`,
-          allocatedAmount: '1000000',
-          allocatedAt: item.allocatedAt,
-          allocatedByUserId: 'user-1',
-          deletedAt: null,
-          deletedByUserId: null,
-          undoReason: null,
-          createdAt: new Date('2026-08-03'),
-        })),
-        raw: raw.map((item) => ({
-          allocation_id: item.id,
-          customerId: item.customerId,
-        })),
-      }),
-    };
-    const ormRepo = { createQueryBuilder: jest.fn().mockReturnValue(query) };
+  function buildRepo(rows: Array<Record<string, unknown>>) {
+    const query = jest.fn().mockResolvedValue(rows);
+    const manager = { query };
+    const ormRepo = { manager };
     return { ormRepo, query };
   }
 
   it('loads every requested customer in one tenant-scoped query and keeps the newest rows per customer', async () => {
-    const { ormRepo, query } = buildQuery([
+    const { ormRepo, query } = buildRepo([
       row('allocation-1', 'customer-1', '2026-08-05'),
       row('allocation-2', 'customer-1', '2026-08-04'),
-      row('allocation-3', 'customer-1', '2026-08-03'),
       row('allocation-4', 'customer-2', '2026-08-02'),
     ]);
     const tenantContext = new TenantContextService();
@@ -156,30 +143,17 @@ describe('TypeOrmPaymentAllocationRepository.findByCustomerIds', () => {
       () => repository.findByCustomerIds(['customer-1', 'customer-2'], 2),
     );
 
-    // One query builder and one round trip for every customer: the fan-out
-    // that made this an N+1 is gone.
-    expect(ormRepo.createQueryBuilder).toHaveBeenCalledTimes(1);
-    expect(query.getRawAndEntities).toHaveBeenCalledTimes(1);
-    expect(query.innerJoin).toHaveBeenCalledWith(
-      'receivables',
-      'receivable',
-      'receivable.id::text = allocation."receivableId"',
-    );
-    expect(query.where).toHaveBeenCalledWith(
-      'allocation."organizationId" = :organizationId',
-      { organizationId: 'org-1' },
-    );
-    expect(query.andWhere).toHaveBeenCalledWith(
-      'allocation."deletedAt" IS NULL',
-    );
-    expect(query.andWhere).toHaveBeenCalledWith(
-      'receivable."customerId" IN (:...customerIds)',
-      { customerIds: ['customer-1', 'customer-2'] },
-    );
-    expect(query.orderBy).toHaveBeenCalledWith(
-      'allocation."allocatedAt"',
-      'DESC',
-    );
+    // One round trip, with the per-customer bound applied in SQL before
+    // hydration — no full history crosses the wire.
+    expect(query).toHaveBeenCalledTimes(1);
+    const [sql, params] = query.mock.calls[0];
+    expect(sql).toContain('ROW_NUMBER() OVER (');
+    expect(sql).toContain('PARTITION BY r."customerId"');
+    expect(sql).toContain('a."organizationId" = $1');
+    expect(sql).toContain('a."deletedAt" IS NULL');
+    expect(sql).toContain('r."customerId" = ANY($2)');
+    expect(sql).toContain('rn <= $3');
+    expect(params).toEqual(['org-1', ['customer-1', 'customer-2'], 2]);
 
     expect([...result.keys()]).toEqual(['customer-1', 'customer-2']);
     expect(result.get('customer-1')?.map((item) => item.id)).toEqual([
@@ -196,7 +170,7 @@ describe('TypeOrmPaymentAllocationRepository.findByCustomerIds', () => {
   });
 
   it('returns an empty map without querying when no customer ids are given', async () => {
-    const { ormRepo } = buildQuery([]);
+    const { ormRepo, query } = buildRepo([]);
     const tenantContext = new TenantContextService();
     const repository = new TypeOrmPaymentAllocationRepository(
       ormRepo as any,
@@ -209,6 +183,6 @@ describe('TypeOrmPaymentAllocationRepository.findByCustomerIds', () => {
     );
 
     expect(result.size).toBe(0);
-    expect(ormRepo.createQueryBuilder).not.toHaveBeenCalled();
+    expect(query).not.toHaveBeenCalled();
   });
 });

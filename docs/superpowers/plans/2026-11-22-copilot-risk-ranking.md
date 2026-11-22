@@ -51,7 +51,7 @@ const base: RiskSignals = {
   hasOpenDispute: false,
   hasPriorSentReminder: false,
   latePaymentRatio: 0,
-  remainingToMedianRatio: 1,
+  remainingToMedianRatio: 0,
 };
 
 describe('scoreRisk', () => {
@@ -140,7 +140,7 @@ describe('scoreRisk', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd apps/backend && npx jest --runInBand --testPathPattern rank-receivables-by-risk`
+Run: `cd apps/backend && npx jest --runInBand --testPathPatterns rank-receivables-by-risk`
 Expected: FAIL — `Cannot find module './rank-receivables-by-risk.tool'`.
 
 - [ ] **Step 3: Write minimal implementation (scorer only)**
@@ -235,7 +235,7 @@ export function scoreRisk(signals: RiskSignals): RiskScore {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd apps/backend && npx jest --runInBand --testPathPattern rank-receivables-by-risk`
+Run: `cd apps/backend && npx jest --runInBand --testPathPatterns rank-receivables-by-risk`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -433,7 +433,7 @@ describe('RankReceivablesByRiskTool', () => {
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `cd apps/backend && npx jest --runInBand --testPathPattern rank-receivables-by-risk`
+Run: `cd apps/backend && npx jest --runInBand --testPathPatterns rank-receivables-by-risk`
 Expected: FAIL — `RankReceivablesByRiskTool is not a constructor` / missing export.
 
 - [ ] **Step 3: Implement the tool**
@@ -574,9 +574,9 @@ export class RankReceivablesByRiskTool {
       invoiceIdIn = invoices;
     }
 
-    // ponytail: bounded candidate window (3x the result limit, max 30).
-    // Upgrade to a streaming query if ranking ever needs more than top-N.
-    const candidateLimit = Math.min(30, limit * 3);
+    // ponytail: hard ceiling on candidates loaded for scoring; every eligible
+    // row must reach the scorer before top-N selection, or a higher-risk item
+    // due a day later is silently dropped. OVERDUE_CANDIDATE_LIMIT = 1000.
     const candidates = await this.receivableRepo.findOverdueCandidates({
       organizationId,
       referenceDate: horizonEnd(now),
@@ -584,7 +584,7 @@ export class RankReceivablesByRiskTool {
       customerIdIn,
       invoiceIdIn,
       sortBy: 'due_date_asc',
-      limit: candidateLimit,
+      limit: OVERDUE_CANDIDATE_LIMIT,
     });
     if (candidates.length === 0) return { items: [] };
 
@@ -670,7 +670,7 @@ export class RankReceivablesByRiskTool {
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `cd apps/backend && npx jest --runInBand --testPathPattern rank-receivables-by-risk`
+Run: `cd apps/backend && npx jest --runInBand --testPathPatterns rank-receivables-by-risk`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -699,7 +699,7 @@ In `copilot-tool-registry.spec.ts`, add `registry.register(fakeTool('rankReceiva
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `cd apps/backend && npx jest --runInBand --testPathPattern copilot-tool-registry`
+Run: `cd apps/backend && npx jest --runInBand --testPathPatterns copilot-tool-registry`
 Expected: FAIL — actual names array lacks `rankReceivablesByRisk`.
 
 - [ ] **Step 3: Add the tool name to the allowlist**
@@ -740,7 +740,7 @@ In `copilot.module.ts`:
 
 - [ ] **Step 5: Run the registry spec and type check**
 
-Run: `cd apps/backend && npx jest --runInBand --testPathPattern copilot-tool-registry && npx tsc --noEmit`
+Run: `cd apps/backend && npx jest --runInBand --testPathPatterns copilot-tool-registry && npx tsc --noEmit`
 Expected: PASS both.
 
 - [ ] **Step 6: Commit**
@@ -827,7 +827,7 @@ Append inside the top-level `describe('CopilotChatUseCase', ...)`. Reuse the exi
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `cd apps/backend && npx jest --runInBand --testPathPattern copilot-chat.usecase.spec`
+Run: `cd apps/backend && npx jest --runInBand --testPathPatterns copilot-chat.usecase.spec`
 Expected: FAIL — prompt assertions fail; dispatch throws `Tool Copilot không xác định`.
 
 - [ ] **Step 3: Add the optional constructor dependency and dispatch case**
@@ -889,7 +889,7 @@ Insert one entry into the `SYSTEM_PROMPT` array, immediately after the existing 
 
 - [ ] **Step 5: Run tests and type check**
 
-Run: `cd apps/backend && npx jest --runInBand --testPathPattern copilot-chat && npx tsc --noEmit`
+Run: `cd apps/backend && npx jest --runInBand --testPathPatterns copilot-chat && npx tsc --noEmit`
 Expected: PASS. The streaming spec keeps working because the new constructor argument is optional.
 
 - [ ] **Step 6: Commit**
@@ -927,7 +927,7 @@ Append at the end of the `### ADDITIONAL PLANS` section (before `## Frontier`):
 
 - [ ] **Step 2: Run focused suites**
 
-Run: `cd apps/backend && npx jest --runInBand --testPathPattern 'rank-receivables-by-risk|copilot-tool-registry|copilot-chat'`
+Run: `cd apps/backend && npx jest --runInBand --testPathPatterns 'rank-receivables-by-risk|copilot-tool-registry|copilot-chat'`
 Expected: PASS.
 
 - [ ] **Step 3: Run full verification**

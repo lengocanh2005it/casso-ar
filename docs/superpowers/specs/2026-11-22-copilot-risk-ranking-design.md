@@ -73,7 +73,7 @@ All money is integer VND. `riskScore` is a unitless integer. No rounding of amou
 **Batch access, no N+1** — fetch each signal once for the whole candidate set:
 - disputes: one `findOpenDisputesByReceivableIds(ids)`;
 - reminders: one `findLatestSentByReceivableIds(ids)`;
-- payment history: one `IPaymentAllocationRepository.findByCustomerIds(customerIds, limit)` for every distinct customer in the candidate set, then one `findByIds` for the allocated receivables;
+- payment history: one `IPaymentAllocationRepository.findByCustomerIds(customerIds, limit)` for every distinct customer in the candidate set, then one `findByIds` for the allocated receivables. The per-customer limit is applied in SQL (`ROW_NUMBER() OVER (PARTITION BY customerId)`) before hydration, so a long history never crosses the wire in full;
 - open-receivable medians for the LARGE_BALANCE signal: one `IReceivableRepository.findOpenByCustomerIds(customerIds)` for every distinct customer, grouped in memory.
 
 All ports are tenant-scoped internally via `TenantContextService`; the tool passes the organization id only where the port signature requires it. The two new batch repository methods (`findByCustomerIds`, `findOpenByCustomerIds`) keep the same tenant scoping as the existing methods — `TenantContextService` in `TypeOrmPaymentAllocationRepository`, `BaseRepository.scopedFindMany` in `TypeOrmReceivableRepository` — and add no new `organizationId` handling in the tool.
@@ -135,4 +135,5 @@ No e2e test: no HTTP contract, no schema/migration change. Existing copilot e2e 
 - Fixed weights, no learning. If weights need tuning later, move them to config — not now.
 - "Late payment history" matches allocations to receivable due dates via one batch lookup; it approximates "this customer tends to pay late" and can mislabel partial payments. Acceptable for a ranking hint, not a billing decision.
 - Candidate window is fixed at 7 days; no dynamic horizon.
+- Candidate loading is capped at 1000 eligible receivables (`ponytail:`), independent of the requested top-N size. A smaller window tied to the result limit would drop higher-scoring rows outside it. Upgrade to server-side risk scoring or streaming pagination if an organization can exceed this.
 - Ranking is single-shot top-N; no cursor.
