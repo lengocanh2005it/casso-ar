@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { toast } from 'sonner';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   streamCopilotMessage,
@@ -11,6 +12,10 @@ const {
   confirmCopilotAction: vi.fn(),
   cancelCopilotAction: vi.fn(),
   getCopilotConversationMessages: vi.fn(),
+}));
+
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 vi.mock('./copilot-api', async (importOriginal) => {
@@ -304,5 +309,170 @@ describe('useCopilotChat', () => {
     });
 
     expect(onTurnComplete).not.toHaveBeenCalled();
+  });
+
+  describe('pending action expiry', () => {
+    const PENDING_ACTION = {
+      id: 'pa1',
+      actionType: 'SEND_REMINDER_EMAIL',
+      status: 'PENDING',
+      payload: { draftId: 'd1', receivableId: 'r1' },
+      receivableLabel: null,
+      createdAt: '2026-08-09T00:00:00Z',
+      resolvedAt: null,
+    };
+
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      // The fixture's createdAt is 2026-08-09; start just after it so the
+      // proposal is live, then let each test move the clock.
+      vi.setSystemTime(new Date('2026-08-09T00:05:00Z'));
+      confirmCopilotAction.mockReset();
+      cancelCopilotAction.mockReset();
+      vi.mocked(toast.info).mockReset();
+      vi.mocked(toast.error).mockReset();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function sendWithPendingAction() {
+      streamCopilotMessage.mockImplementation(
+        async (_id, _content, onEvent) => {
+          onEvent({
+            type: 'done',
+            data: {
+              message: {
+                id: 'm1',
+                role: 'ASSISTANT',
+                content: 'Đã soạn đề xuất.',
+                createdAt: '2026-08-09T00:00:00Z',
+              },
+              pendingAction: PENDING_ACTION,
+            },
+          });
+        },
+      );
+    }
+
+    it('clears an expired pending action, toasts, and unblocks sending', async () => {
+      sendWithPendingAction();
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      await act(async () => {
+        await result.current.send('Soạn email nhắc');
+      });
+      expect(result.current.pendingAction).not.toBeNull();
+      expect(result.current.blockedByPendingAction).toBe(true);
+
+      await act(async () => {
+        vi.advanceTimersByTime(10 * 60 * 1000 + 1);
+      });
+
+      expect(result.current.pendingAction).toBeNull();
+      expect(result.current.blockedByPendingAction).toBe(false);
+      expect(toast.info).toHaveBeenCalledWith('Đề xuất gửi email đã hết hạn.');
+
+      streamCopilotMessage.mockClear();
+      await act(async () => {
+        await result.current.send('Câu hỏi tiếp theo');
+      });
+      expect(streamCopilotMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('clears a pending action that is already expired when set', async () => {
+      vi.setSystemTime(new Date('2026-08-09T00:30:00Z'));
+      sendWithPendingAction();
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      await act(async () => {
+        await result.current.send('Soạn email nhắc');
+      });
+
+      expect(result.current.pendingAction).toBeNull();
+      expect(toast.info).toHaveBeenCalledWith('Đề xuất gửi email đã hết hạn.');
+    });
+
+    it('clears the pending action when confirm reports it is no longer pending', async () => {
+      sendWithPendingAction();
+      confirmCopilotAction.mockRejectedValue({
+        response: {
+          status: 409,
+          data: {
+            errorCode: 'CONFLICT',
+            message: 'Đề xuất gửi email đã hết hạn.',
+          },
+        },
+      });
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      await act(async () => {
+        await result.current.send('Soạn email nhắc');
+      });
+      await act(async () => {
+        await result.current.confirm();
+      });
+
+      expect(result.current.pendingAction).toBeNull();
+      expect(toast.info).toHaveBeenCalledWith('Đề xuất gửi email đã hết hạn.');
+    });
+
+    it('keeps the pending action when confirm fails for another reason', async () => {
+      sendWithPendingAction();
+      confirmCopilotAction.mockRejectedValue({
+        response: {
+          status: 500,
+          data: { errorCode: 'INTERNAL_SERVER_ERROR', message: 'Lỗi.' },
+        },
+      });
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      await act(async () => {
+        await result.current.send('Soạn email nhắc');
+      });
+      await act(async () => {
+        await result.current.confirm();
+      });
+
+      expect(result.current.pendingAction).not.toBeNull();
+      expect(toast.error).toHaveBeenCalledWith(
+        'Không thể gửi email nhắc thanh toán.',
+      );
+    });
+
+    it('clears the pending action when cancel reports it is no longer pending', async () => {
+      sendWithPendingAction();
+      cancelCopilotAction.mockRejectedValue({
+        response: {
+          status: 409,
+          data: {
+            errorCode: 'CONFLICT',
+            message: 'Đề xuất gửi email đã được xử lý.',
+          },
+        },
+      });
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      await act(async () => {
+        await result.current.send('Soạn email nhắc');
+      });
+      await act(async () => {
+        await result.current.cancel();
+      });
+
+      expect(result.current.pendingAction).toBeNull();
+      expect(toast.info).toHaveBeenCalledWith('Đề xuất gửi email đã hết hạn.');
+    });
   });
 });

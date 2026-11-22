@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { getApiErrorCode } from '@/lib/api-client';
 import type { CopilotMessage, CopilotPendingAction } from '../types';
@@ -9,6 +9,12 @@ import {
   getCopilotConversationMessages,
   streamCopilotMessage,
 } from './copilot-api';
+
+// Mirrors PENDING_ACTION_EXPIRY_MINUTES on the backend: a pending action that
+// outlives this is refused server-side, so the UI must stop blocking the
+// composer on it.
+export const PENDING_ACTION_TTL_MS = 10 * 60 * 1000;
+const PENDING_ACTION_EXPIRED_MESSAGE = 'Đề xuất gửi email đã hết hạn.';
 
 export function useCopilotChat(
   canResolvePendingAction: boolean,
@@ -56,6 +62,28 @@ export function useCopilotChat(
       cancelled = true;
     };
   }, [conversationId]);
+
+  // An expired proposal is refused by the backend, so blocking the composer on
+  // it would trap the input: drop it at the same moment the server would.
+  useEffect(() => {
+    if (!pendingAction) return;
+
+    const expiresIn =
+      new Date(pendingAction.createdAt).getTime() +
+      PENDING_ACTION_TTL_MS -
+      Date.now();
+    if (expiresIn <= 0) {
+      setPendingAction(null);
+      toast.info(PENDING_ACTION_EXPIRED_MESSAGE);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setPendingAction(null);
+      toast.info(PENDING_ACTION_EXPIRED_MESSAGE);
+    }, expiresIn);
+    return () => clearTimeout(timer);
+  }, [pendingAction]);
 
   async function send(content: string) {
     const trimmed = content.trim();
@@ -153,6 +181,16 @@ export function useCopilotChat(
     abortControllerRef.current?.abort();
   }
 
+  // The backend answers CONFLICT for an action that is expired, already
+  // confirmed, or already cancelled; none of those can be resolved from this
+  // UI anymore, so stop blocking the composer on it.
+  const dropIfResolvedElsewhere = useCallback((error: unknown): boolean => {
+    if (getApiErrorCode(error) !== 'CONFLICT') return false;
+    setPendingAction(null);
+    toast.info(PENDING_ACTION_EXPIRED_MESSAGE);
+    return true;
+  }, []);
+
   async function confirm() {
     if (!pendingAction || busy) return;
     setBusy(true);
@@ -160,8 +198,10 @@ export function useCopilotChat(
       await confirmCopilotAction(pendingAction.id);
       setPendingAction(null);
       toast.success('Đã gửi email nhắc thanh toán.');
-    } catch {
-      toast.error('Không thể gửi email nhắc thanh toán.');
+    } catch (error) {
+      if (!dropIfResolvedElsewhere(error)) {
+        toast.error('Không thể gửi email nhắc thanh toán.');
+      }
     } finally {
       setBusy(false);
     }
@@ -173,8 +213,10 @@ export function useCopilotChat(
     try {
       await cancelCopilotAction(pendingAction.id);
       setPendingAction(null);
-    } catch {
-      toast.error('Không thể hủy đề xuất gửi email.');
+    } catch (error) {
+      if (!dropIfResolvedElsewhere(error)) {
+        toast.error('Không thể hủy đề xuất gửi email.');
+      }
     } finally {
       setBusy(false);
     }
