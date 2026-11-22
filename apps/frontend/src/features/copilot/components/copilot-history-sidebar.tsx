@@ -13,6 +13,9 @@ export function CopilotHistorySidebar({
   onSelect,
   onNewChat,
   onClose,
+  hasMore = false,
+  isLoadingMore = false,
+  onLoadMore,
 }: {
   conversations: CopilotConversationSummary[];
   activeConversationId: string;
@@ -20,6 +23,9 @@ export function CopilotHistorySidebar({
   onSelect: (id: string) => void;
   onNewChat: () => void;
   onClose?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -98,6 +104,18 @@ export function CopilotHistorySidebar({
             </TooltipLabel>
           );
         })}
+        {hasMore && onLoadMore && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-full"
+            disabled={isLoadingMore}
+            onClick={onLoadMore}
+          >
+            Xem thêm
+          </Button>
+        )}
       </div>
     </div>
   );

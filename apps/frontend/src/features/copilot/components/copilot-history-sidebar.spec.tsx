@@ -116,6 +116,54 @@ describe('CopilotHistorySidebar', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Đang tải…');
   });
 
+  it('offers a load-more button only while more conversations remain', () => {
+    const onLoadMore = vi.fn();
+    const { rerender } = render(
+      <CopilotHistorySidebar
+        conversations={CONVERSATIONS}
+        activeConversationId="c1"
+        isLoading={false}
+        onSelect={vi.fn()}
+        onNewChat={vi.fn()}
+        hasMore
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xem thêm' }));
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <CopilotHistorySidebar
+        conversations={CONVERSATIONS}
+        activeConversationId="c1"
+        isLoading={false}
+        onSelect={vi.fn()}
+        onNewChat={vi.fn()}
+        hasMore={false}
+        onLoadMore={onLoadMore}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: 'Xem thêm' })).toBeNull();
+  });
+
+  it('shows the load-more button as busy while the next page loads', () => {
+    render(
+      <CopilotHistorySidebar
+        conversations={CONVERSATIONS}
+        activeConversationId="c1"
+        isLoading={false}
+        onSelect={vi.fn()}
+        onNewChat={vi.fn()}
+        hasMore
+        isLoadingMore
+        onLoadMore={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Xem thêm' })).toBeDisabled();
+  });
+
   it('hides the header icons from assistive technology', () => {
     render(
       <CopilotHistorySidebar

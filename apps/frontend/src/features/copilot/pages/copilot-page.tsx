@@ -75,7 +75,10 @@ export function CopilotPage() {
     conversations,
     activeConversationId,
     isLoading: isLoadingConversations,
+    isLoadingMore: isLoadingMoreConversations,
+    hasMore: hasMoreConversations,
     refresh: refreshConversations,
+    loadMore: loadMoreConversations,
     startNewConversation,
     selectConversation,
   } = useCopilotConversations();
@@ -166,6 +169,9 @@ export function CopilotPage() {
       conversations={conversations}
       activeConversationId={activeConversationId}
       isLoading={isLoadingConversations}
+      hasMore={hasMoreConversations}
+      isLoadingMore={isLoadingMoreConversations}
+      onLoadMore={() => void loadMoreConversations()}
       onSelect={(id) => {
         selectConversation(id);
         setActiveDrawer(null);
