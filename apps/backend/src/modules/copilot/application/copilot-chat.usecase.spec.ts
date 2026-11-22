@@ -1706,9 +1706,12 @@ describe('CopilotChatUseCase', () => {
     ).find((message) => message.role === 'tool');
     expect(toolMessage?.content).toContain('VALIDATION_ERROR');
   });
+
   it('guides the model to use the cash-flow snapshot for dashboard and aging questions', () => {
     expect(SYSTEM_PROMPT).toContain('getCashFlowSnapshot');
-    expect(SYSTEM_PROMPT).toContain(' aging ');
+    expect(SYSTEM_PROMPT).toContain('aging buckets');
+    // v5-specific guidance; the version constant is module-private.
+    expect(SYSTEM_PROMPT).toContain('Never show customerId or bucket codes');
   });
 
   it('routes getCashFlowSnapshot tool calls to the tool', async () => {

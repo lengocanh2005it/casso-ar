@@ -1,42 +1,46 @@
 import { Role } from '../../../organizations/domain/membership';
 import { GetCashFlowSnapshotTool } from './get-cash-flow-snapshot.tool';
 
+const dashboardSummary = {
+  totalOutstanding: '1000000',
+  totalOverdue: '200000',
+  overdueRate: 0.2,
+  cashForecast: {
+    forecast7d: '10',
+    forecast14d: '20',
+    forecast30d: '30',
+  },
+  autoMatchRate: 0.8,
+  manualHandlingRate: 0.2,
+  reminderEffectiveness: 0.5,
+  topOverdueCustomers: [
+    {
+      customerId: 'cust-1',
+      customerName: 'Alpha',
+      totalOverdue: '200000',
+    },
+  ],
+};
+
+const agingBuckets = [
+  { bucket: 'OVERDUE_8_30', count: 2, totalRemaining: '9' },
+];
+
+const trendReport = {
+  months: 6,
+  items: [{ month: '2026-11', outstanding: '5', collected: '7' }],
+};
+
 function buildServices(overrides: Record<string, unknown> = {}) {
   return {
     dashboard: {
-      getSummary: jest.fn().mockResolvedValue({
-        totalOutstanding: '1000000',
-        totalOverdue: '200000',
-        overdueRate: 0.2,
-        cashForecast: {
-          forecast7d: '10',
-          forecast14d: '20',
-          forecast30d: '30',
-        },
-        autoMatchRate: 0.8,
-        manualHandlingRate: 0.2,
-        reminderEffectiveness: 0.5,
-        topOverdueCustomers: [
-          {
-            customerId: 'cust-1',
-            customerName: 'Alpha',
-            totalOverdue: '200000',
-          },
-        ],
-      }),
+      getSummary: jest.fn().mockResolvedValue(dashboardSummary),
     },
     aging: {
-      getAgingBuckets: jest
-        .fn()
-        .mockResolvedValue([
-          { bucket: 'OVERDUE_8_30', count: 2, totalRemaining: '9' },
-        ]),
+      getAgingBuckets: jest.fn().mockResolvedValue(agingBuckets),
     },
     trend: {
-      getTrend: jest.fn().mockResolvedValue({
-        months: 6,
-        items: [{ month: '2026-11', outstanding: '5', collected: '7' }],
-      }),
+      getTrend: jest.fn().mockResolvedValue(trendReport),
     },
     tenantContext: {
       getCurrentUser: jest
@@ -63,10 +67,12 @@ describe('GetCashFlowSnapshotTool', () => {
     expect(services.aging.getAgingBuckets).toHaveBeenCalledTimes(1);
     expect(services.trend.getTrend).toHaveBeenCalledWith(6);
     expect(result).toEqual({
-      dashboard: await services.dashboard.getSummary.mock.results[0].value,
-      aging: await services.aging.getAgingBuckets.mock.results[0].value,
-      trend: await services.trend.getTrend.mock.results[0].value,
+      dashboard: dashboardSummary,
+      aging: agingBuckets,
+      trend: trendReport,
     });
+    // The reported month count is the service's own, not a second claim.
+    expect(result.trend.months).toBe(trendReport.months);
   });
 
   it('passes the user id to aging only for SALES_REP', async () => {
@@ -103,6 +109,27 @@ describe('GetCashFlowSnapshotTool', () => {
     expect(services.aging.getAgingBuckets).toHaveBeenCalledWith();
   });
 
+  it('does not mutate the objects returned by the query services', async () => {
+    const services = buildServices();
+    const dashboardBefore = structuredClone(dashboardSummary);
+    const agingBefore = structuredClone(agingBuckets);
+    const trendBefore = structuredClone(trendReport);
+
+    const snapshot = await new GetCashFlowSnapshotTool(
+      services.dashboard as any,
+      services.aging as any,
+      services.trend as any,
+      services.tenantContext as any,
+    ).execute();
+
+    expect(dashboardSummary).toEqual(dashboardBefore);
+    expect(agingBuckets).toEqual(agingBefore);
+    expect(trendReport).toEqual(trendBefore);
+    expect(snapshot.dashboard).toEqual(dashboardBefore);
+    expect(snapshot.aging).toEqual(agingBefore);
+    expect(snapshot.trend.items).toEqual(trendBefore.items);
+  });
+
   it('rejects when a query service fails, without a partial snapshot', async () => {
     const services = buildServices({
       dashboard: {
@@ -116,6 +143,40 @@ describe('GetCashFlowSnapshotTool', () => {
       services.tenantContext as any,
     );
 
-    await expect(tool.execute()).rejects.toThrow('db down');
+    let snapshot: unknown;
+    let caught: unknown;
+    try {
+      snapshot = await tool.execute();
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    expect(caught).toHaveProperty('message', 'db down');
+    expect(snapshot).toBeUndefined();
+    // Promise.all still issued the whole fan-out; nothing was returned.
+    expect(services.aging.getAgingBuckets).toHaveBeenCalledTimes(1);
+    expect(services.trend.getTrend).toHaveBeenCalledTimes(1);
+  });
+
+  it('relays the trend month count returned by the service', async () => {
+    // The tool asks for 6 months; it must report what the service returned
+    // rather than restating its own request as a second source of truth.
+    const services = buildServices({
+      trend: {
+        getTrend: jest.fn().mockResolvedValue({ months: 3, items: [] }),
+      },
+    });
+    const tool = new GetCashFlowSnapshotTool(
+      services.dashboard as any,
+      services.aging as any,
+      services.trend as any,
+      services.tenantContext as any,
+    );
+
+    const result = await tool.execute();
+
+    expect(services.trend.getTrend).toHaveBeenCalledWith(6);
+    expect(result.trend.months).toBe(3);
   });
 });

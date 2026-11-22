@@ -5,13 +5,16 @@ import type { AgingBucketCount } from '../../../reporting/application/aging-repo
 import { AgingReportQueryService } from '../../../reporting/application/aging-report-query.service';
 import type { DashboardSummary } from '../../../reporting/application/dashboard-summary.repository.port';
 import { DashboardSummaryQueryService } from '../../../reporting/application/dashboard-summary-query.service';
-import type { ReportsTrendPoint } from '../../../reporting/application/trend-report.repository.port';
+import type {
+  ReportsTrendPoint,
+  TrendMonths,
+} from '../../../reporting/application/trend-report.repository.port';
 import { TrendReportQueryService } from '../../../reporting/application/trend-report-query.service';
 
 export interface CashFlowSnapshot {
   dashboard: DashboardSummary;
   aging: AgingBucketCount[];
-  trend: { months: 6; items: ReportsTrendPoint[] };
+  trend: { months: TrendMonths; items: ReportsTrendPoint[] };
 }
 
 @Injectable()
@@ -27,7 +30,8 @@ export class GetCashFlowSnapshotTool {
 
   async execute(): Promise<CashFlowSnapshot> {
     const user = this.tenantContext.getCurrentUser();
-    // Values are relayed, never recomputed here.
+    // ponytail: fixed 6-month window; narrower queries only if prompt cost
+    // becomes measurable. Values are relayed, never recomputed here.
     const [dashboard, aging, trend] = await Promise.all([
       this.dashboard.getSummary(),
       user?.role === Role.SALES_REP
@@ -39,7 +43,7 @@ export class GetCashFlowSnapshotTool {
     return {
       dashboard,
       aging,
-      trend: { months: 6, items: trend.items },
+      trend: { months: trend.months, items: trend.items },
     };
   }
 }
