@@ -131,7 +131,6 @@ export function DraftEditDialog({
               <p
                 id="draft-edit-error"
                 role="alert"
-                aria-live="polite"
                 className="text-sm text-destructive"
               >
                 {validationError}
