@@ -47,4 +47,23 @@ describe('CopilotHistorySidebar', () => {
     );
     expect(onNewChat).toHaveBeenCalled();
   });
+
+  it('hides the header icons from assistive technology', () => {
+    render(
+      <CopilotHistorySidebar
+        conversations={[]}
+        activeConversationId="c1"
+        isLoading={false}
+        onSelect={vi.fn()}
+        onNewChat={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    for (const button of screen.getAllByRole('button')) {
+      for (const svg of button.querySelectorAll('svg')) {
+        expect(svg).toHaveAttribute('aria-hidden', 'true');
+      }
+    }
+  });
 });

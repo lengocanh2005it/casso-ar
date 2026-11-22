@@ -276,19 +276,13 @@ export function CopilotPage() {
                 }
               />
               {isSending ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={stop}
-                  aria-label="Dừng"
-                >
-                  <Square className="size-4" />
+                <Button type="button" variant="outline" onClick={stop}>
+                  <Square aria-hidden="true" className="size-4" />
                   Dừng
                 </Button>
               ) : (
                 <Button
                   type="submit"
-                  aria-label="Send"
                   disabled={
                     blockedByPendingAction ||
                     !!quotaExceededMessage ||

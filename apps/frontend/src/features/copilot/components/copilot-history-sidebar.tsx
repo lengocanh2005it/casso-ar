@@ -34,7 +34,7 @@ export function CopilotHistorySidebar({
               onClick={onNewChat}
               aria-label="Cuộc trò chuyện mới"
             >
-              <Plus className="size-4" />
+              <Plus aria-hidden="true" className="size-4" />
             </Button>
           </TooltipLabel>
           {onClose && (
@@ -46,7 +46,7 @@ export function CopilotHistorySidebar({
                 onClick={onClose}
                 aria-label="Đóng lịch sử chat"
               >
-                <X className="size-4" />
+                <X aria-hidden="true" className="size-4" />
               </Button>
             </TooltipLabel>
           )}
