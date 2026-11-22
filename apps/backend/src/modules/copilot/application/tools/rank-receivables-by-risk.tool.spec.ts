@@ -82,6 +82,10 @@ describe('scoreRisk', () => {
   });
 
   it('uses inclusive band boundaries 30 and 60', () => {
+    const atTwentyNine = scoreRisk({ ...base, daysOverdue: 87 }); // 29
+    expect(atTwentyNine.riskScore).toBe(29);
+    expect(atTwentyNine.riskBand).toBe('LOW');
+
     const atThirty = scoreRisk({ ...base, daysOverdue: 90 }); // 90 / 3 = 30
     expect(atThirty.riskScore).toBe(30);
     expect(atThirty.riskBand).toBe('MEDIUM');
@@ -138,10 +142,6 @@ function receivable(overrides: {
 
 function buildTool(overrides: Record<string, unknown> = {}) {
   const deps = {
-    receivableRepo: {
-      findOverdueCandidates: jest.fn().mockResolvedValue([]),
-      findByIds: jest.fn().mockResolvedValue(new Map()),
-    },
     customerRepo: {
       findIdsBySearch: jest.fn().mockResolvedValue([]),
       findByIds: jest.fn().mockResolvedValue(new Map()),
@@ -156,7 +156,10 @@ function buildTool(overrides: Record<string, unknown> = {}) {
     reminderRepo: {
       findLatestSentByReceivableIds: jest.fn().mockResolvedValue(new Map()),
     },
-    allocationRepo: { findByCustomerId: jest.fn().mockResolvedValue([]) },
+    allocationRepo: {
+      findByCustomerId: jest.fn().mockResolvedValue([]),
+      findByCustomerIds: jest.fn().mockResolvedValue(new Map()),
+    },
     tenantContext: {
       getOrganizationId: jest.fn().mockReturnValue('org-1'),
       getCurrentUser: jest
@@ -164,6 +167,13 @@ function buildTool(overrides: Record<string, unknown> = {}) {
         .mockReturnValue({ role: 'FINANCE_MANAGER', userId: 'user-1' }),
     },
     ...overrides,
+    // Merged last so a partial override keeps the defaults it does not name.
+    receivableRepo: {
+      findOverdueCandidates: jest.fn().mockResolvedValue([]),
+      findByIds: jest.fn().mockResolvedValue(new Map()),
+      findOpenByCustomerId: jest.fn().mockResolvedValue([]),
+      ...(overrides.receivableRepo as Record<string, unknown> | undefined),
+    },
   };
   const tool = new RankReceivablesByRiskTool(
     deps.receivableRepo as any,
@@ -196,7 +206,7 @@ describe('RankReceivablesByRiskTool', () => {
     expect(
       deps.reminderRepo.findLatestSentByReceivableIds,
     ).not.toHaveBeenCalled();
-    expect(deps.allocationRepo.findByCustomerId).not.toHaveBeenCalled();
+    expect(deps.allocationRepo.findByCustomerIds).not.toHaveBeenCalled();
   });
 
   it('sorts by riskScore desc then dueDate asc and emits explained items', async () => {
@@ -223,6 +233,9 @@ describe('RankReceivablesByRiskTool', () => {
             ['rec-new', newer],
           ]),
         ),
+        // Both are also the customer's only open receivables, so the median
+        // is the shared 5M and each gets ratio 1 -> 5 points.
+        findOpenByCustomerId: jest.fn().mockResolvedValue([newer, older]),
       },
       disputeRepo: {
         findOpenDisputesByReceivableIds: jest
@@ -270,7 +283,7 @@ describe('RankReceivablesByRiskTool', () => {
     expect(
       deps.reminderRepo.findLatestSentByReceivableIds,
     ).toHaveBeenCalledTimes(1);
-    expect(deps.allocationRepo.findByCustomerId).toHaveBeenCalledTimes(1);
+    expect(deps.allocationRepo.findByCustomerIds).toHaveBeenCalledTimes(1);
   });
 
   it('breaks a riskScore tie by the earliest due date', async () => {
@@ -290,6 +303,7 @@ describe('RankReceivablesByRiskTool', () => {
       receivableRepo: {
         findOverdueCandidates: jest.fn().mockResolvedValue([later, earlier]),
         findByIds: jest.fn().mockResolvedValue(new Map()),
+        findOpenByCustomerId: jest.fn().mockResolvedValue([later, earlier]),
       },
     });
 
@@ -337,21 +351,119 @@ describe('RankReceivablesByRiskTool', () => {
         findByIds: jest.fn().mockResolvedValue(new Map([['rec-1', target]])),
       },
       allocationRepo: {
-        findByCustomerId: jest.fn().mockResolvedValue([
-          {
-            receivableId: 'rec-1',
-            allocatedAmount: 1_000_000,
-            allocatedAt: new Date('2026-10-20T00:00:00.000Z'),
-            deletedAt: null,
-            isActive: () => true,
-          },
-        ]),
+        findByCustomerId: jest.fn(),
+        findByCustomerIds: jest.fn().mockResolvedValue(
+          new Map([
+            [
+              'cust-1',
+              [
+                {
+                  receivableId: 'rec-1',
+                  allocatedAmount: 1_000_000,
+                  allocatedAt: new Date('2026-10-20T00:00:00.000Z'),
+                  deletedAt: null,
+                  isActive: () => true,
+                },
+              ],
+            ],
+          ]),
+        ),
       },
     });
     const result = await tool.execute({}, new Date('2026-11-22T00:00:00.000Z'));
     expect(result.items[0].reasons.map((reason) => reason.code)).toContain(
       'LATE_PAYMENT_HISTORY',
     );
+  });
+
+  it('loads allocations for every distinct customer in one batch call', async () => {
+    // Three distinct customers used to mean three findByCustomerId queries.
+    const alpha = receivable({
+      id: 'rec-a',
+      customerId: 'cust-a',
+      originalAmount: 1_000_000,
+      dueDate: '2026-10-01T00:00:00.000Z',
+    });
+    const beta = receivable({
+      id: 'rec-b',
+      customerId: 'cust-b',
+      originalAmount: 1_000_000,
+      dueDate: '2026-10-02T00:00:00.000Z',
+    });
+    const gamma = receivable({
+      id: 'rec-c',
+      customerId: 'cust-c',
+      originalAmount: 1_000_000,
+      dueDate: '2026-10-03T00:00:00.000Z',
+    });
+    const { tool, deps } = buildTool({
+      receivableRepo: {
+        findOverdueCandidates: jest
+          .fn()
+          .mockResolvedValue([alpha, beta, gamma]),
+        findByIds: jest.fn().mockResolvedValue(new Map()),
+      },
+    });
+
+    await tool.execute({}, new Date('2026-11-22T00:00:00.000Z'));
+
+    expect(deps.allocationRepo.findByCustomerIds).toHaveBeenCalledTimes(1);
+    expect(deps.allocationRepo.findByCustomerIds).toHaveBeenCalledWith(
+      ['cust-a', 'cust-b', 'cust-c'],
+      50,
+    );
+    expect(deps.allocationRepo.findByCustomerId).not.toHaveBeenCalled();
+  });
+
+  it('takes the customer median over all open receivables, not just the candidate window', async () => {
+    // Only rec-small is a candidate, but the customer also has rec-big open.
+    // Median of [10M, 30M] is 20M, so 10M is ratio 0.5 -> floor(0.5 * 5) = 2
+    // points. Using only the candidate set would give ratio 1 -> 5 points.
+    const candidate = receivable({
+      id: 'rec-small',
+      originalAmount: 10_000_000,
+      dueDate: '2026-10-01T00:00:00.000Z',
+    });
+    const notYetDue = receivable({
+      id: 'rec-big',
+      originalAmount: 30_000_000,
+      dueDate: '2026-12-01T00:00:00.000Z',
+    });
+    const { tool, deps } = buildTool({
+      receivableRepo: {
+        findOverdueCandidates: jest.fn().mockResolvedValue([candidate]),
+        findByIds: jest.fn().mockResolvedValue(new Map()),
+        findOpenByCustomerId: jest
+          .fn()
+          .mockResolvedValue([candidate, notYetDue]),
+      },
+    });
+
+    const result = await tool.execute({}, new Date('2026-11-22T00:00:00.000Z'));
+
+    expect(deps.receivableRepo.findOpenByCustomerId).toHaveBeenCalledWith(
+      'cust-1',
+    );
+    const largeBalance = result.items[0].reasons.find(
+      (reason) => reason.code === 'LARGE_BALANCE',
+    );
+    expect(largeBalance?.message).toBe(
+      'Số dư lớn bất thường so với các khoản cùng khách hàng',
+    );
+    // 52 days overdue (17) + 2 large-balance points.
+    expect(result.items[0].riskScore).toBe(19);
+  });
+
+  it('states the large-balance reason as unusual, never as simply above the median', () => {
+    const belowMedian = scoreRisk({ ...base, remainingToMedianRatio: 0.5 });
+    const aboveMedian = scoreRisk({ ...base, remainingToMedianRatio: 3 });
+
+    for (const score of [belowMedian, aboveMedian]) {
+      expect(
+        score.reasons.find((reason) => reason.code === 'LARGE_BALANCE')
+          ?.message,
+      ).toBe('Số dư lớn bất thường so với các khoản cùng khách hàng');
+    }
   });
 
   it('narrows candidates by customer and invoice search matches', async () => {

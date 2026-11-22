@@ -1,7 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
-import { AppError } from '../../../../common/errors/app-error';
-import { ErrorCode } from '../../../../common/errors/error-code';
 import { TenantContextService } from '../../../../common/tenancy/tenant-context';
 import { REMINDER_EXECUTION_REPOSITORY } from '../../../../common/tokens/reminder-execution.token';
 import type { ICustomerRepository } from '../../../customers/application/customer-repository.port';
@@ -18,6 +16,7 @@ import { RECEIVABLE_REPOSITORY } from '../../../receivables/application/receivab
 import type { Receivable } from '../../../receivables/domain/receivable';
 import type { IReminderExecutionRepository } from '../../../reminders/application/reminder-execution-repository.port';
 import type { CopilotJsonSchema } from '../copilot-tool-registry';
+import { validateSearchAndLimit } from './copilot-tool-input';
 
 export type RiskReasonCode =
   | 'OVERDUE_DEPTH'
@@ -133,7 +132,7 @@ export function scoreRisk(signals: RiskSignals): RiskScore {
   if (largePoints > 0) {
     reasons.push({
       code: 'LARGE_BALANCE',
-      message: 'Số dư lớn hơn trung vị các khoản cùng khách hàng',
+      message: 'Số dư lớn bất thường so với các khoản cùng khách hàng',
     });
   }
 
@@ -178,7 +177,6 @@ export interface RankResult {
 const REPORTING_TIMEZONE = 'Asia/Ho_Chi_Minh';
 const HORIZON_DAYS = 7;
 const DEFAULT_LIMIT = 10;
-const MAX_LIMIT = 10;
 const MAX_CANDIDATES = 30;
 const CANDIDATE_FACTOR = 3;
 const PAYMENT_HISTORY_LIMIT = 50;
@@ -231,13 +229,7 @@ export class RankReceivablesByRiskTool {
     input: { limit?: number; search?: string },
     now = new Date(),
   ): Promise<RankResult> {
-    const limit = input.limit ?? DEFAULT_LIMIT;
-    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
-      throw new AppError(
-        ErrorCode.VALIDATION_ERROR,
-        'Tham số limit phải là số nguyên từ 1 đến 10.',
-      );
-    }
+    const limit = validateSearchAndLimit(input).limit ?? DEFAULT_LIMIT;
 
     const organizationId = this.tenantContext.getOrganizationId();
     const currentUser = this.tenantContext.getCurrentUser();
@@ -298,19 +290,23 @@ export class RankReceivablesByRiskTool {
         : Promise.resolve(new Map()),
     ]);
 
-    // Median over the customer's open receivables in the candidate set: one
-    // in-memory pass, no extra query. ponytail: widen to all of the customer's
-    // open receivables only if the ranking needs a whole-book baseline.
-    const remainingByCustomer = new Map<string, number[]>();
-    for (const candidate of candidates) {
-      const values = remainingByCustomer.get(candidate.customerId) ?? [];
-      values.push(candidate.remainingAmount);
-      remainingByCustomer.set(candidate.customerId, values);
-    }
-    const medianByCustomer = new Map<string, number>();
-    for (const [customerId, values] of remainingByCustomer) {
-      medianByCustomer.set(customerId, median(values));
-    }
+    // The spec's baseline is every open receivable of the customer, not the
+    // bounded candidate window: with a candidate-only median a lone candidate
+    // is always its own median (ratio 1 -> 5 points). ponytail: one
+    // findOpenByCustomerId per distinct customer, each capped at 100 rows by
+    // the port; add a batch port if the candidate fan-out ever grows past 30.
+    const medianByCustomer = new Map<string, number>(
+      await Promise.all(
+        customerIds.map(async (customerId) => {
+          const open =
+            await this.receivableRepo.findOpenByCustomerId(customerId);
+          return [
+            customerId,
+            median(open.map((receivable) => receivable.remainingAmount)),
+          ] as const;
+        }),
+      ),
+    );
 
     const lateRatioByCustomer = await this.loadLatePaymentRatios(customerIds);
 
@@ -350,32 +346,25 @@ export class RankReceivablesByRiskTool {
     return { items: ranked.slice(0, limit) };
   }
 
-  // One payment-history query per distinct customer (bounded by the candidate
-  // count), then one batch lookup for every allocated receivable, so the
-  // signal never degrades into a query per receivable.
+  // One query for every customer plus one batch lookup for the allocated
+  // receivables: the due-date math stays in memory, so the signal never
+  // degrades into a query per customer or per receivable.
   private async loadLatePaymentRatios(
     customerIds: string[],
   ): Promise<Map<string, number>> {
     const ratios = new Map<string, number>();
     if (customerIds.length === 0) return ratios;
 
-    const allocationsByCustomer = await Promise.all(
-      customerIds.map(async (customerId) => ({
-        customerId,
-        allocations: (
-          await this.allocationRepo.findByCustomerId(
-            customerId,
-            PAYMENT_HISTORY_LIMIT,
-          )
-        ).filter((allocation) => allocation.isActive()),
-      })),
+    const allocationsByCustomer = await this.allocationRepo.findByCustomerIds(
+      customerIds,
+      PAYMENT_HISTORY_LIMIT,
     );
 
     const allocatedReceivableIds = [
       ...new Set(
-        allocationsByCustomer.flatMap(({ allocations }) =>
-          allocations.map((allocation) => allocation.receivableId),
-        ),
+        [...allocationsByCustomer.values()]
+          .flat()
+          .map((allocation) => allocation.receivableId),
       ),
     ];
     const allocatedReceivables =
@@ -383,7 +372,10 @@ export class RankReceivablesByRiskTool {
         ? await this.receivableRepo.findByIds(allocatedReceivableIds)
         : new Map<string, Receivable>();
 
-    for (const { customerId, allocations } of allocationsByCustomer) {
+    for (const customerId of customerIds) {
+      const allocations = (allocationsByCustomer.get(customerId) ?? []).filter(
+        (allocation) => allocation.isActive(),
+      );
       let comparable = 0;
       let late = 0;
       for (const allocation of allocations) {
