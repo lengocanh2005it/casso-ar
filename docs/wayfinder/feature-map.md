@@ -102,9 +102,9 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ## Ticket Index
 
-**38 tracked tickets** | status snapshot (2026-10-07):
+**39 tracked tickets** | status snapshot (2026-11-22):
 - 🟢 done (38): Plan #1, Plan #2, Plan #3, Plan #4, Plan #5, Plan #6, Plan #7, Plan #8, Plan #9, Plan #10, Plan #11, Plan #12, Plan #13, Plan #14, Plan #15, Plan #16, Plan #17, Plan #18, Plan #19, Plan #20, Plan #21, Plan #22, Plan #23, Application Layer Boundary Enforcement, Customer Bank Account Management, Credit Balance Management, Spec-Plan Reconciliation, Org-Branded Reminder Emails via Custom SMTP (BYO-SMTP), SMTP Settings UI (Frontend), In-App Alerts (#137), Public Landing Page (#143), Issue #233 — manual payment allocation UI (Shipped: 2026-08-19 — PR #260), Issue #320 — Copilot Overdue Receivable Context (Shipped: 2026-08-23 — PR #325), Issue #321 — Casso AR Copilot Persona and Response Policy (Shipped: 2026-08-23 — PR #326), Issue #236 — audit log viewer UI (Shipped: 2026-08-23 — PR #327), Issue #454 — Playwright viewport harness for the frontend (Shipped: 2026-10-06 — PR #479), Issue #455 — viewport coverage for auth and onboarding (Shipped: 2026-10-07 — PR #480), Issue #456 — data-table viewport coverage (Shipped: 2026-10-07 — PR #481), Issue #457 — remaining app viewport coverage and required CI gate (Shipped: 2026-10-07 — PR #483)
-- 🟡 in-progress (0): none
+- 🟡 in-progress (1): Copilot risk ranking tool (spec 2026-11-22)
 - 🔴 open/not started (0): none
 
 ---
