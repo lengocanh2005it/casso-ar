@@ -62,7 +62,7 @@ Signals, all computed in code from data reachable through existing ports. Total 
 | Open dispute | `IDisputeRepository.findOpenDisputesByReceivableIds` | 20 | 20 if a receivable has an open dispute, else 0 |
 | Reminder fatigue | `IReminderExecutionRepository.findLatestSentByReceivableIds` | 15 | 5 points if the port returns a prior `SENT` execution for the receivable, else 0. The port exposes only the latest execution, so the observable count is 0 or 1; `min(15, sentCount * 5)` collapses to 0/5. `ponytail:` upgrade to a count query if per-send fatigue granularity is ever needed. |
 | Late-payment history | `IPaymentAllocationRepository.findByCustomerIds` | 20 | `min(20, floor(latePaymentRatio * 20))`; "late" = allocation's `allocatedAt` after the matched receivable's `dueDate`. Needs `IReceivableRepository.findByIds` for the allocated receivables' due dates. |
-| Unusually large balance | receivable `originalAmount` | 15 | 15 if `remainingAmount > 3 * customerMedianRemaining`, else proportional `min(15, floor(ratio * 5))`; median over the customer's open receivables via `IReceivableRepository.findOpenByCustomerIds` |
+| Unusually large balance | receivable `remainingAmount` | 15 | 15 if `remainingAmount > 3 * customerMedianRemaining`, else proportional `min(15, floor(ratio * 5))`; median over the customer's open receivables via `IReceivableRepository.findOpenByCustomerIds` |
 
 Bands: `HIGH >= 60`, `MEDIUM 30..59`, `LOW < 30`.
 
