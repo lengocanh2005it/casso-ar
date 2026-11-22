@@ -613,6 +613,108 @@ describe('useCopilotChat', () => {
     });
   });
 
+  describe('stream error events', () => {
+    it('keeps the text streamed before an error event as a partial message', async () => {
+      streamCopilotMessage.mockImplementation(
+        async (_id, _content, onEvent) => {
+          onEvent({ type: 'delta', text: 'Đang phân tích' });
+          onEvent({
+            type: 'error',
+            errorCode: 'INTERNAL_SERVER_ERROR',
+            message: 'Copilot tạm thời không phản hồi.',
+          });
+        },
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      await act(async () => {
+        await result.current.send('Phân tích công nợ');
+      });
+
+      expect(result.current.messages.at(-1)).toMatchObject({
+        role: 'ASSISTANT',
+        content: 'Đang phân tích',
+        isPartial: true,
+      });
+      expect(result.current.streamingContent).toBe('');
+      expect(toast.error).toHaveBeenCalledWith(
+        'Copilot tạm thời không phản hồi.',
+      );
+    });
+
+    it('adds no message when the error arrives before any delta', async () => {
+      streamCopilotMessage.mockImplementation(
+        async (_id, _content, onEvent) => {
+          onEvent({
+            type: 'error',
+            errorCode: 'INTERNAL_SERVER_ERROR',
+            message: 'Copilot tạm thời không phản hồi.',
+          });
+        },
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      await act(async () => {
+        await result.current.send('Phân tích công nợ');
+      });
+
+      expect(
+        result.current.messages.filter(
+          (message) => message.role === 'ASSISTANT',
+        ),
+      ).toHaveLength(0);
+      expect(toast.error).toHaveBeenCalledWith(
+        'Copilot tạm thời không phản hồi.',
+      );
+    });
+
+    it('keeps the done message and does not append the streamed text twice', async () => {
+      streamCopilotMessage.mockImplementation(
+        async (_id, _content, onEvent) => {
+          onEvent({ type: 'delta', text: 'Xin chào' });
+          onEvent({
+            type: 'done',
+            data: {
+              message: {
+                id: 'm1',
+                role: 'ASSISTANT',
+                content: 'Xin chào',
+                createdAt: '2026-08-09T00:00:00Z',
+              },
+              pendingAction: null,
+            },
+          });
+          onEvent({
+            type: 'error',
+            errorCode: 'INTERNAL_SERVER_ERROR',
+            message: 'Copilot tạm thời không phản hồi.',
+          });
+        },
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      await act(async () => {
+        await result.current.send('Xin chào');
+      });
+
+      expect(
+        result.current.messages.filter(
+          (message) => message.role === 'ASSISTANT',
+        ),
+      ).toHaveLength(1);
+      expect(result.current.messages.at(-1)).toMatchObject({
+        id: 'm1',
+        content: 'Xin chào',
+      });
+    });
+  });
+
   describe('switching conversations mid-stream', () => {
     it('aborts the old stream and never writes into the new conversation', async () => {
       let rejectStream: (reason: unknown) => void = () => {};

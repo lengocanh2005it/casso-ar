@@ -130,6 +130,9 @@ export function useCopilotChat(
     const controller = new AbortController();
     abortControllerRef.current = controller;
     let streamedText = '';
+    // Once a done message (or a partial stand-in) is committed, a later error
+    // event must not append the same answer a second time.
+    let answerCommitted = false;
     // The backend persists (and counts) the user's message before it writes any
     // SSE header, so a 2xx response - and every way that response can go wrong
     // afterwards (abort, dropped stream) - still consumed a turn. Only a
@@ -150,9 +153,25 @@ export function useCopilotChat(
             streamedText += event.text;
             setStreamingContent((current) => current + event.text);
           } else if (event.type === 'done') {
+            answerCommitted = true;
             setMessages((current) => [...current, event.data.message]);
             setPendingAction(event.data.pendingAction ?? null);
           } else if (event.type === 'error') {
+            // The turn failed after it started answering: keep what the user
+            // already read instead of dropping it on the floor.
+            if (streamedText && !answerCommitted) {
+              answerCommitted = true;
+              setMessages((current) => [
+                ...current,
+                {
+                  id: crypto.randomUUID(),
+                  role: 'ASSISTANT',
+                  content: streamedText,
+                  createdAt: new Date().toISOString(),
+                  isPartial: true,
+                },
+              ]);
+            }
             toast.error(event.message);
           }
         },
