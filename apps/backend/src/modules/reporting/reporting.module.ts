@@ -39,5 +39,10 @@ import { ReportsController } from './presentation/reports.controller';
     ExportAgingReportUseCase,
   ],
   controllers: [ReportsController],
+  exports: [
+    AgingReportQueryService,
+    DashboardSummaryQueryService,
+    TrendReportQueryService,
+  ],
 })
 export class ReportingModule {}

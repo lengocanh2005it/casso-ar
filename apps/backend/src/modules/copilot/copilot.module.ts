@@ -12,6 +12,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { ReceivablesModule } from '../receivables/receivables.module';
 import { RemindersModule } from '../reminders/reminders.module';
+import { ReportingModule } from '../reporting/reporting.module';
 import { AI_USAGE_LOG_REPOSITORY } from './application/ai-usage-log-repository.port';
 import { CancelPendingActionUseCase } from './application/cancel-pending-action.usecase';
 import { ConfirmPendingActionUseCase } from './application/confirm-pending-action.usecase';
@@ -35,6 +36,7 @@ import {
   FIND_OVERDUE_RECEIVABLES_SCHEMA,
   FindOverdueReceivablesTool,
 } from './application/tools/find-overdue-receivables.tool';
+import { GetCashFlowSnapshotTool } from './application/tools/get-cash-flow-snapshot.tool';
 import { GetCollectionActivityTimelineTool } from './application/tools/get-collection-activity-timeline.tool';
 import { GetPaymentHistoryTool } from './application/tools/get-payment-history.tool';
 import { GetReceivableSummaryTool } from './application/tools/get-receivable-summary.tool';
@@ -108,6 +110,13 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     requiresReminderPermission: false,
   });
   registry.register({
+    name: GetCashFlowSnapshotTool.NAME,
+    description:
+      'Get a cash-flow snapshot: dashboard totals, overdue forecast, aging buckets and 6-month collection trend. Use for questions about cash flow, outstanding totals, aging, forecast or collection trend. Never recompute or invent numbers from this data.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+    requiresReminderPermission: false,
+  });
+  registry.register({
     name: DraftReminderEmailTool.NAME,
     description:
       'Create a reminder email draft (subject + HTML body, written in Vietnamese using real receivable data) without sending it.',
@@ -159,6 +168,7 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     EmailTemplatesModule,
     RemindersModule,
     BillingModule,
+    ReportingModule,
   ],
   controllers: [CopilotController],
   providers: [
@@ -181,6 +191,7 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     GetPaymentHistoryTool,
     FindOverdueReceivablesTool,
     RankReceivablesByRiskTool,
+    GetCashFlowSnapshotTool,
     DraftReminderEmailTool,
     SendReminderEmailTool,
     CopilotChatUseCase,

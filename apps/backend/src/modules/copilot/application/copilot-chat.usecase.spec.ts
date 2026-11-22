@@ -1706,4 +1706,70 @@ describe('CopilotChatUseCase', () => {
     ).find((message) => message.role === 'tool');
     expect(toolMessage?.content).toContain('VALIDATION_ERROR');
   });
+
+  it('guides the model to use the cash-flow snapshot for dashboard and aging questions', () => {
+    expect(SYSTEM_PROMPT).toContain('getCashFlowSnapshot');
+    expect(SYSTEM_PROMPT).toContain('aging buckets');
+    // v5-specific guidance; the version constant is module-private.
+    expect(SYSTEM_PROMPT).toContain('Never show customerId or bucket codes');
+  });
+
+  it('routes getCashFlowSnapshot tool calls to the tool', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion
+      .mockResolvedValueOnce({
+        content: null,
+        toolCalls: [
+          {
+            id: 'tool-cf',
+            name: 'getCashFlowSnapshot',
+            arguments: {},
+          },
+        ],
+        inputTokens: 10,
+        outputTokens: 5,
+      })
+      .mockResolvedValueOnce({
+        content: 'Tổng công nợ là 1.000.000 VNĐ.',
+        toolCalls: [],
+        inputTokens: 20,
+        outputTokens: 10,
+      });
+    const deps = buildDeps();
+    const cashFlowTool = {
+      execute: jest.fn().mockResolvedValue({
+        dashboard: {},
+        aging: [],
+        trend: { months: 6, items: [] },
+      }),
+    };
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+      deps.receivableRepo as any,
+      deps.customerRepo as any,
+      deps.invoiceRepo as any,
+      undefined, // no rank tool in this test
+      cashFlowTool as any,
+    );
+
+    const result = await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Tổng công nợ và aging thế nào?',
+    });
+
+    expect(cashFlowTool.execute).toHaveBeenCalledTimes(1);
+    expect(result.message.content).toContain('1.000.000');
+  });
 });
