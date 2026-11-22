@@ -22,6 +22,7 @@ describe('CopilotToolRegistry', () => {
     registry.register(fakeTool('getCollectionActivityTimeline'));
     registry.register(fakeTool('getPaymentHistory'));
     registry.register(fakeTool('findOverdueReceivables'));
+    registry.register(fakeTool('rankReceivablesByRisk'));
     registry.register(fakeTool('draftReminderEmail', true));
     registry.register(fakeTool('sendReminderEmail', true));
 
@@ -33,6 +34,7 @@ describe('CopilotToolRegistry', () => {
       'getCollectionActivityTimeline',
       'getPaymentHistory',
       'getReceivableSummary',
+      'rankReceivablesByRisk',
       'sendReminderEmail',
     ]);
   });
@@ -54,6 +56,7 @@ describe('CopilotToolRegistry', () => {
     registry.register(fakeTool('getCollectionActivityTimeline'));
     registry.register(fakeTool('getPaymentHistory'));
     registry.register(fakeTool('findOverdueReceivables'));
+    registry.register(fakeTool('rankReceivablesByRisk'));
     registry.register(fakeTool('draftReminderEmail', true));
     registry.register(fakeTool('sendReminderEmail', true));
 
@@ -62,6 +65,7 @@ describe('CopilotToolRegistry', () => {
       'getCollectionActivityTimeline',
       'getPaymentHistory',
       'findOverdueReceivables',
+      'rankReceivablesByRisk',
     ]);
   });
 });

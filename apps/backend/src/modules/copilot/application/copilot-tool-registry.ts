@@ -31,6 +31,7 @@ export class CopilotToolRegistry {
     'getCollectionActivityTimeline',
     'getPaymentHistory',
     'findOverdueReceivables',
+    'rankReceivablesByRisk',
     'draftReminderEmail',
     'sendReminderEmail',
   ] as const;
