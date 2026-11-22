@@ -622,4 +622,109 @@ describe('CopilotPage', () => {
     await screen.findByText('Đây là câu trả lời.');
     expect(composer).toHaveValue('');
   });
+
+  it('keeps the composer usable while a reply is streaming', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => new Promise(() => {})),
+    );
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    const composer = screen.getByLabelText(/nhập câu hỏi/i);
+    fireEvent.change(composer, { target: { value: 'Câu hỏi dài' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+
+    await screen.findByRole('button', { name: 'Dừng' });
+    expect(composer).not.toBeDisabled();
+  });
+
+  it('returns focus to the composer after a turn finishes', async () => {
+    let releaseFetch: () => void = () => {};
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            releaseFetch = () =>
+              resolve(
+                sseResponse([
+                  {
+                    event: 'done',
+                    data: {
+                      message: {
+                        id: 'm1',
+                        role: 'ASSISTANT',
+                        content: 'Đây là câu trả lời.',
+                        createdAt: '2026-08-09T00:00:00Z',
+                      },
+                      pendingAction: null,
+                    },
+                  },
+                ]),
+              );
+          }),
+      ),
+    );
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    const composer = screen.getByLabelText(/nhập câu hỏi/i);
+    fireEvent.change(composer, { target: { value: 'Tóm tắt công nợ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+
+    // The Stop button owns focus while sending; when it unmounts the browser
+    // drops focus to <body>, which is exactly when focus must come back.
+    await screen.findByRole('button', { name: 'Dừng' });
+    releaseFetch();
+
+    await screen.findByText('Đây là câu trả lời.');
+    await waitFor(() => expect(composer).toHaveFocus());
+  });
+
+  it('shows the pending-action placeholder while a proposal needs an answer', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          {
+            event: 'done',
+            data: {
+              message: {
+                id: 'm1',
+                role: 'ASSISTANT',
+                content: 'Mình có thể gửi email nhắc.',
+                createdAt: new Date().toISOString(),
+              },
+              pendingAction: {
+                id: 'pa1',
+                actionType: 'SEND_REMINDER_EMAIL',
+                status: 'PENDING',
+                payload: { draftId: 'd1', receivableId: 'r1' },
+                receivableLabel: null,
+                createdAt: new Date().toISOString(),
+                resolvedAt: null,
+              },
+            },
+          },
+        ]),
+      ),
+    );
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    const composer = screen.getByLabelText(/nhập câu hỏi/i);
+    expect(composer).toHaveAttribute('placeholder', 'Hỏi về công nợ…');
+
+    fireEvent.change(composer, { target: { value: 'Soạn email nhắc' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+
+    await waitFor(() =>
+      expect(composer).toHaveAttribute(
+        'placeholder',
+        'Xác nhận hoặc hủy đề xuất gửi email để tiếp tục…',
+      ),
+    );
+    expect(composer).toBeDisabled();
+  });
 });

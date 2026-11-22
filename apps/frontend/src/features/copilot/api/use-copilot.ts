@@ -131,7 +131,7 @@ export function useCopilotChat(
             setStreamingContent((current) => current + event.text);
           } else if (event.type === 'done') {
             setMessages((current) => [...current, event.data.message]);
-            setPendingAction(event.data.pendingAction);
+            setPendingAction(event.data.pendingAction ?? null);
           } else if (event.type === 'error') {
             toast.error(event.message);
           }

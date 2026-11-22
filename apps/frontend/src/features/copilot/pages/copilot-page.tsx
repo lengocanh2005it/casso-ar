@@ -40,6 +40,7 @@ export function CopilotPage() {
     null,
   );
   const gateRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLInputElement>(null);
   const canSendManual = user
     ? hasPermission(user.role, Permission.REMINDER_SEND_MANUAL)
     : false;
@@ -115,6 +116,20 @@ export function CopilotPage() {
       if (!accepted) setDraft((current) => (current ? current : content));
     });
   }
+
+  // A finished turn disables nothing, but the Stop button unmounting used to
+  // dump focus on <body>; hand it back only when the user has not moved it.
+  const wasSendingRef = useRef(false);
+  useEffect(() => {
+    const wasSending = wasSendingRef.current;
+    wasSendingRef.current = isSending;
+    if (!wasSending || isSending || blockedByPendingAction) return;
+
+    const active = document.activeElement;
+    if (active === document.body || active === composerRef.current) {
+      composerRef.current?.focus();
+    }
+  }, [isSending, blockedByPendingAction]);
 
   const isEmptyConversation = messages.length === 0 && !streamingContent;
   const historySidebar = (
@@ -268,16 +283,19 @@ export function CopilotPage() {
               className="mx-3 mb-3 mt-3 flex gap-2 rounded-2xl border border-border bg-card p-2.5"
             >
               <Input
+                ref={composerRef}
                 name="question"
                 autoComplete="off"
                 aria-label="Nhập câu hỏi"
-                placeholder="Hỏi về công nợ…"
+                placeholder={
+                  blockedByPendingAction
+                    ? 'Xác nhận hoặc hủy đề xuất gửi email để tiếp tục…'
+                    : 'Hỏi về công nợ…'
+                }
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 className="border-0 bg-transparent shadow-none"
-                disabled={
-                  isSending || blockedByPendingAction || !!quotaExceededMessage
-                }
+                disabled={blockedByPendingAction || !!quotaExceededMessage}
               />
               {isSending ? (
                 <Button type="button" variant="outline" onClick={stop}>
