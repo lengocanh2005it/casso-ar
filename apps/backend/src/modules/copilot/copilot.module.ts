@@ -5,6 +5,7 @@ import { CommonTokensModule } from '../../common/tokens/common-tokens.module';
 import { BillingModule } from '../billing/billing.module';
 import { CollectionActivityModule } from '../collection-activity/collection-activity.module';
 import { CustomersModule } from '../customers/customers.module';
+import { DisputesModule } from '../disputes/disputes.module';
 import { EmailTemplatesModule } from '../email-templates/email-templates.module';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -37,6 +38,10 @@ import {
 import { GetCollectionActivityTimelineTool } from './application/tools/get-collection-activity-timeline.tool';
 import { GetPaymentHistoryTool } from './application/tools/get-payment-history.tool';
 import { GetReceivableSummaryTool } from './application/tools/get-receivable-summary.tool';
+import {
+  RANK_RECEIVABLES_BY_RISK_SCHEMA,
+  RankReceivablesByRiskTool,
+} from './application/tools/rank-receivables-by-risk.tool';
 import { SendReminderEmailTool } from './application/tools/send-reminder-email.tool';
 import { UpdateCopilotDraftUseCase } from './application/update-copilot-draft.usecase';
 import { AIUsageLogOrmEntity } from './infrastructure/ai-usage-log.orm-entity';
@@ -96,6 +101,13 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     requiresReminderPermission: false,
   });
   registry.register({
+    name: RankReceivablesByRiskTool.NAME,
+    description:
+      'Rank overdue and soon-due receivables by risk. Use for questions about which receivables are about to become overdue, which are risky, or which to chase first. Returns riskScore (0-100), riskBand and Vietnamese reasons per item.',
+    inputSchema: RANK_RECEIVABLES_BY_RISK_SCHEMA,
+    requiresReminderPermission: false,
+  });
+  registry.register({
     name: DraftReminderEmailTool.NAME,
     description:
       'Create a reminder email draft (subject + HTML body, written in Vietnamese using real receivable data) without sending it.',
@@ -141,6 +153,7 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     InvoicesModule,
     CustomersModule,
     CollectionActivityModule,
+    DisputesModule,
     PaymentsModule,
     NotificationsModule,
     EmailTemplatesModule,
@@ -167,6 +180,7 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     GetCollectionActivityTimelineTool,
     GetPaymentHistoryTool,
     FindOverdueReceivablesTool,
+    RankReceivablesByRiskTool,
     DraftReminderEmailTool,
     SendReminderEmailTool,
     CopilotChatUseCase,

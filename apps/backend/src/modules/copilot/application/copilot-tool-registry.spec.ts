@@ -2,6 +2,7 @@ import {
   type CopilotToolDefinition,
   CopilotToolRegistry,
 } from './copilot-tool-registry';
+import { RankReceivablesByRiskTool } from './tools/rank-receivables-by-risk.tool';
 
 function fakeTool(
   name: string,
@@ -22,6 +23,7 @@ describe('CopilotToolRegistry', () => {
     registry.register(fakeTool('getCollectionActivityTimeline'));
     registry.register(fakeTool('getPaymentHistory'));
     registry.register(fakeTool('findOverdueReceivables'));
+    registry.register(fakeTool(RankReceivablesByRiskTool.NAME));
     registry.register(fakeTool('draftReminderEmail', true));
     registry.register(fakeTool('sendReminderEmail', true));
 
@@ -33,6 +35,7 @@ describe('CopilotToolRegistry', () => {
       'getCollectionActivityTimeline',
       'getPaymentHistory',
       'getReceivableSummary',
+      RankReceivablesByRiskTool.NAME,
       'sendReminderEmail',
     ]);
   });
@@ -54,6 +57,7 @@ describe('CopilotToolRegistry', () => {
     registry.register(fakeTool('getCollectionActivityTimeline'));
     registry.register(fakeTool('getPaymentHistory'));
     registry.register(fakeTool('findOverdueReceivables'));
+    registry.register(fakeTool(RankReceivablesByRiskTool.NAME));
     registry.register(fakeTool('draftReminderEmail', true));
     registry.register(fakeTool('sendReminderEmail', true));
 
@@ -62,6 +66,7 @@ describe('CopilotToolRegistry', () => {
       'getCollectionActivityTimeline',
       'getPaymentHistory',
       'findOverdueReceivables',
+      RankReceivablesByRiskTool.NAME,
     ]);
   });
 });

@@ -118,4 +118,61 @@ export class TypeOrmPaymentAllocationRepository
       .getMany();
     return rows.map(fromOrm);
   }
+
+  async findByCustomerIds(
+    customerIds: string[],
+    limitPerCustomer: number,
+  ): Promise<Map<string, PaymentAllocation[]>> {
+    const grouped = new Map<string, PaymentAllocation[]>();
+    if (customerIds.length === 0) return grouped;
+
+    const organizationId = this.tenantContext.getOrganizationId();
+    // ROW_NUMBER() applies the per-customer limit in Postgres before any row
+    // is hydrated — a customer with a long history no longer transfers every
+    // allocation just to keep the newest `limitPerCustomer`. The tenant and
+    // soft-delete predicates sit inside the inner query, before the partition.
+    const rows: Array<PaymentAllocationOrmEntity & { customerId: string }> =
+      await this.ormRepo.manager.query(
+        `
+          SELECT
+            ranked.id AS "id",
+            ranked."organizationId" AS "organizationId",
+            ranked."paymentId" AS "paymentId",
+            ranked."receivableId" AS "receivableId",
+            ranked."allocatedAmount" AS "allocatedAmount",
+            ranked."allocatedAt" AS "allocatedAt",
+            ranked."allocatedByUserId" AS "allocatedByUserId",
+            ranked."deletedAt" AS "deletedAt",
+            ranked."deletedByUserId" AS "deletedByUserId",
+            ranked."undoReason" AS "undoReason",
+            ranked."createdAt" AS "createdAt",
+            ranked."customerId" AS "customerId"
+          FROM (
+            SELECT
+              a.*,
+              r."customerId",
+              ROW_NUMBER() OVER (
+                PARTITION BY r."customerId"
+                ORDER BY a."allocatedAt" DESC
+              ) AS rn
+            FROM payment_allocations a
+            INNER JOIN receivables r ON r.id::text = a."receivableId"
+            WHERE a."organizationId" = $1
+              AND a."deletedAt" IS NULL
+              AND r."customerId" = ANY($2)
+          ) ranked
+          WHERE ranked.rn <= $3
+          ORDER BY ranked."customerId", ranked."allocatedAt" DESC
+        `,
+        [organizationId, customerIds, limitPerCustomer],
+      );
+
+    for (const row of rows) {
+      const bucket = grouped.get(row.customerId) ?? [];
+      bucket.push(fromOrm(row));
+      grouped.set(row.customerId, bucket);
+    }
+
+    return grouped;
+  }
 }

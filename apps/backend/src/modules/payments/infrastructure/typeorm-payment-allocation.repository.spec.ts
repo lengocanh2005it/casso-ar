@@ -100,3 +100,94 @@ describe('TypeOrmPaymentAllocationRepository.findByIdForUpdate', () => {
     expect(Number.isInteger(allocation?.allocatedAmount)).toBe(true);
   });
 });
+
+describe('TypeOrmPaymentAllocationRepository.findByCustomerIds', () => {
+  function row(id: string, customerId: string, allocatedAt: string) {
+    return {
+      id,
+      customerId,
+      organizationId: 'org-1',
+      paymentId: 'payment-1',
+      receivableId: `receivable-${id}`,
+      allocatedAmount: '1000000', // pg returns bigint columns as strings
+      allocatedAt: new Date(allocatedAt),
+      allocatedByUserId: 'user-1',
+      deletedAt: null,
+      deletedByUserId: null,
+      undoReason: null,
+      createdAt: new Date('2026-08-03'),
+    };
+  }
+
+  function buildRepo(rows: Array<Record<string, unknown>>) {
+    const query = jest.fn().mockResolvedValue(rows);
+    const manager = { query };
+    const ormRepo = { manager };
+    return { ormRepo, query };
+  }
+
+  it('loads every requested customer in one tenant-scoped query and keeps the newest rows per customer', async () => {
+    const { ormRepo, query } = buildRepo([
+      row('allocation-1', 'customer-1', '2026-08-05'),
+      row('allocation-2', 'customer-1', '2026-08-04'),
+      row('allocation-4', 'customer-2', '2026-08-02'),
+    ]);
+    const tenantContext = new TenantContextService();
+    const repository = new TypeOrmPaymentAllocationRepository(
+      ormRepo as any,
+      tenantContext,
+    );
+
+    const result = await tenantContext.run(
+      { userId: 'user-1', organizationId: 'org-1', role: Role.OWNER },
+      () => repository.findByCustomerIds(['customer-1', 'customer-2'], 2),
+    );
+
+    // One round trip, with the per-customer bound applied in SQL before
+    // hydration — no full history crosses the wire.
+    expect(query).toHaveBeenCalledTimes(1);
+    const [sql, params] = query.mock.calls[0];
+    expect(sql).toContain('ROW_NUMBER() OVER (');
+    expect(sql).toContain('PARTITION BY r."customerId"');
+    expect(sql).toContain('a."organizationId" = $1');
+    expect(sql).toContain('a."deletedAt" IS NULL');
+    expect(sql).toContain('r."customerId" = ANY($2)');
+    expect(sql).toContain('rn <= $3');
+    // The outer SELECT can only see the derived table alias; referring to the
+    // inner `a` alias here makes Postgres reject the whole statement.
+    const outerSelect = sql.slice(0, sql.indexOf('FROM ('));
+    expect(outerSelect).toContain('ranked.id AS "id"');
+    expect(outerSelect).not.toContain('a.');
+    expect(params).toEqual(['org-1', ['customer-1', 'customer-2'], 2]);
+
+    expect([...result.keys()]).toEqual(['customer-1', 'customer-2']);
+    expect(result.get('customer-1')?.map((item) => item.id)).toEqual([
+      'allocation-1',
+      'allocation-2',
+    ]);
+    expect(result.get('customer-2')?.map((item) => item.id)).toEqual([
+      'allocation-4',
+    ]);
+    expect(result.get('customer-1')?.[0].allocatedAmount).toBe(1_000_000);
+    expect(
+      Number.isInteger(result.get('customer-1')?.[0].allocatedAmount),
+    ).toBe(true);
+  });
+
+  it('returns an empty map without querying when no customer ids are given', async () => {
+    const { ormRepo, query } = buildRepo([]);
+    const tenantContext = new TenantContextService();
+    const repository = new TypeOrmPaymentAllocationRepository(
+      ormRepo as any,
+      tenantContext,
+    );
+
+    const result = await tenantContext.run(
+      { userId: 'user-1', organizationId: 'org-1', role: Role.OWNER },
+      () => repository.findByCustomerIds([], 50),
+    );
+
+    expect(result.size).toBe(0);
+    expect(query).not.toHaveBeenCalled();
+  });
+});

@@ -544,6 +544,24 @@ describe('Copilot read tools', () => {
       );
     });
 
+    it('uses the same limit message as the risk ranking tool', async () => {
+      // Both tools share one validator, so the wording cannot drift apart.
+      const tenantContext = new TenantContextService();
+      const tool = new FindOverdueReceivablesTool(
+        { findOverdueCandidates: jest.fn().mockResolvedValue([]) } as any,
+        {} as any,
+        {} as any,
+        tenantContext,
+      );
+
+      await expect(
+        tenantContext.run(
+          { userId: 'u-1', organizationId: 'org-1', role: Role.OWNER },
+          () => tool.execute({ limit: 11 }),
+        ),
+      ).rejects.toThrow('Tham số limit phải là số nguyên từ 1 đến 10.');
+    });
+
     it('passes salesRepresentativeId when the current user is a SALES_REP', async () => {
       const receivableRepo = {
         findOverdueCandidates: jest.fn().mockResolvedValue([]),
