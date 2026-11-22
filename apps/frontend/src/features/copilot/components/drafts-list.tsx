@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
+  COPILOT_DRAFTS_PAGE_SIZE,
   useConfirmCopilotDraft,
   useCopilotDrafts,
   useDeleteCopilotDraft,
@@ -42,7 +43,8 @@ const MUTABLE_STATUSES: CopilotDraftStatus[] = [
 ];
 
 export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
-  const { data, isError, isLoading, refetch } = useCopilotDrafts(1);
+  const [page, setPage] = useState(1);
+  const { data, isError, isLoading, refetch } = useCopilotDrafts(page);
   const reopen = useReopenCopilotDraft();
   const confirm = useConfirmCopilotDraft();
   const deleteDraft = useDeleteCopilotDraft();
@@ -85,6 +87,8 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
   }
 
   const items = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / COPILOT_DRAFTS_PAGE_SIZE));
   if (items.length === 0) {
     return (
       <div
@@ -213,6 +217,11 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
                                   setDeletingDraftId(null);
                                   setDeleteDialogDraftId(null);
                                   toast.success('Đã xóa bản nháp.');
+                                  // The last row of a trailing page leaves the
+                                  // page empty; step back to a page with rows.
+                                  if (items.length === 1 && page > 1) {
+                                    setPage(page - 1);
+                                  }
                                 },
                                 onError: () => {
                                   setDeletingDraftId(null);
@@ -235,6 +244,31 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
           </Card>
         );
       })}
+      {total > COPILOT_DRAFTS_PAGE_SIZE && (
+        <div className="flex items-center justify-between gap-2">
+          <p className="tabular-nums text-xs text-muted-foreground">
+            Trang {page} / {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={page <= 1}
+              onClick={() => setPage(Math.max(1, page - 1))}
+            >
+              Trước
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={page >= totalPages}
+              onClick={() => setPage(page + 1)}
+            >
+              Sau
+            </Button>
+          </div>
+        </div>
+      )}
       <DraftEditDialog
         draft={editingDraft}
         open={editDialogOpen}

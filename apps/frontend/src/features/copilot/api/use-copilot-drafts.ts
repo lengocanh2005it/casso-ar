@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import type { CopilotDraftStatus } from '../types';
 import { confirmCopilotAction } from './copilot-api';
 import {
@@ -8,10 +13,14 @@ import {
   updateCopilotDraft,
 } from './copilot-drafts-api';
 
+export const COPILOT_DRAFTS_PAGE_SIZE = 20;
+
 export function useCopilotDrafts(page = 1, status?: CopilotDraftStatus) {
   return useQuery({
     queryKey: ['copilot-drafts', page, status],
-    queryFn: () => fetchCopilotDrafts(page, 20, status),
+    queryFn: () => fetchCopilotDrafts(page, COPILOT_DRAFTS_PAGE_SIZE, status),
+    // Keep the current page on screen while the next one loads.
+    placeholderData: keepPreviousData,
   });
 }
 
