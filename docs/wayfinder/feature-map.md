@@ -801,6 +801,17 @@ Success = a single document a new developer can read and know exactly what to pi
 
 ---
 
+#### Plan: Copilot risk ranking tool (spec 2026-11-22)
+- **Type**: task
+- **Status**: in-progress
+- **Spec**: `specs/2026-11-22-copilot-risk-ranking-design.md`
+- **Plan**: `plans/2026-11-22-copilot-risk-ranking.md`
+- **Blockers**: none
+- **Key rules**: deterministic rule-based score (no ML — ML forecasting stays out of scope); read-only tool; never auto-sends; batch port access; no migration or new endpoint.
+- **Creates**: `rankReceivablesByRisk` copilot tool, one registry allowlist entry, one dispatch case, one system-prompt line.
+
+---
+
 ## Frontier
 
 - #503 — Suggest same-customer receivable combinations for one transfer. **Status: done. Shipped: 2026-10-20 — PR #504 (open for review).** Implement bounded exact-sum suggestions in the Exception Queue, requiring one customer scope and operator confirmation through the existing split flow.
