@@ -100,3 +100,115 @@ describe('TypeOrmPaymentAllocationRepository.findByIdForUpdate', () => {
     expect(Number.isInteger(allocation?.allocatedAmount)).toBe(true);
   });
 });
+
+describe('TypeOrmPaymentAllocationRepository.findByCustomerIds', () => {
+  function row(id: string, customerId: string, allocatedAt: string) {
+    return { id, customerId, allocatedAt: new Date(allocatedAt) };
+  }
+
+  function buildQuery(raw: Array<Record<string, unknown>>) {
+    const query = {
+      select: jest.fn().mockReturnThis(),
+      innerJoin: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getRawAndEntities: jest.fn().mockResolvedValue({
+        entities: raw.map((item) => ({
+          id: item.id,
+          organizationId: 'org-1',
+          paymentId: 'payment-1',
+          receivableId: `receivable-${item.id}`,
+          allocatedAmount: '1000000',
+          allocatedAt: item.allocatedAt,
+          allocatedByUserId: 'user-1',
+          deletedAt: null,
+          deletedByUserId: null,
+          undoReason: null,
+          createdAt: new Date('2026-08-03'),
+        })),
+        raw: raw.map((item) => ({
+          allocation_id: item.id,
+          customerId: item.customerId,
+        })),
+      }),
+    };
+    const ormRepo = { createQueryBuilder: jest.fn().mockReturnValue(query) };
+    return { ormRepo, query };
+  }
+
+  it('loads every requested customer in one tenant-scoped query and keeps the newest rows per customer', async () => {
+    const { ormRepo, query } = buildQuery([
+      row('allocation-1', 'customer-1', '2026-08-05'),
+      row('allocation-2', 'customer-1', '2026-08-04'),
+      row('allocation-3', 'customer-1', '2026-08-03'),
+      row('allocation-4', 'customer-2', '2026-08-02'),
+    ]);
+    const tenantContext = new TenantContextService();
+    const repository = new TypeOrmPaymentAllocationRepository(
+      ormRepo as any,
+      tenantContext,
+    );
+
+    const result = await tenantContext.run(
+      { userId: 'user-1', organizationId: 'org-1', role: Role.OWNER },
+      () => repository.findByCustomerIds(['customer-1', 'customer-2'], 2),
+    );
+
+    // One query builder and one round trip for every customer: the fan-out
+    // that made this an N+1 is gone.
+    expect(ormRepo.createQueryBuilder).toHaveBeenCalledTimes(1);
+    expect(query.getRawAndEntities).toHaveBeenCalledTimes(1);
+    expect(query.innerJoin).toHaveBeenCalledWith(
+      'receivables',
+      'receivable',
+      'receivable.id::text = allocation."receivableId"',
+    );
+    expect(query.where).toHaveBeenCalledWith(
+      'allocation."organizationId" = :organizationId',
+      { organizationId: 'org-1' },
+    );
+    expect(query.andWhere).toHaveBeenCalledWith(
+      'allocation."deletedAt" IS NULL',
+    );
+    expect(query.andWhere).toHaveBeenCalledWith(
+      'receivable."customerId" IN (:...customerIds)',
+      { customerIds: ['customer-1', 'customer-2'] },
+    );
+    expect(query.orderBy).toHaveBeenCalledWith(
+      'allocation."allocatedAt"',
+      'DESC',
+    );
+
+    expect([...result.keys()]).toEqual(['customer-1', 'customer-2']);
+    expect(result.get('customer-1')?.map((item) => item.id)).toEqual([
+      'allocation-1',
+      'allocation-2',
+    ]);
+    expect(result.get('customer-2')?.map((item) => item.id)).toEqual([
+      'allocation-4',
+    ]);
+    expect(result.get('customer-1')?.[0].allocatedAmount).toBe(1_000_000);
+    expect(
+      Number.isInteger(result.get('customer-1')?.[0].allocatedAmount),
+    ).toBe(true);
+  });
+
+  it('returns an empty map without querying when no customer ids are given', async () => {
+    const { ormRepo } = buildQuery([]);
+    const tenantContext = new TenantContextService();
+    const repository = new TypeOrmPaymentAllocationRepository(
+      ormRepo as any,
+      tenantContext,
+    );
+
+    const result = await tenantContext.run(
+      { userId: 'user-1', organizationId: 'org-1', role: Role.OWNER },
+      () => repository.findByCustomerIds([], 50),
+    );
+
+    expect(result.size).toBe(0);
+    expect(ormRepo.createQueryBuilder).not.toHaveBeenCalled();
+  });
+});

@@ -118,4 +118,61 @@ export class TypeOrmPaymentAllocationRepository
       .getMany();
     return rows.map(fromOrm);
   }
+
+  async findByCustomerIds(
+    customerIds: string[],
+    limitPerCustomer: number,
+  ): Promise<Map<string, PaymentAllocation[]>> {
+    const grouped = new Map<string, PaymentAllocation[]>();
+    if (customerIds.length === 0) return grouped;
+
+    const organizationId = this.tenantContext.getOrganizationId();
+    const { entities, raw } = await this.ormRepo
+      .createQueryBuilder('allocation')
+      .select([
+        'allocation.id',
+        'allocation.organizationId',
+        'allocation.paymentId',
+        'allocation.receivableId',
+        'allocation.allocatedAmount',
+        'allocation.allocatedAt',
+        'allocation.allocatedByUserId',
+        'allocation.deletedAt',
+        'allocation.deletedByUserId',
+        'allocation.undoReason',
+        'allocation.createdAt',
+      ])
+      .innerJoin(
+        'receivables',
+        'receivable',
+        'receivable.id::text = allocation."receivableId"',
+      )
+      // The joined customer id is not an allocation column, so it only
+      // survives through the raw rows.
+      .addSelect('receivable."customerId"', 'customerId')
+      .where('allocation."organizationId" = :organizationId', {
+        organizationId,
+      })
+      .andWhere('receivable."customerId" IN (:...customerIds)', {
+        customerIds,
+      })
+      .andWhere('allocation."deletedAt" IS NULL')
+      .orderBy('allocation."allocatedAt"', 'DESC')
+      .getRawAndEntities();
+
+    // One row per customer and the per-customer slice happens in memory:
+    // a window function would push the limit into Postgres, but this keeps
+    // the same query shape as findByCustomerId and the bounded callers
+    // (<= 30 customers) make the extra rows cheap.
+    raw.forEach((row: { allocation_id: string; customerId: string }, index) => {
+      const allocation = entities[index];
+      if (!allocation) return;
+      const bucket = grouped.get(row.customerId) ?? [];
+      if (bucket.length >= limitPerCustomer) return;
+      bucket.push(fromOrm(allocation));
+      grouped.set(row.customerId, bucket);
+    });
+
+    return grouped;
+  }
 }
