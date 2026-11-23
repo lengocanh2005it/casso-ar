@@ -1,6 +1,26 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import type { CopilotConversationSummary } from '../types';
 import { listCopilotConversations } from './copilot-api';
+
+export const COPILOT_CONVERSATIONS_PAGE_SIZE = 20;
+
+// The server returns newest first, so `base` keeps that order and `extra` only
+// contributes rows `base` is missing: a shifted page repeats rows.
+function mergeById(
+  base: CopilotConversationSummary[],
+  extra: CopilotConversationSummary[],
+) {
+  const seen = new Set(base.map((item) => item.id));
+  return [
+    ...base,
+    ...extra.filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    }),
+  ];
+}
 
 export function useCopilotConversations() {
   const [conversations, setConversations] = useState<
@@ -10,16 +30,56 @@ export function useCopilotConversations() {
     crypto.randomUUID(),
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [loadedPages, setLoadedPages] = useState(0);
+  // Offset paging shifts as conversations are created, so a refresh that
+  // lands mid-load makes that load's rows stale.
+  const generationRef = useRef(0);
 
   const refresh = useCallback(async () => {
+    const generation = ++generationRef.current;
     setIsLoading(true);
     try {
-      const page = await listCopilotConversations();
-      setConversations(page.items);
+      const page = await listCopilotConversations(
+        1,
+        COPILOT_CONVERSATIONS_PAGE_SIZE,
+      );
+      if (generation !== generationRef.current) return;
+      // Page one first, then whatever later pages the user already loaded.
+      setConversations((current) => mergeById(page.items, current));
+      setTotal(page.total);
+      // A later refresh keeps the pages already loaded; the first one seeds it.
+      setLoadedPages((current) => (current < 1 ? 1 : current));
+    } catch {
+      // A background refresh must not surface as an unhandled rejection, and
+      // the list already on screen is still the best one we have.
+      toast.error('Không thể tải lịch sử chat.');
     } finally {
-      setIsLoading(false);
+      if (generation === generationRef.current) setIsLoading(false);
     }
   }, []);
+
+  const loadMore = useCallback(async () => {
+    const generation = generationRef.current;
+    setIsLoadingMore(true);
+    try {
+      const page = await listCopilotConversations(
+        loadedPages + 1,
+        COPILOT_CONVERSATIONS_PAGE_SIZE,
+      );
+      if (generation !== generationRef.current) return;
+      setConversations((current) => mergeById(current, page.items));
+      setTotal(page.total);
+      setLoadedPages((current) => current + 1);
+    } catch {
+      toast.error('Không thể tải lịch sử chat.');
+    } finally {
+      // Always reset: a refresh that bumped the generation mid-flight still
+      // leaves this load done, and a stuck flag disables "Xem thêm" forever.
+      setIsLoadingMore(false);
+    }
+  }, [loadedPages]);
 
   useEffect(() => {
     void refresh();
@@ -37,7 +97,13 @@ export function useCopilotConversations() {
     conversations,
     activeConversationId,
     isLoading,
+    isLoadingMore,
+    // Whether the server has another page, not whether the rows on screen add
+    // up: shifted offset pages can overlap, so the unique count may never
+    // reach total and "Xem thêm" would fire empty requests forever.
+    hasMore: loadedPages * COPILOT_CONVERSATIONS_PAGE_SIZE < total,
     refresh,
+    loadMore,
     startNewConversation,
     selectConversation,
   };

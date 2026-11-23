@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { CopilotConversationSummary } from '../types';
 
+const UNTITLED_CONVERSATION_LABEL = 'Cuộc trò chuyện không tên';
+
 export function CopilotHistorySidebar({
   conversations,
   activeConversationId,
@@ -11,6 +13,9 @@ export function CopilotHistorySidebar({
   onSelect,
   onNewChat,
   onClose,
+  hasMore = false,
+  isLoadingMore = false,
+  onLoadMore,
 }: {
   conversations: CopilotConversationSummary[];
   activeConversationId: string;
@@ -18,6 +23,9 @@ export function CopilotHistorySidebar({
   onSelect: (id: string) => void;
   onNewChat: () => void;
   onClose?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -34,7 +42,7 @@ export function CopilotHistorySidebar({
               onClick={onNewChat}
               aria-label="Cuộc trò chuyện mới"
             >
-              <Plus className="size-4" />
+              <Plus aria-hidden="true" className="size-4" />
             </Button>
           </TooltipLabel>
           {onClose && (
@@ -46,7 +54,7 @@ export function CopilotHistorySidebar({
                 onClick={onClose}
                 aria-label="Đóng lịch sử chat"
               >
-                <X className="size-4" />
+                <X aria-hidden="true" className="size-4" />
               </Button>
             </TooltipLabel>
           )}
@@ -54,7 +62,10 @@ export function CopilotHistorySidebar({
       </div>
       <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
         {isLoading && conversations.length === 0 && (
-          <p className="px-2 py-4 text-center text-xs text-muted-foreground">
+          <p
+            role="status"
+            className="px-2 py-4 text-center text-xs text-muted-foreground"
+          >
             Đang tải…
           </p>
         )}
@@ -73,24 +84,38 @@ export function CopilotHistorySidebar({
             </div>
           </div>
         )}
-        {conversations.map((conversation) => (
-          <TooltipLabel
-            key={conversation.id}
-            label={conversation.title ?? undefined}
+        {conversations.map((conversation) => {
+          const title = conversation.title || UNTITLED_CONVERSATION_LABEL;
+          const isActive = conversation.id === activeConversationId;
+          return (
+            <TooltipLabel key={conversation.id} label={title}>
+              <button
+                type="button"
+                onClick={() => onSelect(conversation.id)}
+                aria-current={isActive ? 'true' : undefined}
+                className={cn(
+                  'block w-full truncate rounded-md border border-transparent px-2.5 py-2.5 text-left text-sm text-foreground/90 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  isActive &&
+                    'border-border bg-muted font-medium text-foreground',
+                )}
+              >
+                {title}
+              </button>
+            </TooltipLabel>
+          );
+        })}
+        {hasMore && onLoadMore && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-full"
+            disabled={isLoadingMore}
+            onClick={onLoadMore}
           >
-            <button
-              type="button"
-              onClick={() => onSelect(conversation.id)}
-              className={cn(
-                'block w-full truncate rounded-md border border-transparent px-2.5 py-2.5 text-left text-sm text-foreground/90 hover:bg-muted',
-                conversation.id === activeConversationId &&
-                  'border-border bg-muted font-medium text-foreground',
-              )}
-            >
-              {conversation.title}
-            </button>
-          </TooltipLabel>
-        ))}
+            Xem thêm
+          </Button>
+        )}
       </div>
     </div>
   );

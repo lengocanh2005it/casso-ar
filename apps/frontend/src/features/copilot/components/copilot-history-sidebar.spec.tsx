@@ -47,4 +47,139 @@ describe('CopilotHistorySidebar', () => {
     );
     expect(onNewChat).toHaveBeenCalled();
   });
+
+  it('falls back to a named conversation when the title is empty', () => {
+    render(
+      <CopilotHistorySidebar
+        conversations={[
+          { id: 'c1', title: '', createdAt: '', lastMessageAt: '' },
+        ]}
+        activeConversationId="c1"
+        isLoading={false}
+        onSelect={vi.fn()}
+        onNewChat={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Cuộc trò chuyện không tên' }),
+    ).toBeInTheDocument();
+  });
+
+  it('marks the active conversation with aria-current', () => {
+    render(
+      <CopilotHistorySidebar
+        conversations={CONVERSATIONS}
+        activeConversationId="c1"
+        isLoading={false}
+        onSelect={vi.fn()}
+        onNewChat={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'Hỏi về công nợ ABC' }),
+    ).toHaveAttribute('aria-current', 'true');
+    expect(
+      screen.getByRole('button', { name: 'Soạn email nhắc thanh toán' }),
+    ).not.toHaveAttribute('aria-current');
+  });
+
+  it('gives conversation buttons a visible focus ring', () => {
+    render(
+      <CopilotHistorySidebar
+        conversations={CONVERSATIONS}
+        activeConversationId="c1"
+        isLoading={false}
+        onSelect={vi.fn()}
+        onNewChat={vi.fn()}
+      />,
+    );
+
+    const button = screen.getByRole('button', { name: 'Hỏi về công nợ ABC' });
+    expect(button).toHaveClass('focus-visible:outline-none');
+    expect(button).toHaveClass('focus-visible:ring-2');
+    expect(button).toHaveClass('focus-visible:ring-ring');
+  });
+
+  it('announces the loading state', () => {
+    render(
+      <CopilotHistorySidebar
+        conversations={[]}
+        activeConversationId="c1"
+        isLoading
+        onSelect={vi.fn()}
+        onNewChat={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('Đang tải…');
+  });
+
+  it('offers a load-more button only while more conversations remain', () => {
+    const onLoadMore = vi.fn();
+    const { rerender } = render(
+      <CopilotHistorySidebar
+        conversations={CONVERSATIONS}
+        activeConversationId="c1"
+        isLoading={false}
+        onSelect={vi.fn()}
+        onNewChat={vi.fn()}
+        hasMore
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xem thêm' }));
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <CopilotHistorySidebar
+        conversations={CONVERSATIONS}
+        activeConversationId="c1"
+        isLoading={false}
+        onSelect={vi.fn()}
+        onNewChat={vi.fn()}
+        hasMore={false}
+        onLoadMore={onLoadMore}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: 'Xem thêm' })).toBeNull();
+  });
+
+  it('shows the load-more button as busy while the next page loads', () => {
+    render(
+      <CopilotHistorySidebar
+        conversations={CONVERSATIONS}
+        activeConversationId="c1"
+        isLoading={false}
+        onSelect={vi.fn()}
+        onNewChat={vi.fn()}
+        hasMore
+        isLoadingMore
+        onLoadMore={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Xem thêm' })).toBeDisabled();
+  });
+
+  it('hides the header icons from assistive technology', () => {
+    render(
+      <CopilotHistorySidebar
+        conversations={[]}
+        activeConversationId="c1"
+        isLoading={false}
+        onSelect={vi.fn()}
+        onNewChat={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    for (const button of screen.getAllByRole('button')) {
+      for (const svg of button.querySelectorAll('svg')) {
+        expect(svg).toHaveAttribute('aria-hidden', 'true');
+      }
+    }
+  });
 });

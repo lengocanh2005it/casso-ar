@@ -3,16 +3,25 @@ import { describe, expect, it } from 'vitest';
 import { MessageList } from './message-list';
 
 describe('MessageList', () => {
-  it('shows an accessible animated typing indicator while waiting for a reply', () => {
+  it('shows a decorative animated typing indicator while waiting for a reply', () => {
     const { container } = render(
       <MessageList messages={[]} isWaitingForResponse />,
     );
 
-    expect(
-      screen.getByRole('status', { name: 'Copilot đang trả lời' }),
-    ).toBeInTheDocument();
     expect(container.querySelectorAll('.animate-bounce')).toHaveLength(3);
     expect(screen.queryByText(/đang xử lý/i)).not.toBeInTheDocument();
+  });
+
+  it('stays presentational: the wait is announced by the page, not the list', () => {
+    render(<MessageList messages={[]} isWaitingForResponse isSending />);
+
+    // The list only mounts once a question exists, so a status here would
+    // arrive with its text already inside and could be missed entirely.
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    const log = screen.getByRole('log', { name: 'Cuộc trò chuyện Copilot' });
+    expect(log.querySelectorAll('[role="status"]')).toHaveLength(0);
+    expect(log).not.toHaveTextContent('Copilot đang trả lời…');
   });
 
   it('renders an EmailDraftPreview card for a message carrying a draft', () => {
@@ -58,5 +67,28 @@ describe('MessageList', () => {
     );
 
     expect(screen.queryByTitle('Xem trước email')).not.toBeInTheDocument();
+  });
+
+  it('exposes the conversation as one polite live log', () => {
+    const { rerender } = render(
+      <MessageList messages={[]} isSending={false} />,
+    );
+
+    const log = screen.getByRole('log', { name: 'Cuộc trò chuyện Copilot' });
+    expect(log).toHaveAttribute('aria-live', 'polite');
+    expect(log).toHaveAttribute('aria-busy', 'false');
+
+    rerender(<MessageList messages={[]} isSending />);
+    expect(log).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('does not nest a second live region inside the log', () => {
+    render(<MessageList messages={[]} isWaitingForResponse isSending />);
+
+    const log = screen.getByRole('log', { name: 'Cuộc trò chuyện Copilot' });
+    expect(log.querySelectorAll('[aria-live]')).toHaveLength(0);
+    expect(log.querySelectorAll('[role="status"]')).toHaveLength(0);
+    expect(log.querySelectorAll('[role="img"]')).toHaveLength(0);
+    expect(log).not.toHaveTextContent('Copilot đang trả lời…');
   });
 });

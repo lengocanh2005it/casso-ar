@@ -1,5 +1,5 @@
 import { CircleAlert, FilePenLine, LoaderCircle } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
+  COPILOT_DRAFTS_PAGE_SIZE,
   useConfirmCopilotDraft,
   useCopilotDrafts,
   useDeleteCopilotDraft,
@@ -42,7 +43,9 @@ const MUTABLE_STATUSES: CopilotDraftStatus[] = [
 ];
 
 export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
-  const { data, isError, isLoading, refetch } = useCopilotDrafts(1);
+  const [page, setPage] = useState(1);
+  const { data, isError, isLoading, isPlaceholderData, refetch } =
+    useCopilotDrafts(page);
   const reopen = useReopenCopilotDraft();
   const confirm = useConfirmCopilotDraft();
   const deleteDraft = useDeleteCopilotDraft();
@@ -52,19 +55,34 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
     null,
   );
   const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
+  const totalPages = Math.max(
+    1,
+    Math.ceil((data?.total ?? 0) / COPILOT_DRAFTS_PAGE_SIZE),
+  );
+  const isEmptyPage = (data?.items ?? []).length === 0;
 
-  if (isLoading) {
-    return (
-      <div
-        aria-label="Đang tải bản nháp email"
-        className="flex items-center gap-2 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground"
-        role="status"
-      >
-        <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-        Đang tải…
-      </div>
-    );
-  }
+  // Deleting the last row of a trailing page (or any page drifting out of
+  // range) leaves an empty page: step back instead of stranding the panel. A
+  // failed page keeps its retry, a placeholder still belongs to the previous
+  // page, and an empty list is empty everywhere — none of them may clamp.
+  const total = data?.total ?? 0;
+  useEffect(() => {
+    if (isEmptyPage && page > 1 && !isError && !isPlaceholderData && total > 0)
+      setPage(Math.min(page - 1, totalPages));
+  }, [isEmptyPage, isError, isPlaceholderData, page, total, totalPages]);
+
+  const loadingState = (
+    <div
+      aria-label="Đang tải bản nháp email"
+      className="flex items-center gap-2 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground"
+      role="status"
+    >
+      <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+      Đang tải…
+    </div>
+  );
+
+  if (isLoading) return loadingState;
 
   if (isError) {
     return (
@@ -77,14 +95,35 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
           <CircleAlert aria-hidden="true" className="size-4" />
           Không thể tải bản nháp email.
         </span>
-        <Button size="sm" variant="outline" onClick={() => void refetch()}>
-          Thử lại
-        </Button>
+        <div className="flex shrink-0 gap-2">
+          {page > 1 && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setPage(page - 1)}
+            >
+              Trang trước
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={() => void refetch()}>
+            Thử lại
+          </Button>
+        </div>
       </div>
     );
   }
 
+  // The empty page is about to clamp back: show the loader rather than flash
+  // "no drafts" at someone who still has rows on an earlier page. Rows kept
+  // from the previous page still render, so this only catches the empty case.
+  // With no drafts at all there is nothing to clamp to: show the empty state.
+  if (isEmptyPage && (page > 1 || isPlaceholderData) && total > 0) {
+    return loadingState;
+  }
+
   const items = data?.items ?? [];
+
   if (items.length === 0) {
     return (
       <div
@@ -213,6 +252,11 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
                                   setDeletingDraftId(null);
                                   setDeleteDialogDraftId(null);
                                   toast.success('Đã xóa bản nháp.');
+                                  // The last row of a trailing page leaves the
+                                  // page empty; step back to a page with rows.
+                                  if (items.length === 1 && page > 1) {
+                                    setPage(page - 1);
+                                  }
                                 },
                                 onError: () => {
                                   setDeletingDraftId(null);
@@ -235,6 +279,36 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
           </Card>
         );
       })}
+      {total > COPILOT_DRAFTS_PAGE_SIZE && (
+        <nav
+          aria-label="Phân trang bản nháp"
+          className="flex items-center justify-between gap-2"
+        >
+          <p className="tabular-nums text-xs text-muted-foreground">
+            Trang {page}/{totalPages}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={page <= 1}
+              onClick={() => setPage(Math.max(1, page - 1))}
+            >
+              Trước
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={page >= totalPages}
+              onClick={() => setPage(page + 1)}
+            >
+              Sau
+            </Button>
+          </div>
+        </nav>
+      )}
       <DraftEditDialog
         draft={editingDraft}
         open={editDialogOpen}

@@ -31,6 +31,16 @@ import { MessageList } from '../components/message-list';
 import { PendingActionCard } from '../components/pending-action-card';
 import { UsageIndicator } from '../components/usage-indicator';
 
+// How close to the newest message still counts as "reading at the bottom".
+const STICK_TO_BOTTOM_THRESHOLD_PX = 80;
+// A smooth scroll that never emits scroll events (already at the bottom, or a
+// browser without scrollend) must not swallow the reader's next scroll.
+const PROGRAMMATIC_SCROLL_FALLBACK_MS = 150;
+
+function prefersReducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 export function CopilotPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -40,6 +50,17 @@ export function CopilotPage() {
     null,
   );
   const gateRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+  const previousMessageCountRef = useRef(0);
+  const programmaticScrollRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
+  const programmaticScrollTimerRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  // The first render after a switch is loaded history, never a new message.
+  const loadingHistoryRef = useRef(false);
   const canSendManual = user
     ? hasPermission(user.role, Permission.REMINDER_SEND_MANUAL)
     : false;
@@ -72,7 +93,10 @@ export function CopilotPage() {
     conversations,
     activeConversationId,
     isLoading: isLoadingConversations,
+    isLoadingMore: isLoadingMoreConversations,
+    hasMore: hasMoreConversations,
     refresh: refreshConversations,
+    loadMore: loadMoreConversations,
     startNewConversation,
     selectConversation,
   } = useCopilotConversations();
@@ -81,12 +105,15 @@ export function CopilotPage() {
     messages,
     pendingAction,
     isSending,
+    isWaitingForResponse,
     streamingContent,
     send,
     stop,
     confirm,
     cancel,
+    isActiveConversation,
     busy,
+    busyAction,
     blockedByPendingAction,
     isLoadingHistory,
     quotaExceededMessage,
@@ -96,6 +123,20 @@ export function CopilotPage() {
       void queryClient.invalidateQueries({ queryKey: ['copilot-usage'] });
     },
   });
+
+  // Shared by the composer and the welcome suggestions: a question the server
+  // rejected comes back only into the conversation it was asked in, and only
+  // when nothing was typed there meanwhile.
+  function submitQuestion(content: string) {
+    // Sending is an explicit request to see the answer, unlike an incoming
+    // delta: follow it even when the reader had scrolled up.
+    stickToBottomRef.current = true;
+    const sendConversationId = activeConversationId;
+    void send(content).then((accepted) => {
+      if (accepted || !isActiveConversation(sendConversationId)) return;
+      setDraft((current) => (current ? current : content));
+    });
+  }
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -109,8 +150,126 @@ export function CopilotPage() {
       return;
     }
     setDraft('');
-    void send(content);
+    submitQuestion(content);
   }
+
+  // A finished turn disables nothing, but the Stop button unmounting used to
+  // dump focus on <body>; hand it back only when the user has not moved it.
+  const wasSendingRef = useRef(false);
+  useEffect(() => {
+    const wasSending = wasSendingRef.current;
+    wasSendingRef.current = isSending;
+    if (!wasSending || isSending || blockedByPendingAction) return;
+    // Pulling focus up on a phone reopens the keyboard over the answer.
+    if (!window.matchMedia('(pointer: fine)').matches) return;
+
+    const active = document.activeElement;
+    if (active === document.body || active === composerRef.current) {
+      composerRef.current?.focus();
+    }
+  }, [isSending, blockedByPendingAction]);
+
+  function isNearBottom(container: HTMLElement) {
+    return (
+      container.scrollHeight - container.scrollTop - container.clientHeight <
+      STICK_TO_BOTTOM_THRESHOLD_PX
+    );
+  }
+
+  function endProgrammaticScroll() {
+    if (programmaticScrollTimerRef.current !== null) {
+      clearTimeout(programmaticScrollTimerRef.current);
+      programmaticScrollTimerRef.current = null;
+    }
+    if (!programmaticScrollRef.current) return;
+    programmaticScrollRef.current = false;
+    // No scroll event is guaranteed once the animation is done: re-read the
+    // real position so the next delta follows the reader, not the old anchor.
+    if (scrollRef.current) {
+      stickToBottomRef.current = isNearBottom(scrollRef.current);
+      lastScrollTopRef.current = scrollRef.current.scrollTop;
+    }
+  }
+
+  // A smooth scroll's own events are ignored until it settles.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the listener only touches refs, so one mount-time registration is enough
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    container.addEventListener('scrollend', endProgrammaticScroll);
+    return () => {
+      container.removeEventListener('scrollend', endProgrammaticScroll);
+      if (programmaticScrollTimerRef.current !== null) {
+        clearTimeout(programmaticScrollTimerRef.current);
+        programmaticScrollTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  // A switched-to conversation opens at its newest message.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resetting on the conversation change is the whole point
+  useEffect(() => {
+    stickToBottomRef.current = true;
+    loadingHistoryRef.current = true;
+  }, [activeConversationId]);
+
+  function updateStickToBottom() {
+    const container = scrollRef.current;
+    if (!container) return;
+    // Anchor against the previous event, not the position the animation
+    // started from: mid-animation progress is always downward, so an upward
+    // move is only visible against the last event the page itself saw.
+    const previous = lastScrollTopRef.current;
+    lastScrollTopRef.current = container.scrollTop;
+    // Our own smooth scroll only ever moves down. Anything that moves back up
+    // is the reader taking over mid-animation, so the flag flips again.
+    if (programmaticScrollRef.current && container.scrollTop >= previous) {
+      return;
+    }
+    programmaticScrollRef.current = false;
+    stickToBottomRef.current = isNearBottom(container);
+  }
+
+  // Stick to the bottom only while the user is already there: scrolling up to
+  // re-read must not be yanked back by the next streaming token.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-run whenever new content can grow the list
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const addedCount = messages.length - previousMessageCountRef.current;
+    previousMessageCountRef.current = messages.length;
+    const loadedHistory = loadingHistoryRef.current;
+    if (addedCount > 0) loadingHistoryRef.current = false;
+    if (!stickToBottomRef.current) return;
+    // Only a single appended message animates; a bulk history load (a
+    // conversation switch) and streaming deltas land instantly so a long
+    // animation cannot flip the stick flag on its way down.
+    const smooth =
+      addedCount === 1 && !loadedHistory && !prefersReducedMotion();
+    // Already at the bottom: scrollTo is a no-op, so a latched flag would only
+    // swallow the reader's next scroll.
+    const willMove =
+      container.scrollTop < container.scrollHeight - container.clientHeight;
+    if (smooth && willMove) {
+      programmaticScrollRef.current = true;
+      if (programmaticScrollTimerRef.current !== null) {
+        clearTimeout(programmaticScrollTimerRef.current);
+      }
+      // Chrome fires scrollend, and a real smooth scroll often outlives any
+      // fixed timeout: the timer is only a fallback for browsers without it.
+      if (!('onscrollend' in window)) {
+        programmaticScrollTimerRef.current = setTimeout(
+          endProgrammaticScroll,
+          PROGRAMMATIC_SCROLL_FALLBACK_MS,
+        );
+      }
+    }
+    lastScrollTopRef.current = container.scrollTop;
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: smooth ? 'smooth' : 'auto',
+    });
+  }, [messages, streamingContent, isSending, pendingAction]);
 
   const isEmptyConversation = messages.length === 0 && !streamingContent;
   const historySidebar = (
@@ -118,6 +277,9 @@ export function CopilotPage() {
       conversations={conversations}
       activeConversationId={activeConversationId}
       isLoading={isLoadingConversations}
+      hasMore={hasMoreConversations}
+      isLoadingMore={isLoadingMoreConversations}
+      onLoadMore={() => void loadMoreConversations()}
       onSelect={(id) => {
         selectConversation(id);
         setActiveDrawer(null);
@@ -189,6 +351,12 @@ export function CopilotPage() {
           )}
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            {/* Always mounted, outside the aria-busy log: a status that only
+                appears with the first question would be missed by a screen
+                reader that is already listening. */}
+            <span className="sr-only" role="status">
+              {isWaitingForResponse ? 'Copilot đang trả lời…' : ''}
+            </span>
             <div className="flex min-h-12 items-center justify-between gap-2 px-3 py-2">
               <TooltipLabel label="Mở lịch sử chat">
                 <Button
@@ -217,6 +385,9 @@ export function CopilotPage() {
             {/* The welcome card carries its own border and padding, so the
                 scroll container skips its own padding to leave room for it. */}
             <div
+              ref={scrollRef}
+              data-testid="copilot-scroll"
+              onScroll={updateStickToBottom}
               className={
                 isEmptyConversation
                   ? 'mx-3 flex min-h-0 flex-1 flex-col overflow-hidden'
@@ -231,20 +402,20 @@ export function CopilotPage() {
                   />
                 </div>
               ) : isEmptyConversation ? (
-                <CopilotWelcomeState
-                  onSuggestionClick={(text) => void send(text)}
-                />
+                <CopilotWelcomeState onSuggestionClick={submitQuestion} />
               ) : (
                 <MessageList
                   messages={messages}
                   streamingContent={streamingContent}
-                  isWaitingForResponse={isSending && !streamingContent}
+                  isWaitingForResponse={isWaitingForResponse}
+                  isSending={isSending}
                 />
               )}
               {pendingAction && canSendManual && (
                 <PendingActionCard
                   action={pendingAction}
                   busy={busy}
+                  busyAction={busyAction}
                   onConfirm={() => void confirm()}
                   onCancel={() => void cancel()}
                 />
@@ -264,31 +435,34 @@ export function CopilotPage() {
               className="mx-3 mb-3 mt-3 flex gap-2 rounded-2xl border border-border bg-card p-2.5"
             >
               <Input
+                ref={composerRef}
                 name="question"
                 autoComplete="off"
                 aria-label="Nhập câu hỏi"
-                placeholder="Hỏi về công nợ…"
+                placeholder={
+                  blockedByPendingAction
+                    ? 'Xác nhận hoặc hủy đề xuất gửi email để tiếp tục…'
+                    : 'Hỏi về công nợ…'
+                }
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 className="border-0 bg-transparent shadow-none"
-                disabled={
-                  isSending || blockedByPendingAction || !!quotaExceededMessage
-                }
+                disabled={blockedByPendingAction || !!quotaExceededMessage}
               />
               {isSending ? (
                 <Button
+                  key="stop"
                   type="button"
                   variant="outline"
                   onClick={stop}
-                  aria-label="Dừng"
                 >
-                  <Square className="size-4" />
+                  <Square aria-hidden="true" className="size-4" />
                   Dừng
                 </Button>
               ) : (
                 <Button
+                  key="send"
                   type="submit"
-                  aria-label="Send"
                   disabled={
                     blockedByPendingAction ||
                     !!quotaExceededMessage ||
