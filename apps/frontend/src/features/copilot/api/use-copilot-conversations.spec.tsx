@@ -88,6 +88,125 @@ describe('useCopilotConversations', () => {
     expect(result.current.isLoadingMore).toBe(false);
   });
 
+  it('keeps the rows loaded beyond page one when a refresh replaces page one', async () => {
+    const conversation = (id: string) => ({
+      id,
+      title: `Cuộc trò chuyện ${id}`,
+      createdAt: '',
+      lastMessageAt: '',
+    });
+    listCopilotConversations.mockResolvedValueOnce({
+      items: [conversation('c1')],
+      total: 3,
+    });
+    const { result } = renderHook(() => useCopilotConversations());
+    await waitFor(() => expect(result.current.conversations).toHaveLength(1));
+
+    listCopilotConversations.mockResolvedValueOnce({
+      items: [conversation('c2'), conversation('c3')],
+      total: 3,
+    });
+    await act(async () => {
+      await result.current.loadMore();
+    });
+    expect(result.current.conversations.map((item) => item.id)).toEqual([
+      'c1',
+      'c2',
+      'c3',
+    ]);
+
+    listCopilotConversations.mockResolvedValueOnce({
+      items: [conversation('c0'), conversation('c1')],
+      total: 3,
+    });
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(result.current.conversations.map((item) => item.id)).toEqual([
+      'c0',
+      'c1',
+      'c2',
+      'c3',
+    ]);
+    expect(result.current.hasMore).toBe(false);
+  });
+
+  it('does not append the same conversation twice when paging shifts', async () => {
+    const conversation = (id: string) => ({
+      id,
+      title: `Cuộc trò chuyện ${id}`,
+      createdAt: '',
+      lastMessageAt: '',
+    });
+    listCopilotConversations.mockResolvedValueOnce({
+      items: [conversation('c1'), conversation('c2')],
+      total: 4,
+    });
+    const { result } = renderHook(() => useCopilotConversations());
+    await waitFor(() => expect(result.current.conversations).toHaveLength(2));
+
+    // A newer conversation pushed the window down: c2 is on page two again.
+    listCopilotConversations.mockResolvedValueOnce({
+      items: [conversation('c2'), conversation('c3')],
+      total: 4,
+    });
+    await act(async () => {
+      await result.current.loadMore();
+    });
+
+    expect(result.current.conversations.map((item) => item.id)).toEqual([
+      'c1',
+      'c2',
+      'c3',
+    ]);
+  });
+
+  it('ignores a load-more that started before a newer refresh', async () => {
+    const conversation = (id: string) => ({
+      id,
+      title: `Cuộc trò chuyện ${id}`,
+      createdAt: '',
+      lastMessageAt: '',
+    });
+    listCopilotConversations.mockResolvedValueOnce({
+      items: [conversation('c1')],
+      total: 3,
+    });
+    const { result } = renderHook(() => useCopilotConversations());
+    await waitFor(() => expect(result.current.conversations).toHaveLength(1));
+
+    let resolveStaleLoadMore: (value: unknown) => void = () => {};
+    listCopilotConversations.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveStaleLoadMore = resolve;
+      }),
+    );
+    let staleLoadMore: Promise<void> = Promise.resolve();
+    act(() => {
+      staleLoadMore = result.current.loadMore();
+    });
+
+    // Page one is unchanged, so a stale page two would only add rows.
+    listCopilotConversations.mockResolvedValueOnce({
+      items: [conversation('c1')],
+      total: 3,
+    });
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    await act(async () => {
+      resolveStaleLoadMore({
+        items: [conversation('c2'), conversation('c3')],
+        total: 3,
+      });
+      await staleLoadMore;
+    });
+
+    expect(result.current.conversations.map((item) => item.id)).toEqual(['c1']);
+  });
+
   it('startNewConversation swaps to a fresh id and selectConversation switches to an existing one', async () => {
     const { result } = renderHook(() => useCopilotConversations());
     await waitFor(() => expect(listCopilotConversations).toHaveBeenCalled());
