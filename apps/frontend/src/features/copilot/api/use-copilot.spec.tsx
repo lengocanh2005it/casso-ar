@@ -301,6 +301,19 @@ describe('useCopilotChat', () => {
     expect(assistantMessages[0].isPartial).toBeUndefined();
   });
 
+  it('reports whether a conversation is still the live one', async () => {
+    const { result, rerender } = renderHook(
+      ({ conversationId }) => useCopilotChat(true, conversationId),
+      { initialProps: { conversationId: 'conversation-a' } },
+    );
+    expect(result.current.isActiveConversation('conversation-a')).toBe(true);
+
+    getCopilotConversationMessages.mockResolvedValueOnce({ items: [] });
+    rerender({ conversationId: 'conversation-b' });
+    expect(result.current.isActiveConversation('conversation-a')).toBe(false);
+    expect(result.current.isActiveConversation('conversation-b')).toBe(true);
+  });
+
   it('does not add a partial message when aborted before any delta arrived', async () => {
     let rejectStream: (reason: unknown) => void = () => {};
     streamCopilotMessage.mockImplementation(
@@ -592,6 +605,84 @@ describe('useCopilotChat', () => {
       expect(result.current.busyAction).toBeNull();
     });
 
+    it('does not carry a busy action into the next conversation', async () => {
+      sendWithPendingAction();
+      const resolvers: Array<() => void> = [];
+      confirmCopilotAction.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolvers.push(() => resolve({ reminderExecutionId: 'r1' }));
+          }),
+      );
+      const { result, rerender } = renderHook(
+        ({ conversationId }) => useCopilotChat(true, conversationId),
+        { initialProps: { conversationId: 'conversation-a' } },
+      );
+
+      await act(async () => {
+        await result.current.send('Soạn email nhắc');
+      });
+      let confirmA: Promise<void>;
+      act(() => {
+        confirmA = result.current.confirm();
+      });
+      expect(result.current.busyAction).toBe('confirm');
+
+      getCopilotConversationMessages.mockResolvedValueOnce({ items: [] });
+      rerender({ conversationId: 'conversation-b' });
+      expect(result.current.busyAction).toBeNull();
+      expect(result.current.busy).toBe(false);
+
+      // B has its own proposal, and its own in-flight confirm.
+      streamCopilotMessage.mockImplementationOnce(
+        async (_id, _content, onEvent, _signal, onAccepted?: () => void) => {
+          onAccepted?.();
+          onEvent({
+            type: 'done',
+            data: {
+              message: {
+                id: 'm2',
+                role: 'ASSISTANT',
+                content: 'Đã soạn đề xuất khác.',
+                createdAt: new Date().toISOString(),
+              },
+              pendingAction: {
+                id: 'pa2',
+                actionType: 'SEND_REMINDER_EMAIL',
+                status: 'PENDING',
+                payload: { draftId: 'd2', receivableId: 'r2' },
+                receivableLabel: null,
+                createdAt: new Date().toISOString(),
+                resolvedAt: null,
+              },
+            },
+          });
+        },
+      );
+      await act(async () => {
+        await result.current.send('Soạn email nhắc lần hai');
+      });
+      let confirmB: Promise<void>;
+      act(() => {
+        confirmB = result.current.confirm();
+      });
+      expect(result.current.busyAction).toBe('confirm');
+
+      // A settling must not clear B's in-flight state.
+      await act(async () => {
+        resolvers[0]();
+        await confirmA;
+      });
+      expect(result.current.busyAction).toBe('confirm');
+      expect(result.current.pendingAction?.id).toBe('pa2');
+
+      await act(async () => {
+        resolvers[1]();
+        await confirmB;
+      });
+      expect(result.current.busyAction).toBeNull();
+    });
+
     it('reports which action is running while it is busy', async () => {
       sendWithPendingAction();
       let resolveConfirm: () => void = () => {};
@@ -773,6 +864,70 @@ describe('useCopilotChat', () => {
       });
 
       expect(accepted).toBe(false);
+    });
+
+    it('drops the optimistic question when the request never reached the server', async () => {
+      streamCopilotMessage.mockRejectedValue(
+        new CopilotStreamRequestError('Lỗi máy chủ.', 'INTERNAL_SERVER_ERROR'),
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      await act(async () => {
+        await result.current.send('Câu hỏi bị mất');
+      });
+
+      // The page hands the question back to the composer, so keeping the
+      // bubble would show the same question twice.
+      expect(result.current.messages).toEqual([]);
+    });
+
+    it('keeps the question and counts the turn when Stop lands before the first byte', async () => {
+      const captured: {
+        signal: AbortSignal | null;
+        reject: (reason: unknown) => void;
+      } = { signal: null, reject: () => {} };
+      streamCopilotMessage.mockImplementation(
+        (
+          _id: string,
+          _content: string,
+          _onEvent: (event: unknown) => void,
+          signal: AbortSignal,
+        ) =>
+          new Promise((_resolve, reject) => {
+            captured.signal = signal;
+            captured.reject = reject;
+          }),
+      );
+      const onTurnComplete = vi.fn();
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1', { onTurnComplete }),
+      );
+
+      let sendPromise: Promise<boolean>;
+      act(() => {
+        sendPromise = result.current.send('Câu hỏi dừng sớm');
+      });
+      act(() => {
+        result.current.stop();
+        captured.reject(new DOMException('aborted', 'AbortError'));
+      });
+
+      let accepted = false;
+      await act(async () => {
+        accepted = await sendPromise;
+      });
+
+      // The backend may already have counted the turn, so the page must not
+      // hand the question back and usage must still refresh.
+      expect(accepted).toBe(true);
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
+      expect(result.current.messages).toHaveLength(1);
+      expect(result.current.messages[0]).toMatchObject({
+        role: 'USER',
+        content: 'Câu hỏi dừng sớm',
+      });
     });
 
     it('resolves true when the user aborts after the stream was accepted', async () => {

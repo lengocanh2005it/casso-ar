@@ -570,6 +570,114 @@ describe('CopilotPage', () => {
     await waitFor(() => expect(composer).toHaveValue('Tóm tắt công nợ'));
   });
 
+  it('shows the failed question once, in the composer and not in the chat', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(new TypeError('Failed to fetch')),
+    );
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    const composer = screen.getByLabelText(/nhập câu hỏi/i);
+    fireEvent.change(composer, { target: { value: 'Tóm tắt công nợ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+
+    await waitFor(() => expect(composer).toHaveValue('Tóm tắt công nợ'));
+    // The optimistic bubble goes with the failed request; restoring the draft
+    // must not leave the same question rendered twice.
+    expect(screen.queryByText('Tóm tắt công nợ', { selector: 'p' })).toBeNull();
+  });
+
+  it('does not restore a failed question into the conversation the user switched to', async () => {
+    let rejectFetch: (reason: unknown) => void = () => {};
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectFetch = reject;
+          }),
+      ),
+    );
+    apiRequest.mockImplementation((config) => {
+      if (config.url === '/api/v1/copilot/conversations') {
+        return Promise.resolve({
+          items: [
+            {
+              id: 'c1',
+              title: 'Cuộc trò chuyện cũ',
+              createdAt: '2026-08-09T00:00:00Z',
+              lastMessageAt: '2026-08-09T00:00:00Z',
+            },
+          ],
+          total: 1,
+        });
+      }
+      if (/\/copilot\/conversations\/c1\/messages$/.test(config.url)) {
+        return Promise.resolve({ items: [] });
+      }
+      return routeApiRequest(config);
+    });
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    const composer = screen.getByLabelText(/nhập câu hỏi/i);
+    fireEvent.change(composer, { target: { value: 'Câu hỏi của cuộc cũ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+    await screen.findByRole('button', { name: 'Dừng' });
+
+    fireEvent.click(screen.getByRole('button', { name: /mở lịch sử chat/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Cuộc trò chuyện cũ' }),
+    );
+
+    await act(async () => {
+      rejectFetch(new TypeError('Failed to fetch'));
+    });
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Dừng' }),
+      ).not.toBeInTheDocument(),
+    );
+    // The old question belongs to the conversation it was typed in.
+    expect(screen.getByLabelText(/nhập câu hỏi/i)).toHaveValue('');
+  });
+
+  it('keeps the question sent when Stop is pressed before the first byte', async () => {
+    // Real fetch rejects with AbortError when the signal fires; the never-
+    // settling promise has to honour the signal or send() would never finish.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        (_url: string, init: { signal: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            init.signal.addEventListener('abort', () =>
+              reject(new DOMException('aborted', 'AbortError')),
+            );
+          }),
+      ),
+    );
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    const composer = screen.getByLabelText(/nhập câu hỏi/i);
+    fireEvent.change(composer, { target: { value: 'Tóm tắt công nợ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Dừng' }));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Dừng' }),
+      ).not.toBeInTheDocument(),
+    );
+    // The backend may already have counted the turn, so the question must not
+    // come back to the composer for a duplicate send.
+    expect(composer).toHaveValue('');
+    expect(screen.getByText('Tóm tắt công nợ')).toBeInTheDocument();
+  });
+
   it('keeps the composer empty and the streamed answer when the stream breaks after acceptance', async () => {
     vi.stubGlobal(
       'fetch',

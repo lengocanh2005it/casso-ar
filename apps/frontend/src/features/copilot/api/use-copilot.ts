@@ -40,6 +40,9 @@ export function useCopilotChat(
   >(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const activeConversationIdRef = useRef(conversationId);
+  // Bumped whenever the conversation changes so a confirm/cancel started for
+  // the previous one cannot clear the new one's busy state.
+  const pendingActionRequestRef = useRef(0);
   const blockedByPendingAction =
     pendingAction !== null && canResolvePendingAction;
 
@@ -50,8 +53,10 @@ export function useCopilotChat(
     // this one, and the composer must not stay locked on its behalf.
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
+    pendingActionRequestRef.current += 1;
     setMessages([]);
     setPendingAction(null);
+    setBusyAction(null);
     setIsSending(false);
     setStreamingContent('');
     setIsLoadingHistory(true);
@@ -147,6 +152,15 @@ export function useCopilotChat(
       accepted = true;
     };
 
+    // The page restores the question into the composer on a `false` result,
+    // so the optimistic bubble must go or the question would show twice.
+    const dropOptimisticMessage = () => {
+      if (!isCurrentConversation()) return;
+      setMessages((current) =>
+        current.filter((message) => message.id !== optimisticMessageId),
+      );
+    };
+
     const appendPartialAnswer = () => {
       if (!streamedText || answerCommitted) return;
       answerCommitted = true;
@@ -190,10 +204,17 @@ export function useCopilotChat(
       );
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        if (isCurrentConversation()) appendPartialAnswer();
+        if (isCurrentConversation()) {
+          // A user Stop can land before the first byte, but the backend
+          // already persisted the turn: count it and keep the question. A
+          // switch aborts too, yet that state belongs to the old conversation.
+          appendPartialAnswer();
+          accepted = true;
+        }
       } else if (accepted) {
         // The 2xx response arrived, so the server already persisted and counted
-        // the turn: hand the question back and keep whatever was streamed.
+        // the turn: it resolves true and the question stays sent, with whatever
+        // text was streamed kept on screen.
         if (isCurrentConversation()) appendPartialAnswer();
         toast.error(
           streamedText
@@ -202,15 +223,9 @@ export function useCopilotChat(
         );
       } else if (error instanceof CopilotStreamRequestError) {
         // Rejected with a non-2xx status: the write never reached the database.
+        dropOptimisticMessage();
         if (error.errorCode === 'PLAN_LIMIT_EXCEEDED') {
-          if (isCurrentConversation()) {
-            // The quota check runs before the write — drop the optimistic bubble
-            // so the chat doesn't show a question that was never actually sent.
-            setMessages((current) =>
-              current.filter((message) => message.id !== optimisticMessageId),
-            );
-            setQuotaExceededMessage(error.message);
-          }
+          if (isCurrentConversation()) setQuotaExceededMessage(error.message);
           toast.error(error.message);
         } else {
           toast.error('Không thể gửi câu hỏi cho Copilot.');
@@ -218,6 +233,7 @@ export function useCopilotChat(
       } else {
         // The request never got a response, so the turn was not accepted and
         // the page must hand the question back to the user.
+        dropOptimisticMessage();
         toast.error('Không thể gửi câu hỏi cho Copilot.');
       }
     } finally {
@@ -238,6 +254,13 @@ export function useCopilotChat(
     abortControllerRef.current?.abort();
   }
 
+  // The page restores a rejected question only into the conversation it was
+  // typed in, never into whichever one the user switched to meanwhile.
+  const isActiveConversation = useCallback(
+    (id: string) => activeConversationIdRef.current === id,
+    [],
+  );
+
   // A confirm/cancel can outlive a conversation switch; only clear the action
   // it was actually started for, never whatever the new conversation holds.
   const clearPendingAction = useCallback((actionId: string) => {
@@ -247,19 +270,17 @@ export function useCopilotChat(
   // The backend answers CONFLICT for an action that is expired, already
   // confirmed, already cancelled, or bound to another draft; none of those can
   // be resolved from this UI anymore, so stop blocking the composer on it.
-  const dropIfResolvedElsewhere = useCallback(
-    (error: unknown, actionId: string): boolean => {
-      if (getApiErrorCode(error) !== 'CONFLICT') return false;
-      clearPendingAction(actionId);
-      toast.info(PENDING_ACTION_STALE_MESSAGE);
-      return true;
-    },
-    [clearPendingAction],
-  );
+  function dropIfResolvedElsewhere(error: unknown, actionId: string): boolean {
+    if (getApiErrorCode(error) !== 'CONFLICT') return false;
+    clearPendingAction(actionId);
+    toast.info(PENDING_ACTION_STALE_MESSAGE);
+    return true;
+  }
 
   async function resolvePendingAction(kind: 'confirm' | 'cancel') {
     if (!pendingAction || busyAction !== null) return;
     const actionId = pendingAction.id;
+    const requestId = ++pendingActionRequestRef.current;
     setBusyAction(kind);
     try {
       if (kind === 'confirm') {
@@ -279,7 +300,7 @@ export function useCopilotChat(
         );
       }
     } finally {
-      setBusyAction(null);
+      if (pendingActionRequestRef.current === requestId) setBusyAction(null);
     }
   }
 
@@ -300,6 +321,7 @@ export function useCopilotChat(
     streamingContent,
     confirm,
     cancel,
+    isActiveConversation,
     busy,
     busyAction,
     blockedByPendingAction,

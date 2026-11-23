@@ -100,6 +100,7 @@ export function CopilotPage() {
     stop,
     confirm,
     cancel,
+    isActiveConversation,
     busy,
     busyAction,
     blockedByPendingAction,
@@ -127,10 +128,13 @@ export function CopilotPage() {
     // Sending is an explicit request to see the answer, unlike an incoming
     // delta: follow it even when the reader had scrolled up.
     stickToBottomRef.current = true;
+    const sendConversationId = activeConversationId;
     void send(content).then((accepted) => {
       // Rejected before the server took the turn: give the question back, but
-      // never clobber text the user typed while the request was in flight.
-      if (!accepted) setDraft((current) => (current ? current : content));
+      // never clobber text the user typed while the request was in flight,
+      // and never drop it into a conversation the user switched to.
+      if (accepted || !isActiveConversation(sendConversationId)) return;
+      setDraft((current) => (current ? current : content));
     });
   }
 
