@@ -854,7 +854,7 @@ describe('useCopilotChat', () => {
       expect(accepted).toBe(false);
     });
 
-    it('resolves false when the network fails', async () => {
+    it('resolves false when the network fails and the history lacks the question', async () => {
       streamCopilotMessage.mockRejectedValue(new TypeError('Failed to fetch'));
       const { result } = renderHook(() =>
         useCopilotChat(true, 'conversation-1'),
@@ -966,6 +966,196 @@ describe('useCopilotChat', () => {
         accepted = await sendPromise;
       });
       expect(accepted).toBe(true);
+    });
+  });
+
+  describe('a transport failure before the response headers', () => {
+    it('keeps a question the server persisted even though no response arrived', async () => {
+      streamCopilotMessage.mockRejectedValue(new TypeError('Failed to fetch'));
+      getCopilotConversationMessages
+        .mockResolvedValueOnce({ items: [] })
+        .mockResolvedValue({
+          items: [
+            {
+              id: 'u1',
+              role: 'USER',
+              content: 'Phân tích công nợ',
+              createdAt: '2026-08-09T00:00:00Z',
+            },
+            {
+              id: 'a1',
+              role: 'ASSISTANT',
+              content: 'Câu trả lời cũ',
+              createdAt: '2026-08-09T00:00:01Z',
+            },
+          ],
+        });
+      const onTurnComplete = vi.fn();
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1', { onTurnComplete }),
+      );
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+
+      let accepted = false;
+      await act(async () => {
+        accepted = await result.current.send('Phân tích công nợ');
+      });
+
+      // The backend persists the question before it flushes headers, so this
+      // turn was counted: the page must not hand the question back to resend.
+      expect(accepted).toBe(true);
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
+      expect(result.current.messages.map((message) => message.id)).toEqual([
+        'u1',
+        'a1',
+      ]);
+    });
+
+    it('hands the question back when the history does not hold it', async () => {
+      streamCopilotMessage.mockRejectedValue(new TypeError('Failed to fetch'));
+      const onTurnComplete = vi.fn();
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1', { onTurnComplete }),
+      );
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+
+      let accepted = true;
+      await act(async () => {
+        accepted = await result.current.send('Câu hỏi bị mất');
+      });
+
+      expect(accepted).toBe(false);
+      expect(onTurnComplete).not.toHaveBeenCalled();
+      expect(result.current.messages).toEqual([]);
+      expect(toast.error).toHaveBeenCalledWith(
+        'Không thể gửi câu hỏi cho Copilot.',
+      );
+    });
+
+    it('refreshes usage when the reconcile itself fails', async () => {
+      streamCopilotMessage.mockRejectedValue(new TypeError('Failed to fetch'));
+      getCopilotConversationMessages
+        .mockResolvedValueOnce({ items: [] })
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'));
+      const onTurnComplete = vi.fn();
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1', { onTurnComplete }),
+      );
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+
+      let accepted = true;
+      await act(async () => {
+        accepted = await result.current.send('Câu hỏi chưa rõ');
+      });
+
+      // Unknown outcome: usage may have been billed, but the question may also
+      // be lost, so the page still hands it back.
+      expect(accepted).toBe(false);
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
+      expect(result.current.messages).toEqual([]);
+      expect(toast.error).toHaveBeenCalledWith(
+        'Không thể xác nhận câu hỏi đã gửi chưa. Kiểm tra lại lịch sử trước khi gửi lại.',
+      );
+    });
+
+    it('does not reconcile a rejection that proves the turn was not taken', async () => {
+      streamCopilotMessage.mockRejectedValue(
+        new CopilotStreamRequestError('Lỗi máy chủ.', 'INTERNAL_SERVER_ERROR'),
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+
+      await act(async () => {
+        await result.current.send('Câu hỏi');
+      });
+
+      // Only the mount load: a non-2xx status is the one failure that proves
+      // the question never reached the database.
+      expect(getCopilotConversationMessages).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves the new conversation untouched when the switch lands during the reconcile', async () => {
+      const captured: { reject: (reason: unknown) => void } = {
+        reject: () => {},
+      };
+      streamCopilotMessage.mockImplementation(
+        () =>
+          new Promise((_resolve, reject) => {
+            captured.reject = reject;
+          }),
+      );
+      let resolveReconcile: (page: unknown) => void = () => {};
+      let loadsForA = 0;
+      getCopilotConversationMessages.mockImplementation((id: unknown) => {
+        if (id === 'conversation-b') {
+          return Promise.resolve({
+            items: [
+              {
+                id: 'b1',
+                role: 'USER',
+                content: 'Câu hỏi của B',
+                createdAt: '2026-08-09T00:00:00Z',
+              },
+            ],
+          });
+        }
+        loadsForA += 1;
+        // First load is the mount history; the second is the reconcile, held
+        // open so the switch can land while it is still in flight.
+        if (loadsForA === 1) return Promise.resolve({ items: [] });
+        return new Promise((resolve) => {
+          resolveReconcile = resolve;
+        });
+      });
+      const onTurnComplete = vi.fn();
+      const { result, rerender } = renderHook(
+        ({ conversationId }) =>
+          useCopilotChat(true, conversationId, { onTurnComplete }),
+        { initialProps: { conversationId: 'conversation-a' } },
+      );
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+
+      let sendPromise: Promise<boolean>;
+      act(() => {
+        sendPromise = result.current.send('Câu hỏi cho A');
+      });
+      await act(async () => {
+        captured.reject(new TypeError('Failed to fetch'));
+        await Promise.resolve();
+      });
+
+      rerender({ conversationId: 'conversation-b' });
+      await waitFor(() =>
+        expect(result.current.messages.map((message) => message.id)).toEqual([
+          'b1',
+        ]),
+      );
+
+      let accepted = false;
+      await act(async () => {
+        resolveReconcile({
+          items: [
+            {
+              id: 'u-a',
+              role: 'USER',
+              content: 'Câu hỏi cho A',
+              createdAt: '2026-08-09T00:00:00Z',
+            },
+          ],
+        });
+        accepted = await sendPromise;
+      });
+
+      expect(accepted).toBe(true);
+      expect(result.current.messages.map((message) => message.id)).toEqual([
+        'b1',
+      ]);
+      expect(result.current.streamingContent).toBe('');
+      expect(result.current.pendingAction).toBeNull();
+      expect(result.current.isSending).toBe(false);
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
     });
   });
 

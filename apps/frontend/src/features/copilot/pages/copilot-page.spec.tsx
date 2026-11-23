@@ -588,6 +588,44 @@ describe('CopilotPage', () => {
     expect(screen.queryByText('Tóm tắt công nợ', { selector: 'p' })).toBeNull();
   });
 
+  it('keeps a question the server already saved out of the composer', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(new TypeError('Failed to fetch')),
+    );
+    // The connection dropped before the response headers, but the backend had
+    // already persisted the question: the history proves it.
+    let messageLoads = 0;
+    apiRequest.mockImplementation((config) => {
+      if (/\/copilot\/conversations\/[^/]+\/messages$/.test(config.url)) {
+        messageLoads += 1;
+        if (messageLoads === 1) return Promise.resolve({ items: [] });
+        return Promise.resolve({
+          items: [
+            {
+              id: 'u1',
+              role: 'USER',
+              content: 'Tóm tắt công nợ',
+              createdAt: '2026-08-09T00:00:00Z',
+            },
+          ],
+        });
+      }
+      return routeApiRequest(config);
+    });
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    const composer = screen.getByLabelText(/nhập câu hỏi/i);
+    fireEvent.change(composer, { target: { value: 'Tóm tắt công nợ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+
+    // Restoring it would offer a resend that duplicates the saved question and
+    // bills another turn.
+    await screen.findByText('Tóm tắt công nợ', { selector: 'p' });
+    expect(composer).toHaveValue('');
+  });
+
   it('does not restore a failed question into the conversation the user switched to', async () => {
     let rejectFetch: (reason: unknown) => void = () => {};
     vi.stubGlobal(

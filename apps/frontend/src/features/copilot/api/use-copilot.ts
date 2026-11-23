@@ -151,6 +151,9 @@ export function useCopilotChat(
     const onAccepted = () => {
       accepted = true;
     };
+    // A failure before the response headers leaves the outcome unknown: the
+    // turn may have been billed even though this client cannot tell.
+    let turnMayBeCounted = false;
 
     // The page restores the question into the composer on a `false` result,
     // so the optimistic bubble must go or the question would show twice.
@@ -177,6 +180,26 @@ export function useCopilotChat(
       // The message now carries the text; the streaming bubble would render
       // the same answer twice until the stream closes.
       setStreamingContent('');
+    };
+
+    // The backend persists the question before it flushes the SSE headers, so
+    // a dropped connection cannot prove the write never happened. Only the
+    // history can: match by content, since client and server clocks can
+    // disagree.
+    const reconcileOutcome = async (): Promise<
+      'persisted' | 'lost' | 'unknown'
+    > => {
+      try {
+        const page = await getCopilotConversationMessages(sendConversationId);
+        const newestQuestion = page.items
+          .filter((message) => message.role === 'USER')
+          .at(-1);
+        if (newestQuestion?.content.trim() !== trimmed) return 'lost';
+        if (isCurrentConversation()) setMessages(page.items);
+        return 'persisted';
+      } catch {
+        return 'unknown';
+      }
     };
 
     try {
@@ -237,13 +260,29 @@ export function useCopilotChat(
           toast.error('Không thể gửi câu hỏi cho Copilot.');
         }
       } else {
-        // The request never got a response, so the turn was not accepted and
-        // the page must hand the question back to the user.
-        dropOptimisticMessage();
-        toast.error('Không thể gửi câu hỏi cho Copilot.');
+        const outcome = await reconcileOutcome();
+        if (outcome === 'persisted') {
+          // The turn was taken: the fetched page replaces the optimistic
+          // bubble with the real message, so nothing is duplicated.
+          accepted = true;
+          toast.error(
+            'Mất kết nối khi gửi. Câu hỏi đã được ghi nhận, hãy mở lại cuộc trò chuyện để xem phản hồi.',
+          );
+        } else if (outcome === 'lost') {
+          dropOptimisticMessage();
+          toast.error('Không thể gửi câu hỏi cho Copilot.');
+        } else {
+          // Still unknown: the page hands the question back, but the turn may
+          // have been billed, so usage and the list must still refresh.
+          dropOptimisticMessage();
+          turnMayBeCounted = true;
+          toast.error(
+            'Không thể xác nhận câu hỏi đã gửi chưa. Kiểm tra lại lịch sử trước khi gửi lại.',
+          );
+        }
       }
     } finally {
-      if (accepted) options.onTurnComplete?.();
+      if (accepted || turnMayBeCounted) options.onTurnComplete?.();
       // The new conversation already reset this state; writing it again would
       // clear a stream that was started there in the meantime. Comparing the
       // controller (not the conversation) survives A -> B -> A.
