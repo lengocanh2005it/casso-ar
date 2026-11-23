@@ -1046,25 +1046,29 @@ describe('useCopilotChat', () => {
       ]);
     });
 
-    it('hands the question back when the history does not hold it', async () => {
+    it('treats an absent question as unknown, never as lost', async () => {
       streamCopilotMessage.mockRejectedValue(new TypeError('Failed to fetch'));
       const onTurnComplete = vi.fn();
       const { result } = renderHook(() =>
         useCopilotChat(true, 'conversation-1', { onTurnComplete }),
       );
       await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+      const toastCalls = vi.mocked(toast.error).mock.calls.length;
 
       let accepted = true;
       await act(async () => {
         accepted = await result.current.send('Câu hỏi bị mất');
       });
 
+      // The write can still commit after this read, so absence proves nothing:
+      // the page hands the question back and refreshes usage.
       expect(accepted).toBe(false);
-      expect(onTurnComplete).not.toHaveBeenCalled();
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
       expect(result.current.messages).toEqual([]);
-      expect(toast.error).toHaveBeenCalledWith(
-        'Không thể gửi câu hỏi cho Copilot.',
+      expect(toast.error).toHaveBeenLastCalledWith(
+        'Không thể xác nhận câu hỏi đã gửi chưa. Kiểm tra lại lịch sử trước khi gửi lại.',
       );
+      expect(vi.mocked(toast.error).mock.calls.length).toBe(toastCalls + 1);
     });
 
     it('refreshes usage when the reconcile itself fails', async () => {
@@ -1240,7 +1244,7 @@ describe('useCopilotChat', () => {
       );
     }
 
-    it('hands the question back when the history does not hold it', async () => {
+    it('hands the question back as unknown when the history does not hold it', async () => {
       const onTurnComplete = vi.fn();
       const { result } = renderHook(() =>
         useCopilotChat(true, 'conversation-1', { onTurnComplete }),
@@ -1260,11 +1264,14 @@ describe('useCopilotChat', () => {
         accepted = await sendPromise;
       });
 
-      // The token lookup was still running, so the POST never left the
-      // browser: resending is safe and must not double-bill.
+      // The POST may still commit after this read, so the page restores the
+      // draft and still refreshes usage for a turn that may be billed.
       expect(accepted).toBe(false);
-      expect(onTurnComplete).not.toHaveBeenCalled();
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
       expect(result.current.messages).toEqual([]);
+      expect(toast.error).toHaveBeenLastCalledWith(
+        'Không thể xác nhận câu hỏi đã gửi chưa. Kiểm tra lại lịch sử trước khi gửi lại.',
+      );
     });
 
     it('keeps the question when the history proves it was persisted', async () => {
@@ -1303,6 +1310,39 @@ describe('useCopilotChat', () => {
       expect(result.current.messages.map((message) => message.id)).toEqual([
         'u1',
       ]);
+    });
+
+    it('stays unknown when the history read wins the race against the write', async () => {
+      const onTurnComplete = vi.fn();
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1', { onTurnComplete }),
+      );
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+      const captured = captureStream(new DOMException('aborted', 'AbortError'));
+      // The POST is already on the wire; its write commits after this read, so
+      // the empty page is a race, not proof that nothing was saved.
+      historyNeedsLiveSignal([{ items: [] }]);
+
+      let sendPromise: Promise<boolean>;
+      act(() => {
+        sendPromise = result.current.send('Câu hỏi đang ghi');
+      });
+      act(() => {
+        result.current.stop();
+        captured.reject(new DOMException('aborted', 'AbortError'));
+      });
+
+      let accepted = true;
+      await act(async () => {
+        accepted = await sendPromise;
+      });
+
+      expect(accepted).toBe(false);
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
+      expect(result.current.messages).toEqual([]);
+      expect(toast.error).toHaveBeenLastCalledWith(
+        'Không thể xác nhận câu hỏi đã gửi chưa. Kiểm tra lại lịch sử trước khi gửi lại.',
+      );
     });
   });
 
@@ -1456,7 +1496,7 @@ describe('useCopilotChat', () => {
       ]);
     });
 
-    it('hands the question back when a 5xx and the history lacks it', async () => {
+    it('treats a 5xx with an absent question as unknown, not lost', async () => {
       streamCopilotMessage.mockRejectedValue(
         new CopilotStreamRequestError('Lỗi máy chủ.', 500),
       );
@@ -1472,8 +1512,11 @@ describe('useCopilotChat', () => {
       });
 
       expect(accepted).toBe(false);
-      expect(onTurnComplete).not.toHaveBeenCalled();
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
       expect(result.current.messages).toEqual([]);
+      expect(toast.error).toHaveBeenLastCalledWith(
+        'Không thể xác nhận câu hỏi đã gửi chưa. Kiểm tra lại lịch sử trước khi gửi lại.',
+      );
     });
 
     it('leaves a 4xx alone and never reads the history', async () => {

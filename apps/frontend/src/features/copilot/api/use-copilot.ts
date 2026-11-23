@@ -203,14 +203,15 @@ export function useCopilotChat(
       setStreamingContent('');
     };
 
-    // The backend persists the question before it flushes the SSE headers, so
-    // a dropped connection cannot prove the write never happened. Only the
-    // history can, by counting the copies of this exact text: client and
-    // server clocks can disagree, ids change on the way back, and the user
-    // may repeat an earlier question word for word. "unknown" is the safe
-    // answer — it costs a toast and the draft, never a silent duplicate send.
+    // The backend persists the question before it flushes the SSE headers and
+    // does not cancel that write when the browser hangs up, so the POST can
+    // still commit after this read. Only presence in the history proves
+    // anything: absence is always "unknown", never "lost". Copies are counted
+    // by exact text because client ids do not survive the round trip, the
+    // clocks can disagree, and the user may repeat an earlier question word
+    // for word.
     const reconcileOutcome = async (): Promise<{
-      outcome: 'persisted' | 'lost' | 'unknown';
+      outcome: 'persisted' | 'unknown';
       items: CopilotMessage[] | null;
     }> => {
       // Its own controller: this read also runs after a Stop, when the POST's
@@ -227,24 +228,13 @@ export function useCopilotChat(
           (message) =>
             message.role === 'USER' && message.content.trim() === trimmed,
         ).length;
-        // A capped history page can hide older copies, so a repeat that is not
-        // there proves nothing. A first-ever question is the only case where
-        // absence is evidence.
-        if (knownMatching === 0 && historyWasLoaded) {
-          return fetchedMatching > 0
-            ? { outcome: 'persisted', items: page.items }
-            : { outcome: 'lost', items: null };
+        // Only an extra copy of this exact text proves this send landed. A
+        // capped page can hide older ones, a repeat adds nothing new, and the
+        // local list may still be loading, so every other case is unknown.
+        if (historyWasLoaded && fetchedMatching > knownMatching) {
+          return { outcome: 'persisted', items: page.items };
         }
-        if (knownMatching > 0) {
-          return fetchedMatching > knownMatching
-            ? { outcome: 'persisted', items: page.items }
-            : { outcome: 'unknown', items: null };
-        }
-        // The local list is incomplete, so a fetched match may be an older
-        // copy of the same question.
-        return fetchedMatching > 0
-          ? { outcome: 'unknown', items: null }
-          : { outcome: 'lost', items: null };
+        return { outcome: 'unknown', items: null };
       } catch {
         return { outcome: 'unknown', items: null };
       } finally {
@@ -269,12 +259,9 @@ export function useCopilotChat(
         toast.error(
           'Mất kết nối khi gửi. Câu hỏi đã được ghi nhận, hãy mở lại cuộc trò chuyện để xem phản hồi.',
         );
-      } else if (outcome === 'lost') {
-        dropOptimisticMessage();
-        toast.error('Không thể gửi câu hỏi cho Copilot.');
       } else {
-        // Still unknown: the page hands the question back, but the turn may
-        // have been billed, so usage and the list must still refresh.
+        // Unknown: the page hands the question back, but the write may still
+        // commit, so usage and the list must still refresh.
         dropOptimisticMessage();
         turnMayBeCounted = true;
         toast.error(
