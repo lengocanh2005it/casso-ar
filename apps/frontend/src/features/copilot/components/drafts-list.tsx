@@ -63,11 +63,13 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
 
   // Deleting the last row of a trailing page (or any page drifting out of
   // range) leaves an empty page: step back instead of stranding the panel. A
-  // failed page is not empty, it is an error, and keeps its retry.
+  // failed page keeps its retry, a placeholder still belongs to the previous
+  // page, and an empty list is empty everywhere — none of them may clamp.
+  const total = data?.total ?? 0;
   useEffect(() => {
-    if (isEmptyPage && page > 1 && !isError)
+    if (isEmptyPage && page > 1 && !isError && !isPlaceholderData && total > 0)
       setPage(Math.min(page - 1, totalPages));
-  }, [isEmptyPage, isError, page, totalPages]);
+  }, [isEmptyPage, isError, isPlaceholderData, page, total, totalPages]);
 
   const loadingState = (
     <div
@@ -103,10 +105,12 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
   // The empty page is about to clamp back: show the loader rather than flash
   // "no drafts" at someone who still has rows on an earlier page. Rows kept
   // from the previous page still render, so this only catches the empty case.
-  if (isEmptyPage && (page > 1 || isPlaceholderData)) return loadingState;
+  // With no drafts at all there is nothing to clamp to: show the empty state.
+  if (isEmptyPage && (page > 1 || isPlaceholderData) && total > 0) {
+    return loadingState;
+  }
 
   const items = data?.items ?? [];
-  const total = data?.total ?? 0;
 
   if (items.length === 0) {
     return (

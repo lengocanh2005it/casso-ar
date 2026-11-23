@@ -254,6 +254,33 @@ describe('DraftsList', () => {
     expect(emptyStateFlashed.value).toBe(false);
   });
 
+  it('shows the empty state without clamping when there are no drafts at all', async () => {
+    const draft = {
+      id: 'draft-1',
+      receivableId: 'rec-1',
+      recipientEmail: 'ap@abc.vn',
+      subject: 'Nhắc thanh toán',
+      bodyHtml: '<p>Nội dung</p>',
+      status: 'DRAFTED' as const,
+      pendingActionId: null,
+      createdAt: '2026-08-21T10:00:00Z',
+    };
+    vi.mocked(draftsApi.fetchCopilotDrafts).mockImplementation(async (page) =>
+      page === 1 ? { items: [draft], total: 21 } : { items: [], total: 0 },
+    );
+
+    renderWithClient(<DraftsList canSendManual={false} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Sau' }));
+
+    // total 0 means the list is genuinely empty, not a page that drifted.
+    expect(
+      await screen.findByRole('status', {
+        name: /chưa có bản nháp email nào/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Trang 1\/1/)).not.toBeInTheDocument();
+  });
+
   it('announces an empty drafts state', async () => {
     vi.spyOn(draftsApi, 'fetchCopilotDrafts').mockResolvedValue({
       items: [],
