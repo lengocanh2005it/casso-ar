@@ -77,10 +77,12 @@ export function listCopilotConversations(
 
 export function getCopilotConversationMessages(
   conversationId: string,
+  signal?: AbortSignal,
 ): Promise<{ items: CopilotMessage[] }> {
   return apiRequest<{ items: CopilotMessage[] }>({
     url: `/api/v1/copilot/conversations/${conversationId}/messages`,
     method: 'GET',
+    ...(signal ? { signal } : {}),
   });
 }
 
@@ -98,18 +100,21 @@ export type CopilotStreamEvent =
 
 export class CopilotStreamRequestError extends Error {
   errorCode?: string;
+  status: number;
 
-  constructor(message: string, errorCode?: string) {
+  constructor(message: string, status: number, errorCode?: string) {
     super(message);
     this.name = 'CopilotStreamRequestError';
+    this.status = status;
     this.errorCode = errorCode;
   }
 }
 
-// The backend persists (and bills) the user's message before it writes the
-// first SSE byte, so only a failure before this callback proves the turn was
-// never accepted. Everything after it - a dropped socket, a truncated frame -
-// happened on a turn the server already counted.
+// Only this callback proves the turn was accepted. A failure before it is an
+// UNKNOWN outcome, not proof of anything: the backend persists (and bills) the
+// message before it flushes the SSE headers, so a connection that dies on the
+// way back looks identical to one that never arrived. Callers must reconcile
+// such a failure against the conversation history.
 type OnAccepted = () => void;
 
 export async function streamCopilotMessage(
@@ -144,7 +149,7 @@ export async function streamCopilotMessage(
       isRecord(body) && typeof body.message === 'string'
         ? body.message
         : `Copilot stream failed with status ${response.status}`;
-    throw new CopilotStreamRequestError(message, errorCode);
+    throw new CopilotStreamRequestError(message, response.status, errorCode);
   }
 
   onAccepted?.();

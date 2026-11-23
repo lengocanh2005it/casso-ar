@@ -125,6 +125,14 @@ export function useCopilotChat(
     const sendConversationId = conversationId;
     const isCurrentConversation = () =>
       activeConversationIdRef.current === sendConversationId;
+    // Reconcile matches by id, so a repeated question cannot be mistaken for
+    // the one this send is still trying to write. Both are read before the
+    // optimistic bubble exists.
+    const knownMessageIds = new Set(messages.map((message) => message.id));
+    const knownUserCount = messages.filter(
+      (message) => message.role === 'USER',
+    ).length;
+    const historyWasLoaded = !isLoadingHistory;
 
     setIsSending(true);
     setStreamingContent('');
@@ -184,21 +192,64 @@ export function useCopilotChat(
 
     // The backend persists the question before it flushes the SSE headers, so
     // a dropped connection cannot prove the write never happened. Only the
-    // history can: match by content, since client and server clocks can
-    // disagree.
-    const reconcileOutcome = async (): Promise<
-      'persisted' | 'lost' | 'unknown'
-    > => {
+    // history can, and only by content plus an id this send could not have
+    // known before it started: client and server clocks can disagree, and the
+    // user may repeat an earlier question word for word.
+    const reconcileOutcome = async (): Promise<{
+      outcome: 'persisted' | 'lost' | 'unknown';
+      items: CopilotMessage[] | null;
+    }> => {
       try {
-        const page = await getCopilotConversationMessages(sendConversationId);
-        const newestQuestion = page.items
-          .filter((message) => message.role === 'USER')
-          .at(-1);
-        if (newestQuestion?.content.trim() !== trimmed) return 'lost';
-        if (isCurrentConversation()) setMessages(page.items);
-        return 'persisted';
+        const page = await getCopilotConversationMessages(
+          sendConversationId,
+          controller.signal,
+        );
+        const userMessages = page.items.filter(
+          (message) => message.role === 'USER',
+        );
+        const persisted = userMessages.some(
+          (message) =>
+            message.content.trim() === trimmed &&
+            !knownMessageIds.has(message.id),
+        );
+        if (persisted) return { outcome: 'persisted', items: page.items };
+        // With the history still loading, the ids above are not the whole
+        // story; a grown USER count is the best proof left.
+        if (!historyWasLoaded && userMessages.length > knownUserCount) {
+          return { outcome: 'persisted', items: page.items };
+        }
+        return { outcome: 'lost', items: null };
       } catch {
-        return 'unknown';
+        return { outcome: 'unknown', items: null };
+      }
+    };
+
+    // Shared by every failure that cannot prove the write never happened: a
+    // transport drop, a 5xx that may follow a committed write, a Stop before
+    // the response headers.
+    const handleUnconfirmedSend = async () => {
+      const { outcome, items } = await reconcileOutcome();
+      if (outcome === 'persisted') {
+        // The turn was taken: the fetched page replaces the optimistic bubble
+        // with the real message, so nothing is duplicated.
+        accepted = true;
+        if (items && abortControllerRef.current === controller) {
+          setMessages(items);
+        }
+        toast.error(
+          'Mất kết nối khi gửi. Câu hỏi đã được ghi nhận, hãy mở lại cuộc trò chuyện để xem phản hồi.',
+        );
+      } else if (outcome === 'lost') {
+        dropOptimisticMessage();
+        toast.error('Không thể gửi câu hỏi cho Copilot.');
+      } else {
+        // Still unknown: the page hands the question back, but the turn may
+        // have been billed, so usage and the list must still refresh.
+        dropOptimisticMessage();
+        turnMayBeCounted = true;
+        toast.error(
+          'Không thể xác nhận câu hỏi đã gửi chưa. Kiểm tra lại lịch sử trước khi gửi lại.',
+        );
       }
     };
 
@@ -232,14 +283,19 @@ export function useCopilotChat(
       if (isCurrentConversation()) appendPartialAnswer();
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        if (isCurrentConversation()) {
-          // A user Stop can land before the first byte, but the backend
-          // already persisted the turn: count it and keep the question.
+        if (!isCurrentConversation()) {
+          // A switch aborts the same way, and the server may have counted the
+          // turn before the first byte: refresh usage without touching B.
+          accepted = true;
+        } else if (accepted) {
+          // A Stop after the response headers: the turn was counted.
           appendPartialAnswer();
+        } else {
+          // A Stop can land while the token lookup is still running, before
+          // the POST is even dispatched: the write is not proven, so ask the
+          // history instead of assuming the server took it.
+          await handleUnconfirmedSend();
         }
-        // A switch aborts the same way, and the server may have counted the
-        // turn before the first byte: refresh usage without touching B.
-        accepted = true;
       } else if (accepted) {
         // The 2xx response arrived, so the server already persisted and counted
         // the turn: it resolves true and the question stays sent, with whatever
@@ -250,8 +306,12 @@ export function useCopilotChat(
             ? 'Kết nối với Copilot bị gián đoạn.'
             : 'Không thể gửi câu hỏi cho Copilot.',
         );
-      } else if (error instanceof CopilotStreamRequestError) {
-        // Rejected with a non-2xx status: the write never reached the database.
+      } else if (
+        error instanceof CopilotStreamRequestError &&
+        error.status < 500
+      ) {
+        // A 4xx proves the write never reached the database. A 5xx does not:
+        // the row can be committed before a later step fails.
         dropOptimisticMessage();
         if (error.errorCode === 'PLAN_LIMIT_EXCEEDED') {
           if (isCurrentConversation()) setQuotaExceededMessage(error.message);
@@ -260,26 +320,7 @@ export function useCopilotChat(
           toast.error('Không thể gửi câu hỏi cho Copilot.');
         }
       } else {
-        const outcome = await reconcileOutcome();
-        if (outcome === 'persisted') {
-          // The turn was taken: the fetched page replaces the optimistic
-          // bubble with the real message, so nothing is duplicated.
-          accepted = true;
-          toast.error(
-            'Mất kết nối khi gửi. Câu hỏi đã được ghi nhận, hãy mở lại cuộc trò chuyện để xem phản hồi.',
-          );
-        } else if (outcome === 'lost') {
-          dropOptimisticMessage();
-          toast.error('Không thể gửi câu hỏi cho Copilot.');
-        } else {
-          // Still unknown: the page hands the question back, but the turn may
-          // have been billed, so usage and the list must still refresh.
-          dropOptimisticMessage();
-          turnMayBeCounted = true;
-          toast.error(
-            'Không thể xác nhận câu hỏi đã gửi chưa. Kiểm tra lại lịch sử trước khi gửi lại.',
-          );
-        }
+        await handleUnconfirmedSend();
       }
     } finally {
       if (accepted || turnMayBeCounted) options.onTurnComplete?.();

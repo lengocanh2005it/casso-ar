@@ -52,6 +52,19 @@ describe('copilot-api', () => {
     });
   });
 
+  it('forwards an abort signal so a Stop can cancel the history read', async () => {
+    apiRequest.mockResolvedValue({ items: [] });
+    const controller = new AbortController();
+
+    await getCopilotConversationMessages('c1', controller.signal);
+
+    expect(apiRequest).toHaveBeenCalledWith({
+      url: '/api/v1/copilot/conversations/c1/messages',
+      method: 'GET',
+      signal: controller.signal,
+    });
+  });
+
   it('streams status, delta, and done events from the SSE response', async () => {
     const doneMessage = {
       id: 'm1',
@@ -114,6 +127,26 @@ describe('copilot-api', () => {
     vi.unstubAllGlobals();
   });
 
+  it('carries the HTTP status on a CopilotStreamRequestError', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ errorCode: 'INTERNAL_SERVER_ERROR' }), {
+          status: 500,
+        }),
+      ),
+    );
+    const controller = new AbortController();
+
+    // A 5xx may arrive after the question was already persisted, so callers
+    // need the status to tell it apart from a 4xx that proves nothing was
+    // written.
+    await expect(
+      streamCopilotMessage('c1', 'Xin chào', vi.fn(), controller.signal),
+    ).rejects.toMatchObject({ status: 500 });
+    vi.unstubAllGlobals();
+  });
+
   it('throws a CopilotStreamRequestError carrying the backend errorCode on a non-ok response', async () => {
     vi.stubGlobal(
       'fetch',
@@ -140,26 +173,38 @@ describe('copilot-api', () => {
   });
 
   it('reports acceptance once the 2xx response arrives, before reading the stream', async () => {
+    const order: string[] = [];
     vi.stubGlobal(
       'fetch',
-      vi
-        .fn()
-        .mockResolvedValue(
-          sseResponse([{ event: 'delta', data: { text: 'Xin chào' } }]),
+      vi.fn().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            pull(controller) {
+              controller.enqueue(
+                new TextEncoder().encode(
+                  `event: delta\ndata: ${JSON.stringify({ text: 'Xin chào' })}\n\n`,
+                ),
+              );
+              controller.close();
+            },
+          }),
+          { status: 200 },
         ),
+      ),
     );
-    const onAccepted = vi.fn();
     const controller = new AbortController();
 
     await streamCopilotMessage(
       'c1',
       'Xin chào',
-      vi.fn(),
+      () => order.push('delta'),
       controller.signal,
-      onAccepted,
+      () => order.push('accepted'),
     );
 
-    expect(onAccepted).toHaveBeenCalledTimes(1);
+    // The first delta proves the stream was read: acceptance must already have
+    // been reported by then, not after the stream finished.
+    expect(order).toEqual(['accepted', 'delta']);
     vi.unstubAllGlobals();
   });
 
@@ -189,7 +234,11 @@ describe('copilot-api', () => {
   });
 
   it('exports CopilotStreamRequestError as an Error subclass', () => {
-    const error = new CopilotStreamRequestError('msg', 'PLAN_LIMIT_EXCEEDED');
+    const error = new CopilotStreamRequestError(
+      'msg',
+      402,
+      'PLAN_LIMIT_EXCEEDED',
+    );
     expect(error).toBeInstanceOf(Error);
   });
 
