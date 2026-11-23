@@ -211,15 +211,12 @@ export function useCopilotChat(
       if (error instanceof DOMException && error.name === 'AbortError') {
         if (isCurrentConversation()) {
           // A user Stop can land before the first byte, but the backend
-          // already persisted the turn: count it and keep the question. A
-          // switch aborts too, yet that state belongs to the old conversation.
+          // already persisted the turn: count it and keep the question.
           appendPartialAnswer();
-          accepted = true;
-        } else {
-          // A switch aborts the same way, and the server may have counted the
-          // turn before the first byte: refresh usage without touching B.
-          accepted = true;
         }
+        // A switch aborts the same way, and the server may have counted the
+        // turn before the first byte: refresh usage without touching B.
+        accepted = true;
       } else if (accepted) {
         // The 2xx response arrived, so the server already persisted and counted
         // the turn: it resolves true and the question stays sent, with whatever

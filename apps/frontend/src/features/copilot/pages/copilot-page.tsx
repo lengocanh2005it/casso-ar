@@ -184,8 +184,6 @@ export function CopilotPage() {
       stickToBottomRef.current = isNearBottom(scrollRef.current);
       lastScrollTopRef.current = scrollRef.current.scrollTop;
     }
-    // No scroll event is guaranteed once the animation is done: re-read the
-    // real position so the next delta follows the reader, not the old anchor.
   }
 
   // A smooth scroll's own events are ignored until it settles.
@@ -251,10 +249,14 @@ export function CopilotPage() {
       if (programmaticScrollTimerRef.current !== null) {
         clearTimeout(programmaticScrollTimerRef.current);
       }
-      programmaticScrollTimerRef.current = setTimeout(
-        endProgrammaticScroll,
-        PROGRAMMATIC_SCROLL_FALLBACK_MS,
-      );
+      // Chrome fires scrollend, and a real smooth scroll often outlives any
+      // fixed timeout: the timer is only a fallback for browsers without it.
+      if (!('onscrollend' in window)) {
+        programmaticScrollTimerRef.current = setTimeout(
+          endProgrammaticScroll,
+          PROGRAMMATIC_SCROLL_FALLBACK_MS,
+        );
+      }
     }
     lastScrollTopRef.current = container.scrollTop;
     container.scrollTo({
