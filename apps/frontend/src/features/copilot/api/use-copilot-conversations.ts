@@ -5,6 +5,23 @@ import { listCopilotConversations } from './copilot-api';
 
 export const COPILOT_CONVERSATIONS_PAGE_SIZE = 20;
 
+// The server returns newest first, so `base` keeps that order and `extra` only
+// contributes rows `base` is missing: a shifted page repeats rows.
+function mergeById(
+  base: CopilotConversationSummary[],
+  extra: CopilotConversationSummary[],
+) {
+  const seen = new Set(base.map((item) => item.id));
+  return [
+    ...base,
+    ...extra.filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    }),
+  ];
+}
+
 export function useCopilotConversations() {
   const [conversations, setConversations] = useState<
     CopilotConversationSummary[]
@@ -19,26 +36,6 @@ export function useCopilotConversations() {
   // Offset paging shifts as conversations are created, so a refresh that
   // lands mid-load makes that load's rows stale.
   const generationRef = useRef(0);
-
-  // The server returns newest first, so `base` keeps that order and `extra`
-  // only contributes rows `base` is missing: a shifted page repeats rows.
-  const mergeById = useCallback(
-    (
-      base: CopilotConversationSummary[],
-      extra: CopilotConversationSummary[],
-    ) => {
-      const seen = new Set(base.map((item) => item.id));
-      return [
-        ...base,
-        ...extra.filter((item) => {
-          if (seen.has(item.id)) return false;
-          seen.add(item.id);
-          return true;
-        }),
-      ];
-    },
-    [],
-  );
 
   const refresh = useCallback(async () => {
     const generation = ++generationRef.current;
@@ -61,7 +58,7 @@ export function useCopilotConversations() {
     } finally {
       if (generation === generationRef.current) setIsLoading(false);
     }
-  }, [mergeById]);
+  }, []);
 
   const loadMore = useCallback(async () => {
     const generation = generationRef.current;
@@ -82,7 +79,7 @@ export function useCopilotConversations() {
       // leaves this load done, and a stuck flag disables "Xem thêm" forever.
       setIsLoadingMore(false);
     }
-  }, [loadedPages, mergeById]);
+  }, [loadedPages]);
 
   useEffect(() => {
     void refresh();

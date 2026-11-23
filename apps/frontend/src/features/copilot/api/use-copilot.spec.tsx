@@ -1073,6 +1073,48 @@ describe('useCopilotChat', () => {
       );
     });
 
+    it('drops the streaming bubble as soon as the error event lands', async () => {
+      let fireError: () => void = () => {};
+      streamCopilotMessage.mockImplementation(
+        (_id: string, _content: string, onEvent: (event: unknown) => void) =>
+          new Promise<void>((resolve) => {
+            onEvent({ type: 'delta', text: 'Đang phân tích' });
+            fireError = () => {
+              onEvent({
+                type: 'error',
+                errorCode: 'INTERNAL_SERVER_ERROR',
+                message: 'Copilot tạm thời không phản hồi.',
+              });
+              resolve();
+            };
+          }),
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      let sendPromise: Promise<boolean>;
+      act(() => {
+        sendPromise = result.current.send('Phân tích công nợ');
+      });
+      expect(result.current.streamingContent).toBe('Đang phân tích');
+
+      act(() => fireError());
+
+      // The partial message already carries the text: leaving the streaming
+      // bubble up would render the same answer twice until the stream closes.
+      expect(result.current.streamingContent).toBe('');
+      expect(
+        result.current.messages.filter(
+          (message) => message.role === 'ASSISTANT',
+        ),
+      ).toHaveLength(1);
+
+      await act(async () => {
+        await sendPromise;
+      });
+    });
+
     it('adds no message when the error arrives before any delta', async () => {
       streamCopilotMessage.mockImplementation(
         async (_id, _content, onEvent) => {
@@ -1144,6 +1186,69 @@ describe('useCopilotChat', () => {
     });
   });
 
+  describe('clean stream close', () => {
+    it('keeps the streamed text when the stream closes without a done event', async () => {
+      streamCopilotMessage.mockImplementation(
+        async (
+          _id: string,
+          _content: string,
+          onEvent: (event: unknown) => void,
+          _signal: AbortSignal,
+          onAccepted?: () => void,
+        ) => {
+          onAccepted?.();
+          onEvent({ type: 'delta', text: 'Đang phân tích' });
+        },
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+      const errorToastsBefore = vi.mocked(toast.error).mock.calls.length;
+
+      await act(async () => {
+        await result.current.send('Phân tích công nợ');
+      });
+
+      const assistantMessages = result.current.messages.filter(
+        (message) => message.role === 'ASSISTANT',
+      );
+      expect(assistantMessages).toHaveLength(1);
+      expect(assistantMessages[0]).toMatchObject({
+        content: 'Đang phân tích',
+        isPartial: true,
+      });
+      expect(result.current.streamingContent).toBe('');
+      expect(vi.mocked(toast.error).mock.calls.length).toBe(errorToastsBefore);
+    });
+
+    it('adds no message when the stream closes without any delta', async () => {
+      streamCopilotMessage.mockImplementation(
+        async (
+          _id: string,
+          _content: string,
+          _onEvent: (event: unknown) => void,
+          _signal: AbortSignal,
+          onAccepted?: () => void,
+        ) => {
+          onAccepted?.();
+        },
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      await act(async () => {
+        await result.current.send('Phân tích công nợ');
+      });
+
+      expect(
+        result.current.messages.filter(
+          (message) => message.role === 'ASSISTANT',
+        ),
+      ).toHaveLength(0);
+    });
+  });
+
   describe('switching conversations mid-stream', () => {
     it('aborts the old stream and never writes into the new conversation', async () => {
       const captured: {
@@ -1200,6 +1305,65 @@ describe('useCopilotChat', () => {
       expect(result.current.pendingAction).toBeNull();
       // The turn did reach the server, so usage/list still refresh.
       expect(onTurnComplete).toHaveBeenCalledTimes(1);
+    });
+
+    it('refreshes usage when the switch aborts before the first byte', async () => {
+      const captured: {
+        reject: (reason: unknown) => void;
+        signal?: AbortSignal;
+      } = { reject: () => {} };
+      streamCopilotMessage.mockImplementation(
+        (
+          _id: string,
+          _content: string,
+          _onEvent: (event: unknown) => void,
+          signal: AbortSignal,
+        ) => {
+          captured.signal = signal;
+          return new Promise((_resolve, reject) => {
+            captured.reject = reject;
+          });
+        },
+      );
+      const onTurnComplete = vi.fn();
+      const { result, rerender } = renderHook(
+        ({ conversationId }) =>
+          useCopilotChat(true, conversationId, { onTurnComplete }),
+        { initialProps: { conversationId: 'conversation-a' } },
+      );
+
+      let sendPromise: Promise<boolean>;
+      act(() => {
+        sendPromise = result.current.send('Câu hỏi cho A');
+      });
+
+      getCopilotConversationMessages.mockResolvedValueOnce({
+        items: [
+          {
+            id: 'b1',
+            role: 'USER',
+            content: 'Câu hỏi của B',
+            createdAt: '2026-08-09T00:00:00Z',
+          },
+        ],
+      });
+      rerender({ conversationId: 'conversation-b' });
+      expect(captured.signal?.aborted).toBe(true);
+
+      await act(async () => {
+        captured.reject(new DOMException('aborted', 'AbortError'));
+        await sendPromise;
+      });
+
+      // The backend bills the turn before the first byte, so usage must refresh
+      // even though this client never saw the 2xx.
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
+      expect(result.current.messages.map((message) => message.id)).toEqual([
+        'b1',
+      ]);
+      expect(result.current.streamingContent).toBe('');
+      expect(result.current.pendingAction).toBeNull();
+      expect(result.current.isSending).toBe(false);
     });
 
     it('leaves the new request abortable when switching back to the same conversation', async () => {

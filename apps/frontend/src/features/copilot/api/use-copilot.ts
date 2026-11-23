@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { getApiErrorCode } from '@/lib/api-client';
 import type { CopilotMessage, CopilotPendingAction } from '../types';
@@ -174,6 +174,9 @@ export function useCopilotChat(
           isPartial: true,
         },
       ]);
+      // The message now carries the text; the streaming bubble would render
+      // the same answer twice until the stream closes.
+      setStreamingContent('');
     };
 
     try {
@@ -202,6 +205,8 @@ export function useCopilotChat(
         controller.signal,
         onAccepted,
       );
+      // A clean close with no done event still leaves readable text on screen.
+      if (isCurrentConversation()) appendPartialAnswer();
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         if (isCurrentConversation()) {
@@ -209,6 +214,10 @@ export function useCopilotChat(
           // already persisted the turn: count it and keep the question. A
           // switch aborts too, yet that state belongs to the old conversation.
           appendPartialAnswer();
+          accepted = true;
+        } else {
+          // A switch aborts the same way, and the server may have counted the
+          // turn before the first byte: refresh usage without touching B.
           accepted = true;
         }
       } else if (accepted) {
@@ -256,16 +265,15 @@ export function useCopilotChat(
 
   // The page restores a rejected question only into the conversation it was
   // typed in, never into whichever one the user switched to meanwhile.
-  const isActiveConversation = useCallback(
-    (id: string) => activeConversationIdRef.current === id,
-    [],
-  );
+  function isActiveConversation(id: string) {
+    return activeConversationIdRef.current === id;
+  }
 
   // A confirm/cancel can outlive a conversation switch; only clear the action
   // it was actually started for, never whatever the new conversation holds.
-  const clearPendingAction = useCallback((actionId: string) => {
+  function clearPendingAction(actionId: string) {
     setPendingAction((current) => (current?.id === actionId ? null : current));
-  }, []);
+  }
 
   // The backend answers CONFLICT for an action that is expired, already
   // confirmed, already cancelled, or bound to another draft; none of those can
