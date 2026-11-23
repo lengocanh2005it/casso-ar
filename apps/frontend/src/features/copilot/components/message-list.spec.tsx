@@ -3,48 +3,25 @@ import { describe, expect, it } from 'vitest';
 import { MessageList } from './message-list';
 
 describe('MessageList', () => {
-  it('shows an accessible animated typing indicator while waiting for a reply', () => {
+  it('shows a decorative animated typing indicator while waiting for a reply', () => {
     const { container } = render(
       <MessageList messages={[]} isWaitingForResponse />,
     );
 
-    expect(screen.getByText('Copilot đang trả lời…')).toHaveClass('sr-only');
     expect(container.querySelectorAll('.animate-bounce')).toHaveLength(3);
     expect(screen.queryByText(/đang xử lý/i)).not.toBeInTheDocument();
   });
 
-  it('leaves the typing dots decorative and announces the wait outside the log', () => {
+  it('stays presentational: the wait is announced by the page, not the list', () => {
     render(<MessageList messages={[]} isWaitingForResponse isSending />);
 
+    // The list only mounts once a question exists, so a status here would
+    // arrive with its text already inside and could be missed entirely.
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
-    const status = screen.getByRole('status');
-    expect(status).toHaveTextContent('Copilot đang trả lời…');
-    expect(status).toHaveClass('sr-only');
-    // A busy log defers its own announcements, so the status must not sit in it.
-    expect(
-      screen
-        .getByRole('log', { name: 'Cuộc trò chuyện Copilot' })
-        .contains(status),
-    ).toBe(false);
-  });
-
-  it('empties the waiting status once a reply starts streaming', () => {
-    const { rerender } = render(
-      <MessageList messages={[]} isWaitingForResponse isSending />,
-    );
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Copilot đang trả lời…',
-    );
-
-    rerender(
-      <MessageList
-        messages={[]}
-        streamingContent="Đang phân tích"
-        isWaitingForResponse
-        isSending
-      />,
-    );
-    expect(screen.getByRole('status')).toHaveTextContent('');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    const log = screen.getByRole('log', { name: 'Cuộc trò chuyện Copilot' });
+    expect(log.querySelectorAll('[role="status"]')).toHaveLength(0);
+    expect(log).not.toHaveTextContent('Copilot đang trả lời…');
   });
 
   it('renders an EmailDraftPreview card for a message carrying a draft', () => {

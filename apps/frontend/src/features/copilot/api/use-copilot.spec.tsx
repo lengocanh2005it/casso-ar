@@ -1221,6 +1221,25 @@ describe('useCopilotChat', () => {
       return captured;
     }
 
+    // The reconcile must not reuse the stopped POST's controller: its signal is
+    // already aborted, so this mock would reject before any read and every
+    // saved question would look lost. Only a live signal gets an answer.
+    function historyNeedsLiveSignal(
+      pages: Array<{ items: Array<Record<string, unknown>> }>,
+    ) {
+      let call = 0;
+      getCopilotConversationMessages.mockImplementation(
+        (_id: unknown, signal?: AbortSignal) => {
+          if (signal?.aborted) {
+            return Promise.reject(new DOMException('aborted', 'AbortError'));
+          }
+          const page = pages[call] ?? pages.at(-1) ?? { items: [] };
+          call += 1;
+          return Promise.resolve(page);
+        },
+      );
+    }
+
     it('hands the question back when the history does not hold it', async () => {
       const onTurnComplete = vi.fn();
       const { result } = renderHook(() =>
@@ -1228,6 +1247,7 @@ describe('useCopilotChat', () => {
       );
       await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
       captureStream(new DOMException('aborted', 'AbortError'));
+      historyNeedsLiveSignal([{ items: [] }]);
 
       let sendPromise: Promise<boolean>;
       act(() => {
@@ -1254,16 +1274,18 @@ describe('useCopilotChat', () => {
       );
       await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
       captureStream(new DOMException('aborted', 'AbortError'));
-      getCopilotConversationMessages.mockResolvedValueOnce({
-        items: [
-          {
-            id: 'u1',
-            role: 'USER',
-            content: 'Câu hỏi đã tới',
-            createdAt: '2026-08-09T00:00:00Z',
-          },
-        ],
-      });
+      historyNeedsLiveSignal([
+        {
+          items: [
+            {
+              id: 'u1',
+              role: 'USER',
+              content: 'Câu hỏi đã tới',
+              createdAt: '2026-08-09T00:00:00Z',
+            },
+          ],
+        },
+      ]);
 
       let sendPromise: Promise<boolean>;
       act(() => {
@@ -1285,29 +1307,29 @@ describe('useCopilotChat', () => {
   });
 
   describe('an older identical question', () => {
-    it('does not treat a repeated question as persisted when the send never arrived', async () => {
-      const conversation = [
-        {
-          id: 'u1',
-          role: 'USER' as const,
-          content: 'Tóm tắt công nợ',
-          createdAt: '2026-08-09T00:00:00Z',
-        },
-      ];
-      getCopilotConversationMessages.mockResolvedValueOnce({
-        items: conversation,
-      });
+    const repeat = {
+      id: 'u1',
+      role: 'USER' as const,
+      content: 'Tóm tắt công nợ',
+      createdAt: '2026-08-09T00:00:00Z',
+    };
+
+    it('reports an unsaved repeat as unknown instead of persisted', async () => {
       const onTurnComplete = vi.fn();
+      getCopilotConversationMessages.mockResolvedValueOnce({
+        items: [repeat],
+      });
       const { result } = renderHook(() =>
         useCopilotChat(true, 'conversation-1', { onTurnComplete }),
       );
       await waitFor(() => expect(result.current.messages).toHaveLength(1));
+      const toastCalls = vi.mocked(toast.error).mock.calls.length;
 
-      // Offline repeat: the same text is already in the history, so text alone
-      // proves nothing.
+      // Offline repeat: the history returns only the first copy, so the page
+      // cannot tell this send apart from never having arrived.
       streamCopilotMessage.mockRejectedValue(new TypeError('Failed to fetch'));
       getCopilotConversationMessages.mockResolvedValueOnce({
-        items: conversation,
+        items: [repeat],
       });
 
       let accepted = true;
@@ -1315,22 +1337,31 @@ describe('useCopilotChat', () => {
         accepted = await result.current.send('Tóm tắt công nợ');
       });
 
+      // Unknown still costs the draft, but the page must not claim it is saved.
       expect(accepted).toBe(false);
-      expect(onTurnComplete).not.toHaveBeenCalled();
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
       expect(result.current.messages.map((message) => message.id)).toEqual([
         'u1',
       ]);
+      expect(toast.error).toHaveBeenLastCalledWith(
+        'Không thể xác nhận câu hỏi đã gửi chưa. Kiểm tra lại lịch sử trước khi gửi lại.',
+      );
+      expect(vi.mocked(toast.error).mock.calls.length).toBe(toastCalls + 1);
     });
 
-    it('treats the repeat as persisted when the history gained a new id', async () => {
+    it('treats a repeat as persisted when the history holds a second copy', async () => {
       const onTurnComplete = vi.fn();
+      getCopilotConversationMessages.mockResolvedValueOnce({
+        items: [repeat],
+      });
       const { result } = renderHook(() =>
         useCopilotChat(true, 'conversation-1', { onTurnComplete }),
       );
-      await waitFor(() => expect(result.current.messages).toHaveLength(0));
+      await waitFor(() => expect(result.current.messages).toHaveLength(1));
       streamCopilotMessage.mockRejectedValue(new TypeError('Failed to fetch'));
       getCopilotConversationMessages.mockResolvedValueOnce({
         items: [
+          repeat,
           {
             id: 'u2',
             role: 'USER',
@@ -1348,8 +1379,45 @@ describe('useCopilotChat', () => {
       expect(accepted).toBe(true);
       expect(onTurnComplete).toHaveBeenCalledTimes(1);
       expect(result.current.messages.map((message) => message.id)).toEqual([
+        'u1',
         'u2',
       ]);
+    });
+
+    it('never reports persisted when the local history was still loading', async () => {
+      let resolveHistory: (page: unknown) => void = () => {};
+      getCopilotConversationMessages.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveHistory = resolve;
+          }),
+      );
+      const onTurnComplete = vi.fn();
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1', { onTurnComplete }),
+      );
+
+      // The old copy arrives from the reconcile read while the mount load is
+      // still pending, so it could be any older question, not this one.
+      streamCopilotMessage.mockRejectedValue(new TypeError('Failed to fetch'));
+      getCopilotConversationMessages.mockResolvedValueOnce({
+        items: [repeat],
+      });
+
+      let accepted = true;
+      await act(async () => {
+        accepted = await result.current.send('Tóm tắt công nợ');
+      });
+
+      expect(accepted).toBe(false);
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
+      expect(result.current.messages).toEqual([]);
+      expect(toast.error).toHaveBeenLastCalledWith(
+        'Không thể xác nhận câu hỏi đã gửi chưa. Kiểm tra lại lịch sử trước khi gửi lại.',
+      );
+      await act(async () => {
+        resolveHistory({ items: [] });
+      });
     });
   });
 
@@ -1470,6 +1538,51 @@ describe('useCopilotChat', () => {
         'Không thể xác nhận câu hỏi đã gửi chưa. Kiểm tra lại lịch sử trước khi gửi lại.',
       );
       rejectReconcile(new DOMException('aborted', 'AbortError'));
+    });
+
+    it('lets a second Stop cut a history read that is still pending', async () => {
+      streamCopilotMessage.mockRejectedValue(new TypeError('Failed to fetch'));
+      let reconcileSignal: AbortSignal | undefined;
+      let settleReconcile: (reason: unknown) => void = () => {};
+      const onTurnComplete = vi.fn();
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1', { onTurnComplete }),
+      );
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+      getCopilotConversationMessages.mockImplementationOnce(
+        (_id: unknown, signal?: AbortSignal) => {
+          reconcileSignal = signal;
+          return new Promise((_resolve, reject) => {
+            settleReconcile = reject;
+            signal?.addEventListener('abort', () =>
+              reject(new DOMException('aborted', 'AbortError')),
+            );
+          });
+        },
+      );
+
+      let sendPromise: Promise<boolean>;
+      act(() => {
+        sendPromise = result.current.send('Câu hỏi chưa rõ');
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // The read is running with its own live signal, not the aborted POST's.
+      expect(reconcileSignal?.aborted).toBe(false);
+      act(() => result.current.stop());
+      expect(reconcileSignal?.aborted).toBe(true);
+
+      let accepted = true;
+      await act(async () => {
+        accepted = await sendPromise;
+      });
+
+      expect(accepted).toBe(false);
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
+      expect(result.current.messages).toEqual([]);
+      settleReconcile(new DOMException('aborted', 'AbortError'));
     });
   });
 

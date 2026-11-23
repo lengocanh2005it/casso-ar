@@ -15,17 +15,10 @@ export function MessageList({
 }) {
   return (
     <>
-      {/* The wait lives outside the log: aria-busy defers the log's own
-          announcements, so a status inside it would stay silent until the
-          first delta landed. The dots stay decorative and this carries the
-          words. */}
-      <span className="sr-only" role="status">
-        {isWaitingForResponse && !streamingContent
-          ? 'Copilot đang trả lời…'
-          : ''}
-      </span>
       {/* The single live region for the chat: aria-busy stops partial
-          streaming text from being announced token by token. */}
+          streaming text from being announced token by token. The waiting
+          status lives in the page: this list only mounts once a question
+          exists, so a status here would arrive with its text already inside. */}
       <div
         aria-busy={isSending}
         aria-label="Cuộc trò chuyện Copilot"

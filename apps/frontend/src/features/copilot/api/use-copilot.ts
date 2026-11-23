@@ -46,6 +46,9 @@ export function useCopilotChat(
     string | null
   >(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  // The history read needs a live signal even when the send was stopped: the
+  // POST's controller is already aborted by then.
+  const reconcileControllerRef = useRef<AbortController | null>(null);
   const activeConversationIdRef = useRef(conversationId);
   // Bumped whenever the conversation changes so a confirm/cancel started for
   // the previous one cannot clear the new one's busy state.
@@ -60,6 +63,8 @@ export function useCopilotChat(
     // this one, and the composer must not stay locked on its behalf.
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
+    reconcileControllerRef.current?.abort();
+    reconcileControllerRef.current = null;
     pendingActionRequestRef.current += 1;
     setMessages([]);
     setPendingAction(null);
@@ -88,6 +93,7 @@ export function useCopilotChat(
     return () => {
       cancelled = true;
       abortControllerRef.current?.abort();
+      reconcileControllerRef.current?.abort();
     };
   }, [conversationId]);
 
@@ -132,12 +138,12 @@ export function useCopilotChat(
     const sendConversationId = conversationId;
     const isCurrentConversation = () =>
       activeConversationIdRef.current === sendConversationId;
-    // Reconcile matches by id, so a repeated question cannot be mistaken for
-    // the one this send is still trying to write. Both are read before the
-    // optimistic bubble exists.
-    const knownMessageIds = new Set(messages.map((message) => message.id));
-    const knownUserCount = messages.filter(
-      (message) => message.role === 'USER',
+    // Local ids do not survive a round trip: a persisted question comes back
+    // under the server's id. Counting the copies of this exact text does, and
+    // it is read before the optimistic bubble exists.
+    const knownMatching = messages.filter(
+      (message) =>
+        message.role === 'USER' && message.content.trim() === trimmed,
     ).length;
     const historyWasLoaded = !isLoadingHistory;
 
@@ -199,35 +205,52 @@ export function useCopilotChat(
 
     // The backend persists the question before it flushes the SSE headers, so
     // a dropped connection cannot prove the write never happened. Only the
-    // history can, and only by content plus an id this send could not have
-    // known before it started: client and server clocks can disagree, and the
-    // user may repeat an earlier question word for word.
+    // history can, by counting the copies of this exact text: client and
+    // server clocks can disagree, ids change on the way back, and the user
+    // may repeat an earlier question word for word. "unknown" is the safe
+    // answer — it costs a toast and the draft, never a silent duplicate send.
     const reconcileOutcome = async (): Promise<{
       outcome: 'persisted' | 'lost' | 'unknown';
       items: CopilotMessage[] | null;
     }> => {
+      // Its own controller: this read also runs after a Stop, when the POST's
+      // signal is already aborted and would reject before dispatch.
+      const reconcileController = new AbortController();
+      reconcileControllerRef.current?.abort();
+      reconcileControllerRef.current = reconcileController;
       try {
         const page = await getCopilotConversationMessages(
           sendConversationId,
-          controller.signal,
+          reconcileController.signal,
         );
-        const userMessages = page.items.filter(
-          (message) => message.role === 'USER',
-        );
-        const persisted = userMessages.some(
+        const fetchedMatching = page.items.filter(
           (message) =>
-            message.content.trim() === trimmed &&
-            !knownMessageIds.has(message.id),
-        );
-        if (persisted) return { outcome: 'persisted', items: page.items };
-        // With the history still loading, the ids above are not the whole
-        // story; a grown USER count is the best proof left.
-        if (!historyWasLoaded && userMessages.length > knownUserCount) {
-          return { outcome: 'persisted', items: page.items };
+            message.role === 'USER' && message.content.trim() === trimmed,
+        ).length;
+        // A capped history page can hide older copies, so a repeat that is not
+        // there proves nothing. A first-ever question is the only case where
+        // absence is evidence.
+        if (knownMatching === 0 && historyWasLoaded) {
+          return fetchedMatching > 0
+            ? { outcome: 'persisted', items: page.items }
+            : { outcome: 'lost', items: null };
         }
-        return { outcome: 'lost', items: null };
+        if (knownMatching > 0) {
+          return fetchedMatching > knownMatching
+            ? { outcome: 'persisted', items: page.items }
+            : { outcome: 'unknown', items: null };
+        }
+        // The local list is incomplete, so a fetched match may be an older
+        // copy of the same question.
+        return fetchedMatching > 0
+          ? { outcome: 'unknown', items: null }
+          : { outcome: 'lost', items: null };
       } catch {
         return { outcome: 'unknown', items: null };
+      } finally {
+        if (reconcileControllerRef.current === reconcileController) {
+          reconcileControllerRef.current = null;
+        }
       }
     };
 
@@ -345,6 +368,8 @@ export function useCopilotChat(
 
   function stop() {
     abortControllerRef.current?.abort();
+    // A second Stop must also cut a history read that is still running.
+    reconcileControllerRef.current?.abort();
   }
 
   // The page restores a rejected question only into the conversation it was

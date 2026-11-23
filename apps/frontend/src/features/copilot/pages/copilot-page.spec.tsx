@@ -8,6 +8,7 @@ import {
 } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { authTokenManager } from '@/lib/api-client';
 import { hoverTooltip } from '@/test/tooltip';
 import { CopilotPage } from './copilot-page';
 
@@ -142,6 +143,46 @@ describe('CopilotPage', () => {
     expect(composer).toHaveClass('focus-visible:ring-[3px]');
     expect(composer).not.toHaveClass('focus-visible:ring-0');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('announces the wait from a status that exists before the first send', async () => {
+    let releaseFetch: () => void = () => {};
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            releaseFetch = () => resolve(sseResponse([]));
+          }),
+      ),
+    );
+    renderPage();
+
+    // The transcript only mounts once a question exists, so a status living
+    // there would arrive with its text already inside and be missed.
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent('');
+
+    fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
+      target: { value: 'Tóm tắt công nợ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+
+    await waitFor(() =>
+      expect(status).toHaveTextContent('Copilot đang trả lời…'),
+    );
+    // Inside the busy log it would be deferred until the first delta.
+    expect(
+      screen.getByRole('log', { name: 'Cuộc trò chuyện Copilot' }),
+    ).not.toContainElement(status);
+
+    releaseFetch();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Dừng' }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(status).toHaveTextContent('');
   });
 
   it('shows the Copilot layout behind an upgrade gate for the FREE plan', async () => {
@@ -762,13 +803,58 @@ describe('CopilotPage', () => {
   });
 
   it('hands the question back when Stop lands before the POST is dispatched', async () => {
+    // The token lookup still runs before the POST: stopping during it must
+    // leave the question unsent and put it back in the composer.
+    // A real fetch rejects an already-aborted request before it leaves the
+    // browser; this mock mirrors that so "posted" means "hit the network".
+    let posted = false;
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockImplementation((_url: string, init: { signal: AbortSignal }) => {
+          if (init.signal.aborted) {
+            return Promise.reject(new DOMException('aborted', 'AbortError'));
+          }
+          posted = true;
+          return Promise.reject(new TypeError('Failed to fetch'));
+        }),
+    );
+    let releaseToken: (token: string) => void = () => {};
+    vi.mocked(authTokenManager.getValidAccessToken).mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          releaseToken = resolve;
+        }),
+    );
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    const composer = screen.getByLabelText(/nhập câu hỏi/i);
+    fireEvent.change(composer, { target: { value: 'Tóm tắt công nợ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Dừng' }));
+    releaseToken('token-1');
+
+    await waitFor(() => expect(composer).toHaveValue('Tóm tắt công nợ'));
+    // The request never reached the server, so the turn was not counted.
+    expect(posted).toBe(false);
+    expect(
+      screen.queryByText('Tóm tắt công nợ', { selector: 'p' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('hands the question back when Stop lands after the POST but before its headers', async () => {
     // Real fetch rejects with AbortError when the signal fires; the never-
     // settling promise has to honour the signal or send() would never finish.
+    let dispatched = false;
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation(
         (_url: string, init: { signal: AbortSignal }) =>
           new Promise((_resolve, reject) => {
+            dispatched = true;
             init.signal.addEventListener('abort', () =>
               reject(new DOMException('aborted', 'AbortError')),
             );
@@ -783,6 +869,7 @@ describe('CopilotPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Dừng' }));
+    expect(dispatched).toBe(true);
 
     await waitFor(() =>
       expect(
