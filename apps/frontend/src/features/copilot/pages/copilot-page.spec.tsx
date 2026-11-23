@@ -928,21 +928,15 @@ describe('CopilotPage', () => {
       );
     });
 
-    it('does not yank the user down when they scrolled up to read', async () => {
+    it('follows a question the user sends even after scrolling up', async () => {
       const scrollTo = stubScrollGeometry({ distanceFromBottom: 10 });
       renderPage();
       await screen.findByText(/bạn muốn xử lý công nợ nào/i);
 
-      const region = document.getElementById('copilot-scroll') as HTMLElement;
-      // jsdom does not compute layout, so simulate the user scrolling up:
-      // a scroll event that leaves the container 400px from the bottom.
+      const region = document.querySelector('[data-testid="copilot-scroll"]');
+      if (!(region instanceof HTMLElement)) throw new Error('missing region');
       geometry.distanceFromBottom = 400;
       fireEvent.scroll(region);
-
-      expect(region.scrollHeight - region.scrollTop - region.clientHeight).toBe(
-        400,
-      );
-      // Renders before the user scrolled away may have scrolled already.
       scrollTo.mockClear();
 
       vi.stubGlobal(
@@ -955,7 +949,153 @@ describe('CopilotPage', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
       await screen.findByRole('button', { name: 'Dừng' });
 
+      // Sending is an explicit intent to see the answer, unlike an incoming token.
+      expect(scrollTo).toHaveBeenCalled();
+      const lastCall = scrollTo.mock.calls.at(-1)?.[0] as
+        | ScrollToOptions
+        | undefined;
+      expect(lastCall?.top).toBe(1000);
+    });
+
+    it('opens a switched-to conversation at the bottom again', async () => {
+      apiRequest.mockImplementation((config) => {
+        if (config.url === '/api/v1/copilot/conversations') {
+          return Promise.resolve({
+            items: [
+              {
+                id: 'c1',
+                title: 'Cuộc trò chuyện cũ',
+                createdAt: '2026-08-09T00:00:00Z',
+                lastMessageAt: '2026-08-09T00:00:00Z',
+              },
+            ],
+            total: 1,
+          });
+        }
+        if (/\/copilot\/conversations\/c1\/messages$/.test(config.url)) {
+          return Promise.resolve({
+            items: [
+              {
+                id: 'h1',
+                role: 'USER',
+                content: 'Câu hỏi cũ',
+                createdAt: '2026-08-09T00:00:00Z',
+              },
+            ],
+          });
+        }
+        return routeApiRequest(config);
+      });
+      const scrollTo = stubScrollGeometry({ distanceFromBottom: 10 });
+      renderPage();
+      await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+      const region = document.querySelector('[data-testid="copilot-scroll"]');
+      if (!(region instanceof HTMLElement)) throw new Error('missing region');
+      geometry.distanceFromBottom = 400;
+      fireEvent.scroll(region);
+
+      fireEvent.click(screen.getByRole('button', { name: /mở lịch sử chat/i }));
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Cuộc trò chuyện cũ' }),
+      );
+
+      await screen.findByText('Câu hỏi cũ');
+      await waitFor(() => expect(scrollTo).toHaveBeenCalled());
+      const lastCall = scrollTo.mock.calls.at(-1)?.[0] as
+        | ScrollToOptions
+        | undefined;
+      expect(lastCall?.top).toBe(1000);
+    });
+
+    it('does not scroll on a streaming delta while the user is far from the bottom', async () => {
+      const scrollTo = stubScrollGeometry({ distanceFromBottom: 10 });
+      renderPage();
+      await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+      let pushEvent: (event: unknown) => void = () => {};
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                pushEvent = (event) => {
+                  const typed = event as { event: string; data: unknown };
+                  controller.enqueue(
+                    new TextEncoder().encode(
+                      `event: ${typed.event}\ndata: ${JSON.stringify(typed.data)}\n\n`,
+                    ),
+                  );
+                };
+              },
+            }),
+            { status: 200 },
+          ),
+        ),
+      );
+      fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
+        target: { value: 'Tóm tắt công nợ' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+      await screen.findByRole('button', { name: 'Dừng' });
+
+      const region = document.querySelector('[data-testid="copilot-scroll"]');
+      if (!(region instanceof HTMLElement)) throw new Error('missing region');
+      geometry.distanceFromBottom = 400;
+      fireEvent.scroll(region);
+      scrollTo.mockClear();
+
+      await act(async () => {
+        pushEvent({ event: 'delta', data: { text: 'Một đoạn ' } });
+      });
+      await act(async () => {
+        pushEvent({ event: 'delta', data: { text: 'nữa.' } });
+      });
+
       expect(scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('scrolls streaming deltas instantly so the smooth animation cannot flip the stick flag', async () => {
+      const scrollTo = stubScrollGeometry({ distanceFromBottom: 0 });
+      renderPage();
+      await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+      let pushEvent: (event: unknown) => void = () => {};
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                pushEvent = (event) => {
+                  const typed = event as { event: string; data: unknown };
+                  controller.enqueue(
+                    new TextEncoder().encode(
+                      `event: ${typed.event}\ndata: ${JSON.stringify(typed.data)}\n\n`,
+                    ),
+                  );
+                };
+              },
+            }),
+            { status: 200 },
+          ),
+        ),
+      );
+      fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
+        target: { value: 'Tóm tắt công nợ' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+      await screen.findByRole('button', { name: 'Dừng' });
+      scrollTo.mockClear();
+
+      await act(async () => {
+        pushEvent({ event: 'delta', data: { text: 'Một đoạn ' } });
+      });
+
+      expect(scrollTo).toHaveBeenCalledWith(
+        expect.objectContaining({ behavior: 'auto' }),
+      );
     });
   });
 });

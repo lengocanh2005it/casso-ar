@@ -31,6 +31,16 @@ import { MessageList } from '../components/message-list';
 import { PendingActionCard } from '../components/pending-action-card';
 import { UsageIndicator } from '../components/usage-indicator';
 
+// How close to the newest message still counts as "reading at the bottom".
+const STICK_TO_BOTTOM_THRESHOLD_PX = 80;
+
+function prefersReducedMotion() {
+  return (
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
+
 export function CopilotPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -43,6 +53,7 @@ export function CopilotPage() {
   const composerRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
+  const previousMessageCountRef = useRef(0);
   const canSendManual = user
     ? hasPermission(user.role, Permission.REMINDER_SEND_MANUAL)
     : false;
@@ -116,6 +127,9 @@ export function CopilotPage() {
       return;
     }
     setDraft('');
+    // Sending is an explicit request to see the answer, unlike an incoming
+    // delta: follow it even when the reader had scrolled up.
+    stickToBottomRef.current = true;
     void send(content).then((accepted) => {
       // Rejected before the server took the turn: give the question back, but
       // never clobber text the user typed while the request was in flight.
@@ -137,12 +151,18 @@ export function CopilotPage() {
     }
   }, [isSending, blockedByPendingAction]);
 
+  // A switched-to conversation opens at its newest message.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resetting on the conversation change is the whole point
+  useEffect(() => {
+    stickToBottomRef.current = true;
+  }, [activeConversationId]);
+
   function updateStickToBottom() {
     const container = scrollRef.current;
     if (!container) return;
     stickToBottomRef.current =
       container.scrollHeight - container.scrollTop - container.clientHeight <
-      80;
+      STICK_TO_BOTTOM_THRESHOLD_PX;
   }
 
   // Stick to the bottom only while the user is already there: scrolling up to
@@ -151,15 +171,15 @@ export function CopilotPage() {
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
+    const appendedMessage = messages.length > previousMessageCountRef.current;
+    previousMessageCountRef.current = messages.length;
     if (!stickToBottomRef.current) return;
     if (typeof container.scrollTo !== 'function') return;
     container.scrollTo({
       top: container.scrollHeight,
-      behavior:
-        typeof window.matchMedia === 'function' &&
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches
-          ? 'auto'
-          : 'smooth',
+      // Only a newly appended message animates; a streaming delta must land
+      // instantly so a long smooth animation cannot flip the stick flag.
+      behavior: appendedMessage && !prefersReducedMotion() ? 'smooth' : 'auto',
     });
   }, [messages, streamingContent, isSending, pendingAction]);
 
@@ -272,7 +292,7 @@ export function CopilotPage() {
                 scroll container skips its own padding to leave room for it. */}
             <div
               ref={scrollRef}
-              id="copilot-scroll"
+              data-testid="copilot-scroll"
               onScroll={updateStickToBottom}
               className={
                 isEmptyConversation
@@ -289,7 +309,10 @@ export function CopilotPage() {
                 </div>
               ) : isEmptyConversation ? (
                 <CopilotWelcomeState
-                  onSuggestionClick={(text) => void send(text)}
+                  onSuggestionClick={(text) => {
+                    stickToBottomRef.current = true;
+                    void send(text);
+                  }}
                 />
               ) : (
                 <MessageList
