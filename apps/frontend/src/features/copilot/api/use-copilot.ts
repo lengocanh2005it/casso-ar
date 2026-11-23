@@ -57,8 +57,10 @@ export function useCopilotChat(
   // reconcile must know whether the local list really is the history, or an
   // older copy of the question would confirm a send that never landed.
   const historyBaselineAppliedRef = useRef(false);
-  // Tracked outside the state updater, which must stay pure.
-  const hasSentInConversationRef = useRef(false);
+  // The load decides from the real list, and a state updater must stay pure,
+  // so the list is mirrored here.
+  const messagesRef = useRef<CopilotMessage[]>([]);
+  messagesRef.current = messages;
   // Bumped whenever the conversation changes so a confirm/cancel started for
   // the previous one cannot clear the new one's busy state.
   const pendingActionRequestRef = useRef(0);
@@ -76,7 +78,6 @@ export function useCopilotChat(
     reconcileControllerRef.current = null;
     pendingActionRequestRef.current += 1;
     historyBaselineAppliedRef.current = false;
-    hasSentInConversationRef.current = false;
     setMessages([]);
     setPendingAction(null);
     setBusyState(null);
@@ -89,13 +90,18 @@ export function useCopilotChat(
     getCopilotConversationMessages(conversationId)
       .then((page) => {
         if (cancelled) return;
-        // A send() started for this conversation before this load resolved
-        // already has the up-to-date messages — don't clobber it with the
-        // (now stale) fetched history. Dropping it means the list is not the
-        // history, so the baseline stays unset.
-        if (hasSentInConversationRef.current) return;
+        // A live send owns the list (its bubble may still be queued, not
+        // committed): its page is stale, so drop it and leave the baseline
+        // unset. An empty list — including one a rejected send just cleared —
+        // takes the page.
+        if (messagesRef.current.length > 0 || abortControllerRef.current) {
+          return;
+        }
+        // The flag and the ref describe the same transcript: a send that starts
+        // before React commits this update must still count these messages.
         historyBaselineAppliedRef.current = true;
-        setMessages((current) => (current.length > 0 ? current : page.items));
+        messagesRef.current = page.items;
+        setMessages(page.items);
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -163,14 +169,14 @@ export function useCopilotChat(
       activeConversationIdRef.current === sendConversationId;
     // Local ids do not survive a round trip: a persisted question comes back
     // under the server's id. Counting the copies of this exact text does, and
-    // it is read before the optimistic bubble exists.
-    const knownMatching = messages.filter(
+    // it is read before the optimistic bubble exists. The ref, not the render
+    // closure, so it always matches what the history baseline flag describes.
+    const knownMatching = messagesRef.current.filter(
       (message) =>
         message.role === 'USER' && message.content.trim() === trimmed,
     ).length;
     const historyWasLoaded = historyBaselineAppliedRef.current;
 
-    hasSentInConversationRef.current = true;
     setIsSending(true);
     setIsWaitingForResponse(true);
     setStreamingContent('');
@@ -274,24 +280,30 @@ export function useCopilotChat(
     // the response headers.
     const handleUnconfirmedSend = async () => {
       const { outcome, items } = await reconcileOutcome();
+      // The read can outlive the conversation it was started for: a switch
+      // aborts it, and every write and every toast below belongs to the old one.
+      const owns =
+        abortControllerRef.current === controller && isCurrentConversation();
       if (outcome === 'persisted') {
         // The turn was taken: the fetched page replaces the optimistic bubble
         // with the real message, so nothing is duplicated.
         accepted = true;
-        if (items && abortControllerRef.current === controller) {
-          setMessages(items);
+        if (owns && items) setMessages(items);
+        if (owns) {
+          toast.error(
+            'Mất kết nối khi gửi. Câu hỏi đã được ghi nhận, hãy mở lại cuộc trò chuyện để xem phản hồi.',
+          );
         }
-        toast.error(
-          'Mất kết nối khi gửi. Câu hỏi đã được ghi nhận, hãy mở lại cuộc trò chuyện để xem phản hồi.',
-        );
       } else {
         // Unknown: the page hands the question back, but the write may still
         // commit, so usage and the list must still refresh.
-        dropOptimisticMessage();
+        if (owns) dropOptimisticMessage();
         turnMayBeCounted = true;
-        toast.error(
-          'Không thể xác nhận câu hỏi đã gửi chưa. Kiểm tra lại lịch sử trước khi gửi lại.',
-        );
+        if (owns) {
+          toast.error(
+            'Không thể xác nhận câu hỏi đã gửi chưa. Kiểm tra lại lịch sử trước khi gửi lại.',
+          );
+        }
       }
     };
 
@@ -349,12 +361,14 @@ export function useCopilotChat(
         // The 2xx response arrived, so the server already persisted and counted
         // the turn: it resolves true and the question stays sent, with whatever
         // text was streamed kept on screen.
-        if (isCurrentConversation()) appendPartialAnswer();
-        toast.error(
-          streamedText
-            ? 'Kết nối với Copilot bị gián đoạn.'
-            : 'Không thể gửi câu hỏi cho Copilot.',
-        );
+        if (isCurrentConversation()) {
+          appendPartialAnswer();
+          toast.error(
+            streamedText
+              ? 'Kết nối với Copilot bị gián đoạn.'
+              : 'Không thể gửi câu hỏi cho Copilot.',
+          );
+        }
       } else if (
         error instanceof CopilotStreamRequestError &&
         error.status < 500
@@ -362,11 +376,14 @@ export function useCopilotChat(
         // A 4xx proves the write never reached the database. A 5xx does not:
         // the row can be committed before a later step fails.
         dropOptimisticMessage();
-        if (error.errorCode === 'PLAN_LIMIT_EXCEEDED') {
-          if (isCurrentConversation()) setQuotaExceededMessage(error.message);
-          toast.error(error.message);
-        } else {
-          toast.error('Không thể gửi câu hỏi cho Copilot.');
+        // The rejection belongs to a conversation the user may have left.
+        if (isCurrentConversation()) {
+          if (error.errorCode === 'PLAN_LIMIT_EXCEEDED') {
+            setQuotaExceededMessage(error.message);
+            toast.error(error.message);
+          } else {
+            toast.error('Không thể gửi câu hỏi cho Copilot.');
+          }
         }
       } else {
         await handleUnconfirmedSend();

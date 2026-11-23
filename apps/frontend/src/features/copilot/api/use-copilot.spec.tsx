@@ -1202,6 +1202,158 @@ describe('useCopilotChat', () => {
     });
   });
 
+  describe('a reconcile that settles after a switch', () => {
+    function holdAHistory(reconcile: 'abort' | 'resolve'): {
+      loads: () => number;
+      resolveReconcile: (page: unknown) => void;
+    } {
+      let loadsForA = 0;
+      let resolveReconcile: (page: unknown) => void = () => {};
+      getCopilotConversationMessages.mockImplementation(
+        (id: unknown, signal?: AbortSignal) => {
+          if (id === 'conversation-b') {
+            return Promise.resolve({
+              items: [
+                {
+                  id: 'b1',
+                  role: 'USER',
+                  content: 'Câu hỏi của B',
+                  createdAt: '2026-08-09T00:00:00Z',
+                },
+              ],
+            });
+          }
+          loadsForA += 1;
+          if (loadsForA === 1) return Promise.resolve({ items: [] });
+          if (reconcile === 'resolve') {
+            return new Promise((resolve) => {
+              resolveReconcile = resolve;
+            });
+          }
+          // The switch aborts the reconcile through its own signal.
+          return new Promise((_resolve, reject) => {
+            const abort = () =>
+              reject(new DOMException('aborted', 'AbortError'));
+            if (signal?.aborted) abort();
+            else signal?.addEventListener('abort', abort);
+          });
+        },
+      );
+      return {
+        loads: () => loadsForA,
+        resolveReconcile: (page) => resolveReconcile(page),
+      };
+    }
+
+    function holdSend() {
+      const captured: { reject: (reason: unknown) => void } = {
+        reject: () => {},
+      };
+      streamCopilotMessage.mockImplementation(
+        () =>
+          new Promise((_resolve, reject) => {
+            captured.reject = reject;
+          }),
+      );
+      return captured;
+    }
+
+    it('shows no toast for a read the switch cancelled', async () => {
+      const history = holdAHistory('abort');
+      const captured = holdSend();
+      const onTurnComplete = vi.fn();
+      const { result, rerender } = renderHook(
+        ({ conversationId }) =>
+          useCopilotChat(true, conversationId, { onTurnComplete }),
+        { initialProps: { conversationId: 'conversation-a' } },
+      );
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+      const toastCalls = vi.mocked(toast.error).mock.calls.length;
+
+      let sendPromise: Promise<boolean>;
+      act(() => {
+        sendPromise = result.current.send('Câu hỏi cho A');
+      });
+      await act(async () => {
+        captured.reject(new TypeError('Failed to fetch'));
+      });
+      await waitFor(() => expect(history.loads()).toBe(2));
+
+      rerender({ conversationId: 'conversation-b' });
+      await waitFor(() =>
+        expect(result.current.messages.map((message) => message.id)).toEqual([
+          'b1',
+        ]),
+      );
+
+      let accepted = true;
+      await act(async () => {
+        accepted = await sendPromise;
+      });
+
+      // The toast belongs to A's dead send and must not surface in B.
+      expect(accepted).toBe(false);
+      expect(result.current.messages.map((message) => message.id)).toEqual([
+        'b1',
+      ]);
+      expect(vi.mocked(toast.error).mock.calls.length).toBe(toastCalls);
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows no toast when the old send turns out to be saved after the switch', async () => {
+      const history = holdAHistory('resolve');
+      const captured = holdSend();
+      const onTurnComplete = vi.fn();
+      const { result, rerender } = renderHook(
+        ({ conversationId }) =>
+          useCopilotChat(true, conversationId, { onTurnComplete }),
+        { initialProps: { conversationId: 'conversation-a' } },
+      );
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+      const toastCalls = vi.mocked(toast.error).mock.calls.length;
+
+      let sendPromise: Promise<boolean>;
+      act(() => {
+        sendPromise = result.current.send('Câu hỏi cho A');
+      });
+      await act(async () => {
+        captured.reject(new TypeError('Failed to fetch'));
+      });
+      await waitFor(() => expect(history.loads()).toBe(2));
+
+      rerender({ conversationId: 'conversation-b' });
+      await waitFor(() =>
+        expect(result.current.messages.map((message) => message.id)).toEqual([
+          'b1',
+        ]),
+      );
+
+      let accepted = false;
+      await act(async () => {
+        history.resolveReconcile({
+          items: [
+            {
+              id: 'u-a',
+              role: 'USER',
+              content: 'Câu hỏi cho A',
+              createdAt: '2026-08-09T00:00:00Z',
+            },
+          ],
+        });
+        accepted = await sendPromise;
+      });
+
+      // The turn was taken, but the sentence still belongs to A: no history
+      // swap into B and no "recorded" toast in front of the user reading B.
+      expect(accepted).toBe(true);
+      expect(result.current.messages.map((message) => message.id)).toEqual([
+        'b1',
+      ]);
+      expect(vi.mocked(toast.error).mock.calls.length).toBe(toastCalls);
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('a Stop before the server accepted the turn', () => {
     function captureStream(rejectWith: DOMException) {
       const captured: {
@@ -2088,6 +2240,102 @@ describe('useCopilotChat', () => {
         'Không thể xác nhận câu hỏi đã gửi chưa. Kiểm tra lại lịch sử trước khi gửi lại.',
       );
       expect(vi.mocked(toast.error).mock.calls.length).toBe(toastCalls + 1);
+    });
+
+    it('still applies the fetched history when the early send was rejected', async () => {
+      const history = [
+        {
+          id: 'u1',
+          role: 'USER' as const,
+          content: 'Câu hỏi cũ',
+          createdAt: '2026-08-09T00:00:00Z',
+        },
+        {
+          id: 'a1',
+          role: 'ASSISTANT' as const,
+          content: 'Câu trả lời cũ',
+          createdAt: '2026-08-09T00:00:01Z',
+        },
+      ];
+      let resolveHistory: (page: unknown) => void = () => {};
+      getCopilotConversationMessages.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveHistory = resolve;
+          }),
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      // The send fails before the history lands; its bubble goes away again,
+      // so the fetched page is the best history this conversation has.
+      streamCopilotMessage.mockRejectedValue(
+        new CopilotStreamRequestError(
+          'Câu hỏi không hợp lệ.',
+          400,
+          'VALIDATION_ERROR',
+        ),
+      );
+      await act(async () => {
+        await result.current.send('Câu hỏi bị từ chối');
+      });
+      expect(result.current.messages).toEqual([]);
+
+      await act(async () => {
+        resolveHistory({ items: history });
+      });
+
+      await waitFor(() =>
+        expect(result.current.messages.map((message) => message.id)).toEqual([
+          'u1',
+          'a1',
+        ]),
+      );
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+    });
+
+    it('counts the loaded history even from a send created before it committed', async () => {
+      let resolveHistory: (page: unknown) => void = () => {};
+      getCopilotConversationMessages.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveHistory = resolve;
+          }),
+      );
+      const onTurnComplete = vi.fn();
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1', { onTurnComplete }),
+      );
+      // A handler captured before the history commits: its closure still sees
+      // an empty transcript, so the count must come from the shared list ref.
+      const earlySend = result.current.send;
+      await act(async () => {
+        resolveHistory({ items: [oldQuestion] });
+      });
+      await waitFor(() =>
+        expect(result.current.messages.map((message) => message.id)).toEqual([
+          'u1',
+        ]),
+      );
+
+      streamCopilotMessage.mockRejectedValue(new TypeError('Failed to fetch'));
+      getCopilotConversationMessages.mockResolvedValueOnce({
+        items: [oldQuestion],
+      });
+
+      let accepted = true;
+      await act(async () => {
+        accepted = await earlySend('Tóm tắt công nợ');
+      });
+
+      // The only copy in history is the one already loaded: it proves nothing
+      // about this repeat, so the page must not claim it was recorded.
+      expect(accepted).toBe(false);
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
+      expect(toast.error).toHaveBeenLastCalledWith(
+        'Không thể xác nhận câu hỏi đã gửi chưa. Kiểm tra lại lịch sử trước khi gửi lại.',
+      );
     });
 
     it('never confirms a send when the history load failed', async () => {
