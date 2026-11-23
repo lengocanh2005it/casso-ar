@@ -309,7 +309,9 @@ describe('useCopilotChat', () => {
     expect(result.current.isActiveConversation('conversation-a')).toBe(true);
 
     getCopilotConversationMessages.mockResolvedValueOnce({ items: [] });
-    rerender({ conversationId: 'conversation-b' });
+    await act(async () => {
+      rerender({ conversationId: 'conversation-b' });
+    });
     expect(result.current.isActiveConversation('conversation-a')).toBe(false);
     expect(result.current.isActiveConversation('conversation-b')).toBe(true);
   });
