@@ -832,6 +832,55 @@ describe('CopilotPage', () => {
     await waitFor(() => expect(composer).toHaveFocus());
   });
 
+  it('does not pull focus back to the composer on a coarse pointer', async () => {
+    let releaseFetch: () => void = () => {};
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            releaseFetch = () =>
+              resolve(
+                sseResponse([
+                  {
+                    event: 'done',
+                    data: {
+                      message: {
+                        id: 'm1',
+                        role: 'ASSISTANT',
+                        content: 'Đây là câu trả lời.',
+                        createdAt: '2026-08-09T00:00:00Z',
+                      },
+                      pendingAction: null,
+                    },
+                  },
+                ]),
+              );
+          }),
+      ),
+    );
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+      })),
+    );
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    const composer = screen.getByLabelText(/nhập câu hỏi/i);
+    fireEvent.change(composer, { target: { value: 'Tóm tắt công nợ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+    await screen.findByRole('button', { name: 'Dừng' });
+
+    // A touch keyboard would pop up if focus jumped back on a phone.
+    fireEvent.click(screen.getByRole('button', { name: 'Dừng' }));
+    releaseFetch();
+    await screen.findByText('Đây là câu trả lời.');
+    expect(composer).not.toHaveFocus();
+  });
+
   it('shows the pending-action placeholder while a proposal needs an answer', async () => {
     vi.stubGlobal(
       'fetch',
@@ -1162,6 +1211,123 @@ describe('CopilotPage', () => {
         pushEvent({ event: 'delta', data: { text: 'nữa.' } });
       });
 
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('opens a loaded history instantly so the animation cannot flip the stick flag', async () => {
+      apiRequest.mockImplementation((config) => {
+        if (config.url === '/api/v1/copilot/conversations') {
+          return Promise.resolve({
+            items: [
+              {
+                id: 'c1',
+                title: 'Cuộc trò chuyện cũ',
+                createdAt: '2026-08-09T00:00:00Z',
+                lastMessageAt: '2026-08-09T00:00:00Z',
+              },
+            ],
+            total: 1,
+          });
+        }
+        if (/\/copilot\/conversations\/c1\/messages$/.test(config.url)) {
+          return Promise.resolve({
+            items: [
+              {
+                id: 'h1',
+                role: 'USER',
+                content: 'Câu hỏi cũ',
+                createdAt: '2026-08-09T00:00:00Z',
+              },
+              {
+                id: 'h2',
+                role: 'ASSISTANT',
+                content: 'Câu trả lời cũ',
+                createdAt: '2026-08-09T00:00:01Z',
+              },
+            ],
+          });
+        }
+        return routeApiRequest(config);
+      });
+      const scrollTo = stubScrollGeometry({ distanceFromBottom: 10 });
+      renderPage();
+      await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+      fireEvent.click(screen.getByRole('button', { name: /mở lịch sử chat/i }));
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Cuộc trò chuyện cũ' }),
+      );
+
+      await screen.findByText('Câu trả lời cũ');
+      await waitFor(() => expect(scrollTo).toHaveBeenCalled());
+      // A bulk history jump must not animate: its own scroll events would
+      // otherwise arrive mid-animation and clear the stick flag.
+      expect(scrollTo).toHaveBeenLastCalledWith(
+        expect.objectContaining({ behavior: 'auto' }),
+      );
+    });
+
+    it('ignores the scroll events its own scrollTo fires, then honours a real one', async () => {
+      const scrollTo = stubScrollGeometry({ distanceFromBottom: 10 });
+      renderPage();
+      await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+      const region = document.querySelector('[data-testid="copilot-scroll"]');
+      if (!(region instanceof HTMLElement)) throw new Error('missing region');
+      // The initial render scrolled the list programmatically.
+      await waitFor(() => expect(scrollTo).toHaveBeenCalled());
+
+      // A smooth animation reports positions far from the bottom on its way
+      // down; those events are the page's own, not the reader scrolling up.
+      geometry.distanceFromBottom = 400;
+      fireEvent.scroll(region);
+      fireEvent(region, new Event('scrollend'));
+      scrollTo.mockClear();
+
+      let pushEvent: (event: unknown) => void = () => {};
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                pushEvent = (event) => {
+                  const typed = event as { event: string; data: unknown };
+                  controller.enqueue(
+                    new TextEncoder().encode(
+                      `event: ${typed.event}\ndata: ${JSON.stringify(typed.data)}\n\n`,
+                    ),
+                  );
+                };
+              },
+            }),
+            { status: 200 },
+          ),
+        ),
+      );
+      fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
+        target: { value: 'Tóm tắt công nợ' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+      await screen.findByRole('button', { name: 'Dừng' });
+      scrollTo.mockClear();
+
+      // Still stuck to the bottom, so a delta scrolls into view.
+      await act(async () => {
+        pushEvent({ event: 'delta', data: { text: 'Một đoạn ' } });
+      });
+      expect(scrollTo).toHaveBeenCalled();
+      // The optimistic message's smooth scroll is over.
+      fireEvent(region, new Event('scrollend'));
+
+      // Now a genuine scroll up: the flag must flip again.
+      geometry.distanceFromBottom = 400;
+      fireEvent.scroll(region);
+      scrollTo.mockClear();
+
+      await act(async () => {
+        pushEvent({ event: 'delta', data: { text: 'nữa.' } });
+      });
       expect(scrollTo).not.toHaveBeenCalled();
     });
 

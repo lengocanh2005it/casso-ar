@@ -51,6 +51,8 @@ export function CopilotPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const previousMessageCountRef = useRef(0);
+  const programmaticScrollRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
   const canSendManual = user
     ? hasPermission(user.role, Permission.REMINDER_SEND_MANUAL)
     : false;
@@ -145,12 +147,25 @@ export function CopilotPage() {
     const wasSending = wasSendingRef.current;
     wasSendingRef.current = isSending;
     if (!wasSending || isSending || blockedByPendingAction) return;
+    // Pulling focus up on a phone reopens the keyboard over the answer.
+    if (!window.matchMedia('(pointer: fine)').matches) return;
 
     const active = document.activeElement;
     if (active === document.body || active === composerRef.current) {
       composerRef.current?.focus();
     }
   }, [isSending, blockedByPendingAction]);
+
+  // A smooth scroll's own events are ignored until it settles.
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const settle = () => {
+      programmaticScrollRef.current = false;
+    };
+    container.addEventListener('scrollend', settle);
+    return () => container.removeEventListener('scrollend', settle);
+  }, []);
 
   // A switched-to conversation opens at its newest message.
   // biome-ignore lint/correctness/useExhaustiveDependencies: resetting on the conversation change is the whole point
@@ -161,6 +176,16 @@ export function CopilotPage() {
   function updateStickToBottom() {
     const container = scrollRef.current;
     if (!container) return;
+    // Our own smooth scroll only ever moves down. Anything that moves back up
+    // is the reader taking over mid-animation, so the flag flips again.
+    if (
+      programmaticScrollRef.current &&
+      container.scrollTop >= lastScrollTopRef.current
+    ) {
+      return;
+    }
+    programmaticScrollRef.current = false;
+    lastScrollTopRef.current = container.scrollTop;
     stickToBottomRef.current =
       container.scrollHeight - container.scrollTop - container.clientHeight <
       STICK_TO_BOTTOM_THRESHOLD_PX;
@@ -172,14 +197,18 @@ export function CopilotPage() {
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
-    const appendedMessage = messages.length > previousMessageCountRef.current;
+    const addedCount = messages.length - previousMessageCountRef.current;
     previousMessageCountRef.current = messages.length;
     if (!stickToBottomRef.current) return;
+    // Only a single appended message animates; a bulk history load (a
+    // conversation switch) and streaming deltas land instantly so a long
+    // animation cannot flip the stick flag on its way down.
+    const smooth = addedCount === 1 && !prefersReducedMotion();
+    if (smooth) programmaticScrollRef.current = true;
+    lastScrollTopRef.current = container.scrollTop;
     container.scrollTo({
       top: container.scrollHeight,
-      // Only a newly appended message animates; a streaming delta must land
-      // instantly so a long smooth animation cannot flip the stick flag.
-      behavior: appendedMessage && !prefersReducedMotion() ? 'smooth' : 'auto',
+      behavior: smooth ? 'smooth' : 'auto',
     });
   }, [messages, streamingContent, isSending, pendingAction]);
 

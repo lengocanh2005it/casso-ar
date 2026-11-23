@@ -37,7 +37,8 @@ globalThis.ResizeObserver =
 Element.prototype.scrollTo = () => {};
 
 window.matchMedia = (query: string): MediaQueryList => ({
-  matches: false,
+  // jsdom is a desktop with a mouse unless a spec says otherwise.
+  matches: query.includes('(pointer: fine)'),
   media: query,
   onchange: null,
   addListener: () => {},
