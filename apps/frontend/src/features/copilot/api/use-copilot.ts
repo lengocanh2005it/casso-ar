@@ -30,9 +30,16 @@ export function useCopilotChat(
     useState<CopilotPendingAction | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
-  const [busyAction, setBusyAction] = useState<'confirm' | 'cancel' | null>(
-    null,
-  );
+  // Scoped to a proposal: a confirm still running for a proposal that has
+  // since been replaced must not label or block the new one.
+  const [busyState, setBusyState] = useState<{
+    actionId: string;
+    kind: 'confirm' | 'cancel';
+  } | null>(null);
+  const busyAction =
+    busyState && busyState.actionId === pendingAction?.id
+      ? busyState.kind
+      : null;
   const busy = busyAction !== null;
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [quotaExceededMessage, setQuotaExceededMessage] = useState<
@@ -56,7 +63,7 @@ export function useCopilotChat(
     pendingActionRequestRef.current += 1;
     setMessages([]);
     setPendingAction(null);
-    setBusyAction(null);
+    setBusyState(null);
     setIsSending(false);
     setStreamingContent('');
     setIsLoadingHistory(true);
@@ -366,7 +373,7 @@ export function useCopilotChat(
     if (!pendingAction || busyAction !== null) return;
     const actionId = pendingAction.id;
     const requestId = ++pendingActionRequestRef.current;
-    setBusyAction(kind);
+    setBusyState({ actionId, kind });
     try {
       if (kind === 'confirm') {
         await confirmCopilotAction(actionId);
@@ -385,7 +392,7 @@ export function useCopilotChat(
         );
       }
     } finally {
-      if (pendingActionRequestRef.current === requestId) setBusyAction(null);
+      if (pendingActionRequestRef.current === requestId) setBusyState(null);
     }
   }
 

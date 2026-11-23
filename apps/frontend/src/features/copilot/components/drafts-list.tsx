@@ -95,9 +95,21 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
           <CircleAlert aria-hidden="true" className="size-4" />
           Không thể tải bản nháp email.
         </span>
-        <Button size="sm" variant="outline" onClick={() => void refetch()}>
-          Thử lại
-        </Button>
+        <div className="flex shrink-0 gap-2">
+          {page > 1 && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setPage(page - 1)}
+            >
+              Trang trước
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={() => void refetch()}>
+            Thử lại
+          </Button>
+        </div>
       </div>
     );
   }

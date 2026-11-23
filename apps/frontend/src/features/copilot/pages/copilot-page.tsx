@@ -123,6 +123,20 @@ export function CopilotPage() {
     },
   });
 
+  // Shared by the composer and the welcome suggestions: a question the server
+  // rejected comes back only into the conversation it was asked in, and only
+  // when nothing was typed there meanwhile.
+  function submitQuestion(content: string) {
+    // Sending is an explicit request to see the answer, unlike an incoming
+    // delta: follow it even when the reader had scrolled up.
+    stickToBottomRef.current = true;
+    const sendConversationId = activeConversationId;
+    void send(content).then((accepted) => {
+      if (accepted || !isActiveConversation(sendConversationId)) return;
+      setDraft((current) => (current ? current : content));
+    });
+  }
+
   function onSubmit(event: FormEvent) {
     event.preventDefault();
     const content = draft.trim();
@@ -135,17 +149,7 @@ export function CopilotPage() {
       return;
     }
     setDraft('');
-    // Sending is an explicit request to see the answer, unlike an incoming
-    // delta: follow it even when the reader had scrolled up.
-    stickToBottomRef.current = true;
-    const sendConversationId = activeConversationId;
-    void send(content).then((accepted) => {
-      // Rejected before the server took the turn: give the question back, but
-      // never clobber text the user typed while the request was in flight,
-      // and never drop it into a conversation the user switched to.
-      if (accepted || !isActiveConversation(sendConversationId)) return;
-      setDraft((current) => (current ? current : content));
-    });
+    submitQuestion(content);
   }
 
   // A finished turn disables nothing, but the Stop button unmounting used to
@@ -211,16 +215,17 @@ export function CopilotPage() {
   function updateStickToBottom() {
     const container = scrollRef.current;
     if (!container) return;
+    // Anchor against the previous event, not the position the animation
+    // started from: mid-animation progress is always downward, so an upward
+    // move is only visible against the last event the page itself saw.
+    const previous = lastScrollTopRef.current;
+    lastScrollTopRef.current = container.scrollTop;
     // Our own smooth scroll only ever moves down. Anything that moves back up
     // is the reader taking over mid-animation, so the flag flips again.
-    if (
-      programmaticScrollRef.current &&
-      container.scrollTop >= lastScrollTopRef.current
-    ) {
+    if (programmaticScrollRef.current && container.scrollTop >= previous) {
       return;
     }
     programmaticScrollRef.current = false;
-    lastScrollTopRef.current = container.scrollTop;
     stickToBottomRef.current = isNearBottom(container);
   }
 
@@ -390,12 +395,7 @@ export function CopilotPage() {
                   />
                 </div>
               ) : isEmptyConversation ? (
-                <CopilotWelcomeState
-                  onSuggestionClick={(text) => {
-                    stickToBottomRef.current = true;
-                    void send(text);
-                  }}
-                />
+                <CopilotWelcomeState onSuggestionClick={submitQuestion} />
               ) : (
                 <MessageList
                   messages={messages}
@@ -443,12 +443,18 @@ export function CopilotPage() {
                 disabled={blockedByPendingAction || !!quotaExceededMessage}
               />
               {isSending ? (
-                <Button type="button" variant="outline" onClick={stop}>
+                <Button
+                  key="stop"
+                  type="button"
+                  variant="outline"
+                  onClick={stop}
+                >
                   <Square aria-hidden="true" className="size-4" />
                   Dừng
                 </Button>
               ) : (
                 <Button
+                  key="send"
                   type="submit"
                   disabled={
                     blockedByPendingAction ||

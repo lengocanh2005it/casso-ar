@@ -63,29 +63,72 @@ describe('useCopilotConversations', () => {
       createdAt: '',
       lastMessageAt: '',
     });
+    const firstPage = Array.from({ length: 20 }, (_, index) =>
+      conversation(`c${index + 1}`),
+    );
     listCopilotConversations.mockResolvedValueOnce({
-      items: [conversation('c1')],
-      total: 2,
+      items: firstPage,
+      total: 21,
     });
     const { result } = renderHook(() => useCopilotConversations());
-    await waitFor(() => expect(result.current.conversations).toHaveLength(1));
+    await waitFor(() => expect(result.current.conversations).toHaveLength(20));
     expect(result.current.hasMore).toBe(true);
 
     listCopilotConversations.mockResolvedValueOnce({
-      items: [conversation('c2')],
-      total: 2,
+      items: [conversation('c21')],
+      total: 21,
     });
     await act(async () => {
       await result.current.loadMore();
     });
 
     expect(listCopilotConversations).toHaveBeenLastCalledWith(2, 20);
-    expect(result.current.conversations.map((item) => item.id)).toEqual([
-      'c1',
-      'c2',
-    ]);
+    expect(result.current.conversations).toHaveLength(21);
     expect(result.current.hasMore).toBe(false);
     expect(result.current.isLoadingMore).toBe(false);
+  });
+
+  it('stops offering more once the last server page is loaded, even when dedupe kept the count short', async () => {
+    const conversation = (id: string) => ({
+      id,
+      title: `Cuộc trò chuyện ${id}`,
+      createdAt: '',
+      lastMessageAt: '',
+    });
+    const page = (from: number, to: number) =>
+      Array.from({ length: to - from + 1 }, (_, index) =>
+        conversation(`c${from + index}`),
+      );
+    listCopilotConversations.mockResolvedValueOnce({
+      items: page(1, 20),
+      total: 45,
+    });
+    const { result } = renderHook(() => useCopilotConversations());
+    await waitFor(() => expect(result.current.conversations).toHaveLength(20));
+
+    // New conversations pushed the window down, so the rows overlap.
+    listCopilotConversations.mockResolvedValueOnce({
+      items: page(11, 30),
+      total: 45,
+    });
+    await act(async () => {
+      await result.current.loadMore();
+    });
+    expect(result.current.conversations).toHaveLength(30);
+    expect(result.current.hasMore).toBe(true);
+
+    listCopilotConversations.mockResolvedValueOnce({
+      items: page(21, 40),
+      total: 45,
+    });
+    await act(async () => {
+      await result.current.loadMore();
+    });
+
+    // Every server page is loaded; the unique count never reached total, so
+    // counting rows would keep "Xem thêm" alive forever.
+    expect(result.current.conversations).toHaveLength(40);
+    expect(result.current.hasMore).toBe(false);
   });
 
   it('keeps the rows loaded beyond page one when a refresh replaces page one', async () => {

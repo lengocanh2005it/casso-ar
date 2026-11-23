@@ -722,6 +722,76 @@ describe('useCopilotChat', () => {
       expect(result.current.busyAction).toBeNull();
     });
 
+    it('scopes a busy confirm to its own proposal', async () => {
+      sendWithPendingAction();
+      let resolveConfirmA: () => void = () => {};
+      confirmCopilotAction.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveConfirmA = () => resolve({ reminderExecutionId: 'r1' });
+          }),
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+
+      await act(async () => {
+        await result.current.send('Soạn email nhắc');
+      });
+      let confirmA: Promise<void>;
+      act(() => {
+        confirmA = result.current.confirm();
+      });
+      expect(result.current.busyAction).toBe('confirm');
+
+      // A expires while its confirm is still in flight, then B arrives.
+      await act(async () => {
+        vi.advanceTimersByTime(10 * 60 * 1000 + 1);
+      });
+      expect(result.current.pendingAction).toBeNull();
+      streamCopilotMessage.mockImplementation(
+        async (_id, _content, onEvent) => {
+          onEvent({
+            type: 'done',
+            data: {
+              message: {
+                id: 'm2',
+                role: 'ASSISTANT',
+                content: 'Đã soạn đề xuất khác.',
+                createdAt: '2026-08-09T00:00:00Z',
+              },
+              pendingAction: {
+                ...PENDING_ACTION,
+                id: 'pa2',
+                // Fresh, or the TTL timer would expire it on arrival.
+                createdAt: new Date().toISOString(),
+              },
+            },
+          });
+        },
+      );
+      await act(async () => {
+        await result.current.send('Soạn email khác');
+      });
+      expect(result.current.pendingAction?.id).toBe('pa2');
+
+      // A's progress must not surface on B, and B must be resolvable.
+      expect(result.current.busy).toBe(false);
+      expect(result.current.busyAction).toBeNull();
+      confirmCopilotAction.mockResolvedValue({ reminderExecutionId: 'r2' });
+      await act(async () => {
+        await result.current.confirm();
+      });
+      expect(confirmCopilotAction).toHaveBeenLastCalledWith('pa2');
+
+      // A settling later must not disturb B's already-idle state.
+      await act(async () => {
+        resolveConfirmA();
+        await confirmA;
+      });
+      expect(result.current.busyAction).toBeNull();
+    });
+
     it('reports cancel as the running action', async () => {
       sendWithPendingAction();
       let resolveCancel: () => void = () => {};

@@ -218,6 +218,46 @@ describe('DraftsList', () => {
     );
   });
 
+  it('offers a way back from an errored page without leaving it', async () => {
+    const draft = {
+      id: 'draft-1',
+      receivableId: 'rec-1',
+      recipientEmail: 'ap@abc.vn',
+      subject: 'Nhắc thanh toán',
+      bodyHtml: '<p>Nội dung</p>',
+      status: 'DRAFTED' as const,
+      pendingActionId: null,
+      createdAt: '2026-08-21T10:00:00Z',
+    };
+    vi.mocked(draftsApi.fetchCopilotDrafts).mockImplementation(async (page) => {
+      if (page === 2) throw new Error('Drafts unavailable');
+      return { items: [draft], total: 21 };
+    });
+
+    renderWithClient(<DraftsList canSendManual={false} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Sau' }));
+
+    // The page is stuck on the failure: retry it, or walk back by hand.
+    const previous = await screen.findByRole('button', { name: 'Trang trước' });
+    expect(previous).toHaveAttribute('type', 'button');
+    expect(screen.getByRole('button', { name: 'Thử lại' })).toBeInTheDocument();
+    // No automatic navigation: the errored page is still the one on screen.
+    expect(draftsApi.fetchCopilotDrafts).toHaveBeenLastCalledWith(
+      2,
+      20,
+      undefined,
+    );
+
+    fireEvent.click(previous);
+
+    expect(await screen.findByText('Nhắc thanh toán')).toBeInTheDocument();
+    expect(draftsApi.fetchCopilotDrafts).toHaveBeenLastCalledWith(
+      1,
+      20,
+      undefined,
+    );
+  });
+
   it('never flashes the empty state on the way back from an empty page', async () => {
     const draft = {
       id: 'draft-1',

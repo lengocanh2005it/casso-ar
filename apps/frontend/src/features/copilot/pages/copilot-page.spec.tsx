@@ -297,14 +297,17 @@ describe('CopilotPage', () => {
 
   it('shows a Stop button while streaming, which aborts the request', async () => {
     let releaseFetch: () => void = () => {};
+    let requestSignal: AbortSignal | undefined;
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockImplementation(
-        () =>
-          new Promise((resolve) => {
+      vi
+        .fn()
+        .mockImplementation((_url: string, init: { signal: AbortSignal }) => {
+          requestSignal = init.signal;
+          return new Promise((resolve) => {
             releaseFetch = () => resolve(sseResponse([]));
-          }),
-      ),
+          });
+        }),
     );
     renderPage();
     await waitFor(() =>
@@ -325,7 +328,9 @@ describe('CopilotPage', () => {
     expect(
       screen.getByRole('log', { name: 'Cuộc trò chuyện Copilot' }),
     ).toHaveAttribute('aria-busy', 'true');
+    expect(requestSignal?.aborted).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: /dừng/i }));
+    expect(requestSignal?.aborted).toBe(true);
     releaseFetch();
 
     await waitFor(() =>
@@ -682,7 +687,81 @@ describe('CopilotPage', () => {
     expect(screen.getByLabelText(/nhập câu hỏi/i)).toHaveValue('');
   });
 
-  it('keeps the question sent when Stop is pressed before the first byte', async () => {
+  it('puts a rejected suggestion back into the empty composer', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(new TypeError('Failed to fetch')),
+    );
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    const suggestion = 'Khách hàng nào đang có công nợ cao nhất?';
+    fireEvent.click(
+      screen.getByRole('button', { name: new RegExp(suggestion) }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nhập câu hỏi/i)).toHaveValue(suggestion),
+    );
+  });
+
+  it('does not drop a rejected suggestion into another conversation', async () => {
+    let rejectFetch: (reason: unknown) => void = () => {};
+    const fetchMock = vi.fn().mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectFetch = reject;
+        }),
+    );
+    apiRequest.mockImplementation((config) => {
+      if (config.url === '/api/v1/copilot/conversations') {
+        return Promise.resolve({
+          items: [
+            {
+              id: 'c1',
+              title: 'Cuộc trò chuyện cũ',
+              createdAt: '2026-08-09T00:00:00Z',
+              lastMessageAt: '2026-08-09T00:00:00Z',
+            },
+          ],
+          total: 1,
+        });
+      }
+      if (/\/copilot\/conversations\/c1\/messages$/.test(config.url)) {
+        return Promise.resolve({ items: [] });
+      }
+      return routeApiRequest(config);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /khách hàng nào đang có công nợ cao nhất/i,
+      }),
+    );
+    await screen.findByRole('button', { name: 'Dừng' });
+
+    fireEvent.click(screen.getByRole('button', { name: /mở lịch sử chat/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Cuộc trò chuyện cũ' }),
+    );
+
+    await act(async () => {
+      rejectFetch(new TypeError('Failed to fetch'));
+    });
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Dừng' }),
+      ).not.toBeInTheDocument(),
+    );
+    // The suggestion belongs to the conversation it was clicked in.
+    expect(screen.getByLabelText(/nhập câu hỏi/i)).toHaveValue('');
+  });
+
+  it('hands the question back when Stop lands before the POST is dispatched', async () => {
     // Real fetch rejects with AbortError when the signal fires; the never-
     // settling promise has to honour the signal or send() would never finish.
     vi.stubGlobal(
@@ -710,10 +789,10 @@ describe('CopilotPage', () => {
         screen.queryByRole('button', { name: 'Dừng' }),
       ).not.toBeInTheDocument(),
     );
-    // The backend may already have counted the turn, so the question must not
-    // come back to the composer for a duplicate send.
-    expect(composer).toHaveValue('');
-    expect(screen.getByText('Tóm tắt công nợ')).toBeInTheDocument();
+    // The history does not hold the question, so the server never took the
+    // turn: it comes back for a retry and the bubble is gone.
+    await waitFor(() => expect(composer).toHaveValue('Tóm tắt công nợ'));
+    expect(screen.queryByText('Tóm tắt công nợ')).not.toBeInTheDocument();
   });
 
   it('keeps the composer empty and the streamed answer when the stream breaks after acceptance', async () => {
@@ -748,7 +827,14 @@ describe('CopilotPage', () => {
     // The backend already counted this turn, so the question must not be
     // handed back for a duplicate send; the streamed text stays on screen.
     await screen.findByText('Đang phân tích');
-    await waitFor(() => expect(composer).toHaveValue(''));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Dừng' }),
+      ).not.toBeInTheDocument(),
+    );
+    // The streamed text survives the broken tail and nothing comes back.
+    expect(screen.getByText('Đang phân tích')).toBeInTheDocument();
+    expect(composer).toHaveValue('');
   });
 
   it('does not overwrite text typed while the failed send was in flight', async () => {
@@ -861,9 +947,11 @@ describe('CopilotPage', () => {
     fireEvent.change(composer, { target: { value: 'Tóm tắt công nợ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
 
-    // The Stop button owns focus while sending; when it unmounts the browser
-    // drops focus to <body>, which is exactly when focus must come back.
-    await screen.findByRole('button', { name: 'Dừng' });
+    // The reader parked focus on the Stop button; when it unmounts the
+    // browser drops focus to <body>, which is when focus must come back.
+    const stopButton = await screen.findByRole('button', { name: 'Dừng' });
+    stopButton.focus();
+    expect(stopButton).toHaveFocus();
     releaseFetch();
 
     await screen.findByText('Đây là câu trả lời.');
@@ -910,12 +998,15 @@ describe('CopilotPage', () => {
     const composer = screen.getByLabelText(/nhập câu hỏi/i);
     fireEvent.change(composer, { target: { value: 'Tóm tắt công nợ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
-    await screen.findByRole('button', { name: 'Dừng' });
 
-    // A touch keyboard would pop up if focus jumped back on a phone.
-    fireEvent.click(screen.getByRole('button', { name: 'Dừng' }));
+    // Same turn as the fine-pointer case; only the pointer type differs.
+    const stopButton = await screen.findByRole('button', { name: 'Dừng' });
+    stopButton.focus();
+    expect(stopButton).toHaveFocus();
     releaseFetch();
+
     await screen.findByText('Đây là câu trả lời.');
+    // A touch keyboard would pop up if focus jumped back on a phone.
     expect(composer).not.toHaveFocus();
   });
 
@@ -967,6 +1058,19 @@ describe('CopilotPage', () => {
 
   describe('auto-scroll', () => {
     const geometry = { distanceFromBottom: 0 };
+    // jsdom's own property descriptors are what the rest of the suite expects
+    // back, so restore them rather than deleting the stubs.
+    let savedDescriptors = new Map<string, PropertyDescriptor | undefined>();
+
+    function ownDescriptor(key: string) {
+      let target: object | null = Element.prototype;
+      while (target) {
+        const descriptor = Object.getOwnPropertyDescriptor(target, key);
+        if (descriptor) return descriptor;
+        target = Object.getPrototypeOf(target) as object | null;
+      }
+      return undefined;
+    }
 
     function stubScrollGeometry({
       distanceFromBottom,
@@ -975,6 +1079,14 @@ describe('CopilotPage', () => {
     }) {
       const scrollTo = vi.fn();
       geometry.distanceFromBottom = distanceFromBottom;
+      for (const key of [
+        'scrollHeight',
+        'clientHeight',
+        'scrollTop',
+        'scrollTo',
+      ]) {
+        savedDescriptors.set(key, ownDescriptor(key));
+      }
       Object.defineProperty(Element.prototype, 'scrollHeight', {
         configurable: true,
         get: () => 1000,
@@ -990,53 +1102,71 @@ describe('CopilotPage', () => {
         },
         set: () => {},
       });
-      Element.prototype.scrollTo = scrollTo;
+      Object.defineProperty(Element.prototype, 'scrollTo', {
+        configurable: true,
+        writable: true,
+        value: scrollTo,
+      });
       return scrollTo;
     }
 
     afterEach(() => {
       Reflect.deleteProperty(window, 'onscrollend');
-      Reflect.deleteProperty(Element.prototype, 'scrollHeight');
-      Reflect.deleteProperty(Element.prototype, 'clientHeight');
-      Reflect.deleteProperty(Element.prototype, 'scrollTop');
-      // Back to the no-op stub from src/test/setup.ts, not undefined.
-      Element.prototype.scrollTo = () => {};
+      for (const [key, descriptor] of savedDescriptors) {
+        if (descriptor) {
+          Object.defineProperty(Element.prototype, key, descriptor);
+        } else {
+          Reflect.deleteProperty(Element.prototype, key);
+        }
+      }
+      savedDescriptors = new Map();
     });
 
     it('scrolls to the bottom when a new message arrives while near the bottom', async () => {
+      let releaseFetch: () => void = () => {};
       const scrollTo = stubScrollGeometry({ distanceFromBottom: 10 });
       renderPage();
       await screen.findByText(/bạn muốn xử lý công nợ nào/i);
 
       vi.stubGlobal(
         'fetch',
-        vi.fn().mockResolvedValue(
-          sseResponse([
-            {
-              event: 'delta',
-              data: { text: 'Đang soạn câu trả lời.' },
-            },
-            {
-              event: 'done',
-              data: {
-                message: {
-                  id: 'm1',
-                  role: 'ASSISTANT',
-                  content: 'Đang soạn câu trả lời.',
-                  createdAt: '2026-08-09T00:00:00Z',
-                },
-                pendingAction: null,
-              },
-            },
-          ]),
+        vi.fn().mockImplementation(
+          () =>
+            new Promise((resolve) => {
+              releaseFetch = () =>
+                resolve(
+                  sseResponse([
+                    {
+                      event: 'delta',
+                      data: { text: 'Đang soạn câu trả lời.' },
+                    },
+                    {
+                      event: 'done',
+                      data: {
+                        message: {
+                          id: 'm1',
+                          role: 'ASSISTANT',
+                          content: 'Đang soạn câu trả lời.',
+                          createdAt: '2026-08-09T00:00:00Z',
+                        },
+                        pendingAction: null,
+                      },
+                    },
+                  ]),
+                );
+            }),
         ),
       );
       fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
         target: { value: 'Tóm tắt công nợ' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
-      await screen.findByText('Đang soạn câu trả lời.');
+      await screen.findByRole('button', { name: 'Dừng' });
+      // Send scrolls once; only the new message's own scroll is under test.
+      scrollTo.mockClear();
+      releaseFetch();
 
+      await screen.findByText('Đang soạn câu trả lời.');
       expect(scrollTo).toHaveBeenCalled();
     });
 
@@ -1095,29 +1225,40 @@ describe('CopilotPage', () => {
       renderPage();
       await screen.findByText(/bạn muốn xử lý công nợ nào/i);
 
+      let releaseFetch: () => void = () => {};
       vi.stubGlobal(
         'fetch',
-        vi.fn().mockResolvedValue(
-          sseResponse([
-            {
-              event: 'done',
-              data: {
-                message: {
-                  id: 'm1',
-                  role: 'ASSISTANT',
-                  content: 'Đang soạn câu trả lời.',
-                  createdAt: '2026-08-09T00:00:00Z',
-                },
-                pendingAction: null,
-              },
-            },
-          ]),
+        vi.fn().mockImplementation(
+          () =>
+            new Promise((resolve) => {
+              releaseFetch = () =>
+                resolve(
+                  sseResponse([
+                    {
+                      event: 'done',
+                      data: {
+                        message: {
+                          id: 'm1',
+                          role: 'ASSISTANT',
+                          content: 'Đang soạn câu trả lời.',
+                          createdAt: '2026-08-09T00:00:00Z',
+                        },
+                        pendingAction: null,
+                      },
+                    },
+                  ]),
+                );
+            }),
         ),
       );
       fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
         target: { value: 'Tóm tắt công nợ' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+      await screen.findByRole('button', { name: 'Dừng' });
+      // Clear the mount and send scrolls so only the reply's is asserted.
+      scrollTo.mockClear();
+      releaseFetch();
 
       await screen.findByText('Đang soạn câu trả lời.');
       expect(scrollTo).toHaveBeenCalledWith(
@@ -1191,6 +1332,8 @@ describe('CopilotPage', () => {
       if (!(region instanceof HTMLElement)) throw new Error('missing region');
       geometry.distanceFromBottom = 400;
       fireEvent.scroll(region);
+      // Only the switched-to conversation's own scroll is under test.
+      scrollTo.mockClear();
 
       fireEvent.click(screen.getByRole('button', { name: /mở lịch sử chat/i }));
       fireEvent.click(
@@ -1558,7 +1701,8 @@ describe('CopilotPage', () => {
     });
 
     it('ignores the scroll events its own scrollTo fires, then honours a real one', async () => {
-      const scrollTo = stubScrollGeometry({ distanceFromBottom: 10 });
+      // Start far from the bottom so the send's smooth scroll has room to run.
+      const scrollTo = stubScrollGeometry({ distanceFromBottom: 600 });
       renderPage();
       await screen.findByText(/bạn muốn xử lý công nợ nào/i);
 
@@ -1566,13 +1710,6 @@ describe('CopilotPage', () => {
       if (!(region instanceof HTMLElement)) throw new Error('missing region');
       // The initial render scrolled the list programmatically.
       await waitFor(() => expect(scrollTo).toHaveBeenCalled());
-
-      // A smooth animation reports positions far from the bottom on its way
-      // down; those events are the page's own, not the reader scrolling up.
-      geometry.distanceFromBottom = 400;
-      fireEvent.scroll(region);
-      fireEvent(region, new Event('scrollend'));
-      scrollTo.mockClear();
 
       let pushEvent: (event: unknown) => void = () => {};
       vi.stubGlobal(
@@ -1595,11 +1732,42 @@ describe('CopilotPage', () => {
           ),
         ),
       );
+      // Send first: its own smooth scroll must already be under way before the
+      // animation's scroll events are simulated, or the spy would conflate them.
       fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
         target: { value: 'Tóm tắt công nợ' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
       await screen.findByRole('button', { name: 'Dừng' });
+      // The answer arriving on its own animates, which opens the window in
+      // which the page's own scroll events must not be read as the reader's.
+      await act(async () => {
+        pushEvent({
+          event: 'done',
+          data: {
+            message: {
+              id: 'm1',
+              role: 'ASSISTANT',
+              content: 'Đây là câu trả lời.',
+              createdAt: '2026-08-09T00:00:00Z',
+            },
+            pendingAction: null,
+          },
+        });
+      });
+      await screen.findByText('Đây là câu trả lời.');
+      expect(scrollTo).toHaveBeenLastCalledWith(
+        expect.objectContaining({ behavior: 'smooth' }),
+      );
+      scrollTo.mockClear();
+
+      // A smooth animation reports positions far from the bottom on its way
+      // down; those events are the page's own, not the reader scrolling up.
+      geometry.distanceFromBottom = 300;
+      fireEvent.scroll(region);
+      // The animation then lands on the newest message.
+      geometry.distanceFromBottom = 0;
+      fireEvent(region, new Event('scrollend'));
       scrollTo.mockClear();
 
       // Still stuck to the bottom, so a delta scrolls into view.
@@ -1618,6 +1786,80 @@ describe('CopilotPage', () => {
       await act(async () => {
         pushEvent({ event: 'delta', data: { text: 'nữa.' } });
       });
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('stops following when the reader reverses direction inside a smooth scroll', async () => {
+      const scrollTo = stubScrollGeometry({ distanceFromBottom: 600 });
+      renderPage();
+      await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+      let pushEvent: (event: unknown) => void = () => {};
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                pushEvent = (event) => {
+                  const typed = event as { event: string; data: unknown };
+                  controller.enqueue(
+                    new TextEncoder().encode(
+                      `event: ${typed.event}
+data: ${JSON.stringify(typed.data)}\n\n`,
+                    ),
+                  );
+                };
+              },
+            }),
+            { status: 200 },
+          ),
+        ),
+      );
+      const region = document.querySelector('[data-testid="copilot-scroll"]');
+      if (!(region instanceof HTMLElement)) throw new Error('missing region');
+
+      fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
+        target: { value: 'Tóm tắt công nợ' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+      await screen.findByRole('button', { name: 'Dừng' });
+
+      // A single appended answer animates smoothly: it starts at scrollTop 0
+      // and travels down to 300.
+      await act(async () => {
+        pushEvent({
+          event: 'done',
+          data: {
+            message: {
+              id: 'm1',
+              role: 'ASSISTANT',
+              content: 'Đây là câu trả lời.',
+              createdAt: '2026-08-09T00:00:00Z',
+            },
+            pendingAction: null,
+          },
+        });
+      });
+      await screen.findByText('Đây là câu trả lời.');
+      expect(scrollTo).toHaveBeenLastCalledWith(
+        expect.objectContaining({ behavior: 'smooth' }),
+      );
+
+      // The animation reaches scrollTop 300: still downward, still ignored.
+      geometry.distanceFromBottom = 300;
+      fireEvent.scroll(region);
+
+      // The reader then pulls back up mid-animation, from 300 to 150. Measured
+      // against the position the animation started from that is still
+      // "downward" and would be swallowed; it is a reversal, so stop following.
+      geometry.distanceFromBottom = 450;
+      fireEvent.scroll(region);
+      scrollTo.mockClear();
+      await act(async () => {
+        pushEvent({ event: 'delta', data: { text: 'Một đoạn ' } });
+      });
+
       expect(scrollTo).not.toHaveBeenCalled();
     });
 

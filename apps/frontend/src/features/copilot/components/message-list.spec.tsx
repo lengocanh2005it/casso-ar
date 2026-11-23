@@ -9,9 +9,42 @@ describe('MessageList', () => {
     );
 
     expect(screen.getByText('Copilot đang trả lời…')).toHaveClass('sr-only');
-    expect(screen.queryByRole('img')).not.toBeInTheDocument();
     expect(container.querySelectorAll('.animate-bounce')).toHaveLength(3);
     expect(screen.queryByText(/đang xử lý/i)).not.toBeInTheDocument();
+  });
+
+  it('leaves the typing dots decorative and announces the wait outside the log', () => {
+    render(<MessageList messages={[]} isWaitingForResponse isSending />);
+
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent('Copilot đang trả lời…');
+    expect(status).toHaveClass('sr-only');
+    // A busy log defers its own announcements, so the status must not sit in it.
+    expect(
+      screen
+        .getByRole('log', { name: 'Cuộc trò chuyện Copilot' })
+        .contains(status),
+    ).toBe(false);
+  });
+
+  it('empties the waiting status once a reply starts streaming', () => {
+    const { rerender } = render(
+      <MessageList messages={[]} isWaitingForResponse isSending />,
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Copilot đang trả lời…',
+    );
+
+    rerender(
+      <MessageList
+        messages={[]}
+        streamingContent="Đang phân tích"
+        isWaitingForResponse
+        isSending
+      />,
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('');
   });
 
   it('renders an EmailDraftPreview card for a message carrying a draft', () => {
@@ -79,6 +112,6 @@ describe('MessageList', () => {
     expect(log.querySelectorAll('[aria-live]')).toHaveLength(0);
     expect(log.querySelectorAll('[role="status"]')).toHaveLength(0);
     expect(log.querySelectorAll('[role="img"]')).toHaveLength(0);
-    expect(screen.getByText('Copilot đang trả lời…')).toBeInTheDocument();
+    expect(log).not.toHaveTextContent('Copilot đang trả lời…');
   });
 });

@@ -98,7 +98,10 @@ export function useCopilotConversations() {
     activeConversationId,
     isLoading,
     isLoadingMore,
-    hasMore: conversations.length < total,
+    // Whether the server has another page, not whether the rows on screen add
+    // up: shifted offset pages can overlap, so the unique count may never
+    // reach total and "Xem thêm" would fire empty requests forever.
+    hasMore: loadedPages * COPILOT_CONVERSATIONS_PAGE_SIZE < total,
     refresh,
     loadMore,
     startNewConversation,
