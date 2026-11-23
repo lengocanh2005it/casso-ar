@@ -1267,6 +1267,52 @@ describe('CopilotPage', () => {
       );
     });
 
+    it('opens a single-message history instantly too', async () => {
+      apiRequest.mockImplementation((config) => {
+        if (config.url === '/api/v1/copilot/conversations') {
+          return Promise.resolve({
+            items: [
+              {
+                id: 'c1',
+                title: 'Cuộc trò chuyện cũ',
+                createdAt: '2026-08-09T00:00:00Z',
+                lastMessageAt: '2026-08-09T00:00:00Z',
+              },
+            ],
+            total: 1,
+          });
+        }
+        if (/\/copilot\/conversations\/c1\/messages$/.test(config.url)) {
+          return Promise.resolve({
+            items: [
+              {
+                id: 'h1',
+                role: 'ASSISTANT',
+                content: 'Câu trả lời cũ',
+                createdAt: '2026-08-09T00:00:00Z',
+              },
+            ],
+          });
+        }
+        return routeApiRequest(config);
+      });
+      const scrollTo = stubScrollGeometry({ distanceFromBottom: 10 });
+      renderPage();
+      await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+      fireEvent.click(screen.getByRole('button', { name: /mở lịch sử chat/i }));
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Cuộc trò chuyện cũ' }),
+      );
+
+      await screen.findByText('Câu trả lời cũ');
+      await waitFor(() => expect(scrollTo).toHaveBeenCalled());
+      // One row is still a history jump, not a message arriving mid-chat.
+      expect(scrollTo).toHaveBeenLastCalledWith(
+        expect.objectContaining({ behavior: 'auto' }),
+      );
+    });
+
     it('ignores the scroll events its own scrollTo fires, then honours a real one', async () => {
       const scrollTo = stubScrollGeometry({ distanceFromBottom: 10 });
       renderPage();

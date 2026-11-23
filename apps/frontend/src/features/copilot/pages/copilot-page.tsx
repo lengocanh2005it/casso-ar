@@ -53,6 +53,8 @@ export function CopilotPage() {
   const previousMessageCountRef = useRef(0);
   const programmaticScrollRef = useRef(false);
   const lastScrollTopRef = useRef(0);
+  // The first render after a switch is loaded history, never a new message.
+  const loadingHistoryRef = useRef(false);
   const canSendManual = user
     ? hasPermission(user.role, Permission.REMINDER_SEND_MANUAL)
     : false;
@@ -171,6 +173,7 @@ export function CopilotPage() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: resetting on the conversation change is the whole point
   useEffect(() => {
     stickToBottomRef.current = true;
+    loadingHistoryRef.current = true;
   }, [activeConversationId]);
 
   function updateStickToBottom() {
@@ -199,11 +202,14 @@ export function CopilotPage() {
     if (!container) return;
     const addedCount = messages.length - previousMessageCountRef.current;
     previousMessageCountRef.current = messages.length;
+    const loadedHistory = loadingHistoryRef.current;
+    if (addedCount > 0) loadingHistoryRef.current = false;
     if (!stickToBottomRef.current) return;
     // Only a single appended message animates; a bulk history load (a
     // conversation switch) and streaming deltas land instantly so a long
     // animation cannot flip the stick flag on its way down.
-    const smooth = addedCount === 1 && !prefersReducedMotion();
+    const smooth =
+      addedCount === 1 && !loadedHistory && !prefersReducedMotion();
     if (smooth) programmaticScrollRef.current = true;
     lastScrollTopRef.current = container.scrollTop;
     container.scrollTo({
