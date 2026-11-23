@@ -1267,6 +1267,137 @@ describe('CopilotPage', () => {
       );
     });
 
+    it('re-reads the real distance when the programmatic scroll settles', async () => {
+      const scrollTo = stubScrollGeometry({ distanceFromBottom: 10 });
+      renderPage();
+      await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+      let pushEvent: (event: unknown) => void = () => {};
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                pushEvent = (event) => {
+                  const typed = event as { event: string; data: unknown };
+                  controller.enqueue(
+                    new TextEncoder().encode(
+                      `event: ${typed.event}\ndata: ${JSON.stringify(typed.data)}\n\n`,
+                    ),
+                  );
+                };
+              },
+            }),
+            { status: 200 },
+          ),
+        ),
+      );
+      fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
+        target: { value: 'Tóm tắt công nợ' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+      await screen.findByRole('button', { name: 'Dừng' });
+
+      // The assistant message arriving on its own animates smoothly.
+      await act(async () => {
+        pushEvent({
+          event: 'done',
+          data: {
+            message: {
+              id: 'm1',
+              role: 'ASSISTANT',
+              content: 'Đây là câu trả lời.',
+              createdAt: '2026-08-09T00:00:00Z',
+            },
+            pendingAction: null,
+          },
+        });
+      });
+      await screen.findByText('Đây là câu trả lời.');
+
+      const region = document.querySelector('[data-testid="copilot-scroll"]');
+      if (!(region instanceof HTMLElement)) throw new Error('missing region');
+      // The animation passes through a position below the bottom; its own
+      // scroll event looks like the page's, so it is ignored.
+      geometry.distanceFromBottom = -300;
+      fireEvent.scroll(region);
+      // It settles 300px short of the bottom: the reader is reading history.
+      geometry.distanceFromBottom = 300;
+      fireEvent(region, new Event('scrollend'));
+      scrollTo.mockClear();
+
+      await act(async () => {
+        pushEvent({ event: 'delta', data: { text: 'Một đoạn ' } });
+      });
+
+      // Settled away from the bottom: this reader must not be yanked down.
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('stops swallowing scrolls when the animation never reports scrollend', async () => {
+      const scrollTo = stubScrollGeometry({ distanceFromBottom: 10 });
+      renderPage();
+      await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+      let pushEvent: (event: unknown) => void = () => {};
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                pushEvent = (event) => {
+                  const typed = event as { event: string; data: unknown };
+                  controller.enqueue(
+                    new TextEncoder().encode(
+                      `event: ${typed.event}\ndata: ${JSON.stringify(typed.data)}\n\n`,
+                    ),
+                  );
+                };
+              },
+            }),
+            { status: 200 },
+          ),
+        ),
+      );
+      fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
+        target: { value: 'Tóm tắt công nợ' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+      await screen.findByRole('button', { name: 'Dừng' });
+      await act(async () => {
+        pushEvent({
+          event: 'done',
+          data: {
+            message: {
+              id: 'm1',
+              role: 'ASSISTANT',
+              content: 'Đây là câu trả lời.',
+              createdAt: '2026-08-09T00:00:00Z',
+            },
+            pendingAction: null,
+          },
+        });
+      });
+      await screen.findByText('Đây là câu trả lời.');
+
+      // The browser drops scrollend (or never moved the list) and the reader
+      // ends up far from the bottom without any event telling us.
+      geometry.distanceFromBottom = 300;
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      });
+      scrollTo.mockClear();
+
+      await act(async () => {
+        pushEvent({ event: 'delta', data: { text: 'Một đoạn ' } });
+      });
+
+      // The fallback re-read the position, so this reader is left alone.
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
+
     it('opens a single-message history instantly too', async () => {
       apiRequest.mockImplementation((config) => {
         if (config.url === '/api/v1/copilot/conversations') {

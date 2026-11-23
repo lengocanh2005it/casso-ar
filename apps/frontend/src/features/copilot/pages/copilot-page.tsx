@@ -33,6 +33,9 @@ import { UsageIndicator } from '../components/usage-indicator';
 
 // How close to the newest message still counts as "reading at the bottom".
 const STICK_TO_BOTTOM_THRESHOLD_PX = 80;
+// A smooth scroll that never emits scroll events (already at the bottom, or a
+// browser without scrollend) must not swallow the reader's next scroll.
+const PROGRAMMATIC_SCROLL_FALLBACK_MS = 150;
 
 function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -53,6 +56,9 @@ export function CopilotPage() {
   const previousMessageCountRef = useRef(0);
   const programmaticScrollRef = useRef(false);
   const lastScrollTopRef = useRef(0);
+  const programmaticScrollTimerRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   // The first render after a switch is loaded history, never a new message.
   const loadingHistoryRef = useRef(false);
   const canSendManual = user
@@ -158,15 +164,43 @@ export function CopilotPage() {
     }
   }, [isSending, blockedByPendingAction]);
 
+  function isNearBottom(container: HTMLElement) {
+    return (
+      container.scrollHeight - container.scrollTop - container.clientHeight <
+      STICK_TO_BOTTOM_THRESHOLD_PX
+    );
+  }
+
+  function endProgrammaticScroll() {
+    if (programmaticScrollTimerRef.current !== null) {
+      clearTimeout(programmaticScrollTimerRef.current);
+      programmaticScrollTimerRef.current = null;
+    }
+    if (!programmaticScrollRef.current) return;
+    programmaticScrollRef.current = false;
+    // No scroll event is guaranteed once the animation is done: re-read the
+    // real position so the next delta follows the reader, not the old anchor.
+    if (scrollRef.current) {
+      stickToBottomRef.current = isNearBottom(scrollRef.current);
+      lastScrollTopRef.current = scrollRef.current.scrollTop;
+    }
+    // No scroll event is guaranteed once the animation is done: re-read the
+    // real position so the next delta follows the reader, not the old anchor.
+  }
+
   // A smooth scroll's own events are ignored until it settles.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the listener only touches refs, so one mount-time registration is enough
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
-    const settle = () => {
-      programmaticScrollRef.current = false;
+    container.addEventListener('scrollend', endProgrammaticScroll);
+    return () => {
+      container.removeEventListener('scrollend', endProgrammaticScroll);
+      if (programmaticScrollTimerRef.current !== null) {
+        clearTimeout(programmaticScrollTimerRef.current);
+        programmaticScrollTimerRef.current = null;
+      }
     };
-    container.addEventListener('scrollend', settle);
-    return () => container.removeEventListener('scrollend', settle);
   }, []);
 
   // A switched-to conversation opens at its newest message.
@@ -189,9 +223,7 @@ export function CopilotPage() {
     }
     programmaticScrollRef.current = false;
     lastScrollTopRef.current = container.scrollTop;
-    stickToBottomRef.current =
-      container.scrollHeight - container.scrollTop - container.clientHeight <
-      STICK_TO_BOTTOM_THRESHOLD_PX;
+    stickToBottomRef.current = isNearBottom(container);
   }
 
   // Stick to the bottom only while the user is already there: scrolling up to
@@ -210,7 +242,20 @@ export function CopilotPage() {
     // animation cannot flip the stick flag on its way down.
     const smooth =
       addedCount === 1 && !loadedHistory && !prefersReducedMotion();
-    if (smooth) programmaticScrollRef.current = true;
+    // Already at the bottom: scrollTo is a no-op, so a latched flag would only
+    // swallow the reader's next scroll.
+    const willMove =
+      container.scrollTop < container.scrollHeight - container.clientHeight;
+    if (smooth && willMove) {
+      programmaticScrollRef.current = true;
+      if (programmaticScrollTimerRef.current !== null) {
+        clearTimeout(programmaticScrollTimerRef.current);
+      }
+      programmaticScrollTimerRef.current = setTimeout(
+        endProgrammaticScroll,
+        PROGRAMMATIC_SCROLL_FALLBACK_MS,
+      );
+    }
     lastScrollTopRef.current = container.scrollTop;
     container.scrollTo({
       top: container.scrollHeight,
