@@ -185,6 +185,56 @@ describe('CopilotPage', () => {
     expect(status).toHaveTextContent('');
   });
 
+  it('stops announcing the wait as soon as the reply fails', async () => {
+    // The reader stays open after the error event, exactly like a server that
+    // ends the turn without closing the socket.
+    let failTurn: () => void = () => {};
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() =>
+        Promise.resolve(
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                failTurn = () => {
+                  controller.enqueue(
+                    new TextEncoder().encode(
+                      `event: error\ndata: ${JSON.stringify({
+                        errorCode: 'INTERNAL_SERVER_ERROR',
+                        message: 'Copilot tạm thời không phản hồi.',
+                      })}\n\n`,
+                    ),
+                  );
+                };
+              },
+            }),
+            { status: 200 },
+          ),
+        ),
+      ),
+    );
+    renderPage();
+    await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent('');
+
+    fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
+      target: { value: 'Tóm tắt công nợ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+
+    await waitFor(() =>
+      expect(status).toHaveTextContent('Copilot đang trả lời…'),
+    );
+
+    failTurn();
+    // The turn failed, so the wait must not be announced again while the
+    // reader is still open.
+    await waitFor(() => expect(status).toHaveTextContent(''));
+    expect(screen.getByRole('button', { name: 'Dừng' })).toBeInTheDocument();
+  });
+
   it('shows the Copilot layout behind an upgrade gate for the FREE plan', async () => {
     mockUseAuth.mockReturnValue({
       user: { role: 'OWNER', subscriptionPlan: 'FREE' },

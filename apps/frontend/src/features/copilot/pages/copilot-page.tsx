@@ -105,6 +105,7 @@ export function CopilotPage() {
     messages,
     pendingAction,
     isSending,
+    isWaitingForResponse,
     streamingContent,
     send,
     stop,
@@ -354,7 +355,7 @@ export function CopilotPage() {
                 appears with the first question would be missed by a screen
                 reader that is already listening. */}
             <span className="sr-only" role="status">
-              {isSending && !streamingContent ? 'Copilot đang trả lời…' : ''}
+              {isWaitingForResponse ? 'Copilot đang trả lời…' : ''}
             </span>
             <div className="flex min-h-12 items-center justify-between gap-2 px-3 py-2">
               <TooltipLabel label="Mở lịch sử chat">
@@ -406,7 +407,7 @@ export function CopilotPage() {
                 <MessageList
                   messages={messages}
                   streamingContent={streamingContent}
-                  isWaitingForResponse={isSending && !streamingContent}
+                  isWaitingForResponse={isWaitingForResponse}
                   isSending={isSending}
                 />
               )}

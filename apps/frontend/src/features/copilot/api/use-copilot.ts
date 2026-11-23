@@ -29,6 +29,9 @@ export function useCopilotChat(
   const [pendingAction, setPendingAction] =
     useState<CopilotPendingAction | null>(null);
   const [isSending, setIsSending] = useState(false);
+  // True from the send until the first delta or any terminal event. The log is
+  // aria-busy while sending, so the wait must be announced from outside it.
+  const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
   // Scoped to a proposal: a confirm still running for a proposal that has
   // since been replaced must not label or block the new one.
@@ -50,6 +53,12 @@ export function useCopilotChat(
   // POST's controller is already aborted by then.
   const reconcileControllerRef = useRef<AbortController | null>(null);
   const activeConversationIdRef = useRef(conversationId);
+  // A send can outrun the mount load, and the load then drops its page. The
+  // reconcile must know whether the local list really is the history, or an
+  // older copy of the question would confirm a send that never landed.
+  const historyBaselineAppliedRef = useRef(false);
+  // Tracked outside the state updater, which must stay pure.
+  const hasSentInConversationRef = useRef(false);
   // Bumped whenever the conversation changes so a confirm/cancel started for
   // the previous one cannot clear the new one's busy state.
   const pendingActionRequestRef = useRef(0);
@@ -66,10 +75,13 @@ export function useCopilotChat(
     reconcileControllerRef.current?.abort();
     reconcileControllerRef.current = null;
     pendingActionRequestRef.current += 1;
+    historyBaselineAppliedRef.current = false;
+    hasSentInConversationRef.current = false;
     setMessages([]);
     setPendingAction(null);
     setBusyState(null);
     setIsSending(false);
+    setIsWaitingForResponse(false);
     setStreamingContent('');
     setIsLoadingHistory(true);
     setQuotaExceededMessage(null);
@@ -79,11 +91,20 @@ export function useCopilotChat(
         if (cancelled) return;
         // A send() started for this conversation before this load resolved
         // already has the up-to-date messages — don't clobber it with the
-        // (now stale) fetched history.
+        // (now stale) fetched history. Dropping it means the list is not the
+        // history, so the baseline stays unset.
+        if (hasSentInConversationRef.current) return;
+        historyBaselineAppliedRef.current = true;
         setMessages((current) => (current.length > 0 ? current : page.items));
       })
       .catch((error: unknown) => {
-        if (cancelled || getApiErrorCode(error) === 'NOT_FOUND') return;
+        if (cancelled) return;
+        // No history at all is a baseline: there is nothing older to confuse
+        // the reconcile with.
+        if (getApiErrorCode(error) === 'NOT_FOUND') {
+          historyBaselineAppliedRef.current = true;
+          return;
+        }
         toast.error('Không thể tải lịch sử cuộc trò chuyện.');
       })
       .finally(() => {
@@ -93,7 +114,9 @@ export function useCopilotChat(
     return () => {
       cancelled = true;
       abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
       reconcileControllerRef.current?.abort();
+      reconcileControllerRef.current = null;
     };
   }, [conversationId]);
 
@@ -145,9 +168,11 @@ export function useCopilotChat(
       (message) =>
         message.role === 'USER' && message.content.trim() === trimmed,
     ).length;
-    const historyWasLoaded = !isLoadingHistory;
+    const historyWasLoaded = historyBaselineAppliedRef.current;
 
+    hasSentInConversationRef.current = true;
     setIsSending(true);
+    setIsWaitingForResponse(true);
     setStreamingContent('');
     const optimisticMessageId = crypto.randomUUID();
     setMessages((current) => [
@@ -280,15 +305,18 @@ export function useCopilotChat(
           if (!isCurrentConversation()) return;
 
           if (event.type === 'delta') {
+            setIsWaitingForResponse(false);
             streamedText += event.text;
             setStreamingContent((current) => current + event.text);
           } else if (event.type === 'done') {
+            setIsWaitingForResponse(false);
             answerCommitted = true;
             setMessages((current) => [...current, event.data.message]);
             setPendingAction(event.data.pendingAction ?? null);
           } else if (event.type === 'error') {
             // The turn failed after it started answering: keep what the user
             // already read instead of dropping it on the floor.
+            setIsWaitingForResponse(false);
             appendPartialAnswer();
             toast.error(event.message);
           }
@@ -307,11 +335,15 @@ export function useCopilotChat(
         } else if (accepted) {
           // A Stop after the response headers: the turn was counted.
           appendPartialAnswer();
-        } else {
+        } else if (abortControllerRef.current === controller) {
           // A Stop can land while the token lookup is still running, before
           // the POST is even dispatched: the write is not proven, so ask the
-          // history instead of assuming the server took it.
+          // history instead of assuming the server took it. No ownership means
+          // the hook unmounted, so no read may outlive it.
           await handleUnconfirmedSend();
+        } else {
+          // Unmounted mid-send: the turn may still have been counted.
+          accepted = true;
         }
       } else if (accepted) {
         // The 2xx response arrived, so the server already persisted and counted
@@ -346,6 +378,7 @@ export function useCopilotChat(
       // controller (not the conversation) survives A -> B -> A.
       if (abortControllerRef.current === controller) {
         setStreamingContent('');
+        setIsWaitingForResponse(false);
         setIsSending(false);
         abortControllerRef.current = null;
       }
@@ -422,6 +455,7 @@ export function useCopilotChat(
     send,
     stop,
     isSending,
+    isWaitingForResponse,
     streamingContent,
     confirm,
     cancel,

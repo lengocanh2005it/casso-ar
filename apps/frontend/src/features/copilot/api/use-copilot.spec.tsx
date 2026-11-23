@@ -1991,6 +1991,206 @@ describe('useCopilotChat', () => {
     });
   });
 
+  describe('a send that outlives its hook', () => {
+    it('starts no history read once the hook unmounted', async () => {
+      streamCopilotMessage.mockImplementation(
+        (
+          _id: string,
+          _content: string,
+          _onEvent: (event: unknown) => void,
+          signal: AbortSignal,
+        ) =>
+          new Promise((_resolve, reject) => {
+            signal.addEventListener('abort', () =>
+              reject(new DOMException('aborted', 'AbortError')),
+            );
+          }),
+      );
+      const onTurnComplete = vi.fn();
+      const { result, unmount } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1', { onTurnComplete }),
+      );
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+      const loadsBefore = getCopilotConversationMessages.mock.calls.length;
+      const toastsBefore = vi.mocked(toast.error).mock.calls.length;
+
+      let sendPromise: Promise<boolean>;
+      act(() => {
+        sendPromise = result.current.send('Câu hỏi');
+      });
+      unmount();
+
+      let accepted = false;
+      await act(async () => {
+        accepted = await sendPromise;
+      });
+
+      // A read started here would toast on whatever page mounts next, and no
+      // state may be written for a conversation nobody is looking at.
+      expect(getCopilotConversationMessages).toHaveBeenCalledTimes(loadsBefore);
+      expect(vi.mocked(toast.error).mock.calls.length).toBe(toastsBefore);
+      expect(accepted).toBe(true);
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('a discarded history baseline', () => {
+    const oldQuestion = {
+      id: 'u1',
+      role: 'USER' as const,
+      content: 'Tóm tắt công nợ',
+      createdAt: '2026-08-09T00:00:00Z',
+    };
+
+    it('never confirms a send from a history page the load discarded', async () => {
+      let resolveHistory: (page: unknown) => void = () => {};
+      getCopilotConversationMessages.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveHistory = resolve;
+          }),
+      );
+      const onTurnComplete = vi.fn();
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1', { onTurnComplete }),
+      );
+
+      // A send lands first, so the late history page is dropped instead of
+      // becoming the list the reconcile compares against.
+      streamCopilotMessage.mockResolvedValue(undefined);
+      await act(async () => {
+        await result.current.send('Câu hỏi khác');
+      });
+      await act(async () => {
+        resolveHistory({ items: [oldQuestion] });
+      });
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+      const turnsBefore = onTurnComplete.mock.calls.length;
+      const toastCalls = vi.mocked(toast.error).mock.calls.length;
+
+      // Offline repeat of the old question: the reconcile read returns the
+      // copy the local list never learned about.
+      streamCopilotMessage.mockRejectedValue(new TypeError('Failed to fetch'));
+      getCopilotConversationMessages.mockResolvedValueOnce({
+        items: [oldQuestion],
+      });
+
+      let accepted = true;
+      await act(async () => {
+        accepted = await result.current.send('Tóm tắt công nợ');
+      });
+
+      // Without an applied baseline the old copy proves nothing about this
+      // send, so the page must not claim it is saved.
+      expect(accepted).toBe(false);
+      expect(onTurnComplete).toHaveBeenCalledTimes(turnsBefore + 1);
+      expect(toast.error).toHaveBeenLastCalledWith(
+        'Không thể xác nhận câu hỏi đã gửi chưa. Kiểm tra lại lịch sử trước khi gửi lại.',
+      );
+      expect(vi.mocked(toast.error).mock.calls.length).toBe(toastCalls + 1);
+    });
+
+    it('never confirms a send when the history load failed', async () => {
+      getCopilotConversationMessages.mockRejectedValueOnce(
+        new TypeError('Failed to fetch'),
+      );
+      const onTurnComplete = vi.fn();
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1', { onTurnComplete }),
+      );
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+      const toastCalls = vi.mocked(toast.error).mock.calls.length;
+
+      streamCopilotMessage.mockRejectedValue(new TypeError('Failed to fetch'));
+      getCopilotConversationMessages.mockResolvedValueOnce({
+        items: [oldQuestion],
+      });
+
+      let accepted = true;
+      await act(async () => {
+        accepted = await result.current.send('Tóm tắt công nợ');
+      });
+
+      expect(accepted).toBe(false);
+      expect(onTurnComplete).toHaveBeenCalledTimes(1);
+      expect(toast.error).toHaveBeenLastCalledWith(
+        'Không thể xác nhận câu hỏi đã gửi chưa. Kiểm tra lại lịch sử trước khi gửi lại.',
+      );
+      expect(vi.mocked(toast.error).mock.calls.length).toBe(toastCalls + 1);
+    });
+  });
+
+  describe('waiting for the first reply', () => {
+    it('stops waiting at the first delta', async () => {
+      let emit: (event: unknown) => void = () => {};
+      let resolveStream: () => void = () => {};
+      streamCopilotMessage.mockImplementation(
+        (_id: string, _content: string, onEvent: (event: unknown) => void) =>
+          new Promise<void>((resolve) => {
+            emit = onEvent;
+            resolveStream = resolve;
+          }),
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+
+      let sendPromise: Promise<boolean>;
+      act(() => {
+        sendPromise = result.current.send('Câu hỏi');
+      });
+      expect(result.current.isWaitingForResponse).toBe(true);
+
+      act(() => emit({ type: 'delta', text: 'Đang phân tích' }));
+      expect(result.current.isWaitingForResponse).toBe(false);
+
+      await act(async () => {
+        resolveStream();
+        await sendPromise;
+      });
+    });
+
+    it('stops waiting on an error event even while the stream is open', async () => {
+      let emit: (event: unknown) => void = () => {};
+      let resolveStream: () => void = () => {};
+      streamCopilotMessage.mockImplementation(
+        (_id: string, _content: string, onEvent: (event: unknown) => void) =>
+          new Promise<void>((resolve) => {
+            emit = onEvent;
+            resolveStream = resolve;
+          }),
+      );
+      const { result } = renderHook(() =>
+        useCopilotChat(true, 'conversation-1'),
+      );
+      await waitFor(() => expect(result.current.isLoadingHistory).toBe(false));
+
+      let sendPromise: Promise<boolean>;
+      act(() => {
+        sendPromise = result.current.send('Câu hỏi');
+      });
+      act(() =>
+        emit({
+          type: 'error',
+          errorCode: 'INTERNAL_SERVER_ERROR',
+          message: 'Copilot tạm thời không phản hồi.',
+        }),
+      );
+
+      // The reader is still open, but the reply already failed: announcing the
+      // wait again would contradict the error.
+      expect(result.current.isWaitingForResponse).toBe(false);
+      expect(result.current.isSending).toBe(true);
+
+      await act(async () => {
+        resolveStream();
+        await sendPromise;
+      });
+      expect(result.current.isWaitingForResponse).toBe(false);
+    });
+  });
+
   describe('switching conversations mid-stream', () => {
     it('aborts the old stream and never writes into the new conversation', async () => {
       const captured: {
