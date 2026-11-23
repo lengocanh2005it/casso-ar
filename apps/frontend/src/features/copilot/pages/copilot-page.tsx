@@ -35,10 +35,7 @@ import { UsageIndicator } from '../components/usage-indicator';
 const STICK_TO_BOTTOM_THRESHOLD_PX = 80;
 
 function prefersReducedMotion() {
-  return (
-    typeof window.matchMedia === 'function' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  );
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 export function CopilotPage() {
@@ -174,7 +171,6 @@ export function CopilotPage() {
     const appendedMessage = messages.length > previousMessageCountRef.current;
     previousMessageCountRef.current = messages.length;
     if (!stickToBottomRef.current) return;
-    if (typeof container.scrollTo !== 'function') return;
     container.scrollTo({
       top: container.scrollHeight,
       // Only a newly appended message animates; a streaming delta must land

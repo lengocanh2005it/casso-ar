@@ -321,7 +321,7 @@ describe('CopilotPage', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /dừng/i })).toBeInTheDocument(),
     );
-    expect(screen.getByLabelText('Copilot đang trả lời')).toBeInTheDocument();
+    expect(screen.getByText('Copilot đang trả lời…')).toBeInTheDocument();
     expect(
       screen.getByRole('log', { name: 'Cuộc trò chuyện Copilot' }),
     ).toHaveAttribute('aria-busy', 'true');
@@ -803,7 +803,8 @@ describe('CopilotPage', () => {
       Reflect.deleteProperty(Element.prototype, 'scrollHeight');
       Reflect.deleteProperty(Element.prototype, 'clientHeight');
       Reflect.deleteProperty(Element.prototype, 'scrollTop');
-      Reflect.deleteProperty(Element.prototype, 'scrollTo');
+      // Back to the no-op stub from src/test/setup.ts, not undefined.
+      Element.prototype.scrollTo = () => {};
     });
 
     it('scrolls to the bottom when a new message arrives while near the bottom', async () => {

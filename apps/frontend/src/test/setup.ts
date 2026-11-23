@@ -31,6 +31,22 @@ globalThis.ResizeObserver =
   globalThis.ResizeObserver ??
   (MockResizeObserver as unknown as typeof ResizeObserver);
 
+// jsdom has no layout engine, so Element.scrollTo is missing and matchMedia
+// always reports "no preference". Stub both here so production code can call
+// them unconditionally instead of guarding every use site.
+Element.prototype.scrollTo = () => {};
+
+window.matchMedia = (query: string): MediaQueryList => ({
+  matches: false,
+  media: query,
+  onchange: null,
+  addListener: () => {},
+  removeListener: () => {},
+  addEventListener: () => {},
+  removeEventListener: () => {},
+  dispatchEvent: () => false,
+});
+
 // The default 1000ms is too tight when vitest runs the full suite in parallel:
 // a starved worker can take seconds to paint a lazy route/chart, so `findBy*`
 // and `waitFor` time out even though the assertion is correct. This is why
