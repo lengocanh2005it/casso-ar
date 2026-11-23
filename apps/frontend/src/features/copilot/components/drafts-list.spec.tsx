@@ -70,24 +70,117 @@ describe('DraftsList', () => {
 
     renderWithClient(<DraftsList canSendManual={false} />);
 
-    expect(await screen.findByText('Trang 1 / 2')).toBeInTheDocument();
+    expect(await screen.findByText('Trang 1/2')).toBeInTheDocument();
     expect(draftsApi.fetchCopilotDrafts).toHaveBeenCalledWith(1, 20, undefined);
     expect(screen.getByRole('button', { name: 'Trước' })).toBeDisabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Sau' }));
 
-    expect(await screen.findByText('Trang 2 / 2')).toBeInTheDocument();
+    expect(await screen.findByText('Trang 2/2')).toBeInTheDocument();
     expect(draftsApi.fetchCopilotDrafts).toHaveBeenCalledWith(2, 20, undefined);
     expect(screen.getByRole('button', { name: 'Sau' })).toBeDisabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Trước' }));
 
-    expect(await screen.findByText('Trang 1 / 2')).toBeInTheDocument();
+    expect(await screen.findByText('Trang 1/2')).toBeInTheDocument();
     expect(draftsApi.fetchCopilotDrafts).toHaveBeenLastCalledWith(
       1,
       20,
       undefined,
     );
+  });
+
+  it('labels the pager as navigation with plain buttons', async () => {
+    vi.mocked(draftsApi.fetchCopilotDrafts).mockResolvedValue({
+      items: [
+        {
+          id: 'draft-1',
+          receivableId: 'rec-1',
+          recipientEmail: 'ap@abc.vn',
+          subject: 'Nhắc thanh toán',
+          bodyHtml: '<p>Nội dung</p>',
+          status: 'DRAFTED',
+          pendingActionId: null,
+          createdAt: '2026-08-21T10:00:00Z',
+        },
+      ],
+      total: 21,
+    });
+
+    renderWithClient(<DraftsList canSendManual={false} />);
+
+    const nav = await screen.findByRole('navigation', {
+      name: 'Phân trang bản nháp',
+    });
+    expect(nav).toHaveTextContent('Trang 1/2');
+    for (const button of screen.getAllByRole('button', {
+      name: /Trước|Sau/,
+    })) {
+      expect(button).toHaveAttribute('type', 'button');
+    }
+  });
+
+  it('clamps back to a page with rows after deleting the last draft of the last page', async () => {
+    const draft = (id: string, subject: string) => ({
+      id,
+      receivableId: 'rec-1',
+      recipientEmail: 'ap@abc.vn',
+      subject,
+      bodyHtml: '<p>Nội dung</p>',
+      status: 'DRAFTED' as const,
+      pendingActionId: null,
+      createdAt: '2026-08-21T10:00:00Z',
+    });
+    vi.mocked(draftsApi.fetchCopilotDrafts).mockImplementation(async (page) =>
+      page === 1
+        ? { items: [draft('draft-1', 'Còn lại')], total: 21 }
+        : { items: [draft('draft-last', 'Bản nháp cuối')], total: 21 },
+    );
+    vi.spyOn(draftsApi, 'deleteCopilotDraft').mockResolvedValue({
+      success: true,
+    });
+
+    renderWithClient(<DraftsList canSendManual />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Sau' }));
+    expect(await screen.findByText('Bản nháp cuối')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Xác nhận' }));
+
+    expect(await screen.findByText('Trang 1/2')).toBeInTheDocument();
+    expect(await screen.findByText('Còn lại')).toBeInTheDocument();
+  });
+
+  it('clamps back when a later page comes back empty', async () => {
+    vi.mocked(draftsApi.fetchCopilotDrafts).mockImplementation(async (page) =>
+      page === 1
+        ? {
+            items: [
+              {
+                id: 'draft-1',
+                receivableId: 'rec-1',
+                recipientEmail: 'ap@abc.vn',
+                subject: 'Nhắc thanh toán',
+                bodyHtml: '<p>Nội dung</p>',
+                status: 'DRAFTED',
+                pendingActionId: null,
+                createdAt: '2026-08-21T10:00:00Z',
+              },
+            ],
+            total: 21,
+          }
+        : { items: [], total: 21 },
+    );
+
+    renderWithClient(<DraftsList canSendManual={false} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Sau' }));
+
+    // The pager stays reachable instead of stranding the panel on "no drafts".
+    expect(await screen.findByText('Trang 1/2')).toBeInTheDocument();
+    expect(await screen.findByText('Nhắc thanh toán')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('status', { name: /chưa có bản nháp email nào/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('announces an empty drafts state', async () => {

@@ -1,5 +1,5 @@
 import { CircleAlert, FilePenLine, LoaderCircle } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -54,6 +54,17 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
     null,
   );
   const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
+  const totalPages = Math.max(
+    1,
+    Math.ceil((data?.total ?? 0) / COPILOT_DRAFTS_PAGE_SIZE),
+  );
+  const isEmptyPage = (data?.items ?? []).length === 0;
+
+  // Deleting the last row of a trailing page (or any page drifting out of
+  // range) leaves an empty page: step back instead of stranding the panel.
+  useEffect(() => {
+    if (isEmptyPage && page > 1) setPage(Math.min(page - 1, totalPages));
+  }, [isEmptyPage, page, totalPages]);
 
   if (isLoading) {
     return (
@@ -88,7 +99,7 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / COPILOT_DRAFTS_PAGE_SIZE));
+
   if (items.length === 0) {
     return (
       <div
@@ -245,12 +256,16 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
         );
       })}
       {total > COPILOT_DRAFTS_PAGE_SIZE && (
-        <div className="flex items-center justify-between gap-2">
+        <nav
+          aria-label="Phân trang bản nháp"
+          className="flex items-center justify-between gap-2"
+        >
           <p className="tabular-nums text-xs text-muted-foreground">
-            Trang {page} / {totalPages}
+            Trang {page}/{totalPages}
           </p>
           <div className="flex gap-2">
             <Button
+              type="button"
               size="sm"
               variant="outline"
               disabled={page <= 1}
@@ -259,6 +274,7 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
               Trước
             </Button>
             <Button
+              type="button"
               size="sm"
               variant="outline"
               disabled={page >= totalPages}
@@ -267,7 +283,7 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
               Sau
             </Button>
           </div>
-        </div>
+        </nav>
       )}
       <DraftEditDialog
         draft={editingDraft}

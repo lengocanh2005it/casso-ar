@@ -1045,6 +1045,69 @@ describe('useCopilotChat', () => {
       expect(onTurnComplete).toHaveBeenCalledTimes(1);
     });
 
+    it('leaves the new request abortable when switching back to the same conversation', async () => {
+      const first: { reject: (reason: unknown) => void; signal?: AbortSignal } =
+        { reject: () => {} };
+      const second: { resolve: () => void; signal?: AbortSignal } = {
+        resolve: () => {},
+      };
+      let call = 0;
+      streamCopilotMessage.mockImplementation(
+        (
+          _id: string,
+          _content: string,
+          _onEvent: (event: unknown) => void,
+          signal: AbortSignal,
+          onAccepted?: () => void,
+        ) => {
+          onAccepted?.();
+          call += 1;
+          if (call === 1) {
+            first.signal = signal;
+            return new Promise((_resolve, reject) => {
+              first.reject = reject;
+            });
+          }
+          second.signal = signal;
+          return new Promise<void>((resolve) => {
+            second.resolve = resolve;
+          });
+        },
+      );
+      const { result, rerender } = renderHook(
+        ({ conversationId }) => useCopilotChat(true, conversationId),
+        { initialProps: { conversationId: 'conversation-a' } },
+      );
+
+      let firstSend: Promise<boolean>;
+      act(() => {
+        firstSend = result.current.send('Câu hỏi đầu');
+      });
+
+      getCopilotConversationMessages.mockResolvedValue({ items: [] });
+      rerender({ conversationId: 'conversation-b' });
+      rerender({ conversationId: 'conversation-a' });
+
+      let secondSend: Promise<boolean>;
+      act(() => {
+        secondSend = result.current.send('Câu hỏi sau');
+      });
+
+      await act(async () => {
+        first.reject(new DOMException('aborted', 'AbortError'));
+        await firstSend;
+      });
+
+      // A finished request must not null the controller the new one owns.
+      act(() => result.current.stop());
+      expect(second.signal?.aborted).toBe(true);
+
+      await act(async () => {
+        second.resolve();
+        await secondSend;
+      });
+    });
+
     it('ignores done and error events that arrive after the switch', async () => {
       const captured: {
         onEvent: ((event: unknown) => void) | null;

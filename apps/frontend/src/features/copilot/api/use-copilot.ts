@@ -223,8 +223,9 @@ export function useCopilotChat(
     } finally {
       if (accepted) options.onTurnComplete?.();
       // The new conversation already reset this state; writing it again would
-      // clear a stream that was started there in the meantime.
-      if (isCurrentConversation()) {
+      // clear a stream that was started there in the meantime. Comparing the
+      // controller (not the conversation) survives A -> B -> A.
+      if (abortControllerRef.current === controller) {
         setStreamingContent('');
         setIsSending(false);
         abortControllerRef.current = null;

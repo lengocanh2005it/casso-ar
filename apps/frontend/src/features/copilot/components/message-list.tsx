@@ -38,11 +38,12 @@ export function MessageList({
         </div>
       ))}
       {isWaitingForResponse && !streamingContent && (
-        <div aria-label="Copilot đang trả lời" role="img">
+        <div>
           <CopilotMessageBubble
             message={{ role: 'ASSISTANT', content: '' }}
             isWaitingForResponse
           />
+          <span className="sr-only">Copilot đang trả lời…</span>
         </div>
       )}
       {streamingContent && (

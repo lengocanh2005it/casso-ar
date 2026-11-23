@@ -8,7 +8,8 @@ describe('MessageList', () => {
       <MessageList messages={[]} isWaitingForResponse />,
     );
 
-    expect(screen.getByLabelText('Copilot đang trả lời')).toBeInTheDocument();
+    expect(screen.getByText('Copilot đang trả lời…')).toHaveClass('sr-only');
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
     expect(container.querySelectorAll('.animate-bounce')).toHaveLength(3);
     expect(screen.queryByText(/đang xử lý/i)).not.toBeInTheDocument();
   });
@@ -77,6 +78,7 @@ describe('MessageList', () => {
     const log = screen.getByRole('log', { name: 'Cuộc trò chuyện Copilot' });
     expect(log.querySelectorAll('[aria-live]')).toHaveLength(0);
     expect(log.querySelectorAll('[role="status"]')).toHaveLength(0);
-    expect(screen.getByLabelText('Copilot đang trả lời')).toBeInTheDocument();
+    expect(log.querySelectorAll('[role="img"]')).toHaveLength(0);
+    expect(screen.getByText('Copilot đang trả lời…')).toBeInTheDocument();
   });
 });
