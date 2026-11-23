@@ -44,7 +44,8 @@ const MUTABLE_STATUSES: CopilotDraftStatus[] = [
 
 export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
   const [page, setPage] = useState(1);
-  const { data, isError, isLoading, refetch } = useCopilotDrafts(page);
+  const { data, isError, isLoading, isPlaceholderData, refetch } =
+    useCopilotDrafts(page);
   const reopen = useReopenCopilotDraft();
   const confirm = useConfirmCopilotDraft();
   const deleteDraft = useDeleteCopilotDraft();
@@ -61,23 +62,25 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
   const isEmptyPage = (data?.items ?? []).length === 0;
 
   // Deleting the last row of a trailing page (or any page drifting out of
-  // range) leaves an empty page: step back instead of stranding the panel.
+  // range) leaves an empty page: step back instead of stranding the panel. A
+  // failed page is not empty, it is an error, and keeps its retry.
   useEffect(() => {
-    if (isEmptyPage && page > 1) setPage(Math.min(page - 1, totalPages));
-  }, [isEmptyPage, page, totalPages]);
+    if (isEmptyPage && page > 1 && !isError)
+      setPage(Math.min(page - 1, totalPages));
+  }, [isEmptyPage, isError, page, totalPages]);
 
-  if (isLoading) {
-    return (
-      <div
-        aria-label="Đang tải bản nháp email"
-        className="flex items-center gap-2 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground"
-        role="status"
-      >
-        <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-        Đang tải…
-      </div>
-    );
-  }
+  const loadingState = (
+    <div
+      aria-label="Đang tải bản nháp email"
+      className="flex items-center gap-2 rounded-lg border bg-muted/30 p-3 text-sm text-muted-foreground"
+      role="status"
+    >
+      <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+      Đang tải…
+    </div>
+  );
+
+  if (isLoading) return loadingState;
 
   if (isError) {
     return (
@@ -96,6 +99,11 @@ export function DraftsList({ canSendManual }: { canSendManual: boolean }) {
       </div>
     );
   }
+
+  // The empty page is about to clamp back: show the loader rather than flash
+  // "no drafts" at someone who still has rows on an earlier page. Rows kept
+  // from the previous page still render, so this only catches the empty case.
+  if (isEmptyPage && (page > 1 || isPlaceholderData)) return loadingState;
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;

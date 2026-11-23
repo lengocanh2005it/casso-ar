@@ -183,6 +183,77 @@ describe('DraftsList', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('keeps an errored page on screen with its retry instead of walking back', async () => {
+    const draft = {
+      id: 'draft-1',
+      receivableId: 'rec-1',
+      recipientEmail: 'ap@abc.vn',
+      subject: 'Nhắc thanh toán',
+      bodyHtml: '<p>Nội dung</p>',
+      status: 'DRAFTED' as const,
+      pendingActionId: null,
+      createdAt: '2026-08-21T10:00:00Z',
+    };
+    vi.mocked(draftsApi.fetchCopilotDrafts).mockImplementation(async (page) => {
+      if (page === 1) return { items: [draft], total: 21 };
+      throw new Error('Drafts unavailable');
+    });
+
+    renderWithClient(<DraftsList canSendManual={false} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Sau' }));
+
+    // Walking back to page 1 would replace this error with a list nobody asked for.
+    expect(
+      await screen.findByRole('alert', {
+        name: /không thể tải bản nháp email/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Nhắc thanh toán')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+    expect(draftsApi.fetchCopilotDrafts).toHaveBeenLastCalledWith(
+      2,
+      20,
+      undefined,
+    );
+  });
+
+  it('never flashes the empty state on the way back from an empty page', async () => {
+    const draft = {
+      id: 'draft-1',
+      receivableId: 'rec-1',
+      recipientEmail: 'ap@abc.vn',
+      subject: 'Nhắc thanh toán',
+      bodyHtml: '<p>Nội dung</p>',
+      status: 'DRAFTED' as const,
+      pendingActionId: null,
+      createdAt: '2026-08-21T10:00:00Z',
+    };
+    vi.mocked(draftsApi.fetchCopilotDrafts).mockImplementation(async (page) =>
+      page === 1 ? { items: [draft], total: 21 } : { items: [], total: 21 },
+    );
+
+    renderWithClient(<DraftsList canSendManual={false} />);
+    const emptyStateFlashed = { value: false };
+    const observer = new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (node.textContent?.includes('Chưa có bản nháp email nào.')) {
+            emptyStateFlashed.value = true;
+          }
+        }
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sau' }));
+
+    expect(await screen.findByText('Trang 1/2')).toBeInTheDocument();
+    expect(await screen.findByText('Nhắc thanh toán')).toBeInTheDocument();
+    observer.disconnect();
+    expect(emptyStateFlashed.value).toBe(false);
+  });
+
   it('announces an empty drafts state', async () => {
     vi.spyOn(draftsApi, 'fetchCopilotDrafts').mockResolvedValue({
       items: [],
