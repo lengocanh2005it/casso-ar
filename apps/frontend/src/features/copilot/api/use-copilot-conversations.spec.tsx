@@ -207,6 +207,53 @@ describe('useCopilotConversations', () => {
     expect(result.current.conversations.map((item) => item.id)).toEqual(['c1']);
   });
 
+  it('clears isLoadingMore when a refresh lands before load-more resolves', async () => {
+    const conversation = (id: string) => ({
+      id,
+      title: `Cuộc trò chuyện ${id}`,
+      createdAt: '',
+      lastMessageAt: '',
+    });
+    listCopilotConversations.mockResolvedValueOnce({
+      items: [conversation('c1')],
+      total: 3,
+    });
+    const { result } = renderHook(() => useCopilotConversations());
+    await waitFor(() => expect(result.current.conversations).toHaveLength(1));
+
+    let resolveStaleLoadMore: (value: unknown) => void = () => {};
+    listCopilotConversations.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveStaleLoadMore = resolve;
+      }),
+    );
+    let staleLoadMore: Promise<void> = Promise.resolve();
+    act(() => {
+      staleLoadMore = result.current.loadMore();
+    });
+    expect(result.current.isLoadingMore).toBe(true);
+
+    // A finished turn refreshes while that page is still in flight.
+    listCopilotConversations.mockResolvedValueOnce({
+      items: [conversation('c1')],
+      total: 3,
+    });
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    await act(async () => {
+      resolveStaleLoadMore({
+        items: [conversation('c2')],
+        total: 3,
+      });
+      await staleLoadMore;
+    });
+
+    expect(result.current.isLoadingMore).toBe(false);
+    expect(result.current.conversations.map((item) => item.id)).toEqual(['c1']);
+  });
+
   it('startNewConversation swaps to a fresh id and selectConversation switches to an existing one', async () => {
     const { result } = renderHook(() => useCopilotConversations());
     await waitFor(() => expect(listCopilotConversations).toHaveBeenCalled());

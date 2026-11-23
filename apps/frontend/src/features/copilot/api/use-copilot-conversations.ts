@@ -2,9 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { CopilotConversationSummary } from '../types';
 import { listCopilotConversations } from './copilot-api';
-import { COPILOT_DRAFTS_PAGE_SIZE } from './use-copilot-drafts';
 
-const CONVERSATIONS_PAGE_SIZE = COPILOT_DRAFTS_PAGE_SIZE;
+export const COPILOT_CONVERSATIONS_PAGE_SIZE = 20;
 
 export function useCopilotConversations() {
   const [conversations, setConversations] = useState<
@@ -45,7 +44,10 @@ export function useCopilotConversations() {
     const generation = ++generationRef.current;
     setIsLoading(true);
     try {
-      const page = await listCopilotConversations(1, CONVERSATIONS_PAGE_SIZE);
+      const page = await listCopilotConversations(
+        1,
+        COPILOT_CONVERSATIONS_PAGE_SIZE,
+      );
       if (generation !== generationRef.current) return;
       // Page one first, then whatever later pages the user already loaded.
       setConversations((current) => mergeById(page.items, current));
@@ -67,7 +69,7 @@ export function useCopilotConversations() {
     try {
       const page = await listCopilotConversations(
         loadedPages + 1,
-        CONVERSATIONS_PAGE_SIZE,
+        COPILOT_CONVERSATIONS_PAGE_SIZE,
       );
       if (generation !== generationRef.current) return;
       setConversations((current) => mergeById(current, page.items));
@@ -76,7 +78,9 @@ export function useCopilotConversations() {
     } catch {
       toast.error('Không thể tải lịch sử chat.');
     } finally {
-      if (generation === generationRef.current) setIsLoadingMore(false);
+      // Always reset: a refresh that bumped the generation mid-flight still
+      // leaves this load done, and a stuck flag disables "Xem thêm" forever.
+      setIsLoadingMore(false);
     }
   }, [loadedPages, mergeById]);
 
