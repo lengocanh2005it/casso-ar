@@ -338,7 +338,16 @@ export class CopilotChatUseCase {
     input: Record<string, unknown>,
     organizationId: string,
     userId: string,
+    allowedToolNames: ReadonlySet<string>,
   ): Promise<unknown> {
+    // A provider can echo a function name that was never advertised for this
+    // role; refusing here keeps the gate in getTools authoritative.
+    if (!allowedToolNames.has(name)) {
+      throw new AppError(
+        ErrorCode.VALIDATION_ERROR,
+        `Tool Copilot không xác định: "${name}".`,
+      );
+    }
     switch (name) {
       case GetReceivableSummaryTool.NAME:
         return this.getReceivableSummaryTool.execute({
@@ -446,6 +455,7 @@ export class CopilotChatUseCase {
     calls: AIToolCall[],
     organizationId: string,
     userId: string,
+    allowedToolNames: ReadonlySet<string>,
   ): Promise<Map<string, unknown>> {
     const batchedResults = await Promise.all(
       calls
@@ -457,6 +467,7 @@ export class CopilotChatUseCase {
             call.arguments,
             organizationId,
             userId,
+            allowedToolNames,
           ).catch(() => null),
         })),
     );
@@ -593,6 +604,7 @@ export class CopilotChatUseCase {
       canSendReminders,
       canAllocatePayments,
     );
+    const allowedToolNames = new Set(tools.map((tool) => tool.function.name));
     const draftToolCalls: ToolCallRecord[] = [];
     // Read tools are re-run every turn, but their results still have to be
     // carried across turns: a continuation cursor (findOverdueReceivables'
@@ -617,6 +629,7 @@ export class CopilotChatUseCase {
           response.toolCalls,
           user.organizationId,
           user.userId,
+          allowedToolNames,
         );
         const payload = await this.enrichPendingActionPayload(
           draftId,
@@ -672,6 +685,7 @@ export class CopilotChatUseCase {
             call.arguments,
             user.organizationId,
             user.userId,
+            allowedToolNames,
           ).catch((error: unknown) => {
             this.logger.error({
               message: 'Copilot tool call failed',
@@ -748,6 +762,7 @@ export class CopilotChatUseCase {
         description: tool.function.description,
         parameters: { ...tool.function.parameters },
       }));
+      const allowedToolNames = new Set(tools.map((tool) => tool.function.name));
       const draftToolCalls: ToolCallRecord[] = [];
       const readToolCalls: ToolCallRecord[] = [];
 
@@ -803,6 +818,7 @@ export class CopilotChatUseCase {
             toolCalls,
             user.organizationId,
             user.userId,
+            allowedToolNames,
           );
           const payload = await this.enrichPendingActionPayload(
             draftId,
@@ -860,6 +876,7 @@ export class CopilotChatUseCase {
               call.arguments,
               user.organizationId,
               user.userId,
+              allowedToolNames,
             ).catch((error: unknown) => {
               this.logger.error({
                 message: 'Copilot tool call failed',
