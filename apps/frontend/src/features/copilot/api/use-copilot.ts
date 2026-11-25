@@ -325,6 +325,10 @@ export function useCopilotChat(
             answerCommitted = true;
             setMessages((current) => [...current, event.data.message]);
             setPendingAction(event.data.pendingAction ?? null);
+            // The committed message now carries the text. Leave the streaming
+            // bubble up and the same answer renders twice until the stream
+            // closes (and Playwright's strict locator sees two elements).
+            setStreamingContent('');
           } else if (event.type === 'error') {
             // The turn failed after it started answering: keep what the user
             // already read instead of dropping it on the floor.
