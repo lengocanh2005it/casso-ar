@@ -54,6 +54,7 @@ export function CopilotPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const previousMessageCountRef = useRef(0);
+  const previousStreamingRef = useRef('');
   const programmaticScrollRef = useRef(false);
   const lastScrollTopRef = useRef(0);
   const programmaticScrollTimerRef = useRef<ReturnType<
@@ -240,6 +241,18 @@ export function CopilotPage() {
     previousMessageCountRef.current = messages.length;
     const loadedHistory = loadingHistoryRef.current;
     if (addedCount > 0) loadingHistoryRef.current = false;
+    // A streaming token can arrive before React has handled the reader's
+    // scroll event, leaving a stale stick flag that would yank them back down.
+    // Only a delta rechecks: sending a question and switching conversations
+    // are explicit requests to see the bottom and keep the latched flag.
+    if (
+      streamingContent.length > previousStreamingRef.current.length &&
+      !programmaticScrollRef.current
+    ) {
+      stickToBottomRef.current = isNearBottom(container);
+      lastScrollTopRef.current = container.scrollTop;
+    }
+    previousStreamingRef.current = streamingContent;
     if (!stickToBottomRef.current) return;
     // Only a single appended message animates; a bulk history load (a
     // conversation switch) and streaming deltas land instantly so a long
