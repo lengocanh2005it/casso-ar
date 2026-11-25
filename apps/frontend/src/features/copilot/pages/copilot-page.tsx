@@ -197,8 +197,10 @@ export function CopilotPage() {
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
+    container.addEventListener('scroll', updateStickToBottom);
     container.addEventListener('scrollend', endProgrammaticScroll);
     return () => {
+      container.removeEventListener('scroll', updateStickToBottom);
       container.removeEventListener('scrollend', endProgrammaticScroll);
       if (programmaticScrollTimerRef.current !== null) {
         clearTimeout(programmaticScrollTimerRef.current);
@@ -400,7 +402,6 @@ export function CopilotPage() {
             <div
               ref={scrollRef}
               data-testid="copilot-scroll"
-              onScroll={updateStickToBottom}
               className={
                 isEmptyConversation
                   ? 'mx-3 flex min-h-0 flex-1 flex-col overflow-hidden'
