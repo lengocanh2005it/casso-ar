@@ -55,12 +55,13 @@ import {
 import { FindOverdueReceivablesTool } from './tools/find-overdue-receivables.tool';
 import { GetCashFlowSnapshotTool } from './tools/get-cash-flow-snapshot.tool';
 import { GetCollectionActivityTimelineTool } from './tools/get-collection-activity-timeline.tool';
+import { GetExceptionQueueItemsTool } from './tools/get-exception-queue-items.tool';
 import { GetPaymentHistoryTool } from './tools/get-payment-history.tool';
 import { GetReceivableSummaryTool } from './tools/get-receivable-summary.tool';
 import { RankReceivablesByRiskTool } from './tools/rank-receivables-by-risk.tool';
 import { SendReminderEmailTool } from './tools/send-reminder-email.tool';
 
-const PROMPT_VERSION = 'copilot-v5';
+const PROMPT_VERSION = 'copilot-v6';
 const MODEL_CALL_TIMEOUT_MS = 15_000;
 const MODEL_CALL_RETRY_BACKOFF_MS = 500;
 const MAX_OUTPUT_TOKENS = 2048;
@@ -76,13 +77,16 @@ export const SYSTEM_PROMPT = [
   'For questions about which receivables are risky, about to become overdue ("sắp trễ nợ"), or should be chased first, call rankReceivablesByRisk. Report only the riskScore, riskBand and reasons the tool returns; never compute a score yourself or invent a reason. Explain HIGH as rủi ro cao, MEDIUM as rủi ro trung bình, and LOW as rủi ro thấp — in Vietnamese without the English band names.',
   'For cash-flow, outstanding totals, aging buckets, overdue forecast or collection-trend questions, call getCashFlowSnapshot and report only the numbers it returns — never recompute a rate or invent an amount. Do not use it for questions about one specific receivable or customer; the receivable tools cover those. Never show customerId or bucket codes; use Vietnamese bucket names (Chưa đến hạn, Quá hạn 1-7 ngày, 8-30 ngày, 31-60 ngày, trên 60 ngày).',
   'If the user asks to prepare a reminder without identifying a customer or receivable, ask in Vietnamese for the customer name or invoice number; do not guess, select an arbitrary receivable, or create a draft.',
+  'For questions about transfers in the Exception Queue — received money that matching did not settle, whether it needs a candidate choice (Ambiguous match) or has no matching candidate — call getExceptionQueueItems. Answer in Vietnamese from its result only: for each transfer state the amount, date, transfer content, and its matching state in Vietnamese, picking exactly one of three labels from the fields returned: status PENDING_REVIEW with isAmbiguousMatch true means it needs a candidate choice ("cần chọn giữa các ứng viên"); status PENDING_REVIEW with isAmbiguousMatch false and hasMatchingCandidate true means one candidate awaits confirmation ("có một ứng viên cần xác nhận"); status UNMATCHED or hasMatchingCandidate false means there is no matching candidate ("không có ứng viên phù hợp"). Explain using only the candidate summary (customer name, invoice number, remaining amount), the advisory AI matching recommendation reason when present, and payer name with linked customers. Never present raw scores, internal UUIDs, model or failure codes, field names, or invented reasons, and use Exception Queue terminology rather than the old unmatched wording.',
+  'getExceptionQueueItems pages through the Exception Queue. When the user asks to continue ("xem tiếp", "tiếp", "xem thêm", or any equivalent) after a result with hasMore true, call getExceptionQueueItems again with page + 1 and the same search and status values. Never answer a continuation request by repeating, summarizing, or reformatting rows already in the conversation — a reply without a fresh tool call is always wrong for a continuation request.',
+  'If getExceptionQueueItems returns 0 items, say in Vietnamese that there are no transfers in the Exception Queue ("không có khoản nào trong Exception Queue") and do not call the tool again or claim the information is unavailable. Reserve "không xác định được" for a tool error or a missing required input.',
   'Never expose internal UUIDs, tool names, schema field names, raw provider errors, or implementation details in user-facing text. Summarize recoverable tool errors in Vietnamese without repeating technical error messages.',
   'If the user wants to send a reminder email, call draftReminderEmail first to create a draft, then call sendReminderEmail to propose sending it — the user must separately confirm the actual send; you do not send it yourself.',
   'Before calling draftReminderEmail, you must already have the real remaining amount and due date for the receivable from a prior findOverdueReceivables or getReceivableSummary call (or from data already in this conversation) — write the subject and bodyHtml yourself, in Vietnamese unless the user explicitly requests English, using only those real figures; never invent an amount or date.',
   `When looking up overdue receivables with findOverdueReceivables: if 0 items are returned, explain in Vietnamese that no matching overdue receivable was found and do not call draftReminderEmail; if exactly 1 item is returned and hasMore is false, you may proceed to draft the reminder email; if multiple items are returned, present only the returned items so the user can choose. Write each receivable on exactly ONE line: the 1-based position, then the customer name, then these labels with their values in this order, separated by " - ": "${COPILOT_RECEIVABLE_FIELDS.invoice}", "${COPILOT_RECEIVABLE_FIELDS.amount}", "${COPILOT_RECEIVABLE_FIELDS.due}". Never split a receivable across lines, never rename or drop those labels, and never copy the label words themselves into the output. Example: "1. Công ty TNHH Dược phẩm Tâm An - ${COPILOT_RECEIVABLE_FIELDS.invoice} HD-2026-0037 - ${COPILOT_RECEIVABLE_FIELDS.amount} 13000000 VNĐ - ${COPILOT_RECEIVABLE_FIELDS.due} 29/04/2026". Use "${COPILOT_NO_INVOICE_LABEL}" when the invoice number is null. List at most the returned 10 overdue receivables. If hasMore is true, say more results are available and invite the user to say "xem tiếp"; do not state an exact total.`,
   'Paging is mandatory: when the user asks to continue ("xem tiếp", "tiếp", "xem thêm", or any equivalent) after a findOverdueReceivables result with hasMore true, you MUST call findOverdueReceivables again, passing the nextCursor from the most recent tool result. Never answer a continuation request by repeating, summarizing, or reformatting rows that are already in the conversation — a reply without a fresh tool call is always wrong for a continuation request. If the user does not ask to continue, answer from the data already available and do not call the tool again.',
   'If hasMore is true, do not infer that the visible rows are the only matches or draft/send a reminder until the user selects one. Never show the cursor or internal IDs. Never display internal UUIDs (like receivableId or customerId) in user-facing text.',
-  'You have neither permission nor tools to write off receivables, allocate payments, or handle disputes — if the user asks, direct them to the standard interface.',
+  'You have neither permission nor tools to write off receivables, allocate payments, or handle disputes — if the user asks, direct them to the standard interface. Reading the Exception Queue is not allocating money; never propose a match, allocation, skip or prepaid action from Copilot.',
 ].join(' ');
 
 export interface CopilotChatInput {
@@ -221,6 +225,7 @@ export class CopilotChatUseCase {
     private readonly invoiceRepo?: IInvoiceRepository,
     private readonly rankReceivablesByRiskTool?: RankReceivablesByRiskTool,
     private readonly getCashFlowSnapshotTool?: GetCashFlowSnapshotTool,
+    private readonly getExceptionQueueItemsTool?: GetExceptionQueueItemsTool,
   ) {}
 
   private enrichPendingActionPayload(
@@ -397,6 +402,19 @@ export class CopilotChatUseCase {
           );
         }
         return this.getCashFlowSnapshotTool.execute();
+      case GetExceptionQueueItemsTool.NAME:
+        if (!this.getExceptionQueueItemsTool) {
+          throw new AppError(
+            ErrorCode.INTERNAL_SERVER_ERROR,
+            'Công cụ Exception Queue không khả dụng.',
+          );
+        }
+        return this.getExceptionQueueItemsTool.execute({
+          page: input.page,
+          limit: input.limit,
+          search: input.search,
+          status: input.status,
+        });
       case DraftReminderEmailTool.NAME:
         return this.draftReminderEmailTool.execute(
           {
@@ -559,6 +577,9 @@ export class CopilotChatUseCase {
     const canSendReminders = ROLE_PERMISSIONS[user.role].includes(
       Permission.REMINDER_SEND_MANUAL,
     );
+    const canAllocatePayments = ROLE_PERMISSIONS[user.role].includes(
+      Permission.PAYMENT_ALLOCATE,
+    );
 
     await this.persistUserMessage(input, user);
 
@@ -568,7 +589,10 @@ export class CopilotChatUseCase {
         await this.conversationRepo.listMessages(input.conversationId),
       ),
     ];
-    const tools = this.toolRegistry.getTools(canSendReminders);
+    const tools = this.toolRegistry.getTools(
+      canSendReminders,
+      canAllocatePayments,
+    );
     const draftToolCalls: ToolCallRecord[] = [];
     // Read tools are re-run every turn, but their results still have to be
     // carried across turns: a continuation cursor (findOverdueReceivables'
@@ -705,6 +729,9 @@ export class CopilotChatUseCase {
       const canSendReminders = ROLE_PERMISSIONS[user.role].includes(
         Permission.REMINDER_SEND_MANUAL,
       );
+      const canAllocatePayments = ROLE_PERMISSIONS[user.role].includes(
+        Permission.PAYMENT_ALLOCATE,
+      );
 
       const messages: AIChatMessage[] = [
         { role: 'system', content: SYSTEM_PROMPT },
@@ -712,7 +739,10 @@ export class CopilotChatUseCase {
           await this.conversationRepo.listMessages(input.conversationId),
         ),
       ];
-      const tools = this.toolRegistry.getTools(canSendReminders);
+      const tools = this.toolRegistry.getTools(
+        canSendReminders,
+        canAllocatePayments,
+      );
       const toolSpecs = tools.map((tool) => ({
         name: tool.function.name,
         description: tool.function.description,

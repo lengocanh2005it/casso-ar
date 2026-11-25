@@ -13,6 +13,7 @@ export interface CopilotToolDefinition {
   description: string;
   inputSchema: CopilotJsonSchema;
   requiresReminderPermission: boolean;
+  requiresPaymentAllocatePermission?: boolean;
 }
 
 export interface OpenAiToolShape {
@@ -33,6 +34,7 @@ export class CopilotToolRegistry {
     'findOverdueReceivables',
     'rankReceivablesByRisk',
     'getCashFlowSnapshot',
+    'getExceptionQueueItems',
     'draftReminderEmail',
     'sendReminderEmail',
   ] as const;
@@ -51,9 +53,16 @@ export class CopilotToolRegistry {
     this.tools.set(tool.name, tool);
   }
 
-  getTools(canSendReminders: boolean): OpenAiToolShape[] {
+  getTools(
+    canSendReminders: boolean,
+    canAllocatePayments: boolean,
+  ): OpenAiToolShape[] {
     return Array.from(this.tools.values())
-      .filter((tool) => canSendReminders || !tool.requiresReminderPermission)
+      .filter(
+        (tool) =>
+          (canSendReminders || !tool.requiresReminderPermission) &&
+          (canAllocatePayments || !tool.requiresPaymentAllocatePermission),
+      )
       .map((tool) => ({
         type: 'function' as const,
         function: {

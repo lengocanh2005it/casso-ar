@@ -7,6 +7,7 @@ import { CollectionActivityModule } from '../collection-activity/collection-acti
 import { CustomersModule } from '../customers/customers.module';
 import { DisputesModule } from '../disputes/disputes.module';
 import { EmailTemplatesModule } from '../email-templates/email-templates.module';
+import { ExceptionQueueModule } from '../exception-queue/exception-queue.module';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PaymentsModule } from '../payments/payments.module';
@@ -38,6 +39,10 @@ import {
 } from './application/tools/find-overdue-receivables.tool';
 import { GetCashFlowSnapshotTool } from './application/tools/get-cash-flow-snapshot.tool';
 import { GetCollectionActivityTimelineTool } from './application/tools/get-collection-activity-timeline.tool';
+import {
+  GET_EXCEPTION_QUEUE_ITEMS_SCHEMA,
+  GetExceptionQueueItemsTool,
+} from './application/tools/get-exception-queue-items.tool';
 import { GetPaymentHistoryTool } from './application/tools/get-payment-history.tool';
 import { GetReceivableSummaryTool } from './application/tools/get-receivable-summary.tool';
 import {
@@ -117,6 +122,14 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     requiresReminderPermission: false,
   });
   registry.register({
+    name: GetExceptionQueueItemsTool.NAME,
+    description:
+      'Read the Exception Queue: received transfers that matching did not settle, either needing a choice among candidates (Ambiguous match) or having no matching candidate. Use it for questions about the Exception Queue. Returns amount, date, transfer content, actionable status, candidate summary, AI matching recommendation reason, and payer details per item.',
+    inputSchema: GET_EXCEPTION_QUEUE_ITEMS_SCHEMA,
+    requiresReminderPermission: false,
+    requiresPaymentAllocatePermission: true,
+  });
+  registry.register({
     name: DraftReminderEmailTool.NAME,
     description:
       'Create a reminder email draft (subject + HTML body, written in Vietnamese using real receivable data) without sending it.',
@@ -169,6 +182,7 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     RemindersModule,
     BillingModule,
     ReportingModule,
+    ExceptionQueueModule,
   ],
   controllers: [CopilotController],
   providers: [
@@ -192,6 +206,7 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     FindOverdueReceivablesTool,
     RankReceivablesByRiskTool,
     GetCashFlowSnapshotTool,
+    GetExceptionQueueItemsTool,
     DraftReminderEmailTool,
     SendReminderEmailTool,
     CopilotChatUseCase,
