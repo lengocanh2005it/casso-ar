@@ -120,6 +120,31 @@ describe('TypeOrmCustomerRepository', () => {
     });
   });
 
+  it('finds at most limit ids by exact normalized name within the tenant', async () => {
+    const getRawMany = jest
+      .fn()
+      .mockResolvedValue([{ id: 'cus-1' }, { id: 'cus-2' }]);
+    const limit = jest.fn().mockReturnValue({ getRawMany });
+    const andWhere = jest.fn().mockReturnValue({ limit });
+    const where = jest.fn().mockReturnValue({ andWhere });
+    const select = jest.fn().mockReturnValue({ where });
+    const ormRepo = {
+      createQueryBuilder: jest.fn().mockReturnValue({ select }),
+    };
+    const repo = new TypeOrmCustomerRepository(
+      ormRepo as any,
+      new TenantContextService(),
+    );
+
+    await expect(
+      repo.findIdsByExactName('org-1', 'acme co', 2),
+    ).resolves.toEqual(['cus-1', 'cus-2']);
+    expect(andWhere).toHaveBeenCalledWith('LOWER(TRIM(c.name)) = :exactName', {
+      exactName: 'acme co',
+    });
+    expect(limit).toHaveBeenCalledWith(2);
+  });
+
   it('finds many customers in one tenant-scoped query', async () => {
     const ormRepo = { find: jest.fn().mockResolvedValue([PROPS]) };
     const tenantContext = new TenantContextService();

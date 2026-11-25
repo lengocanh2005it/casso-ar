@@ -26,6 +26,9 @@ function registerAll(registry: CopilotToolRegistry): void {
   registry.register(fakeTool(RankReceivablesByRiskTool.NAME));
   registry.register(fakeTool('getCashFlowSnapshot'));
   registry.register(fakeTool('getExceptionQueueItems', false, true));
+  registry.register(
+    fakeTool('getReceivableCombinationSuggestions', false, true),
+  );
   registry.register(fakeTool('draftReminderEmail', true));
   registry.register(fakeTool('sendReminderEmail', true));
 }
@@ -46,6 +49,7 @@ describe('CopilotToolRegistry', () => {
       'getCollectionActivityTimeline',
       'getExceptionQueueItems',
       'getPaymentHistory',
+      'getReceivableCombinationSuggestions',
       'getReceivableSummary',
       RankReceivablesByRiskTool.NAME,
       'sendReminderEmail',
@@ -77,10 +81,11 @@ describe('CopilotToolRegistry', () => {
       RankReceivablesByRiskTool.NAME,
       'getCashFlowSnapshot',
       'getExceptionQueueItems',
+      'getReceivableCombinationSuggestions',
     ]);
   });
 
-  it('hides getExceptionQueueItems without PAYMENT_ALLOCATE', () => {
+  it('hides PAYMENT_ALLOCATE tools without the allocate gate', () => {
     const registry = new CopilotToolRegistry();
     registerAll(registry);
 
@@ -88,12 +93,17 @@ describe('CopilotToolRegistry', () => {
       .getTools(true, false)
       .map((tool) => tool.function.name);
 
-    expect(names).not.toContain('getExceptionQueueItems');
-    // The reminder gate alone must not expose the queue reader.
+    for (const gated of [
+      'getExceptionQueueItems',
+      'getReceivableCombinationSuggestions',
+    ]) {
+      expect(names).not.toContain(gated);
+      expect(
+        registry.getTools(false, false).map((tool) => tool.function.name),
+      ).not.toContain(gated);
+    }
+    // The reminder gate alone must not expose the allocate-gated tools.
     expect(names).toHaveLength(8);
-    expect(
-      registry.getTools(false, false).map((tool) => tool.function.name),
-    ).not.toContain('getExceptionQueueItems');
   });
 
   it('keeps every existing tool visible regardless of the allocate gate', () => {
@@ -109,8 +119,12 @@ describe('CopilotToolRegistry', () => {
       .map((tool) => tool.function.name)
       .sort();
 
+    const allocateGated = [
+      'getExceptionQueueItems',
+      'getReceivableCombinationSuggestions',
+    ];
     expect(
-      withAllocate.filter((name) => name !== 'getExceptionQueueItems'),
+      withAllocate.filter((name) => !allocateGated.includes(name)),
     ).toEqual(withoutAllocate);
   });
 });

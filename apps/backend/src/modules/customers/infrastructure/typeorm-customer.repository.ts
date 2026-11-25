@@ -166,6 +166,21 @@ export class TypeOrmCustomerRepository
     return rows.map((row) => row.id);
   }
 
+  async findIdsByExactName(
+    organizationId: string,
+    exactName: string,
+    limit: number,
+  ): Promise<string[]> {
+    const rows = await this.ormRepo
+      .createQueryBuilder('c')
+      .select('c.id', 'id')
+      .where('c.organizationId = :organizationId', { organizationId })
+      .andWhere('LOWER(TRIM(c.name)) = :exactName', { exactName })
+      .limit(limit)
+      .getRawMany<{ id: string }>();
+    return rows.map((row) => row.id);
+  }
+
   async findPage(
     organizationId: string,
     search: string | undefined,

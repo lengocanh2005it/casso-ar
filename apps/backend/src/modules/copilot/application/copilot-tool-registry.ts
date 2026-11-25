@@ -35,6 +35,7 @@ export class CopilotToolRegistry {
     'rankReceivablesByRisk',
     'getCashFlowSnapshot',
     'getExceptionQueueItems',
+    'getReceivableCombinationSuggestions',
     'draftReminderEmail',
     'sendReminderEmail',
   ] as const;

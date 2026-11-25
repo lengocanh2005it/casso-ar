@@ -54,6 +54,13 @@ function buildRegistry(): CopilotToolRegistry {
     requiresPaymentAllocatePermission: true,
   });
   registry.register({
+    name: 'getReceivableCombinationSuggestions',
+    description: 'exact-sum groups',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+    requiresReminderPermission: false,
+    requiresPaymentAllocatePermission: true,
+  });
+  registry.register({
     name: 'draftReminderEmail',
     description: 'draft',
     inputSchema: { type: 'object', properties: {}, required: [] },
@@ -1799,6 +1806,15 @@ describe('CopilotChatUseCase', () => {
     expect(SYSTEM_PROMPT).not.toContain('unmatched transactions');
   });
 
+  it('guides exact-sum group explanations without promising allocation', () => {
+    expect(SYSTEM_PROMPT).toContain('getReceivableCombinationSuggestions');
+    expect(SYSTEM_PROMPT).toContain('Exact-sum receivable group');
+    expect(SYSTEM_PROMPT).toContain('không phải là phân bổ');
+    expect(SYSTEM_PROMPT).toContain('customer_required');
+    expect(SYSTEM_PROMPT).toContain('incomplete');
+    expect(SYSTEM_PROMPT).not.toContain('tự động phân bổ');
+  });
+
   it('routes getExceptionQueueItems tool calls to the tool with bounded input', async () => {
     const aiProvider = { createChatCompletion: jest.fn() };
     aiProvider.createChatCompletion
@@ -2034,5 +2050,74 @@ describe('CopilotChatUseCase', () => {
       }>
     ).map((tool) => tool.name);
     expect(toolNames).toContain('getExceptionQueueItems');
+  });
+
+  it('routes getReceivableCombinationSuggestions calls without writing', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion
+      .mockResolvedValueOnce({
+        content: null,
+        toolCalls: [
+          {
+            id: 'tool-combo',
+            name: 'getReceivableCombinationSuggestions',
+            arguments: {
+              bankTransactionId: 'bt-1',
+              customerName: 'Công ty Alpha',
+            },
+          },
+        ],
+        inputTokens: 10,
+        outputTokens: 5,
+      })
+      .mockResolvedValueOnce({
+        content: 'Đây là gợi ý, không phải phân bổ.',
+        toolCalls: [],
+        inputTokens: 20,
+        outputTokens: 10,
+      });
+    const deps = buildDeps();
+    const comboTool = {
+      execute: jest.fn().mockResolvedValue({ status: 'complete', groups: [] }),
+    };
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      comboTool as any,
+    );
+
+    await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Gợi ý nhóm khoản phải thu khớp giao dịch?',
+    });
+
+    expect(comboTool.execute).toHaveBeenCalledWith({
+      bankTransactionId: 'bt-1',
+      customerName: 'Công ty Alpha',
+    });
+    expect(aiProvider.createChatCompletion.mock.calls[0][1]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'getReceivableCombinationSuggestions',
+        }),
+      ]),
+    );
   });
 });

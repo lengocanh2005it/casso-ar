@@ -15,6 +15,11 @@ export interface ICustomerRepository {
   findByEmail(email: string, manager?: EntityManager): Promise<Customer | null>;
   findNameById(id: string): Promise<string | null>;
   findIdsBySearch(organizationId: string, search: string): Promise<string[]>;
+  findIdsByExactName(
+    organizationId: string,
+    exactName: string,
+    limit: number,
+  ): Promise<string[]>;
   findPage(
     organizationId: string,
     search: string | undefined,
