@@ -41,6 +41,19 @@ function buildRegistry(): CopilotToolRegistry {
     requiresReminderPermission: false,
   });
   registry.register({
+    name: 'getCashFlowSnapshot',
+    description: 'cash flow',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+    requiresReminderPermission: false,
+  });
+  registry.register({
+    name: 'getExceptionQueueItems',
+    description: 'exception queue',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+    requiresReminderPermission: false,
+    requiresPaymentAllocatePermission: true,
+  });
+  registry.register({
     name: 'draftReminderEmail',
     description: 'draft',
     inputSchema: { type: 'object', properties: {}, required: [] },
@@ -1771,5 +1784,255 @@ describe('CopilotChatUseCase', () => {
 
     expect(cashFlowTool.execute).toHaveBeenCalledTimes(1);
     expect(result.message.content).toContain('1.000.000');
+  });
+
+  it('guides the model to read the Exception Queue and continue with page + 1', () => {
+    expect(SYSTEM_PROMPT).toContain('getExceptionQueueItems');
+    expect(SYSTEM_PROMPT).toContain('Exception Queue');
+    expect(SYSTEM_PROMPT).toContain('Ambiguous match');
+    expect(SYSTEM_PROMPT).toContain('AI matching recommendation');
+    expect(SYSTEM_PROMPT).toContain('không có khoản nào trong Exception Queue');
+    expect(SYSTEM_PROMPT).toContain('cần chọn giữa các ứng viên');
+    expect(SYSTEM_PROMPT).toContain('có một ứng viên cần xác nhận');
+    expect(SYSTEM_PROMPT).toContain('không có ứng viên phù hợp');
+    expect(SYSTEM_PROMPT).toContain('page + 1');
+    expect(SYSTEM_PROMPT).not.toContain('unmatched transactions');
+  });
+
+  it('routes getExceptionQueueItems tool calls to the tool with bounded input', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion
+      .mockResolvedValueOnce({
+        content: null,
+        toolCalls: [
+          {
+            id: 'tool-queue',
+            name: 'getExceptionQueueItems',
+            arguments: {
+              page: 2,
+              limit: 5,
+              search: 'HD-1',
+              status: 'UNMATCHED',
+            },
+          },
+        ],
+        inputTokens: 10,
+        outputTokens: 5,
+      })
+      .mockResolvedValueOnce({
+        content: 'Có 1 khoản không có ứng viên.',
+        toolCalls: [],
+        inputTokens: 20,
+        outputTokens: 10,
+      });
+    const deps = buildDeps();
+    const queueTool = {
+      execute: jest.fn().mockResolvedValue({
+        items: [],
+        page: 2,
+        hasMore: true,
+      }),
+    };
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      queueTool as any,
+    );
+
+    await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Exception Queue có gì?',
+    });
+
+    expect(queueTool.execute).toHaveBeenCalledWith({
+      page: 2,
+      limit: 5,
+      search: 'HD-1',
+      status: 'UNMATCHED',
+    });
+  });
+
+  it('hides getExceptionQueueItems from roles without PAYMENT_ALLOCATE', async () => {
+    const aiProvider = {
+      createChatCompletion: jest.fn().mockResolvedValue({
+        content: 'Xin chào',
+        toolCalls: [],
+        inputTokens: 1,
+        outputTokens: 1,
+      }),
+    };
+    const deps = buildDeps({
+      tenantContext: {
+        getCurrentUser: jest.fn().mockReturnValue({
+          userId: 'user-1',
+          organizationId: 'org-1',
+          role: Role.VIEWER,
+        }),
+      },
+    });
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Exception Queue có gì?',
+    });
+
+    const toolNames = (
+      aiProvider.createChatCompletion.mock.calls[0][1] as Array<{
+        name: string;
+      }>
+    ).map((tool) => tool.name);
+    expect(toolNames).not.toContain('getExceptionQueueItems');
+    expect(toolNames).toContain('getReceivableSummary');
+  });
+
+  it('never executes getExceptionQueueItems emitted by a role without PAYMENT_ALLOCATE', async () => {
+    const aiProvider = { createChatCompletion: jest.fn() };
+    aiProvider.createChatCompletion
+      .mockResolvedValueOnce({
+        content: null,
+        toolCalls: [
+          {
+            id: 'tool-queue',
+            name: 'getExceptionQueueItems',
+            arguments: { page: 1 },
+          },
+        ],
+        inputTokens: 10,
+        outputTokens: 5,
+      })
+      .mockResolvedValueOnce({
+        content: 'Không thể truy cập Exception Queue.',
+        toolCalls: [],
+        inputTokens: 20,
+        outputTokens: 10,
+      });
+    const deps = buildDeps({
+      tenantContext: {
+        getCurrentUser: jest.fn().mockReturnValue({
+          userId: 'user-1',
+          organizationId: 'org-1',
+          role: Role.VIEWER,
+        }),
+      },
+    });
+    const queueTool = {
+      execute: jest.fn().mockResolvedValue({
+        items: [{ transferContent: 'SECRET-TRANSFER' }],
+        page: 1,
+        hasMore: false,
+      }),
+    };
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      queueTool as any,
+    );
+
+    await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Exception Queue có gì?',
+    });
+
+    expect(queueTool.execute).not.toHaveBeenCalled();
+    expect(
+      JSON.stringify(deps.conversationRepo.appendMessage.mock.calls),
+    ).not.toContain('SECRET-TRANSFER');
+    const followUpMessages = aiProvider.createChatCompletion.mock
+      .calls[1][0] as Array<{
+      role: string;
+      content: string | null;
+    }>;
+    const toolMessage = followUpMessages.find(
+      (message) => message.role === 'tool',
+    );
+    expect(JSON.parse(toolMessage?.content ?? '{}')).toMatchObject({
+      errorCode: ErrorCode.VALIDATION_ERROR,
+    });
+  });
+
+  it('exposes getExceptionQueueItems to roles holding PAYMENT_ALLOCATE', async () => {
+    const aiProvider = {
+      createChatCompletion: jest.fn().mockResolvedValue({
+        content: 'Xin chào',
+        toolCalls: [],
+        inputTokens: 1,
+        outputTokens: 1,
+      }),
+    };
+    const deps = buildDeps();
+    const useCase = new CopilotChatUseCase(
+      aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+    );
+
+    await useCase.execute({
+      conversationId: 'conversation-1',
+      userMessage: 'Exception Queue có gì?',
+    });
+
+    const toolNames = (
+      aiProvider.createChatCompletion.mock.calls[0][1] as Array<{
+        name: string;
+      }>
+    ).map((tool) => tool.name);
+    expect(toolNames).toContain('getExceptionQueueItems');
   });
 });

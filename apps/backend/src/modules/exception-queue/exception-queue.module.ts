@@ -33,5 +33,6 @@ import { ExceptionQueueController } from './presentation/exception-queue.control
     UnmatchedBankTransactionsQueryService,
   ],
   controllers: [ExceptionQueueController],
+  exports: [UnmatchedBankTransactionsQueryService],
 })
 export class ExceptionQueueModule {}

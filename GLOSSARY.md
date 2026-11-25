@@ -37,6 +37,10 @@ _Avoid_: Suggestion, Possible match
 The set of receivables a transfer could actually have been matched against. It is settled before scoring: a receivable never surfaced cannot be scored, ranked, or matched, however well its reference or amount would have fitted.
 _Avoid_: Match rate, Matching accuracy
 
+**AI matching recommendation**:
+An advisory explanation for a transfer whose best matching candidate scores from 60 to under 90. It suggests a receivable for human review; it never allocates money.
+_Avoid_: AI decision, Auto-match reason
+
 **Exception Queue**:
 The accountant's review worklist of received transfers that matching did not settle — both transfers whose candidates need a human choice and transfers with no plausible candidate at all. Every row is received money waiting for an accounting decision, not missing money.
 _Avoid_: Unmatched transactions list

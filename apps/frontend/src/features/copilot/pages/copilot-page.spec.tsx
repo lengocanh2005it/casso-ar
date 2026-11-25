@@ -2000,6 +2000,53 @@ data: ${JSON.stringify(typed.data)}\n\n`,
       expect(scrollTo).not.toHaveBeenCalled();
     });
 
+    it('preserves bottom-following when buffered deltas grow the DOM after a render', async () => {
+      const scrollTo = stubScrollGeometry({ distanceFromBottom: 10 });
+      renderPage();
+      await screen.findByText(/bạn muốn xử lý công nợ nào/i);
+
+      let pushEvent: (event: unknown) => void = () => {};
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                pushEvent = (event) => {
+                  const typed = event as { event: string; data: unknown };
+                  controller.enqueue(
+                    new TextEncoder().encode(
+                      `event: ${typed.event}\ndata: ${JSON.stringify(typed.data)}\n\n`,
+                    ),
+                  );
+                };
+              },
+            }),
+            { status: 200 },
+          ),
+        ),
+      );
+      fireEvent.change(screen.getByLabelText(/nhập câu hỏi/i), {
+        target: { value: 'Tóm tắt công nợ' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Gửi' }));
+      await screen.findByRole('button', { name: 'Dừng' });
+      scrollTo.mockClear();
+
+      // Several buffered deltas add enough content in one render that post-
+      // render geometry appears far from the bottom. That distance is content
+      // growth, not reader movement; bottom-following must survive.
+      geometry.distanceFromBottom = 400;
+      await act(async () => {
+        pushEvent({
+          event: 'delta',
+          data: { text: 'Một đoạn trả lời dài hơn 80px trong một render.' },
+        });
+      });
+
+      expect(scrollTo).toHaveBeenCalled();
+    });
+
     it('scrolls streaming deltas instantly so the smooth animation cannot flip the stick flag', async () => {
       const scrollTo = stubScrollGeometry({ distanceFromBottom: 0 });
       renderPage();

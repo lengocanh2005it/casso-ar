@@ -121,32 +121,48 @@ describe('useCopilotChat', () => {
   });
 
   it('accumulates delta events into streamingContent, then commits the done message', async () => {
-    streamCopilotMessage.mockImplementation(async (_id, _content, onEvent) => {
-      onEvent({ type: 'delta', text: 'Xin' });
-      onEvent({ type: 'delta', text: ' chào' });
-      onEvent({
-        type: 'done',
-        data: {
-          message: {
-            id: 'm1',
-            role: 'ASSISTANT',
-            content: 'Xin chào',
-            createdAt: '2026-08-09T00:00:00Z',
-          },
-          pendingAction: null,
-        },
-      });
-    });
+    let fireDone: () => void = () => {};
+    streamCopilotMessage.mockImplementation(
+      async (_id, _content, onEvent) =>
+        new Promise<void>((resolve) => {
+          onEvent({ type: 'delta', text: 'Xin' });
+          onEvent({ type: 'delta', text: ' chào' });
+          fireDone = () => {
+            onEvent({
+              type: 'done',
+              data: {
+                message: {
+                  id: 'm1',
+                  role: 'ASSISTANT',
+                  content: 'Xin chào',
+                  createdAt: '2026-08-09T00:00:00Z',
+                },
+                pendingAction: null,
+              },
+            });
+            resolve();
+          };
+        }),
+    );
     const { result } = renderHook(() => useCopilotChat(true, 'conversation-1'));
 
-    await act(async () => {
-      await result.current.send('Xin chào');
+    let sendPromise: Promise<boolean>;
+    act(() => {
+      sendPromise = result.current.send('Xin chào');
     });
+    expect(result.current.streamingContent).toBe('Xin chào');
 
-    await waitFor(() => expect(result.current.streamingContent).toBe(''));
+    act(() => fireDone());
+
+    // The done message now carries the text. Keeping the streaming bubble up
+    // renders the same answer twice until the stream closes.
+    expect(result.current.streamingContent).toBe('');
     expect(result.current.messages.at(-1)).toMatchObject({
       role: 'ASSISTANT',
       content: 'Xin chào',
+    });
+    await act(async () => {
+      await sendPromise;
     });
   });
 

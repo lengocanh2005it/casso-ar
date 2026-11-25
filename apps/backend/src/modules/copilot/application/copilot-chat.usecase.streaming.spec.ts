@@ -12,6 +12,13 @@ function buildRegistry(): CopilotToolRegistry {
     requiresReminderPermission: false,
   });
   registry.register({
+    name: 'getExceptionQueueItems',
+    description: 'exception queue',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+    requiresReminderPermission: false,
+    requiresPaymentAllocatePermission: true,
+  });
+  registry.register({
     name: 'findOverdueReceivables',
     description: 'overdue',
     inputSchema: { type: 'object', properties: {}, required: [] },
@@ -287,5 +294,221 @@ describe('CopilotChatUseCase.executeStreaming', () => {
         message: expect.any(String),
       },
     ]);
+  });
+
+  it('gates getExceptionQueueItems on PAYMENT_ALLOCATE in the streaming path', async () => {
+    const allowed = buildUseCase();
+    allowed.deps.aiProvider.streamChatCompletion.mockReturnValue(
+      stream([
+        {
+          contentDelta: 'Xin chào',
+          toolCalls: null,
+          inputTokens: 1,
+          outputTokens: 1,
+        },
+      ]),
+    );
+    for await (const _event of allowed.useCase.executeStreaming(
+      { conversationId: 'conversation-1', userMessage: 'Exception Queue' },
+      () => false,
+    )) {
+      // drain
+    }
+    const allowedTools = allowed.deps.aiProvider.streamChatCompletion.mock
+      .calls[0][1] as Array<{ name: string }>;
+    expect(allowedTools.map((tool) => tool.name)).toContain(
+      'getExceptionQueueItems',
+    );
+
+    const denied = buildUseCase({
+      tenantContext: {
+        getCurrentUser: jest.fn().mockReturnValue({
+          userId: 'user-1',
+          organizationId: 'org-1',
+          role: Role.VIEWER,
+        }),
+      },
+    });
+    denied.deps.aiProvider.streamChatCompletion.mockReturnValue(
+      stream([
+        {
+          contentDelta: 'Xin chào',
+          toolCalls: null,
+          inputTokens: 1,
+          outputTokens: 1,
+        },
+      ]),
+    );
+    for await (const _event of denied.useCase.executeStreaming(
+      { conversationId: 'conversation-1', userMessage: 'Exception Queue' },
+      () => false,
+    )) {
+      // drain
+    }
+    const deniedTools = denied.deps.aiProvider.streamChatCompletion.mock
+      .calls[0][1] as Array<{ name: string }>;
+    expect(deniedTools.map((tool) => tool.name)).not.toContain(
+      'getExceptionQueueItems',
+    );
+  });
+
+  it('never executes getExceptionQueueItems emitted by a role without PAYMENT_ALLOCATE', async () => {
+    const { deps } = buildUseCase({
+      tenantContext: {
+        getCurrentUser: jest.fn().mockReturnValue({
+          userId: 'user-1',
+          organizationId: 'org-1',
+          role: Role.VIEWER,
+        }),
+      },
+    });
+    const queueTool = {
+      execute: jest.fn().mockResolvedValue({
+        items: [{ transferContent: 'SECRET-TRANSFER' }],
+        page: 1,
+        hasMore: false,
+      }),
+    };
+    const streamingUseCase = new CopilotChatUseCase(
+      deps.aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      queueTool as any,
+    );
+    deps.aiProvider.streamChatCompletion
+      .mockReturnValueOnce(
+        stream([
+          {
+            contentDelta: null,
+            toolCalls: [
+              {
+                id: 'call-queue',
+                name: 'getExceptionQueueItems',
+                arguments: { page: 1 },
+              },
+            ],
+            inputTokens: 2,
+            outputTokens: 1,
+          },
+        ]),
+      )
+      .mockReturnValueOnce(
+        stream([
+          {
+            contentDelta: 'Không xác định được.',
+            toolCalls: null,
+            inputTokens: 2,
+            outputTokens: 2,
+          },
+        ]),
+      );
+
+    for await (const _event of streamingUseCase.executeStreaming(
+      {
+        conversationId: 'conversation-1',
+        userMessage: 'Exception Queue có gì?',
+      },
+      () => false,
+    )) {
+      // drain
+    }
+
+    expect(queueTool.execute).not.toHaveBeenCalled();
+    expect(
+      JSON.stringify(deps.conversationRepo.appendMessage.mock.calls),
+    ).not.toContain('SECRET-TRANSFER');
+  });
+
+  it('dispatches getExceptionQueueItems in the streaming path', async () => {
+    const { deps } = buildUseCase();
+    const queueTool = {
+      execute: jest.fn().mockResolvedValue({
+        items: [],
+        page: 1,
+        hasMore: false,
+      }),
+    };
+    const streamingUseCase = new CopilotChatUseCase(
+      deps.aiProvider as any,
+      buildRegistry(),
+      deps.summaryTool as any,
+      deps.timelineTool as any,
+      deps.paymentHistoryTool as any,
+      deps.findOverdueReceivablesTool as any,
+      deps.draftTool as any,
+      deps.conversationRepo as any,
+      deps.pendingActionRepo as any,
+      deps.usageLogRepo as any,
+      deps.planLimitService as any,
+      deps.dataSource as any,
+      deps.tenantContext as any,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      queueTool as any,
+    );
+    deps.aiProvider.streamChatCompletion
+      .mockReturnValueOnce(
+        stream([
+          {
+            contentDelta: null,
+            toolCalls: [
+              {
+                id: 'call-queue',
+                name: 'getExceptionQueueItems',
+                arguments: { page: 2, status: 'PENDING_REVIEW' },
+              },
+            ],
+            inputTokens: 2,
+            outputTokens: 1,
+          },
+        ]),
+      )
+      .mockReturnValueOnce(
+        stream([
+          {
+            contentDelta: 'Không có khoản nào trong Exception Queue.',
+            toolCalls: null,
+            inputTokens: 2,
+            outputTokens: 2,
+          },
+        ]),
+      );
+
+    const events = [];
+    for await (const event of streamingUseCase.executeStreaming(
+      {
+        conversationId: 'conversation-1',
+        userMessage: 'Xem tiếp Exception Queue',
+      },
+      () => false,
+    )) {
+      events.push(event);
+    }
+
+    expect(queueTool.execute).toHaveBeenCalledWith({
+      page: 2,
+      limit: undefined,
+      search: undefined,
+      status: 'PENDING_REVIEW',
+    });
+    expect(events.at(-1)).toMatchObject({ type: 'done' });
   });
 });

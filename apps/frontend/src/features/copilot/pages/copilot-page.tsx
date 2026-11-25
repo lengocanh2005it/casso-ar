@@ -196,8 +196,10 @@ export function CopilotPage() {
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
+    container.addEventListener('scroll', updateStickToBottom);
     container.addEventListener('scrollend', endProgrammaticScroll);
     return () => {
+      container.removeEventListener('scroll', updateStickToBottom);
       container.removeEventListener('scrollend', endProgrammaticScroll);
       if (programmaticScrollTimerRef.current !== null) {
         clearTimeout(programmaticScrollTimerRef.current);
@@ -240,6 +242,9 @@ export function CopilotPage() {
     previousMessageCountRef.current = messages.length;
     const loadedHistory = loadingHistoryRef.current;
     if (addedCount > 0) loadingHistoryRef.current = false;
+    // Reader movement is tracked by the native scroll listener. This effect
+    // must not measure post-render geometry, because content growth alone
+    // makes a bottom-anchored reader look far from the bottom.
     if (!stickToBottomRef.current) return;
     // Only a single appended message animates; a bulk history load (a
     // conversation switch) and streaming deltas land instantly so a long
@@ -387,7 +392,6 @@ export function CopilotPage() {
             <div
               ref={scrollRef}
               data-testid="copilot-scroll"
-              onScroll={updateStickToBottom}
               className={
                 isEmptyConversation
                   ? 'mx-3 flex min-h-0 flex-1 flex-col overflow-hidden'
