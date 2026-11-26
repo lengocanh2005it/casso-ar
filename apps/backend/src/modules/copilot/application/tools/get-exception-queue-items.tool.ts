@@ -58,6 +58,8 @@ export interface ExceptionQueueCandidateSummary {
 }
 
 export interface ExceptionQueueItem {
+  /** Routing metadata for Copilot only — never display this to the user. */
+  bankTransactionId: string;
   amount: number;
   date: string;
   transferContent: string;
@@ -145,6 +147,7 @@ export class GetExceptionQueueItemsTool {
   ): GetExceptionQueueItemsResult {
     return {
       items: result.items.map((view) => ({
+        bankTransactionId: view.transaction.id,
         amount: view.transaction.amount,
         date: view.transaction.transactionDateTime.toISOString(),
         transferContent: view.transaction.transferContent,
