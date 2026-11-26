@@ -44,6 +44,10 @@ import {
   GetExceptionQueueItemsTool,
 } from './application/tools/get-exception-queue-items.tool';
 import { GetPaymentHistoryTool } from './application/tools/get-payment-history.tool';
+import {
+  GET_RECEIVABLE_COMBINATION_SUGGESTIONS_SCHEMA,
+  GetReceivableCombinationSuggestionsTool,
+} from './application/tools/get-receivable-combination-suggestions.tool';
 import { GetReceivableSummaryTool } from './application/tools/get-receivable-summary.tool';
 import {
   RANK_RECEIVABLES_BY_RISK_SCHEMA,
@@ -130,6 +134,14 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     requiresPaymentAllocatePermission: true,
   });
   registry.register({
+    name: GetReceivableCombinationSuggestionsTool.NAME,
+    description:
+      'Find Exact-sum receivable groups for one actionable transfer in the Exception Queue: two or more open receivables of one customer whose remaining balances add up exactly to the transfer amount. Use for questions about which receivables could be combined. Returns invoice number, amount and remaining balance per receivable. This is a suggestion only — never allocates or changes status.',
+    inputSchema: GET_RECEIVABLE_COMBINATION_SUGGESTIONS_SCHEMA,
+    requiresReminderPermission: false,
+    requiresPaymentAllocatePermission: true,
+  });
+  registry.register({
     name: DraftReminderEmailTool.NAME,
     description:
       'Create a reminder email draft (subject + HTML body, written in Vietnamese using real receivable data) without sending it.',
@@ -207,6 +219,7 @@ function copilotToolRegistryFactory(): CopilotToolRegistry {
     RankReceivablesByRiskTool,
     GetCashFlowSnapshotTool,
     GetExceptionQueueItemsTool,
+    GetReceivableCombinationSuggestionsTool,
     DraftReminderEmailTool,
     SendReminderEmailTool,
     CopilotChatUseCase,

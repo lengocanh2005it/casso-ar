@@ -78,6 +78,7 @@ describe('MatchingEngineService', () => {
       {
         findNameById: jest.fn().mockResolvedValue('Company B'),
         findIdsBySearch: jest.fn(),
+        findIdsByExactName: jest.fn(),
         findById: jest.fn(),
         findByIdForSalesRep: jest.fn(),
         findByIds: jest
@@ -142,6 +143,7 @@ describe('MatchingEngineService', () => {
       {
         findNameById: jest.fn().mockResolvedValue('Company B'),
         findIdsBySearch: jest.fn(),
+        findIdsByExactName: jest.fn(),
         findById: jest.fn(),
         findByIdForSalesRep: jest.fn(),
         findByIds: jest
@@ -240,6 +242,7 @@ describe('MatchingEngineService', () => {
         findNameById: jest.fn().mockResolvedValue(null),
         findByIds: jest.fn().mockResolvedValue(new Map()),
         findIdsBySearch: jest.fn(),
+        findIdsByExactName: jest.fn(),
         findById: jest.fn(),
         findByTaxCode: jest.fn(),
         findByEmail: jest.fn(),

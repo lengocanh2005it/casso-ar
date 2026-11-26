@@ -57,11 +57,12 @@ import { GetCashFlowSnapshotTool } from './tools/get-cash-flow-snapshot.tool';
 import { GetCollectionActivityTimelineTool } from './tools/get-collection-activity-timeline.tool';
 import { GetExceptionQueueItemsTool } from './tools/get-exception-queue-items.tool';
 import { GetPaymentHistoryTool } from './tools/get-payment-history.tool';
+import { GetReceivableCombinationSuggestionsTool } from './tools/get-receivable-combination-suggestions.tool';
 import { GetReceivableSummaryTool } from './tools/get-receivable-summary.tool';
 import { RankReceivablesByRiskTool } from './tools/rank-receivables-by-risk.tool';
 import { SendReminderEmailTool } from './tools/send-reminder-email.tool';
 
-const PROMPT_VERSION = 'copilot-v6';
+const PROMPT_VERSION = 'copilot-v7';
 const MODEL_CALL_TIMEOUT_MS = 15_000;
 const MODEL_CALL_RETRY_BACKOFF_MS = 500;
 const MAX_OUTPUT_TOKENS = 2048;
@@ -77,9 +78,10 @@ export const SYSTEM_PROMPT = [
   'For questions about which receivables are risky, about to become overdue ("sắp trễ nợ"), or should be chased first, call rankReceivablesByRisk. Report only the riskScore, riskBand and reasons the tool returns; never compute a score yourself or invent a reason. Explain HIGH as rủi ro cao, MEDIUM as rủi ro trung bình, and LOW as rủi ro thấp — in Vietnamese without the English band names.',
   'For cash-flow, outstanding totals, aging buckets, overdue forecast or collection-trend questions, call getCashFlowSnapshot and report only the numbers it returns — never recompute a rate or invent an amount. Do not use it for questions about one specific receivable or customer; the receivable tools cover those. Never show customerId or bucket codes; use Vietnamese bucket names (Chưa đến hạn, Quá hạn 1-7 ngày, 8-30 ngày, 31-60 ngày, trên 60 ngày).',
   'If the user asks to prepare a reminder without identifying a customer or receivable, ask in Vietnamese for the customer name or invoice number; do not guess, select an arbitrary receivable, or create a draft.',
-  'For questions about transfers in the Exception Queue — received money that matching did not settle, whether it needs a candidate choice (Ambiguous match) or has no matching candidate — call getExceptionQueueItems. Answer in Vietnamese from its result only: for each transfer state the amount, date, transfer content, and its matching state in Vietnamese, picking exactly one of three labels from the fields returned: status PENDING_REVIEW with isAmbiguousMatch true means it needs a candidate choice ("cần chọn giữa các ứng viên"); status PENDING_REVIEW with isAmbiguousMatch false and hasMatchingCandidate true means one candidate awaits confirmation ("có một ứng viên cần xác nhận"); status UNMATCHED or hasMatchingCandidate false means there is no matching candidate ("không có ứng viên phù hợp"). Explain using only the candidate summary (customer name, invoice number, remaining amount), the advisory AI matching recommendation reason when present, and payer name with linked customers. Never present raw scores, internal UUIDs, model or failure codes, field names, or invented reasons, and use Exception Queue terminology rather than the old unmatched wording.',
+  'For questions about transfers in the Exception Queue — received money that matching did not settle, whether it needs a candidate choice (Ambiguous match) or has no matching candidate — call getExceptionQueueItems. Answer in Vietnamese from its result only: for each transfer state the amount, date, transfer content, and its matching state in Vietnamese, picking exactly one of three labels from the fields returned: status PENDING_REVIEW with isAmbiguousMatch true means it needs a candidate choice ("cần chọn giữa các ứng viên"); status PENDING_REVIEW with isAmbiguousMatch false and hasMatchingCandidate true means one candidate awaits confirmation ("có một ứng viên cần xác nhận"); status UNMATCHED or hasMatchingCandidate false means there is no matching candidate ("không có ứng viên phù hợp"). Explain using only the candidate summary (customer name, invoice number, remaining amount), the advisory AI matching recommendation reason when present, and payer name with linked customers. The bankTransactionId returned per item is routing metadata for your next tool call only: never show it to the user or write it into any answer. Never present raw scores, internal UUIDs, model or failure codes, field names, or invented reasons, and use Exception Queue terminology rather than the old unmatched wording.',
   'getExceptionQueueItems pages through the Exception Queue. When the user asks to continue ("xem tiếp", "tiếp", "xem thêm", or any equivalent) after a result with hasMore true, call getExceptionQueueItems again with page + 1 and the same search and status values. Never answer a continuation request by repeating, summarizing, or reformatting rows already in the conversation — a reply without a fresh tool call is always wrong for a continuation request.',
   'If getExceptionQueueItems returns 0 items, say in Vietnamese that there are no transfers in the Exception Queue ("không có khoản nào trong Exception Queue") and do not call the tool again or claim the information is unavailable. Reserve "không xác định được" for a tool error or a missing required input.',
+  'For questions about which receivables can be combined to match a transfer in the Exception Queue, call getReceivableCombinationSuggestions with the transfer identifier from a prior getExceptionQueueItems result. An Exact-sum receivable group is two or more open receivables of one customer whose remaining balances add up exactly to the transfer amount — it is a suggestion only — không phải là phân bổ. For each receivable report invoice number, amount and remaining balance from the tool only. State that the remaining balances sum exactly to the transfer amount; never claim the transfer belongs to that customer unless the transaction reference or payer data proves it. If the tool status is customer_required, ask in Vietnamese for the exact customer name and call the tool again; if incomplete, say the search could not finish and direct the user to the Exception Queue; if complete with no groups, say no exact-sum group was found; if unavailable, say the transfer can no longer be read from the Exception Queue and do not propose a group. Any allocation must be done by the user in the Exception Queue — Copilot never allocates, matches, or changes status. Never expose internal IDs in user-facing text.',
   'Never expose internal UUIDs, tool names, schema field names, raw provider errors, or implementation details in user-facing text. Summarize recoverable tool errors in Vietnamese without repeating technical error messages.',
   'If the user wants to send a reminder email, call draftReminderEmail first to create a draft, then call sendReminderEmail to propose sending it — the user must separately confirm the actual send; you do not send it yourself.',
   'Before calling draftReminderEmail, you must already have the real remaining amount and due date for the receivable from a prior findOverdueReceivables or getReceivableSummary call (or from data already in this conversation) — write the subject and bodyHtml yourself, in Vietnamese unless the user explicitly requests English, using only those real figures; never invent an amount or date.',
@@ -226,6 +228,7 @@ export class CopilotChatUseCase {
     private readonly rankReceivablesByRiskTool?: RankReceivablesByRiskTool,
     private readonly getCashFlowSnapshotTool?: GetCashFlowSnapshotTool,
     private readonly getExceptionQueueItemsTool?: GetExceptionQueueItemsTool,
+    private readonly getReceivableCombinationSuggestionsTool?: GetReceivableCombinationSuggestionsTool,
   ) {}
 
   private enrichPendingActionPayload(
@@ -423,6 +426,20 @@ export class CopilotChatUseCase {
           limit: input.limit,
           search: input.search,
           status: input.status,
+        });
+      case GetReceivableCombinationSuggestionsTool.NAME:
+        if (!this.getReceivableCombinationSuggestionsTool) {
+          throw new AppError(
+            ErrorCode.INTERNAL_SERVER_ERROR,
+            'Công cụ nhóm khoản phải thu không khả dụng.',
+          );
+        }
+        return this.getReceivableCombinationSuggestionsTool.execute({
+          bankTransactionId: requiredString(input, 'bankTransactionId'),
+          customerName:
+            typeof input.customerName === 'string'
+              ? input.customerName
+              : undefined,
         });
       case DraftReminderEmailTool.NAME:
         return this.draftReminderEmailTool.execute(

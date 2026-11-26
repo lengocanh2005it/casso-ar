@@ -41,6 +41,10 @@ _Avoid_: Match rate, Matching accuracy
 An advisory explanation for a transfer whose best matching candidate scores from 60 to under 90. It suggests a receivable for human review; it never allocates money.
 _Avoid_: AI decision, Auto-match reason
 
+**Exact-sum receivable group**:
+Two or more open receivables of the same customer whose remaining balances add up exactly to a transfer amount. It is only a possible way to match; it never allocates money by itself.
+_Avoid_: Suggestion, Possible match
+
 **Exception Queue**:
 The accountant's review worklist of received transfers that matching did not settle — both transfers whose candidates need a human choice and transfers with no plausible candidate at all. Every row is received money waiting for an accounting decision, not missing money.
 _Avoid_: Unmatched transactions list

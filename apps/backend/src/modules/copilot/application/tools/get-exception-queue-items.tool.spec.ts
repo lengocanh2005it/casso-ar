@@ -225,6 +225,7 @@ describe('GetExceptionQueueItemsTool', () => {
     expect(result).toEqual({
       items: [
         {
+          bankTransactionId: 'bt-1',
           amount: 12_500_000,
           date: '2026-11-20T09:30:00.000Z',
           transferContent: 'CK HD-1 thanh toan',
@@ -248,7 +249,6 @@ describe('GetExceptionQueueItemsTool', () => {
 
     const serialized = JSON.stringify(result);
     for (const hidden of [
-      'bt-1',
       'mc-1',
       'rec-1',
       'cust-1',
