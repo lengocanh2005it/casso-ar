@@ -120,6 +120,17 @@ async function scrollToTop(page: Page) {
   });
 }
 
+// A scroll event is dispatched on the next frame, so a bare scrollTop write
+// has not reached the page's stick-to-bottom listener when it returns.
+async function settleScrollEvents(page: Page) {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+}
+
 async function sendQuestion(page: Page, question: string) {
   await page.getByLabel('Nhập câu hỏi').fill(question);
   await page.getByRole('button', { name: 'Gửi' }).click();
@@ -183,10 +194,21 @@ test.describe('copilot scroll', () => {
 
     await sendQuestion(page, 'Tóm tắt công nợ');
     await expect(page.getByRole('button', { name: 'Dừng' })).toBeVisible();
+    // The sent question scrolls the list to its bottom in an effect that may
+    // still be pending; scrolling up before it lands gets overridden.
+    await expect
+      .poll(() =>
+        scroller(page).evaluate(
+          (element) =>
+            element.scrollHeight - element.scrollTop - element.clientHeight,
+        ),
+      )
+      .toBeLessThan(80);
     await scrollToTop(page);
     await expect
       .poll(() => scroller(page).evaluate((element) => element.scrollTop))
       .toBeLessThan(40);
+    await settleScrollEvents(page);
 
     gate.release();
     await expect(page.getByText(answer, { exact: true })).toBeAttached();
